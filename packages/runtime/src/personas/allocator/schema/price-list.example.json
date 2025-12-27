@@ -1,0 +1,44 @@
+{
+  "schema": "agent-kernel/PriceList",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "price-list-example",
+    "runId": "run-example",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "orchestrator",
+    "note": "All prices are denominated in essence."
+  },
+  "sourceRef": "ipfs://bafyexamplecid",
+  "items": [
+    {
+      "key": "health_point",
+      "unitCost": 1,
+      "unit": "essence",
+      "description": "1 point of health"
+    },
+    {
+      "key": "health_regen_per_tick",
+      "unitCost": 10,
+      "unit": "essence",
+      "description": "0.1 health regenerated per tick"
+    },
+    {
+      "key": "actor_spawn",
+      "unitCost": 25,
+      "unit": "essence",
+      "description": "Spawn one actor"
+    },
+    {
+      "key": "move_action",
+      "unitCost": 2,
+      "unit": "essence",
+      "description": "One movement action"
+    },
+    {
+      "key": "attack_action",
+      "unitCost": 5,
+      "unit": "essence",
+      "description": "One attack action"
+    }
+  ]
+}

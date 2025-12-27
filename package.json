@@ -1,0 +1,23 @@
+{
+  "name": "agent-kernel",
+  "version": "1.0.0",
+  "description": "WASM-first simulation kernel built around the **Ports & Adapters** architectural pattern.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "node --test packages/adapters-test/test/*.test.js",
+    "build:wasm": "mkdir -p build && asc packages/core-as/assembly/index.ts -o build/core-as.wasm -t build/core-as.wat --sourceMap --optimize && mkdir -p packages/ui-web/assets && cp build/core-as.wasm packages/ui-web/assets/core-as.wasm"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "assemblyscript": "^0.27.0"
+  }
+}

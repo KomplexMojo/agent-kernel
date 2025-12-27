@@ -1,0 +1,20 @@
+# Node/tooling
+node_modules/
+.pnpm-store/
+.pnp.*
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+build/
+dist/
+coverage/
+*.wasm
+*.wat
+*.map
+
+# Environment/OS
+.DS_Store
+.env
