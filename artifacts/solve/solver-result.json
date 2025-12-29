@@ -1,0 +1,16 @@
+{
+  "schema": "agent-kernel/SolverResult",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "artifact_mjrifxcp_xokaem",
+    "runId": "run_mjrifxcm_mvzikn",
+    "createdAt": "2025-12-29T18:47:17.401Z",
+    "producedBy": "cli-solve"
+  },
+  "requestRef": {
+    "id": "artifact_mjrifxcn_luzlh5",
+    "schema": "agent-kernel/SolverRequest",
+    "schemaVersion": 1
+  },
+  "status": "unknown"
+}

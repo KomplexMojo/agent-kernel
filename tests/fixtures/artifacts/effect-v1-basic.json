@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/Effect",
+  "schemaVersion": 1,
+  "tick": 1,
+  "fulfillment": "deterministic",
+  "kind": "custom",
+  "data": {
+    "note": "example"
+  }
+}

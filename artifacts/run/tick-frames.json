@@ -1,0 +1,110 @@
+[
+  {
+    "schema": "agent-kernel/TickFrame",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "frame_1",
+      "runId": "run_mjrifxeh_rrm0yp",
+      "createdAt": "2025-12-29T18:47:17.466Z",
+      "producedBy": "moderator"
+    },
+    "tick": 0,
+    "phase": "execute",
+    "phaseDetail": "init",
+    "acceptedActions": [],
+    "emittedEffects": [],
+    "fulfilledEffects": []
+  },
+  {
+    "schema": "agent-kernel/TickFrame",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "frame_2",
+      "runId": "run_mjrifxeh_rrm0yp",
+      "createdAt": "2025-12-29T18:47:17.467Z",
+      "producedBy": "moderator"
+    },
+    "tick": 1,
+    "phase": "execute",
+    "phaseDetail": "observe",
+    "acceptedActions": [],
+    "emittedEffects": [],
+    "fulfilledEffects": []
+  },
+  {
+    "schema": "agent-kernel/TickFrame",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "frame_3",
+      "runId": "run_mjrifxeh_rrm0yp",
+      "createdAt": "2025-12-29T18:47:17.467Z",
+      "producedBy": "moderator"
+    },
+    "tick": 1,
+    "phase": "execute",
+    "phaseDetail": "collect",
+    "acceptedActions": [],
+    "emittedEffects": [],
+    "fulfilledEffects": []
+  },
+  {
+    "schema": "agent-kernel/TickFrame",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "frame_4",
+      "runId": "run_mjrifxeh_rrm0yp",
+      "createdAt": "2025-12-29T18:47:17.467Z",
+      "producedBy": "moderator"
+    },
+    "tick": 1,
+    "phase": "execute",
+    "phaseDetail": "apply",
+    "acceptedActions": [],
+    "emittedEffects": [],
+    "fulfilledEffects": []
+  },
+  {
+    "schema": "agent-kernel/TickFrame",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "frame_5",
+      "runId": "run_mjrifxeh_rrm0yp",
+      "createdAt": "2025-12-29T18:47:17.467Z",
+      "producedBy": "moderator"
+    },
+    "tick": 1,
+    "phase": "execute",
+    "phaseDetail": "emit",
+    "acceptedActions": [],
+    "emittedEffects": [
+      {
+        "schema": "agent-kernel/Effect",
+        "schemaVersion": 1,
+        "tick": 1,
+        "fulfillment": "deterministic",
+        "kind": "custom",
+        "data": {
+          "kind": 1,
+          "value": 1
+        }
+      }
+    ],
+    "fulfilledEffects": [
+      {
+        "effect": {
+          "schema": "agent-kernel/Effect",
+          "schemaVersion": 1,
+          "tick": 1,
+          "fulfillment": "deterministic",
+          "kind": "custom",
+          "data": {
+            "kind": 1,
+            "value": 1
+          }
+        },
+        "status": "deferred",
+        "reason": "missing_logger"
+      }
+    ]
+  }
+]

@@ -15,6 +15,18 @@ This repository is intentionally structured to keep the **AssemblyScript WebAsse
 
 ---
 
+## Quick start
+
+```
+pnpm install
+pnpm run build:wasm
+pnpm run serve:ui
+```
+
+Open `http://localhost:8000/packages/ui-web/index.html` (or set `PORT` to override).
+
+---
+
 ## Core vs Personas
 
 **`core-as` (WASM)** is the authoritative simulation engine: it owns canonical state, enforces
@@ -49,10 +61,13 @@ scripts/              Repo maintenance and scaffolding scripts
 
 | Path | Purpose |
 |------|---------|
+| `docs/README.md` | Documentation index (entry point) |
 | `docs/vision-contract.md` | Non-negotiable constraints (browser-runnable, decentralized, API-only IO) |
 | `docs/architecture-charter.md` | Ports & Adapters rules, dependency direction, banned patterns |
+| `docs/architecture/diagram.mmd` | Mermaid architecture overview |
 
 These documents define **architectural law** and are treated as normative.
+Start at `docs/README.md` for the full index.
 
 ---
 
@@ -66,6 +81,16 @@ Required to compile AssemblyScript to WebAssembly and run tests:
 - **Test runner** — `node:test` (built-in) or the project-selected runner.
 
 Runtime requirements: a modern browser only; no server or local installs for end users.
+
+---
+
+## Running tests
+
+```
+node --test "tests/**/*.test.js"
+```
+
+Core/runtime tests expect `build/core-as.wasm` to exist. If it is missing, those tests skip.
 
 ---
 
@@ -176,7 +201,7 @@ Adapters implement ports using concrete environments.
 | Purpose |
 |---------|
 | Browser rendering and input handling |
-| Calls into `runtime`; never calls `core-as` directly |
+| Calls into `runtime` and `bindings-ts` to load `core-as` |
 
 ---
 

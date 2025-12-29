@@ -1,0 +1,15 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "initial_state_missing",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "simConfigRef": {
+    "id": "sim_config_basic",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  }
+}

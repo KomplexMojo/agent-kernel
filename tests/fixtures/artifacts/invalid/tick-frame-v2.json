@@ -1,0 +1,13 @@
+{
+  "schema": "agent-kernel/TickFrame",
+  "schemaVersion": 2,
+  "meta": {
+    "id": "tick_frame_invalid",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "moderator"
+  },
+  "tick": 1,
+  "phase": "execute",
+  "acceptedActions": []
+}

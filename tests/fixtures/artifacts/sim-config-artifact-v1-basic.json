@@ -1,0 +1,49 @@
+{
+  "schema": "agent-kernel/SimConfigArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "sim_config_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "planRef": {
+    "id": "plan_basic",
+    "schema": "agent-kernel/PlanArtifact",
+    "schemaVersion": 1
+  },
+  "budgetReceiptRef": {
+    "id": "budget_receipt_basic",
+    "schema": "agent-kernel/BudgetReceipt",
+    "schemaVersion": 1
+  },
+  "seed": 42,
+  "executionPolicy": {
+    "schema": "agent-kernel/ExecutionPolicy",
+    "schemaVersion": 1,
+    "ordering": "round_robin",
+    "params": {
+      "actorSortKey": "id"
+    }
+  },
+  "flags": {
+    "demo": true
+  },
+  "layout": {
+    "kind": "grid",
+    "data": {
+      "width": 2,
+      "height": 2
+    }
+  },
+  "constraints": {
+    "categoryCaps": {
+      "caps": {
+        "movement": 10
+      }
+    },
+    "limits": {
+      "maxTicks": 5
+    }
+  }
+}

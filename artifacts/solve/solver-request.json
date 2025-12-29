@@ -1,0 +1,26 @@
+{
+  "schema": "agent-kernel/SolverRequest",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "artifact_mjrifxcn_luzlh5",
+    "runId": "run_mjrifxcm_mvzikn",
+    "createdAt": "2025-12-29T18:47:17.399Z",
+    "producedBy": "cli-solve"
+  },
+  "intentRef": null,
+  "planRef": {
+    "id": "plan_basic",
+    "schema": "agent-kernel/PlanArtifact",
+    "schemaVersion": 1
+  },
+  "problem": {
+    "language": "custom",
+    "data": {
+      "planRef": {
+        "id": "plan_basic",
+        "schema": "agent-kernel/PlanArtifact",
+        "schemaVersion": 1
+      }
+    }
+  }
+}

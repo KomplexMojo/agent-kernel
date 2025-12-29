@@ -1,6 +1,6 @@
 # adapters-cli — CLI Adapters
 
-`adapters-cli` provides Node-based command-line tools that implement runtime ports and
+`adapters-cli` provides Node-based command-line tools that exercise runtime artifacts and
 support deterministic workflows (solve, run, replay, inspect). These CLIs are **adapters**:
 they do not contain core simulation logic and they do not mutate `core-as` directly.
 
@@ -11,32 +11,71 @@ This package exists to enable automation, debugging, and batch execution outside
 ## Scope
 
 CLI adapters:
-- Construct runtime artifacts (Intent, Plan, SimConfig, TickFrame, SolverRequest, etc.).
-- Invoke runtime ports and adapters (e.g., solver, telemetry, persistence).
+- Construct runtime artifacts (IntentEnvelope, PlanArtifact, SimConfigArtifact, TickFrame, SolverRequest, etc.).
+- Invoke adapter modules and emit artifacts for ports (e.g., solver, telemetry, persistence).
 - Produce deterministic logs suitable for replay.
 
 They do **not**:
 - Embed simulation rules (those live in `core-as`).
-- Replace personas (they call into runtime and ports, not core directly).
+- Replace personas (they act as a driver and record artifacts for downstream personas).
 
 ---
 
-## Planned CLIs
+## CLI Commands (MVP)
 
 ### `solve`
-Stage a constrained scenario (e.g., "two actors conflict") and call a solver adapter
-to produce a `SolverResult` artifact for downstream personas.
+Stage a constrained scenario (e.g., "two actors conflict") and emit a `SolverRequest`
+artifact plus a placeholder `SolverResult` for downstream personas. Solver adapters
+can be wired in later.
 
 ### `run`
-Execute a configured simulation run using captured artifacts, emitting TickFrame logs.
+Execute a configured simulation run using captured artifacts, emitting TickFrame and
+effect logs plus a minimal RunSummary artifact.
 
 ### `replay`
-Replay a run deterministically from captured inputs and TickFrames without external IO.
+Replay a run deterministically from captured inputs and TickFrames without external IO,
+producing a replay summary and regenerated TickFrames.
 
 ### `inspect`
 Summarize or extract telemetry snapshots for debugging and analysis.
 
+### Adapter demo commands
+These commands exercise the external adapters directly.
+
+- `ipfs`: fetch text/JSON by CID via an HTTP gateway.
+- `blockchain`: fetch chain id and optional balance via JSON-RPC.
+- `ollama`: request a response from an Ollama endpoint.
+
+### Local run
+```
+node packages/adapters-cli/src/cli/ak.mjs <command> [options]
+```
+
+Example usage:
+```
+node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
+node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --tick-frames path/to/tick-frames.json
+node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
+node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
+node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url https://rpc.example --address 0xabc
+node packages/adapters-cli/src/cli/ak.mjs ollama --model llama3 --prompt "Summarize plan"
+
+Fixture-driven usage (no network):
+```
+node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json
+node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
+node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt "hello" --fixture tests/fixtures/adapters/ollama-generate.json
+```
+
 ---
+
+## Configuration
+
+- IPFS: `--gateway` (default: `https://ipfs.io/ipfs`), `--cid`, optional `--path`.
+- Blockchain: `--rpc-url` (required), `--address` (optional for balance).
+- Ollama: `--base-url` (default: `http://localhost:11434`), `--model`, `--prompt`.
+- Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
 
 ## Architectural Intent
 
@@ -55,8 +94,9 @@ for development and batch workflows.
 ## Relationship to Runtime and Core
 
 ```
-cli -> adapters-cli -> runtime -> bindings-ts -> core-as
+cli -> adapters-cli -> core-as (WASM)
 ```
 
-The CLI layer is a **driver**, not a simulator. It orchestrates personas, adapters, and
-artifacts in a deterministic way, enabling reproducible runs and offline analysis.
+The CLI layer is a **driver**, not a simulator. For the MVP it loads WASM directly and
+implements a minimal runner for deterministic outputs; deeper runtime integration can
+follow once the runtime entrypoints are wired for CLI use.

@@ -1,0 +1,55 @@
+{
+  "schema": "agent-kernel/TickFrame",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "tick_frame_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "moderator"
+  },
+  "tick": 1,
+  "phase": "execute",
+  "phaseDetail": "apply",
+  "acceptedActions": [
+    {
+      "schema": "agent-kernel/Action",
+      "schemaVersion": 1,
+      "actorId": "actor_1",
+      "tick": 1,
+      "kind": "wait",
+      "params": {
+        "reason": "idle"
+      }
+    }
+  ],
+  "emittedEffects": [
+    {
+      "schema": "agent-kernel/Effect",
+      "schemaVersion": 1,
+      "tick": 1,
+      "fulfillment": "deterministic",
+      "kind": "custom",
+      "data": {
+        "note": "example"
+      }
+    }
+  ],
+  "fulfilledEffects": [
+    {
+      "effect": {
+        "schema": "agent-kernel/Effect",
+        "schemaVersion": 1,
+        "tick": 1,
+        "fulfillment": "deterministic",
+        "kind": "custom",
+        "data": {
+          "note": "example"
+        }
+      },
+      "status": "fulfilled",
+      "result": {
+        "value": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+# CODEX Configuration - agent-kernel
+# Template: copy into your local Codex config location as needed.
+
+model = "gpt-5.2-codex"
+model_reasoning_effort = "high"
+system_prompt = "./AGENTS.md"
+
+[model_settings]
+temperature = 0.2
+max_tokens = 6000
+context_strategy = "requirements+tests+impl"
+
+[workspace]
+name = "agent-kernel"
+root = "./"
+description = "WASM-first simulation kernel with Ports & Adapters architecture."
+sync_enabled = false
+plan_reference = "Docs index: docs/README.md; active plans in docs/implementation-plans/."
+
+[projects."./"]
+trust_level = "trusted"
+default_shell = "zsh"
+
+[projects."./".tests]
+default = "node --test \"tests/**/*.test.js\""
+ci_safe = true
+test_framework = "node:test"
+
+[runtime]
+cache_context = true
+context_window = 12000
+retain_conversation = true
+summarize_context = true
+logs_dir = "./.codex/logs/"
+temp_dir = "./.codex/tmp/"
+output_dir = "./.codex/output/"
+
+[validation]
+enabled = true
+schema_check = true
+unit_test_on_generate = true
+require_green_tests = false
+
+[versioning]
+codex_version = "1.2.0"
+record_git_diff = true
+last_commit = "manual"

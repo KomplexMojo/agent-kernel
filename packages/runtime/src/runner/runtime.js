@@ -3,7 +3,7 @@ import { dispatchEffect } from "../ports/effects.js";
 
 // Moderator-owned runner module: executes ticks and records execution frames.
 
-export function createRuntime({ core, adapters = {} }) {
+export function createRuntime({ core, adapters = {}, effectFactory } = {}) {
   if (!core) {
     throw new Error("Runtime requires a core instance.");
   }
@@ -36,6 +36,16 @@ export function createRuntime({ core, adapters = {} }) {
     };
   }
 
+  function buildEffectRecord(kind, value) {
+    if (typeof effectFactory === "function") {
+      const customEffect = effectFactory({ tick, kind, value });
+      if (customEffect) {
+        return customEffect;
+      }
+    }
+    return buildEffect(kind, value);
+  }
+
   function flushEffects() {
     const count = core.getEffectCount();
     const fulfilledEffects = [];
@@ -43,8 +53,21 @@ export function createRuntime({ core, adapters = {} }) {
     for (let i = 0; i < count; i += 1) {
       const kind = core.getEffectKind(i);
       const value = core.getEffectValue(i);
-      const effect = buildEffect(kind, value);
-      const outcome = dispatchEffect(adapters, kind, value);
+      const effect = buildEffectRecord(kind, value);
+      let outcome;
+      if (effect?.kind === "need_external_fact") {
+        if (effect.sourceRef) {
+          effect.fulfillment = "deterministic";
+          outcome = { status: "fulfilled", result: { sourceRef: effect.sourceRef } };
+        } else {
+          effect.fulfillment = "deferred";
+          outcome = { status: "deferred", reason: "missing_source_ref" };
+        }
+      } else if (effect?.fulfillment === "deferred") {
+        outcome = { status: "deferred", reason: "deferred_effect" };
+      } else {
+        outcome = dispatchEffect(adapters, kind, value);
+      }
       emittedEffects.push(effect);
       fulfilledEffects.push({
         effect,

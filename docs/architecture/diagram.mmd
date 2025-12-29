@@ -1,0 +1,68 @@
+%% Architecture overview (Ports & Adapters)
+flowchart LR
+  subgraph Interfaces["Interfaces"]
+    UIWeb["ui-web (browser)"]
+    CLI["CLI (ak.mjs)"]
+  end
+
+  subgraph Runtime["Runtime (TypeScript)"]
+    RuntimePorts["runtime ports + runner"]
+    subgraph Personas["Personas"]
+      Orchestrator["Orchestrator: workflow coordination"]
+      Moderator["Moderator: tick execution + effects"]
+      Director["Director: planning + solving"]
+      Actor["Actor: action proposals"]
+      Allocator["Allocator: budget policy"]
+      Annotator["Annotator: observations + telemetry"]
+      Configurator["Configurator: config assembly + validation"]
+    end
+  end
+
+  subgraph Bindings["bindings-ts"]
+    BindingsTS["WASM bindings"]
+  end
+
+  subgraph Core["core-as (WASM)"]
+    CoreEngine["Deterministic core state + rules + effects + render buffers"]
+  end
+
+  subgraph Adapters["Adapters (IO boundary)"]
+    AWeb["adapters-web (ipfs | blockchain | ollama | dom-log)"]
+    ACli["adapters-cli (ipfs | blockchain | ollama | solver-wasm)"]
+    ATest["adapters-test (fixture adapters)"]
+  end
+
+  subgraph External["External Services"]
+    IPFS["IPFS gateway"]
+    Chain["Blockchain JSON-RPC"]
+    LLM["Ollama / LLM"]
+    Storage["Persistence"]
+  end
+
+  UIWeb --> RuntimePorts
+  UIWeb --> BindingsTS
+  UIWeb --> AWeb
+  Orchestrator --> RuntimePorts
+  Moderator --> RuntimePorts
+  Director --> RuntimePorts
+  Actor --> RuntimePorts
+  Allocator --> RuntimePorts
+  Annotator --> RuntimePorts
+  Configurator --> RuntimePorts
+  RuntimePorts --> CoreEngine
+  BindingsTS --> CoreEngine
+
+  CLI --> CoreEngine
+  CLI --> ACli
+
+  RuntimePorts <--> AWeb
+  ATest -.fixtures.-> RuntimePorts
+
+  AWeb --> IPFS
+  AWeb --> Chain
+  AWeb --> LLM
+  AWeb --> Storage
+  ACli --> IPFS
+  ACli --> Chain
+  ACli --> LLM
+  ACli --> Storage

@@ -1,0 +1,72 @@
+const test = require("node:test");
+const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+
+const ipfsModule = moduleUrl("packages/adapters-cli/src/adapters/ipfs/index.js");
+const blockchainModule = moduleUrl("packages/adapters-cli/src/adapters/blockchain/index.js");
+const ollamaModule = moduleUrl("packages/adapters-cli/src/adapters/ollama/index.js");
+const solverModule = moduleUrl("packages/adapters-cli/src/adapters/solver-wasm.js");
+
+const ipfsScript = `
+import assert from "node:assert/strict";
+import { createIpfsAdapter } from ${JSON.stringify(ipfsModule)};
+
+const adapter = createIpfsAdapter({
+  gatewayUrl: "https://example.com/ipfs",
+  fetchFn: async () => ({ ok: true, text: async () => "{}" }),
+});
+assert.equal(adapter.buildUrl("cid", "path"), "https://example.com/ipfs/cid/path");
+
+const failing = createIpfsAdapter({
+  gatewayUrl: "https://example.com/ipfs",
+  fetchFn: async () => ({ ok: false, status: 404, statusText: "Not Found" }),
+});
+await assert.rejects(() => failing.fetchJson("cid"), /IPFS fetch failed/);
+`;
+
+const blockchainScript = `
+import assert from "node:assert/strict";
+import { createBlockchainAdapter } from ${JSON.stringify(blockchainModule)};
+
+assert.throws(() => createBlockchainAdapter({}), /rpcUrl/);
+
+const adapter = createBlockchainAdapter({
+  rpcUrl: "http://rpc.local",
+  fetchFn: async () => ({ ok: false, status: 500, statusText: "Boom" }),
+});
+await assert.rejects(() => adapter.getBalance("0x123"), /RPC call failed/);
+`;
+
+const ollamaScript = `
+import assert from "node:assert/strict";
+import { createOllamaAdapter } from ${JSON.stringify(ollamaModule)};
+
+const adapter = createOllamaAdapter({
+  baseUrl: "http://localhost:11434",
+  fetchFn: async () => ({ ok: false, status: 503, statusText: "Down" }),
+});
+await assert.rejects(() => adapter.generate({ model: "m", prompt: "p" }), /Ollama request failed/);
+`;
+
+const solverScript = `
+import assert from "node:assert/strict";
+import { createWasmSolverAdapter } from ${JSON.stringify(solverModule)};
+
+const adapter = await createWasmSolverAdapter();
+await assert.rejects(() => adapter.solve({}), /No solver implementation provided/);
+`;
+
+test("cli ipfs adapter handles URL build and errors", () => {
+  runEsm(ipfsScript);
+});
+
+test("cli blockchain adapter handles errors", () => {
+  runEsm(blockchainScript);
+});
+
+test("cli ollama adapter handles errors", () => {
+  runEsm(ollamaScript);
+});
+
+test("cli solver adapter errors without solver", () => {
+  runEsm(solverScript);
+});

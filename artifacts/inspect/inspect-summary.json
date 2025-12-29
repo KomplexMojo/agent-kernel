@@ -1,0 +1,29 @@
+{
+  "schema": "agent-kernel/TelemetryRecord",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "artifact_mjrifxi0_pre1tn",
+    "runId": "run_mjrifxeh_rrm0yp",
+    "createdAt": "2025-12-29T18:47:17.592Z",
+    "producedBy": "cli-inspect"
+  },
+  "scope": "run",
+  "data": {
+    "frames": 5,
+    "ticks": 1,
+    "phaseCounts": {
+      "init": 1,
+      "observe": 1,
+      "collect": 1,
+      "apply": 1,
+      "emit": 1
+    },
+    "effects": {
+      "emitted": 1,
+      "fulfilled": 0,
+      "deferred": 1,
+      "logEntries": 1
+    },
+    "warnings": []
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "agent-kernel/IntentEnvelope",
+  "schemaVersion": 2,
+  "meta": {
+    "id": "intent_invalid",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "source": "cli",
+  "intent": {
+    "goal": "invalid version"
+  }
+}

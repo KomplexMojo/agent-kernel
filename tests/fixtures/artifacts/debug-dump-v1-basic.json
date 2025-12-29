@@ -1,0 +1,9 @@
+{
+  "schema": "agent-kernel/DebugDump",
+  "schemaVersion": 1,
+  "tick": 1,
+  "state": {
+    "raw": "opaque"
+  },
+  "warning": "debug_only_not_for_replay"
+}

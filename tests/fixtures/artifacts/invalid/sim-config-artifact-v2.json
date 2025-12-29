@@ -1,0 +1,23 @@
+{
+  "schema": "agent-kernel/SimConfigArtifact",
+  "schemaVersion": 2,
+  "meta": {
+    "id": "sim_config_invalid",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "planRef": {
+    "id": "plan_basic",
+    "schema": "agent-kernel/PlanArtifact",
+    "schemaVersion": 1
+  },
+  "seed": 42,
+  "layout": {
+    "kind": "grid",
+    "data": {
+      "width": 1,
+      "height": 1
+    }
+  }
+}

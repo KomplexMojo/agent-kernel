@@ -27,6 +27,19 @@ The responsibility of `core-as` is intentionally narrow:
 
 Everything else — external interaction, intent formation, planning, configuration, budgeting policy, **execution sequencing**, telemetry aggregation, formatting, and IO — lives outside the core.
 
+## Build and Use
+
+```
+pnpm run build:wasm
+```
+
+Load the resulting `build/core-as.wasm` via `packages/bindings-ts` or the runtime runner.
+
+## Configuration
+
+- No environment variables or runtime config are read directly by `core-as`.
+- All inputs are provided via artifacts and bindings calls.
+
 ---
 
 ## What Belongs in core-as

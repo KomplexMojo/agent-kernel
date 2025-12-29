@@ -1,0 +1,25 @@
+{
+  "schema": "agent-kernel/BudgetRequest",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "budget_request_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "planRef": {
+    "id": "plan_basic",
+    "schema": "agent-kernel/PlanArtifact",
+    "schemaVersion": 1
+  },
+  "proposal": {
+    "actorCount": 1,
+    "layoutComplexity": 1
+  },
+  "requestedCaps": {
+    "caps": {
+      "movement": 10
+    }
+  },
+  "rationale": "Minimal fixture request"
+}

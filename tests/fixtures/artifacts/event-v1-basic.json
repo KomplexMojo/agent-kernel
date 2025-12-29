@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/Event",
+  "schemaVersion": 1,
+  "tick": 1,
+  "kind": "action_applied",
+  "actorId": "actor_1",
+  "data": {
+    "action": "wait"
+  }
+}
