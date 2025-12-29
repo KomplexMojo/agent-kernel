@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaState",
+  "schemaVersion": 1,
+  "persona": "director",
+  "state": "uninitialized",
+  "meta": {
+    "createdAt": "stub",
+    "note": "Basic director state fixture"
+  }
+}
