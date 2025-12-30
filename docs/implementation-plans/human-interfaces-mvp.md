@@ -30,9 +30,9 @@ Goal: ship runnable, human-facing MVPs for both CLI and web UI that exercise the
    - If UI/CLI behavior or flags change, update `packages/adapters-cli/README.md` and `docs/architecture/diagram.mmd` only if new flows alter boundaries; otherwise keep architecture unchanged. Keep `docs/human-interfaces.md` and README examples aligned with `ak.mjs --help`.
 
 ## Exit criteria
-- `pnpm run build:wasm` followed by the demo script produces artifact bundles for solve/run/replay/inspect and fixture-backed adapter calls without network access.
-- `pnpm run serve:ui` loads a page where a user can step/reset the runtime counter and trigger adapter calls (fixture-backed by default) with visible results/errors.
-- Automated tests cover the demo CLI flows and adapter playground helpers; UI smoke tests skip gracefully when WASM is missing.
+- `pnpm run build:wasm` followed by the demo script (`pnpm run demo:cli`) produces artifact bundles for solve/run/replay/inspect and fixture-backed adapter calls without network access (artifacts under `artifacts/demo-bundle` by default).
+- `pnpm run serve:ui` loads a page where a user can step/reset the runtime counter and trigger adapter calls (fixture-backed by default) with visible results/errors, and can clear/reset the adapter panel without affecting the counter/effect log.
+- Automated tests cover the demo CLI flows and adapter playground helpers; UI smoke tests skip gracefully when WASM is missing and run with fixtures otherwise.
 
 ## TODO
 - Consider renaming the CLI `ollama` command/adapter to `llm` for consistency; if done, update `ak.mjs`, tests, fixtures, and docs together.

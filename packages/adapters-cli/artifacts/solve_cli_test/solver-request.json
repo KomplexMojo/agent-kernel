@@ -2,9 +2,9 @@
   "schema": "agent-kernel/SolverRequest",
   "schemaVersion": 1,
   "meta": {
-    "id": "artifact_mjswb9bg_0xt5ry",
-    "runId": "run_mjswb9bg_ydkv5s",
-    "createdAt": "2025-12-30T18:03:20.428Z",
+    "id": "artifact_mjsy2cmt_rc93qb",
+    "runId": "run_mjsy2cmt_xrxu6i",
+    "createdAt": "2025-12-30T18:52:24.053Z",
     "producedBy": "cli-solve"
   },
   "intentRef": null,
