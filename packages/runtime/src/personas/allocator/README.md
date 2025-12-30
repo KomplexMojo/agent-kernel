@@ -79,6 +79,11 @@ This allows budget enforcement to be compared across runs and environments.
 
 ---
 
+## State machine & phases
+- States: idle → budgeting → allocating → monitoring → rebalancing.
+- Subscribed tick phases: observe, decide.
+- Outputs: budget policies/receipts as data; no IO or direct state mutation.
+
 ## Relationship to core-as
 
 The Allocator does **not**:

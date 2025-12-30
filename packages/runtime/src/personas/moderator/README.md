@@ -58,6 +58,11 @@ and produces authoritative outcomes (accepted, rejected, or state-changing).
 
 In short:
 - The Moderator decides **when and in what order** actions are applied.
+
+## State machine & phases
+- States: initializing → ticking → pausing → stopping.
+- Subscribed tick phases: all (init, observe, decide, apply, emit, summarize).
+- Outputs: ordered actions and execution records (data-only); IO stays at adapters.
 - `core-as` decides **what happens** when each ordered action is applied.
 
 ---

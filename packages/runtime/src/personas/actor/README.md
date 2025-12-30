@@ -80,3 +80,8 @@ This separation ensures that:
 - The Actor persona remains focused on **intent and choice**, not simulation mechanics.
 
 Actors are therefore modeled as **decision-makers layered on top of a deterministic simulation**, with responsibilities placed deliberately to support long-term evolution and experimentation.
+
+## State machine & phases
+- States: idle → observing → deciding → proposing → cooldown.
+- Subscribed tick phases: observe, decide (ignores others).
+- Outputs: proposed actions only (data); no IO or simulation mutation.

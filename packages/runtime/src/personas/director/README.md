@@ -58,6 +58,11 @@ The Director ensures that:
 
 Feasibility, cost, and validation are delegated to other personas.
 
+## State machine & phases
+- States: uninitialized → intake → draft_plan → refine → ready → stale.
+- Subscribed tick phases: decide (ignores other phases).
+- Outputs: data-only planning artifacts; no IO and no direct state mutation.
+
 ---
 
 ## Determinism and Replay

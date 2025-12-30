@@ -79,6 +79,11 @@ The Annotator does **not**:
 - Influence actor decisions or allocations.
 - Access simulation internals beyond exposed events and snapshots.
 
+## State machine & phases
+- States: idle → recording → summarizing → idle.
+- Subscribed tick phases: emit, summarize.
+- Outputs: telemetry records/summaries (data-only); no IO or feedback into decisions.
+
 `core-as` is the authoritative source of truth for what occurred.  
 The Annotator is responsible only for **describing that truth**.
 

@@ -129,3 +129,8 @@ This separation ensures that:
 - Determinism and replayability are preserved even in highly asynchronous environments.
 
 The Orchestrator is therefore a **boundary guardian**, responsible for safely interfacing the simulation with the outside world while keeping the inner system pure.
+
+## State machine & phases
+- States: idle → planning → running/replaying → completed/errored.
+- Subscribed tick phases: observe, decide, emit.
+- Outputs: routed intents/requests as data; no direct IO during execution phases.

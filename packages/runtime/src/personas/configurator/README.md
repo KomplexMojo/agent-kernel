@@ -79,6 +79,11 @@ Instead, it supplies:
 - Configuration flags and constraints.
 - Static artifacts consumed by the simulation core at startup.
 
+## State machine & phases
+- States: uninitialized → pending_config → configured → locked.
+- Subscribed tick phases: init, observe.
+- Outputs: configuration artifacts/refs (data-only); no IO or runtime mutation.
+
 `core-as` enforces all rules and transitions based on the provided configuration.
 
 ---
