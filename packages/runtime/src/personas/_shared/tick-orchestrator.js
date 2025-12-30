@@ -7,6 +7,8 @@ export function createTickOrchestrator({
   onActions = () => {},
   debug = false,
   logger = null,
+  solverPort = null,
+  solverAdapter = null,
 } = {}) {
   const fsm = createTickStateMachine({ clock, debug, logger });
   const personas = new Map();
@@ -40,7 +42,29 @@ export function createTickOrchestrator({
     };
   }
 
-  function stepPhase(event, payload = {}) {
+  async function handleSolverRequests(effects, tickValue) {
+    if (!Array.isArray(effects) || effects.length === 0) {
+      return { results: [], fulfilled: [] };
+    }
+    const requests = effects.filter((effect) => effect?.kind === "solver_request" && effect.request);
+    if (requests.length === 0) {
+      return { results: [], fulfilled: [] };
+    }
+    const results = [];
+    const fulfilled = [];
+    for (const entry of requests) {
+      if (solverPort && solverAdapter) {
+        const res = await solverPort.solve(solverAdapter, entry.request);
+        results.push(res);
+        fulfilled.push({ status: res.status || "fulfilled", result: res, tick: tickValue });
+      } else {
+        fulfilled.push({ status: "deferred", reason: "missing_solver", tick: tickValue });
+      }
+    }
+    return { results, fulfilled };
+  }
+
+  async function stepPhase(event, payload = {}) {
     const tickResult = fsm.advance(event, payload);
     const phase = tickResult.phase;
     const currentTick = tickResult.tick;
@@ -75,6 +99,9 @@ export function createTickOrchestrator({
       }
     }
 
+    // Handle solver requests emitted by personas
+    const solverOutcome = await handleSolverRequests(effects, currentTick);
+
     if (actions.length) {
       onActions(actions);
     }
@@ -86,6 +113,8 @@ export function createTickOrchestrator({
       actions,
       effects,
       telemetry,
+      solverResults: solverOutcome.results,
+      solverFulfilled: solverOutcome.fulfilled,
     };
 
     history.push(record);

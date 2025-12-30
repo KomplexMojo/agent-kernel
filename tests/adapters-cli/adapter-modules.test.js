@@ -4,7 +4,7 @@ const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 const ipfsModule = moduleUrl("packages/adapters-cli/src/adapters/ipfs/index.js");
 const blockchainModule = moduleUrl("packages/adapters-cli/src/adapters/blockchain/index.js");
 const ollamaModule = moduleUrl("packages/adapters-cli/src/adapters/ollama/index.js");
-const solverModule = moduleUrl("packages/adapters-cli/src/adapters/solver-wasm.js");
+const solverModule = moduleUrl("packages/adapters-cli/src/adapters/solver-z3/index.js");
 
 const ipfsScript = `
 import assert from "node:assert/strict";
@@ -49,10 +49,11 @@ await assert.rejects(() => adapter.generate({ model: "m", prompt: "p" }), /Ollam
 
 const solverScript = `
 import assert from "node:assert/strict";
-import { createWasmSolverAdapter } from ${JSON.stringify(solverModule)};
+import { createSolverAdapter } from ${JSON.stringify(solverModule)};
 
-const adapter = await createWasmSolverAdapter();
-await assert.rejects(() => adapter.solve({}), /No solver implementation provided/);
+const adapter = createSolverAdapter({});
+const result = await adapter.solve({ meta: { id: "test" } });
+assert.equal(result.status, "fulfilled");
 `;
 
 test("cli ipfs adapter handles URL build and errors", () => {

@@ -1,0 +1,16 @@
+{
+  "schema": "agent-kernel/SolverRequest",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "artifact_mjsuvr13_y1fe2d",
+    "runId": "run_mjsuvr13_nofra4",
+    "createdAt": "2025-12-30T17:23:17.271Z",
+    "producedBy": "cli-solve"
+  },
+  "intentRef": null,
+  "planRef": null,
+  "problem": {
+    "language": "custom",
+    "data": "test"
+  }
+}

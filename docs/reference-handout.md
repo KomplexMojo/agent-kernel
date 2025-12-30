@@ -155,3 +155,4 @@ stateDiagram-v2
 - Deterministic artifact stamping/clock flags across CLI/runtime.
 - Expanded inspect/HTML reporting.
 - Per-persona README/state notes (only some personas currently have detailed docs).
+- Solver adapter/port wiring into Director/Configurator/Allocator personas for plan validation (stubbed adapters exist; no real solver integration yet).

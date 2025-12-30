@@ -23,11 +23,16 @@ export function createModeratorPersona({ initialState = ModeratorStates.INITIALI
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }
     const result = fsm.advance(event, payload);
+    const effects = [];
+    if (payload.solverRequest) {
+      effects.push({ kind: "solver_request", request: payload.solverRequest });
+      result.context = { ...result.context, lastSolverRequest: payload.solverRequest };
+    }
     return {
       ...result,
       tick,
       actions: [],
-      effects: [],
+      effects,
       telemetry: null,
     };
   }

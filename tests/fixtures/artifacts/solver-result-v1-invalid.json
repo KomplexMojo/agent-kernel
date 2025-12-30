@@ -2,18 +2,15 @@
   "schema": "agent-kernel/SolverResult",
   "schemaVersion": 1,
   "meta": {
-    "id": "v1-basic",
+    "id": "solver_result_invalid",
     "runId": "run_fixture",
     "createdAt": "2025-01-01T00:00:00.000Z",
     "producedBy": "fixture"
   },
   "requestRef": {
-    "id": "solver_request_basic",
+    "id": "solver_request_invalid",
     "schema": "agent-kernel/SolverRequest",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
-  "status": "unknown",
-  "model": {
-    "plan": "placeholder"
-  }
+  "status": "fulfilled"
 }

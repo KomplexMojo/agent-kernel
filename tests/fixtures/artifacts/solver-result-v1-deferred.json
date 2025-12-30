@@ -2,7 +2,7 @@
   "schema": "agent-kernel/SolverResult",
   "schemaVersion": 1,
   "meta": {
-    "id": "v1-basic",
+    "id": "v1-deferred",
     "runId": "run_fixture",
     "createdAt": "2025-01-01T00:00:00.000Z",
     "producedBy": "fixture"
@@ -12,8 +12,6 @@
     "schema": "agent-kernel/SolverRequest",
     "schemaVersion": 1
   },
-  "status": "unknown",
-  "model": {
-    "plan": "placeholder"
-  }
+  "status": "deferred",
+  "reason": "offline"
 }

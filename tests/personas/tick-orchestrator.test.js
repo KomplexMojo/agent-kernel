@@ -8,10 +8,12 @@ const orchestratorModule = moduleUrl("packages/runtime/src/personas/_shared/tick
 const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/tick-orchestrator-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/tick-orchestrator-guards.json"), "utf8"));
+const solverPortModule = moduleUrl("packages/runtime/src/ports/solver.js");
 
 const happyScript = `
 import assert from "node:assert/strict";
 import { createTickOrchestrator } from ${JSON.stringify(orchestratorModule)};
+import { createSolverPort } from ${JSON.stringify(solverPortModule)};
 import { TickPhases } from ${JSON.stringify(tickModule)};
 
 const fixture = ${JSON.stringify(happyFixture)};
@@ -26,29 +28,35 @@ const stubPersona = {
   advance({ phase, event, tick }) {
     this.state = "ready";
     const actions = event ? [{ kind: "action", from: "stub", tick, phase }] : [];
+    const effects = event ? [{ kind: "solver_request", request: { id: "req", meta: { id: "req" } } }] : [];
     return {
       state: this.state,
       context: { lastEvent: event, phase },
       actions,
-      effects: [],
+      effects,
       telemetry: null,
     };
   },
 };
 
-const orchestrator = createTickOrchestrator({ clock: () => "fixed", onActions: (acts) => appliedActions.push(...acts) });
+const solverPort = createSolverPort({ clock: () => "fixed" });
+const solverAdapter = { async solve(request) { return { status: "fulfilled", request, meta: { id: "res", runId: "run", createdAt: "fixed" } }; } };
+const orchestrator = createTickOrchestrator({ clock: () => "fixed", onActions: (acts) => appliedActions.push(...acts), solverPort, solverAdapter });
 orchestrator.registerPersona("stub", stubPersona);
 
-fixture.sequence.forEach((entry) => {
-  const result = orchestrator.stepPhase(entry.event, {});
+for (const entry of fixture.sequence) {
+  const result = await orchestrator.stepPhase(entry.event, {});
   assert.equal(result.phase, entry.expect.phase);
   assert.equal(result.tick, entry.expect.tick);
   assert.equal(result.actions.length, entry.expect.actions);
+  if (entry.expect.solverResults !== undefined) {
+    assert.equal(result.solverResults.length, entry.expect.solverResults);
+  }
   if (entry.expect.actions > 0) {
     assert.equal(appliedActions.length, entry.expect.actions);
     assert.equal(result.personaViews.stub.state, "ready");
   }
-});
+}
 `;
 
 const guardScript = `
@@ -60,7 +68,7 @@ const orchestrator = createTickOrchestrator({ clock: () => "fixed" });
 
 let threw = false;
 try {
-  orchestrator.stepPhase(fixture.sequence[0].event, {});
+  await orchestrator.stepPhase(fixture.sequence[0].event, {});
 } catch (err) {
   threw = true;
   assert.match(err.message, /No transition/);

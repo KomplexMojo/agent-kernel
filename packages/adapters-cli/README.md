@@ -25,8 +25,7 @@ They do **not**:
 
 ### `solve`
 Stage a constrained scenario (e.g., "two actors conflict") and emit a `SolverRequest`
-artifact plus a placeholder `SolverResult` for downstream personas. Solver adapters
-can be wired in later.
+artifact plus a `SolverResult` using a stubbed/fixture-driven solver adapter (no network).
 
 ### `run`
 Execute a configured simulation run using captured artifacts, emitting TickFrame and
@@ -60,12 +59,14 @@ node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-fra
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url https://rpc.example --address 0xabc
 node packages/adapters-cli/src/cli/ak.mjs ollama --model llama3 --prompt "Summarize plan"
+node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 
 Fixture-driven usage (no network):
 ```
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
 node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt "hello" --fixture tests/fixtures/adapters/ollama-generate.json
+node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 ```
 
 ---

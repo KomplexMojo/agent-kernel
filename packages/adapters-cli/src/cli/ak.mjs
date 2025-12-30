@@ -52,6 +52,7 @@ Options:
   --wasm          Path to core-as WASM (default: ${DEFAULT_WASM_PATH})
   --ticks         Number of ticks for run/replay (default: ${DEFAULT_TICKS})
   --seed          Seed for init (default: 0)
+  --solver-fixture Fixture path for solve command (no network)
   --help          Show this help
 `;
 }
@@ -387,6 +388,7 @@ async function solveCommand(argv) {
   const optionsPath = resolvePath(args.options);
   const outDir = resolvePath(args["out-dir"]) || defaultOutDir("solve");
   const runId = args["run-id"] || makeId("run");
+  const solverFixturePath = resolvePath(args["solver-fixture"]);
 
   let scenarioData = scenario;
   if (!scenarioData && scenarioFile) {
@@ -426,13 +428,15 @@ async function solveCommand(argv) {
     options: options || undefined,
   };
 
-  const solverResult = {
-    schema: SCHEMAS.solverResult,
-    schemaVersion: 1,
-    meta: createMeta({ producedBy: "cli-solve", runId }),
-    requestRef: toRef(solverRequest),
-    status: "unknown",
-  };
+  const { createSolverAdapter } = await import("../adapters/solver-z3/index.js");
+  const solverAdapter = createSolverAdapter({ fixturePath: solverFixturePath });
+  const solverResult = await solverAdapter.solve(solverRequest);
+  if (!solverResult.meta) {
+    solverResult.meta = createMeta({ producedBy: "cli-solve", runId });
+  }
+  solverResult.schema = solverResult.schema || SCHEMAS.solverResult;
+  solverResult.schemaVersion = solverResult.schemaVersion || 1;
+  solverResult.requestRef = solverResult.requestRef || toRef(solverRequest);
 
   await writeJson(join(outDir, "solver-request.json"), solverRequest);
   await writeJson(join(outDir, "solver-result.json"), solverResult);

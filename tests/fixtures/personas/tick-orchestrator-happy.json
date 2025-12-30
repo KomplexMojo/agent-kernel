@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "sequence": [
     { "event": "observe", "expect": { "phase": "observe", "tick": 0, "actions": 0 } },
-    { "event": "decide", "expect": { "phase": "decide", "tick": 0, "actions": 1 } },
+    { "event": "decide", "expect": { "phase": "decide", "tick": 0, "actions": 1, "solverResults": 1 } },
     { "event": "apply", "expect": { "phase": "apply", "tick": 0, "actions": 0 } },
     { "event": "emit", "expect": { "phase": "emit", "tick": 0, "actions": 0 } },
     { "event": "summarize", "expect": { "phase": "summarize", "tick": 0, "actions": 0 } },

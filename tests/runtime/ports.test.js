@@ -48,20 +48,23 @@ assert.equal(logs[0], 2);
 
 const solverScript = `
 import assert from "node:assert/strict";
-import { solveWithAdapter } from ${JSON.stringify(solverModule)};
+import { createSolverPort } from ${JSON.stringify(solverModule)};
 
 const adapter = {
   async solve(request) {
-    return { request, status: "ok" };
+    return { request, status: "fulfilled" };
   }
 };
 
-const request = { meta: { runId: "run_test", correlationId: "corr" } };
-const result = await solveWithAdapter(adapter, request);
-assert.equal(result.status, "ok");
+const request = { meta: { runId: "run_test", correlationId: "corr", id: "solver_req" } };
+const solver = createSolverPort({ clock: () => "fixed-time" });
+const result = await solver.solve(adapter, request);
+assert.equal(result.status, "fulfilled");
 assert.ok(result.meta);
 assert.equal(result.meta.runId, "run_test");
 assert.equal(result.meta.correlationId, "corr");
+assert.equal(result.meta.id, "solver_req");
+assert.equal(result.meta.createdAt, "fixed-time");
 `;
 
 test("applyBudgetCaps applies known caps", () => {
@@ -72,6 +75,6 @@ test("dispatchEffect handles log path", () => {
   runEsm(effectsScript);
 });
 
-test("solveWithAdapter populates meta", () => {
+test("solver port populates meta", () => {
   runEsm(solverScript);
 });
