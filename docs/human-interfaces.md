@@ -24,7 +24,7 @@ node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 # Adapter demos (fixture)
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
-node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt "hello" --fixture tests/fixtures/adapters/ollama-generate.json
+node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
 ```
 Bundle all demos at once:
 ```

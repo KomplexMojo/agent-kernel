@@ -11,9 +11,9 @@ It is intended for Orchestrator/Director workflows and never used inside `core-a
 ## Usage
 
 ```
-import { createOllamaAdapter } from "./index.js";
+import { createLlmAdapter } from "./index.js";
 
-const llm = createOllamaAdapter({ baseUrl: "http://localhost:11434" });
+const llm = createLlmAdapter({ baseUrl: "http://localhost:11434" });
 const response = await llm.generate({ model: "llama3", prompt: "Summarize plan" });
 ```
 

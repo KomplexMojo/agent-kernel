@@ -19,7 +19,7 @@ INITIAL_STATE="$ROOT/tests/fixtures/artifacts/initial-state-artifact-v1-basic.js
 IPFS_FIXTURE="$ROOT/tests/fixtures/adapters/ipfs-price-list.json"
 CHAIN_FIXTURE="$ROOT/tests/fixtures/adapters/blockchain-chain-id.json"
 BALANCE_FIXTURE="$ROOT/tests/fixtures/adapters/blockchain-balance.json"
-LLM_FIXTURE="$ROOT/tests/fixtures/adapters/ollama-generate.json"
+LLM_FIXTURE="$ROOT/tests/fixtures/adapters/llm-generate.json"
 
 echo "Writing demo artifacts to $OUT_DIR"
 
@@ -57,10 +57,10 @@ node "$CLI" blockchain \
   --fixture-balance "$BALANCE_FIXTURE" \
   --out-dir "$OUT_DIR/blockchain"
 
-node "$CLI" ollama \
+node "$CLI" llm \
   --model "fixture" \
   --prompt "hello" \
   --fixture "$LLM_FIXTURE" \
-  --out-dir "$OUT_DIR/ollama"
+  --out-dir "$OUT_DIR/llm"
 
 echo "Demo artifacts ready under $OUT_DIR"

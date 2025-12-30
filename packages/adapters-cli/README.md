@@ -43,7 +43,7 @@ These commands exercise the external adapters directly.
 
 - `ipfs`: fetch text/JSON by CID via an HTTP gateway.
 - `blockchain`: fetch chain id and optional balance via JSON-RPC.
-- `ollama`: request a response from an LLM endpoint (Ollama/OpenAI-compatible HTTP API).
+- `llm` (alias: `ollama`): request a response from an LLM endpoint (Ollama/OpenAI-compatible HTTP API).
 
 ### Local run
 ```
@@ -58,20 +58,20 @@ node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config
 node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url https://rpc.example --address 0xabc
-node packages/adapters-cli/src/cli/ak.mjs ollama --model llama3 --prompt "Summarize plan"
+node packages/adapters-cli/src/cli/ak.mjs llm --model llama3 --prompt "Summarize plan"
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 
 Fixture-driven usage (no network):
 ```
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
-node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt "hello" --fixture tests/fixtures/adapters/ollama-generate.json
+node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 ```
 Expected outputs (defaults when `--out-dir` is set):
 - ipfs: `ipfs.json`
 - blockchain: `blockchain.json`
-- ollama: `ollama.json`
+- llm: `llm.json`
 - solve: `solver-request.json`, `solver-result.json`
 
 ---

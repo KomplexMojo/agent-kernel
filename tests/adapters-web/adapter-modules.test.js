@@ -3,7 +3,7 @@ const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const ipfsModule = moduleUrl("packages/adapters-web/src/adapters/ipfs/index.js");
 const blockchainModule = moduleUrl("packages/adapters-web/src/adapters/blockchain/index.js");
-const ollamaModule = moduleUrl("packages/adapters-web/src/adapters/ollama/index.js");
+const llmModule = moduleUrl("packages/adapters-web/src/adapters/llm/index.js");
 
 const ipfsScript = `
 import assert from "node:assert/strict";
@@ -39,17 +39,17 @@ const adapter = createBlockchainAdapter({
 await assert.rejects(() => adapter.getChainId(), /nope/);
 `;
 
-const ollamaScript = `
+const llmScript = `
 import assert from "node:assert/strict";
-import { createOllamaAdapter } from ${JSON.stringify(ollamaModule)};
+import { createLlmAdapter } from ${JSON.stringify(llmModule)};
 
-const adapter = createOllamaAdapter({
+const adapter = createLlmAdapter({
   baseUrl: "http://localhost:11434",
   fetchFn: async () => ({ ok: false, status: 500, statusText: "Down" }),
 });
 
 await assert.rejects(() => adapter.generate({ model: "m", prompt: "p" }), /LLM request failed/);
-assert.throws(() => createOllamaAdapter({ fetchFn: null }), /fetch implementation/);
+assert.throws(() => createLlmAdapter({ fetchFn: null }), /fetch implementation/);
 await assert.rejects(() => adapter.generate({ model: "m" }), /model and prompt/);
 `;
 
@@ -61,6 +61,6 @@ test("blockchain adapter validates inputs and handles RPC errors", () => {
   runEsm(blockchainScript);
 });
 
-test("ollama adapter validates inputs and handles HTTP errors", () => {
-  runEsm(ollamaScript);
+test("llm adapter validates inputs and handles HTTP errors", () => {
+  runEsm(llmScript);
 });

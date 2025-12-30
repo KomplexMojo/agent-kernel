@@ -1,13 +1,13 @@
 import { createIpfsAdapter } from "../../adapters-web/src/adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../../adapters-web/src/adapters/blockchain/index.js";
-import { createOllamaAdapter } from "../../adapters-web/src/adapters/ollama/index.js";
+import { createLlmAdapter } from "../../adapters-web/src/adapters/llm/index.js";
 import { createWebSolverAdapter } from "../../adapters-web/src/adapters/solver/index.js";
 
 export const DEFAULT_FIXTURES = Object.freeze({
   ipfs: "/tests/fixtures/adapters/ipfs-price-list.json",
   blockchainChainId: "/tests/fixtures/adapters/blockchain-chain-id.json",
   blockchainBalance: "/tests/fixtures/adapters/blockchain-balance.json",
-  llm: "/tests/fixtures/adapters/ollama-generate.json",
+  llm: "/tests/fixtures/adapters/llm-generate.json",
   solverResult: "/tests/fixtures/artifacts/solver-result-v1-basic.json",
 });
 
@@ -94,7 +94,7 @@ export async function runLlmDemo({
     const payload = fixtureResponse || (await loadFixtureJson(fixturePath));
     effectiveFetch = async () => ({ ok: true, json: async () => payload });
   }
-  const adapter = createOllamaAdapter({ baseUrl, fetchFn: effectiveFetch });
+  const adapter = createLlmAdapter({ baseUrl, fetchFn: effectiveFetch });
   return adapter.generate({ model, prompt, stream: false });
 }
 

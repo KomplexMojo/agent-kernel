@@ -19,14 +19,14 @@ stored in the repo.
        - `packages/adapters-cli/README.md`
        - `packages/adapters-cli/src/adapters/ipfs/README.md`
        - `packages/adapters-cli/src/adapters/blockchain/README.md`
-      - `packages/adapters-cli/src/adapters/ollama/README.md`
+       - `packages/adapters-cli/src/adapters/llm/README.md`
        - `packages/adapters-web/src/adapters/ipfs/README.md`
        - `packages/adapters-web/src/adapters/blockchain/README.md`
-      - `packages/adapters-web/src/adapters/ollama/README.md`
+       - `packages/adapters-web/src/adapters/llm/README.md`
        - `packages/adapters-test/README.md`
        - `packages/adapters-test/src/adapters/ipfs/README.md`
        - `packages/adapters-test/src/adapters/blockchain/README.md`
-      - `packages/adapters-test/src/adapters/ollama/README.md`
+       - `packages/adapters-test/src/adapters/llm/README.md`
        - `packages/core-as/assembly/README.md`
        - `packages/core-as/assembly/ports/README.md`
        - `packages/runtime/src/personas/actor/README.md`

@@ -9,7 +9,7 @@ const FILES = [
   "packages/adapters-cli/src/adapters/solver-wasm.js",
   "packages/adapters-cli/src/adapters/ipfs/index.js",
   "packages/adapters-cli/src/adapters/blockchain/index.js",
-  "packages/adapters-cli/src/adapters/ollama/index.js",
+  "packages/adapters-cli/src/adapters/llm/index.js",
 ];
 
 test("adapters-cli entrypoints exist", () => {

@@ -1,4 +1,4 @@
-export function createOllamaAdapter({ baseUrl = "http://localhost:11434", fetchFn = fetch } = {}) {
+export function createLlmAdapter({ baseUrl = "http://localhost:11434", fetchFn = fetch } = {}) {
   if (!fetchFn) {
     throw new Error("LLM adapter requires a fetch implementation.");
   }

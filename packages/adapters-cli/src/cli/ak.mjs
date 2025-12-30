@@ -4,7 +4,7 @@ import { resolve, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
-import { createOllamaAdapter } from "../adapters/ollama/index.js";
+import { createLlmAdapter } from "../adapters/llm/index.js";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
@@ -44,7 +44,7 @@ function usage() {
   node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} blockchain --rpc-url url [--address addr] [--fixture-chain-id path] [--fixture-balance path] [--out path] [--out-dir dir]
-  node ${rel} ollama --model model --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
+  node ${rel} llm --model model --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/<command>_<timestamp>)
@@ -766,7 +766,7 @@ async function blockchainCommand(argv) {
   console.log(`blockchain: wrote ${outPath}`);
 }
 
-async function ollamaCommand(argv) {
+async function llmCommand(argv) {
   const args = parseArgs(argv);
   if (args.help) {
     console.log(usage());
@@ -776,11 +776,11 @@ async function ollamaCommand(argv) {
   const prompt = args.prompt;
   const baseUrl = args["base-url"] || "http://localhost:11434";
   const fixturePath = resolvePath(args.fixture);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("ollama");
-  const outPath = resolvePath(args.out) || join(outDir, "ollama.json");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("llm");
+  const outPath = resolvePath(args.out) || join(outDir, "llm.json");
 
   if (!model || !prompt) {
-    throw new Error("ollama requires --model and --prompt.");
+    throw new Error("llm requires --model and --prompt.");
   }
 
   let fetchFn;
@@ -789,10 +789,10 @@ async function ollamaCommand(argv) {
     fetchFn = async () => ({ ok: true, json: async () => fixtureJson });
   }
 
-  const adapter = createOllamaAdapter({ baseUrl, fetchFn });
+  const adapter = createLlmAdapter({ baseUrl, fetchFn });
   const response = await adapter.generate({ model, prompt, stream: false });
   await writeJson(outPath, response);
-  console.log(`ollama: wrote ${outPath}`);
+  console.log(`llm: wrote ${outPath}`);
 }
 
 const COMMANDS = {
@@ -802,7 +802,8 @@ const COMMANDS = {
   inspect: inspectCommand,
   ipfs: ipfsCommand,
   blockchain: blockchainCommand,
-  ollama: ollamaCommand,
+  llm: llmCommand,
+  ollama: llmCommand,
 };
 
 async function main() {

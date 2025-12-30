@@ -38,7 +38,7 @@ test("demo script produces fixture-backed artifacts", (t) => {
     join(outDir, "inspect/inspect-summary.json"),
     join(outDir, "ipfs/ipfs.json"),
     join(outDir, "blockchain/blockchain.json"),
-    join(outDir, "ollama/ollama.json"),
+    join(outDir, "llm/llm.json"),
   ];
 
   for (const filePath of expected) {

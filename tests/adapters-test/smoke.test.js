@@ -8,7 +8,7 @@ const ROOT = resolve(__dirname, "../..");
 const FILES = [
   "packages/adapters-test/src/adapters/ipfs/index.js",
   "packages/adapters-test/src/adapters/blockchain/index.js",
-  "packages/adapters-test/src/adapters/ollama/index.js",
+  "packages/adapters-test/src/adapters/llm/index.js",
 ];
 
 test("adapters-test entrypoints exist", () => {

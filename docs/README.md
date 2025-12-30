@@ -21,4 +21,4 @@ If a plan or README conflicts with these documents, the charter and vision contr
 ## Quickstarts
 
 - `docs/human-interfaces.md` — Fixture-first CLI + web UI quickstart (build WASM, run demos, serve UI).
-- Manual smoke (offline): `pnpm run build:wasm`; `pnpm run demo:cli`; `pnpm run serve:ui` then open `http://localhost:8001/packages/ui-web/index.html`. Expect `artifacts/demo-bundle/` to contain solve/run/replay/inspect outputs plus adapter payloads (`ipfs.json`, `blockchain.json`, `ollama.json`).
+- Manual smoke (offline): `pnpm run build:wasm`; `pnpm run demo:cli`; `pnpm run serve:ui` then open `http://localhost:8001/packages/ui-web/index.html`. Expect `artifacts/demo-bundle/` to contain solve/run/replay/inspect outputs plus adapter payloads (`ipfs.json`, `blockchain.json`, `llm.json`).

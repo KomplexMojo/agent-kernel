@@ -11,9 +11,9 @@ Use this to keep strategy generation deterministic in test runs.
 ## Usage
 
 ```
-import { createOllamaTestAdapter } from "./index.js";
+import { createLlmTestAdapter } from "./index.js";
 
-const llm = createOllamaTestAdapter({
+const llm = createLlmTestAdapter({
   responses: { "fixture:hello": { model: "fixture", response: "world", done: true } },
 });
 const reply = await llm.generate({ model: "fixture", prompt: "hello" });

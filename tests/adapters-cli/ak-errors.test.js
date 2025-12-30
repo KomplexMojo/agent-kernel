@@ -63,9 +63,9 @@ test("cli blockchain rejects missing rpc-url", () => {
   assert.match(result.stderr, /blockchain requires --rpc-url/);
 });
 
-test("cli ollama rejects missing args", () => {
-  const result = runCliExpectFailure(["ollama"]);
-  assert.match(result.stderr, /ollama requires --model and --prompt/);
+test("cli llm rejects missing args", () => {
+  const result = runCliExpectFailure(["llm"]);
+  assert.match(result.stderr, /llm requires --model and --prompt/);
 });
 
 test("cli run rejects schema mismatch", (t) => {

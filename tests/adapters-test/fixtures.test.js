@@ -3,7 +3,7 @@ const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const ipfsModule = moduleUrl("packages/adapters-test/src/adapters/ipfs/index.js");
 const blockchainModule = moduleUrl("packages/adapters-test/src/adapters/blockchain/index.js");
-const ollamaModule = moduleUrl("packages/adapters-test/src/adapters/ollama/index.js");
+const llmModule = moduleUrl("packages/adapters-test/src/adapters/llm/index.js");
 
 const ipfsScript = `
 import assert from "node:assert/strict";
@@ -26,11 +26,11 @@ assert.equal(balance, "0x1");
 await assert.rejects(() => adapter.getBalance("0xmissing"), /Missing balance fixture/);
 `;
 
-const ollamaScript = `
+const llmScript = `
 import assert from "node:assert/strict";
-import { createOllamaTestAdapter } from ${JSON.stringify(ollamaModule)};
+import { createLlmTestAdapter } from ${JSON.stringify(llmModule)};
 
-const adapter = createOllamaTestAdapter();
+const adapter = createLlmTestAdapter();
 adapter.setResponse("model", "prompt", { response: "ok", done: true });
 const result = await adapter.generate({ model: "model", prompt: "prompt" });
 assert.equal(result.response, "ok");
@@ -46,6 +46,6 @@ test("blockchain test adapter fixtures", () => {
   runEsm(blockchainScript);
 });
 
-test("ollama test adapter fixtures", () => {
-  runEsm(ollamaScript);
+test("llm test adapter fixtures", () => {
+  runEsm(llmScript);
 });

@@ -20,7 +20,7 @@ const fixtures = {
   ipfsText: readFileSync(path.join(root, "tests/fixtures/adapters/ipfs-price-list.json"), "utf8"),
   chain: JSON.parse(readFileSync(path.join(root, "tests/fixtures/adapters/blockchain-chain-id.json"), "utf8")),
   balance: JSON.parse(readFileSync(path.join(root, "tests/fixtures/adapters/blockchain-balance.json"), "utf8")),
-  llm: JSON.parse(readFileSync(path.join(root, "tests/fixtures/adapters/ollama-generate.json"), "utf8")),
+  llm: JSON.parse(readFileSync(path.join(root, "tests/fixtures/adapters/llm-generate.json"), "utf8")),
   solver: JSON.parse(readFileSync(path.join(root, "tests/fixtures/artifacts/solver-result-v1-basic.json"), "utf8")),
 };
 

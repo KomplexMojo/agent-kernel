@@ -124,8 +124,8 @@ Goal: build MVP examples for adapters-cli and add a comprehensive test suite for
    - CLI: `packages/adapters-cli/src/adapters/blockchain/index.js`
    - Expected usage: fetch a fixed balance (fixture via adapters-test) for a known address.
 7. [complete] LLM adapter MVP (web + CLI): request strategy or content prompts via HTTP (Ollama/OpenAI-compatible).
-   - Web: `packages/adapters-web/src/adapters/ollama/index.js` (Ollama-style API surface)
-   - CLI: `packages/adapters-cli/src/adapters/ollama/index.js` (Ollama-style API surface)
+   - Web: `packages/adapters-web/src/adapters/llm/index.js` (Ollama-style API surface)
+   - CLI: `packages/adapters-cli/src/adapters/llm/index.js` (Ollama-style API surface)
    - Expected usage: prompt with a small plan summary and capture response JSON for replay using a fixture or any compatible LLM endpoint.
 
 ## 6) Adapter Tests
@@ -199,7 +199,7 @@ Goal: build MVP examples for adapters-cli and add a comprehensive test suite for
 3. CLI adapter demos with test data (no network).
    - IPFS: `node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json --out-dir artifacts/ipfs`
    - Blockchain: `node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json --out-dir artifacts/blockchain`
-   - LLM (Ollama-style): `node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt \"hello\" --fixture tests/fixtures/adapters/ollama-generate.json --out-dir artifacts/ollama`
+   - LLM (Ollama-style): `node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt \"hello\" --fixture tests/fixtures/adapters/llm-generate.json --out-dir artifacts/llm`
 4. Web UI (local run with test data).
    - Serve repo root with a static server (examples: `python3 -m http.server 8000` or `npx serve .`).
    - Open `http://localhost:8000/packages/ui-web/index.html` and verify counter/port effects update.

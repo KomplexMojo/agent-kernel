@@ -10,7 +10,6 @@ const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const ipfsFixture = readFileSync(resolve(ROOT, "tests/fixtures/adapters/ipfs-price-list.json"), "utf8");
 const chainFixture = readFileSync(resolve(ROOT, "tests/fixtures/adapters/blockchain-chain-id.json"), "utf8");
 const balanceFixture = readFileSync(resolve(ROOT, "tests/fixtures/adapters/blockchain-balance.json"), "utf8");
-const ollamaFixture = readFileSync(resolve(ROOT, "tests/fixtures/adapters/ollama-generate.json"), "utf8");
 
 function runCli(args) {
   const result = spawnSync(process.execPath, [CLI, ...args], {
@@ -62,10 +61,10 @@ test("cli blockchain command writes chainId and balance", async () => {
   assert.equal(payload.balance, JSON.parse(balanceFixture).result);
 });
 
-test("cli ollama command writes response JSON", async () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-ollama-"));
+test("cli llm command writes response JSON", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-"));
   runCli([
-    "ollama",
+    "llm",
     "--model",
     "fixture",
     "--prompt",
@@ -73,10 +72,10 @@ test("cli ollama command writes response JSON", async () => {
     "--base-url",
     "http://local",
     "--fixture",
-    "tests/fixtures/adapters/ollama-generate.json",
+    "tests/fixtures/adapters/llm-generate.json",
     "--out-dir",
     outDir,
   ]);
-  const payload = JSON.parse(readFileSync(join(outDir, "ollama.json"), "utf8"));
+  const payload = JSON.parse(readFileSync(join(outDir, "llm.json"), "utf8"));
   assert.equal(payload.response, "ok");
 });

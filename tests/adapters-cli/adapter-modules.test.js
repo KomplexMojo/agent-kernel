@@ -3,7 +3,7 @@ const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const ipfsModule = moduleUrl("packages/adapters-cli/src/adapters/ipfs/index.js");
 const blockchainModule = moduleUrl("packages/adapters-cli/src/adapters/blockchain/index.js");
-const ollamaModule = moduleUrl("packages/adapters-cli/src/adapters/ollama/index.js");
+const llmModule = moduleUrl("packages/adapters-cli/src/adapters/llm/index.js");
 const solverModule = moduleUrl("packages/adapters-cli/src/adapters/solver-z3/index.js");
 
 const ipfsScript = `
@@ -36,11 +36,11 @@ const adapter = createBlockchainAdapter({
 await assert.rejects(() => adapter.getBalance("0x123"), /RPC call failed/);
 `;
 
-const ollamaScript = `
+const llmScript = `
 import assert from "node:assert/strict";
-import { createOllamaAdapter } from ${JSON.stringify(ollamaModule)};
+import { createLlmAdapter } from ${JSON.stringify(llmModule)};
 
-const adapter = createOllamaAdapter({
+const adapter = createLlmAdapter({
   baseUrl: "http://localhost:11434",
   fetchFn: async () => ({ ok: false, status: 503, statusText: "Down" }),
 });
@@ -64,8 +64,8 @@ test("cli blockchain adapter handles errors", () => {
   runEsm(blockchainScript);
 });
 
-test("cli ollama adapter handles errors", () => {
-  runEsm(ollamaScript);
+test("cli llm adapter handles errors", () => {
+  runEsm(llmScript);
 });
 
 test("cli solver adapter errors without solver", () => {

@@ -1,4 +1,4 @@
-export function createOllamaTestAdapter({ responses = {} } = {}) {
+export function createLlmTestAdapter({ responses = {} } = {}) {
   const store = { ...responses };
 
   async function generate({ model, prompt } = {}) {
