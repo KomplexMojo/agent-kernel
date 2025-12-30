@@ -33,3 +33,6 @@ Goal: ship runnable, human-facing MVPs for both CLI and web UI that exercise the
 - `pnpm run build:wasm` followed by the demo script produces artifact bundles for solve/run/replay/inspect and fixture-backed adapter calls without network access.
 - `pnpm run serve:ui` loads a page where a user can step/reset the runtime counter and trigger adapter calls (fixture-backed by default) with visible results/errors.
 - Automated tests cover the demo CLI flows and adapter playground helpers; UI smoke tests skip gracefully when WASM is missing.
+
+## TODO
+- Consider renaming the CLI `ollama` command/adapter to `llm` for consistency; if done, update `ak.mjs`, tests, fixtures, and docs together.
