@@ -23,7 +23,7 @@ pnpm run build:wasm
 pnpm run serve:ui
 ```
 
-Open `http://localhost:8000/packages/ui-web/index.html` (or set `PORT` to override).
+Open `http://localhost:8001/packages/ui-web/index.html` (or set `PORT` to override).
 
 ---
 

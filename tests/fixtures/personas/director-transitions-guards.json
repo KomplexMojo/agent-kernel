@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "director",
+  "initialState": "uninitialized",
+  "cases": [
+    { "event": "bootstrap", "payload": {}, "expectError": "Guard" },
+    { "event": "ingest_intent", "payload": {}, "expectError": "No transition" }
+  ]
+}

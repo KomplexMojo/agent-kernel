@@ -1,0 +1,14 @@
+{
+  "schema": "agent-kernel/TickFsmTest",
+  "schemaVersion": 1,
+  "initialState": "init",
+  "cases": [
+    { "event": "observe", "expect": { "state": "observe", "tick": 0 } },
+    { "event": "decide", "expect": { "state": "decide", "tick": 0 } },
+    { "event": "apply", "expect": { "state": "apply", "tick": 0 } },
+    { "event": "emit", "expect": { "state": "emit", "tick": 0 } },
+    { "event": "summarize", "expect": { "state": "summarize", "tick": 0 } },
+    { "event": "next_tick", "expect": { "state": "observe", "tick": 1 } },
+    { "event": "decide", "expect": { "state": "decide", "tick": 1 } }
+  ]
+}

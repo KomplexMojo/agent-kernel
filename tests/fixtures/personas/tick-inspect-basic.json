@@ -1,0 +1,47 @@
+{
+  "schema": "agent-kernel/TickInspectTest",
+  "schemaVersion": 1,
+  "history": [
+    {
+      "tick": 0,
+      "phase": "observe",
+      "personaViews": { "stub": { "state": "idle" } },
+      "actions": [],
+      "effects": [],
+      "telemetry": []
+    },
+    {
+      "tick": 0,
+      "phase": "decide",
+      "personaViews": { "stub": { "state": "deciding" } },
+      "actions": [{ "kind": "action", "id": 1 }],
+      "effects": [],
+      "telemetry": []
+    },
+    {
+      "tick": 0,
+      "phase": "apply",
+      "personaViews": { "stub": { "state": "deciding" } },
+      "actions": [],
+      "effects": [],
+      "telemetry": []
+    },
+    {
+      "tick": 0,
+      "phase": "emit",
+      "personaViews": { "stub": { "state": "ready" } },
+      "actions": [],
+      "effects": [{ "kind": "effect" }],
+      "telemetry": [{ "kind": "note" }]
+    }
+  ],
+  "expect": {
+    "ticks": 1,
+    "phases": { "observe": 1, "decide": 1, "apply": 1, "emit": 1 },
+    "personaStates": { "stub": "ready" },
+    "personaStateChanges": { "stub": 2 },
+    "actionsCount": 1,
+    "effectsCount": 1,
+    "telemetryCount": 1
+  }
+}

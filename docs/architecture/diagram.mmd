@@ -7,6 +7,7 @@ flowchart LR
 
   subgraph Runtime["Runtime (TypeScript)"]
     RuntimePorts["runtime ports + runner"]
+    TickOrch["tick orchestrator (phases)"]
     subgraph Personas["Personas"]
       Orchestrator["Orchestrator: workflow coordination"]
       Moderator["Moderator: tick execution + effects"]
@@ -42,6 +43,12 @@ flowchart LR
   UIWeb --> RuntimePorts
   UIWeb --> BindingsTS
   UIWeb --> AWeb
+  Moderator --> TickOrch
+  TickOrch --> Director
+  TickOrch --> Actor
+  TickOrch --> Allocator
+  TickOrch --> Annotator
+  TickOrch --> Configurator
   Orchestrator --> RuntimePorts
   Moderator --> RuntimePorts
   Director --> RuntimePorts
@@ -66,3 +73,24 @@ flowchart LR
   ACli --> Chain
   ACli --> LLM
   ACli --> Storage
+
+%% Tick phase super state machine (deterministic FSM)
+stateDiagram-v2
+  [*] --> init
+  init --> observe: observe
+  observe --> decide: decide
+  decide --> apply: apply
+  apply --> emit: emit
+  emit --> summarize: summarize
+  summarize --> observe: next_tick (tick++)
+
+%% Director persona state machine (deterministic FSM)
+stateDiagram-v2
+  [*] --> uninitialized
+  uninitialized --> intake: bootstrap (intent|plan)
+  intake --> draft_plan: ingest_intent
+  intake --> ready: ingest_plan
+  draft_plan --> refine: draft_complete
+  refine --> ready: refinement_complete
+  ready --> stale: invalidate_plan
+  stale --> intake: refresh (intent|plan)

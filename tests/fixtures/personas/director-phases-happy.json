@@ -1,0 +1,14 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "director",
+  "initialState": "uninitialized",
+  "clock": "fixed",
+  "cases": [
+    { "phase": "observe", "event": null, "payload": {}, "expectState": "uninitialized" },
+    { "phase": "decide", "event": "bootstrap", "payload": { "intentRef": "intent:1" }, "expectState": "intake" },
+    { "phase": "decide", "event": "ingest_intent", "payload": { "intentRef": "intent:1" }, "expectState": "draft_plan" },
+    { "phase": "decide", "event": "draft_complete", "payload": { "planRef": "plan:1" }, "expectState": "refine" },
+    { "phase": "decide", "event": "refinement_complete", "payload": { "planRef": "plan:1" }, "expectState": "ready" }
+  ]
+}

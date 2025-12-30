@@ -1,0 +1,12 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "director",
+  "initialState": "uninitialized",
+  "clock": "fixed",
+  "cases": [
+    { "phase": "decide", "event": "bootstrap", "payload": {}, "expectError": "Guard" },
+    { "phase": "observe", "event": "bootstrap", "payload": { "intentRef": "intent:1" }, "expectState": "uninitialized" },
+    { "phase": "decide", "event": "missing_event", "payload": {}, "expectError": "No transition" }
+  ]
+}

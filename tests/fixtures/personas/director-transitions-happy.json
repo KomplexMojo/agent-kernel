@@ -1,0 +1,14 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "director",
+  "initialState": "uninitialized",
+  "cases": [
+    { "event": "bootstrap", "payload": { "intentRef": "intent:one" }, "expectState": "intake" },
+    { "event": "ingest_intent", "payload": { "intentRef": "intent:one" }, "expectState": "draft_plan" },
+    { "event": "draft_complete", "payload": { "planRef": "plan:one" }, "expectState": "refine" },
+    { "event": "refinement_complete", "payload": { "planRef": "plan:one" }, "expectState": "ready" },
+    { "event": "invalidate_plan", "payload": {}, "expectState": "stale" },
+    { "event": "refresh", "payload": { "intentRef": "intent:two" }, "expectState": "intake" }
+  ]
+}

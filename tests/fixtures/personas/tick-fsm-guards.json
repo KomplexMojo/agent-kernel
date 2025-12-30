@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/TickFsmTest",
+  "schemaVersion": 1,
+  "initialState": "init",
+  "cases": [
+    { "event": "summarize", "expectError": "No transition" },
+    { "event": "observe", "expect": { "state": "observe", "tick": 0 } },
+    { "event": "emit", "expectError": "No transition" }
+  ]
+}
