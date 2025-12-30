@@ -1,0 +1,12 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "orchestrator",
+  "initialState": "idle",
+  "cases": [
+    { "event": "plan", "payload": {}, "expectState": "planning" },
+    { "event": "start_run", "payload": { "planRef": "plan:1" }, "expectState": "running", "expectPlanRef": "plan:1" },
+    { "event": "replay", "payload": {}, "expectState": "replaying" },
+    { "event": "complete", "payload": {}, "expectState": "completed" }
+  ]
+}

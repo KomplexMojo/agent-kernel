@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "actor",
+  "initialState": "deciding",
+  "cases": [
+    { "phase": "decide", "event": "propose", "payload": {}, "expectError": "Guard" },
+    { "phase": "decide", "event": "missing", "payload": {}, "expectError": "No transition" }
+  ]
+}

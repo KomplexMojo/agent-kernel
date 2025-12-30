@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "annotator",
+  "initialState": "recording",
+  "cases": [
+    { "event": "summarize", "payload": {}, "expectError": "Guard" },
+    { "event": "decide", "payload": {}, "expectError": "No transition" }
+  ]
+}

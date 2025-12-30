@@ -1,0 +1,11 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "orchestrator",
+  "cases": [
+    { "phase": "observe", "event": null, "payload": {}, "expectState": "idle" },
+    { "phase": "decide", "event": "plan", "payload": {}, "expectState": "planning" },
+    { "phase": "decide", "event": "start_run", "payload": { "planRef": "plan:1" }, "expectState": "running", "expectPlanRef": "plan:1" },
+    { "phase": "emit", "event": "complete", "payload": {}, "expectState": "completed" }
+  ]
+}

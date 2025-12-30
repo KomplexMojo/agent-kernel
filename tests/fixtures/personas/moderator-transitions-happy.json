@@ -1,0 +1,12 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "moderator",
+  "initialState": "initializing",
+  "cases": [
+    { "event": "start", "payload": {}, "expectState": "ticking" },
+    { "event": "pause", "payload": {}, "expectState": "pausing" },
+    { "event": "resume", "payload": {}, "expectState": "ticking" },
+    { "event": "stop", "payload": {}, "expectState": "stopping" }
+  ]
+}

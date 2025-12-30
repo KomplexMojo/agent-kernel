@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "configurator",
+  "initialState": "uninitialized",
+  "cases": [
+    { "event": "provide_config", "payload": {}, "expectError": "Guard" },
+    { "event": "lock", "payload": {}, "expectError": "No transition" }
+  ]
+}

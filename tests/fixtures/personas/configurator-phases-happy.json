@@ -1,0 +1,9 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "configurator",
+  "cases": [
+    { "phase": "init", "event": null, "payload": {}, "expectState": "uninitialized" },
+    { "phase": "observe", "event": "provide_config", "payload": { "config": { "seed": 1 }, "configRef": "cfg:1" }, "expectState": "pending_config", "expectConfigRef": "cfg:1" }
+  ]
+}

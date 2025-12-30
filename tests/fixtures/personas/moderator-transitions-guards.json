@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "moderator",
+  "initialState": "initializing",
+  "cases": [
+    { "event": "stop", "payload": {}, "expectError": "No transition" },
+    { "event": "resume", "payload": {}, "expectError": "No transition" }
+  ]
+}

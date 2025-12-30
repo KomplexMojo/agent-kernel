@@ -1,0 +1,11 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "actor",
+  "initialState": "idle",
+  "cases": [
+    { "phase": "observe", "event": "observe", "payload": {}, "expectState": "observing" },
+    { "phase": "decide", "event": "decide", "payload": {}, "expectState": "deciding" },
+    { "phase": "decide", "event": "propose", "payload": { "proposals": [{ "id": "a1" }] }, "expectState": "proposing", "expectProposalCount": 1 }
+  ]
+}

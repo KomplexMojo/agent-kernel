@@ -1,0 +1,13 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "actor",
+  "initialState": "idle",
+  "cases": [
+    { "event": "observe", "payload": {}, "expectState": "observing" },
+    { "event": "decide", "payload": {}, "expectState": "deciding" },
+    { "event": "propose", "payload": { "proposals": [{ "id": "p1" }] }, "expectState": "proposing", "expectProposalCount": 1 },
+    { "event": "cooldown", "payload": {}, "expectState": "cooldown" },
+    { "event": "observe", "payload": {}, "expectState": "observing" }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "allocator",
+  "initialState": "budgeting",
+  "cases": [
+    { "phase": "decide", "event": "allocate", "payload": {}, "expectError": "Guard" },
+    { "phase": "apply", "event": "budget", "payload": {}, "expectState": "budgeting" }
+  ]
+}

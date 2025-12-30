@@ -49,6 +49,8 @@ flowchart LR
   TickOrch --> Allocator
   TickOrch --> Annotator
   TickOrch --> Configurator
+  TickOrch --> Orchestrator
+  TickOrch --> Director
   Orchestrator --> RuntimePorts
   Moderator --> RuntimePorts
   Director --> RuntimePorts
@@ -94,3 +96,56 @@ stateDiagram-v2
   refine --> ready: refinement_complete
   ready --> stale: invalidate_plan
   stale --> intake: refresh (intent|plan)
+
+%% Actor persona (observe/decide)
+stateDiagram-v2
+  [*] --> idle
+  idle --> observing: observe
+  observing --> deciding: decide
+  deciding --> proposing: propose (proposals>0)
+  proposing --> cooldown: cooldown
+  cooldown --> observing: observe
+
+%% Allocator persona (observe/decide)
+stateDiagram-v2
+  [*] --> idle
+  idle --> budgeting: budget
+  budgeting --> allocating: allocate (budgets>0)
+  allocating --> monitoring: monitor
+  monitoring --> rebalancing: rebalance (signals>0)
+  rebalancing --> monitoring: monitor
+
+%% Annotator persona (emit/summarize)
+stateDiagram-v2
+  [*] --> idle
+  idle --> recording: observe
+  recording --> summarizing: summarize (observations>0)
+  summarizing --> idle: reset
+
+%% Configurator persona (init/observe)
+stateDiagram-v2
+  [*] --> uninitialized
+  uninitialized --> pending_config: provide_config
+  pending_config --> configured: validate
+  configured --> locked: lock
+  configured --> pending_config: update_config
+
+%% Orchestrator persona (observe/decide/emit)
+stateDiagram-v2
+  [*] --> idle
+  idle --> planning: plan
+  planning --> running: start_run (planRef)
+  running --> replaying: replay
+  running --> completed: complete
+  running --> errored: error
+  replaying --> completed: complete
+  replaying --> errored: error
+
+%% Moderator persona (all phases)
+stateDiagram-v2
+  [*] --> initializing
+  initializing --> ticking: start
+  ticking --> pausing: pause
+  pausing --> ticking: resume
+  ticking --> stopping: stop
+  pausing --> stopping: stop

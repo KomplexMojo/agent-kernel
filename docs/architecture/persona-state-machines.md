@@ -16,18 +16,15 @@ Personas are modeled as deterministic finite-state machines (FSMs) with explicit
 - Transition tables declare `from`, `to`, `event`, `guard`, optional `onTransition` to emit data.
 - Per-persona README/state machine doc enumerates allowed states and required inputs.
 
-## Initial persona state sets (proposed)
-- Orchestrator: idle → planning → running → replaying → completed/errored.
-- Director: uninitialized → intake → draft_plan → refine → ready → stale.
-- Configurator: uninitialized → pending_config → configured → locked.
-- Actor: idle → observing → deciding → proposing → cooldown.
-- Allocator: idle → budgeting → allocating → monitoring → rebalancing.
-- Annotator: idle → recording → summarizing.
-- Moderator: initializing → ticking → pausing → stopping.
+## Persona states and subscriptions (current)
+- Orchestrator: idle → planning → running/replaying → completed/errored; subscribes: observe, decide, emit.
+- Director: uninitialized → intake → draft_plan → refine → ready → stale; subscribes: decide.
+- Configurator: uninitialized → pending_config → configured → locked; subscribes: init, observe.
+- Actor: idle → observing → deciding → proposing → cooldown; subscribes: observe, decide.
+- Allocator: idle → budgeting → allocating → monitoring → rebalancing; subscribes: observe, decide.
+- Annotator: idle → recording → summarizing; subscribes: emit, summarize.
+- Moderator: initializing → ticking → pausing → stopping; subscribes: all tick phases.
 
 ## Tick phases and persona mapping (current)
 - Tick phases (ordered): init → observe → decide → apply → emit → summarize → next_tick (wraps to observe, tick++).
-- Moderator drives the tick orchestrator; personas subscribe to phases.
-- Subscriptions:
-  - Director: decide (ignored on other phases).
-  - Others: pending (wire as personas become phase-aware).
+- Moderator drives the tick orchestrator; personas subscribe to phases (see above).

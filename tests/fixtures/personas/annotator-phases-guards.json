@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "annotator",
+  "initialState": "recording",
+  "cases": [
+    { "phase": "summarize", "event": "summarize", "payload": {}, "expectError": "Guard" },
+    { "phase": "decide", "event": "summarize", "payload": {}, "expectState": "recording" }
+  ]
+}
