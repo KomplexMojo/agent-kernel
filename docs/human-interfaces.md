@@ -26,6 +26,11 @@ node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture te
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
 node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt "hello" --fixture tests/fixtures/adapters/ollama-generate.json
 ```
+Bundle all demos at once:
+```
+pnpm run demo:cli
+# writes to artifacts/demo-bundle (override with: pnpm run demo:cli -- /path/to/out)
+```
 See `packages/adapters-cli/README.md` for full help/flags; it mirrors `ak.mjs --help`.
 
 ## 4) Serve the web UI (fixture-backed by default)

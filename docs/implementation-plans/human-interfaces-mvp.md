@@ -14,9 +14,9 @@ Goal: ship runnable, human-facing MVPs for both CLI and web UI that exercise the
    - Add a small validation script or Node test to assert `build/core-as.wasm` and `packages/ui-web/assets/core-as.wasm` exist (skipping when missing) so both surfaces fail fast in CI. Wire it into CI/test workflow (e.g., `pnpm test:wasm-check` or part of the demo script) and make the quickstart mention the check.
 
 2) CLI MVP walkthrough (fixtures-first)
-   - Add “demo” invocations for each adapter to `packages/adapters-cli/README.md` that default to fixture mode and write artifacts under `artifacts/<command>/`. Ensure solver demo references `tests/fixtures/artifacts/solver-result-*.json`.
-   - Create a helper script (e.g., `scripts/demo-cli.sh`) or npm script that runs the four primary demos (`solve`, `run`, `replay`, `inspect`) plus one adapter demo (`ipfs`, `blockchain`, `llm`) with fixtures to produce a ready-made artifact bundle.
-   - Tests: extend `tests/adapters-cli/ak-golden.test.js` (or add `demo-smoke.test.js`) to execute the demo script/commands with fixtures and assert artifact presence + schema fields. Keep tests offline by stubbing fetch via existing fixture files.
+   - Add “demo” invocations for each adapter to `packages/adapters-cli/README.md` that default to fixture mode and write artifacts under `artifacts/<command>/`. Show exact commands for `ipfs`, `blockchain`, `llm`, and `solve` using `tests/fixtures/adapters/*` and `tests/fixtures/artifacts/solver-result-*.json`, and note the artifact filenames they emit.
+   - Create a helper script (e.g., `scripts/demo-cli.sh`) or npm script that runs the four primary demos (`solve`, `run`, `replay`, `inspect`) plus one adapter demo (`ipfs`, `blockchain`, `llm`) with fixtures to produce a ready-made artifact bundle. Script should mkdir the bundle dir, call `ak.mjs` with fixture flags, and report where artifacts were written.
+   - Tests: extend `tests/adapters-cli/ak-golden.test.js` (or add `demo-smoke.test.js`) to execute the demo script/commands with fixtures and assert artifact presence + schema fields. Keep tests offline by stubbing fetch via existing fixture files (no network), and ensure run/replay use the locally built `build/core-as.wasm`.
 
 3) Web UI adapter playground (mocked by default)
    - Add a new panel in `packages/ui-web/index.html`/`src/main.js` that surfaces IPFS/blockchain/LLM/solver interactions. Default to fixture mode using `tests/fixtures/adapters` payloads; provide a toggle to switch to live URLs when desired.

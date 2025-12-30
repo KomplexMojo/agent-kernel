@@ -68,6 +68,11 @@ node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --ad
 node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt "hello" --fixture tests/fixtures/adapters/ollama-generate.json
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 ```
+Expected outputs (defaults when `--out-dir` is set):
+- ipfs: `ipfs.json`
+- blockchain: `blockchain.json`
+- ollama: `ollama.json`
+- solve: `solver-request.json`, `solver-result.json`
 
 ---
 
@@ -77,6 +82,14 @@ node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 - Blockchain: `--rpc-url` (required), `--address` (optional for balance).
 - LLM (Ollama-style): `--base-url` (default: `http://localhost:11434`), `--model`, `--prompt`.
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
+
+## Demo bundle script
+
+Run all fixture-first demos and emit artifacts under `artifacts/demo-bundle` (override path with an argument):
+```
+pnpm run demo:cli
+pnpm run demo:cli -- /tmp/agent-kernel-demo
+```
 
 ## Architectural Intent
 
