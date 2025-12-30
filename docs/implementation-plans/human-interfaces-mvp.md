@@ -3,10 +3,10 @@
 Goal: ship runnable, human-facing MVPs for both CLI and web UI that exercise the existing adapters (IPFS, blockchain, LLM, solver) using fixtures or stubbed behavior. Success means a user can run the CLI demos and open the browser UI to trigger adapter calls without needing live network dependencies.
 
 ## Baseline findings
-- CLI: `packages/adapters-cli/src/cli/ak.mjs` already exposes solve/run/replay/inspect plus ipfs/blockchain/llm demo commands with fixture flags. Docs live in `packages/adapters-cli/README.md`. `build/core-as.wasm` is required for run/replay and is copied to `packages/ui-web/assets/core-as.wasm` by `pnpm run build:wasm`.
-- Web UI: `packages/ui-web/index.html` + `src/main.js` load WASM and show a counter + effect log via `createRuntime` and `createDomLogAdapter`. No adapter playground is exposed yet; there is no visible IPFS/blockchain/LLM/solver surface.
-- Web adapters: `packages/adapters-web/src/adapters/*` include fetch-based ipfs/blockchain/llm and stubbed solver/wrapper modules. They accept injected `fetchFn` for fixture mode; adapter fixtures live in `tests/fixtures/adapters`.
-- Tests: adapter smoke/golden tests exist under `tests/adapters-cli` and `tests/adapters-web`, but there is no UI smoke test or end-to-end quickstart that mirrors the human walkthrough.
+- CLI: `packages/adapters-cli/src/cli/ak.mjs` already exposes solve/run/replay/inspect plus ipfs/blockchain/llm demo commands with fixture flags. Docs live in `packages/adapters-cli/README.md`. `build/core-as.wasm` is required for run/replay and is copied to `packages/ui-web/assets/core-as.wasm` by `pnpm run build:wasm`. We need to keep `--help` output, README examples, and fixture paths aligned and add a preflight check for the two WASM copies to fail fast.
+- Web UI: `packages/ui-web/index.html` + `src/main.js` load WASM and show a counter + effect log via `createRuntime` and `createDomLogAdapter`. No adapter playground is exposed yet; there is no visible IPFS/blockchain/LLM/solver surface. The new UI must add an adapter panel without breaking the counter/effect log flow.
+- Web adapters: `packages/adapters-web/src/adapters/*` include fetch-based ipfs/blockchain/llm and stubbed solver/wrapper modules. They accept injected `fetchFn` for fixture mode; adapter fixtures live in `tests/fixtures/adapters`. UI and tests should inject fixture-backed fetch to stay offline-first and respect dependency direction (ui-web -> runtime -> bindings-ts -> core-as).
+- Tests: adapter smoke/golden tests exist under `tests/adapters-cli` and `tests/adapters-web`, but there is no UI smoke test or end-to-end quickstart that mirrors the human walkthrough. We need DOM/helper coverage for the new playground plus a documented offline quickstart that exercises both CLI and UI paths.
 
 ## Plan
 1) Preconditions and quickstart alignment
