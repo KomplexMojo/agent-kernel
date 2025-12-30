@@ -121,6 +121,17 @@
         opacity: 0.6;
       }
 
+      input,
+      select {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        font-size: 0.95rem;
+      }
+
       button:hover:not(:disabled) {
         transform: translateY(-1px);
       }
@@ -154,6 +165,28 @@
         color: var(--muted);
         font-size: 0.95rem;
       }
+
+      .adapter-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        margin: 16px 0;
+      }
+
+      .adapter-output {
+        margin-top: 12px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 12px;
+        min-height: 140px;
+        max-height: 240px;
+        overflow: auto;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.9rem;
+        color: var(--text);
+        white-space: pre-wrap;
+      }
     </style>
   </head>
   <body>
@@ -184,6 +217,59 @@
             <span class="stat-label">Port Effects</span>
           </div>
           <ul id="effect-log"></ul>
+        </div>
+
+        <div class="card">
+          <div class="stat">
+            <span class="stat-label">Adapter Playground</span>
+            <small class="status">Fixture mode uses repo fixtures; toggle to live to hit your endpoints.</small>
+          </div>
+          <div class="adapter-grid">
+            <label>
+              <span class="stat-label">Mode</span>
+              <select id="adapter-mode">
+                <option value="fixture" selected>Fixture</option>
+                <option value="live">Live</option>
+              </select>
+            </label>
+            <label>
+              <span class="stat-label">IPFS Gateway</span>
+              <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
+            </label>
+            <label>
+              <span class="stat-label">IPFS CID</span>
+              <input id="adapter-cid" type="text" value="fixture" />
+            </label>
+            <label>
+              <span class="stat-label">IPFS Path</span>
+              <input id="adapter-path" type="text" placeholder="optional/path.json" />
+            </label>
+            <label>
+              <span class="stat-label">RPC URL</span>
+              <input id="adapter-rpc-url" type="text" value="http://fixture" />
+            </label>
+            <label>
+              <span class="stat-label">Address</span>
+              <input id="adapter-address" type="text" value="0xabc" />
+            </label>
+            <label>
+              <span class="stat-label">LLM Base URL</span>
+              <input id="adapter-llm-url" type="text" value="http://localhost:11434" />
+            </label>
+            <label>
+              <span class="stat-label">Prompt</span>
+              <input id="adapter-prompt" type="text" value="hello" />
+            </label>
+          </div>
+          <div class="controls">
+            <button class="primary" id="adapter-ipfs">Run IPFS</button>
+            <button class="secondary" id="adapter-blockchain">Run Blockchain</button>
+            <button class="secondary" id="adapter-llm">Run LLM</button>
+            <button class="secondary" id="adapter-solver">Run Solver</button>
+            <button class="secondary" id="adapter-clear">Clear</button>
+          </div>
+          <div class="status" id="adapter-status">Ready in fixture mode.</div>
+          <pre class="adapter-output" id="adapter-output"></pre>
         </div>
       </section>
     </main>

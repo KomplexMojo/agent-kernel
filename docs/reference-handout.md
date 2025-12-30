@@ -156,3 +156,8 @@ stateDiagram-v2
 - Expanded inspect/HTML reporting.
 - Per-persona README/state notes (only some personas currently have detailed docs).
 - Solver adapter/port wiring into Director/Configurator/Allocator personas for plan validation (stubbed adapters exist; no real solver integration yet).
+
+## Manual Smoke (fixtures, offline)
+- `pnpm run build:wasm` then `pnpm run demo:cli` → artifacts in `artifacts/demo-bundle`.
+- `pnpm run serve:ui` → open `http://localhost:8001/packages/ui-web/index.html` and run the Adapter Playground in fixture mode (IPFS/blockchain/LLM/solver); counter/effect log should still work.
+- Expected artifacts: solve (`solver-request.json`, `solver-result.json`), run (`tick-frames.json`, `effects-log.json`), replay (`replay-summary.json`), inspect (`inspect-summary.json`), adapters (`ipfs.json`, `blockchain.json`, `ollama.json`).

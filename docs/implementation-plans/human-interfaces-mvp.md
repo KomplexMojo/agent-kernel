@@ -19,15 +19,15 @@ Goal: ship runnable, human-facing MVPs for both CLI and web UI that exercise the
    - Tests: extend `tests/adapters-cli/ak-golden.test.js` (or add `demo-smoke.test.js`) to execute the demo script/commands with fixtures and assert artifact presence + schema fields. Keep tests offline by stubbing fetch via existing fixture files (no network), and ensure run/replay use the locally built `build/core-as.wasm`.
 
 3) Web UI adapter playground (mocked by default)
-   - Add a new panel in `packages/ui-web/index.html`/`src/main.js` that surfaces IPFS/blockchain/LLM/solver interactions. Default to fixture mode using `tests/fixtures/adapters` payloads; provide a toggle to switch to live URLs when desired.
+   - Add a new panel in `packages/ui-web/index.html`/`src/main.js` that surfaces IPFS/blockchain/LLM/solver interactions. Default to fixture mode using `tests/fixtures/adapters` payloads; provide a toggle to switch to live URLs when desired. Keep the existing counter/effect log intact.
    - Extract pure adapter-calling helpers (no DOM) under `packages/ui-web/src/` so they can be tested in Node with injected fetch stubs; keep UI wiring thin and deterministic. Respect dependency direction (ui-web -> runtime -> bindings-ts -> core-as; UI calls adapters, not core-as directly).
-   - Show responses in the UI (JSON preview/log), and include minimal error states (missing fixture, network failure) without blocking the existing counter demo.
-   - Tests: add `tests/ui-web/adapter-playground.test.js` (Node + jsdom or happy-dom) to cover helper functions and DOM wiring; reuse fixture payloads. Keep runner `node --test`.
+   - Show responses in the UI (JSON preview/log), and include minimal error states (missing fixture, network failure) without blocking the existing counter demo. Allow resetting/clearing the panel without touching the runtime.
+   - Tests: add `tests/ui-web/adapter-playground.test.js` (Node + jsdom or happy-dom) to cover helper functions and DOM wiring; reuse fixture payloads. Keep runner `node --test` and skip gracefully if WASM is missing for any runtime-dependent UI pieces.
 
 4) Cross-cutting polish and docs
-   - Add a short “manual smoke” checklist in `docs/README.md` or `docs/reference-handout.md` linking to the CLI demo script and the served UI URL (`pnpm run serve:ui` -> `http://localhost:8001/packages/ui-web/index.html`).
-   - Ensure artifacts/fixtures naming follows `packages/runtime/src/contracts/artifacts.ts` and `tests/fixtures/**` conventions. If any new adapter schema surfaces are exposed, add matching fixtures (valid + invalid) under `tests/fixtures/artifacts`.
-   - If UI/CLI behavior or flags change, update `packages/adapters-cli/README.md` and `docs/architecture/diagram.mmd` only if new flows alter boundaries; otherwise keep architecture unchanged.
+   - Add a short “manual smoke” checklist in `docs/README.md` or `docs/reference-handout.md` linking to the CLI demo script (`pnpm run demo:cli`) and the served UI URL (`pnpm run serve:ui` -> `http://localhost:8001/packages/ui-web/index.html`). Include expected artifacts/outputs for verification.
+   - Ensure artifacts/fixtures naming follows `packages/runtime/src/contracts/artifacts.ts` and `tests/fixtures/**` conventions. If any new adapter schema surfaces are exposed, add matching fixtures (valid + invalid) under `tests/fixtures/artifacts` and describe them in `tests/fixtures/README.md`.
+   - If UI/CLI behavior or flags change, update `packages/adapters-cli/README.md` and `docs/architecture/diagram.mmd` only if new flows alter boundaries; otherwise keep architecture unchanged. Keep `docs/human-interfaces.md` and README examples aligned with `ak.mjs --help`.
 
 ## Exit criteria
 - `pnpm run build:wasm` followed by the demo script produces artifact bundles for solve/run/replay/inspect and fixture-backed adapter calls without network access.
