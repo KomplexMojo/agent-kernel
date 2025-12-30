@@ -1,4 +1,4 @@
-# Ollama Adapter (Test)
+# LLM Adapter (Test, Ollama-style)
 
 Purpose: deterministic LLM fixtures for tests without model dependencies.
 
@@ -13,11 +13,11 @@ Use this to keep strategy generation deterministic in test runs.
 ```
 import { createOllamaTestAdapter } from "./index.js";
 
-const ollama = createOllamaTestAdapter({
+const llm = createOllamaTestAdapter({
   responses: { "fixture:hello": { model: "fixture", response: "world", done: true } },
 });
-const reply = await ollama.generate({ model: "fixture", prompt: "hello" });
-ollama.setResponse("fixture", "plan", { model: "fixture", response: "ok", done: true });
+const reply = await llm.generate({ model: "fixture", prompt: "hello" });
+llm.setResponse("fixture", "plan", { model: "fixture", response: "ok", done: true });
 ```
 
 ## Configuration

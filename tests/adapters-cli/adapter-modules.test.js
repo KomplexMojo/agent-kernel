@@ -44,7 +44,7 @@ const adapter = createOllamaAdapter({
   baseUrl: "http://localhost:11434",
   fetchFn: async () => ({ ok: false, status: 503, statusText: "Down" }),
 });
-await assert.rejects(() => adapter.generate({ model: "m", prompt: "p" }), /Ollama request failed/);
+await assert.rejects(() => adapter.generate({ model: "m", prompt: "p" }), /LLM request failed/);
 `;
 
 const solverScript = `

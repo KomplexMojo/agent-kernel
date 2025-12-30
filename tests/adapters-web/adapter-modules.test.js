@@ -48,7 +48,7 @@ const adapter = createOllamaAdapter({
   fetchFn: async () => ({ ok: false, status: 500, statusText: "Down" }),
 });
 
-await assert.rejects(() => adapter.generate({ model: "m", prompt: "p" }), /Ollama request failed/);
+await assert.rejects(() => adapter.generate({ model: "m", prompt: "p" }), /LLM request failed/);
 assert.throws(() => createOllamaAdapter({ fetchFn: null }), /fetch implementation/);
 await assert.rejects(() => adapter.generate({ model: "m" }), /model and prompt/);
 `;

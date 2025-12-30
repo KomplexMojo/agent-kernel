@@ -1,9 +1,9 @@
-# Ollama Adapter (Web)
+# LLM Adapter (Web, Ollama-style)
 
-Purpose: request strategic guidance or content from an Ollama LLM endpoint.
+Purpose: request strategic guidance or content from an LLM HTTP endpoint (Ollama/OpenAI-compatible).
 
 This adapter:
-- Calls the Ollama `/api/generate` endpoint.
+- Calls an Ollama-style `/api/generate` endpoint.
 - Returns the raw JSON response for downstream processing.
 
 It is intended for Orchestrator/Director workflows and never used inside `core-as`.
@@ -13,8 +13,8 @@ It is intended for Orchestrator/Director workflows and never used inside `core-a
 ```
 import { createOllamaAdapter } from "./index.js";
 
-const ollama = createOllamaAdapter({ baseUrl: "http://localhost:11434" });
-const response = await ollama.generate({ model: "llama3", prompt: "Summarize plan" });
+const llm = createOllamaAdapter({ baseUrl: "http://localhost:11434" });
+const response = await llm.generate({ model: "llama3", prompt: "Summarize plan" });
 ```
 
 ## Configuration

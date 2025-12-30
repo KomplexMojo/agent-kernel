@@ -43,7 +43,7 @@ These commands exercise the external adapters directly.
 
 - `ipfs`: fetch text/JSON by CID via an HTTP gateway.
 - `blockchain`: fetch chain id and optional balance via JSON-RPC.
-- `ollama`: request a response from an Ollama endpoint.
+- `ollama`: request a response from an LLM endpoint (Ollama/OpenAI-compatible HTTP API).
 
 ### Local run
 ```
@@ -75,7 +75,7 @@ node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 
 - IPFS: `--gateway` (default: `https://ipfs.io/ipfs`), `--cid`, optional `--path`.
 - Blockchain: `--rpc-url` (required), `--address` (optional for balance).
-- Ollama: `--base-url` (default: `http://localhost:11434`), `--model`, `--prompt`.
+- LLM (Ollama-style): `--base-url` (default: `http://localhost:11434`), `--model`, `--prompt`.
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
 
 ## Architectural Intent

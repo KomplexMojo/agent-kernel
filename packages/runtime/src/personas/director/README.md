@@ -1,4 +1,4 @@
-The Director turns strategy into actionable tactics. It collaborates with the Orchestrator to fetch external insight (e.g., Ollama-generated “trap level” strategies), translates that guidance into budgets, layouts, and actor directives for the Configurator, and ensures plans stay within the available shards/tokenized budgets before a single instruction reaches the simulation.
+The Director turns strategy into actionable tactics. It collaborates with the Orchestrator to fetch external insight (e.g., LLM-generated “trap level” strategies from Ollama/OpenAI endpoints), translates that guidance into budgets, layouts, and actor directives for the Configurator, and ensures plans stay within the available shards/tokenized budgets before a single instruction reaches the simulation.
 
 # Director Persona
 

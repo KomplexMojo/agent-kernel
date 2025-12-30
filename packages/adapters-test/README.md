@@ -6,8 +6,8 @@ fixture-backed responses for tests and replay. It is not a test suite itself.
 ## Purpose
 
 `adapters-test` exists to provide predictable versions of external IO adapters:
-IPFS, blockchain JSON-RPC, and Ollama. Tests can use these adapters to avoid
-network calls and to keep runs deterministic.
+IPFS, blockchain JSON-RPC, and LLM APIs (Ollama/OpenAI-compatible). Tests can
+use these adapters to avoid network calls and to keep runs deterministic.
 
 ## How it differs from the top-level `tests/` folder
 
@@ -30,7 +30,7 @@ const payload = await ipfs.fetchJson("bafy123");
 
 - IPFS: `fixtures` map keyed by `cid` or `cid:path`.
 - Blockchain: `balances` and `responses` fixture maps.
-- Ollama: `responses` map keyed by `model:prompt`.
+- LLM: `responses` map keyed by `model:prompt`.
 
 ## Fixtures under adapters-test
 
@@ -43,4 +43,4 @@ them in your test before registering with these adapters.
 
 - IPFS test adapter: returns fixture content for CIDs/paths.
 - Blockchain test adapter: returns fixture balances or RPC responses.
-- Ollama test adapter: returns fixture responses for model/prompt pairs.
+- LLM test adapter: returns fixture responses for model/prompt pairs.

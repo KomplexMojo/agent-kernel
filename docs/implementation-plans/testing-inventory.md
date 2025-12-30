@@ -8,18 +8,18 @@ Status tags reflect coverage status and should be updated as tests land.
 - [pending] solver-wasm — packages/adapters-web/src/adapters/solver-wasm.js
 - [pending] ipfs — packages/adapters-web/src/adapters/ipfs/index.js
 - [pending] blockchain — packages/adapters-web/src/adapters/blockchain/index.js
-- [pending] ollama — packages/adapters-web/src/adapters/ollama/index.js
+- [pending] llm (Ollama-style HTTP) — packages/adapters-web/src/adapters/ollama/index.js
 
 ## Adapters (CLI)
 - [pending] solver-wasm — packages/adapters-cli/src/adapters/solver-wasm.js
 - [pending] ipfs — packages/adapters-cli/src/adapters/ipfs/index.js
 - [pending] blockchain — packages/adapters-cli/src/adapters/blockchain/index.js
-- [pending] ollama — packages/adapters-cli/src/adapters/ollama/index.js
+- [pending] llm (Ollama-style HTTP) — packages/adapters-cli/src/adapters/ollama/index.js
 
 ## Adapters (Test)
 - [pending] ipfs — packages/adapters-test/src/adapters/ipfs/index.js
 - [pending] blockchain — packages/adapters-test/src/adapters/blockchain/index.js
-- [pending] ollama — packages/adapters-test/src/adapters/ollama/index.js
+- [pending] llm (Ollama-style HTTP) — packages/adapters-test/src/adapters/ollama/index.js
 
 ## Runtime Entrypoints
 - [pending] createRuntime — packages/runtime/src/runner/runtime.js

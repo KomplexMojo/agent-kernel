@@ -28,15 +28,15 @@ flowchart LR
   end
 
   subgraph Adapters["Adapters (IO boundary)"]
-    AWeb["adapters-web (ipfs | blockchain | ollama | dom-log)"]
-    ACli["adapters-cli (ipfs | blockchain | ollama | solver-wasm)"]
+    AWeb["adapters-web (ipfs | blockchain | llm | dom-log)"]
+    ACli["adapters-cli (ipfs | blockchain | llm | solver-wasm)"]
     ATest["adapters-test (fixture adapters)"]
   end
 
   subgraph External["External Services"]
     IPFS["IPFS gateway"]
     Chain["Blockchain JSON-RPC"]
-    LLM["Ollama / LLM"]
+    LLM["LLM API (OpenAI | Ollama | etc)"]
     Storage["Persistence"]
   end
 

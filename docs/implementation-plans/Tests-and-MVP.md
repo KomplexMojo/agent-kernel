@@ -52,8 +52,8 @@ Goal: build MVP examples for adapters-cli and add a comprehensive test suite for
    - CLI: no CLI tests exist for argument validation failures or schema mismatch errors (owner: adapters-cli; add tests under tests/adapters-cli).
    - Runtime: no direct tests for applyBudgetCaps, dispatchEffect, solveWithAdapter (owner: runtime; add tests under tests/runtime).
    - Bindings: no tests verifying loadCore error handling for missing/invalid WASM (owner: bindings-ts; add tests under tests/bindings).
-   - Adapters-web: no tests for fetch error handling or URL construction in IPFS/blockchain/ollama adapters (owner: adapters-web; add tests under tests/adapters-web).
-   - Adapters-cli: no tests for adapter modules (ipfs/blockchain/ollama) or solver-wasm error paths (owner: adapters-cli; add tests under tests/adapters-cli).
+- Adapters-web: no tests for fetch error handling or URL construction in IPFS/blockchain/LLM adapters (owner: adapters-web; add tests under tests/adapters-web).
+- Adapters-cli: no tests for adapter modules (ipfs/blockchain/LLM) or solver-wasm error paths (owner: adapters-cli; add tests under tests/adapters-cli).
    - Adapters-test: no tests for fixture registration/lookup behavior (owner: adapters-test; add tests under tests/adapters-test).
    - Fixtures: no negative fixtures (invalid schemaVersion, missing required fields) for schema validation tests (owner: tests; add under tests/fixtures/artifacts/invalid).
 
@@ -123,14 +123,14 @@ Goal: build MVP examples for adapters-cli and add a comprehensive test suite for
    - Web: `packages/adapters-web/src/adapters/blockchain/index.js`
    - CLI: `packages/adapters-cli/src/adapters/blockchain/index.js`
    - Expected usage: fetch a fixed balance (fixture via adapters-test) for a known address.
-7. [complete] Ollama adapter MVP (web + CLI): request strategy or content prompts.
-   - Web: `packages/adapters-web/src/adapters/ollama/index.js`
-   - CLI: `packages/adapters-cli/src/adapters/ollama/index.js`
-   - Expected usage: prompt with a small plan summary and capture response JSON for replay.
+7. [complete] LLM adapter MVP (web + CLI): request strategy or content prompts via HTTP (Ollama/OpenAI-compatible).
+   - Web: `packages/adapters-web/src/adapters/ollama/index.js` (Ollama-style API surface)
+   - CLI: `packages/adapters-cli/src/adapters/ollama/index.js` (Ollama-style API surface)
+   - Expected usage: prompt with a small plan summary and capture response JSON for replay using a fixture or any compatible LLM endpoint.
 
 ## 6) Adapter Tests
 1. [complete] CLI argument parsing and validation.
-   - Cover missing required args for solve/run/replay/inspect/ipfs/blockchain/ollama.
+   - Cover missing required args for solve/run/replay/inspect/ipfs/blockchain/llm.
    - Assert stderr contains clear error message and exit code non-zero.
 2. [complete] Artifact serialization round-trip tests.
    - Load fixture JSON, serialize to string, parse back, and deep-equal.
@@ -138,14 +138,14 @@ Goal: build MVP examples for adapters-cli and add a comprehensive test suite for
 3. [complete] Deterministic outputs from fixed inputs (golden fixtures).
    - Use tests/fixtures/artifacts to drive adapter commands and compare output JSON.
    - For runtime outputs, validate schema, counts, and stable fields (not timestamps).
-4. [complete] Test adapters for IPFS/Blockchain/Ollama using deterministic fixtures.
+4. [complete] Test adapters for IPFS/Blockchain/LLM using deterministic fixtures.
    - Use adapters-test fixtures to stub fetch or RPC responses.
-   - Validate error paths (missing fixture, RPC error, Ollama failure).
+   - Validate error paths (missing fixture, RPC error, LLM failure).
 
 ## 7) Documentation and Usage
 1. [complete] Update `packages/adapters-cli/README.md` with MVP usage examples.
    - Ensure CLI commands listed match `ak.mjs` help output.
-   - Include example invocations for solve/run/replay/inspect/ipfs/blockchain/ollama.
+   - Include example invocations for solve/run/replay/inspect/ipfs/blockchain/llm.
 2. [complete] Add a minimal “how to run tests” section in root README (if needed).
    - Mention `node --test "tests/**/*.test.js"` and note WASM dependency for core/runtime tests.
 
@@ -176,7 +176,7 @@ Goal: build MVP examples for adapters-cli and add a comprehensive test suite for
   - Add a short rationale and expected shape if it remains supported.
 - Reuse `effectFactory` in other runtime tests that need custom effect shapes (need_external_fact, deferred effects).
   - Avoid patching runtime internals in tests; use factory overrides instead.
-- Add CLI tests for `ipfs`/`blockchain`/`ollama` commands using fixture-based fetch stubs (avoid network).
+- Add CLI tests for `ipfs`/`blockchain`/`llm` commands using fixture-based fetch stubs (avoid network).
   - Reuse `tests/fixtures/adapters/*` as the payload sources.
 - Add a small README for `tests/fixtures/adapters` describing each fixture payload and intended tests.
   - Mirror `tests/fixtures/artifacts/README.md` structure.
@@ -199,7 +199,7 @@ Goal: build MVP examples for adapters-cli and add a comprehensive test suite for
 3. CLI adapter demos with test data (no network).
    - IPFS: `node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json --out-dir artifacts/ipfs`
    - Blockchain: `node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json --out-dir artifacts/blockchain`
-   - Ollama: `node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt \"hello\" --fixture tests/fixtures/adapters/ollama-generate.json --out-dir artifacts/ollama`
+   - LLM (Ollama-style): `node packages/adapters-cli/src/cli/ak.mjs ollama --model fixture --prompt \"hello\" --fixture tests/fixtures/adapters/ollama-generate.json --out-dir artifacts/ollama`
 4. Web UI (local run with test data).
    - Serve repo root with a static server (examples: `python3 -m http.server 8000` or `npx serve .`).
    - Open `http://localhost:8000/packages/ui-web/index.html` and verify counter/port effects update.

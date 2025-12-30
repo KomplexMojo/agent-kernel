@@ -1,11 +1,11 @@
 export function createOllamaAdapter({ baseUrl = "http://localhost:11434", fetchFn = fetch } = {}) {
   if (!fetchFn) {
-    throw new Error("Ollama adapter requires a fetch implementation.");
+    throw new Error("LLM adapter requires a fetch implementation.");
   }
 
   async function generate({ model, prompt, options = {}, stream = false } = {}) {
     if (!model || !prompt) {
-      throw new Error("Ollama generate requires model and prompt.");
+      throw new Error("LLM generate requires model and prompt.");
     }
     const response = await fetchFn(`${baseUrl}/api/generate`, {
       method: "POST",
@@ -13,7 +13,7 @@ export function createOllamaAdapter({ baseUrl = "http://localhost:11434", fetchF
       body: JSON.stringify({ model, prompt, options, stream }),
     });
     if (!response.ok) {
-      throw new Error(`Ollama request failed: ${response.status} ${response.statusText}`);
+      throw new Error(`LLM request failed: ${response.status} ${response.statusText}`);
     }
     return response.json();
   }
