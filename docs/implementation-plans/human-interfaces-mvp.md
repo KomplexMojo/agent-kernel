@@ -10,8 +10,8 @@ Goal: ship runnable, human-facing MVPs for both CLI and web UI that exercise the
 
 ## Plan
 1) Preconditions and quickstart alignment
-   - Document a single quickstart that builds WASM, runs CLI demos, and serves the web UI (docs entry under `docs/README.md` or a short `docs/human-interfaces.md` referenced from there). Keep `packages/adapters-cli/README.md` examples in sync with `ak.mjs --help`.
-   - Add a small validation script or Node test to assert `build/core-as.wasm` and `packages/ui-web/assets/core-as.wasm` exist (skipping when missing) so both surfaces fail fast in CI.
+   - Document a single quickstart that builds WASM, runs CLI demos, and serves the web UI (docs entry under `docs/README.md` or a short `docs/human-interfaces.md` referenced from there). Include exact commands: `pnpm run build:wasm`, CLI demo invocations (fixture-first), and `pnpm run serve:ui` (or `pnpm run dev:ui` if available). Keep `packages/adapters-cli/README.md` examples in sync with `ak.mjs --help` and the quickstart.
+   - Add a small validation script or Node test to assert `build/core-as.wasm` and `packages/ui-web/assets/core-as.wasm` exist (skipping when missing) so both surfaces fail fast in CI. Wire it into CI/test workflow (e.g., `pnpm test:wasm-check` or part of the demo script) and make the quickstart mention the check.
 
 2) CLI MVP walkthrough (fixtures-first)
    - Add “demo” invocations for each adapter to `packages/adapters-cli/README.md` that default to fixture mode and write artifacts under `artifacts/<command>/`. Ensure solver demo references `tests/fixtures/artifacts/solver-result-*.json`.
