@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
 import { createLlmAdapter } from "../adapters/llm/index.js";
+import { buildEffectFromCore as buildRuntimeEffect, dispatchEffect as dispatchRuntimeEffect } from "../../../runtime/src/ports/effects.js";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
@@ -18,14 +19,6 @@ const SCHEMAS = Object.freeze({
   effect: "agent-kernel/Effect",
   telemetry: "agent-kernel/TelemetryRecord",
   runSummary: "agent-kernel/RunSummary",
-});
-
-const EFFECT_KIND = Object.freeze({
-  Log: 1,
-  InitInvalid: 2,
-  ActionRejected: 3,
-  LimitReached: 4,
-  LimitViolated: 5,
 });
 
 const DEFAULT_WASM_PATH = "build/core-as.wasm";
@@ -233,51 +226,24 @@ function applyBudgetCaps(core, simConfig) {
   return applied;
 }
 
-function dispatchEffect(adapters, kind, value) {
-  const logger = adapters?.logger;
-  switch (kind) {
-    case EFFECT_KIND.Log:
-      if (!logger?.log) {
-        return { status: "deferred", reason: "missing_logger" };
-      }
-      return { status: "fulfilled", result: logger.log(value) };
-    case EFFECT_KIND.InitInvalid:
-      if (!logger?.warn) {
-        return { status: "deferred", reason: "missing_logger" };
-      }
-      return { status: "fulfilled", result: logger.warn("Init invalid", value) };
-    case EFFECT_KIND.ActionRejected:
-      if (!logger?.warn) {
-        return { status: "deferred", reason: "missing_logger" };
-      }
-      return { status: "fulfilled", result: logger.warn("Action rejected", value) };
-    case EFFECT_KIND.LimitReached:
-      if (!logger?.warn) {
-        return { status: "deferred", reason: "missing_logger" };
-      }
-      return { status: "fulfilled", result: logger.warn("Budget limit reached", value) };
-    case EFFECT_KIND.LimitViolated:
-      if (!logger?.warn) {
-        return { status: "deferred", reason: "missing_logger" };
-      }
-      return { status: "fulfilled", result: logger.warn("Budget limit violated", value) };
-    default:
-      if (!logger?.warn) {
-        return { status: "deferred", reason: "missing_logger" };
-      }
-      return { status: "fulfilled", result: logger.warn(`Unhandled effect kind: ${kind}`, value) };
+function dispatchEffect(adapters, effect) {
+  if (effect?.kind === "need_external_fact") {
+    if (effect.sourceRef) {
+      return {
+        status: "fulfilled",
+        result: { sourceRef: effect.sourceRef, requestId: effect.requestId, targetAdapter: effect.targetAdapter },
+      };
+    }
+    return { status: "deferred", reason: "missing_source_ref" };
   }
+  if (effect?.fulfillment === "deferred") {
+    return { status: "deferred", reason: "deferred_effect" };
+  }
+  return dispatchRuntimeEffect(adapters, effect);
 }
 
-function buildEffect({ tick, kind, value }) {
-  return {
-    schema: SCHEMAS.effect,
-    schemaVersion: 1,
-    tick,
-    fulfillment: "deterministic",
-    kind: "custom",
-    data: { kind, value },
-  };
+function buildEffect({ tick, index, kind, value }) {
+  return buildRuntimeEffect({ tick, index, kind, value });
 }
 
 function createRunner({ core, runId, adapters = {} }) {
@@ -302,30 +268,53 @@ function createRunner({ core, runId, adapters = {} }) {
 
   function flushEffects() {
     const count = core.getEffectCount();
-    const emittedEffects = [];
-    const fulfilledEffects = [];
+    const records = [];
     for (let i = 0; i < count; i += 1) {
       const kind = core.getEffectKind(i);
       const value = core.getEffectValue(i);
-      const effect = buildEffect({ tick, kind, value });
-      const outcome = dispatchEffect(adapters, kind, value);
-      emittedEffects.push(effect);
-      fulfilledEffects.push({
+      const effect = buildEffect({ tick, index: i, kind, value });
+      const outcome = dispatchEffect(adapters, effect);
+      records.push({
         effect,
-        status: outcome?.status || "fulfilled",
-        result: outcome?.result,
-        reason: outcome?.reason,
-      });
-      effectLog.push({
-        tick,
-        kind,
-        value,
-        status: outcome?.status || "fulfilled",
-        result: outcome?.result,
-        reason: outcome?.reason,
+        outcome,
+        index: i,
+        coreKind: kind,
+        coreValue: value,
       });
     }
     core.clearEffects();
+
+    records.sort((a, b) => {
+      const left = a.effect?.id || "";
+      const right = b.effect?.id || "";
+      if (left === right) {
+        return a.index - b.index;
+      }
+      return left < right ? -1 : 1;
+    });
+
+    const emittedEffects = records.map((record) => record.effect);
+    const fulfilledEffects = records.map((record) => ({
+      effect: record.effect,
+      status: record.outcome?.status || "fulfilled",
+      result: record.outcome?.result,
+      reason: record.outcome?.reason,
+      requestId: record.effect?.requestId,
+    }));
+
+    for (const record of records) {
+      effectLog.push({
+        tick,
+        kind: record.effect?.kind ?? record.coreKind,
+        value: record.coreValue,
+        effectId: record.effect?.id,
+        requestId: record.effect?.requestId,
+        status: record.outcome?.status || "fulfilled",
+        result: record.outcome?.result,
+        reason: record.outcome?.reason,
+      });
+    }
+
     return { emittedEffects, fulfilledEffects };
   }
 

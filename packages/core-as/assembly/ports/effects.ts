@@ -4,6 +4,11 @@ export const enum EffectKind {
   ActionRejected = 3,
   LimitReached = 4,
   LimitViolated = 5,
+  NeedExternalFact = 6,
+  Telemetry = 7,
+  SolverRequest = 8,
+  EffectFulfilled = 9,
+  EffectDeferred = 10,
 }
 
 const MAX_EFFECTS: i32 = 32;

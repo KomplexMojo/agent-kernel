@@ -1,5 +1,5 @@
 import { applyBudgetCaps } from "../ports/budget.js";
-import { dispatchEffect } from "../ports/effects.js";
+import * as effects from "../ports/effects.js";
 
 // Moderator-owned runner module: executes ticks and records execution frames.
 
@@ -25,40 +25,59 @@ export function createRuntime({ core, adapters = {}, effectFactory } = {}) {
     };
   }
 
-  function buildEffect(kind, value) {
-    return {
-      schema: "agent-kernel/Effect",
-      schemaVersion: 1,
-      tick,
-      fulfillment: "deterministic",
-      kind: "custom",
-      data: { kind, value },
-    };
-  }
-
-  function buildEffectRecord(kind, value) {
+  function buildEffectRecord(kind, value, index) {
+    const buildEffectFromCore = typeof effects.buildEffectFromCore === "function"
+      ? effects.buildEffectFromCore
+      : ({ tick: t, index: i, kind: k, value: v }) => ({
+          schema: "agent-kernel/Effect",
+          schemaVersion: 1,
+          id: `eff_${t}_${i}_${k}_${v}`,
+          tick: t,
+          fulfillment: "deterministic",
+          kind: "custom",
+          data: { kind: k, value: v },
+        });
+    const fallback = buildEffectFromCore({ tick, index, kind, value });
     if (typeof effectFactory === "function") {
-      const customEffect = effectFactory({ tick, kind, value });
+      const customEffect = effectFactory({ tick, kind, value, index });
       if (customEffect) {
-        return customEffect;
+        return { ...fallback, ...customEffect, id: customEffect.id || fallback.id };
       }
     }
-    return buildEffect(kind, value);
+    return fallback;
+  }
+
+  function normalizeEffectKind(effect) {
+    if (!effect || typeof effect.kind === "string" || typeof effect.kind === "number") {
+      return;
+    }
+    if (effect.kind && typeof effect.kind.kind === "string") {
+      effect.kind = effect.kind.kind;
+      return;
+    }
+    if (effect.kind && typeof effect.kind.type === "string") {
+      effect.kind = effect.kind.type;
+      return;
+    }
+    effect.kind = String(effect.kind);
   }
 
   function flushEffects() {
     const count = core.getEffectCount();
-    const fulfilledEffects = [];
-    const emittedEffects = [];
+    const records = [];
     for (let i = 0; i < count; i += 1) {
       const kind = core.getEffectKind(i);
       const value = core.getEffectValue(i);
-      const effect = buildEffectRecord(kind, value);
+      const effect = buildEffectRecord(kind, value, i);
+      normalizeEffectKind(effect);
       let outcome;
       if (effect?.kind === "need_external_fact") {
         if (effect.sourceRef) {
           effect.fulfillment = "deterministic";
-          outcome = { status: "fulfilled", result: { sourceRef: effect.sourceRef } };
+          outcome = {
+            status: "fulfilled",
+            result: { sourceRef: effect.sourceRef, requestId: effect.requestId, targetAdapter: effect.targetAdapter },
+          };
         } else {
           effect.fulfillment = "deferred";
           outcome = { status: "deferred", reason: "missing_source_ref" };
@@ -66,25 +85,52 @@ export function createRuntime({ core, adapters = {}, effectFactory } = {}) {
       } else if (effect?.fulfillment === "deferred") {
         outcome = { status: "deferred", reason: "deferred_effect" };
       } else {
-        outcome = dispatchEffect(adapters, kind, value);
+        const dispatch = typeof effects.dispatchEffect === "function"
+          ? effects.dispatchEffect
+          : () => ({ status: "deferred", reason: "missing_dispatchEffect" });
+        outcome = dispatch(adapters, effect);
       }
-      emittedEffects.push(effect);
-      fulfilledEffects.push({
+      records.push({
         effect,
-        status: outcome?.status || "fulfilled",
-        result: outcome?.result,
-        reason: outcome?.reason,
-      });
-      effectLog.push({
-        tick,
-        kind,
-        value,
-        status: outcome?.status || "fulfilled",
-        result: outcome?.result,
-        reason: outcome?.reason,
+        outcome,
+        index: i,
+        coreKind: kind,
+        coreValue: value,
       });
     }
     core.clearEffects();
+
+    records.sort((a, b) => {
+      const left = a.effect?.id || "";
+      const right = b.effect?.id || "";
+      if (left === right) {
+        return a.index - b.index;
+      }
+      return left < right ? -1 : 1;
+    });
+
+    const emittedEffects = records.map((record) => record.effect);
+    const fulfilledEffects = records.map((record) => ({
+      effect: record.effect,
+      status: record.outcome?.status || "fulfilled",
+      result: record.outcome?.result,
+      reason: record.outcome?.reason,
+      requestId: record.effect?.requestId,
+    }));
+
+    for (const record of records) {
+      effectLog.push({
+        tick,
+        kind: record.effect?.kind ?? record.coreKind,
+        value: record.coreValue,
+        effectId: record.effect?.id,
+        requestId: record.effect?.requestId,
+        status: record.outcome?.status || "fulfilled",
+        result: record.outcome?.result,
+        reason: record.outcome?.reason,
+      });
+    }
+
     return { emittedEffects, fulfilledEffects };
   }
 

@@ -24,7 +24,7 @@ Personas are modeled as deterministic finite-state machines (FSMs) with explicit
 - Allocator: idle → budgeting → allocating → monitoring → rebalancing; subscribes: observe, decide.
 - Annotator: idle → recording → summarizing; subscribes: emit, summarize.
 - Moderator: initializing → ticking → pausing → stopping; subscribes: all tick phases.
-- Solver interactions: personas emit data-only `solver_request` effects when provided a solverRequest payload; solver adapters handle IO via ports (no core-as IO).
+- Solver and fact interactions: personas emit data-only `solver_request` effects (with requestId/targetAdapter) and handle `need_external_fact` fulfill/defer loops; adapters/fixtures fulfill via ports (no core-as IO).
 
 ## Tick phases and persona mapping (current)
 - Tick phases (ordered): init → observe → decide → apply → emit → summarize → next_tick (wraps to observe, tick++).

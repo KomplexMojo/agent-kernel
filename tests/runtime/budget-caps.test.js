@@ -57,9 +57,8 @@ runtime.step();
 runtime.step();
 
 const effectLog = runtime.getEffectLog();
-const kinds = effectLog.map((entry) => entry.kind);
-assert.ok(kinds.includes(4), "Expected LimitReached effect");
-assert.ok(kinds.includes(5), "Expected LimitViolated effect");
+const limitEntries = effectLog.filter((entry) => entry.kind === "limit_violation");
+assert.equal(limitEntries.length, 2, "Expected two limit_violation entries (reached + violated)");
 `;
   runEsm(script);
 });

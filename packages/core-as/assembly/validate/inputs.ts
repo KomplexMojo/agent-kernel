@@ -1,8 +1,19 @@
+export const enum ActionKind {
+  IncrementCounter = 1,
+  EmitLog = 2,
+  EmitTelemetry = 3,
+  RequestExternalFact = 4,
+  RequestSolver = 5,
+  FulfillRequest = 6,
+  DeferRequest = 7,
+}
+
 export const enum ValidationError {
   None = 0,
   InvalidSeed = 1,
   InvalidActionKind = 2,
   InvalidActionValue = 3,
+  MissingPendingRequest = 4,
 }
 
 export function validateSeed(seed: i32): i32 {
@@ -10,11 +21,20 @@ export function validateSeed(seed: i32): i32 {
 }
 
 export function validateAction(kind: i32, value: i32): i32 {
-  if (kind != 1) {
-    return ValidationError.InvalidActionKind;
+  switch (kind) {
+    case ActionKind.IncrementCounter:
+      return value != 1 ? ValidationError.InvalidActionValue : ValidationError.None;
+    case ActionKind.EmitLog:
+      return value < 0 || value > 3 ? ValidationError.InvalidActionValue : ValidationError.None;
+    case ActionKind.EmitTelemetry:
+      return value < 0 ? ValidationError.InvalidActionValue : ValidationError.None;
+    case ActionKind.RequestExternalFact:
+    case ActionKind.RequestSolver:
+      return value < 0 || value > 255 ? ValidationError.InvalidActionValue : ValidationError.None;
+    case ActionKind.FulfillRequest:
+    case ActionKind.DeferRequest:
+      return value <= 0 ? ValidationError.InvalidActionValue : ValidationError.None;
+    default:
+      return ValidationError.InvalidActionKind;
   }
-  if (value != 1) {
-    return ValidationError.InvalidActionValue;
-  }
-  return ValidationError.None;
 }

@@ -147,17 +147,16 @@ stateDiagram-v2
 ## Non-negotiables (short)
 - Core-as is deterministic, no IO/imports; Ports & Adapters are the IO boundary.
 - Persona FSMs are pure, clock-injected, serializable; tick orchestrator drives phases.
+- Effects are data-only with deterministic ids/requestIds and fulfillment hints; adapters fulfill `solver_request`, `need_external_fact` (fulfill/defer), `log`, `telemetry`, and `limit_violation` without core IO.
 - Browser-first, replayable runs.
 
 ## Proposed / Not Yet Implemented
-- Persona action pipeline wiring through Moderator/runtime (personas proposing real actions into core loop).
-- External fact vault/deferred fulfillment flow.
-- Deterministic artifact stamping/clock flags across CLI/runtime.
+- External fact vault persistence beyond fixtures (cache + replay).
 - Expanded inspect/HTML reporting.
 - Per-persona README/state notes (only some personas currently have detailed docs).
-- Solver adapter/port wiring into Director/Configurator/Allocator personas for plan validation (stubbed adapters exist; no real solver integration yet).
+- Rich solver integration beyond fixtures.
 
 ## Manual Smoke (fixtures, offline)
 - `pnpm run build:wasm` then `pnpm run demo:cli` → artifacts in `artifacts/demo-bundle`.
-- `pnpm run serve:ui` → open `http://localhost:8001/packages/ui-web/index.html` and run the Adapter Playground in fixture mode (IPFS/blockchain/LLM/solver); counter/effect log should still work.
-- Expected artifacts: solve (`solver-request.json`, `solver-result.json`), run (`tick-frames.json`, `effects-log.json`), replay (`replay-summary.json`), inspect (`inspect-summary.json`), adapters (`ipfs.json`, `blockchain.json`, `llm.json`).
+- `pnpm run serve:ui` → open `http://localhost:8001/packages/ui-web/index.html` and run the Adapter Playground in fixture mode (IPFS/blockchain/LLM/solver); counter/effect log should show effect ids/requestIds/fulfillment.
+- Expected artifacts: solve (`solver-request.json`, `solver-result.json`), run (`tick-frames.json`, `effects-log.json` with ids/requestIds/adapter hints), replay (`replay-summary.json`), inspect (`inspect-summary.json`), adapters (`ipfs.json`, `blockchain.json`, `llm.json`).

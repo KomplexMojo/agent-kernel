@@ -4,8 +4,8 @@ export function resetCounter(seed: i32): void {
   counter = seed;
 }
 
-export function incrementCounter(): i32 {
-  counter += 1;
+export function incrementCounter(delta: i32 = 1): i32 {
+  counter += delta;
   return counter;
 }
 

@@ -479,6 +479,12 @@ export interface ActionV1 {
     | "move"
     | "interact"
     | "use_item"
+    | "emit_log"
+    | "emit_telemetry"
+    | "request_external_fact"
+    | "request_solver"
+    | "fulfill_request"
+    | "defer_request"
     | "custom";
 
   /**
@@ -557,9 +563,28 @@ export interface EventV1 {
  * - Breaking changes require a schemaVersion bump.
  * - Do not embed internal memory layouts.
  */
+export type EffectKind =
+  | "log"
+  | "telemetry"
+  | "solver_request"
+  | "need_external_fact"
+  | "effect_fulfilled"
+  | "effect_deferred"
+  | "need_random"
+  | "persist_required"
+  | "publish_required"
+  | "limit_violation"
+  | "custom";
+
 export interface EffectV1 {
   schema: typeof EFFECT_SCHEMA;
   schemaVersion: 1;
+
+  /**
+   * Deterministic effect identifier derived from state + action inputs (no clocks/random).
+   * Used by adapters and personas to fulfill/track responses idempotently.
+   */
+  id: string;
 
   tick: number;
 
@@ -569,17 +594,15 @@ export interface EffectV1 {
    */
   fulfillment: EffectFulfillment;
 
-  kind:
-    | "need_random"
-    | "need_external_fact"
-    | "persist_required"
-    | "publish_required"
-    | "limit_violation"
-    | "custom";
+  kind: EffectKind;
 
   /**
    * Effect payload (data-only).
-   * For need_external_fact, include a deterministic sourceRef if fulfillment is deterministic.
+   * Examples:
+   * - log: { message, counter, severity }
+   * - telemetry: { metrics }
+   * - solver_request: { intent, plan, problem }
+   * - need_external_fact: { query, scope }
    */
   data?: Record<string, unknown>;
 
@@ -588,6 +611,24 @@ export interface EffectV1 {
    * If absent for need_external_fact, fulfillment must be deferred.
    */
   sourceRef?: ArtifactRef;
+
+  /** Idempotent request identifier used to correlate fulfill/defer responses. */
+  requestId?: string;
+
+  /** Hint for routing to a specific adapter (e.g., "fixtures", "ipfs", "ollama"). */
+  targetAdapter?: string;
+
+  /** Severity for log-like effects. */
+  severity?: "debug" | "info" | "warn" | "error";
+
+  /** Persona or module that originated this effect (core often supplies "core"). */
+  personaRef?: string;
+
+  /** Optional tags for telemetry/log filtering. */
+  tags?: string[];
+
+  /** Optional correlation id for external systems. */
+  correlationId?: string;
 }
 
 /**

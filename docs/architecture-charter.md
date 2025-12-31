@@ -20,14 +20,14 @@ This project is intentionally split into:
 
 - Canonical simulation state and transition rules.
 - Deterministic validation and legality checks.
-- Pure effects emitted as data (no IO).
+- Pure effects emitted as data (no IO). Effects must carry deterministic ids/requestIds and fulfillment hints; new kinds include solver_request, need_external_fact (fulfill/defer), log/telemetry, and limit_violation.
 - Deterministic render frame generation from canonical state (UI renders the buffer).
 
 ### What belongs in personas (runtime)
 
 - Long-lived workflows and state machines.
-- Action proposal/ordering, orchestration, and integration logic.
-- Telemetry capture, normalization, and emission.
+- Action proposal/ordering, orchestration, and integration logic (including budget-aware request_external_fact/request_solver/fulfill/defer loops).
+- Telemetry capture, normalization, and emission; log/telemetry effects are data-only and routed via adapters.
 - UI rendering and presentation logic (consumes core frame buffers).
 
 The browser still runs JavaScript to host WASM. Shipping a no-install browser app does not require

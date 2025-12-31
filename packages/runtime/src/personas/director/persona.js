@@ -1,5 +1,6 @@
 import { createDirectorStateMachine, DirectorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.js";
+import { buildSolverRequestEffect } from "../_shared/persona-helpers.js";
 
 // Phases this persona listens to (others are ignored).
 export const directorSubscribePhases = Object.freeze([TickPhases.DECIDE]);
@@ -23,9 +24,16 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     }
     const result = fsm.advance(event, payload);
     const effects = [];
-    if (payload.solverRequest) {
-      effects.push({ kind: "solver_request", request: payload.solverRequest });
-      result.context = { ...result.context, lastSolverRequest: payload.solverRequest };
+    const solverEffect = buildSolverRequestEffect({
+      solverRequest: payload.solver || payload.solverRequest,
+      intentRef: payload.intentRef,
+      planRef: payload.planRef,
+      personaRef: "director",
+      targetAdapter: payload.targetAdapter,
+    });
+    if (solverEffect) {
+      effects.push(solverEffect);
+      result.context = { ...result.context, lastSolverRequest: solverEffect.request };
     }
     return {
       ...result,

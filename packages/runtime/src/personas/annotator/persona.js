@@ -1,5 +1,6 @@
 import { createAnnotatorStateMachine, AnnotatorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.js";
+import { buildTelemetry } from "../_shared/persona-helpers.js";
 
 export const annotatorSubscribePhases = Object.freeze([TickPhases.EMIT, TickPhases.SUMMARIZE]);
 
@@ -16,17 +17,22 @@ export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, cl
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }
     const result = fsm.advance(event, payload);
-    const effects = [];
-    if (payload.solverRequest) {
-      effects.push({ kind: "solver_request", request: payload.solverRequest });
-      result.context = { ...result.context, lastSolverRequest: payload.solverRequest };
+    let telemetry = null;
+    const observations = Array.isArray(payload.observations) ? payload.observations : [];
+    if (observations.length > 0) {
+      telemetry = buildTelemetry({
+        observations,
+        runId: payload.runId || "run",
+        clock,
+        personaRef: "annotator",
+      });
     }
     return {
       ...result,
       tick,
       actions: [],
-      effects,
-      telemetry: null,
+      effects: [],
+      telemetry,
     };
   }
 

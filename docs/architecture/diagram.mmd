@@ -6,7 +6,7 @@ flowchart LR
   end
 
   subgraph Runtime["Runtime (TypeScript)"]
-    RuntimePorts["runtime ports + runner"]
+    RuntimePorts["runtime ports + runner\n(effect routing + tick frames)"]
     TickOrch["tick orchestrator (phases)"]
     subgraph Personas["Personas"]
       Orchestrator["Orchestrator: workflow coordination"]
@@ -66,6 +66,7 @@ flowchart LR
 
   RuntimePorts <--> AWeb
   ATest -.fixtures.-> RuntimePorts
+  RuntimePorts -.effects (id/requestId/adapter hint)-> Adapters
 
   AWeb --> IPFS
   AWeb --> Chain

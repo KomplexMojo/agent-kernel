@@ -34,16 +34,27 @@ assert.equal(capsByCategory[2], 7);
 
 const effectsScript = `
 import assert from "node:assert/strict";
-import { dispatchEffect, EffectKind } from ${JSON.stringify(effectsModule)};
+import { dispatchEffect, EffectKind, buildEffectFromCore } from ${JSON.stringify(effectsModule)};
 
-const noLogger = dispatchEffect({}, EffectKind.Log, 1);
+const effect = buildEffectFromCore({ tick: 0, index: 0, kind: EffectKind.Log, value: 1 });
+const noLogger = dispatchEffect({}, effect);
 assert.equal(noLogger.status, "deferred");
 
 const logs = [];
-const adapters = { logger: { log(value) { logs.push(value); } } };
-const result = dispatchEffect(adapters, EffectKind.Log, 2);
+const adapters = { logger: { log(message, data) { logs.push({ message, data }); } } };
+const result = dispatchEffect(adapters, effect);
 assert.equal(result.status, "fulfilled");
-assert.equal(logs[0], 2);
+assert.equal(logs.length, 1);
+assert.equal(logs[0].message, "log#1");
+
+const factEffect = buildEffectFromCore({ tick: 2, index: 1, kind: EffectKind.NeedExternalFact, value: (2 << 8) | 4 });
+assert.equal(factEffect.kind, "need_external_fact");
+assert.equal(factEffect.requestId, "fact-2");
+assert.ok(factEffect.id.includes("2"));
+
+const repeatA = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, value: 0 });
+const repeatB = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, value: 0 });
+assert.equal(repeatA.id, repeatB.id);
 `;
 
 const solverScript = `

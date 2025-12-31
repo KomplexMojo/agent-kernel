@@ -33,6 +33,13 @@ pnpm run demo:cli
 ```
 See `packages/adapters-cli/README.md` for full help/flags; it mirrors `ak.mjs --help`.
 
+### New persona-visible effects (fixtures)
+- CLI run/replay records TickFrames and effect logs with effect ids, requestIds, targetAdapter hints, and fulfillment status.
+- `need_external_fact` effects with `sourceRef` are fulfilled deterministically; without a `sourceRef` they are marked deferred.
+- `solver_request` effects include requestId, adapter hints, and payloads; fixture solver adapters respond deterministically.
+- `log`/`telemetry` effects capture severity/tags/personaRef for UI timelines/inspectors.
+Inspect the emitted `artifacts/demo-bundle/*` JSON to see these in UI/CLI demos.
+
 ## 4) Serve the web UI (fixture-backed by default)
 ```
 pnpm run serve:ui

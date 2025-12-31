@@ -91,6 +91,15 @@ pnpm run demo:cli
 pnpm run demo:cli -- /tmp/agent-kernel-demo
 ```
 
+## Effect logs and TickFrames
+
+- `run` and `replay` emit TickFrames and effect logs containing effect ids, requestIds, adapter hints, and fulfillment status.
+- `need_external_fact` effects with `sourceRef` are fulfilled deterministically; others are deferred for post-run handling.
+- `solver_request` effects carry requestId + targetAdapter; fixture solver adapters respond deterministically when provided.
+- `log`/`telemetry` effects include severity/tags/personaRef for UI/CLI inspection.
+
+Inspect the emitted artifacts in your chosen `--out-dir` or `artifacts/demo-bundle` to see these shapes. Examples align with `tests/fixtures/adapters/effects-routing.json`.
+
 ## Architectural Intent
 
 CLI tools are **adapters** in the Ports & Adapters model:
