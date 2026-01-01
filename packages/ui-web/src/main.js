@@ -1,14 +1,19 @@
 import { loadCore } from "../../bindings-ts/src/core-as.js";
-import { createRuntime } from "../../runtime/src/runner/runtime.js";
-import { createDomLogAdapter } from "../../adapters-web/src/adapters/dom-log.js";
+import { runMvpMovement } from "../../runtime/src/mvp/movement.js";
+import { setupPlayback } from "./movement-ui.js";
 import { wireAdapterPanel } from "./adapter-panel.js";
+import { wireRunBuilder } from "./run-builder.js";
 
-const counterEl = document.querySelector("#counter-value");
-const logEl = document.querySelector("#effect-log");
+const frameEl = document.querySelector("#frame-buffer");
+const actorIdEl = document.querySelector("#actor-id");
+const actorPosEl = document.querySelector("#actor-pos");
+const actorHpEl = document.querySelector("#actor-hp");
+const tickEl = document.querySelector("#tick-indicator");
 const statusEl = document.querySelector("#status-message");
-const stepButton = document.querySelector("#step-button");
-const runButton = document.querySelector("#run-button");
-const resetButton = document.querySelector("#reset-button");
+const stepBackButton = document.querySelector("#step-back");
+const stepForwardButton = document.querySelector("#step-forward");
+const playPauseButton = document.querySelector("#play-pause");
+const resetRunButton = document.querySelector("#reset-run");
 const adapterMode = document.querySelector("#adapter-mode");
 const adapterGateway = document.querySelector("#adapter-gateway");
 const adapterRpc = document.querySelector("#adapter-rpc-url");
@@ -24,16 +29,39 @@ const adapterIpfs = document.querySelector("#adapter-ipfs");
 const adapterBlockchain = document.querySelector("#adapter-blockchain");
 const adapterLlmButton = document.querySelector("#adapter-llm");
 const adapterSolver = document.querySelector("#adapter-solver");
-
-function setStatus(message) {
-  statusEl.textContent = message;
-}
-
-function setControlsEnabled(enabled) {
-  stepButton.disabled = !enabled;
-  runButton.disabled = !enabled;
-  resetButton.disabled = !enabled;
-}
+const seedInput = document.querySelector("#seed-input");
+const mapSelect = document.querySelector("#map-select");
+const actorNameInput = document.querySelector("#actor-name");
+const actorIdInput = document.querySelector("#actor-id");
+const fixtureSelect = document.querySelector("#fixture-select");
+const badgeSeed = document.querySelector("#badge-seed");
+const badgeName = document.querySelector("#badge-name");
+const badgeMode = document.querySelector("#badge-mode");
+const startRunButton = document.querySelector("#start-run");
+const resetConfigButton = document.querySelector("#reset-config");
+const configPreview = document.querySelector("#config-preview");
+const vitalsInputs = {
+  health: {
+    current: document.querySelector("#vital-health-current"),
+    max: document.querySelector("#vital-health-max"),
+    regen: document.querySelector("#vital-health-regen"),
+  },
+  mana: {
+    current: document.querySelector("#vital-mana-current"),
+    max: document.querySelector("#vital-mana-max"),
+    regen: document.querySelector("#vital-mana-regen"),
+  },
+  stamina: {
+    current: document.querySelector("#vital-stamina-current"),
+    max: document.querySelector("#vital-stamina-max"),
+    regen: document.querySelector("#vital-stamina-regen"),
+  },
+  durability: {
+    current: document.querySelector("#vital-durability-current"),
+    max: document.querySelector("#vital-durability-max"),
+    regen: document.querySelector("#vital-durability-regen"),
+  },
+};
 
 wireAdapterPanel({
   elements: {
@@ -55,35 +83,89 @@ wireAdapterPanel({
   },
 });
 
+const ACTOR_ID_LABEL = "actor_mvp";
+const ACTOR_ID_VALUE = 1;
+let core = null;
+let actions = [];
+let controller = null;
+
+function setStatus(message) {
+  statusEl.textContent = message;
+}
+
 async function boot() {
-  setControlsEnabled(false);
+  stepBackButton.disabled = true;
+  stepForwardButton.disabled = true;
+  playPauseButton.disabled = true;
+  resetRunButton.disabled = true;
+  startRunButton.disabled = true;
+  setStatus("Loading WASM...");
   try {
     const wasmUrl = new URL("../assets/core-as.wasm", import.meta.url);
-    const core = await loadCore({ wasmUrl });
-    const adapters = createDomLogAdapter({ listEl: logEl, statusEl: counterEl });
-    const runtime = createRuntime({ core, adapters });
+    core = await loadCore({ wasmUrl });
+    setStatus("Ready");
 
-    runtime.init(0);
-    counterEl.textContent = String(runtime.getState().counter);
-    setStatus("Ready.");
-    setControlsEnabled(true);
-
-    stepButton.addEventListener("click", () => {
-      counterEl.textContent = String(runtime.step());
-    });
-
-    runButton.addEventListener("click", () => {
-      for (let i = 0; i < 10; i += 1) {
-        runtime.step();
+    function startRun(config) {
+      try {
+        controller?.pause?.();
+        const movement = runMvpMovement({
+          core,
+          actorIdLabel: config.actorId || ACTOR_ID_LABEL,
+          actorIdValue: ACTOR_ID_VALUE,
+          seed: config.seed,
+        });
+        actions = movement.actions;
+        controller = setupPlayback({
+          core,
+          actions,
+          actorIdLabel: config.actorId || ACTOR_ID_LABEL,
+          actorIdValue: ACTOR_ID_VALUE,
+          elements: {
+            frame: frameEl,
+            actorId: actorIdEl,
+            actorPos: actorPosEl,
+            actorHp: actorHpEl,
+            tick: tickEl,
+            status: statusEl,
+            playButton: playPauseButton,
+            stepBack: stepBackButton,
+            stepForward: stepForwardButton,
+            reset: resetRunButton,
+          },
+        });
+        setStatus("Ready");
+      } catch (err) {
+        setStatus(err.message || "Failed to start run");
+        console.error(err);
       }
-      counterEl.textContent = String(runtime.getState().counter);
+    }
+
+    const builder = wireRunBuilder({
+      elements: {
+        seedInput,
+        mapSelect,
+        actorNameInput,
+        actorIdInput,
+        fixtureSelect,
+        seedBadge: badgeSeed,
+        nameBadge: badgeName,
+        modeBadge: badgeMode,
+        startButton: startRunButton,
+        resetButton: resetConfigButton,
+        preview: configPreview,
+        vitals: vitalsInputs,
+      },
+      onStart: (config) => {
+        startRun(config);
+      },
     });
 
-    resetButton.addEventListener("click", () => {
-      runtime.init(0);
-      counterEl.textContent = String(runtime.getState().counter);
-      logEl.innerHTML = "";
-    });
+    startRun(builder.getConfig());
+
+    stepForwardButton.addEventListener("click", () => controller?.stepForward());
+    stepBackButton.addEventListener("click", () => controller?.stepBack());
+    playPauseButton.addEventListener("click", () => controller?.toggle());
+    resetRunButton.addEventListener("click", () => controller?.reset());
   } catch (error) {
     setStatus(`Failed to load: ${error.message}`);
   }

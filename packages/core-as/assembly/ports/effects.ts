@@ -9,6 +9,7 @@ export const enum EffectKind {
   SolverRequest = 8,
   EffectFulfilled = 9,
   EffectDeferred = 10,
+  ActorMoved = 11,
 }
 
 const MAX_EFFECTS: i32 = 32;

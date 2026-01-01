@@ -14,6 +14,7 @@ coverage/
 *.wasm
 *.wat
 *.map
+artifacts/
 
 # Environment/OS
 .DS_Store

@@ -1,0 +1,73 @@
+import { test } from "node:test";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { runEsm } from "../helpers/esm-runner.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const root = path.resolve(__dirname, "..", "..");
+
+test("playing surface controller steps through frames and disables at exit", async (t) => {
+const script = `
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { runMvpMovement } from ${JSON.stringify(pathToFileURL(path.resolve(root, "packages/runtime/src/mvp/movement.js")).href)};
+import { setupPlayback } from ${JSON.stringify(pathToFileURL(path.resolve(root, "packages/ui-web/src/movement-ui.js")).href)};
+
+const wasmBuffer = await readFile(${JSON.stringify(path.resolve(root, "build/core-as.wasm"))});
+const { instance } = await WebAssembly.instantiate(wasmBuffer, {
+  env: { abort(_msg, _file, line, column) { throw new Error(\`WASM abort at \${line}:\${column}\`); } },
+});
+const exports = instance.exports;
+const core = {
+  init: exports.init,
+  loadMvpScenario: exports.loadMvpScenario,
+  applyAction: exports.applyAction,
+  getMapWidth: exports.getMapWidth,
+  getMapHeight: exports.getMapHeight,
+  getActorX: exports.getActorX,
+  getActorY: exports.getActorY,
+  getActorHp: exports.getActorHp,
+  getActorMaxHp: exports.getActorMaxHp,
+  getCurrentTick: exports.getCurrentTick,
+  renderCellChar: exports.renderCellChar,
+  renderBaseCellChar: exports.renderBaseCellChar,
+  clearEffects: exports.clearEffects,
+};
+
+const actionFixture = JSON.parse(await readFile(${JSON.stringify(path.resolve(root, "tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json"))}, "utf8"));
+const frameFixture = JSON.parse(await readFile(${JSON.stringify(path.resolve(root, "tests/fixtures/artifacts/frame-buffer-log-v1-mvp.json"))}, "utf8"));
+
+function makeEl() { return { textContent: "", disabled: false }; }
+
+const movement = runMvpMovement({ core });
+const elements = {
+  frame: makeEl(),
+  actorId: makeEl(),
+  actorPos: makeEl(),
+  actorHp: makeEl(),
+  tick: makeEl(),
+  status: makeEl(),
+  playButton: makeEl(),
+  stepBack: makeEl(),
+  stepForward: makeEl(),
+  reset: makeEl(),
+};
+
+const controller = setupPlayback({ core, actions: movement.actions, elements });
+assert.equal(elements.frame.textContent.trim(), frameFixture.frames[0].buffer.join("\\n"));
+controller.stepForward();
+assert.equal(elements.frame.textContent.trim(), frameFixture.frames[1].buffer.join("\\n"));
+assert.equal(elements.tick.textContent, "1");
+assert.equal(elements.stepBack.disabled, false);
+controller.gotoIndex(actionFixture.actions.length);
+assert.equal(elements.status.textContent, "Reached exit");
+assert.equal(elements.stepForward.disabled, true);
+assert.equal(elements.playButton.disabled, true);
+`;
+
+  await readFile(path.resolve(root, "build/core-as.wasm")); // ensure wasm exists before running
+  runEsm(script);
+});

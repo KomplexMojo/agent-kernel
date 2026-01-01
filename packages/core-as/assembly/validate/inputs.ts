@@ -6,6 +6,7 @@ export const enum ActionKind {
   RequestSolver = 5,
   FulfillRequest = 6,
   DeferRequest = 7,
+  Move = 8,
 }
 
 export const enum ValidationError {
@@ -14,6 +15,13 @@ export const enum ValidationError {
   InvalidActionKind = 2,
   InvalidActionValue = 3,
   MissingPendingRequest = 4,
+  WrongActor = 5,
+  TickMismatch = 6,
+  WrongPosition = 7,
+  NotAdjacent = 8,
+  OutOfBounds = 9,
+  BlockedByWall = 10,
+  InvalidDirection = 11,
 }
 
 export function validateSeed(seed: i32): i32 {
@@ -34,6 +42,8 @@ export function validateAction(kind: i32, value: i32): i32 {
     case ActionKind.FulfillRequest:
     case ActionKind.DeferRequest:
       return value <= 0 ? ValidationError.InvalidActionValue : ValidationError.None;
+    case ActionKind.Move:
+      return value < 0 ? ValidationError.InvalidActionValue : ValidationError.None;
     default:
       return ValidationError.InvalidActionKind;
   }

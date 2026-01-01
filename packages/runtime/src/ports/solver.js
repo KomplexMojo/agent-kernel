@@ -38,3 +38,8 @@ export function createSolverPort({ clock = () => new Date().toISOString() } = {}
     solve,
   };
 }
+
+export async function solveWithAdapter(adapter, request, options = {}) {
+  const port = createSolverPort(options);
+  return port.solve(adapter, request);
+}

@@ -24,6 +24,14 @@ async function loadCoreFromWasmPath(wasmPath) {
     getEffectValue: exports.getEffectValue,
     clearEffects: exports.clearEffects,
     version: exports.version,
+    loadMvpScenario: exports.loadMvpScenario,
+    getMapWidth: exports.getMapWidth,
+    getMapHeight: exports.getMapHeight,
+    getActorX: exports.getActorX,
+    getActorY: exports.getActorY,
+    getCurrentTick: exports.getCurrentTick,
+    renderCellChar: exports.renderCellChar,
+    renderBaseCellChar: exports.renderBaseCellChar,
   };
 }
 

@@ -4,6 +4,21 @@ import { EffectKind, clearEffects, getEffectCount, getEffectKind, getEffectValue
 import { chargeBudget, getBudgetCap, resetBudgets, setBudgetCap, getBudgetSpent } from "./state/budget";
 import { getCounterValue, incrementCounter, resetCounter } from "./state/counter";
 import { clearPendingRequest, getPendingRequest, nextRequestSequence, resetEffectState, setPendingRequest } from "./state/effects";
+import {
+  loadMvpWorld,
+  renderBaseCell,
+  renderCell,
+  resetWorld,
+  getMapWidth as worldMapWidth,
+  getMapHeight as worldMapHeight,
+  getActorX as getActorXState,
+  getActorY as getActorYState,
+  getCurrentTick as getCurrentTickValue,
+  getActorHp as getActorHpState,
+  getActorMaxHp as getActorMaxHpState,
+  getActorId as getActorIdState,
+} from "./state/world";
+import { applyMove, decodeMove, encodeMovePositionValue, reachedExitAfterMove } from "./rules/move";
 import { ActionKind, ValidationError, validateAction, validateSeed } from "./validate/inputs";
 
 const DEFAULT_BUDGET_CATEGORY: i32 = 0;
@@ -22,6 +37,7 @@ export function init(seed: i32): void {
   clearEffects();
   resetBudgets();
   resetEffectState();
+  resetWorld();
   const seedError = validateSeed(seed);
   if (seedError != ValidationError.None) {
     pushEffect(EffectKind.InitInvalid, seedError);
@@ -44,6 +60,20 @@ function emitBudgetEffects(category: i32, spent: i32): void {
 }
 
 export function applyAction(kind: i32, value: i32): void {
+  if (kind == ActionKind.Move) {
+    const move = decodeMove(value);
+    const moveError = applyMove(move);
+    if (moveError != ValidationError.None) {
+      pushEffect(EffectKind.ActionRejected, moveError);
+      return;
+    }
+    pushEffect(EffectKind.ActorMoved, encodeMovePositionValue(move));
+    if (reachedExitAfterMove()) {
+      pushEffect(EffectKind.LimitReached, move.tick);
+    }
+    return;
+  }
+
   const actionError = validateAction(kind, value);
   if (actionError != ValidationError.None) {
     pushEffect(EffectKind.ActionRejected, actionError);
@@ -129,3 +159,48 @@ export function getBudgetUsage(category: i32): i32 {
 }
 
 export { clearEffects, getEffectCount, getEffectKind, getEffectValue };
+
+// Movement-specific helpers for rendering and inspection.
+export function loadMvpScenario(): void {
+  loadMvpWorld();
+}
+
+export function getMapWidth(): i32 {
+  return worldMapWidth();
+}
+
+export function getMapHeight(): i32 {
+  return worldMapHeight();
+}
+
+export function getActorX(): i32 {
+  return getActorXState();
+}
+
+export function getActorY(): i32 {
+  return getActorYState();
+}
+
+export function getActorHp(): i32 {
+  return getActorHpState();
+}
+
+export function getActorMaxHp(): i32 {
+  return getActorMaxHpState();
+}
+
+export function getActorId(): i32 {
+  return getActorIdState();
+}
+
+export function getCurrentTick(): i32 {
+  return getCurrentTickValue();
+}
+
+export function renderCellChar(x: i32, y: i32): i32 {
+  return renderCell(x, y);
+}
+
+export function renderBaseCellChar(x: i32, y: i32): i32 {
+  return renderBaseCell(x, y);
+}

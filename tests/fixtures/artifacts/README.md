@@ -10,6 +10,12 @@ General rules:
 - Keep payloads minimal and deterministic.
 - Invalid fixtures live under tests/fixtures/artifacts/invalid for negative tests.
 
+## MVP actor movement
+- sim-config-artifact-v1-mvp-grid.json: 5x5 grid layout with walls, spawn (1,1), and exit (3,2) plus render palette.
+- initial-state-artifact-v1-mvp-actor.json: one ambulatory actor at spawn with vitals stub (hp/maxHp 10) and speed 1.
+- action-sequence-v1-mvp-to-exit.json: ordered move actions (east, east, south) walking the actor from spawn to the exit.
+- frame-buffer-log-v1-mvp.json: ASCII frame buffers per tick mirroring the action path, keyed by actor id and sharing the same run/config refs.
+
 ## Intent + Planning
 - intent-envelope-v1-basic.json: intake boundary request; used to test intent parsing.
 - plan-artifact-v1-basic.json: structured plan referencing the intent.

@@ -203,6 +203,13 @@ Adapters implement ports using concrete environments.
 | Browser rendering and input handling |
 | Calls into `runtime` and `bindings-ts` to load `core-as` |
 
+### MVP movement slice
+
+- Open `packages/ui-web/index.html` after `pnpm run serve:ui` to use the MVP playing surface.
+- The Run Builder lets you choose seed/map preset and actor/vitals (health/mana/stamina/durability current/max/regen) plus fixture mode, then start a deterministic run.
+- The playback controls `[step-][play/pause][step+]` render the 5x5 buffer; actor stats/tick are shown alongside.
+- Golden artifacts and fixtures live under `tests/fixtures/artifacts/` and `artifacts/mvp-run/`; replay tests assert frames match `frame-buffer-log-v1-mvp.json`.
+
 ---
 
 ## Tools (`packages/tools`)

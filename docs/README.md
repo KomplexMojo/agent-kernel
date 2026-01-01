@@ -17,6 +17,7 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - `docs/implementation-plans/documentation-review.md`
 - `docs/implementation-plans/completed-structural-setup.md`
 - `docs/implementation-plans/testing-inventory.md`
+- `docs/implementation-plans/basic-MVP-with-actor-movement.md`
 
 ## Quickstarts
 
