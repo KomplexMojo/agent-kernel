@@ -15,6 +15,7 @@ General rules:
 - initial-state-artifact-v1-mvp-actor.json: one ambulatory actor at spawn with vitals stub (hp/maxHp 10) and speed 1.
 - action-sequence-v1-mvp-to-exit.json: ordered move actions (east, east, south) walking the actor from spawn to the exit.
 - frame-buffer-log-v1-mvp.json: ASCII frame buffers per tick mirroring the action path, keyed by actor id and sharing the same run/config refs.
+- frame-buffer-log-v1-mvp-barrier.json: ASCII frame buffer for barrier grid with base tiles and actor overlay at spawn.
 
 ## Intent + Planning
 - intent-envelope-v1-basic.json: intake boundary request; used to test intent parsing.
@@ -42,6 +43,8 @@ General rules:
 - snapshot-v1-basic.json: minimal inspector snapshot view.
 - debug-dump-v1-basic.json: debug-only full dump with warning flag.
 - tick-frame-v1-basic.json: Moderator execution frame with actions/effects.
+- actor-state-v1-mvp.json: canonical actor state with vitals for core-as actor model tests.
+- actor-state-v1-barrier.json: barrier actor state with durability initialized for collision tests.
 
 ## Telemetry
 - telemetry-record-v1-basic.json: annotator telemetry record (run scope).

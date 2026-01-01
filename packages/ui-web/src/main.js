@@ -8,6 +8,10 @@ const frameEl = document.querySelector("#frame-buffer");
 const actorIdEl = document.querySelector("#actor-id");
 const actorPosEl = document.querySelector("#actor-pos");
 const actorHpEl = document.querySelector("#actor-hp");
+const actorListEl = document.querySelector("#actor-list");
+const tileActorListEl = document.querySelector("#tile-actor-list");
+const tileActorCountEl = document.querySelector("#tile-actor-count");
+const baseTilesEl = document.querySelector("#base-tiles");
 const tickEl = document.querySelector("#tick-indicator");
 const statusEl = document.querySelector("#status-message");
 const stepBackButton = document.querySelector("#step-back");
@@ -125,6 +129,10 @@ async function boot() {
             actorId: actorIdEl,
             actorPos: actorPosEl,
             actorHp: actorHpEl,
+            actorList: actorListEl,
+            tileActorList: tileActorListEl,
+            tileActorCount: tileActorCountEl,
+            baseTiles: baseTilesEl,
             tick: tickEl,
             status: statusEl,
             playButton: playPauseButton,

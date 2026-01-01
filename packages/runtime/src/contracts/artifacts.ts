@@ -368,11 +368,48 @@ export interface InitialStateArtifactV1 {
     position?: Record<string, number>;
     /** Initial stats/traits (data-only). */
     traits?: Record<string, number | boolean | string>;
+    /** Optional vitals snapshot for actor-centric initialization. */
+    vitals?: {
+      health: VitalRecordV1;
+      mana: VitalRecordV1;
+      stamina: VitalRecordV1;
+      durability: VitalRecordV1;
+    };
   }>;
 }
 
 export type SimConfigArtifact = SimConfigArtifactV1;
 export type InitialStateArtifact = InitialStateArtifactV1;
+
+// -------------------------
+// Core Actor State (core-as)
+// -------------------------
+
+export const ACTOR_STATE_SCHEMA = "agent-kernel/ActorState";
+
+export interface VitalRecordV1 {
+  current: number;
+  max: number;
+  regen: number;
+}
+
+export interface ActorStateV1 {
+  schema: typeof ACTOR_STATE_SCHEMA;
+  schemaVersion: 1;
+  actor: {
+    id: string;
+    kind: "stationary" | "barrier" | "motivated";
+    position: { x: number; y: number };
+    vitals: {
+      health: VitalRecordV1;
+      mana: VitalRecordV1;
+      stamina: VitalRecordV1;
+      durability: VitalRecordV1;
+    };
+  };
+}
+
+export type ActorState = ActorStateV1;
 
 // -------------------------
 // Solver artifacts (runtime adapters)
@@ -539,6 +576,8 @@ export interface EventV1 {
     | "init_invalid"
     | "config_invalid"
     | "actor_moved"
+    | "actor_blocked"
+    | "durability_changed"
     | "state_changed"
     | "limit_reached"
     | "limit_violated"

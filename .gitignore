@@ -16,6 +16,9 @@ coverage/
 *.map
 artifacts/
 
+# CLI-generated artifacts
+packages/adapters-cli/artifacts/solve_cli_test/*.json
+
 # Environment/OS
 .DS_Store
 .env

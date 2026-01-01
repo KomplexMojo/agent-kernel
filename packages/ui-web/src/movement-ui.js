@@ -4,11 +4,38 @@ export function setupPlayback({ core, actions, actorIdLabel = "actor_mvp", actor
   let currentIndex = 0;
   let playing = false;
   let timer = null;
+  const vitalKeys = ["health", "mana", "stamina", "durability"];
+
+  function kindLabel(kind) {
+    if (kind === 0) return "stationary";
+    if (kind === 1) return "barrier";
+    if (kind === 2) return "motivated";
+    return `kind:${kind}`;
+  }
+
+  function formatVitals(vitals = {}) {
+    return vitalKeys
+      .map((key) => {
+        const record = vitals[key] || { current: 0, max: 0, regen: 0 };
+        return `${key[0].toUpperCase()}:${record.current}/${record.max}+${record.regen}`;
+      })
+      .join(" ");
+  }
+
+  function sortActors(list) {
+    return list.slice().sort((a, b) => {
+      const left = a?.id || "";
+      const right = b?.id || "";
+      if (left === right) return 0;
+      return left < right ? -1 : 1;
+    });
+  }
 
   function render() {
     const frame = renderFrameBuffer(core, { actorIdLabel });
     const obs = readObservation(core, { actorIdLabel });
     if (elements.frame) elements.frame.textContent = frame.buffer.join("\n");
+    if (elements.baseTiles) elements.baseTiles.textContent = frame.baseTiles.join("\n");
     if (elements.actorId) elements.actorId.textContent = actorIdLabel;
     if (elements.actorPos) elements.actorPos.textContent = `(${obs.actor.x}, ${obs.actor.y})`;
     if (elements.actorHp) elements.actorHp.textContent = `${obs.actor.hp}/${obs.actor.maxHp}`;
@@ -21,6 +48,19 @@ export function setupPlayback({ core, actions, actorIdLabel = "actor_mvp", actor
     if (elements.stepBack) elements.stepBack.disabled = currentIndex <= 0;
     if (elements.stepForward) elements.stepForward.disabled = currentIndex >= actions.length;
     if (elements.reset) elements.reset.disabled = false;
+    if (elements.actorList) {
+      const list = sortActors(obs.actors || []);
+      elements.actorList.textContent = list.length
+        ? list.map((entry) => `${entry.id} [${kindLabel(entry.kind)}] @(${entry.position.x},${entry.position.y}) ${formatVitals(entry.vitals)}`).join("\n")
+        : "-";
+    }
+    if (elements.tileActorList) {
+      const tiles = sortActors(obs.tileActors || []);
+      elements.tileActorList.textContent = tiles.length
+        ? tiles.map((entry) => `${entry.id} [${kindLabel(entry.kind)}] @(${entry.position.x},${entry.position.y}) ${formatVitals(entry.vitals)}`).join("\n")
+        : "-";
+      if (elements.tileActorCount) elements.tileActorCount.textContent = String(tiles.length);
+    }
   }
 
   function resetCore() {

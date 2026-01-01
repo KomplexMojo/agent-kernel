@@ -22,6 +22,12 @@ export const enum ValidationError {
   OutOfBounds = 9,
   BlockedByWall = 10,
   InvalidDirection = 11,
+  MissingVital = 12,
+  InvalidVital = 13,
+  ActorOutOfBounds = 14,
+  ActorSpawnMismatch = 15,
+  ActorBlocked = 16,
+  ActorCollision = 17,
 }
 
 export function validateSeed(seed: i32): i32 {

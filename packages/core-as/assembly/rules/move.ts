@@ -1,15 +1,14 @@
 import {
   Direction,
-  Tile,
   encodePosition,
   getActorId,
   getActorX,
   getActorY,
   getCurrentTick,
-  getTile,
   hasActor,
   isActorAtExit,
-  isWalkableTile,
+  isMotivatedOccupied,
+  isWalkablePosition,
   setActorPosition,
   setCurrentTick,
   withinBounds,
@@ -91,9 +90,11 @@ export function applyMove(action: MoveAction): ValidationError {
   if (!withinBounds(action.toX, action.toY)) {
     return ValidationError.OutOfBounds;
   }
-  const targetTile = getTile(action.toX, action.toY);
-  if (!isWalkableTile(targetTile)) {
+  if (!isWalkablePosition(action.toX, action.toY)) {
     return ValidationError.BlockedByWall;
+  }
+  if (isMotivatedOccupied(action.toX, action.toY)) {
+    return ValidationError.ActorCollision;
   }
   setActorPosition(action.toX, action.toY);
   setCurrentTick(action.tick);

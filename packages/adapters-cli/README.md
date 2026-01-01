@@ -54,6 +54,7 @@ Example usage:
 ```
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
 node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --tick-frames path/to/tick-frames.json
 node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
@@ -73,6 +74,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - blockchain: `blockchain.json`
 - llm: `llm.json`
 - solve: `solver-request.json`, `solver-result.json`
+- run: `tick-frames.json`, `effects-log.json`, `run-summary.json`, `action-log.json`
 
 ---
 
@@ -82,6 +84,15 @@ Expected outputs (defaults when `--out-dir` is set):
 - Blockchain: `--rpc-url` (required), `--address` (optional for balance).
 - LLM (Ollama-style): `--base-url` (default: `http://localhost:11434`), `--model`, `--prompt`.
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
+- Run action log: `--actions` path to an ActionSequence artifact (emitted to `action-log.json`).
+- Actor overrides (run):
+  - `--actor id,x,y,kind` (kind: motivated/ambulatory/stationary)
+  - `--vital actorId,vital,current,max,regen`
+  - `--vital-default vital,current,max,regen`
+  - `--tile-wall x,y`, `--tile-barrier x,y`, `--tile-floor x,y` (repeatable)
+
+When overrides are provided, `run` writes `resolved-sim-config.json` and
+`resolved-initial-state.json` to the output directory for inspection.
 
 ## Demo bundle script
 

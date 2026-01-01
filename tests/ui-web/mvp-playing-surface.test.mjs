@@ -29,9 +29,20 @@ const core = {
   getMapHeight: exports.getMapHeight,
   getActorX: exports.getActorX,
   getActorY: exports.getActorY,
+  getActorKind: exports.getActorKind,
   getActorHp: exports.getActorHp,
   getActorMaxHp: exports.getActorMaxHp,
+  getActorVitalCurrent: exports.getActorVitalCurrent,
+  getActorVitalMax: exports.getActorVitalMax,
+  getActorVitalRegen: exports.getActorVitalRegen,
+  getTileActorCount: exports.getTileActorCount,
+  getTileActorXByIndex: exports.getTileActorXByIndex,
+  getTileActorYByIndex: exports.getTileActorYByIndex,
+  getTileActorKindByIndex: exports.getTileActorKindByIndex,
+  getTileActorIdByIndex: exports.getTileActorIdByIndex,
+  getTileActorDurabilityByIndex: exports.getTileActorDurabilityByIndex,
   getCurrentTick: exports.getCurrentTick,
+  getTileActorKind: exports.getTileActorKind,
   renderCellChar: exports.renderCellChar,
   renderBaseCellChar: exports.renderBaseCellChar,
   clearEffects: exports.clearEffects,
@@ -45,9 +56,13 @@ function makeEl() { return { textContent: "", disabled: false }; }
 const movement = runMvpMovement({ core });
 const elements = {
   frame: makeEl(),
+  baseTiles: makeEl(),
   actorId: makeEl(),
   actorPos: makeEl(),
   actorHp: makeEl(),
+  actorList: makeEl(),
+  tileActorList: makeEl(),
+  tileActorCount: makeEl(),
   tick: makeEl(),
   status: makeEl(),
   playButton: makeEl(),
@@ -58,10 +73,24 @@ const elements = {
 
 const controller = setupPlayback({ core, actions: movement.actions, elements });
 assert.equal(elements.frame.textContent.trim(), frameFixture.frames[0].buffer.join("\\n"));
+assert.equal(elements.baseTiles.textContent.trim(), frameFixture.baseTiles.join("\\n"));
+assert.ok(elements.actorList.textContent.includes("actor_mvp"));
+assert.ok(elements.actorList.textContent.includes("H:10/10+0"));
+assert.ok(Number(elements.tileActorCount.textContent) > 0);
+assert.ok(elements.tileActorList.textContent.includes("tile_"));
 controller.stepForward();
 assert.equal(elements.frame.textContent.trim(), frameFixture.frames[1].buffer.join("\\n"));
 assert.equal(elements.tick.textContent, "1");
 assert.equal(elements.stepBack.disabled, false);
+controller.toggle();
+assert.equal(elements.playButton.textContent, "Pause");
+assert.equal(elements.playButton.disabled, false);
+controller.toggle();
+assert.equal(elements.playButton.textContent, "Play");
+assert.equal(elements.playButton.disabled, false);
+controller.reset();
+assert.equal(elements.frame.textContent.trim(), frameFixture.frames[0].buffer.join("\\n"));
+assert.equal(elements.tick.textContent, "0");
 controller.gotoIndex(actionFixture.actions.length);
 assert.equal(elements.status.textContent, "Reached exit");
 assert.equal(elements.stepForward.disabled, true);

@@ -12,6 +12,15 @@ const DIR_BY_CODE = Object.freeze({
   3: "west",
 });
 
+const DEFAULT_LEGEND = Object.freeze({
+  wall: "#",
+  floor: ".",
+  spawn: "S",
+  exit: "E",
+  barrier: "B",
+  actor: "@",
+});
+
 /**
  * Pack a move action into the bit layout expected by core-as.
  * Fields are masked to keep deterministic size (4-bit coords, 8-bit tick, 4-bit actorId).
@@ -62,6 +71,7 @@ export function renderBaseTiles(core) {
 }
 
 export function renderFrameBuffer(core, { actorIdLabel = "actor_mvp" } = {}) {
+  const baseTiles = renderBaseTiles(core);
   const width = core.getMapWidth();
   const height = core.getMapHeight();
   const rows = [];
@@ -74,6 +84,8 @@ export function renderFrameBuffer(core, { actorIdLabel = "actor_mvp" } = {}) {
   }
   return {
     tick: core.getCurrentTick(),
+    baseTiles,
+    legend: DEFAULT_LEGEND,
     buffer: rows,
     actorPositions: {
       [actorIdLabel]: { x: core.getActorX(), y: core.getActorY() },
@@ -82,18 +94,79 @@ export function renderFrameBuffer(core, { actorIdLabel = "actor_mvp" } = {}) {
 }
 
 export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
+  const width = core.getMapWidth();
+  const height = core.getMapHeight();
+  const actor = {
+    id: actorIdLabel,
+    kind: core.getActorKind(),
+    position: { x: core.getActorX(), y: core.getActorY() },
+    vitals: {
+      health: {
+        current: core.getActorVitalCurrent(0),
+        max: core.getActorVitalMax(0),
+        regen: core.getActorVitalRegen(0),
+      },
+      mana: {
+        current: core.getActorVitalCurrent(1),
+        max: core.getActorVitalMax(1),
+        regen: core.getActorVitalRegen(1),
+      },
+      stamina: {
+        current: core.getActorVitalCurrent(2),
+        max: core.getActorVitalMax(2),
+        regen: core.getActorVitalRegen(2),
+      },
+      durability: {
+        current: core.getActorVitalCurrent(3),
+        max: core.getActorVitalMax(3),
+        regen: core.getActorVitalRegen(3),
+      },
+    },
+  };
+  const kinds = [];
+  for (let y = 0; y < height; y += 1) {
+    const row = [];
+    for (let x = 0; x < width; x += 1) {
+      row.push(core.getTileActorKind(x, y));
+    }
+    kinds.push(row);
+  }
+  const tileActors = [];
+  if (typeof core.getTileActorCount === "function") {
+    const count = core.getTileActorCount();
+    for (let i = 0; i < count; i += 1) {
+      const tileId = core.getTileActorIdByIndex(i);
+      const durability = typeof core.getTileActorDurabilityByIndex === "function"
+        ? core.getTileActorDurabilityByIndex(i)
+        : 0;
+      tileActors.push({
+        id: `tile_${tileId}`,
+        kind: core.getTileActorKindByIndex(i),
+        position: { x: core.getTileActorXByIndex(i), y: core.getTileActorYByIndex(i) },
+        vitals: {
+          health: { current: 0, max: 0, regen: 0 },
+          mana: { current: 0, max: 0, regen: 0 },
+          stamina: { current: 0, max: 0, regen: 0 },
+          durability: { current: durability, max: durability, regen: 0 },
+        },
+      });
+    }
+  }
   return {
     tick: core.getCurrentTick(),
+    actors: [actor],
+    tileActors,
     actor: {
-      id: actorIdLabel,
-      x: core.getActorX(),
-      y: core.getActorY(),
-      hp: core.getActorHp(),
-      maxHp: core.getActorMaxHp(),
+      id: actor.id,
+      x: actor.position.x,
+      y: actor.position.y,
+      hp: actor.vitals.health.current,
+      maxHp: actor.vitals.health.max,
     },
-    map: {
-      width: core.getMapWidth(),
-      height: core.getMapHeight(),
+    tiles: {
+      width,
+      height,
+      kinds,
     },
   };
 }

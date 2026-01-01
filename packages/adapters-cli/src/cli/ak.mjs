@@ -23,6 +23,7 @@ const SCHEMAS = Object.freeze({
 
 const DEFAULT_WASM_PATH = "build/core-as.wasm";
 const DEFAULT_TICKS = 1;
+const VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
 
 function usage() {
   const filename = fileURLToPath(import.meta.url);
@@ -32,7 +33,7 @@ function usage() {
     : filename;
   return `Usage:
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
-  node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id]
+  node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir]
   node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
@@ -46,12 +47,43 @@ Options:
   --ticks         Number of ticks for run/replay (default: ${DEFAULT_TICKS})
   --seed          Seed for init (default: 0)
   --solver-fixture Fixture path for solve command (no network)
+  --actor         Actor spec: id,x,y,kind (kind: motivated/ambulatory/stationary)
+  --vital         Vital spec: actorId,vital,current,max,regen
+  --vital-default Vital default: vital,current,max,regen
+  --tile-wall     Tile wall coordinate: x,y (repeatable)
+  --tile-barrier  Tile barrier coordinate: x,y (repeatable)
+  --tile-floor    Tile floor override: x,y (repeatable)
+  --actions       Action log (ActionSequence) path for deterministic replay
   --help          Show this help
 `;
 }
 
 function parseArgs(argv) {
   const args = { _: [] };
+  const repeatable = new Set([
+    "actor",
+    "vital",
+    "vital-default",
+    "tile-wall",
+    "tile-barrier",
+    "tile-floor",
+  ]);
+  function pushArg(key, value) {
+    if (!repeatable.has(key)) {
+      args[key] = value;
+      return;
+    }
+    if (args[key] === undefined) {
+      args[key] = value;
+      return;
+    }
+    if (Array.isArray(args[key])) {
+      args[key].push(value);
+      return;
+    }
+    args[key] = [args[key], value];
+  }
+
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") {
@@ -62,22 +94,216 @@ function parseArgs(argv) {
       const eqIndex = arg.indexOf("=");
       if (eqIndex !== -1) {
         const key = arg.slice(2, eqIndex);
-        args[key] = arg.slice(eqIndex + 1);
+        pushArg(key, arg.slice(eqIndex + 1));
         continue;
       }
       const key = arg.slice(2);
       const next = argv[i + 1];
       if (next && !next.startsWith("-")) {
-        args[key] = next;
+        pushArg(key, next);
         i += 1;
       } else {
-        args[key] = true;
+        pushArg(key, true);
       }
       continue;
     }
     args._.push(arg);
   }
   return args;
+}
+
+function normalizeList(value) {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
+function parseCoordinate(value, label) {
+  const parts = String(value).split(",");
+  if (parts.length < 2) {
+    throw new Error(`${label} expects x,y`);
+  }
+  const x = Number(parts[0]);
+  const y = Number(parts[1]);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error(`${label} expects numeric x,y`);
+  }
+  return { x, y };
+}
+
+function parseActorSpec(value) {
+  const parts = String(value).split(",");
+  if (parts.length < 3) {
+    throw new Error("--actor expects id,x,y[,kind]");
+  }
+  const id = parts[0];
+  const x = Number(parts[1]);
+  const y = Number(parts[2]);
+  if (!id) {
+    throw new Error("--actor requires id");
+  }
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error("--actor expects numeric x,y");
+  }
+  const rawKind = (parts[3] || "motivated").toLowerCase();
+  let kind;
+  if (rawKind === "motivated" || rawKind === "ambulatory") {
+    kind = "ambulatory";
+  } else if (rawKind === "stationary") {
+    kind = "stationary";
+  } else {
+    throw new Error(`--actor kind must be motivated/ambulatory/stationary, got ${rawKind}`);
+  }
+  return { id, position: { x, y }, kind };
+}
+
+function parseVitalSpec(value, withActorId) {
+  const parts = String(value).split(",");
+  const offset = withActorId ? 1 : 0;
+  if (parts.length < 4 + offset) {
+    throw new Error(withActorId ? "--vital expects actorId,vital,current,max,regen" : "--vital-default expects vital,current,max,regen");
+  }
+  const actorId = withActorId ? parts[0] : null;
+  const vital = parts[offset].toLowerCase();
+  const current = Number(parts[offset + 1]);
+  const max = Number(parts[offset + 2]);
+  const regen = Number(parts[offset + 3]);
+  const valid = ["health", "mana", "stamina", "durability"];
+  if (!valid.includes(vital)) {
+    throw new Error(`Unknown vital ${vital}`);
+  }
+  if (!Number.isFinite(current) || !Number.isFinite(max) || !Number.isFinite(regen)) {
+    throw new Error("Vital values must be numeric");
+  }
+  return { actorId, vital, current, max, regen };
+}
+
+function getGridBounds(layoutData) {
+  if (!layoutData) {
+    return null;
+  }
+  if (Number.isFinite(layoutData.width) && Number.isFinite(layoutData.height)) {
+    return { width: Number(layoutData.width), height: Number(layoutData.height) };
+  }
+  if (Array.isArray(layoutData.tiles)) {
+    const height = layoutData.tiles.length;
+    const width = layoutData.tiles.reduce((max, row) => Math.max(max, String(row).length), 0);
+    return { width, height };
+  }
+  return null;
+}
+
+function applyTileOverrides(simConfig, { walls, barriers, floors }) {
+  if (!walls.length && !barriers.length && !floors.length) {
+    return { simConfig, mutated: false };
+  }
+  const layout = simConfig?.layout;
+  if (!layout || layout.kind !== "grid") {
+    throw new Error("tile overrides require a grid layout");
+  }
+  const data = layout.data;
+  if (!Array.isArray(data?.tiles)) {
+    throw new Error("tile overrides require layout.data.tiles");
+  }
+  const rows = data.tiles.map((row) => String(row).split(""));
+  const height = rows.length;
+  const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
+  function setCell({ x, y }, char) {
+    if (y < 0 || y >= height || x < 0 || x >= rows[y].length) {
+      throw new Error(`tile override out of bounds at ${x},${y}`);
+    }
+    rows[y][x] = char;
+  }
+  walls.forEach((spec) => setCell(parseCoordinate(spec, "--tile-wall"), "#"));
+  barriers.forEach((spec) => setCell(parseCoordinate(spec, "--tile-barrier"), "B"));
+  floors.forEach((spec) => setCell(parseCoordinate(spec, "--tile-floor"), "."));
+
+  data.tiles = rows.map((row) => row.join(""));
+  data.width = data.width ?? width;
+  data.height = data.height ?? height;
+  data.legend = data.legend || {};
+  if (!data.legend["#"]) data.legend["#"] = { tile: "wall" };
+  if (!data.legend["."]) data.legend["."] = { tile: "floor" };
+  if (barriers.length && !data.legend["B"]) data.legend["B"] = { tile: "barrier" };
+  data.render = data.render || {};
+  if (barriers.length && !data.render.barrier) data.render.barrier = "B";
+  return { simConfig, mutated: true };
+}
+
+function applyActorOverrides(initialState, simConfig, { actorSpecs, vitalSpecs, vitalDefaults }) {
+  if (!actorSpecs.length && !vitalSpecs.length && !vitalDefaults) {
+    return { initialState, mutated: false };
+  }
+  const actors = Array.isArray(initialState.actors) ? initialState.actors.map((actor) => ({ ...actor })) : [];
+  const byId = new Map();
+  actors.forEach((actor, index) => {
+    if (actor?.id) byId.set(actor.id, index);
+  });
+
+  const bounds = getGridBounds(simConfig?.layout?.data);
+  if (!bounds) {
+    throw new Error("actor overrides require layout bounds");
+  }
+
+  actorSpecs.forEach((spec) => {
+    const actor = parseActorSpec(spec);
+    if (actor.position.x < 0 || actor.position.y < 0 || actor.position.x >= bounds.width || actor.position.y >= bounds.height) {
+      throw new Error(`actor ${actor.id} out of bounds at ${actor.position.x},${actor.position.y}`);
+    }
+    if (byId.has(actor.id)) {
+      const index = byId.get(actor.id);
+      actors[index] = { ...actors[index], ...actor };
+    } else {
+      actors.push(actor);
+      byId.set(actor.id, actors.length - 1);
+    }
+  });
+
+  const defaultVitals = vitalDefaults || {
+    health: { current: 10, max: 10, regen: 0 },
+    mana: { current: 0, max: 0, regen: 0 },
+    stamina: { current: 0, max: 0, regen: 0 },
+    durability: { current: 0, max: 0, regen: 0 },
+  };
+
+  if (actorSpecs.length || vitalSpecs.length || vitalDefaults) {
+    actors.forEach((actor) => {
+      const existingVitals = actor.vitals && typeof actor.vitals === "object" ? actor.vitals : {};
+      const vitals = {};
+      VITAL_KEYS.forEach((key) => {
+        const record = defaultVitals[key];
+        const existing = existingVitals[key] || {};
+        vitals[key] = {
+          current: Number.isFinite(existing.current) ? existing.current : record.current,
+          max: Number.isFinite(existing.max) ? existing.max : record.max,
+          regen: Number.isFinite(existing.regen) ? existing.regen : record.regen,
+        };
+      });
+      actor.vitals = vitals;
+    });
+  }
+
+  vitalSpecs.forEach((spec) => {
+    const vital = parseVitalSpec(spec, true);
+    if (!vital.actorId || !byId.has(vital.actorId)) {
+      throw new Error(`--vital references unknown actor ${vital.actorId || "unknown"}`);
+    }
+    const actor = actors[byId.get(vital.actorId)];
+    actor.vitals = actor.vitals || { ...defaultVitals };
+    actor.vitals[vital.vital] = { current: vital.current, max: vital.max, regen: vital.regen };
+  });
+
+  actors.sort((a, b) => {
+    const left = a?.id || "";
+    const right = b?.id || "";
+    if (left === right) {
+      return 0;
+    }
+    return left < right ? -1 : 1;
+  });
+  initialState.actors = actors;
+  return { initialState, mutated: true };
 }
 
 function resolvePath(input, cwd = process.cwd()) {
@@ -442,6 +668,7 @@ async function runCommand(argv) {
   const simConfigPath = resolvePath(args["sim-config"]);
   const initialStatePath = resolvePath(args["initial-state"]);
   const executionPolicyPath = resolvePath(args["execution-policy"]);
+  const actionsPath = resolvePath(args.actions);
   const outDir = resolvePath(args["out-dir"]) || defaultOutDir("run");
   const wasmPath = resolvePath(args.wasm || DEFAULT_WASM_PATH);
   const ticks = args.ticks ? Number(args.ticks) : DEFAULT_TICKS;
@@ -470,6 +697,60 @@ async function runCommand(argv) {
     executionPolicy = await readJson(executionPolicyPath);
     assertSchema(executionPolicy, SCHEMAS.executionPolicy);
   }
+  let actionLog = null;
+  if (actionsPath) {
+    actionLog = await readJson(actionsPath);
+    if (!Array.isArray(actionLog.actions)) {
+      throw new Error("actions file must include an actions array.");
+    }
+    actionLog.schema = actionLog.schema || "agent-kernel/ActionSequence";
+    actionLog.schemaVersion = actionLog.schemaVersion || 1;
+    actionLog.meta = actionLog.meta || createMeta({ producedBy: "cli-run", runId });
+    actionLog.simConfigRef = actionLog.simConfigRef || toRef(simConfig);
+    actionLog.initialStateRef = actionLog.initialStateRef || toRef(initialState);
+  } else {
+    actionLog = {
+      schema: "agent-kernel/ActionSequence",
+      schemaVersion: 1,
+      meta: createMeta({ producedBy: "cli-run", runId }),
+      simConfigRef: toRef(simConfig),
+      initialStateRef: toRef(initialState),
+      actions: [],
+    };
+  }
+
+  const actorSpecs = normalizeList(args.actor);
+  const vitalSpecs = normalizeList(args.vital);
+  const vitalDefaultSpecs = normalizeList(args["vital-default"]);
+  const tileWalls = normalizeList(args["tile-wall"]);
+  const tileBarriers = normalizeList(args["tile-barrier"]);
+  const tileFloors = normalizeList(args["tile-floor"]);
+
+  let vitalDefaults = null;
+  if (vitalDefaultSpecs.length > 0) {
+    vitalDefaults = {
+      health: { current: 10, max: 10, regen: 0 },
+      mana: { current: 0, max: 0, regen: 0 },
+      stamina: { current: 0, max: 0, regen: 0 },
+      durability: { current: 0, max: 0, regen: 0 },
+    };
+    vitalDefaultSpecs.forEach((spec) => {
+      const vital = parseVitalSpec(spec, false);
+      vitalDefaults[vital.vital] = { current: vital.current, max: vital.max, regen: vital.regen };
+    });
+  }
+
+  const tileOverrideResult = applyTileOverrides(simConfig, {
+    walls: tileWalls,
+    barriers: tileBarriers,
+    floors: tileFloors,
+  });
+  const actorOverrideResult = applyActorOverrides(initialState, simConfig, {
+    actorSpecs,
+    vitalSpecs,
+    vitalDefaults,
+  });
+  const overridesApplied = tileOverrideResult.mutated || actorOverrideResult.mutated;
 
   const core = await loadCoreFromWasm(wasmPath);
   const runner = createRunner({ core, runId });
@@ -496,6 +777,11 @@ async function runCommand(argv) {
   await writeJson(join(outDir, "tick-frames.json"), tickFrames);
   await writeJson(join(outDir, "effects-log.json"), effectLog);
   await writeJson(join(outDir, "run-summary.json"), runSummary);
+  await writeJson(join(outDir, "action-log.json"), actionLog);
+  if (overridesApplied) {
+    await writeJson(join(outDir, "resolved-sim-config.json"), simConfig);
+    await writeJson(join(outDir, "resolved-initial-state.json"), initialState);
+  }
 
   console.log(`run: wrote ${outDir}`);
 }

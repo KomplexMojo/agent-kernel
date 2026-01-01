@@ -10,6 +10,9 @@ export const enum EffectKind {
   EffectFulfilled = 9,
   EffectDeferred = 10,
   ActorMoved = 11,
+  ConfigInvalid = 12,
+  DurabilityChanged = 13,
+  ActorBlocked = 14,
 }
 
 const MAX_EFFECTS: i32 = 32;

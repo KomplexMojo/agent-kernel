@@ -34,9 +34,15 @@ assert.equal(allocResult.actions[2].params.requestId, "solve-1");
 assert.equal(allocResult.context.budgetRemaining, 0);
 
 const actor = createActorPersona({ clock: () => "fixed" });
-actor.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: {}, tick: 0 });
-actor.advance({ phase: TickPhases.DECIDE, event: "decide", payload: {}, tick: 0 });
+const observation = {
+  tick: 0,
+  actors: [{ id: "actor", kind: 2, position: { x: 0, y: 0 } }],
+  tiles: { kinds: [[0]] },
+};
+actor.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: { actorId: "actor", observation }, tick: 0 });
+actor.advance({ phase: TickPhases.DECIDE, event: "decide", payload: { actorId: "actor" }, tick: 0 });
 const actorPayload = {
+  actorId: "actor",
   proposals: fixture.actor.proposals,
   effects: fixture.actor.effects,
   trace: fixture.actor.trace,

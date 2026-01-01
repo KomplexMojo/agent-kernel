@@ -114,6 +114,42 @@
         gap: 10px;
       }
 
+      .actor-list-shell {
+        display: grid;
+        gap: 10px;
+      }
+
+      .actor-list {
+        background: #030303;
+        border: 1px dashed var(--muted);
+        border-radius: 2px;
+        padding: 10px;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        white-space: pre;
+        max-height: 220px;
+        overflow-y: auto;
+      }
+
+      .actor-list-shell details {
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        padding: 8px;
+        background: #0a0a0a;
+      }
+
+      .base-tiles-shell {
+        display: grid;
+        gap: 6px;
+      }
+
+      .actor-list-shell summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+      }
+
       .badge {
         display: inline-flex;
         align-items: center;
@@ -352,6 +388,13 @@
             <small class="status">Render of the MVP 5x5 map with actor movement.</small>
           </div>
           <pre class="frame-display" id="frame-buffer">Loading...</pre>
+          <div class="base-tiles-shell">
+            <div class="stat">
+              <span class="stat-label">Base Tiles</span>
+              <small class="status">Tile actors only (no overlays).</small>
+            </div>
+            <pre class="frame-display" id="base-tiles">Loading...</pre>
+          </div>
           <div class="actor-panel">
             <div class="badge">
               Actor <strong id="actor-id">-</strong>
@@ -365,6 +408,17 @@
             <div class="badge">
               Tick <strong id="tick-indicator">-</strong>
             </div>
+          </div>
+          <div class="actor-list-shell">
+            <div class="stat">
+              <span class="stat-label">Motivated Actors</span>
+              <small class="status">Ordered by id with vitals and positions.</small>
+            </div>
+            <pre class="actor-list" id="actor-list">-</pre>
+            <details open>
+              <summary>Tile Actors (<span id="tile-actor-count">0</span>)</summary>
+              <pre class="actor-list" id="tile-actor-list">-</pre>
+            </details>
           </div>
           <div class="play-controls">
             <button class="secondary" id="step-back">Step -</button>

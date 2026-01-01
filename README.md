@@ -210,6 +210,12 @@ Adapters implement ports using concrete environments.
 - The playback controls `[step-][play/pause][step+]` render the 5x5 buffer; actor stats/tick are shown alongside.
 - Golden artifacts and fixtures live under `tests/fixtures/artifacts/` and `artifacts/mvp-run/`; replay tests assert frames match `frame-buffer-log-v1-mvp.json`.
 
+## Actor-centric model
+
+- Actors are the core state primitive across core-as, bindings, runtime, CLI, and UI.
+- Tile actors represent the grid (stationary floors or barrier walls); motivated actors overlay tiles and drive movement.
+- Vitals are always explicit and deterministic: health/mana/stamina/durability with current/max/regen.
+
 ---
 
 ## Tools (`packages/tools`)

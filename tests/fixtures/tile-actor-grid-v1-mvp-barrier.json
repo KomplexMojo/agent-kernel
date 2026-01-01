@@ -1,0 +1,16 @@
+{
+  "schema": "agent-kernel/TileActorGrid",
+  "schemaVersion": 1,
+  "width": 5,
+  "height": 5,
+  "baseTiles": ["#####", "#SB.#", "#.#E#", "#...#", "#####"],
+  "kinds": [
+    ["barrier", "barrier", "barrier", "barrier", "barrier"],
+    ["barrier", "stationary", "barrier", "stationary", "barrier"],
+    ["barrier", "stationary", "barrier", "stationary", "barrier"],
+    ["barrier", "stationary", "stationary", "stationary", "barrier"],
+    ["barrier", "barrier", "barrier", "barrier", "barrier"]
+  ],
+  "spawn": { "x": 1, "y": 1 },
+  "barrier": { "x": 2, "y": 1 }
+}

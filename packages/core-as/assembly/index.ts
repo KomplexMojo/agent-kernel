@@ -6,6 +6,7 @@ import { getCounterValue, incrementCounter, resetCounter } from "./state/counter
 import { clearPendingRequest, getPendingRequest, nextRequestSequence, resetEffectState, setPendingRequest } from "./state/effects";
 import {
   loadMvpWorld,
+  loadMvpBarrierWorld,
   renderBaseCell,
   renderCell,
   resetWorld,
@@ -13,20 +14,65 @@ import {
   getMapHeight as worldMapHeight,
   getActorX as getActorXState,
   getActorY as getActorYState,
+  getActorKind as getActorKindState,
+  getActorVitalCurrent as getActorVitalCurrentState,
+  getActorVitalMax as getActorVitalMaxState,
+  getActorVitalRegen as getActorVitalRegenState,
+  setActorVital as setActorVitalState,
+  validateActorVitals as validateActorVitalsState,
+  getTileActorKind as getTileActorKindState,
+  getTileActorId as getTileActorIdState,
+  getTileActorCount as getTileActorCountState,
+  getTileActorIndex as getTileActorIndexState,
+  getTileActorXByIndex as getTileActorXByIndexState,
+  getTileActorYByIndex as getTileActorYByIndexState,
+  getTileActorKindByIndex as getTileActorKindByIndexState,
+  getTileActorIdByIndex as getTileActorIdByIndexState,
+  getTileActorDurabilityByIndex as getTileActorDurabilityByIndexState,
+  getTileActorDurability as getTileActorDurabilityState,
+  isBarrierTile as isBarrierTileState,
+  applyBarrierDurabilityDamage as applyBarrierDurabilityDamageState,
+  setSpawnPosition as setSpawnPositionState,
+  clearActorPlacements as clearActorPlacementsState,
+  addActorPlacement as addActorPlacementState,
+  getActorPlacementCount as getActorPlacementCountState,
+  validateActorPlacement as validateActorPlacementState,
   getCurrentTick as getCurrentTickValue,
   getActorHp as getActorHpState,
   getActorMaxHp as getActorMaxHpState,
   getActorId as getActorIdState,
 } from "./state/world";
-import { applyMove, decodeMove, encodeMovePositionValue, reachedExitAfterMove } from "./rules/move";
+import { applyMove, decodeMove, reachedExitAfterMove } from "./rules/move";
 import { ActionKind, ValidationError, validateAction, validateSeed } from "./validate/inputs";
 
 const DEFAULT_BUDGET_CATEGORY: i32 = 0;
 const EFFECT_BUDGET_CATEGORY: i32 = 1;
 const REQUEST_DETAIL_MASK: i32 = 0xff;
+const DURABILITY_DAMAGE: i32 = 1;
+const ACTOR_VALUE_SHIFT: i32 = 24;
+const Y_VALUE_SHIFT: i32 = 16;
+const X_VALUE_SHIFT: i32 = 8;
+const VALUE_MASK: i32 = 0xff;
 
 function encodeRequestPayload(seq: i32, detail: i32): i32 {
   return (seq << 8) | (detail & REQUEST_DETAIL_MASK);
+}
+
+function encodeDurabilityChange(actorId: i32, delta: i32): i32 {
+  return ((actorId & 0xffff) << 16) | (delta & 0xffff);
+}
+
+function encodeActorPosition(actorId: i32, x: i32, y: i32): i32 {
+  return ((actorId & VALUE_MASK) << ACTOR_VALUE_SHIFT)
+    | ((y & VALUE_MASK) << Y_VALUE_SHIFT)
+    | ((x & VALUE_MASK) << X_VALUE_SHIFT);
+}
+
+function encodeActorBlocked(actorId: i32, x: i32, y: i32, reason: i32): i32 {
+  return ((actorId & VALUE_MASK) << ACTOR_VALUE_SHIFT)
+    | ((y & VALUE_MASK) << Y_VALUE_SHIFT)
+    | ((x & VALUE_MASK) << X_VALUE_SHIFT)
+    | (reason & VALUE_MASK);
 }
 
 export function version(): i32 {
@@ -64,10 +110,19 @@ export function applyAction(kind: i32, value: i32): void {
     const move = decodeMove(value);
     const moveError = applyMove(move);
     if (moveError != ValidationError.None) {
+      if (moveError == ValidationError.BlockedByWall || moveError == ValidationError.ActorCollision) {
+        pushEffect(EffectKind.ActorBlocked, encodeActorBlocked(move.actorId, move.toX, move.toY, moveError));
+        if (moveError == ValidationError.BlockedByWall && isBarrierTileState(move.toX, move.toY)) {
+          const delta = applyBarrierDurabilityDamageState(move.toX, move.toY, DURABILITY_DAMAGE);
+          const tileActorId = getTileActorIdState(move.toX, move.toY);
+          pushEffect(EffectKind.DurabilityChanged, encodeDurabilityChange(tileActorId, delta));
+        }
+        return;
+      }
       pushEffect(EffectKind.ActionRejected, moveError);
       return;
     }
-    pushEffect(EffectKind.ActorMoved, encodeMovePositionValue(move));
+    pushEffect(EffectKind.ActorMoved, encodeActorPosition(move.actorId, move.toX, move.toY));
     if (reachedExitAfterMove()) {
       pushEffect(EffectKind.LimitReached, move.tick);
     }
@@ -165,6 +220,34 @@ export function loadMvpScenario(): void {
   loadMvpWorld();
 }
 
+export function loadMvpBarrierScenario(): void {
+  loadMvpBarrierWorld();
+}
+
+export function setSpawnPosition(x: i32, y: i32): void {
+  setSpawnPositionState(x, y);
+}
+
+export function clearActorPlacements(): void {
+  clearActorPlacementsState();
+}
+
+export function addActorPlacement(id: i32, x: i32, y: i32): void {
+  addActorPlacementState(id, x, y);
+}
+
+export function getActorPlacementCount(): i32 {
+  return getActorPlacementCountState();
+}
+
+export function validateActorPlacement(): i32 {
+  const error = validateActorPlacementState();
+  if (error != ValidationError.None) {
+    pushEffect(EffectKind.ConfigInvalid, error);
+  }
+  return error;
+}
+
 export function getMapWidth(): i32 {
   return worldMapWidth();
 }
@@ -193,8 +276,72 @@ export function getActorId(): i32 {
   return getActorIdState();
 }
 
+export function getActorKind(): i32 {
+  return getActorKindState();
+}
+
+export function getTileActorKind(x: i32, y: i32): i32 {
+  return getTileActorKindState(x, y);
+}
+
+export function getTileActorId(x: i32, y: i32): i32 {
+  return getTileActorIdState(x, y);
+}
+
+export function getTileActorCount(): i32 {
+  return getTileActorCountState();
+}
+
+export function getTileActorIndex(x: i32, y: i32): i32 {
+  return getTileActorIndexState(x, y);
+}
+
+export function getTileActorXByIndex(index: i32): i32 {
+  return getTileActorXByIndexState(index);
+}
+
+export function getTileActorYByIndex(index: i32): i32 {
+  return getTileActorYByIndexState(index);
+}
+
+export function getTileActorKindByIndex(index: i32): i32 {
+  return getTileActorKindByIndexState(index);
+}
+
+export function getTileActorIdByIndex(index: i32): i32 {
+  return getTileActorIdByIndexState(index);
+}
+
+export function getTileActorDurabilityByIndex(index: i32): i32 {
+  return getTileActorDurabilityByIndexState(index);
+}
+
+export function getTileActorDurability(x: i32, y: i32): i32 {
+  return getTileActorDurabilityState(x, y);
+}
+
 export function getCurrentTick(): i32 {
   return getCurrentTickValue();
+}
+
+export function getActorVitalCurrent(kind: i32): i32 {
+  return getActorVitalCurrentState(kind);
+}
+
+export function getActorVitalMax(kind: i32): i32 {
+  return getActorVitalMaxState(kind);
+}
+
+export function getActorVitalRegen(kind: i32): i32 {
+  return getActorVitalRegenState(kind);
+}
+
+export function setActorVital(kind: i32, current: i32, max: i32, regen: i32): void {
+  setActorVitalState(kind, current, max, regen);
+}
+
+export function validateActorVitals(): i32 {
+  return validateActorVitalsState();
 }
 
 export function renderCellChar(x: i32, y: i32): i32 {

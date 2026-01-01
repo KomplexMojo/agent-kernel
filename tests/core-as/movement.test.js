@@ -16,6 +16,7 @@ const EFFECT_KIND = Object.freeze({
   ActionRejected: 3,
   LimitReached: 4,
   ActorMoved: 11,
+  ActorBlocked: 14,
 });
 
 const VALIDATION_ERROR = Object.freeze({
@@ -59,10 +60,20 @@ function packMove({ actorId, from, to, direction, tick }) {
   );
 }
 
-function decodePosition(value) {
+function decodeActorPosition(value) {
   return {
-    x: value & 0xffff,
-    y: value >>> 16,
+    actorId: (value >> 24) & 0xff,
+    x: (value >> 8) & 0xff,
+    y: (value >> 16) & 0xff,
+  };
+}
+
+function decodeActorBlocked(value) {
+  return {
+    actorId: (value >> 24) & 0xff,
+    x: (value >> 8) & 0xff,
+    y: (value >> 16) & 0xff,
+    reason: value & 0xff,
   };
 }
 
@@ -122,8 +133,9 @@ test("core-as applies move actions and renders MVP frames", async (t) => {
     });
     core.applyAction(ACTION_KIND.Move, packed);
     assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorMoved);
-    const pos = decodePosition(core.getEffectValue(0));
-    assert.deepEqual(pos, action.params.to);
+    const moved = decodeActorPosition(core.getEffectValue(0));
+    assert.equal(moved.actorId, 1);
+    assert.deepEqual({ x: moved.x, y: moved.y }, action.params.to);
     frames.push(readFrame(core));
   }
 
@@ -152,8 +164,11 @@ test("core-as rejects blocked or mistimed moves without advancing state", async 
       tick: 1,
     })
   );
-  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActionRejected);
-  assert.equal(core.getEffectValue(0), VALIDATION_ERROR.BlockedByWall);
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorBlocked);
+  const blocked = decodeActorBlocked(core.getEffectValue(0));
+  assert.equal(blocked.actorId, 1);
+  assert.equal(blocked.reason, VALIDATION_ERROR.BlockedByWall);
+  assert.deepEqual({ x: blocked.x, y: blocked.y }, { x: 1, y: 0 });
   assert.equal(core.getActorX(), 1);
   assert.equal(core.getActorY(), 1);
   assert.equal(core.getCurrentTick(), 0);

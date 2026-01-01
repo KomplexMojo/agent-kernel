@@ -11,6 +11,12 @@ This folder contains the design intent and architecture rules for the project.
 
 If a plan or README conflicts with these documents, the charter and vision contract win.
 
+## Actor-centric model
+
+- Actors are the core state primitive (tile actors for the grid, motivated actors for movement).
+- Vitals defaults are always explicit: health/mana/stamina/durability with current/max/regen.
+- Implementation details live in `docs/implementation-plans/everything-actors.md`.
+
 ## Implementation plans
 
 - `docs/implementation-plans/Tests-and-MVP.md`
