@@ -154,6 +154,11 @@
         gap: 10px;
       }
 
+      .tab-panel[hidden],
+      [hidden] {
+        display: none;
+      }
+
       .legend-panel {
         border: 1px dashed var(--border);
         border-radius: 2px;
@@ -362,229 +367,301 @@
       <header>
         <h1>Agent Kernel MVP</h1>
         <p class="subtitle">
-          A minimal end-to-end run that exercises core WASM logic, ports, adapters, and a live UI.
+          A minimal end-to-end run that exercises core WASM logic, ports, adapters, and a live UI. Persona tabs group
+          workflows; Runtime is the default playback view.
         </p>
       </header>
 
       <section class="stack">
         <div class="card">
-          <div class="stat">
-            <span class="stat-label">Run Builder</span>
-            <small class="status">Configure seed, map preset, actor, vitals, and fixture mode before starting.</small>
-          </div>
-          <div class="form-grid">
-            <label>
-              <span class="stat-label">Seed</span>
-              <input id="seed-input" type="number" value="1337" />
-            </label>
-            <label>
-              <span class="stat-label">Map</span>
-              <select id="map-select">
-                <option value="mvp-grid">MVP Grid (9x9)</option>
-              </select>
-            </label>
-            <label>
-              <span class="stat-label">Actor Name</span>
-              <input id="actor-name" type="text" value="MVP Walker" />
-            </label>
-            <label>
-              <span class="stat-label">Actor ID</span>
-              <input id="actor-id" type="text" value="actor_mvp" />
-            </label>
-            <label>
-              <span class="stat-label">Fixture Mode</span>
-              <select id="fixture-select">
-                <option value="fixture" selected>Fixture</option>
-                <option value="live">Live</option>
-              </select>
-            </label>
-          </div>
-          <div class="form-grid" style="margin-top: 10px">
-            <label>
-              <span class="stat-label">Health (cur/max/regen)</span>
-              <div class="form-grid">
-                <input id="vital-health-current" type="number" value="10" />
-                <input id="vital-health-max" type="number" value="10" />
-                <input id="vital-health-regen" type="number" value="0" />
-              </div>
-            </label>
-            <label>
-              <span class="stat-label">Mana (cur/max/regen)</span>
-              <div class="form-grid">
-                <input id="vital-mana-current" type="number" value="0" />
-                <input id="vital-mana-max" type="number" value="0" />
-                <input id="vital-mana-regen" type="number" value="0" />
-              </div>
-            </label>
-            <label>
-              <span class="stat-label">Stamina (cur/max/regen)</span>
-              <div class="form-grid">
-                <input id="vital-stamina-current" type="number" value="10" />
-                <input id="vital-stamina-max" type="number" value="10" />
-                <input id="vital-stamina-regen" type="number" value="0" />
-              </div>
-            </label>
-            <label>
-              <span class="stat-label">Durability (cur/max/regen)</span>
-              <div class="form-grid">
-                <input id="vital-durability-current" type="number" value="10" />
-                <input id="vital-durability-max" type="number" value="10" />
-                <input id="vital-durability-regen" type="number" value="0" />
-              </div>
-            </label>
-          </div>
-          <div class="badge-row">
-            <span id="badge-seed">Seed ok</span>
-            <span id="badge-name">Name ok</span>
-            <span id="badge-mode">fixture</span>
-          </div>
-          <div class="controls">
-            <button class="primary" id="start-run">Start run</button>
-            <button class="secondary" id="reset-config">Reset</button>
-          </div>
-          <div class="preview" id="config-preview"></div>
-        </div>
-
-        <div class="card frame-shell">
-          <div class="stat">
-            <span class="stat-label">Playing Surface</span>
-            <small class="status">Render of the MVP 9x9 map with actor movement.</small>
-          </div>
-          <pre class="frame-display" id="frame-buffer">Loading...</pre>
-          <div class="base-tiles-shell">
-            <div class="stat">
-              <span class="stat-label">Base Tiles</span>
-              <small class="status">Tile actors only (no overlays).</small>
-            </div>
-            <pre class="frame-display" id="base-tiles">Loading...</pre>
-          </div>
-          <div class="actor-panel">
-            <div class="badge">
-              Actor <strong id="actor-id">-</strong>
-            </div>
-            <div class="badge">
-              Pos <strong id="actor-pos">-</strong>
-            </div>
-            <div class="badge">
-              HP <strong id="actor-hp">-</strong>
-            </div>
-            <div class="badge">
-              Tick <strong id="tick-indicator">-</strong>
-            </div>
-          </div>
-          <div class="actor-list-shell">
-            <div class="stat">
-              <span class="stat-label">Observation Tabs</span>
-              <small class="status">Inspect movement, then switch to affinities for resolved loadouts.</small>
-            </div>
-            <div class="tab-bar" role="tablist">
-              <button class="tab-button active" type="button" data-tab="inspect" role="tab" aria-selected="true">Inspect</button>
-              <button class="tab-button" type="button" data-tab="affinities" role="tab" aria-selected="false">Affinities</button>
-              <button class="tab-button" type="button" data-tab="traps" role="tab" aria-selected="false" id="tab-traps">
-                Traps (<span id="trap-tab-count">0</span>)
-              </button>
-            </div>
-            <div class="tab-panel" data-tab-panel="inspect" role="tabpanel">
-              <div class="stat">
-                <span class="stat-label">Motivated Actors</span>
-                <small class="status">Observation order with vitals and positions.</small>
-              </div>
-              <pre class="actor-list" id="actor-list">-</pre>
-              <details open>
-                <summary>Tile Actors (<span id="tile-actor-count">0</span>)</summary>
-                <pre class="actor-list" id="tile-actor-list">-</pre>
-              </details>
-            </div>
-            <div class="tab-panel" data-tab-panel="affinities" role="tabpanel" hidden>
-              <div class="stat">
-                <div class="stat-row">
-                  <span class="stat-label">Affinity Loadouts</span>
-                  <button class="secondary" type="button" id="affinity-legend-toggle" aria-expanded="false">Legend</button>
-                </div>
-                <small class="status">Resolved affinities and abilities per motivated actor.</small>
-              </div>
-              <div class="legend-panel" id="affinity-legend" hidden>
-                <div class="legend-grid">
-                  <div>
-                    <span class="stat-label">Kinds</span>
-                    <div class="legend-list" id="legend-kinds"></div>
-                  </div>
-                  <div>
-                    <span class="stat-label">Expressions</span>
-                    <div class="legend-list" id="legend-expressions"></div>
-                  </div>
-                </div>
-              </div>
-              <pre class="actor-list" id="affinity-list">No affinities resolved</pre>
-            </div>
-            <div class="tab-panel" data-tab-panel="traps" role="tabpanel" hidden>
-              <div class="stat">
-                <span class="stat-label">Trap Inspector</span>
-                <small class="status">Affinity metadata, vitals, and abilities per trap tile.</small>
-              </div>
-              <pre class="actor-list" id="trap-list">No traps detected</pre>
-            </div>
-          </div>
-          <div class="play-controls">
-            <button class="secondary" id="step-back">Step -</button>
-            <button class="primary" id="play-pause">Play</button>
-            <button class="secondary" id="step-forward">Step +</button>
-            <button class="secondary" id="reset-run">Reset</button>
-            <span class="pill" id="status-message">Loading WASM...</span>
+          <div class="tab-bar" role="tablist" aria-label="Persona tabs">
+            <button class="tab-button active" type="button" data-tab="runtime" role="tab" aria-selected="true">Runtime</button>
+            <button class="tab-button" type="button" data-tab="configurator" role="tab" aria-selected="false">Configurator</button>
+            <button class="tab-button" type="button" data-tab="actor" role="tab" aria-selected="false">Actor</button>
+            <button class="tab-button" type="button" data-tab="director" role="tab" aria-selected="false">Director</button>
+            <button class="tab-button" type="button" data-tab="allocator" role="tab" aria-selected="false">Allocator</button>
+            <button class="tab-button" type="button" data-tab="annotator" role="tab" aria-selected="false">Annotator</button>
+            <button class="tab-button" type="button" data-tab="moderator" role="tab" aria-selected="false">Moderator</button>
+            <button class="tab-button" type="button" data-tab="orchestrator" role="tab" aria-selected="false">Orchestrator</button>
           </div>
         </div>
 
-        <div class="card">
-          <div class="stat">
-            <span class="stat-label">Adapter Playground</span>
-            <small class="status">Fixture mode uses repo fixtures; toggle to live to hit your endpoints.</small>
+        <div class="tab-panel" data-tab-panel="runtime" role="tabpanel">
+          <div class="card frame-shell">
+            <div class="stat">
+              <span class="stat-label">Playing Surface</span>
+              <small class="status">Render of the MVP 9x9 map with actor movement.</small>
+            </div>
+            <pre class="frame-display" id="frame-buffer">Loading...</pre>
+            <div class="actor-panel">
+              <div class="badge">
+                Actor <strong id="actor-id-display">-</strong>
+              </div>
+              <div class="badge">
+                Pos <strong id="actor-pos">-</strong>
+              </div>
+              <div class="badge">
+                HP <strong id="actor-hp">-</strong>
+              </div>
+              <div class="badge">
+                Tick <strong id="tick-indicator">-</strong>
+              </div>
+            </div>
+            <div class="play-controls">
+              <button class="secondary" id="step-back">Step -</button>
+              <button class="primary" id="play-pause">Play</button>
+              <button class="secondary" id="step-forward">Step +</button>
+              <button class="secondary" id="reset-run">Reset</button>
+              <span class="pill" id="status-message">Loading WASM...</span>
+            </div>
           </div>
-          <div class="adapter-grid">
-            <label>
-              <span class="stat-label">Mode</span>
-              <select id="adapter-mode">
-                <option value="fixture" selected>Fixture</option>
-                <option value="live">Live</option>
-              </select>
-            </label>
-            <label>
-              <span class="stat-label">IPFS Gateway</span>
-              <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
-            </label>
-            <label>
-              <span class="stat-label">IPFS CID</span>
-              <input id="adapter-cid" type="text" value="fixture" />
-            </label>
-            <label>
-              <span class="stat-label">IPFS Path</span>
-              <input id="adapter-path" type="text" placeholder="optional/path.json" />
-            </label>
-            <label>
-              <span class="stat-label">RPC URL</span>
-              <input id="adapter-rpc-url" type="text" value="http://fixture" />
-            </label>
-            <label>
-              <span class="stat-label">Address</span>
-              <input id="adapter-address" type="text" value="0xabc" />
-            </label>
-            <label>
-              <span class="stat-label">LLM Base URL</span>
-              <input id="adapter-llm-url" type="text" value="http://localhost:11434" />
-            </label>
-            <label>
-              <span class="stat-label">Prompt</span>
-              <input id="adapter-prompt" type="text" value="hello" />
-            </label>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="configurator" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Run Builder</span>
+              <small class="status">Configure seed, map preset, actor, vitals, and fixture mode before starting.</small>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span class="stat-label">Seed</span>
+                <input id="seed-input" type="number" value="1337" />
+              </label>
+              <label>
+                <span class="stat-label">Map</span>
+                <select id="map-select">
+                  <option value="mvp-grid">MVP Grid (9x9)</option>
+                </select>
+              </label>
+              <label>
+                <span class="stat-label">Actor Name</span>
+                <input id="actor-name" type="text" value="MVP Walker" />
+              </label>
+              <label>
+                <span class="stat-label">Actor ID</span>
+                <input id="actor-id" type="text" value="actor_mvp" />
+              </label>
+              <label>
+                <span class="stat-label">Fixture Mode</span>
+                <select id="fixture-select">
+                  <option value="fixture" selected>Fixture</option>
+                  <option value="live">Live</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-grid" style="margin-top: 10px">
+              <label>
+                <span class="stat-label">Health (cur/max/regen)</span>
+                <div class="form-grid">
+                  <input id="vital-health-current" type="number" value="10" />
+                  <input id="vital-health-max" type="number" value="10" />
+                  <input id="vital-health-regen" type="number" value="0" />
+                </div>
+              </label>
+              <label>
+                <span class="stat-label">Mana (cur/max/regen)</span>
+                <div class="form-grid">
+                  <input id="vital-mana-current" type="number" value="0" />
+                  <input id="vital-mana-max" type="number" value="0" />
+                  <input id="vital-mana-regen" type="number" value="0" />
+                </div>
+              </label>
+              <label>
+                <span class="stat-label">Stamina (cur/max/regen)</span>
+                <div class="form-grid">
+                  <input id="vital-stamina-current" type="number" value="10" />
+                  <input id="vital-stamina-max" type="number" value="10" />
+                  <input id="vital-stamina-regen" type="number" value="0" />
+                </div>
+              </label>
+              <label>
+                <span class="stat-label">Durability (cur/max/regen)</span>
+                <div class="form-grid">
+                  <input id="vital-durability-current" type="number" value="10" />
+                  <input id="vital-durability-max" type="number" value="10" />
+                  <input id="vital-durability-regen" type="number" value="0" />
+                </div>
+              </label>
+            </div>
+            <div class="badge-row">
+              <span id="badge-seed">Seed ok</span>
+              <span id="badge-name">Name ok</span>
+              <span id="badge-mode">fixture</span>
+            </div>
+            <div class="controls">
+              <button class="primary" id="start-run">Start run</button>
+              <button class="secondary" id="reset-config">Reset</button>
+            </div>
+            <div class="base-tiles-shell">
+              <div class="stat">
+                <span class="stat-label">Layout Preview</span>
+                <small class="status">Base tiles derived from the current configuration.</small>
+              </div>
+              <pre class="frame-display" id="base-tiles">Loading...</pre>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Configurator JSON Output</span>
+            </div>
+            <pre class="preview" id="config-preview">No JSON output yet.</pre>
           </div>
-          <div class="controls">
-            <button class="primary" id="adapter-ipfs">Run IPFS</button>
-            <button class="secondary" id="adapter-blockchain">Run Blockchain</button>
-            <button class="secondary" id="adapter-llm">Run LLM</button>
-            <button class="secondary" id="adapter-solver">Run Solver</button>
-            <button class="secondary" id="adapter-clear">Clear</button>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="actor" role="tabpanel" hidden>
+          <div class="card actor-list-shell">
+            <div class="stat">
+              <span class="stat-label">Motivated Actors</span>
+              <small class="status">Observation order with vitals and positions.</small>
+            </div>
+            <pre class="actor-list" id="actor-list">-</pre>
+            <details open>
+              <summary>Tile Actors (<span id="tile-actor-count">0</span>)</summary>
+              <pre class="actor-list" id="tile-actor-list">-</pre>
+            </details>
           </div>
-          <div class="status" id="adapter-status">Ready in fixture mode.</div>
-          <pre class="adapter-output" id="adapter-output"></pre>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Actor JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="actor-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="director" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Director</span>
+              <small class="status">No director panels yet.</small>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Director JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="director-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="allocator" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Allocator</span>
+              <small class="status">No allocator panels yet.</small>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Allocator JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="allocator-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="annotator" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <div class="stat-row">
+                <span class="stat-label">Affinity Loadouts</span>
+                <button class="secondary" type="button" id="affinity-legend-toggle" aria-expanded="false">Legend</button>
+              </div>
+              <small class="status">Resolved affinities and abilities per motivated actor.</small>
+            </div>
+            <div class="legend-panel" id="affinity-legend" hidden>
+              <div class="legend-grid">
+                <div>
+                  <span class="stat-label">Kinds</span>
+                  <div class="legend-list" id="legend-kinds"></div>
+                </div>
+                <div>
+                  <span class="stat-label">Expressions</span>
+                  <div class="legend-list" id="legend-expressions"></div>
+                </div>
+              </div>
+            </div>
+            <pre class="actor-list" id="affinity-list">No affinities resolved</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Trap Inspector (<span id="trap-tab-count">0</span>)</span>
+              <small class="status">Affinity metadata, vitals, and abilities per trap tile.</small>
+            </div>
+            <pre class="actor-list" id="trap-list">No traps detected</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Annotator JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="annotator-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="moderator" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Moderator</span>
+              <small class="status">Playback controls live in the Runtime tab.</small>
+            </div>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Moderator JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="moderator-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-tab-panel="orchestrator" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Adapter Playground</span>
+              <small class="status">Fixture mode uses repo fixtures; toggle to live to hit your endpoints.</small>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Mode</span>
+                <select id="adapter-mode">
+                  <option value="fixture" selected>Fixture</option>
+                  <option value="live">Live</option>
+                </select>
+              </label>
+              <label>
+                <span class="stat-label">IPFS Gateway</span>
+                <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
+              </label>
+              <label>
+                <span class="stat-label">IPFS CID</span>
+                <input id="adapter-cid" type="text" value="fixture" />
+              </label>
+              <label>
+                <span class="stat-label">IPFS Path</span>
+                <input id="adapter-path" type="text" placeholder="optional/path.json" />
+              </label>
+              <label>
+                <span class="stat-label">RPC URL</span>
+                <input id="adapter-rpc-url" type="text" value="http://fixture" />
+              </label>
+              <label>
+                <span class="stat-label">Address</span>
+                <input id="adapter-address" type="text" value="0xabc" />
+              </label>
+              <label>
+                <span class="stat-label">LLM Base URL</span>
+                <input id="adapter-llm-url" type="text" value="http://localhost:11434" />
+              </label>
+              <label>
+                <span class="stat-label">Prompt</span>
+                <input id="adapter-prompt" type="text" value="hello" />
+              </label>
+            </div>
+            <div class="controls">
+              <button class="primary" id="adapter-ipfs">Run IPFS</button>
+              <button class="secondary" id="adapter-blockchain">Run Blockchain</button>
+              <button class="secondary" id="adapter-llm">Run LLM</button>
+              <button class="secondary" id="adapter-solver">Run Solver</button>
+              <button class="secondary" id="adapter-clear">Clear</button>
+            </div>
+            <div class="status" id="adapter-status">Ready in fixture mode.</div>
+            <div class="stat">
+              <span class="stat-label">Orchestrator JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="adapter-output">No JSON output yet.</pre>
+          </div>
         </div>
       </section>
     </main>

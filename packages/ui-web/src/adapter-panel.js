@@ -10,6 +10,7 @@ export function wireAdapterPanel({
   elements,
   helpers = { runIpfsDemo, runBlockchainDemo, runLlmDemo, runSolverDemo },
 } = {}) {
+  const emptyOutput = "No JSON output yet.";
   const {
     modeSelect,
     gatewayInput,
@@ -39,8 +40,8 @@ export function wireAdapterPanel({
 
   function setOutput(data) {
     if (!outputEl) return;
-    if (data === null || data === undefined) {
-      outputEl.textContent = "";
+    if (data === null || data === undefined || data === "") {
+      outputEl.textContent = emptyOutput;
       return;
     }
     if (typeof data === "string") {

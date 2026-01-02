@@ -45,4 +45,4 @@ Inspect the emitted `artifacts/demo-bundle/*` JSON to see these in UI/CLI demos.
 pnpm run serve:ui
 # open http://localhost:8001/packages/ui-web/index.html
 ```
-The UI should load the counter/effect log and (after implementation) an adapter playground panel that uses fixture payloads by default.
+The UI uses persona tabs with Runtime as the default playback view and playback controls. Use Configurator for the run builder, Annotator for affinity/trap summaries, and Orchestrator for the adapter playground (fixture-backed by default).

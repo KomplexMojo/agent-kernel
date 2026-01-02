@@ -23,7 +23,7 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - Expressions define delivery: push (external), pull (internal), emit (area).
 - Presets and loadouts are captured as artifacts with deterministic ordering and defaults (manaCost=0, stacks=1).
 - Traps are tile actors with mana + durability only and an affinity expression payload.
-- UI tabs surface affinity and trap metadata (Inspect/Affinities/Traps), with a collapsible affinity legend.
+- UI tabs are organized by persona with Runtime as the default playback view; the Annotator tab surfaces affinity + trap metadata with a collapsible legend.
 
 Key artifacts and fixtures:
 - `agent-kernel/AffinityPresetArtifact` → `tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json`

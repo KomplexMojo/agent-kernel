@@ -144,13 +144,6 @@ export function setupPlayback({
         ? traps.map((trap) => renderTrapSummary(trap)).join("\n")
         : "No traps detected";
       if (elements.trapCount) elements.trapCount.textContent = String(traps.length);
-      if (elements.trapTab) {
-        const disabled = traps.length === 0;
-        elements.trapTab.disabled = disabled;
-        if (elements.trapTab.setAttribute) {
-          elements.trapTab.setAttribute("aria-disabled", disabled ? "true" : "false");
-        }
-      }
     }
   }
 

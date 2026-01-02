@@ -142,6 +142,6 @@ test("wireAdapterPanel updates status/output and calls helpers", async () => {
   assert.match(status.textContent, /complete/);
 
   await buttons.clear.click();
-  assert.equal(output.textContent, "");
+  assert.equal(output.textContent, "No JSON output yet.");
   assert.equal(status.textContent, "Cleared");
 });
