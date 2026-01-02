@@ -17,6 +17,19 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - Vitals defaults are always explicit: health/mana/stamina/durability with current/max/regen.
 - Implementation details live in `docs/implementation-plans/everything-actors.md`.
 
+## Configurator highlights
+
+- Affinity-only equipment (no martial weapons): kinds = fire, water, earth, wind, life, decay, corrode, dark.
+- Expressions define delivery: push (external), pull (internal), emit (area).
+- Presets and loadouts are captured as artifacts with deterministic ordering and defaults (manaCost=0, stacks=1).
+- Traps are tile actors with mana + durability only and an affinity expression payload.
+
+Key artifacts and fixtures:
+- `agent-kernel/AffinityPresetArtifact` → `tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json`
+- `agent-kernel/ActorLoadoutsArtifact` → `tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json`
+- `agent-kernel/SimConfigArtifact` (layout + traps) → `tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json`
+- `agent-kernel/InitialStateArtifact` (traits.affinities/abilities) → `tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json`
+
 ## Implementation plans
 
 - `docs/implementation-plans/Tests-and-MVP.md`
@@ -24,6 +37,7 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - `docs/implementation-plans/completed-structural-setup.md`
 - `docs/implementation-plans/testing-inventory.md`
 - `docs/implementation-plans/basic-MVP-with-actor-movement.md`
+- `docs/implementation-plans/everything-configurator.md`
 
 ## Quickstarts
 

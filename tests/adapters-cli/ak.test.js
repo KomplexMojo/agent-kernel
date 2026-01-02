@@ -57,7 +57,12 @@ function createSimArtifacts(dir) {
     seed: 0,
     layout: {
       kind: "grid",
-      data: {},
+      data: {
+        width: 1,
+        height: 1,
+        tiles: ["S"],
+        spawn: { x: 0, y: 0 },
+      },
     },
   };
   const initialState = {

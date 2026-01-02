@@ -1,0 +1,80 @@
+{
+  "schema": "agent-kernel/LevelGenFixture",
+  "schemaVersion": 1,
+  "input": {
+    "width": 7,
+    "height": 7,
+    "seed": 23,
+    "shape": {
+      "profile": "clustered_islands",
+      "clusterSize": 6
+    },
+    "spawn": {
+      "edgeBias": false,
+      "minDistance": 2
+    },
+    "exit": {
+      "edgeBias": false,
+      "minDistance": 2
+    },
+    "connectivity": {
+      "requirePath": true
+    }
+  },
+  "expected": {
+    "width": 7,
+    "height": 7,
+    "tiles": [
+      "#######",
+      "##..###",
+      "##S.###",
+      "##.E###",
+      "###.###",
+      "##..###",
+      "#######"
+    ],
+    "kinds": [
+      [1, 1, 1, 1, 1, 1, 1],
+      [1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 1, 0, 1, 1, 1],
+      [1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1]
+    ],
+    "legend": {
+      "#": {
+        "tile": "wall"
+      },
+      ".": {
+        "tile": "floor"
+      },
+      "S": {
+        "tile": "spawn"
+      },
+      "E": {
+        "tile": "exit"
+      },
+      "B": {
+        "tile": "barrier"
+      }
+    },
+    "render": {
+      "wall": "#",
+      "floor": ".",
+      "spawn": "S",
+      "exit": "E",
+      "actor": "@",
+      "barrier": "B"
+    },
+    "spawn": {
+      "x": 2,
+      "y": 2
+    },
+    "exit": {
+      "x": 3,
+      "y": 3
+    },
+    "bounds": "walls_block_movement"
+  }
+}

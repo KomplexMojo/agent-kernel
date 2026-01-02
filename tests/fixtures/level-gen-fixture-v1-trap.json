@@ -1,0 +1,123 @@
+{
+  "schema": "agent-kernel/LevelGenFixture",
+  "schemaVersion": 1,
+  "input": {
+    "width": 5,
+    "height": 5,
+    "seed": 3,
+    "shape": {
+      "profile": "rectangular"
+    },
+    "spawn": {
+      "edgeBias": true,
+      "minDistance": 1
+    },
+    "exit": {
+      "edgeBias": true,
+      "minDistance": 1
+    },
+    "connectivity": {
+      "requirePath": true
+    },
+    "traps": [
+      {
+        "x": 2,
+        "y": 2,
+        "blocking": false,
+        "affinity": {
+          "kind": "fire",
+          "expression": "push",
+          "stacks": 2
+        },
+        "vitals": {
+          "mana": {
+            "current": 3,
+            "max": 3,
+            "regen": 1
+          },
+          "durability": {
+            "current": 5,
+            "max": 5,
+            "regen": 0
+          }
+        }
+      }
+    ]
+  },
+  "expected": {
+    "width": 5,
+    "height": 5,
+    "tiles": [
+      "#####",
+      "#.S.#",
+      "#..E#",
+      "#...#",
+      "#####"
+    ],
+    "kinds": [
+      [1, 1, 1, 1, 1],
+      [1, 0, 0, 0, 1],
+      [1, 0, 2, 0, 1],
+      [1, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1]
+    ],
+    "legend": {
+      "#": {
+        "tile": "wall"
+      },
+      ".": {
+        "tile": "floor"
+      },
+      "S": {
+        "tile": "spawn"
+      },
+      "E": {
+        "tile": "exit"
+      },
+      "B": {
+        "tile": "barrier"
+      }
+    },
+    "render": {
+      "wall": "#",
+      "floor": ".",
+      "spawn": "S",
+      "exit": "E",
+      "actor": "@",
+      "barrier": "B"
+    },
+    "spawn": {
+      "x": 2,
+      "y": 1
+    },
+    "exit": {
+      "x": 3,
+      "y": 2
+    },
+    "bounds": "walls_block_movement",
+    "traps": [
+      {
+        "x": 2,
+        "y": 2,
+        "blocking": false,
+        "affinity": {
+          "kind": "fire",
+          "expression": "push",
+          "stacks": 2
+        },
+        "vitals": {
+          "mana": {
+            "current": 3,
+            "max": 3,
+            "regen": 1
+          },
+          "durability": {
+            "current": 5,
+            "max": 5,
+            "regen": 0
+          }
+        }
+      }
+    ]
+  }
+}

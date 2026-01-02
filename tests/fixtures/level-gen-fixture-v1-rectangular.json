@@ -1,0 +1,79 @@
+{
+  "schema": "agent-kernel/LevelGenFixture",
+  "schemaVersion": 1,
+  "input": {
+    "width": 7,
+    "height": 7,
+    "seed": 7,
+    "shape": {
+      "profile": "rectangular"
+    },
+    "spawn": {
+      "edgeBias": true,
+      "minDistance": 4
+    },
+    "exit": {
+      "edgeBias": true,
+      "minDistance": 4
+    },
+    "connectivity": {
+      "requirePath": true
+    }
+  },
+  "expected": {
+    "width": 7,
+    "height": 7,
+    "tiles": [
+      "#######",
+      "#...S.#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#....E#",
+      "#######"
+    ],
+    "kinds": [
+      [1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1]
+    ],
+    "legend": {
+      "#": {
+        "tile": "wall"
+      },
+      ".": {
+        "tile": "floor"
+      },
+      "S": {
+        "tile": "spawn"
+      },
+      "E": {
+        "tile": "exit"
+      },
+      "B": {
+        "tile": "barrier"
+      }
+    },
+    "render": {
+      "wall": "#",
+      "floor": ".",
+      "spawn": "S",
+      "exit": "E",
+      "actor": "@",
+      "barrier": "B"
+    },
+    "spawn": {
+      "x": 4,
+      "y": 1
+    },
+    "exit": {
+      "x": 5,
+      "y": 5
+    },
+    "bounds": "walls_block_movement"
+  }
+}

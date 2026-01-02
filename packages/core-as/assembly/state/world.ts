@@ -208,6 +208,49 @@ export function resetWorld(): void {
   resetActorPlacementsState();
 }
 
+export function configureGrid(newWidth: i32, newHeight: i32): ValidationError {
+  if (newWidth <= 0 || newHeight <= 0 || newWidth > MAX_WIDTH || newHeight > MAX_HEIGHT) {
+    return ValidationError.OutOfBounds;
+  }
+  resetWorld();
+  width = newWidth;
+  height = newHeight;
+  initTileActorsForBounds();
+  return ValidationError.None;
+}
+
+export function setTileAt(x: i32, y: i32, tile: i32): void {
+  if (tile == Tile.Wall) {
+    setTile(x, y, Tile.Wall);
+    return;
+  }
+  if (tile == Tile.Floor) {
+    setTile(x, y, Tile.Floor);
+    return;
+  }
+  if (tile == Tile.Spawn) {
+    setTile(x, y, Tile.Spawn);
+    return;
+  }
+  if (tile == Tile.Exit) {
+    setTile(x, y, Tile.Exit);
+    return;
+  }
+  if (tile == Tile.Barrier) {
+    setTile(x, y, Tile.Barrier);
+  }
+}
+
+export function spawnActorAt(x: i32, y: i32): void {
+  if (!withinBounds(x, y)) {
+    return;
+  }
+  actorActive = true;
+  actorX = x;
+  actorY = y;
+  seedMotivatedOccupancyFromActor();
+}
+
 function setTile(x: i32, y: i32, tile: Tile): void {
   if (!withinBounds(x, y)) {
     return;

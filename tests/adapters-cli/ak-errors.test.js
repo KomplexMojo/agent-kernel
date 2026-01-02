@@ -12,9 +12,17 @@ const INVALID_SIM_CONFIG = resolve(
   ROOT,
   "tests/fixtures/artifacts/invalid/sim-config-artifact-v2.json",
 );
+const INVALID_SIM_CONFIG_MISSING_VERSION = resolve(
+  ROOT,
+  "tests/fixtures/artifacts/invalid/sim-config-artifact-v1-missing-schema-version.json",
+);
 const INVALID_INITIAL_STATE = resolve(
   ROOT,
   "tests/fixtures/artifacts/invalid/initial-state-artifact-v2.json",
+);
+const INVALID_INITIAL_STATE_MISMATCHED_SCHEMA = resolve(
+  ROOT,
+  "tests/fixtures/artifacts/invalid/initial-state-artifact-v1-mismatched-schema.json",
 );
 const INVALID_PLAN = resolve(
   ROOT,
@@ -169,6 +177,40 @@ test("cli run rejects initial state schema mismatch", (t) => {
     WASM_PATH,
   ]);
   assert.match(result.stderr, /Expected schemaVersion 1/);
+});
+
+test("cli run rejects sim config missing schemaVersion", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH}`);
+    return;
+  }
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    INVALID_SIM_CONFIG_MISSING_VERSION,
+    "--initial-state",
+    resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json"),
+    "--wasm",
+    WASM_PATH,
+  ]);
+  assert.match(result.stderr, /Expected schemaVersion 1/);
+});
+
+test("cli run rejects initial state schema kind mismatch", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH}`);
+    return;
+  }
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-basic.json"),
+    "--initial-state",
+    INVALID_INITIAL_STATE_MISMATCHED_SCHEMA,
+    "--wasm",
+    WASM_PATH,
+  ]);
+  assert.match(result.stderr, /Expected schema/);
 });
 
 test("cli run rejects out-of-bounds tile overrides", (t) => {

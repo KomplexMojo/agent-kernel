@@ -6,6 +6,7 @@ import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
 import { createLlmAdapter } from "../adapters/llm/index.js";
 import { buildEffectFromCore as buildRuntimeEffect, dispatchEffect as dispatchRuntimeEffect } from "../../../runtime/src/ports/effects.js";
+import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
@@ -395,6 +396,10 @@ async function loadCoreFromWasm(wasmPath) {
     step: exports.step,
     applyAction: exports.applyAction,
     getCounter: exports.getCounter,
+    configureGrid: exports.configureGrid,
+    setTileAt: exports.setTileAt,
+    spawnActorAt: exports.spawnActorAt,
+    setActorVital: exports.setActorVital,
     setBudget: exports.setBudget,
     getBudget: exports.getBudget,
     getBudgetUsage: exports.getBudgetUsage,
@@ -559,11 +564,28 @@ function createRunner({ core, runId, adapters = {} }) {
   }
 
   return {
-    init(seed, simConfig) {
+    init(seed, simConfig, initialState) {
       tick = 0;
       effectLog.length = 0;
       tickFrames.length = 0;
       core.init(seed);
+      if (simConfig?.layout) {
+        const layoutResult = applySimConfigToCore(core, simConfig);
+        if (!layoutResult.ok) {
+          throw new Error(`Failed to apply sim config layout: ${layoutResult.reason || "unknown"}`);
+        }
+        if (initialState) {
+          const actorResult = applyInitialStateToCore(core, initialState, { spawn: layoutResult.spawn });
+          if (!actorResult.ok) {
+            throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
+          }
+        }
+      } else if (initialState) {
+        const actorResult = applyInitialStateToCore(core, initialState);
+        if (!actorResult.ok) {
+          throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
+        }
+      }
       applyBudgetCaps(core, simConfig);
       const frameEffects = flushEffects();
       recordFrame({ ...frameEffects, phaseDetail: "init" });
@@ -754,7 +776,7 @@ async function runCommand(argv) {
 
   const core = await loadCoreFromWasm(wasmPath);
   const runner = createRunner({ core, runId });
-  runner.init(seed, simConfig);
+  runner.init(seed, simConfig, initialState);
   for (let i = 0; i < ticks; i += 1) {
     runner.step();
   }
@@ -843,7 +865,7 @@ async function replayCommand(argv) {
   const core = await loadCoreFromWasm(wasmPath);
   const runId = makeId("replay");
   const runner = createRunner({ core, runId });
-  runner.init(seed, simConfig);
+  runner.init(seed, simConfig, initialState);
   for (let i = 0; i < ticks; i += 1) {
     runner.step();
   }

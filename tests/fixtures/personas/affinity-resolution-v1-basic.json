@@ -1,0 +1,142 @@
+{
+  "schema": "agent-kernel/AffinityResolutionFixture",
+  "schemaVersion": 1,
+  "input": {
+    "presets": [
+      {
+        "id": "affinity_fire_push",
+        "kind": "fire",
+        "expression": "push",
+        "manaCost": 3,
+        "effects": {
+          "attack": { "id": "fireball", "potency": 1 }
+        },
+        "abilities": [
+          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "potency": 2 }
+        ],
+        "vitalsModifiers": {
+          "mana": { "current": 0, "max": 1, "regen": 0 }
+        },
+        "stack": { "max": 3, "scaling": "multiplier" }
+      },
+      {
+        "id": "affinity_life_pull",
+        "kind": "life",
+        "expression": "pull",
+        "manaCost": 0,
+        "effects": {
+          "buff": { "id": "life_boost", "potency": 1 }
+        },
+        "abilities": [
+          { "id": "life_surge", "kind": "buff", "affinityKind": "life", "potency": 1 }
+        ],
+        "vitalsModifiers": {
+          "health": { "current": 1, "max": 2, "regen": 0 }
+        },
+        "stack": { "max": 2, "scaling": "linear" }
+      },
+      {
+        "id": "affinity_decay_emit",
+        "kind": "decay",
+        "expression": "emit",
+        "manaCost": 2,
+        "effects": {
+          "area": { "id": "decay_miasma", "potency": 1 }
+        },
+        "abilities": [
+          { "id": "decay_field", "kind": "area", "affinityKind": "decay", "potency": 1 }
+        ],
+        "vitalsModifiers": {
+          "health": { "current": -1, "max": 0, "regen": 0 }
+        },
+        "stack": { "max": 2, "scaling": "multiplier" }
+      }
+    ],
+    "loadouts": [
+      {
+        "actorId": "actor_mvp",
+        "affinities": [
+          { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 2 },
+          { "presetId": "affinity_life_pull", "kind": "life", "expression": "pull" }
+        ]
+      },
+      {
+        "actorId": "actor_rival",
+        "affinities": [
+          { "presetId": "affinity_decay_emit", "kind": "decay", "expression": "emit", "stacks": 1 }
+        ]
+      }
+    ],
+    "baseVitalsByActorId": {
+      "actor_mvp": {
+        "health": { "current": 10, "max": 10, "regen": 0 },
+        "mana": { "current": 0, "max": 0, "regen": 0 },
+        "stamina": { "current": 0, "max": 0, "regen": 0 },
+        "durability": { "current": 0, "max": 0, "regen": 0 }
+      },
+      "actor_rival": {
+        "health": { "current": 6, "max": 6, "regen": 0 },
+        "mana": { "current": 1, "max": 1, "regen": 0 },
+        "stamina": { "current": 0, "max": 0, "regen": 0 },
+        "durability": { "current": 0, "max": 0, "regen": 0 }
+      }
+    },
+    "traps": [
+      {
+        "x": 2,
+        "y": 2,
+        "affinity": { "kind": "fire", "expression": "push", "stacks": 2 },
+        "vitals": {
+          "mana": { "current": 3, "max": 3, "regen": 1 },
+          "durability": { "current": 5, "max": 5, "regen": 0 }
+        }
+      }
+    ]
+  },
+  "expected": {
+    "actors": [
+      {
+        "actorId": "actor_mvp",
+        "vitals": {
+          "health": { "current": 11, "max": 12, "regen": 0 },
+          "mana": { "current": 0, "max": 2, "regen": 0 },
+          "stamina": { "current": 0, "max": 0, "regen": 0 },
+          "durability": { "current": 0, "max": 0, "regen": 0 }
+        },
+        "abilities": [
+          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 },
+          { "id": "life_surge", "kind": "buff", "affinityKind": "life", "expression": "pull", "potency": 1, "manaCost": 0 }
+        ],
+        "affinityStacks": { "fire:push": 2, "life:pull": 1 }
+      },
+      {
+        "actorId": "actor_rival",
+        "vitals": {
+          "health": { "current": 5, "max": 6, "regen": 0 },
+          "mana": { "current": 1, "max": 1, "regen": 0 },
+          "stamina": { "current": 0, "max": 0, "regen": 0 },
+          "durability": { "current": 0, "max": 0, "regen": 0 }
+        },
+        "abilities": [
+          { "id": "decay_field", "kind": "area", "affinityKind": "decay", "expression": "emit", "potency": 1, "manaCost": 2 }
+        ],
+        "affinityStacks": { "decay:emit": 1 }
+      }
+    ],
+    "traps": [
+      {
+        "position": { "x": 2, "y": 2 },
+        "vitals": {
+          "health": { "current": 0, "max": 0, "regen": 0 },
+          "mana": { "current": 3, "max": 5, "regen": 1 },
+          "stamina": { "current": 0, "max": 0, "regen": 0 },
+          "durability": { "current": 5, "max": 5, "regen": 0 }
+        },
+        "abilities": [
+          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 }
+        ],
+        "affinityStacks": { "fire:push": 2 }
+      }
+    ]
+  }
+}

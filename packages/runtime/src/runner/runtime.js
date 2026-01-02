@@ -1,5 +1,6 @@
 import { applyBudgetCaps } from "../ports/budget.js";
 import * as effects from "../ports/effects.js";
+import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
 
 // Moderator-owned runner module: executes ticks and records execution frames.
 
@@ -158,6 +159,23 @@ export function createRuntime({ core, adapters = {}, effectFactory } = {}) {
       effectLog.length = 0;
       tickFrames.length = 0;
       core.init(seed);
+      if (options.simConfig?.layout) {
+        const layoutResult = applySimConfigToCore(core, options.simConfig);
+        if (!layoutResult.ok) {
+          throw new Error(`Failed to apply sim config layout: ${layoutResult.reason || "unknown"}`);
+        }
+        if (options.initialState) {
+          const actorResult = applyInitialStateToCore(core, options.initialState, { spawn: layoutResult.spawn });
+          if (!actorResult.ok) {
+            throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
+          }
+        }
+      } else if (options.initialState) {
+        const actorResult = applyInitialStateToCore(core, options.initialState);
+        if (!actorResult.ok) {
+          throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
+        }
+      }
       applyBudgetCaps(core, options.simConfig);
       const frameEffects = flushEffects();
       recordTickFrame({ ...frameEffects, phaseDetail: "init" });

@@ -1,35 +1,78 @@
 import { packMoveAction, renderFrameBuffer, readObservation } from "../../bindings-ts/src/mvp-movement.js";
 
+const VITAL_KEYS = ["health", "mana", "stamina", "durability"];
+const TRAP_VITAL_KEYS = ["mana", "durability"];
+
+function kindLabel(kind) {
+  if (kind === 0) return "stationary";
+  if (kind === 1) return "barrier";
+  if (kind === 2) return "motivated";
+  return `kind:${kind}`;
+}
+
+function formatVitals(vitals = {}) {
+  return VITAL_KEYS
+    .map((key) => {
+      const record = vitals[key] || { current: 0, max: 0, regen: 0 };
+      return `${key[0].toUpperCase()}:${record.current}/${record.max}+${record.regen}`;
+    })
+    .join(" ");
+}
+
+function formatTrapVitals(vitals = {}) {
+  return TRAP_VITAL_KEYS
+    .map((key) => {
+      const record = vitals[key] || { current: 0, max: 0, regen: 0 };
+      return `${key}:${record.current}/${record.max}+${record.regen}`;
+    })
+    .join(" ");
+}
+
+export function formatAffinities(affinities = []) {
+  if (!Array.isArray(affinities) || affinities.length === 0) {
+    return "No affinities equipped";
+  }
+  return affinities.map((affinity) => {
+    const kind = affinity?.kind || "unknown";
+    const expression = affinity?.expression || "unknown";
+    const stacks = Number.isFinite(affinity?.stacks) ? affinity.stacks : 1;
+    const note = kind === "dark" ? " (reduces visibility)" : "";
+    return `${kind}:${expression} x${stacks}${note}`;
+  }).join(", ");
+}
+
+export function formatAbilities(abilities = []) {
+  if (!Array.isArray(abilities) || abilities.length === 0) {
+    return "No abilities";
+  }
+  return abilities.map((ability) => {
+    const id = ability?.id || "ability";
+    const kind = ability?.kind || "unknown";
+    const affinityKind = ability?.affinityKind || "unknown";
+    const expression = ability?.expression || "unknown";
+    const potency = Number.isFinite(ability?.potency) ? ability.potency : 0;
+    const manaCost = Number.isFinite(ability?.manaCost) ? ability.manaCost : 0;
+    return `${id} (${kind}, ${affinityKind}/${expression}, pot ${potency}, mana ${manaCost})`;
+  }).join("; ");
+}
+
+export function renderActorSummary(entry) {
+  const base = `${entry.id} [${kindLabel(entry.kind)}] @(${entry.position.x},${entry.position.y}) ${formatVitals(entry.vitals)}`;
+  return `${base}\n  affinities: ${formatAffinities(entry.affinities)}\n  abilities: ${formatAbilities(entry.abilities)}`;
+}
+
+export function renderTrapSummary(trap) {
+  const position = trap?.position || { x: 0, y: 0 };
+  const vitals = formatTrapVitals(trap?.vitals || {});
+  const affinities = formatAffinities(trap?.affinities || []);
+  const abilities = formatAbilities(trap?.abilities || []);
+  return `trap @(${position.x},${position.y}) ${vitals}\n  affinities: ${affinities}\n  abilities: ${abilities}`;
+}
+
 export function setupPlayback({ core, actions, actorIdLabel = "actor_mvp", actorIdValue = 1, intervalMs = 500, elements }) {
   let currentIndex = 0;
   let playing = false;
   let timer = null;
-  const vitalKeys = ["health", "mana", "stamina", "durability"];
-
-  function kindLabel(kind) {
-    if (kind === 0) return "stationary";
-    if (kind === 1) return "barrier";
-    if (kind === 2) return "motivated";
-    return `kind:${kind}`;
-  }
-
-  function formatVitals(vitals = {}) {
-    return vitalKeys
-      .map((key) => {
-        const record = vitals[key] || { current: 0, max: 0, regen: 0 };
-        return `${key[0].toUpperCase()}:${record.current}/${record.max}+${record.regen}`;
-      })
-      .join(" ");
-  }
-
-  function sortActors(list) {
-    return list.slice().sort((a, b) => {
-      const left = a?.id || "";
-      const right = b?.id || "";
-      if (left === right) return 0;
-      return left < right ? -1 : 1;
-    });
-  }
 
   function render() {
     const frame = renderFrameBuffer(core, { actorIdLabel });
@@ -49,17 +92,23 @@ export function setupPlayback({ core, actions, actorIdLabel = "actor_mvp", actor
     if (elements.stepForward) elements.stepForward.disabled = currentIndex >= actions.length;
     if (elements.reset) elements.reset.disabled = false;
     if (elements.actorList) {
-      const list = sortActors(obs.actors || []);
+      const list = obs.actors || [];
       elements.actorList.textContent = list.length
-        ? list.map((entry) => `${entry.id} [${kindLabel(entry.kind)}] @(${entry.position.x},${entry.position.y}) ${formatVitals(entry.vitals)}`).join("\n")
+        ? list.map((entry) => renderActorSummary(entry)).join("\n")
         : "-";
     }
     if (elements.tileActorList) {
-      const tiles = sortActors(obs.tileActors || []);
+      const tiles = obs.tileActors || [];
       elements.tileActorList.textContent = tiles.length
         ? tiles.map((entry) => `${entry.id} [${kindLabel(entry.kind)}] @(${entry.position.x},${entry.position.y}) ${formatVitals(entry.vitals)}`).join("\n")
         : "-";
       if (elements.tileActorCount) elements.tileActorCount.textContent = String(tiles.length);
+    }
+    if (elements.trapSection && elements.trapList) {
+      const traps = obs.traps || [];
+      elements.trapSection.hidden = traps.length === 0;
+      elements.trapList.textContent = traps.length ? traps.map((trap) => renderTrapSummary(trap)).join("\n") : "-";
+      if (elements.trapCount) elements.trapCount.textContent = String(traps.length);
     }
   }
 

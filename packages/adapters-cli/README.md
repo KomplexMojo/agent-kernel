@@ -68,6 +68,7 @@ node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture te
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
 node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
 ```
 Expected outputs (defaults when `--out-dir` is set):
 - ipfs: `ipfs.json`
@@ -93,6 +94,42 @@ Expected outputs (defaults when `--out-dir` is set):
 
 When overrides are provided, `run` writes `resolved-sim-config.json` and
 `resolved-initial-state.json` to the output directory for inspection.
+
+## Configurator artifacts (affinities + traps)
+
+Configurator artifacts are affinity-only (no martial weapons). Affinity kinds:
+fire, water, earth, wind, life, decay, corrode, dark. Expressions: push, pull, emit.
+
+Example `SimConfigArtifact.layout.data` snippet with traps:
+```json
+{
+  "layout": {
+    "kind": "grid",
+    "data": {
+      "tiles": ["#####", "#.S.#", "#..E#", "#...#", "#####"],
+      "kinds": [[1,1,1,1,1],[1,0,0,0,1],[1,0,2,0,1],[1,0,0,0,1],[1,1,1,1,1]],
+      "traps": [
+        { "x": 2, "y": 2, "blocking": false, "affinity": { "kind": "fire", "expression": "push", "stacks": 2 } }
+      ]
+    }
+  }
+}
+```
+
+Example `InitialStateArtifact.actors[].traits` snippet:
+```json
+{
+  "traits": {
+    "affinities": { "fire:push": 2, "life:pull": 1 },
+    "abilities": [
+      { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 }
+    ]
+  }
+}
+```
+
+Defaults: manaCost=0, stacks=1, shape profile=rectangular, edgeBias=false. Required:
+preset id, kind, expression, actor id. Deterministic ordering is preserved in artifacts.
 
 ## Demo bundle script
 

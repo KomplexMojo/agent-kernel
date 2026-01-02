@@ -31,6 +31,12 @@ General rules:
 - sim-config-artifact-v1-basic.json: executable configuration referencing plan/receipt.
 - initial-state-artifact-v1-basic.json: initial state referencing the sim config.
 
+## Configurator (Affinities + Layouts)
+- affinity-presets-artifact-v1-basic.json: affinity preset catalog with kind/expression effects.
+- actor-loadouts-artifact-v1-basic.json: actor loadouts referencing affinity presets and stacks.
+- sim-config-artifact-v1-configurator-trap.json: grid layout with kinds and trap metadata.
+- initial-state-artifact-v1-configurator-affinity.json: actors seeded with affinity traits and abilities.
+
 ## Solver
 - solver-request-v1-basic.json: solver input referencing intent/plan.
 - solver-result-v1-basic.json: solver output referencing the request.

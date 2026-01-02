@@ -382,6 +382,92 @@ export type SimConfigArtifact = SimConfigArtifactV1;
 export type InitialStateArtifact = InitialStateArtifactV1;
 
 // -------------------------
+// Configurator affinity/loadout artifacts
+// -------------------------
+
+export const AFFINITY_PRESET_SCHEMA = "agent-kernel/AffinityPresetArtifact";
+export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
+
+export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "dark";
+export type AffinityExpression = "push" | "pull" | "emit";
+export type AffinityStackScaling = "linear" | "multiplier";
+export type AffinityAbilityKind = "attack" | "buff" | "area";
+
+export interface AffinityEffectV1 {
+  id: string;
+  potency: number;
+}
+
+export interface VitalModifierV1 {
+  current: number;
+  max: number;
+  regen: number;
+}
+
+export interface VitalModifiersV1 {
+  health?: VitalModifierV1;
+  mana?: VitalModifierV1;
+  stamina?: VitalModifierV1;
+  durability?: VitalModifierV1;
+}
+
+export interface AffinityAbilityV1 {
+  id: string;
+  kind: AffinityAbilityKind;
+  affinityKind: AffinityKind;
+  potency: number;
+  manaCost?: number;
+  expression?: AffinityExpression;
+}
+
+export interface AffinityPresetV1 {
+  id: string;
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  manaCost: number;
+  effects: {
+    attack?: AffinityEffectV1;
+    buff?: AffinityEffectV1;
+    area?: AffinityEffectV1;
+  };
+  vitalsModifiers?: VitalModifiersV1;
+  abilities?: AffinityAbilityV1[];
+  stack: {
+    max: number;
+    scaling: AffinityStackScaling;
+  };
+}
+
+export interface AffinityPresetArtifactV1 {
+  schema: typeof AFFINITY_PRESET_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  presets: AffinityPresetV1[];
+}
+
+export interface ActorLoadoutAffinityV1 {
+  presetId: string;
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  stacks: number;
+}
+
+export interface ActorLoadoutV1 {
+  actorId: string;
+  affinities: ActorLoadoutAffinityV1[];
+}
+
+export interface ActorLoadoutArtifactV1 {
+  schema: typeof ACTOR_LOADOUT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  loadouts: ActorLoadoutV1[];
+}
+
+export type AffinityPresetArtifact = AffinityPresetArtifactV1;
+export type ActorLoadoutArtifact = ActorLoadoutArtifactV1;
+
+// -------------------------
 // Core Actor State (core-as)
 // -------------------------
 

@@ -1,0 +1,57 @@
+{
+  "schema": "agent-kernel/LevelStrategyFixture",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "directive overrides tags",
+      "input": {
+        "levelGen": { "width": 5, "height": 5 },
+        "plan": {
+          "theme": { "tags": ["rooms:sparse"] },
+          "directives": { "roomStrategy": "clustered" }
+        }
+      },
+      "expected": {
+        "applied": "rooms:clustered",
+        "source": "directive",
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": { "profile": "clustered_islands", "clusterSize": 8 }
+        }
+      }
+    },
+    {
+      "name": "tags apply when shape missing",
+      "input": {
+        "levelGen": { "width": 6, "height": 6 },
+        "plan": { "theme": { "tags": ["rooms:sparse"] } }
+      },
+      "expected": {
+        "applied": "rooms:sparse",
+        "source": "tag",
+        "value": {
+          "width": 6,
+          "height": 6,
+          "shape": { "profile": "sparse_islands", "density": 0.25 }
+        }
+      }
+    },
+    {
+      "name": "explicit shape wins over strategy",
+      "input": {
+        "levelGen": { "width": 7, "height": 7, "shape": { "profile": "rectangular" } },
+        "plan": { "theme": { "tags": ["rooms:clustered"] } }
+      },
+      "expected": {
+        "applied": "rooms:clustered",
+        "source": "tag",
+        "value": {
+          "width": 7,
+          "height": 7,
+          "shape": { "profile": "rectangular" }
+        }
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import {
   loadMvpBarrierWorld,
   renderBaseCell,
   renderCell,
+  configureGrid as configureGridState,
   resetWorld,
   getMapWidth as worldMapWidth,
   getMapHeight as worldMapHeight,
@@ -36,6 +37,8 @@ import {
   clearActorPlacements as clearActorPlacementsState,
   addActorPlacement as addActorPlacementState,
   getActorPlacementCount as getActorPlacementCountState,
+  setTileAt as setTileAtState,
+  spawnActorAt as spawnActorAtState,
   validateActorPlacement as validateActorPlacementState,
   getCurrentTick as getCurrentTickValue,
   getActorHp as getActorHpState,
@@ -222,6 +225,22 @@ export function loadMvpScenario(): void {
 
 export function loadMvpBarrierScenario(): void {
   loadMvpBarrierWorld();
+}
+
+export function configureGrid(width: i32, height: i32): i32 {
+  const error = configureGridState(width, height);
+  if (error != ValidationError.None) {
+    pushEffect(EffectKind.ConfigInvalid, error);
+  }
+  return error;
+}
+
+export function setTileAt(x: i32, y: i32, tile: i32): void {
+  setTileAtState(x, y, tile);
+}
+
+export function spawnActorAt(x: i32, y: i32): void {
+  spawnActorAtState(x, y);
 }
 
 export function setSpawnPosition(x: i32, y: i32): void {

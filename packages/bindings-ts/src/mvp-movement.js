@@ -94,6 +94,7 @@ export function renderFrameBuffer(core, { actorIdLabel = "actor_mvp" } = {}) {
 }
 
 export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
+  const affinityEffects = arguments.length > 1 ? arguments[1]?.affinityEffects : null;
   const width = core.getMapWidth();
   const height = core.getMapHeight();
   const actor = {
@@ -123,6 +124,21 @@ export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
       },
     },
   };
+  const metaActor = Array.isArray(affinityEffects?.actors)
+    ? affinityEffects.actors.find((entry) => entry?.actorId === actor.id)
+    : null;
+  const affinityStacks = metaActor?.affinityStacks || null;
+  const affinities = affinityStacks
+    ? Object.keys(affinityStacks)
+      .sort()
+      .map((key) => {
+        const [kind, expression] = key.split(":");
+        return { kind, expression, stacks: affinityStacks[key] };
+      })
+    : [];
+  const abilities = Array.isArray(metaActor?.abilities) ? metaActor.abilities.map((ability) => ({ ...ability })) : [];
+  actor.affinities = affinities;
+  actor.abilities = abilities;
   const kinds = [];
   for (let y = 0; y < height; y += 1) {
     const row = [];
@@ -168,5 +184,31 @@ export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
       height,
       kinds,
     },
+    traps: Array.isArray(affinityEffects?.traps) && affinityEffects.traps.length > 0
+      ? affinityEffects.traps
+        .map((trap) => {
+          const position = trap.position || (Number.isFinite(trap.x) && Number.isFinite(trap.y) ? { x: trap.x, y: trap.y } : null);
+          const trapStacks = trap.affinityStacks || null;
+          const trapAffinities = trap.affinities
+            ? trap.affinities.map((affinity) => ({ ...affinity }))
+            : trap.affinity
+              ? [{ ...trap.affinity }]
+              : trapStacks
+                ? Object.keys(trapStacks)
+                  .sort()
+                  .map((key) => {
+                    const [kind, expression] = key.split(":");
+                    return { kind, expression, stacks: trapStacks[key] };
+                  })
+                : [];
+          return {
+            position,
+            vitals: trap.vitals ? { ...trap.vitals } : undefined,
+            abilities: Array.isArray(trap.abilities) ? trap.abilities.map((ability) => ({ ...ability })) : [],
+            affinities: trapAffinities,
+          };
+        })
+        .sort((a, b) => (a.position?.y ?? 0) - (b.position?.y ?? 0) || (a.position?.x ?? 0) - (b.position?.x ?? 0))
+      : undefined,
   };
 }

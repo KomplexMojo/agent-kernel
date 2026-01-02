@@ -11,6 +11,9 @@ const actorHpEl = document.querySelector("#actor-hp");
 const actorListEl = document.querySelector("#actor-list");
 const tileActorListEl = document.querySelector("#tile-actor-list");
 const tileActorCountEl = document.querySelector("#tile-actor-count");
+const trapSectionEl = document.querySelector("#trap-section");
+const trapListEl = document.querySelector("#trap-list");
+const trapCountEl = document.querySelector("#trap-count");
 const baseTilesEl = document.querySelector("#base-tiles");
 const tickEl = document.querySelector("#tick-indicator");
 const statusEl = document.querySelector("#status-message");
@@ -132,6 +135,9 @@ async function boot() {
             actorList: actorListEl,
             tileActorList: tileActorListEl,
             tileActorCount: tileActorCountEl,
+            trapSection: trapSectionEl,
+            trapList: trapListEl,
+            trapCount: trapCountEl,
             baseTiles: baseTilesEl,
             tick: tickEl,
             status: statusEl,
