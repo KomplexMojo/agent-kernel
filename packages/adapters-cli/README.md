@@ -31,6 +31,9 @@ artifact plus a `SolverResult` using a stubbed/fixture-driven solver adapter (no
 Execute a configured simulation run using captured artifacts, emitting TickFrame and
 effect logs plus a minimal RunSummary artifact.
 
+### `configurator`
+Build `SimConfigArtifact` + `InitialStateArtifact` outputs from deterministic configurator inputs.
+
 ### `replay`
 Replay a run deterministically from captured inputs and TickFrames without external IO,
 producing a replay summary and regenerated TickFrames.
@@ -55,6 +58,8 @@ Example usage:
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
+node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
 node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --tick-frames path/to/tick-frames.json
 node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
@@ -76,6 +81,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - llm: `llm.json`
 - solve: `solver-request.json`, `solver-result.json`
 - run: `tick-frames.json`, `effects-log.json`, `run-summary.json`, `action-log.json`
+- configurator: `sim-config.json`, `initial-state.json`
 
 ---
 
@@ -130,6 +136,30 @@ Example `InitialStateArtifact.actors[].traits` snippet:
 
 Defaults: manaCost=0, stacks=1, shape profile=rectangular, edgeBias=false. Required:
 preset id, kind, expression, actor id. Deterministic ordering is preserved in artifacts.
+
+Affinity summary output (resolved from presets + loadouts):
+- `--affinity-presets` path to `AffinityPresetArtifact`
+- `--affinity-loadouts` path to `ActorLoadoutArtifact`
+- When both are supplied, `run` writes `affinity-summary.json` to `--out-dir` (default). Use `--affinity-summary` to override the output path.
+
+Example:
+```
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
+```
+Expected outputs in `--out-dir`:
+- `affinity-summary.json`
+- `run-summary.json`
+- `tick-frames.json`
+
+Configurator command (artifact builder):
+- `--level-gen` path to configurator level-gen input
+- `--actors` path to an `{ actors: [...] }` payload
+- Optional: `--plan`, `--budget-receipt`, `--affinity-presets`, `--affinity-loadouts`
+
+Example:
+```
+node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen tests/fixtures/configurator/level-gen-input-v1-trap.json --actors tests/fixtures/configurator/actors-v1-affinity-base.json --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --out-dir artifacts/configurator_demo
+```
 
 ## Demo bundle script
 

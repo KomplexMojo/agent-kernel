@@ -116,8 +116,8 @@ test("core-as applies move actions and renders MVP frames", async (t) => {
   core.init(1337);
   core.loadMvpScenario();
 
-  assert.equal(core.getMapWidth(), 5);
-  assert.equal(core.getMapHeight(), 5);
+  assert.equal(core.getMapWidth(), 9);
+  assert.equal(core.getMapHeight(), 9);
   assert.deepEqual(readBaseTiles(core), frameFixture.baseTiles);
 
   const frames = [readFrame(core)];

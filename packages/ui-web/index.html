@@ -119,6 +119,69 @@
         gap: 10px;
       }
 
+      .stat-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .tab-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .tab-button {
+        border: 1px solid var(--border);
+        background: #0a0a0a;
+        color: var(--muted);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .tab-button.active {
+        background: var(--accent);
+        color: #0a0a0a;
+        border-color: var(--accent);
+      }
+
+      .tab-panel {
+        display: grid;
+        gap: 10px;
+      }
+
+      .legend-panel {
+        border: 1px dashed var(--border);
+        border-radius: 2px;
+        padding: 10px;
+        background: #070707;
+      }
+
+      .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+      }
+
+      .legend-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .legend-chip {
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #0a0a0a;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
       .actor-list {
         background: #030303;
         border: 1px dashed var(--muted);
@@ -317,7 +380,7 @@
             <label>
               <span class="stat-label">Map</span>
               <select id="map-select">
-                <option value="mvp-grid">MVP Grid (5x5)</option>
+                <option value="mvp-grid">MVP Grid (9x9)</option>
               </select>
             </label>
             <label>
@@ -385,7 +448,7 @@
         <div class="card frame-shell">
           <div class="stat">
             <span class="stat-label">Playing Surface</span>
-            <small class="status">Render of the MVP 5x5 map with actor movement.</small>
+            <small class="status">Render of the MVP 9x9 map with actor movement.</small>
           </div>
           <pre class="frame-display" id="frame-buffer">Loading...</pre>
           <div class="base-tiles-shell">
@@ -411,18 +474,56 @@
           </div>
           <div class="actor-list-shell">
             <div class="stat">
-              <span class="stat-label">Motivated Actors</span>
-              <small class="status">Observation order with vitals, affinities, and abilities.</small>
+              <span class="stat-label">Observation Tabs</span>
+              <small class="status">Inspect movement, then switch to affinities for resolved loadouts.</small>
             </div>
-            <pre class="actor-list" id="actor-list">-</pre>
-            <details open>
-              <summary>Tile Actors (<span id="tile-actor-count">0</span>)</summary>
-              <pre class="actor-list" id="tile-actor-list">-</pre>
-            </details>
-            <details id="trap-section">
-              <summary>Traps (<span id="trap-count">0</span>)</summary>
-              <pre class="actor-list" id="trap-list">-</pre>
-            </details>
+            <div class="tab-bar" role="tablist">
+              <button class="tab-button active" type="button" data-tab="inspect" role="tab" aria-selected="true">Inspect</button>
+              <button class="tab-button" type="button" data-tab="affinities" role="tab" aria-selected="false">Affinities</button>
+              <button class="tab-button" type="button" data-tab="traps" role="tab" aria-selected="false" id="tab-traps">
+                Traps (<span id="trap-tab-count">0</span>)
+              </button>
+            </div>
+            <div class="tab-panel" data-tab-panel="inspect" role="tabpanel">
+              <div class="stat">
+                <span class="stat-label">Motivated Actors</span>
+                <small class="status">Observation order with vitals and positions.</small>
+              </div>
+              <pre class="actor-list" id="actor-list">-</pre>
+              <details open>
+                <summary>Tile Actors (<span id="tile-actor-count">0</span>)</summary>
+                <pre class="actor-list" id="tile-actor-list">-</pre>
+              </details>
+            </div>
+            <div class="tab-panel" data-tab-panel="affinities" role="tabpanel" hidden>
+              <div class="stat">
+                <div class="stat-row">
+                  <span class="stat-label">Affinity Loadouts</span>
+                  <button class="secondary" type="button" id="affinity-legend-toggle" aria-expanded="false">Legend</button>
+                </div>
+                <small class="status">Resolved affinities and abilities per motivated actor.</small>
+              </div>
+              <div class="legend-panel" id="affinity-legend" hidden>
+                <div class="legend-grid">
+                  <div>
+                    <span class="stat-label">Kinds</span>
+                    <div class="legend-list" id="legend-kinds"></div>
+                  </div>
+                  <div>
+                    <span class="stat-label">Expressions</span>
+                    <div class="legend-list" id="legend-expressions"></div>
+                  </div>
+                </div>
+              </div>
+              <pre class="actor-list" id="affinity-list">No affinities resolved</pre>
+            </div>
+            <div class="tab-panel" data-tab-panel="traps" role="tabpanel" hidden>
+              <div class="stat">
+                <span class="stat-label">Trap Inspector</span>
+                <small class="status">Affinity metadata, vitals, and abilities per trap tile.</small>
+              </div>
+              <pre class="actor-list" id="trap-list">No traps detected</pre>
+            </div>
           </div>
           <div class="play-controls">
             <button class="secondary" id="step-back">Step -</button>

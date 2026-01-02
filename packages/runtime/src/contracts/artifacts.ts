@@ -387,6 +387,7 @@ export type InitialStateArtifact = InitialStateArtifactV1;
 
 export const AFFINITY_PRESET_SCHEMA = "agent-kernel/AffinityPresetArtifact";
 export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
+export const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
 
 export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "dark";
 export type AffinityExpression = "push" | "pull" | "emit";
@@ -466,6 +467,44 @@ export interface ActorLoadoutArtifactV1 {
 
 export type AffinityPresetArtifact = AffinityPresetArtifactV1;
 export type ActorLoadoutArtifact = ActorLoadoutArtifactV1;
+
+export interface AffinitySummaryActorV1 {
+  actorId: string;
+  vitals: {
+    health: VitalRecordV1;
+    mana: VitalRecordV1;
+    stamina: VitalRecordV1;
+    durability: VitalRecordV1;
+  };
+  abilities: AffinityAbilityV1[];
+  affinityStacks: Record<string, number>;
+}
+
+export interface AffinitySummaryTrapV1 {
+  position: { x: number; y: number };
+  vitals: {
+    health: VitalRecordV1;
+    mana: VitalRecordV1;
+    stamina: VitalRecordV1;
+    durability: VitalRecordV1;
+  };
+  abilities: AffinityAbilityV1[];
+  affinityStacks: Record<string, number>;
+}
+
+export interface AffinitySummaryV1 {
+  schema: typeof AFFINITY_SUMMARY_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  presetsRef?: ArtifactRef;
+  loadoutsRef?: ArtifactRef;
+  simConfigRef?: ArtifactRef;
+  initialStateRef?: ArtifactRef;
+  actors: AffinitySummaryActorV1[];
+  traps: AffinitySummaryTrapV1[];
+}
+
+export type AffinitySummary = AffinitySummaryV1;
 
 // -------------------------
 // Core Actor State (core-as)

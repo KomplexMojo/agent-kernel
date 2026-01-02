@@ -1,0 +1,43 @@
+{
+  "width": 5,
+  "height": 5,
+  "seed": 3,
+  "shape": {
+    "profile": "rectangular"
+  },
+  "spawn": {
+    "edgeBias": true,
+    "minDistance": 1
+  },
+  "exit": {
+    "edgeBias": true,
+    "minDistance": 1
+  },
+  "connectivity": {
+    "requirePath": true
+  },
+  "traps": [
+    {
+      "x": 2,
+      "y": 2,
+      "blocking": false,
+      "affinity": {
+        "kind": "fire",
+        "expression": "push",
+        "stacks": 2
+      },
+      "vitals": {
+        "mana": {
+          "current": 3,
+          "max": 3,
+          "regen": 1
+        },
+        "durability": {
+          "current": 5,
+          "max": 5,
+          "regen": 0
+        }
+      }
+    }
+  ]
+}

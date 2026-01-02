@@ -1,0 +1,52 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "initial_state_configurator_affinity",
+    "runId": "run_configurator_trap",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "simConfigRef": {
+    "id": "sim_config_configurator_trap",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "actor_mvp",
+      "kind": "ambulatory",
+      "position": { "x": 2, "y": 1 },
+      "vitals": {
+        "health": { "current": 11, "max": 12, "regen": 0 },
+        "mana": { "current": 0, "max": 2, "regen": 0 },
+        "stamina": { "current": 0, "max": 0, "regen": 0 },
+        "durability": { "current": 0, "max": 0, "regen": 0 }
+      },
+      "traits": {
+        "affinities": { "fire:push": 2, "life:pull": 1 },
+        "abilities": [
+          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 },
+          { "id": "life_surge", "kind": "buff", "affinityKind": "life", "expression": "pull", "potency": 1, "manaCost": 0 }
+        ]
+      }
+    },
+    {
+      "id": "actor_rival",
+      "kind": "ambulatory",
+      "position": { "x": 3, "y": 2 },
+      "vitals": {
+        "health": { "current": 5, "max": 6, "regen": 0 },
+        "mana": { "current": 1, "max": 1, "regen": 0 },
+        "stamina": { "current": 0, "max": 0, "regen": 0 },
+        "durability": { "current": 0, "max": 0, "regen": 0 }
+      },
+      "traits": {
+        "affinities": { "decay:emit": 1 },
+        "abilities": [
+          { "id": "decay_field", "kind": "area", "affinityKind": "decay", "expression": "emit", "potency": 1, "manaCost": 2 }
+        ]
+      }
+    }
+  ]
+}

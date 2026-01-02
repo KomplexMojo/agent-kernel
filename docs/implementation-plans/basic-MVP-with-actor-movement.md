@@ -11,11 +11,11 @@ Ship a minimal, replayable slice where one actor moves on a small map, with a vi
 
 ## Steps
 1) **Scope + fixtures**:
-   - Map/tiles: Deterministic 5x5 grid with walls around the edge and an internal wall at (2,2): `#####`, `#S..#`, `#.#E#`, `#...#`, `#####`. Spawn at (1,1), exit at (3,2); legend maps `#`→wall, `.`→floor, `S`→spawn, `E`→exit with render palette including actor `@`.
+   - Map/tiles: Deterministic 9x9 grid with internal walls and corridors: `#########`, `#S..#...#`, `#...#.#.#`, `#.#...#.#`, `#.###.#.#`, `#...#...#`, `#.#.#.###`, `#...#..E#`, `#########`. Spawn at (1,1), exit at (7,7); legend maps `#`→wall, `.`→floor, `S`→spawn, `E`→exit with render palette including actor `@`.
    - Actor schema: One ambulatory actor (`actor_mvp`) with position `{x: 1, y: 1}` on spawn, traits/vitals stub `{hp: 10, maxHp: 10, speed: 1}`, optional name/archetype allowed; must start on a spawn tile.
    - Default config: `sim-config-artifact-v1-mvp-grid.json` (seed 1337, round_robin ordering, grid layout/palette/bounds) paired with `initial-state-artifact-v1-mvp-actor.json` (tick 0 actor at spawn).
-   - Actions fixture: `action-sequence-v1-mvp-to-exit.json` with ordered move actions (east, east, south) on ticks 1–3 walking the actor from spawn to the exit tile at (3,2).
-   - Frames fixture: `frame-buffer-log-v1-mvp.json` capturing frames 0–3 as ASCII buffers with actor overlays plus base tiles/legend shared with the config.
+   - Actions fixture: `action-sequence-v1-mvp-to-exit.json` with ordered move actions (east, east, south, south, east, east, south, south, south, south, east, east) on ticks 1–12 walking the actor from spawn to the exit tile at (7,7).
+   - Frames fixture: `frame-buffer-log-v1-mvp.json` capturing frames 0–12 as ASCII buffers with actor overlays plus base tiles/legend shared with the config.
    - File placement: Stored under `tests/fixtures/artifacts/` per `<schema>-v1-<label>.json` naming; references use the shared run id `run_mvp_move`.
    - Tests linkage: `tests/fixtures/basic-mvp-actor-movement.test.js` asserts map/actor defaults, action path to exit, and frame buffers via `node --test "tests/**/*.test.js"`.
    - Docs notes: Map palette/positions and actor defaults captured above for traceability into UI/runtime wiring.
@@ -41,14 +41,14 @@ Ship a minimal, replayable slice where one actor moves on a small map, with a vi
    - Tests: Add runtime tests that given the MVP fixtures (sim config + initial state) and default motivation, the generated actions match `action-sequence-v1-mvp-to-exit.json` and frames match `frame-buffer-log-v1-mvp.json`.
 
 5) **UI (playing surface)**:
-   - Viewport: Render the 5x5 frame buffer as monospace grid (respect palette chars), with a subtle card and fixed-size tiles; support desktop + mobile widths.
+   - Viewport: Render the 9x9 frame buffer as monospace grid (respect palette chars), with a subtle card and fixed-size tiles; support desktop + mobile widths.
    - Actor panel: Show actor name/id, position, hp/maxHp, and tick; keep it compact and aligned to the viewport.
    - Controls: `[step-][play/pause][step+]` plus tick indicator; play = auto-advance using runtime actions; step buttons call runtime tick once; disable buttons at exit/end.
    - Data wiring: Consume runtime frame buffers/observations (from bindings helpers) to update grid + panel; drive actions via the runtime harness `runMvpMovement` or user commands.
    - Tests: Add DOM/snapshot test for the rendered grid + controls (initial state), and a play/step interaction test to ensure frames advance and controls disable at the exit frame.
 
 6) **Run Builder slice**:
-   - Inputs: Seed (numeric, default 1337), map preset (MVP 5x5), actor name/id, vitals defaults for health/mana/stamina/durability (each with current/max/regen), optional adapter fixture set; no wallet/mint fields.
+   - Inputs: Seed (numeric, default 1337), map preset (MVP 9x9), actor name/id, vitals defaults for health/mana/stamina/durability (each with current/max/regen), optional adapter fixture set; no wallet/mint fields.
    - Validation: Inline badges for invalid seed/empty name; disable start/run until required fields valid; show selected fixture mode (fixture/live).
    - Preview: Show a summary card of the chosen config (seed, map, actor, fixtures) and link to the underlying fixtures used.
    - Actions: “Start run” builds the config/state and drives the movement harness; “Reset” restores defaults; keep outputs deterministic.

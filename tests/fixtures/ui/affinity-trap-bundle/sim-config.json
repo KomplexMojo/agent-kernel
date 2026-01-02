@@ -1,0 +1,76 @@
+{
+  "schema": "agent-kernel/SimConfigArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "sim_config_configurator_trap",
+    "runId": "run_configurator_trap",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "planRef": {
+    "id": "plan_basic",
+    "schema": "agent-kernel/PlanArtifact",
+    "schemaVersion": 1
+  },
+  "budgetReceiptRef": {
+    "id": "budget_receipt_basic",
+    "schema": "agent-kernel/BudgetReceipt",
+    "schemaVersion": 1
+  },
+  "seed": 3,
+  "layout": {
+    "kind": "grid",
+    "data": {
+      "width": 5,
+      "height": 5,
+      "tiles": [
+        "#####",
+        "#.S.#",
+        "#..E#",
+        "#...#",
+        "#####"
+      ],
+      "kinds": [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 2, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1]
+      ],
+      "legend": {
+        "#": { "tile": "wall" },
+        ".": { "tile": "floor" },
+        "S": { "tile": "spawn" },
+        "E": { "tile": "exit" },
+        "B": { "tile": "barrier" }
+      },
+      "render": {
+        "wall": "#",
+        "floor": ".",
+        "spawn": "S",
+        "exit": "E",
+        "actor": "@",
+        "barrier": "B"
+      },
+      "spawn": { "x": 2, "y": 1 },
+      "exit": { "x": 3, "y": 2 },
+      "bounds": "walls_block_movement",
+      "traps": [
+        {
+          "x": 2,
+          "y": 2,
+          "blocking": false,
+          "affinity": {
+            "kind": "fire",
+            "expression": "push",
+            "stacks": 2
+          },
+          "vitals": {
+            "mana": { "current": 3, "max": 3, "regen": 1 },
+            "durability": { "current": 5, "max": 5, "regen": 0 }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -11,13 +11,13 @@ function coordsEqual(a, b) {
   assert.deepEqual(a, b);
 }
 
-test("mvp sim config defines a deterministic 5x5 grid with spawn/exit and palette", () => {
+test("mvp sim config defines a deterministic 9x9 grid with spawn/exit and palette", () => {
   const data = simConfig.layout.data;
   assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
-  assert.equal(data.width, 5);
-  assert.equal(data.height, 5);
+  assert.equal(data.width, 9);
+  assert.equal(data.height, 9);
   coordsEqual(data.spawn, { x: 1, y: 1 });
-  coordsEqual(data.exit, { x: 3, y: 2 });
+  coordsEqual(data.exit, { x: 7, y: 7 });
   assert.deepEqual(Object.keys(data.legend).sort(), ["#", ".", "E", "S"].sort());
   assert.equal(data.render.actor, "@");
   assert.equal(data.tiles[data.exit.y][data.exit.x], "E");
@@ -33,17 +33,17 @@ test("initial actor defaults live on the spawn tile with vitals stub", () => {
   assert.equal(actor.traits.speed, 1);
 });
 
-test("action sequence walks east, east, south to the exit in three ticks", () => {
+test("action sequence walks the MVP maze to the exit in deterministic ticks", () => {
   const actions = actionSequence.actions;
   assert.equal(actionSequence.schema, "agent-kernel/ActionSequence");
-  assert.equal(actions.length, 3);
+  assert.equal(actions.length, 12);
   actions.forEach((action, index) => {
     assert.equal(action.actorId, "actor_mvp");
     assert.equal(action.tick, index + 1);
   });
   assert.deepEqual(
     actions.map((a) => a.params.direction),
-    ["east", "east", "south"]
+    ["east", "east", "south", "south", "east", "east", "south", "south", "south", "south", "east", "east"]
   );
   coordsEqual(actions[0].params.from, simConfig.layout.data.spawn);
   coordsEqual(actions.at(-1).params.to, simConfig.layout.data.exit);

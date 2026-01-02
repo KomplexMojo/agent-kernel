@@ -3,17 +3,24 @@ import { runMvpMovement } from "../../runtime/src/mvp/movement.js";
 import { setupPlayback } from "./movement-ui.js";
 import { wireAdapterPanel } from "./adapter-panel.js";
 import { wireRunBuilder } from "./run-builder.js";
+import { wireTabs } from "./tabs.js";
+import { wireAffinityLegend } from "./affinity-legend.js";
 
 const frameEl = document.querySelector("#frame-buffer");
 const actorIdEl = document.querySelector("#actor-id");
 const actorPosEl = document.querySelector("#actor-pos");
 const actorHpEl = document.querySelector("#actor-hp");
 const actorListEl = document.querySelector("#actor-list");
+const affinityListEl = document.querySelector("#affinity-list");
+const affinityLegendToggle = document.querySelector("#affinity-legend-toggle");
+const affinityLegendPanel = document.querySelector("#affinity-legend");
+const affinityLegendKinds = document.querySelector("#legend-kinds");
+const affinityLegendExpressions = document.querySelector("#legend-expressions");
 const tileActorListEl = document.querySelector("#tile-actor-list");
 const tileActorCountEl = document.querySelector("#tile-actor-count");
-const trapSectionEl = document.querySelector("#trap-section");
 const trapListEl = document.querySelector("#trap-list");
-const trapCountEl = document.querySelector("#trap-count");
+const trapTabEl = document.querySelector("#tab-traps");
+const trapTabCountEl = document.querySelector("#trap-tab-count");
 const baseTilesEl = document.querySelector("#base-tiles");
 const tickEl = document.querySelector("#tick-indicator");
 const statusEl = document.querySelector("#status-message");
@@ -47,6 +54,8 @@ const badgeMode = document.querySelector("#badge-mode");
 const startRunButton = document.querySelector("#start-run");
 const resetConfigButton = document.querySelector("#reset-config");
 const configPreview = document.querySelector("#config-preview");
+const tabButtons = document.querySelectorAll("[data-tab]");
+const tabPanels = document.querySelectorAll("[data-tab-panel]");
 const vitalsInputs = {
   health: {
     current: document.querySelector("#vital-health-current"),
@@ -88,6 +97,14 @@ wireAdapterPanel({
     llmButton: adapterLlmButton,
     solverButton: adapterSolver,
   },
+});
+
+wireTabs({ buttons: tabButtons, panels: tabPanels, defaultTab: "inspect" });
+wireAffinityLegend({
+  button: affinityLegendToggle,
+  panel: affinityLegendPanel,
+  kindsEl: affinityLegendKinds,
+  expressionsEl: affinityLegendExpressions,
 });
 
 const ACTOR_ID_LABEL = "actor_mvp";
@@ -133,11 +150,12 @@ async function boot() {
             actorPos: actorPosEl,
             actorHp: actorHpEl,
             actorList: actorListEl,
+            affinityList: affinityListEl,
             tileActorList: tileActorListEl,
             tileActorCount: tileActorCountEl,
-            trapSection: trapSectionEl,
             trapList: trapListEl,
-            trapCount: trapCountEl,
+            trapCount: trapTabCountEl,
+            trapTab: trapTabEl,
             baseTiles: baseTilesEl,
             tick: tickEl,
             status: statusEl,

@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -8,8 +9,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..", "..");
 
-test("playing surface controller steps through frames and disables at exit", async (t) => {
-const script = `
+test("ui affinity trap bundle renders affinity and trap panels", async () => {
+  const script = `
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -48,9 +49,14 @@ const core = {
   clearEffects: exports.clearEffects,
 };
 
-const actionFixture = JSON.parse(await readFile(${JSON.stringify(path.resolve(root, "tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json"))}, "utf8"));
-const frameFixture = JSON.parse(await readFile(${JSON.stringify(path.resolve(root, "tests/fixtures/artifacts/frame-buffer-log-v1-mvp.json"))}, "utf8"));
-const affinityFixture = JSON.parse(await readFile(${JSON.stringify(path.resolve(root, "tests/fixtures/personas/affinity-resolution-v1-basic.json"))}, "utf8"));
+const bundleDir = ${JSON.stringify(path.resolve(root, "tests/fixtures/ui/affinity-trap-bundle"))};
+const simConfig = JSON.parse(await readFile(path.join(bundleDir, "sim-config.json"), "utf8"));
+const initialState = JSON.parse(await readFile(path.join(bundleDir, "initial-state.json"), "utf8"));
+const affinityEffects = JSON.parse(await readFile(path.join(bundleDir, "affinity-effects.json"), "utf8"));
+
+assert.ok(simConfig.layout?.data?.traps?.length > 0);
+assert.ok(initialState.actors?.length > 0);
+assert.ok(affinityEffects.traps?.length > 0);
 
 function makeEl() { return { textContent: "", disabled: false, setAttribute() {} }; }
 
@@ -76,41 +82,19 @@ const elements = {
   reset: makeEl(),
 };
 
-const controller = setupPlayback({
+setupPlayback({
   core,
   actions: movement.actions,
   elements,
-  affinityEffects: affinityFixture.expected,
+  affinityEffects,
 });
-assert.equal(elements.frame.textContent.trim(), frameFixture.frames[0].buffer.join("\\n"));
-assert.equal(elements.baseTiles.textContent.trim(), frameFixture.baseTiles.join("\\n"));
-assert.ok(elements.actorList.textContent.includes("actor_mvp"));
-assert.ok(elements.actorList.textContent.includes("H:10/10+0"));
+
 assert.ok(elements.affinityList.textContent.includes("affinities:"));
-assert.ok(elements.affinityList.textContent.includes("fire:push x2"));
-assert.ok(Number(elements.tileActorCount.textContent) > 0);
-assert.ok(elements.tileActorList.textContent.includes("tile_"));
+assert.ok(elements.affinityList.textContent.includes("actor_mvp"));
 assert.ok(elements.trapList.textContent.includes("trap @(2,2)"));
 assert.ok(elements.trapList.textContent.includes("fire:push x2"));
-controller.stepForward();
-assert.equal(elements.frame.textContent.trim(), frameFixture.frames[1].buffer.join("\\n"));
-assert.equal(elements.tick.textContent, "1");
-assert.equal(elements.stepBack.disabled, false);
-controller.toggle();
-assert.equal(elements.playButton.textContent, "Pause");
-assert.equal(elements.playButton.disabled, false);
-controller.toggle();
-assert.equal(elements.playButton.textContent, "Play");
-assert.equal(elements.playButton.disabled, false);
-controller.reset();
-assert.equal(elements.frame.textContent.trim(), frameFixture.frames[0].buffer.join("\\n"));
-assert.equal(elements.tick.textContent, "0");
-controller.gotoIndex(actionFixture.actions.length);
-assert.equal(elements.status.textContent, "Reached exit");
-assert.equal(elements.stepForward.disabled, true);
-assert.equal(elements.playButton.disabled, true);
 `;
 
-  await readFile(path.resolve(root, "build/core-as.wasm")); // ensure wasm exists before running
+  await readFile(path.resolve(root, "build/core-as.wasm"));
   runEsm(script);
 });

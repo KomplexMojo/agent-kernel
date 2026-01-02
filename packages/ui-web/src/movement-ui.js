@@ -28,6 +28,17 @@ function formatTrapVitals(vitals = {}) {
     .join(" ");
 }
 
+function findExit(baseTiles) {
+  if (!Array.isArray(baseTiles)) return null;
+  for (let y = 0; y < baseTiles.length; y += 1) {
+    const row = baseTiles[y];
+    if (typeof row !== "string") continue;
+    const x = row.indexOf("E");
+    if (x !== -1) return { x, y };
+  }
+  return null;
+}
+
 export function formatAffinities(affinities = []) {
   if (!Array.isArray(affinities) || affinities.length === 0) {
     return "No affinities equipped";
@@ -61,6 +72,10 @@ export function renderActorSummary(entry) {
   return `${base}\n  affinities: ${formatAffinities(entry.affinities)}\n  abilities: ${formatAbilities(entry.abilities)}`;
 }
 
+export function renderActorInspectSummary(entry) {
+  return `${entry.id} [${kindLabel(entry.kind)}] @(${entry.position.x},${entry.position.y}) ${formatVitals(entry.vitals)}`;
+}
+
 export function renderTrapSummary(trap) {
   const position = trap?.position || { x: 0, y: 0 };
   const vitals = formatTrapVitals(trap?.vitals || {});
@@ -69,21 +84,33 @@ export function renderTrapSummary(trap) {
   return `trap @(${position.x},${position.y}) ${vitals}\n  affinities: ${affinities}\n  abilities: ${abilities}`;
 }
 
-export function setupPlayback({ core, actions, actorIdLabel = "actor_mvp", actorIdValue = 1, intervalMs = 500, elements }) {
+export function setupPlayback({
+  core,
+  actions,
+  actorIdLabel = "actor_mvp",
+  actorIdValue = 1,
+  intervalMs = 500,
+  elements,
+  affinityEffects,
+}) {
   let currentIndex = 0;
   let playing = false;
   let timer = null;
 
   function render() {
     const frame = renderFrameBuffer(core, { actorIdLabel });
-    const obs = readObservation(core, { actorIdLabel });
+    const obs = readObservation(core, { actorIdLabel, affinityEffects });
     if (elements.frame) elements.frame.textContent = frame.buffer.join("\n");
     if (elements.baseTiles) elements.baseTiles.textContent = frame.baseTiles.join("\n");
     if (elements.actorId) elements.actorId.textContent = actorIdLabel;
     if (elements.actorPos) elements.actorPos.textContent = `(${obs.actor.x}, ${obs.actor.y})`;
     if (elements.actorHp) elements.actorHp.textContent = `${obs.actor.hp}/${obs.actor.maxHp}`;
     if (elements.tick) elements.tick.textContent = String(frame.tick);
-    if (elements.status) elements.status.textContent = currentIndex >= actions.length ? "Reached exit" : "Ready";
+    if (elements.status) {
+      const exit = findExit(frame.baseTiles);
+      const atExit = exit && obs.actor.x === exit.x && obs.actor.y === exit.y;
+      elements.status.textContent = atExit ? "Reached exit" : currentIndex >= actions.length ? "Out of actions" : "Ready";
+    }
     if (elements.playButton) {
       elements.playButton.textContent = playing ? "Pause" : "Play";
       elements.playButton.disabled = currentIndex >= actions.length && !playing;
@@ -94,8 +121,15 @@ export function setupPlayback({ core, actions, actorIdLabel = "actor_mvp", actor
     if (elements.actorList) {
       const list = obs.actors || [];
       elements.actorList.textContent = list.length
-        ? list.map((entry) => renderActorSummary(entry)).join("\n")
+        ? list.map((entry) => renderActorInspectSummary(entry)).join("\n")
         : "-";
+    }
+    if (elements.affinityList) {
+      const list = obs.actors || [];
+      const hasAffinityData = list.some((entry) => (entry.affinities && entry.affinities.length) || (entry.abilities && entry.abilities.length));
+      elements.affinityList.textContent = list.length && hasAffinityData
+        ? list.map((entry) => renderActorSummary(entry)).join("\n")
+        : "No affinities resolved";
     }
     if (elements.tileActorList) {
       const tiles = obs.tileActors || [];
@@ -104,11 +138,19 @@ export function setupPlayback({ core, actions, actorIdLabel = "actor_mvp", actor
         : "-";
       if (elements.tileActorCount) elements.tileActorCount.textContent = String(tiles.length);
     }
-    if (elements.trapSection && elements.trapList) {
+    if (elements.trapList) {
       const traps = obs.traps || [];
-      elements.trapSection.hidden = traps.length === 0;
-      elements.trapList.textContent = traps.length ? traps.map((trap) => renderTrapSummary(trap)).join("\n") : "-";
+      elements.trapList.textContent = traps.length
+        ? traps.map((trap) => renderTrapSummary(trap)).join("\n")
+        : "No traps detected";
       if (elements.trapCount) elements.trapCount.textContent = String(traps.length);
+      if (elements.trapTab) {
+        const disabled = traps.length === 0;
+        elements.trapTab.disabled = disabled;
+        if (elements.trapTab.setAttribute) {
+          elements.trapTab.setAttribute("aria-disabled", disabled ? "true" : "false");
+        }
+      }
     }
   }
 

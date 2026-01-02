@@ -28,8 +28,8 @@ export const enum VitalKind {
   Durability = 3,
 }
 
-const MAX_WIDTH: i32 = 8;
-const MAX_HEIGHT: i32 = 8;
+const MAX_WIDTH: i32 = 9;
+const MAX_HEIGHT: i32 = 9;
 const STRIDE: i32 = MAX_WIDTH;
 const MAX_CELLS: i32 = MAX_WIDTH * MAX_HEIGHT;
 const VITAL_COUNT: i32 = 4;
@@ -288,14 +288,18 @@ function setRowFromString(y: i32, row: string): void {
 
 export function loadMvpWorld(): void {
   resetWorld();
-  width = 5;
-  height = 5;
+  width = 9;
+  height = 9;
   initTileActorsForBounds();
-  setRowFromString(0, "#####");
-  setRowFromString(1, "#S..#");
-  setRowFromString(2, "#.#E#");
-  setRowFromString(3, "#...#");
-  setRowFromString(4, "#####");
+  setRowFromString(0, "#########");
+  setRowFromString(1, "#S..#...#");
+  setRowFromString(2, "#...#.#.#");
+  setRowFromString(3, "#.#...#.#");
+  setRowFromString(4, "#.###.#.#");
+  setRowFromString(5, "#...#...#");
+  setRowFromString(6, "#.#.#.###");
+  setRowFromString(7, "#...#..E#");
+  setRowFromString(8, "#########");
   actorId = 1;
   actorKind = ActorKind.Motivated;
   setActorVital(VitalKind.Health, 10, 10, 0);
@@ -313,14 +317,18 @@ export function loadMvpWorld(): void {
 
 export function loadMvpBarrierWorld(): void {
   resetWorld();
-  width = 5;
-  height = 5;
+  width = 9;
+  height = 9;
   initTileActorsForBounds();
-  setRowFromString(0, "#####");
-  setRowFromString(1, "#SB.#");
-  setRowFromString(2, "#.#E#");
-  setRowFromString(3, "#...#");
-  setRowFromString(4, "#####");
+  setRowFromString(0, "#########");
+  setRowFromString(1, "#SB.#...#");
+  setRowFromString(2, "#...#.#.#");
+  setRowFromString(3, "#.#...#.#");
+  setRowFromString(4, "#.###.#.#");
+  setRowFromString(5, "#...#...#");
+  setRowFromString(6, "#.#.#.###");
+  setRowFromString(7, "#...#..E#");
+  setRowFromString(8, "#########");
   actorId = 1;
   actorKind = ActorKind.Motivated;
   setActorVital(VitalKind.Health, 10, 10, 0);

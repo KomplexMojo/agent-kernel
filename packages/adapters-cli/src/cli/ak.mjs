@@ -7,10 +7,14 @@ import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
 import { createLlmAdapter } from "../adapters/llm/index.js";
 import { buildEffectFromCore as buildRuntimeEffect, dispatchEffect as dispatchRuntimeEffect } from "../../../runtime/src/ports/effects.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
+import { resolveAffinityEffects } from "../../../runtime/src/personas/configurator/affinity-effects.js";
+import { generateGridLayoutFromInput } from "../../../runtime/src/personas/configurator/level-layout.js";
+import { buildSimConfigArtifact, buildInitialStateArtifact } from "../../../runtime/src/personas/configurator/artifact-builders.js";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
   plan: "agent-kernel/PlanArtifact",
+  budgetReceipt: "agent-kernel/BudgetReceipt",
   simConfig: "agent-kernel/SimConfigArtifact",
   initialState: "agent-kernel/InitialStateArtifact",
   executionPolicy: "agent-kernel/ExecutionPolicy",
@@ -20,6 +24,9 @@ const SCHEMAS = Object.freeze({
   effect: "agent-kernel/Effect",
   telemetry: "agent-kernel/TelemetryRecord",
   runSummary: "agent-kernel/RunSummary",
+  affinityPreset: "agent-kernel/AffinityPresetArtifact",
+  actorLoadout: "agent-kernel/ActorLoadoutArtifact",
+  affinitySummary: "agent-kernel/AffinitySummary",
 });
 
 const DEFAULT_WASM_PATH = "build/core-as.wasm";
@@ -34,7 +41,8 @@ function usage() {
     : filename;
   return `Usage:
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
-  node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path]
+  node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path]
+  node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir]
   node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
@@ -55,6 +63,12 @@ Options:
   --tile-barrier  Tile barrier coordinate: x,y (repeatable)
   --tile-floor    Tile floor override: x,y (repeatable)
   --actions       Action log (ActionSequence) path for deterministic replay
+  --affinity-presets  Affinity preset artifact path (AffinityPresetArtifact)
+  --affinity-loadouts Actor loadout artifact path (ActorLoadoutArtifact)
+  --affinity-summary  Write affinity summary JSON (default: <out-dir>/affinity-summary.json)
+  --level-gen     Level generation input path (Configurator levelGen input)
+  --actors        Actors input path (object with actors array)
+  --budget-receipt Budget receipt artifact path (BudgetReceipt)
   --help          Show this help
 `;
 }
@@ -381,6 +395,20 @@ function defaultOutDir(command) {
   return resolve(process.cwd(), "artifacts", `${command}_${Date.now().toString(36)}`);
 }
 
+function baseVitalsFromActors(actors) {
+  const baseVitalsByActorId = {};
+  const list = Array.isArray(actors) ? actors : [];
+  list.forEach((actor) => {
+    if (!actor?.id) {
+      return;
+    }
+    if (actor.vitals) {
+      baseVitalsByActorId[actor.id] = actor.vitals;
+    }
+  });
+  return baseVitalsByActorId;
+}
+
 async function loadCoreFromWasm(wasmPath) {
   const buffer = await readFile(wasmPath);
   const { instance } = await WebAssembly.instantiate(buffer, {
@@ -692,6 +720,9 @@ async function runCommand(argv) {
   const executionPolicyPath = resolvePath(args["execution-policy"]);
   const actionsPath = resolvePath(args.actions);
   const outDir = resolvePath(args["out-dir"]) || defaultOutDir("run");
+  const affinityPresetsPath = resolvePath(args["affinity-presets"]);
+  const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
+  const affinitySummaryArg = args["affinity-summary"];
   const wasmPath = resolvePath(args.wasm || DEFAULT_WASM_PATH);
   const ticks = args.ticks ? Number(args.ticks) : DEFAULT_TICKS;
   const seed = args.seed ? Number(args.seed) : 0;
@@ -714,6 +745,20 @@ async function runCommand(argv) {
   assertSchema(simConfig, SCHEMAS.simConfig);
   const initialState = await readJson(initialStatePath);
   assertSchema(initialState, SCHEMAS.initialState);
+  let affinityPresets = null;
+  let affinityLoadouts = null;
+  const wantsAffinitySummary = affinitySummaryArg !== undefined || (affinityPresetsPath && affinityLoadoutsPath);
+  if (wantsAffinitySummary && (!affinityPresetsPath || !affinityLoadoutsPath)) {
+    throw new Error("Affinity summary requires --affinity-presets and --affinity-loadouts.");
+  }
+  if (affinityPresetsPath) {
+    affinityPresets = await readJson(affinityPresetsPath);
+    assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+  }
+  if (affinityLoadoutsPath) {
+    affinityLoadouts = await readJson(affinityLoadoutsPath);
+    assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
+  }
   let executionPolicy = null;
   if (executionPolicyPath) {
     executionPolicy = await readJson(executionPolicyPath);
@@ -773,6 +818,31 @@ async function runCommand(argv) {
     vitalDefaults,
   });
   const overridesApplied = tileOverrideResult.mutated || actorOverrideResult.mutated;
+  const affinitySummaryPath = wantsAffinitySummary
+    ? (typeof affinitySummaryArg === "string" ? resolvePath(affinitySummaryArg) : join(outDir, "affinity-summary.json"))
+    : null;
+  let affinitySummary = null;
+  if (wantsAffinitySummary) {
+    const baseVitalsByActorId = baseVitalsFromActors(initialState?.actors);
+    const traps = simConfig?.layout?.data?.traps;
+    const resolved = resolveAffinityEffects({
+      presets: affinityPresets?.presets,
+      loadouts: affinityLoadouts?.loadouts,
+      baseVitalsByActorId,
+      traps: Array.isArray(traps) ? traps : [],
+    });
+    affinitySummary = {
+      schema: SCHEMAS.affinitySummary,
+      schemaVersion: 1,
+      meta: createMeta({ producedBy: "cli-run", runId }),
+      presetsRef: toRef(affinityPresets),
+      loadoutsRef: toRef(affinityLoadouts),
+      simConfigRef: toRef(simConfig),
+      initialStateRef: toRef(initialState),
+      actors: resolved.actors,
+      traps: resolved.traps,
+    };
+  }
 
   const core = await loadCoreFromWasm(wasmPath);
   const runner = createRunner({ core, runId });
@@ -800,12 +870,102 @@ async function runCommand(argv) {
   await writeJson(join(outDir, "effects-log.json"), effectLog);
   await writeJson(join(outDir, "run-summary.json"), runSummary);
   await writeJson(join(outDir, "action-log.json"), actionLog);
+  if (affinitySummary && affinitySummaryPath) {
+    await writeJson(affinitySummaryPath, affinitySummary);
+  }
   if (overridesApplied) {
     await writeJson(join(outDir, "resolved-sim-config.json"), simConfig);
     await writeJson(join(outDir, "resolved-initial-state.json"), initialState);
   }
 
   console.log(`run: wrote ${outDir}`);
+}
+
+async function configuratorCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+  const levelGenPath = resolvePath(args["level-gen"]);
+  const actorsPath = resolvePath(args.actors);
+  const planPath = resolvePath(args.plan);
+  const budgetReceiptPath = resolvePath(args["budget-receipt"]);
+  const affinityPresetsPath = resolvePath(args["affinity-presets"]);
+  const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("configurator");
+  const runId = args["run-id"] || makeId("run");
+
+  if (!levelGenPath || !actorsPath) {
+    throw new Error("configurator requires --level-gen and --actors.");
+  }
+  if ((affinityPresetsPath && !affinityLoadoutsPath) || (!affinityPresetsPath && affinityLoadoutsPath)) {
+    throw new Error("configurator requires both --affinity-presets and --affinity-loadouts.");
+  }
+
+  const levelGenInput = await readJson(levelGenPath);
+  const layoutResult = generateGridLayoutFromInput(levelGenInput);
+  if (!layoutResult.ok) {
+    const details = layoutResult.errors.map((err) => `${err.field}:${err.code}`).join(", ");
+    throw new Error(`level-gen input invalid: ${details}`);
+  }
+  const actorsInput = await readJson(actorsPath);
+  if (!actorsInput || !Array.isArray(actorsInput.actors)) {
+    throw new Error("actors file must include an actors array.");
+  }
+
+  let plan = null;
+  let budgetReceipt = null;
+  if (planPath) {
+    plan = await readJson(planPath);
+    assertSchema(plan, SCHEMAS.plan);
+  }
+  if (budgetReceiptPath) {
+    budgetReceipt = await readJson(budgetReceiptPath);
+    assertSchema(budgetReceipt, SCHEMAS.budgetReceipt);
+  }
+
+  let affinityPresets = null;
+  let affinityLoadouts = null;
+  if (affinityPresetsPath) {
+    affinityPresets = await readJson(affinityPresetsPath);
+    assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+  }
+  if (affinityLoadoutsPath) {
+    affinityLoadouts = await readJson(affinityLoadoutsPath);
+    assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
+  }
+
+  const layout = layoutResult.value;
+  const baseVitalsByActorId = baseVitalsFromActors(actorsInput.actors);
+  const resolvedEffects = (affinityPresets && affinityLoadouts)
+    ? resolveAffinityEffects({
+      presets: affinityPresets.presets,
+      loadouts: affinityLoadouts.loadouts,
+      baseVitalsByActorId,
+      traps: Array.isArray(layout.traps) ? layout.traps : [],
+    })
+    : {};
+  const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
+
+  const simConfig = buildSimConfigArtifact({
+    meta: createMeta({ producedBy: "cli-configurator", runId }),
+    planRef: plan ? toRef(plan) : undefined,
+    budgetReceiptRef: budgetReceipt ? toRef(budgetReceipt) : undefined,
+    seed,
+    layout,
+  });
+  const initialState = buildInitialStateArtifact({
+    meta: createMeta({ producedBy: "cli-configurator", runId }),
+    simConfigRef: toRef(simConfig),
+    actors: actorsInput.actors,
+    resolvedEffects,
+  });
+
+  await writeJson(join(outDir, "sim-config.json"), simConfig);
+  await writeJson(join(outDir, "initial-state.json"), initialState);
+
+  console.log(`configurator: wrote ${outDir}`);
 }
 
 function summarizeFrame(frame) {
@@ -1095,6 +1255,7 @@ async function llmCommand(argv) {
 const COMMANDS = {
   solve: solveCommand,
   run: runCommand,
+  configurator: configuratorCommand,
   replay: replayCommand,
   inspect: inspectCommand,
   ipfs: ipfsCommand,

@@ -95,7 +95,7 @@ export function runMvpMovement({
   core,
   actorIdLabel = "actor_mvp",
   actorIdValue = 1,
-  maxTicks = 8,
+  maxTicks = 20,
   seed = 1337,
 } = {}) {
   if (!core || typeof core.applyAction !== "function") {

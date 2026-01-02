@@ -23,12 +23,14 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - Expressions define delivery: push (external), pull (internal), emit (area).
 - Presets and loadouts are captured as artifacts with deterministic ordering and defaults (manaCost=0, stacks=1).
 - Traps are tile actors with mana + durability only and an affinity expression payload.
+- UI tabs surface affinity and trap metadata (Inspect/Affinities/Traps), with a collapsible affinity legend.
 
 Key artifacts and fixtures:
 - `agent-kernel/AffinityPresetArtifact` → `tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json`
 - `agent-kernel/ActorLoadoutsArtifact` → `tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json`
 - `agent-kernel/SimConfigArtifact` (layout + traps) → `tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json`
 - `agent-kernel/InitialStateArtifact` (traits.affinities/abilities) → `tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json`
+- UI fixture bundle (affinities + traps) → `tests/fixtures/ui/affinity-trap-bundle/`
 
 ## Implementation plans
 

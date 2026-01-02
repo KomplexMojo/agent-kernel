@@ -11,7 +11,7 @@ const fixture = JSON.parse(
 test("ui formatters render affinity metadata", () => {
   const script = `
 import assert from "node:assert/strict";
-import { formatAffinities, formatAbilities, renderActorSummary, renderTrapSummary } from ${JSON.stringify(modulePath)};
+import { formatAffinities, formatAbilities, renderActorSummary, renderActorInspectSummary, renderTrapSummary } from ${JSON.stringify(modulePath)};
 
 const fixture = ${JSON.stringify(fixture)};
 
@@ -34,6 +34,14 @@ const actorSummary = renderActorSummary({
 });
 assert.ok(actorSummary.includes("affinities: No affinities equipped"));
 assert.ok(actorSummary.includes("abilities: No abilities"));
+
+const inspectSummary = renderActorInspectSummary({
+  id: "actor_mvp",
+  kind: 2,
+  position: { x: 1, y: 2 },
+  vitals: { health: { current: 1, max: 2, regen: 0 } },
+});
+assert.ok(!inspectSummary.includes("affinities:"));
 
 const actorWithAbilities = {
   id: "actor_mvp",

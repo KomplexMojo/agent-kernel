@@ -11,7 +11,7 @@ General rules:
 - Invalid fixtures live under tests/fixtures/artifacts/invalid for negative tests.
 
 ## MVP actor movement
-- sim-config-artifact-v1-mvp-grid.json: 5x5 grid layout with walls, spawn (1,1), and exit (3,2) plus render palette.
+- sim-config-artifact-v1-mvp-grid.json: 9x9 grid layout with internal walls, spawn (1,1), and exit (7,7) plus render palette.
 - initial-state-artifact-v1-mvp-actor.json: one ambulatory actor at spawn with vitals stub (hp/maxHp 10) and speed 1.
 - action-sequence-v1-mvp-to-exit.json: ordered move actions (east, east, south) walking the actor from spawn to the exit.
 - frame-buffer-log-v1-mvp.json: ASCII frame buffers per tick mirroring the action path, keyed by actor id and sharing the same run/config refs.
@@ -35,6 +35,7 @@ General rules:
 - affinity-presets-artifact-v1-basic.json: affinity preset catalog with kind/expression effects.
 - actor-loadouts-artifact-v1-basic.json: actor loadouts referencing affinity presets and stacks.
 - sim-config-artifact-v1-configurator-trap.json: grid layout with kinds and trap metadata.
+- initial-state-artifact-v1-affinity-base.json: base vitals for affinity resolution before applying presets.
 - initial-state-artifact-v1-configurator-affinity.json: actors seeded with affinity traits and abilities.
 
 ## Solver

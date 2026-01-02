@@ -34,11 +34,15 @@ assert.deepEqual(obs0.actors[0].position, { x: 1, y: 1 });
 assert.deepEqual(obs0.actors[0].vitals.health, { current: 10, max: 10, regen: 0 });
 assert.equal(obs0.actors[0].kind, 2);
 assert.deepEqual(obs0.tiles.kinds, [
-  [1, 1, 1, 1, 1],
-  [1, 0, 0, 0, 1],
-  [1, 0, 1, 0, 1],
-  [1, 0, 0, 0, 1],
-  [1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 0, 0, 0, 1, 0, 0, 0, 1],
+  [1, 0, 0, 0, 1, 0, 1, 0, 1],
+  [1, 0, 1, 0, 0, 0, 1, 0, 1],
+  [1, 0, 1, 1, 1, 0, 1, 0, 1],
+  [1, 0, 0, 0, 1, 0, 0, 0, 1],
+  [1, 0, 1, 0, 1, 0, 1, 1, 1],
+  [1, 0, 0, 0, 1, 0, 0, 0, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]);
 assert.deepEqual(renderBaseTiles(core), frameFixture.baseTiles);
 
