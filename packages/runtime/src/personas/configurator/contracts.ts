@@ -1,10 +1,13 @@
 // Local contracts for the Configurator persona state machine.
 // Cross-persona artifacts live in packages/runtime/src/contracts/artifacts.ts.
 
-export type ConfiguratorState = "idle";
+export type ConfiguratorState = "uninitialized" | "pending_config" | "configured" | "locked";
 
 export interface ConfiguratorContext {
   state: ConfiguratorState;
+  lastEvent: string | null;
+  updatedAt: string;
+  lastConfigRef: string | null;
 }
 
 export type LevelGenProfile = "rectangular" | "sparse_islands" | "clustered_islands";
@@ -96,4 +99,23 @@ export interface ConfiguratorInputs {
 
 export interface NormalizedConfiguratorInputs {
   levelGen: NormalizedLevelGenInput;
+}
+
+export interface ConfiguratorView {
+  state: ConfiguratorState;
+  context: ConfiguratorContext;
+}
+
+export interface ConfiguratorAdvanceParams {
+  phase?: string;
+  event?: string;
+  payload?: Record<string, unknown>;
+  tick?: number;
+}
+
+export interface ConfiguratorAdvanceResult extends ConfiguratorView {
+  tick?: number;
+  actions: unknown[];
+  effects: unknown[];
+  telemetry: unknown;
 }

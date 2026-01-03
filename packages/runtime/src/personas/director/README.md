@@ -110,3 +110,9 @@ This separation ensures that:
 - External intelligence (including AI systems) can be integrated without destabilizing determinism.
 
 The Director is therefore a **planner and intent shaper**, focused on *what should be attempted*, leaving *how it is realized* to downstream personas and the simulation core.
+
+## Drift guardrails
+- Canonical entrypoints: `controller.mts` + `state-machine.mts` + `contracts.ts`; import controllers (not state machines) from consumers.
+- Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
+- Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
+- Entry points are `.mts`; use `ts-node/esm` or a build step before consuming outside the test harness.

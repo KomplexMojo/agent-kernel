@@ -100,3 +100,9 @@ This separation ensures that:
 - Invalid or incoherent scenarios are rejected early and explicitly.
 
 The Configurator is therefore a **bridge between planning and execution**, responsible for preparing the simulation so that deterministic rules can operate without ambiguity.
+
+## Drift guardrails
+- Canonical entrypoints: `controller.mts` + `state-machine.mts` + `contracts.ts`; import controllers (not state machines) from consumers.
+- Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
+- Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
+- Entry points are `.mts`; use `ts-node/esm` or a build step before consuming outside the test harness.

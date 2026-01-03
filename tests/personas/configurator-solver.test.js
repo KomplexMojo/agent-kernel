@@ -1,12 +1,12 @@
 const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/configurator/persona.js");
+const personaModule = moduleUrl("packages/runtime/src/personas/configurator/controller.mts");
 
 const happyScript = `
 import assert from "node:assert/strict";
 import { createConfiguratorPersona } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js"))};
+import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts"))};
 
 const persona = createConfiguratorPersona({ clock: () => "fixed" });
 const payload = { solverRequest: { id: "cfg_req", meta: { id: "cfg_req" }, problem: { language: "custom" } }, config: { foo: "bar" } };
@@ -20,7 +20,7 @@ assert.equal(result.context.lastSolverRequest.id, "cfg_req");
 const deferredScript = `
 import assert from "node:assert/strict";
 import { createConfiguratorPersona } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js"))};
+import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts"))};
 
 const persona = createConfiguratorPersona({ clock: () => "fixed" });
 const result = persona.advance({ phase: TickPhases.OBSERVE, event: "provide_config", payload: { config: { foo: "bar" } }, tick: 0 });

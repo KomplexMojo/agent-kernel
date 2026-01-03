@@ -3,9 +3,9 @@ const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const allocatorModule = moduleUrl("packages/runtime/src/personas/allocator/persona.js");
-const actorModule = moduleUrl("packages/runtime/src/personas/actor/persona.js");
-const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js");
+const allocatorModule = moduleUrl("packages/runtime/src/personas/allocator/controller.mts");
+const actorModule = moduleUrl("packages/runtime/src/personas/actor/controller.mts");
+const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts");
 const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/persona-behavior-v1-allocator-actor.json"), "utf8"));
 
 const script = `

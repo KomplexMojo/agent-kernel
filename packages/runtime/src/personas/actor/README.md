@@ -73,6 +73,9 @@ This allows actors driven by humans, scripts, heuristics, or AI models to be rep
 Cross-persona artifacts live in `packages/runtime/src/contracts/artifacts.ts`. Actor state-machine
 inputs/outputs belong in `packages/runtime/src/personas/actor/contracts.ts`.
 
+Persona controllers/state machines are authored as `.mts` modules. Use `ts-node/esm` during
+development/test, or compile to `.js` via your build pipeline before consumption.
+
 This separation ensures that:
 
 - Actor behavior can evolve rapidly without destabilizing the simulation core.
@@ -85,3 +88,9 @@ Actors are therefore modeled as **decision-makers layered on top of a determinis
 - States: idle → observing → deciding → proposing → cooldown.
 - Subscribed tick phases: observe, decide (ignores others).
 - Outputs: proposed actions only (data); no IO or simulation mutation.
+
+## Drift guardrails
+- Canonical entrypoints: `controller.mts` + `state-machine.mts` + `contracts.ts`; import controllers (not state machines) from consumers.
+- Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
+- Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
+- Entry points are `.mts`; use `ts-node/esm` or a build step before consuming outside the test harness.

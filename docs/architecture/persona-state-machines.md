@@ -15,6 +15,12 @@ Personas are modeled as deterministic finite-state machines (FSMs) with explicit
 - Each persona exposes: `state`, `context/view()`, `advance(event, payload)` returning { state, actions, effects, telemetry }.
 - Transition tables declare `from`, `to`, `event`, `guard`, optional `onTransition` to emit data.
 - Per-persona README/state machine doc enumerates allowed states and required inputs.
+- Module format: persona controllers/state machines ship as `.mts` entrypoints. Use `ts-node/esm` (or a TS-aware bundling step) when executing outside the test harness; consumers should import the `.mts` path or a compiled JS wrapper.
+
+## Drift guardrails
+- Canonical surface: `controller.mts` + `state-machine.mts` + `contracts.ts`; downstream code should import controllers, not state machines, to preserve the phase-aware wrapper.
+- Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change (update docs + tests in the same change set).
+- Table-driven persona fixtures guard transitions/phases; enable type-checking in CI (disable `TS_NODE_TRANSPILE_ONLY`) for persona packages to catch signature drift early.
 
 ## Persona states and subscriptions (current)
 - Orchestrator: idle → planning → running/replaying → completed/errored; subscribes: observe, decide, emit.

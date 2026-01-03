@@ -4,8 +4,8 @@ const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const orchestratorModule = moduleUrl("packages/runtime/src/personas/_shared/tick-orchestrator.js");
-const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js");
+const orchestratorModule = moduleUrl("packages/runtime/src/personas/_shared/tick-orchestrator.mts");
+const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/tick-orchestrator-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/tick-orchestrator-guards.json"), "utf8"));
 const solverPortModule = moduleUrl("packages/runtime/src/ports/solver.js");

@@ -144,3 +144,9 @@ This separation ensures that:
 - Deterministic behavior is preserved even as strategies and policies evolve.
 
 The Moderator is therefore the **timekeeper and referee coordinator**, responsible for orderly execution while deferring all rule enforcement to the simulation core.
+
+## Drift guardrails
+- Canonical entrypoints: `controller.mts` + `state-machine.mts` + `contracts.ts`; import controllers (not state machines) from consumers.
+- Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
+- Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
+- Entry points are `.mts`; use `ts-node/esm` or a build step before consuming outside the test harness.

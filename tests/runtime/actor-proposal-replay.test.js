@@ -6,8 +6,8 @@ const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 const ROOT = resolve(__dirname, "../..");
 const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 const BINDINGS_MODULE = moduleUrl("packages/bindings-ts/src/index.js");
-const ACTOR_MODULE = moduleUrl("packages/runtime/src/personas/actor/persona.js");
-const TICK_MODULE = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js");
+const ACTOR_MODULE = moduleUrl("packages/runtime/src/personas/actor/controller.mts");
+const TICK_MODULE = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts");
 const WASM_URL = moduleUrl("build/core-as.wasm");
 
 test("runtime maps actor proposals to core actions and replays deterministically", (t) => {

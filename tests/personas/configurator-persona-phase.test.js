@@ -3,14 +3,14 @@ const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/configurator/persona.js");
+const personaModule = moduleUrl("packages/runtime/src/personas/configurator/controller.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/configurator-phases-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/configurator-phases-guards.json"), "utf8"));
 
 const happyScript = `
 import assert from "node:assert/strict";
 import { createConfiguratorPersona, configuratorSubscribePhases } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js"))};
+import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts"))};
 
 const fixture = ${JSON.stringify(happyFixture)};
 const persona = createConfiguratorPersona({ clock: () => "fixed" });

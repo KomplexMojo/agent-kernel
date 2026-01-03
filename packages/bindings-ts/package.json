@@ -1,0 +1,5 @@
+{
+  "name": "@agent-kernel/bindings-ts",
+  "private": true,
+  "type": "module"
+}

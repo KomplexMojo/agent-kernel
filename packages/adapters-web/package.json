@@ -1,3 +1,5 @@
 {
+  "name": "@agent-kernel/adapters-web",
+  "private": true,
   "type": "module"
 }

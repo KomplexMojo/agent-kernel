@@ -4,7 +4,7 @@ const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/orchestrator/state-machine.js");
+const modulePath = moduleUrl("packages/runtime/src/personas/orchestrator/state-machine.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/orchestrator-transitions-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/orchestrator-transitions-guards.json"), "utf8"));
 

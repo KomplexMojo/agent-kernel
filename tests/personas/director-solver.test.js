@@ -1,12 +1,12 @@
 const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/director/persona.js");
+const personaModule = moduleUrl("packages/runtime/src/personas/director/controller.mts");
 
 const script = `
 import assert from "node:assert/strict";
 import { createDirectorPersona } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js"))};
+import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts"))};
 
 const persona = createDirectorPersona({ clock: () => "fixed" });
 const payload = {

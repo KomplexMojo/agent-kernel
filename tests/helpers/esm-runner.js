@@ -9,12 +9,19 @@ function moduleUrl(relativePath) {
 }
 
 function runEsm(script) {
+  const env = {
+    ...process.env,
+  };
+  if (!("TS_NODE_TRANSPILE_ONLY" in env)) {
+    env.TS_NODE_TRANSPILE_ONLY = "1";
+  }
   const result = spawnSync(
     process.execPath,
-    ["--input-type=module", "--experimental-default-type=module", "--eval", script],
+    ["--loader", "ts-node/esm", "--input-type=module", "--experimental-default-type=module", "--eval", script],
     {
       cwd: ROOT,
       encoding: "utf8",
+      env,
     },
   );
   if (result.status !== 0) {

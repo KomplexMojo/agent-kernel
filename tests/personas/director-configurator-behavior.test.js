@@ -3,9 +3,9 @@ const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const directorModule = moduleUrl("packages/runtime/src/personas/director/persona.js");
-const configuratorModule = moduleUrl("packages/runtime/src/personas/configurator/persona.js");
-const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.js");
+const directorModule = moduleUrl("packages/runtime/src/personas/director/controller.mts");
+const configuratorModule = moduleUrl("packages/runtime/src/personas/configurator/controller.mts");
+const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts");
 const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/persona-behavior-v1-director-configurator.json"), "utf8"));
 
 const script = `

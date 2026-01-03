@@ -4,7 +4,7 @@ const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/director/state-machine.js");
+const modulePath = moduleUrl("packages/runtime/src/personas/director/state-machine.mts");
 const happyCases = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/director-transitions-happy.json"), "utf8"));
 const guardCases = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/director-transitions-guards.json"), "utf8"));
 
