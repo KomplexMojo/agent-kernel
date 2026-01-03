@@ -1,0 +1,55 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "buildspec_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "demo scenario",
+    "tags": [
+      "basic"
+    ],
+    "hints": {
+      "roomCount": 2,
+      "levelAffinity": "fire",
+      "rooms": [
+        {
+          "affinity": "fire",
+          "trap": "fire"
+        },
+        {
+          "affinity": "water",
+          "trap": "water"
+        }
+      ]
+    }
+  },
+  "plan": {
+    "hints": {
+      "strategy": "simple"
+    }
+  },
+  "configurator": {
+    "inputs": {
+      "roomCount": 2,
+      "actors": [
+        {
+          "role": "boss",
+          "count": 1,
+          "affinity": "fire",
+          "motivation": "guard",
+          "strength": 2
+        }
+      ],
+      "actorGroups": [
+        {
+          "role": "boss",
+          "count": 1
+        }
+      ]
+    }
+  }
+}

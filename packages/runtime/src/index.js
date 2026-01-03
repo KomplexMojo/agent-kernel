@@ -3,3 +3,8 @@ export { applyBudgetCaps } from "./ports/budget.js";
 export { BUDGET_CATEGORY_IDS, resolveBudgetCategoryId } from "./contracts/budget-categories.js";
 export { solveWithAdapter } from "./ports/solver.js";
 export { runMvpMovement } from "./mvp/movement.js";
+export { BUILD_SPEC_SCHEMA, BUILD_SPEC_SCHEMA_VERSION, validateBuildSpec } from "./contracts/build-spec.js";
+export { mapBuildSpecToArtifacts } from "./build/map-build-spec.js";
+export { orchestrateBuild } from "./build/orchestrate-build.js";
+export { buildBuildTelemetryRecord } from "./build/telemetry.js";
+export { createSchemaCatalog, filterSchemaCatalogEntries } from "./contracts/schema-catalog.js";

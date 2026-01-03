@@ -1,0 +1,49 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "buildspec_adapters",
+    "runId": "run_adapters",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Capture adapter payloads for fixtures.",
+    "tags": ["adapters", "fixtures"]
+  },
+  "adapters": {
+    "capture": [
+      {
+        "adapter": "ipfs",
+        "request": {
+          "cid": "bafyfixture",
+          "path": "",
+          "json": true,
+          "fixturePath": "../adapters/ipfs-price-list.json"
+        },
+        "outputRef": {
+          "id": "capture_ipfs_price_list",
+          "schema": "agent-kernel/CapturedInputArtifact",
+          "schemaVersion": 1
+        }
+      },
+      {
+        "adapter": "blockchain",
+        "request": {
+          "rpcUrl": "http://local",
+          "address": "0xabc",
+          "fixtureChainIdPath": "../adapters/blockchain-chain-id.json",
+          "fixtureBalancePath": "../adapters/blockchain-balance.json"
+        }
+      },
+      {
+        "adapter": "llm",
+        "request": {
+          "model": "fixture",
+          "prompt": "hello",
+          "fixturePath": "../adapters/llm-generate.json"
+        }
+      }
+    ]
+  }
+}

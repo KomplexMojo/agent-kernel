@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
 import { createLlmAdapter } from "../adapters/llm/index.js";
+import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
+import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
+import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildEffectFromCore as buildRuntimeEffect, dispatchEffect as dispatchRuntimeEffect } from "../../../runtime/src/ports/effects.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
 import { resolveAffinityEffects } from "../../../runtime/src/personas/configurator/affinity-effects.js";
@@ -31,6 +34,7 @@ const SCHEMAS = Object.freeze({
   affinityPreset: "agent-kernel/AffinityPresetArtifact",
   actorLoadout: "agent-kernel/ActorLoadoutArtifact",
   affinitySummary: "agent-kernel/AffinitySummary",
+  capturedInput: "agent-kernel/CapturedInputArtifact",
 });
 
 const DEFAULT_WASM_PATH = "build/core-as.wasm";
@@ -44,6 +48,8 @@ function usage() {
     ? filename.slice(base.length + 1)
     : filename;
   return `Usage:
+  node ${rel} build --spec path [--out-dir dir]
+  node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
   node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path]
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
@@ -55,7 +61,7 @@ function usage() {
   node ${rel} llm --model model --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
 
 Options:
-  --out-dir       Output directory (default: ./artifacts/<command>_<timestamp>)
+  --out-dir       Output directory (default: ./artifacts/<command>_<timestamp>, build uses build_<runId>)
   --out           Output file path (command-specific default when omitted)
   --wasm          Path to core-as WASM (default: ${DEFAULT_WASM_PATH})
   --ticks         Number of ticks for run/replay (default: ${DEFAULT_TICKS})
@@ -78,6 +84,7 @@ Options:
   --price-list    Price list artifact path (PriceList)
   --receipt       Budget receipt artifact path (BudgetReceiptArtifact)
   --receipt-out   Output path for budget receipt JSON
+  --spec          Build spec JSON path (build command only)
   --help          Show this help
 `;
 }
@@ -337,9 +344,40 @@ function resolvePath(input, cwd = process.cwd()) {
   return isAbsolute(input) ? input : resolve(cwd, input);
 }
 
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function sanitizeFileSegment(value) {
+  const raw = String(value || "").toLowerCase();
+  const cleaned = raw.replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  return cleaned || "capture";
+}
+
+function sanitizeFileName(value) {
+  const raw = String(value || "");
+  const cleaned = raw.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  return cleaned || "capture";
+}
+
 function makeId(prefix) {
   const rand = Math.random().toString(36).slice(2, 8);
   return `${prefix}_${Date.now().toString(36)}_${rand}`;
+}
+
+function buildSpecMeta(spec, producedBy, suffix) {
+  return {
+    id: `${spec.meta.id}_${suffix}`,
+    runId: spec.meta.runId,
+    createdAt: spec.meta.createdAt,
+    producedBy,
+    correlationId: spec.meta.correlationId,
+    note: spec.meta.note,
+  };
 }
 
 function createMeta({ producedBy, runId, correlationId, note } = {}) {
@@ -402,6 +440,226 @@ function assertSchema(artifact, expectedSchema) {
 
 function defaultOutDir(command) {
   return resolve(process.cwd(), "artifacts", `${command}_${Date.now().toString(36)}`);
+}
+
+function defaultBuildOutDir(spec) {
+  return resolve(process.cwd(), "artifacts", `build_${spec.meta.runId}`);
+}
+
+function allowNetworkRequests() {
+  const value = process.env.AK_ALLOW_NETWORK;
+  return value === "1" || value === "true";
+}
+
+function assertAllowedBuildArgs(args) {
+  const allowed = new Set(["spec", "out-dir"]);
+  const unknown = [];
+  for (const key of Object.keys(args)) {
+    if (key === "_" || key === "help") {
+      continue;
+    }
+    if (!allowed.has(key)) {
+      unknown.push(`--${key}`);
+    }
+  }
+  if (Array.isArray(args._) && args._.length > 0) {
+    unknown.push(...args._);
+  }
+  if (unknown.length > 0) {
+    throw new Error(`build only accepts --spec and --out-dir. Unknown: ${unknown.join(", ")}`);
+  }
+}
+
+function assertAllowedSchemasArgs(args) {
+  const allowed = new Set(["out-dir"]);
+  const unknown = [];
+  for (const key of Object.keys(args)) {
+    if (key === "_" || key === "help") {
+      continue;
+    }
+    if (!allowed.has(key)) {
+      unknown.push(`--${key}`);
+    }
+  }
+  if (Array.isArray(args._) && args._.length > 0) {
+    unknown.push(...args._);
+  }
+  if (unknown.length > 0) {
+    throw new Error(`schemas only accepts --out-dir. Unknown: ${unknown.join(", ")}`);
+  }
+}
+
+function addManifestEntry(entries, artifact, path) {
+  if (!artifact || typeof artifact !== "object") {
+    return;
+  }
+  const id = artifact.meta?.id;
+  if (!id) {
+    return;
+  }
+  entries.push({
+    id,
+    schema: artifact.schema,
+    schemaVersion: artifact.schemaVersion,
+    path,
+  });
+}
+
+function buildArtifactRefs(entries) {
+  return entries.map((entry) => ({
+    id: entry.id,
+    schema: entry.schema,
+    schemaVersion: entry.schemaVersion,
+  }));
+}
+
+function buildCapturedInputPath(adapter, index, outputRefId) {
+  if (isNonEmptyString(outputRefId)) {
+    return `${sanitizeFileName(outputRefId)}.json`;
+  }
+  const safeAdapter = sanitizeFileSegment(adapter);
+  return `captured-input-${safeAdapter}-${index + 1}.json`;
+}
+
+async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy, allowNetwork }) {
+  if (!capture || typeof capture !== "object") {
+    throw new Error("build capture requires an object entry.");
+  }
+  const adapterRaw = capture.adapter;
+  if (!isNonEmptyString(adapterRaw)) {
+    throw new Error("build capture requires adapter name.");
+  }
+
+  const adapterKey = adapterRaw.toLowerCase();
+  const request = isObject(capture.request) ? capture.request : {};
+  const outputRef = capture.outputRef;
+  if (outputRef) {
+    if (outputRef.schema !== SCHEMAS.capturedInput) {
+      throw new Error(`capture outputRef schema must be ${SCHEMAS.capturedInput}.`);
+    }
+    if (outputRef.schemaVersion !== 1) {
+      throw new Error("capture outputRef schemaVersion must be 1.");
+    }
+  }
+
+  const suffix = `capture_${sanitizeFileSegment(adapterKey)}_${index + 1}`;
+  const meta = buildSpecMeta(spec, producedBy, suffix);
+  if (outputRef?.id) {
+    meta.id = outputRef.id;
+  }
+
+  const source = {
+    adapter: adapterRaw,
+    requestId: isNonEmptyString(request.requestId) ? request.requestId : undefined,
+    request,
+  };
+
+  let payload;
+  let contentType = capture.contentType || request.contentType;
+
+  if (adapterKey === "ipfs") {
+    const cid = request.cid;
+    if (!isNonEmptyString(cid)) {
+      throw new Error("ipfs capture requires request.cid.");
+    }
+    const path = request.path || "";
+    const gatewayUrl = request.gatewayUrl || "https://ipfs.io/ipfs";
+    const wantJson = request.json !== undefined
+      ? Boolean(request.json)
+      : contentType === "application/json";
+    const fixturePath = resolvePath(capture.fixturePath || request.fixturePath, baseDir);
+
+    let fetchFn;
+    if (fixturePath) {
+      const fixtureText = await readText(fixturePath);
+      fetchFn = async () => ({ ok: true, text: async () => fixtureText });
+    } else if (!allowNetwork) {
+      throw new Error("ipfs capture requires fixturePath unless AK_ALLOW_NETWORK=1.");
+    }
+
+    const adapter = createIpfsAdapter({ gatewayUrl, fetchFn });
+    payload = wantJson ? await adapter.fetchJson(cid, path) : await adapter.fetchText(cid, path);
+    contentType = contentType || (wantJson ? "application/json" : "text/plain");
+  } else if (adapterKey === "blockchain") {
+    const rpcUrl = request.rpcUrl;
+    if (!isNonEmptyString(rpcUrl)) {
+      throw new Error("blockchain capture requires request.rpcUrl.");
+    }
+    const address = request.address;
+    const fixtureChainIdPath = resolvePath(request.fixtureChainIdPath, baseDir);
+    const fixtureBalancePath = resolvePath(request.fixtureBalancePath, baseDir);
+
+    if ((!fixtureChainIdPath || (address && !fixtureBalancePath)) && !allowNetwork) {
+      throw new Error("blockchain capture requires fixtures unless AK_ALLOW_NETWORK=1.");
+    }
+
+    let fetchFn;
+    if (fixtureChainIdPath || fixtureBalancePath) {
+      const chainFixture = fixtureChainIdPath ? JSON.parse(await readText(fixtureChainIdPath)) : null;
+      const balanceFixture = fixtureBalancePath ? JSON.parse(await readText(fixtureBalancePath)) : null;
+      fetchFn = async (_url, options) => {
+        const body = JSON.parse(options?.body || "{}");
+        if (body.method === "eth_chainId" && chainFixture) {
+          return { ok: true, json: async () => chainFixture };
+        }
+        if (body.method === "eth_getBalance" && balanceFixture) {
+          return { ok: true, json: async () => balanceFixture };
+        }
+        return { ok: false, status: 500, statusText: "Missing fixture" };
+      };
+    }
+
+    const adapter = createBlockchainAdapter({ rpcUrl, fetchFn });
+    payload = { rpcUrl };
+    payload.chainId = await adapter.getChainId();
+    if (address) {
+      payload.address = address;
+      payload.balance = await adapter.getBalance(address);
+    }
+    contentType = contentType || "application/json";
+  } else if (adapterKey === "llm" || adapterKey === "ollama") {
+    const model = request.model;
+    const prompt = request.prompt;
+    if (!isNonEmptyString(model) || !isNonEmptyString(prompt)) {
+      throw new Error("llm capture requires request.model and request.prompt.");
+    }
+    const baseUrl = request.baseUrl || "http://localhost:11434";
+    const fixturePath = resolvePath(capture.fixturePath || request.fixturePath, baseDir);
+
+    let fetchFn;
+    if (fixturePath) {
+      const fixtureJson = JSON.parse(await readText(fixturePath));
+      fetchFn = async () => ({ ok: true, json: async () => fixtureJson });
+    } else if (!allowNetwork) {
+      throw new Error("llm capture requires fixturePath unless AK_ALLOW_NETWORK=1.");
+    }
+
+    const options = isObject(request.options) ? request.options : undefined;
+    const adapter = createLlmAdapter({ baseUrl, fetchFn });
+    payload = await adapter.generate({
+      model,
+      prompt,
+      options,
+      stream: Boolean(request.stream),
+    });
+    contentType = contentType || "application/json";
+  } else {
+    throw new Error(`unknown capture adapter ${adapterRaw}`);
+  }
+
+  const artifact = {
+    schema: SCHEMAS.capturedInput,
+    schemaVersion: 1,
+    meta,
+    source,
+    contentType: contentType || "application/json",
+    payload,
+  };
+
+  return {
+    artifact,
+    path: buildCapturedInputPath(adapterKey, index, outputRef?.id),
+  };
 }
 
 function baseVitalsFromActors(actors) {
@@ -647,6 +905,261 @@ function createRunner({ core, runId, adapters = {} }) {
       return effectLog.slice();
     },
   };
+}
+
+async function buildCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  assertAllowedBuildArgs(args);
+
+  if (typeof args.spec !== "string") {
+    throw new Error("build requires --spec <path>.");
+  }
+  if (args["out-dir"] !== undefined && typeof args["out-dir"] !== "string") {
+    throw new Error("build requires --out-dir <path> when provided.");
+  }
+
+  const specPath = resolvePath(args.spec);
+  if (!specPath) {
+    throw new Error("build requires --spec <path>.");
+  }
+
+  let spec = null;
+  let outDir = null;
+  let result = null;
+  let manifestEntries = [];
+  let capturedInputs = [];
+  const producedBy = "cli-build";
+  const baseDir = dirname(specPath);
+
+  try {
+    spec = await readJson(specPath);
+    outDir = resolvePath(args["out-dir"]) || defaultBuildOutDir(spec);
+
+    let solver = null;
+    const solverSpec = spec.plan?.hints?.solver ?? spec.intent?.hints?.solver;
+    if (solverSpec !== undefined) {
+      if (!solverSpec || typeof solverSpec !== "object" || Array.isArray(solverSpec)) {
+        throw new Error("build requires solver hints as an object when provided.");
+      }
+      const fixturePath = resolvePath(solverSpec.fixture || solverSpec.fixturePath, baseDir);
+      if (!fixturePath) {
+        throw new Error("build requires solver fixture path (solver.fixture).");
+      }
+      const scenarioFile = resolvePath(solverSpec.scenarioFile, baseDir);
+      const optionsPath = resolvePath(solverSpec.optionsPath, baseDir);
+      let scenarioData = solverSpec.scenario;
+      if (scenarioData === undefined && scenarioFile) {
+        scenarioData = await readText(scenarioFile);
+      }
+      let options = solverSpec.options;
+      if (options === undefined && optionsPath) {
+        options = await readJson(optionsPath);
+      }
+
+      const { createSolverAdapter } = await import("../adapters/solver-z3/index.js");
+      const solverAdapter = createSolverAdapter({ fixturePath });
+      solver = {
+        adapter: solverAdapter,
+        scenario: scenarioData,
+        options,
+        clock: () => spec.meta.createdAt,
+      };
+    }
+
+    result = await orchestrateBuild({ spec, producedBy, solver });
+
+    await writeJson(join(outDir, "spec.json"), result.spec);
+    await writeJson(join(outDir, "intent.json"), result.intent);
+    await writeJson(join(outDir, "plan.json"), result.plan);
+
+    if (result.budget?.budget) {
+      await writeJson(join(outDir, "budget.json"), result.budget.budget);
+    }
+    if (result.budget?.priceList) {
+      await writeJson(join(outDir, "price-list.json"), result.budget.priceList);
+    }
+    if (result.budgetReceipt) {
+      await writeJson(join(outDir, "budget-receipt.json"), result.budgetReceipt);
+    }
+    if (result.solverRequest) {
+      await writeJson(join(outDir, "solver-request.json"), result.solverRequest);
+    }
+    if (result.solverResult) {
+      await writeJson(join(outDir, "solver-result.json"), result.solverResult);
+    }
+    if (result.simConfig) {
+      await writeJson(join(outDir, "sim-config.json"), result.simConfig);
+    }
+    if (result.initialState) {
+      await writeJson(join(outDir, "initial-state.json"), result.initialState);
+    }
+
+    const captures = Array.isArray(spec.adapters?.capture) ? spec.adapters.capture : [];
+    if (captures.length > 0) {
+      const allowNetwork = allowNetworkRequests();
+      for (let i = 0; i < captures.length; i += 1) {
+        const captured = await captureAdapterPayload({
+          capture: captures[i],
+          index: i,
+          baseDir,
+          spec,
+          producedBy,
+          allowNetwork,
+        });
+        await writeJson(join(outDir, captured.path), captured.artifact);
+        capturedInputs.push(captured);
+      }
+    }
+
+    const bundleArtifacts = [];
+    if (result.intent) bundleArtifacts.push(result.intent);
+    if (result.plan) bundleArtifacts.push(result.plan);
+    if (result.budget?.budget) bundleArtifacts.push(result.budget.budget);
+    if (result.budget?.priceList) bundleArtifacts.push(result.budget.priceList);
+    if (result.budgetReceipt) bundleArtifacts.push(result.budgetReceipt);
+    if (result.solverRequest) bundleArtifacts.push(result.solverRequest);
+    if (result.solverResult) bundleArtifacts.push(result.solverResult);
+    if (result.simConfig) bundleArtifacts.push(result.simConfig);
+    if (result.initialState) bundleArtifacts.push(result.initialState);
+    capturedInputs.forEach((capture) => {
+      bundleArtifacts.push(capture.artifact);
+    });
+
+    bundleArtifacts.sort((a, b) => {
+      if (a.schema === b.schema) {
+        return a.meta.id.localeCompare(b.meta.id);
+      }
+      return a.schema.localeCompare(b.schema);
+    });
+
+    addManifestEntry(manifestEntries, result.intent, "intent.json");
+    addManifestEntry(manifestEntries, result.plan, "plan.json");
+    addManifestEntry(manifestEntries, result.budget?.budget, "budget.json");
+    addManifestEntry(manifestEntries, result.budget?.priceList, "price-list.json");
+    addManifestEntry(manifestEntries, result.budgetReceipt, "budget-receipt.json");
+    addManifestEntry(manifestEntries, result.solverRequest, "solver-request.json");
+    addManifestEntry(manifestEntries, result.solverResult, "solver-result.json");
+    addManifestEntry(manifestEntries, result.simConfig, "sim-config.json");
+    addManifestEntry(manifestEntries, result.initialState, "initial-state.json");
+    capturedInputs.forEach((capture) => {
+      addManifestEntry(manifestEntries, capture.artifact, capture.path);
+    });
+
+    manifestEntries.sort((a, b) => {
+      if (a.schema === b.schema) {
+        return a.id.localeCompare(b.id);
+      }
+      return a.schema.localeCompare(b.schema);
+    });
+
+    const schemaEntries = filterSchemaCatalogEntries({
+      schemaRefs: [
+        { schema: spec.schema, schemaVersion: spec.schemaVersion },
+        ...manifestEntries,
+      ],
+    });
+
+    const bundle = {
+      spec: result.spec,
+      schemas: schemaEntries,
+      artifacts: bundleArtifacts,
+    };
+
+    await writeJson(join(outDir, "bundle.json"), bundle);
+
+    const manifest = {
+      specPath: "spec.json",
+      correlation: {
+        runId: spec.meta.runId,
+        source: spec.meta.source,
+        correlationId: spec.meta.correlationId,
+      },
+      schemas: schemaEntries,
+      artifacts: manifestEntries,
+    };
+
+    if (!manifest.correlation.correlationId) {
+      delete manifest.correlation.correlationId;
+    }
+
+    await writeJson(join(outDir, "manifest.json"), manifest);
+
+    const artifactRefs = buildArtifactRefs(manifestEntries);
+    const telemetry = buildBuildTelemetryRecord({
+      spec,
+      status: "success",
+      artifactRefs,
+      producedBy,
+      clock: () => spec.meta.createdAt,
+    });
+    await writeJson(join(outDir, "telemetry.json"), telemetry);
+
+    console.log(`build: wrote ${outDir}`);
+  } catch (error) {
+    const message = error?.message || String(error);
+    const runId = spec?.meta?.runId || "run_unknown";
+    outDir = outDir || resolve(process.cwd(), "artifacts", `build_${runId}`);
+    let artifactRefs = buildArtifactRefs(manifestEntries);
+    if (artifactRefs.length === 0 && result) {
+      const fallbackEntries = [];
+      addManifestEntry(fallbackEntries, result.intent, "intent.json");
+      addManifestEntry(fallbackEntries, result.plan, "plan.json");
+      addManifestEntry(fallbackEntries, result.budget?.budget, "budget.json");
+      addManifestEntry(fallbackEntries, result.budget?.priceList, "price-list.json");
+      addManifestEntry(fallbackEntries, result.budgetReceipt, "budget-receipt.json");
+      addManifestEntry(fallbackEntries, result.solverRequest, "solver-request.json");
+      addManifestEntry(fallbackEntries, result.solverResult, "solver-result.json");
+      addManifestEntry(fallbackEntries, result.simConfig, "sim-config.json");
+      addManifestEntry(fallbackEntries, result.initialState, "initial-state.json");
+      capturedInputs.forEach((capture) => {
+        addManifestEntry(fallbackEntries, capture.artifact, capture.path);
+      });
+      artifactRefs = buildArtifactRefs(fallbackEntries);
+    }
+    const telemetry = buildBuildTelemetryRecord({
+      spec,
+      status: "error",
+      errors: [message],
+      artifactRefs,
+      producedBy,
+      clock: () => spec?.meta?.createdAt || "1970-01-01T00:00:00.000Z",
+    });
+    await writeJson(join(outDir, "telemetry.json"), telemetry);
+    throw error;
+  }
+}
+
+async function schemasCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  assertAllowedSchemasArgs(args);
+
+  if (args["out-dir"] !== undefined && typeof args["out-dir"] !== "string") {
+    throw new Error("schemas requires --out-dir <path> when provided.");
+  }
+
+  const outDir = resolvePath(args["out-dir"]);
+  const clockOverride = process.env.AK_SCHEMA_CATALOG_TIME;
+  const catalog = createSchemaCatalog({
+    clock: clockOverride ? () => clockOverride : undefined,
+  });
+
+  if (outDir) {
+    await writeJson(join(outDir, "schemas.json"), catalog);
+    console.log(`schemas: wrote ${outDir}`);
+    return;
+  }
+
+  console.log(`${JSON.stringify(catalog, null, 2)}`);
 }
 
 async function solveCommand(argv) {
@@ -1360,6 +1873,8 @@ async function llmCommand(argv) {
 }
 
 const COMMANDS = {
+  build: buildCommand,
+  schemas: schemasCommand,
   solve: solveCommand,
   run: runCommand,
   configurator: configuratorCommand,

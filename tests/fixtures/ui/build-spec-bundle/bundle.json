@@ -1,0 +1,270 @@
+{
+  "spec": {
+    "schema": "agent-kernel/BuildSpec",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "buildspec_basic",
+      "runId": "run_fixture",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "source": "cli-agent"
+    },
+    "intent": {
+      "goal": "demo scenario",
+      "tags": [
+        "basic"
+      ],
+      "hints": {
+        "roomCount": 2,
+        "levelAffinity": "fire",
+        "rooms": [
+          {
+            "affinity": "fire",
+            "trap": "fire"
+          },
+          {
+            "affinity": "water",
+            "trap": "water"
+          }
+        ]
+      }
+    },
+    "plan": {
+      "hints": {
+        "strategy": "simple"
+      }
+    },
+    "configurator": {
+      "inputs": {
+        "roomCount": 2,
+        "actors": [
+          {
+            "role": "boss",
+            "count": 1,
+            "affinity": "fire",
+            "motivation": "guard",
+            "strength": 2
+          }
+        ],
+        "actorGroups": [
+          {
+            "role": "boss",
+            "count": 1
+          }
+        ]
+      }
+    }
+  },
+  "schemas": [
+    {
+      "schema": "agent-kernel/BudgetReceipt",
+      "schemaVersion": 1,
+      "description": "Allocator decision on requested caps/limits."
+    },
+    {
+      "schema": "agent-kernel/BuildSpec",
+      "schemaVersion": 1,
+      "description": "Agent-facing build specification.",
+      "fields": [
+        "meta",
+        "intent",
+        "plan",
+        "configurator",
+        "budget",
+        "adapters"
+      ]
+    },
+    {
+      "schema": "agent-kernel/InitialStateArtifact",
+      "schemaVersion": 1,
+      "description": "Initial actor state for a run.",
+      "fields": [
+        "meta",
+        "simConfigRef",
+        "actors"
+      ]
+    },
+    {
+      "schema": "agent-kernel/IntentEnvelope",
+      "schemaVersion": 1,
+      "description": "Normalized intake intent for Director.",
+      "fields": [
+        "meta",
+        "source",
+        "intent",
+        "context"
+      ]
+    },
+    {
+      "schema": "agent-kernel/PlanArtifact",
+      "schemaVersion": 1,
+      "description": "Structured plan produced by Director.",
+      "fields": [
+        "meta",
+        "intentRef",
+        "plan",
+        "directives"
+      ]
+    },
+    {
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1,
+      "description": "Executable simulation configuration.",
+      "fields": [
+        "meta",
+        "planRef",
+        "budgetReceiptRef",
+        "seed",
+        "executionPolicy",
+        "layout",
+        "constraints"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "schema": "agent-kernel/BudgetReceipt",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "budget_receipt_basic",
+        "runId": "run_fixture",
+        "createdAt": "2025-01-01T00:00:00.000Z",
+        "producedBy": "fixture"
+      },
+      "requestRef": {
+        "id": "budget_request_basic",
+        "schema": "agent-kernel/BudgetRequest",
+        "schemaVersion": 1
+      },
+      "decision": "approved",
+      "effectiveCaps": {
+        "caps": {
+          "movement": 10
+        }
+      },
+      "limits": {
+        "maxTicks": 5
+      }
+    },
+    {
+      "schema": "agent-kernel/InitialStateArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "initial_state_basic",
+        "runId": "run_fixture",
+        "createdAt": "2025-01-01T00:00:00.000Z",
+        "producedBy": "fixture"
+      },
+      "simConfigRef": {
+        "id": "sim_config_basic",
+        "schema": "agent-kernel/SimConfigArtifact",
+        "schemaVersion": 1
+      },
+      "actors": [
+        {
+          "id": "actor_1",
+          "kind": "stationary",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "traits": {
+            "speed": 1
+          }
+        }
+      ]
+    },
+    {
+      "schema": "agent-kernel/IntentEnvelope",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "intent_basic",
+        "runId": "run_fixture",
+        "createdAt": "2025-01-01T00:00:00.000Z",
+        "producedBy": "fixture"
+      },
+      "source": "cli",
+      "intent": {
+        "goal": "demo scenario",
+        "tags": [
+          "basic"
+        ],
+        "hints": {
+          "difficulty": "low"
+        }
+      }
+    },
+    {
+      "schema": "agent-kernel/PlanArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "plan_basic",
+        "runId": "run_fixture",
+        "createdAt": "2025-01-01T00:00:00.000Z",
+        "producedBy": "fixture"
+      },
+      "intentRef": {
+        "id": "intent_basic",
+        "schema": "agent-kernel/IntentEnvelope",
+        "schemaVersion": 1
+      },
+      "plan": {
+        "objectives": [
+          {
+            "id": "objective_1",
+            "description": "Reach a stable state",
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "sim_config_basic",
+        "runId": "run_fixture",
+        "createdAt": "2025-01-01T00:00:00.000Z",
+        "producedBy": "fixture"
+      },
+      "planRef": {
+        "id": "plan_basic",
+        "schema": "agent-kernel/PlanArtifact",
+        "schemaVersion": 1
+      },
+      "budgetReceiptRef": {
+        "id": "budget_receipt_basic",
+        "schema": "agent-kernel/BudgetReceipt",
+        "schemaVersion": 1
+      },
+      "seed": 42,
+      "executionPolicy": {
+        "schema": "agent-kernel/ExecutionPolicy",
+        "schemaVersion": 1,
+        "ordering": "round_robin",
+        "params": {
+          "actorSortKey": "id"
+        }
+      },
+      "flags": {
+        "demo": true
+      },
+      "layout": {
+        "kind": "grid",
+        "data": {
+          "width": 2,
+          "height": 2
+        }
+      },
+      "constraints": {
+        "categoryCaps": {
+          "caps": {
+            "movement": 10
+          }
+        },
+        "limits": {
+          "maxTicks": 5
+        }
+      }
+    }
+  ]
+}

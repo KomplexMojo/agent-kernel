@@ -23,6 +23,27 @@ They do **not**:
 
 ## CLI Commands (MVP)
 
+### `build`
+Agent-only builder that consumes a single JSON build spec and emits mapped artifacts
+for downstream personas (intent/plan, optional solver artifacts, configurator outputs,
+and optional budget artifacts). Writes `manifest.json`, `bundle.json`, and `telemetry.json`
+in the output directory. Manifest/bundle include a filtered `schemas` list for emitted artifacts.
+Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
+for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
+
+Build inputs/outputs:
+- Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
+- Output dir: `artifacts/build_<runId>` by default, or `--out-dir`.
+- Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
+  `budget-receipt.json`, `solver-request.json`, `solver-result.json`, `sim-config.json`,
+  `initial-state.json`, plus captured inputs as `captured-input-<adapter>-<index>.json`.
+- Bundle/manifest: `bundle.json` (inlined artifacts + schemas), `manifest.json` (paths + schemas),
+  `telemetry.json` (run-scope record).
+
+### `schemas`
+Emit the full runtime schema catalog for UI or agent discovery. With `--out-dir`, writes
+`schemas.json`; otherwise prints JSON to stdout.
+
 ### `solve`
 Stage a constrained scenario (e.g., "two actors conflict") and emit a `SolverRequest`
 artifact plus a `SolverResult` using a stubbed/fixture-driven solver adapter (no network).
@@ -55,6 +76,8 @@ node packages/adapters-cli/src/cli/ak.mjs <command> [options]
 
 Example usage:
 ```
+node packages/adapters-cli/src/cli/ak.mjs build --spec tests/fixtures/artifacts/build-spec-v1-basic.json --out-dir artifacts/build_demo
+node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/schema_catalog
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0

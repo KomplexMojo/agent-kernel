@@ -21,6 +21,18 @@ General rules:
 - intent-envelope-v1-basic.json: intake boundary request; used to test intent parsing.
 - plan-artifact-v1-basic.json: structured plan referencing the intent.
 
+## Build spec
+- build-spec-v1-basic.json: agent-facing build spec with intent, typed hints/inputs, budget refs, and adapter capture requests.
+- build-spec-v1-adapters.json: build spec with adapter capture requests using fixture-backed ipfs/blockchain/llm.
+- build-spec-v1-budget-inline.json: build spec with inline budget/price list plus refs for mapping precedence tests.
+- build-spec-v1-budget-inline-only.json: build spec with inline budget/price list only for CLI emission tests.
+- build-spec-v1-configurator.json: build spec with configurator inputs for layout + actors.
+- build-spec-v1-solver.json: build spec with solver hints referencing a fixture.
+
+## Captured inputs
+- captured-input-artifact-v1-json.json: captured adapter payload stored inline as JSON.
+- captured-input-artifact-v1-ref.json: captured adapter payload stored via payloadRef path.
+
 ## Budgeting
 - budget-request-v1-basic.json: allocator request derived from the plan.
 - budget-receipt-v1-basic.json: allocator response referencing the request.

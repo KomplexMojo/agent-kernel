@@ -55,6 +55,151 @@ export interface ArtifactRef {
 export type Phase = "intake" | "plan" | "allocate" | "configure" | "execute" | "annotate" | "publish";
 
 // -------------------------
+// Captured inputs (adapters)
+// -------------------------
+
+export const CAPTURED_INPUT_SCHEMA = "agent-kernel/CapturedInputArtifact";
+
+export interface CapturedInputRefV1 {
+  /** Path to an on-disk payload (adapter output). */
+  path?: string;
+  /** Reference to another artifact containing the payload. */
+  artifactRef?: ArtifactRef;
+}
+
+export interface CapturedInputArtifactV1 {
+  schema: typeof CAPTURED_INPUT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  /** Adapter source that captured the payload (ipfs/blockchain/llm/etc). */
+  source: {
+    adapter: string;
+    requestId?: string;
+    request?: Record<string, unknown>;
+  };
+
+  /** Content type for the payload (e.g., application/json, text/plain). */
+  contentType: string;
+
+  /** Inline payload for small JSON/text captures. */
+  payload?: unknown;
+
+  /** Reference for large/binary payloads. */
+  payloadRef?: CapturedInputRefV1;
+}
+
+export type CapturedInputArtifact = CapturedInputArtifactV1;
+
+// -------------------------
+// Build spec intake (CLI/UI)
+// -------------------------
+
+export const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
+
+export interface BuildSpecMeta {
+  /** Unique identifier for this spec. */
+  id: string;
+  /** Identifier for the run this spec belongs to (UUID/ULID/etc.). */
+  runId: string;
+  /** Creation timestamp (UTC). */
+  createdAt: IsoUtcTimestamp;
+  /** Source system for this spec (e.g., "ui-web", "cli-agent"). */
+  source: string;
+  /** Optional correlation id for external systems (e.g., request id). */
+  correlationId?: string;
+  /** Optional human/AI readable note for debugging. */
+  note?: string;
+}
+
+export interface BuildSpecAdapterCaptureV1 {
+  /** Adapter name to invoke (e.g., "ipfs", "blockchain", "llm"). */
+  adapter: string;
+  /** Adapter request payload; shape is adapter-specific. */
+  request?: Record<string, unknown>;
+  /** Optional content type override for captured payload. */
+  contentType?: string;
+  /** Optional fixture path for adapter responses. */
+  fixturePath?: string;
+  /** Optional reference for captured output. */
+  outputRef?: ArtifactRef;
+}
+
+export interface BuildSpecRoomHintV1 {
+  affinity?: string;
+  trap?: string;
+  trapAffinity?: string;
+}
+
+export interface BuildSpecActorHintV1 {
+  role?: string;
+  count?: number;
+  affinity?: string;
+  motivation?: string;
+  motivations?: string[];
+  strength?: number;
+}
+
+export interface BuildSpecActorGroupHintV1 {
+  role?: string;
+  count?: number;
+}
+
+export interface BuildSpecAgentHintsV1 extends Record<string, unknown> {
+  budgetTokens?: number;
+  levelSize?: string;
+  levelAffinity?: string;
+  roomCount?: number;
+  rooms?: BuildSpecRoomHintV1[];
+  actors?: BuildSpecActorHintV1[];
+  actorGroups?: BuildSpecActorGroupHintV1[];
+}
+
+/**
+ * Agent-facing build spec that feeds the CLI/UI.
+ * The agent translates informal prompts into this structured format.
+ */
+export interface BuildSpecV1 {
+  schema: typeof BUILD_SPEC_SCHEMA;
+  schemaVersion: 1;
+  meta: BuildSpecMeta;
+
+  /** High-level intent for the Director to translate. */
+  intent: {
+    goal: string;
+    tags?: string[];
+    hints?: BuildSpecAgentHintsV1;
+  };
+
+  /** Optional plan hints to seed the Director. */
+  plan?: {
+    hints?: Record<string, unknown>;
+  };
+
+  /** Optional configurator inputs (implementation-specific). */
+  configurator?: {
+    inputs?: BuildSpecAgentHintsV1;
+  };
+
+  /** Optional budget inputs (refs or inline artifacts). */
+  budget?: {
+    budgetRef?: ArtifactRef;
+    priceListRef?: ArtifactRef;
+    receiptRef?: ArtifactRef;
+    budget?: BudgetArtifact;
+    priceList?: PriceList;
+    receipt?: BudgetReceiptArtifact;
+  };
+
+  /** Optional adapter capture requests. */
+  adapters?: {
+    capture?: BuildSpecAdapterCaptureV1[];
+  };
+}
+
+export type BuildSpec = BuildSpecV1;
+
+// -------------------------
 // Orchestrator → Director
 // -------------------------
 

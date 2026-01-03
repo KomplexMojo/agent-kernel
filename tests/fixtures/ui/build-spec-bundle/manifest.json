@@ -1,0 +1,105 @@
+{
+  "specPath": "spec.json",
+  "correlation": {
+    "runId": "run_fixture",
+    "source": "cli-agent"
+  },
+  "schemas": [
+    {
+      "schema": "agent-kernel/BudgetReceipt",
+      "schemaVersion": 1,
+      "description": "Allocator decision on requested caps/limits."
+    },
+    {
+      "schema": "agent-kernel/BuildSpec",
+      "schemaVersion": 1,
+      "description": "Agent-facing build specification.",
+      "fields": [
+        "meta",
+        "intent",
+        "plan",
+        "configurator",
+        "budget",
+        "adapters"
+      ]
+    },
+    {
+      "schema": "agent-kernel/InitialStateArtifact",
+      "schemaVersion": 1,
+      "description": "Initial actor state for a run.",
+      "fields": [
+        "meta",
+        "simConfigRef",
+        "actors"
+      ]
+    },
+    {
+      "schema": "agent-kernel/IntentEnvelope",
+      "schemaVersion": 1,
+      "description": "Normalized intake intent for Director.",
+      "fields": [
+        "meta",
+        "source",
+        "intent",
+        "context"
+      ]
+    },
+    {
+      "schema": "agent-kernel/PlanArtifact",
+      "schemaVersion": 1,
+      "description": "Structured plan produced by Director.",
+      "fields": [
+        "meta",
+        "intentRef",
+        "plan",
+        "directives"
+      ]
+    },
+    {
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1,
+      "description": "Executable simulation configuration.",
+      "fields": [
+        "meta",
+        "planRef",
+        "budgetReceiptRef",
+        "seed",
+        "executionPolicy",
+        "layout",
+        "constraints"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "budget_receipt_basic",
+      "schema": "agent-kernel/BudgetReceipt",
+      "schemaVersion": 1,
+      "path": "budget-receipt.json"
+    },
+    {
+      "id": "initial_state_basic",
+      "schema": "agent-kernel/InitialStateArtifact",
+      "schemaVersion": 1,
+      "path": "initial-state.json"
+    },
+    {
+      "id": "intent_basic",
+      "schema": "agent-kernel/IntentEnvelope",
+      "schemaVersion": 1,
+      "path": "intent.json"
+    },
+    {
+      "id": "plan_basic",
+      "schema": "agent-kernel/PlanArtifact",
+      "schemaVersion": 1,
+      "path": "plan.json"
+    },
+    {
+      "id": "sim_config_basic",
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1,
+      "path": "sim-config.json"
+    }
+  ]
+}
