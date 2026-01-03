@@ -1,0 +1,15 @@
+{
+  "schema": "agent-kernel/SpendProposal",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "proposal_over_budget",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "configurator"
+  },
+  "items": [
+    { "id": "actor_spawn", "kind": "actor", "quantity": 50 },
+    { "id": "layout_grid_9x9", "kind": "layout", "quantity": 1 },
+    { "id": "trap_basic", "kind": "trap", "quantity": 30 }
+  ]
+}

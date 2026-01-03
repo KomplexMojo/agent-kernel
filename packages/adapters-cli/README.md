@@ -59,6 +59,7 @@ node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
+node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --out-dir path/to/out
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
 node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --tick-frames path/to/tick-frames.json
 node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
@@ -81,7 +82,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - llm: `llm.json`
 - solve: `solver-request.json`, `solver-result.json`
 - run: `tick-frames.json`, `effects-log.json`, `run-summary.json`, `action-log.json`
-- configurator: `sim-config.json`, `initial-state.json`
+- configurator: `sim-config.json`, `initial-state.json` (plus `budget-receipt.json` when `--budget` + `--price-list` are provided)
 
 ---
 
@@ -92,6 +93,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - LLM (Ollama-style): `--base-url` (default: `http://localhost:11434`), `--model`, `--prompt`.
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
 - Run action log: `--actions` path to an ActionSequence artifact (emitted to `action-log.json`).
+- Configurator budget inputs: `--budget`, `--price-list`, optional `--receipt-out` to write the receipt elsewhere.
 - Actor overrides (run):
   - `--actor id,x,y,kind` (kind: motivated/ambulatory/stationary)
   - `--vital actorId,vital,current,max,regen`

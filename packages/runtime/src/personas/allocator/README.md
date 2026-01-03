@@ -56,6 +56,61 @@ When a request is accepted, the Allocator issues a **budget receipt** that:
 
 Downstream personas must operate within the bounds of the receipt.
 
+Budget receipts are emitted as `agent-kernel/BudgetReceiptArtifact` and reference
+the originating `BudgetArtifact` and `PriceList` for auditability.
+
+---
+
+## ALLOCATOR scenarios
+
+The examples below assume integer tokens and the current price list rules:
+- Actor spawn is 0 tokens and starts with zero vitals, no affinities, no motivations.
+- Vital points cost 1 token each (health/mana/stamina/durability).
+- Regen costs 10 tokens per +1 per tick (per vital).
+- Affinity stacks are quadratic: base cost = `50 * stacks^2`.
+- Affinity expression stacks are quadratic: expression cost = `60 * stacks^2`.
+- Motivations: reflexive = 1, goal-oriented = 5, strategy-focused = 20 tokens.
+- Actors without movement-related motivations are treated as tiles/barriers.
+- Vitals without regen are one-time pools; once spent, they do not recover.
+
+Scenario A: 100-token single-stat actor
+- Health 100 = 100 tokens
+- Total cost = 100 (no regen, affinities, or motivations)
+
+Scenario B: 300-token balanced actor with regen + motivations
+- Health 80 (80) + Stamina 60 (60) + Mana 40 (40) + Durability 20 (20)
+- Health regen +2 (20) + Stamina regen +1 (10)
+- Motivation: goal-oriented (5) + reflexive (1)
+- Total cost = 236 tokens (64 tokens remain for more V/A/M)
+
+Scenario C: 1,000-token affinity specialist (quadratic example)
+- Health 100 (100) + Stamina 50 (50)
+- Affinity stacks (2): 50 * 2^2 = 200
+- Affinity expression (externalize, 2): 60 * 2^2 = 240
+- Motivation: strategy-focused (20)
+- Total cost = 610 tokens (390 tokens remain)
+- Note: 3 stacks would cost 50 * 3^2 = 450 and 60 * 3^2 = 540 (990 total for affinity + expression)
+
+Scenario D: Director-scale 10,000-token budget (illustrative)
+- 10 actors with Health 150 each = 1,500 tokens
+- 10 actors with Stamina 50 each = 500 tokens
+- 10 actors with Health regen +1 = 100 tokens
+- 6 actors with 3-stack affinity + expression = 6 * 990 = 5,940 tokens
+- 10 strategy-focused motivations = 200 tokens
+- Total cost = 8,240 tokens (1,760 tokens remain)
+
+Scenario E: Level building with durable, immobile tiles and barriers
+- Goal: large level using tile actors and barriers (no movement motivations).
+- Tile profile: Durability 1 (1 token), no regen, no affinities, no motivations.
+- Barrier profile: Durability > 1 (e.g., Durability 5 = 5 tokens), no regen, no affinities, no motivations.
+- Budget for tiles + barriers = 3,000 tokens.
+- Example mix: 2,000 tiles (2,000 tokens) + 200 barriers at Durability 5 (1,000 tokens) = 3,000 tokens total.
+- Implication: higher barrier durability reduces how many barriers can be placed within the budget.
+
+Note: Fog tiles can be priced via atomic items (mana, regen, affinity stacks, expression). A persona (e.g., Director or Configurator) should compute the composite cost for a fog tile profile rather than adding a bespoke price list entry.
+
+Note: Sensing can be modeled as an affinity kind with mana drain; externalize (push) enables long-range fog piercing, localized (emit) extends local visibility radius, and internalized (pull) can represent self-focused detection (e.g., trap awareness within normal sight). Composite costs should be derived from atomic affinity + expression + mana/regen pricing.
+
 ---
 
 ### Reconciliation and Adjustment

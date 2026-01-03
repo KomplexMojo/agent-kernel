@@ -14,6 +14,8 @@ const PRESETS = resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifac
 const LOADOUTS = resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json");
 const PLAN = resolve(ROOT, "tests/fixtures/artifacts/plan-artifact-v1-basic.json");
 const BUDGET = resolve(ROOT, "tests/fixtures/artifacts/budget-receipt-v1-basic.json");
+const BUDGET_ARTIFACT = resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json");
+const PRICE_LIST = resolve(ROOT, "tests/fixtures/artifacts/price-list-artifact-v1-basic.json");
 const EXPECTED_SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json");
 const EXPECTED_INITIAL = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json");
 const INVALID_LEVEL_GEN = resolve(
@@ -80,6 +82,65 @@ test("cli configurator builds sim config and initial state artifacts", () => {
   assert.equal(initialState.simConfigRef.schema, simConfig.schema);
   assert.equal(initialState.simConfigRef.schemaVersion, simConfig.schemaVersion);
   assert.equal(initialState.simConfigRef.id, simConfig.meta.id);
+});
+
+test("cli configurator emits a budget receipt from budget inputs", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-configurator-budget-"));
+  const outDir = join(workDir, "out");
+  const receiptOut = join(workDir, "receipt.json");
+
+  runCli([
+    "configurator",
+    "--level-gen",
+    LEVEL_GEN,
+    "--actors",
+    ACTORS,
+    "--budget",
+    BUDGET_ARTIFACT,
+    "--price-list",
+    PRICE_LIST,
+    "--out-dir",
+    outDir,
+    "--receipt-out",
+    receiptOut,
+    "--run-id",
+    "run_configurator_budget",
+  ]);
+
+  const simConfig = readJson(join(outDir, "sim-config.json"));
+  const receipt = readJson(join(outDir, "budget-receipt.json"));
+  const receiptOutData = readJson(receiptOut);
+
+  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(receipt.schemaVersion, 1);
+  assert.equal(receipt.status, "partial");
+  assert.equal(receipt.totalCost, 17);
+  assert.equal(receipt.remaining, 983);
+  assert.equal(receipt.meta.runId, "run_configurator_budget");
+  assert.deepEqual(simConfig.budgetReceiptRef, {
+    id: receipt.meta.id,
+    schema: receipt.schema,
+    schemaVersion: receipt.schemaVersion,
+  });
+  assert.deepEqual(receiptOutData, receipt);
+
+  const layoutLine = receipt.lineItems.find((item) => item.id === "layout_grid_5x5");
+  assert.ok(layoutLine);
+  assert.equal(layoutLine.unitCost, 0);
+  assert.equal(layoutLine.totalCost, 0);
+  assert.equal(layoutLine.status, "denied");
+
+  const healthLine = receipt.lineItems.find((item) => item.id === "vital_health_point");
+  assert.ok(healthLine);
+  assert.equal(healthLine.unitCost, 1);
+  assert.equal(healthLine.totalCost, 16);
+  assert.equal(healthLine.status, "approved");
+
+  const manaLine = receipt.lineItems.find((item) => item.id === "vital_mana_point");
+  assert.ok(manaLine);
+  assert.equal(manaLine.unitCost, 1);
+  assert.equal(manaLine.totalCost, 1);
+  assert.equal(manaLine.status, "approved");
 });
 
 test("cli configurator rejects invalid level-gen input", () => {

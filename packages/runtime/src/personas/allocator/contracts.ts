@@ -16,3 +16,13 @@ export interface AllocatorContext {
   state: AllocatorState;
   priceList?: PriceListInput;
 }
+
+export interface SpendProposalItem {
+  id: string;
+  kind: string;
+  quantity?: number;
+}
+
+export interface SpendProposal {
+  items: SpendProposalItem[];
+}

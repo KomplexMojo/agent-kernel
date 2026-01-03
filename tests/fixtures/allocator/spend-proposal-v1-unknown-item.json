@@ -1,0 +1,13 @@
+{
+  "schema": "agent-kernel/SpendProposal",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "proposal_unknown_item",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "configurator"
+  },
+  "items": [
+    { "id": "mystery", "kind": "unknown", "quantity": 1 }
+  ]
+}

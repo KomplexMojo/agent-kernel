@@ -25,6 +25,21 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - Traps are tile actors with mana + durability only and an affinity expression payload.
 - UI tabs are organized by persona with Runtime as the default playback view; the Annotator tab surfaces affinity + trap metadata with a collapsible legend.
 
+## Budgeting + price lists
+
+- Token budgets and price lists flow from Orchestrator → Director → Configurator → Allocator.
+- Artifacts: `agent-kernel/BudgetArtifact`, `agent-kernel/PriceList`, `agent-kernel/BudgetReceiptArtifact`, and `agent-kernel/SpendProposal`.
+- Configurator emits a spend proposal from layout/actor/trap inputs; Allocator validates against budget + price list and emits a receipt.
+- Tokens are integer units (future ERC20 linkage remains at the adapter boundary).
+
+Example flow (proposal → receipt):
+```json
+{
+  "proposal": { "schema": "agent-kernel/SpendProposal", "schemaVersion": 1, "items": [{ "id": "actor_spawn", "kind": "actor", "quantity": 2 }] },
+  "receipt": { "schema": "agent-kernel/BudgetReceiptArtifact", "schemaVersion": 1, "status": "approved", "totalCost": 50, "remaining": 950 }
+}
+```
+
 Key artifacts and fixtures:
 - `agent-kernel/AffinityPresetArtifact` → `tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json`
 - `agent-kernel/ActorLoadoutsArtifact` → `tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json`

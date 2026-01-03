@@ -1,0 +1,25 @@
+{
+  "schema": "agent-kernel/SpendProposal",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "proposal_vam",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "configurator"
+  },
+  "items": [
+    { "id": "actor_spawn", "kind": "actor", "quantity": 1 },
+    { "id": "affinity_expression_externalize", "kind": "affinity", "quantity": 2 },
+    { "id": "affinity_expression_internalize", "kind": "affinity", "quantity": 1 },
+    { "id": "affinity_stack", "kind": "affinity", "quantity": 3 },
+    { "id": "motivation_goal_oriented", "kind": "motivation", "quantity": 1 },
+    { "id": "motivation_reflexive", "kind": "motivation", "quantity": 1 },
+    { "id": "motivation_strategy_focused", "kind": "motivation", "quantity": 1 },
+    { "id": "vital_durability_point", "kind": "vital", "quantity": 1 },
+    { "id": "vital_health_point", "kind": "vital", "quantity": 10 },
+    { "id": "vital_health_regen_tick", "kind": "vital", "quantity": 2 },
+    { "id": "vital_mana_point", "kind": "vital", "quantity": 3 },
+    { "id": "vital_stamina_point", "kind": "vital", "quantity": 4 },
+    { "id": "vital_stamina_regen_tick", "kind": "vital", "quantity": 1 }
+  ]
+}

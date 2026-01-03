@@ -17,6 +17,7 @@ At a high level, the Configurator:
 - Produces a fully specified simulation configuration.
 - Ensures configurations are internally consistent before execution.
 - Hands validated configuration artifacts to the runtime runner.
+- Emits a spend proposal for the Allocator when budgets/price lists are provided.
 
 The simulation core (`core-as`) remains the sole authority on rule enforcement and state mutation.
 

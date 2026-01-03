@@ -5,6 +5,7 @@ import { wireAdapterPanel } from "./adapter-panel.js";
 import { wireRunBuilder } from "./run-builder.js";
 import { wireTabs } from "./tabs.js";
 import { wireAffinityLegend } from "./affinity-legend.js";
+import { wireBudgetPanels } from "./budget-panels.js";
 
 const frameEl = document.querySelector("#frame-buffer");
 const actorIdEl = document.querySelector("#actor-id-display");
@@ -53,6 +54,12 @@ const badgeMode = document.querySelector("#badge-mode");
 const startRunButton = document.querySelector("#start-run");
 const resetConfigButton = document.querySelector("#reset-config");
 const configPreview = document.querySelector("#config-preview");
+const configBudgetJson = document.querySelector("#config-budget-json");
+const configPriceListJson = document.querySelector("#config-price-list-json");
+const configReceiptJson = document.querySelector("#config-receipt-json");
+const allocatorBudgetJson = document.querySelector("#allocator-budget-json");
+const allocatorPriceListJson = document.querySelector("#allocator-price-list-json");
+const allocatorReceiptJson = document.querySelector("#allocator-receipt-json");
 const tabButtons = document.querySelectorAll("[data-tab]");
 const tabPanels = document.querySelectorAll("[data-tab-panel]");
 const vitalsInputs = {
@@ -105,6 +112,19 @@ wireAffinityLegend({
   kindsEl: affinityLegendKinds,
   expressionsEl: affinityLegendExpressions,
 });
+
+const budgetPanels = wireBudgetPanels({
+  elements: {
+    configBudget: configBudgetJson,
+    configPriceList: configPriceListJson,
+    configReceipt: configReceiptJson,
+    allocatorBudget: allocatorBudgetJson,
+    allocatorPriceList: allocatorPriceListJson,
+    allocatorReceipt: allocatorReceiptJson,
+  },
+  mode: fixtureSelect?.value === "live" ? "live" : "fixture",
+});
+budgetPanels.refresh();
 
 const ACTOR_ID_LABEL = "actor_mvp";
 const ACTOR_ID_VALUE = 1;
@@ -188,6 +208,11 @@ async function boot() {
       onStart: (config) => {
         startRun(config);
       },
+    });
+
+    fixtureSelect?.addEventListener("change", () => {
+      const mode = fixtureSelect?.value === "live" ? "live" : "fixture";
+      budgetPanels.refresh(mode);
     });
 
     startRun(builder.getConfig());

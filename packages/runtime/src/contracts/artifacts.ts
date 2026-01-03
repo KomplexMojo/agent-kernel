@@ -148,7 +148,12 @@ export type PlanArtifact = PlanArtifactV1;
 
 export const BUDGET_REQUEST_SCHEMA = "agent-kernel/BudgetRequest";
 export const BUDGET_RECEIPT_SCHEMA = "agent-kernel/BudgetReceipt";
+export const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
+export const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
+export const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 export const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
+export const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
+export const BUDGET_LEDGER_ARTIFACT_SCHEMA = "agent-kernel/BudgetLedgerArtifact";
 
 export interface BudgetCategoryCaps {
   /**
@@ -219,10 +224,111 @@ export type BudgetRequest = BudgetRequestV1;
 export type BudgetReceipt = BudgetReceiptV1;
 
 // -------------------------
+// Token budgets (Orchestrator → Director → Configurator → Allocator)
+// -------------------------
+
+export interface BudgetArtifactV1 {
+  schema: typeof BUDGET_ARTIFACT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  budget: {
+    /** Total budget in tokens. */
+    tokens: number;
+    /** Optional owner reference (e.g., player, wallet, or scenario). */
+    ownerRef?: ArtifactRef;
+    /** Optional notes for audit/trace. */
+    notes?: string;
+  };
+}
+
+export interface BudgetReceiptLineItemV1 {
+  id: string;
+  kind: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  status: "approved" | "denied" | "partial";
+}
+
+export interface BudgetReceiptArtifactV1 {
+  schema: typeof BUDGET_RECEIPT_ARTIFACT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  budgetRef: ArtifactRef;
+  priceListRef: ArtifactRef;
+  proposalRef?: ArtifactRef;
+  status: "approved" | "denied" | "partial";
+  totalCost: number;
+  remaining: number;
+  lineItems: BudgetReceiptLineItemV1[];
+}
+
+export type BudgetArtifact = BudgetArtifactV1;
+export type BudgetReceiptArtifact = BudgetReceiptArtifactV1;
+
+export interface BudgetAllocationPoolV1 {
+  id: string;
+  tokens: number;
+  notes?: string;
+}
+
+export interface BudgetAllocationPolicyV1 {
+  reserveTokens?: number;
+  maxActorSpend?: number;
+}
+
+export interface BudgetAllocationArtifactV1 {
+  schema: typeof BUDGET_ALLOCATION_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  budgetRef: ArtifactRef;
+  priceListRef: ArtifactRef;
+  pools: BudgetAllocationPoolV1[];
+  policy?: BudgetAllocationPolicyV1;
+}
+
+export type BudgetAllocationArtifact = BudgetAllocationArtifactV1;
+
+export interface BudgetSpendEventV1 {
+  id: string;
+  kind: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+}
+
+export interface BudgetLedgerArtifactV1 {
+  schema: typeof BUDGET_LEDGER_ARTIFACT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  budgetRef: ArtifactRef;
+  receiptRef?: ArtifactRef;
+  remaining: number;
+  spendEvents: BudgetSpendEventV1[];
+}
+
+export type BudgetLedgerArtifact = BudgetLedgerArtifactV1;
+
+export interface SpendProposalItemV1 {
+  id: string;
+  kind: string;
+  quantity?: number;
+}
+
+export interface SpendProposalV1 {
+  schema: typeof SPEND_PROPOSAL_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  items: SpendProposalItemV1[];
+}
+
+export type SpendProposal = SpendProposalV1;
+
+// -------------------------
 // Price list (Orchestrator → Allocator)
 // -------------------------
 
-export interface PriceListItemV1 {
+export interface PriceListItemLegacyV1 {
   key: string;
   /** Cost in tokens for one unit of the item. */
   unitCost: number;
@@ -231,6 +337,17 @@ export interface PriceListItemV1 {
   /** Optional description for clarity/audit. */
   description?: string;
 }
+
+export interface PriceListItemTokenV1 {
+  id: string;
+  kind: string;
+  /** Cost in tokens for one unit of the item. */
+  costTokens: number;
+  /** Optional description for clarity/audit. */
+  notes?: string;
+}
+
+export type PriceListItemV1 = PriceListItemLegacyV1 | PriceListItemTokenV1;
 
 export interface PriceListArtifactV1 {
   schema: typeof PRICE_LIST_SCHEMA;

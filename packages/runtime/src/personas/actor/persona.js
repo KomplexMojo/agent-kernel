@@ -13,6 +13,18 @@ const DEFAULT_DELTAS = Object.freeze([
 
 const MOTIVATED_KIND = 2;
 
+const AFFINITY_EXPRESSION_IDS = Object.freeze({
+  push: "affinity_expression_externalize",
+  pull: "affinity_expression_internalize",
+  emit: "affinity_expression_localized",
+});
+
+const MOTIVATION_IDS = Object.freeze({
+  reflexive: "motivation_reflexive",
+  goal_oriented: "motivation_goal_oriented",
+  strategy_focused: "motivation_strategy_focused",
+});
+
 function isMotivatedKind(kind) {
   if (typeof kind === "number") return kind === MOTIVATED_KIND;
   if (typeof kind === "string") return kind.toLowerCase() === "motivated";
@@ -36,6 +48,95 @@ function resolveActorKind(view, actorId, observation) {
     return observation.kind;
   }
   return null;
+}
+
+function normalizeMotivationTier(value) {
+  if (!value) return null;
+  const normalized = String(value).trim().toLowerCase().replace(/[\s-]/g, "_");
+  if (normalized === "random") return "reflexive";
+  if (normalized === "logical") return "goal_oriented";
+  if (normalized === "strategic") return "strategy_focused";
+  if (normalized === "goal_oriented") return "goal_oriented";
+  if (normalized === "strategy_focused") return "strategy_focused";
+  if (normalized === "reflexive") return "reflexive";
+  return null;
+}
+
+function resolveMotivationId(proposal) {
+  if (!proposal || typeof proposal !== "object") return null;
+  if (proposal.costKind === "motivation" && typeof proposal.costId === "string") {
+    return proposal.costId;
+  }
+  if (proposal.budget?.kind === "motivation" && typeof proposal.budget?.id === "string") {
+    return proposal.budget.id;
+  }
+  if (typeof proposal.kind === "string" && proposal.kind.startsWith("motivation_")) {
+    return proposal.kind;
+  }
+  if (proposal.kind !== "motivation") {
+    return null;
+  }
+  const tier = normalizeMotivationTier(proposal.tier || proposal.motivation || proposal.level || proposal.kind);
+  return tier ? MOTIVATION_IDS[tier] : null;
+}
+
+function resolveAffinityExpressionId(proposal) {
+  if (!proposal || typeof proposal !== "object") return null;
+  if (proposal.costKind === "affinity" && typeof proposal.costId === "string") {
+    return proposal.costId;
+  }
+  if (proposal.budget?.kind === "affinity" && typeof proposal.budget?.id === "string") {
+    return proposal.budget.id;
+  }
+  if (typeof proposal.kind === "string" && proposal.kind.startsWith("affinity_expression_")) {
+    return proposal.kind;
+  }
+  if (proposal.kind !== "affinity") {
+    return null;
+  }
+  const expression = proposal.expression || proposal.affinityExpression || proposal.affinity?.expression;
+  if (!expression) return null;
+  return AFFINITY_EXPRESSION_IDS[String(expression).trim().toLowerCase()] || null;
+}
+
+function hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind, id }) {
+  if (!budgetAllocation && !budgetReceipt) return true;
+  if (budgetAllocation) {
+    const pools = Array.isArray(budgetAllocation.pools) ? budgetAllocation.pools : [];
+    const pool = pools.find((entry) => entry?.id === "affinity_motivation");
+    if (pool && Number.isInteger(pool.tokens) && pool.tokens <= 0) {
+      return false;
+    }
+  }
+  if (!budgetReceipt) return true;
+  const lineItems = Array.isArray(budgetReceipt.lineItems) ? budgetReceipt.lineItems : [];
+  const matches = lineItems.filter((item) => item?.kind === kind && item?.id === id);
+  if (matches.length === 0) {
+    return false;
+  }
+  return matches.some((item) => item.status !== "denied" && Number.isInteger(item.quantity) && item.quantity > 0);
+}
+
+function filterBudgetedProposals(proposals, { budgetReceipt, budgetAllocation } = {}) {
+  if (!budgetReceipt && !budgetAllocation) return proposals;
+  return proposals.filter((proposal) => {
+    const motivationId = resolveMotivationId(proposal);
+    if (motivationId) {
+      return hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind: "motivation", id: motivationId });
+    }
+    const affinityExpressionId = resolveAffinityExpressionId(proposal);
+    if (affinityExpressionId) {
+      const expressionAllowed = hasBudgetAllowance({
+        budgetAllocation,
+        budgetReceipt,
+        kind: "affinity",
+        id: affinityExpressionId,
+      });
+      if (!expressionAllowed) return false;
+      return hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind: "affinity", id: "affinity_stack" });
+    }
+    return true;
+  });
 }
 
 function isMotivatedActor(actorId, view, observation) {
@@ -243,17 +344,20 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
 
     const derivedProposals = buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
     const proposals = Array.isArray(payload.proposals) && payload.proposals.length > 0 ? payload.proposals : derivedProposals;
-    if (event === "propose" && (!Array.isArray(proposals) || proposals.length === 0)) {
+    const budgetReceipt = payload.budgetReceipt || payload.budget?.receipt || payload.budget?.receiptArtifact || null;
+    const budgetAllocation = payload.budgetAllocation || payload.budget?.allocation || null;
+    const gatedProposals = filterBudgetedProposals(proposals, { budgetReceipt, budgetAllocation });
+    if (event === "propose" && (!Array.isArray(gatedProposals) || gatedProposals.length === 0)) {
       const snapshot = view();
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }
 
-    const fsmPayload = event === "propose" && Array.isArray(proposals) ? { ...payload, proposals } : payload;
+    const fsmPayload = event === "propose" && Array.isArray(gatedProposals) ? { ...payload, proposals: gatedProposals } : payload;
     const result = fsm.advance(event, fsmPayload);
     const baseActorId = payload.actorId || observation?.actorId || "actor";
     const baseIsMotivated = isMotivatedActor(baseActorId, observationView, observation);
     const actions = [];
-    const proposalList = Array.isArray(proposals) ? proposals : [];
+    const proposalList = Array.isArray(gatedProposals) ? gatedProposals : [];
     for (let i = 0; i < proposalList.length; i += 1) {
       const proposal = proposalList[i];
       const proposalActorId = proposal.actorId || baseActorId;

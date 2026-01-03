@@ -53,7 +53,7 @@ test("runtime panel is visible by default", () => {
 test("persona empty-state copy is present", () => {
   const html = readHtml();
   assert.match(html, /No director panels yet\./);
-  assert.match(html, /No allocator panels yet\./);
+  assert.match(html, /Budgeting artifacts are surfaced here\./);
   assert.match(html, /No JSON output yet\./);
 });
 
@@ -76,8 +76,10 @@ test("allocator tab placeholder is present", () => {
   const allocatorTail = html.slice(allocatorStart);
   const nextPanelIndex = allocatorTail.indexOf('data-tab-panel="', 'data-tab-panel="allocator"'.length);
   const allocatorPanel = nextPanelIndex === -1 ? allocatorTail : allocatorTail.slice(0, nextPanelIndex);
-  assert.match(allocatorPanel, /No allocator panels yet\./);
-  assert.match(allocatorPanel, /id="allocator-json-output"/);
+  assert.match(allocatorPanel, /Budgeting artifacts are surfaced here\./);
+  assert.match(allocatorPanel, /id="allocator-budget-json"/);
+  assert.match(allocatorPanel, /id="allocator-price-list-json"/);
+  assert.match(allocatorPanel, /id="allocator-receipt-json"/);
 });
 
 test("director tab placeholder is present", () => {
@@ -136,4 +138,7 @@ test("configurator tab contains run builder inputs", () => {
   assert.match(configuratorPanel, /id="start-run"/);
   assert.match(configuratorPanel, /id="config-preview"/);
   assert.match(configuratorPanel, /id="base-tiles"/);
+  assert.match(configuratorPanel, /id="config-budget-json"/);
+  assert.match(configuratorPanel, /id="config-price-list-json"/);
+  assert.match(configuratorPanel, /id="config-receipt-json"/);
 });

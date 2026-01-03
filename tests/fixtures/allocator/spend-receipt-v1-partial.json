@@ -1,0 +1,46 @@
+{
+  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "receipt_partial",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "allocator"
+  },
+  "budgetRef": {
+    "id": "budget_artifact_basic",
+    "schema": "agent-kernel/BudgetArtifact",
+    "schemaVersion": 1
+  },
+  "priceListRef": {
+    "id": "price_list_basic",
+    "schema": "agent-kernel/PriceList",
+    "schemaVersion": 1
+  },
+  "proposalRef": {
+    "id": "proposal_partial",
+    "schema": "agent-kernel/SpendProposal",
+    "schemaVersion": 1
+  },
+  "status": "denied",
+  "totalCost": 0,
+  "remaining": 1000,
+  "lineItems": [
+    {
+      "id": "layout_grid_9x9",
+      "kind": "layout",
+      "quantity": 1,
+      "unitCost": 0,
+      "totalCost": 0,
+      "status": "denied"
+    },
+    {
+      "id": "mystery",
+      "kind": "unknown",
+      "quantity": 1,
+      "unitCost": 0,
+      "totalCost": 0,
+      "status": "denied"
+    }
+  ]
+}

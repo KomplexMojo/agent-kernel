@@ -10,11 +10,15 @@ import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/
 import { resolveAffinityEffects } from "../../../runtime/src/personas/configurator/affinity-effects.js";
 import { generateGridLayoutFromInput } from "../../../runtime/src/personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../../../runtime/src/personas/configurator/artifact-builders.js";
+import { evaluateConfiguratorSpend } from "../../../runtime/src/personas/configurator/spend-proposal.js";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
   plan: "agent-kernel/PlanArtifact",
   budgetReceipt: "agent-kernel/BudgetReceipt",
+  budgetArtifact: "agent-kernel/BudgetArtifact",
+  budgetReceiptArtifact: "agent-kernel/BudgetReceiptArtifact",
+  priceList: "agent-kernel/PriceList",
   simConfig: "agent-kernel/SimConfigArtifact",
   initialState: "agent-kernel/InitialStateArtifact",
   executionPolicy: "agent-kernel/ExecutionPolicy",
@@ -42,7 +46,8 @@ function usage() {
   return `Usage:
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
   node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path]
-  node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
+  node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
+  node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir]
   node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
@@ -69,6 +74,10 @@ Options:
   --level-gen     Level generation input path (Configurator levelGen input)
   --actors        Actors input path (object with actors array)
   --budget-receipt Budget receipt artifact path (BudgetReceipt)
+  --budget        Budget artifact path (BudgetArtifact)
+  --price-list    Price list artifact path (PriceList)
+  --receipt       Budget receipt artifact path (BudgetReceiptArtifact)
+  --receipt-out   Output path for budget receipt JSON
   --help          Show this help
 `;
 }
@@ -891,6 +900,9 @@ async function configuratorCommand(argv) {
   const actorsPath = resolvePath(args.actors);
   const planPath = resolvePath(args.plan);
   const budgetReceiptPath = resolvePath(args["budget-receipt"]);
+  const budgetPath = resolvePath(args.budget);
+  const priceListPath = resolvePath(args["price-list"]);
+  const receiptOutPath = resolvePath(args["receipt-out"]);
   const affinityPresetsPath = resolvePath(args["affinity-presets"]);
   const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
   const outDir = resolvePath(args["out-dir"]) || defaultOutDir("configurator");
@@ -901,6 +913,15 @@ async function configuratorCommand(argv) {
   }
   if ((affinityPresetsPath && !affinityLoadoutsPath) || (!affinityPresetsPath && affinityLoadoutsPath)) {
     throw new Error("configurator requires both --affinity-presets and --affinity-loadouts.");
+  }
+  if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
+    throw new Error("configurator requires both --budget and --price-list.");
+  }
+  if (budgetReceiptPath && (budgetPath || priceListPath)) {
+    throw new Error("configurator accepts either --budget-receipt or --budget/--price-list, not both.");
+  }
+  if (receiptOutPath && !(budgetPath && priceListPath)) {
+    throw new Error("configurator requires --budget and --price-list when using --receipt-out.");
   }
 
   const levelGenInput = await readJson(levelGenPath);
@@ -916,6 +937,8 @@ async function configuratorCommand(argv) {
 
   let plan = null;
   let budgetReceipt = null;
+  let budget = null;
+  let priceList = null;
   if (planPath) {
     plan = await readJson(planPath);
     assertSchema(plan, SCHEMAS.plan);
@@ -923,6 +946,14 @@ async function configuratorCommand(argv) {
   if (budgetReceiptPath) {
     budgetReceipt = await readJson(budgetReceiptPath);
     assertSchema(budgetReceipt, SCHEMAS.budgetReceipt);
+  }
+  if (budgetPath) {
+    budget = await readJson(budgetPath);
+    assertSchema(budget, SCHEMAS.budgetArtifact);
+  }
+  if (priceListPath) {
+    priceList = await readJson(priceListPath);
+    assertSchema(priceList, SCHEMAS.priceList);
   }
 
   let affinityPresets = null;
@@ -948,6 +979,18 @@ async function configuratorCommand(argv) {
     : {};
   const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
 
+  if (budget && priceList) {
+    const spendResult = evaluateConfiguratorSpend({
+      budget,
+      priceList,
+      layout,
+      actors: actorsInput.actors,
+      proposalMeta: createMeta({ producedBy: "cli-configurator", runId }),
+      receiptMeta: createMeta({ producedBy: "cli-configurator", runId }),
+    });
+    budgetReceipt = spendResult.receipt;
+  }
+
   const simConfig = buildSimConfigArtifact({
     meta: createMeta({ producedBy: "cli-configurator", runId }),
     planRef: plan ? toRef(plan) : undefined,
@@ -964,8 +1007,72 @@ async function configuratorCommand(argv) {
 
   await writeJson(join(outDir, "sim-config.json"), simConfig);
   await writeJson(join(outDir, "initial-state.json"), initialState);
+  if (budget && priceList && budgetReceipt) {
+    const receiptPath = join(outDir, "budget-receipt.json");
+    await writeJson(receiptPath, budgetReceipt);
+    if (receiptOutPath) {
+      await writeJson(receiptOutPath, budgetReceipt);
+    }
+  }
 
   console.log(`configurator: wrote ${outDir}`);
+}
+
+async function budgetCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  const budgetPath = resolvePath(args.budget);
+  const priceListPath = resolvePath(args["price-list"]);
+  const receiptPath = resolvePath(args.receipt);
+  const receiptOutPath = resolvePath(args["receipt-out"]);
+  const outDir = resolvePath(args["out-dir"]);
+  const outPath = resolvePath(args.out);
+
+  if (!budgetPath && !priceListPath && !receiptPath) {
+    throw new Error("budget requires at least one of --budget, --price-list, or --receipt.");
+  }
+
+  let budget = null;
+  let priceList = null;
+  let receipt = null;
+
+  if (budgetPath) {
+    budget = await readJson(budgetPath);
+    assertSchema(budget, SCHEMAS.budgetArtifact);
+  }
+  if (priceListPath) {
+    priceList = await readJson(priceListPath);
+    assertSchema(priceList, SCHEMAS.priceList);
+  }
+  if (receiptPath) {
+    receipt = await readJson(receiptPath);
+    assertSchema(receipt, SCHEMAS.budgetReceiptArtifact);
+  }
+
+  if (outDir) {
+    await mkdir(outDir, { recursive: true });
+    if (budget) await writeJson(join(outDir, "budget.json"), budget);
+    if (priceList) await writeJson(join(outDir, "price-list.json"), priceList);
+    if (receipt) await writeJson(join(outDir, "budget-receipt.json"), receipt);
+  }
+  if (receiptOutPath && receipt) {
+    await writeJson(receiptOutPath, receipt);
+  }
+
+  const output = {};
+  if (budget) output.budget = budget;
+  if (priceList) output.priceList = priceList;
+  if (receipt) output.receipt = receipt;
+
+  if (outPath) {
+    await writeJson(outPath, output);
+  } else {
+    console.log(JSON.stringify(output, null, 2));
+  }
 }
 
 function summarizeFrame(frame) {
@@ -1256,6 +1363,7 @@ const COMMANDS = {
   solve: solveCommand,
   run: runCommand,
   configurator: configuratorCommand,
+  budget: budgetCommand,
   replay: replayCommand,
   inspect: inspectCommand,
   ipfs: ipfsCommand,

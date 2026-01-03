@@ -1,0 +1,76 @@
+{
+  "schema": "agent-kernel/PersonaBehavior",
+  "schemaVersion": 1,
+  "persona": "actor",
+  "cases": [
+    {
+      "id": "receipt-gates-motivation-affinity",
+      "actorId": "actor_mvp",
+      "observation": {
+        "tick": 0,
+        "actors": [{ "id": "actor_mvp", "kind": 2, "position": { "x": 0, "y": 0 } }],
+        "tiles": { "kinds": [[0]] }
+      },
+      "proposals": [
+        { "actorId": "actor_mvp", "kind": "move", "params": { "direction": "north", "from": { "x": 0, "y": 0 }, "to": { "x": 0, "y": 1 } } },
+        { "actorId": "actor_mvp", "kind": "motivation", "tier": "reflexive", "params": { "label": "reflexive" } },
+        { "actorId": "actor_mvp", "kind": "motivation", "tier": "goal_oriented", "params": { "label": "goal_oriented" } },
+        { "actorId": "actor_mvp", "kind": "affinity", "expression": "push", "params": { "label": "push" } },
+        { "actorId": "actor_mvp", "kind": "affinity", "expression": "pull", "params": { "label": "pull" } },
+        { "actorId": "actor_mvp", "kind": "custom_action", "params": { "label": "custom" } }
+      ],
+      "budgetReceipt": {
+        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schemaVersion": 1,
+        "status": "partial",
+        "totalCost": 176,
+        "remaining": 824,
+        "lineItems": [
+          { "id": "motivation_reflexive", "kind": "motivation", "quantity": 1, "unitCost": 1, "totalCost": 1, "status": "approved" },
+          { "id": "motivation_goal_oriented", "kind": "motivation", "quantity": 1, "unitCost": 5, "totalCost": 5, "status": "denied" },
+          { "id": "affinity_expression_externalize", "kind": "affinity", "quantity": 1, "unitCost": 60, "totalCost": 60, "status": "approved" },
+          { "id": "affinity_expression_internalize", "kind": "affinity", "quantity": 1, "unitCost": 60, "totalCost": 60, "status": "denied" },
+          { "id": "affinity_stack", "kind": "affinity", "quantity": 1, "unitCost": 50, "totalCost": 50, "status": "approved" }
+        ]
+      },
+      "expectedKinds": ["move", "motivation", "affinity", "custom_action"],
+      "expectedLabels": ["reflexive", "push", "custom"]
+    },
+    {
+      "id": "allocation-blocks-affinity-and-motivation",
+      "actorId": "actor_mvp",
+      "observation": {
+        "tick": 0,
+        "actors": [{ "id": "actor_mvp", "kind": 2, "position": { "x": 0, "y": 0 } }],
+        "tiles": { "kinds": [[0]] }
+      },
+      "proposals": [
+        { "actorId": "actor_mvp", "kind": "move", "params": { "direction": "north", "from": { "x": 0, "y": 0 }, "to": { "x": 0, "y": 1 } } },
+        { "actorId": "actor_mvp", "kind": "motivation", "tier": "reflexive", "params": { "label": "reflexive" } },
+        { "actorId": "actor_mvp", "kind": "motivation", "tier": "goal_oriented", "params": { "label": "goal_oriented" } },
+        { "actorId": "actor_mvp", "kind": "affinity", "expression": "push", "params": { "label": "push" } },
+        { "actorId": "actor_mvp", "kind": "affinity", "expression": "pull", "params": { "label": "pull" } },
+        { "actorId": "actor_mvp", "kind": "custom_action", "params": { "label": "custom" } }
+      ],
+      "budgetReceipt": {
+        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schemaVersion": 1,
+        "status": "approved",
+        "totalCost": 111,
+        "remaining": 889,
+        "lineItems": [
+          { "id": "motivation_reflexive", "kind": "motivation", "quantity": 1, "unitCost": 1, "totalCost": 1, "status": "approved" },
+          { "id": "affinity_expression_externalize", "kind": "affinity", "quantity": 1, "unitCost": 60, "totalCost": 60, "status": "approved" },
+          { "id": "affinity_stack", "kind": "affinity", "quantity": 1, "unitCost": 50, "totalCost": 50, "status": "approved" }
+        ]
+      },
+      "budgetAllocation": {
+        "schema": "agent-kernel/BudgetAllocationArtifact",
+        "schemaVersion": 1,
+        "pools": [{ "id": "affinity_motivation", "tokens": 0 }]
+      },
+      "expectedKinds": ["move", "custom_action"],
+      "expectedLabels": ["custom"]
+    }
+  ]
+}
