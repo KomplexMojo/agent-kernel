@@ -1,4 +1,5 @@
 import { validateSpendProposal } from "../allocator/validate-spend.js";
+import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
 
 const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 
@@ -23,23 +24,6 @@ const AFFINITY_EXPRESSION_IDS = Object.freeze({
   pull: "affinity_expression_internalize",
   emit: "affinity_expression_localized",
 });
-const MOTIVATION_IDS = Object.freeze({
-  reflexive: "motivation_reflexive",
-  goal_oriented: "motivation_goal_oriented",
-  strategy_focused: "motivation_strategy_focused",
-});
-
-function normalizeMotivationTier(value) {
-  if (!value) return null;
-  const normalized = String(value).trim().toLowerCase().replace(/[\s-]/g, "_");
-  if (normalized === "random") return "reflexive";
-  if (normalized === "logical") return "goal_oriented";
-  if (normalized === "strategic") return "strategy_focused";
-  if (normalized === "goal_oriented") return "goal_oriented";
-  if (normalized === "strategy_focused") return "strategy_focused";
-  if (normalized === "reflexive") return "reflexive";
-  return null;
-}
 
 function accumulateItem(counts, id, kind, quantity) {
   if (!Number.isInteger(quantity) || quantity <= 0) return;
@@ -77,7 +61,8 @@ function extractAffinities(actor) {
 
 function extractMotivations(actor) {
   const rawList = actor?.motivations || actor?.traits?.motivations;
-  return Array.isArray(rawList) ? rawList : [];
+  const { value } = normalizeMotivations(rawList);
+  return value || [];
 }
 
 function buildSpendItems({ layoutData, actors, trapCount }) {
@@ -126,12 +111,10 @@ function buildSpendItems({ layoutData, actors, trapCount }) {
 
       const motivations = extractMotivations(actor);
       motivations.forEach((entry) => {
-        const tier = typeof entry === "string"
-          ? normalizeMotivationTier(entry)
-          : normalizeMotivationTier(entry?.tier || entry?.kind || entry?.level);
-        if (!tier) return;
-        const motivationId = MOTIVATION_IDS[tier];
-        accumulateItem(counts, motivationId, "motivation", 1);
+        const motivationId = MOTIVATION_KIND_IDS[entry.kind];
+        if (!motivationId) return;
+        const quantity = Number.isInteger(entry.intensity) && entry.intensity > 0 ? entry.intensity : 1;
+        accumulateItem(counts, motivationId, "motivation", quantity);
       });
     });
   }

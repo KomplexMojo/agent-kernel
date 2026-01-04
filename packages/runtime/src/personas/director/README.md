@@ -1,4 +1,4 @@
-The Director turns strategy into actionable tactics. It collaborates with the Orchestrator to fetch external insight (e.g., LLM-generated “trap level” strategies from Ollama/OpenAI endpoints), translates that guidance into budgets, layouts, and actor directives for the Configurator, and ensures plans stay within the available shards/tokenized budgets before a single instruction reaches the simulation.
+The Director turns goals into structured plans. When LLMs are used (Ollama/OpenAI-style), the Director authors the prompt plan and response contract, and the Orchestrator performs the IO, captures the exchange, and hands the resulting guidance back as explicit artifacts.
 
 # Director Persona
 
@@ -47,6 +47,14 @@ The Director produces plans that are:
 - Free of implementation details.
 
 Plans describe *what is desired*, not *how it will be built* or *how it will be enforced*.
+
+### Prompt Plan Authoring (LLM)
+When using an LLM (e.g. Ollama), the Director owns the prompt plan:
+- Decide the questions to ask (level design intent, constraints, roles) and the expected response contract.
+- Keep the contract small (design intent/constraints), leaving schema completion and defaults to the Orchestrator.
+- Provide a repair prompt strategy for invalid responses (e.g. "return JSON only; fix field X").
+
+The Director does not perform IO; the Orchestrator executes the prompt plan and captures results as artifacts.
 
 ---
 

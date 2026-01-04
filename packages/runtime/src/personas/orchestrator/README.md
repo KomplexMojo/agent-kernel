@@ -33,6 +33,12 @@ The Orchestrator accepts:
 
 All external inputs are normalized into explicit, auditable request envelopes.
 
+### LLM Interaction (Director Prompt Plans)
+When LLMs are used for level design or strategy:
+- The Director authors the prompt intent and a small response contract (what to ask / what shape to return).
+- The Orchestrator executes the call (IO), captures the full prompt + raw response for replay, and surfaces parse/contract errors.
+- The Orchestrator normalizes/validates results and translates them into buildable inputs (e.g. BuildSpec/configurator inputs) without inventing strategy content.
+
 ---
 
 ### Service Selection and Invocation

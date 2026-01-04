@@ -295,7 +295,8 @@
       }
 
       input,
-      select {
+      select,
+      textarea {
         width: 100%;
         padding: 10px 12px;
         border-radius: 4px;
@@ -303,6 +304,13 @@
         background: #0c0c0c;
         color: var(--text);
         font-size: 0.95rem;
+      }
+
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        line-height: 1.4;
       }
 
       button:hover:not(:disabled) {
@@ -359,6 +367,25 @@
         font-size: 0.9rem;
         color: var(--text);
         white-space: pre-wrap;
+      }
+
+      .artifact-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .artifact-list details {
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        padding: 8px;
+        background: #0a0a0a;
+      }
+
+      .artifact-list summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-bottom: 6px;
       }
     </style>
   </head>
@@ -628,6 +655,48 @@
         <div class="tab-panel" data-tab-panel="orchestrator" role="tabpanel" hidden>
           <div class="card">
             <div class="stat">
+              <span class="stat-label">Ollama Prompt</span>
+              <small class="status">Fixture mode returns deterministic responses unless live is explicitly selected.</small>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Mode</span>
+                <select id="ollama-mode">
+                  <option value="fixture" selected>Fixture</option>
+                  <option value="live">Live</option>
+                </select>
+              </label>
+              <label>
+                <span class="stat-label">Model</span>
+                <input id="ollama-model" type="text" value="llama3" />
+              </label>
+              <label>
+                <span class="stat-label">Base URL</span>
+                <input id="ollama-base-url" type="text" value="http://localhost:11434" />
+              </label>
+            </div>
+            <label>
+              <span class="stat-label">Prompt</span>
+              <textarea id="ollama-prompt" placeholder="Describe the plan you want..."></textarea>
+            </label>
+            <label>
+              <span class="stat-label">Options (JSON)</span>
+              <textarea id="ollama-options" placeholder="{\"temperature\": 0.2}"></textarea>
+            </label>
+            <div class="controls">
+              <button class="primary" id="ollama-run">Run Prompt</button>
+              <button class="secondary" id="ollama-clear">Clear</button>
+              <button class="secondary" id="ollama-download" disabled>Download raw response</button>
+              <button class="secondary" id="ollama-download-prompt" disabled>Download full prompt</button>
+            </div>
+            <div class="status" id="ollama-status">Fixture mode ready.</div>
+            <div class="stat">
+              <span class="stat-label">Ollama Output</span>
+            </div>
+            <pre class="adapter-output" id="ollama-output">No JSON output yet.</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
               <span class="stat-label">Adapter Playground</span>
               <small class="status">Fixture mode uses repo fixtures; toggle to live to hit your endpoints.</small>
             </div>
@@ -680,6 +749,100 @@
               <span class="stat-label">Orchestrator JSON Output</span>
             </div>
             <pre class="adapter-output" id="adapter-output">No JSON output yet.</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Build Orchestration</span>
+              <small class="status">Send a BuildSpec to a local bridge that runs `ak.mjs build --spec`.</small>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Bridge URL</span>
+                <input id="build-bridge-url" type="text" value="/bridge/build" />
+              </label>
+              <label>
+                <span class="stat-label">Spec Path (optional)</span>
+                <input id="build-spec-path" type="text" placeholder="tests/fixtures/artifacts/build-spec-v1-basic.json" />
+              </label>
+              <label>
+                <span class="stat-label">Out Dir (optional)</span>
+                <input id="build-out-dir" type="text" placeholder="artifacts/build_runId" />
+              </label>
+            </div>
+            <label>
+              <span class="stat-label">Spec JSON</span>
+              <textarea id="build-spec-json" placeholder="{...}"></textarea>
+            </label>
+            <ul id="build-validation" hidden></ul>
+            <div class="controls">
+              <button class="primary" id="build-run">Run Build</button>
+              <button class="secondary" id="build-load" disabled>Load last build</button>
+              <button class="secondary" id="build-download" hidden>Download spec.json</button>
+              <button class="secondary" id="build-clear">Clear</button>
+            </div>
+            <div class="status" id="build-status">Bridge idle.</div>
+            <div class="stat">
+              <span class="stat-label">Build Output</span>
+            </div>
+            <pre class="adapter-output" id="build-output">No build output yet.</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Bundle Review</span>
+              <small class="status">Load a bundle.json/manifest.json set to inspect and edit the BuildSpec.</small>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Bundle JSON</span>
+                <input id="bundle-file" type="file" accept="application/json" />
+              </label>
+              <label>
+                <span class="stat-label">Manifest JSON (optional)</span>
+                <input id="bundle-manifest-file" type="file" accept="application/json" />
+              </label>
+            </div>
+            <div class="controls">
+              <button class="secondary" id="bundle-load-last">Load last build</button>
+              <button class="secondary" id="bundle-clear">Clear</button>
+            </div>
+            <div class="status" id="bundle-status">No bundle loaded.</div>
+            <div class="stat">
+              <span class="stat-label">Schemas</span>
+            </div>
+            <ul id="bundle-schemas" hidden></ul>
+            <div class="stat">
+              <span class="stat-label">Manifest JSON</span>
+            </div>
+            <pre class="adapter-output" id="bundle-manifest">No JSON output yet.</pre>
+            <div class="stat">
+              <span class="stat-label">BuildSpec (editable)</span>
+            </div>
+            <textarea id="bundle-spec-edit" placeholder="{...}"></textarea>
+            <ul id="bundle-spec-errors" hidden></ul>
+            <div class="controls">
+              <button class="primary" id="bundle-apply-spec">Apply spec edits</button>
+              <button class="secondary" id="bundle-send-spec">Send to Build</button>
+              <button class="secondary" id="bundle-download-spec">Download spec.json</button>
+              <button class="secondary" id="bundle-run-runtime">Run in Runtime</button>
+            </div>
+            <div class="adapter-grid">
+              <div class="stat">
+                <span class="stat-label">Intent</span>
+                <pre class="adapter-output" id="bundle-intent">No JSON output yet.</pre>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Plan</span>
+                <pre class="adapter-output" id="bundle-plan">No JSON output yet.</pre>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Configurator</span>
+                <pre class="adapter-output" id="bundle-configurator">No JSON output yet.</pre>
+              </div>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Artifacts</span>
+            </div>
+            <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
           </div>
         </div>
       </section>

@@ -84,6 +84,7 @@ export async function runLlmDemo({
   model = "fixture",
   prompt = "hello",
   baseUrl = "http://localhost:11434",
+  options = undefined,
   mode = "fixture",
   fixturePath = DEFAULT_FIXTURES.llm,
   fixtureResponse,
@@ -95,7 +96,7 @@ export async function runLlmDemo({
     effectiveFetch = async () => ({ ok: true, json: async () => payload });
   }
   const adapter = createLlmAdapter({ baseUrl, fetchFn: effectiveFetch });
-  return adapter.generate({ model, prompt, stream: false });
+  return adapter.generate({ model, prompt, options, stream: false });
 }
 
 export async function runSolverDemo({

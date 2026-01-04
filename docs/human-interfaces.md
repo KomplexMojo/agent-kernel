@@ -46,3 +46,24 @@ pnpm run serve:ui
 # open http://localhost:8001/packages/ui-web/index.html
 ```
 The UI uses persona tabs with Runtime as the default playback view and playback controls. Use Configurator for the run builder, Annotator for affinity/trap summaries, and Orchestrator for the adapter playground (fixture-backed by default).
+
+## 5) Ollama prompt → build → review/run (UI flow)
+This flow stays fixture-first by default and only uses live endpoints when explicitly selected.
+
+1) Orchestrator → Ollama Prompt panel:
+   - Keep mode on Fixture (default) for deterministic outputs.
+   - Provide `model` + `baseUrl` if you opt into Live; otherwise fixtures are used.
+   - The panel sends a structured prompt that requests BuildSpec JSON and validates it client-side.
+2) Orchestrator → Build Orchestration panel:
+   - Paste or auto-populate the BuildSpec JSON and run build via a local bridge (proxy for `ak.mjs build --spec`).
+   - Outputs land in `artifacts/build_<runId>` by default and include `manifest.json`, `bundle.json`, and `telemetry.json`.
+3) Orchestrator → Bundle Review panel:
+   - Load `bundle.json`/`manifest.json` (or “Load last build”) to inspect schemas, spec, and artifacts.
+   - Spec edits are validated and can be sent back to the build panel; adapter captures show up as `CapturedInputArtifact` entries.
+4) Run/replay:
+   - When the bundle includes `SimConfigArtifact` + `InitialStateArtifact`, use the existing Runtime controls to run/replay with those artifacts.
+
+References:
+- BuildSpec contract: `packages/runtime/src/contracts/build-spec.js`
+- CLI build docs: `packages/adapters-cli/README.md`
+- Bundle fixture example: `tests/fixtures/ui/build-spec-bundle/`

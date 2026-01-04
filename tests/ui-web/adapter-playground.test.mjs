@@ -67,6 +67,38 @@ test("adapter helpers support live mode with custom fetch", async () => {
   assert.equal(chain.chainId, fixtures.chain.result);
 });
 
+test("runLlmDemo loads fixture path in fixture mode", async () => {
+  const originalFetch = globalThis.fetch;
+  const fixturePath = "/tests/fixtures/adapters/llm-generate.json";
+  globalThis.fetch = async (url) => {
+    if (url === fixturePath) {
+      return { ok: true, json: async () => fixtures.llm };
+    }
+    return { ok: false, status: 404, statusText: "Not Found" };
+  };
+
+  try {
+    const llm = await runLlmDemo({ mode: "fixture", fixturePath });
+    assert.equal(llm.response, fixtures.llm.response);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("runLlmDemo errors when fixture path is missing", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 404, statusText: "Missing fixture" });
+
+  try {
+    await assert.rejects(
+      () => runLlmDemo({ mode: "fixture", fixturePath: "/tests/fixtures/adapters/missing.json" }),
+      /Failed to load fixture/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 function makeButton() {
   const handlers = {};
   return {

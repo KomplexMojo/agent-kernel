@@ -92,6 +92,7 @@ export function setupPlayback({
   intervalMs = 500,
   elements,
   affinityEffects,
+  initCore,
 }) {
   let currentIndex = 0;
   let playing = false;
@@ -148,6 +149,11 @@ export function setupPlayback({
   }
 
   function resetCore() {
+    if (typeof initCore === "function") {
+      initCore();
+      core.clearEffects?.();
+      return;
+    }
     core.init(1337);
     core.loadMvpScenario();
     core.clearEffects?.();

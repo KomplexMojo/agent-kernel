@@ -2,10 +2,13 @@
 
 Actors are the foundational building blocks of the simulation.
 
-An **actor** represents any entity that exists in the world. Actors may be:
+An **actor** represents any entity that exists in the world. One concept, with clear subtypes:
 
-- **Stationary**: forming surfaces and structures such as terrain, walls, floors, or props.
-- **Ambulatory**: capable of movement and action, participating actively in the simulation.
+- **Static actors** (walls, floors, tiles, barriers): durability only, no other vitals, typically `canMove=false`. These build rooms/layout and can optionally gain duration/mobility if you want dynamic restructuring.
+- **Dynamic actors** (dungeon-controlled interactors): anything the dungeon spawns that can act—monsters and traps.
+  - Monsters: may have all vitals, one or more affinities, and multiple motivations (including movement).
+  - Traps: durability + mana; may have motivations like `attacking`/`defending` but no movement motivations; `canMove=false`.
+- **Player-controlled dynamic actors** (introduced later): configured by the player and directly controlled. These will require streamed simulation playback—regenerating one step at a time based on user actions—to keep determinism and replay intact.
 
 This document focuses on the **Actor persona** as a decision-making and behavior construct. Detailed simulation rules and physics are documented separately in the `core-as` README.
 
@@ -24,17 +27,9 @@ The simulation core (`core-as`) remains the sole authority on legality, state tr
 
 ---
 
-## Ambulatory Behavior and Motivations
+## Motivations
 
-Ambulatory actors express behavior through **stackable Motivations**.
-
-A Motivation is a policy layer that can influence or propose an action based on the current observation. By layering motivations, simple behaviors can be composed into increasingly goal-oriented behavior.
-
-Examples of motivation stacks include:
-
-- baseline movement → exploration → find_exit
-- baseline movement → defend_exit
-- idle → investigate_noise → pursue_target
+Dynamic actors express behavior through **stackable motivations**. Motivations are atomic (e.g., `random`, `stationary`, `exploring`, `attacking`, `defending`, `patrolling`) and can be combined (e.g., `stationary_attacking`). Boss status is a tier/cost outcome, not a motivation.
 
 Motivations are:
 - Ordered and composable.

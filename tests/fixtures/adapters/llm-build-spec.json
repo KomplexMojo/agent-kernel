@@ -1,0 +1,5 @@
+{
+  "model": "fixture",
+  "response": "{\n  \"schema\": \"agent-kernel/BuildSpec\",\n  \"schemaVersion\": 1,\n  \"meta\": {\n    \"id\": \"buildspec_fixture\",\n    \"runId\": \"run_fixture\",\n    \"createdAt\": \"2024-01-01T00:00:00Z\",\n    \"source\": \"ollama-fixture\"\n  },\n  \"intent\": {\n    \"goal\": \"Validate the Ollama prompt flow\",\n    \"tags\": [\"fixture\", \"ollama\"]\n  }\n}\n",
+  "done": true
+}
