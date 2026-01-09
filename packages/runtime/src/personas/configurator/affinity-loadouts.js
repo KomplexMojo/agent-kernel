@@ -1,7 +1,7 @@
 import { AFFINITY_DEFAULTS } from "./defaults.js";
 
-const AFFINITY_KINDS = Object.freeze(["fire", "water", "earth", "wind", "life", "decay", "corrode", "dark"]);
-const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
+export const AFFINITY_KINDS = Object.freeze(["fire", "water", "earth", "wind", "life", "decay", "corrode", "dark"]);
+export const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
 const ABILITY_KINDS = Object.freeze(["attack", "buff", "area"]);
 const STACK_SCALING = Object.freeze(["linear", "multiplier"]);
 
@@ -339,4 +339,4 @@ export function normalizeActorLoadoutCatalog(
   return { ok, errors, warnings, value: ok ? { loadouts } : null };
 }
 
-export { AFFINITY_KINDS, AFFINITY_EXPRESSIONS, STACK_SCALING };
+export { STACK_SCALING };

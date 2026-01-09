@@ -3,7 +3,7 @@
 Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor artifacts, keep BuildSpec assembly deterministic in the Director, and enforce budgets via the Allocator while the Orchestrator handles prompt IO/capture.
 
 ## 1) Pool Catalog & Templates
-1. [pending] Define the pool catalog schema and seed fixtures.
+1. [implemented] Define the pool catalog schema and seed fixtures.
    - Requirement: Create a canonical catalog of reusable artifacts keyed as `type_motivation_affinity_cost` (e.g., `actor_stationary_fire_200`, `actor_attacking_earth_120`).
    - Behavior details: Store type (`actor` only) with subType metadata (`static` | `dynamic` | `trap`), motivation, affinity, token cost (arbitrary integer), tags (boss-capable, hazard type, size envelope, mobility), and optional priority. Mapping snaps to the nearest supported cost at/under a requested hint or clamps to a safety max.
    - Data shape proposal: `{ id, type: "actor", subType, motivation, affinity, cost, tags: [], meta: { sizeHint?, hazard?, mobility?, bossCapable? } }` persisted under `tests/fixtures/pool/` and a runtime-loadable catalog.

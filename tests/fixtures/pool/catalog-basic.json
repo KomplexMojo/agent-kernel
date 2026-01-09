@@ -1,0 +1,44 @@
+{
+  "entries": [
+    {
+      "id": "actor_stationary_fire_200",
+      "type": "actor",
+      "subType": "static",
+      "motivation": "stationary",
+      "affinity": "fire",
+      "cost": 200,
+      "tags": ["wall", "barrier"],
+      "meta": { "mobility": false }
+    },
+    {
+      "id": "actor_attacking_fire_200",
+      "type": "actor",
+      "subType": "dynamic",
+      "motivation": "attacking",
+      "affinity": "fire",
+      "cost": 200,
+      "tags": ["monster"],
+      "meta": { "bossCapable": true }
+    },
+    {
+      "id": "actor_defending_earth_120",
+      "type": "actor",
+      "subType": "dynamic",
+      "motivation": "defending",
+      "affinity": "earth",
+      "cost": 120,
+      "tags": ["elite"],
+      "meta": { "hazard": "cover" }
+    },
+    {
+      "id": "actor_patrolling_wind_80",
+      "type": "actor",
+      "subType": "trap",
+      "motivation": "patrolling",
+      "affinity": "wind",
+      "cost": 80,
+      "tags": ["trap"],
+      "meta": { "mobility": false }
+    }
+  ]
+}
