@@ -49,3 +49,18 @@ test("capturePromptResponse parses JSON and surfaces errors", async () => {
   const captureBad = capturePromptResponse({ prompt: "prompt text", responseText: "not-json" });
   assert.ok(captureBad.errors.length > 0);
 });
+
+test("deriveAllowedOptionsFromCatalog unions catalog entries", async () => {
+  const { deriveAllowedOptionsFromCatalog, ALLOWED_AFFINITIES, ALLOWED_MOTIVATIONS } = await import(
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
+  );
+  const options = deriveAllowedOptionsFromCatalog({
+    entries: [
+      { id: "actor_new", affinity: "fire", motivation: "attacking" },
+      { id: "actor_extra", affinity: "earth", motivation: "defending" },
+    ],
+  });
+  ALLOWED_AFFINITIES.forEach((a) => assert.ok(options.affinities.includes(a)));
+  ALLOWED_MOTIVATIONS.forEach((m) => assert.ok(options.motivations.includes(m)));
+  assert.ok(options.poolIds.includes("actor_new"));
+});

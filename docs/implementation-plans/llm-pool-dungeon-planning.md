@@ -86,7 +86,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Notes: Feed receipts back to Director for optional re-prompt within remaining budget.
 
 ## 5) UI Flow: Summary → BuildSpec → Build/Run
-1. [pending] Add fixture-mode flow to consume summary, map to BuildSpec, and show receipts.
+1. [implemented] Add fixture-mode flow to consume summary, map to BuildSpec, and show receipts.
    - Requirement: UI path to load a summary fixture (or prompt result), run mapper + allocator, display BuildSpec + receipts, and allow validation before build.
    - Behavior details: Show missing/invalid picks; block build until BuildSpec valid; allow user to accept trims or re-prompt; auto-fill existing build orchestration spec field.
    - Data shape proposal: `{ summary, selections, receipts, buildSpec }` stored in UI state/session.
@@ -94,7 +94,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Tests: UI integration test loading summary fixture → BuildSpec renders → receipts shown → build button gated on validity.
    - Determinism: Ordering of selections/receipts stable; round-trip preserves ordering.
    - Notes: Reuse existing bundle review/build/run UI; avoid duplicating logic.
-2. [pending] Wire actor/room pool into prompt menus and ensure saved templates are selectable.
+2. [implemented] Wire actor/room pool into prompt menus and ensure saved templates are selectable.
    - Requirement: Menus shown to LLM (and UI dropdowns) derive from the saved pool catalog and stay in sync with the authoring tab.
    - Behavior details: When templates are added/removed, update allowed lists; ensure invalidated menu options trigger re-pick/missing state.
    - Data shape proposal: `AllowedOptions { affinities: [], actorMotivations: [], roomMotivations: [], poolIds: [] }`.

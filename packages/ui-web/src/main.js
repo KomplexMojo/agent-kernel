@@ -246,6 +246,7 @@ setupPoolFlow({
   selectionsOut: document.querySelector("#pool-selections-out"),
   receiptsOut: document.querySelector("#pool-receipts-out"),
   buildSpecOut: document.querySelector("#pool-buildspec-out"),
+  allowedOut: document.querySelector("#pool-allowed-out"),
 });
 
 const budgetPanels = wireBudgetPanels({

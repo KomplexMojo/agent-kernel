@@ -1,6 +1,7 @@
 import { mapSummaryToPool } from "../../runtime/src/personas/director/pool-mapper.js";
 import { enforceBudget } from "../../runtime/src/personas/director/budget-enforcer.js";
 import { buildBuildSpecFromSummary } from "../../runtime/src/personas/director/buildspec-assembler.js";
+import { deriveAllowedOptionsFromCatalog } from "../../runtime/src/personas/orchestrator/prompt-contract.js";
 
 async function readFileInput(fileInput) {
   const file = fileInput?.files?.[0];
@@ -27,6 +28,7 @@ export function setupPoolFlow(elements) {
     selectionsOut,
     receiptsOut,
     buildSpecOut,
+    allowedOut,
   } = elements;
 
   const state = {
@@ -49,6 +51,8 @@ export function setupPoolFlow(elements) {
       state.summary = summary;
       state.catalog = catalog;
       if (summaryOut) summaryOut.value = JSON.stringify(summary, null, 2);
+      const allowed = deriveAllowedOptionsFromCatalog(catalog);
+      if (allowedOut) allowedOut.value = JSON.stringify(allowed, null, 2);
       await updateStatus("Loaded pool fixture (summary + catalog).");
     } catch (err) {
       await updateStatus(`Fixture load failed: ${err.message}`, true);
@@ -75,6 +79,8 @@ export function setupPoolFlow(elements) {
       const enforced = enforceBudget({ selections: mapped.selections, budgetTokens: state.summary.budgetTokens });
       if (selectionsOut) selectionsOut.value = JSON.stringify(enforced.selections, null, 2);
       if (receiptsOut) receiptsOut.value = JSON.stringify(enforced.actions, null, 2);
+      const allowed = deriveAllowedOptionsFromCatalog(state.catalog);
+      if (allowedOut) allowedOut.value = JSON.stringify(allowed, null, 2);
 
       const built = buildBuildSpecFromSummary({
         summary: state.summary,

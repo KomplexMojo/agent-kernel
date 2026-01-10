@@ -3,6 +3,25 @@ import { MOTIVATION_KINDS } from "../configurator/motivation-loadouts.js";
 
 export const ALLOWED_AFFINITIES = AFFINITY_KINDS;
 export const ALLOWED_MOTIVATIONS = MOTIVATION_KINDS;
+export function deriveAllowedOptionsFromCatalog(catalog = {}) {
+  const entries = Array.isArray(catalog.entries) ? catalog.entries : Array.isArray(catalog) ? catalog : [];
+  const affinities = new Set(ALLOWED_AFFINITIES);
+  const motivations = new Set(ALLOWED_MOTIVATIONS);
+  const ids = new Set();
+
+  entries.forEach((entry) => {
+    if (entry?.affinity && typeof entry.affinity === "string") affinities.add(entry.affinity);
+    if (entry?.motivation && typeof entry.motivation === "string") motivations.add(entry.motivation);
+    if (entry?.id && typeof entry.id === "string") ids.add(entry.id);
+  });
+
+  const sorted = (set) => Array.from(set).sort();
+  return {
+    affinities: sorted(affinities),
+    motivations: sorted(motivations),
+    poolIds: sorted(ids),
+  };
+}
 
 function addError(errors, field, code) {
   errors.push({ field, code });
