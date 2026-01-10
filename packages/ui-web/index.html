@@ -410,6 +410,7 @@
             <button class="tab-button" type="button" data-tab="annotator" role="tab" aria-selected="false">Annotator</button>
             <button class="tab-button" type="button" data-tab="moderator" role="tab" aria-selected="false">Moderator</button>
             <button class="tab-button" type="button" data-tab="orchestrator" role="tab" aria-selected="false">Orchestrator</button>
+            <button class="tab-button" type="button" data-tab="llm" role="tab" aria-selected="false">LLM</button>
           </div>
         </div>
 
@@ -652,7 +653,7 @@
           </div>
         </div>
 
-        <div class="tab-panel" data-tab-panel="orchestrator" role="tabpanel" hidden>
+        <div class="tab-panel" data-tab-panel="llm" role="tabpanel" hidden>
           <div class="card">
             <div class="stat">
               <span class="stat-label">Ollama Prompt</span>
@@ -694,61 +695,6 @@
               <span class="stat-label">Ollama Output</span>
             </div>
             <pre class="adapter-output" id="ollama-output">No JSON output yet.</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Adapter Playground</span>
-              <small class="status">Fixture mode uses repo fixtures; toggle to live to hit your endpoints.</small>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Mode</span>
-                <select id="adapter-mode">
-                  <option value="fixture" selected>Fixture</option>
-                  <option value="live">Live</option>
-                </select>
-              </label>
-              <label>
-                <span class="stat-label">IPFS Gateway</span>
-                <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
-              </label>
-              <label>
-                <span class="stat-label">IPFS CID</span>
-                <input id="adapter-cid" type="text" value="fixture" />
-              </label>
-              <label>
-                <span class="stat-label">IPFS Path</span>
-                <input id="adapter-path" type="text" placeholder="optional/path.json" />
-              </label>
-              <label>
-                <span class="stat-label">RPC URL</span>
-                <input id="adapter-rpc-url" type="text" value="http://fixture" />
-              </label>
-              <label>
-                <span class="stat-label">Address</span>
-                <input id="adapter-address" type="text" value="0xabc" />
-              </label>
-              <label>
-                <span class="stat-label">LLM Base URL</span>
-                <input id="adapter-llm-url" type="text" value="http://localhost:11434" />
-              </label>
-              <label>
-                <span class="stat-label">Prompt</span>
-                <input id="adapter-prompt" type="text" value="hello" />
-              </label>
-            </div>
-            <div class="controls">
-              <button class="primary" id="adapter-ipfs">Run IPFS</button>
-              <button class="secondary" id="adapter-blockchain">Run Blockchain</button>
-              <button class="secondary" id="adapter-llm">Run LLM</button>
-              <button class="secondary" id="adapter-solver">Run Solver</button>
-              <button class="secondary" id="adapter-clear">Clear</button>
-            </div>
-            <div class="status" id="adapter-status">Ready in fixture mode.</div>
-            <div class="stat">
-              <span class="stat-label">Orchestrator JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="adapter-output">No JSON output yet.</pre>
           </div>
           <div class="card">
             <div class="stat">
@@ -877,6 +823,63 @@
               <span class="stat-label">BuildSpec</span>
               <textarea id="pool-buildspec-out" rows="8" placeholder="{...}"></textarea>
             </div>
+          </div>
+        </div>
+        <div class="tab-panel" data-tab-panel="orchestrator" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Adapter Playground</span>
+              <small class="status">Fixture mode uses repo fixtures; toggle to live to hit your endpoints.</small>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Mode</span>
+                <select id="adapter-mode">
+                  <option value="fixture" selected>Fixture</option>
+                  <option value="live">Live</option>
+                </select>
+              </label>
+              <label>
+                <span class="stat-label">IPFS Gateway</span>
+                <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
+              </label>
+              <label>
+                <span class="stat-label">IPFS CID</span>
+                <input id="adapter-cid" type="text" value="fixture" />
+              </label>
+              <label>
+                <span class="stat-label">IPFS Path</span>
+                <input id="adapter-path" type="text" placeholder="optional/path.json" />
+              </label>
+              <label>
+                <span class="stat-label">RPC URL</span>
+                <input id="adapter-rpc-url" type="text" value="http://fixture" />
+              </label>
+              <label>
+                <span class="stat-label">Address</span>
+                <input id="adapter-address" type="text" value="0xabc" />
+              </label>
+              <label>
+                <span class="stat-label">LLM Base URL</span>
+                <input id="adapter-llm-url" type="text" value="http://localhost:11434" />
+              </label>
+              <label>
+                <span class="stat-label">Prompt</span>
+                <input id="adapter-prompt" type="text" value="hello" />
+              </label>
+            </div>
+            <div class="controls">
+              <button class="primary" id="adapter-ipfs">Run IPFS</button>
+              <button class="secondary" id="adapter-blockchain">Run Blockchain</button>
+              <button class="secondary" id="adapter-llm">Run LLM</button>
+              <button class="secondary" id="adapter-solver">Run Solver</button>
+              <button class="secondary" id="adapter-clear">Clear</button>
+            </div>
+            <div class="status" id="adapter-status">Ready in fixture mode.</div>
+            <div class="stat">
+              <span class="stat-label">Orchestrator JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="adapter-output">No JSON output yet.</pre>
           </div>
         </div>
       </section>
