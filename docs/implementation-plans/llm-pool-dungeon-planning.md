@@ -111,7 +111,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Defaults: Use deterministic seeds/IDs.
    - Determinism: Exact receipts/assertions stable.
    - Notes: Cover traps/rooms/actors variants.
-2. [pending] Budget enforcement unit tests.
+2. [implemented] Budget enforcement unit tests.
    - Requirement: Over-budget scenarios down-tier then drop; receipts match policy.
    - Behavior details: Fixed policy ordering; check remaining tokens math.
    - Data shape proposal: Budget fixtures with expected actions.

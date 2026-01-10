@@ -17,6 +17,10 @@ test("enforceBudget trims to cap deterministically", async () => {
   // Highest cost trimmed first
   const hi = result.selections.find((s) => s.applied.id === "hi_cost");
   assert.equal(hi.approvedCount <= 2, true);
+  const mid = result.selections.find((s) => s.applied.id === "mid_cost");
+  const low = result.selections.find((s) => s.applied.id === "low_cost");
+  assert.equal(mid.unitCost >= low.unitCost, true);
+  assert.ok(result.actions.some((a) => a.id && a.action === "downTierOrDrop"));
 });
 
 test("enforceBudget passes through when no cap", async () => {
