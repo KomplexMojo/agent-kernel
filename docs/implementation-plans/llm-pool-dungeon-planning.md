@@ -117,7 +117,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Data shape proposal: Budget fixtures with expected actions.
    - Defaults: Default caps and overrides exercised.
    - Determinism: No randomness; same inputs → same receipts.
-3. [pending] Integration and UI tests.
+3. [implemented] Integration and UI tests.
    - Requirement: End-to-end summary fixture → BuildSpec → validator ok → UI renders BuildSpec/receipts and gates build.
    - Behavior details: Fixture-only; no external IO.
    - Data shape proposal: Use summary + pool fixtures; verify applied IDs/receipts.
@@ -125,7 +125,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Determinism: Stable ordering and outputs.
 
 ## 7) Docs
-1. [pending] Document the pool-driven workflow and UI authoring tab.
+1. [implemented] Document the pool-driven workflow and UI authoring tab.
    - Requirement: Add doc sections (human-interfaces/UI README) linking this plan, describing pool authoring, menu-only LLM contract, receipts/trim behavior, and replay/debug story.
    - Behavior details: Include where artifacts land, how to use fixtures, and how to re-prompt within budget.
    - Data shape proposal: Reference pool catalog format and summary JSON contract.

@@ -67,3 +67,13 @@ References:
 - BuildSpec contract: `packages/runtime/src/contracts/build-spec.js`
 - CLI build docs: `packages/adapters-cli/README.md`
 - Bundle fixture example: `tests/fixtures/ui/build-spec-bundle/`
+
+## 6) Pool-driven dungeon planning (fixture-first)
+Use the Pool Flow panel (fixture mode by default) to take a lightweight summary + catalog and produce a validated BuildSpec without hitting an LLM.
+
+- Load fixtures: `tests/fixtures/pool/summary-basic.json` + `tests/fixtures/pool/catalog-basic.json` via “Load Pool Fixture” or file pickers.
+- Mapping: summary picks (`motivation`/`affinity`/`count`/`tokenHint`) snap down to catalog entries; receipts show trims/down-tiers.
+- Budget: token cap from `budgetTokens` is applied deterministically; actions recorded in receipts.
+- BuildSpec: generated in-browser and validated; copy/paste into Build Orchestration or save as `spec.json`.
+- Allowed menus: derived from the catalog to keep prompt menus/UI options in sync with the saved pool.
+- Determinism: catalog sorting, snapping, budget enforcement, and BuildSpec validation are all deterministic; fixture mode avoids external IO.

@@ -69,6 +69,7 @@ export function setupPoolFlow(elements) {
       }
       if (!state.summary) throw new Error("No summary loaded or provided.");
       if (!state.catalog) throw new Error("No catalog loaded or provided.");
+      if (summaryOut) summaryOut.value = JSON.stringify(state.summary, null, 2);
 
       const mapped = mapSummaryToPool({ summary: state.summary, catalog: state.catalog });
       if (!mapped.ok) {
