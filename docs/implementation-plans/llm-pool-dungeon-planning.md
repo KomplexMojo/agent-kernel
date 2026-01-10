@@ -66,7 +66,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Tests: Unit tests for snapping, ID stability, and missing-handling.
    - Determinism: Stable ordering and selection; no random tie-breaks.
    - Notes: No stat invention—use catalog metadata for vitals/hazards/mobility.
-2. [pending] Assemble BuildSpec + repair flow from mapped selections.
+2. [implemented] Assemble BuildSpec + repair flow from mapped selections.
    - Requirement: Produce BuildSpec with meta/intent/plan.hints/configurator.inputs (levelGen from room metadata; actors/actorGroups from selections) and budget refs from defaults.
    - Behavior details: Include receipts (trim/down-tier) for UI; run BuildSpec validator; on errors, produce minimal repair prompts requesting only missing summary fields (not full BuildSpec).
    - Data shape proposal: `BuildSpec` plus `receipts[]` and `appliedBudget`.
