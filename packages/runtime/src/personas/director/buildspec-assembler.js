@@ -53,8 +53,10 @@ function buildActorsAndGroups(selections) {
   return { actors, actorGroups };
 }
 
-export function buildBuildSpecFromSummary({ summary, catalog, runId, source, createdAt }) {
-  const mapped = mapSummaryToPool({ summary, catalog });
+export function buildBuildSpecFromSummary({ summary, catalog, runId, source, createdAt, selections } = {}) {
+  const mapped = selections
+    ? { ok: true, selections }
+    : mapSummaryToPool({ summary, catalog });
   if (!mapped.ok) {
     return { ok: false, errors: mapped.errors, spec: null, selections: mapped.selections || [] };
   }

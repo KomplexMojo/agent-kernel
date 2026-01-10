@@ -76,7 +76,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Notes: Preserve unknown fields if round-tripping in UI; keep ordering consistent.
 
 ## 4) Budget Enforcement (Allocator)
-1. [pending] Enforce token budget caps and emit receipts.
+1. [implemented] Enforce token budget caps and emit receipts.
    - Requirement: Sum applied costs (actors + rooms/traps), enforce budgetTokens (or default tier), and return receipts for down-tier/drop actions.
    - Behavior details: Deterministic policy—down-tier before drop; drop lowest-priority first (priority from catalog); record remaining tokens and reasons.
    - Data shape proposal: `BudgetResult { totalRequested, totalApplied, totalApproved, actions: [{ id, action, delta, reason }] }`.

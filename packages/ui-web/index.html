@@ -845,6 +845,36 @@
             <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
           </div>
         </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Pool Flow (Summary → Catalog → BuildSpec)</h2>
+          </div>
+          <div class="panel-body">
+            <div class="controls">
+              <button class="secondary" id="pool-load-fixture" type="button">Load Pool Fixture</button>
+              <label class="inline">Summary JSON <input id="pool-summary-file" type="file" accept="application/json" /></label>
+              <label class="inline">Catalog JSON <input id="pool-catalog-file" type="file" accept="application/json" /></label>
+              <button class="primary" id="pool-run" type="button">Generate BuildSpec</button>
+            </div>
+            <div class="status" id="pool-status">Load a summary + catalog to begin.</div>
+            <div class="stat">
+              <span class="stat-label">Summary</span>
+              <textarea id="pool-summary-out" rows="6" placeholder="{...}"></textarea>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Selections (mapped)</span>
+              <textarea id="pool-selections-out" rows="6" placeholder="{...}"></textarea>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Receipts</span>
+              <textarea id="pool-receipts-out" rows="6" placeholder="{...}"></textarea>
+            </div>
+            <div class="stat">
+              <span class="stat-label">BuildSpec</span>
+              <textarea id="pool-buildspec-out" rows="8" placeholder="{...}"></textarea>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
     <script type="module" src="./src/main.js"></script>

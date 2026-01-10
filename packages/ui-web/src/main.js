@@ -10,6 +10,7 @@ import { wireBundleReview } from "./bundle-review.js";
 import { wireTabs } from "./tabs.js";
 import { wireAffinityLegend } from "./affinity-legend.js";
 import { wireBudgetPanels } from "./budget-panels.js";
+import { setupPoolFlow } from "./pool-flow.js";
 
 const frameEl = document.querySelector("#frame-buffer");
 const actorIdEl = document.querySelector("#actor-id-display");
@@ -234,6 +235,17 @@ wireAffinityLegend({
   panel: affinityLegendPanel,
   kindsEl: affinityLegendKinds,
   expressionsEl: affinityLegendExpressions,
+});
+setupPoolFlow({
+  loadFixtureBtn: document.querySelector("#pool-load-fixture"),
+  summaryFileInput: document.querySelector("#pool-summary-file"),
+  catalogFileInput: document.querySelector("#pool-catalog-file"),
+  runBtn: document.querySelector("#pool-run"),
+  statusEl: document.querySelector("#pool-status"),
+  summaryOut: document.querySelector("#pool-summary-out"),
+  selectionsOut: document.querySelector("#pool-selections-out"),
+  receiptsOut: document.querySelector("#pool-receipts-out"),
+  buildSpecOut: document.querySelector("#pool-buildspec-out"),
 });
 
 const budgetPanels = wireBudgetPanels({
