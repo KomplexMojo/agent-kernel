@@ -28,7 +28,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Notes: Keep adapter boundary clean—no direct IO beyond local catalog persistence.
 
 ## 2) LLM Prompt Contract & Orchestrator
-1. [pending] Define the menu-only dungeon master prompt contract (summary, not BuildSpec).
+1. [implemented] Define the menu-only dungeon master prompt contract (summary, not BuildSpec).
    - Requirement: LLM returns a small JSON summary choosing from allowed menus; no schema/stats invention.
    - Behavior details: Multi-turn contract—LLM acknowledges `ready`, lists missing info, waits for “final JSON” request. Allowed lists must use defined constants only: affinities/themes (`fire`, `water`, `earth`, `wind`, `life`, `decay`, `corrode`, `dark`) and motivations (`random`, `stationary`, `exploring`, `attacking`, `defending`, `patrolling`). LLM returns counts and optional token hints, not IDs or stats.
    - Data shape proposal:
@@ -48,7 +48,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Tests: Fixture prompt build test to confirm allowed menus present; contract parse test for summary JSON.
    - Determinism: Prompt text and menu ordering stable; summary parsing deterministic.
    - Notes: Spell out rules—only allowed lists, arbitrary positive token hints allowed but will be snapped down; no prose in final JSON turn.
-2. [pending] Capture prompt/response artifacts in the Orchestrator.
+2. [implemented] Capture prompt/response artifacts in the Orchestrator.
    - Requirement: Orchestrator executes the prompt, captures full prompt + raw response for replay, and surfaces contract/parse errors.
    - Behavior details: On invalid picks, return `invalid` + allowed options; on missing data, populate `missing` and await re-pick; store artifacts for replay/debugging.
    - Data shape proposal: `{ prompt, responseRaw, responseParsed?, errors?, missing? }` persisted alongside BuildSpec artifacts when finalized.
@@ -58,7 +58,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Notes: Keep IO in Orchestrator; Director stays pure.
 
 ## 3) Director Mapping & BuildSpec Assembly
-1. [pending] Map summary picks to pool artifacts with snapping and receipts.
+1. [implemented] Map summary picks to pool artifacts with snapping and receipts.
    - Requirement: Deterministically choose pool entries for each `{motivation, affinity, count, tokenHint}` using snap-to-nearest-<=cost (or clamp), multiplying by count.
    - Behavior details: Assign stable IDs (`actor_<motivation>_<affinity>_<appliedCost>_<n>`, `room_<motivation>_<affinity>_<appliedCost>_<n>`), derive actorGroups from motivations (boss if flagged or cost >= threshold), and generate receipts comparing requested vs applied costs.
    - Data shape proposal: `Selection { requested, applied: { id, cost }, receipt: { status: approved|downTiered|missing, reason? } }`.
