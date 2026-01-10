@@ -50,3 +50,16 @@ test("mapSummaryToPool reports missing when no match and propagates catalog erro
   assert.equal(resMissing.ok, true);
   assert.equal(resMissing.selections[0].receipt.status, "missing");
 });
+
+test("mapSummaryToPool snaps arbitrary token hints down deterministically", async () => {
+  const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
+  const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
+  const summary = {
+    actors: [{ motivation: "defending", affinity: "earth", count: 1, tokenHint: 175 }],
+  };
+  const result = mapSummaryToPool({ summary, catalog });
+  assert.equal(result.ok, true);
+  const sel = result.selections[0];
+  assert.equal(sel.applied.cost, 120); // snap down from 175 to nearest <=
+  assert.equal(sel.receipt.status, "downTiered");
+});

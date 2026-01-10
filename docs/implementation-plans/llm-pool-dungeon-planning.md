@@ -104,7 +104,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Notes: Keep UX clear about source of options (local pool).
 
 ## 6) Tests & Fixtures
-1. [pending] Pool and mapper unit tests.
+1. [implemented] Pool and mapper unit tests.
    - Requirement: Validate catalog load/sort, selection snapping, ID stability, and missing detection.
    - Behavior details: Include arbitrary token hints (non-tier) and ensure snap-down behavior.
    - Data shape proposal: Fixtures in `tests/fixtures/pool/` and summary fixtures with expected selections.
