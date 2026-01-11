@@ -656,45 +656,55 @@
         <div class="tab-panel" data-tab-panel="llm" role="tabpanel" hidden>
           <div class="card">
             <div class="stat">
-              <span class="stat-label">Ollama Prompt</span>
-              <small class="status">Fixture mode returns deterministic responses unless live is explicitly selected.</small>
+              <span class="stat-label">LLM Flow Rail</span>
+              <small class="status">Run steps in order to generate and run a build.</small>
             </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Mode</span>
-                <select id="ollama-mode">
-                  <option value="fixture" selected>Fixture</option>
-                  <option value="live">Live</option>
-                </select>
-              </label>
-              <label>
-                <span class="stat-label">Model</span>
-                <input id="ollama-model" type="text" value="llama3" />
-              </label>
-              <label>
-                <span class="stat-label">Base URL</span>
-                <input id="ollama-base-url" type="text" value="http://localhost:11434" />
-              </label>
-            </div>
-            <label>
-              <span class="stat-label">Prompt</span>
-              <textarea id="ollama-prompt" placeholder="Describe the plan you want..."></textarea>
-            </label>
-            <label>
-              <span class="stat-label">Options (JSON)</span>
-              <textarea id="ollama-options" placeholder="{\"temperature\": 0.2}"></textarea>
-            </label>
             <div class="controls">
-              <button class="primary" id="ollama-run">Run Prompt</button>
-              <button class="secondary" id="ollama-clear">Clear</button>
-              <button class="secondary" id="ollama-download" disabled>Download raw response</button>
-              <button class="secondary" id="ollama-download-prompt" disabled>Download full prompt</button>
+              <button class="primary" id="llm-step-summary" type="button">Step 1: Load Summary</button>
+              <button class="primary" id="llm-step-pool" type="button" disabled>Step 2: Generate BuildSpec</button>
+              <button class="primary" id="llm-step-build" type="button" disabled>Step 3: Run Build</button>
+              <button class="primary" id="llm-step-bundle" type="button" disabled>Step 4: Load Bundle</button>
             </div>
-            <div class="status" id="ollama-status">Fixture mode ready.</div>
+            <ul id="llm-flow-steps">
+              <li id="llm-flow-summary-status">Summary: missing.</li>
+              <li id="llm-flow-spec-status">BuildSpec: waiting on summary.</li>
+              <li id="llm-flow-build-status">Build: waiting on BuildSpec.</li>
+              <li id="llm-flow-bundle-status">Bundle: waiting on build output.</li>
+            </ul>
+            <div class="status" id="llm-flow-status">Waiting for summary.</div>
+          </div>
+          <div class="card">
             <div class="stat">
-              <span class="stat-label">Ollama Output</span>
+              <span class="stat-label">Pool Flow (Summary → Catalog → BuildSpec)</span>
             </div>
-            <pre class="adapter-output" id="ollama-output">No JSON output yet.</pre>
+            <div class="controls">
+              <button class="secondary" id="pool-load-fixture" type="button">Load Pool Fixture</button>
+              <label class="inline">Summary JSON <input id="pool-summary-file" type="file" accept="application/json" /></label>
+              <label class="inline">Catalog JSON <input id="pool-catalog-file" type="file" accept="application/json" /></label>
+              <button class="primary" id="pool-run" type="button">Generate BuildSpec</button>
+              <button class="secondary" id="pool-send-build" type="button" disabled>Send BuildSpec to Build</button>
+            </div>
+            <div class="status" id="pool-status">Load a summary + catalog to begin.</div>
+            <div class="stat">
+              <span class="stat-label">Summary</span>
+              <textarea id="pool-summary-out" rows="6" placeholder="{...}"></textarea>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Selections (mapped)</span>
+              <textarea id="pool-selections-out" rows="6" placeholder="{...}"></textarea>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Receipts</span>
+              <textarea id="pool-receipts-out" rows="6" placeholder="{...}"></textarea>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Allowed menus (affinities/motivations/pool ids)</span>
+              <textarea id="pool-allowed-out" rows="4" placeholder="{...}"></textarea>
+            </div>
+            <div class="stat">
+              <span class="stat-label">BuildSpec</span>
+              <textarea id="pool-buildspec-out" rows="8" placeholder="{...}"></textarea>
+            </div>
           </div>
           <div class="card">
             <div class="stat">
@@ -723,6 +733,7 @@
             <div class="controls">
               <button class="primary" id="build-run">Run Build</button>
               <button class="secondary" id="build-load" disabled>Load last build</button>
+              <button class="secondary" id="build-send-bundle" disabled>Load last build in Bundle Review</button>
               <button class="secondary" id="build-download" hidden>Download spec.json</button>
               <button class="secondary" id="build-clear">Clear</button>
             </div>
@@ -789,40 +800,6 @@
               <span class="stat-label">Artifacts</span>
             </div>
             <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
-          </div>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Pool Flow (Summary → Catalog → BuildSpec)</h2>
-          </div>
-          <div class="panel-body">
-            <div class="controls">
-              <button class="secondary" id="pool-load-fixture" type="button">Load Pool Fixture</button>
-              <label class="inline">Summary JSON <input id="pool-summary-file" type="file" accept="application/json" /></label>
-              <label class="inline">Catalog JSON <input id="pool-catalog-file" type="file" accept="application/json" /></label>
-              <button class="primary" id="pool-run" type="button">Generate BuildSpec</button>
-            </div>
-            <div class="status" id="pool-status">Load a summary + catalog to begin.</div>
-            <div class="stat">
-              <span class="stat-label">Summary</span>
-              <textarea id="pool-summary-out" rows="6" placeholder="{...}"></textarea>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Selections (mapped)</span>
-              <textarea id="pool-selections-out" rows="6" placeholder="{...}"></textarea>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Receipts</span>
-              <textarea id="pool-receipts-out" rows="6" placeholder="{...}"></textarea>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Allowed menus (affinities/motivations/pool ids)</span>
-              <textarea id="pool-allowed-out" rows="4" placeholder="{...}"></textarea>
-            </div>
-            <div class="stat">
-              <span class="stat-label">BuildSpec</span>
-              <textarea id="pool-buildspec-out" rows="8" placeholder="{...}"></textarea>
-            </div>
           </div>
         </div>
         <div class="tab-panel" data-tab-panel="orchestrator" role="tabpanel" hidden>

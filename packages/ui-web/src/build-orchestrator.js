@@ -92,6 +92,7 @@ function extractSpecPath({ response, specPath }) {
 export function wireBuildOrchestrator({
   elements,
   adapterFactory = createBuildBridgeAdapter,
+  onBuildComplete,
 } = {}) {
   const {
     bridgeUrlInput,
@@ -100,6 +101,7 @@ export function wireBuildOrchestrator({
     outDirInput,
     buildButton,
     loadButton,
+    sendBundleButton,
     downloadButton,
     clearButton,
     statusEl,
@@ -126,8 +128,10 @@ export function wireBuildOrchestrator({
   }
 
   function setLoadAvailable(available) {
-    if (!loadButton) return;
-    loadButton.disabled = !available;
+    if (loadButton) {
+      loadButton.disabled = !available;
+    }
+    if (sendBundleButton) sendBundleButton.disabled = !available;
   }
 
   function renderValidation(errors) {
@@ -251,6 +255,9 @@ export function wireBuildOrchestrator({
     const prefix = auto ? "Auto-loaded" : "Loaded";
     setStatus(statusEl, `${prefix} ${runId} from ${source}.`);
     setLoadAvailable(true);
+    if (typeof onBuildComplete === "function") {
+      onBuildComplete({ snapshot, source, auto });
+    }
     return true;
   }
 
@@ -350,6 +357,9 @@ export function wireBuildOrchestrator({
       persistSnapshot(snapshot);
       setOutput(outputEl, response);
       setStatus(statusEl, "Build complete.");
+      if (typeof onBuildComplete === "function") {
+        onBuildComplete({ snapshot, source: "build", auto: false });
+      }
     } catch (error) {
       setOutput(outputEl, { error: error?.message || String(error) });
       setStatus(statusEl, "Build failed. Download spec.json to run build manually.");

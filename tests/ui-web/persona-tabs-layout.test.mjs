@@ -25,6 +25,7 @@ test("persona tabs render in the expected order", () => {
     "annotator",
     "moderator",
     "orchestrator",
+    "llm",
   ]);
   assert.match(html, /data-tab="runtime"[^>]*aria-selected="true"/);
 });

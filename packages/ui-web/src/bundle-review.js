@@ -124,6 +124,7 @@ export function wireBundleReview({
   elements = {},
   onSpec,
   onRun,
+  onBundleLoaded,
 } = {}) {
   const {
     bundleInput,
@@ -311,6 +312,9 @@ export function wireBundleReview({
     renderSchemas();
     renderBundle();
     setStatus(statusEl, "Cleared.");
+    if (typeof onBundleLoaded === "function") {
+      onBundleLoaded({ bundle: null, manifest: null, source: "clear" });
+    }
   }
 
   async function loadBundleFile(file) {
@@ -329,6 +333,9 @@ export function wireBundleReview({
     updateSpecText(specText);
     renderBundle();
     setStatus(statusEl, "Bundle loaded.");
+    if (typeof onBundleLoaded === "function") {
+      onBundleLoaded({ bundle: state.bundle, manifest: state.manifest, source: "file" });
+    }
   }
 
   async function loadManifestFile(file) {
@@ -364,6 +371,9 @@ export function wireBundleReview({
     renderBundle();
     if (response.bundle) {
       setStatus(statusEl, "Loaded bundle from last build.");
+      if (typeof onBundleLoaded === "function") {
+        onBundleLoaded({ bundle: state.bundle, manifest: state.manifest, source: "snapshot" });
+      }
     } else if (response.manifest) {
       setStatus(statusEl, "Loaded manifest from last build.");
     } else {

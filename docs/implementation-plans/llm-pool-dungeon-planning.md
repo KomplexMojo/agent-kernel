@@ -127,8 +127,8 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
 ## 7) Docs
 1. [implemented] Document the pool-driven workflow and UI authoring tab.
    - Requirement: Add doc sections (human-interfaces/UI README) linking this plan, describing pool authoring, menu-only LLM contract, receipts/trim behavior, and replay/debug story.
-   - Behavior details: Include where artifacts land, how to use fixtures, and how to re-prompt within budget.
-   - Data shape proposal: Reference pool catalog format and summary JSON contract.
-   - Defaults: Recommend fixture mode for testing; clarify budgets and token snapping.
-   - Tests: N/A (docs).
-   - Determinism: Call out deterministic catalog mapping and receipts.
+   - Behavior details: Include where artifacts land (catalog/summary fixtures under `tests/fixtures/pool/`), how to load them in the Pool Flow panel, and how to re-prompt/adjust within budget using the derived allowed menus. Describe the authoring tab intent (template save → catalog → menu options).
+   - Data shape proposal: Reference pool catalog format (`type: actor`, `subType`, `motivation`, `affinity`, `cost`, tags/meta) and summary JSON contract (`dungeonTheme`, `budgetTokens`, `rooms[]`, `actors[]` with `tokenHint`).
+   - Defaults: Recommend fixture mode for testing; clarify token snapping (nearest <= hint) and budget enforcement (deterministic trim order); note auto-filled meta/runId/source when assembling BuildSpec.
+   - Tests: N/A (docs), but link to relevant fixtures/tests (`tests/runtime/pool-*.test.js`, `tests/ui-web/pool-flow.test.mjs`) for reference.
+   - Determinism: Call out deterministic catalog sorting, mapping, budget receipts, and BuildSpec validation; emphasize replayability when using captured prompt/summary + catalog.

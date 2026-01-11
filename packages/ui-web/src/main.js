@@ -11,6 +11,7 @@ import { wireTabs } from "./tabs.js";
 import { wireAffinityLegend } from "./affinity-legend.js";
 import { wireBudgetPanels } from "./budget-panels.js";
 import { setupPoolFlow } from "./pool-flow.js";
+import { wireLlmFlowRail } from "./llm-flow-rail.js";
 
 const frameEl = document.querySelector("#frame-buffer");
 const actorIdEl = document.querySelector("#actor-id-display");
@@ -48,6 +49,16 @@ const adapterIpfs = document.querySelector("#adapter-ipfs");
 const adapterBlockchain = document.querySelector("#adapter-blockchain");
 const adapterLlmButton = document.querySelector("#adapter-llm");
 const adapterSolver = document.querySelector("#adapter-solver");
+const llmStepSummary = document.querySelector("#llm-step-summary");
+const llmStepPool = document.querySelector("#llm-step-pool");
+const llmStepBuild = document.querySelector("#llm-step-build");
+const llmStepBundle = document.querySelector("#llm-step-bundle");
+const llmFlowStatus = document.querySelector("#llm-flow-status");
+const llmFlowSummaryStatus = document.querySelector("#llm-flow-summary-status");
+const llmFlowSpecStatus = document.querySelector("#llm-flow-spec-status");
+const llmFlowBuildStatus = document.querySelector("#llm-flow-build-status");
+const llmFlowBundleStatus = document.querySelector("#llm-flow-bundle-status");
+const poolSendBuild = document.querySelector("#pool-send-build");
 const ollamaMode = document.querySelector("#ollama-mode");
 const ollamaModel = document.querySelector("#ollama-model");
 const ollamaBaseUrl = document.querySelector("#ollama-base-url");
@@ -65,6 +76,7 @@ const buildSpecJson = document.querySelector("#build-spec-json");
 const buildOutDir = document.querySelector("#build-out-dir");
 const buildRunButton = document.querySelector("#build-run");
 const buildLoadButton = document.querySelector("#build-load");
+const buildSendBundle = document.querySelector("#build-send-bundle");
 const buildDownloadButton = document.querySelector("#build-download");
 const buildClearButton = document.querySelector("#build-clear");
 const buildStatus = document.querySelector("#build-status");
@@ -129,6 +141,10 @@ const vitalsInputs = {
   },
 };
 
+let llmFlow = null;
+let buildOrchestrator = null;
+let bundleReview = null;
+
 wireAdapterPanel({
   elements: {
     modeSelect: adapterMode,
@@ -176,7 +192,81 @@ wireOllamaPromptPanel({
   },
 });
 
-wireBuildOrchestrator({
+wireTabs({ buttons: tabButtons, panels: tabPanels, defaultTab: "runtime" });
+wireAffinityLegend({
+  button: affinityLegendToggle,
+  panel: affinityLegendPanel,
+  kindsEl: affinityLegendKinds,
+  expressionsEl: affinityLegendExpressions,
+});
+
+const poolFlow = setupPoolFlow({
+  loadFixtureBtn: document.querySelector("#pool-load-fixture"),
+  summaryFileInput: document.querySelector("#pool-summary-file"),
+  catalogFileInput: document.querySelector("#pool-catalog-file"),
+  runBtn: document.querySelector("#pool-run"),
+  sendBuildBtn: poolSendBuild,
+  statusEl: document.querySelector("#pool-status"),
+  summaryOut: document.querySelector("#pool-summary-out"),
+  selectionsOut: document.querySelector("#pool-selections-out"),
+  receiptsOut: document.querySelector("#pool-receipts-out"),
+  buildSpecOut: document.querySelector("#pool-buildspec-out"),
+  allowedOut: document.querySelector("#pool-allowed-out"),
+  onSummaryLoaded: ({ source }) => {
+    const label = source === "fixture" ? "fixture loaded" : "inputs loaded";
+    llmFlow?.setSummaryReady(true, { label });
+    llmFlow?.setSpecReady(false);
+  },
+  onBuildSpec: ({ spec }) => {
+    const runId = spec?.meta?.runId;
+    const label = runId ? `ready (runId ${runId})` : "ready";
+    llmFlow?.setSpecReady(true, { label });
+    llmFlow?.setBuildReady(false);
+  },
+  onSendSpec: ({ specText }) => {
+    if (buildSpecJson) {
+      buildSpecJson.value = specText;
+      buildSpecJson.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    if (buildSpecPath) {
+      buildSpecPath.value = "";
+      buildSpecPath.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  },
+});
+
+llmFlow = wireLlmFlowRail({
+  elements: {
+    summaryButton: llmStepSummary,
+    poolButton: llmStepPool,
+    buildButton: llmStepBuild,
+    bundleButton: llmStepBundle,
+    statusEl: llmFlowStatus,
+    summaryStatus: llmFlowSummaryStatus,
+    specStatus: llmFlowSpecStatus,
+    buildStatus: llmFlowBuildStatus,
+    bundleStatus: llmFlowBundleStatus,
+  },
+  actions: {
+    loadSummary: async () => {
+      const result = await poolFlow?.loadInputs?.({ source: "file" });
+      if (!result?.summaryLoaded && !result?.catalogLoaded) {
+        await poolFlow?.loadFixture?.();
+      }
+    },
+    runPool: () => {
+      llmFlow?.setSpecReady(false);
+      poolFlow?.runFlow?.();
+    },
+    runBuild: () => {
+      llmFlow?.setBuildReady(false);
+      buildOrchestrator?.runBuild?.();
+    },
+    loadBundle: () => bundleReview?.loadLastBuild?.(),
+  },
+});
+
+buildOrchestrator = wireBuildOrchestrator({
   elements: {
     bridgeUrlInput: buildBridgeUrl,
     specPathInput: buildSpecPath,
@@ -184,15 +274,21 @@ wireBuildOrchestrator({
     outDirInput: buildOutDir,
     buildButton: buildRunButton,
     loadButton: buildLoadButton,
+    sendBundleButton: buildSendBundle,
     downloadButton: buildDownloadButton,
     clearButton: buildClearButton,
     statusEl: buildStatus,
     outputEl: buildOutput,
     validationList: buildValidation,
   },
+  onBuildComplete: ({ snapshot, source }) => {
+    const runId = snapshot?.runId;
+    const label = runId ? `complete (runId ${runId})` : `complete (${source})`;
+    llmFlow?.setBuildReady(true, { label });
+  },
 });
 
-wireBundleReview({
+bundleReview = wireBundleReview({
   elements: {
     bundleInput,
     manifestInput: bundleManifestInput,
@@ -227,27 +323,23 @@ wireBundleReview({
       runFromBundle({ simConfig, initialState });
     }
   },
+  onBundleLoaded: ({ bundle, source }) => {
+    const ready = Boolean(bundle);
+    const label = ready ? `loaded (${source})` : "missing";
+    llmFlow?.setBundleReady(ready, { label });
+  },
 });
 
-wireTabs({ buttons: tabButtons, panels: tabPanels, defaultTab: "runtime" });
-wireAffinityLegend({
-  button: affinityLegendToggle,
-  panel: affinityLegendPanel,
-  kindsEl: affinityLegendKinds,
-  expressionsEl: affinityLegendExpressions,
+buildRunButton?.addEventListener("click", () => {
+  llmFlow?.setBuildReady(false);
 });
-setupPoolFlow({
-  loadFixtureBtn: document.querySelector("#pool-load-fixture"),
-  summaryFileInput: document.querySelector("#pool-summary-file"),
-  catalogFileInput: document.querySelector("#pool-catalog-file"),
-  runBtn: document.querySelector("#pool-run"),
-  statusEl: document.querySelector("#pool-status"),
-  summaryOut: document.querySelector("#pool-summary-out"),
-  selectionsOut: document.querySelector("#pool-selections-out"),
-  receiptsOut: document.querySelector("#pool-receipts-out"),
-  buildSpecOut: document.querySelector("#pool-buildspec-out"),
-  allowedOut: document.querySelector("#pool-allowed-out"),
+buildClearButton?.addEventListener("click", () => {
+  llmFlow?.setBuildReady(false);
 });
+bundleClear?.addEventListener("click", () => {
+  llmFlow?.setBundleReady(false);
+});
+buildSendBundle?.addEventListener("click", () => bundleReview?.loadLastBuild?.());
 
 const budgetPanels = wireBudgetPanels({
   elements: {
