@@ -1,0 +1,2162 @@
+{
+  "schema": "agent-kernel/E2EActors",
+  "schemaVersion": 1,
+  "tier": 5,
+  "level": {
+    "width": 100,
+    "height": 100
+  },
+  "actorCount": 50,
+  "actors": [
+    {
+      "id": "tier5_actor_1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 8
+      },
+      "motivations": [
+        {
+          "kind": "reflexive",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_2",
+      "kind": "ambulatory",
+      "position": {
+        "x": 19,
+        "y": 8
+      },
+      "motivations": [
+        {
+          "kind": "random",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_3",
+      "kind": "ambulatory",
+      "position": {
+        "x": 31,
+        "y": 8
+      },
+      "motivations": [
+        {
+          "kind": "defending",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "corrode",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_4",
+      "kind": "ambulatory",
+      "position": {
+        "x": 43,
+        "y": 8
+      },
+      "motivations": [
+        {
+          "kind": "stationary",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "decay",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_5",
+      "kind": "ambulatory",
+      "position": {
+        "x": 56,
+        "y": 8
+      },
+      "motivations": [
+        {
+          "kind": "exploring",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_6",
+      "kind": "ambulatory",
+      "position": {
+        "x": 68,
+        "y": 8
+      },
+      "motivations": [
+        {
+          "kind": "strategy_focused",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_7",
+      "kind": "ambulatory",
+      "position": {
+        "x": 80,
+        "y": 8
+      },
+      "motivations": [
+        {
+          "kind": "attacking",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_8",
+      "kind": "ambulatory",
+      "position": {
+        "x": 92,
+        "y": 8
+      },
+      "motivations": [
+        {
+          "kind": "goal_oriented",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_9",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 22
+      },
+      "motivations": [
+        {
+          "kind": "patrolling",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_10",
+      "kind": "ambulatory",
+      "position": {
+        "x": 19,
+        "y": 22
+      },
+      "motivations": [
+        {
+          "kind": "reflexive",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_11",
+      "kind": "ambulatory",
+      "position": {
+        "x": 31,
+        "y": 22
+      },
+      "motivations": [
+        {
+          "kind": "random",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "corrode",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_12",
+      "kind": "ambulatory",
+      "position": {
+        "x": 43,
+        "y": 22
+      },
+      "motivations": [
+        {
+          "kind": "defending",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "decay",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_13",
+      "kind": "ambulatory",
+      "position": {
+        "x": 56,
+        "y": 22
+      },
+      "motivations": [
+        {
+          "kind": "stationary",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_14",
+      "kind": "ambulatory",
+      "position": {
+        "x": 68,
+        "y": 22
+      },
+      "motivations": [
+        {
+          "kind": "exploring",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_15",
+      "kind": "ambulatory",
+      "position": {
+        "x": 80,
+        "y": 22
+      },
+      "motivations": [
+        {
+          "kind": "strategy_focused",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_16",
+      "kind": "ambulatory",
+      "position": {
+        "x": 92,
+        "y": 22
+      },
+      "motivations": [
+        {
+          "kind": "attacking",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_17",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 36
+      },
+      "motivations": [
+        {
+          "kind": "goal_oriented",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_18",
+      "kind": "ambulatory",
+      "position": {
+        "x": 19,
+        "y": 36
+      },
+      "motivations": [
+        {
+          "kind": "patrolling",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_19",
+      "kind": "ambulatory",
+      "position": {
+        "x": 31,
+        "y": 36
+      },
+      "motivations": [
+        {
+          "kind": "reflexive",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "corrode",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_20",
+      "kind": "ambulatory",
+      "position": {
+        "x": 43,
+        "y": 36
+      },
+      "motivations": [
+        {
+          "kind": "random",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "decay",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_21",
+      "kind": "ambulatory",
+      "position": {
+        "x": 56,
+        "y": 36
+      },
+      "motivations": [
+        {
+          "kind": "defending",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_22",
+      "kind": "ambulatory",
+      "position": {
+        "x": 68,
+        "y": 36
+      },
+      "motivations": [
+        {
+          "kind": "stationary",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_23",
+      "kind": "ambulatory",
+      "position": {
+        "x": 80,
+        "y": 36
+      },
+      "motivations": [
+        {
+          "kind": "exploring",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_24",
+      "kind": "ambulatory",
+      "position": {
+        "x": 92,
+        "y": 36
+      },
+      "motivations": [
+        {
+          "kind": "strategy_focused",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_25",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 50
+      },
+      "motivations": [
+        {
+          "kind": "attacking",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_26",
+      "kind": "ambulatory",
+      "position": {
+        "x": 19,
+        "y": 50
+      },
+      "motivations": [
+        {
+          "kind": "goal_oriented",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_27",
+      "kind": "ambulatory",
+      "position": {
+        "x": 31,
+        "y": 50
+      },
+      "motivations": [
+        {
+          "kind": "patrolling",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "corrode",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_28",
+      "kind": "ambulatory",
+      "position": {
+        "x": 43,
+        "y": 50
+      },
+      "motivations": [
+        {
+          "kind": "reflexive",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "decay",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_29",
+      "kind": "ambulatory",
+      "position": {
+        "x": 56,
+        "y": 50
+      },
+      "motivations": [
+        {
+          "kind": "random",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_30",
+      "kind": "ambulatory",
+      "position": {
+        "x": 68,
+        "y": 50
+      },
+      "motivations": [
+        {
+          "kind": "defending",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_31",
+      "kind": "ambulatory",
+      "position": {
+        "x": 80,
+        "y": 50
+      },
+      "motivations": [
+        {
+          "kind": "stationary",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_32",
+      "kind": "ambulatory",
+      "position": {
+        "x": 92,
+        "y": 50
+      },
+      "motivations": [
+        {
+          "kind": "exploring",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_33",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 64
+      },
+      "motivations": [
+        {
+          "kind": "strategy_focused",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_34",
+      "kind": "ambulatory",
+      "position": {
+        "x": 19,
+        "y": 64
+      },
+      "motivations": [
+        {
+          "kind": "attacking",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_35",
+      "kind": "ambulatory",
+      "position": {
+        "x": 31,
+        "y": 64
+      },
+      "motivations": [
+        {
+          "kind": "goal_oriented",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "corrode",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_36",
+      "kind": "ambulatory",
+      "position": {
+        "x": 43,
+        "y": 64
+      },
+      "motivations": [
+        {
+          "kind": "patrolling",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "decay",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_37",
+      "kind": "ambulatory",
+      "position": {
+        "x": 56,
+        "y": 64
+      },
+      "motivations": [
+        {
+          "kind": "reflexive",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_38",
+      "kind": "ambulatory",
+      "position": {
+        "x": 68,
+        "y": 64
+      },
+      "motivations": [
+        {
+          "kind": "random",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_39",
+      "kind": "ambulatory",
+      "position": {
+        "x": 80,
+        "y": 64
+      },
+      "motivations": [
+        {
+          "kind": "defending",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_40",
+      "kind": "ambulatory",
+      "position": {
+        "x": 92,
+        "y": 64
+      },
+      "motivations": [
+        {
+          "kind": "stationary",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_41",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 78
+      },
+      "motivations": [
+        {
+          "kind": "exploring",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_42",
+      "kind": "ambulatory",
+      "position": {
+        "x": 19,
+        "y": 78
+      },
+      "motivations": [
+        {
+          "kind": "strategy_focused",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_43",
+      "kind": "ambulatory",
+      "position": {
+        "x": 31,
+        "y": 78
+      },
+      "motivations": [
+        {
+          "kind": "attacking",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "corrode",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_44",
+      "kind": "ambulatory",
+      "position": {
+        "x": 43,
+        "y": 78
+      },
+      "motivations": [
+        {
+          "kind": "goal_oriented",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "decay",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_45",
+      "kind": "ambulatory",
+      "position": {
+        "x": 56,
+        "y": 78
+      },
+      "motivations": [
+        {
+          "kind": "patrolling",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_46",
+      "kind": "ambulatory",
+      "position": {
+        "x": 68,
+        "y": 78
+      },
+      "motivations": [
+        {
+          "kind": "reflexive",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_47",
+      "kind": "ambulatory",
+      "position": {
+        "x": 80,
+        "y": 78
+      },
+      "motivations": [
+        {
+          "kind": "random",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_48",
+      "kind": "ambulatory",
+      "position": {
+        "x": 92,
+        "y": 78
+      },
+      "motivations": [
+        {
+          "kind": "defending",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_49",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 92
+      },
+      "motivations": [
+        {
+          "kind": "stationary",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier5_actor_50",
+      "kind": "ambulatory",
+      "position": {
+        "x": 19,
+        "y": 92
+      },
+      "motivations": [
+        {
+          "kind": "exploring",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    }
+  ]
+}

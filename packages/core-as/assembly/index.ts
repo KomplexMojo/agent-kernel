@@ -1,6 +1,21 @@
 // Entry points exported to WASM.
 // Keep exports small and stable.
-import { EffectKind, clearEffects, getEffectCount, getEffectKind, getEffectValue, pushEffect } from "./ports/effects";
+import {
+  EffectKind,
+  clearEffects,
+  getEffectCount,
+  getEffectKind,
+  getEffectValue,
+  getEffectActorId,
+  getEffectX,
+  getEffectY,
+  getEffectReason,
+  getEffectDelta,
+  pushEffect,
+  pushActorMoved,
+  pushActorBlocked,
+  pushDurabilityChanged,
+} from "./ports/effects";
 import { chargeBudget, getBudgetCap, resetBudgets, setBudgetCap, getBudgetSpent } from "./state/budget";
 import { getCounterValue, incrementCounter, resetCounter } from "./state/counter";
 import { clearPendingRequest, getPendingRequest, nextRequestSequence, resetEffectState, setPendingRequest } from "./state/effects";
@@ -11,6 +26,8 @@ import {
   renderCell,
   configureGrid as configureGridState,
   resetWorld,
+  prepareTileBuffer as prepareTileBufferState,
+  loadTilesFromBuffer as loadTilesFromBufferState,
   getMapWidth as worldMapWidth,
   getMapHeight as worldMapHeight,
   getActorX as getActorXState,
@@ -37,6 +54,7 @@ import {
   clearActorPlacements as clearActorPlacementsState,
   addActorPlacement as addActorPlacementState,
   getActorPlacementCount as getActorPlacementCountState,
+  applyActorPlacements as applyActorPlacementsState,
   setTileAt as setTileAtState,
   spawnActorAt as spawnActorAtState,
   validateActorPlacement as validateActorPlacementState,
@@ -44,38 +62,25 @@ import {
   getActorHp as getActorHpState,
   getActorMaxHp as getActorMaxHpState,
   getActorId as getActorIdState,
+  getMotivatedActorCount as getMotivatedActorCountState,
+  getMotivatedActorIdByIndex as getMotivatedActorIdByIndexState,
+  getMotivatedActorXByIndex as getMotivatedActorXByIndexState,
+  getMotivatedActorYByIndex as getMotivatedActorYByIndexState,
+  getMotivatedActorVitalCurrentByIndex as getMotivatedActorVitalCurrentByIndexState,
+  getMotivatedActorVitalMaxByIndex as getMotivatedActorVitalMaxByIndexState,
+  getMotivatedActorVitalRegenByIndex as getMotivatedActorVitalRegenByIndexState,
+  setMotivatedActorVital as setMotivatedActorVitalState,
 } from "./state/world";
-import { applyMove, decodeMove, reachedExitAfterMove } from "./rules/move";
+import { applyMove, decodeMove, reachedExitAfterMove, setMoveAction as setMoveActionState } from "./rules/move";
 import { ActionKind, ValidationError, validateAction, validateSeed } from "./validate/inputs";
 
 const DEFAULT_BUDGET_CATEGORY: i32 = 0;
 const EFFECT_BUDGET_CATEGORY: i32 = 1;
 const REQUEST_DETAIL_MASK: i32 = 0xff;
 const DURABILITY_DAMAGE: i32 = 1;
-const ACTOR_VALUE_SHIFT: i32 = 24;
-const Y_VALUE_SHIFT: i32 = 16;
-const X_VALUE_SHIFT: i32 = 8;
-const VALUE_MASK: i32 = 0xff;
 
 function encodeRequestPayload(seq: i32, detail: i32): i32 {
   return (seq << 8) | (detail & REQUEST_DETAIL_MASK);
-}
-
-function encodeDurabilityChange(actorId: i32, delta: i32): i32 {
-  return ((actorId & 0xffff) << 16) | (delta & 0xffff);
-}
-
-function encodeActorPosition(actorId: i32, x: i32, y: i32): i32 {
-  return ((actorId & VALUE_MASK) << ACTOR_VALUE_SHIFT)
-    | ((y & VALUE_MASK) << Y_VALUE_SHIFT)
-    | ((x & VALUE_MASK) << X_VALUE_SHIFT);
-}
-
-function encodeActorBlocked(actorId: i32, x: i32, y: i32, reason: i32): i32 {
-  return ((actorId & VALUE_MASK) << ACTOR_VALUE_SHIFT)
-    | ((y & VALUE_MASK) << Y_VALUE_SHIFT)
-    | ((x & VALUE_MASK) << X_VALUE_SHIFT)
-    | (reason & VALUE_MASK);
 }
 
 export function version(): i32 {
@@ -114,18 +119,18 @@ export function applyAction(kind: i32, value: i32): void {
     const moveError = applyMove(move);
     if (moveError != ValidationError.None) {
       if (moveError == ValidationError.BlockedByWall || moveError == ValidationError.ActorCollision) {
-        pushEffect(EffectKind.ActorBlocked, encodeActorBlocked(move.actorId, move.toX, move.toY, moveError));
+        pushActorBlocked(move.actorId, move.toX, move.toY, moveError);
         if (moveError == ValidationError.BlockedByWall && isBarrierTileState(move.toX, move.toY)) {
           const delta = applyBarrierDurabilityDamageState(move.toX, move.toY, DURABILITY_DAMAGE);
           const tileActorId = getTileActorIdState(move.toX, move.toY);
-          pushEffect(EffectKind.DurabilityChanged, encodeDurabilityChange(tileActorId, delta));
+          pushDurabilityChanged(tileActorId, delta);
         }
         return;
       }
       pushEffect(EffectKind.ActionRejected, moveError);
       return;
     }
-    pushEffect(EffectKind.ActorMoved, encodeActorPosition(move.actorId, move.toX, move.toY));
+    pushActorMoved(move.actorId, move.toX, move.toY);
     if (reachedExitAfterMove()) {
       pushEffect(EffectKind.LimitReached, move.tick);
     }
@@ -217,6 +222,13 @@ export function getBudgetUsage(category: i32): i32 {
 }
 
 export { clearEffects, getEffectCount, getEffectKind, getEffectValue };
+export {
+  getEffectActorId,
+  getEffectX,
+  getEffectY,
+  getEffectReason,
+  getEffectDelta,
+};
 
 // Movement-specific helpers for rendering and inspection.
 export function loadMvpScenario(): void {
@@ -227,8 +239,32 @@ export function loadMvpBarrierScenario(): void {
   loadMvpBarrierWorld();
 }
 
+export function setMoveAction(
+  actorId: i32,
+  fromX: i32,
+  fromY: i32,
+  toX: i32,
+  toY: i32,
+  direction: i32,
+  tick: i32,
+): void {
+  setMoveActionState(actorId, fromX, fromY, toX, toY, direction, tick);
+}
+
 export function configureGrid(width: i32, height: i32): i32 {
   const error = configureGridState(width, height);
+  if (error != ValidationError.None) {
+    pushEffect(EffectKind.ConfigInvalid, error);
+  }
+  return error;
+}
+
+export function prepareTileBuffer(length: i32): usize {
+  return prepareTileBufferState(length);
+}
+
+export function loadTilesFromBuffer(length: i32): i32 {
+  const error = loadTilesFromBufferState(length);
   if (error != ValidationError.None) {
     pushEffect(EffectKind.ConfigInvalid, error);
   }
@@ -261,6 +297,14 @@ export function getActorPlacementCount(): i32 {
 
 export function validateActorPlacement(): i32 {
   const error = validateActorPlacementState();
+  if (error != ValidationError.None) {
+    pushEffect(EffectKind.ConfigInvalid, error);
+  }
+  return error;
+}
+
+export function applyActorPlacements(): i32 {
+  const error = applyActorPlacementsState();
   if (error != ValidationError.None) {
     pushEffect(EffectKind.ConfigInvalid, error);
   }
@@ -359,6 +403,10 @@ export function setActorVital(kind: i32, current: i32, max: i32, regen: i32): vo
   setActorVitalState(kind, current, max, regen);
 }
 
+export function setMotivatedActorVital(index: i32, kind: i32, current: i32, max: i32, regen: i32): void {
+  setMotivatedActorVitalState(index, kind, current, max, regen);
+}
+
 export function validateActorVitals(): i32 {
   return validateActorVitalsState();
 }
@@ -369,4 +417,32 @@ export function renderCellChar(x: i32, y: i32): i32 {
 
 export function renderBaseCellChar(x: i32, y: i32): i32 {
   return renderBaseCell(x, y);
+}
+
+export function getMotivatedActorCount(): i32 {
+  return getMotivatedActorCountState();
+}
+
+export function getMotivatedActorIdByIndex(index: i32): i32 {
+  return getMotivatedActorIdByIndexState(index);
+}
+
+export function getMotivatedActorXByIndex(index: i32): i32 {
+  return getMotivatedActorXByIndexState(index);
+}
+
+export function getMotivatedActorYByIndex(index: i32): i32 {
+  return getMotivatedActorYByIndexState(index);
+}
+
+export function getMotivatedActorVitalCurrentByIndex(index: i32, kind: i32): i32 {
+  return getMotivatedActorVitalCurrentByIndexState(index, kind);
+}
+
+export function getMotivatedActorVitalMaxByIndex(index: i32, kind: i32): i32 {
+  return getMotivatedActorVitalMaxByIndexState(index, kind);
+}
+
+export function getMotivatedActorVitalRegenByIndex(index: i32, kind: i32): i32 {
+  return getMotivatedActorVitalRegenByIndexState(index, kind);
 }

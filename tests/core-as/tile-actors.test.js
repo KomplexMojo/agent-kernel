@@ -69,31 +69,36 @@ function readBaseTiles(core, { width, height }) {
 }
 
 function packMove({ actorId, from, to, direction, tick }) {
-  return (
-    ((actorId & 0xf) << 28) |
-    ((tick & 0xff) << 20) |
-    ((to.y & 0xf) << 16) |
-    ((to.x & 0xf) << 12) |
-    ((from.y & 0xf) << 8) |
-    ((from.x & 0xf) << 4) |
-    (direction & 0xf)
-  );
+  return { actorId, from, to, direction, tick };
 }
 
-function decodeActorBlocked(value) {
+function applyMove(core, action) {
+  core.setMoveAction(
+    action.actorId,
+    action.from.x,
+    action.from.y,
+    action.to.x,
+    action.to.y,
+    action.direction,
+    action.tick
+  );
+  core.applyAction(ACTION_KIND.Move, 0);
+}
+
+function readActorBlocked(core, index) {
   return {
-    actorId: (value >> 24) & 0xff,
-    x: (value >> 8) & 0xff,
-    y: (value >> 16) & 0xff,
-    reason: value & 0xff,
+    actorId: core.getEffectActorId(index),
+    x: core.getEffectX(index),
+    y: core.getEffectY(index),
+    reason: core.getEffectReason(index),
   };
 }
 
-function decodeDurabilityChange(value) {
-  const actorId = (value >> 16) & 0xffff;
-  const rawDelta = value & 0xffff;
-  const delta = rawDelta & 0x8000 ? rawDelta - 0x10000 : rawDelta;
-  return { actorId, delta };
+function readDurabilityChange(core, index) {
+  return {
+    actorId: core.getEffectActorId(index),
+    delta: core.getEffectDelta(index),
+  };
 }
 
 test("core-as exposes tile actor occupancy for the MVP grid", async (t) => {
@@ -147,14 +152,14 @@ test("core-as blocks movement into barrier tile actors and renders barriers", as
   });
   const barrierId = core.getTileActorId(fixture.barrier.x, fixture.barrier.y);
   const durabilityBefore = core.getTileActorDurability(fixture.barrier.x, fixture.barrier.y);
-  core.applyAction(ACTION_KIND.Move, packed);
+  applyMove(core, packed);
   assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorBlocked);
-  const blocked = decodeActorBlocked(core.getEffectValue(0));
+  const blocked = readActorBlocked(core, 0);
   assert.equal(blocked.actorId, 1);
   assert.equal(blocked.reason, VALIDATION_ERROR.BlockedByWall);
   assert.deepEqual({ x: blocked.x, y: blocked.y }, fixture.barrier);
   assert.equal(core.getEffectKind(1), EFFECT_KIND.DurabilityChanged);
-  const durabilityChange = decodeDurabilityChange(core.getEffectValue(1));
+  const durabilityChange = readDurabilityChange(core, 1);
   assert.equal(durabilityChange.actorId, barrierId);
   const durabilityAfter = core.getTileActorDurability(fixture.barrier.x, fixture.barrier.y);
   const expectedAfter = durabilityBefore > 0 ? durabilityBefore - 1 : 0;

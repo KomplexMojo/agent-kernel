@@ -31,7 +31,7 @@ test("map build spec to intent + plan artifacts", async () => {
   assert.deepEqual(mapped.configuratorInputs, spec.configurator.inputs);
 });
 
-test("map build spec budget prefers refs over inline", async () => {
+test("map build spec budget keeps refs and inline artifacts", async () => {
   const { mapBuildSpecToArtifacts } = await loadMapper();
   const spec = readFixture("build-spec-v1-budget-inline.json");
 
@@ -39,6 +39,6 @@ test("map build spec budget prefers refs over inline", async () => {
 
   assert.equal(mapped.budget.budgetRef.id, "budget_ref");
   assert.equal(mapped.budget.priceListRef.id, "price_ref");
-  assert.equal(mapped.budget.budget, undefined);
-  assert.equal(mapped.budget.priceList, undefined);
+  assert.deepEqual(mapped.budget.budget, spec.budget.budget);
+  assert.deepEqual(mapped.budget.priceList, spec.budget.priceList);
 });

@@ -1,6 +1,6 @@
 import { LEVEL_GEN_DEFAULTS } from "./defaults.js";
 
-const LEVEL_GEN_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands"]);
+const LEVEL_GEN_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
 const TRAP_AFFINITY_KINDS = Object.freeze(["fire", "water", "earth", "wind", "life", "decay", "corrode", "dark"]);
 const TRAP_AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
 
@@ -185,6 +185,61 @@ export function normalizeLevelGenInput(input = {}) {
   const density = clampOptionalNumber(shapeInput.density, "shape.density", 0, 1, warnings, errors);
   const clusterSize = clampOptionalInt(shapeInput.clusterSize, "shape.clusterSize", 0, Number.MAX_SAFE_INTEGER, warnings, errors);
 
+  const maxRoomSize = width && height ? Math.max(1, Math.min(width, height) - 2) : 1;
+  const maxRoomCount = width && height ? Math.max(1, (width - 2) * (height - 2)) : Number.MAX_SAFE_INTEGER;
+  const roomCount =
+    profile === "rooms"
+      ? clampOptionalInt(
+          shapeInput.roomCount,
+          "shape.roomCount",
+          1,
+          maxRoomCount,
+          warnings,
+          errors,
+          LEVEL_GEN_DEFAULTS.roomCount,
+        )
+      : undefined;
+  const roomMinSize =
+    profile === "rooms"
+      ? clampOptionalInt(
+          shapeInput.roomMinSize,
+          "shape.roomMinSize",
+          1,
+          maxRoomSize,
+          warnings,
+          errors,
+          LEVEL_GEN_DEFAULTS.roomMinSize,
+        )
+      : undefined;
+  let roomMaxSize =
+    profile === "rooms"
+      ? clampOptionalInt(
+          shapeInput.roomMaxSize,
+          "shape.roomMaxSize",
+          1,
+          maxRoomSize,
+          warnings,
+          errors,
+          LEVEL_GEN_DEFAULTS.roomMaxSize,
+        )
+      : undefined;
+  if (profile === "rooms" && roomMinSize !== undefined && roomMaxSize !== undefined && roomMaxSize < roomMinSize) {
+    pushWarning(warnings, "shape.roomMaxSize", "clamped", roomMaxSize, roomMinSize);
+    roomMaxSize = roomMinSize;
+  }
+  const corridorWidth =
+    profile === "rooms"
+      ? clampOptionalInt(
+          shapeInput.corridorWidth,
+          "shape.corridorWidth",
+          1,
+          maxRoomSize,
+          warnings,
+          errors,
+          LEVEL_GEN_DEFAULTS.corridorWidth,
+        )
+      : undefined;
+
   const maxDistance = width && height ? Math.max(0, width - 1) + Math.max(0, height - 1) : 0;
   const spawnInput = input.spawn || {};
   const exitInput = input.exit || {};
@@ -228,6 +283,10 @@ export function normalizeLevelGenInput(input = {}) {
   const shape = { profile };
   if (density !== undefined) shape.density = density;
   if (clusterSize !== undefined) shape.clusterSize = clusterSize;
+  if (roomCount !== undefined) shape.roomCount = roomCount;
+  if (roomMinSize !== undefined) shape.roomMinSize = roomMinSize;
+  if (roomMaxSize !== undefined) shape.roomMaxSize = roomMaxSize;
+  if (corridorWidth !== undefined) shape.corridorWidth = corridorWidth;
 
   const value = {
     width,

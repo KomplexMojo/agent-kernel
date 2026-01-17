@@ -28,11 +28,12 @@ const { instance } = await WebAssembly.instantiate(buffer, {
   },
 });
 const exports = instance.exports;
-const core = {
-  init: exports.init,
-  loadMvpScenario: exports.loadMvpScenario,
-  applyAction: exports.applyAction,
-  getMapWidth: exports.getMapWidth,
+  const core = {
+    init: exports.init,
+    loadMvpScenario: exports.loadMvpScenario,
+    applyAction: exports.applyAction,
+    setMoveAction: exports.setMoveAction,
+    getMapWidth: exports.getMapWidth,
   getMapHeight: exports.getMapHeight,
   getActorX: exports.getActorX,
   getActorY: exports.getActorY,

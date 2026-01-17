@@ -1,0 +1,12 @@
+{
+  "schema": "agent-kernel/E2EScenario",
+  "schemaVersion": 1,
+  "goal": "Validate the end-to-end pipeline with a small deterministic tier.",
+  "tier": 1,
+  "levelSize": { "width": 5, "height": 5 },
+  "actorCount": 1,
+  "budgetTokens": 800,
+  "catalogPath": "tests/fixtures/pool/catalog-basic.json",
+  "summaryPath": "tests/fixtures/e2e/summary-v1-basic.json",
+  "expectedSelectionsPath": "tests/fixtures/e2e/expected-selections-v1-basic.json"
+}

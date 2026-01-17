@@ -1,0 +1,15 @@
+{
+  "schema": "agent-kernel/E2EScenario",
+  "schemaVersion": 1,
+  "goal": "Validate tier 3 room layouts in the end-to-end flow.",
+  "tier": 3,
+  "levelSize": { "width": 20, "height": 20 },
+  "actorCount": 10,
+  "budgetTokens": 800,
+  "catalogPath": "tests/fixtures/pool/catalog-basic.json",
+  "summaryPath": "tests/fixtures/e2e/summary-v1-tier3-rooms.json",
+  "expectedSelectionsPath": "tests/fixtures/e2e/expected-selections-v1-tier3-rooms.json",
+  "layoutProfile": "rooms",
+  "roomCount": 2,
+  "levelSeed": 303
+}

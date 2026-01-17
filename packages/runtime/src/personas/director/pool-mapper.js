@@ -34,6 +34,26 @@ function deriveId({ motivation, affinity, cost, index }) {
   return `actor_${motivation}_${affinity}_${cost}_${index + 1}`;
 }
 
+function normalizePickAffinities(pick) {
+  if (Array.isArray(pick?.affinities) && pick.affinities.length > 0) {
+    return pick.affinities.map((entry) => ({
+      kind: entry.kind,
+      expression: entry.expression,
+      stacks: entry.stacks,
+    }));
+  }
+  if (pick?.affinity && pick?.expression) {
+    return [
+      {
+        kind: pick.affinity,
+        expression: pick.expression,
+        stacks: Number.isInteger(pick.stacks) && pick.stacks > 0 ? pick.stacks : 1,
+      },
+    ];
+  }
+  return [];
+}
+
 export function mapSummaryToPool({ summary, catalog }) {
   const { ok, entries, errors } = normalizePoolCatalog(catalog || {});
   if (!ok) {
@@ -43,6 +63,7 @@ export function mapSummaryToPool({ summary, catalog }) {
   const selections = [];
 
   const applyPick = (pick, kind) => {
+    const affinities = normalizePickAffinities(pick);
     const { applied, receipt } = snapSelection({
       entries,
       motivation: pick.motivation,
@@ -68,19 +89,25 @@ export function mapSummaryToPool({ summary, catalog }) {
         affinity: applied.affinity,
         cost: applied.cost,
       },
-      receipt: {
-        status: receipt.status,
-        reason: receipt.reason,
-        count: pick.count,
-      },
-      instances: Array.from({ length: pick.count }, (_, idx) => ({
-        id: deriveId({ motivation: applied.motivation, affinity: applied.affinity, cost: applied.cost, index: idx }),
-        baseId: applied.id,
-        subType: applied.subType,
-        motivation: applied.motivation,
-        affinity: applied.affinity,
-        cost: applied.cost,
-      })),
+        receipt: {
+          status: receipt.status,
+          reason: receipt.reason,
+          count: pick.count,
+        },
+      instances: Array.from({ length: pick.count }, (_, idx) => {
+        const instance = {
+          id: deriveId({ motivation: applied.motivation, affinity: applied.affinity, cost: applied.cost, index: idx }),
+          baseId: applied.id,
+          subType: applied.subType,
+          motivation: applied.motivation,
+          affinity: applied.affinity,
+          cost: applied.cost,
+        };
+        if (affinities.length > 0) {
+          instance.affinities = affinities.map((entry) => ({ ...entry }));
+        }
+        return instance;
+      }),
     });
   };
 

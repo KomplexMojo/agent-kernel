@@ -2,6 +2,12 @@ import { normalizeLevelGenInput } from "./level-gen.js";
 
 const DEFAULT_DENSITY = 0.35;
 const DEFAULT_CLUSTER_SIZE = 6;
+const DEFAULT_ROOM_COUNT = 4;
+const DEFAULT_ROOM_MIN_SIZE = 3;
+const DEFAULT_ROOM_MAX_SIZE = 9;
+const DEFAULT_CORRIDOR_WIDTH = 1;
+const ROOM_PLACEMENT_PADDING = 1;
+const ROOM_PLACEMENT_ATTEMPTS = 40;
 
 const KIND_STATIONARY = 0;
 const KIND_BARRIER = 1;
@@ -34,6 +40,15 @@ function createRng(seed = 0) {
 function randomInt(rng, max) {
   if (max <= 0) return 0;
   return Math.floor(rng() * max);
+}
+
+function randomIntBetween(rng, min, max) {
+  if (max <= min) return min;
+  return min + randomInt(rng, max - min + 1);
+}
+
+function clampInt(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function createMask(width, height, value = false) {
@@ -163,6 +178,232 @@ function seedClusteredIslands(mask, clusterSize, rng) {
       mask[current.y][current.x] = true;
     }
   }
+}
+
+function readRoomSettings(levelGen) {
+  const width = levelGen.width;
+  const height = levelGen.height;
+  const shape = levelGen.shape || {};
+  const maxRoomSize = Math.max(1, Math.min(width, height) - 2);
+  const maxRooms = Math.max(1, (width - 2) * (height - 2));
+
+  const roomCount = clampInt(
+    Number.isInteger(shape.roomCount) ? shape.roomCount : DEFAULT_ROOM_COUNT,
+    1,
+    maxRooms,
+  );
+  const roomMinSize = clampInt(
+    Number.isInteger(shape.roomMinSize) ? shape.roomMinSize : DEFAULT_ROOM_MIN_SIZE,
+    1,
+    maxRoomSize,
+  );
+  const roomMaxSize = clampInt(
+    Number.isInteger(shape.roomMaxSize) ? shape.roomMaxSize : DEFAULT_ROOM_MAX_SIZE,
+    roomMinSize,
+    maxRoomSize,
+  );
+  const corridorWidth = clampInt(
+    Number.isInteger(shape.corridorWidth) ? shape.corridorWidth : DEFAULT_CORRIDOR_WIDTH,
+    1,
+    maxRoomSize,
+  );
+
+  return { roomCount, roomMinSize, roomMaxSize, corridorWidth };
+}
+
+function roomCenter(room) {
+  return {
+    x: Math.floor(room.x + room.width / 2),
+    y: Math.floor(room.y + room.height / 2),
+  };
+}
+
+function canPlaceRoom(mask, room, padding) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const startY = room.y - padding;
+  const endY = room.y + room.height - 1 + padding;
+  const startX = room.x - padding;
+  const endX = room.x + room.width - 1 + padding;
+
+  for (let y = startY; y <= endY; y += 1) {
+    for (let x = startX; x <= endX; x += 1) {
+      if (y < 0 || y >= height || x < 0 || x >= width) {
+        return false;
+      }
+      if (!isInteriorCell(x, y, width, height)) {
+        return false;
+      }
+      if (mask[y][x]) return false;
+    }
+  }
+  return true;
+}
+
+function carveRoom(mask, room) {
+  for (let y = room.y; y < room.y + room.height; y += 1) {
+    for (let x = room.x; x < room.x + room.width; x += 1) {
+      mask[y][x] = true;
+    }
+  }
+}
+
+function placeRooms(mask, rng, settings) {
+  const rooms = [];
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const { roomCount, roomMinSize, roomMaxSize } = settings;
+  const maxAttempts = Math.max(roomCount * ROOM_PLACEMENT_ATTEMPTS, ROOM_PLACEMENT_ATTEMPTS);
+
+  let attempts = 0;
+  while (rooms.length < roomCount && attempts < maxAttempts) {
+    const roomWidth = randomIntBetween(rng, roomMinSize, roomMaxSize);
+    const roomHeight = randomIntBetween(rng, roomMinSize, roomMaxSize);
+    const maxX = width - roomWidth - 1;
+    const maxY = height - roomHeight - 1;
+    if (maxX < 1 || maxY < 1) {
+      attempts += 1;
+      continue;
+    }
+    const room = {
+      x: randomIntBetween(rng, 1, maxX),
+      y: randomIntBetween(rng, 1, maxY),
+      width: roomWidth,
+      height: roomHeight,
+    };
+    if (canPlaceRoom(mask, room, ROOM_PLACEMENT_PADDING)) {
+      carveRoom(mask, room);
+      rooms.push(room);
+    }
+    attempts += 1;
+  }
+
+  if (rooms.length < roomCount) {
+    for (let y = 1; y <= height - roomMinSize - 1 && rooms.length < roomCount; y += 1) {
+      for (let x = 1; x <= width - roomMinSize - 1 && rooms.length < roomCount; x += 1) {
+        const room = { x, y, width: roomMinSize, height: roomMinSize };
+        if (canPlaceRoom(mask, room, 0)) {
+          carveRoom(mask, room);
+          rooms.push(room);
+        }
+      }
+    }
+  }
+
+  return rooms;
+}
+
+function carveCell(mask, x, y, corridorWidth) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const radius = Math.max(0, Math.floor((corridorWidth - 1) / 2));
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (ny < 0 || ny >= height || nx < 0 || nx >= width) continue;
+      if (!isInteriorCell(nx, ny, width, height)) continue;
+      mask[ny][nx] = true;
+    }
+  }
+}
+
+function carveLine(mask, from, to, corridorWidth) {
+  if (from.x === to.x) {
+    const start = Math.min(from.y, to.y);
+    const end = Math.max(from.y, to.y);
+    for (let y = start; y <= end; y += 1) {
+      carveCell(mask, from.x, y, corridorWidth);
+    }
+    return;
+  }
+  if (from.y === to.y) {
+    const start = Math.min(from.x, to.x);
+    const end = Math.max(from.x, to.x);
+    for (let x = start; x <= end; x += 1) {
+      carveCell(mask, x, from.y, corridorWidth);
+    }
+  }
+}
+
+function carveCorridor(mask, from, to, corridorWidth, rng) {
+  const horizontalFirst = rng() < 0.5;
+  if (horizontalFirst) {
+    carveLine(mask, { x: from.x, y: from.y }, { x: to.x, y: from.y }, corridorWidth);
+    carveLine(mask, { x: to.x, y: from.y }, { x: to.x, y: to.y }, corridorWidth);
+  } else {
+    carveLine(mask, { x: from.x, y: from.y }, { x: from.x, y: to.y }, corridorWidth);
+    carveLine(mask, { x: from.x, y: to.y }, { x: to.x, y: to.y }, corridorWidth);
+  }
+}
+
+function connectRooms(mask, rooms, rng, corridorWidth) {
+  if (rooms.length < 2) return;
+  const centers = rooms.map(roomCenter);
+  centers.sort((a, b) => (a.x - b.x) || (a.y - b.y));
+  for (let i = 1; i < centers.length; i += 1) {
+    carveCorridor(mask, centers[i - 1], centers[i], corridorWidth, rng);
+  }
+}
+
+function roomAnchor(mask, room) {
+  for (let y = room.y; y < room.y + room.height; y += 1) {
+    for (let x = room.x; x < room.x + room.width; x += 1) {
+      if (mask[y]?.[x]) return { x, y };
+    }
+  }
+  return roomCenter(room);
+}
+
+function ensureRoomsConnected(mask, rooms, rng, corridorWidth) {
+  if (rooms.length < 2) {
+    return { connectedRooms: rooms.length };
+  }
+  connectRooms(mask, rooms, rng, corridorWidth);
+  const anchors = rooms.map((room) => roomAnchor(mask, room));
+  const distances = distanceFrom(mask, anchors[0]);
+  let connectedRooms = 0;
+  anchors.forEach((anchor) => {
+    if (distances[anchor.y]?.[anchor.x] >= 0) {
+      connectedRooms += 1;
+    }
+  });
+
+  let attempts = 0;
+  while (connectedRooms < rooms.length && attempts < rooms.length) {
+    const reachable = [];
+    const unreachable = [];
+    anchors.forEach((anchor) => {
+      if (distances[anchor.y]?.[anchor.x] >= 0) {
+        reachable.push(anchor);
+      } else {
+        unreachable.push(anchor);
+      }
+    });
+    if (reachable.length === 0 || unreachable.length === 0) break;
+    const target = unreachable[0];
+    let closest = reachable[0];
+    let bestDistance = manhattanDistance(target, closest);
+    for (let i = 1; i < reachable.length; i += 1) {
+      const candidate = reachable[i];
+      const dist = manhattanDistance(target, candidate);
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        closest = candidate;
+      }
+    }
+    carveCorridor(mask, target, closest, corridorWidth, rng);
+    const nextDistances = distanceFrom(mask, anchors[0]);
+    connectedRooms = 0;
+    anchors.forEach((anchor) => {
+      if (nextDistances[anchor.y]?.[anchor.x] >= 0) {
+        connectedRooms += 1;
+      }
+    });
+    attempts += 1;
+  }
+
+  return { connectedRooms };
 }
 
 function ensureWalkable(mask) {
@@ -311,6 +552,24 @@ function placeSpawnExit(mask, levelGen, rng, trapIndex) {
   return { spawn, exit };
 }
 
+function computeConnectivity(mask, rooms, spawn, exit) {
+  if (!rooms || rooms.length === 0) return null;
+  const distances = distanceFrom(mask, spawn);
+  let connectedRooms = 0;
+  rooms.forEach((room) => {
+    const anchor = roomAnchor(mask, room);
+    if (distances[anchor.y]?.[anchor.x] >= 0) {
+      connectedRooms += 1;
+    }
+  });
+  return {
+    rooms: rooms.length,
+    connectedRooms,
+    spawnReachable: distances[spawn.y]?.[spawn.x] >= 0,
+    exitReachable: distances[exit.y]?.[exit.x] >= 0,
+  };
+}
+
 function buildTiles(mask, spawn, exit) {
   const tiles = [];
   for (let y = 0; y < mask.length; y += 1) {
@@ -361,6 +620,8 @@ function generateMask(levelGen, rng) {
   const { width, height } = levelGen;
   const mask = createMask(width, height, false);
   const profile = levelGen.shape?.profile || "rectangular";
+  let rooms = null;
+
   if (profile === "rectangular") {
     seedRectangular(mask);
   } else if (profile === "sparse_islands") {
@@ -369,17 +630,21 @@ function generateMask(levelGen, rng) {
   } else if (profile === "clustered_islands") {
     const clusterSize = Number.isInteger(levelGen.shape?.clusterSize) ? levelGen.shape.clusterSize : DEFAULT_CLUSTER_SIZE;
     seedClusteredIslands(mask, clusterSize, rng);
+  } else if (profile === "rooms") {
+    const settings = readRoomSettings(levelGen);
+    rooms = placeRooms(mask, rng, settings);
+    ensureRoomsConnected(mask, rooms, rng, settings.corridorWidth);
   } else {
     seedRectangular(mask);
   }
   ensureWalkable(mask);
-  return mask;
+  return { mask, rooms };
 }
 
 export function generateGridLayout(levelGen) {
   const seed = Number.isFinite(levelGen.seed) ? levelGen.seed : 0;
   const rng = createRng(seed);
-  const mask = generateMask(levelGen, rng);
+  const { mask, rooms } = generateMask(levelGen, rng);
   const traps = Array.isArray(levelGen.traps) ? levelGen.traps : [];
   applyTrapBlocking(mask, traps);
   const trapIndex = buildTrapIndex(traps);
@@ -395,6 +660,13 @@ export function generateGridLayout(levelGen) {
     exit,
     bounds: "walls_block_movement",
   };
+  if (rooms && rooms.length > 0) {
+    layout.rooms = rooms.map((room) => ({ ...room }));
+    const connectivity = computeConnectivity(mask, rooms, spawn, exit);
+    if (connectivity) {
+      layout.connectivity = connectivity;
+    }
+  }
   if (traps.length > 0) {
     layout.traps = traps.map((trap) => ({ ...trap }));
   }

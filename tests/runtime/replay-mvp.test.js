@@ -17,16 +17,9 @@ const DIRECTION = Object.freeze({
   north: 0,
 });
 
-function packMove({ actorId, from, to, direction, tick }) {
-  return (
-    ((actorId & 0xf) << 28) |
-    ((tick & 0xff) << 20) |
-    ((to.y & 0xf) << 16) |
-    ((to.x & 0xf) << 12) |
-    ((from.y & 0xf) << 8) |
-    ((from.x & 0xf) << 4) |
-    (DIRECTION[direction] & 0xf)
-  );
+function applyMove(core, { actorId, from, to, direction, tick }) {
+  core.setMoveAction(actorId, from.x, from.y, to.x, to.y, DIRECTION[direction], tick);
+  core.applyAction(ACTION_KIND_MOVE, 0);
 }
 
 function renderFrame(core) {
@@ -57,16 +50,13 @@ test("replay produces golden frames for MVP action log", async (t) => {
   const frames = [renderFrame(core)];
 
   for (const action of actions) {
-    core.applyAction(
-      ACTION_KIND_MOVE,
-      packMove({
-        actorId: 1,
-        from: action.params.from,
-        to: action.params.to,
-        direction: action.params.direction,
-        tick: action.tick,
-      })
-    );
+    applyMove(core, {
+      actorId: 1,
+      from: action.params.from,
+      to: action.params.to,
+      direction: action.params.direction,
+      tick: action.tick,
+    });
     core.clearEffects();
     frames.push(renderFrame(core));
   }
@@ -90,16 +80,13 @@ test("replay mismatch is detected when actions diverge", async (t) => {
   core.loadMvpScenario();
   const frames = [renderFrame(core)];
   for (const action of actions) {
-    core.applyAction(
-      ACTION_KIND_MOVE,
-      packMove({
-        actorId: 1,
-        from: action.params.from,
-        to: action.params.to,
-        direction: action.params.direction,
-        tick: action.tick,
-      })
-    );
+    applyMove(core, {
+      actorId: 1,
+      from: action.params.from,
+      to: action.params.to,
+      direction: action.params.direction,
+      tick: action.tick,
+    });
     core.clearEffects();
     frames.push(renderFrame(core));
   }

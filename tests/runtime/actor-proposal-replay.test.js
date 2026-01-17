@@ -20,7 +20,7 @@ test("runtime maps actor proposals to core actions and replays deterministically
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { loadCore, packMoveAction, renderFrameBuffer, renderBaseTiles, readObservation } from ${JSON.stringify(BINDINGS_MODULE)};
+import { applyMoveAction, loadCore, packMoveAction, renderFrameBuffer, renderBaseTiles, readObservation } from ${JSON.stringify(BINDINGS_MODULE)};
 import { createActorPersona } from ${JSON.stringify(ACTOR_MODULE)};
 import { TickPhases } from ${JSON.stringify(TICK_MODULE)};
 
@@ -71,7 +71,7 @@ for (let i = 0; i < actionFixture.actions.length; i += 1) {
     direction: action.params.direction,
     tick: action.tick,
   });
-  core.applyAction(8, packed);
+  applyMoveAction(core, packed);
   core.clearEffects?.();
   frames.push(renderFrameBuffer(core, { actorIdLabel }));
   persona.advance({
@@ -98,7 +98,7 @@ test("runtime filters non-motivated proposals before packing actions", (t) => {
 
   const script = `
 import assert from "node:assert/strict";
-import { loadCore, packMoveAction, renderFrameBuffer, renderBaseTiles, readObservation } from ${JSON.stringify(BINDINGS_MODULE)};
+import { applyMoveAction, loadCore, packMoveAction, renderFrameBuffer, renderBaseTiles, readObservation } from ${JSON.stringify(BINDINGS_MODULE)};
 import { createActorPersona } from ${JSON.stringify(ACTOR_MODULE)};
 import { TickPhases } from ${JSON.stringify(TICK_MODULE)};
 
@@ -160,7 +160,7 @@ const packed = packMoveAction({
   direction: action.params.direction,
   tick: action.tick,
 });
-core.applyAction(8, packed);
+applyMoveAction(core, packed);
 core.clearEffects?.();
 
 const frame = renderFrameBuffer(core, { actorIdLabel });

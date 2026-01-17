@@ -77,3 +77,27 @@ Use the Pool Flow panel (fixture mode by default) to take a lightweight summary 
 - BuildSpec: generated in-browser and validated; copy/paste into Build Orchestration or save as `spec.json`.
 - Allowed menus: derived from the catalog to keep prompt menus/UI options in sync with the saved pool.
 - Determinism: catalog sorting, snapping, budget enforcement, and BuildSpec validation are all deterministic; fixture mode avoids external IO.
+
+## 7) End-to-end integration tests (fixtures)
+Use the deterministic fixtures under `tests/fixtures/e2e/` to exercise the full pipeline (prompt -> summary -> BuildSpec -> build artifacts -> runtime load).
+
+Run all tests:
+```
+node --test "tests/**/*.test.js"
+```
+Run the main e2e stitch test only:
+```
+node --test tests/integration/e2e-llm-pool-runtime.test.js
+```
+
+Key fixtures:
+- `tests/fixtures/e2e/e2e-scenario-v1-basic.json` (scenario inputs)
+- `tests/fixtures/e2e/llm-summary-response.json` (prompt + LLM response capture)
+- `tests/fixtures/e2e/summary-v1-basic.json` (normalized summary)
+- `tests/fixtures/e2e/actors/` (tiered actor fixtures)
+
+Expected outputs (asserted by tests):
+- bundle/manifest/telemetry artifacts from `orchestrateBuild` (`tests/runtime/e2e-build-artifacts.test.js`)
+- runtime-ready sim config + initial state for headless playback (`tests/ui-web/e2e-runtime-from-build.test.mjs`)
+
+Determinism: fixed ordering, fixture-driven inputs, and pinned runId/createdAt in tests.

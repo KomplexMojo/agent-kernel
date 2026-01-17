@@ -4,7 +4,7 @@ import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs"
 
 // Moderator-owned runner module: executes ticks and records execution frames.
 
-export function createRuntime({ core, adapters = {}, effectFactory } = {}) {
+export function createRuntime({ core, adapters = {}, effectFactory, runId, clock } = {}) {
   if (!core) {
     throw new Error("Runtime requires a core instance.");
   }
@@ -12,7 +12,8 @@ export function createRuntime({ core, adapters = {}, effectFactory } = {}) {
   let tick = 0;
   const effectLog = [];
   const tickFrames = [];
-  const runId = `run_${Date.now().toString(36)}`;
+  let activeRunId = typeof runId === "string" && runId.length > 0 ? runId : `run_${Date.now().toString(36)}`;
+  let activeClock = typeof clock === "function" ? clock : () => new Date().toISOString();
   let frameCounter = 0;
   const EXECUTION_PHASES = ["observe", "collect", "apply", "emit"];
 
@@ -20,8 +21,8 @@ export function createRuntime({ core, adapters = {}, effectFactory } = {}) {
     frameCounter += 1;
     return {
       id: `frame_${frameCounter}`,
-      runId,
-      createdAt: new Date().toISOString(),
+      runId: activeRunId,
+      createdAt: activeClock(),
       producedBy: "moderator",
     };
   }
@@ -154,6 +155,12 @@ export function createRuntime({ core, adapters = {}, effectFactory } = {}) {
       const options = typeof seedOrOptions === "object" && seedOrOptions !== null
         ? seedOrOptions
         : { seed: seedOrOptions };
+      if (typeof options.runId === "string" && options.runId.length > 0) {
+        activeRunId = options.runId;
+      }
+      if (typeof options.clock === "function") {
+        activeClock = options.clock;
+      }
       const seed = Number.isFinite(options.seed) ? options.seed : 0;
       tick = 0;
       effectLog.length = 0;

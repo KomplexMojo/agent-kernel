@@ -49,31 +49,36 @@ async function loadCoreOrSkip(t) {
 }
 
 function packMove({ actorId, from, to, direction, tick }) {
-  return (
-    ((actorId & 0xf) << 28) |
-    ((tick & 0xff) << 20) |
-    ((to.y & 0xf) << 16) |
-    ((to.x & 0xf) << 12) |
-    ((from.y & 0xf) << 8) |
-    ((from.x & 0xf) << 4) |
-    (direction & 0xf)
-  );
+  return { actorId, from, to, direction, tick };
 }
 
-function decodeActorPosition(value) {
+function applyMove(core, action) {
+  core.setMoveAction(
+    action.actorId,
+    action.from.x,
+    action.from.y,
+    action.to.x,
+    action.to.y,
+    action.direction,
+    action.tick
+  );
+  core.applyAction(ACTION_KIND.Move, 0);
+}
+
+function readActorMoved(core, index) {
   return {
-    actorId: (value >> 24) & 0xff,
-    x: (value >> 8) & 0xff,
-    y: (value >> 16) & 0xff,
+    actorId: core.getEffectActorId(index),
+    x: core.getEffectX(index),
+    y: core.getEffectY(index),
   };
 }
 
-function decodeActorBlocked(value) {
+function readActorBlocked(core, index) {
   return {
-    actorId: (value >> 24) & 0xff,
-    x: (value >> 8) & 0xff,
-    y: (value >> 16) & 0xff,
-    reason: value & 0xff,
+    actorId: core.getEffectActorId(index),
+    x: core.getEffectX(index),
+    y: core.getEffectY(index),
+    reason: core.getEffectReason(index),
   };
 }
 
@@ -131,9 +136,9 @@ test("core-as applies move actions and renders MVP frames", async (t) => {
       direction: DIRECTION[action.params.direction],
       tick: action.tick,
     });
-    core.applyAction(ACTION_KIND.Move, packed);
+    applyMove(core, packed);
     assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorMoved);
-    const moved = decodeActorPosition(core.getEffectValue(0));
+    const moved = readActorMoved(core, 0);
     assert.equal(moved.actorId, 1);
     assert.deepEqual({ x: moved.x, y: moved.y }, action.params.to);
     frames.push(readFrame(core));
@@ -154,18 +159,15 @@ test("core-as rejects blocked or mistimed moves without advancing state", async 
   core.clearEffects();
 
   // Blocked by wall at (1,0).
-  core.applyAction(
-    ACTION_KIND.Move,
-    packMove({
-      actorId: 1,
-      from: { x: 1, y: 1 },
-      to: { x: 1, y: 0 },
-      direction: DIRECTION.north,
-      tick: 1,
-    })
-  );
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 1, y: 1 },
+    to: { x: 1, y: 0 },
+    direction: DIRECTION.north,
+    tick: 1,
+  }));
   assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorBlocked);
-  const blocked = decodeActorBlocked(core.getEffectValue(0));
+  const blocked = readActorBlocked(core, 0);
   assert.equal(blocked.actorId, 1);
   assert.equal(blocked.reason, VALIDATION_ERROR.BlockedByWall);
   assert.deepEqual({ x: blocked.x, y: blocked.y }, { x: 1, y: 0 });
@@ -175,18 +177,44 @@ test("core-as rejects blocked or mistimed moves without advancing state", async 
 
   core.clearEffects();
   // Tick mismatch (expected tick 1, supplied 0).
-  core.applyAction(
-    ACTION_KIND.Move,
-    packMove({
-      actorId: 1,
-      from: { x: 1, y: 1 },
-      to: { x: 2, y: 1 },
-      direction: DIRECTION.east,
-      tick: 0,
-    })
-  );
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 1, y: 1 },
+    to: { x: 2, y: 1 },
+    direction: DIRECTION.east,
+    tick: 0,
+  }));
   assert.equal(core.getEffectKind(0), EFFECT_KIND.ActionRejected);
   assert.equal(core.getEffectValue(0), VALIDATION_ERROR.TickMismatch);
   assert.equal(core.getActorX(), 1);
   assert.equal(core.getActorY(), 1);
+});
+
+test("core-as moves across large coordinates with new encoding", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+
+  core.init(0);
+  core.configureGrid(20, 20);
+  core.setTileAt(17, 17, 1);
+  core.setTileAt(18, 17, 1);
+  core.spawnActorAt(17, 17);
+  core.clearEffects();
+
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 17, y: 17 },
+    to: { x: 18, y: 17 },
+    direction: DIRECTION.east,
+    tick: 1,
+  }));
+
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorMoved);
+  const moved = readActorMoved(core, 0);
+  assert.equal(moved.actorId, 1);
+  assert.deepEqual({ x: moved.x, y: moved.y }, { x: 18, y: 17 });
+  assert.equal(core.getActorX(), 18);
+  assert.equal(core.getActorY(), 17);
 });

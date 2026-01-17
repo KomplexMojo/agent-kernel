@@ -1,4 +1,4 @@
-import { packMoveAction, renderBaseTiles, renderFrameBuffer } from "../../../bindings-ts/src/mvp-movement.js";
+import { applyMoveAction, packMoveAction, renderBaseTiles, renderFrameBuffer } from "../../../bindings-ts/src/mvp-movement.js";
 
 function assertCoreSupportsGrid(core) {
   const required = [
@@ -9,6 +9,7 @@ function assertCoreSupportsGrid(core) {
     "getActorX",
     "getActorY",
     "getCurrentTick",
+    "setMoveAction",
   ];
   for (const fn of required) {
     if (typeof core?.[fn] !== "function") {
@@ -133,7 +134,7 @@ export function runMvpMovement({
     const to = path[1];
     const tick = (typeof core.getCurrentTick === "function" ? core.getCurrentTick() : 0) + 1;
     const packed = packMoveAction({ actorId: actorIdValue, from, to, direction: directionFromDelta({ dx: to.x - from.x, dy: to.y - from.y }), tick });
-    core.applyAction(8, packed);
+    applyMoveAction(core, packed);
     const action = {
       schema: "agent-kernel/Action",
       schemaVersion: 1,

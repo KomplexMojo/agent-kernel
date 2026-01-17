@@ -17,6 +17,7 @@ const VALIDATION_ERROR = Object.freeze({
   ActorSpawnMismatch: 15,
   ActorBlocked: 16,
   ActorCollision: 17,
+  TooManyActors: 18,
 });
 
 const ERROR_KIND = Object.freeze({
@@ -76,3 +77,24 @@ for (const fixtureCase of FIXTURE_CASES) {
     assert.equal(core.getEffectValue(0), ERROR_KIND[fixture.expectedError]);
   });
 }
+
+test("core-as rejects placements over the max actor slots", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+  core.init(0);
+  core.loadMvpScenario();
+  core.clearActorPlacements();
+
+  const maxActors = core.getMapWidth() * core.getMapHeight();
+  for (let i = 0; i < maxActors + 1; i += 1) {
+    core.addActorPlacement(i + 1, 1, 1);
+  }
+
+  core.clearEffects();
+  const error = core.validateActorPlacement();
+  assert.equal(error, VALIDATION_ERROR.TooManyActors);
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ConfigInvalid);
+  assert.equal(core.getEffectValue(0), VALIDATION_ERROR.TooManyActors);
+});

@@ -1,6 +1,5 @@
 import {
   Direction,
-  encodePosition,
   getActorId,
   getActorX,
   getActorY,
@@ -15,19 +14,6 @@ import {
 } from "../state/world";
 import { ValidationError } from "../validate/inputs";
 
-const DIR_MASK: i32 = 0xf;
-const COORD_MASK: i32 = 0xf;
-const TICK_MASK: i32 = 0xff;
-const ACTOR_MASK: i32 = 0xf;
-
-const DIR_SHIFT: i32 = 0;
-const FROM_X_SHIFT: i32 = 4;
-const FROM_Y_SHIFT: i32 = 8;
-const TO_X_SHIFT: i32 = 12;
-const TO_Y_SHIFT: i32 = 16;
-const TICK_SHIFT: i32 = 20;
-const ACTOR_SHIFT: i32 = 28;
-
 export class MoveAction {
   actorId: i32 = 0;
   fromX: i32 = 0;
@@ -38,16 +24,28 @@ export class MoveAction {
   tick: i32 = 0;
 }
 
-export function decodeMove(value: i32): MoveAction {
-  const action = new MoveAction();
-  action.direction = (value >> DIR_SHIFT) & DIR_MASK;
-  action.fromX = (value >> FROM_X_SHIFT) & COORD_MASK;
-  action.fromY = (value >> FROM_Y_SHIFT) & COORD_MASK;
-  action.toX = (value >> TO_X_SHIFT) & COORD_MASK;
-  action.toY = (value >> TO_Y_SHIFT) & COORD_MASK;
-  action.tick = (value >> TICK_SHIFT) & TICK_MASK;
-  action.actorId = (value >> ACTOR_SHIFT) & ACTOR_MASK;
-  return action;
+let pendingMove = new MoveAction();
+
+export function setMoveAction(
+  actorId: i32,
+  fromX: i32,
+  fromY: i32,
+  toX: i32,
+  toY: i32,
+  direction: i32,
+  tick: i32,
+): void {
+  pendingMove.actorId = actorId;
+  pendingMove.fromX = fromX;
+  pendingMove.fromY = fromY;
+  pendingMove.toX = toX;
+  pendingMove.toY = toY;
+  pendingMove.direction = direction;
+  pendingMove.tick = tick;
+}
+
+export function decodeMove(_value: i32): MoveAction {
+  return pendingMove;
 }
 
 function validateDirection(action: MoveAction): bool {
@@ -99,10 +97,6 @@ export function applyMove(action: MoveAction): ValidationError {
   setActorPosition(action.toX, action.toY);
   setCurrentTick(action.tick);
   return ValidationError.None;
-}
-
-export function encodeMovePositionValue(action: MoveAction): i32 {
-  return encodePosition(action.toX, action.toY);
 }
 
 export function reachedExitAfterMove(): bool {

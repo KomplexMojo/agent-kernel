@@ -1,0 +1,27 @@
+{
+  "prompt": "Goal: Validate the end-to-end pipeline with a small deterministic tier.\nBudget tokens: 800\nYou are a dungeon master strategist shaping a dungeon layout and the actors that populate it.\nYou may receive information over several turns; acknowledge with `ready`, list what is missing, and wait for the final JSON request.\nChoose only from the allowed lists; do not invent new affinities, expressions, or motivations.\nAffinities: fire, water, earth, wind, life, decay, corrode, dark\nAffinity expressions: push, pull, emit\nMotivations: random, stationary, exploring, attacking, defending, patrolling, reflexive, goal_oriented, strategy_focused\nReturn JSON only when asked, shaped as:\n{ \"dungeonTheme\": <affinity>, \"budgetTokens\": <int>, \"rooms\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>,\"affinities\":[{\"kind\":<affinity>,\"expression\":<expression>,\"stacks\":<int?>}]}], \"actors\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>,\"affinities\":[{\"kind\":<affinity>,\"expression\":<expression>,\"stacks\":<int?>}]}], \"missing\": [] }\nIf unsure, populate `missing` instead of inventing values.",
+  "responseRaw": "{\"dungeonTheme\":\"fire\",\"budgetTokens\":800,\"rooms\":[{\"motivation\":\"stationary\",\"affinity\":\"fire\",\"count\":1,\"tokenHint\":200,\"affinities\":[{\"kind\":\"fire\",\"expression\":\"push\",\"stacks\":1}]}],\"actors\":[{\"motivation\":\"attacking\",\"affinity\":\"fire\",\"count\":1,\"tokenHint\":200,\"affinities\":[{\"kind\":\"fire\",\"expression\":\"push\",\"stacks\":2}]}],\"missing\":[]}",
+  "responseParsed": {
+    "dungeonTheme": "fire",
+    "budgetTokens": 800,
+    "rooms": [
+      {
+        "motivation": "stationary",
+        "affinity": "fire",
+        "count": 1,
+        "tokenHint": 200,
+        "affinities": [{ "kind": "fire", "expression": "push", "stacks": 1 }]
+      }
+    ],
+    "actors": [
+      {
+        "motivation": "attacking",
+        "affinity": "fire",
+        "count": 1,
+        "tokenHint": 200,
+        "affinities": [{ "kind": "fire", "expression": "push", "stacks": 2 }]
+      }
+    ],
+    "missing": []
+  }
+}

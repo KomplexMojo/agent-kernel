@@ -29,7 +29,7 @@ function buildActorsAndGroups(selections) {
     .filter((sel) => sel.kind === "actor" && sel.instances && sel.instances.length > 0)
     .forEach((sel) => {
       sel.instances.forEach((inst, idx) => {
-        actors.push({
+        const entry = {
           id: inst.id,
           kind: sel.applied?.subType === "static" ? "static" : "ambulatory",
           affinity: inst.affinity,
@@ -41,7 +41,11 @@ function buildActorsAndGroups(selections) {
             stamina: { current: 0, max: 0, regen: 0 },
             durability: { current: 1, max: 1, regen: 0 },
           },
-        });
+        };
+        if (Array.isArray(inst.affinities) && inst.affinities.length > 0) {
+          entry.affinities = inst.affinities.map((affinity) => ({ ...affinity }));
+        }
+        actors.push(entry);
       });
       const key = sel.applied?.motivation || "unknown";
       const prev = groupCounts.get(key) || 0;
@@ -53,7 +57,19 @@ function buildActorsAndGroups(selections) {
   return { actors, actorGroups };
 }
 
-export function buildBuildSpecFromSummary({ summary, catalog, runId, source, createdAt, selections } = {}) {
+export function buildBuildSpecFromSummary({
+  summary,
+  catalog,
+  runId,
+  source,
+  createdAt,
+  selections,
+  budgetRef,
+  priceListRef,
+  budgetArtifact,
+  priceListArtifact,
+  receiptArtifact,
+} = {}) {
   const mapped = selections
     ? { ok: true, selections }
     : mapSummaryToPool({ summary, catalog });
@@ -95,6 +111,14 @@ export function buildBuildSpecFromSummary({ summary, catalog, runId, source, cre
       },
     },
   };
+  if (budgetRef || priceListRef || budgetArtifact || priceListArtifact || receiptArtifact) {
+    spec.budget = {};
+    if (budgetRef) spec.budget.budgetRef = budgetRef;
+    if (priceListRef) spec.budget.priceListRef = priceListRef;
+    if (budgetArtifact) spec.budget.budget = budgetArtifact;
+    if (priceListArtifact) spec.budget.priceList = priceListArtifact;
+    if (receiptArtifact) spec.budget.receipt = receiptArtifact;
+  }
 
   const validation = validateBuildSpec(spec);
   if (!validation.ok) {

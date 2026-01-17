@@ -28,33 +28,36 @@ export const enum VitalKind {
   Durability = 3,
 }
 
-const MAX_WIDTH: i32 = 9;
-const MAX_HEIGHT: i32 = 9;
-const STRIDE: i32 = MAX_WIDTH;
-const MAX_CELLS: i32 = MAX_WIDTH * MAX_HEIGHT;
+const MAX_WORLD_CELLS: i32 = 1000000;
+const MAX_MOTIVATED_ACTORS: i32 = 20000;
 const VITAL_COUNT: i32 = 4;
 const VITAL_MASK_ALL: i32 = (1 << VITAL_COUNT) - 1;
 const TILE_ACTOR_ID_OFFSET: i32 = 1000;
 const INVALID_TILE_ACTOR_INDEX: i32 = -1;
-const MAX_PLACEMENT_ACTORS: i32 = MAX_CELLS;
 const BARRIER_DURABILITY_DEFAULT: i32 = 3;
 
 let width: i32 = 0;
 let height: i32 = 0;
-let tiles = new StaticArray<u8>(MAX_CELLS);
-let tileActorKindByCell = new StaticArray<u8>(MAX_CELLS);
-let tileActorIdByCell = new StaticArray<i32>(MAX_CELLS);
-let tileActorIndexByCell = new StaticArray<i32>(MAX_CELLS);
-let tileActorXByIndex = new StaticArray<i32>(MAX_CELLS);
-let tileActorYByIndex = new StaticArray<i32>(MAX_CELLS);
-let tileActorKindByIndex = new StaticArray<u8>(MAX_CELLS);
-let tileActorIdByIndex = new StaticArray<i32>(MAX_CELLS);
-let tileActorDurabilityByIndex = new StaticArray<i32>(MAX_CELLS);
+let cellCount: i32 = 0;
+let maxMotivatedActors: i32 = 0;
+let tileBuffer = new StaticArray<u8>(0);
+let tileBufferLength: i32 = 0;
+let tiles = new StaticArray<u8>(0);
+let tileActorKindByCell = new StaticArray<u8>(0);
+let tileActorIdByCell = new StaticArray<i32>(0);
+let tileActorIndexByCell = new StaticArray<i32>(0);
+let tileActorXByIndex = new StaticArray<i32>(0);
+let tileActorYByIndex = new StaticArray<i32>(0);
+let tileActorKindByIndex = new StaticArray<u8>(0);
+let tileActorIdByIndex = new StaticArray<i32>(0);
+let tileActorDurabilityByIndex = new StaticArray<i32>(0);
 let tileActorCount: i32 = 0;
 let placementActorCount: i32 = 0;
-let placementActorX = new StaticArray<i32>(MAX_PLACEMENT_ACTORS);
-let placementActorY = new StaticArray<i32>(MAX_PLACEMENT_ACTORS);
-let motivatedOccupancyByCell = new StaticArray<i32>(MAX_CELLS);
+let placementActorOverflow: bool = false;
+let placementActorId = new StaticArray<i32>(0);
+let placementActorX = new StaticArray<i32>(0);
+let placementActorY = new StaticArray<i32>(0);
+let motivatedOccupancyByCell = new StaticArray<i32>(0);
 
 let spawnX: i32 = -1;
 let spawnY: i32 = -1;
@@ -70,17 +73,79 @@ let actorVitalCurrent = new StaticArray<i32>(VITAL_COUNT);
 let actorVitalMax = new StaticArray<i32>(VITAL_COUNT);
 let actorVitalRegen = new StaticArray<i32>(VITAL_COUNT);
 let actorVitalMask: i32 = 0;
+let motivatedActorCount: i32 = 0;
+let motivatedActorId = new StaticArray<i32>(0);
+let motivatedActorX = new StaticArray<i32>(0);
+let motivatedActorY = new StaticArray<i32>(0);
+let motivatedActorVitalCurrent = new StaticArray<i32>(0);
+let motivatedActorVitalMax = new StaticArray<i32>(0);
+let motivatedActorVitalRegen = new StaticArray<i32>(0);
 let currentTick: i32 = 0;
 
+function resizeGrid(newWidth: i32, newHeight: i32): void {
+  width = newWidth;
+  height = newHeight;
+  cellCount = newWidth * newHeight;
+  maxMotivatedActors = cellCount;
+  if (maxMotivatedActors > MAX_MOTIVATED_ACTORS) {
+    maxMotivatedActors = MAX_MOTIVATED_ACTORS;
+  }
+  tiles = new StaticArray<u8>(cellCount);
+  tileActorKindByCell = new StaticArray<u8>(cellCount);
+  tileActorIdByCell = new StaticArray<i32>(cellCount);
+  tileActorIndexByCell = new StaticArray<i32>(cellCount);
+  tileActorXByIndex = new StaticArray<i32>(cellCount);
+  tileActorYByIndex = new StaticArray<i32>(cellCount);
+  tileActorKindByIndex = new StaticArray<u8>(cellCount);
+  tileActorIdByIndex = new StaticArray<i32>(cellCount);
+  tileActorDurabilityByIndex = new StaticArray<i32>(cellCount);
+  placementActorId = new StaticArray<i32>(maxMotivatedActors);
+  placementActorX = new StaticArray<i32>(maxMotivatedActors);
+  placementActorY = new StaticArray<i32>(maxMotivatedActors);
+  motivatedOccupancyByCell = new StaticArray<i32>(cellCount);
+  motivatedActorId = new StaticArray<i32>(maxMotivatedActors);
+  motivatedActorX = new StaticArray<i32>(maxMotivatedActors);
+  motivatedActorY = new StaticArray<i32>(maxMotivatedActors);
+  motivatedActorVitalCurrent = new StaticArray<i32>(maxMotivatedActors * VITAL_COUNT);
+  motivatedActorVitalMax = new StaticArray<i32>(maxMotivatedActors * VITAL_COUNT);
+  motivatedActorVitalRegen = new StaticArray<i32>(maxMotivatedActors * VITAL_COUNT);
+}
+
+export function prepareTileBuffer(length: i32): usize {
+  if (length <= 0) {
+    return 0;
+  }
+  if (length > tileBufferLength) {
+    tileBuffer = new StaticArray<u8>(length);
+    tileBufferLength = length;
+  }
+  return changetype<usize>(tileBuffer);
+}
+
+export function loadTilesFromBuffer(length: i32): ValidationError {
+  if (length <= 0 || length != cellCount || length > tileBufferLength) {
+    return ValidationError.OutOfBounds;
+  }
+  let index = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const tile = unchecked(tileBuffer[index]);
+      setTile(x, y, tile as Tile);
+      index += 1;
+    }
+  }
+  return ValidationError.None;
+}
+
 function fillTiles(tile: Tile): void {
-  for (let i = 0; i < MAX_CELLS; i += 1) {
+  for (let i = 0; i < cellCount; i += 1) {
     tiles[i] = tile as u8;
   }
 }
 
 function clearTileActorState(): void {
   tileActorCount = 0;
-  for (let i = 0; i < MAX_CELLS; i += 1) {
+  for (let i = 0; i < cellCount; i += 1) {
     unchecked(tileActorKindByCell[i] = ActorKind.Barrier as u8);
     unchecked(tileActorIdByCell[i] = 0);
     unchecked(tileActorIndexByCell[i] = INVALID_TILE_ACTOR_INDEX);
@@ -93,7 +158,7 @@ function clearTileActorState(): void {
 }
 
 function clearMotivatedOccupancy(): void {
-  for (let i = 0; i < MAX_CELLS; i += 1) {
+  for (let i = 0; i < cellCount; i += 1) {
     unchecked(motivatedOccupancyByCell[i] = 0);
   }
 }
@@ -107,13 +172,22 @@ function setMotivatedOccupancyAt(x: i32, y: i32, value: i32): void {
 
 function seedMotivatedOccupancyFromActor(): void {
   clearMotivatedOccupancy();
+  if (motivatedActorCount > 0) {
+    for (let i = 0; i < motivatedActorCount; i += 1) {
+      const x = unchecked(motivatedActorX[i]);
+      const y = unchecked(motivatedActorY[i]);
+      setMotivatedOccupancyAt(x, y, i + 1);
+    }
+    return;
+  }
   if (actorActive) {
-    setMotivatedOccupancyAt(actorX, actorY, actorId);
+    setMotivatedOccupancyAt(actorX, actorY, 1);
   }
 }
 
 function resetActorPlacementsState(): void {
   placementActorCount = 0;
+  placementActorOverflow = false;
   clearMotivatedOccupancy();
 }
 
@@ -179,42 +253,68 @@ function resetActorVitals(): void {
   fillVitals(actorVitalCurrent, 0);
   fillVitals(actorVitalMax, 0);
   fillVitals(actorVitalRegen, 0);
+  if (maxMotivatedActors > 0) {
+    for (let i = 0; i < VITAL_COUNT; i += 1) {
+      const index = vitalIndexFor(0, i);
+      unchecked(motivatedActorVitalCurrent[index] = 0);
+      unchecked(motivatedActorVitalMax[index] = 0);
+      unchecked(motivatedActorVitalRegen[index] = 0);
+    }
+  }
+}
+
+function resetMotivatedActors(): void {
+  motivatedActorCount = 0;
+  actorActive = false;
+  actorId = 1;
+  actorKind = ActorKind.Motivated;
+  actorX = -1;
+  actorY = -1;
+  resetActorVitals();
 }
 
 function isValidVitalKind(kind: i32): bool {
   return kind >= 0 && kind < VITAL_COUNT;
 }
 
-function indexFor(x: i32, y: i32): i32 {
-  return y * STRIDE + x;
+function isValidMotivatedActorIndex(index: i32): bool {
+  return index >= 0 && index < motivatedActorCount;
 }
 
-export function resetWorld(): void {
-  width = 0;
-  height = 0;
+function vitalIndexFor(actorIndex: i32, kind: i32): i32 {
+  return actorIndex * VITAL_COUNT + kind;
+}
+
+function indexFor(x: i32, y: i32): i32 {
+  return y * width + x;
+}
+
+function resetWorldState(): void {
   spawnX = -1;
   spawnY = -1;
   exitX = -1;
   exitY = -1;
-  actorId = 1;
-  actorActive = false;
-  actorKind = ActorKind.Motivated;
-  actorX = -1;
-  actorY = -1;
-  resetActorVitals();
+  resetMotivatedActors();
   currentTick = 0;
   fillTiles(Tile.Wall);
   clearTileActorState();
   resetActorPlacementsState();
 }
 
+export function resetWorld(): void {
+  resizeGrid(0, 0);
+  resetWorldState();
+}
+
 export function configureGrid(newWidth: i32, newHeight: i32): ValidationError {
-  if (newWidth <= 0 || newHeight <= 0 || newWidth > MAX_WIDTH || newHeight > MAX_HEIGHT) {
+  if (newWidth <= 0 || newHeight <= 0) {
     return ValidationError.OutOfBounds;
   }
-  resetWorld();
-  width = newWidth;
-  height = newHeight;
+  if (newWidth > MAX_WORLD_CELLS / newHeight) {
+    return ValidationError.OutOfBounds;
+  }
+  resizeGrid(newWidth, newHeight);
+  resetWorldState();
   initTileActorsForBounds();
   return ValidationError.None;
 }
@@ -245,6 +345,13 @@ export function spawnActorAt(x: i32, y: i32): void {
   if (!withinBounds(x, y)) {
     return;
   }
+  motivatedActorCount = 1;
+  if (actorId <= 0) {
+    actorId = 1;
+  }
+  unchecked(motivatedActorId[0] = actorId);
+  unchecked(motivatedActorX[0] = x);
+  unchecked(motivatedActorY[0] = y);
   actorActive = true;
   actorX = x;
   actorY = y;
@@ -270,7 +377,7 @@ function setTile(x: i32, y: i32, tile: Tile): void {
 
 function setRowFromString(y: i32, row: string): void {
   const rowLength = row.length;
-  for (let x = 0; x < rowLength && x < MAX_WIDTH; x += 1) {
+  for (let x = 0; x < rowLength && x < width; x += 1) {
     const code = row.charCodeAt(x);
     if (code == 35) {
       setTile(x, y, Tile.Wall);
@@ -287,10 +394,7 @@ function setRowFromString(y: i32, row: string): void {
 }
 
 export function loadMvpWorld(): void {
-  resetWorld();
-  width = 9;
-  height = 9;
-  initTileActorsForBounds();
+  configureGrid(9, 9);
   setRowFromString(0, "#########");
   setRowFromString(1, "#S..#...#");
   setRowFromString(2, "#...#.#.#");
@@ -307,19 +411,13 @@ export function loadMvpWorld(): void {
   setActorVital(VitalKind.Stamina, 0, 0, 0);
   setActorVital(VitalKind.Durability, 0, 0, 0);
   if (spawnX >= 0 && spawnY >= 0) {
-    actorX = spawnX;
-    actorY = spawnY;
-    actorActive = true;
+    spawnActorAt(spawnX, spawnY);
   }
-  seedMotivatedOccupancyFromActor();
   currentTick = 0;
 }
 
 export function loadMvpBarrierWorld(): void {
-  resetWorld();
-  width = 9;
-  height = 9;
-  initTileActorsForBounds();
+  configureGrid(9, 9);
   setRowFromString(0, "#########");
   setRowFromString(1, "#SB.#...#");
   setRowFromString(2, "#...#.#.#");
@@ -336,11 +434,8 @@ export function loadMvpBarrierWorld(): void {
   setActorVital(VitalKind.Stamina, 0, 0, 0);
   setActorVital(VitalKind.Durability, 0, 0, 0);
   if (spawnX >= 0 && spawnY >= 0) {
-    actorX = spawnX;
-    actorY = spawnY;
-    actorActive = true;
+    spawnActorAt(spawnX, spawnY);
   }
-  seedMotivatedOccupancyFromActor();
   currentTick = 0;
 }
 
@@ -358,9 +453,11 @@ export function clearActorPlacements(): void {
 }
 
 export function addActorPlacement(id: i32, x: i32, y: i32): void {
-  if (placementActorCount >= MAX_PLACEMENT_ACTORS) {
+  if (placementActorCount >= maxMotivatedActors) {
+    placementActorOverflow = true;
     return;
   }
+  unchecked(placementActorId[placementActorCount] = id);
   unchecked(placementActorX[placementActorCount] = x);
   unchecked(placementActorY[placementActorCount] = y);
   placementActorCount += 1;
@@ -375,6 +472,13 @@ function getPlacementCount(): i32 {
     return placementActorCount;
   }
   return actorActive ? 1 : 0;
+}
+
+function getPlacementId(index: i32): i32 {
+  if (placementActorCount > 0) {
+    return unchecked(placementActorId[index]);
+  }
+  return actorId;
 }
 
 function getPlacementX(index: i32): i32 {
@@ -395,6 +499,9 @@ export function validateActorPlacement(): ValidationError {
   const count = getPlacementCount();
   if (count <= 0) {
     return ValidationError.None;
+  }
+  if (placementActorOverflow || count > maxMotivatedActors) {
+    return ValidationError.TooManyActors;
   }
 
   for (let i = 0; i < count; i += 1) {
@@ -425,6 +532,38 @@ export function validateActorPlacement(): ValidationError {
     unchecked(motivatedOccupancyByCell[cellIndex] = i + 1);
   }
 
+  return ValidationError.None;
+}
+
+export function applyActorPlacements(): ValidationError {
+  const count = getPlacementCount();
+  if (count <= 0) {
+    return ValidationError.None;
+  }
+  if (placementActorOverflow || count > maxMotivatedActors) {
+    return ValidationError.TooManyActors;
+  }
+  const error = validateActorPlacement();
+  if (error != ValidationError.None) {
+    return error;
+  }
+  motivatedActorCount = count;
+  for (let i = 0; i < count; i += 1) {
+    let id = getPlacementId(i);
+    if (id <= 0) {
+      id = i + 1;
+    }
+    unchecked(motivatedActorId[i] = id);
+    unchecked(motivatedActorX[i] = getPlacementX(i));
+    unchecked(motivatedActorY[i] = getPlacementY(i));
+  }
+  actorActive = count > 0;
+  if (actorActive) {
+    actorId = unchecked(motivatedActorId[0]);
+    actorX = unchecked(motivatedActorX[0]);
+    actorY = unchecked(motivatedActorY[0]);
+  }
+  resetActorVitals();
   return ValidationError.None;
 }
 
@@ -558,7 +697,7 @@ export function renderCell(x: i32, y: i32): i32 {
 }
 
 export function hasActor(): bool {
-  return actorActive;
+  return actorActive || motivatedActorCount > 0;
 }
 
 export function getActorId(): i32 {
@@ -613,7 +752,29 @@ export function setActorVital(kind: i32, current: i32, max: i32, regen: i32): vo
   unchecked(actorVitalCurrent[kind] = current);
   unchecked(actorVitalMax[kind] = max);
   unchecked(actorVitalRegen[kind] = regen);
+  if (maxMotivatedActors > 0) {
+    const index = vitalIndexFor(0, kind);
+    unchecked(motivatedActorVitalCurrent[index] = current);
+    unchecked(motivatedActorVitalMax[index] = max);
+    unchecked(motivatedActorVitalRegen[index] = regen);
+  }
   actorVitalMask |= 1 << kind;
+}
+
+export function setMotivatedActorVital(index: i32, kind: i32, current: i32, max: i32, regen: i32): void {
+  if (!isValidVitalKind(kind) || index < 0 || index >= motivatedActorCount) {
+    return;
+  }
+  const offset = vitalIndexFor(index, kind);
+  unchecked(motivatedActorVitalCurrent[offset] = current);
+  unchecked(motivatedActorVitalMax[offset] = max);
+  unchecked(motivatedActorVitalRegen[offset] = regen);
+  if (index == 0) {
+    unchecked(actorVitalCurrent[kind] = current);
+    unchecked(actorVitalMax[kind] = max);
+    unchecked(actorVitalRegen[kind] = regen);
+    actorVitalMask |= 1 << kind;
+  }
 }
 
 export function validateActorVitals(): ValidationError {
@@ -631,6 +792,52 @@ export function validateActorVitals(): ValidationError {
   return ValidationError.None;
 }
 
+export function getMotivatedActorCount(): i32 {
+  return motivatedActorCount;
+}
+
+export function getMotivatedActorIdByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) {
+    return 0;
+  }
+  return unchecked(motivatedActorId[index]);
+}
+
+export function getMotivatedActorXByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) {
+    return -1;
+  }
+  return unchecked(motivatedActorX[index]);
+}
+
+export function getMotivatedActorYByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) {
+    return -1;
+  }
+  return unchecked(motivatedActorY[index]);
+}
+
+export function getMotivatedActorVitalCurrentByIndex(index: i32, kind: i32): i32 {
+  if (!isValidMotivatedActorIndex(index) || !isValidVitalKind(kind)) {
+    return 0;
+  }
+  return unchecked(motivatedActorVitalCurrent[vitalIndexFor(index, kind)]);
+}
+
+export function getMotivatedActorVitalMaxByIndex(index: i32, kind: i32): i32 {
+  if (!isValidMotivatedActorIndex(index) || !isValidVitalKind(kind)) {
+    return 0;
+  }
+  return unchecked(motivatedActorVitalMax[vitalIndexFor(index, kind)]);
+}
+
+export function getMotivatedActorVitalRegenByIndex(index: i32, kind: i32): i32 {
+  if (!isValidMotivatedActorIndex(index) || !isValidVitalKind(kind)) {
+    return 0;
+  }
+  return unchecked(motivatedActorVitalRegen[vitalIndexFor(index, kind)]);
+}
+
 export function setActorPosition(x: i32, y: i32): void {
   if (!withinBounds(x, y)) {
     return;
@@ -640,8 +847,12 @@ export function setActorPosition(x: i32, y: i32): void {
   }
   actorX = x;
   actorY = y;
+  if (motivatedActorCount > 0) {
+    unchecked(motivatedActorX[0] = x);
+    unchecked(motivatedActorY[0] = y);
+  }
   if (actorActive) {
-    setMotivatedOccupancyAt(actorX, actorY, actorId);
+    setMotivatedOccupancyAt(actorX, actorY, 1);
   }
 }
 
@@ -664,10 +875,6 @@ export function getMapHeight(): i32 {
 export function isActorAtExit(): bool {
   if (!actorActive) return false;
   return actorX == exitX && actorY == exitY;
-}
-
-export function encodePosition(x: i32, y: i32): i32 {
-  return (y << 16) | (x & 0xffff);
 }
 
 export function validateSpawnPlacement(): ValidationError {

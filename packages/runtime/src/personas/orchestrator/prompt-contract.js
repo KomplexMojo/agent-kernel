@@ -1,7 +1,8 @@
-import { AFFINITY_KINDS } from "../configurator/affinity-loadouts.js";
+import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS } from "../configurator/affinity-loadouts.js";
 import { MOTIVATION_KINDS } from "../configurator/motivation-loadouts.js";
 
 export const ALLOWED_AFFINITIES = AFFINITY_KINDS;
+export const ALLOWED_AFFINITY_EXPRESSIONS = AFFINITY_EXPRESSIONS;
 export const ALLOWED_MOTIVATIONS = MOTIVATION_KINDS;
 export function deriveAllowedOptionsFromCatalog(catalog = {}) {
   const entries = Array.isArray(catalog.entries) ? catalog.entries : Array.isArray(catalog) ? catalog : [];
@@ -37,6 +38,8 @@ function normalizePick(entry, base, errors) {
     return null;
   }
   const { motivation, affinity, count, tokenHint } = entry;
+  const expression = entry.expression ?? entry.affinityExpression;
+  const stacks = entry.stacks ?? entry.affinityStacks;
   if (!isNonEmptyString(motivation) || !ALLOWED_MOTIVATIONS.includes(motivation)) {
     addError(errors, `${base}.motivation`, "invalid_motivation");
   }
@@ -55,12 +58,84 @@ function normalizePick(entry, base, errors) {
     }
   }
 
-  return {
+  let normalizedExpression;
+  if (expression !== undefined) {
+    if (!isNonEmptyString(expression) || !ALLOWED_AFFINITY_EXPRESSIONS.includes(expression)) {
+      addError(errors, `${base}.expression`, "invalid_expression");
+    } else {
+      normalizedExpression = expression;
+    }
+  }
+
+  let normalizedStacks;
+  if (stacks !== undefined) {
+    if (!Number.isInteger(stacks) || stacks <= 0) {
+      addError(errors, `${base}.stacks`, "invalid_stacks");
+    } else {
+      normalizedStacks = stacks;
+    }
+  }
+
+  let normalizedAffinities;
+  if (entry.affinities !== undefined) {
+    if (!Array.isArray(entry.affinities)) {
+      addError(errors, `${base}.affinities`, "invalid_affinities");
+      normalizedAffinities = [];
+    } else {
+      normalizedAffinities = [];
+      entry.affinities.forEach((entryAffinity, index) => {
+        const affinityBase = `${base}.affinities[${index}]`;
+        if (!entryAffinity || typeof entryAffinity !== "object" || Array.isArray(entryAffinity)) {
+          addError(errors, affinityBase, "invalid_affinity");
+          return;
+        }
+        const kind = entryAffinity.kind || entryAffinity.affinity;
+        const affinityExpression = entryAffinity.expression ?? entryAffinity.affinityExpression;
+        if (!isNonEmptyString(kind) || !ALLOWED_AFFINITIES.includes(kind)) {
+          addError(errors, `${affinityBase}.kind`, "invalid_affinity");
+        }
+        if (!isNonEmptyString(affinityExpression) || !ALLOWED_AFFINITY_EXPRESSIONS.includes(affinityExpression)) {
+          addError(errors, `${affinityBase}.expression`, "invalid_expression");
+        }
+        const stacksValue = entryAffinity.stacks ?? entryAffinity.affinityStacks;
+        const stacksParsed = Number.isInteger(stacksValue) ? stacksValue : 1;
+        if (!Number.isInteger(stacksValue) && stacksValue !== undefined) {
+          addError(errors, `${affinityBase}.stacks`, "invalid_stacks");
+        }
+        if (Number.isInteger(stacksValue) && stacksValue <= 0) {
+          addError(errors, `${affinityBase}.stacks`, "invalid_stacks");
+        }
+        normalizedAffinities.push({
+          kind,
+          expression: affinityExpression,
+          stacks: Number.isInteger(stacksValue) && stacksValue > 0 ? stacksValue : stacksParsed,
+        });
+      });
+    }
+  } else if (normalizedExpression) {
+    normalizedAffinities = [
+      {
+        kind: affinity,
+        expression: normalizedExpression,
+        stacks: normalizedStacks || 1,
+      },
+    ];
+  } else if (normalizedStacks !== undefined) {
+    addError(errors, `${base}.expression`, "missing_expression");
+  }
+
+  const result = {
     motivation,
     affinity,
     count,
     tokenHint: normalizedTokenHint,
   };
+  if (normalizedExpression) result.expression = normalizedExpression;
+  if (normalizedStacks !== undefined) result.stacks = normalizedStacks;
+  if (normalizedAffinities && normalizedAffinities.length > 0) {
+    result.affinities = normalizedAffinities;
+  }
+  return result;
 }
 
 export function normalizeSummary(summary) {
@@ -109,20 +184,23 @@ export function normalizeSummary(summary) {
   return { ok: errors.length === 0, errors, warnings, value };
 }
 
-export function buildMenuPrompt({ goal, notes } = {}) {
+export function buildMenuPrompt({ goal, notes, budgetTokens } = {}) {
   const affinityMenu = ALLOWED_AFFINITIES.join(", ");
+  const expressionMenu = ALLOWED_AFFINITY_EXPRESSIONS.join(", ");
   const motivationMenu = ALLOWED_MOTIVATIONS.join(", ");
   const goalLine = goal ? `Goal: ${goal}\n` : "";
   const notesLine = notes ? `Notes: ${notes}\n` : "";
+  const budgetLine = Number.isInteger(budgetTokens) && budgetTokens > 0 ? `Budget tokens: ${budgetTokens}\n` : "";
   return (
-    `${goalLine}${notesLine}` +
-    "You are a dungeon master setting up a dungeon.\n" +
-    "You will receive information over several turns; acknowledge with `ready`, list what is missing, and wait for final JSON request.\n" +
-    "Choose only from the allowed lists; do not invent new affinities or motivations.\n" +
+    `${goalLine}${notesLine}${budgetLine}` +
+    "You are a dungeon master strategist shaping a dungeon layout and the actors that populate it.\n" +
+    "You may receive information over several turns; acknowledge with `ready`, list what is missing, and wait for the final JSON request.\n" +
+    "Choose only from the allowed lists; do not invent new affinities, expressions, or motivations.\n" +
     `Affinities: ${affinityMenu}\n` +
+    `Affinity expressions: ${expressionMenu}\n` +
     `Motivations: ${motivationMenu}\n` +
     "Return JSON only when asked, shaped as:\n" +
-    "{ \"dungeonTheme\": <affinity>, \"budgetTokens\": <int>, \"rooms\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>}], \"actors\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>}], \"missing\": [] }\n" +
+    "{ \"dungeonTheme\": <affinity>, \"budgetTokens\": <int>, \"rooms\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>,\"affinities\":[{\"kind\":<affinity>,\"expression\":<expression>,\"stacks\":<int?>}]}], \"actors\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>,\"affinities\":[{\"kind\":<affinity>,\"expression\":<expression>,\"stacks\":<int?>}]}], \"missing\": [] }\n" +
     "If unsure, populate `missing` instead of inventing values."
   );
 }

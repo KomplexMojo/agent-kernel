@@ -1,4 +1,4 @@
-import { packMoveAction, renderFrameBuffer, readObservation } from "../../bindings-ts/src/mvp-movement.js";
+import { applyMoveAction, packMoveAction, renderFrameBuffer, readObservation } from "../../bindings-ts/src/mvp-movement.js";
 
 const VITAL_KEYS = ["health", "mana", "stamina", "durability"];
 const TRAP_VITAL_KEYS = ["mana", "durability"];
@@ -167,7 +167,7 @@ export function setupPlayback({
       direction: action.params.direction,
       tick: action.tick,
     });
-    core.applyAction(8, packed);
+    applyMoveAction(core, packed);
     core.clearEffects?.();
   }
 

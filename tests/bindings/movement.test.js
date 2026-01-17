@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  applyMoveAction,
   loadCore,
   packMoveAction,
   unpackMoveAction,
@@ -25,6 +26,20 @@ const barrierFrameFixture = JSON.parse(fs.readFileSync(path.resolve("tests/fixtu
 const core = await loadCore({ wasmUrl });
 core.init(1337);
 core.loadMvpScenario();
+
+const largePacked = packMoveAction({
+  actorId: 12345,
+  from: { x: 512, y: 513 },
+  to: { x: 900, y: 1000 },
+  direction: "east",
+  tick: 9999,
+});
+const largeDecoded = unpackMoveAction(largePacked);
+assert.equal(largeDecoded.actorId, 12345);
+assert.equal(largeDecoded.direction, "east");
+assert.deepEqual(largeDecoded.from, { x: 512, y: 513 });
+assert.deepEqual(largeDecoded.to, { x: 900, y: 1000 });
+assert.equal(largeDecoded.tick, 9999);
 
 // Observation shape and base map metadata.
 const obs0 = readObservation(core);
@@ -64,7 +79,7 @@ for (const action of actionFixture.actions) {
   assert.deepEqual(decoded.from, action.params.from);
   assert.deepEqual(decoded.to, action.params.to);
   assert.equal(decoded.tick, action.tick);
-  core.applyAction(8, packed);
+  applyMoveAction(core, packed);
   frames.push(renderFrameBuffer(core).buffer);
 }
 

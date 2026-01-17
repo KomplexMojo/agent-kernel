@@ -1,5 +1,6 @@
 export { loadCore } from "./core-as.js";
 export {
+  applyMoveAction,
   packMoveAction,
   unpackMoveAction,
   renderBaseTiles,

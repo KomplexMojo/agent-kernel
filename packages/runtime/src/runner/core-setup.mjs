@@ -121,6 +121,38 @@ function buildTileGrid(layoutData, dimensions) {
   return { grid, spawn, exit };
 }
 
+function loadTileGrid(core, grid, dimensions) {
+  const { width, height } = dimensions;
+  const total = width * height;
+  const canBulk = typeof core.prepareTileBuffer === "function"
+    && typeof core.loadTilesFromBuffer === "function"
+    && (core.memory || typeof core.getMemory === "function");
+  if (canBulk) {
+    const ptr = core.prepareTileBuffer(total);
+    const memory = core.memory || core.getMemory?.();
+    if (ptr && memory?.buffer) {
+      const view = new Uint8Array(memory.buffer, ptr, total);
+      let offset = 0;
+      for (let y = 0; y < height; y += 1) {
+        const row = grid[y] || [];
+        for (let x = 0; x < width; x += 1) {
+          view[offset] = row[x] ?? TILE_CODES.wall;
+          offset += 1;
+        }
+      }
+      const error = core.loadTilesFromBuffer(total);
+      return Number.isFinite(error) ? error : 0;
+    }
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      core.setTileAt(x, y, grid[y][x]);
+    }
+  }
+  return 0;
+}
+
 function normalizeVitals(vitals) {
   const records = {};
   VITAL_KEYS.forEach((key) => {
@@ -150,16 +182,14 @@ export function applySimConfigToCore(core, simConfig) {
     return { ok: false, reason: "missing_dimensions" };
   }
 
+  const { grid, spawn, exit } = buildTileGrid(layout.data, dimensions);
   const error = core.configureGrid(dimensions.width, dimensions.height);
   if (Number.isFinite(error) && error !== 0) {
     return { ok: false, reason: "invalid_dimensions", error };
   }
-
-  const { grid, spawn, exit } = buildTileGrid(layout.data, dimensions);
-  for (let y = 0; y < dimensions.height; y += 1) {
-    for (let x = 0; x < dimensions.width; x += 1) {
-      core.setTileAt(x, y, grid[y][x]);
-    }
+  const tileError = loadTileGrid(core, grid, dimensions);
+  if (Number.isFinite(tileError) && tileError !== 0) {
+    return { ok: false, reason: "invalid_layout_tiles", error: tileError };
   }
 
   return { ok: true, dimensions, spawn, exit };
@@ -168,9 +198,6 @@ export function applySimConfigToCore(core, simConfig) {
 export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
   if (!core || !initialState) {
     return { ok: false, reason: "missing_inputs" };
-  }
-  if (typeof core.spawnActorAt !== "function" || typeof core.setActorVital !== "function") {
-    return { ok: false, reason: "missing_core_exports" };
   }
 
   const actors = Array.isArray(initialState.actors)
@@ -181,6 +208,46 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
   }
 
   const primary = actors[0];
+  const supportsMulti = typeof core.applyActorPlacements === "function"
+    && typeof core.setMotivatedActorVital === "function"
+    && typeof core.clearActorPlacements === "function"
+    && typeof core.addActorPlacement === "function"
+    && typeof core.validateActorPlacement === "function";
+
+  if (supportsMulti) {
+    core.clearActorPlacements();
+    const positions = [];
+    for (let index = 0; index < actors.length; index += 1) {
+      const actor = actors[index];
+      const position = resolvePoint(actor.position) || (index === 0 && spawn ? { ...spawn } : null);
+      if (!position) {
+        return { ok: false, reason: "missing_position" };
+      }
+      positions.push(position);
+      core.addActorPlacement(index + 1, position.x, position.y);
+    }
+    const placementError = core.validateActorPlacement();
+    if (Number.isFinite(placementError) && placementError !== 0) {
+      return { ok: false, reason: "invalid_actor_placement", error: placementError };
+    }
+    const applyError = core.applyActorPlacements();
+    if (Number.isFinite(applyError) && applyError !== 0) {
+      return { ok: false, reason: "invalid_actor_placement", error: applyError };
+    }
+    for (let index = 0; index < actors.length; index += 1) {
+      const vitals = normalizeVitals(actors[index].vitals);
+      VITAL_KEYS.forEach((key, kind) => {
+        const record = vitals[key];
+        core.setMotivatedActorVital(index, kind, record.current, record.max, record.regen);
+      });
+    }
+    return { ok: true, actorId: primary.id, position: positions[0], actorCount: actors.length };
+  }
+
+  if (typeof core.spawnActorAt !== "function" || typeof core.setActorVital !== "function") {
+    return { ok: false, reason: "missing_core_exports" };
+  }
+
   const position = resolvePoint(primary.position) || (spawn ? { ...spawn } : null);
   if (!position) {
     return { ok: false, reason: "missing_position" };

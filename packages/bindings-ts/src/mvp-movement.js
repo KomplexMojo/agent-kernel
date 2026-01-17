@@ -21,39 +21,41 @@ const DEFAULT_LEGEND = Object.freeze({
   actor: "@",
 });
 
-/**
- * Pack a move action into the bit layout expected by core-as.
- * Fields are masked to keep deterministic size (4-bit coords, 8-bit tick, 4-bit actorId).
- */
 export function packMoveAction({ actorId, from, to, direction, tick }) {
   const dirCode = typeof direction === "number" ? direction : DIR_MAP[String(direction).toLowerCase()];
-  const actorCode = actorId & 0xf;
-  const tickCode = tick & 0xff;
-  return (
-    ((actorCode & 0xf) << 28) |
-    ((tickCode & 0xff) << 20) |
-    ((to.y & 0xf) << 16) |
-    ((to.x & 0xf) << 12) |
-    ((from.y & 0xf) << 8) |
-    ((from.x & 0xf) << 4) |
-    (dirCode & 0xf)
-  );
+  return [actorId, from.x, from.y, to.x, to.y, dirCode, tick];
 }
 
 export function unpackMoveAction(value) {
+  const actorId = value[0];
+  const fromX = value[1];
+  const fromY = value[2];
+  const toX = value[3];
+  const toY = value[4];
+  const dirCode = value[5];
+  const tick = value[6];
   return {
-    direction: DIR_BY_CODE[(value >> 0) & 0xf],
-    from: {
-      x: (value >> 4) & 0xf,
-      y: (value >> 8) & 0xf,
-    },
-    to: {
-      x: (value >> 12) & 0xf,
-      y: (value >> 16) & 0xf,
-    },
-    tick: (value >> 20) & 0xff,
-    actorId: (value >> 28) & 0xf,
+    actorId,
+    direction: DIR_BY_CODE[dirCode] ?? dirCode,
+    from: { x: fromX, y: fromY },
+    to: { x: toX, y: toY },
+    tick,
   };
+}
+
+export function applyMoveAction(core, value) {
+  if (!core?.setMoveAction || !core?.applyAction) {
+    throw new Error("Core is missing setMoveAction/applyAction; rebuild bindings.");
+  }
+  const actorId = value[0];
+  const fromX = value[1];
+  const fromY = value[2];
+  const toX = value[3];
+  const toY = value[4];
+  const dirCode = value[5];
+  const tick = value[6];
+  core.setMoveAction(actorId, fromX, fromY, toX, toY, dirCode, tick);
+  core.applyAction(8, 0);
 }
 
 export function renderBaseTiles(core) {
@@ -97,48 +99,106 @@ export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
   const affinityEffects = arguments.length > 1 ? arguments[1]?.affinityEffects : null;
   const width = core.getMapWidth();
   const height = core.getMapHeight();
-  const actor = {
-    id: actorIdLabel,
-    kind: core.getActorKind(),
-    position: { x: core.getActorX(), y: core.getActorY() },
-    vitals: {
-      health: {
-        current: core.getActorVitalCurrent(0),
-        max: core.getActorVitalMax(0),
-        regen: core.getActorVitalRegen(0),
+  function readActorVitals({ current, max, regen }) {
+    return { current, max, regen };
+  }
+
+  function buildAffinitiesAndAbilities(id) {
+    const metaActor = Array.isArray(affinityEffects?.actors)
+      ? affinityEffects.actors.find((entry) => entry?.actorId === id)
+      : null;
+    const affinityStacks = metaActor?.affinityStacks || null;
+    const affinities = affinityStacks
+      ? Object.keys(affinityStacks)
+        .sort()
+        .map((key) => {
+          const [kind, expression] = key.split(":");
+          return { kind, expression, stacks: affinityStacks[key] };
+        })
+      : [];
+    const abilities = Array.isArray(metaActor?.abilities) ? metaActor.abilities.map((ability) => ({ ...ability })) : [];
+    return { affinities, abilities };
+  }
+
+  let actors = [];
+  if (typeof core.getMotivatedActorCount === "function") {
+    const count = core.getMotivatedActorCount();
+    for (let index = 0; index < count; index += 1) {
+      const idValue = core.getMotivatedActorIdByIndex(index);
+      const idLabel = index === 0 ? actorIdLabel : `actor_${idValue}`;
+      const { affinities, abilities } = buildAffinitiesAndAbilities(idLabel);
+      actors.push({
+        id: idLabel,
+        kind: index === 0 ? core.getActorKind() : 2,
+        position: {
+          x: core.getMotivatedActorXByIndex(index),
+          y: core.getMotivatedActorYByIndex(index),
+        },
+        vitals: {
+          health: readActorVitals({
+            current: core.getMotivatedActorVitalCurrentByIndex(index, 0),
+            max: core.getMotivatedActorVitalMaxByIndex(index, 0),
+            regen: core.getMotivatedActorVitalRegenByIndex(index, 0),
+          }),
+          mana: readActorVitals({
+            current: core.getMotivatedActorVitalCurrentByIndex(index, 1),
+            max: core.getMotivatedActorVitalMaxByIndex(index, 1),
+            regen: core.getMotivatedActorVitalRegenByIndex(index, 1),
+          }),
+          stamina: readActorVitals({
+            current: core.getMotivatedActorVitalCurrentByIndex(index, 2),
+            max: core.getMotivatedActorVitalMaxByIndex(index, 2),
+            regen: core.getMotivatedActorVitalRegenByIndex(index, 2),
+          }),
+          durability: readActorVitals({
+            current: core.getMotivatedActorVitalCurrentByIndex(index, 3),
+            max: core.getMotivatedActorVitalMaxByIndex(index, 3),
+            regen: core.getMotivatedActorVitalRegenByIndex(index, 3),
+          }),
+        },
+        affinities,
+        abilities,
+      });
+    }
+  }
+
+  if (actors.length === 0) {
+    const actorId = actorIdLabel;
+    const { affinities, abilities } = buildAffinitiesAndAbilities(actorId);
+    actors = [
+      {
+        id: actorId,
+        kind: core.getActorKind(),
+        position: { x: core.getActorX(), y: core.getActorY() },
+        vitals: {
+          health: readActorVitals({
+            current: core.getActorVitalCurrent(0),
+            max: core.getActorVitalMax(0),
+            regen: core.getActorVitalRegen(0),
+          }),
+          mana: readActorVitals({
+            current: core.getActorVitalCurrent(1),
+            max: core.getActorVitalMax(1),
+            regen: core.getActorVitalRegen(1),
+          }),
+          stamina: readActorVitals({
+            current: core.getActorVitalCurrent(2),
+            max: core.getActorVitalMax(2),
+            regen: core.getActorVitalRegen(2),
+          }),
+          durability: readActorVitals({
+            current: core.getActorVitalCurrent(3),
+            max: core.getActorVitalMax(3),
+            regen: core.getActorVitalRegen(3),
+          }),
+        },
+        affinities,
+        abilities,
       },
-      mana: {
-        current: core.getActorVitalCurrent(1),
-        max: core.getActorVitalMax(1),
-        regen: core.getActorVitalRegen(1),
-      },
-      stamina: {
-        current: core.getActorVitalCurrent(2),
-        max: core.getActorVitalMax(2),
-        regen: core.getActorVitalRegen(2),
-      },
-      durability: {
-        current: core.getActorVitalCurrent(3),
-        max: core.getActorVitalMax(3),
-        regen: core.getActorVitalRegen(3),
-      },
-    },
-  };
-  const metaActor = Array.isArray(affinityEffects?.actors)
-    ? affinityEffects.actors.find((entry) => entry?.actorId === actor.id)
-    : null;
-  const affinityStacks = metaActor?.affinityStacks || null;
-  const affinities = affinityStacks
-    ? Object.keys(affinityStacks)
-      .sort()
-      .map((key) => {
-        const [kind, expression] = key.split(":");
-        return { kind, expression, stacks: affinityStacks[key] };
-      })
-    : [];
-  const abilities = Array.isArray(metaActor?.abilities) ? metaActor.abilities.map((ability) => ({ ...ability })) : [];
-  actor.affinities = affinities;
-  actor.abilities = abilities;
+    ];
+  }
+
+  const primaryActor = actors[0];
   const kinds = [];
   for (let y = 0; y < height; y += 1) {
     const row = [];
@@ -170,14 +230,14 @@ export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
   }
   return {
     tick: core.getCurrentTick(),
-    actors: [actor],
+    actors,
     tileActors,
     actor: {
-      id: actor.id,
-      x: actor.position.x,
-      y: actor.position.y,
-      hp: actor.vitals.health.current,
-      maxHp: actor.vitals.health.max,
+      id: primaryActor.id,
+      x: primaryActor.position.x,
+      y: primaryActor.position.y,
+      hp: primaryActor.vitals.health.current,
+      maxHp: primaryActor.vitals.health.max,
     },
     tiles: {
       width,

@@ -1,0 +1,15 @@
+{
+  "schema": "agent-kernel/PriceList",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "price_list_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "items": [
+    { "id": "actor_spawn", "kind": "actor", "costTokens": 50 },
+    { "id": "layout_grid_9x9", "kind": "layout", "costTokens": 200 },
+    { "id": "trap_basic", "kind": "trap", "costTokens": 75 }
+  ]
+}

@@ -14,6 +14,8 @@ function cloneLayoutData(layout) {
     spawn,
     exit,
     bounds,
+    rooms,
+    connectivity,
     traps,
   } = layout;
   const data = {
@@ -27,6 +29,12 @@ function cloneLayoutData(layout) {
     exit,
     bounds,
   };
+  if (Array.isArray(rooms) && rooms.length > 0) {
+    data.rooms = rooms.map((room) => ({ ...room }));
+  }
+  if (connectivity && typeof connectivity === "object") {
+    data.connectivity = { ...connectivity };
+  }
   if (Array.isArray(traps) && traps.length > 0) {
     data.traps = traps.map((trap) => ({ ...trap }));
   }

@@ -1,0 +1,75 @@
+const CAPTURED_INPUT_SCHEMA = "agent-kernel/CapturedInputArtifact";
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function buildMeta(
+  meta = {},
+  { producedBy = "orchestrator", runId = "run_orchestrator", clock = () => new Date().toISOString(), idPrefix = "capture_llm" } = {},
+) {
+  if (meta.id && meta.runId && meta.createdAt && meta.producedBy) {
+    return meta;
+  }
+  const createdAt = meta.createdAt || clock();
+  const resolvedRunId = meta.runId || runId;
+  const id = meta.id || `${idPrefix}_${resolvedRunId}`;
+  return {
+    id,
+    runId: resolvedRunId,
+    createdAt,
+    producedBy: meta.producedBy || producedBy,
+    correlationId: meta.correlationId,
+    note: meta.note,
+  };
+}
+
+export function buildLlmCaptureArtifact({
+  prompt,
+  responseText,
+  responseParsed,
+  summary,
+  parseErrors,
+  model,
+  baseUrl,
+  options,
+  stream,
+  requestId,
+  meta,
+  runId,
+  producedBy,
+  clock = () => new Date().toISOString(),
+} = {}) {
+  const errors = [];
+  if (!isNonEmptyString(prompt)) errors.push("LLM capture requires prompt.");
+  if (!isNonEmptyString(responseText)) errors.push("LLM capture requires responseText.");
+  if (!isNonEmptyString(model)) errors.push("LLM capture requires model.");
+  if (errors.length > 0) {
+    return { capture: null, errors };
+  }
+
+  const request = { model, prompt };
+  if (isNonEmptyString(baseUrl)) request.baseUrl = baseUrl;
+  if (options && typeof options === "object") request.options = options;
+  if (stream !== undefined) request.stream = Boolean(stream);
+
+  const payload = { prompt, responseRaw: responseText };
+  if (responseParsed !== undefined) payload.responseParsed = responseParsed;
+  if (summary !== undefined) payload.summary = summary;
+  if (Array.isArray(parseErrors) && parseErrors.length > 0) payload.errors = parseErrors;
+
+  const capture = {
+    schema: CAPTURED_INPUT_SCHEMA,
+    schemaVersion: 1,
+    meta: buildMeta(meta, { producedBy, runId, clock }),
+    source: {
+      adapter: "llm",
+      requestId: isNonEmptyString(requestId) ? requestId : undefined,
+      request,
+    },
+    contentType: "application/json",
+    payload,
+  };
+
+  return { capture, errors: undefined };
+}
