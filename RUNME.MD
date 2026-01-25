@@ -28,9 +28,9 @@ Orchestrator tab -> **Build Orchestration**
 - Click **Run Build**.
 
 Expected outputs (default):
-- `artifacts/build_<runId>/manifest.json`
-- `artifacts/build_<runId>/bundle.json`
-- `artifacts/build_<runId>/telemetry.json`
+- `artifacts/runs/<runId>/build/manifest.json`
+- `artifacts/runs/<runId>/build/bundle.json`
+- `artifacts/runs/<runId>/build/telemetry.json`
 
 If you do not have a bridge:
 - Use the fixture bundle (prebuilt artifacts) instead of running the build.

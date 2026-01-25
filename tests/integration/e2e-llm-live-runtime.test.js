@@ -3,10 +3,13 @@ const assert = require("node:assert/strict");
 const { readFileSync, appendFileSync, mkdirSync } = require("node:fs");
 const { resolve, dirname } = require("node:path");
 const { moduleUrl } = require("../helpers/esm-runner");
+const { loadCoreFromWasmPath, resolveWasmPathOrThrow } = require("../helpers/core-loader");
 
 const ROOT = resolve(__dirname, "../..");
 const LIVE_ENABLED = ["1", "true"].includes(String(process.env.AK_LLM_LIVE).toLowerCase());
 const CAPTURE_PATH = process.env.AK_LLM_CAPTURE_PATH;
+const USE_WASM = ["1", "true"].includes(String(process.env.AK_LLM_USE_WASM).toLowerCase());
+const STRICT_ENABLED = ["1", "true"].includes(String(process.env.AK_LLM_STRICT).toLowerCase());
 
 function readJson(relativePath) {
   return JSON.parse(readFileSync(resolve(ROOT, relativePath), "utf8"));
@@ -99,98 +102,6 @@ function extractJsonObject(text) {
     }
   }
   return null;
-}
-
-function captureWithFallback({ prompt, responseText, capturePromptResponse }) {
-  const primary = capturePromptResponse({ prompt, responseText });
-  if (primary.errors.length === 0) {
-    return primary;
-  }
-  const extracted = extractJsonObject(responseText);
-  if (!extracted) {
-    return primary;
-  }
-  return capturePromptResponse({ prompt, responseText: extracted });
-}
-
-function sanitizeSummaryResponse(
-  responseText,
-  { allowedAffinities, allowedExpressions }
-) {
-  const extracted = extractJsonObject(responseText) || responseText;
-  let value;
-  try {
-    value = JSON.parse(extracted);
-  } catch (error) {
-    return null;
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  const sanitizePick = (entry) => {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      return null;
-    }
-    if (!Number.isInteger(entry.tokenHint) || entry.tokenHint <= 0) {
-      delete entry.tokenHint;
-    }
-    if (entry.affinities !== undefined && !Array.isArray(entry.affinities)) {
-      delete entry.affinities;
-    }
-    if (Array.isArray(entry.affinities)) {
-      const fixed = entry.affinities
-        .map((affinityEntry) => {
-          if (!affinityEntry || typeof affinityEntry !== "object" || Array.isArray(affinityEntry)) {
-            return null;
-          }
-          let kind = affinityEntry.kind ?? affinityEntry.affinity;
-          let expression = affinityEntry.expression ?? affinityEntry.affinityExpression;
-
-          const kindIsExpression = allowedExpressions.includes(kind);
-          const expressionIsAffinity = allowedAffinities.includes(expression);
-          if (kindIsExpression && expressionIsAffinity) {
-            const swapped = kind;
-            kind = expression;
-            expression = swapped;
-          }
-
-          if (!allowedAffinities.includes(kind) && allowedAffinities.includes(entry.affinity)) {
-            kind = entry.affinity;
-          }
-
-          if (!allowedExpressions.includes(expression) && kindIsExpression) {
-            expression = kind;
-          }
-
-          if (!allowedAffinities.includes(kind) || !allowedExpressions.includes(expression)) {
-            return null;
-          }
-
-          const fixedEntry = { kind, expression };
-          if (Number.isInteger(affinityEntry.stacks) && affinityEntry.stacks > 0) {
-            fixedEntry.stacks = affinityEntry.stacks;
-          }
-          return fixedEntry;
-        })
-        .filter(Boolean);
-      if (fixed.length > 0) {
-        entry.affinities = fixed;
-      } else {
-        delete entry.affinities;
-      }
-    }
-    return entry;
-  };
-
-  if (Array.isArray(value.rooms)) {
-    value.rooms = value.rooms.map(sanitizePick).filter(Boolean);
-  }
-  if (Array.isArray(value.actors)) {
-    value.actors = value.actors.map(sanitizePick).filter(Boolean);
-  }
-
-  return value;
 }
 
 function deriveAllowedPairs(catalog) {
@@ -340,7 +251,6 @@ test("live llm prompt flows into build + runtime", async (t) => {
   );
   const {
     buildMenuPrompt,
-    capturePromptResponse,
     ALLOWED_AFFINITIES,
     ALLOWED_AFFINITY_EXPRESSIONS,
     ALLOWED_MOTIVATIONS,
@@ -356,8 +266,8 @@ test("live llm prompt flows into build + runtime", async (t) => {
   const { orchestrateBuild } = await import(
     moduleUrl("packages/runtime/src/build/orchestrate-build.js")
   );
-  const { buildLlmCaptureArtifact } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/llm-capture.js")
+  const { runLlmSession } = await import(
+    moduleUrl("packages/runtime/src/personas/orchestrator/llm-session.js")
   );
   const { initializeCoreFromArtifacts } = await import(
     moduleUrl("packages/runtime/src/runner/core-setup.mjs")
@@ -387,86 +297,85 @@ test("live llm prompt flows into build + runtime", async (t) => {
     "Final request: return the JSON now. Output JSON only (no markdown, no commentary).",
   ].join("\n");
 
-  async function requestAndParseSummary(promptText) {
-    const response = await requestLlmResponse({ baseUrl, model, prompt: promptText, createLlmAdapter });
-    if (!response.ok) {
-      throw response.error;
-    }
-    const capture = captureWithFallback({
-      prompt: promptText,
-      responseText: response.responseText,
-      capturePromptResponse,
-    });
-    return { response, capture, promptText };
-  }
+  const createdAt = new Date().toISOString();
+
+  const llmAdapter = {
+    async generate({ model: modelName, prompt: promptText }) {
+      const response = await requestLlmResponse({ baseUrl, model: modelName, prompt: promptText, createLlmAdapter });
+      if (!response.ok) {
+        throw response.error;
+      }
+      return { response: response.responseText, mode: response.mode };
+    },
+  };
+
+  const repairPromptBuilder = ({ errors, responseText }) => {
+    const extracted = extractJsonObject(responseText) || responseText;
+    return [
+      basePrompt,
+      "",
+      "Your previous response failed validation. Fix it and return corrected JSON only.",
+      `Errors: ${JSON.stringify(errors)}`,
+      `Allowed affinities: ${ALLOWED_AFFINITIES.join(", ")}`,
+      `Allowed expressions: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}`,
+      `Allowed motivations: ${ALLOWED_MOTIVATIONS.join(", ")}`,
+      allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
+      "tokenHint must be a positive integer if provided; otherwise omit it.",
+      "Example affinity entry: {\"kind\":\"water\",\"expression\":\"push\",\"stacks\":1}",
+      "Invalid response JSON (fix to match schema):",
+      String(extracted),
+      "",
+      "Final request: return corrected JSON only.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
 
   async function requestSummary(promptText) {
-    let result = await requestAndParseSummary(promptText);
-    if (result.capture.errors.length > 0) {
-      const extracted = extractJsonObject(result.response.responseText) || result.response.responseText;
-      const repairPrompt = [
-        basePrompt,
-        "",
-        "Your previous response failed validation. Fix it and return corrected JSON only.",
-        `Errors: ${JSON.stringify(result.capture.errors)}`,
-        `Allowed affinities: ${ALLOWED_AFFINITIES.join(", ")}`,
-        `Allowed expressions: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}`,
-        `Allowed motivations: ${ALLOWED_MOTIVATIONS.join(", ")}`,
-        allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
-        "tokenHint must be a positive integer if provided; otherwise omit it.",
-        "Example affinity entry: {\"kind\":\"water\",\"expression\":\"push\",\"stacks\":1}",
-        "Invalid response JSON (fix to match schema):",
-        String(extracted),
-        "",
-        "Final request: return corrected JSON only.",
-      ]
-        .filter(Boolean)
-        .join("\n");
-      result = await requestAndParseSummary(repairPrompt);
+    const session = await runLlmSession({
+      adapter: llmAdapter,
+      model,
+      baseUrl,
+      prompt: promptText,
+      strict: STRICT_ENABLED,
+      repairPromptBuilder,
+      runId: "run_e2e_live",
+      clock: () => createdAt,
+      producedBy: "orchestrator",
+    });
+
+    if (session.repaired) {
+      t.diagnostic("LLM response repaired to satisfy prompt contract.");
+    }
+    if (session.sanitized) {
+      t.diagnostic("LLM response sanitized to satisfy prompt contract.");
     }
 
-    if (result.capture.errors.length > 0) {
-      const sanitized = sanitizeSummaryResponse(result.response.responseText, {
-        allowedAffinities: ALLOWED_AFFINITIES,
-        allowedExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
-      });
-      if (sanitized) {
-        const sanitizedCapture = capturePromptResponse({
-          prompt: result.promptText,
-          responseText: JSON.stringify(sanitized),
-        });
-        if (sanitizedCapture.errors.length === 0) {
-          t.diagnostic("LLM response sanitized to satisfy prompt contract.");
-          result = { ...result, capture: sanitizedCapture };
-        }
-      }
-    }
-
-    if (result.capture.errors.length > 0) {
-      const preview = String(result.response.responseText || "").slice(0, 800);
+    if (!session.ok) {
+      const preview = String(session.responseText || "").slice(0, 800);
       throw new Error(
-        `LLM response failed summary parse: ${JSON.stringify(result.capture.errors)}\nPreview:\n${preview}`
+        `LLM response failed summary parse: ${JSON.stringify(session.errors)}\nPreview:\n${preview}`
       );
     }
-    assert.ok(result.capture.summary);
-    if (Array.isArray(result.capture.summary.missing) && result.capture.summary.missing.length > 0) {
-      throw new Error(`LLM summary reported missing fields: ${result.capture.summary.missing.join(", ")}`);
+    assert.ok(session.summary);
+    if (Array.isArray(session.summary.missing) && session.summary.missing.length > 0) {
+      throw new Error(`LLM summary reported missing fields: ${session.summary.missing.join(", ")}`);
     }
 
-    const actorCount = result.capture.summary.actors.reduce((sum, entry) => sum + entry.count, 0);
-    const roomCount = result.capture.summary.rooms.reduce((sum, entry) => sum + entry.count, 0);
+    const actorCount = session.summary.actors.reduce((sum, entry) => sum + entry.count, 0);
+    const roomCount = session.summary.rooms.reduce((sum, entry) => sum + entry.count, 0);
     if (actorCount <= 0 || roomCount <= 0) {
-      const preview = String(result.response.responseText || "").slice(0, 800);
+      const preview = String(session.responseText || "").slice(0, 800);
       throw new Error(
         `LLM summary missing required counts (actors=${actorCount}, rooms=${roomCount}).\nPreview:\n${preview}`
       );
     }
 
-    return result;
+    return session;
   }
 
   let result = await requestSummary(prompt);
-  let mapped = mapSummaryToPool({ summary: result.capture.summary, catalog });
+  let mapped = mapSummaryToPool({ summary: result.summary, catalog });
   assert.equal(mapped.ok, true);
 
   let actorInstances = countInstances(mapped.selections, "actor");
@@ -484,7 +393,7 @@ test("live llm prompt flows into build + runtime", async (t) => {
       .filter(Boolean)
       .join("\n");
     result = await requestSummary(catalogRepairPrompt);
-    mapped = mapSummaryToPool({ summary: result.capture.summary, catalog });
+    mapped = mapSummaryToPool({ summary: result.summary, catalog });
     assert.equal(mapped.ok, true);
     actorInstances = countInstances(mapped.selections, "actor");
     roomInstances = countInstances(mapped.selections, "room");
@@ -496,49 +405,52 @@ test("live llm prompt flows into build + runtime", async (t) => {
   }
 
   const buildSpecResult = buildBuildSpecFromSummary({
-    summary: result.capture.summary,
+    summary: result.summary,
     catalog,
     selections: mapped.selections,
     runId: "run_e2e_live",
-    createdAt: new Date().toISOString(),
+    createdAt,
     source: "integration-test",
   });
   assert.equal(buildSpecResult.ok, true);
 
-  const captureResult = buildLlmCaptureArtifact({
-    prompt: result.promptText,
-    responseText: result.response.responseText,
-    responseParsed: result.capture.responseParsed,
-    summary: result.capture.summary,
-    parseErrors: result.capture.errors,
-    model,
-    baseUrl,
-    runId: buildSpecResult.spec.meta.runId,
-    producedBy: "orchestrator",
-    clock: () => buildSpecResult.spec.meta.createdAt,
-  });
-  assert.equal(captureResult.errors, undefined);
+  assert.ok(result.capture);
   if (CAPTURE_PATH) {
     appendJsonl(CAPTURE_PATH, {
       runId: buildSpecResult.spec.meta.runId,
       createdAt: buildSpecResult.spec.meta.createdAt,
       model,
       baseUrl,
-      mode: result.response.mode,
-      capture: captureResult.capture,
+      mode: result.response?.mode,
+      capture: result.capture,
     });
   }
 
   const buildResult = await orchestrateBuild({
     spec: buildSpecResult.spec,
     producedBy: "runtime-build",
-    capturedInputs: [captureResult.capture],
+    capturedInputs: [result.capture],
   });
   assert.ok(buildResult.simConfig);
   assert.ok(buildResult.initialState);
   assert.equal(buildResult.capturedInputs?.length, 1);
 
-  const core = createStubCore();
+  let core = createStubCore();
+  let usedWasm = false;
+  let wasmPath = null;
+  if (USE_WASM) {
+    wasmPath = resolveWasmPathOrThrow();
+    core = await loadCoreFromWasmPath(wasmPath);
+    usedWasm = true;
+  }
+
+  ["configureGrid", "setTileAt", "spawnActorAt", "setActorVital"].forEach((method) => {
+    assert.equal(typeof core[method], "function", `core.${method} must be a function`);
+  });
+  if (USE_WASM) {
+    assert.equal(usedWasm, true);
+    t.diagnostic(`LLM live test using WASM core at ${wasmPath}`);
+  }
   const runtimeLoad = initializeCoreFromArtifacts(core, {
     simConfig: buildResult.simConfig,
     initialState: buildResult.initialState,

@@ -54,6 +54,20 @@ Key artifacts and fixtures:
 - Schema catalog: `node packages/adapters-cli/src/cli/ak.mjs schemas` prints the full catalog (or writes `schemas.json` with `--out-dir`).
 - Fixtures: `tests/fixtures/ui/build-spec-bundle/` shows a round-trip build bundle, and `tests/fixtures/artifacts/build-spec-v1-basic.json` shows the build spec shape.
 
+## LLM Orchestrator pipeline (flags)
+
+- `AK_LLM_LIVE=1`: enable LLM-guided planning flows (otherwise fall back to fixtures).
+- `AK_LLM_MODEL`: model name for LLM requests (required when `AK_LLM_LIVE=1`).
+- `AK_LLM_BASE_URL`: LLM API base URL (default: `http://localhost:11434`).
+- `AK_LLM_CAPTURE_PATH`: optional JSONL path to append live prompt/response captures.
+- `AK_LLM_STRICT=1`: disable repair/sanitization; contract errors fail the flow but are captured.
+- `AK_LLM_FORMAT`: optional response format hint (e.g., `json` for Ollama `/api/generate`).
+- `AK_LLM_USE_WASM=1`: enable WASM core loading in the live LLM integration test.
+- `AK_ALLOW_NETWORK=1`: allow non-local network access for adapters; localhost is always allowed.
+
+Determinism: prefer fixture-driven runs (`--fixture` on adapters, scenario `summaryPath` for
+LLM flows) to keep outputs replayable and stable.
+
 ## Implementation plans
 
 - `docs/implementation-plans/Tests-and-MVP.md`
@@ -66,5 +80,6 @@ Key artifacts and fixtures:
 ## Quickstarts
 
 - `docs/human-interfaces.md` — Fixture-first CLI + web UI quickstart (build WASM, run demos, serve UI).
+- `docs/cli-runbook.md` — End-to-end CLI usage and agent-friendly workflows.
 - Manual smoke (offline): `pnpm run build:wasm`; `pnpm run demo:cli`; `pnpm run serve:ui` then open `http://localhost:8001/packages/ui-web/index.html`. Expect `artifacts/demo-bundle/` to contain solve/run/replay/inspect outputs plus adapter payloads (`ipfs.json`, `blockchain.json`, `llm.json`).
 - Effect routing: TickFrames/effects logs now include effect ids, requestIds, targetAdapter hints, and fulfillment status (log/telemetry/solver_request/need_external_fact fulfill/defer). Fixture adapters cover these paths.

@@ -47,6 +47,9 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   const { orchestrateBuild } = await import(
     moduleUrl("packages/runtime/src/build/orchestrate-build.js")
   );
+  const { buildLlmCaptureArtifact } = await import(
+    moduleUrl("packages/runtime/src/personas/orchestrator/llm-capture.js")
+  );
   const { buildBuildTelemetryRecord } = await import(
     moduleUrl("packages/runtime/src/build/telemetry.js")
   );
@@ -71,6 +74,19 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
     priceListArtifact: priceListFixture,
   });
   assert.equal(buildSpecResult.ok, true);
+
+  const captureResult = buildLlmCaptureArtifact({
+    prompt: "Fixture LLM prompt.",
+    responseText: JSON.stringify(summaryFixture),
+    responseParsed: summaryFixture,
+    summary: normalized.value,
+    model: "fixture",
+    baseUrl: "http://localhost:11434",
+    runId: buildSpecResult.spec.meta.runId,
+    producedBy: "orchestrator",
+    clock: () => buildSpecResult.spec.meta.createdAt,
+  });
+  assert.equal(captureResult.errors, undefined);
 
   const inputs = buildSpecResult.spec.configurator?.inputs;
   if (inputs) {
@@ -136,7 +152,11 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
     }
   }
 
-  const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-build" });
+  const buildResult = await orchestrateBuild({
+    spec: buildSpecResult.spec,
+    producedBy: "runtime-build",
+    capturedInputs: [captureResult.capture],
+  });
   assert.ok(buildResult.intent);
   assert.ok(buildResult.plan);
   assert.ok(buildResult.spendProposal);
@@ -144,6 +164,8 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   assert.ok(buildResult.affinitySummary);
   assert.ok(buildResult.simConfig);
   assert.ok(buildResult.initialState);
+  assert.equal(buildResult.capturedInputs?.length, 1);
+  const captureArtifact = buildResult.capturedInputs[0];
 
   const manifestEntries = [];
   addManifestEntry(manifestEntries, buildResult.intent, "intent.json");
@@ -157,6 +179,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
   addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
   addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
+  addManifestEntry(manifestEntries, captureArtifact, "captured-input-llm-1.json");
 
   manifestEntries.sort((a, b) => {
     if (a.schema === b.schema) {
@@ -194,6 +217,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
     buildResult.solverResult,
     buildResult.simConfig,
     buildResult.initialState,
+    captureArtifact,
   ].filter(Boolean);
 
   bundleArtifacts.sort((a, b) => {
@@ -228,6 +252,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   const requiredSchemas = new Set(["agent-kernel/IntentEnvelope", "agent-kernel/PlanArtifact"]);
   const manifestSchemas = new Set(manifest.artifacts.map((entry) => entry.schema));
   requiredSchemas.forEach((schema) => assert.ok(manifestSchemas.has(schema)));
+  assert.ok(manifestSchemas.has("agent-kernel/CapturedInputArtifact"));
 
   const sortedManifest = [...manifest.artifacts].sort((a, b) => {
     if (a.schema === b.schema) {

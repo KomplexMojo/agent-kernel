@@ -108,6 +108,17 @@
         letter-spacing: 0.05em;
       }
 
+      .frame-display .actor-cell {
+        font-weight: 600;
+        color: var(--text);
+        text-shadow: none;
+      }
+
+      .frame-display .actor-cell[data-affinity] {
+        color: hsl(var(--actor-hue, 0), var(--actor-sat, 0%), var(--actor-light, 80%));
+        text-shadow: 0 0 var(--actor-glow, 0px) hsl(var(--actor-hue, 0), var(--actor-sat, 0%), var(--actor-light, 80%));
+      }
+
       .actor-panel {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -443,6 +454,64 @@
               <span class="pill" id="status-message">Loading WASM...</span>
             </div>
           </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Bundle Review</span>
+              <small class="status">Load a bundle.json/manifest.json set to inspect and edit the BuildSpec.</small>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Bundle JSON</span>
+                <input id="bundle-file" type="file" accept="application/json" />
+              </label>
+              <label>
+                <span class="stat-label">Manifest JSON (optional)</span>
+                <input id="bundle-manifest-file" type="file" accept="application/json" />
+              </label>
+            </div>
+            <div class="controls">
+              <button class="secondary" id="bundle-load-last">Load last build</button>
+              <button class="secondary" id="bundle-clear">Clear</button>
+            </div>
+            <div class="status" id="bundle-status">No bundle loaded.</div>
+            <div class="stat">
+              <span class="stat-label">Schemas</span>
+            </div>
+            <ul id="bundle-schemas" hidden></ul>
+            <div class="stat">
+              <span class="stat-label">Manifest JSON</span>
+            </div>
+            <pre class="adapter-output" id="bundle-manifest">No JSON output yet.</pre>
+            <div class="stat">
+              <span class="stat-label">BuildSpec (editable)</span>
+            </div>
+            <textarea id="bundle-spec-edit" placeholder="{...}"></textarea>
+            <ul id="bundle-spec-errors" hidden></ul>
+            <div class="controls">
+              <button class="primary" id="bundle-apply-spec">Apply spec edits</button>
+              <button class="secondary" id="bundle-send-spec">Send to Build</button>
+              <button class="secondary" id="bundle-download-spec">Download spec.json</button>
+              <button class="secondary" id="bundle-run-runtime">Run in Runtime</button>
+            </div>
+            <div class="adapter-grid">
+              <div class="stat">
+                <span class="stat-label">Intent</span>
+                <pre class="adapter-output" id="bundle-intent">No JSON output yet.</pre>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Plan</span>
+                <pre class="adapter-output" id="bundle-plan">No JSON output yet.</pre>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Configurator</span>
+                <pre class="adapter-output" id="bundle-configurator">No JSON output yet.</pre>
+              </div>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Artifacts</span>
+            </div>
+            <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
+          </div>
         </div>
 
         <div class="tab-panel" data-tab-panel="configurator" role="tabpanel" hidden>
@@ -722,7 +791,7 @@
               </label>
               <label>
                 <span class="stat-label">Out Dir (optional)</span>
-                <input id="build-out-dir" type="text" placeholder="artifacts/build_runId" />
+                <input id="build-out-dir" type="text" placeholder="artifacts/runs/runId/build" />
               </label>
             </div>
             <label>
@@ -742,64 +811,6 @@
               <span class="stat-label">Build Output</span>
             </div>
             <pre class="adapter-output" id="build-output">No build output yet.</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Bundle Review</span>
-              <small class="status">Load a bundle.json/manifest.json set to inspect and edit the BuildSpec.</small>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Bundle JSON</span>
-                <input id="bundle-file" type="file" accept="application/json" />
-              </label>
-              <label>
-                <span class="stat-label">Manifest JSON (optional)</span>
-                <input id="bundle-manifest-file" type="file" accept="application/json" />
-              </label>
-            </div>
-            <div class="controls">
-              <button class="secondary" id="bundle-load-last">Load last build</button>
-              <button class="secondary" id="bundle-clear">Clear</button>
-            </div>
-            <div class="status" id="bundle-status">No bundle loaded.</div>
-            <div class="stat">
-              <span class="stat-label">Schemas</span>
-            </div>
-            <ul id="bundle-schemas" hidden></ul>
-            <div class="stat">
-              <span class="stat-label">Manifest JSON</span>
-            </div>
-            <pre class="adapter-output" id="bundle-manifest">No JSON output yet.</pre>
-            <div class="stat">
-              <span class="stat-label">BuildSpec (editable)</span>
-            </div>
-            <textarea id="bundle-spec-edit" placeholder="{...}"></textarea>
-            <ul id="bundle-spec-errors" hidden></ul>
-            <div class="controls">
-              <button class="primary" id="bundle-apply-spec">Apply spec edits</button>
-              <button class="secondary" id="bundle-send-spec">Send to Build</button>
-              <button class="secondary" id="bundle-download-spec">Download spec.json</button>
-              <button class="secondary" id="bundle-run-runtime">Run in Runtime</button>
-            </div>
-            <div class="adapter-grid">
-              <div class="stat">
-                <span class="stat-label">Intent</span>
-                <pre class="adapter-output" id="bundle-intent">No JSON output yet.</pre>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Plan</span>
-                <pre class="adapter-output" id="bundle-plan">No JSON output yet.</pre>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Configurator</span>
-                <pre class="adapter-output" id="bundle-configurator">No JSON output yet.</pre>
-              </div>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Artifacts</span>
-            </div>
-            <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
           </div>
         </div>
         <div class="tab-panel" data-tab-panel="orchestrator" role="tabpanel" hidden>

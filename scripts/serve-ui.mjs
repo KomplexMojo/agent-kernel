@@ -173,7 +173,7 @@ async function handleBridgeBuild(req, res) {
     }
 
     const runId = specJson?.meta?.runId || (rawSpecPath ? "" : `bridge_${Date.now()}`);
-    const desiredOutDir = rawOutDir || (runId ? `artifacts/build_${runId}` : "");
+    const desiredOutDir = rawOutDir || (runId ? `artifacts/runs/${runId}/build` : "");
     const outDir = resolveWithinRoot(desiredOutDir);
     if (!outDir) {
       sendJson(res, 400, { error: "outDir must be inside the repo." });

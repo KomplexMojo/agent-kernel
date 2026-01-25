@@ -1,7 +1,0 @@
-{
-  "match": true,
-  "expectedFrames": 5,
-  "actualFrames": 5,
-  "mismatches": 0,
-  "firstMismatch": null
-}

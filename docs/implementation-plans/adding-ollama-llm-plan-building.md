@@ -33,7 +33,7 @@ Goal: Add a UI workflow that prompts Ollama, converts output into a BuildSpec, b
    - Requirement: From the UI, trigger artifact generation via the existing CLI build or a local bridge endpoint.
    - Behavior details: UI sends BuildSpec to a local helper that runs `ak.mjs build --spec`; reports progress/errors; returns paths or bundle.
    - Data shape proposal: Request `{ specPath | specJson, outDir? }`; response `{ bundlePath?, manifestPath?, telemetryPath?, bundle?, manifest?, telemetry? }`.
-   - Defaults: Out dir follows `artifacts/build_<runId>`; if a local bridge is unavailable, offer a manual download of spec.json.
+   - Defaults: Out dir follows `artifacts/runs/<runId>/build`; if a local bridge is unavailable, offer a manual download of spec.json.
    - Tests: Integration-style test with a mock bridge that returns fixture bundle/manifest; assert UI handles success/failure.
    - Determinism: Use fixture BuildSpec + bundle responses in tests; stable out-dir derivation in real runs.
    - Notes: Keep build execution outside the browser; UI only orchestrates.

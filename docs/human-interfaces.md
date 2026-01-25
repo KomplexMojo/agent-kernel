@@ -56,7 +56,7 @@ This flow stays fixture-first by default and only uses live endpoints when expli
    - The panel sends a structured prompt that requests BuildSpec JSON and validates it client-side.
 2) Orchestrator → Build Orchestration panel:
    - Paste or auto-populate the BuildSpec JSON and run build via a local bridge (proxy for `ak.mjs build --spec`).
-   - Outputs land in `artifacts/build_<runId>` by default and include `manifest.json`, `bundle.json`, and `telemetry.json`.
+   - Outputs land in `artifacts/runs/<runId>/build` by default and include `manifest.json`, `bundle.json`, and `telemetry.json`.
 3) Orchestrator → Bundle Review panel:
    - Load `bundle.json`/`manifest.json` (or “Load last build”) to inspect schemas, spec, and artifacts.
    - Spec edits are validated and can be sent back to the build panel; adapter captures show up as `CapturedInputArtifact` entries.

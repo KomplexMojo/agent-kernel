@@ -1,3 +1,4 @@
+const { existsSync } = require("node:fs");
 const { readFile } = require("node:fs/promises");
 const { resolve } = require("node:path");
 
@@ -79,11 +80,20 @@ async function loadCoreFromWasmPath(wasmPath) {
   };
 }
 
-function resolveWasmPath(relativePath) {
+function resolveWasmPath(relativePath = "build/core-as.wasm") {
   return resolve(process.cwd(), relativePath);
+}
+
+function resolveWasmPathOrThrow(relativePath = "build/core-as.wasm") {
+  const wasmPath = resolveWasmPath(relativePath);
+  if (!existsSync(wasmPath)) {
+    throw new Error(`WASM not found at ${wasmPath}`);
+  }
+  return wasmPath;
 }
 
 module.exports = {
   loadCoreFromWasmPath,
   resolveWasmPath,
+  resolveWasmPathOrThrow,
 };

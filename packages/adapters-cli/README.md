@@ -23,6 +23,10 @@ They do **not**:
 
 ## CLI Commands (MVP)
 
+Default output layout: `artifacts/runs/<runId>/<command>`. Older layouts
+(`artifacts/build_<runId>`, `artifacts/<command>_<timestamp>`) can be preserved
+by passing `--out-dir`.
+
 ### `build`
 Agent-only builder that consumes a single JSON build spec and emits mapped artifacts
 for downstream personas (intent/plan, optional solver artifacts, configurator outputs,
@@ -31,9 +35,29 @@ in the output directory. Manifest/bundle include a filtered `schemas` list for e
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
 
+### `llm-plan`
+Runs the Orchestrator LLM session against a scenario fixture and emits build outputs
+plus a captured LLM artifact for replay. Requires `AK_LLM_LIVE=1` to query the LLM.
+If `AK_LLM_LIVE` is off, the command falls back to the scenario's `summaryPath` fixture.
+Fixture responses are required unless `AK_ALLOW_NETWORK=1` or the base URL is local.
+Strict mode (`AK_LLM_STRICT=1`) disables repair/sanitization; contract errors fail the
+flow but still emit a capture artifact with `payload.errors`.
+In live mode, llm-plan requires at least one room and one actor; missing entries
+trigger a repair pass before failing. If the summary does not match catalog
+entries, llm-plan reruns a catalog-focused repair pass and fails if still unmatched.
+
+Inputs/outputs:
+- Input: `--scenario path` (E2E scenario JSON with catalog + summary paths) or
+  `--prompt` + `--catalog` for prompt-only mode, plus `--model`,
+  optional `--goal`/`--budget-tokens`, `--fixture` for deterministic responses,
+  `--run-id`, `--created-at`.
+- Output dir: `artifacts/runs/<runId>/llm-plan` by default, or `--out-dir`.
+- Outputs: `spec.json`, `intent.json`, `plan.json`, optional `sim-config.json`, `initial-state.json`,
+  `captured-input-llm-1.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+
 Build inputs/outputs:
 - Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
-- Output dir: `artifacts/build_<runId>` by default, or `--out-dir`.
+- Output dir: `artifacts/runs/<runId>/build` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
   `budget-receipt.json`, `solver-request.json`, `solver-result.json`, `sim-config.json`,
   `initial-state.json`, plus captured inputs as `captured-input-<adapter>-<index>.json`.
@@ -77,7 +101,9 @@ node packages/adapters-cli/src/cli/ak.mjs <command> [options]
 Example usage:
 ```
 node packages/adapters-cli/src/cli/ak.mjs build --spec tests/fixtures/artifacts/build-spec-v1-basic.json --out-dir artifacts/build_demo
-node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/schema_catalog
+node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_demo
+node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
+node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
@@ -96,6 +122,8 @@ Fixture-driven usage (no network):
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
 node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
+node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
 ```
@@ -114,6 +142,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - IPFS: `--gateway` (default: `https://ipfs.io/ipfs`), `--cid`, optional `--path`.
 - Blockchain: `--rpc-url` (required), `--address` (optional for balance).
 - LLM (Ollama-style): `--base-url` (default: `http://localhost:11434`), `--model`, `--prompt`.
+- LLM format hint: set `AK_LLM_FORMAT=json` to request JSON-only output from Ollama-compatible endpoints.
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
 - Run action log: `--actions` path to an ActionSequence artifact (emitted to `action-log.json`).
 - Configurator budget inputs: `--budget`, `--price-list`, optional `--receipt-out` to write the receipt elsewhere.

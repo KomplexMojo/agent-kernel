@@ -35,7 +35,7 @@ function setOutput(el, payload) {
 function deriveOutDir(spec) {
   const runId = spec?.meta?.runId;
   if (!runId) return "";
-  return `artifacts/build_${runId}`;
+  return `artifacts/runs/${runId}/build`;
 }
 
 function storageFor(kind) {

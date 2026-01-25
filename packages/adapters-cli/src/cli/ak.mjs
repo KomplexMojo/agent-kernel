@@ -10,10 +10,21 @@ import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildEffectFromCore as buildRuntimeEffect, dispatchEffect as dispatchRuntimeEffect } from "../../../runtime/src/ports/effects.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
+import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
 import { resolveAffinityEffects } from "../../../runtime/src/personas/configurator/affinity-effects.js";
 import { generateGridLayoutFromInput } from "../../../runtime/src/personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../../../runtime/src/personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../../../runtime/src/personas/configurator/spend-proposal.js";
+import { runLlmSession } from "../../../runtime/src/personas/orchestrator/llm-session.js";
+import {
+  ALLOWED_AFFINITIES,
+  ALLOWED_AFFINITY_EXPRESSIONS,
+  ALLOWED_MOTIVATIONS,
+  buildMenuPrompt,
+  deriveAllowedOptionsFromCatalog,
+  normalizeSummary,
+} from "../../../runtime/src/personas/orchestrator/prompt-contract.js";
+import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
@@ -38,6 +49,8 @@ const SCHEMAS = Object.freeze({
 });
 
 const DEFAULT_WASM_PATH = "build/core-as.wasm";
+const DEFAULT_ARTIFACTS_DIR = "artifacts";
+const DEFAULT_RUNS_DIR = "runs";
 const DEFAULT_TICKS = 1;
 const VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
 
@@ -59,9 +72,10 @@ function usage() {
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} blockchain --rpc-url url [--address addr] [--fixture-chain-id path] [--fixture-balance path] [--out path] [--out-dir dir]
   node ${rel} llm --model model --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
+  node ${rel} llm-plan [--scenario path | --prompt text --catalog path] --model model [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--out-dir dir] [--run-id id] [--created-at iso]
 
 Options:
-  --out-dir       Output directory (default: ./artifacts/<command>_<timestamp>, build uses build_<runId>)
+  --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
   --out           Output file path (command-specific default when omitted)
   --wasm          Path to core-as WASM (default: ${DEFAULT_WASM_PATH})
   --ticks         Number of ticks for run/replay (default: ${DEFAULT_TICKS})
@@ -85,6 +99,14 @@ Options:
   --receipt       Budget receipt artifact path (BudgetReceiptArtifact)
   --receipt-out   Output path for budget receipt JSON
   --spec          Build spec JSON path (build command only)
+  --scenario      Scenario fixture path for llm-plan
+  --catalog       Catalog path for prompt-only llm-plan runs
+  --goal          Goal text override (llm-plan prompt-only)
+  --budget-tokens Budget token hint (llm-plan prompt-only)
+  --prompt        Prompt override (llm-plan)
+  --fixture       Fixture response for adapter commands (no network)
+  --run-id        Override run id for output artifacts
+  --created-at    Override createdAt timestamp (ISO-8601) for llm-plan
   --help          Show this help
 `;
 }
@@ -438,17 +460,215 @@ function assertSchema(artifact, expectedSchema) {
   }
 }
 
-function defaultOutDir(command) {
-  return resolve(process.cwd(), "artifacts", `${command}_${Date.now().toString(36)}`);
+function defaultRunDir(runId) {
+  return resolve(process.cwd(), DEFAULT_ARTIFACTS_DIR, DEFAULT_RUNS_DIR, runId);
+}
+
+function defaultRunCommandOutDir(command, runId) {
+  return resolve(defaultRunDir(runId), command);
+}
+
+function defaultOutDir(command, runId) {
+  const resolvedRunId = runId || makeId("run");
+  return defaultRunCommandOutDir(command, resolvedRunId);
 }
 
 function defaultBuildOutDir(spec) {
-  return resolve(process.cwd(), "artifacts", `build_${spec.meta.runId}`);
+  return defaultRunCommandOutDir("build", spec.meta.runId);
+}
+
+function defaultLlmPlanOutDir(runId) {
+  return defaultRunCommandOutDir("llm-plan", runId);
 }
 
 function allowNetworkRequests() {
   const value = process.env.AK_ALLOW_NETWORK;
   return value === "1" || value === "true";
+}
+
+function isLlmLiveEnabled() {
+  const value = process.env.AK_LLM_LIVE;
+  return value === "1" || value === "true";
+}
+
+function isLlmStrictEnabled() {
+  const value = process.env.AK_LLM_STRICT;
+  return value === "1" || value === "true";
+}
+
+function isLocalBaseUrl(raw) {
+  if (!isNonEmptyString(raw)) {
+    return false;
+  }
+  try {
+    const url = new URL(raw);
+    return url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+  } catch (error) {
+    const lowered = raw.toLowerCase();
+    return lowered.startsWith("localhost")
+      || lowered.startsWith("127.0.0.1")
+      || lowered.startsWith("[::1]")
+      || lowered.startsWith("http://localhost")
+      || lowered.startsWith("http://127.0.0.1")
+      || lowered.startsWith("http://[::1]");
+  }
+}
+
+function resolveScenarioAssetPath(rawPath, baseDir) {
+  if (!rawPath) {
+    return null;
+  }
+  const primary = resolvePath(rawPath);
+  if (primary && existsSync(primary)) {
+    return primary;
+  }
+  if (!baseDir) {
+    return primary;
+  }
+  const fallback = resolvePath(rawPath, baseDir);
+  if (fallback && existsSync(fallback)) {
+    return fallback;
+  }
+  return primary || fallback;
+}
+
+function injectBudgetTokens(prompt, budgetTokens) {
+  if (!isNonEmptyString(prompt)) {
+    return prompt;
+  }
+  if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
+    return prompt;
+  }
+  if (prompt.includes("Budget tokens:")) {
+    return prompt;
+  }
+  return `Budget tokens: ${budgetTokens}\n${prompt}`;
+}
+
+function unwrapCodeFence(text) {
+  if (!text) return text;
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return match ? match[1].trim() : text;
+}
+
+function extractJsonObject(text) {
+  if (!text) return null;
+  const cleaned = unwrapCodeFence(text).trim();
+  if (cleaned.startsWith("{") && cleaned.endsWith("}")) {
+    return cleaned;
+  }
+  const start = cleaned.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < cleaned.length; i += 1) {
+    const ch = cleaned[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (ch === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === "\"") {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") {
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return cleaned.slice(start, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+function appendJsonOnlyInstruction(promptText) {
+  if (!isNonEmptyString(promptText)) {
+    return promptText;
+  }
+  const suffix = "Final request: return the JSON now. Output JSON only (no markdown, no commentary).";
+  if (promptText.includes(suffix)) {
+    return promptText;
+  }
+  return `${promptText}\n\n${suffix}`;
+}
+
+function deriveAllowedPairs(catalog) {
+  const entries = Array.isArray(catalog?.entries)
+    ? catalog.entries
+    : Array.isArray(catalog)
+      ? catalog
+      : [];
+  const pairs = new Map();
+  entries.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return;
+    const { motivation, affinity } = entry;
+    if (typeof motivation !== "string" || typeof affinity !== "string") return;
+    const key = `${motivation}|${affinity}`;
+    if (!pairs.has(key)) {
+      pairs.set(key, { motivation, affinity });
+    }
+  });
+  return Array.from(pairs.values()).sort(
+    (a, b) => a.motivation.localeCompare(b.motivation) || a.affinity.localeCompare(b.affinity),
+  );
+}
+
+function formatAllowedPairs(pairs) {
+  return pairs.map((pair) => `(${pair.motivation}, ${pair.affinity})`).join(", ");
+}
+
+function countInstances(selections, kind) {
+  return selections
+    .filter((sel) => sel.kind === kind && Array.isArray(sel.instances))
+    .reduce((sum, sel) => sum + sel.instances.length, 0);
+}
+
+function summarizeMissingSelections(selections) {
+  return selections
+    .filter((sel) => !sel.applied)
+    .map((sel) => `${sel.kind}:${sel.requested?.motivation || "?"}/${sel.requested?.affinity || "?"}`)
+    .join(", ");
+}
+
+function buildRepairPrompt({ basePrompt, errors, responseText, allowedOptions, allowedPairsText }) {
+  const extracted = extractJsonObject(responseText) || responseText;
+  const affinities = allowedOptions?.affinities?.length ? allowedOptions.affinities : ALLOWED_AFFINITIES;
+  const motivations = allowedOptions?.motivations?.length ? allowedOptions.motivations : ALLOWED_MOTIVATIONS;
+  const expressions = ALLOWED_AFFINITY_EXPRESSIONS;
+  const errorText = JSON.stringify(errors);
+  const preview = String(extracted || "").slice(0, 4000);
+  return [
+    basePrompt,
+    "",
+    "Your previous response failed validation. Fix it and return corrected JSON only.",
+    `Errors: ${errorText}`,
+    `Allowed affinities: ${affinities.join(", ")}`,
+    `Allowed expressions: ${expressions.join(", ")}`,
+    `Allowed motivations: ${motivations.join(", ")}`,
+    allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
+    "Provide at least one room and one actor; each count must be >= 1.",
+    "tokenHint must be a positive integer if provided; otherwise omit it.",
+    "Example affinity entry: {\"kind\":\"water\",\"expression\":\"push\",\"stacks\":1}",
+    "Invalid response JSON (fix to match schema):",
+    preview,
+    "",
+    "Final request: return corrected JSON only.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function assertAllowedBuildArgs(args) {
@@ -623,14 +843,14 @@ async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy
     if (!isNonEmptyString(model) || !isNonEmptyString(prompt)) {
       throw new Error("llm capture requires request.model and request.prompt.");
     }
-    const baseUrl = request.baseUrl || "http://localhost:11434";
+    const baseUrl = request.baseUrl || request.base_url || "http://localhost:11434";
     const fixturePath = resolvePath(capture.fixturePath || request.fixturePath, baseDir);
 
     let fetchFn;
     if (fixturePath) {
       const fixtureJson = JSON.parse(await readText(fixturePath));
       fetchFn = async () => ({ ok: true, json: async () => fixtureJson });
-    } else if (!allowNetwork) {
+    } else if (!allowNetwork && !isLocalBaseUrl(baseUrl)) {
       throw new Error("llm capture requires fixturePath unless AK_ALLOW_NETWORK=1.");
     }
 
@@ -1103,7 +1323,7 @@ async function buildCommand(argv) {
   } catch (error) {
     const message = error?.message || String(error);
     const runId = spec?.meta?.runId || "run_unknown";
-    outDir = outDir || resolve(process.cwd(), "artifacts", `build_${runId}`);
+    outDir = outDir || defaultRunCommandOutDir("build", runId);
     let artifactRefs = buildArtifactRefs(manifestEntries);
     if (artifactRefs.length === 0 && result) {
       const fallbackEntries = [];
@@ -1168,13 +1388,13 @@ async function solveCommand(argv) {
     console.log(usage());
     return;
   }
+  const runId = args["run-id"] || makeId("run");
   const scenario = args.scenario || null;
   const scenarioFile = resolvePath(args["scenario-file"]);
   const planPath = resolvePath(args.plan);
   const intentPath = resolvePath(args.intent);
   const optionsPath = resolvePath(args.options);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("solve");
-  const runId = args["run-id"] || makeId("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("solve", runId);
   const solverFixturePath = resolvePath(args["solver-fixture"]);
 
   let scenarioData = scenario;
@@ -1237,18 +1457,18 @@ async function runCommand(argv) {
     console.log(usage());
     return;
   }
+  const runId = args["run-id"] || makeId("run");
   const simConfigPath = resolvePath(args["sim-config"]);
   const initialStatePath = resolvePath(args["initial-state"]);
   const executionPolicyPath = resolvePath(args["execution-policy"]);
   const actionsPath = resolvePath(args.actions);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("run", runId);
   const affinityPresetsPath = resolvePath(args["affinity-presets"]);
   const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
   const affinitySummaryArg = args["affinity-summary"];
   const wasmPath = resolvePath(args.wasm || DEFAULT_WASM_PATH);
   const ticks = args.ticks ? Number(args.ticks) : DEFAULT_TICKS;
   const seed = args.seed ? Number(args.seed) : 0;
-  const runId = args["run-id"] || makeId("run");
 
   if (!simConfigPath || !initialStatePath) {
     throw new Error("run requires --sim-config and --initial-state.");
@@ -1409,6 +1629,7 @@ async function configuratorCommand(argv) {
     console.log(usage());
     return;
   }
+  const runId = args["run-id"] || makeId("run");
   const levelGenPath = resolvePath(args["level-gen"]);
   const actorsPath = resolvePath(args.actors);
   const planPath = resolvePath(args.plan);
@@ -1418,8 +1639,7 @@ async function configuratorCommand(argv) {
   const receiptOutPath = resolvePath(args["receipt-out"]);
   const affinityPresetsPath = resolvePath(args["affinity-presets"]);
   const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("configurator");
-  const runId = args["run-id"] || makeId("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("configurator", runId);
 
   if (!levelGenPath || !actorsPath) {
     throw new Error("configurator requires --level-gen and --actors.");
@@ -1610,7 +1830,8 @@ async function replayCommand(argv) {
   const initialStatePath = resolvePath(args["initial-state"]);
   const executionPolicyPath = resolvePath(args["execution-policy"]);
   const tickFramesPath = resolvePath(args["tick-frames"]);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("replay");
+  const runId = makeId("replay");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("replay", runId);
   const wasmPath = resolvePath(args.wasm || DEFAULT_WASM_PATH);
   const seed = args.seed ? Number(args.seed) : 0;
 
@@ -1643,7 +1864,6 @@ async function replayCommand(argv) {
   }
 
   const core = await loadCoreFromWasm(wasmPath);
-  const runId = makeId("replay");
   const runner = createRunner({ core, runId });
   runner.init(seed, simConfig, initialState);
   for (let i = 0; i < ticks; i += 1) {
@@ -1705,7 +1925,7 @@ async function inspectCommand(argv) {
   }
   const tickFramesPath = resolvePath(args["tick-frames"]);
   const effectsLogPath = resolvePath(args["effects-log"]);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("inspect");
+  const outDirOverride = resolvePath(args["out-dir"]);
 
   let frames = [];
   const warnings = [];
@@ -1739,8 +1959,9 @@ async function inspectCommand(argv) {
     }
   }
 
-  const effectsLog = effectsLogPath ? await readJson(effectsLogPath) : null;
   const runId = frames[0]?.meta?.runId || makeId("run");
+  const outDir = outDirOverride || defaultOutDir("inspect", runId);
+  const effectsLog = effectsLogPath ? await readJson(effectsLogPath) : null;
   const summary = {
     schema: SCHEMAS.telemetry,
     schemaVersion: 1,
@@ -1774,7 +1995,8 @@ async function ipfsCommand(argv) {
   const path = args.path || "";
   const gatewayUrl = args.gateway || "https://ipfs.io/ipfs";
   const fixturePath = resolvePath(args.fixture);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("ipfs");
+  const runId = makeId("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("ipfs", runId);
   const outPath = resolvePath(args.out) || join(outDir, args.json ? "ipfs.json" : "ipfs.txt");
 
   if (!cid) {
@@ -1809,7 +2031,8 @@ async function blockchainCommand(argv) {
   const address = args.address;
   const chainFixturePath = resolvePath(args["fixture-chain-id"]);
   const balanceFixturePath = resolvePath(args["fixture-balance"]);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("blockchain");
+  const runId = makeId("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("blockchain", runId);
   const outPath = resolvePath(args.out) || join(outDir, "blockchain.json");
 
   if (!rpcUrl) {
@@ -1853,7 +2076,9 @@ async function llmCommand(argv) {
   const prompt = args.prompt;
   const baseUrl = args["base-url"] || "http://localhost:11434";
   const fixturePath = resolvePath(args.fixture);
-  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("llm");
+  const llmFormat = process.env.AK_LLM_FORMAT;
+  const runId = makeId("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("llm", runId);
   const outPath = resolvePath(args.out) || join(outDir, "llm.json");
 
   if (!model || !prompt) {
@@ -1867,9 +2092,366 @@ async function llmCommand(argv) {
   }
 
   const adapter = createLlmAdapter({ baseUrl, fetchFn });
-  const response = await adapter.generate({ model, prompt, stream: false });
+  const response = await adapter.generate({
+    model,
+    prompt,
+    stream: false,
+    format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
+  });
   await writeJson(outPath, response);
   console.log(`llm: wrote ${outPath}`);
+}
+
+async function llmPlanCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  const scenarioPath = resolvePath(args.scenario);
+  const promptRaw = args.prompt;
+  const catalogOverride = resolvePath(args.catalog);
+  const goalOverride = args.goal;
+  const budgetTokensRaw = args["budget-tokens"];
+  const model = args.model || process.env.AK_LLM_MODEL;
+  const baseUrl = args["base-url"] || process.env.AK_LLM_BASE_URL || "http://localhost:11434";
+  const fixturePath = resolvePath(args.fixture);
+  const runId = args["run-id"] || makeId("run");
+  const createdAt = args["created-at"] || new Date().toISOString();
+  const outDir = resolvePath(args["out-dir"]) || defaultLlmPlanOutDir(runId);
+
+  if (!scenarioPath && !catalogOverride) {
+    throw new Error("llm-plan requires --scenario or --catalog.");
+  }
+  if (!scenarioPath && !isNonEmptyString(promptRaw)) {
+    throw new Error("llm-plan requires --prompt when --scenario is omitted.");
+  }
+
+  let budgetTokens;
+  if (budgetTokensRaw !== undefined) {
+    budgetTokens = Number(budgetTokensRaw);
+    if (!Number.isFinite(budgetTokens)) {
+      throw new Error("llm-plan requires --budget-tokens to be a number.");
+    }
+  }
+
+  const scenario = scenarioPath ? await readJson(scenarioPath) : null;
+  const scenarioBaseDir = scenarioPath ? dirname(scenarioPath) : process.cwd();
+  const catalogPath = catalogOverride
+    || (scenario ? resolveScenarioAssetPath(scenario.catalogPath, scenarioBaseDir) : null);
+  if (!catalogPath) {
+    if (scenario) {
+      throw new Error("llm-plan requires scenario.catalogPath or --catalog.");
+    }
+    throw new Error("llm-plan requires --catalog when --scenario is omitted.");
+  }
+  const catalog = await readJson(catalogPath);
+  const allowedOptions = deriveAllowedOptionsFromCatalog(catalog);
+  const allowedPairs = deriveAllowedPairs(catalog);
+  const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
+
+  const goal = isNonEmptyString(goalOverride)
+    ? goalOverride
+    : scenario?.goal || "LLM planning request";
+  const resolvedBudgetTokens = budgetTokens !== undefined ? budgetTokens : scenario?.budgetTokens;
+  const prompt = injectBudgetTokens(
+    isNonEmptyString(promptRaw) ? promptRaw : undefined,
+    resolvedBudgetTokens,
+  );
+  const notes = [
+    scenario?.notes,
+    "Include at least one room and one actor; counts must be > 0.",
+    allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}.` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const basePrompt = isNonEmptyString(prompt)
+    ? prompt
+    : buildMenuPrompt({
+      goal,
+      notes,
+      budgetTokens: resolvedBudgetTokens,
+    });
+  const constraintLines = [
+    "Constraints:",
+    "- In affinities[] entries, kind must be from Affinities and expression must be from Affinity expressions.",
+    "- Omit optional fields instead of using null.",
+    "- Provide at least one room and one actor; counts must be > 0.",
+    allowedPairsText ? `- Allowed profiles (motivation, affinity): ${allowedPairsText}.` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const finalPrompt = appendJsonOnlyInstruction(`${basePrompt}\n\n${constraintLines}`);
+  const llmFormat = process.env.AK_LLM_FORMAT;
+
+  const liveEnabled = isLlmLiveEnabled();
+  let capture = null;
+  let summary = null;
+  let mappedSelections;
+
+  if (liveEnabled) {
+    if (!isNonEmptyString(model)) {
+      throw new Error("llm-plan requires --model or AK_LLM_MODEL when AK_LLM_LIVE=1.");
+    }
+    if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
+      throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
+    }
+
+    let fetchFn;
+    if (fixturePath) {
+      const fixtureJson = JSON.parse(await readText(fixturePath));
+      fetchFn = async () => ({ ok: true, json: async () => fixtureJson });
+    }
+
+    const adapter = createLlmAdapter({ baseUrl, fetchFn });
+    const repairPromptBuilder = ({ errors, responseText }) => buildRepairPrompt({
+      basePrompt: finalPrompt,
+      errors,
+      responseText,
+      allowedOptions,
+      allowedPairsText,
+    });
+    let session = await runLlmSession({
+      adapter,
+      model,
+      baseUrl,
+      prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
+      goal,
+      budgetTokens: resolvedBudgetTokens,
+      strict: isLlmStrictEnabled(),
+      repairPromptBuilder,
+      requireSummary: { minRooms: 1, minActors: 1 },
+      runId,
+      clock: () => createdAt,
+      producedBy: "orchestrator",
+      format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
+    });
+    if (!session.ok) {
+      if (session.capture) {
+        const capturePath = buildCapturedInputPath("llm", 0, session.capture.meta?.id);
+        await writeJson(join(outDir, capturePath), session.capture);
+      }
+      throw new Error(`llm-plan session failed: ${JSON.stringify(session.errors || [])}`);
+    }
+    summary = session.summary;
+    capture = session.capture;
+
+    let mapped = mapSummaryToPool({ summary, catalog });
+    let actorInstances = countInstances(mapped.selections, "actor");
+    if (actorInstances === 0) {
+      const missingSelections = summarizeMissingSelections(mapped.selections);
+      const catalogRepairPrompt = [
+        basePrompt,
+        "",
+        "Your previous response did not match the pool catalog. Choose only from the allowed profiles below.",
+        allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
+        missingSelections ? `Unmatched picks: ${missingSelections}` : null,
+        "Provide at least one actor entry with count >= 1.",
+        "Final request: return corrected JSON only.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      session = await runLlmSession({
+        adapter,
+        model,
+        baseUrl,
+        prompt: catalogRepairPrompt,
+        goal,
+        budgetTokens: resolvedBudgetTokens,
+        strict: isLlmStrictEnabled(),
+        repairPromptBuilder,
+        requireSummary: { minRooms: 1, minActors: 1 },
+        runId,
+        clock: () => createdAt,
+        producedBy: "orchestrator",
+        format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
+      });
+
+      if (!session.ok) {
+        if (session.capture) {
+          const capturePath = buildCapturedInputPath("llm", 0, session.capture.meta?.id);
+          await writeJson(join(outDir, capturePath), session.capture);
+        }
+        throw new Error(`llm-plan session failed: ${JSON.stringify(session.errors || [])}`);
+      }
+
+      summary = session.summary;
+      capture = session.capture;
+      mapped = mapSummaryToPool({ summary, catalog });
+      actorInstances = countInstances(mapped.selections, "actor");
+      if (actorInstances === 0) {
+        const finalMissing = summarizeMissingSelections(mapped.selections);
+        throw new Error(
+          `llm-plan summary did not match catalog entries (actors=${actorInstances}).` +
+            (finalMissing ? ` Unmatched picks: ${finalMissing}` : "")
+        );
+      }
+    }
+
+    mappedSelections = mapped.selections;
+  } else {
+    if (isNonEmptyString(prompt)) {
+      throw new Error("llm-plan requires AK_LLM_LIVE=1 when using --prompt.");
+    }
+    if (!scenario) {
+      throw new Error("llm-plan requires AK_LLM_LIVE=1 when --scenario is omitted.");
+    }
+    const summaryPath = resolveScenarioAssetPath(scenario.summaryPath, scenarioBaseDir);
+    if (!summaryPath) {
+      throw new Error("llm-plan requires scenario.summaryPath when AK_LLM_LIVE is off.");
+    }
+    const summaryFixture = await readJson(summaryPath);
+    const normalized = normalizeSummary(summaryFixture);
+    if (!normalized.ok) {
+      throw new Error(`llm-plan summary fixture invalid: ${normalized.errors.map((err) => err.code).join(", ")}`);
+    }
+    summary = normalized.value;
+  }
+
+  let summaryForSpec = summary;
+  if (!scenario) {
+    summaryForSpec = { ...summary };
+    if (isNonEmptyString(goal)) {
+      summaryForSpec.goal = goal;
+    }
+    if (Number.isFinite(resolvedBudgetTokens) && summaryForSpec.budgetTokens === undefined) {
+      summaryForSpec.budgetTokens = resolvedBudgetTokens;
+    }
+  }
+
+  const buildSpecResult = buildBuildSpecFromSummary({
+    summary: summaryForSpec,
+    catalog,
+    selections: mappedSelections || undefined,
+    runId,
+    createdAt,
+    source: "cli-llm-plan",
+  });
+  if (!buildSpecResult.ok) {
+    throw new Error(`llm-plan build spec failed: ${buildSpecResult.errors.join("\n")}`);
+  }
+
+  const buildResult = await orchestrateBuild({
+    spec: buildSpecResult.spec,
+    producedBy: "cli-llm-plan",
+    capturedInputs: capture ? [capture] : undefined,
+  });
+
+  await writeJson(join(outDir, "spec.json"), buildResult.spec);
+  await writeJson(join(outDir, "intent.json"), buildResult.intent);
+  await writeJson(join(outDir, "plan.json"), buildResult.plan);
+
+  if (buildResult.budget?.budget) {
+    await writeJson(join(outDir, "budget.json"), buildResult.budget.budget);
+  }
+  if (buildResult.budget?.priceList) {
+    await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
+  }
+  if (buildResult.budgetReceipt) {
+    await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
+  }
+  if (buildResult.solverRequest) {
+    await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
+  }
+  if (buildResult.solverResult) {
+    await writeJson(join(outDir, "solver-result.json"), buildResult.solverResult);
+  }
+  if (buildResult.simConfig) {
+    await writeJson(join(outDir, "sim-config.json"), buildResult.simConfig);
+  }
+  if (buildResult.initialState) {
+    await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
+  }
+
+  const capturedInputs = Array.isArray(buildResult.capturedInputs) ? buildResult.capturedInputs : [];
+  for (let i = 0; i < capturedInputs.length; i += 1) {
+    const artifact = capturedInputs[i];
+    const capturePath = buildCapturedInputPath("llm", i, artifact?.meta?.id);
+    await writeJson(join(outDir, capturePath), artifact);
+  }
+
+  const bundleArtifacts = [];
+  if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
+  if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
+  if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
+  if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
+  if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
+  if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
+  if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
+  if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
+  if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
+  capturedInputs.forEach((artifact) => bundleArtifacts.push(artifact));
+
+  bundleArtifacts.sort((a, b) => {
+    if (a.schema === b.schema) {
+      return a.meta.id.localeCompare(b.meta.id);
+    }
+    return a.schema.localeCompare(b.schema);
+  });
+
+  const manifestEntries = [];
+  addManifestEntry(manifestEntries, buildResult.intent, "intent.json");
+  addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
+  addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
+  addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
+  addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
+  addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
+  addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
+  addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
+  addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
+  capturedInputs.forEach((artifact, index) => {
+    const capturePath = buildCapturedInputPath("llm", index, artifact?.meta?.id);
+    addManifestEntry(manifestEntries, artifact, capturePath);
+  });
+
+  manifestEntries.sort((a, b) => {
+    if (a.schema === b.schema) {
+      return a.id.localeCompare(b.id);
+    }
+    return a.schema.localeCompare(b.schema);
+  });
+
+  const schemaEntries = filterSchemaCatalogEntries({
+    schemaRefs: [
+      { schema: buildResult.spec.schema, schemaVersion: buildResult.spec.schemaVersion },
+      ...manifestEntries,
+    ],
+  });
+
+  const bundle = {
+    spec: buildResult.spec,
+    schemas: schemaEntries,
+    artifacts: bundleArtifacts,
+  };
+  await writeJson(join(outDir, "bundle.json"), bundle);
+
+  const manifest = {
+    specPath: "spec.json",
+    correlation: {
+      runId: buildResult.spec.meta.runId,
+      source: buildResult.spec.meta.source,
+      correlationId: buildResult.spec.meta.correlationId,
+    },
+    schemas: schemaEntries,
+    artifacts: manifestEntries,
+  };
+  if (!manifest.correlation.correlationId) {
+    delete manifest.correlation.correlationId;
+  }
+  await writeJson(join(outDir, "manifest.json"), manifest);
+
+  const telemetry = buildBuildTelemetryRecord({
+    spec: buildResult.spec,
+    status: "success",
+    artifactRefs: buildArtifactRefs(manifestEntries),
+    producedBy: "cli-llm-plan",
+    clock: () => buildResult.spec.meta.createdAt,
+  });
+  await writeJson(join(outDir, "telemetry.json"), telemetry);
+
+  console.log(`llm-plan: wrote ${outDir}`);
 }
 
 const COMMANDS = {
@@ -1885,6 +2467,7 @@ const COMMANDS = {
   blockchain: blockchainCommand,
   llm: llmCommand,
   ollama: llmCommand,
+  "llm-plan": llmPlanCommand,
 };
 
 async function main() {

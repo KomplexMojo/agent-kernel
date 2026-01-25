@@ -9,15 +9,20 @@ const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-basic.json");
 const ADAPTER_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-adapters.json");
+const ADAPTER_REMOTE_SPEC = resolve(
+  ROOT,
+  "tests/fixtures/artifacts/build-spec-v1-adapters-llm-remote.json",
+);
 const BUDGET_INLINE_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-budget-inline-only.json");
 const CONFIG_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-configurator.json");
 const SOLVER_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-solver.json");
 const INVALID_SPEC = resolve(ROOT, "tests/fixtures/artifacts/invalid/build-spec-v1-missing-goal.json");
 
-function runCli(args, { cwd } = {}) {
+function runCli(args, { cwd, env } = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
     cwd: cwd || ROOT,
     encoding: "utf8",
+    env: { ...process.env, ...env },
   });
 }
 
@@ -225,7 +230,26 @@ test("cli build captures adapter outputs as captured input artifacts", () => {
   assert.equal(llmArtifact.payload.response, "ok");
 });
 
-test("cli build defaults to artifacts/build_<runId> under cwd", () => {
+test("cli build allows local llm baseUrl without AK_ALLOW_NETWORK", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-local-llm-"));
+  const result = runCli(
+    ["build", "--spec", ADAPTER_SPEC, "--out-dir", outDir],
+    { env: { AK_ALLOW_NETWORK: "0" } },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("cli build blocks non-local llm baseUrl without AK_ALLOW_NETWORK", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-remote-llm-"));
+  const result = runCli(
+    ["build", "--spec", ADAPTER_REMOTE_SPEC, "--out-dir", outDir],
+    { env: { AK_ALLOW_NETWORK: "0" } },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /llm capture requires fixturePath unless AK_ALLOW_NETWORK=1/);
+});
+
+test("cli build defaults to artifacts/runs/<runId>/build under cwd", () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-default-"));
   const spec = JSON.parse(readFileSync(SPEC, "utf8"));
   const result = runCli(["build", "--spec", SPEC], { cwd: workDir });
@@ -234,7 +258,7 @@ test("cli build defaults to artifacts/build_<runId> under cwd", () => {
   const match = result.stdout.match(/build: wrote (.+)\n?/);
   assert.ok(match, "Expected build output path in stdout");
   const outDir = realpathSync(match[1].trim());
-  const expectedDir = realpathSync(join(workDir, "artifacts", `build_${spec.meta.runId}`));
+  const expectedDir = realpathSync(join(workDir, "artifacts", "runs", spec.meta.runId, "build"));
   assert.equal(outDir, expectedDir);
   assert.equal(existsSync(join(outDir, "spec.json")), true);
   assert.equal(existsSync(join(outDir, "intent.json")), true);

@@ -49,7 +49,7 @@ Goal: Make the CLI a first-class, agent-friendly builder that consumes a single 
    - Requirement: Provide a single, agent-facing CLI entrypoint that only accepts a JSON spec path.
    - Behavior details: `build` reads and validates the BuildSpec, rejects all other flags, and writes outputs to the standard artifacts directory with a deterministic layout.
    - Data shape proposal: Input is `BuildSpec`; output includes emitted artifacts plus manifest/bundle/telemetry references.
-   - Defaults: If `--out-dir` is omitted, use the standard `artifacts/build_<timestamp>` pattern; no implicit defaults beyond spec validation.
+   - Defaults: If `--out-dir` is omitted, use the standard `artifacts/runs/<runId>/build` pattern; no implicit defaults beyond spec validation.
    - Tests: Add CLI tests that assert `build` rejects unknown flags and accepts only `--spec`.
    - Determinism: Deterministic error messages and output file naming (seeded by spec/run id).
    - Notes: `build` is agent-only; humans should use the UI or fixture-based commands.
@@ -63,10 +63,10 @@ Goal: Make the CLI a first-class, agent-friendly builder that consumes a single 
    - Notes: Keep core execution (`run`) out of this path; build is artifact generation only.
 3. [completed] Use the preferred output directory pattern for build artifacts.
    - Requirement: Build outputs follow a deterministic, discoverable directory naming scheme.
-   - Behavior details: `build` writes under `artifacts/build_<runId>` by default and never reuses paths unless explicitly provided.
+   - Behavior details: `build` writes under `artifacts/runs/<runId>/build` by default and never reuses paths unless explicitly provided.
    - Data shape proposal: Directory contains `spec.json`, mapped artifacts, and build outputs (solver/configurator), with manifest/bundle added later.
    - Defaults: If `--out-dir` is provided, it overrides the default pattern.
-   - Tests: Add CLI tests that default to `artifacts/build_<runId>` and ensure outputs land there.
+   - Tests: Add CLI tests that default to `artifacts/runs/<runId>/build` and ensure outputs land there.
    - Determinism: Output path is derived from the spec runId; no timestamps.
    - Notes: Align with UI expectations for predictable asset discovery.
 4. [completed] Drive existing runtime persona controllers/adapters (no parallel pipeline) so UI + CLI share the same execution path.

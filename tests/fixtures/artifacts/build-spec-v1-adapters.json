@@ -41,7 +41,8 @@
         "request": {
           "model": "fixture",
           "prompt": "hello",
-          "fixturePath": "../adapters/llm-generate.json"
+          "fixturePath": "../adapters/llm-generate.json",
+          "baseUrl": "http://localhost:11434"
         }
       }
     ]
