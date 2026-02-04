@@ -2,6 +2,7 @@ import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
   buildMenuPrompt,
+  buildPhasePrompt,
   capturePromptResponse,
 } from "./prompt-contract.js";
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
@@ -73,8 +74,8 @@ function extractResponseText(payload) {
   return null;
 }
 
-function captureWithFallback({ prompt, responseText }) {
-  const primary = capturePromptResponse({ prompt, responseText });
+function captureWithFallback({ prompt, responseText, phase }) {
+  const primary = capturePromptResponse({ prompt, responseText, phase });
   if (primary.errors.length === 0) {
     return primary;
   }
@@ -82,7 +83,7 @@ function captureWithFallback({ prompt, responseText }) {
   if (!extracted) {
     return primary;
   }
-  return capturePromptResponse({ prompt, responseText: extracted });
+  return capturePromptResponse({ prompt, responseText: extracted, phase });
 }
 
 function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions }) {
@@ -168,6 +169,27 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions }) 
   if (Array.isArray(value.actors)) {
     value.actors = value.actors.map(sanitizePick).filter(Boolean);
   }
+  if (value.layout && typeof value.layout === "object" && !Array.isArray(value.layout)) {
+    const nextLayout = {};
+    ["wallTiles", "floorTiles", "hallwayTiles"].forEach((field) => {
+      const raw = value.layout[field];
+      if (Number.isInteger(raw) && raw >= 0) {
+        nextLayout[field] = raw;
+        return;
+      }
+      if (typeof raw === "string") {
+        const parsed = Number(raw);
+        if (Number.isInteger(parsed) && parsed >= 0) {
+          nextLayout[field] = parsed;
+        }
+      }
+    });
+    if (Object.keys(nextLayout).length > 0) {
+      value.layout = nextLayout;
+    } else {
+      delete value.layout;
+    }
+  }
 
   return value;
 }
@@ -210,9 +232,31 @@ function sanitizeSummaryResponse(responseText, { allowedAffinities, allowedExpre
   return sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions });
 }
 
-function normalizeSessionPrompt({ prompt, goal, notes, budgetTokens }) {
+function normalizeSessionPrompt({
+  prompt,
+  goal,
+  notes,
+  budgetTokens,
+  phase,
+  remainingBudgetTokens,
+  allowedPairsText,
+  phaseContext,
+  layoutCosts,
+}) {
   if (isNonEmptyString(prompt)) {
     return prompt;
+  }
+  if (phase) {
+    return buildPhasePrompt({
+      goal,
+      notes,
+      budgetTokens,
+      phase,
+      remainingBudgetTokens,
+      allowedPairsText,
+      context: phaseContext,
+      layoutCosts,
+    });
   }
   return buildMenuPrompt({ goal, notes, budgetTokens });
 }
@@ -225,6 +269,11 @@ export async function runLlmSession({
   goal,
   notes,
   budgetTokens,
+  remainingBudgetTokens,
+  phase,
+  phaseContext,
+  allowedPairsText,
+  layoutCosts,
   options,
   format,
   stream,
@@ -250,7 +299,17 @@ export async function runLlmSession({
   if (typeof clock !== "function") {
     addSessionError(sessionErrors, "clock", "missing_clock", "clock function is required for deterministic capture");
   }
-  const initialPrompt = normalizeSessionPrompt({ prompt, goal, notes, budgetTokens });
+  const initialPrompt = normalizeSessionPrompt({
+    prompt,
+    goal,
+    notes,
+    budgetTokens,
+    phase,
+    remainingBudgetTokens,
+    allowedPairsText,
+    phaseContext,
+    layoutCosts,
+  });
   if (!isNonEmptyString(initialPrompt)) {
     addSessionError(sessionErrors, "prompt", "missing_prompt", "prompt is required");
   }
@@ -263,6 +322,9 @@ export async function runLlmSession({
       captureErrors: ["LLM session preconditions failed."],
     };
   }
+
+  const startedAt = typeof clock === "function" ? clock() : undefined;
+  const startMs = startedAt ? Date.parse(startedAt) : NaN;
 
   let requestOptions = options && typeof options === "object" ? { ...options } : undefined;
   if (isNonEmptyString(format)) {
@@ -295,8 +357,8 @@ export async function runLlmSession({
   }
 
   let capture = strict
-    ? capturePromptResponse({ prompt: finalPrompt, responseText })
-    : captureWithFallback({ prompt: finalPrompt, responseText });
+    ? capturePromptResponse({ prompt: finalPrompt, responseText, phase })
+    : captureWithFallback({ prompt: finalPrompt, responseText, phase });
   capture = applySummaryContentErrors(capture, requireSummary);
   let sanitized = false;
   let repaired = false;
@@ -307,6 +369,7 @@ export async function runLlmSession({
       errors: capture.errors,
       responseText,
       responseParsed: capture.responseParsed,
+      phase,
     });
     if (isNonEmptyString(repairPrompt)) {
       finalPrompt = repairPrompt;
@@ -321,7 +384,7 @@ export async function runLlmSession({
       const repairResponseText = extractResponseText(responsePayload);
       if (isNonEmptyString(repairResponseText)) {
         responseText = repairResponseText;
-        capture = captureWithFallback({ prompt: finalPrompt, responseText });
+        capture = captureWithFallback({ prompt: finalPrompt, responseText, phase });
         capture = applySummaryContentErrors(capture, requireSummary);
       }
     }
@@ -342,6 +405,7 @@ export async function runLlmSession({
       const sanitizedCapture = capturePromptResponse({
         prompt: finalPrompt,
         responseText: JSON.stringify(sanitizedValue),
+        phase,
       });
       const sanitizedWithContent = applySummaryContentErrors(sanitizedCapture, requireSummary);
       if (sanitizedWithContent.errors.length === 0) {
@@ -350,6 +414,15 @@ export async function runLlmSession({
       }
     }
   }
+
+  const endedAt = typeof clock === "function" ? clock() : undefined;
+  const endMs = endedAt ? Date.parse(endedAt) : NaN;
+  const durationMs = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs ? endMs - startMs : undefined;
+  const phaseTiming = {
+    startedAt,
+    endedAt,
+    durationMs,
+  };
 
   const captureResult = buildLlmCaptureArtifact({
     prompt: finalPrompt,
@@ -365,6 +438,10 @@ export async function runLlmSession({
     meta,
     runId,
     producedBy,
+    phase,
+    phaseContext,
+    remainingBudgetTokens,
+    phaseTiming,
     clock,
   });
 

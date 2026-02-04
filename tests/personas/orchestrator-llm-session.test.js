@@ -32,6 +32,9 @@ assert.equal(result.capture.payload.prompt, prompt);
 assert.equal(result.capture.payload.responseRaw, responseRaw);
 assert.equal(result.capture.payload.responseParsed.dungeonTheme, "fire");
 assert.equal(result.capture.payload.summary.dungeonTheme, "fire");
+assert.equal(result.capture.payload.phaseTiming.startedAt, "2025-01-01T00:00:00Z");
+assert.equal(result.capture.payload.phaseTiming.endedAt, "2025-01-01T00:00:00Z");
+assert.equal(result.capture.payload.phaseTiming.durationMs, 0);
 `;
 
 const strictScript = `
@@ -120,6 +123,29 @@ assert.equal(result.summary.rooms.length, 1);
 assert.equal(result.summary.actors.length, 1);
 `;
 
+const phaseScript = `
+import assert from "node:assert/strict";
+import { runLlmSession } from ${JSON.stringify(sessionModulePath)};
+import { createLlmTestAdapter } from ${JSON.stringify(llmAdapterPath)};
+
+const adapter = createLlmTestAdapter();
+const prompt = "Phase prompt";
+const responseRaw = JSON.stringify({ phase: "layout_only", layout: { wallTiles: 1, floorTiles: 1, hallwayTiles: 0 } });
+adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
+
+const result = await runLlmSession({
+  adapter,
+  model: "fixture",
+  prompt,
+  runId: "run_llm_phase",
+  clock: () => "2025-01-01T00:00:00Z",
+  phase: "layout_only",
+});
+
+assert.equal(result.ok, true);
+assert.equal(result.capture.payload.phase, "layout_only");
+`;
+
 test("orchestrator llm session captures prompt/response", () => {
   runEsm(happyScript);
 });
@@ -130,4 +156,8 @@ test("orchestrator llm session honors strict vs resilient parsing", () => {
 
 test("orchestrator llm session enforces non-empty summary when configured", () => {
   runEsm(requireSummaryScript);
+});
+
+test("orchestrator llm session captures phase metadata", () => {
+  runEsm(phaseScript);
 });

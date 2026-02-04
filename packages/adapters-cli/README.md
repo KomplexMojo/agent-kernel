@@ -42,18 +42,31 @@ If `AK_LLM_LIVE` is off, the command falls back to the scenario's `summaryPath` 
 Fixture responses are required unless `AK_ALLOW_NETWORK=1` or the base URL is local.
 Strict mode (`AK_LLM_STRICT=1`) disables repair/sanitization; contract errors fail the
 flow but still emit a capture artifact with `payload.errors`.
-In live mode, llm-plan requires at least one room and one actor; missing entries
-trigger a repair pass before failing. If the summary does not match catalog
+In live mode, single-pass llm-plan requires at least one room and one actor; missing
+entries trigger a repair pass before failing. If the summary does not match catalog
 entries, llm-plan reruns a catalog-focused repair pass and fails if still unmatched.
+Budget loop mode (`--budget-loop` or `AK_LLM_BUDGET_LOOP=1`) runs a multi-phase
+layout-only → actors-only loop with remaining budget hints and stop reasons
+(`done`, `missing`, `no_viable_spend`). Each phase is captured as a distinct
+`CapturedInputArtifact` with `payload.phase` and deterministic phase-indexed ids.
+llm-plan requires a total budget (`--budget-tokens` or scenario `budgetTokens`) to be set.
+Layout tile costs default to 1 token each (llm-plan does not yet ingest price lists);
+when a price list is supplied to the budget loop, `tile_wall`, `tile_floor`, and
+`tile_hallway` items (kind `tile`) override the defaults.
+Budget pools can be customized with `--budget-pool id=weight` (repeatable) and
+`--budget-reserve N` to reserve tokens before pooling. Defaults are
+player=0.2, layout=0.4, defenders=0.4, loot=0.0.
+Multi-phase fixtures can be provided as a JSON array or as `{ "responses": [...] }`
+to feed sequential LLM responses.
 
 Inputs/outputs:
 - Input: `--scenario path` (E2E scenario JSON with catalog + summary paths) or
   `--prompt` + `--catalog` for prompt-only mode, plus `--model`,
   optional `--goal`/`--budget-tokens`, `--fixture` for deterministic responses,
-  `--run-id`, `--created-at`.
+  `--run-id`, `--created-at`, optional `--budget-pool`/`--budget-reserve`.
 - Output dir: `artifacts/runs/<runId>/llm-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `sim-config.json`, `initial-state.json`,
-  `captured-input-llm-1.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+  `budget-allocation.json` (budget loop), `captured-input-llm-*.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
 Build inputs/outputs:
 - Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
@@ -102,6 +115,7 @@ Example usage:
 ```
 node packages/adapters-cli/src/cli/ak.mjs build --spec tests/fixtures/artifacts/build-spec-v1-basic.json --out-dir artifacts/build_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_demo
+node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_loop_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
 node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
@@ -123,6 +137,7 @@ node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture te
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
 node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0

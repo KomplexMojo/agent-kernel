@@ -57,6 +57,11 @@ function buildActorState(core, { schema, schemaVersion }) {
         stamina: readVital(core, VITAL_KIND.stamina),
         durability: readVital(core, VITAL_KIND.durability),
       },
+      capabilities: {
+        movementCost: core.getActorMovementCost(),
+        actionCostMana: core.getActorActionCostMana(),
+        actionCostStamina: core.getActorActionCostStamina(),
+      },
     },
   };
 }
@@ -101,6 +106,17 @@ test("core-as rejects actor states missing a vital", async (t) => {
     return;
   }
   const invalid = readFixture("invalid/actor-state-v1-missing-vital.json");
+  core.init(0);
+  setVitalsFromFixture(core, invalid);
+  assert.equal(core.validateActorVitals(), VALIDATION_ERROR.MissingVital);
+});
+
+test("core-as rejects actor states missing stamina", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+  const invalid = readFixture("invalid/actor-state-v1-missing-stamina.json");
   core.init(0);
   setVitalsFromFixture(core, invalid);
   assert.equal(core.validateActorVitals(), VALIDATION_ERROR.MissingVital);

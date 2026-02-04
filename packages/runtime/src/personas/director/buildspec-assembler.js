@@ -12,8 +12,21 @@ function defaultMeta({ runId, source, createdAt, summary }) {
   };
 }
 
-function deriveLevelGen({ roomCount }) {
+export function deriveLevelGen({ roomCount }) {
   const size = Math.max(5, roomCount * 2 + 5);
+  return {
+    width: size,
+    height: size,
+    shape: { profile: "rectangular" },
+  };
+}
+
+function deriveLevelGenFromLayout(layout = {}) {
+  const wallTiles = Number.isInteger(layout.wallTiles) ? layout.wallTiles : 0;
+  const floorTiles = Number.isInteger(layout.floorTiles) ? layout.floorTiles : 0;
+  const hallwayTiles = Number.isInteger(layout.hallwayTiles) ? layout.hallwayTiles : 0;
+  const totalTiles = wallTiles + floorTiles + hallwayTiles;
+  const size = Math.max(5, Math.ceil(Math.sqrt(Math.max(1, totalTiles))));
   return {
     width: size,
     height: size,
@@ -80,6 +93,8 @@ export function buildBuildSpecFromSummary({
   const rooms = mapped.selections.filter((sel) => sel.kind === "room");
   const roomCount = rooms.reduce((sum, sel) => sum + (sel.instances?.length || 0), 0);
   const { actors, actorGroups } = buildActorsAndGroups(mapped.selections);
+  const layout = summary?.layout && typeof summary.layout === "object" ? summary.layout : null;
+  const levelGen = layout ? deriveLevelGenFromLayout(layout) : deriveLevelGen({ roomCount });
 
   const spec = {
     schema: "agent-kernel/BuildSpec",
@@ -104,13 +119,20 @@ export function buildBuildSpecFromSummary({
     },
     configurator: {
       inputs: {
-        levelGen: deriveLevelGen({ roomCount }),
+        levelGen,
         levelAffinity: summary?.dungeonTheme,
         actors,
         actorGroups,
       },
     },
   };
+  if (layout) {
+    spec.plan.hints.layout = {
+      wallTiles: layout.wallTiles,
+      floorTiles: layout.floorTiles,
+      hallwayTiles: layout.hallwayTiles,
+    };
+  }
   if (budgetRef || priceListRef || budgetArtifact || priceListArtifact || receiptArtifact) {
     spec.budget = {};
     if (budgetRef) spec.budget.budgetRef = budgetRef;

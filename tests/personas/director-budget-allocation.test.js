@@ -19,13 +19,15 @@ const meta = {
   producedBy: "director",
 };
 
-const allocation = buildBudgetAllocation({
+const result = buildBudgetAllocation({
   budget,
   priceList,
   meta,
   policy: { reserveTokens: 100, maxActorSpend: 300 },
 });
 
+assert.equal(result.ok, true);
+const allocation = result.allocation;
 assert.equal(allocation.schema, "agent-kernel/BudgetAllocationArtifact");
 assert.equal(allocation.schemaVersion, 1);
 assert.deepEqual(allocation.meta, meta);
@@ -34,9 +36,27 @@ assert.equal(allocation.priceListRef.schema, "agent-kernel/PriceList");
 assert.deepEqual(allocation.policy, { reserveTokens: 100, maxActorSpend: 300 });
 
 const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
+assert.equal(poolsById.player, 180);
 assert.equal(poolsById.layout, 360);
-assert.equal(poolsById.actors, 360);
-assert.equal(poolsById.affinity_motivation, 180);
+assert.equal(poolsById.defenders, 360);
+assert.equal(poolsById.loot, 0);
+
+const custom = buildBudgetAllocation({
+  budget,
+  priceList,
+  meta,
+  policy: { reserveTokens: 50 },
+  poolWeights: [
+    { id: "player", weight: 0.1 },
+    { id: "layout", weight: 0.2 },
+    { id: "defenders", weight: 0.7 },
+  ],
+});
+assert.equal(custom.ok, true);
+const customPools = Object.fromEntries(custom.allocation.pools.map((pool) => [pool.id, pool.tokens]));
+assert.equal(customPools.player, 95);
+assert.equal(customPools.layout, 190);
+assert.equal(customPools.defenders, 665);
 `;
 
 test("director budget allocation splits pools deterministically", () => {

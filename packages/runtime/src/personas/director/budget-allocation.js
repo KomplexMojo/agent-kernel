@@ -3,9 +3,10 @@ const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 
 const DEFAULT_POOLS = Object.freeze([
+  { id: "player", weight: 0.2, notes: "Player actor configuration" },
   { id: "layout", weight: 0.4, notes: "Level layout + tiles" },
-  { id: "actors", weight: 0.4, notes: "Actor builds" },
-  { id: "affinity_motivation", weight: 0.2, notes: "Affinity + motivation reserve" },
+  { id: "defenders", weight: 0.4, notes: "Defending actors + configuration" },
+  { id: "loot", weight: 0.0, notes: "Optional drops/loot reserve" },
 ]);
 
 function buildRef(artifact, fallbackSchema) {
@@ -63,6 +64,73 @@ function allocatePools({ tokens, pools }) {
   return withFloor.map((pool) => ({ id: pool.id, tokens: pool.tokens, notes: pool.notes }));
 }
 
+function normalizePoolWeights(poolWeights) {
+  const errors = [];
+  const overrides = new Map();
+  if (Array.isArray(poolWeights)) {
+    poolWeights.forEach((entry, index) => {
+      if (!entry || typeof entry !== "object") {
+        errors.push({ field: `poolWeights[${index}]`, code: "invalid_pool_weight" });
+        return;
+      }
+      const id = typeof entry.id === "string" ? entry.id.trim() : "";
+      if (!id) {
+        errors.push({ field: `poolWeights[${index}].id`, code: "invalid_pool_id" });
+        return;
+      }
+      const weight = Number(entry.weight);
+      if (!Number.isFinite(weight) || weight < 0) {
+        errors.push({ field: `poolWeights[${index}].weight`, code: "invalid_pool_weight" });
+        return;
+      }
+      if (!overrides.has(id)) {
+        overrides.set(id, { id, weight });
+      }
+    });
+  }
+
+  const normalized = [];
+  const used = new Set();
+  DEFAULT_POOLS.forEach((pool) => {
+    const override = overrides.get(pool.id);
+    const weight = override ? override.weight : pool.weight;
+    normalized.push({ id: pool.id, weight, notes: pool.notes });
+    used.add(pool.id);
+  });
+
+  const extra = Array.from(overrides.values())
+    .filter((entry) => !used.has(entry.id))
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((entry) => ({ id: entry.id, weight: entry.weight }));
+  normalized.push(...extra);
+
+  const totalWeight = normalized.reduce((sum, pool) => sum + pool.weight, 0);
+  if (totalWeight <= 0) {
+    errors.push({ field: "poolWeights", code: "invalid_pool_weight_total" });
+  }
+
+  return { pools: normalized, errors };
+}
+
+export function computeBudgetPools({ budgetTokens, policy = {}, poolWeights } = {}) {
+  const tokens = Number.isInteger(budgetTokens) ? budgetTokens : 0;
+  const reserveTokens = normalizeReserveTokens(policy, tokens);
+  const availableTokens = Math.max(0, tokens - reserveTokens);
+  const normalized = normalizePoolWeights(poolWeights);
+  if (normalized.errors.length > 0) {
+    return { ok: false, errors: normalized.errors };
+  }
+  const pools = allocatePools({ tokens: availableTokens, pools: normalized.pools });
+  return {
+    ok: true,
+    pools,
+    poolWeights: normalized.pools,
+    totalTokens: tokens,
+    reserveTokens,
+    availableTokens,
+  };
+}
+
 export function buildBudgetAllocation({
   budget,
   priceList,
@@ -70,11 +138,14 @@ export function buildBudgetAllocation({
   priceListRef,
   meta,
   policy = {},
+  poolWeights,
+  budgetTokens,
 } = {}) {
-  const tokens = budget?.budget?.tokens;
-  const reserveTokens = normalizeReserveTokens(policy, tokens);
-  const availableTokens = Number.isInteger(tokens) ? Math.max(0, tokens - reserveTokens) : 0;
-  const pools = allocatePools({ tokens: availableTokens, pools: DEFAULT_POOLS });
+  const tokens = Number.isInteger(budgetTokens) ? budgetTokens : budget?.budget?.tokens;
+  const result = computeBudgetPools({ budgetTokens: tokens, policy, poolWeights });
+  if (!result.ok) {
+    return { ok: false, errors: result.errors, allocation: null };
+  }
 
   const allocation = {
     schema: BUDGET_ALLOCATION_SCHEMA,
@@ -82,7 +153,7 @@ export function buildBudgetAllocation({
     meta,
     budgetRef: budgetRef || buildRef(budget, BUDGET_ARTIFACT_SCHEMA),
     priceListRef: priceListRef || buildRef(priceList, PRICE_LIST_SCHEMA),
-    pools,
+    pools: result.pools,
   };
 
   if (Number.isInteger(policy.reserveTokens) || Number.isInteger(policy.maxActorSpend)) {
@@ -91,5 +162,14 @@ export function buildBudgetAllocation({
     if (Number.isInteger(policy.maxActorSpend)) allocation.policy.maxActorSpend = policy.maxActorSpend;
   }
 
-  return allocation;
+  return {
+    ok: true,
+    allocation,
+    poolWeights: result.poolWeights,
+    totalTokens: result.totalTokens,
+    reserveTokens: result.reserveTokens,
+    availableTokens: result.availableTokens,
+  };
 }
+
+export const DEFAULT_BUDGET_POOLS = DEFAULT_POOLS;

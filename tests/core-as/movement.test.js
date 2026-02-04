@@ -31,6 +31,7 @@ const VALIDATION_ERROR = Object.freeze({
   OutOfBounds: 9,
   BlockedByWall: 10,
   InvalidDirection: 11,
+  InsufficientStamina: 19,
 });
 
 const DIRECTION = Object.freeze({
@@ -190,6 +191,32 @@ test("core-as rejects blocked or mistimed moves without advancing state", async 
   assert.equal(core.getActorY(), 1);
 });
 
+test("core-as rejects moves when stamina is insufficient", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+
+  core.init(0);
+  core.loadMvpScenario();
+  core.setActorVital(2, 0, 0, 0);
+  core.clearEffects();
+
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 1, y: 1 },
+    to: { x: 2, y: 1 },
+    direction: DIRECTION.east,
+    tick: 1,
+  }));
+
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActionRejected);
+  assert.equal(core.getEffectValue(0), VALIDATION_ERROR.InsufficientStamina);
+  assert.equal(core.getActorX(), 1);
+  assert.equal(core.getActorY(), 1);
+  assert.equal(core.getCurrentTick(), 0);
+});
+
 test("core-as moves across large coordinates with new encoding", async (t) => {
   const core = await loadCoreOrSkip(t);
   if (!core) {
@@ -201,6 +228,7 @@ test("core-as moves across large coordinates with new encoding", async (t) => {
   core.setTileAt(17, 17, 1);
   core.setTileAt(18, 17, 1);
   core.spawnActorAt(17, 17);
+  core.setActorVital(2, 1, 1, 0);
   core.clearEffects();
 
   applyMove(core, packMove({

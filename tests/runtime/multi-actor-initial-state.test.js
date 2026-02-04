@@ -57,10 +57,17 @@ const core = {
   validateActorPlacement: exports.validateActorPlacement,
   applyActorPlacements: exports.applyActorPlacements,
   setMotivatedActorVital: exports.setMotivatedActorVital,
+  setMotivatedActorMovementCost: exports.setMotivatedActorMovementCost,
+  setMotivatedActorActionCostMana: exports.setMotivatedActorActionCostMana,
+  setMotivatedActorActionCostStamina: exports.setMotivatedActorActionCostStamina,
+  validateActorCapabilities: exports.validateActorCapabilities,
   getMotivatedActorCount: exports.getMotivatedActorCount,
   getMotivatedActorXByIndex: exports.getMotivatedActorXByIndex,
   getMotivatedActorYByIndex: exports.getMotivatedActorYByIndex,
   getMotivatedActorVitalCurrentByIndex: exports.getMotivatedActorVitalCurrentByIndex,
+  getMotivatedActorMovementCostByIndex: exports.getMotivatedActorMovementCostByIndex,
+  getMotivatedActorActionCostManaByIndex: exports.getMotivatedActorActionCostManaByIndex,
+  getMotivatedActorActionCostStaminaByIndex: exports.getMotivatedActorActionCostStaminaByIndex,
 };
 
 const simConfig = JSON.parse(
@@ -89,6 +96,15 @@ assert.deepEqual(
 assert.equal(core.getMotivatedActorVitalCurrentByIndex(0, 0), 10);
 assert.equal(core.getMotivatedActorVitalCurrentByIndex(1, 0), 20);
 assert.equal(core.getMotivatedActorVitalCurrentByIndex(2, 0), 30);
+assert.equal(core.getMotivatedActorMovementCostByIndex(0), 1);
+assert.equal(core.getMotivatedActorActionCostManaByIndex(0), 0);
+assert.equal(core.getMotivatedActorActionCostStaminaByIndex(0), 0);
+assert.equal(core.getMotivatedActorMovementCostByIndex(1), 2);
+assert.equal(core.getMotivatedActorActionCostManaByIndex(1), 1);
+assert.equal(core.getMotivatedActorActionCostStaminaByIndex(1), 0);
+assert.equal(core.getMotivatedActorMovementCostByIndex(2), 1);
+assert.equal(core.getMotivatedActorActionCostManaByIndex(2), 0);
+assert.equal(core.getMotivatedActorActionCostStaminaByIndex(2), 2);
 assert.equal(core.getActorX(), 1);
 assert.equal(core.getActorY(), 1);
 `;

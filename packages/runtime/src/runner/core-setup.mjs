@@ -23,6 +23,11 @@ const TILE_CHAR_TO_CODE = Object.freeze({
 });
 
 const VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
+const CAPABILITY_DEFAULTS = Object.freeze({
+  movementCost: 1,
+  actionCostMana: 0,
+  actionCostStamina: 0,
+});
 
 function toInt(value) {
   const num = Number(value);
@@ -165,6 +170,18 @@ function normalizeVitals(vitals) {
   return records;
 }
 
+function normalizeCapabilities(capabilities) {
+  const entry = capabilities && typeof capabilities === "object" ? capabilities : {};
+  const movementCost = toInt(entry.movementCost);
+  const actionCostMana = toInt(entry.actionCostMana);
+  const actionCostStamina = toInt(entry.actionCostStamina);
+  return {
+    movementCost: Number.isFinite(movementCost) ? movementCost : CAPABILITY_DEFAULTS.movementCost,
+    actionCostMana: Number.isFinite(actionCostMana) ? actionCostMana : CAPABILITY_DEFAULTS.actionCostMana,
+    actionCostStamina: Number.isFinite(actionCostStamina) ? actionCostStamina : CAPABILITY_DEFAULTS.actionCostStamina,
+  };
+}
+
 export function applySimConfigToCore(core, simConfig) {
   if (!core || !simConfig) {
     return { ok: false, reason: "missing_inputs" };
@@ -240,6 +257,22 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
         const record = vitals[key];
         core.setMotivatedActorVital(index, kind, record.current, record.max, record.regen);
       });
+      const capabilities = normalizeCapabilities(actors[index].capabilities);
+      if (typeof core.setMotivatedActorMovementCost === "function") {
+        core.setMotivatedActorMovementCost(index, capabilities.movementCost);
+      }
+      if (typeof core.setMotivatedActorActionCostMana === "function") {
+        core.setMotivatedActorActionCostMana(index, capabilities.actionCostMana);
+      }
+      if (typeof core.setMotivatedActorActionCostStamina === "function") {
+        core.setMotivatedActorActionCostStamina(index, capabilities.actionCostStamina);
+      }
+    }
+    if (typeof core.validateActorCapabilities === "function") {
+      const capError = core.validateActorCapabilities();
+      if (Number.isFinite(capError) && capError !== 0) {
+        return { ok: false, reason: "invalid_actor_capabilities", error: capError };
+      }
     }
     return { ok: true, actorId: primary.id, position: positions[0], actorCount: actors.length };
   }
@@ -260,6 +293,22 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
     const record = vitals[key];
     core.setActorVital(index, record.current, record.max, record.regen);
   });
+  const capabilities = normalizeCapabilities(primary.capabilities);
+  if (typeof core.setActorMovementCost === "function") {
+    core.setActorMovementCost(capabilities.movementCost);
+  }
+  if (typeof core.setActorActionCostMana === "function") {
+    core.setActorActionCostMana(capabilities.actionCostMana);
+  }
+  if (typeof core.setActorActionCostStamina === "function") {
+    core.setActorActionCostStamina(capabilities.actionCostStamina);
+  }
+  if (typeof core.validateActorCapabilities === "function") {
+    const capError = core.validateActorCapabilities();
+    if (Number.isFinite(capError) && capError !== 0) {
+      return { ok: false, reason: "invalid_actor_capabilities", error: capError };
+    }
+  }
 
   return { ok: true, actorId: primary.id, position };
 }

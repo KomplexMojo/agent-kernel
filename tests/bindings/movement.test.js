@@ -47,6 +47,7 @@ assert.equal(obs0.tick, 0);
 assert.equal(obs0.actors.length, 1);
 assert.deepEqual(obs0.actors[0].position, { x: 1, y: 1 });
 assert.deepEqual(obs0.actors[0].vitals.health, { current: 10, max: 10, regen: 0 });
+assert.deepEqual(obs0.actors[0].capabilities, { movementCost: 1, actionCostMana: 0, actionCostStamina: 0 });
 assert.equal(obs0.actors[0].kind, 2);
 assert.deepEqual(obs0.tiles.kinds, [
   [1, 1, 1, 1, 1, 1, 1, 1, 1],

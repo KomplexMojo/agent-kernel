@@ -4,6 +4,14 @@ import { MOTIVATION_KINDS } from "../configurator/motivation-loadouts.js";
 export const ALLOWED_AFFINITIES = AFFINITY_KINDS;
 export const ALLOWED_AFFINITY_EXPRESSIONS = AFFINITY_EXPRESSIONS;
 export const ALLOWED_MOTIVATIONS = MOTIVATION_KINDS;
+export const LLM_PHASES = Object.freeze(["rooms_only", "layout_only", "actors_only"]);
+export const LLM_STOP_REASONS = Object.freeze(["done", "missing", "no_viable_spend"]);
+export const LAYOUT_TILE_FIELDS = Object.freeze(["wallTiles", "floorTiles", "hallwayTiles"]);
+const DEFAULT_LAYOUT_COSTS = Object.freeze({
+  wallTiles: 1,
+  floorTiles: 1,
+  hallwayTiles: 1,
+});
 export function deriveAllowedOptionsFromCatalog(catalog = {}) {
   const entries = Array.isArray(catalog.entries) ? catalog.entries : Array.isArray(catalog) ? catalog : [];
   const affinities = new Set(ALLOWED_AFFINITIES);
@@ -30,6 +38,49 @@ function addError(errors, field, code) {
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function addWarning(warnings, field, code, detail) {
+  const entry = { field, code };
+  if (detail !== undefined) entry.detail = detail;
+  warnings.push(entry);
+}
+
+function normalizeLayoutCounts(layout, errors) {
+  if (layout === undefined) return undefined;
+  if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
+    addError(errors, "layout", "invalid_layout");
+    return undefined;
+  }
+  const normalized = {};
+  LAYOUT_TILE_FIELDS.forEach((field) => {
+    if (layout[field] === undefined) return;
+    if (!Number.isInteger(layout[field]) || layout[field] < 0) {
+      addError(errors, `layout.${field}`, "invalid_tile_count");
+      return;
+    }
+    normalized[field] = layout[field];
+  });
+  return normalized;
+}
+
+function normalizeLayoutCosts(layoutCosts) {
+  const costs = { ...DEFAULT_LAYOUT_COSTS };
+  if (!layoutCosts || typeof layoutCosts !== "object" || Array.isArray(layoutCosts)) {
+    return costs;
+  }
+  LAYOUT_TILE_FIELDS.forEach((field) => {
+    const value = layoutCosts[field];
+    if (Number.isInteger(value) && value > 0) {
+      costs[field] = value;
+    }
+  });
+  return costs;
+}
+
+function formatLayoutCostLine(layoutCosts) {
+  const costs = normalizeLayoutCosts(layoutCosts);
+  return `Tile costs: wall ${costs.wallTiles}, floor ${costs.floorTiles}, hallway ${costs.hallwayTiles} tokens each.`;
 }
 
 function normalizePick(entry, base, errors) {
@@ -139,6 +190,10 @@ function normalizePick(entry, base, errors) {
 }
 
 export function normalizeSummary(summary) {
+  return normalizeSummaryWithOptions(summary);
+}
+
+export function normalizeSummaryWithOptions(summary, { phase } = {}) {
   const errors = [];
   const warnings = [];
   if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
@@ -147,12 +202,44 @@ export function normalizeSummary(summary) {
   }
 
   const value = {};
+  if (summary.phase !== undefined) {
+    if (!isNonEmptyString(summary.phase) || !LLM_PHASES.includes(summary.phase)) {
+      addError(errors, "phase", "invalid_phase");
+    } else {
+      value.phase = summary.phase;
+    }
+  }
+  if (phase && value.phase && value.phase !== phase) {
+    addError(errors, "phase", "phase_mismatch");
+  }
+  if (phase && !value.phase) {
+    addWarning(warnings, "phase", "missing_phase", phase);
+  }
+  if (summary.remainingBudgetTokens !== undefined) {
+    if (!Number.isInteger(summary.remainingBudgetTokens) || summary.remainingBudgetTokens < 0) {
+      addError(errors, "remainingBudgetTokens", "invalid_budget");
+    } else {
+      value.remainingBudgetTokens = summary.remainingBudgetTokens;
+    }
+  }
+  const stopReason = summary.stop ?? summary.stopReason;
+  if (stopReason !== undefined) {
+    if (!isNonEmptyString(stopReason) || !LLM_STOP_REASONS.includes(stopReason)) {
+      addError(errors, "stop", "invalid_stop_reason");
+    } else {
+      value.stop = stopReason;
+    }
+  }
   if (summary.dungeonTheme !== undefined) {
     if (!isNonEmptyString(summary.dungeonTheme) || !ALLOWED_AFFINITIES.includes(summary.dungeonTheme)) {
       addError(errors, "dungeonTheme", "invalid_affinity");
     } else {
       value.dungeonTheme = summary.dungeonTheme;
     }
+  }
+  const layout = normalizeLayoutCounts(summary.layout, errors);
+  if (layout && Object.keys(layout).length > 0) {
+    value.layout = layout;
   }
   if (summary.budgetTokens !== undefined) {
     if (!Number.isInteger(summary.budgetTokens) || summary.budgetTokens <= 0) {
@@ -205,13 +292,76 @@ export function buildMenuPrompt({ goal, notes, budgetTokens } = {}) {
   );
 }
 
-export function capturePromptResponse({ prompt, responseText }) {
+export function buildPhasePrompt({
+  goal,
+  notes,
+  budgetTokens,
+  phase,
+  remainingBudgetTokens,
+  allowedPairsText,
+  context,
+  layoutCosts,
+} = {}) {
+  const resolvedPhase = LLM_PHASES.includes(phase) ? phase : "rooms_only";
+  const basePrompt = resolvedPhase === "layout_only"
+    ? [
+        goal ? `Goal: ${goal}` : null,
+        notes ? `Notes: ${notes}` : null,
+        Number.isInteger(budgetTokens) && budgetTokens > 0 ? `Budget tokens: ${budgetTokens}` : null,
+        "Plan the dungeon layout using tile counts only. Rooms do not have affinities or motivations.",
+        formatLayoutCostLine(layoutCosts),
+        "Leave budget for actors; do not spend the entire budget on layout.",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : buildMenuPrompt({ goal, notes, budgetTokens });
+  const remainingLine = Number.isInteger(remainingBudgetTokens)
+    ? `Remaining budget tokens: ${remainingBudgetTokens}`
+    : "";
+  const allowedPairsLine = isNonEmptyString(allowedPairsText)
+    ? `Allowed profiles (motivation, affinity): ${allowedPairsText}`
+    : "";
+  const phaseInstruction =
+    resolvedPhase === "layout_only"
+      ? "Return layout tile counts only; omit rooms and actors."
+      : resolvedPhase === "rooms_only"
+        ? "Return rooms only; omit actors unless explicitly asked."
+      : "Return actors only; omit rooms unless explicitly asked.";
+  const responseShape =
+    resolvedPhase === "layout_only"
+      ? "{ \"phase\": \"layout_only\", \"remainingBudgetTokens\": <int>, \"layout\": {\"wallTiles\": <int>, \"floorTiles\": <int>, \"hallwayTiles\": <int>}, \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }"
+      : resolvedPhase === "rooms_only"
+        ? "{ \"phase\": \"rooms_only\", \"remainingBudgetTokens\": <int>, \"rooms\": [ ... ], \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }"
+        : "{ \"phase\": \"actors_only\", \"remainingBudgetTokens\": <int>, \"actors\": [ ... ], \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }";
+  const contextLine = isNonEmptyString(context) ? `Context: ${context}` : "";
+  const suffix = "Final request: return the JSON now. Output JSON only (no markdown, no commentary).";
+  return [
+    basePrompt,
+    "",
+    "Phase instructions:",
+    `- Phase: ${resolvedPhase}`,
+    remainingLine ? `- ${remainingLine}` : "",
+    allowedPairsLine ? `- ${allowedPairsLine}` : "",
+    contextLine ? `- ${contextLine}` : "",
+    `- ${phaseInstruction}`,
+    resolvedPhase === "actors_only" ? "- Spend as much of the remaining budget as possible while staying feasible." : "",
+    "",
+    "Response shape:",
+    responseShape,
+    "",
+    suffix,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function capturePromptResponse({ prompt, responseText, phase } = {}) {
   const errors = [];
   let responseParsed = null;
   let summary = null;
   try {
     responseParsed = JSON.parse(responseText);
-    const result = normalizeSummary(responseParsed);
+    const result = normalizeSummaryWithOptions(responseParsed, { phase });
     if (!result.ok) {
       errors.push(...result.errors);
     } else {

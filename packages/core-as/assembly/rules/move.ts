@@ -1,6 +1,12 @@
 import {
   Direction,
+  VitalKind,
+  advanceTick,
   getActorId,
+  getActorMovementCost,
+  getActorVitalCurrent,
+  getActorVitalMax,
+  getActorVitalRegen,
   getActorX,
   getActorY,
   getCurrentTick,
@@ -9,7 +15,7 @@ import {
   isMotivatedOccupied,
   isWalkablePosition,
   setActorPosition,
-  setCurrentTick,
+  setActorVital,
   withinBounds,
 } from "../state/world";
 import { ValidationError } from "../validate/inputs";
@@ -94,8 +100,24 @@ export function applyMove(action: MoveAction): ValidationError {
   if (isMotivatedOccupied(action.toX, action.toY)) {
     return ValidationError.ActorCollision;
   }
+  const movementCost = getActorMovementCost();
+  if (movementCost < 0) {
+    return ValidationError.InvalidCapability;
+  }
+  const staminaCurrent = getActorVitalCurrent(VitalKind.Stamina);
+  const staminaMax = getActorVitalMax(VitalKind.Stamina);
+  const staminaRegen = getActorVitalRegen(VitalKind.Stamina);
+  let staminaNext = staminaCurrent + staminaRegen;
+  if (staminaNext > staminaMax) {
+    staminaNext = staminaMax;
+  }
+  if (staminaNext < movementCost) {
+    return ValidationError.InsufficientStamina;
+  }
+  advanceTick();
+  const staminaRemaining = staminaNext - movementCost;
+  setActorVital(VitalKind.Stamina, staminaRemaining, staminaMax, staminaRegen);
   setActorPosition(action.toX, action.toY);
-  setCurrentTick(action.tick);
   return ValidationError.None;
 }
 

@@ -102,6 +102,27 @@ export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
   function readActorVitals({ current, max, regen }) {
     return { current, max, regen };
   }
+  function readActorCapabilities(index) {
+    if (typeof index === "number" && typeof core.getMotivatedActorMovementCostByIndex === "function") {
+      return {
+        movementCost: core.getMotivatedActorMovementCostByIndex(index),
+        actionCostMana: typeof core.getMotivatedActorActionCostManaByIndex === "function"
+          ? core.getMotivatedActorActionCostManaByIndex(index)
+          : 0,
+        actionCostStamina: typeof core.getMotivatedActorActionCostStaminaByIndex === "function"
+          ? core.getMotivatedActorActionCostStaminaByIndex(index)
+          : 0,
+      };
+    }
+    if (typeof core.getActorMovementCost === "function") {
+      return {
+        movementCost: core.getActorMovementCost(),
+        actionCostMana: typeof core.getActorActionCostMana === "function" ? core.getActorActionCostMana() : 0,
+        actionCostStamina: typeof core.getActorActionCostStamina === "function" ? core.getActorActionCostStamina() : 0,
+      };
+    }
+    return null;
+  }
 
   function buildAffinitiesAndAbilities(id) {
     const metaActor = Array.isArray(affinityEffects?.actors)
@@ -159,6 +180,10 @@ export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
         affinities,
         abilities,
       });
+      const capabilities = readActorCapabilities(index);
+      if (capabilities) {
+        actors[actors.length - 1].capabilities = capabilities;
+      }
     }
   }
 
@@ -196,6 +221,10 @@ export function readObservation(core, { actorIdLabel = "actor_mvp" } = {}) {
         abilities,
       },
     ];
+    const capabilities = readActorCapabilities();
+    if (capabilities) {
+      actors[0].capabilities = capabilities;
+    }
   }
 
   const primaryActor = actors[0];

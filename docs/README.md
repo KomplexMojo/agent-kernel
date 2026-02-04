@@ -15,6 +15,7 @@ If a plan or README conflicts with these documents, the charter and vision contr
 
 - Actors are the core state primitive (tile actors for the grid, motivated actors for movement).
 - Vitals defaults are always explicit: health/mana/stamina/durability with current/max/regen.
+- Capability semantics (movement/action costs) live in core-as; runtime supplies the parameters.
 - Implementation details live in `docs/implementation-plans/everything-actors.md`.
 
 ## Configurator highlights
@@ -28,9 +29,11 @@ If a plan or README conflicts with these documents, the charter and vision contr
 ## Budgeting + price lists
 
 - Token budgets and price lists flow from Orchestrator → Director → Configurator → Allocator.
-- Artifacts: `agent-kernel/BudgetArtifact`, `agent-kernel/PriceList`, `agent-kernel/BudgetReceiptArtifact`, and `agent-kernel/SpendProposal`.
+- Artifacts: `agent-kernel/BudgetArtifact`, `agent-kernel/PriceList`, `agent-kernel/BudgetAllocationArtifact`, `agent-kernel/BudgetReceiptArtifact`, and `agent-kernel/SpendProposal`.
 - Configurator emits a spend proposal from layout/actor/trap inputs; Allocator validates against budget + price list and emits a receipt.
 - Tokens are integer units (future ERC20 linkage remains at the adapter boundary).
+- Tile budgeting uses price list ids `tile_wall`, `tile_floor`, and `tile_hallway` (kind `tile`) when provided; otherwise layout tiles default to cost 1 each.
+- Layout budgeting is tile-count based; layout spend uses the layout pool and any unspent layout tokens roll into defenders. Actors are categorized as ambulatory or stationary (trap-like) during planning.
 
 Example flow (proposal → receipt):
 ```json
@@ -62,8 +65,13 @@ Key artifacts and fixtures:
 - `AK_LLM_CAPTURE_PATH`: optional JSONL path to append live prompt/response captures.
 - `AK_LLM_STRICT=1`: disable repair/sanitization; contract errors fail the flow but are captured.
 - `AK_LLM_FORMAT`: optional response format hint (e.g., `json` for Ollama `/api/generate`).
+- `AK_LLM_BUDGET_LOOP=1`: enable the multi-phase budget loop (layout_only → actors_only) with stop reasons `done`, `missing`, `no_viable_spend`.
 - `AK_LLM_USE_WASM=1`: enable WASM core loading in the live LLM integration test.
 - `AK_ALLOW_NETWORK=1`: allow non-local network access for adapters; localhost is always allowed.
+
+Budget loop captures are phase-indexed for deterministic ordering; telemetry includes the loop trace (phase order, remaining budget, trims/warnings, and per-phase timing).
+Budget pools default to player/layout/defenders/loot weights (0.2/0.4/0.4/0.0) and can be overridden in `llm-plan` via `--budget-pool` entries and `--budget-reserve`.
+llm-plan runs require a total budget (`--budget-tokens` or scenario `budgetTokens`).
 
 Determinism: prefer fixture-driven runs (`--fixture` on adapters, scenario `summaryPath` for
 LLM flows) to keep outputs replayable and stable.

@@ -106,6 +106,7 @@ export function buildInitialStateArtifact({ meta, simConfigRef, actors = [], res
     };
     if (vitals) entry.vitals = vitals;
     if (actor.archetype) entry.archetype = actor.archetype;
+    if (actor.capabilities) entry.capabilities = actor.capabilities;
     if (traits) entry.traits = traits;
     return entry;
   });

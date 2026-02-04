@@ -16,6 +16,7 @@ import { generateGridLayoutFromInput } from "../../../runtime/src/personas/confi
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../../../runtime/src/personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../../../runtime/src/personas/configurator/spend-proposal.js";
 import { runLlmSession } from "../../../runtime/src/personas/orchestrator/llm-session.js";
+import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/llm-budget-loop.js";
 import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
@@ -72,7 +73,7 @@ function usage() {
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} blockchain --rpc-url url [--address addr] [--fixture-chain-id path] [--fixture-balance path] [--out path] [--out-dir dir]
   node ${rel} llm --model model --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
-  node ${rel} llm-plan [--scenario path | --prompt text --catalog path] --model model [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} llm-plan [--scenario path | --prompt text --catalog path] --model model [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -104,6 +105,9 @@ Options:
   --goal          Goal text override (llm-plan prompt-only)
   --budget-tokens Budget token hint (llm-plan prompt-only)
   --prompt        Prompt override (llm-plan)
+  --budget-loop   Enable budget loop (layout then actors)
+  --budget-pool   Budget pool weight entry (repeatable): id=weight (e.g., player=0.2)
+  --budget-reserve Reserve tokens before pooling (llm-plan budget loop)
   --fixture       Fixture response for adapter commands (no network)
   --run-id        Override run id for output artifacts
   --created-at    Override createdAt timestamp (ISO-8601) for llm-plan
@@ -120,6 +124,7 @@ function parseArgs(argv) {
     "tile-wall",
     "tile-barrier",
     "tile-floor",
+    "budget-pool",
   ]);
   function pushArg(key, value) {
     if (!repeatable.has(key)) {
@@ -493,6 +498,11 @@ function isLlmLiveEnabled() {
 
 function isLlmStrictEnabled() {
   const value = process.env.AK_LLM_STRICT;
+  return value === "1" || value === "true";
+}
+
+function isLlmBudgetLoopEnabled() {
+  const value = process.env.AK_LLM_BUDGET_LOOP;
   return value === "1" || value === "true";
 }
 
@@ -2136,6 +2146,36 @@ async function llmPlanCommand(argv) {
     }
   }
 
+  const budgetReserveRaw = args["budget-reserve"];
+  let budgetReserveTokens;
+  if (budgetReserveRaw !== undefined) {
+    budgetReserveTokens = Number(budgetReserveRaw);
+    if (!Number.isFinite(budgetReserveTokens) || budgetReserveTokens < 0) {
+      throw new Error("llm-plan requires --budget-reserve to be a non-negative number.");
+    }
+  }
+
+  const budgetPoolRaw = args["budget-pool"];
+  const budgetPools = [];
+  if (budgetPoolRaw !== undefined) {
+    const entries = Array.isArray(budgetPoolRaw) ? budgetPoolRaw : [budgetPoolRaw];
+    entries.forEach((entry) => {
+      if (typeof entry !== "string" || !entry.includes("=")) {
+        throw new Error("llm-plan --budget-pool must be in id=weight form.");
+      }
+      const [idRaw, weightRaw] = entry.split("=");
+      const id = idRaw.trim();
+      const weight = Number(weightRaw);
+      if (!id) {
+        throw new Error("llm-plan --budget-pool requires a non-empty id.");
+      }
+      if (!Number.isFinite(weight) || weight < 0) {
+        throw new Error(`llm-plan --budget-pool weight must be >= 0 for ${id}.`);
+      }
+      budgetPools.push({ id, weight });
+    });
+  }
+
   const scenario = scenarioPath ? await readJson(scenarioPath) : null;
   const scenarioBaseDir = scenarioPath ? dirname(scenarioPath) : process.cwd();
   const catalogPath = catalogOverride
@@ -2150,11 +2190,15 @@ async function llmPlanCommand(argv) {
   const allowedOptions = deriveAllowedOptionsFromCatalog(catalog);
   const allowedPairs = deriveAllowedPairs(catalog);
   const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
+  const budgetLoopEnabled = Boolean(args["budget-loop"]) || isLlmBudgetLoopEnabled();
 
   const goal = isNonEmptyString(goalOverride)
     ? goalOverride
     : scenario?.goal || "LLM planning request";
   const resolvedBudgetTokens = budgetTokens !== undefined ? budgetTokens : scenario?.budgetTokens;
+  if (!Number.isFinite(resolvedBudgetTokens) || resolvedBudgetTokens <= 0) {
+    throw new Error("llm-plan requires --budget-tokens or scenario.budgetTokens > 0.");
+  }
   const prompt = injectBudgetTokens(
     isNonEmptyString(promptRaw) ? promptRaw : undefined,
     resolvedBudgetTokens,
@@ -2187,8 +2231,14 @@ async function llmPlanCommand(argv) {
 
   const liveEnabled = isLlmLiveEnabled();
   let capture = null;
+  let captures = [];
   let summary = null;
   let mappedSelections;
+  let loopTrace = null;
+  let budgetAllocation = null;
+  let budgetPoolWeights = null;
+  let budgetPoolBudgets = null;
+  let budgetPoolPolicy = null;
 
   if (liveEnabled) {
     if (!isNonEmptyString(model)) {
@@ -2201,7 +2251,20 @@ async function llmPlanCommand(argv) {
     let fetchFn;
     if (fixturePath) {
       const fixtureJson = JSON.parse(await readText(fixturePath));
-      fetchFn = async () => ({ ok: true, json: async () => fixtureJson });
+      const responses = Array.isArray(fixtureJson)
+        ? fixtureJson
+        : Array.isArray(fixtureJson?.responses)
+          ? fixtureJson.responses
+          : [fixtureJson];
+      let fixtureIndex = 0;
+      fetchFn = async () => {
+        if (responses.length > 1 && fixtureIndex >= responses.length) {
+          return { ok: false, status: 500, statusText: "Missing fixture response" };
+        }
+        const payload = responses[Math.min(fixtureIndex, responses.length - 1)];
+        fixtureIndex += 1;
+        return { ok: true, json: async () => payload };
+      };
     }
 
     const adapter = createLlmAdapter({ baseUrl, fetchFn });
@@ -2212,52 +2275,48 @@ async function llmPlanCommand(argv) {
       allowedOptions,
       allowedPairsText,
     });
-    let session = await runLlmSession({
-      adapter,
-      model,
-      baseUrl,
-      prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
-      goal,
-      budgetTokens: resolvedBudgetTokens,
-      strict: isLlmStrictEnabled(),
-      repairPromptBuilder,
-      requireSummary: { minRooms: 1, minActors: 1 },
-      runId,
-      clock: () => createdAt,
-      producedBy: "orchestrator",
-      format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
-    });
-    if (!session.ok) {
-      if (session.capture) {
-        const capturePath = buildCapturedInputPath("llm", 0, session.capture.meta?.id);
-        await writeJson(join(outDir, capturePath), session.capture);
-      }
-      throw new Error(`llm-plan session failed: ${JSON.stringify(session.errors || [])}`);
-    }
-    summary = session.summary;
-    capture = session.capture;
-
-    let mapped = mapSummaryToPool({ summary, catalog });
-    let actorInstances = countInstances(mapped.selections, "actor");
-    if (actorInstances === 0) {
-      const missingSelections = summarizeMissingSelections(mapped.selections);
-      const catalogRepairPrompt = [
-        basePrompt,
-        "",
-        "Your previous response did not match the pool catalog. Choose only from the allowed profiles below.",
-        allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
-        missingSelections ? `Unmatched picks: ${missingSelections}` : null,
-        "Provide at least one actor entry with count >= 1.",
-        "Final request: return corrected JSON only.",
-      ]
-        .filter(Boolean)
-        .join("\n");
-
-      session = await runLlmSession({
+    if (budgetLoopEnabled) {
+      const poolPolicy = Number.isFinite(budgetReserveTokens) ? { reserveTokens: budgetReserveTokens } : undefined;
+      const loopResult = await runLlmBudgetLoop({
         adapter,
         model,
         baseUrl,
-        prompt: catalogRepairPrompt,
+        catalog,
+        goal,
+        notes,
+        budgetTokens: resolvedBudgetTokens,
+        poolWeights: budgetPools.length > 0 ? budgetPools : undefined,
+        poolPolicy,
+        strict: isLlmStrictEnabled(),
+        format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
+        runId,
+        clock: () => createdAt,
+        producedBy: "orchestrator",
+      });
+      captures = loopResult.captures || [];
+      loopTrace = loopResult.trace || null;
+      budgetAllocation = loopResult.budgetAllocation || null;
+      budgetPoolWeights = loopResult.poolWeights || null;
+      budgetPoolBudgets = loopResult.poolBudgets || null;
+      budgetPoolPolicy = loopResult.poolPolicy || poolPolicy || null;
+      if (!loopResult.ok) {
+        if (captures.length > 0) {
+          for (let i = 0; i < captures.length; i += 1) {
+            const artifact = captures[i];
+            const capturePath = buildCapturedInputPath("llm", i, artifact?.meta?.id);
+            await writeJson(join(outDir, capturePath), artifact);
+          }
+        }
+        throw new Error(`llm-plan budget loop failed: ${JSON.stringify(loopResult.errors || [])}`);
+      }
+      summary = loopResult.summary;
+      mappedSelections = loopResult.selections;
+    } else {
+      let session = await runLlmSession({
+        adapter,
+        model,
+        baseUrl,
+        prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
         goal,
         budgetTokens: resolvedBudgetTokens,
         strict: isLlmStrictEnabled(),
@@ -2268,7 +2327,6 @@ async function llmPlanCommand(argv) {
         producedBy: "orchestrator",
         format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
       });
-
       if (!session.ok) {
         if (session.capture) {
           const capturePath = buildCapturedInputPath("llm", 0, session.capture.meta?.id);
@@ -2276,21 +2334,64 @@ async function llmPlanCommand(argv) {
         }
         throw new Error(`llm-plan session failed: ${JSON.stringify(session.errors || [])}`);
       }
-
       summary = session.summary;
       capture = session.capture;
-      mapped = mapSummaryToPool({ summary, catalog });
-      actorInstances = countInstances(mapped.selections, "actor");
-      if (actorInstances === 0) {
-        const finalMissing = summarizeMissingSelections(mapped.selections);
-        throw new Error(
-          `llm-plan summary did not match catalog entries (actors=${actorInstances}).` +
-            (finalMissing ? ` Unmatched picks: ${finalMissing}` : "")
-        );
-      }
-    }
 
-    mappedSelections = mapped.selections;
+      let mapped = mapSummaryToPool({ summary, catalog });
+      let actorInstances = countInstances(mapped.selections, "actor");
+      if (actorInstances === 0) {
+        const missingSelections = summarizeMissingSelections(mapped.selections);
+        const catalogRepairPrompt = [
+          basePrompt,
+          "",
+          "Your previous response did not match the pool catalog. Choose only from the allowed profiles below.",
+          allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
+          missingSelections ? `Unmatched picks: ${missingSelections}` : null,
+          "Provide at least one actor entry with count >= 1.",
+          "Final request: return corrected JSON only.",
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        session = await runLlmSession({
+          adapter,
+          model,
+          baseUrl,
+          prompt: catalogRepairPrompt,
+          goal,
+          budgetTokens: resolvedBudgetTokens,
+          strict: isLlmStrictEnabled(),
+          repairPromptBuilder,
+          requireSummary: { minRooms: 1, minActors: 1 },
+          runId,
+          clock: () => createdAt,
+          producedBy: "orchestrator",
+          format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
+        });
+
+        if (!session.ok) {
+          if (session.capture) {
+            const capturePath = buildCapturedInputPath("llm", 0, session.capture.meta?.id);
+            await writeJson(join(outDir, capturePath), session.capture);
+          }
+          throw new Error(`llm-plan session failed: ${JSON.stringify(session.errors || [])}`);
+        }
+
+        summary = session.summary;
+        capture = session.capture;
+        mapped = mapSummaryToPool({ summary, catalog });
+        actorInstances = countInstances(mapped.selections, "actor");
+        if (actorInstances === 0) {
+          const finalMissing = summarizeMissingSelections(mapped.selections);
+          throw new Error(
+            `llm-plan summary did not match catalog entries (actors=${actorInstances}).` +
+              (finalMissing ? ` Unmatched picks: ${finalMissing}` : "")
+          );
+        }
+      }
+
+      mappedSelections = mapped.selections;
+    }
   } else {
     if (isNonEmptyString(prompt)) {
       throw new Error("llm-plan requires AK_LLM_LIVE=1 when using --prompt.");
@@ -2333,10 +2434,11 @@ async function llmPlanCommand(argv) {
     throw new Error(`llm-plan build spec failed: ${buildSpecResult.errors.join("\n")}`);
   }
 
+  const capturedInputsForBuild = captures.length > 0 ? captures : capture ? [capture] : undefined;
   const buildResult = await orchestrateBuild({
     spec: buildSpecResult.spec,
     producedBy: "cli-llm-plan",
-    capturedInputs: capture ? [capture] : undefined,
+    capturedInputs: capturedInputsForBuild,
   });
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
@@ -2351,6 +2453,9 @@ async function llmPlanCommand(argv) {
   }
   if (buildResult.budgetReceipt) {
     await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
+  }
+  if (budgetAllocation) {
+    await writeJson(join(outDir, "budget-allocation.json"), budgetAllocation);
   }
   if (buildResult.solverRequest) {
     await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
@@ -2378,6 +2483,7 @@ async function llmPlanCommand(argv) {
   if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
   if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
   if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
+  if (budgetAllocation) bundleArtifacts.push(budgetAllocation);
   if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
   if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
   if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
@@ -2397,6 +2503,7 @@ async function llmPlanCommand(argv) {
   addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
   addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
   addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
+  addManifestEntry(manifestEntries, budgetAllocation, "budget-allocation.json");
   addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
   addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
   addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
@@ -2448,6 +2555,20 @@ async function llmPlanCommand(argv) {
     artifactRefs: buildArtifactRefs(manifestEntries),
     producedBy: "cli-llm-plan",
     clock: () => buildResult.spec.meta.createdAt,
+    data: loopTrace ? {
+      llm: {
+        budgetLoop: true,
+        trace: loopTrace,
+        budgetAllocation: budgetAllocation
+          ? {
+            pools: budgetAllocation.pools,
+            weights: budgetPoolWeights || undefined,
+            policy: budgetPoolPolicy || budgetAllocation.policy,
+            totals: budgetPoolBudgets || undefined,
+          }
+          : undefined,
+      },
+    } : undefined,
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 

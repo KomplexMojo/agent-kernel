@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
+const { mkdtempSync, readFileSync, writeFileSync, existsSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
 
@@ -68,9 +68,221 @@ test("cli llm-plan writes build outputs with captured input artifact", () => {
   assert.ok(capture.payload.responseParsed);
   assert.ok(capture.payload.summary);
   assert.equal(capture.payload.summary.dungeonTheme, "fire");
+  assert.ok(capture.payload.phaseTiming?.startedAt);
+  assert.ok(capture.payload.phaseTiming?.endedAt);
+  assert.equal(typeof capture.payload.phaseTiming?.durationMs, "number");
 
   const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
   assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/CapturedInputArtifact"));
+});
+
+test("cli llm-plan budget loop writes multiple captures", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
+      "--budget-loop",
+      "--run-id",
+      "run_llm_plan_loop",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "1" },
+  );
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntries = manifest.artifacts.filter(
+    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+  );
+  assert.equal(captureEntries.length, 2);
+  assert.ok(
+    manifest.artifacts.some((entry) => entry.schema === "agent-kernel/BudgetAllocationArtifact"),
+  );
+  const captureA = JSON.parse(readFileSync(join(outDir, captureEntries[0].path), "utf8"));
+  const captureB = JSON.parse(readFileSync(join(outDir, captureEntries[1].path), "utf8"));
+  assert.equal(captureA.payload.phase, "layout_only");
+  assert.equal(captureB.payload.phase, "actors_only");
+  assert.ok(captureA.payload.phaseTiming?.startedAt);
+  assert.ok(captureA.payload.phaseTiming?.endedAt);
+  assert.equal(typeof captureA.payload.phaseTiming?.durationMs, "number");
+  assert.ok(captureB.payload.phaseTiming?.startedAt);
+  assert.ok(captureB.payload.phaseTiming?.endedAt);
+  assert.equal(typeof captureB.payload.phaseTiming?.durationMs, "number");
+
+  const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
+  const trace = telemetry?.data?.llm?.trace || [];
+  assert.ok(Array.isArray(trace));
+  assert.equal(trace[0].phase, "layout_only");
+  assert.equal(trace[0].spentTokens, 200);
+  assert.equal(trace[0].remainingBudgetTokens, 440);
+  assert.ok(trace[0].startedAt);
+  assert.ok(trace[0].endedAt);
+  assert.equal(typeof trace[0].durationMs, "number");
+  const allocation = telemetry?.data?.llm?.budgetAllocation;
+  assert.ok(allocation);
+  const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
+  assert.equal(poolsById.layout, 320);
+  assert.equal(poolsById.defenders, 320);
+  assert.equal(poolsById.player, 160);
+});
+
+test("cli llm-plan budget loop writes feasibility warnings into telemetry", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-warn-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-budget-loop-feasibility.json",
+      "--budget-loop",
+      "--run-id",
+      "run_llm_plan_loop_warn",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "1" },
+  );
+
+  const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
+  const trace = telemetry?.data?.llm?.trace || [];
+  assert.ok(Array.isArray(trace));
+  assert.ok(
+    trace.some((entry) =>
+      Array.isArray(entry.validationWarnings)
+        && entry.validationWarnings.some((warn) => warn.code === "insufficient_walkable_tiles")
+    )
+  );
+});
+
+test("cli llm-plan budget loop honors custom budget pools", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-pools-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
+      "--budget-loop",
+      "--budget-pool",
+      "player=0",
+      "--budget-pool",
+      "layout=0.5",
+      "--budget-pool",
+      "defenders=0.5",
+      "--budget-pool",
+      "loot=0",
+      "--run-id",
+      "run_llm_plan_loop_pools",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "1" },
+  );
+
+  const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
+  const allocation = telemetry?.data?.llm?.budgetAllocation;
+  const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
+  assert.equal(poolsById.layout, 400);
+  assert.equal(poolsById.defenders, 400);
+  assert.equal(poolsById.player, 0);
+
+  const trace = telemetry?.data?.llm?.trace || [];
+  assert.equal(trace[0].remainingBudgetTokens, 600);
+});
+
+test("cli llm-plan budget loop requires budget tokens", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-missing-budget-"));
+  const scenarioPath = join(outDir, "scenario-missing-budget.json");
+  const scenario = {
+    schema: "agent-kernel/E2EScenario",
+    schemaVersion: 1,
+    goal: "Missing budget tokens",
+    tier: 1,
+    levelSize: { width: 5, height: 5 },
+    actorCount: 1,
+    catalogPath: "tests/fixtures/pool/catalog-basic.json",
+    summaryPath: "tests/fixtures/e2e/summary-v1-basic.json",
+  };
+  writeFileSync(scenarioPath, JSON.stringify(scenario, null, 2));
+
+  const result = runCliExpectFailure(
+    [
+      "llm-plan",
+      "--scenario",
+      scenarioPath,
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
+      "--budget-loop",
+      "--run-id",
+      "run_llm_plan_missing_budget",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "1" },
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /llm-plan requires --budget-tokens/i);
+});
+
+test("cli llm-plan requires budget tokens in single-pass mode", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-missing-budget-"));
+  const scenarioPath = join(outDir, "scenario-missing-budget.json");
+  const scenario = {
+    schema: "agent-kernel/E2EScenario",
+    schemaVersion: 1,
+    goal: "Missing budget tokens",
+    tier: 1,
+    levelSize: { width: 5, height: 5 },
+    actorCount: 1,
+    catalogPath: "tests/fixtures/pool/catalog-basic.json",
+    summaryPath: "tests/fixtures/e2e/summary-v1-basic.json",
+  };
+  writeFileSync(scenarioPath, JSON.stringify(scenario, null, 2));
+
+  const result = runCliExpectFailure(
+    [
+      "llm-plan",
+      "--scenario",
+      scenarioPath,
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary.json",
+      "--run-id",
+      "run_llm_plan_missing_budget_single",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "1" },
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /llm-plan requires --budget-tokens/i);
 });
 
 test("cli llm-plan strict mode fails but writes capture with errors", () => {

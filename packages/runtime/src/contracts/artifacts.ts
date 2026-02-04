@@ -637,6 +637,8 @@ export interface InitialStateArtifactV1 {
       stamina: VitalRecordV1;
       durability: VitalRecordV1;
     };
+    /** Optional capability parameters for core-as (movement/action costs). */
+    capabilities?: CapabilityRecordV1;
   }>;
 }
 
@@ -780,6 +782,12 @@ export interface VitalRecordV1 {
   regen: number;
 }
 
+export interface CapabilityRecordV1 {
+  movementCost?: number;
+  actionCostMana?: number;
+  actionCostStamina?: number;
+}
+
 export interface ActorStateV1 {
   schema: typeof ACTOR_STATE_SCHEMA;
   schemaVersion: 1;
@@ -793,6 +801,7 @@ export interface ActorStateV1 {
       stamina: VitalRecordV1;
       durability: VitalRecordV1;
     };
+    capabilities?: CapabilityRecordV1;
   };
 }
 

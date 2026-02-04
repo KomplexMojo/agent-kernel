@@ -36,8 +36,15 @@ import {
   getActorVitalCurrent as getActorVitalCurrentState,
   getActorVitalMax as getActorVitalMaxState,
   getActorVitalRegen as getActorVitalRegenState,
+  getActorMovementCost as getActorMovementCostState,
+  getActorActionCostMana as getActorActionCostManaState,
+  getActorActionCostStamina as getActorActionCostStaminaState,
   setActorVital as setActorVitalState,
+  setActorMovementCost as setActorMovementCostState,
+  setActorActionCostMana as setActorActionCostManaState,
+  setActorActionCostStamina as setActorActionCostStaminaState,
   validateActorVitals as validateActorVitalsState,
+  validateActorCapabilities as validateActorCapabilitiesState,
   getTileActorKind as getTileActorKindState,
   getTileActorId as getTileActorIdState,
   getTileActorCount as getTileActorCountState,
@@ -59,6 +66,7 @@ import {
   spawnActorAt as spawnActorAtState,
   validateActorPlacement as validateActorPlacementState,
   getCurrentTick as getCurrentTickValue,
+  advanceTick as advanceTickState,
   getActorHp as getActorHpState,
   getActorMaxHp as getActorMaxHpState,
   getActorId as getActorIdState,
@@ -69,7 +77,13 @@ import {
   getMotivatedActorVitalCurrentByIndex as getMotivatedActorVitalCurrentByIndexState,
   getMotivatedActorVitalMaxByIndex as getMotivatedActorVitalMaxByIndexState,
   getMotivatedActorVitalRegenByIndex as getMotivatedActorVitalRegenByIndexState,
+  getMotivatedActorMovementCostByIndex as getMotivatedActorMovementCostByIndexState,
+  getMotivatedActorActionCostManaByIndex as getMotivatedActorActionCostManaByIndexState,
+  getMotivatedActorActionCostStaminaByIndex as getMotivatedActorActionCostStaminaByIndexState,
   setMotivatedActorVital as setMotivatedActorVitalState,
+  setMotivatedActorMovementCost as setMotivatedActorMovementCostState,
+  setMotivatedActorActionCostMana as setMotivatedActorActionCostManaState,
+  setMotivatedActorActionCostStamina as setMotivatedActorActionCostStaminaState,
 } from "./state/world";
 import { applyMove, decodeMove, reachedExitAfterMove, setMoveAction as setMoveActionState } from "./rules/move";
 import { ActionKind, ValidationError, validateAction, validateSeed } from "./validate/inputs";
@@ -387,6 +401,10 @@ export function getCurrentTick(): i32 {
   return getCurrentTickValue();
 }
 
+export function advanceTick(): void {
+  advanceTickState();
+}
+
 export function getActorVitalCurrent(kind: i32): i32 {
   return getActorVitalCurrentState(kind);
 }
@@ -399,16 +417,56 @@ export function getActorVitalRegen(kind: i32): i32 {
   return getActorVitalRegenState(kind);
 }
 
+export function getActorMovementCost(): i32 {
+  return getActorMovementCostState();
+}
+
+export function getActorActionCostMana(): i32 {
+  return getActorActionCostManaState();
+}
+
+export function getActorActionCostStamina(): i32 {
+  return getActorActionCostStaminaState();
+}
+
 export function setActorVital(kind: i32, current: i32, max: i32, regen: i32): void {
   setActorVitalState(kind, current, max, regen);
+}
+
+export function setActorMovementCost(value: i32): void {
+  setActorMovementCostState(value);
+}
+
+export function setActorActionCostMana(value: i32): void {
+  setActorActionCostManaState(value);
+}
+
+export function setActorActionCostStamina(value: i32): void {
+  setActorActionCostStaminaState(value);
 }
 
 export function setMotivatedActorVital(index: i32, kind: i32, current: i32, max: i32, regen: i32): void {
   setMotivatedActorVitalState(index, kind, current, max, regen);
 }
 
+export function setMotivatedActorMovementCost(index: i32, value: i32): void {
+  setMotivatedActorMovementCostState(index, value);
+}
+
+export function setMotivatedActorActionCostMana(index: i32, value: i32): void {
+  setMotivatedActorActionCostManaState(index, value);
+}
+
+export function setMotivatedActorActionCostStamina(index: i32, value: i32): void {
+  setMotivatedActorActionCostStaminaState(index, value);
+}
+
 export function validateActorVitals(): i32 {
   return validateActorVitalsState();
+}
+
+export function validateActorCapabilities(): i32 {
+  return validateActorCapabilitiesState();
 }
 
 export function renderCellChar(x: i32, y: i32): i32 {
@@ -445,4 +503,16 @@ export function getMotivatedActorVitalMaxByIndex(index: i32, kind: i32): i32 {
 
 export function getMotivatedActorVitalRegenByIndex(index: i32, kind: i32): i32 {
   return getMotivatedActorVitalRegenByIndexState(index, kind);
+}
+
+export function getMotivatedActorMovementCostByIndex(index: i32): i32 {
+  return getMotivatedActorMovementCostByIndexState(index);
+}
+
+export function getMotivatedActorActionCostManaByIndex(index: i32): i32 {
+  return getMotivatedActorActionCostManaByIndexState(index);
+}
+
+export function getMotivatedActorActionCostStaminaByIndex(index: i32): i32 {
+  return getMotivatedActorActionCostStaminaByIndexState(index);
 }

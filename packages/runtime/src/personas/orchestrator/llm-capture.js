@@ -38,6 +38,10 @@ export function buildLlmCaptureArtifact({
   meta,
   runId,
   producedBy,
+  phase,
+  phaseContext,
+  phaseTiming,
+  remainingBudgetTokens,
   clock = () => new Date().toISOString(),
 } = {}) {
   const errors = [];
@@ -57,6 +61,16 @@ export function buildLlmCaptureArtifact({
   if (responseParsed !== undefined) payload.responseParsed = responseParsed;
   if (summary !== undefined) payload.summary = summary;
   if (Array.isArray(parseErrors) && parseErrors.length > 0) payload.errors = parseErrors;
+  if (isNonEmptyString(phase)) payload.phase = phase;
+  if (isNonEmptyString(phaseContext)) payload.phaseContext = phaseContext;
+  if (phaseTiming && typeof phaseTiming === "object") {
+    const timing = {};
+    if (isNonEmptyString(phaseTiming.startedAt)) timing.startedAt = phaseTiming.startedAt;
+    if (isNonEmptyString(phaseTiming.endedAt)) timing.endedAt = phaseTiming.endedAt;
+    if (Number.isFinite(phaseTiming.durationMs)) timing.durationMs = phaseTiming.durationMs;
+    if (Object.keys(timing).length > 0) payload.phaseTiming = timing;
+  }
+  if (Number.isInteger(remainingBudgetTokens)) payload.remainingBudgetTokens = remainingBudgetTokens;
 
   const capture = {
     schema: CAPTURED_INPUT_SCHEMA,

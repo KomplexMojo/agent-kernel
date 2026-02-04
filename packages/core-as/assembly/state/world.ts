@@ -35,6 +35,9 @@ const VITAL_MASK_ALL: i32 = (1 << VITAL_COUNT) - 1;
 const TILE_ACTOR_ID_OFFSET: i32 = 1000;
 const INVALID_TILE_ACTOR_INDEX: i32 = -1;
 const BARRIER_DURABILITY_DEFAULT: i32 = 3;
+const DEFAULT_MOVEMENT_COST: i32 = 1;
+const DEFAULT_ACTION_COST_MANA: i32 = 0;
+const DEFAULT_ACTION_COST_STAMINA: i32 = 0;
 
 let width: i32 = 0;
 let height: i32 = 0;
@@ -73,6 +76,9 @@ let actorVitalCurrent = new StaticArray<i32>(VITAL_COUNT);
 let actorVitalMax = new StaticArray<i32>(VITAL_COUNT);
 let actorVitalRegen = new StaticArray<i32>(VITAL_COUNT);
 let actorVitalMask: i32 = 0;
+let actorMovementCost: i32 = DEFAULT_MOVEMENT_COST;
+let actorActionCostMana: i32 = DEFAULT_ACTION_COST_MANA;
+let actorActionCostStamina: i32 = DEFAULT_ACTION_COST_STAMINA;
 let motivatedActorCount: i32 = 0;
 let motivatedActorId = new StaticArray<i32>(0);
 let motivatedActorX = new StaticArray<i32>(0);
@@ -80,6 +86,9 @@ let motivatedActorY = new StaticArray<i32>(0);
 let motivatedActorVitalCurrent = new StaticArray<i32>(0);
 let motivatedActorVitalMax = new StaticArray<i32>(0);
 let motivatedActorVitalRegen = new StaticArray<i32>(0);
+let motivatedActorMovementCost = new StaticArray<i32>(0);
+let motivatedActorActionCostMana = new StaticArray<i32>(0);
+let motivatedActorActionCostStamina = new StaticArray<i32>(0);
 let currentTick: i32 = 0;
 
 function resizeGrid(newWidth: i32, newHeight: i32): void {
@@ -109,6 +118,9 @@ function resizeGrid(newWidth: i32, newHeight: i32): void {
   motivatedActorVitalCurrent = new StaticArray<i32>(maxMotivatedActors * VITAL_COUNT);
   motivatedActorVitalMax = new StaticArray<i32>(maxMotivatedActors * VITAL_COUNT);
   motivatedActorVitalRegen = new StaticArray<i32>(maxMotivatedActors * VITAL_COUNT);
+  motivatedActorMovementCost = new StaticArray<i32>(maxMotivatedActors);
+  motivatedActorActionCostMana = new StaticArray<i32>(maxMotivatedActors);
+  motivatedActorActionCostStamina = new StaticArray<i32>(maxMotivatedActors);
 }
 
 export function prepareTileBuffer(length: i32): usize {
@@ -263,6 +275,32 @@ function resetActorVitals(): void {
   }
 }
 
+function resetActorCapabilities(): void {
+  actorMovementCost = DEFAULT_MOVEMENT_COST;
+  actorActionCostMana = DEFAULT_ACTION_COST_MANA;
+  actorActionCostStamina = DEFAULT_ACTION_COST_STAMINA;
+  if (maxMotivatedActors > 0) {
+    unchecked(motivatedActorMovementCost[0] = actorMovementCost);
+    unchecked(motivatedActorActionCostMana[0] = actorActionCostMana);
+    unchecked(motivatedActorActionCostStamina[0] = actorActionCostStamina);
+  }
+}
+
+function applyDefaultCapabilitiesToMotivatedActors(count: i32): void {
+  actorMovementCost = DEFAULT_MOVEMENT_COST;
+  actorActionCostMana = DEFAULT_ACTION_COST_MANA;
+  actorActionCostStamina = DEFAULT_ACTION_COST_STAMINA;
+  if (count <= 0) {
+    resetActorCapabilities();
+    return;
+  }
+  for (let i = 0; i < count; i += 1) {
+    unchecked(motivatedActorMovementCost[i] = DEFAULT_MOVEMENT_COST);
+    unchecked(motivatedActorActionCostMana[i] = DEFAULT_ACTION_COST_MANA);
+    unchecked(motivatedActorActionCostStamina[i] = DEFAULT_ACTION_COST_STAMINA);
+  }
+}
+
 function resetMotivatedActors(): void {
   motivatedActorCount = 0;
   actorActive = false;
@@ -271,6 +309,7 @@ function resetMotivatedActors(): void {
   actorX = -1;
   actorY = -1;
   resetActorVitals();
+  resetActorCapabilities();
 }
 
 function isValidVitalKind(kind: i32): bool {
@@ -355,6 +394,7 @@ export function spawnActorAt(x: i32, y: i32): void {
   actorActive = true;
   actorX = x;
   actorY = y;
+  applyDefaultCapabilitiesToMotivatedActors(1);
   seedMotivatedOccupancyFromActor();
 }
 
@@ -408,7 +448,7 @@ export function loadMvpWorld(): void {
   actorKind = ActorKind.Motivated;
   setActorVital(VitalKind.Health, 10, 10, 0);
   setActorVital(VitalKind.Mana, 0, 0, 0);
-  setActorVital(VitalKind.Stamina, 0, 0, 0);
+  setActorVital(VitalKind.Stamina, 12, 12, 0);
   setActorVital(VitalKind.Durability, 0, 0, 0);
   if (spawnX >= 0 && spawnY >= 0) {
     spawnActorAt(spawnX, spawnY);
@@ -431,7 +471,7 @@ export function loadMvpBarrierWorld(): void {
   actorKind = ActorKind.Motivated;
   setActorVital(VitalKind.Health, 10, 10, 0);
   setActorVital(VitalKind.Mana, 0, 0, 0);
-  setActorVital(VitalKind.Stamina, 0, 0, 0);
+  setActorVital(VitalKind.Stamina, 12, 12, 0);
   setActorVital(VitalKind.Durability, 0, 0, 0);
   if (spawnX >= 0 && spawnY >= 0) {
     spawnActorAt(spawnX, spawnY);
@@ -564,6 +604,7 @@ export function applyActorPlacements(): ValidationError {
     actorY = unchecked(motivatedActorY[0]);
   }
   resetActorVitals();
+  applyDefaultCapabilitiesToMotivatedActors(count);
   return ValidationError.None;
 }
 
@@ -745,6 +786,18 @@ export function getActorVitalRegen(kind: i32): i32 {
   return unchecked(actorVitalRegen[kind]);
 }
 
+export function getActorMovementCost(): i32 {
+  return actorMovementCost;
+}
+
+export function getActorActionCostMana(): i32 {
+  return actorActionCostMana;
+}
+
+export function getActorActionCostStamina(): i32 {
+  return actorActionCostStamina;
+}
+
 export function setActorVital(kind: i32, current: i32, max: i32, regen: i32): void {
   if (!isValidVitalKind(kind)) {
     return;
@@ -777,6 +830,57 @@ export function setMotivatedActorVital(index: i32, kind: i32, current: i32, max:
   }
 }
 
+export function setActorMovementCost(value: i32): void {
+  actorMovementCost = value;
+  if (maxMotivatedActors > 0) {
+    unchecked(motivatedActorMovementCost[0] = value);
+  }
+}
+
+export function setActorActionCostMana(value: i32): void {
+  actorActionCostMana = value;
+  if (maxMotivatedActors > 0) {
+    unchecked(motivatedActorActionCostMana[0] = value);
+  }
+}
+
+export function setActorActionCostStamina(value: i32): void {
+  actorActionCostStamina = value;
+  if (maxMotivatedActors > 0) {
+    unchecked(motivatedActorActionCostStamina[0] = value);
+  }
+}
+
+export function setMotivatedActorMovementCost(index: i32, value: i32): void {
+  if (!isValidMotivatedActorIndex(index)) {
+    return;
+  }
+  unchecked(motivatedActorMovementCost[index] = value);
+  if (index == 0) {
+    actorMovementCost = value;
+  }
+}
+
+export function setMotivatedActorActionCostMana(index: i32, value: i32): void {
+  if (!isValidMotivatedActorIndex(index)) {
+    return;
+  }
+  unchecked(motivatedActorActionCostMana[index] = value);
+  if (index == 0) {
+    actorActionCostMana = value;
+  }
+}
+
+export function setMotivatedActorActionCostStamina(index: i32, value: i32): void {
+  if (!isValidMotivatedActorIndex(index)) {
+    return;
+  }
+  unchecked(motivatedActorActionCostStamina[index] = value);
+  if (index == 0) {
+    actorActionCostStamina = value;
+  }
+}
+
 export function validateActorVitals(): ValidationError {
   if ((actorVitalMask & VITAL_MASK_ALL) != VITAL_MASK_ALL) {
     return ValidationError.MissingVital;
@@ -787,6 +891,21 @@ export function validateActorVitals(): ValidationError {
     const regen = unchecked(actorVitalRegen[i]);
     if (current < 0 || max < 0 || regen < 0 || current > max) {
       return ValidationError.InvalidVital;
+    }
+  }
+  return ValidationError.None;
+}
+
+export function validateActorCapabilities(): ValidationError {
+  if (actorMovementCost < 0 || actorActionCostMana < 0 || actorActionCostStamina < 0) {
+    return ValidationError.InvalidCapability;
+  }
+  for (let i = 0; i < motivatedActorCount; i += 1) {
+    const movement = unchecked(motivatedActorMovementCost[i]);
+    const mana = unchecked(motivatedActorActionCostMana[i]);
+    const stamina = unchecked(motivatedActorActionCostStamina[i]);
+    if (movement < 0 || mana < 0 || stamina < 0) {
+      return ValidationError.InvalidCapability;
     }
   }
   return ValidationError.None;
@@ -838,6 +957,27 @@ export function getMotivatedActorVitalRegenByIndex(index: i32, kind: i32): i32 {
   return unchecked(motivatedActorVitalRegen[vitalIndexFor(index, kind)]);
 }
 
+export function getMotivatedActorMovementCostByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) {
+    return 0;
+  }
+  return unchecked(motivatedActorMovementCost[index]);
+}
+
+export function getMotivatedActorActionCostManaByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) {
+    return 0;
+  }
+  return unchecked(motivatedActorActionCostMana[index]);
+}
+
+export function getMotivatedActorActionCostStaminaByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) {
+    return 0;
+  }
+  return unchecked(motivatedActorActionCostStamina[index]);
+}
+
 export function setActorPosition(x: i32, y: i32): void {
   if (!withinBounds(x, y)) {
     return;
@@ -854,6 +994,57 @@ export function setActorPosition(x: i32, y: i32): void {
   if (actorActive) {
     setMotivatedOccupancyAt(actorX, actorY, 1);
   }
+}
+
+function clampVitalValue(current: i32, max: i32, regen: i32): i32 {
+  let next = current + regen;
+  if (next > max) {
+    next = max;
+  }
+  return next;
+}
+
+function applyRegenForActorIndex(index: i32): void {
+  for (let kind = 0; kind < VITAL_COUNT; kind += 1) {
+    if (kind == VitalKind.Durability) {
+      continue;
+    }
+    const offset = vitalIndexFor(index, kind);
+    const current = unchecked(motivatedActorVitalCurrent[offset]);
+    const max = unchecked(motivatedActorVitalMax[offset]);
+    const regen = unchecked(motivatedActorVitalRegen[offset]);
+    const next = clampVitalValue(current, max, regen);
+    unchecked(motivatedActorVitalCurrent[offset] = next);
+    if (index == 0) {
+      unchecked(actorVitalCurrent[kind] = next);
+    }
+  }
+}
+
+function applyTickRegen(): void {
+  if (motivatedActorCount > 0) {
+    for (let i = 0; i < motivatedActorCount; i += 1) {
+      applyRegenForActorIndex(i);
+    }
+    return;
+  }
+  if (actorActive) {
+    for (let kind = 0; kind < VITAL_COUNT; kind += 1) {
+      if (kind == VitalKind.Durability) {
+        continue;
+      }
+      const current = unchecked(actorVitalCurrent[kind]);
+      const max = unchecked(actorVitalMax[kind]);
+      const regen = unchecked(actorVitalRegen[kind]);
+      const next = clampVitalValue(current, max, regen);
+      unchecked(actorVitalCurrent[kind] = next);
+    }
+  }
+}
+
+export function advanceTick(): void {
+  applyTickRegen();
+  currentTick += 1;
 }
 
 export function setCurrentTick(value: i32): void {

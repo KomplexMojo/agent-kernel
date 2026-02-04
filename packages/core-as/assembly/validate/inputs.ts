@@ -29,6 +29,8 @@ export const enum ValidationError {
   ActorBlocked = 16,
   ActorCollision = 17,
   TooManyActors = 18,
+  InsufficientStamina = 19,
+  InvalidCapability = 20,
 }
 
 export function validateSeed(seed: i32): i32 {
