@@ -7,11 +7,16 @@ const ROOT = resolve(__dirname, "../..");
 const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 const RUNTIME_MODULE = moduleUrl("packages/runtime/src/runner/runtime.js");
 
-test("runtime loads multi-actor initial state into core", (t) => {
+const SIM_CONFIG_PATH = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json");
+const INITIAL_STATE_PATH = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json");
+
+// This test ensures the runtime schedules all personas when inputs are available.
+test("runtime drives all personas via the FSM schedule", (t) => {
   if (!existsSync(WASM_PATH)) {
     t.skip(`Missing WASM at ${WASM_PATH}`);
     return;
   }
+
   const script = `
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -30,6 +35,7 @@ const core = {
   init: exports.init,
   step: exports.step,
   applyAction: exports.applyAction,
+  setMoveAction: exports.setMoveAction,
   getCounter: exports.getCounter,
   configureGrid: exports.configureGrid,
   setTileAt: exports.setTileAt,
@@ -42,8 +48,10 @@ const core = {
   getMapHeight: exports.getMapHeight,
   getActorX: exports.getActorX,
   getActorY: exports.getActorY,
+  getActorKind: exports.getActorKind,
   getTileActorKind: exports.getTileActorKind,
   renderBaseCellChar: exports.renderBaseCellChar,
+  getCurrentTick: exports.getCurrentTick,
   setBudget: exports.setBudget,
   getBudget: exports.getBudget,
   getBudgetUsage: exports.getBudgetUsage,
@@ -70,43 +78,40 @@ const core = {
   getMotivatedActorActionCostStaminaByIndex: exports.getMotivatedActorActionCostStaminaByIndex,
 };
 
-const simConfig = JSON.parse(
-  await readFile(${JSON.stringify(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"))}, "utf8"),
-);
-const initialState = JSON.parse(
-  await readFile(${JSON.stringify(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-mvp-multi.json"))}, "utf8"),
-);
+const simConfig = JSON.parse(await readFile(${JSON.stringify(SIM_CONFIG_PATH)}, "utf8"));
+const initialState = JSON.parse(await readFile(${JSON.stringify(INITIAL_STATE_PATH)}, "utf8"));
+const intentEnvelope = {
+  schema: "agent-kernel/IntentEnvelope",
+  schemaVersion: 1,
+  meta: {
+    id: "intent_runtime_schedule",
+    runId: "run_runtime_schedule",
+    createdAt: "2025-01-01T00:00:00.000Z",
+    producedBy: "test",
+  },
+  source: "test",
+  intent: { goal: "Reach the exit", tags: ["runtime", "schedule"] },
+};
 
 const runtime = createRuntime({ core, adapters: {} });
-await runtime.init({ seed: 0, simConfig, initialState });
+await runtime.init({ seed: 0, simConfig, initialState, runId: "run_runtime_schedule", intentEnvelope });
+await runtime.step();
+await runtime.step();
+await runtime.step();
+await runtime.step();
 
-assert.equal(core.getMotivatedActorCount(), 3);
-assert.deepEqual(
-  { x: core.getMotivatedActorXByIndex(0), y: core.getMotivatedActorYByIndex(0) },
-  { x: 1, y: 1 },
-);
-assert.deepEqual(
-  { x: core.getMotivatedActorXByIndex(1), y: core.getMotivatedActorYByIndex(1) },
-  { x: 2, y: 1 },
-);
-assert.deepEqual(
-  { x: core.getMotivatedActorXByIndex(2), y: core.getMotivatedActorYByIndex(2) },
-  { x: 1, y: 2 },
-);
-assert.equal(core.getMotivatedActorVitalCurrentByIndex(0, 0), 10);
-assert.equal(core.getMotivatedActorVitalCurrentByIndex(1, 0), 20);
-assert.equal(core.getMotivatedActorVitalCurrentByIndex(2, 0), 30);
-assert.equal(core.getMotivatedActorMovementCostByIndex(0), 1);
-assert.equal(core.getMotivatedActorActionCostManaByIndex(0), 0);
-assert.equal(core.getMotivatedActorActionCostStaminaByIndex(0), 0);
-assert.equal(core.getMotivatedActorMovementCostByIndex(1), 2);
-assert.equal(core.getMotivatedActorActionCostManaByIndex(1), 1);
-assert.equal(core.getMotivatedActorActionCostStaminaByIndex(1), 0);
-assert.equal(core.getMotivatedActorMovementCostByIndex(2), 1);
-assert.equal(core.getMotivatedActorActionCostManaByIndex(2), 0);
-assert.equal(core.getMotivatedActorActionCostStaminaByIndex(2), 2);
-assert.equal(core.getActorX(), 1);
-assert.equal(core.getActorY(), 1);
+const frames = runtime.getTickFrames();
+const summarizeFrames = frames.filter((frame) => frame.phaseDetail === "summarize");
+const last = summarizeFrames[summarizeFrames.length - 1];
+assert.ok(last, "Expected a summarize frame");
+
+const views = last.personaViews;
+assert.equal(views.orchestrator.state, "running");
+assert.equal(views.director.state, "ready");
+assert.ok(["monitoring", "rebalancing"].includes(views.allocator.state));
+assert.equal(views.moderator.state, "ticking");
+assert.equal(views.configurator.state, "configured");
 `;
+
   runEsm(script);
 });

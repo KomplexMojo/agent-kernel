@@ -51,10 +51,32 @@ const simConfig = {
   },
 };
 
-const runtime = createRuntime({ core, adapters: {} });
-runtime.init({ seed: 0, simConfig });
-runtime.step();
-runtime.step();
+const stubActor = {
+  subscribePhases: ["observe", "decide"],
+  state: "idle",
+  view() {
+    return { state: this.state, context: { lastEvent: null } };
+  },
+  advance({ event, tick }) {
+    if (event === "propose") {
+      return {
+        state: "proposing",
+        context: { lastEvent: event },
+        actions: [
+          { actorId: "actor_1", tick, kind: "wait", params: {} },
+          { actorId: "actor_1", tick, kind: "wait", params: {} },
+        ],
+        effects: [],
+        telemetry: null,
+      };
+    }
+    return { state: this.state, context: { lastEvent: event }, actions: [], effects: [], telemetry: null };
+  },
+};
+
+const runtime = createRuntime({ core, adapters: {}, personas: { actor: stubActor } });
+await runtime.init({ seed: 0, simConfig });
+await runtime.step();
 
 const effectLog = runtime.getEffectLog();
 const limitEntries = effectLog.filter((entry) => entry.kind === "limit_violation");

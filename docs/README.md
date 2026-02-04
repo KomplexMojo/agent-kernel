@@ -11,6 +11,13 @@ This folder contains the design intent and architecture rules for the project.
 
 If a plan or README conflicts with these documents, the charter and vision contract win.
 
+## Runtime execution model
+
+- The tick FSM (`init → observe → decide → apply → emit → summarize`) is the canonical runtime loop.
+- The runtime runner uses the tick FSM and routes phase events through the tick orchestrator and personas before applying actions to `core-as`.
+- TickFrames are emitted per phase and include actions/effects plus persona views/telemetry for deterministic replay.
+- Runtime inputs contract: `docs/runtime-inputs.md` documents `personaEvents`/`personaPayloads` and control events.
+
 ## Actor-centric model
 
 - Actors are the core state primitive (tile actors for the grid, motivated actors for movement).

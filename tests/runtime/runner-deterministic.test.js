@@ -44,8 +44,8 @@ const core = {
 
 const fixedClock = () => "2025-01-01T00:00:00.000Z";
 const runtime = createRuntime({ core, adapters: {}, runId: "run_fixed", clock: fixedClock });
-runtime.init({ seed: 0, simConfig: null });
-runtime.step();
+await runtime.init({ seed: 0, simConfig: null });
+await runtime.step();
 
 const frames = runtime.getTickFrames();
 assert.ok(frames.length > 0);

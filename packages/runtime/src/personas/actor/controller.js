@@ -1,6 +1,6 @@
-import { createActorStateMachine, ActorStates } from "./state-machine.mts";
-import { TickPhases } from "../_shared/tick-state-machine.mts";
-import { buildAction, buildRequestActionsFromEffects } from "../_shared/persona-helpers.mts";
+import { createActorStateMachine, ActorStates } from "./state-machine.js";
+import { TickPhases } from "../_shared/tick-state-machine.js";
+import { buildAction, buildRequestActionsFromEffects } from "../_shared/persona-helpers.js";
 
 export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 

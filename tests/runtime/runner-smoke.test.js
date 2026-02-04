@@ -42,8 +42,8 @@ const core = {
 };
 
 const runtime = createRuntime({ core, adapters: {} });
-runtime.init({ seed: 0, simConfig: null });
-runtime.step();
+await runtime.init({ seed: 0, simConfig: null });
+await runtime.step();
 const frames = runtime.getTickFrames();
 assert.ok(Array.isArray(frames));
 assert.ok(frames.length > 0);

@@ -39,7 +39,7 @@ const runtime = createRuntime({
   adapters,
   effectFactory: ({ index: effectIndex }) => fixture.effects[effectIndex],
 });
-runtime.init({ seed: 0 });
+await runtime.init({ seed: 0 });
 const frames = runtime.getTickFrames();
 assert.equal(frames.length, 1);
 const frame = frames[0];

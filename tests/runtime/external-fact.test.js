@@ -40,7 +40,7 @@ const effectFactory = ({ tick, kind }) => {
 };
 
 const runtime = createRuntime({ core, adapters: {}, effectFactory });
-runtime.init({ seed: 0, simConfig: null });
+await runtime.init({ seed: 0, simConfig: null });
 const frames = runtime.getTickFrames();
 assert.equal(frames.length, 1);
 const fulfilled = frames[0].fulfilledEffects;

@@ -1,6 +1,6 @@
-import { createDirectorStateMachine, DirectorStates } from "./state-machine.mts";
-import { TickPhases } from "../_shared/tick-state-machine.mts";
-import { buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
+import { createDirectorStateMachine, DirectorStates } from "./state-machine.js";
+import { TickPhases } from "../_shared/tick-state-machine.js";
+import { buildSolverRequestEffect } from "../_shared/persona-helpers.js";
 
 const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
 const INTENT_SCHEMA = "agent-kernel/IntentEnvelope";

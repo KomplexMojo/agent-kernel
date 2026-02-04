@@ -6,7 +6,7 @@ flowchart LR
   end
 
   subgraph Runtime["Runtime (TypeScript)"]
-    RuntimePorts["runtime ports + runner\n(effect routing + tick frames)"]
+    RuntimePorts["runtime runner + ports\n(effect routing + tick frames)"]
     TickOrch["tick orchestrator (phases)"]
     subgraph Personas["Personas"]
       Orchestrator["Orchestrator: workflow coordination"]
@@ -43,6 +43,7 @@ flowchart LR
   UIWeb --> RuntimePorts
   UIWeb --> BindingsTS
   UIWeb --> AWeb
+  RuntimePorts --> TickOrch
   Moderator --> TickOrch
   TickOrch --> Director
   TickOrch --> Actor
@@ -50,7 +51,6 @@ flowchart LR
   TickOrch --> Annotator
   TickOrch --> Configurator
   TickOrch --> Orchestrator
-  TickOrch --> Director
   Orchestrator --> RuntimePorts
   Moderator --> RuntimePorts
   Director --> RuntimePorts

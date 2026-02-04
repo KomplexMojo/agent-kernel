@@ -18,6 +18,7 @@ const transitions = [
     to: ActorStates.PROPOSING,
     guard: hasProposals,
   },
+  { from: ActorStates.DECIDING, event: "cooldown", to: ActorStates.COOLDOWN },
   { from: ActorStates.PROPOSING, event: "cooldown", to: ActorStates.COOLDOWN },
   { from: ActorStates.COOLDOWN, event: "observe", to: ActorStates.OBSERVING },
 ];

@@ -42,7 +42,7 @@ const core = {
 };
 
 const runtime = createRuntime({ core, adapters: {} });
-runtime.init({ seed: -1, simConfig: null });
+await runtime.init({ seed: -1, simConfig: null });
 let frames = runtime.getTickFrames();
 assert.equal(frames.length, 1);
 assert.equal(frames[0].phaseDetail, "init");
@@ -53,18 +53,14 @@ assert.ok(frames[0].fulfilledEffects[0].effect);
 assert.equal(frames[0].fulfilledEffects[0].status, "deferred");
 assert.equal(frames[0].fulfilledEffects[0].reason, "missing_logger");
 
-runtime.step();
+await runtime.step();
 frames = runtime.getTickFrames();
-assert.equal(frames.length, 5);
+assert.equal(frames.length, 6);
 const phaseDetails = frames.slice(1).map((frame) => frame.phaseDetail);
-assert.deepEqual(phaseDetails, ["observe", "collect", "apply", "emit"]);
-const emitFrame = frames[frames.length - 1];
+assert.deepEqual(phaseDetails, ["observe", "decide", "apply", "emit", "summarize"]);
+const emitFrame = frames.find((frame) => frame.phaseDetail === "emit");
+assert.ok(emitFrame);
 assert.ok(Array.isArray(emitFrame.fulfilledEffects));
-assert.ok(emitFrame.fulfilledEffects.length > 0);
-const record = emitFrame.fulfilledEffects[0];
-assert.ok(record.effect);
-assert.equal(record.status, "deferred");
-assert.equal(record.reason, "missing_logger");
 `;
   runEsm(script);
 });

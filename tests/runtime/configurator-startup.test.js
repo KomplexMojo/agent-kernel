@@ -62,7 +62,7 @@ const initialState = JSON.parse(
 );
 
 const runtime = createRuntime({ core, adapters: {} });
-runtime.init({ seed: 0, simConfig, initialState });
+await runtime.init({ seed: 0, simConfig, initialState });
 
 assert.equal(core.getMapWidth(), 5);
 assert.equal(core.getMapHeight(), 5);
