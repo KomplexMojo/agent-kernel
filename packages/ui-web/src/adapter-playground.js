@@ -2,6 +2,7 @@ import { createIpfsAdapter } from "../../adapters-web/src/adapters/ipfs/index.js
 import { createBlockchainAdapter } from "../../adapters-web/src/adapters/blockchain/index.js";
 import { createLlmAdapter } from "../../adapters-web/src/adapters/llm/index.js";
 import { createWebSolverAdapter } from "../../adapters-web/src/adapters/solver/index.js";
+import { DEFAULT_LLM_BASE_URL, DEFAULT_LLM_MODEL, DOMAIN_CONSTRAINTS } from "../../runtime/src/contracts/domain-constants.js";
 
 export const DEFAULT_FIXTURES = Object.freeze({
   ipfs: "/tests/fixtures/adapters/ipfs-price-list.json",
@@ -81,14 +82,15 @@ export async function runBlockchainDemo({
 }
 
 export async function runLlmDemo({
-  model = "fixture",
+  model = DEFAULT_LLM_MODEL,
   prompt = "hello",
-  baseUrl = "http://localhost:11434",
-  options = undefined,
+  baseUrl = DEFAULT_LLM_BASE_URL,
+  options = DOMAIN_CONSTRAINTS?.llm?.options || undefined,
   mode = "fixture",
   fixturePath = DEFAULT_FIXTURES.llm,
   fixtureResponse,
   fetchFn,
+  format,
 } = {}) {
   let effectiveFetch = fetchFn;
   if (mode !== "live" && !effectiveFetch) {
@@ -96,7 +98,8 @@ export async function runLlmDemo({
     effectiveFetch = async () => ({ ok: true, json: async () => payload });
   }
   const adapter = createLlmAdapter({ baseUrl, fetchFn: effectiveFetch });
-  return adapter.generate({ model, prompt, options, stream: false });
+  const resolvedOptions = options && typeof options === "object" ? { ...options } : options;
+  return adapter.generate({ model, prompt, options: resolvedOptions, stream: false, format });
 }
 
 export async function runSolverDemo({

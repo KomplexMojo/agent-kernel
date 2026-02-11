@@ -1,5 +1,6 @@
 import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS } from "./affinity-loadouts.js";
 import { MOTIVATION_KINDS } from "./motivation-loadouts.js";
+import { DEFAULT_VITALS, VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 const DEFAULT_KIND = "ambulatory";
 const DEFAULT_EDGE_PADDING = 1;
@@ -39,6 +40,13 @@ function addError(errors, field, code) {
 
 function addWarning(warnings, field, code, from, to) {
   warnings.push({ field, code, from, to });
+}
+
+function cloneDefaultVitals() {
+  return VITAL_KEYS.reduce((acc, key) => {
+    acc[key] = { ...DEFAULT_VITALS[key] };
+    return acc;
+  }, {});
 }
 
 function normalizeMenu(list, fallback, field, errors) {
@@ -136,12 +144,7 @@ export function generateActorSet({
       position: { x: pos.x, y: pos.y },
       motivations: [{ kind: motivation, intensity }],
       affinities: [{ kind: affinity, expression, stacks }],
-      vitals: {
-        health: { current: 1, max: 1, regen: 0 },
-        mana: { current: 0, max: 0, regen: 0 },
-        stamina: { current: 0, max: 0, regen: 0 },
-        durability: { current: 1, max: 1, regen: 0 },
-      },
+      vitals: cloneDefaultVitals(),
     };
   });
 

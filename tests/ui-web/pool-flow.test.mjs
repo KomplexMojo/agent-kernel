@@ -68,7 +68,7 @@ test("pool flow renders summary → selections → BuildSpec from fixtures", asy
   await runBtn.click();
 
   assert.match(state.status.textContent, /BuildSpec ready/);
-  assert.ok(state.summaryOut.value.includes("dungeonTheme"));
+  assert.ok(state.summaryOut.value.includes("dungeonAffinity"));
   const selections = JSON.parse(state.selectionsOut.value);
   assert.equal(Array.isArray(selections), true);
   const buildSpec = JSON.parse(state.buildSpecOut.value);

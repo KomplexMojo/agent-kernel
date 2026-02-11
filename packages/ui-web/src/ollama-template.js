@@ -1,4 +1,5 @@
 import { BUILD_SPEC_SCHEMA, BUILD_SPEC_SCHEMA_VERSION } from "../../runtime/src/contracts/build-spec.js";
+import { DEFAULT_LLM_MODEL, buildBuildSpecPromptTemplate } from "../../runtime/src/contracts/domain-constants.js";
 
 export const BUILD_SPEC_SCHEMA_SNIPPET = `{
   "schema": "${BUILD_SPEC_SCHEMA}",
@@ -50,20 +51,15 @@ export const BUILD_SPEC_SCHEMA_SNIPPET = `{
   },
   "adapters": {
     "capture": [
-      { "adapter": "llm", "request": { "model": "llama3", "prompt": "..." } }
+      { "adapter": "llm", "request": { "model": "${DEFAULT_LLM_MODEL}", "prompt": "..." } }
     ]
   }
 }`;
 
-export const DEFAULT_PROMPT_TEMPLATE = `You are an agent that returns a single JSON object that conforms to the BuildSpec contract.
-- Output JSON only (no markdown fences, no commentary).
-- Use schema "${BUILD_SPEC_SCHEMA}" version ${BUILD_SPEC_SCHEMA_VERSION}.
-- Required keys: schema, schemaVersion, meta (id, runId, createdAt, source), intent (goal).
-- Include configurator.inputs.levelGen and configurator.inputs.actors so the UI can build a new layout.
-- actorGroups must be an array of objects; actors and rooms must be arrays when provided.
-- budget refs must be objects with id + schema + schemaVersion (or omit budget entirely).
-- Keep values concise; omit optional fields you cannot infer.
-`;
+export const DEFAULT_PROMPT_TEMPLATE = buildBuildSpecPromptTemplate({
+  schema: BUILD_SPEC_SCHEMA,
+  schemaVersion: BUILD_SPEC_SCHEMA_VERSION,
+});
 
 export function buildBuildSpecPrompt({
   userPrompt,

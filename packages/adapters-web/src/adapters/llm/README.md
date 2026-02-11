@@ -14,7 +14,7 @@ It is intended for Orchestrator/Director workflows and never used inside `core-a
 import { createLlmAdapter } from "./index.js";
 
 const llm = createLlmAdapter({ baseUrl: "http://localhost:11434" });
-const response = await llm.generate({ model: "llama3", prompt: "Summarize plan" });
+const response = await llm.generate({ model: "phi4", prompt: "Summarize plan" });
 ```
 
 ## Configuration

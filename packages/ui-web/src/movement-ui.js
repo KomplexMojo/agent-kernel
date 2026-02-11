@@ -1,7 +1,11 @@
 import { applyMoveAction, packMoveAction, renderFrameBuffer, readObservation } from "../../bindings-ts/src/mvp-movement.js";
+import {
+  AFFINITY_KINDS,
+  TRAP_VITAL_KEYS,
+  VITAL_KEYS,
+} from "../../runtime/src/contracts/domain-constants.js";
 
-const VITAL_KEYS = ["health", "mana", "stamina", "durability"];
-const TRAP_VITAL_KEYS = ["mana", "durability"];
+const EVENT_STREAM_LIMIT = 6;
 const UNICODE_ACTOR_SYMBOLS = [
   "●",
   "◆",
@@ -79,7 +83,7 @@ const ASCII_ACTOR_SYMBOLS = [
   "?",
   "!",
 ];
-const AFFINITY_HUES = Object.freeze({
+const AFFINITY_HUE_OVERRIDES = Object.freeze({
   fire: 12,
   water: 206,
   earth: 80,
@@ -89,6 +93,12 @@ const AFFINITY_HUES = Object.freeze({
   corrode: 45,
   dark: 230,
 });
+const AFFINITY_HUES = Object.freeze(
+  AFFINITY_KINDS.reduce((acc, kind, index) => {
+    acc[kind] = AFFINITY_HUE_OVERRIDES[kind] ?? (index * 41) % 360;
+    return acc;
+  }, {}),
+);
 const STACK_STYLES = [
   { sat: 55, light: 55, glow: 0 },
   { sat: 65, light: 50, glow: 4 },
@@ -101,7 +111,12 @@ function escapeHtmlChar(char) {
   if (char === "<") return "&lt;";
   if (char === ">") return "&gt;";
   if (char === "\"") return "&quot;";
+  if (char === "'") return "&#39;";
   return char;
+}
+
+function escapeHtml(value) {
+  return String(value).split("").map(escapeHtmlChar).join("");
 }
 
 function normalizeStacks(value) {
@@ -195,15 +210,17 @@ function buildActorOverlay(baseTiles, actors = []) {
 
     const affinityInfo = resolveAffinityInfo(actor);
     const hue = affinityInfo?.kind ? AFFINITY_HUES[affinityInfo.kind] : null;
+    const safeActorId = escapeHtml(actorId);
+    const actorAttr = ` data-actor-id="${safeActorId}"`;
     let style = "";
     let dataAttr = "";
     if (hue !== undefined && hue !== null) {
       const stackStyle = resolveStackStyle(affinityInfo.stacks);
       style = `--actor-hue:${hue};--actor-sat:${stackStyle.sat}%;--actor-light:${stackStyle.light}%;--actor-glow:${stackStyle.glow}px;`;
-      dataAttr = ` data-affinity="${escapeHtmlChar(affinityInfo.kind)}" data-stacks="${stackStyle.stacks}"`;
+      dataAttr = ` data-affinity="${escapeHtml(affinityInfo.kind)}" data-stacks="${stackStyle.stacks}"`;
     }
     const styleAttr = style ? ` style="${style}"` : "";
-    rowHtml[position.x] = `<span class="actor-cell"${dataAttr}${styleAttr}>${escapeHtmlChar(unicodeSymbol)}</span>`;
+    rowHtml[position.x] = `<span class="actor-cell"${actorAttr}${dataAttr}${styleAttr}>${escapeHtmlChar(unicodeSymbol)}</span>`;
   });
 
   return {
@@ -235,6 +252,22 @@ function formatTrapVitals(vitals = {}) {
       return `${key}:${record.current}/${record.max}+${record.regen}`;
     })
     .join(" ");
+}
+
+function formatEventEntry(action, index) {
+  if (!action) return null;
+  const tick = Number.isFinite(action.tick) ? action.tick : "?";
+  const actorId = action.actorId || "actor";
+  const kind = action.kind || "event";
+  if (kind === "move") {
+    const from = action.params?.from;
+    const to = action.params?.to;
+    const direction = action.params?.direction ? ` ${action.params.direction}` : "";
+    if (from && to) {
+      return `${index + 1}. t${tick} ${actorId} move${direction} (${from.x},${from.y}) -> (${to.x},${to.y})`;
+    }
+  }
+  return `${index + 1}. t${tick} ${actorId} ${kind}`;
 }
 
 function findExit(baseTiles) {
@@ -302,6 +335,7 @@ export function setupPlayback({
   elements,
   affinityEffects,
   initCore,
+  onObservation,
 }) {
   let currentIndex = 0;
   let playing = false;
@@ -361,6 +395,22 @@ export function setupPlayback({
         ? traps.map((trap) => renderTrapSummary(trap)).join("\n")
         : "No traps detected";
       if (elements.trapCount) elements.trapCount.textContent = String(traps.length);
+    }
+    if (elements.eventStream) {
+      const completed = actions.slice(0, currentIndex);
+      if (!completed.length) {
+        elements.eventStream.textContent = "No events yet.";
+      } else {
+        const start = Math.max(0, completed.length - EVENT_STREAM_LIMIT);
+        const lines = completed.slice(start).map(formatEventEntry).filter(Boolean);
+        elements.eventStream.textContent = lines.join("\n");
+      }
+    }
+    if (elements.eventStreamCount) {
+      elements.eventStreamCount.textContent = String(actions.length);
+    }
+    if (typeof onObservation === "function") {
+      onObservation({ observation: obs, frame, overlay, playing, index: currentIndex });
     }
   }
 

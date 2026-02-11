@@ -99,6 +99,26 @@ test("runLlmDemo errors when fixture path is missing", async () => {
   }
 });
 
+test("runLlmDemo forwards format and options in live mode", async () => {
+  let body = "";
+  const result = await runLlmDemo({
+    mode: "live",
+    model: "phi4",
+    prompt: "Return JSON only.",
+    format: "json",
+    options: { num_predict: 32, num_ctx: 16384 },
+    fetchFn: async (_url, options) => {
+      body = options?.body || "";
+      return { ok: true, json: async () => ({ response: "{}" }) };
+    },
+  });
+
+  assert.equal(result.response, "{}");
+  assert.match(body, /"format":"json"/);
+  assert.match(body, /"num_predict":32/);
+  assert.match(body, /"num_ctx":16384/);
+});
+
 function makeButton() {
   const handlers = {};
   return {

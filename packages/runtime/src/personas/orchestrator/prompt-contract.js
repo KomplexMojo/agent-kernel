@@ -1,17 +1,18 @@
-import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS } from "../configurator/affinity-loadouts.js";
+import {
+  AFFINITY_EXPRESSIONS,
+  AFFINITY_KINDS,
+  DEFAULT_VITALS,
+  normalizeVitals as normalizeDomainVitals,
+} from "../../contracts/domain-constants.js";
 import { MOTIVATION_KINDS } from "../configurator/motivation-loadouts.js";
 
 export const ALLOWED_AFFINITIES = AFFINITY_KINDS;
 export const ALLOWED_AFFINITY_EXPRESSIONS = AFFINITY_EXPRESSIONS;
 export const ALLOWED_MOTIVATIONS = MOTIVATION_KINDS;
-export const LLM_PHASES = Object.freeze(["rooms_only", "layout_only", "actors_only"]);
+export const LLM_PHASES = Object.freeze(["layout_only", "actors_only"]);
 export const LLM_STOP_REASONS = Object.freeze(["done", "missing", "no_viable_spend"]);
 export const LAYOUT_TILE_FIELDS = Object.freeze(["wallTiles", "floorTiles", "hallwayTiles"]);
-const DEFAULT_LAYOUT_COSTS = Object.freeze({
-  wallTiles: 1,
-  floorTiles: 1,
-  hallwayTiles: 1,
-});
+export const LAYOUT_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
 export function deriveAllowedOptionsFromCatalog(catalog = {}) {
   const entries = Array.isArray(catalog.entries) ? catalog.entries : Array.isArray(catalog) ? catalog : [];
   const affinities = new Set(ALLOWED_AFFINITIES);
@@ -64,24 +65,94 @@ function normalizeLayoutCounts(layout, errors) {
   return normalized;
 }
 
-function normalizeLayoutCosts(layoutCosts) {
-  const costs = { ...DEFAULT_LAYOUT_COSTS };
-  if (!layoutCosts || typeof layoutCosts !== "object" || Array.isArray(layoutCosts)) {
-    return costs;
+function normalizeRoomDesign(roomDesign, warnings) {
+  if (roomDesign === undefined) return undefined;
+  if (!roomDesign || typeof roomDesign !== "object" || Array.isArray(roomDesign)) {
+    addWarning(warnings, "roomDesign", "invalid_room_design");
+    return undefined;
   }
-  LAYOUT_TILE_FIELDS.forEach((field) => {
-    const value = layoutCosts[field];
-    if (Number.isInteger(value) && value > 0) {
-      costs[field] = value;
+  const normalized = {};
+  const shapeInput = roomDesign.shape && typeof roomDesign.shape === "object" && !Array.isArray(roomDesign.shape)
+    ? roomDesign.shape
+    : null;
+  const profile = isNonEmptyString(roomDesign.profile)
+    ? roomDesign.profile.trim()
+    : isNonEmptyString(shapeInput?.profile)
+      ? shapeInput.profile.trim()
+      : undefined;
+  if (profile !== undefined) {
+    if (!LAYOUT_PROFILES.includes(profile)) {
+      addWarning(warnings, "roomDesign.profile", "invalid_profile");
+    } else {
+      normalized.profile = profile;
     }
-  });
-  return costs;
+  }
+  const densityInput = roomDesign.density ?? shapeInput?.density;
+  if (densityInput !== undefined) {
+    if (typeof densityInput !== "number" || Number.isNaN(densityInput) || densityInput < 0 || densityInput > 1) {
+      addWarning(warnings, "roomDesign.density", "invalid_density");
+    } else {
+      normalized.density = densityInput;
+    }
+  }
+  const clusterSizeInput = roomDesign.clusterSize ?? shapeInput?.clusterSize;
+  if (clusterSizeInput !== undefined) {
+    if (!Number.isInteger(clusterSizeInput) || clusterSizeInput <= 0) {
+      addWarning(warnings, "roomDesign.clusterSize", "invalid_cluster_size");
+    } else {
+      normalized.clusterSize = clusterSizeInput;
+    }
+  }
+  if (Array.isArray(roomDesign.rooms)) {
+    const rooms = roomDesign.rooms
+      .map((room, index) => {
+        if (!room || typeof room !== "object" || Array.isArray(room)) {
+          addWarning(warnings, `roomDesign.rooms[${index}]`, "invalid_room");
+          return null;
+        }
+        const entry = {};
+        if (isNonEmptyString(room.id)) entry.id = room.id.trim();
+        if (isNonEmptyString(room.size)) entry.size = room.size.trim();
+        if (Number.isInteger(room.width) && room.width > 0) entry.width = room.width;
+        if (Number.isInteger(room.height) && room.height > 0) entry.height = room.height;
+        if (Object.keys(entry).length === 0) {
+          addWarning(warnings, `roomDesign.rooms[${index}]`, "missing_room_dimensions");
+          return null;
+        }
+        return entry;
+      })
+      .filter(Boolean);
+    if (rooms.length > 0) {
+      normalized.rooms = rooms;
+    }
+  }
+  if (Array.isArray(roomDesign.connections)) {
+    const connections = roomDesign.connections
+      .map((connection, index) => {
+        if (!connection || typeof connection !== "object" || Array.isArray(connection)) {
+          addWarning(warnings, `roomDesign.connections[${index}]`, "invalid_connection");
+          return null;
+        }
+        const from = isNonEmptyString(connection.from) ? connection.from.trim() : "";
+        const to = isNonEmptyString(connection.to) ? connection.to.trim() : "";
+        if (!from || !to) {
+          addWarning(warnings, `roomDesign.connections[${index}]`, "missing_connection_endpoints");
+          return null;
+        }
+        const type = isNonEmptyString(connection.type) ? connection.type.trim() : undefined;
+        return type ? { from, to, type } : { from, to };
+      })
+      .filter(Boolean);
+    if (connections.length > 0) {
+      normalized.connections = connections;
+    }
+  }
+  if (isNonEmptyString(roomDesign.hallways)) {
+    normalized.hallways = roomDesign.hallways.trim();
+  }
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
-function formatLayoutCostLine(layoutCosts) {
-  const costs = normalizeLayoutCosts(layoutCosts);
-  return `Tile costs: wall ${costs.wallTiles}, floor ${costs.floorTiles}, hallway ${costs.hallwayTiles} tokens each.`;
-}
 
 function normalizePick(entry, base, errors) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
@@ -175,6 +246,15 @@ function normalizePick(entry, base, errors) {
     addError(errors, `${base}.expression`, "missing_expression");
   }
 
+  let normalizedVitals;
+  if (entry.vitals !== undefined) {
+    if (!entry.vitals || typeof entry.vitals !== "object" || Array.isArray(entry.vitals)) {
+      addError(errors, `${base}.vitals`, "invalid_vitals");
+    } else {
+      normalizedVitals = normalizeDomainVitals(entry.vitals, DEFAULT_VITALS);
+    }
+  }
+
   const result = {
     motivation,
     affinity,
@@ -185,6 +265,9 @@ function normalizePick(entry, base, errors) {
   if (normalizedStacks !== undefined) result.stacks = normalizedStacks;
   if (normalizedAffinities && normalizedAffinities.length > 0) {
     result.affinities = normalizedAffinities;
+  }
+  if (normalizedVitals) {
+    result.vitals = normalizedVitals;
   }
   return result;
 }
@@ -230,16 +313,20 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
       value.stop = stopReason;
     }
   }
-  if (summary.dungeonTheme !== undefined) {
-    if (!isNonEmptyString(summary.dungeonTheme) || !ALLOWED_AFFINITIES.includes(summary.dungeonTheme)) {
-      addError(errors, "dungeonTheme", "invalid_affinity");
+  if (summary.dungeonAffinity !== undefined) {
+    if (!isNonEmptyString(summary.dungeonAffinity) || !ALLOWED_AFFINITIES.includes(summary.dungeonAffinity)) {
+      addError(errors, "dungeonAffinity", "invalid_affinity");
     } else {
-      value.dungeonTheme = summary.dungeonTheme;
+      value.dungeonAffinity = summary.dungeonAffinity;
     }
   }
   const layout = normalizeLayoutCounts(summary.layout, errors);
   if (layout && Object.keys(layout).length > 0) {
     value.layout = layout;
+  }
+  const roomDesign = normalizeRoomDesign(summary.roomDesign, warnings);
+  if (roomDesign) {
+    value.roomDesign = roomDesign;
   }
   if (summary.budgetTokens !== undefined) {
     if (!Number.isInteger(summary.budgetTokens) || summary.budgetTokens <= 0) {
@@ -250,7 +337,14 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
   }
 
   const roomsInput = Array.isArray(summary.rooms) ? summary.rooms : [];
-  const actorsInput = Array.isArray(summary.actors) ? summary.actors : [];
+  const actorsInput = Array.isArray(summary.actors)
+    ? summary.actors
+    : Array.isArray(summary.defenders)
+      ? summary.defenders
+      : [];
+  if (!Array.isArray(summary.actors) && Array.isArray(summary.defenders)) {
+    addWarning(warnings, "actors", "aliased_from_defenders");
+  }
 
   value.rooms = [];
   roomsInput.forEach((entry, index) => {
@@ -271,89 +365,6 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
   return { ok: errors.length === 0, errors, warnings, value };
 }
 
-export function buildMenuPrompt({ goal, notes, budgetTokens } = {}) {
-  const affinityMenu = ALLOWED_AFFINITIES.join(", ");
-  const expressionMenu = ALLOWED_AFFINITY_EXPRESSIONS.join(", ");
-  const motivationMenu = ALLOWED_MOTIVATIONS.join(", ");
-  const goalLine = goal ? `Goal: ${goal}\n` : "";
-  const notesLine = notes ? `Notes: ${notes}\n` : "";
-  const budgetLine = Number.isInteger(budgetTokens) && budgetTokens > 0 ? `Budget tokens: ${budgetTokens}\n` : "";
-  return (
-    `${goalLine}${notesLine}${budgetLine}` +
-    "You are a dungeon master strategist shaping a dungeon layout and the actors that populate it.\n" +
-    "You may receive information over several turns; acknowledge with `ready`, list what is missing, and wait for the final JSON request.\n" +
-    "Choose only from the allowed lists; do not invent new affinities, expressions, or motivations.\n" +
-    `Affinities: ${affinityMenu}\n` +
-    `Affinity expressions: ${expressionMenu}\n` +
-    `Motivations: ${motivationMenu}\n` +
-    "Return JSON only when asked, shaped as:\n" +
-    "{ \"dungeonTheme\": <affinity>, \"budgetTokens\": <int>, \"rooms\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>,\"affinities\":[{\"kind\":<affinity>,\"expression\":<expression>,\"stacks\":<int?>}]}], \"actors\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>,\"affinities\":[{\"kind\":<affinity>,\"expression\":<expression>,\"stacks\":<int?>}]}], \"missing\": [] }\n" +
-    "If unsure, populate `missing` instead of inventing values."
-  );
-}
-
-export function buildPhasePrompt({
-  goal,
-  notes,
-  budgetTokens,
-  phase,
-  remainingBudgetTokens,
-  allowedPairsText,
-  context,
-  layoutCosts,
-} = {}) {
-  const resolvedPhase = LLM_PHASES.includes(phase) ? phase : "rooms_only";
-  const basePrompt = resolvedPhase === "layout_only"
-    ? [
-        goal ? `Goal: ${goal}` : null,
-        notes ? `Notes: ${notes}` : null,
-        Number.isInteger(budgetTokens) && budgetTokens > 0 ? `Budget tokens: ${budgetTokens}` : null,
-        "Plan the dungeon layout using tile counts only. Rooms do not have affinities or motivations.",
-        formatLayoutCostLine(layoutCosts),
-        "Leave budget for actors; do not spend the entire budget on layout.",
-      ]
-        .filter(Boolean)
-        .join("\n")
-    : buildMenuPrompt({ goal, notes, budgetTokens });
-  const remainingLine = Number.isInteger(remainingBudgetTokens)
-    ? `Remaining budget tokens: ${remainingBudgetTokens}`
-    : "";
-  const allowedPairsLine = isNonEmptyString(allowedPairsText)
-    ? `Allowed profiles (motivation, affinity): ${allowedPairsText}`
-    : "";
-  const phaseInstruction =
-    resolvedPhase === "layout_only"
-      ? "Return layout tile counts only; omit rooms and actors."
-      : resolvedPhase === "rooms_only"
-        ? "Return rooms only; omit actors unless explicitly asked."
-      : "Return actors only; omit rooms unless explicitly asked.";
-  const responseShape =
-    resolvedPhase === "layout_only"
-      ? "{ \"phase\": \"layout_only\", \"remainingBudgetTokens\": <int>, \"layout\": {\"wallTiles\": <int>, \"floorTiles\": <int>, \"hallwayTiles\": <int>}, \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }"
-      : resolvedPhase === "rooms_only"
-        ? "{ \"phase\": \"rooms_only\", \"remainingBudgetTokens\": <int>, \"rooms\": [ ... ], \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }"
-        : "{ \"phase\": \"actors_only\", \"remainingBudgetTokens\": <int>, \"actors\": [ ... ], \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }";
-  const contextLine = isNonEmptyString(context) ? `Context: ${context}` : "";
-  const suffix = "Final request: return the JSON now. Output JSON only (no markdown, no commentary).";
-  return [
-    basePrompt,
-    "",
-    "Phase instructions:",
-    `- Phase: ${resolvedPhase}`,
-    remainingLine ? `- ${remainingLine}` : "",
-    allowedPairsLine ? `- ${allowedPairsLine}` : "",
-    contextLine ? `- ${contextLine}` : "",
-    `- ${phaseInstruction}`,
-    resolvedPhase === "actors_only" ? "- Spend as much of the remaining budget as possible while staying feasible." : "",
-    "",
-    "Response shape:",
-    responseShape,
-    "",
-    suffix,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
 
 export function capturePromptResponse({ prompt, responseText, phase } = {}) {
   const errors = [];

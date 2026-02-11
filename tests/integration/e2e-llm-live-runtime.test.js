@@ -250,12 +250,21 @@ test("live llm prompt flows into build + runtime", async (t) => {
     moduleUrl("packages/adapters-cli/src/adapters/llm/index.js")
   );
   const {
-    buildMenuPrompt,
     ALLOWED_AFFINITIES,
     ALLOWED_AFFINITY_EXPRESSIONS,
     ALLOWED_MOTIVATIONS,
   } = await import(
     moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+  );
+  const {
+    LLM_REPAIR_TEXT,
+    appendLlmPromptSuffix,
+    buildLlmActorConfigPromptTemplate,
+    buildLlmCatalogRepairPromptTemplate,
+    buildLlmConstraintSection,
+    buildLlmRepairPromptTemplate,
+  } = await import(
+    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
   );
   const { mapSummaryToPool } = await import(
     moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
@@ -275,27 +284,18 @@ test("live llm prompt flows into build + runtime", async (t) => {
 
   const allowedPairs = deriveAllowedPairs(catalog);
   const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
-  const notes = [
-    "Include at least one room and one actor; counts must be > 0.",
-    allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}.` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const basePrompt = buildMenuPrompt({
+  const notes = scenario?.notes || "";
+  const basePrompt = buildLlmActorConfigPromptTemplate({
     goal: scenario.goal,
     notes,
     budgetTokens: scenario.budgetTokens,
+    allowedPairsText,
+    affinities: ALLOWED_AFFINITIES,
+    affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+    motivations: ALLOWED_MOTIVATIONS,
   });
-  const prompt = [
-    basePrompt,
-    "",
-    "Constraints:",
-    "- In affinities[] entries, kind must be from Affinities and expression must be from Affinity expressions.",
-    "- Omit optional fields instead of using null.",
-    "",
-    "Final request: return the JSON now. Output JSON only (no markdown, no commentary).",
-  ].join("\n");
+  const constraintLines = buildLlmConstraintSection({ allowedPairsText });
+  const prompt = appendLlmPromptSuffix(`${basePrompt}\n\n${constraintLines}`);
 
   const createdAt = new Date().toISOString();
 
@@ -309,27 +309,17 @@ test("live llm prompt flows into build + runtime", async (t) => {
     },
   };
 
-  const repairPromptBuilder = ({ errors, responseText }) => {
-    const extracted = extractJsonObject(responseText) || responseText;
-    return [
-      basePrompt,
-      "",
-      "Your previous response failed validation. Fix it and return corrected JSON only.",
-      `Errors: ${JSON.stringify(errors)}`,
-      `Allowed affinities: ${ALLOWED_AFFINITIES.join(", ")}`,
-      `Allowed expressions: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}`,
-      `Allowed motivations: ${ALLOWED_MOTIVATIONS.join(", ")}`,
-      allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
-      "tokenHint must be a positive integer if provided; otherwise omit it.",
-      "Example affinity entry: {\"kind\":\"water\",\"expression\":\"push\",\"stacks\":1}",
-      "Invalid response JSON (fix to match schema):",
-      String(extracted),
-      "",
-      "Final request: return corrected JSON only.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  };
+  const repairPromptBuilder = ({ errors, responseText }) => buildLlmRepairPromptTemplate({
+    basePrompt,
+    errors,
+    responseText,
+    affinities: ALLOWED_AFFINITIES,
+    affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+    motivations: ALLOWED_MOTIVATIONS,
+    allowedPairsText,
+    phaseRequirement: LLM_REPAIR_TEXT.phaseActorsRequirement,
+    extraLines: [LLM_REPAIR_TEXT.tokenHintRule, LLM_REPAIR_TEXT.exampleAffinityEntry],
+  });
 
   async function requestSummary(promptText) {
     const session = await runLlmSession({
@@ -382,16 +372,11 @@ test("live llm prompt flows into build + runtime", async (t) => {
   let roomInstances = countInstances(mapped.selections, "room");
   if (actorInstances === 0 || roomInstances === 0) {
     const missingSelections = summarizeMissingSelections(mapped.selections);
-    const catalogRepairPrompt = [
+    const catalogRepairPrompt = buildLlmCatalogRepairPromptTemplate({
       basePrompt,
-      "",
-      "Your previous response did not match the pool catalog. Choose only from the allowed profiles below.",
-      allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
-      missingSelections ? `Unmatched picks: ${missingSelections}` : null,
-      "Final request: return corrected JSON only.",
-    ]
-      .filter(Boolean)
-      .join("\n");
+      allowedPairsText,
+      missingSelections,
+    });
     result = await requestSummary(catalogRepairPrompt);
     mapped = mapSummaryToPool({ summary: result.summary, catalog });
     assert.equal(mapped.ok, true);

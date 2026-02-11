@@ -1,4 +1,5 @@
 import { runIpfsDemo, runBlockchainDemo, runLlmDemo, runSolverDemo } from "./adapter-playground.js";
+import { DEFAULT_LLM_BASE_URL, DEFAULT_LLM_MODEL } from "../../runtime/src/contracts/domain-constants.js";
 
 function valueOf(el, fallback = "") {
   if (!el) return fallback;
@@ -31,6 +32,9 @@ export function wireAdapterPanel({
 
   const fixtures = elements?.fixtures || {};
   const buttons = [ipfsButton, blockchainButton, llmButton, solverButton];
+  if (llmInput && (!llmInput.value || !llmInput.value.trim())) {
+    llmInput.value = DEFAULT_LLM_BASE_URL;
+  }
 
   function setStatus(message) {
     if (statusEl) {
@@ -104,8 +108,8 @@ export function wireAdapterPanel({
     run("LLM", () =>
       helpers.runLlmDemo({
         mode: currentMode(),
-        baseUrl: valueOf(llmInput, "http://localhost:11434"),
-        model: "fixture",
+        baseUrl: valueOf(llmInput, DEFAULT_LLM_BASE_URL),
+        model: DEFAULT_LLM_MODEL,
         prompt: valueOf(promptInput, "hello"),
         fixtureResponse: fixtures.llmResponse,
       }),

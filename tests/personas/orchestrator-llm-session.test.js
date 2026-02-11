@@ -11,7 +11,7 @@ import { createLlmTestAdapter } from ${JSON.stringify(llmAdapterPath)};
 
 const adapter = createLlmTestAdapter();
 const prompt = "Return JSON only.";
-const responseRaw = JSON.stringify({ dungeonTheme: "fire", rooms: [], actors: [] });
+const responseRaw = JSON.stringify({ dungeonAffinity: "fire", rooms: [], actors: [] });
 adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
 
 const result = await runLlmSession({
@@ -25,13 +25,13 @@ const result = await runLlmSession({
 assert.equal(result.ok, true);
 assert.equal(result.prompt, prompt);
 assert.equal(result.responseText, responseRaw);
-assert.equal(result.summary.dungeonTheme, "fire");
+assert.equal(result.summary.dungeonAffinity, "fire");
 assert.equal(result.capture.schema, "agent-kernel/CapturedInputArtifact");
 assert.equal(result.capture.meta.runId, "run_llm_session");
 assert.equal(result.capture.payload.prompt, prompt);
 assert.equal(result.capture.payload.responseRaw, responseRaw);
-assert.equal(result.capture.payload.responseParsed.dungeonTheme, "fire");
-assert.equal(result.capture.payload.summary.dungeonTheme, "fire");
+assert.equal(result.capture.payload.responseParsed.dungeonAffinity, "fire");
+assert.equal(result.capture.payload.summary.dungeonAffinity, "fire");
 assert.equal(result.capture.payload.phaseTiming.startedAt, "2025-01-01T00:00:00Z");
 assert.equal(result.capture.payload.phaseTiming.endedAt, "2025-01-01T00:00:00Z");
 assert.equal(result.capture.payload.phaseTiming.durationMs, 0);
@@ -98,9 +98,9 @@ import { createLlmTestAdapter } from ${JSON.stringify(llmAdapterPath)};
 const adapter = createLlmTestAdapter();
 const prompt = "Return JSON only.";
 const repairPrompt = "Fix JSON.";
-const emptyResponse = JSON.stringify({ dungeonTheme: "fire", rooms: [], actors: [] });
+const emptyResponse = JSON.stringify({ dungeonAffinity: "fire", rooms: [], actors: [] });
 const fixedResponse = JSON.stringify({
-  dungeonTheme: "fire",
+  dungeonAffinity: "fire",
   rooms: [{ motivation: "stationary", affinity: "fire", count: 1 }],
   actors: [{ motivation: "attacking", affinity: "fire", count: 1 }],
 });
@@ -146,6 +146,55 @@ assert.equal(result.ok, true);
 assert.equal(result.capture.payload.phase, "layout_only");
 `;
 
+const repairBudgetExpansionScript = `
+import assert from "node:assert/strict";
+import { runLlmSession } from ${JSON.stringify(sessionModulePath)};
+
+const calls = [];
+const responses = [
+  {
+    response: '{"phase":"actors_only","actors":[{"motivation":"patrolling","affinity":"wind","count":1',
+    done: true,
+  },
+  {
+    response: JSON.stringify({
+      phase: "actors_only",
+      actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
+      missing: [],
+      stop: "done",
+    }),
+    done: true,
+  },
+];
+
+const adapter = {
+  async generate(payload) {
+    calls.push(payload);
+    return responses.shift();
+  },
+};
+
+const result = await runLlmSession({
+  adapter,
+  model: "fixture",
+  prompt: "actors prompt",
+  runId: "run_llm_session_repair_budget",
+  clock: () => "2025-01-01T00:00:00Z",
+  phase: "actors_only",
+  options: { num_predict: 180 },
+  requireSummary: { minActors: 1 },
+  repairPromptBuilder: () => "repair prompt",
+});
+
+assert.equal(result.ok, true);
+assert.equal(result.retried, true);
+assert.equal(result.repaired, false);
+assert.equal(calls.length, 2);
+assert.equal(calls[0].options.num_predict, 180);
+assert.ok(calls[1].options.num_predict >= 320);
+assert.equal(result.summary.actors.length, 1);
+`;
+
 test("orchestrator llm session captures prompt/response", () => {
   runEsm(happyScript);
 });
@@ -160,4 +209,8 @@ test("orchestrator llm session enforces non-empty summary when configured", () =
 
 test("orchestrator llm session captures phase metadata", () => {
   runEsm(phaseScript);
+});
+
+test("orchestrator llm session expands repair output budget when actor response is truncated", () => {
+  runEsm(repairBudgetExpansionScript);
 });

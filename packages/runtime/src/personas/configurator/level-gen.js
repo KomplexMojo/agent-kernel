@@ -1,10 +1,14 @@
 import { LEVEL_GEN_DEFAULTS } from "./defaults.js";
+import {
+  AFFINITY_EXPRESSIONS,
+  AFFINITY_KINDS,
+  DEFAULT_AFFINITY_EXPRESSION,
+  TRAP_VITAL_KEYS,
+} from "../../contracts/domain-constants.js";
 
 const LEVEL_GEN_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
-const TRAP_AFFINITY_KINDS = Object.freeze(["fire", "water", "earth", "wind", "life", "decay", "corrode", "dark"]);
-const TRAP_AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
 
-const DEFAULT_TRAP_EXPRESSION = "push";
+const DEFAULT_TRAP_EXPRESSION = DEFAULT_AFFINITY_EXPRESSION;
 const DEFAULT_TRAP_STACKS = 1;
 const DEFAULT_TRAP_BLOCKING = false;
 
@@ -133,11 +137,11 @@ function normalizeTrapList(traps, width, height, errors) {
       pushError(errors, `${base}.affinity`, "invalid_affinity");
       return;
     }
-    if (!TRAP_AFFINITY_KINDS.includes(trap.affinity.kind)) {
+    if (!AFFINITY_KINDS.includes(trap.affinity.kind)) {
       pushError(errors, `${base}.affinity.kind`, "invalid_kind");
     }
     const expression = trap.affinity.expression ?? DEFAULT_TRAP_EXPRESSION;
-    if (!TRAP_AFFINITY_EXPRESSIONS.includes(expression)) {
+    if (!AFFINITY_EXPRESSIONS.includes(expression)) {
       pushError(errors, `${base}.affinity.expression`, "invalid_expression");
     }
     const stacks = trap.affinity.stacks ?? DEFAULT_TRAP_STACKS;
@@ -148,7 +152,7 @@ function normalizeTrapList(traps, width, height, errors) {
     if (trap.vitals && !isPlainObject(trap.vitals)) {
       pushError(errors, `${base}.vitals`, "invalid_vitals");
     }
-    if (trap.vitals && ("health" in trap.vitals || "stamina" in trap.vitals)) {
+    if (trap.vitals && Object.keys(trap.vitals).some((key) => !TRAP_VITAL_KEYS.includes(key))) {
       pushError(errors, `${base}.vitals`, "invalid_trap_vitals");
     }
 
@@ -158,7 +162,7 @@ function normalizeTrapList(traps, width, height, errors) {
       blocking: typeof blocking === "boolean" ? blocking : DEFAULT_TRAP_BLOCKING,
       affinity: {
         kind: trap.affinity.kind,
-        expression: TRAP_AFFINITY_EXPRESSIONS.includes(expression) ? expression : DEFAULT_TRAP_EXPRESSION,
+        expression: AFFINITY_EXPRESSIONS.includes(expression) ? expression : DEFAULT_TRAP_EXPRESSION,
         stacks: isInteger(stacks) && stacks > 0 ? stacks : DEFAULT_TRAP_STACKS,
       },
       vitals: trap.vitals ? trap.vitals : undefined,

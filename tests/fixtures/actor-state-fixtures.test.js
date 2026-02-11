@@ -2,7 +2,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
 
-const REQUIRED_VITALS = ["health", "mana", "stamina", "durability"];
+let REQUIRED_VITALS = [];
+
+test.before(async () => {
+  const shared = await import("../../packages/runtime/src/contracts/domain-constants.js");
+  REQUIRED_VITALS = Array.from(shared.VITAL_KEYS);
+});
 
 function assertVitals(actor, label) {
   assert.ok(actor.vitals, `${label} should include vitals`);

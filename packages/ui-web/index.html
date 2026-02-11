@@ -5,14 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Agent Kernel MVP</title>
     <style>
+      @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Space+Grotesk:wght@400;600&display=swap");
+
       :root {
         --bg: #050505;
         --card: #0b0d0c;
-        --text: #9efc4f;
-        --muted: #6fa35a;
+        --card-strong: #0f1411;
+        --text: #e8ffe1;
+        --muted: #92a68c;
         --accent: #f9c74f;
         --accent-strong: #d4ff52;
         --border: #1f3b1f;
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
       }
 
       * {
@@ -22,13 +26,16 @@
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-family: "Space Grotesk", "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, sans-serif;
         color: var(--text);
-        background: var(--bg);
+        background:
+          radial-gradient(900px 520px at 15% -10%, rgba(249, 199, 79, 0.08), transparent 60%),
+          radial-gradient(800px 460px at 90% 10%, rgba(158, 252, 79, 0.08), transparent 55%),
+          var(--bg);
       }
 
       main {
-        max-width: 960px;
+        max-width: 1180px;
         margin: 0 auto;
         padding: 48px 24px 80px;
       }
@@ -43,6 +50,7 @@
       h1 {
         font-size: clamp(2rem, 3vw, 2.8rem);
         margin: 0;
+        font-family: "Fraunces", "IBM Plex Mono", "Times New Roman", serif;
         letter-spacing: 0.02em;
       }
 
@@ -53,10 +61,11 @@
       }
 
       .card {
-        background: var(--card);
+        background: linear-gradient(160deg, rgba(15, 20, 17, 0.95), rgba(9, 12, 10, 0.98));
         border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 16px;
+        border-radius: 8px;
+        padding: 18px;
+        box-shadow: var(--shadow);
       }
 
       .stack {
@@ -72,10 +81,10 @@
       }
 
       .stat-label {
-        font-size: 0.9rem;
+        font-size: 0.78rem;
         color: var(--muted);
         text-transform: uppercase;
-        letter-spacing: 0.16em;
+        letter-spacing: 0.18em;
       }
 
       .stat-value {
@@ -140,16 +149,16 @@
       .tab-bar {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 10px;
       }
 
       .tab-button {
         border: 1px solid var(--border);
-        background: #0a0a0a;
+        background: rgba(8, 10, 9, 0.9);
         color: var(--muted);
-        padding: 6px 12px;
+        padding: 8px 16px;
         border-radius: 999px;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         cursor: pointer;
         transition: all 0.15s ease;
       }
@@ -162,12 +171,74 @@
 
       .tab-panel {
         display: grid;
-        gap: 10px;
+        gap: 14px;
+        animation: panel-rise 0.35s ease both;
       }
 
       .tab-panel[hidden],
       [hidden] {
         display: none;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .workspace:not([data-active-tab="simulation"]) {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace:not([data-active-tab="simulation"]) #actor-inspector {
+        display: none;
+      }
+
+      .workspace-main {
+        display: grid;
+        gap: 14px;
+        min-width: 0;
+      }
+
+      .inspector-shell {
+        position: sticky;
+        top: 24px;
+        align-self: start;
+        background: linear-gradient(180deg, rgba(20, 26, 21, 0.96), rgba(11, 14, 12, 0.98));
+        border: 1px solid rgba(249, 199, 79, 0.25);
+      }
+
+      .inspector-section {
+        display: grid;
+        gap: 6px;
+      }
+
+      @media (max-width: 960px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .inspector-shell {
+          position: static;
+        }
+      }
+
+      @keyframes panel-rise {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .tab-panel {
+          animation: none;
+        }
       }
 
       .legend-panel {
@@ -365,6 +436,38 @@
         margin: 16px 0;
       }
 
+      .affinity-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        margin: 12px 0 4px;
+      }
+
+      .affinity-row {
+        display: grid;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        background: #0a0a0a;
+        font-size: 0.9rem;
+      }
+
+      .affinity-expressions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .vitals-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        margin: 12px 0 4px;
+      }
+
       .adapter-output {
         margin-top: 12px;
         background: #030303;
@@ -405,27 +508,23 @@
       <header>
         <h1>Agent Kernel MVP</h1>
         <p class="subtitle">
-          A minimal end-to-end run that exercises core WASM logic, ports, adapters, and a live UI. Persona tabs group
-          workflows; Runtime is the default playback view.
+          A minimal end-to-end run that exercises core WASM logic, ports, adapters, and a live UI. Primary workflow tabs
+          focus the experience: Design is the default entry point.
         </p>
       </header>
 
       <section class="stack">
         <div class="card">
-          <div class="tab-bar" role="tablist" aria-label="Persona tabs">
-            <button class="tab-button active" type="button" data-tab="runtime" role="tab" aria-selected="true">Runtime</button>
-            <button class="tab-button" type="button" data-tab="configurator" role="tab" aria-selected="false">Configurator</button>
-            <button class="tab-button" type="button" data-tab="actor" role="tab" aria-selected="false">Actor</button>
-            <button class="tab-button" type="button" data-tab="director" role="tab" aria-selected="false">Director</button>
-            <button class="tab-button" type="button" data-tab="allocator" role="tab" aria-selected="false">Allocator</button>
-            <button class="tab-button" type="button" data-tab="annotator" role="tab" aria-selected="false">Annotator</button>
-            <button class="tab-button" type="button" data-tab="moderator" role="tab" aria-selected="false">Moderator</button>
-            <button class="tab-button" type="button" data-tab="orchestrator" role="tab" aria-selected="false">Orchestrator</button>
-            <button class="tab-button" type="button" data-tab="llm" role="tab" aria-selected="false">LLM</button>
+          <div class="tab-bar" role="tablist" aria-label="Primary workflow tabs">
+            <button class="tab-button active" type="button" data-tab="design" role="tab" aria-selected="true">Design</button>
+            <button class="tab-button" type="button" data-tab="simulation" role="tab" aria-selected="false">Simulation</button>
+            <button class="tab-button" type="button" data-tab="diagnostics" role="tab" aria-selected="false">Diagnostics</button>
           </div>
         </div>
 
-        <div class="tab-panel" data-tab-panel="runtime" role="tabpanel">
+        <div class="workspace">
+          <div class="workspace-main">
+            <div class="tab-panel" data-tab-panel="simulation" role="tabpanel" hidden>
           <div class="card frame-shell">
             <div class="stat">
               <span class="stat-label">Playing Surface</span>
@@ -453,6 +552,327 @@
               <button class="secondary" id="reset-run">Reset</button>
               <span class="pill" id="status-message">Loading WASM...</span>
             </div>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Event Stream</span>
+              <small class="status">Recent simulation actions and state changes.</small>
+            </div>
+            <pre class="adapter-output" id="event-stream">No events yet.</pre>
+          </div>
+        </div>
+
+
+            <div class="tab-panel" data-tab-panel="design" role="tabpanel">
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Prompt Parameters</span>
+              <small class="status">Tune budgets and affinities that feed the prompt template.</small>
+            </div>
+            <div class="stat">
+              <span class="stat-label">General</span>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Token Budget</span>
+                <input id="prompt-token-budget" type="number" min="0" step="1" value="1000" />
+              </label>
+              <label>
+                <span class="stat-label">Think Time (seconds)</span>
+                <input id="prompt-think-time" type="number" min="0" step="1" placeholder="optional" />
+              </label>
+              <label>
+                <span class="stat-label">LLM Tokens</span>
+                <input id="prompt-llm-tokens" type="number" min="0" step="1" placeholder="optional" />
+              </label>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Level Settings</span>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Level Budget</span>
+                <input id="prompt-level-budget" type="number" min="0" step="1" placeholder="optional" />
+              </label>
+            </div>
+            <div class="affinity-grid" id="prompt-level-affinities"></div>
+            <div class="stat">
+              <span class="stat-label">Attacker Settings</span>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Attacker Budget</span>
+                <input id="prompt-attacker-budget" type="number" min="0" step="1" placeholder="optional" />
+              </label>
+            </div>
+            <div class="affinity-grid" id="prompt-attacker-affinities"></div>
+            <div class="stat">
+              <span class="stat-label">Attacker Vitals</span>
+            </div>
+            <div class="vitals-grid">
+              <label>
+                <span class="stat-label">Health (max)</span>
+                <input id="attacker-vitals-health-max" type="number" min="0" step="1" placeholder="optional" />
+              </label>
+              <label>
+                <span class="stat-label">Mana (max)</span>
+                <input id="attacker-vitals-mana-max" type="number" min="0" step="1" placeholder="optional" />
+              </label>
+              <label>
+                <span class="stat-label">Stamina (max)</span>
+                <input id="attacker-vitals-stamina-max" type="number" min="0" step="1" placeholder="optional" />
+              </label>
+              <label>
+                <span class="stat-label">Durability (max)</span>
+                <input id="attacker-vitals-durability-max" type="number" min="0" step="1" placeholder="optional" />
+              </label>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Defender Settings</span>
+            </div>
+            <div class="affinity-grid" id="prompt-defender-affinities"></div>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Prompt Template</span>
+              <small class="status">Review the level and defender prompt templates. The LLM still runs level first, then defender configuration.</small>
+            </div>
+            <textarea id="design-guidance-input" rows="16" placeholder="Level and actor prompt templates are populated by default."></textarea>
+            <div class="controls">
+              <button class="primary" id="design-guidance-generate" type="button">Generate brief</button>
+            </div>
+            <div class="status" id="design-guidance-status">Waiting for prompt template execution.</div>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Design Brief</span>
+              <small class="status">Summary of phased generation with separate level and actor spend.</small>
+            </div>
+            <pre class="adapter-output" id="design-brief-output">No brief yet.</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Level Design</span>
+              <small class="status">Review room structure and connections before actor edits.</small>
+            </div>
+            <pre class="adapter-output" id="design-level-output">No room design yet.</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Actor Set</span>
+              <small class="status">Edit the proposed actor configurations before running a simulation.</small>
+            </div>
+            <textarea id="design-actor-set-json" rows="8" placeholder="[{\"id\":\"actor_alpha\",\"role\":\"scout\"}]"></textarea>
+            <div class="controls">
+              <button class="secondary" id="design-actor-set-apply" type="button">Apply edits</button>
+            </div>
+            <pre class="adapter-output" id="design-actor-set-preview">No actors proposed.</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Build And Load</span>
+              <small class="status">Build from the brief and current actor edits, then load the simulation interface.</small>
+            </div>
+            <div class="controls">
+              <button class="primary" id="design-build-and-load" type="button">Build And Load Simulation</button>
+            </div>
+            <div class="status" id="design-build-status">Waiting for a brief.</div>
+          </div>
+        </div>
+
+
+            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+          <div class="card actor-list-shell">
+            <div class="stat">
+              <span class="stat-label">Motivated Actors</span>
+              <small class="status">Observation order with vitals and positions.</small>
+            </div>
+            <pre class="actor-list" id="actor-list">-</pre>
+            <details open>
+              <summary>Tile Actors (<span id="tile-actor-count">0</span>)</summary>
+              <pre class="actor-list" id="tile-actor-list">-</pre>
+            </details>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Actor JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="actor-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+
+
+            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Director</span>
+              <small class="status">No director panels yet.</small>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Director JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="director-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+
+
+            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Allocator</span>
+              <small class="status">Budgeting artifacts are surfaced here.</small>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Budget</span>
+            </div>
+            <pre class="adapter-output" id="allocator-budget-json">No JSON output yet.</pre>
+            <div class="stat">
+              <span class="stat-label">Price List</span>
+            </div>
+            <pre class="adapter-output" id="allocator-price-list-json">No JSON output yet.</pre>
+            <div class="stat">
+              <span class="stat-label">Receipt</span>
+            </div>
+            <pre class="adapter-output" id="allocator-receipt-json">No JSON output yet.</pre>
+          </div>
+        </div>
+
+
+            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <div class="stat-row">
+                <span class="stat-label">Affinity Loadouts</span>
+                <button class="secondary" type="button" id="affinity-legend-toggle" aria-expanded="false">Legend</button>
+              </div>
+              <small class="status">Resolved affinities and abilities per motivated actor.</small>
+            </div>
+            <div class="legend-panel" id="affinity-legend" hidden>
+              <div class="legend-grid">
+                <div>
+                  <span class="stat-label">Kinds</span>
+                  <div class="legend-list" id="legend-kinds"></div>
+                </div>
+                <div>
+                  <span class="stat-label">Expressions</span>
+                  <div class="legend-list" id="legend-expressions"></div>
+                </div>
+              </div>
+            </div>
+            <pre class="actor-list" id="affinity-list">No affinities resolved</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Trap Inspector (<span id="trap-tab-count">0</span>)</span>
+              <small class="status">Affinity metadata, vitals, and abilities per trap tile.</small>
+            </div>
+            <pre class="actor-list" id="trap-list">No traps detected</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Annotator JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="annotator-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+
+
+            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Moderator</span>
+              <small class="status">Playback controls live in the Runtime tab.</small>
+            </div>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Moderator JSON Output</span>
+            </div>
+            <pre class="adapter-output" id="moderator-json-output">No JSON output yet.</pre>
+          </div>
+        </div>
+            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">LLM Trace</span>
+              <small class="status">Prompt and response transcript captured by the Orchestrator, summarized by the Annotator.</small>
+            </div>
+            <div class="controls">
+              <div class="badge">Turns <strong id="llm-trace-count">0</strong></div>
+              <button class="secondary" id="llm-trace-clear" type="button">Clear Trace</button>
+            </div>
+            <div class="status" id="llm-trace-status">No LLM captures yet.</div>
+            <label>
+              <span class="stat-label">Turn</span>
+              <select id="llm-trace-turns"></select>
+            </label>
+            <div class="adapter-grid">
+              <div class="stat">
+                <span class="stat-label">Prompt</span>
+                <pre class="adapter-output" id="llm-trace-prompt">No prompt captured.</pre>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Response (Raw)</span>
+                <pre class="adapter-output" id="llm-trace-response-raw">No response captured.</pre>
+              </div>
+            </div>
+            <div class="adapter-grid">
+              <div class="stat">
+                <span class="stat-label">Response (Parsed)</span>
+                <pre class="adapter-output" id="llm-trace-response-parsed">No parsed response.</pre>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Errors</span>
+                <pre class="adapter-output" id="llm-trace-errors">No parse/contract errors.</pre>
+              </div>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Annotator Summary</span>
+              <pre class="adapter-output" id="llm-trace-summary">No annotator summary yet.</pre>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Annotator Telemetry Record</span>
+              <pre class="adapter-output" id="llm-trace-telemetry">No annotator telemetry yet.</pre>
+            </div>
+          </div>
+        </div>
+            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label">Build Orchestration</span>
+              <small class="status">Send a BuildSpec to a local bridge that runs `ak.mjs build --spec`.</small>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">Bridge URL</span>
+                <input id="build-bridge-url" type="text" value="/bridge/build" />
+              </label>
+              <label>
+                <span class="stat-label">Spec Path (optional)</span>
+                <input id="build-spec-path" type="text" placeholder="tests/fixtures/artifacts/build-spec-v1-basic.json" />
+              </label>
+              <label>
+                <span class="stat-label">Out Dir (optional)</span>
+                <input id="build-out-dir" type="text" placeholder="artifacts/runs/runId/build" />
+              </label>
+            </div>
+            <label>
+              <span class="stat-label">Spec JSON</span>
+              <textarea id="build-spec-json" placeholder="{...}"></textarea>
+            </label>
+            <ul id="build-validation" hidden></ul>
+            <div class="controls">
+              <button class="primary" id="build-run">Run Build</button>
+              <button class="secondary" id="build-load" disabled>Load last build</button>
+              <button class="secondary" id="build-send-bundle" disabled>Load last build in Bundle Review</button>
+              <button class="secondary" id="build-download" hidden>Download spec.json</button>
+              <button class="secondary" id="build-clear">Clear</button>
+            </div>
+            <div class="status" id="build-status">Bridge idle.</div>
+            <div class="stat">
+              <span class="stat-label">Build Output</span>
+            </div>
+            <pre class="adapter-output" id="build-output">No build output yet.</pre>
           </div>
           <div class="card">
             <div class="stat">
@@ -512,96 +932,6 @@
             </div>
             <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
           </div>
-        </div>
-
-        <div class="tab-panel" data-tab-panel="configurator" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Run Builder</span>
-              <small class="status">Configure seed, map preset, actor, vitals, and fixture mode before starting.</small>
-            </div>
-            <div class="form-grid">
-              <label>
-                <span class="stat-label">Seed</span>
-                <input id="seed-input" type="number" value="1337" />
-              </label>
-              <label>
-                <span class="stat-label">Map</span>
-                <select id="map-select">
-                  <option value="mvp-grid">MVP Grid (9x9)</option>
-                </select>
-              </label>
-              <label>
-                <span class="stat-label">Actor Name</span>
-                <input id="actor-name" type="text" value="MVP Walker" />
-              </label>
-              <label>
-                <span class="stat-label">Actor ID</span>
-                <input id="actor-id" type="text" value="actor_mvp" />
-              </label>
-              <label>
-                <span class="stat-label">Fixture Mode</span>
-                <select id="fixture-select">
-                  <option value="fixture" selected>Fixture</option>
-                  <option value="live">Live</option>
-                </select>
-              </label>
-            </div>
-            <div class="form-grid" style="margin-top: 10px">
-              <label>
-                <span class="stat-label">Health (cur/max/regen)</span>
-                <div class="form-grid">
-                  <input id="vital-health-current" type="number" value="10" />
-                  <input id="vital-health-max" type="number" value="10" />
-                  <input id="vital-health-regen" type="number" value="0" />
-                </div>
-              </label>
-              <label>
-                <span class="stat-label">Mana (cur/max/regen)</span>
-                <div class="form-grid">
-                  <input id="vital-mana-current" type="number" value="0" />
-                  <input id="vital-mana-max" type="number" value="0" />
-                  <input id="vital-mana-regen" type="number" value="0" />
-                </div>
-              </label>
-              <label>
-                <span class="stat-label">Stamina (cur/max/regen)</span>
-                <div class="form-grid">
-                  <input id="vital-stamina-current" type="number" value="10" />
-                  <input id="vital-stamina-max" type="number" value="10" />
-                  <input id="vital-stamina-regen" type="number" value="0" />
-                </div>
-              </label>
-              <label>
-                <span class="stat-label">Durability (cur/max/regen)</span>
-                <div class="form-grid">
-                  <input id="vital-durability-current" type="number" value="10" />
-                  <input id="vital-durability-max" type="number" value="10" />
-                  <input id="vital-durability-regen" type="number" value="0" />
-                </div>
-              </label>
-            </div>
-            <div class="badge-row">
-              <span id="badge-seed">Seed ok</span>
-              <span id="badge-name">Name ok</span>
-              <span id="badge-mode">fixture</span>
-            </div>
-            <div class="controls">
-              <button class="primary" id="start-run">Start run</button>
-              <button class="secondary" id="reset-config">Reset</button>
-            </div>
-            <div class="base-tiles-shell">
-              <div class="stat">
-                <span class="stat-label">Layout Preview</span>
-                <small class="status">Base tiles derived from the current configuration.</small>
-              </div>
-              <pre class="frame-display" id="base-tiles">Loading...</pre>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Configurator JSON Output</span>
-            </div>
-            <pre class="preview" id="config-preview">No JSON output yet.</pre>
-          </div>
           <div class="card">
             <div class="stat">
               <span class="stat-label">Budget Inputs</span>
@@ -615,225 +945,20 @@
           </div>
         </div>
 
-        <div class="tab-panel" data-tab-panel="actor" role="tabpanel" hidden>
-          <div class="card actor-list-shell">
-            <div class="stat">
-              <span class="stat-label">Motivated Actors</span>
-              <small class="status">Observation order with vitals and positions.</small>
-            </div>
-            <pre class="actor-list" id="actor-list">-</pre>
-            <details open>
-              <summary>Tile Actors (<span id="tile-actor-count">0</span>)</summary>
-              <pre class="actor-list" id="tile-actor-list">-</pre>
-            </details>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Actor JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="actor-json-output">No JSON output yet.</pre>
-          </div>
-        </div>
-
-        <div class="tab-panel" data-tab-panel="director" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Director</span>
-              <small class="status">No director panels yet.</small>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Director JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="director-json-output">No JSON output yet.</pre>
-          </div>
-        </div>
-
-        <div class="tab-panel" data-tab-panel="allocator" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Allocator</span>
-              <small class="status">Budgeting artifacts are surfaced here.</small>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Budget</span>
-            </div>
-            <pre class="adapter-output" id="allocator-budget-json">No JSON output yet.</pre>
-            <div class="stat">
-              <span class="stat-label">Price List</span>
-            </div>
-            <pre class="adapter-output" id="allocator-price-list-json">No JSON output yet.</pre>
-            <div class="stat">
-              <span class="stat-label">Receipt</span>
-            </div>
-            <pre class="adapter-output" id="allocator-receipt-json">No JSON output yet.</pre>
-          </div>
-        </div>
-
-        <div class="tab-panel" data-tab-panel="annotator" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <div class="stat-row">
-                <span class="stat-label">Affinity Loadouts</span>
-                <button class="secondary" type="button" id="affinity-legend-toggle" aria-expanded="false">Legend</button>
-              </div>
-              <small class="status">Resolved affinities and abilities per motivated actor.</small>
-            </div>
-            <div class="legend-panel" id="affinity-legend" hidden>
-              <div class="legend-grid">
-                <div>
-                  <span class="stat-label">Kinds</span>
-                  <div class="legend-list" id="legend-kinds"></div>
-                </div>
-                <div>
-                  <span class="stat-label">Expressions</span>
-                  <div class="legend-list" id="legend-expressions"></div>
-                </div>
-              </div>
-            </div>
-            <pre class="actor-list" id="affinity-list">No affinities resolved</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Trap Inspector (<span id="trap-tab-count">0</span>)</span>
-              <small class="status">Affinity metadata, vitals, and abilities per trap tile.</small>
-            </div>
-            <pre class="actor-list" id="trap-list">No traps detected</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Annotator JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="annotator-json-output">No JSON output yet.</pre>
-          </div>
-        </div>
-
-        <div class="tab-panel" data-tab-panel="moderator" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Moderator</span>
-              <small class="status">Playback controls live in the Runtime tab.</small>
-            </div>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Moderator JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="moderator-json-output">No JSON output yet.</pre>
-          </div>
-        </div>
-
-        <div class="tab-panel" data-tab-panel="llm" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">LLM Flow Rail</span>
-              <small class="status">Run steps in order to generate and run a build.</small>
-            </div>
-            <div class="controls">
-              <button class="primary" id="llm-step-summary" type="button">Step 1: Load Summary</button>
-              <button class="primary" id="llm-step-pool" type="button" disabled>Step 2: Generate BuildSpec</button>
-              <button class="primary" id="llm-step-build" type="button" disabled>Step 3: Run Build</button>
-              <button class="primary" id="llm-step-bundle" type="button" disabled>Step 4: Load Bundle</button>
-            </div>
-            <ul id="llm-flow-steps">
-              <li id="llm-flow-summary-status">Summary: missing.</li>
-              <li id="llm-flow-spec-status">BuildSpec: waiting on summary.</li>
-              <li id="llm-flow-build-status">Build: waiting on BuildSpec.</li>
-              <li id="llm-flow-bundle-status">Bundle: waiting on build output.</li>
-            </ul>
-            <div class="status" id="llm-flow-status">Waiting for summary.</div>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Pool Flow (Summary → Catalog → BuildSpec)</span>
-            </div>
-            <div class="controls">
-              <button class="secondary" id="pool-load-fixture" type="button">Load Pool Fixture</button>
-              <label class="inline">Summary JSON <input id="pool-summary-file" type="file" accept="application/json" /></label>
-              <label class="inline">Catalog JSON <input id="pool-catalog-file" type="file" accept="application/json" /></label>
-              <button class="primary" id="pool-run" type="button">Generate BuildSpec</button>
-              <button class="secondary" id="pool-send-build" type="button" disabled>Send BuildSpec to Build</button>
-            </div>
-            <div class="status" id="pool-status">Load a summary + catalog to begin.</div>
-            <div class="stat">
-              <span class="stat-label">Summary</span>
-              <textarea id="pool-summary-out" rows="6" placeholder="{...}"></textarea>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Selections (mapped)</span>
-              <textarea id="pool-selections-out" rows="6" placeholder="{...}"></textarea>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Receipts</span>
-              <textarea id="pool-receipts-out" rows="6" placeholder="{...}"></textarea>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Allowed menus (affinities/motivations/pool ids)</span>
-              <textarea id="pool-allowed-out" rows="4" placeholder="{...}"></textarea>
-            </div>
-            <div class="stat">
-              <span class="stat-label">BuildSpec</span>
-              <textarea id="pool-buildspec-out" rows="8" placeholder="{...}"></textarea>
-            </div>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Build Orchestration</span>
-              <small class="status">Send a BuildSpec to a local bridge that runs `ak.mjs build --spec`.</small>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Bridge URL</span>
-                <input id="build-bridge-url" type="text" value="/bridge/build" />
-              </label>
-              <label>
-                <span class="stat-label">Spec Path (optional)</span>
-                <input id="build-spec-path" type="text" placeholder="tests/fixtures/artifacts/build-spec-v1-basic.json" />
-              </label>
-              <label>
-                <span class="stat-label">Out Dir (optional)</span>
-                <input id="build-out-dir" type="text" placeholder="artifacts/runs/runId/build" />
-              </label>
-            </div>
-            <label>
-              <span class="stat-label">Spec JSON</span>
-              <textarea id="build-spec-json" placeholder="{...}"></textarea>
-            </label>
-            <ul id="build-validation" hidden></ul>
-            <div class="controls">
-              <button class="primary" id="build-run">Run Build</button>
-              <button class="secondary" id="build-load" disabled>Load last build</button>
-              <button class="secondary" id="build-send-bundle" disabled>Load last build in Bundle Review</button>
-              <button class="secondary" id="build-download" hidden>Download spec.json</button>
-              <button class="secondary" id="build-clear">Clear</button>
-            </div>
-            <div class="status" id="build-status">Bridge idle.</div>
-            <div class="stat">
-              <span class="stat-label">Build Output</span>
-            </div>
-            <pre class="adapter-output" id="build-output">No build output yet.</pre>
-          </div>
-        </div>
-        <div class="tab-panel" data-tab-panel="orchestrator" role="tabpanel" hidden>
+            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
           <div class="card">
             <div class="stat">
               <span class="stat-label">Adapter Playground</span>
-              <small class="status">Fixture mode uses repo fixtures; toggle to live to hit your endpoints.</small>
+              <small class="status">Live mode only. Development fixtures should be run from CLI workflows.</small>
             </div>
             <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Mode</span>
-                <select id="adapter-mode">
-                  <option value="fixture" selected>Fixture</option>
-                  <option value="live">Live</option>
-                </select>
-              </label>
               <label>
                 <span class="stat-label">IPFS Gateway</span>
                 <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
               </label>
               <label>
                 <span class="stat-label">IPFS CID</span>
-                <input id="adapter-cid" type="text" value="fixture" />
+                <input id="adapter-cid" type="text" value="" placeholder="bafy..." />
               </label>
               <label>
                 <span class="stat-label">IPFS Path</span>
@@ -841,15 +966,11 @@
               </label>
               <label>
                 <span class="stat-label">RPC URL</span>
-                <input id="adapter-rpc-url" type="text" value="http://fixture" />
+                <input id="adapter-rpc-url" type="text" value="http://localhost:8545" />
               </label>
               <label>
                 <span class="stat-label">Address</span>
                 <input id="adapter-address" type="text" value="0xabc" />
-              </label>
-              <label>
-                <span class="stat-label">LLM Base URL</span>
-                <input id="adapter-llm-url" type="text" value="http://localhost:11434" />
               </label>
               <label>
                 <span class="stat-label">Prompt</span>
@@ -863,12 +984,37 @@
               <button class="secondary" id="adapter-solver">Run Solver</button>
               <button class="secondary" id="adapter-clear">Clear</button>
             </div>
-            <div class="status" id="adapter-status">Ready in fixture mode.</div>
+            <div class="status" id="adapter-status">Ready in live mode.</div>
             <div class="stat">
               <span class="stat-label">Orchestrator JSON Output</span>
             </div>
             <pre class="adapter-output" id="adapter-output">No JSON output yet.</pre>
           </div>
+            </div>
+          </div>
+
+          <aside class="card inspector-shell" id="actor-inspector">
+            <div class="stat">
+              <span class="stat-label">Actor Inspector</span>
+              <small class="status" id="actor-inspector-status">Select an actor on the stage to inspect.</small>
+            </div>
+            <div class="inspector-section">
+              <span class="stat-label">Profile</span>
+              <pre class="adapter-output" id="actor-inspector-profile">No actor selected.</pre>
+            </div>
+            <div class="inspector-section">
+              <span class="stat-label">Capabilities</span>
+              <pre class="adapter-output" id="actor-inspector-capabilities">No capabilities recorded.</pre>
+            </div>
+            <div class="inspector-section">
+              <span class="stat-label">Constraints</span>
+              <pre class="adapter-output" id="actor-inspector-constraints">No constraints recorded.</pre>
+            </div>
+            <div class="inspector-section">
+              <span class="stat-label">Live State</span>
+              <pre class="adapter-output" id="actor-inspector-live">Simulation paused.</pre>
+            </div>
+          </aside>
         </div>
       </section>
     </main>

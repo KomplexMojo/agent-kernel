@@ -314,17 +314,17 @@ export function wireBuildOrchestrator({
 
     const validation = validateSpecInput({ notifyStatus: true });
     if (specText && !validation.ok) {
-      return;
+      return { ok: false, reason: "invalid_spec", errors: validation.errors };
     }
 
     if (!specPath && !specText) {
       setOutput(outputEl, { error: "Provide a spec path or spec JSON." });
       setStatus(statusEl, "Waiting for a build spec.");
-      return;
+      return { ok: false, reason: "missing_spec" };
     }
     if (specPath && specText) {
       setStatus(statusEl, "Choose spec path or spec JSON, not both.");
-      return;
+      return { ok: false, reason: "ambiguous_spec" };
     }
 
     let specJson = null;
@@ -360,12 +360,14 @@ export function wireBuildOrchestrator({
       if (typeof onBuildComplete === "function") {
         onBuildComplete({ snapshot, source: "build", auto: false });
       }
+      return { ok: true, snapshot, response };
     } catch (error) {
       setOutput(outputEl, { error: error?.message || String(error) });
       setStatus(statusEl, "Build failed. Download spec.json to run build manually.");
       if (state.lastSpecText) {
         setDownloadVisible(true);
       }
+      return { ok: false, reason: "build_failed", error: error?.message || String(error) };
     } finally {
       state.running = false;
       updateBuildAvailability();

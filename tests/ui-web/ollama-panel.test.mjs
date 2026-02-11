@@ -39,6 +39,9 @@ test("ollama panel parses fixture response into a valid BuildSpec", async () => 
   const status = { textContent: "" };
   const runButton = makeButton();
   const clearButton = makeButton();
+  const modeSelect = makeInput("fixture");
+  const modelInput = makeInput("fixture");
+  const promptInput = makeInput("");
 
   const calls = [];
   let capturedSpec = null;
@@ -46,10 +49,10 @@ test("ollama panel parses fixture response into a valid BuildSpec", async () => 
 
   wireOllamaPromptPanel({
     elements: {
-      modeSelect: makeInput("fixture"),
-      modelInput: makeInput("fixture"),
+      modeSelect,
+      modelInput,
       baseUrlInput: makeInput("http://localhost:11434"),
-      promptInput: makeInput("Build a demo scenario."),
+      promptInput,
       optionsInput: makeInput(""),
       runButton,
       clearButton,
@@ -69,6 +72,9 @@ test("ollama panel parses fixture response into a valid BuildSpec", async () => 
     },
   });
 
+  modeSelect.value = "fixture";
+  modelInput.value = "fixture";
+  promptInput.value = "Build a demo scenario.";
   await runButton.click();
 
   assert.equal(calls.length, 1);

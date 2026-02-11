@@ -1,5 +1,6 @@
 import { validateSpendProposal } from "../allocator/validate-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
+import { VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 
@@ -18,7 +19,6 @@ function countTraps(layoutData, trapsOverride) {
   return 0;
 }
 
-const VITAL_KEYS = ["health", "mana", "stamina", "durability"];
 const AFFINITY_EXPRESSION_IDS = Object.freeze({
   push: "affinity_expression_externalize",
   pull: "affinity_expression_internalize",

@@ -20,11 +20,21 @@ import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
   ALLOWED_MOTIVATIONS,
-  buildMenuPrompt,
   deriveAllowedOptionsFromCatalog,
   normalizeSummary,
 } from "../../../runtime/src/personas/orchestrator/prompt-contract.js";
 import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
+import {
+  DEFAULT_LLM_BASE_URL,
+  DEFAULT_LLM_MODEL,
+  LLM_REPAIR_TEXT,
+  VITAL_KEYS,
+  appendLlmPromptSuffix,
+  buildLlmActorConfigPromptTemplate,
+  buildLlmCatalogRepairPromptTemplate,
+  buildLlmConstraintSection,
+  buildLlmRepairPromptTemplate,
+} from "../../../runtime/src/contracts/domain-constants.js";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
@@ -52,7 +62,24 @@ const DEFAULT_WASM_PATH = "build/core-as.wasm";
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 const DEFAULT_RUNS_DIR = "runs";
 const DEFAULT_TICKS = 1;
-const VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
+const CLI_DEFAULT_VITALS = Object.freeze({
+  health: Object.freeze({ current: 10, max: 10, regen: 0 }),
+  mana: Object.freeze({ current: 0, max: 0, regen: 0 }),
+  stamina: Object.freeze({ current: 0, max: 0, regen: 0 }),
+  durability: Object.freeze({ current: 0, max: 0, regen: 0 }),
+});
+
+function cloneVitalRecords(source = CLI_DEFAULT_VITALS) {
+  return VITAL_KEYS.reduce((acc, key) => {
+    const record = source[key] || { current: 0, max: 0, regen: 0 };
+    acc[key] = {
+      current: Number.isFinite(record.current) ? record.current : 0,
+      max: Number.isFinite(record.max) ? record.max : 0,
+      regen: Number.isFinite(record.regen) ? record.regen : 0,
+    };
+    return acc;
+  }, {});
+}
 
 function usage() {
   const filename = fileURLToPath(new URL("./ak.mjs", import.meta.url));
@@ -71,8 +98,8 @@ function usage() {
   node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} blockchain --rpc-url url [--address addr] [--fixture-chain-id path] [--fixture-balance path] [--out path] [--out-dir dir]
-  node ${rel} llm --model model --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
-  node ${rel} llm-plan [--scenario path | --prompt text --catalog path] --model model [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
+  node ${rel} llm-plan [--scenario path | --prompt text --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -107,6 +134,7 @@ Options:
   --budget-loop   Enable budget loop (layout then actors)
   --budget-pool   Budget pool weight entry (repeatable): id=weight (e.g., player=0.2)
   --budget-reserve Reserve tokens before pooling (llm-plan budget loop)
+  --model         LLM model name (default: ${DEFAULT_LLM_MODEL})
   --fixture       Fixture response for adapter commands (no network)
   --run-id        Override run id for output artifacts
   --created-at    Override createdAt timestamp (ISO-8601) for llm-plan
@@ -226,8 +254,7 @@ function parseVitalSpec(value, withActorId) {
   const current = Number(parts[offset + 1]);
   const max = Number(parts[offset + 2]);
   const regen = Number(parts[offset + 3]);
-  const valid = ["health", "mana", "stamina", "durability"];
-  if (!valid.includes(vital)) {
+  if (!VITAL_KEYS.includes(vital)) {
     throw new Error(`Unknown vital ${vital}`);
   }
   if (!Number.isFinite(current) || !Number.isFinite(max) || !Number.isFinite(regen)) {
@@ -317,12 +344,7 @@ function applyActorOverrides(initialState, simConfig, { actorSpecs, vitalSpecs, 
     }
   });
 
-  const defaultVitals = vitalDefaults || {
-    health: { current: 10, max: 10, regen: 0 },
-    mana: { current: 0, max: 0, regen: 0 },
-    stamina: { current: 0, max: 0, regen: 0 },
-    durability: { current: 0, max: 0, regen: 0 },
-  };
+  const defaultVitals = vitalDefaults || cloneVitalRecords();
 
   if (actorSpecs.length || vitalSpecs.length || vitalDefaults) {
     actors.forEach((actor) => {
@@ -347,7 +369,7 @@ function applyActorOverrides(initialState, simConfig, { actorSpecs, vitalSpecs, 
       throw new Error(`--vital references unknown actor ${vital.actorId || "unknown"}`);
     }
     const actor = actors[byId.get(vital.actorId)];
-    actor.vitals = actor.vitals || { ...defaultVitals };
+    actor.vitals = actor.vitals || cloneVitalRecords(defaultVitals);
     actor.vitals[vital.vital] = { current: vital.current, max: vital.max, regen: vital.regen };
   });
 
@@ -624,14 +646,7 @@ function extractJsonObject(text) {
 }
 
 function appendJsonOnlyInstruction(promptText) {
-  if (!isNonEmptyString(promptText)) {
-    return promptText;
-  }
-  const suffix = "Final request: return the JSON now. Output JSON only (no markdown, no commentary).";
-  if (promptText.includes(suffix)) {
-    return promptText;
-  }
-  return `${promptText}\n\n${suffix}`;
+  return appendLlmPromptSuffix(promptText);
 }
 
 function deriveAllowedPairs(catalog) {
@@ -677,27 +692,20 @@ function buildRepairPrompt({ basePrompt, errors, responseText, allowedOptions, a
   const affinities = allowedOptions?.affinities?.length ? allowedOptions.affinities : ALLOWED_AFFINITIES;
   const motivations = allowedOptions?.motivations?.length ? allowedOptions.motivations : ALLOWED_MOTIVATIONS;
   const expressions = ALLOWED_AFFINITY_EXPRESSIONS;
-  const errorText = JSON.stringify(errors);
-  const preview = String(extracted || "").slice(0, 4000);
-  return [
+  return buildLlmRepairPromptTemplate({
     basePrompt,
-    "",
-    "Your previous response failed validation. Fix it and return corrected JSON only.",
-    `Errors: ${errorText}`,
-    `Allowed affinities: ${affinities.join(", ")}`,
-    `Allowed expressions: ${expressions.join(", ")}`,
-    `Allowed motivations: ${motivations.join(", ")}`,
-    allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
-    "Provide at least one room and one actor; each count must be >= 1.",
-    "tokenHint must be a positive integer if provided; otherwise omit it.",
-    "Example affinity entry: {\"kind\":\"water\",\"expression\":\"push\",\"stacks\":1}",
-    "Invalid response JSON (fix to match schema):",
-    preview,
-    "",
-    "Final request: return corrected JSON only.",
-  ]
-    .filter(Boolean)
-    .join("\n");
+    errors,
+    responseText: extracted,
+    affinities,
+    affinityExpressions: expressions,
+    motivations,
+    allowedPairsText,
+    phaseRequirement: LLM_REPAIR_TEXT.phaseActorsRequirement,
+    extraLines: [
+      LLM_REPAIR_TEXT.tokenHintRule,
+      LLM_REPAIR_TEXT.exampleAffinityEntry,
+    ],
+  });
 }
 
 function assertAllowedBuildArgs(args) {
@@ -872,7 +880,7 @@ async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy
     if (!isNonEmptyString(model) || !isNonEmptyString(prompt)) {
       throw new Error("llm capture requires request.model and request.prompt.");
     }
-    const baseUrl = request.baseUrl || request.base_url || "http://localhost:11434";
+    const baseUrl = request.baseUrl || request.base_url || DEFAULT_LLM_BASE_URL;
     const fixturePath = resolvePath(capture.fixturePath || request.fixturePath, baseDir);
 
     let fetchFn;
@@ -1370,12 +1378,7 @@ async function runCommand(argv) {
 
   let vitalDefaults = null;
   if (vitalDefaultSpecs.length > 0) {
-    vitalDefaults = {
-      health: { current: 10, max: 10, regen: 0 },
-      mana: { current: 0, max: 0, regen: 0 },
-      stamina: { current: 0, max: 0, regen: 0 },
-      durability: { current: 0, max: 0, regen: 0 },
-    };
+    vitalDefaults = cloneVitalRecords();
     vitalDefaultSpecs.forEach((spec) => {
       const vital = parseVitalSpec(spec, false);
       vitalDefaults[vital.vital] = { current: vital.current, max: vital.max, regen: vital.regen };
@@ -1907,17 +1910,17 @@ async function llmCommand(argv) {
     console.log(usage());
     return;
   }
-  const model = args.model;
+  const model = args.model || process.env.AK_LLM_MODEL || DEFAULT_LLM_MODEL;
   const prompt = args.prompt;
-  const baseUrl = args["base-url"] || "http://localhost:11434";
+  const baseUrl = args["base-url"] || DEFAULT_LLM_BASE_URL;
   const fixturePath = resolvePath(args.fixture);
   const llmFormat = process.env.AK_LLM_FORMAT;
   const runId = makeId("run");
   const outDir = resolvePath(args["out-dir"]) || defaultOutDir("llm", runId);
   const outPath = resolvePath(args.out) || join(outDir, "llm.json");
 
-  if (!model || !prompt) {
-    throw new Error("llm requires --model and --prompt.");
+  if (!prompt) {
+    throw new Error("llm requires --prompt.");
   }
 
   let fetchFn;
@@ -1949,8 +1952,8 @@ async function llmPlanCommand(argv) {
   const catalogOverride = resolvePath(args.catalog);
   const goalOverride = args.goal;
   const budgetTokensRaw = args["budget-tokens"];
-  const model = args.model || process.env.AK_LLM_MODEL;
-  const baseUrl = args["base-url"] || process.env.AK_LLM_BASE_URL || "http://localhost:11434";
+  const model = args.model || process.env.AK_LLM_MODEL || DEFAULT_LLM_MODEL;
+  const baseUrl = args["base-url"] || process.env.AK_LLM_BASE_URL || DEFAULT_LLM_BASE_URL;
   const fixturePath = resolvePath(args.fixture);
   const runId = args["run-id"] || makeId("run");
   const createdAt = args["created-at"] || new Date().toISOString();
@@ -2030,27 +2033,22 @@ async function llmPlanCommand(argv) {
   );
   const notes = [
     scenario?.notes,
-    "Include at least one room and one actor; counts must be > 0.",
+    "Include at least one actor; counts must be > 0.",
     allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}.` : null,
   ]
     .filter(Boolean)
     .join(" ");
   const basePrompt = isNonEmptyString(prompt)
     ? prompt
-    : buildMenuPrompt({
+    : buildLlmActorConfigPromptTemplate({
       goal,
       notes,
       budgetTokens: resolvedBudgetTokens,
+      affinities: allowedOptions.affinities,
+      affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+      motivations: allowedOptions.motivations,
     });
-  const constraintLines = [
-    "Constraints:",
-    "- In affinities[] entries, kind must be from Affinities and expression must be from Affinity expressions.",
-    "- Omit optional fields instead of using null.",
-    "- Provide at least one room and one actor; counts must be > 0.",
-    allowedPairsText ? `- Allowed profiles (motivation, affinity): ${allowedPairsText}.` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const constraintLines = buildLlmConstraintSection({ allowedPairsText });
   const finalPrompt = appendJsonOnlyInstruction(`${basePrompt}\n\n${constraintLines}`);
   const llmFormat = process.env.AK_LLM_FORMAT;
 
@@ -2066,9 +2064,6 @@ async function llmPlanCommand(argv) {
   let budgetPoolPolicy = null;
 
   if (liveEnabled) {
-    if (!isNonEmptyString(model)) {
-      throw new Error("llm-plan requires --model or AK_LLM_MODEL when AK_LLM_LIVE=1.");
-    }
     if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
       throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
     }
@@ -2166,17 +2161,11 @@ async function llmPlanCommand(argv) {
       let actorInstances = countInstances(mapped.selections, "actor");
       if (actorInstances === 0) {
         const missingSelections = summarizeMissingSelections(mapped.selections);
-        const catalogRepairPrompt = [
+        const catalogRepairPrompt = buildLlmCatalogRepairPromptTemplate({
           basePrompt,
-          "",
-          "Your previous response did not match the pool catalog. Choose only from the allowed profiles below.",
-          allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
-          missingSelections ? `Unmatched picks: ${missingSelections}` : null,
-          "Provide at least one actor entry with count >= 1.",
-          "Final request: return corrected JSON only.",
-        ]
-          .filter(Boolean)
-          .join("\n");
+          allowedPairsText,
+          missingSelections,
+        });
 
         session = await runLlmSession({
           adapter,

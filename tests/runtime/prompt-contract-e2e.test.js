@@ -11,8 +11,11 @@ function readJson(path) {
 }
 
 test("prompt/response fixture parses and matches summary contract", async () => {
-  const { buildMenuPrompt, capturePromptResponse, normalizeSummary } = await import(
+  const { ALLOWED_AFFINITIES, ALLOWED_AFFINITY_EXPRESSIONS, ALLOWED_MOTIVATIONS, capturePromptResponse, normalizeSummary } = await import(
     moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+  );
+  const { buildLlmActorConfigPromptTemplate } = await import(
+    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
   );
 
   const fixture = readJson(fixturePath);
@@ -22,9 +25,12 @@ test("prompt/response fixture parses and matches summary contract", async () => 
   assert.ok(typeof fixture.responseRaw === "string" && fixture.responseRaw.length > 0);
   assert.ok(fixture.prompt.includes("Budget tokens: 800"));
 
-  const expectedPrompt = buildMenuPrompt({
+  const expectedPrompt = buildLlmActorConfigPromptTemplate({
     goal: scenario.goal,
     budgetTokens: scenario.budgetTokens,
+    affinities: ALLOWED_AFFINITIES,
+    affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+    motivations: ALLOWED_MOTIVATIONS,
   });
   assert.equal(fixture.prompt, expectedPrompt);
 

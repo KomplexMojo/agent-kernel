@@ -15,7 +15,7 @@ import { evaluateSelectionSpend } from ${JSON.stringify(spendModulePath)};
 import { mapSummaryToPool } from ${JSON.stringify(mapperModulePath)};
 
 const summary = {
-  dungeonTheme: "fire",
+  dungeonAffinity: "fire",
   rooms: [{ motivation: "stationary", affinity: "fire", count: 1 }],
   actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
 };
@@ -36,7 +36,7 @@ import { evaluateSelectionSpend } from ${JSON.stringify(spendModulePath)};
 import { mapSummaryToPool } from ${JSON.stringify(mapperModulePath)};
 
 const summary = {
-  dungeonTheme: "fire",
+  dungeonAffinity: "fire",
   rooms: [{ motivation: "stationary", affinity: "fire", count: 1 }],
   actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
 };

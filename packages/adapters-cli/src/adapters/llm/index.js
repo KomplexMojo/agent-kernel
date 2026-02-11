@@ -1,4 +1,6 @@
-export function createLlmAdapter({ baseUrl = "http://localhost:11434", fetchFn = globalThis.fetch } = {}) {
+import { DEFAULT_LLM_BASE_URL } from "../../../../runtime/src/contracts/domain-constants.js";
+
+export function createLlmAdapter({ baseUrl = DEFAULT_LLM_BASE_URL, fetchFn = globalThis.fetch } = {}) {
   if (!fetchFn) {
     throw new Error("LLM adapter requires a fetch implementation.");
   }

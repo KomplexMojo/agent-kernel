@@ -29,7 +29,7 @@ The Director does not participate in simulation execution and does not mutate si
 ### Strategy Translation
 The Director translates inputs such as:
 - External instructions or prompts (human, AI, or scripted).
-- Scenario-level objectives (e.g. difficulty, themes, success conditions).
+- Scenario-level objectives (e.g. difficulty, affinities, success conditions).
 - Environmental or narrative constraints.
 
 Into **explicit planning artifacts**, such as:

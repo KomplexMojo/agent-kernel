@@ -1,10 +1,13 @@
 import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
-  buildMenuPrompt,
-  buildPhasePrompt,
+  ALLOWED_MOTIVATIONS,
   capturePromptResponse,
 } from "./prompt-contract.js";
+import {
+  buildLlmActorConfigPromptTemplate,
+  buildLlmPhasePromptTemplate,
+} from "../../contracts/domain-constants.js";
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
 
 function isNonEmptyString(value) {
@@ -166,6 +169,12 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions }) 
   if (Array.isArray(value.rooms)) {
     value.rooms = value.rooms.map(sanitizePick).filter(Boolean);
   }
+  if (Array.isArray(value.defenders)) {
+    value.defenders = value.defenders.map(sanitizePick).filter(Boolean);
+    if (!Array.isArray(value.actors)) {
+      value.actors = value.defenders.map((entry) => ({ ...entry }));
+    }
+  }
   if (Array.isArray(value.actors)) {
     value.actors = value.actors.map(sanitizePick).filter(Boolean);
   }
@@ -221,6 +230,31 @@ function applySummaryContentErrors(capture, requireSummary) {
   };
 }
 
+function hasErrorCode(errors, code) {
+  if (!Array.isArray(errors) || !code) return false;
+  return errors.some((entry) => entry && typeof entry === "object" && entry.code === code);
+}
+
+function buildRepairRequestOptions(options, { errors, phase } = {}) {
+  const codeTriggered = hasErrorCode(errors, "invalid_json")
+    || hasErrorCode(errors, "missing_response_text")
+    || (phase === "actors_only" && hasErrorCode(errors, "missing_actors"));
+  if (!codeTriggered) {
+    return options && typeof options === "object" ? { ...options } : options;
+  }
+  const next = options && typeof options === "object" ? { ...options } : {};
+  const current = Number.isInteger(next.num_predict) && next.num_predict > 0 ? next.num_predict : 0;
+  const minByPhase = phase === "actors_only" ? 320 : 160;
+  const expanded = Math.max(minByPhase, current + 120, Math.ceil(current * 1.75));
+  next.num_predict = Math.min(expanded, 768);
+  return next;
+}
+
+function getNumPredict(options) {
+  if (!options || typeof options !== "object") return 0;
+  return Number.isInteger(options.num_predict) && options.num_predict > 0 ? options.num_predict : 0;
+}
+
 function sanitizeSummaryResponse(responseText, { allowedAffinities, allowedExpressions }) {
   const extracted = extractJsonObject(responseText) || responseText;
   let value;
@@ -247,7 +281,7 @@ function normalizeSessionPrompt({
     return prompt;
   }
   if (phase) {
-    return buildPhasePrompt({
+    return buildLlmPhasePromptTemplate({
       goal,
       notes,
       budgetTokens,
@@ -256,9 +290,19 @@ function normalizeSessionPrompt({
       allowedPairsText,
       context: phaseContext,
       layoutCosts,
+      affinities: ALLOWED_AFFINITIES,
+      affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+      motivations: ALLOWED_MOTIVATIONS,
     });
   }
-  return buildMenuPrompt({ goal, notes, budgetTokens });
+  return buildLlmActorConfigPromptTemplate({
+    goal,
+    notes,
+    budgetTokens,
+    affinities: ALLOWED_AFFINITIES,
+    affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+    motivations: ALLOWED_MOTIVATIONS,
+  });
 }
 
 export async function runLlmSession({
@@ -361,7 +405,31 @@ export async function runLlmSession({
     : captureWithFallback({ prompt: finalPrompt, responseText, phase });
   capture = applySummaryContentErrors(capture, requireSummary);
   let sanitized = false;
+  let retried = false;
   let repaired = false;
+
+  if (!strict && capture.errors.length > 0) {
+    const retryOptions = buildRepairRequestOptions(requestOptions, { errors: capture.errors, phase });
+    const previousPredict = getNumPredict(requestOptions);
+    const retryPredict = getNumPredict(retryOptions);
+    if (retryPredict > previousPredict) {
+      responsePayload = await adapter.generate({
+        model,
+        prompt: finalPrompt,
+        options: retryOptions,
+        format,
+        stream: Boolean(stream),
+      });
+      const retryResponseText = extractResponseText(responsePayload);
+      if (isNonEmptyString(retryResponseText)) {
+        retried = true;
+        requestOptions = retryOptions;
+        responseText = retryResponseText;
+        capture = captureWithFallback({ prompt: finalPrompt, responseText, phase });
+        capture = applySummaryContentErrors(capture, requireSummary);
+      }
+    }
+  }
 
   if (!strict && capture.errors.length > 0 && typeof repairPromptBuilder === "function") {
     const repairPrompt = repairPromptBuilder({
@@ -374,16 +442,18 @@ export async function runLlmSession({
     if (isNonEmptyString(repairPrompt)) {
       finalPrompt = repairPrompt;
       repaired = true;
+      const repairOptions = buildRepairRequestOptions(requestOptions, { errors: capture.errors, phase });
       responsePayload = await adapter.generate({
         model,
         prompt: finalPrompt,
-        options: requestOptions,
+        options: repairOptions,
         format,
         stream: Boolean(stream),
       });
       const repairResponseText = extractResponseText(responsePayload);
       if (isNonEmptyString(repairResponseText)) {
         responseText = repairResponseText;
+        requestOptions = repairOptions;
         capture = captureWithFallback({ prompt: finalPrompt, responseText, phase });
         capture = applySummaryContentErrors(capture, requireSummary);
       }
@@ -455,6 +525,7 @@ export async function runLlmSession({
     capture: captureResult.capture,
     captureErrors: captureResult.errors,
     sanitized,
+    retried,
     repaired,
     response: responsePayload,
   };

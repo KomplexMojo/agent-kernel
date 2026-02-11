@@ -1,7 +1,11 @@
 import { AFFINITY_DEFAULTS } from "./defaults.js";
+import {
+  AFFINITY_EXPRESSIONS,
+  AFFINITY_KINDS,
+  VITAL_KEYS,
+} from "../../contracts/domain-constants.js";
 
-export const AFFINITY_KINDS = Object.freeze(["fire", "water", "earth", "wind", "life", "decay", "corrode", "dark"]);
-export const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
+export { AFFINITY_KINDS, AFFINITY_EXPRESSIONS };
 const ABILITY_KINDS = Object.freeze(["attack", "buff", "area"]);
 const STACK_SCALING = Object.freeze(["linear", "multiplier"]);
 
@@ -191,18 +195,11 @@ export function normalizeAffinityPresetCatalog(input = {}) {
       if (!isPlainObject(preset.vitalsModifiers)) {
         addError(errors, `${base}.vitalsModifiers`, "invalid_vitals_modifiers");
       } else {
-        if (preset.vitalsModifiers.health) {
-          normalizeVitalModifier(preset.vitalsModifiers.health, `${base}.vitalsModifiers.health`, errors);
-        }
-        if (preset.vitalsModifiers.mana) {
-          normalizeVitalModifier(preset.vitalsModifiers.mana, `${base}.vitalsModifiers.mana`, errors);
-        }
-        if (preset.vitalsModifiers.stamina) {
-          normalizeVitalModifier(preset.vitalsModifiers.stamina, `${base}.vitalsModifiers.stamina`, errors);
-        }
-        if (preset.vitalsModifiers.durability) {
-          normalizeVitalModifier(preset.vitalsModifiers.durability, `${base}.vitalsModifiers.durability`, errors);
-        }
+        VITAL_KEYS.forEach((key) => {
+          if (preset.vitalsModifiers[key]) {
+            normalizeVitalModifier(preset.vitalsModifiers[key], `${base}.vitalsModifiers.${key}`, errors);
+          }
+        });
       }
     }
 

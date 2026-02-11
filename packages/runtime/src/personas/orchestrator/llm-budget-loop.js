@@ -3,7 +3,6 @@ import {
   ALLOWED_AFFINITY_EXPRESSIONS,
   ALLOWED_MOTIVATIONS,
   LLM_STOP_REASONS,
-  buildPhasePrompt,
   deriveAllowedOptionsFromCatalog,
 } from "./prompt-contract.js";
 import { runLlmSession } from "./llm-session.js";
@@ -12,13 +11,32 @@ import { deriveLevelGen } from "../director/buildspec-assembler.js";
 import { buildBudgetAllocation } from "../director/budget-allocation.js";
 import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
 import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
-import { evaluateLayoutSpend, normalizeLayoutCounts, resolveLayoutTileCosts, sumLayoutTiles } from "../allocator/layout-spend.js";
+import {
+  evaluateLayoutSpend,
+  LAYOUT_TILE_FIELDS,
+  normalizeLayoutCounts,
+  resolveLayoutTileCosts,
+  sumLayoutTiles,
+} from "../allocator/layout-spend.js";
 import { evaluateSelectionSpend } from "../allocator/selection-spend.js";
+import {
+  DOMAIN_CONSTRAINTS,
+  LLM_REPAIR_TEXT,
+  buildLlmPhasePromptTemplate,
+  buildLlmRepairPromptTemplate,
+} from "../../contracts/domain-constants.js";
 
 const DEFAULT_MAX_ACTOR_ROUNDS = 2;
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function formatAffinityPhrase(affinities = []) {
+  if (!Array.isArray(affinities) || affinities.length === 0) return "";
+  if (affinities.length === 1) return affinities[0];
+  if (affinities.length === 2) return `${affinities[0]} and ${affinities[1]}`;
+  return `${affinities.slice(0, -1).join(", ")}, and ${affinities[affinities.length - 1]}`;
 }
 
 function applyPhaseTimingToCaptures(captures, { startedAt, endedAt, durationMs } = {}) {
@@ -134,7 +152,7 @@ function buildPhaseContext({ roomsSelections = [], actorSelections = [], layout 
 function filterSummaryByPhase(summary, phase) {
   if (!summary || typeof summary !== "object") return {};
   const next = {};
-  if (summary.dungeonTheme !== undefined) next.dungeonTheme = summary.dungeonTheme;
+  if (summary.dungeonAffinity !== undefined) next.dungeonAffinity = summary.dungeonAffinity;
   if (summary.budgetTokens !== undefined) next.budgetTokens = summary.budgetTokens;
   if (summary.phase !== undefined) next.phase = summary.phase;
   if (summary.remainingBudgetTokens !== undefined) next.remainingBudgetTokens = summary.remainingBudgetTokens;
@@ -143,7 +161,9 @@ function filterSummaryByPhase(summary, phase) {
   if (phase === "layout_only" && summary.layout && typeof summary.layout === "object") {
     next.layout = summary.layout;
   }
-  if (phase === "rooms_only") next.rooms = Array.isArray(summary.rooms) ? summary.rooms : [];
+  if (phase === "layout_only" && summary.roomDesign && typeof summary.roomDesign === "object") {
+    next.roomDesign = summary.roomDesign;
+  }
   if (phase === "actors_only") next.actors = Array.isArray(summary.actors) ? summary.actors : [];
   return next;
 }
@@ -163,33 +183,30 @@ function buildPhaseRepairPrompt({
   const expressions = ALLOWED_AFFINITY_EXPRESSIONS;
   const phaseRequirement =
     phase === "layout_only"
-      ? "Provide layout tile counts with non-negative integers (wallTiles, floorTiles, hallwayTiles)."
-      : phase === "rooms_only"
-        ? "Provide at least one room entry; each count must be >= 1."
-        : "Provide at least one actor entry; each count must be >= 1.";
-  const preview = String(responseText || "").slice(0, 4000);
-  return [
+      ? LLM_REPAIR_TEXT.phaseLayoutRequirement
+      : LLM_REPAIR_TEXT.phaseActorsRequirement;
+  return buildLlmRepairPromptTemplate({
     basePrompt,
-    "",
-    "Your previous response failed validation. Fix it and return corrected JSON only.",
-    `Errors: ${JSON.stringify(errors)}`,
-    phase === "layout_only"
-      ? `Tile costs: wall ${layoutCosts?.wallTiles ?? 1}, floor ${layoutCosts?.floorTiles ?? 1}, hallway ${layoutCosts?.hallwayTiles ?? 1} tokens each.`
-      : `Allowed affinities: ${affinities.join(", ")}`,
-    phase === "layout_only" ? null : `Allowed expressions: ${expressions.join(", ")}`,
-    phase === "layout_only" ? null : `Allowed motivations: ${motivations.join(", ")}`,
-    phase === "layout_only" ? null : allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}` : null,
-    missingSelections ? `Unmatched picks: ${missingSelections}` : null,
+    errors,
+    responseText,
+    affinities,
+    affinityExpressions: expressions,
+    motivations,
+    allowedPairsText: phase === "layout_only" ? "" : allowedPairsText,
     phaseRequirement,
-    phase === "layout_only" ? "Use integers only for tile counts; omit optional fields." : "tokenHint must be a positive integer if provided; otherwise omit it.",
-    phase === "layout_only" ? "Example layout: {\"layout\":{\"wallTiles\":40,\"floorTiles\":60,\"hallwayTiles\":20}}" : "Example affinity entry: {\"kind\":\"water\",\"expression\":\"push\",\"stacks\":1}",
-    "Invalid response JSON (fix to match schema):",
-    preview,
-    "",
-    "Final request: return corrected JSON only.",
-  ]
-    .filter(Boolean)
-    .join("\n");
+    extraLines: [
+      phase === "layout_only"
+        ? `Tile costs: wall ${layoutCosts?.wallTiles ?? 1}, floor ${layoutCosts?.floorTiles ?? 1}, hallway ${layoutCosts?.hallwayTiles ?? 1} tokens each.`
+        : null,
+      missingSelections ? `Unmatched picks: ${missingSelections}` : null,
+      phase === "layout_only"
+        ? LLM_REPAIR_TEXT.layoutIntegerRule
+        : LLM_REPAIR_TEXT.tokenHintRule,
+      phase === "layout_only"
+        ? LLM_REPAIR_TEXT.layoutExample
+        : LLM_REPAIR_TEXT.exampleAffinityEntry,
+    ].filter(Boolean),
+  });
 }
 
 function validatePhaseSelections(selections, phase) {
@@ -198,9 +215,6 @@ function validatePhaseSelections(selections, phase) {
   if (missingSelections.length > 0) {
     errors.push({ field: "selections", code: "missing_catalog_match" });
   }
-  if (phase === "rooms_only" && countInstances(selections, "room") <= 0) {
-    errors.push({ field: "rooms", code: "missing_rooms" });
-  }
   if (phase === "actors_only" && countInstances(selections, "actor") <= 0) {
     errors.push({ field: "actors", code: "missing_actors" });
   }
@@ -208,6 +222,111 @@ function validatePhaseSelections(selections, phase) {
     ok: errors.length === 0,
     errors,
     missingSelections,
+  };
+}
+
+function hasValidationCode(errors, code) {
+  if (!Array.isArray(errors) || !code) return false;
+  return errors.some((entry) => entry && entry.code === code);
+}
+
+function chooseCatalogEntryByHint(entries, tokenHint, maxCost, { allowAboveBudget = true } = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+  const sorted = entries
+    .slice()
+    .sort((a, b) => (a.cost - b.cost) || String(a.id || "").localeCompare(String(b.id || "")));
+  const affordable = Number.isInteger(maxCost) && maxCost > 0
+    ? sorted.filter((entry) => Number.isInteger(entry?.cost) && entry.cost <= maxCost)
+    : [];
+  const pool = affordable.length > 0
+    ? affordable
+    : (allowAboveBudget ? sorted : []);
+  if (pool.length === 0) {
+    return null;
+  }
+  if (!Number.isInteger(tokenHint) || tokenHint <= 0) {
+    return pool[0];
+  }
+  const under = pool.filter((entry) => Number.isInteger(entry?.cost) && entry.cost <= tokenHint);
+  if (under.length > 0) {
+    return under[under.length - 1];
+  }
+  return pool[0];
+}
+
+function selectFallbackCatalogEntry(catalogEntries, pick, { maxCost, allowedOptions } = {}) {
+  const entries = Array.isArray(catalogEntries)
+    ? catalogEntries.filter((entry) => entry?.type === "actor")
+    : [];
+  if (entries.length === 0) return null;
+  const allowedAffinities = Array.isArray(allowedOptions?.affinities) && allowedOptions.affinities.length > 0
+    ? new Set(allowedOptions.affinities)
+    : null;
+  const allowedMotivations = Array.isArray(allowedOptions?.motivations) && allowedOptions.motivations.length > 0
+    ? new Set(allowedOptions.motivations)
+    : null;
+  const scoped = entries.filter((entry) => {
+    const affinityAllowed = !allowedAffinities || allowedAffinities.has(entry.affinity);
+    const motivationAllowed = !allowedMotivations || allowedMotivations.has(entry.motivation);
+    return affinityAllowed && motivationAllowed;
+  });
+  const workingEntries = scoped.length > 0 ? scoped : entries;
+  const motivation = typeof pick?.motivation === "string" ? pick.motivation : "";
+  const affinity = typeof pick?.affinity === "string" ? pick.affinity : "";
+  const tokenHint = Number.isInteger(pick?.tokenHint) ? pick.tokenHint : undefined;
+  const exact = workingEntries.filter((entry) => entry.motivation === motivation && entry.affinity === affinity);
+  const byAffinity = affinity ? workingEntries.filter((entry) => entry.affinity === affinity) : [];
+  const byMotivation = motivation ? workingEntries.filter((entry) => entry.motivation === motivation) : [];
+  const groups = [exact, byAffinity, byMotivation];
+
+  // Prefer in-budget catalog options first, then relax to any option.
+  for (const group of groups) {
+    const chosen = chooseCatalogEntryByHint(group, tokenHint, maxCost, { allowAboveBudget: false });
+    if (chosen) return chosen;
+  }
+  const anyBudget = chooseCatalogEntryByHint(workingEntries, tokenHint, maxCost, { allowAboveBudget: false });
+  if (anyBudget) return anyBudget;
+  for (const group of groups) {
+    const chosen = chooseCatalogEntryByHint(group, tokenHint, maxCost, { allowAboveBudget: true });
+    if (chosen) return chosen;
+  }
+  return chooseCatalogEntryByHint(workingEntries, tokenHint, maxCost, { allowAboveBudget: true });
+}
+
+function snapActorsSummaryToCatalog({ summary, catalogEntries, remainingBudgetTokens, allowedOptions } = {}) {
+  if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
+    return { summary, changed: false };
+  }
+  if (!Array.isArray(summary.actors) || summary.actors.length === 0) {
+    return { summary, changed: false };
+  }
+  let changed = false;
+  const actors = summary.actors.map((pick) => {
+    if (!pick || typeof pick !== "object" || Array.isArray(pick)) return pick;
+    const fallback = selectFallbackCatalogEntry(catalogEntries, pick, {
+      maxCost: remainingBudgetTokens,
+      allowedOptions,
+    });
+    if (!fallback) return pick;
+    if (fallback.motivation === pick.motivation && fallback.affinity === pick.affinity) {
+      return pick;
+    }
+    changed = true;
+    return {
+      ...pick,
+      motivation: fallback.motivation,
+      affinity: fallback.affinity,
+    };
+  });
+  if (!changed) {
+    return { summary, changed: false };
+  }
+  return {
+    summary: {
+      ...summary,
+      actors,
+    },
+    changed: true,
   };
 }
 
@@ -248,6 +367,158 @@ function validateLayoutSummary({ summary, remainingBudgetTokens, priceList, layo
   return { ok: errors.length === 0, errors, layout, spend };
 }
 
+function isWalkableField(field) {
+  return field === "floorTiles" || field === "hallwayTiles";
+}
+
+function resolveTileCost(costs, field) {
+  const value = costs && Number.isInteger(costs[field]) && costs[field] > 0 ? costs[field] : 1;
+  return value;
+}
+
+function pickCheapestField({ costs, fields, budgetTokens }) {
+  if (!Array.isArray(fields) || fields.length === 0) return null;
+  const affordable = Number.isInteger(budgetTokens)
+    ? fields.filter((field) => resolveTileCost(costs, field) <= budgetTokens)
+    : fields.slice();
+  const pool = affordable.length > 0 ? affordable : fields;
+  return pool.reduce((best, field) => {
+    if (!best) return field;
+    const currentCost = resolveTileCost(costs, field);
+    const bestCost = resolveTileCost(costs, best);
+    if (currentCost < bestCost) return field;
+    return best;
+  }, null);
+}
+
+function selectReductionField(layout, costs) {
+  const fieldsWithTiles = LAYOUT_TILE_FIELDS.filter((field) => Number.isInteger(layout?.[field]) && layout[field] > 0);
+  if (fieldsWithTiles.length === 0) return null;
+  const walkableTiles = (layout.floorTiles || 0) + (layout.hallwayTiles || 0);
+  const safeCandidates = fieldsWithTiles.filter((field) => {
+    if (!isWalkableField(field)) return true;
+    return walkableTiles > 1;
+  });
+  const pool = safeCandidates.length > 0 ? safeCandidates : fieldsWithTiles;
+  return pool.reduce((best, field) => {
+    if (!best) return field;
+    const currentCost = resolveTileCost(costs, field);
+    const bestCost = resolveTileCost(costs, best);
+    if (currentCost > bestCost) return field;
+    if (currentCost < bestCost) return best;
+    return layout[field] > layout[best] ? field : best;
+  }, null);
+}
+
+function fitLayoutToBudget({
+  layout,
+  remainingBudgetTokens,
+  priceList,
+  layoutCosts,
+} = {}) {
+  if (!Number.isInteger(remainingBudgetTokens) || remainingBudgetTokens < 0) {
+    return { ok: false };
+  }
+  const normalized = normalizeLayoutCounts(layout);
+  if (!normalized) {
+    return { ok: false };
+  }
+
+  let working = { ...normalized };
+  let spend = evaluateLayoutSpend({
+    layout: working,
+    budgetTokens: remainingBudgetTokens,
+    priceList,
+    tileCosts: layoutCosts,
+  });
+  if (!spend.overBudget && sumLayoutTiles(working) > 0) {
+    return { ok: true, layout: spend.layout || working, layoutSpend: spend, adjusted: false };
+  }
+
+  const costs = spend.tileCosts || layoutCosts || {};
+  const originalSpent = spend.spentTokens;
+  const scale = originalSpent > 0 ? remainingBudgetTokens / originalSpent : 0;
+  if (scale > 0 && scale < 1) {
+    LAYOUT_TILE_FIELDS.forEach((field) => {
+      const count = Number.isInteger(working[field]) ? working[field] : 0;
+      working[field] = Math.max(0, Math.floor(count * scale));
+    });
+  }
+
+  const cheapestWalkableField = pickCheapestField({
+    costs,
+    fields: ["floorTiles", "hallwayTiles"],
+    budgetTokens: remainingBudgetTokens,
+  });
+  const cheapestAnyField = pickCheapestField({
+    costs,
+    fields: LAYOUT_TILE_FIELDS,
+    budgetTokens: remainingBudgetTokens,
+  });
+  const ensureNonEmpty = () => {
+    if (sumLayoutTiles(working) > 0) return;
+    if (cheapestAnyField) {
+      working[cheapestAnyField] = (working[cheapestAnyField] || 0) + 1;
+    }
+  };
+
+  ensureNonEmpty();
+  spend = evaluateLayoutSpend({
+    layout: working,
+    budgetTokens: remainingBudgetTokens,
+    priceList,
+    tileCosts: layoutCosts,
+  });
+
+  let guard = 0;
+  const maxGuard = Math.max(100, sumLayoutTiles(working) * 2 + 10);
+  while (spend.overBudget && guard < maxGuard) {
+    const field = selectReductionField(working, costs);
+    if (!field) break;
+    working[field] -= 1;
+    if (working[field] < 0) working[field] = 0;
+    ensureNonEmpty();
+    spend = evaluateLayoutSpend({
+      layout: working,
+      budgetTokens: remainingBudgetTokens,
+      priceList,
+      tileCosts: layoutCosts,
+    });
+    guard += 1;
+  }
+
+  const walkableTiles = (working.floorTiles || 0) + (working.hallwayTiles || 0);
+  if (walkableTiles <= 0 && cheapestWalkableField) {
+    const walkableCost = resolveTileCost(costs, cheapestWalkableField);
+    while (spend.spentTokens + walkableCost > remainingBudgetTokens) {
+      const field = selectReductionField(working, costs);
+      if (!field) break;
+      working[field] -= 1;
+      if (working[field] < 0) working[field] = 0;
+      spend = evaluateLayoutSpend({
+        layout: working,
+        budgetTokens: remainingBudgetTokens,
+        priceList,
+        tileCosts: layoutCosts,
+      });
+    }
+    if (spend.spentTokens + walkableCost <= remainingBudgetTokens) {
+      working[cheapestWalkableField] = (working[cheapestWalkableField] || 0) + 1;
+      spend = evaluateLayoutSpend({
+        layout: working,
+        budgetTokens: remainingBudgetTokens,
+        priceList,
+        tileCosts: layoutCosts,
+      });
+    }
+  }
+
+  if (spend.overBudget || sumLayoutTiles(working) <= 0) {
+    return { ok: false };
+  }
+  return { ok: true, layout: spend.layout || working, layoutSpend: spend, adjusted: true };
+}
+
 async function runPhase({
   adapter,
   model,
@@ -261,6 +532,7 @@ async function runPhase({
   phase,
   phaseContext,
   layoutCosts,
+  affinities,
   strict,
   format,
   stream,
@@ -269,16 +541,22 @@ async function runPhase({
   clock,
   requestId,
   catalog,
+  catalogEntries,
   priceList,
   maxRepairs = 1,
   nextCaptureMeta,
   extraValidator,
+  options,
 } = {}) {
   const startedAt = typeof clock === "function" ? clock() : undefined;
   const startMs = startedAt ? Date.parse(startedAt) : NaN;
   const captures = [];
   let validationErrors = [];
-  const basePrompt = buildPhasePrompt({
+  const promptAffinities = Array.isArray(affinities) && affinities.length > 0
+    ? affinities
+    : allowedOptions?.affinities;
+  const promptMotivations = allowedOptions?.motivations || ALLOWED_MOTIVATIONS;
+  const basePrompt = buildLlmPhasePromptTemplate({
     goal,
     notes,
     budgetTokens,
@@ -287,6 +565,9 @@ async function runPhase({
     allowedPairsText,
     context: phaseContext,
     layoutCosts,
+    affinities: promptAffinities,
+    affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+    motivations: promptMotivations,
   });
 
   const session = await runLlmSession({
@@ -310,11 +591,8 @@ async function runPhase({
       allowedPairsText,
       layoutCosts,
     }),
-    requireSummary: phase === "rooms_only"
-      ? { minRooms: 1 }
-      : phase === "actors_only"
-        ? { minActors: 1 }
-        : undefined,
+    requireSummary: phase === "actors_only" ? { minActors: 1 } : undefined,
+    options,
     runId,
     producedBy,
     clock,
@@ -335,11 +613,13 @@ async function runPhase({
     return { ok: false, errors: session.errors || [], captures, session, startedAt, endedAt, durationMs };
   }
 
-  const phaseSummary = filterSummaryByPhase(session.summary, phase);
+  let phaseSummary = filterSummaryByPhase(session.summary, phase);
   let selections = [];
   let layoutPlan = null;
   let layoutSpend = null;
   let validation = { ok: true, errors: [], missingSelections: [] };
+  let autoFitApplied = false;
+  let autoFitSourceErrors = [];
   if (phase === "layout_only") {
     const layoutValidation = validateLayoutSummary({
       summary: phaseSummary,
@@ -350,15 +630,65 @@ async function runPhase({
     layoutPlan = layoutValidation.layout;
     layoutSpend = layoutValidation.spend;
     validation = { ok: layoutValidation.ok, errors: layoutValidation.errors || [], missingSelections: [] };
+    if (!validation.ok && !strict) {
+      const fitted = fitLayoutToBudget({
+        layout: layoutPlan,
+        remainingBudgetTokens,
+        priceList,
+        layoutCosts,
+      });
+      if (fitted.ok && fitted.adjusted) {
+        autoFitApplied = true;
+        autoFitSourceErrors = validation.errors || [];
+        layoutPlan = fitted.layout;
+        layoutSpend = fitted.layoutSpend;
+        phaseSummary = { ...phaseSummary, layout: fitted.layout };
+        validation = { ok: true, errors: [], missingSelections: [] };
+      }
+    }
   } else {
     const mapped = mapSummaryToPool({ summary: phaseSummary, catalog });
     selections = mapped.selections;
     validation = validatePhaseSelections(mapped.selections, phase);
+    if (!strict && phase === "actors_only" && hasValidationCode(validation.errors, "missing_catalog_match")) {
+      const actorCount = countInstances(selections, "actor");
+      if (actorCount <= 0) {
+        const snapped = snapActorsSummaryToCatalog({
+          summary: phaseSummary,
+          catalogEntries,
+          remainingBudgetTokens,
+          allowedOptions,
+        });
+        if (snapped.changed) {
+          const remapped = mapSummaryToPool({ summary: snapped.summary, catalog });
+          const revalidated = validatePhaseSelections(remapped.selections, phase);
+          if (countInstances(remapped.selections, "actor") > 0) {
+            validationErrors = [...validationErrors, ...(validation.errors || [])];
+            phaseSummary = snapped.summary;
+            selections = remapped.selections;
+            validation = revalidated;
+          }
+        }
+      }
+      const recoveredActorCount = countInstances(selections, "actor");
+      if (recoveredActorCount > 0 && hasValidationCode(validation.errors, "missing_catalog_match")) {
+        const residual = (validation.errors || []).filter((entry) => entry?.code !== "missing_catalog_match");
+        validationErrors = [...validationErrors, ...(validation.errors || [])];
+        validation = {
+          ok: residual.length === 0,
+          errors: residual,
+          missingSelections: validation.missingSelections || [],
+        };
+      }
+    }
   }
   const extra = typeof extraValidator === "function"
     ? extraValidator({ selections, summary: phaseSummary, phase, layout: layoutPlan })
     : { ok: true, errors: [] };
   const combinedErrors = [...validation.errors, ...(extra.errors || [])];
+  if (autoFitApplied && validationErrors.length === 0) {
+    validationErrors = autoFitSourceErrors;
+  }
   if (validation.ok && extra.ok) {
     const endedAt = typeof clock === "function" ? clock() : undefined;
     const endMs = endedAt ? Date.parse(endedAt) : NaN;
@@ -372,6 +702,7 @@ async function runPhase({
       layoutSpend,
       captures,
       session,
+      validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
       startedAt,
       endedAt,
       durationMs,
@@ -430,6 +761,7 @@ async function runPhase({
       allowedPairsText,
       layoutCosts,
     }),
+    options,
     runId,
     producedBy,
     clock,
@@ -451,11 +783,13 @@ async function runPhase({
     return { ok: false, errors: repairSession.errors || [], captures, session: repairSession, startedAt, endedAt, durationMs };
   }
 
-  const repairSummary = filterSummaryByPhase(repairSession.summary, phase);
+  let repairSummary = filterSummaryByPhase(repairSession.summary, phase);
   let repairSelections = [];
   let repairLayoutPlan = null;
   let repairLayoutSpend = null;
   let repairValidation = { ok: true, errors: [], missingSelections: [] };
+  let repairAutoFitApplied = false;
+  let repairAutoFitSourceErrors = [];
   if (phase === "layout_only") {
     const layoutValidation = validateLayoutSummary({
       summary: repairSummary,
@@ -466,15 +800,65 @@ async function runPhase({
     repairLayoutPlan = layoutValidation.layout;
     repairLayoutSpend = layoutValidation.spend;
     repairValidation = { ok: layoutValidation.ok, errors: layoutValidation.errors || [], missingSelections: [] };
+    if (!repairValidation.ok && !strict) {
+      const fitted = fitLayoutToBudget({
+        layout: repairLayoutPlan,
+        remainingBudgetTokens,
+        priceList,
+        layoutCosts,
+      });
+      if (fitted.ok && fitted.adjusted) {
+        repairAutoFitApplied = true;
+        repairAutoFitSourceErrors = repairValidation.errors || [];
+        repairLayoutPlan = fitted.layout;
+        repairLayoutSpend = fitted.layoutSpend;
+        repairSummary = { ...repairSummary, layout: fitted.layout };
+        repairValidation = { ok: true, errors: [], missingSelections: [] };
+      }
+    }
   } else {
     const repairMapped = mapSummaryToPool({ summary: repairSummary, catalog });
     repairSelections = repairMapped.selections;
     repairValidation = validatePhaseSelections(repairMapped.selections, phase);
+    if (!strict && phase === "actors_only" && hasValidationCode(repairValidation.errors, "missing_catalog_match")) {
+      const actorCount = countInstances(repairSelections, "actor");
+      if (actorCount <= 0) {
+        const snapped = snapActorsSummaryToCatalog({
+          summary: repairSummary,
+          catalogEntries,
+          remainingBudgetTokens,
+          allowedOptions,
+        });
+        if (snapped.changed) {
+          const remapped = mapSummaryToPool({ summary: snapped.summary, catalog });
+          const revalidated = validatePhaseSelections(remapped.selections, phase);
+          if (countInstances(remapped.selections, "actor") > 0) {
+            validationErrors = [...validationErrors, ...(repairValidation.errors || [])];
+            repairSummary = snapped.summary;
+            repairSelections = remapped.selections;
+            repairValidation = revalidated;
+          }
+        }
+      }
+      const recoveredActorCount = countInstances(repairSelections, "actor");
+      if (recoveredActorCount > 0 && hasValidationCode(repairValidation.errors, "missing_catalog_match")) {
+        const residual = (repairValidation.errors || []).filter((entry) => entry?.code !== "missing_catalog_match");
+        validationErrors = [...validationErrors, ...(repairValidation.errors || [])];
+        repairValidation = {
+          ok: residual.length === 0,
+          errors: residual,
+          missingSelections: repairValidation.missingSelections || [],
+        };
+      }
+    }
   }
   const repairExtra = typeof extraValidator === "function"
     ? extraValidator({ selections: repairSelections, summary: repairSummary, phase, layout: repairLayoutPlan })
     : { ok: true, errors: [] };
   const repairCombinedErrors = [...repairValidation.errors, ...(repairExtra.errors || [])];
+  if (repairAutoFitApplied) {
+    validationErrors = [...validationErrors, ...repairAutoFitSourceErrors];
+  }
   if (repairValidation.ok && repairExtra.ok) {
     const endedAt = typeof clock === "function" ? clock() : undefined;
     const endMs = endedAt ? Date.parse(endedAt) : NaN;
@@ -499,6 +883,24 @@ async function runPhase({
   const durationMs = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs ? endMs - startMs : undefined;
   applyPhaseTimingToCaptures(captures, { startedAt, endedAt, durationMs });
   return { ok: false, errors: repairCombinedErrors, captures, session: repairSession, startedAt, endedAt, durationMs };
+}
+
+function resolvePhaseLlmOptions({ phase, optionsByPhase } = {}) {
+  const base = DOMAIN_CONSTRAINTS?.llm?.options && typeof DOMAIN_CONSTRAINTS.llm.options === "object"
+    ? { ...DOMAIN_CONSTRAINTS.llm.options }
+    : {};
+  const responseTokenBudget = DOMAIN_CONSTRAINTS?.llm?.responseTokenBudget || {};
+  if (phase === "layout_only" && Number.isInteger(responseTokenBudget.layoutPhase) && responseTokenBudget.layoutPhase > 0) {
+    base.num_predict = responseTokenBudget.layoutPhase;
+  } else if (phase === "actors_only" && Number.isInteger(responseTokenBudget.actorsPhase) && responseTokenBudget.actorsPhase > 0) {
+    base.num_predict = responseTokenBudget.actorsPhase;
+  }
+
+  const phaseOverrides = optionsByPhase?.[phase];
+  if (phaseOverrides && typeof phaseOverrides === "object") {
+    return { ...base, ...phaseOverrides };
+  }
+  return base;
 }
 
 function resolveStopReason({ summary, remainingBudgetTokens, cheapestCost, ignoreDoneIfBudgetRemains } = {}) {
@@ -543,6 +945,27 @@ function buildCombinedSummary({ baseSummary, selections, layout } = {}) {
   return summary;
 }
 
+function buildActorPhaseGoal({ baseGoal, dungeonAffinity, defenderAffinities } = {}) {
+  const defenderPhrase = formatAffinityPhrase(defenderAffinities);
+  if (isNonEmptyString(defenderPhrase)) {
+    return `Create dungeon defenders for a ${defenderPhrase} themed dungeon.`;
+  }
+  if (isNonEmptyString(dungeonAffinity)) {
+    return `Create dungeon defenders for a ${dungeonAffinity} themed dungeon.`;
+  }
+  if (isNonEmptyString(baseGoal)) {
+    const trimmed = baseGoal.trim();
+    if (/defender/i.test(trimmed)) {
+      return trimmed;
+    }
+    const affinityMatch = trimmed.match(/\b([a-z]+)\s+affinity\b/i);
+    if (affinityMatch) {
+      return `Create dungeon defenders for a ${affinityMatch[1].toLowerCase()} themed dungeon.`;
+    }
+  }
+  return "Create dungeon defenders for this dungeon.";
+}
+
 export async function runLlmBudgetLoop({
   adapter,
   model,
@@ -562,6 +985,8 @@ export async function runLlmBudgetLoop({
   clock,
   requestId,
   maxActorRounds = DEFAULT_MAX_ACTOR_ROUNDS,
+  optionsByPhase,
+  defenderAffinities,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
@@ -584,8 +1009,19 @@ export async function runLlmBudgetLoop({
   if (!catalogOk) {
     return { ok: false, errors: catalogErrors || [], captures: [] };
   }
+  const llmFormat = isNonEmptyString(format) ? format : DOMAIN_CONSTRAINTS?.llm?.outputFormat;
 
   const allowedOptions = deriveAllowedOptionsFromCatalog(catalog);
+  const defenderAffinityChoices = Array.isArray(defenderAffinities)
+    ? defenderAffinities
+      .map((value) => (typeof value === "string" ? value.trim().toLowerCase() : ""))
+      .filter(Boolean)
+    : [];
+  const defenderAffinitySet = new Set(allowedOptions.affinities || []);
+  const filteredDefenderAffinities = defenderAffinityChoices.filter((value) => defenderAffinitySet.has(value));
+  const defenderAllowedOptions = filteredDefenderAffinities.length > 0
+    ? { ...allowedOptions, affinities: filteredDefenderAffinities }
+    : allowedOptions;
   const allowedPairs = deriveAllowedPairs(catalog);
   const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
   const cheapestCost = computeCheapestCost(entries);
@@ -644,15 +1080,17 @@ export async function runLlmBudgetLoop({
     phaseContext: "",
     layoutCosts,
     strict,
-    format,
+    format: llmFormat,
     stream,
     runId: resolvedRunId,
     producedBy,
     clock: clockFn,
     requestId,
     catalog,
+    catalogEntries: entries,
     priceList,
     nextCaptureMeta,
+    options: resolvePhaseLlmOptions({ phase: "layout_only", optionsByPhase }),
     extraValidator: ({ summary, layout }) => {
       const layoutPlan = layout || normalizeLayoutCounts(summary?.layout);
       return validateFeasibility({ layout: layoutPlan, actorCount: 1 });
@@ -670,6 +1108,11 @@ export async function runLlmBudgetLoop({
     budgetTokens: remainingBudgetTokens,
     priceList,
     tileCosts: layoutCosts,
+  });
+  const actorGoal = buildActorPhaseGoal({
+    baseGoal: goal,
+    dungeonAffinity: layoutPhase.summary?.dungeonAffinity,
+    defenderAffinities: filteredDefenderAffinities,
   });
   const defenderBudgetWithRollover = defendersBudgetTokens + layoutSpendResult.remainingBudgetTokens;
   remainingBudgetTokens = defenderBudgetWithRollover;
@@ -717,25 +1160,28 @@ export async function runLlmBudgetLoop({
       adapter,
       model,
       baseUrl,
-      goal,
+      goal: actorGoal,
       notes,
       budgetTokens,
       remainingBudgetTokens,
       allowedPairsText,
-      allowedOptions,
+      allowedOptions: defenderAllowedOptions,
       phase: "actors_only",
       phaseContext,
       layoutCosts,
+      affinities: filteredDefenderAffinities.length > 0 ? filteredDefenderAffinities : undefined,
       strict,
-      format,
+      format: llmFormat,
       stream,
       runId: resolvedRunId,
       producedBy,
       clock: clockFn,
       requestId,
       catalog,
+      catalogEntries: entries,
       priceList,
       nextCaptureMeta,
+      options: resolvePhaseLlmOptions({ phase: "actors_only", optionsByPhase }),
       extraValidator: ({ selections }) => {
         const actorCount = countRequestedSelections(approvedActors, "actor")
           + countRequestedSelections(selections, "actor");
@@ -780,9 +1226,10 @@ export async function runLlmBudgetLoop({
   }
 
   const baseSummary = {
-    dungeonTheme: layoutPhase.summary?.dungeonTheme || lastActorSummary?.dungeonTheme,
+    dungeonAffinity: layoutPhase.summary?.dungeonAffinity || lastActorSummary?.dungeonAffinity,
     budgetTokens: layoutPhase.summary?.budgetTokens || budgetTokens,
     layout: layoutPlan || layoutPhase.summary?.layout,
+    roomDesign: layoutPhase.summary?.roomDesign,
   };
 
   const summary = buildCombinedSummary({

@@ -1,5 +1,5 @@
 {
-  "dungeonTheme": "fire",
+  "dungeonAffinity": "fire",
   "budgetTokens": 800,
   "rooms": [
     {

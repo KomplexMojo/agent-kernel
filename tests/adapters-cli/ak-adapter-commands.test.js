@@ -79,3 +79,20 @@ test("cli llm command writes response JSON", async () => {
   const payload = JSON.parse(readFileSync(join(outDir, "llm.json"), "utf8"));
   assert.equal(payload.response, "ok");
 });
+
+test("cli llm command defaults model to phi4 when omitted", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-default-model-"));
+  runCli([
+    "llm",
+    "--prompt",
+    "hello",
+    "--base-url",
+    "http://local",
+    "--fixture",
+    "tests/fixtures/adapters/llm-generate.json",
+    "--out-dir",
+    outDir,
+  ]);
+  const payload = JSON.parse(readFileSync(join(outDir, "llm.json"), "utf8"));
+  assert.equal(payload.response, "ok");
+});

@@ -20,8 +20,8 @@ const EXPECTED_TIERS = new Map([
 ]);
 
 test("e2e actor fixtures include deterministic, varied actor sets", async () => {
-  const { AFFINITY_KINDS, AFFINITY_EXPRESSIONS } = await import(
-    moduleUrl("packages/runtime/src/personas/configurator/affinity-loadouts.js")
+  const { AFFINITY_KINDS, AFFINITY_EXPRESSIONS, VITAL_KEYS } = await import(
+    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
   );
   const { MOTIVATION_KINDS } = await import(
     moduleUrl("packages/runtime/src/personas/configurator/motivation-loadouts.js")
@@ -66,8 +66,7 @@ test("e2e actor fixtures include deterministic, varied actor sets", async () => 
       assert.ok(actor.position.x >= 0 && actor.position.x < fixture.level.width);
       assert.ok(actor.position.y >= 0 && actor.position.y < fixture.level.height);
 
-      const vitalKeys = ["health", "mana", "stamina", "durability"];
-      vitalKeys.forEach((key) => {
+      VITAL_KEYS.forEach((key) => {
         const vital = actor.vitals?.[key];
         assert.ok(vital && Number.isFinite(vital.current));
         assert.ok(Number.isFinite(vital.max));

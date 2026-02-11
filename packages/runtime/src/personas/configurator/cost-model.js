@@ -1,5 +1,6 @@
-const VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
-const REGEN_KEYS = Object.freeze(["health", "mana", "stamina"]);
+import { VITAL_KEYS } from "../../contracts/domain-constants.js";
+
+const REGEN_KEYS = Object.freeze(VITAL_KEYS.filter((key) => key !== "durability"));
 
 const COST_DEFAULTS = Object.freeze({
   tokensPerVital: 1,

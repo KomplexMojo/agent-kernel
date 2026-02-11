@@ -25,6 +25,7 @@ const core = {
   init: exports.init,
   loadMvpScenario: exports.loadMvpScenario,
   applyAction: exports.applyAction,
+  setMoveAction: exports.setMoveAction,
   getMapWidth: exports.getMapWidth,
   getMapHeight: exports.getMapHeight,
   getActorX: exports.getActorX,
@@ -67,6 +68,7 @@ const elements = {
   tileActorCount: makeEl(),
   trapList: makeEl(),
   trapCount: makeEl(),
+  eventStream: makeEl(),
   trapTab: { disabled: false, setAttribute() {} },
   tick: makeEl(),
   status: makeEl(),
@@ -92,10 +94,13 @@ assert.ok(Number(elements.tileActorCount.textContent) > 0);
 assert.ok(elements.tileActorList.textContent.includes("tile_"));
 assert.ok(elements.trapList.textContent.includes("trap @(2,2)"));
 assert.ok(elements.trapList.textContent.includes("fire:push x2"));
+assert.equal(elements.eventStream.textContent.trim(), "No events yet.");
 controller.stepForward();
 assert.equal(elements.frame.textContent.trim(), frameFixture.frames[1].buffer.join("\\n"));
 assert.equal(elements.tick.textContent, "1");
 assert.equal(elements.stepBack.disabled, false);
+assert.ok(elements.eventStream.textContent.includes("t1"));
+assert.ok(elements.eventStream.textContent.includes("move"));
 controller.toggle();
 assert.equal(elements.playButton.textContent, "Pause");
 assert.equal(elements.playButton.disabled, false);

@@ -30,11 +30,11 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
 ## 2) LLM Prompt Contract & Orchestrator
 1. [implemented] Define the menu-only dungeon master prompt contract (summary, not BuildSpec).
    - Requirement: LLM returns a small JSON summary choosing from allowed menus; no schema/stats invention.
-   - Behavior details: Multi-turn contract—LLM acknowledges `ready`, lists missing info, waits for “final JSON” request. Allowed lists must use defined constants only: affinities/themes (`fire`, `water`, `earth`, `wind`, `life`, `decay`, `corrode`, `dark`) and motivations (`random`, `stationary`, `exploring`, `attacking`, `defending`, `patrolling`). LLM returns counts and optional token hints, not IDs or stats.
+   - Behavior details: Multi-turn contract—LLM acknowledges `ready`, lists missing info, waits for “final JSON” request. Allowed lists must use defined constants only: affinities (`fire`, `water`, `earth`, `wind`, `life`, `decay`, `corrode`, `dark`) and motivations (`random`, `stationary`, `exploring`, `attacking`, `defending`, `patrolling`). LLM returns counts and optional token hints, not IDs or stats.
    - Data shape proposal:
      ```json
      {
-       "dungeonTheme": "fire",
+       "dungeonAffinity": "fire",
        "budgetTokens": 800,
        "rooms": [{ "motivation": "stationary", "affinity": "fire", "count": 2, "tokenHint": 200 }],
        "actors": [
@@ -70,7 +70,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
    - Requirement: Produce BuildSpec with meta/intent/plan.hints/configurator.inputs (levelGen from room metadata; actors/actorGroups from selections) and budget refs from defaults.
    - Behavior details: Include receipts (trim/down-tier) for UI; run BuildSpec validator; on errors, produce minimal repair prompts requesting only missing summary fields (not full BuildSpec).
    - Data shape proposal: `BuildSpec` plus `receipts[]` and `appliedBudget`.
-   - Defaults: Fill `meta.runId/createdAt/source` deterministically; default levelAffinity from dungeonTheme; default levelGen shape from room size envelope.
+   - Defaults: Fill `meta.runId/createdAt/source` deterministically; default levelAffinity from dungeonAffinity; default levelGen shape from room size envelope.
    - Tests: Integration test: summary fixture → BuildSpec → validator ok; repair test: missing fields trigger targeted re-prompt.
    - Determinism: Validation order stable; ID reuse across refinements.
    - Notes: Preserve unknown fields if round-tripping in UI; keep ordering consistent.
@@ -128,7 +128,7 @@ Goal: constrain the LLM (as dungeon master) to pick from prebuilt room/actor art
 1. [implemented] Document the pool-driven workflow and UI authoring tab.
    - Requirement: Add doc sections (human-interfaces/UI README) linking this plan, describing pool authoring, menu-only LLM contract, receipts/trim behavior, and replay/debug story.
    - Behavior details: Include where artifacts land (catalog/summary fixtures under `tests/fixtures/pool/`), how to load them in the Pool Flow panel, and how to re-prompt/adjust within budget using the derived allowed menus. Describe the authoring tab intent (template save → catalog → menu options).
-   - Data shape proposal: Reference pool catalog format (`type: actor`, `subType`, `motivation`, `affinity`, `cost`, tags/meta) and summary JSON contract (`dungeonTheme`, `budgetTokens`, `rooms[]`, `actors[]` with `tokenHint`).
+   - Data shape proposal: Reference pool catalog format (`type: actor`, `subType`, `motivation`, `affinity`, `cost`, tags/meta) and summary JSON contract (`dungeonAffinity`, `budgetTokens`, `rooms[]`, `actors[]` with `tokenHint`).
    - Defaults: Recommend fixture mode for testing; clarify token snapping (nearest <= hint) and budget enforcement (deterministic trim order); note auto-filled meta/runId/source when assembling BuildSpec.
    - Tests: N/A (docs), but link to relevant fixtures/tests (`tests/runtime/pool-*.test.js`, `tests/ui-web/pool-flow.test.mjs`) for reference.
    - Determinism: Call out deterministic catalog sorting, mapping, budget receipts, and BuildSpec validation; emphasize replayability when using captured prompt/summary + catalog.

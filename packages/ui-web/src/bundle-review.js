@@ -148,6 +148,7 @@ export function wireBundleReview({
 
   const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
   const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
+  const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
 
   const sessionStorage = storageFor("session");
   const localStorage = storageFor("local");
@@ -272,18 +273,26 @@ export function wireBundleReview({
   function runFromBundle() {
     if (!state.bundle) {
       setStatus(statusEl, "Load a bundle.json to run the simulation.");
-      return;
+      return false;
     }
     const simConfig = findArtifact(SIM_CONFIG_SCHEMA);
     const initialState = findArtifact(INITIAL_STATE_SCHEMA);
+    const affinitySummary = findArtifact(AFFINITY_SUMMARY_SCHEMA);
     if (!simConfig || !initialState) {
       setStatus(statusEl, "Bundle missing SimConfigArtifact or InitialStateArtifact.");
-      return;
+      return false;
     }
+    const affinityEffects = affinitySummary
+      ? {
+        actors: Array.isArray(affinitySummary.actors) ? affinitySummary.actors : [],
+        traps: Array.isArray(affinitySummary.traps) ? affinitySummary.traps : [],
+      }
+      : null;
     if (typeof onRun === "function") {
-      onRun({ simConfig, initialState });
+      onRun({ simConfig, initialState, affinityEffects });
     }
     setStatus(statusEl, "Loaded artifacts into Runtime controls.");
+    return true;
   }
 
   function downloadSpec() {
@@ -357,7 +366,7 @@ export function wireBundleReview({
     const response = snapshot?.response;
     if (!response) {
       setStatus(statusEl, "No bundle data in last build.");
-      return;
+      return false;
     }
     if (response.bundle) {
       state.bundle = response.bundle;
@@ -374,25 +383,27 @@ export function wireBundleReview({
       if (typeof onBundleLoaded === "function") {
         onBundleLoaded({ bundle: state.bundle, manifest: state.manifest, source: "snapshot" });
       }
+      return true;
     } else if (response.manifest) {
       setStatus(statusEl, "Loaded manifest from last build.");
+      return false;
     } else {
       setStatus(statusEl, "Last build did not include bundle data.");
+      return false;
     }
   }
 
   function loadLastBuild() {
     const sessionSnapshot = readSnapshot(sessionStorage, STORAGE_KEYS.session);
     if (sessionSnapshot) {
-      loadFromSnapshot(sessionSnapshot);
-      return;
+      return loadFromSnapshot(sessionSnapshot);
     }
     const localSnapshot = readSnapshot(localStorage, STORAGE_KEYS.local);
     if (localSnapshot) {
-      loadFromSnapshot(localSnapshot);
-      return;
+      return loadFromSnapshot(localSnapshot);
     }
     setStatus(statusEl, "No saved builds found.");
+    return false;
   }
 
   bundleInput?.addEventListener("change", () => {
@@ -432,5 +443,5 @@ export function wireBundleReview({
     loadFromSnapshot(sessionSnapshot);
   }
 
-  return { loadLastBuild, clear, applySpecEdits };
+  return { loadLastBuild, clear, applySpecEdits, runFromBundle };
 }

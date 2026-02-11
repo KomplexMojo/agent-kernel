@@ -1,15 +1,10 @@
-export const AFFINITY_KINDS = Object.freeze([
-  "fire",
-  "water",
-  "earth",
-  "wind",
-  "life",
-  "decay",
-  "corrode",
-  "dark",
-]);
+import {
+  AFFINITY_EXPRESSIONS as DOMAIN_AFFINITY_EXPRESSIONS,
+  AFFINITY_KINDS as DOMAIN_AFFINITY_KINDS,
+} from "../../runtime/src/contracts/domain-constants.js";
 
-export const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
+export const AFFINITY_KINDS = DOMAIN_AFFINITY_KINDS;
+export const AFFINITY_EXPRESSIONS = DOMAIN_AFFINITY_EXPRESSIONS;
 
 function clearList(listEl) {
   if (!listEl) return;

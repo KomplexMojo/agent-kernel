@@ -1,5 +1,5 @@
 {
-  "dungeonTheme": "fire",
+  "dungeonAffinity": "fire",
   "budgetTokens": 800,
   "rooms": [{ "motivation": "stationary", "affinity": "fire", "count": 1, "tokenHint": 200 }],
   "actors": [{ "motivation": "attacking", "affinity": "fire", "count": 1, "tokenHint": 200 }]

@@ -1,3 +1,5 @@
+import { VITAL_KEYS, VITAL_KIND } from "../contracts/domain-constants.js";
+
 const TILE_CODES = Object.freeze({
   wall: 0,
   floor: 1,
@@ -22,7 +24,6 @@ const TILE_CHAR_TO_CODE = Object.freeze({
   B: TILE_CODES.barrier,
 });
 
-const VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
 const CAPABILITY_DEFAULTS = Object.freeze({
   movementCost: 1,
   actionCostMana: 0,
@@ -253,9 +254,9 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
     }
     for (let index = 0; index < actors.length; index += 1) {
       const vitals = normalizeVitals(actors[index].vitals);
-      VITAL_KEYS.forEach((key, kind) => {
+      VITAL_KEYS.forEach((key) => {
         const record = vitals[key];
-        core.setMotivatedActorVital(index, kind, record.current, record.max, record.regen);
+        core.setMotivatedActorVital(index, VITAL_KIND[key], record.current, record.max, record.regen);
       });
       const capabilities = normalizeCapabilities(actors[index].capabilities);
       if (typeof core.setMotivatedActorMovementCost === "function") {
@@ -289,9 +290,9 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
   core.spawnActorAt(position.x, position.y);
 
   const vitals = normalizeVitals(primary.vitals);
-  VITAL_KEYS.forEach((key, index) => {
+  VITAL_KEYS.forEach((key) => {
     const record = vitals[key];
-    core.setActorVital(index, record.current, record.max, record.regen);
+    core.setActorVital(VITAL_KIND[key], record.current, record.max, record.regen);
   });
   const capabilities = normalizeCapabilities(primary.capabilities);
   if (typeof core.setActorMovementCost === "function") {

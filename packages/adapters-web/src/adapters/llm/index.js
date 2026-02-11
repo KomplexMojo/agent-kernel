@@ -1,16 +1,22 @@
-export function createLlmAdapter({ baseUrl = "http://localhost:11434", fetchFn = fetch } = {}) {
+import { DEFAULT_LLM_BASE_URL } from "../../../../runtime/src/contracts/domain-constants.js";
+
+export function createLlmAdapter({ baseUrl = DEFAULT_LLM_BASE_URL, fetchFn = fetch } = {}) {
   if (!fetchFn) {
     throw new Error("LLM adapter requires a fetch implementation.");
   }
 
-  async function generate({ model, prompt, options = {}, stream = false } = {}) {
+  async function generate({ model, prompt, options = {}, stream = false, format } = {}) {
     if (!model || !prompt) {
       throw new Error("LLM generate requires model and prompt.");
+    }
+    const payload = { model, prompt, options, stream };
+    if (format) {
+      payload.format = format;
     }
     const response = await fetchFn(`${baseUrl}/api/generate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model, prompt, options, stream }),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) {
       throw new Error(`LLM request failed: ${response.status} ${response.statusText}`);

@@ -50,8 +50,11 @@ test("e2e trace wires prompt -> summary -> build -> runtime", async () => {
   const llmFixture = readJson("tests/fixtures/e2e/llm-summary-response.json");
   const summaryFixture = readJson(scenario.summaryPath);
 
-  const { buildMenuPrompt, capturePromptResponse } = await import(
+  const { ALLOWED_AFFINITIES, ALLOWED_AFFINITY_EXPRESSIONS, ALLOWED_MOTIVATIONS, capturePromptResponse } = await import(
     moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+  );
+  const { buildLlmActorConfigPromptTemplate } = await import(
+    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
   );
   const { mapSummaryToPool } = await import(
     moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
@@ -66,14 +69,20 @@ test("e2e trace wires prompt -> summary -> build -> runtime", async () => {
     moduleUrl("packages/runtime/src/runner/core-setup.mjs")
   );
 
-  const prompt = buildMenuPrompt({ goal: scenario.goal, budgetTokens: scenario.budgetTokens });
+  const prompt = buildLlmActorConfigPromptTemplate({
+    goal: scenario.goal,
+    budgetTokens: scenario.budgetTokens,
+    affinities: ALLOWED_AFFINITIES,
+    affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+    motivations: ALLOWED_MOTIVATIONS,
+  });
   assert.equal(prompt, llmFixture.prompt);
 
   const capture = capturePromptResponse({ prompt, responseText: llmFixture.responseRaw });
   assert.equal(capture.errors.length, 0);
   assert.ok(capture.summary);
   assert.equal(capture.summary.budgetTokens, scenario.budgetTokens);
-  assert.equal(capture.summary.dungeonTheme, summaryFixture.dungeonTheme);
+  assert.equal(capture.summary.dungeonAffinity, summaryFixture.dungeonAffinity);
 
   const mapped = mapSummaryToPool({ summary: capture.summary, catalog });
   assert.equal(mapped.ok, true);

@@ -8,3 +8,24 @@ export { mapBuildSpecToArtifacts } from "./build/map-build-spec.js";
 export { orchestrateBuild } from "./build/orchestrate-build.js";
 export { buildBuildTelemetryRecord } from "./build/telemetry.js";
 export { createSchemaCatalog, filterSchemaCatalogEntries } from "./contracts/schema-catalog.js";
+export {
+  AFFINITY_KINDS,
+  AFFINITY_EXPRESSIONS,
+  DEFAULT_DUNGEON_AFFINITY,
+  DEFAULT_AFFINITY_EXPRESSION,
+  DEFAULT_LLM_MODEL,
+  DEFAULT_LLM_BASE_URL,
+  DEFAULT_LLM_CONTEXT_WINDOW_TOKENS,
+  PHI4_MODEL_CONTEXT_WINDOW_TOKENS,
+  PHI4_LAYOUT_MAX_LATENCY_MS,
+  PHI4_RESPONSE_TOKEN_BUDGET,
+  PHI4_OLLAMA_OPTIONS,
+  DOMAIN_CONSTRAINTS,
+  VITAL_KEYS,
+  TRAP_VITAL_KEYS,
+  VITAL_KIND,
+  VITAL_COUNT,
+  DEFAULT_VITALS,
+  normalizeVitalRecord,
+  normalizeVitals,
+} from "./contracts/domain-constants.js";

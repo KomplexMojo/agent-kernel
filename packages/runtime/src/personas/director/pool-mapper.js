@@ -1,4 +1,5 @@
 import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
+import { VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 function snapSelection({ entries, motivation, affinity, tokenHint }) {
   const matching = entries.filter((entry) => entry.motivation === motivation && entry.affinity === affinity);
@@ -54,6 +55,17 @@ function normalizePickAffinities(pick) {
   return [];
 }
 
+function copyActorVitals(vitals) {
+  if (!vitals || typeof vitals !== "object" || Array.isArray(vitals)) return undefined;
+  const copied = VITAL_KEYS.reduce((acc, key) => {
+    if (vitals[key] && typeof vitals[key] === "object" && !Array.isArray(vitals[key])) {
+      acc[key] = { ...vitals[key] };
+    }
+    return acc;
+  }, {});
+  return Object.keys(copied).length > 0 ? copied : undefined;
+}
+
 export function mapSummaryToPool({ summary, catalog }) {
   const { ok, entries, errors } = normalizePoolCatalog(catalog || {});
   if (!ok) {
@@ -89,11 +101,11 @@ export function mapSummaryToPool({ summary, catalog }) {
         affinity: applied.affinity,
         cost: applied.cost,
       },
-        receipt: {
-          status: receipt.status,
-          reason: receipt.reason,
-          count: pick.count,
-        },
+      receipt: {
+        status: receipt.status,
+        reason: receipt.reason,
+        count: pick.count,
+      },
       instances: Array.from({ length: pick.count }, (_, idx) => {
         const instance = {
           id: deriveId({ motivation: applied.motivation, affinity: applied.affinity, cost: applied.cost, index: idx }),
@@ -106,6 +118,8 @@ export function mapSummaryToPool({ summary, catalog }) {
         if (affinities.length > 0) {
           instance.affinities = affinities.map((entry) => ({ ...entry }));
         }
+        const copiedVitals = copyActorVitals(pick?.vitals);
+        if (copiedVitals) instance.vitals = copiedVitals;
         return instance;
       }),
     });

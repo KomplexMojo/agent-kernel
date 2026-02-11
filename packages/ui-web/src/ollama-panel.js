@@ -1,12 +1,13 @@
 import { runLlmDemo, DEFAULT_FIXTURES } from "./adapter-playground.js";
 import { validateBuildSpec } from "../../runtime/src/contracts/build-spec.js";
 import { buildBuildSpecPrompt } from "./ollama-template.js";
+import { DEFAULT_LLM_BASE_URL, DEFAULT_LLM_MODEL } from "../../runtime/src/contracts/domain-constants.js";
 
 const STORAGE_KEY = "ak.ollama.prompt";
 const DEFAULT_STATE = Object.freeze({
-  mode: "fixture",
-  model: "llama3",
-  baseUrl: "http://localhost:11434",
+  mode: "live",
+  model: DEFAULT_LLM_MODEL,
+  baseUrl: DEFAULT_LLM_BASE_URL,
   prompt: "",
   optionsText: "",
 });
@@ -78,7 +79,7 @@ function parseOptions(text) {
 }
 
 function modeValue(value) {
-  return value === "live" ? "live" : "fixture";
+  return value === "fixture" ? "fixture" : "live";
 }
 
 function extractResponseText(payload) {
@@ -262,7 +263,11 @@ export function wireOllamaPromptPanel({
   }
 
   function applyState(next) {
-    if (modeSelect) modeSelect.value = modeValue(next.mode);
+    if (modeSelect && typeof modeSelect.addEventListener === "function") {
+      modeSelect.value = modeValue(next.mode);
+    } else if (modeSelect) {
+      modeSelect.value = "live";
+    }
     if (modelInput) modelInput.value = next.model || DEFAULT_STATE.model;
     if (baseUrlInput) baseUrlInput.value = next.baseUrl || DEFAULT_STATE.baseUrl;
     if (promptInput) promptInput.value = next.prompt || "";
@@ -271,7 +276,7 @@ export function wireOllamaPromptPanel({
 
   function collectState() {
     return {
-      mode: modeValue(modeSelect?.value),
+      mode: modeSelect && typeof modeSelect.addEventListener === "function" ? modeValue(modeSelect.value) : "live",
       model: valueOf(modelInput, DEFAULT_STATE.model),
       baseUrl: valueOf(baseUrlInput, DEFAULT_STATE.baseUrl),
       prompt: valueOf(promptInput, ""),
@@ -285,7 +290,7 @@ export function wireOllamaPromptPanel({
   }
 
   function updateStatus() {
-    const mode = modeValue(modeSelect?.value);
+    const mode = modeSelect && typeof modeSelect.addEventListener === "function" ? modeValue(modeSelect.value) : "live";
     const label = mode === "live" ? "Live mode ready." : "Fixture mode ready.";
     setStatus(statusEl, label);
   }

@@ -10,7 +10,12 @@ const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 const ACTION_FIXTURE = resolve(ROOT, "tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json");
 
-const VITAL_KEYS = ["health", "mana", "stamina", "durability"];
+let VITAL_KEYS = [];
+
+test.before(async () => {
+  const shared = await import("../../packages/runtime/src/contracts/domain-constants.js");
+  VITAL_KEYS = Array.from(shared.VITAL_KEYS);
+});
 
 function runCli(args, options = {}) {
   const result = spawnSync(process.execPath, [CLI, ...args], {

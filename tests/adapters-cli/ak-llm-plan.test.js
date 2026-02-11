@@ -67,7 +67,7 @@ test("cli llm-plan writes build outputs with captured input artifact", () => {
   assert.ok(capture.payload.responseRaw);
   assert.ok(capture.payload.responseParsed);
   assert.ok(capture.payload.summary);
-  assert.equal(capture.payload.summary.dungeonTheme, "fire");
+  assert.equal(capture.payload.summary.dungeonAffinity, "fire");
   assert.ok(capture.payload.phaseTiming?.startedAt);
   assert.ok(capture.payload.phaseTiming?.endedAt);
   assert.equal(typeof capture.payload.phaseTiming?.durationMs, "number");

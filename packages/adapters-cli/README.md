@@ -128,7 +128,7 @@ node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config
 node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url https://rpc.example --address 0xabc
-node packages/adapters-cli/src/cli/ak.mjs llm --model llama3 --prompt "Summarize plan"
+node packages/adapters-cli/src/cli/ak.mjs llm --model phi4 --prompt "Summarize plan"
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 
 Fixture-driven usage (no network):
@@ -156,7 +156,7 @@ Expected outputs (defaults when `--out-dir` is set):
 
 - IPFS: `--gateway` (default: `https://ipfs.io/ipfs`), `--cid`, optional `--path`.
 - Blockchain: `--rpc-url` (required), `--address` (optional for balance).
-- LLM (Ollama-style): `--base-url` (default: `http://localhost:11434`), `--model`, `--prompt`.
+- LLM (Ollama-style): `--base-url` (default: `http://localhost:11434`), `--model` (default: `phi4`), `--prompt`.
 - LLM format hint: set `AK_LLM_FORMAT=json` to request JSON-only output from Ollama-compatible endpoints.
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
 - Run action log: `--actions` path to an ActionSequence artifact (emitted to `action-log.json`).

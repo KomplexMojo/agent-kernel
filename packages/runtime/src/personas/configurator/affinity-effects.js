@@ -1,3 +1,5 @@
+import { VITAL_KEYS } from "../../contracts/domain-constants.js";
+
 function isNumber(value) {
   return typeof value === "number" && !Number.isNaN(value);
 }
@@ -11,12 +13,10 @@ function ensureVitalRecord(record) {
 }
 
 function ensureVitals(vitals = {}) {
-  return {
-    health: ensureVitalRecord(vitals.health),
-    mana: ensureVitalRecord(vitals.mana),
-    stamina: ensureVitalRecord(vitals.stamina),
-    durability: ensureVitalRecord(vitals.durability),
-  };
+  return VITAL_KEYS.reduce((acc, key) => {
+    acc[key] = ensureVitalRecord(vitals[key]);
+    return acc;
+  }, {});
 }
 
 function scaleValue(value, stacks, scaling) {
@@ -85,23 +85,17 @@ function addAffinityStack(map, kind, expression, stacks) {
   map[key] = current === undefined ? value : current + value;
 }
 
-function applyPresetToVitals(vitals, preset, stacks, { allowHealth = true, allowStamina = true } = {}) {
+function applyPresetToVitals(vitals, preset, stacks, allowByVital = {}) {
   const modifiers = preset.vitalsModifiers;
   if (!modifiers) return vitals;
   const scaling = preset.stack?.scaling || "linear";
   const next = { ...vitals };
-  if (allowHealth && modifiers.health) {
-    next.health = applyVitalModifier(next.health, modifiers.health, stacks, scaling);
-  }
-  if (allowStamina && modifiers.stamina) {
-    next.stamina = applyVitalModifier(next.stamina, modifiers.stamina, stacks, scaling);
-  }
-  if (modifiers.mana) {
-    next.mana = applyVitalModifier(next.mana, modifiers.mana, stacks, scaling);
-  }
-  if (modifiers.durability) {
-    next.durability = applyVitalModifier(next.durability, modifiers.durability, stacks, scaling);
-  }
+  VITAL_KEYS.forEach((key) => {
+    if (allowByVital[key] === false) return;
+    if (modifiers[key]) {
+      next[key] = applyVitalModifier(next[key], modifiers[key], stacks, scaling);
+    }
+  });
   return next;
 }
 
@@ -114,11 +108,10 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
     const preset = presetIndex.get(affinity.presetId);
     if (!preset) return;
     const stacks = affinity.stacks || 1;
-    const updatedVitals = applyPresetToVitals(vitals, preset, stacks, { allowHealth: true, allowStamina: true });
-    vitals.health = updatedVitals.health;
-    vitals.mana = updatedVitals.mana;
-    vitals.stamina = updatedVitals.stamina;
-    vitals.durability = updatedVitals.durability;
+    const updatedVitals = applyPresetToVitals(vitals, preset, stacks);
+    VITAL_KEYS.forEach((key) => {
+      vitals[key] = updatedVitals[key];
+    });
     addAffinityStack(affinityStacks, preset.kind, preset.expression, stacks);
 
     const presetAbilities = resolvePresetAbilities(preset);
@@ -145,12 +138,13 @@ function resolveTrapEffects(trap, presets) {
   const preset = selectPresetForTrap(trap, presets);
   if (preset) {
     const allowHealth = preset.kind === "life" || preset.kind === "decay";
-    const allowStamina = false;
-    const updatedVitals = applyPresetToVitals(baseVitals, preset, trap.affinity.stacks, { allowHealth, allowStamina });
-    baseVitals.health = updatedVitals.health;
-    baseVitals.mana = updatedVitals.mana;
-    baseVitals.stamina = updatedVitals.stamina;
-    baseVitals.durability = updatedVitals.durability;
+    const updatedVitals = applyPresetToVitals(baseVitals, preset, trap.affinity.stacks, {
+      health: allowHealth,
+      stamina: false,
+    });
+    VITAL_KEYS.forEach((key) => {
+      baseVitals[key] = updatedVitals[key];
+    });
     const presetAbilities = resolvePresetAbilities(preset);
     presetAbilities.forEach((ability) => {
       abilities.push(resolveAbility(ability, preset, trap.affinity.stacks));

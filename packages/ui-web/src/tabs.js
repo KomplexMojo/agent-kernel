@@ -1,4 +1,4 @@
-export function wireTabs({ buttons = [], panels = [], defaultTab } = {}) {
+export function wireTabs({ buttons = [], panels = [], defaultTab, onChange } = {}) {
   const buttonList = Array.from(buttons);
   const panelList = Array.from(panels);
 
@@ -15,6 +15,9 @@ export function wireTabs({ buttons = [], panels = [], defaultTab } = {}) {
     panelList.forEach((panel) => {
       panel.hidden = panel?.dataset?.tabPanel !== tabId;
     });
+    if (typeof onChange === "function") {
+      onChange(tabId);
+    }
   }
 
   const initial = defaultTab || buttonList[0]?.dataset?.tab;
