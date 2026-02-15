@@ -12,9 +12,22 @@ export const AFFINITY_KINDS = Object.freeze([
 export const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
 export const DEFAULT_DUNGEON_AFFINITY = AFFINITY_KINDS[0];
 export const DEFAULT_AFFINITY_EXPRESSION = AFFINITY_EXPRESSIONS[0];
+export const ATTACKER_SETUP_MODES = Object.freeze(["auto", "user", "hybrid"]);
+export const DEFAULT_ATTACKER_SETUP_MODE = ATTACKER_SETUP_MODES[0];
 export const DEFAULT_LLM_MODEL = "phi4";
 export const DEFAULT_LLM_BASE_URL = "http://localhost:11434";
 export const DEFAULT_LLM_CONTEXT_WINDOW_TOKENS = 256000;
+export const LAYOUT_TILE_FIELDS = Object.freeze(["floorTiles", "hallwayTiles"]);
+export const LEGACY_LAYOUT_TILE_FIELDS = Object.freeze(["wallTiles"]);
+const LAYOUT_PROFILE_CHOICES = Object.freeze(["rooms", "sparse_islands", "clustered_islands", "rectangular"]);
+export const DEFAULT_LAYOUT_TILE_COSTS = Object.freeze({
+  floorTiles: 1,
+  hallwayTiles: 1,
+});
+export const LAYOUT_TILE_PRICE_IDS = Object.freeze({
+  floorTiles: { id: "tile_floor", kind: "tile" },
+  hallwayTiles: { id: "tile_hallway", kind: "tile" },
+});
 export const PHI4_MODEL_CONTEXT_WINDOW_TOKENS = 16384;
 export const PHI4_LAYOUT_MAX_LATENCY_MS = 10000;
 export const PHI4_RESPONSE_TOKEN_BUDGET = Object.freeze({
@@ -45,6 +58,7 @@ export const VITAL_COUNT = VITAL_KEYS.length;
 
 export const AFFINITY_KIND_SET = new Set(AFFINITY_KINDS);
 export const AFFINITY_EXPRESSION_SET = new Set(AFFINITY_EXPRESSIONS);
+export const ATTACKER_SETUP_MODE_SET = new Set(ATTACKER_SETUP_MODES);
 export const DOMAIN_CONSTRAINTS = Object.freeze({
   llm: Object.freeze({
     model: DEFAULT_LLM_MODEL,
@@ -58,20 +72,25 @@ export const DOMAIN_CONSTRAINTS = Object.freeze({
     responseTokenBudget: PHI4_RESPONSE_TOKEN_BUDGET,
     options: PHI4_OLLAMA_OPTIONS,
   }),
+  attacker: Object.freeze({
+    setupModes: ATTACKER_SETUP_MODES,
+    defaultSetupMode: DEFAULT_ATTACKER_SETUP_MODE,
+  }),
 });
 
 const LLM_PROMPT_SUFFIX_JSON_ONLY =
   "Final request: return the JSON now. Output JSON only (no markdown, no commentary).";
 const LLM_PROMPT_SUFFIX_REPAIR_ONLY = "Final request: return corrected JSON only.";
 export const LLM_REPAIR_TEXT = Object.freeze({
-  phaseLayoutRequirement: "Provide layout tile counts with non-negative integers (wallTiles, floorTiles, hallwayTiles).",
+  phaseLayoutRequirement: "Provide layout tile counts with non-negative integers (floorTiles, hallwayTiles).",
   phaseRoomsRequirement: "Provide at least one room entry; each count must be >= 1.",
   phaseActorsRequirement: "Provide at least one actor entry; each count must be >= 1.",
   phaseRoomsAndActorsRequirement: "Provide at least one room and one actor; each count must be >= 1.",
   tokenHintRule: "tokenHint must be a positive integer if provided; otherwise omit it.",
+  actorMobilityRule: "For non-stationary actors, set vitals.stamina.regen to an integer > 0.",
   exampleAffinityEntry: "Example affinity entry: {\"kind\":\"water\",\"expression\":\"push\",\"stacks\":1}",
   layoutIntegerRule: "Use integers only for tile counts; omit optional fields.",
-  layoutExample: "Example layout: {\"layout\":{\"wallTiles\":40,\"floorTiles\":60,\"hallwayTiles\":20}}",
+  layoutExample: "Example layout: {\"layout\":{\"floorTiles\":60,\"hallwayTiles\":20}}",
 });
 
 export const DEFAULT_VITALS = Object.freeze({
@@ -96,12 +115,12 @@ function asList(value, fallback = []) {
   return value;
 }
 
-function normalizeTileCosts(tileCosts = {}) {
-  return {
-    wallTiles: asPositiveInt(tileCosts.wallTiles, 1),
-    floorTiles: asPositiveInt(tileCosts.floorTiles, 1),
-    hallwayTiles: asPositiveInt(tileCosts.hallwayTiles, 1),
-  };
+export function normalizeLayoutTileCosts(tileCosts = {}) {
+  const normalized = {};
+  LAYOUT_TILE_FIELDS.forEach((field) => {
+    normalized[field] = asPositiveInt(tileCosts[field], DEFAULT_LAYOUT_TILE_COSTS[field]);
+  });
+  return normalized;
 }
 
 export function appendLlmPromptSuffix(promptText, { suffix = LLM_PROMPT_SUFFIX_JSON_ONLY } = {}) {
@@ -137,16 +156,26 @@ export function buildLlmLevelPromptTemplate({
   remainingBudgetTokens,
   context,
   layoutCosts,
+  allowedProfiles = LAYOUT_PROFILE_CHOICES,
   modelContextTokens = DOMAIN_CONSTRAINTS?.llm?.modelContextTokens || DOMAIN_CONSTRAINTS?.llm?.contextWindowTokens,
   layoutLatencyMs = DOMAIN_CONSTRAINTS?.llm?.targetLatencyMs?.layoutPhase,
   finalSuffix = LLM_PROMPT_SUFFIX_JSON_ONLY,
 } = {}) {
-  const normalizedCosts = normalizeTileCosts(layoutCosts);
+  const normalizedCosts = normalizeLayoutTileCosts(layoutCosts);
+  const scopedProfiles = asList(allowedProfiles, LAYOUT_PROFILE_CHOICES)
+    .filter((profile, index, list) => LAYOUT_PROFILE_CHOICES.includes(profile) && list.indexOf(profile) === index);
+  const allowedProfileList = scopedProfiles.length > 0 ? scopedProfiles : LAYOUT_PROFILE_CHOICES;
+  const profileMenu = allowedProfileList.join(", ");
+  const profileSchema = allowedProfileList.map((profile) => `"${profile}"`).join("|");
+  const includesSparse = allowedProfileList.includes("sparse_islands");
+  const includesClustered = allowedProfileList.includes("clustered_islands");
+  const includesRooms = allowedProfileList.includes("rooms");
+  const sparseOnlyProfile = allowedProfileList.length === 1 && allowedProfileList[0] === "sparse_islands";
   const lines = buildPromptPreamble({ goal, notes, budgetTokens, modelContextTokens });
   lines.push("You are a dungeon level planner.");
   lines.push("Plan the dungeon layout using tile counts only.");
   lines.push("Rooms and actors are configured in a separate actor phase.");
-  lines.push(`Tile costs: wall ${normalizedCosts.wallTiles}, floor ${normalizedCosts.floorTiles}, hallway ${normalizedCosts.hallwayTiles} tokens each.`);
+  lines.push(`Tile costs: floor ${normalizedCosts.floorTiles}, hallway ${normalizedCosts.hallwayTiles} tokens each.`);
   if (Number.isInteger(layoutLatencyMs) && layoutLatencyMs > 0) {
     lines.push(`Layout phase latency target: ${layoutLatencyMs} ms.`);
   }
@@ -160,17 +189,32 @@ export function buildLlmLevelPromptTemplate({
   lines.push("Phase instructions:");
   lines.push("- Phase: layout_only");
   lines.push("- Return layout tile counts and a room layout summary; omit actors.");
-  lines.push("- Use non-negative integers for wallTiles, floorTiles, and hallwayTiles.");
-  lines.push("- Include roomDesign.profile as one of: rooms, sparse_islands, clustered_islands, rectangular.");
-  lines.push("- For sparse_islands, include roomDesign.density in [0,1].");
-  lines.push("- For clustered_islands, include roomDesign.clusterSize as an integer >= 1.");
-  lines.push("- Include a brief room design summary that explains how wall/floor/hallway tiles are used.");
-  lines.push("- If profile is rooms, include room ids plus how rooms connect (adjacency list or connections list).");
-  lines.push("- Example: 3 rooms (R1 large 10x10, R2 medium 20x3, R3 small 5x5) with connections R1-R2, R2-R3.");
-  lines.push("- Keep the response concise; allow more detail only if needed to describe room structure.");
+  lines.push("- Use non-negative integers for floorTiles and hallwayTiles.");
+  if (allowedProfileList.length === 1) {
+    lines.push(`- Use roomDesign.profile: ${allowedProfileList[0]}.`);
+  } else {
+    lines.push(`- Include roomDesign.profile as one of: ${profileMenu}.`);
+  }
+  if (includesSparse) {
+    lines.push("- For sparse_islands, include roomDesign.density in [0,1].");
+    lines.push("- For sparse_islands, avoid checkerboard noise; prefer contiguous islands connected by clean paths.");
+  }
+  if (includesClustered) {
+    lines.push("- For clustered_islands, include roomDesign.clusterSize as an integer >= 1.");
+  }
+  if (!sparseOnlyProfile) {
+    lines.push("- Include a brief room design summary that explains how floor/hallway tiles are used and where non-walkable barriers are implied.");
+  }
+  if (includesRooms) {
+    lines.push("- If profile is rooms, include room ids plus how rooms connect (adjacency list or connections list).");
+    lines.push("- Example: 3 rooms (R1 large 10x10, R2 medium 20x3, R3 small 5x5) with connections R1-R2, R2-R3.");
+  }
+  if (!sparseOnlyProfile) {
+    lines.push("- Keep the response concise; allow more detail only if needed to describe room structure.");
+  }
   lines.push("");
   lines.push("Response shape:");
-  lines.push("{ \"phase\": \"layout_only\", \"remainingBudgetTokens\": <int>, \"layout\": {\"wallTiles\": <int>, \"floorTiles\": <int>, \"hallwayTiles\": <int>}, \"roomDesign\": {\"profile\":\"rooms\"|\"sparse_islands\"|\"clustered_islands\"|\"rectangular\",\"density\":<number?>,\"clusterSize\":<int?>,\"rooms\":[{\"id\":\"R1\",\"size\":\"large\"|\"medium\"|\"small\",\"width\":<int>,\"height\":<int>}],\"connections\":[{\"from\":\"R1\",\"to\":\"R2\",\"type\":\"hallway\"|\"door\"|\"open\"}],\"hallways\":\"<short description>\"}, \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }");
+  lines.push(`{ \"phase\": \"layout_only\", \"remainingBudgetTokens\": <int>, \"layout\": {\"floorTiles\": <int>, \"hallwayTiles\": <int>}, \"roomDesign\": {\"profile\":${profileSchema},\"density\":<number?>,\"clusterSize\":<int?>,\"rooms\":[{\"id\":\"R1\",\"size\":\"large\"|\"medium\"|\"small\",\"width\":<int>,\"height\":<int>}],\"connections\":[{\"from\":\"R1\",\"to\":\"R2\",\"type\":\"hallway\"|\"door\"|\"open\"}],\"hallways\":\"<short description>\"}, \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }`);
   lines.push("");
   lines.push(finalSuffix);
   return lines.join("\n");
@@ -228,6 +272,8 @@ export function buildLlmActorConfigPromptTemplate({
   lines.push("");
   lines.push("Defender viability guardrails:");
   lines.push("- If you include affinities or stacks, include vitals with mana > 0 and mana regen > 0.");
+  lines.push("- For non-stationary defenders, require stamina regen > 0.");
+  lines.push("- Stationary/trap-like defenders may use zero regen.");
   lines.push("- Ensure defenders have non-trivial health (current/max >= 6).");
   lines.push("- Keep affinity stacks modest (1-3) unless mana and regen are higher.");
   lines.push("- You may include per-actor vitals: health/mana/stamina/durability each with current/max/regen.");
@@ -248,6 +294,7 @@ export function buildLlmPhasePromptTemplate({
   allowedPairsText,
   context,
   layoutCosts,
+  layoutProfiles,
   affinities = AFFINITY_KINDS,
   affinityExpressions = AFFINITY_EXPRESSIONS,
   motivations = [],
@@ -264,6 +311,7 @@ export function buildLlmPhasePromptTemplate({
       remainingBudgetTokens,
       context,
       layoutCosts,
+      allowedProfiles: layoutProfiles,
       modelContextTokens,
       layoutLatencyMs,
       finalSuffix,

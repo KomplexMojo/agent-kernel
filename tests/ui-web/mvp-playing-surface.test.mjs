@@ -53,7 +53,26 @@ const actionFixture = JSON.parse(await readFile(${JSON.stringify(path.resolve(ro
 const frameFixture = JSON.parse(await readFile(${JSON.stringify(path.resolve(root, "tests/fixtures/artifacts/frame-buffer-log-v1-mvp.json"))}, "utf8"));
 const affinityFixture = JSON.parse(await readFile(${JSON.stringify(path.resolve(root, "tests/fixtures/personas/affinity-resolution-v1-basic.json"))}, "utf8"));
 
-function makeEl() { return { textContent: "", disabled: false, setAttribute() {} }; }
+function makeEl() {
+  let text = "";
+  let html = "";
+  const el = { disabled: false, setAttribute() {} };
+  Object.defineProperty(el, "textContent", {
+    get: () => text,
+    set: (value) => {
+      text = String(value);
+      html = text;
+    },
+  });
+  Object.defineProperty(el, "innerHTML", {
+    get: () => html,
+    set: (value) => {
+      html = String(value);
+      text = html.replace(/<[^>]+>/g, "");
+    },
+  });
+  return el;
+}
 
 const movement = runMvpMovement({ core });
 const elements = {
@@ -86,6 +105,8 @@ const controller = setupPlayback({
 });
 assert.equal(elements.frame.textContent.trim(), frameFixture.frames[0].buffer.join("\\n"));
 assert.equal(elements.baseTiles.textContent.trim(), frameFixture.baseTiles.join("\\n"));
+assert.match(elements.frame.innerHTML, /class="actor-cell"/);
+assert.doesNotMatch(elements.frame.innerHTML, /[^\\x00-\\x7F]/);
 assert.ok(elements.actorList.textContent.includes("actor_mvp"));
 assert.ok(elements.actorList.textContent.includes("H:10/10+0"));
 assert.ok(elements.affinityList.textContent.includes("affinities:"));

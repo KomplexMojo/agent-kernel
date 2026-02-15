@@ -7,6 +7,7 @@ import {
 } from "../../contracts/domain-constants.js";
 
 const LEVEL_GEN_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
+const SPARSE_ISLANDS_MAX_FILL_RATIO = 0.45;
 
 const DEFAULT_TRAP_EXPRESSION = DEFAULT_AFFINITY_EXPRESSION;
 const DEFAULT_TRAP_STACKS = 1;
@@ -48,6 +49,15 @@ function readOptionalInt(value, field, errors) {
   if (value === undefined) return undefined;
   if (!isInteger(value)) {
     pushError(errors, field, "invalid_integer");
+    return undefined;
+  }
+  return value;
+}
+
+function readOptionalPositiveInt(value, field, errors) {
+  if (value === undefined) return undefined;
+  if (!isInteger(value) || value <= 0) {
+    pushError(errors, field, "invalid_positive_int");
     return undefined;
   }
   return value;
@@ -177,6 +187,7 @@ export function normalizeLevelGenInput(input = {}) {
 
   const width = readRequiredPositiveInt(input.width, "width", errors);
   const height = readRequiredPositiveInt(input.height, "height", errors);
+  const walkableTilesTarget = readOptionalPositiveInt(input.walkableTilesTarget, "walkableTilesTarget", errors);
   const seed = readOptionalInt(input.seed, "seed", errors);
   const theme = readOptionalString(input.theme, "theme", errors);
 
@@ -278,13 +289,44 @@ export function normalizeLevelGenInput(input = {}) {
   );
 
   const traps = width && height ? normalizeTrapList(input.traps, width, height, errors) : [];
+  let availableWalkableTiles = null;
+  if (width && height && walkableTilesTarget !== undefined) {
+    const hasBorder = width > 2 && height > 2;
+    const maxWalkableTiles = hasBorder ? (width - 2) * (height - 2) : width * height;
+    const blockingTrapCount = traps.reduce((sum, trap) => sum + (trap?.blocking ? 1 : 0), 0);
+    availableWalkableTiles = Math.max(0, maxWalkableTiles - blockingTrapCount);
+    if (walkableTilesTarget > availableWalkableTiles) {
+      pushError(errors, "walkableTilesTarget", "exceeds_walkable_capacity");
+    }
+  }
 
   const ok = errors.length === 0;
   if (!ok) {
     return { ok, errors, warnings, value: null };
   }
 
-  const shape = { profile };
+  let resolvedProfile = profile;
+  if (
+    profile === "sparse_islands"
+    && Number.isInteger(walkableTilesTarget)
+    && walkableTilesTarget > 0
+    && Number.isInteger(availableWalkableTiles)
+    && availableWalkableTiles > 0
+  ) {
+    const fillRatio = walkableTilesTarget / availableWalkableTiles;
+    if (fillRatio > SPARSE_ISLANDS_MAX_FILL_RATIO) {
+      resolvedProfile = "clustered_islands";
+      pushWarning(
+        warnings,
+        "shape.profile",
+        "adjusted_for_walkable_fill_target",
+        "sparse_islands",
+        resolvedProfile,
+      );
+    }
+  }
+
+  const shape = { profile: resolvedProfile };
   if (density !== undefined) shape.density = density;
   if (clusterSize !== undefined) shape.clusterSize = clusterSize;
   if (roomCount !== undefined) shape.roomCount = roomCount;
@@ -301,6 +343,7 @@ export function normalizeLevelGenInput(input = {}) {
     connectivity: { requirePath },
     traps,
   };
+  if (walkableTilesTarget !== undefined) value.walkableTilesTarget = walkableTilesTarget;
   if (seed !== undefined) value.seed = seed;
   if (theme !== undefined) value.theme = theme;
 
@@ -308,3 +351,8 @@ export function normalizeLevelGenInput(input = {}) {
 }
 
 export { LEVEL_GEN_PROFILES };
+export const LEVEL_GEN_LIMITS = Object.freeze({
+  maxLevelSide: null,
+  maxWalkableTilesTarget: null,
+  sparseMaxFillRatio: SPARSE_ISLANDS_MAX_FILL_RATIO,
+});

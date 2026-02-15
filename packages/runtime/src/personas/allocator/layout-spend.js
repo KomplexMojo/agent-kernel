@@ -1,14 +1,12 @@
-const LAYOUT_TILE_FIELDS = Object.freeze(["wallTiles", "floorTiles", "hallwayTiles"]);
-const DEFAULT_TILE_COSTS = Object.freeze({
-  wallTiles: 1,
-  floorTiles: 1,
-  hallwayTiles: 1,
-});
-const TILE_PRICE_IDS = Object.freeze({
-  wallTiles: { id: "tile_wall", kind: "tile" },
-  floorTiles: { id: "tile_floor", kind: "tile" },
-  hallwayTiles: { id: "tile_hallway", kind: "tile" },
-});
+import {
+  DEFAULT_LAYOUT_TILE_COSTS as SHARED_DEFAULT_LAYOUT_TILE_COSTS,
+  LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
+  LAYOUT_TILE_PRICE_IDS as SHARED_LAYOUT_TILE_PRICE_IDS,
+} from "../../contracts/domain-constants.js";
+
+const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS;
+const DEFAULT_TILE_COSTS = SHARED_DEFAULT_LAYOUT_TILE_COSTS;
+const TILE_PRICE_IDS = SHARED_LAYOUT_TILE_PRICE_IDS;
 
 function isInteger(value) {
   return Number.isInteger(value);
@@ -50,6 +48,32 @@ export function normalizeLayoutCounts(layout, warnings) {
   LAYOUT_TILE_FIELDS.forEach((field) => {
     counts[field] = normalizeTileCount(layout[field], field, warnings);
   });
+  const wallTiles = normalizeTileCount(layout.wallTiles, "wallTiles", warnings);
+  if (wallTiles > 0) {
+    const floorTiles = counts.floorTiles || 0;
+    const hallwayTiles = counts.hallwayTiles || 0;
+    const walkableTiles = floorTiles + hallwayTiles;
+    if (walkableTiles > 0) {
+      const floorShare = Math.floor((wallTiles * floorTiles) / walkableTiles);
+      const hallwayShare = wallTiles - floorShare;
+      counts.floorTiles = floorTiles + floorShare;
+      counts.hallwayTiles = hallwayTiles + hallwayShare;
+    } else {
+      const floorShare = Math.ceil(wallTiles / 2);
+      counts.floorTiles = floorShare;
+      counts.hallwayTiles = wallTiles - floorShare;
+    }
+    if (warnings) {
+      warnings.push({
+        code: "deprecated_wall_tiles_redistributed",
+        detail: {
+          wallTiles,
+          floorTiles: counts.floorTiles,
+          hallwayTiles: counts.hallwayTiles,
+        },
+      });
+    }
+  }
   return counts;
 }
 
@@ -90,7 +114,7 @@ export function resolveLayoutTileCosts(priceList) {
 
 export function sumLayoutTiles(layout) {
   if (!layout) return 0;
-  return (layout.wallTiles || 0) + (layout.floorTiles || 0) + (layout.hallwayTiles || 0);
+  return (layout.floorTiles || 0) + (layout.hallwayTiles || 0);
 }
 
 export function evaluateLayoutSpend({ layout, budgetTokens, priceList, tileCosts } = {}) {

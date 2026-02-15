@@ -14,6 +14,13 @@ const script = `
 import assert from "node:assert/strict";
 import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
 
+const ambulatoryVitals = {
+  health: { current: 8, max: 8, regen: 0 },
+  mana: { current: 4, max: 4, regen: 1 },
+  stamina: { current: 4, max: 4, regen: 1 },
+  durability: { current: 2, max: 2, regen: 0 },
+};
+
 const responses = [
   {
     response: JSON.stringify({
@@ -36,7 +43,7 @@ const responses = [
     response: JSON.stringify({
       phase: "actors_only",
       remainingBudgetTokens: 100,
-      actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
+      actors: [{ motivation: "patrolling", affinity: "wind", count: 1, vitals: ambulatoryVitals }],
       missing: [],
     }),
     done: true,
@@ -54,7 +61,7 @@ const result = await runLlmBudgetLoop({
   model: "fixture",
   catalog: ${JSON.stringify(catalogFixture)},
   goal: "Budget loop test",
-  budgetTokens: 300,
+  budgetTokens: 320,
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 0.7 },
@@ -67,12 +74,13 @@ const result = await runLlmBudgetLoop({
 
 assert.equal(result.ok, true);
 assert.equal(result.captures.length, 2);
-assert.equal(result.summary.layout.wallTiles, 50);
+assert.equal(result.summary.layout.wallTiles, undefined);
+assert.equal(result.summary.layout.floorTiles + result.summary.layout.hallwayTiles, 200);
 assert.equal(result.summary.roomDesign.rooms.length, 2);
 assert.equal(result.summary.roomDesign.connections.length, 1);
 assert.equal(result.summary.roomDesign.hallways, "Single spine hallway.");
 assert.equal(result.summary.actors.length, 1);
-assert.equal(result.remainingBudgetTokens, 20);
+assert.equal(result.remainingBudgetTokens, 18);
 assert.equal(result.stopReason, "no_viable_spend");
 assert.ok(result.trace[0].startedAt);
 assert.ok(result.trace[0].endedAt);
@@ -86,6 +94,13 @@ test("orchestrator budget loop sequences layout then actors", () => {
 const priceListScript = `
 import assert from "node:assert/strict";
 import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
+
+const ambulatoryVitals = {
+  health: { current: 8, max: 8, regen: 0 },
+  mana: { current: 4, max: 4, regen: 1 },
+  stamina: { current: 4, max: 4, regen: 1 },
+  durability: { current: 2, max: 2, regen: 0 },
+};
 
 const responses = [
   {
@@ -101,7 +116,7 @@ const responses = [
     response: JSON.stringify({
       phase: "actors_only",
       remainingBudgetTokens: 90,
-      actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
+      actors: [{ motivation: "patrolling", affinity: "wind", count: 1, vitals: ambulatoryVitals }],
       missing: [],
     }),
     done: true,
@@ -134,7 +149,7 @@ const result = await runLlmBudgetLoop({
 assert.equal(result.ok, true);
 assert.equal(result.trace[0].spentTokens, 10);
 assert.equal(result.trace[0].remainingBudgetTokens, 90);
-assert.equal(result.remainingBudgetTokens, 10);
+assert.equal(result.remainingBudgetTokens, 90);
 `;
 
 test("orchestrator budget loop applies tile price list costs", () => {
@@ -146,6 +161,12 @@ import assert from "node:assert/strict";
 import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
 
 const calls = [];
+const ambulatoryVitals = {
+  health: { current: 8, max: 8, regen: 0 },
+  mana: { current: 4, max: 4, regen: 1 },
+  stamina: { current: 4, max: 4, regen: 1 },
+  durability: { current: 2, max: 2, regen: 0 },
+};
 const responses = [
   {
     response: JSON.stringify({
@@ -160,7 +181,7 @@ const responses = [
     response: JSON.stringify({
       phase: "actors_only",
       remainingBudgetTokens: 80,
-      actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
+      actors: [{ motivation: "patrolling", affinity: "wind", count: 1, vitals: ambulatoryVitals }],
       missing: [],
       stop: "done",
     }),
@@ -208,6 +229,13 @@ const overBudgetLayoutAutoFitScript = `
 import assert from "node:assert/strict";
 import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
 
+const ambulatoryVitals = {
+  health: { current: 8, max: 8, regen: 0 },
+  mana: { current: 4, max: 4, regen: 1 },
+  stamina: { current: 4, max: 4, regen: 1 },
+  durability: { current: 2, max: 2, regen: 0 },
+};
+
 const responses = [
   {
     response: JSON.stringify({
@@ -222,7 +250,7 @@ const responses = [
     response: JSON.stringify({
       phase: "actors_only",
       remainingBudgetTokens: 120,
-      actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
+      actors: [{ motivation: "patrolling", affinity: "wind", count: 1, vitals: ambulatoryVitals }],
       missing: [],
       stop: "done",
     }),
@@ -269,6 +297,13 @@ const unmatchedCatalogActorFallbackScript = `
 import assert from "node:assert/strict";
 import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
 
+const ambulatoryVitals = {
+  health: { current: 8, max: 8, regen: 0 },
+  mana: { current: 4, max: 4, regen: 1 },
+  stamina: { current: 4, max: 4, regen: 1 },
+  durability: { current: 2, max: 2, regen: 0 },
+};
+
 const responses = [
   {
     response: JSON.stringify({
@@ -283,7 +318,7 @@ const responses = [
     response: JSON.stringify({
       phase: "actors_only",
       remainingBudgetTokens: 140,
-      actors: [{ motivation: "defending", affinity: "fire", count: 1, tokenHint: 120 }],
+      actors: [{ motivation: "defending", affinity: "fire", count: 1, tokenHint: 120, vitals: ambulatoryVitals }],
       missing: [],
       stop: "done",
     }),
@@ -302,7 +337,7 @@ const result = await runLlmBudgetLoop({
   model: "fixture",
   catalog: ${JSON.stringify(catalogFixture)},
   goal: "Fallback unmatched defender pair",
-  budgetTokens: 300,
+  budgetTokens: 360,
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 0.7 },
@@ -315,12 +350,66 @@ const result = await runLlmBudgetLoop({
 
 assert.equal(result.ok, true);
 assert.equal(result.summary.actors.length, 1);
-assert.equal(result.summary.actors[0].affinity, "wind");
-assert.equal(result.summary.actors[0].motivation, "patrolling");
+assert.equal(result.summary.actors[0].affinity, "earth");
+assert.equal(result.summary.actors[0].motivation, "defending");
 assert.ok(Array.isArray(result.trace[1].validationWarnings));
 assert.ok(result.trace[1].validationWarnings.some((entry) => entry.code === "missing_catalog_match"));
 `;
 
 test("orchestrator budget loop recovers actor picks without exact catalog pair in non-strict mode", () => {
   runEsm(unmatchedCatalogActorFallbackScript);
+});
+
+const layoutFeasibilityAutoFitScript = `
+import assert from "node:assert/strict";
+import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
+
+const prompts = [];
+const responses = [
+  {
+    response: JSON.stringify({
+      phase: "layout_only",
+      remainingBudgetTokens: 10000,
+      layout: { floorTiles: 9000, hallwayTiles: 0 },
+      missing: [],
+      stop: "done",
+    }),
+    done: true,
+  },
+];
+
+const adapter = {
+  async generate({ prompt }) {
+    prompts.push(prompt);
+    return responses.shift();
+  },
+};
+
+const result = await runLlmBudgetLoop({
+  adapter,
+  model: "fixture",
+  catalog: ${JSON.stringify(catalogFixture)},
+  goal: "Layout feasibility auto-fit without LLM repair",
+  budgetTokens: 10000,
+  poolWeights: [
+    { id: "player", weight: 0 },
+    { id: "layout", weight: 1 },
+    { id: "defenders", weight: 0 },
+    { id: "loot", weight: 0 },
+  ],
+  runId: "run_budget_loop_layout_feasibility_autofit",
+  clock: () => "2025-01-01T00:00:00Z",
+  maxActorRounds: 0,
+});
+
+assert.equal(result.ok, true);
+assert.equal(prompts.length, 1);
+assert.equal(result.summary.layout.floorTiles, 9000);
+assert.equal(result.summary.layout.hallwayTiles, 0);
+assert.ok(result.summary.layout.floorTiles + result.summary.layout.hallwayTiles > 0);
+assert.ok(!Array.isArray(result.trace[0].validationWarnings) || result.trace[0].validationWarnings.length === 0);
+`;
+
+test("orchestrator budget loop keeps oversized walkable layout when budget allows", () => {
+  runEsm(layoutFeasibilityAutoFitScript);
 });

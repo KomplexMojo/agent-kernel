@@ -8,6 +8,11 @@ test("buildSelectionsFromSummary creates deterministic actor and room selections
 
   const summary = {
     dungeonAffinity: "water",
+    attackerConfig: {
+      setupMode: "user",
+      vitalsMax: { health: 6, mana: 3 },
+      vitalsRegen: { mana: 2 },
+    },
     rooms: [{ motivation: "stationary", count: 1 }],
     actors: [{
       role: "defending",
@@ -15,6 +20,8 @@ test("buildSelectionsFromSummary creates deterministic actor and room selections
       vitals: {
         health: { current: 3, max: 4, regen: 0 },
         mana: { current: 2, max: 2, regen: 1 },
+        stamina: { current: 3, max: 3, regen: 1 },
+        durability: { current: 1, max: 1, regen: 0 },
       },
     }],
   };
@@ -28,8 +35,9 @@ test("buildSelectionsFromSummary creates deterministic actor and room selections
 
   const actor = selections.find((entry) => entry.kind === "actor");
   assert.equal(actor.instances.length, 2);
-  assert.equal(actor.instances[0].vitals.health.current, 3);
+  assert.equal(actor.instances[0].vitals.health.current, 6);
   assert.equal(actor.instances[0].vitals.mana.regen, 1);
+  assert.equal(actor.instances[0].setupMode, "user");
   assert.deepEqual(actor.instances[0].affinities, [{ kind: "water", expression: "push", stacks: 1 }]);
 });
 
@@ -44,6 +52,7 @@ test("normalizeSummaryPick maps actor-set role/source fields", async () => {
   );
   assert.equal(actorPick.motivation, "attacking");
   assert.equal(actorPick.affinity, "fire");
+  assert.equal(actorPick.setupMode, "auto");
   assert.ok(actorPick.vitals);
 
   const roomPick = normalizeSummaryPick(
@@ -54,4 +63,3 @@ test("normalizeSummaryPick maps actor-set role/source fields", async () => {
   assert.equal(roomPick.affinity, "earth");
   assert.equal(roomPick.vitals, undefined);
 });
-

@@ -24,6 +24,79 @@ function unwrapCodeFence(text) {
   return match ? match[1].trim() : text;
 }
 
+function normalizeJsonPunctuation(text) {
+  if (!isNonEmptyString(text)) return "";
+  return text
+    .replace(/^\uFEFF/, "")
+    .replace(/[\u201C\u201D]/g, "\"")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/\u00A0/g, " ");
+}
+
+function stripTrailingCommas(text) {
+  if (!isNonEmptyString(text)) return "";
+  let inString = false;
+  let escaped = false;
+  let output = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      output += ch;
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === "\"") {
+      inString = true;
+      output += ch;
+      continue;
+    }
+    if (ch === ",") {
+      let lookahead = i + 1;
+      while (lookahead < text.length && /\s/.test(text[lookahead])) {
+        lookahead += 1;
+      }
+      if (lookahead < text.length && (text[lookahead] === "}" || text[lookahead] === "]")) {
+        continue;
+      }
+    }
+    output += ch;
+  }
+  return output;
+}
+
+function parseJsonLenient(responseText) {
+  const raw = isNonEmptyString(responseText) ? responseText : "";
+  if (!raw) return null;
+  const unwrapped = normalizeJsonPunctuation(unwrapCodeFence(raw)).trim();
+  const extracted = extractJsonObject(unwrapped);
+  const candidates = [extracted, unwrapped, normalizeJsonPunctuation(raw).trim()]
+    .filter((candidate) => isNonEmptyString(candidate));
+  const seen = new Set();
+  for (let i = 0; i < candidates.length; i += 1) {
+    const candidate = candidates[i];
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    const variants = [candidate, stripTrailingCommas(candidate)];
+    for (let j = 0; j < variants.length; j += 1) {
+      const variant = variants[j];
+      if (!isNonEmptyString(variant) || seen.has(`parsed:${variant}`)) continue;
+      seen.add(`parsed:${variant}`);
+      try {
+        return JSON.parse(variant);
+      } catch {
+        // Continue trying candidate variants.
+      }
+    }
+  }
+  return null;
+}
+
 function extractJsonObject(text) {
   if (!text) return null;
   const cleaned = unwrapCodeFence(text).trim();
@@ -82,6 +155,14 @@ function captureWithFallback({ prompt, responseText, phase }) {
   if (primary.errors.length === 0) {
     return primary;
   }
+  const lenient = parseJsonLenient(responseText);
+  if (lenient) {
+    return capturePromptResponse({
+      prompt,
+      responseText: JSON.stringify(lenient),
+      phase,
+    });
+  }
   const extracted = extractJsonObject(responseText);
   if (!extracted) {
     return primary;
@@ -89,9 +170,27 @@ function captureWithFallback({ prompt, responseText, phase }) {
   return capturePromptResponse({ prompt, responseText: extracted, phase });
 }
 
-function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions }) {
+function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, phase }) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
+  }
+  if (isNonEmptyString(phase) && !isNonEmptyString(value.phase)) {
+    value.phase = phase;
+  }
+  if (!Array.isArray(value.rooms) && value.rooms && typeof value.rooms === "object") {
+    value.rooms = [value.rooms];
+  }
+  if (!Array.isArray(value.defenders) && value.defenders && typeof value.defenders === "object") {
+    value.defenders = [value.defenders];
+  }
+  if (!Array.isArray(value.actors)) {
+    if (value.actors && typeof value.actors === "object") {
+      value.actors = [value.actors];
+    } else if (Array.isArray(value.defenders)) {
+      value.actors = value.defenders.map((entry) => ({ ...entry }));
+    } else if (value.actor && typeof value.actor === "object") {
+      value.actors = [value.actor];
+    }
   }
 
   const sanitizeTokenHint = (entry) => {
@@ -117,6 +216,49 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions }) 
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
       return null;
     }
+    const sanitizePositiveIntField = (target, field) => {
+      const raw = target?.[field];
+      if (Number.isInteger(raw) && raw > 0) return;
+      if (typeof raw === "string") {
+        const parsed = Number(raw);
+        if (Number.isInteger(parsed) && parsed > 0) {
+          target[field] = parsed;
+          return;
+        }
+      }
+      if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+        target[field] = Math.floor(raw);
+        return;
+      }
+      target[field] = 1;
+    };
+    const sanitizeNonNegativeIntField = (target, field, fallback = 0) => {
+      const raw = target?.[field];
+      if (Number.isInteger(raw) && raw >= 0) return;
+      if (typeof raw === "string") {
+        const parsed = Number(raw);
+        if (Number.isInteger(parsed) && parsed >= 0) {
+          target[field] = parsed;
+          return;
+        }
+      }
+      if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) {
+        target[field] = Math.floor(raw);
+        return;
+      }
+      target[field] = fallback;
+    };
+
+    if (!ALLOWED_MOTIVATIONS.includes(entry.motivation) && ALLOWED_MOTIVATIONS.includes(entry.role)) {
+      entry.motivation = entry.role;
+    }
+    if (!ALLOWED_MOTIVATIONS.includes(entry.motivation)) {
+      entry.motivation = "stationary";
+    }
+    if (!allowedAffinities.includes(entry.affinity)) {
+      entry.affinity = allowedAffinities[0];
+    }
+    sanitizePositiveIntField(entry, "count");
     sanitizeTokenHint(entry);
     if (entry.affinities !== undefined && !Array.isArray(entry.affinities)) {
       delete entry.affinities;
@@ -163,6 +305,37 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions }) 
         delete entry.affinities;
       }
     }
+
+    const ambulatoryActor = phase === "actors_only" && entry.motivation !== "stationary";
+    if (entry.vitals !== undefined && (!entry.vitals || typeof entry.vitals !== "object" || Array.isArray(entry.vitals))) {
+      delete entry.vitals;
+    }
+    if (entry.vitals && typeof entry.vitals === "object" && !Array.isArray(entry.vitals)) {
+      const keys = ["health", "mana", "stamina", "durability"];
+      keys.forEach((key) => {
+        const rawVital = entry.vitals[key];
+        if (rawVital !== undefined && (!rawVital || typeof rawVital !== "object" || Array.isArray(rawVital))) {
+          delete entry.vitals[key];
+        }
+        if (!entry.vitals[key]) return;
+        sanitizeNonNegativeIntField(entry.vitals[key], "current");
+        sanitizeNonNegativeIntField(entry.vitals[key], "max");
+        sanitizeNonNegativeIntField(entry.vitals[key], "regen");
+      });
+      if (ambulatoryActor) {
+        if (!entry.vitals.stamina || typeof entry.vitals.stamina !== "object") {
+          entry.vitals.stamina = { current: 1, max: 1, regen: 1 };
+        }
+        sanitizePositiveIntField(entry.vitals.stamina, "current");
+        sanitizePositiveIntField(entry.vitals.stamina, "max");
+        sanitizePositiveIntField(entry.vitals.stamina, "regen");
+      }
+    } else if (ambulatoryActor) {
+      entry.vitals = {
+        stamina: { current: 1, max: 1, regen: 1 },
+      };
+    }
+
     return entry;
   };
 
@@ -180,7 +353,7 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions }) 
   }
   if (value.layout && typeof value.layout === "object" && !Array.isArray(value.layout)) {
     const nextLayout = {};
-    ["wallTiles", "floorTiles", "hallwayTiles"].forEach((field) => {
+    ["floorTiles", "hallwayTiles"].forEach((field) => {
       const raw = value.layout[field];
       if (Number.isInteger(raw) && raw >= 0) {
         nextLayout[field] = raw;
@@ -193,6 +366,31 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions }) 
         }
       }
     });
+    let wallTiles = 0;
+    const legacyWallRaw = value.layout.wallTiles;
+    if (Number.isInteger(legacyWallRaw) && legacyWallRaw >= 0) {
+      wallTiles = legacyWallRaw;
+    } else if (typeof legacyWallRaw === "string") {
+      const parsed = Number(legacyWallRaw);
+      if (Number.isInteger(parsed) && parsed >= 0) {
+        wallTiles = parsed;
+      }
+    }
+    if (wallTiles > 0) {
+      const floorTiles = nextLayout.floorTiles || 0;
+      const hallwayTiles = nextLayout.hallwayTiles || 0;
+      const walkableTiles = floorTiles + hallwayTiles;
+      if (walkableTiles > 0) {
+        const floorShare = Math.floor((wallTiles * floorTiles) / walkableTiles);
+        const hallwayShare = wallTiles - floorShare;
+        nextLayout.floorTiles = floorTiles + floorShare;
+        nextLayout.hallwayTiles = hallwayTiles + hallwayShare;
+      } else {
+        const floorShare = Math.ceil(wallTiles / 2);
+        nextLayout.floorTiles = floorShare;
+        nextLayout.hallwayTiles = wallTiles - floorShare;
+      }
+    }
     if (Object.keys(nextLayout).length > 0) {
       value.layout = nextLayout;
     } else {
@@ -255,15 +453,10 @@ function getNumPredict(options) {
   return Number.isInteger(options.num_predict) && options.num_predict > 0 ? options.num_predict : 0;
 }
 
-function sanitizeSummaryResponse(responseText, { allowedAffinities, allowedExpressions }) {
-  const extracted = extractJsonObject(responseText) || responseText;
-  let value;
-  try {
-    value = JSON.parse(extracted);
-  } catch (error) {
-    return null;
-  }
-  return sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions });
+function sanitizeSummaryResponse(responseText, { allowedAffinities, allowedExpressions, phase }) {
+  const value = parseJsonLenient(responseText);
+  if (!value) return null;
+  return sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, phase });
 }
 
 function normalizeSessionPrompt({
@@ -464,11 +657,13 @@ export async function runLlmSession({
     let sanitizedValue = sanitizeSummaryResponse(responseText, {
       allowedAffinities: ALLOWED_AFFINITIES,
       allowedExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+      phase,
     });
     if (!sanitizedValue && capture.responseParsed) {
       sanitizedValue = sanitizeSummaryValue(capture.responseParsed, {
         allowedAffinities: ALLOWED_AFFINITIES,
         allowedExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+        phase,
       });
     }
     if (sanitizedValue) {

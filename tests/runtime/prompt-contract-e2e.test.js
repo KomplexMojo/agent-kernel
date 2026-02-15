@@ -42,7 +42,18 @@ test("prompt/response fixture parses and matches summary contract", async () => 
   assert.equal(capture.errors.length, 0);
   assert.deepEqual(capture.responseParsed, fixture.responseParsed);
   assert.deepEqual(capture.summary, fixture.responseParsed);
-  assert.deepEqual(capture.summary, expectedSummary);
+  assert.deepEqual(
+    {
+      ...capture.summary,
+      actors: Array.isArray(capture.summary?.actors)
+        ? capture.summary.actors.map((entry) => {
+          const { vitals, ...rest } = entry || {};
+          return rest;
+        })
+        : [],
+    },
+    expectedSummary,
+  );
 
   const normalized = normalizeSummary(fixture.responseParsed);
   assert.equal(normalized.ok, true);

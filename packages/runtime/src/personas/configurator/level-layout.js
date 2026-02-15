@@ -8,6 +8,10 @@ const DEFAULT_ROOM_MAX_SIZE = 9;
 const DEFAULT_CORRIDOR_WIDTH = 1;
 const ROOM_PLACEMENT_PADDING = 1;
 const ROOM_PLACEMENT_ATTEMPTS = 40;
+const SPARSE_TOPOLOGY_MIN_LARGEST_COMPONENT_RATIO = 0.7;
+const SPARSE_TOPOLOGY_MAX_COMPONENTS = 12;
+const SPARSE_TOPOLOGY_MAX_DEAD_END_RATIO = 0.2;
+const SPARSE_TOPOLOGY_REPAIR_PASSES = 2;
 
 const KIND_STATIONARY = 0;
 const KIND_BARRIER = 1;
@@ -99,6 +103,88 @@ function countNeighbors(mask, x, y) {
   return count;
 }
 
+function countWalkableNeighbors(mask, x, y, blockedIndex = null) {
+  let count = 0;
+  for (const delta of NEIGHBORS) {
+    const nx = x + delta.dx;
+    const ny = y + delta.dy;
+    if (ny < 0 || ny >= mask.length) continue;
+    if (nx < 0 || nx >= (mask[ny]?.length || 0)) continue;
+    if (blockedIndex?.has(`${nx},${ny}`)) continue;
+    if (mask[ny][nx]) count += 1;
+  }
+  return count;
+}
+
+function summarizeWalkableTopology(mask, blockedIndex = null) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const visited = createMask(width, height, false);
+  let totalWalkable = 0;
+  let componentCount = 0;
+  let largestComponentSize = 0;
+  let deadEnds = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!mask[y][x]) continue;
+      if (blockedIndex?.has(`${x},${y}`)) continue;
+      totalWalkable += 1;
+      if (countWalkableNeighbors(mask, x, y, blockedIndex) <= 1) {
+        deadEnds += 1;
+      }
+    }
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (visited[y][x]) continue;
+      if (!mask[y][x]) continue;
+      if (blockedIndex?.has(`${x},${y}`)) continue;
+      componentCount += 1;
+      let size = 0;
+      const queue = [{ x, y }];
+      visited[y][x] = true;
+      let head = 0;
+      while (head < queue.length) {
+        const current = queue[head];
+        head += 1;
+        size += 1;
+        for (const delta of NEIGHBORS) {
+          const nx = current.x + delta.dx;
+          const ny = current.y + delta.dy;
+          if (ny < 0 || ny >= height) continue;
+          if (nx < 0 || nx >= width) continue;
+          if (visited[ny][nx]) continue;
+          if (!mask[ny][nx]) continue;
+          if (blockedIndex?.has(`${nx},${ny}`)) continue;
+          visited[ny][nx] = true;
+          queue.push({ x: nx, y: ny });
+        }
+      }
+      if (size > largestComponentSize) {
+        largestComponentSize = size;
+      }
+    }
+  }
+
+  const largestComponentRatio = totalWalkable > 0 ? largestComponentSize / totalWalkable : 1;
+  const deadEndRatio = totalWalkable > 0 ? deadEnds / totalWalkable : 0;
+  return {
+    totalWalkable,
+    componentCount,
+    largestComponentRatio,
+    deadEndRatio,
+  };
+}
+
+function sparseTopologyNeedsRepair(metrics) {
+  if (!metrics || metrics.totalWalkable <= 0) return false;
+  return metrics.componentCount > SPARSE_TOPOLOGY_MAX_COMPONENTS
+    || metrics.largestComponentRatio < SPARSE_TOPOLOGY_MIN_LARGEST_COMPONENT_RATIO
+    || metrics.deadEndRatio > SPARSE_TOPOLOGY_MAX_DEAD_END_RATIO;
+}
+
 function seedRectangular(mask) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
@@ -177,6 +263,353 @@ function seedClusteredIslands(mask, clusterSize, rng) {
       current = next;
       mask[current.y][current.x] = true;
     }
+  }
+}
+
+function resolveWalkableTilesTarget(levelGen) {
+  const parsed = Number(levelGen?.walkableTilesTarget);
+  if (!Number.isFinite(parsed)) return null;
+  const normalized = Math.floor(parsed);
+  return normalized > 0 ? normalized : null;
+}
+
+function countWalkableMask(mask) {
+  let count = 0;
+  for (let y = 0; y < mask.length; y += 1) {
+    for (let x = 0; x < (mask[y]?.length || 0); x += 1) {
+      if (mask[y][x]) count += 1;
+    }
+  }
+  return count;
+}
+
+function countWalkableCapacity(mask, blockedIndex = null) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  let count = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isInteriorCell(x, y, width, height)) continue;
+      if (blockedIndex?.has(`${x},${y}`)) continue;
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function findFirstWalkable(mask) {
+  for (let y = 0; y < mask.length; y += 1) {
+    for (let x = 0; x < (mask[y]?.length || 0); x += 1) {
+      if (mask[y][x]) return { x, y };
+    }
+  }
+  return null;
+}
+
+function isMaskConnected(mask, anchor = null) {
+  const start = anchor && mask[anchor.y]?.[anchor.x] ? anchor : findFirstWalkable(mask);
+  if (!start) return true;
+  const distances = distanceFrom(mask, start);
+  let total = 0;
+  let reachable = 0;
+  for (let y = 0; y < mask.length; y += 1) {
+    for (let x = 0; x < (mask[y]?.length || 0); x += 1) {
+      if (!mask[y][x]) continue;
+      total += 1;
+      if (distances[y]?.[x] >= 0) reachable += 1;
+    }
+  }
+  return reachable === total;
+}
+
+function isStraightCorridor(directions) {
+  if (!Array.isArray(directions) || directions.length !== 2) return false;
+  return directions[0].dx + directions[1].dx === 0 && directions[0].dy + directions[1].dy === 0;
+}
+
+function buildBackbonePath(mask, anchor = null) {
+  const start = anchor && mask[anchor.y]?.[anchor.x] ? anchor : findFirstWalkable(mask);
+  if (!start) return [];
+  const distances = distanceFrom(mask, start);
+  let farthest = start;
+  let farthestDistance = distances[start.y]?.[start.x] ?? 0;
+
+  for (let y = 0; y < mask.length; y += 1) {
+    for (let x = 0; x < (mask[y]?.length || 0); x += 1) {
+      if (!mask[y][x]) continue;
+      const distance = distances[y]?.[x] ?? -1;
+      if (distance < 0) continue;
+      if (
+        distance > farthestDistance
+        || (
+          distance === farthestDistance
+          && (y < farthest.y || (y === farthest.y && x < farthest.x))
+        )
+      ) {
+        farthest = { x, y };
+        farthestDistance = distance;
+      }
+    }
+  }
+
+  if (farthestDistance <= 0) {
+    return [start];
+  }
+
+  const path = [farthest];
+  let cursor = farthest;
+  let cursorDistance = farthestDistance;
+  while (cursorDistance > 0) {
+    let next = null;
+    for (const delta of NEIGHBORS) {
+      const nx = cursor.x + delta.dx;
+      const ny = cursor.y + delta.dy;
+      if (ny < 0 || ny >= mask.length) continue;
+      if (nx < 0 || nx >= (mask[ny]?.length || 0)) continue;
+      if (!mask[ny][nx]) continue;
+      if ((distances[ny]?.[nx] ?? -1) !== cursorDistance - 1) continue;
+      if (!next || ny < next.y || (ny === next.y && nx < next.x)) {
+        next = { x: nx, y: ny };
+      }
+    }
+    if (!next) break;
+    path.push(next);
+    cursor = next;
+    cursorDistance -= 1;
+  }
+  path.reverse();
+  return path;
+}
+
+function collectTopologyPreserve(mask, blockedIndex = null, anchor = null) {
+  const preserve = new Set();
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+
+  const backbone = buildBackbonePath(mask, anchor);
+  backbone.forEach((pos) => preserve.add(`${pos.x},${pos.y}`));
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!mask[y][x]) continue;
+      if (!isInteriorCell(x, y, width, height)) continue;
+      if (blockedIndex?.has(`${x},${y}`)) continue;
+      const directions = [];
+      for (const delta of NEIGHBORS) {
+        const nx = x + delta.dx;
+        const ny = y + delta.dy;
+        if (ny < 0 || ny >= height) continue;
+        if (nx < 0 || nx >= width) continue;
+        if (!mask[ny][nx]) continue;
+        directions.push(delta);
+      }
+      if (directions.length === 2 && !isStraightCorridor(directions)) {
+        preserve.add(`${x},${y}`);
+      }
+    }
+  }
+
+  return preserve;
+}
+
+function reconcileWalkableTiles({
+  mask,
+  targetWalkableTiles,
+  blockedIndex = null,
+  requireConnected = false,
+  anchor = null,
+  preserve = [],
+} = {}) {
+  if (!Array.isArray(mask) || mask.length === 0) return;
+  if (!Number.isInteger(targetWalkableTiles) || targetWalkableTiles <= 0) return;
+
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  if (width <= 0) return;
+
+  const capacity = countWalkableCapacity(mask, blockedIndex);
+  const target = Math.min(targetWalkableTiles, capacity);
+  if (target <= 0) return;
+
+  const centerX = Math.floor(width / 2);
+  const centerY = Math.floor(height / 2);
+  const preserveSet = new Set(
+    (Array.isArray(preserve) ? preserve : [])
+      .filter((pos) => Number.isInteger(pos?.x) && Number.isInteger(pos?.y))
+      .map((pos) => `${pos.x},${pos.y}`),
+  );
+  const topologyPreserve = collectTopologyPreserve(mask, blockedIndex, anchor);
+  topologyPreserve.forEach((key) => preserveSet.add(key));
+  const isEligible = (x, y) => (
+    isInteriorCell(x, y, width, height)
+    && !blockedIndex?.has(`${x},${y}`)
+  );
+
+  let current = countWalkableMask(mask);
+  const fastReconcileWithoutConnectivity = () => {
+    const collectAddCandidates = () => {
+      const candidates = [];
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          if (!isEligible(x, y) || mask[y][x]) continue;
+          const neighbors = countNeighbors(mask, x, y);
+          if (current > 0 && neighbors <= 0) continue;
+          const distance = Math.abs(x - centerX) + Math.abs(y - centerY);
+          const tier = neighbors === 1 ? 4 : neighbors === 2 ? 3 : neighbors === 3 ? 2 : neighbors >= 4 ? 1 : 0;
+          candidates.push({ x, y, tier, distance });
+        }
+      }
+      candidates.sort((a, b) => {
+        if (a.tier !== b.tier) return b.tier - a.tier;
+        if (a.distance !== b.distance) return b.distance - a.distance;
+        if (a.y !== b.y) return a.y - b.y;
+        return a.x - b.x;
+      });
+      return candidates;
+    };
+
+    const collectPruneCandidates = ({ allowPreserved } = { allowPreserved: false }) => {
+      const candidates = [];
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          if (!isEligible(x, y) || !mask[y][x]) continue;
+          const key = `${x},${y}`;
+          if (!allowPreserved && preserveSet.has(key)) continue;
+          const neighbors = countNeighbors(mask, x, y);
+          const distance = Math.abs(x - centerX) + Math.abs(y - centerY);
+          const tier = neighbors >= 4 ? 4 : neighbors === 3 ? 3 : neighbors === 2 ? 2 : neighbors === 1 ? 1 : 0;
+          candidates.push({ x, y, tier, distance, key });
+        }
+      }
+      candidates.sort((a, b) => {
+        if (a.tier !== b.tier) return b.tier - a.tier;
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        if (a.y !== b.y) return a.y - b.y;
+        return a.x - b.x;
+      });
+      return candidates;
+    };
+
+    if (current < target) {
+      const needed = target - current;
+      const addCandidates = collectAddCandidates();
+      for (let i = 0; i < addCandidates.length && i < needed; i += 1) {
+        const candidate = addCandidates[i];
+        mask[candidate.y][candidate.x] = true;
+        current += 1;
+      }
+    } else if (current > target) {
+      const needed = current - target;
+      let pruneCandidates = collectPruneCandidates({ allowPreserved: false });
+      if (pruneCandidates.length < needed && preserveSet.size > 0) {
+        const withPreserved = collectPruneCandidates({ allowPreserved: true });
+        const seen = new Set(pruneCandidates.map((candidate) => candidate.key));
+        withPreserved.forEach((candidate) => {
+          if (seen.has(candidate.key)) return;
+          pruneCandidates.push(candidate);
+        });
+      }
+      for (let i = 0; i < pruneCandidates.length && i < needed; i += 1) {
+        const candidate = pruneCandidates[i];
+        mask[candidate.y][candidate.x] = false;
+        current -= 1;
+      }
+    }
+  };
+
+  if (!requireConnected) {
+    fastReconcileWithoutConnectivity();
+  }
+
+  const maxIterations = Math.max(1, width * height * 4);
+  let iterations = 0;
+
+  while (current < target && iterations < maxIterations) {
+    let best = null;
+    let bestTier = -1;
+    let bestDistance = -1;
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        if (!isEligible(x, y) || mask[y][x]) continue;
+        const neighbors = countNeighbors(mask, x, y);
+        if (current > 0 && neighbors <= 0) continue;
+        const distance = Math.abs(x - centerX) + Math.abs(y - centerY);
+        const tier = neighbors === 1 ? 4 : neighbors === 2 ? 3 : neighbors === 3 ? 2 : neighbors >= 4 ? 1 : 0;
+        if (
+          tier > bestTier
+          || (tier === bestTier && distance > bestDistance)
+          || (tier === bestTier && distance === bestDistance && best && ((y < best.y) || (y === best.y && x < best.x)))
+          || (tier === bestTier && distance === bestDistance && !best)
+        ) {
+          best = { x, y };
+          bestTier = tier;
+          bestDistance = distance;
+        }
+      }
+    }
+
+    if (!best && !requireConnected) {
+      for (let y = 0; y < height && !best; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          if (!isEligible(x, y) || mask[y][x]) continue;
+          best = { x, y };
+          break;
+        }
+      }
+    }
+
+    if (!best) break;
+    mask[best.y][best.x] = true;
+    current += 1;
+    iterations += 1;
+  }
+
+  while (current > target && iterations < maxIterations) {
+    const selectPruneCandidate = (allowPreserved) => {
+      let best = null;
+      let bestTier = -1;
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          if (!mask[y][x] || !isEligible(x, y)) continue;
+          const key = `${x},${y}`;
+          if (!allowPreserved && preserveSet.has(key)) continue;
+          const neighbors = countNeighbors(mask, x, y);
+          let removable = true;
+          if (requireConnected && current > 1 && neighbors > 1) {
+            mask[y][x] = false;
+            removable = isMaskConnected(mask, anchor);
+            mask[y][x] = true;
+          }
+          if (!removable) continue;
+          const distance = Math.abs(x - centerX) + Math.abs(y - centerY);
+          const tier = neighbors >= 4 ? 4 : neighbors === 3 ? 3 : neighbors === 2 ? 2 : neighbors === 1 ? 1 : 0;
+          if (
+            tier > bestTier
+            || (tier === bestTier && distance < bestDistance)
+            || (tier === bestTier && distance === bestDistance && best && ((y < best.y) || (y === best.y && x < best.x)))
+            || (tier === bestTier && distance === bestDistance && !best)
+          ) {
+            best = { x, y };
+            bestTier = tier;
+            bestDistance = distance;
+          }
+        }
+      }
+      return best;
+    };
+
+    let best = selectPruneCandidate(false);
+    if (!best && preserveSet.size > 0) {
+      best = selectPruneCandidate(true);
+    }
+
+    if (!best) break;
+    mask[best.y][best.x] = false;
+    current -= 1;
+    iterations += 1;
   }
 }
 
@@ -293,7 +726,7 @@ function placeRooms(mask, rng, settings) {
   return rooms;
 }
 
-function carveCell(mask, x, y, corridorWidth) {
+function carveCell(mask, x, y, corridorWidth, blockedIndex = null) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
   const radius = Math.max(0, Math.floor((corridorWidth - 1) / 2));
@@ -303,17 +736,18 @@ function carveCell(mask, x, y, corridorWidth) {
       const ny = y + dy;
       if (ny < 0 || ny >= height || nx < 0 || nx >= width) continue;
       if (!isInteriorCell(nx, ny, width, height)) continue;
+      if (blockedIndex?.has(`${nx},${ny}`)) continue;
       mask[ny][nx] = true;
     }
   }
 }
 
-function carveLine(mask, from, to, corridorWidth) {
+function carveLine(mask, from, to, corridorWidth, blockedIndex = null) {
   if (from.x === to.x) {
     const start = Math.min(from.y, to.y);
     const end = Math.max(from.y, to.y);
     for (let y = start; y <= end; y += 1) {
-      carveCell(mask, from.x, y, corridorWidth);
+      carveCell(mask, from.x, y, corridorWidth, blockedIndex);
     }
     return;
   }
@@ -321,19 +755,19 @@ function carveLine(mask, from, to, corridorWidth) {
     const start = Math.min(from.x, to.x);
     const end = Math.max(from.x, to.x);
     for (let x = start; x <= end; x += 1) {
-      carveCell(mask, x, from.y, corridorWidth);
+      carveCell(mask, x, from.y, corridorWidth, blockedIndex);
     }
   }
 }
 
-function carveCorridor(mask, from, to, corridorWidth, rng) {
+function carveCorridor(mask, from, to, corridorWidth, rng, blockedIndex = null) {
   const horizontalFirst = rng() < 0.5;
   if (horizontalFirst) {
-    carveLine(mask, { x: from.x, y: from.y }, { x: to.x, y: from.y }, corridorWidth);
-    carveLine(mask, { x: to.x, y: from.y }, { x: to.x, y: to.y }, corridorWidth);
+    carveLine(mask, { x: from.x, y: from.y }, { x: to.x, y: from.y }, corridorWidth, blockedIndex);
+    carveLine(mask, { x: to.x, y: from.y }, { x: to.x, y: to.y }, corridorWidth, blockedIndex);
   } else {
-    carveLine(mask, { x: from.x, y: from.y }, { x: from.x, y: to.y }, corridorWidth);
-    carveLine(mask, { x: from.x, y: to.y }, { x: to.x, y: to.y }, corridorWidth);
+    carveLine(mask, { x: from.x, y: from.y }, { x: from.x, y: to.y }, corridorWidth, blockedIndex);
+    carveLine(mask, { x: from.x, y: to.y }, { x: to.x, y: to.y }, corridorWidth, blockedIndex);
   }
 }
 
@@ -435,6 +869,15 @@ function buildTrapIndex(traps = []) {
   return index;
 }
 
+function buildBlockingTrapIndex(traps = []) {
+  const index = new Set();
+  for (const trap of traps) {
+    if (!trap?.blocking) continue;
+    index.add(`${trap.x},${trap.y}`);
+  }
+  return index;
+}
+
 function isTrapCell(trapIndex, x, y) {
   if (!trapIndex) return false;
   return trapIndex.has(`${x},${y}`);
@@ -525,14 +968,20 @@ function pickFarthest(candidates, distances) {
   return best;
 }
 
-function placeSpawnExit(mask, levelGen, rng, trapIndex) {
+function pickSpawn(mask, levelGen, rng, trapIndex) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
   const cells = collectWalkable(mask, trapIndex);
   const fallbackCells = cells.length ? cells : collectWalkable(mask, null);
   const spawnCandidates = filterEdgeCandidates(cells, width, height, levelGen.spawn.edgeBias);
-  const spawn = pickCandidate(spawnCandidates, rng) || cells[0] || fallbackCells[0] || { x: 0, y: 0 };
+  return pickCandidate(spawnCandidates, rng) || cells[0] || fallbackCells[0] || { x: 0, y: 0 };
+}
 
+function pickExit(mask, levelGen, rng, trapIndex, spawn) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const cells = collectWalkable(mask, trapIndex);
+  const fallbackCells = cells.length ? cells : collectWalkable(mask, null);
   const requirePath = levelGen.connectivity?.requirePath;
   const distances = requirePath ? distanceFrom(mask, spawn) : null;
   const minDistance = Math.max(levelGen.spawn.minDistance || 0, levelGen.exit.minDistance || 0);
@@ -548,8 +997,160 @@ function placeSpawnExit(mask, levelGen, rng, trapIndex) {
     exitCandidates = filterReachable(baseCandidates, distances);
   }
 
-  const exit = pickCandidate(exitCandidates, rng) || pickFarthest(baseCandidates, distances) || spawn;
-  return { spawn, exit };
+  return pickCandidate(exitCandidates, rng) || pickFarthest(baseCandidates, distances) || spawn;
+}
+
+function resolveCorridorWidth(levelGen) {
+  if (Number.isInteger(levelGen?.shape?.corridorWidth) && levelGen.shape.corridorWidth > 0) {
+    return levelGen.shape.corridorWidth;
+  }
+  return DEFAULT_CORRIDOR_WIDTH;
+}
+
+function labelWalkableComponents(mask) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const labels = createNumberGrid(width, height, -1);
+  const anchors = [];
+  let componentCount = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!mask[y][x] || labels[y][x] >= 0) continue;
+      labels[y][x] = componentCount;
+      anchors.push({ x, y });
+      const queue = [{ x, y }];
+      let head = 0;
+      while (head < queue.length) {
+        const current = queue[head];
+        head += 1;
+        for (const delta of NEIGHBORS) {
+          const nx = current.x + delta.dx;
+          const ny = current.y + delta.dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          if (!mask[ny][nx]) continue;
+          if (labels[ny][nx] >= 0) continue;
+          labels[ny][nx] = componentCount;
+          queue.push({ x: nx, y: ny });
+        }
+      }
+      componentCount += 1;
+    }
+  }
+  return { labels, anchors, componentCount };
+}
+
+function findInteriorPath({ start, end, width, height, blockedIndex }) {
+  const startKey = `${start.x},${start.y}`;
+  const endKey = `${end.x},${end.y}`;
+  if (startKey === endKey) return [{ x: start.x, y: start.y }];
+
+  const queue = [{ x: start.x, y: start.y }];
+  const visited = new Set([startKey]);
+  const previous = new Map();
+  let head = 0;
+
+  while (head < queue.length) {
+    const current = queue[head];
+    head += 1;
+    for (const delta of NEIGHBORS) {
+      const nx = current.x + delta.dx;
+      const ny = current.y + delta.dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      if (!isInteriorCell(nx, ny, width, height)) continue;
+      const key = `${nx},${ny}`;
+      if (blockedIndex?.has(key) || visited.has(key)) continue;
+      visited.add(key);
+      previous.set(key, { x: current.x, y: current.y });
+      if (key === endKey) {
+        head = queue.length;
+        break;
+      }
+      queue.push({ x: nx, y: ny });
+    }
+  }
+
+  if (!visited.has(endKey)) {
+    return null;
+  }
+
+  const path = [];
+  let cursor = { x: end.x, y: end.y };
+  let cursorKey = endKey;
+  while (cursor) {
+    path.push(cursor);
+    if (cursorKey === startKey) break;
+    const parent = previous.get(cursorKey);
+    if (!parent) return null;
+    cursor = { x: parent.x, y: parent.y };
+    cursorKey = `${cursor.x},${cursor.y}`;
+  }
+  path.reverse();
+  return path;
+}
+
+function carvePath(mask, path, corridorWidth, blockedIndex = null) {
+  if (!Array.isArray(path) || path.length === 0) return;
+  for (const point of path) {
+    carveCell(mask, point.x, point.y, corridorWidth, blockedIndex);
+  }
+}
+
+function ensureConnectedToSpawn(mask, spawn, corridorWidth, blockedIndex = null) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  if (!mask[spawn.y]?.[spawn.x]) {
+    return;
+  }
+
+  const maxAttempts = Math.max(1, width * height);
+  let attempts = 0;
+  while (attempts < maxAttempts) {
+    const components = labelWalkableComponents(mask);
+    if (components.componentCount <= 1) {
+      return;
+    }
+    const spawnComponent = components.labels[spawn.y]?.[spawn.x];
+    if (!Number.isInteger(spawnComponent) || spawnComponent < 0) {
+      return;
+    }
+
+    let targetAnchor = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let id = 0; id < components.anchors.length; id += 1) {
+      if (id === spawnComponent) continue;
+      const anchor = components.anchors[id];
+      const distance = manhattanDistance(spawn, anchor);
+      if (
+        distance < bestDistance
+        || (
+          distance === bestDistance
+          && targetAnchor
+          && (anchor.y < targetAnchor.y || (anchor.y === targetAnchor.y && anchor.x < targetAnchor.x))
+        )
+        || (distance === bestDistance && !targetAnchor)
+      ) {
+        bestDistance = distance;
+        targetAnchor = anchor;
+      }
+    }
+    if (!targetAnchor) {
+      return;
+    }
+
+    const path = findInteriorPath({
+      start: spawn,
+      end: targetAnchor,
+      width,
+      height,
+      blockedIndex,
+    });
+    if (!path || path.length === 0) {
+      return;
+    }
+    carvePath(mask, path, corridorWidth, blockedIndex);
+    attempts += 1;
+  }
 }
 
 function computeConnectivity(mask, rooms, spawn, exit) {
@@ -641,14 +1242,132 @@ function generateMask(levelGen, rng) {
   return { mask, rooms };
 }
 
+function smoothSparseMask(mask, { blockedIndex = null, preserve = [] } = {}) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const next = createMask(width, height, false);
+  const preserveSet = new Set(
+    (Array.isArray(preserve) ? preserve : [])
+      .filter((pos) => Number.isInteger(pos?.x) && Number.isInteger(pos?.y))
+      .map((pos) => `${pos.x},${pos.y}`),
+  );
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isInteriorCell(x, y, width, height)) continue;
+      if (blockedIndex?.has(`${x},${y}`)) continue;
+      if (preserveSet.has(`${x},${y}`)) {
+        next[y][x] = true;
+        continue;
+      }
+      const neighbors = countWalkableNeighbors(mask, x, y, blockedIndex);
+      if (mask[y][x]) {
+        next[y][x] = neighbors >= 2;
+      } else {
+        next[y][x] = neighbors >= 3;
+      }
+    }
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      mask[y][x] = next[y][x];
+    }
+  }
+}
+
+function repairSparseTopology({
+  mask,
+  walkableTilesTarget,
+  requiresConnectedWalkable,
+  corridorWidth,
+  blockedIndex,
+  anchor,
+} = {}) {
+  if (!Array.isArray(mask) || mask.length === 0) return;
+  if (!Number.isInteger(walkableTilesTarget) || walkableTilesTarget <= 0) return;
+
+  let metrics = summarizeWalkableTopology(mask, blockedIndex);
+  if (!sparseTopologyNeedsRepair(metrics)) return;
+
+  for (let pass = 0; pass < SPARSE_TOPOLOGY_REPAIR_PASSES; pass += 1) {
+    smoothSparseMask(mask, {
+      blockedIndex,
+      preserve: anchor ? [anchor] : [],
+    });
+    ensureWalkable(mask);
+    if (requiresConnectedWalkable && anchor && mask[anchor.y]?.[anchor.x]) {
+      ensureConnectedToSpawn(mask, anchor, corridorWidth, blockedIndex);
+    }
+    reconcileWalkableTiles({
+      mask,
+      targetWalkableTiles: walkableTilesTarget,
+      blockedIndex,
+      requireConnected: requiresConnectedWalkable,
+      anchor,
+      preserve: anchor ? [anchor] : [],
+    });
+    ensureWalkable(mask);
+    metrics = summarizeWalkableTopology(mask, blockedIndex);
+    if (!sparseTopologyNeedsRepair(metrics)) {
+      break;
+    }
+  }
+}
+
 export function generateGridLayout(levelGen) {
   const seed = Number.isFinite(levelGen.seed) ? levelGen.seed : 0;
   const rng = createRng(seed);
   const { mask, rooms } = generateMask(levelGen, rng);
   const traps = Array.isArray(levelGen.traps) ? levelGen.traps : [];
   applyTrapBlocking(mask, traps);
+  const profile = levelGen.shape?.profile || "rectangular";
+  const blockingTrapIndex = buildBlockingTrapIndex(traps);
+  const walkableTilesTarget = resolveWalkableTilesTarget(levelGen);
+  const sparseTargeted = profile === "sparse_islands" && Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0;
+  const requiresConnectedWalkable = Boolean(
+    levelGen.connectivity?.requirePath
+      && (profile === "clustered_islands" || sparseTargeted),
+  );
+  const corridorWidth = resolveCorridorWidth(levelGen);
+
+  ensureWalkable(mask);
   const trapIndex = buildTrapIndex(traps);
-  const { spawn, exit } = placeSpawnExit(mask, levelGen, rng, trapIndex);
+
+  let spawn = null;
+  if (requiresConnectedWalkable) {
+    spawn = pickSpawn(mask, levelGen, rng, trapIndex);
+    ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingTrapIndex);
+  }
+
+  if (walkableTilesTarget) {
+    reconcileWalkableTiles({
+      mask,
+      targetWalkableTiles: walkableTilesTarget,
+      blockedIndex: blockingTrapIndex,
+      requireConnected: requiresConnectedWalkable,
+      anchor: spawn,
+      preserve: spawn ? [spawn] : [],
+    });
+  }
+
+  if (sparseTargeted) {
+    repairSparseTopology({
+      mask,
+      walkableTilesTarget,
+      requiresConnectedWalkable,
+      corridorWidth,
+      blockedIndex: blockingTrapIndex,
+      anchor: spawn,
+    });
+  }
+
+  ensureWalkable(mask);
+  if (!spawn || !mask[spawn.y]?.[spawn.x] || isTrapCell(trapIndex, spawn.x, spawn.y)) {
+    spawn = pickSpawn(mask, levelGen, rng, trapIndex);
+  }
+
+  const exit = pickExit(mask, levelGen, rng, trapIndex, spawn);
   const layout = {
     width: levelGen.width,
     height: levelGen.height,
@@ -673,15 +1392,46 @@ export function generateGridLayout(levelGen) {
   return layout;
 }
 
+function countLayoutWalkableTiles(layout) {
+  if (!Array.isArray(layout?.tiles)) return 0;
+  let count = 0;
+  for (let y = 0; y < layout.tiles.length; y += 1) {
+    const row = String(layout.tiles[y] || "");
+    for (let x = 0; x < row.length; x += 1) {
+      if (row[x] !== "#") count += 1;
+    }
+  }
+  return count;
+}
+
 export function generateGridLayoutFromInput(input) {
   const normalized = normalizeLevelGenInput(input);
   if (!normalized.ok) {
     return normalized;
   }
+  const layout = generateGridLayout(normalized.value);
+  const walkableTilesTarget = resolveWalkableTilesTarget(normalized.value);
+  if (walkableTilesTarget !== null) {
+    const walkableTiles = countLayoutWalkableTiles(layout);
+    if (walkableTiles !== walkableTilesTarget) {
+      return {
+        ok: false,
+        errors: [
+          {
+            field: "walkableTilesTarget",
+            code: "target_mismatch",
+            detail: { target: walkableTilesTarget, walkableTiles },
+          },
+        ],
+        warnings: normalized.warnings,
+        value: null,
+      };
+    }
+  }
   return {
     ok: true,
     errors: [],
     warnings: normalized.warnings,
-    value: generateGridLayout(normalized.value),
+    value: layout,
   };
 }

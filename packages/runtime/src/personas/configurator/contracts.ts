@@ -76,6 +76,7 @@ export interface NormalizedLevelGenTrapInput {
 export interface LevelGenInput {
   width: number;
   height: number;
+  walkableTilesTarget?: number;
   seed?: number;
   theme?: string;
   shape?: LevelGenShapeInput;
@@ -88,6 +89,7 @@ export interface LevelGenInput {
 export interface NormalizedLevelGenInput {
   width: number;
   height: number;
+  walkableTilesTarget?: number;
   seed?: number;
   theme?: string;
   shape: LevelGenShapeInput;

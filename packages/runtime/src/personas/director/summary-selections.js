@@ -1,4 +1,6 @@
 import {
+  ATTACKER_SETUP_MODE_SET,
+  DEFAULT_ATTACKER_SETUP_MODE,
   AFFINITY_EXPRESSION_SET,
   DEFAULT_AFFINITY_EXPRESSION,
   DEFAULT_DUNGEON_AFFINITY,
@@ -45,7 +47,45 @@ function normalizeVitals(vitals) {
   return normalizeDomainVitals(vitals, DEFAULT_VITALS);
 }
 
-export function normalizeSummaryPick(entry, { dungeonAffinity = DEFAULT_DUNGEON_AFFINITY, source = "actor" } = {}) {
+function normalizeSetupMode(value) {
+  if (typeof value !== "string") return DEFAULT_ATTACKER_SETUP_MODE;
+  const normalized = value.trim();
+  return ATTACKER_SETUP_MODE_SET.has(normalized) ? normalized : DEFAULT_ATTACKER_SETUP_MODE;
+}
+
+function normalizeVitalsConfigMap(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return VITAL_KEYS.reduce((acc, key) => {
+    if (!Number.isInteger(value[key]) || value[key] < 0) return acc;
+    acc[key] = value[key];
+    return acc;
+  }, {});
+}
+
+function applyVitalMaxOverrides(vitals, vitalsMax) {
+  const overrides = normalizeVitalsConfigMap(vitalsMax);
+  if (Object.keys(overrides).length === 0) return vitals;
+  const next = { ...vitals };
+  VITAL_KEYS.forEach((key) => {
+    const nextMax = overrides[key];
+    if (!Number.isInteger(nextMax)) return;
+    next[key] = {
+      ...next[key],
+      current: nextMax,
+      max: nextMax,
+    };
+  });
+  return next;
+}
+
+export function normalizeSummaryPick(
+  entry,
+  {
+    dungeonAffinity = DEFAULT_DUNGEON_AFFINITY,
+    source = "actor",
+    attackerConfig,
+  } = {},
+) {
   const motivation = typeof entry?.role === "string" && entry.role.trim()
     ? entry.role.trim()
     : typeof entry?.motivation === "string" && entry.motivation.trim()
@@ -57,11 +97,19 @@ export function normalizeSummaryPick(entry, { dungeonAffinity = DEFAULT_DUNGEON_
   const count = normalizePositiveInt(entry?.count, 1);
   const tokenHint = normalizeTokenHint(entry?.tokenHint);
   const affinities = normalizeAffinityEntries(entry?.affinities, affinity);
+  const setupMode = normalizeSetupMode(entry?.setupMode ?? entry?.mode ?? attackerConfig?.setupMode);
   const pick = { motivation, affinity, count };
   if (tokenHint !== undefined) pick.tokenHint = tokenHint;
   if (affinities.length > 0) pick.affinities = affinities;
   if (source !== "room") {
-    pick.vitals = normalizeVitals(entry?.vitals);
+    pick.setupMode = setupMode;
+  }
+  if (source !== "room") {
+    const withMaxOverrides = applyVitalMaxOverrides(
+      normalizeVitals(entry?.vitals),
+      attackerConfig?.vitalsMax,
+    );
+    pick.vitals = withMaxOverrides;
   }
   return pick;
 }
@@ -70,6 +118,7 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
   const normalizedPick = normalizeSummaryPick(pick, {
     dungeonAffinity,
     source: kind === "room" ? "room" : "actor",
+    attackerConfig: pick?.attackerConfig,
   });
   const cost = normalizedPick.tokenHint || 1;
   const subType = kind === "room" ? "static" : "dynamic";
@@ -109,6 +158,9 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
           return acc;
         }, {});
       }
+      if (kind !== "room") {
+        instance.setupMode = normalizedPick.setupMode;
+      }
       return instance;
     }),
   };
@@ -116,9 +168,17 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
 
 export function buildSelectionsFromSummary(summary) {
   const dungeonAffinity = typeof summary?.dungeonAffinity === "string" ? summary.dungeonAffinity : DEFAULT_DUNGEON_AFFINITY;
+  const attackerConfig = summary?.attackerConfig && typeof summary.attackerConfig === "object"
+    ? summary.attackerConfig
+    : undefined;
   const rooms = Array.isArray(summary?.rooms) ? summary.rooms : [];
   const actors = Array.isArray(summary?.actors) ? summary.actors : [];
   const roomSelections = rooms.map((pick, index) => pickToSelection(pick, "room", index, dungeonAffinity));
-  const actorSelections = actors.map((pick, index) => pickToSelection(pick, "actor", index, dungeonAffinity));
+  const actorSelections = actors.map((pick, index) => pickToSelection(
+    { ...pick, attackerConfig },
+    "actor",
+    index,
+    dungeonAffinity,
+  ));
   return [...roomSelections, ...actorSelections];
 }

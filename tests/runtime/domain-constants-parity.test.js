@@ -36,6 +36,8 @@ test("affinity and expression type unions stay aligned with shared runtime const
 
 test("domain constraints expose canonical llm defaults", async () => {
   const {
+    ATTACKER_SETUP_MODES,
+    DEFAULT_ATTACKER_SETUP_MODE,
     DEFAULT_LLM_BASE_URL,
     DEFAULT_LLM_CONTEXT_WINDOW_TOKENS,
     DEFAULT_LLM_MODEL,
@@ -59,4 +61,6 @@ test("domain constraints expose canonical llm defaults", async () => {
   assert.deepEqual(DOMAIN_CONSTRAINTS.llm.responseTokenBudget, PHI4_RESPONSE_TOKEN_BUDGET);
   assert.equal(DOMAIN_CONSTRAINTS.llm.responseTokenBudget.layoutPhase, 160);
   assert.equal(DOMAIN_CONSTRAINTS.llm.responseTokenBudget.designSummary, 220);
+  assert.deepEqual(DOMAIN_CONSTRAINTS.attacker.setupModes, ATTACKER_SETUP_MODES);
+  assert.equal(DOMAIN_CONSTRAINTS.attacker.defaultSetupMode, DEFAULT_ATTACKER_SETUP_MODE);
 });

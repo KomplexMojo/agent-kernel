@@ -7,12 +7,12 @@
     },
     {
       "model": "fixture",
-      "response": "{\"phase\":\"actors_only\",\"remainingBudgetTokens\":400,\"actors\":[{\"motivation\":\"attacking\",\"affinity\":\"fire\",\"count\":2}],\"missing\":[],\"stop\":\"done\"}",
+      "response": "{\"phase\":\"actors_only\",\"remainingBudgetTokens\":400,\"actors\":[{\"motivation\":\"attacking\",\"affinity\":\"fire\",\"count\":2,\"vitals\":{\"health\":{\"current\":8,\"max\":8,\"regen\":0},\"mana\":{\"current\":4,\"max\":4,\"regen\":1},\"stamina\":{\"current\":4,\"max\":4,\"regen\":1},\"durability\":{\"current\":2,\"max\":2,\"regen\":0}}}],\"missing\":[],\"stop\":\"done\"}",
       "done": true
     },
     {
       "model": "fixture",
-      "response": "{\"phase\":\"actors_only\",\"remainingBudgetTokens\":200,\"actors\":[{\"motivation\":\"attacking\",\"affinity\":\"fire\",\"count\":1}],\"missing\":[],\"stop\":\"done\"}",
+      "response": "{\"phase\":\"actors_only\",\"remainingBudgetTokens\":200,\"actors\":[{\"motivation\":\"attacking\",\"affinity\":\"fire\",\"count\":1,\"vitals\":{\"health\":{\"current\":8,\"max\":8,\"regen\":0},\"mana\":{\"current\":4,\"max\":4,\"regen\":1},\"stamina\":{\"current\":4,\"max\":4,\"regen\":1},\"durability\":{\"current\":2,\"max\":2,\"regen\":0}}}],\"missing\":[],\"stop\":\"done\"}",
       "done": true
     }
   ]

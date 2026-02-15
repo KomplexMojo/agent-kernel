@@ -13,7 +13,7 @@ test("buildLlmActorConfigPromptTemplate includes allowed lists and defender phas
     budgetTokens: 800,
     remainingBudgetTokens: 320,
     allowedPairsText: "(attacking, fire)",
-    context: "Layout tiles: wall 20, floor 40, hallway 10",
+    context: "Layout tiles: floor 40, hallway 10",
     affinities: ALLOWED_AFFINITIES,
     affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
     motivations: ALLOWED_MOTIVATIONS,
@@ -41,19 +41,52 @@ test("buildLlmLevelPromptTemplate injects layout phase metadata", async () => {
     notes: "Phase notes",
     budgetTokens: 500,
     remainingBudgetTokens: 120,
-    context: "Layout tiles: wall 10, floor 20, hallway 5",
-    layoutCosts: { wallTiles: 2, floorTiles: 3, hallwayTiles: 4 },
+    context: "Layout tiles: floor 20, hallway 5",
+    layoutCosts: { floorTiles: 3, hallwayTiles: 4 },
   });
   assert.ok(prompt.includes("Phase: layout_only"));
   assert.ok(prompt.includes("Remaining budget tokens: 120"));
-  assert.ok(prompt.includes("Layout tiles: wall 10, floor 20, hallway 5"));
-  assert.ok(prompt.includes("Tile costs: wall 2, floor 3, hallway 4 tokens each."));
+  assert.ok(prompt.includes("Layout tiles: floor 20, hallway 5"));
+  assert.ok(prompt.includes("Tile costs: floor 3, hallway 4 tokens each."));
   assert.ok(prompt.includes("room design"));
   assert.ok(prompt.includes("roomDesign.profile"));
   assert.ok(prompt.includes("response concise"));
   assert.ok(prompt.includes("Model context window token limit: 16384"));
   assert.ok(prompt.includes("Layout phase latency target: 10000 ms."));
   assert.ok(prompt.includes("Keep the response concise"));
+});
+
+test("buildLlmLevelPromptTemplate scopes allowed layout profiles when provided", async () => {
+  const { buildLlmLevelPromptTemplate } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
+  );
+  const prompt = buildLlmLevelPromptTemplate({
+    goal: "Scoped layout goal",
+    budgetTokens: 500,
+    remainingBudgetTokens: 120,
+    allowedProfiles: ["rooms"],
+  });
+  assert.ok(prompt.includes("Use roomDesign.profile: rooms."));
+  assert.ok(!prompt.includes("Include roomDesign.profile as one of: rooms."));
+  assert.ok(!prompt.includes("Include roomDesign.profile as one of: rooms, sparse_islands"));
+  assert.ok(!prompt.includes("For sparse_islands, include roomDesign.density"));
+  assert.ok(!prompt.includes("For clustered_islands, include roomDesign.clusterSize"));
+});
+
+test("buildLlmLevelPromptTemplate omits room design summary instruction for sparse islands only", async () => {
+  const { buildLlmLevelPromptTemplate } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
+  );
+  const prompt = buildLlmLevelPromptTemplate({
+    goal: "Sparse-only layout goal",
+    budgetTokens: 500,
+    remainingBudgetTokens: 120,
+    allowedProfiles: ["sparse_islands"],
+  });
+  assert.ok(prompt.includes("Use roomDesign.profile: sparse_islands."));
+  assert.ok(prompt.includes("For sparse_islands, include roomDesign.density in [0,1]."));
+  assert.ok(!prompt.includes("Include a brief room design summary that explains how floor/hallway tiles are used and where non-walkable barriers are implied."));
+  assert.ok(!prompt.includes("Keep the response concise; allow more detail only if needed to describe room structure."));
 });
 
 test("buildLlmPhasePromptTemplate routes to layout and defender templates", async () => {
@@ -111,23 +144,38 @@ test("normalizeSummary accepts valid summary and rejects invalid fields", async 
         motivation: "attacking",
         affinity: "earth",
         count: 1,
+        setupMode: "hybrid",
         affinities: [
           { kind: "earth", expression: "push", stacks: 1 },
           { kind: "earth", expression: "pull", stacks: 1 },
         ],
+        vitals: {
+          health: { current: 8, max: 8, regen: 0 },
+          mana: { current: 4, max: 4, regen: 1 },
+          stamina: { current: 4, max: 4, regen: 1 },
+          durability: { current: 2, max: 2, regen: 0 },
+        },
       },
     ],
+    attackerConfig: {
+      setupMode: "user",
+      vitalsMax: { health: 8, mana: 5 },
+      vitalsRegen: { mana: 2 },
+    },
     missing: [],
   });
   assert.equal(valid.ok, true);
   assert.equal(valid.errors.length, 0);
   assert.equal(valid.value.rooms.length, 1);
   assert.equal(valid.value.actors.length, 1);
+  assert.equal(valid.value.attackerConfig.setupMode, "user");
+  assert.equal(valid.value.actors[0].setupMode, "hybrid");
 
   const invalid = normalizeSummary({
     dungeonAffinity: "invalid",
     rooms: [{ motivation: "bad", affinity: "fire", count: 0, affinities: [{ kind: "fire", expression: "bad" }] }],
-    actors: [{ motivation: "attacking", affinity: "bad", count: -1, tokenHint: -5, stacks: -1 }],
+    actors: [{ motivation: "attacking", affinity: "bad", count: -1, tokenHint: -5, stacks: -1, setupMode: "manual" }],
+    attackerConfig: { setupMode: "invalid" },
   });
   assert.equal(invalid.ok, false);
   assert.ok(invalid.errors.find((e) => e.field === "dungeonAffinity"));
@@ -135,6 +183,8 @@ test("normalizeSummary accepts valid summary and rejects invalid fields", async 
   assert.ok(invalid.errors.find((e) => e.field === "actors[0].affinity"));
   assert.ok(invalid.errors.find((e) => e.field === "actors[0].tokenHint"));
   assert.ok(invalid.errors.find((e) => e.field === "actors[0].stacks"));
+  assert.ok(invalid.errors.find((e) => e.field === "actors[0].setupMode"));
+  assert.ok(invalid.errors.find((e) => e.field === "attackerConfig.setupMode"));
   assert.ok(invalid.errors.find((e) => e.field === "rooms[0].affinities[0].expression"));
 });
 
@@ -151,7 +201,7 @@ test("normalizeSummary preserves actor vitals when provided", async () => {
         vitals: {
           health: { current: 8, max: 10, regen: 0 },
           mana: { current: 4, max: 6, regen: 1 },
-          stamina: { current: 2, max: 2, regen: 0 },
+          stamina: { current: 2, max: 2, regen: 1 },
           durability: { current: 2, max: 2, regen: 0 },
         },
       },
@@ -162,6 +212,65 @@ test("normalizeSummary preserves actor vitals when provided", async () => {
   const actor = result.value.actors[0];
   assert.equal(actor.vitals.health.current, 8);
   assert.equal(actor.vitals.mana.regen, 1);
+});
+
+test("normalizeSummary requires stamina regen for non-stationary actors", async () => {
+  const { normalizeSummaryWithOptions } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const invalid = normalizeSummaryWithOptions({
+    dungeonAffinity: "fire",
+    phase: "actors_only",
+    actors: [
+      {
+        motivation: "attacking",
+        affinity: "fire",
+        count: 1,
+        vitals: {
+          health: { current: 8, max: 8, regen: 0 },
+          mana: { current: 2, max: 2, regen: 1 },
+          stamina: { current: 2, max: 2, regen: 0 },
+          durability: { current: 1, max: 1, regen: 0 },
+        },
+      },
+    ],
+    rooms: [],
+  }, { phase: "actors_only" });
+  assert.equal(invalid.ok, false);
+  assert.ok(invalid.errors.find((error) => error.field === "actors[0].vitals.stamina.regen"));
+
+  const stationary = normalizeSummaryWithOptions({
+    dungeonAffinity: "fire",
+    phase: "actors_only",
+    actors: [
+      {
+        motivation: "stationary",
+        affinity: "fire",
+        count: 1,
+        vitals: {
+          health: { current: 8, max: 8, regen: 0 },
+          mana: { current: 0, max: 0, regen: 0 },
+          stamina: { current: 0, max: 0, regen: 0 },
+          durability: { current: 2, max: 2, regen: 0 },
+        },
+      },
+    ],
+    rooms: [],
+  }, { phase: "actors_only" });
+  assert.equal(stationary.ok, true);
+});
+
+test("normalizeSummary defaults attacker config mode when omitted", async () => {
+  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const result = normalizeSummary({
+    dungeonAffinity: "fire",
+    actors: [],
+    rooms: [],
+    attackerConfig: {
+      vitalsRegen: { mana: 1 },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.value.attackerConfig.setupMode, "auto");
+  assert.equal(result.value.attackerConfig.vitalsRegen.mana, 1);
 });
 
 test("normalizeSummary preserves room design details when provided", async () => {
@@ -216,7 +325,7 @@ test("normalizeSummaryWithOptions accepts phase metadata and stop reasons", asyn
       phase: "layout_only",
       remainingBudgetTokens: 120,
       stop: "done",
-      layout: { wallTiles: 1, floorTiles: 1, hallwayTiles: 0 },
+      layout: { floorTiles: 1, hallwayTiles: 0 },
     },
     { phase: "layout_only" }
   );

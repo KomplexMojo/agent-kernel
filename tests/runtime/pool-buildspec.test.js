@@ -44,6 +44,10 @@ test("summary without catalog still produces actor configuration via shared sele
   const summary = {
     dungeonAffinity: "water",
     budgetTokens: 900,
+    attackerConfig: {
+      setupMode: "user",
+      vitalsRegen: { mana: 2 },
+    },
     rooms: [{ motivation: "stationary", affinity: "water", count: 1 }],
     actors: [{
       motivation: "defending",
@@ -68,7 +72,9 @@ test("summary without catalog still produces actor configuration via shared sele
   assert.equal(result.spec.configurator.inputs.actors.length, 1);
   assert.equal(result.spec.configurator.inputs.actors[0].affinity, "water");
   assert.equal(result.spec.configurator.inputs.actors[0].vitals.health.current, 5);
+  assert.equal(result.spec.configurator.inputs.actors[0].setupMode, "user");
   assert.equal(result.spec.configurator.inputs.actors[0].traits.affinities.water, 2);
+  assert.equal(result.spec.configurator.inputs.attackerConfig.setupMode, "user");
 });
 
 test("summary roomDesign drives rooms level profile in BuildSpec", async () => {
@@ -103,12 +109,13 @@ test("summary roomDesign drives rooms level profile in BuildSpec", async () => {
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.spec.configurator.inputs.levelGen.width, 20);
-  assert.equal(result.spec.configurator.inputs.levelGen.height, 20);
+  assert.equal(result.spec.configurator.inputs.levelGen.width, 29);
+  assert.equal(result.spec.configurator.inputs.levelGen.height, 29);
+  assert.equal(result.spec.configurator.inputs.levelGen.walkableTilesTarget, 400);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.profile, "rooms");
   assert.equal(result.spec.configurator.inputs.levelGen.shape.roomCount, 3);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.roomMinSize, 3);
-  assert.equal(result.spec.configurator.inputs.levelGen.shape.roomMaxSize, 18);
+  assert.equal(result.spec.configurator.inputs.levelGen.shape.roomMaxSize, 20);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.corridorWidth, 1);
 });
 
@@ -137,6 +144,9 @@ test("summary roomDesign profile drives non-rectangular level shape in BuildSpec
   });
 
   assert.equal(result.ok, true);
+  assert.equal(result.spec.configurator.inputs.levelGen.width, 34);
+  assert.equal(result.spec.configurator.inputs.levelGen.height, 34);
+  assert.equal(result.spec.configurator.inputs.levelGen.walkableTilesTarget, 340);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.profile, "sparse_islands");
   assert.equal(result.spec.configurator.inputs.levelGen.shape.density, 0.28);
 });

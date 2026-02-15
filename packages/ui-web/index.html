@@ -110,11 +110,13 @@
         border: 1px dashed var(--muted);
         border-radius: 2px;
         padding: 12px;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
         font-size: 1rem;
         line-height: 1.3;
         min-height: 220px;
         white-space: pre;
-        letter-spacing: 0.05em;
+        letter-spacing: 0;
+        font-variant-ligatures: none;
       }
 
       .frame-display .actor-cell {
@@ -312,6 +314,27 @@
         color: var(--text);
       }
 
+      .token-indicator {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.8rem;
+        line-height: 1.1;
+        white-space: nowrap;
+      }
+
+      .icon-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .ui-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.1em;
+        line-height: 1;
+      }
+
       .pill {
         font-size: 0.85rem;
         color: var(--muted);
@@ -436,15 +459,62 @@
         margin: 16px 0;
       }
 
+      .prompt-params-groups {
+        display: grid;
+        gap: 14px;
+        margin-top: 12px;
+      }
+
+      .design-workflow-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .design-workflow-panels {
+        display: grid;
+        gap: 14px;
+      }
+
+      .design-step-panel {
+        display: grid;
+        gap: 14px;
+      }
+
+      .design-step-panel[hidden] {
+        display: none;
+      }
+
+      .design-step-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .prompt-params-group {
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        background: #070707;
+        padding: 12px;
+      }
+
+      .prompt-params-group .adapter-grid,
+      .prompt-params-group .affinity-grid,
+      .prompt-params-group .vitals-grid {
+        margin: 12px 0 4px;
+      }
+
       .affinity-grid {
         display: grid;
         gap: 10px;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         margin: 12px 0 4px;
       }
 
       .affinity-row {
-        display: grid;
+        display: flex;
+        flex-direction: column;
         gap: 8px;
         padding: 8px 10px;
         border: 1px solid var(--border);
@@ -453,12 +523,34 @@
         font-size: 0.9rem;
       }
 
+      .affinity-control {
+        display: grid;
+        grid-template-columns: 1fr 88px;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .affinity-kind-label {
+        color: var(--text);
+        text-transform: capitalize;
+      }
+
+      .affinity-count {
+        width: 100%;
+      }
+
       .affinity-expressions {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
         color: var(--muted);
         font-size: 0.85rem;
+      }
+
+      .affinity-expressions label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
       }
 
       .vitals-grid {
@@ -481,6 +573,102 @@
         font-size: 0.9rem;
         color: var(--text);
         white-space: pre-wrap;
+      }
+
+      .level-preview-output {
+        white-space: normal;
+      }
+
+      .level-preview-shell {
+        display: grid;
+        gap: 8px;
+      }
+
+      .level-preview-meta {
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .level-preview-canvas {
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        background: #010101;
+        max-width: 100%;
+        height: auto;
+      }
+
+      .actor-hud-output {
+        white-space: normal;
+      }
+
+      .actor-hud-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .actor-hud-card {
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        background: #070707;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .actor-hud-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .actor-hud-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text);
+        word-break: break-word;
+      }
+
+      .actor-hud-token {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #0d1d12;
+        font-size: 0.8rem;
+        color: var(--accent-strong);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .actor-hud-meta-row,
+      .actor-hud-affinities {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .actor-hud-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #0d0d0d;
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      .actor-hud-vitals {
+        font-size: 0.78rem;
+        color: var(--text);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       }
 
       .artifact-list {
@@ -528,7 +716,7 @@
           <div class="card frame-shell">
             <div class="stat">
               <span class="stat-label">Playing Surface</span>
-              <small class="status">Render of the MVP 9x9 map with actor movement.</small>
+              <small class="status">Live ASCII playback of the generated map, including actor positions and tick-by-tick movement updates.</small>
             </div>
             <pre class="frame-display" id="frame-buffer">Loading...</pre>
             <div class="actor-panel">
@@ -566,117 +754,285 @@
             <div class="tab-panel" data-tab-panel="design" role="tabpanel">
           <div class="card">
             <div class="stat">
-              <span class="stat-label">Prompt Parameters</span>
-              <small class="status">Tune budgets and affinities that feed the prompt template.</small>
+              <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧭</span>Design Workflow</span>
+              <small class="status">Configure and run each phase in order: Level, Attacker, Defender, then Simulation.</small>
             </div>
-            <div class="stat">
-              <span class="stat-label">General</span>
+            <div class="design-workflow-tabs" role="tablist" aria-label="Design workflow phases">
+              <button class="tab-button active" type="button" data-design-tab="level" role="tab" aria-selected="true">🗺️ Level</button>
+              <button class="tab-button" type="button" data-design-tab="attacker" role="tab" aria-selected="false">⚔️ Attacker</button>
+              <button class="tab-button" type="button" data-design-tab="defender" role="tab" aria-selected="false">🛡️ Defender</button>
+              <button class="tab-button" type="button" data-design-tab="simulation" role="tab" aria-selected="false">🎮 Simulation</button>
             </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Token Budget</span>
-                <input id="prompt-token-budget" type="number" min="0" step="1" value="1000" />
-              </label>
-              <label>
-                <span class="stat-label">Think Time (seconds)</span>
-                <input id="prompt-think-time" type="number" min="0" step="1" placeholder="optional" />
-              </label>
-              <label>
-                <span class="stat-label">LLM Tokens</span>
-                <input id="prompt-llm-tokens" type="number" min="0" step="1" placeholder="optional" />
-              </label>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Level Settings</span>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Level Budget</span>
-                <input id="prompt-level-budget" type="number" min="0" step="1" placeholder="optional" />
-              </label>
-            </div>
-            <div class="affinity-grid" id="prompt-level-affinities"></div>
-            <div class="stat">
-              <span class="stat-label">Attacker Settings</span>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Attacker Budget</span>
-                <input id="prompt-attacker-budget" type="number" min="0" step="1" placeholder="optional" />
-              </label>
-            </div>
-            <div class="affinity-grid" id="prompt-attacker-affinities"></div>
-            <div class="stat">
-              <span class="stat-label">Attacker Vitals</span>
-            </div>
-            <div class="vitals-grid">
-              <label>
-                <span class="stat-label">Health (max)</span>
-                <input id="attacker-vitals-health-max" type="number" min="0" step="1" placeholder="optional" />
-              </label>
-              <label>
-                <span class="stat-label">Mana (max)</span>
-                <input id="attacker-vitals-mana-max" type="number" min="0" step="1" placeholder="optional" />
-              </label>
-              <label>
-                <span class="stat-label">Stamina (max)</span>
-                <input id="attacker-vitals-stamina-max" type="number" min="0" step="1" placeholder="optional" />
-              </label>
-              <label>
-                <span class="stat-label">Durability (max)</span>
-                <input id="attacker-vitals-durability-max" type="number" min="0" step="1" placeholder="optional" />
-              </label>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Defender Settings</span>
-            </div>
-            <div class="affinity-grid" id="prompt-defender-affinities"></div>
+            <div class="status" id="design-guidance-status">Configure level settings and run the level prompt.</div>
           </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Prompt Template</span>
-              <small class="status">Review the level and defender prompt templates. The LLM still runs level first, then defender configuration.</small>
+
+          <div class="design-workflow-panels">
+            <div class="design-step-panel" data-design-tab-panel="level">
+              <div class="card">
+                <div class="stat">
+                  <div class="stat-row">
+                    <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧱</span>Level Configuration</span>
+                    <span class="badge token-indicator" id="design-level-token-indicator">Used 0 / 0 (0%)</span>
+                  </div>
+                </div>
+                <div class="prompt-params-groups">
+                  <section class="prompt-params-group">
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🪙</span>Level Budgeting</span>
+                    </div>
+                    <div class="adapter-grid">
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🪙</span>Token Budget</span>
+                        <input id="prompt-token-budget" type="number" min="0" step="1" value="1000" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📦</span>Max Token Budget</span>
+                        <input id="prompt-max-token-budget" type="number" min="1" step="1" placeholder="optional" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⏱️</span>Think Time (seconds)</span>
+                        <input id="prompt-think-time" type="number" min="0" step="1" placeholder="optional" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🤖</span>LLM Tokens</span>
+                        <input id="prompt-llm-tokens" type="number" min="0" step="1" placeholder="optional" />
+                      </label>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📊</span>Layout Allocation (%)</span>
+                      <small class="status">Percentages are proportional weights; no minimum ratios are enforced.</small>
+                    </div>
+                    <div class="adapter-grid">
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🗺️</span>Layout %</span>
+                        <input id="prompt-layout-allocation-percent" type="number" min="0" max="100" step="1" value="55" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛡️</span>Defenders %</span>
+                        <input id="prompt-defender-allocation-percent" type="number" min="0" max="100" step="1" value="25" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚔️</span>Attacker %</span>
+                        <input id="prompt-attacker-allocation-percent" type="number" min="0" max="100" step="1" value="20" />
+                      </label>
+                    </div>
+                    <small class="status" id="prompt-budget-allocation-summary">Layout 550 | Defenders 250 | Attacker 200 tokens (budget 1000)</small>
+                  </section>
+
+                  <section class="prompt-params-group">
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧩</span>Level Shape</span>
+                    </div>
+                    <div class="adapter-grid">
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🗺️</span>Layout Profile</span>
+                        <select id="prompt-layout-profile">
+                          <option value="auto" selected>auto</option>
+                          <option value="rectangular">rectangular</option>
+                          <option value="rooms">rooms</option>
+                          <option value="sparse_islands">sparse_islands</option>
+                          <option value="clustered_islands">clustered_islands</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Level Affinities (count)</span>
+                      <small class="status">Defaults to 0. Increase any affinity to include it in level generation.</small>
+                    </div>
+                    <div class="affinity-grid" id="prompt-level-affinities"></div>
+                  </section>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧠</span>Level Prompt Template</span>
+                  <small class="status">Generated from current level parameters.</small>
+                </div>
+                <textarea id="design-level-prompt-template" rows="12" placeholder="Level prompt template."></textarea>
+                <textarea id="design-guidance-input" rows="1" hidden></textarea>
+                <div class="design-step-actions">
+                  <button class="primary" id="design-run-level-prompt" type="button">🧱 Run Level Creation Prompt</button>
+                  <button class="secondary" id="design-guidance-generate" type="button" hidden>Legacy Generate</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🏗️</span>Level Design</span>
+                  <small class="status">Review room structure and layout strategy before moving to attacker setup.</small>
+                </div>
+                <div class="adapter-output level-preview-output" id="design-level-output">No level preview yet.</div>
+              </div>
             </div>
-            <textarea id="design-guidance-input" rows="16" placeholder="Level and actor prompt templates are populated by default."></textarea>
-            <div class="controls">
-              <button class="primary" id="design-guidance-generate" type="button">Generate brief</button>
+
+            <div class="design-step-panel" data-design-tab-panel="attacker" hidden>
+              <div class="card">
+                <div class="stat">
+                  <div class="stat-row">
+                    <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚔️</span>Attacker Configuration</span>
+                    <span class="badge token-indicator" id="design-attacker-token-indicator">Used 0 / 0 (0%)</span>
+                  </div>
+                </div>
+                <div class="prompt-params-groups">
+                  <section class="prompt-params-group">
+                    <div class="adapter-grid">
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚙️</span>Attacker Setup Mode</span>
+                        <select id="prompt-attacker-setup-mode">
+                          <option value="auto" selected>auto</option>
+                          <option value="user">user</option>
+                          <option value="hybrid">hybrid</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Attacker Affinities (count)</span>
+                      <small class="status">Defaults to 0. Increase any affinity to include it in attacker setup generation.</small>
+                    </div>
+                    <div class="affinity-grid" id="prompt-attacker-affinities"></div>
+                  </section>
+                  <section class="prompt-params-group">
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📈</span>Attacker Vitals (max)</span>
+                    </div>
+                    <div class="vitals-grid">
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">❤️</span>Health (max)</span>
+                        <input id="attacker-vitals-health-max" type="number" min="0" step="1" placeholder="optional" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔮</span>Mana (max)</span>
+                        <input id="attacker-vitals-mana-max" type="number" min="0" step="1" placeholder="optional" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚡</span>Stamina (max)</span>
+                        <input id="attacker-vitals-stamina-max" type="number" min="0" step="1" placeholder="optional" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛡️</span>Durability (max)</span>
+                        <input id="attacker-vitals-durability-max" type="number" min="0" step="1" placeholder="optional" />
+                      </label>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">♻️</span>Attacker Vitals (regen)</span>
+                    </div>
+                    <div class="vitals-grid">
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">❤️</span>Health Regen</span>
+                        <input id="attacker-vitals-health-regen" type="number" min="0" step="1" value="0" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔮</span>Mana Regen</span>
+                        <input id="attacker-vitals-mana-regen" type="number" min="0" step="1" value="0" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚡</span>Stamina Regen</span>
+                        <input id="attacker-vitals-stamina-regen" type="number" min="0" step="1" value="0" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛡️</span>Durability Regen</span>
+                        <input id="attacker-vitals-durability-regen" type="number" min="0" step="1" value="0" />
+                      </label>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧠</span>Attacker Prompt Template</span>
+                  <small class="status">Generated from attacker controls.</small>
+                </div>
+                <textarea id="design-attacker-prompt-template" rows="12" placeholder="Attacker prompt template."></textarea>
+                <div class="design-step-actions">
+                  <button class="primary" id="design-run-attacker-prompt" type="button">⚔️ Run Attacker Creation Prompt</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📄</span>Attacker Config Result</span>
+                </div>
+                <div class="adapter-output actor-hud-output" id="design-attacker-output">No attacker configuration yet.</div>
+              </div>
             </div>
-            <div class="status" id="design-guidance-status">Waiting for prompt template execution.</div>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Design Brief</span>
-              <small class="status">Summary of phased generation with separate level and actor spend.</small>
+
+            <div class="design-step-panel" data-design-tab-panel="defender" hidden>
+              <div class="card">
+                <div class="stat">
+                  <div class="stat-row">
+                    <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛡️</span>Defender Configuration</span>
+                    <span class="badge token-indicator" id="design-defender-token-indicator">Used 0 / 0 (0%)</span>
+                  </div>
+                </div>
+                <div class="prompt-params-groups">
+                  <section class="prompt-params-group">
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Defender Affinities (count)</span>
+                      <small class="status">Defaults to 0. Increase any affinity to include it in defender generation.</small>
+                    </div>
+                    <div class="affinity-grid" id="prompt-defender-affinities"></div>
+                  </section>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧠</span>Defender Prompt Template</span>
+                  <small class="status">Generated from defender controls and current layout context.</small>
+                </div>
+                <textarea id="design-defender-prompt-template" rows="12" placeholder="Defender prompt template."></textarea>
+                <div class="design-step-actions">
+                  <button class="primary" id="design-run-defender-prompt" type="button">🛡️ Run Defender Prompt</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">👥</span>Actor Set</span>
+                  <small class="status">Edit generated defender configurations before simulation.</small>
+                </div>
+                <textarea id="design-actor-set-json" rows="8" placeholder="[{\"id\":\"actor_alpha\",\"role\":\"scout\"}]"></textarea>
+                <div class="controls">
+                  <button class="secondary" id="design-actor-set-apply" type="button">Apply edits</button>
+                </div>
+                <div class="adapter-output actor-hud-output" id="design-actor-set-preview">No actors proposed.</div>
+              </div>
+
             </div>
-            <pre class="adapter-output" id="design-brief-output">No brief yet.</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Level Design</span>
-              <small class="status">Review room structure and connections before actor edits.</small>
+
+            <div class="design-step-panel" data-design-tab-panel="simulation" hidden>
+              <div class="card">
+                <div class="stat">
+                  <div class="stat-row">
+                    <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📝</span>Design Brief</span>
+                    <span class="badge token-indicator" id="design-simulation-token-indicator">Used 0 / 0 (0%)</span>
+                  </div>
+                  <small class="status">Summary of the level, attacker, and defender phases.</small>
+                </div>
+                <pre class="adapter-output" id="design-brief-output">No brief yet.</pre>
+              </div>
+
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📒</span>Spend Ledger</span>
+                  <small class="status">Budget provenance across level, attacker, and defender outputs.</small>
+                </div>
+                <pre class="adapter-output" id="design-spend-ledger-output">No spend ledger yet.</pre>
+              </div>
+
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🚀</span>Build And Load</span>
+                  <small class="status">Build from current level, attacker, and defender outputs, then open simulation.</small>
+                </div>
+                <div class="controls">
+                  <button class="primary" id="design-build-and-load" type="button">🚀 Build And Load Simulation</button>
+                </div>
+                <div class="status" id="design-build-status">Waiting for defender configuration.</div>
+              </div>
             </div>
-            <pre class="adapter-output" id="design-level-output">No room design yet.</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Actor Set</span>
-              <small class="status">Edit the proposed actor configurations before running a simulation.</small>
-            </div>
-            <textarea id="design-actor-set-json" rows="8" placeholder="[{\"id\":\"actor_alpha\",\"role\":\"scout\"}]"></textarea>
-            <div class="controls">
-              <button class="secondary" id="design-actor-set-apply" type="button">Apply edits</button>
-            </div>
-            <pre class="adapter-output" id="design-actor-set-preview">No actors proposed.</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Build And Load</span>
-              <small class="status">Build from the brief and current actor edits, then load the simulation interface.</small>
-            </div>
-            <div class="controls">
-              <button class="primary" id="design-build-and-load" type="button">Build And Load Simulation</button>
-            </div>
-            <div class="status" id="design-build-status">Waiting for a brief.</div>
           </div>
         </div>
 
@@ -698,6 +1054,26 @@
               <span class="stat-label">Actor JSON Output</span>
             </div>
             <pre class="adapter-output" id="actor-json-output">No JSON output yet.</pre>
+          </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📈</span>Level Generation Benchmark</span>
+              <small class="status">Run local layout generation throughput checks and compare expected timing at your current level size.</small>
+            </div>
+            <div class="controls">
+              <button id="design-run-level-benchmark" type="button">Benchmark Level Generation</button>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📈</span>Benchmark Max Tokens</span>
+                <input id="benchmark-max-token-budget" type="number" min="1" step="1" value="2000000" />
+              </label>
+              <label>
+                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔁</span>Benchmark Runs / Size</span>
+                <input id="benchmark-sample-runs" type="number" min="1" step="1" value="1" />
+              </label>
+            </div>
+            <pre class="adapter-output" id="design-level-benchmark-output">No benchmark yet.</pre>
           </div>
         </div>
 

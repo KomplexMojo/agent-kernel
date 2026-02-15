@@ -47,16 +47,36 @@ export function wireDesignView({
   onLlmCapture,
 } = {}) {
   const guidanceInput = root.querySelector("#design-guidance-input");
-  const guidanceGenerate = root.querySelector("#design-guidance-generate");
+  const levelPromptInput = root.querySelector("#design-level-prompt-template");
+  const attackerPromptInput = root.querySelector("#design-attacker-prompt-template");
+  const defenderPromptInput = root.querySelector("#design-defender-prompt-template");
+  const runLevelPromptButton = root.querySelector("#design-run-level-prompt") || root.querySelector("#design-guidance-generate");
+  const runAttackerPromptButton = root.querySelector("#design-run-attacker-prompt");
+  const runDefenderPromptButton = root.querySelector("#design-run-defender-prompt");
   const guidanceStatus = root.querySelector("#design-guidance-status");
   const briefOutput = root.querySelector("#design-brief-output");
+  const spendLedgerOutput = root.querySelector("#design-spend-ledger-output");
   const levelDesignOutput = root.querySelector("#design-level-output");
+  const attackerConfigOutput = root.querySelector("#design-attacker-output");
+  const levelTokenIndicator = root.querySelector("#design-level-token-indicator");
+  const attackerTokenIndicator = root.querySelector("#design-attacker-token-indicator");
+  const defenderTokenIndicator = root.querySelector("#design-defender-token-indicator");
+  const simulationTokenIndicator = root.querySelector("#design-simulation-token-indicator");
   const tokenBudgetInput = root.querySelector("#prompt-token-budget");
+  const maxTokenBudgetInput = root.querySelector("#prompt-max-token-budget");
   const thinkTimeInput = root.querySelector("#prompt-think-time");
   const llmTokensInput = root.querySelector("#prompt-llm-tokens");
-  const levelBudgetInput = root.querySelector("#prompt-level-budget");
+  const layoutProfileInput = root.querySelector("#prompt-layout-profile");
+  const layoutAllocationPercentInput = root.querySelector("#prompt-layout-allocation-percent");
+  const defenderAllocationPercentInput = root.querySelector("#prompt-defender-allocation-percent");
+  const attackerAllocationPercentInput = root.querySelector("#prompt-attacker-allocation-percent");
+  const budgetAllocationSummary = root.querySelector("#prompt-budget-allocation-summary");
+  const levelBenchmarkButton = root.querySelector("#design-run-level-benchmark");
+  const levelBenchmarkOutput = root.querySelector("#design-level-benchmark-output");
+  const benchmarkMaxTokenBudgetInput = root.querySelector("#benchmark-max-token-budget");
+  const benchmarkSampleRunsInput = root.querySelector("#benchmark-sample-runs");
   const levelAffinitiesContainer = root.querySelector("#prompt-level-affinities");
-  const attackerBudgetInput = root.querySelector("#prompt-attacker-budget");
+  const attackerSetupModeInput = root.querySelector("#prompt-attacker-setup-mode");
   const attackerAffinitiesContainer = root.querySelector("#prompt-attacker-affinities");
   const defenderAffinitiesContainer = root.querySelector("#prompt-defender-affinities");
   const attackerVitalsInputs = {
@@ -73,20 +93,59 @@ export function wireDesignView({
       max: root.querySelector("#attacker-vitals-durability-max"),
     },
   };
+  const attackerVitalsRegenInputs = {
+    health: root.querySelector("#attacker-vitals-health-regen"),
+    mana: root.querySelector("#attacker-vitals-mana-regen"),
+    stamina: root.querySelector("#attacker-vitals-stamina-regen"),
+    durability: root.querySelector("#attacker-vitals-durability-regen"),
+  };
   const hasAttackerVitalsInputs = Object.values(attackerVitalsInputs).some(
     (group) => group?.max,
   );
   const resolvedAttackerVitalsInputs = hasAttackerVitalsInputs ? attackerVitalsInputs : null;
+  const hasAttackerVitalsRegenInputs = Object.values(attackerVitalsRegenInputs).some(Boolean);
+  const resolvedAttackerVitalsRegenInputs = hasAttackerVitalsRegenInputs ? attackerVitalsRegenInputs : null;
   const actorSetJson = root.querySelector("#design-actor-set-json");
   const actorSetApply = root.querySelector("#design-actor-set-apply");
   const actorSetPreview = root.querySelector("#design-actor-set-preview");
   const buildButton = root.querySelector("#design-build-and-load");
   const buildStatus = root.querySelector("#design-build-status");
+  const designTabButtons = typeof root.querySelectorAll === "function"
+    ? Array.from(root.querySelectorAll("[data-design-tab]"))
+    : [];
+  const designTabPanels = typeof root.querySelectorAll === "function"
+    ? Array.from(root.querySelectorAll("[data-design-tab-panel]"))
+    : [];
 
   let running = false;
+  let promptRunInFlight = false;
   let lastPublishedSpecText = "";
   let previewRunId = `design_ui_preview_${Date.now()}`;
   let previewCreatedAt = new Date().toISOString();
+  const promptButtonLabelCache = new WeakMap();
+
+  function setDesignStep(stepId = "level") {
+    if (!stepId) return;
+    designTabButtons.forEach((button) => {
+      const active = button?.dataset?.designTab === stepId;
+      button.classList?.toggle?.("active", active);
+      button.setAttribute?.("aria-selected", active ? "true" : "false");
+    });
+    designTabPanels.forEach((panel) => {
+      panel.hidden = panel?.dataset?.designTabPanel !== stepId;
+    });
+  }
+
+  if (designTabButtons.length > 0 && designTabPanels.length > 0) {
+    setDesignStep("level");
+    designTabButtons.forEach((button) => {
+      button.addEventListener?.("click", () => {
+        const tabId = button?.dataset?.designTab;
+        if (!tabId) return;
+        setDesignStep(tabId);
+      });
+    });
+  }
 
   function refreshPreviewIdentity() {
     previewRunId = `design_ui_preview_${Date.now()}`;
@@ -178,19 +237,38 @@ export function wireDesignView({
   const guidance = wireDesignGuidance({
     elements: {
       guidanceInput,
-      generateButton: guidanceGenerate,
+      levelPromptInput,
+      attackerPromptInput,
+      defenderPromptInput,
+      generateButton: null,
       statusEl: guidanceStatus,
       briefOutput,
+      spendLedgerOutput,
       levelDesignOutput,
+      attackerConfigOutput,
+      levelTokenIndicator,
+      attackerTokenIndicator,
+      defenderTokenIndicator,
+      simulationTokenIndicator,
       tokenBudgetInput,
+      maxTokenBudgetInput,
       thinkTimeInput,
       llmTokensInput,
-      levelBudgetInput,
+      layoutProfileInput,
+      layoutAllocationPercentInput,
+      defenderAllocationPercentInput,
+      attackerAllocationPercentInput,
+      budgetAllocationSummary,
+      levelBenchmarkButton,
+      levelBenchmarkOutput,
+      benchmarkMaxTokenBudgetInput,
+      benchmarkSampleRunsInput,
       levelAffinitiesContainer,
-      attackerBudgetInput,
+      attackerSetupModeInput,
       attackerAffinitiesContainer,
       defenderAffinitiesContainer,
       attackerVitalsInputs: resolvedAttackerVitalsInputs,
+      attackerVitalsRegenInputs: resolvedAttackerVitalsRegenInputs,
       actorSetInput: actorSetJson,
       actorSetPreview,
       applyActorSetButton: actorSetApply,
@@ -202,6 +280,30 @@ export function wireDesignView({
       publishPreviewSpec();
     },
   });
+
+  async function runLevelPrompt(options) {
+    const result = await guidance.generateLevelBrief(options);
+    if (result?.ok) {
+      setDesignStep("attacker");
+    }
+    return result;
+  }
+
+  async function runAttackerPrompt(options) {
+    const result = await guidance.generateAttackerBrief(options);
+    if (result?.ok) {
+      setDesignStep("defender");
+    }
+    return result;
+  }
+
+  async function runDefenderPrompt(options) {
+    const result = await guidance.generateDefenderBrief(options);
+    if (result?.ok) {
+      setDesignStep("simulation");
+    }
+    return result;
+  }
 
   async function buildAndLoad() {
     if (running) return;
@@ -220,6 +322,12 @@ export function wireDesignView({
       const actorSetOk = guidance.updateActorSetFromJson(actorText);
       if (!actorSetOk) {
         setStatus(buildStatus, "Fix actor set JSON before building.", true);
+        return;
+      }
+      const spendLedger = guidance.getSpendLedger?.();
+      if (spendLedger?.overBudget) {
+        const overBy = Number.isInteger(spendLedger.totalOverBudgetBy) ? spendLedger.totalOverBudgetBy : "unknown";
+        setStatus(buildStatus, `Build blocked: over budget by ${overBy} tokens.`, true);
         return;
       }
 
@@ -270,6 +378,88 @@ export function wireDesignView({
     });
   }
 
+  function setPromptButtonsBusy({ activeButton = null, activeLabel = "" } = {}) {
+    const buttons = [
+      runLevelPromptButton,
+      runAttackerPromptButton,
+      runDefenderPromptButton,
+    ].filter(Boolean);
+    buttons.forEach((button) => {
+      if (!promptButtonLabelCache.has(button)) {
+        promptButtonLabelCache.set(button, typeof button.textContent === "string" ? button.textContent : "");
+      }
+      button.disabled = true;
+      if (typeof button.setAttribute === "function") {
+        button.setAttribute("aria-busy", button === activeButton ? "true" : "false");
+      }
+      if (button === activeButton && typeof activeLabel === "string" && activeLabel.trim().length > 0 && "textContent" in button) {
+        button.textContent = activeLabel;
+      }
+    });
+  }
+
+  function clearPromptButtonsBusy() {
+    const buttons = [
+      runLevelPromptButton,
+      runAttackerPromptButton,
+      runDefenderPromptButton,
+    ].filter(Boolean);
+    buttons.forEach((button) => {
+      button.disabled = false;
+      if (typeof button.removeAttribute === "function") {
+        button.removeAttribute("aria-busy");
+      }
+      const originalLabel = promptButtonLabelCache.get(button);
+      if (typeof originalLabel === "string" && "textContent" in button) {
+        button.textContent = originalLabel;
+      }
+    });
+  }
+
+  async function runPromptWithBusyState({ button, activeLabel, action } = {}) {
+    if (promptRunInFlight) {
+      return { ok: false, reason: "prompt_busy" };
+    }
+    promptRunInFlight = true;
+    setPromptButtonsBusy({ activeButton: button, activeLabel });
+    try {
+      return await action();
+    } finally {
+      promptRunInFlight = false;
+      clearPromptButtonsBusy();
+    }
+  }
+
+  if (runLevelPromptButton?.addEventListener) {
+    runLevelPromptButton.addEventListener("click", () => {
+      runPromptWithBusyState({
+        button: runLevelPromptButton,
+        activeLabel: "Running Level Prompt...",
+        action: () => runLevelPrompt({ useFixture: false }),
+      });
+    });
+  }
+
+  if (runAttackerPromptButton?.addEventListener) {
+    runAttackerPromptButton.addEventListener("click", () => {
+      runPromptWithBusyState({
+        button: runAttackerPromptButton,
+        activeLabel: "Running Attacker Prompt...",
+        action: () => runAttackerPrompt({ useFixture: false }),
+      });
+    });
+  }
+
+  if (runDefenderPromptButton?.addEventListener) {
+    runDefenderPromptButton.addEventListener("click", () => {
+      runPromptWithBusyState({
+        button: runDefenderPromptButton,
+        activeLabel: "Running Defender Prompt...",
+        action: () => runDefenderPrompt({ useFixture: false }),
+      });
+    });
+  }
+
   if (actorSetApply?.addEventListener) {
     actorSetApply.addEventListener("click", () => {
       publishPreviewSpec();
@@ -283,6 +473,10 @@ export function wireDesignView({
   }
 
   return {
+    generateLevelBrief: (options) => guidance.generateLevelBrief(options),
+    generateAttackerBrief: (options) => guidance.generateAttackerBrief(options),
+    generateDefenderBrief: (options) => guidance.generateDefenderBrief(options),
+    benchmarkLevelGeneration: (options) => guidance.benchmarkLevelGeneration(options),
     generateBrief: (options) => guidance.generateBrief(options),
     buildAndLoad,
   };

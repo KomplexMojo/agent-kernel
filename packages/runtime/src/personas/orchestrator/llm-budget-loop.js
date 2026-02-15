@@ -27,6 +27,7 @@ import {
 } from "../../contracts/domain-constants.js";
 
 const DEFAULT_MAX_ACTOR_ROUNDS = 2;
+const MAX_EXACT_LAYOUT_FEASIBILITY_TILES = 1_000_000;
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -144,7 +145,7 @@ function buildPhaseContext({ roomsSelections = [], actorSelections = [], layout 
   const rooms = formatSelections("Rooms approved", roomsSelections);
   const actors = formatSelections("Actors approved", actorSelections);
   const layoutLine = layout
-    ? `Layout tiles: wall ${layout.wallTiles}, floor ${layout.floorTiles}, hallway ${layout.hallwayTiles}`
+    ? `Layout tiles: floor ${layout.floorTiles}, hallway ${layout.hallwayTiles}`
     : "";
   return [layoutLine, rooms, actors].filter(Boolean).join(" | ");
 }
@@ -196,12 +197,13 @@ function buildPhaseRepairPrompt({
     phaseRequirement,
     extraLines: [
       phase === "layout_only"
-        ? `Tile costs: wall ${layoutCosts?.wallTiles ?? 1}, floor ${layoutCosts?.floorTiles ?? 1}, hallway ${layoutCosts?.hallwayTiles ?? 1} tokens each.`
+        ? `Tile costs: floor ${layoutCosts?.floorTiles ?? 1}, hallway ${layoutCosts?.hallwayTiles ?? 1} tokens each.`
         : null,
       missingSelections ? `Unmatched picks: ${missingSelections}` : null,
       phase === "layout_only"
         ? LLM_REPAIR_TEXT.layoutIntegerRule
         : LLM_REPAIR_TEXT.tokenHintRule,
+      phase === "actors_only" ? LLM_REPAIR_TEXT.actorMobilityRule : null,
       phase === "layout_only"
         ? LLM_REPAIR_TEXT.layoutExample
         : LLM_REPAIR_TEXT.exampleAffinityEntry,
@@ -332,12 +334,63 @@ function snapActorsSummaryToCatalog({ summary, catalogEntries, remainingBudgetTo
 
 function validateFeasibility({ roomCount, actorCount, layout }) {
   if (layout) {
+    const normalizationWarnings = [];
+    const normalizedLayout = normalizeLayoutCounts(layout, normalizationWarnings);
+    const hasInvalidCounts = normalizationWarnings.some((warning) => (
+      warning?.code === "invalid_layout" || warning?.code === "invalid_tile_count"
+    ));
+    const walkableTiles = sumLayoutTiles(normalizedLayout);
+    if (normalizedLayout && !hasInvalidCounts && walkableTiles > MAX_EXACT_LAYOUT_FEASIBILITY_TILES) {
+      const errors = [];
+      if (walkableTiles <= 0) {
+        errors.push({ field: "layout", code: "empty_layout" });
+      }
+      if (Number.isInteger(actorCount) && actorCount > 0 && walkableTiles < actorCount) {
+        errors.push({
+          field: "actors",
+          code: "insufficient_walkable_tiles",
+          detail: {
+            actorCount,
+            walkableTiles,
+          },
+        });
+      }
+      return { ok: errors.length === 0, errors };
+    }
     const result = validateLayoutCountsAndActors({ layout, actorCount });
     return { ok: result.ok, errors: result.errors || [] };
   }
   const levelGen = deriveLevelGen({ roomCount });
   const result = validateLayoutAndActors({ levelGen, actorCount });
   return { ok: result.ok, errors: result.errors || [] };
+}
+
+function isAmbulatoryMotivation(motivation) {
+  return typeof motivation === "string" && motivation.trim() !== "" && motivation !== "stationary";
+}
+
+function validateActorMobilityVitals(selections = []) {
+  const errors = [];
+  selections
+    .filter((selection) => selection?.kind === "actor")
+    .forEach((selection, selectionIndex) => {
+      const instances = Array.isArray(selection?.instances) ? selection.instances : [];
+      if (instances.length === 0) return;
+      instances.forEach((instance, instanceIndex) => {
+        if (!isAmbulatoryMotivation(instance?.motivation)) return;
+        const staminaRegen = instance?.vitals?.stamina?.regen;
+        if (!Number.isInteger(staminaRegen) || staminaRegen <= 0) {
+          errors.push({
+            field: `actors[${selectionIndex}].instances[${instanceIndex}].vitals.stamina.regen`,
+            code: "missing_stamina_regen_for_ambulatory",
+          });
+        }
+      });
+    });
+  return {
+    ok: errors.length === 0,
+    errors,
+  };
 }
 
 function validateLayoutSummary({ summary, remainingBudgetTokens, priceList, layoutCosts }) {
@@ -519,6 +572,20 @@ function fitLayoutToBudget({
   return { ok: true, layout: spend.layout || working, layoutSpend: spend, adjusted: true };
 }
 
+function fitLayoutToPhaseConstraints({
+  layout,
+  remainingBudgetTokens,
+  priceList,
+  layoutCosts,
+} = {}) {
+  return fitLayoutToBudget({
+    layout,
+    remainingBudgetTokens,
+    priceList,
+    layoutCosts,
+  });
+}
+
 async function runPhase({
   adapter,
   model,
@@ -532,6 +599,7 @@ async function runPhase({
   phase,
   phaseContext,
   layoutCosts,
+  layoutProfiles,
   affinities,
   strict,
   format,
@@ -565,6 +633,7 @@ async function runPhase({
     allowedPairsText,
     context: phaseContext,
     layoutCosts,
+    layoutProfiles,
     affinities: promptAffinities,
     affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
     motivations: promptMotivations,
@@ -707,6 +776,53 @@ async function runPhase({
       endedAt,
       durationMs,
     };
+  }
+
+  if (phase === "layout_only" && !strict) {
+    const recovered = fitLayoutToPhaseConstraints({
+      layout: layoutPlan || phaseSummary?.layout,
+      remainingBudgetTokens,
+      priceList,
+      layoutCosts,
+    });
+    if (recovered.ok) {
+      const recoveredSummary = {
+        ...phaseSummary,
+        layout: recovered.layout,
+      };
+      const recoveredValidationResult = validateLayoutSummary({
+        summary: recoveredSummary,
+        remainingBudgetTokens,
+        priceList,
+        layoutCosts,
+      });
+      const recoveredValidation = {
+        ok: recoveredValidationResult.ok,
+        errors: recoveredValidationResult.errors || [],
+      };
+      const recoveredExtra = typeof extraValidator === "function"
+        ? extraValidator({ selections, summary: recoveredSummary, phase, layout: recovered.layout })
+        : { ok: true, errors: [] };
+      if (recoveredValidation.ok && recoveredExtra.ok) {
+        const endedAt = typeof clock === "function" ? clock() : undefined;
+        const endMs = endedAt ? Date.parse(endedAt) : NaN;
+        const durationMs = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs ? endMs - startMs : undefined;
+        applyPhaseTimingToCaptures(captures, { startedAt, endedAt, durationMs });
+        return {
+          ok: true,
+          summary: recoveredSummary,
+          selections,
+          layout: recovered.layout,
+          layoutSpend: recovered.layoutSpend || recoveredValidationResult.spend,
+          captures,
+          session,
+          validationErrors: combinedErrors.length > 0 ? combinedErrors : undefined,
+          startedAt,
+          endedAt,
+          durationMs,
+        };
+      }
+    }
   }
 
   if (maxRepairs <= 0) {
@@ -987,6 +1103,8 @@ export async function runLlmBudgetLoop({
   maxActorRounds = DEFAULT_MAX_ACTOR_ROUNDS,
   optionsByPhase,
   defenderAffinities,
+  layoutProfiles,
+  layoutPhaseContext = "",
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
@@ -1077,8 +1195,9 @@ export async function runLlmBudgetLoop({
     allowedPairsText,
     allowedOptions,
     phase: "layout_only",
-    phaseContext: "",
+    phaseContext: layoutPhaseContext,
     layoutCosts,
+    layoutProfiles,
     strict,
     format: llmFormat,
     stream,
@@ -1183,9 +1302,14 @@ export async function runLlmBudgetLoop({
       nextCaptureMeta,
       options: resolvePhaseLlmOptions({ phase: "actors_only", optionsByPhase }),
       extraValidator: ({ selections }) => {
+        const mobility = validateActorMobilityVitals(selections);
         const actorCount = countRequestedSelections(approvedActors, "actor")
           + countRequestedSelections(selections, "actor");
-        return validateFeasibility({ layout: layoutPlan, actorCount });
+        const feasibility = validateFeasibility({ layout: layoutPlan, actorCount });
+        return {
+          ok: mobility.ok && feasibility.ok,
+          errors: [...mobility.errors, ...(feasibility.errors || [])],
+        };
       },
     });
 
@@ -1215,12 +1339,22 @@ export async function runLlmBudgetLoop({
     });
 
     lastActorSummary = actorsPhase.summary;
+    const cheapestRoundCost = Number.isInteger(actorSpend?.cheapestRequestedUnitCost)
+      ? actorSpend.cheapestRequestedUnitCost
+      : cheapestCost;
     stopReason = resolveStopReason({
       summary: actorsPhase.summary,
       remainingBudgetTokens,
-      cheapestCost,
+      cheapestCost: cheapestRoundCost,
       ignoreDoneIfBudgetRemains: true,
     });
+    if (
+      !stopReason
+      && actorSpend.approvedSelections.length === 0
+      && actorSpend.rejectedSelections.length > 0
+    ) {
+      stopReason = "no_viable_spend";
+    }
 
     actorRounds += 1;
   }

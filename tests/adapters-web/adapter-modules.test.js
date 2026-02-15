@@ -51,6 +51,15 @@ const adapter = createLlmAdapter({
 await assert.rejects(() => adapter.generate({ model: "m", prompt: "p" }), /LLM request failed/);
 assert.throws(() => createLlmAdapter({ fetchFn: null }), /fetch implementation/);
 await assert.rejects(() => adapter.generate({ model: "m" }), /model and prompt/);
+
+const timeoutAdapter = createLlmAdapter({
+  baseUrl: "http://localhost:11434",
+  requestTimeoutMs: 25,
+  fetchFn: async () => new Promise(() => {}),
+});
+const timeoutStartedAt = Date.now();
+await assert.rejects(() => timeoutAdapter.generate({ model: "m", prompt: "p" }), /timed out/);
+assert.ok(Date.now() - timeoutStartedAt < 1000);
 `;
 
 test("ipfs adapter builds URLs and handles fetch errors", () => {

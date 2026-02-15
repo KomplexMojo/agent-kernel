@@ -57,3 +57,39 @@ test("allocator selection spend trims over-budget selections deterministically",
 test("allocator selection spend approves selections when budget allows", () => {
   runEsm(approveScript);
 });
+
+const actorConfigCostScript = `
+import assert from "node:assert/strict";
+import { evaluateSelectionSpend } from ${JSON.stringify(spendModulePath)};
+import { mapSummaryToPool } from ${JSON.stringify(mapperModulePath)};
+
+const summary = {
+  dungeonAffinity: "fire",
+  actors: [{
+    motivation: "patrolling",
+    affinity: "wind",
+    count: 1,
+    vitals: {
+      health: { current: 8, max: 8, regen: 0 },
+      mana: { current: 4, max: 4, regen: 1 },
+      stamina: { current: 4, max: 4, regen: 1 },
+      durability: { current: 2, max: 2, regen: 0 },
+    },
+  }],
+};
+
+const mapped = mapSummaryToPool({ summary, catalog: ${JSON.stringify(catalogFixture)} });
+const result = evaluateSelectionSpend({ selections: mapped.selections, budgetTokens: 100 });
+
+assert.equal(result.approvedSelections.length, 0);
+assert.equal(result.rejectedSelections.length, 1);
+assert.equal(result.spentTokens, 0);
+assert.equal(result.remainingBudgetTokens, 100);
+assert.equal(result.decisions[0].baseUnitCost, 80);
+assert.equal(result.decisions[0].configUnitCost, 22);
+assert.equal(result.decisions[0].unitCost, 102);
+`;
+
+test("allocator selection spend includes actor configuration costs", () => {
+  runEsm(actorConfigCostScript);
+});

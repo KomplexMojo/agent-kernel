@@ -159,7 +159,17 @@ const responses = [
   {
     response: JSON.stringify({
       phase: "actors_only",
-      actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
+      actors: [{
+        motivation: "patrolling",
+        affinity: "wind",
+        count: 1,
+        vitals: {
+          health: { current: 8, max: 8, regen: 0 },
+          mana: { current: 4, max: 4, regen: 1 },
+          stamina: { current: 4, max: 4, regen: 1 },
+          durability: { current: 2, max: 2, regen: 0 },
+        },
+      }],
       missing: [],
       stop: "done",
     }),
@@ -195,6 +205,99 @@ assert.ok(calls[1].options.num_predict >= 320);
 assert.equal(result.summary.actors.length, 1);
 `;
 
+const actorsSanitizationScript = `
+import assert from "node:assert/strict";
+import { runLlmSession } from ${JSON.stringify(sessionModulePath)};
+import { createLlmTestAdapter } from ${JSON.stringify(llmAdapterPath)};
+
+const adapter = createLlmTestAdapter();
+const prompt = "actors sanitize prompt";
+const responseRaw = JSON.stringify({
+  phase: "actors_only",
+  actors: [
+    {
+      motivation: "attacking",
+      affinity: "fire",
+      count: 1,
+      tokenHint: 0,
+      vitals: {
+        health: { current: 8, max: 8, regen: 0 },
+        mana: { current: 4, max: 4, regen: 1 },
+        stamina: { current: 4, max: 4, regen: 0 },
+        durability: { current: 2, max: 2, regen: 0 },
+      },
+    },
+  ],
+  missing: [],
+  stop: "done",
+});
+adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
+
+const result = await runLlmSession({
+  adapter,
+  model: "fixture",
+  prompt,
+  runId: "run_llm_session_actor_sanitize",
+  clock: () => "2025-01-01T00:00:00Z",
+  phase: "actors_only",
+  strict: false,
+  requireSummary: { minActors: 1 },
+});
+
+assert.equal(result.ok, true);
+assert.equal(result.sanitized, true);
+assert.equal(result.summary.actors.length, 1);
+assert.equal(result.summary.actors[0].tokenHint, undefined);
+assert.equal(result.summary.actors[0].vitals.stamina.regen, 1);
+`;
+
+const lenientDefenderRecoveryScript = `
+import assert from "node:assert/strict";
+import { runLlmSession } from ${JSON.stringify(sessionModulePath)};
+import { createLlmTestAdapter } from ${JSON.stringify(llmAdapterPath)};
+
+const adapter = createLlmTestAdapter();
+const prompt = "lenient defender recovery prompt";
+const responseRaw = [
+  "{",
+  "  \\"phase\\": \\"actors_only\\",",
+  "  \\"actors\\": {",
+  "    \\"motivation\\": \\"attacking\\",",
+  "    \\"affinity\\": \\"water\\",",
+  "    \\"count\\": 1,",
+  "    \\"tokenHint\\": \\"40\\",",
+  "    \\"vitals\\": {",
+  "      \\"health\\": {\\"current\\": 8, \\"max\\": 8, \\"regen\\": 0},",
+  "      \\"mana\\": {\\"current\\": 6, \\"max\\": 6, \\"regen\\": 1},",
+  "      \\"stamina\\": {\\"current\\": 4, \\"max\\": 4, \\"regen\\": 1},",
+  "      \\"durability\\": {\\"current\\": 2, \\"max\\": 2, \\"regen\\": 0}",
+  "    }",
+  "  },",
+  "  \\"missing\\": [],",
+  "}",
+].join("\\n");
+adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
+
+const result = await runLlmSession({
+  adapter,
+  model: "fixture",
+  prompt,
+  runId: "run_llm_session_lenient_defender_recovery",
+  clock: () => "2025-01-01T00:00:00Z",
+  phase: "actors_only",
+  strict: false,
+  requireSummary: { minActors: 1 },
+});
+
+assert.equal(result.ok, true);
+assert.equal(result.sanitized, true);
+assert.equal(result.summary.phase, "actors_only");
+assert.equal(result.summary.actors.length, 1);
+assert.equal(result.summary.actors[0].motivation, "attacking");
+assert.equal(result.summary.actors[0].affinity, "water");
+assert.equal(result.summary.actors[0].tokenHint, 40);
+`;
+
 test("orchestrator llm session captures prompt/response", () => {
   runEsm(happyScript);
 });
@@ -213,4 +316,12 @@ test("orchestrator llm session captures phase metadata", () => {
 
 test("orchestrator llm session expands repair output budget when actor response is truncated", () => {
   runEsm(repairBudgetExpansionScript);
+});
+
+test("orchestrator llm session sanitizes invalid defender token hints and stamina regen", () => {
+  runEsm(actorsSanitizationScript);
+});
+
+test("orchestrator llm session recovers defender JSON with trailing commas", () => {
+  runEsm(lenientDefenderRecoveryScript);
 });

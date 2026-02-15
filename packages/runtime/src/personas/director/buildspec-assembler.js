@@ -32,6 +32,12 @@ function normalizePositiveInt(value, fallback = 1) {
 }
 
 const LAYOUT_SHAPE_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
+const WALKABLE_DENSITY_TARGETS = Object.freeze({
+  rectangular: 0.7,
+  rooms: 0.55,
+  clustered_islands: 0.45,
+  sparse_islands: 0.35,
+});
 
 function readShapeField(roomDesign, field) {
   if (!roomDesign || typeof roomDesign !== "object" || Array.isArray(roomDesign)) {
@@ -121,19 +127,70 @@ function deriveProfileShapeFromDesign(roomDesign, { width, height } = {}) {
   return { profile: "rectangular" };
 }
 
+function inferLayoutProfile(roomDesign) {
+  const explicitProfile = readShapeField(roomDesign, "profile");
+  if (typeof explicitProfile === "string") {
+    const profile = explicitProfile.trim();
+    if (LAYOUT_SHAPE_PROFILES.includes(profile)) {
+      return profile;
+    }
+  }
+  const rooms = Array.isArray(roomDesign?.rooms) ? roomDesign.rooms : [];
+  return rooms.length > 0 ? "rooms" : "rectangular";
+}
+
+function normalizeLayoutTiles(layout = {}) {
+  const wallTiles = Number.isInteger(layout.wallTiles) && layout.wallTiles > 0 ? layout.wallTiles : 0;
+  let floorTiles = Number.isInteger(layout.floorTiles) && layout.floorTiles > 0 ? layout.floorTiles : 0;
+  let hallwayTiles = Number.isInteger(layout.hallwayTiles) && layout.hallwayTiles > 0 ? layout.hallwayTiles : 0;
+
+  if (wallTiles > 0) {
+    const walkableTiles = floorTiles + hallwayTiles;
+    if (walkableTiles > 0) {
+      const floorShare = Math.floor((wallTiles * floorTiles) / walkableTiles);
+      const hallwayShare = wallTiles - floorShare;
+      floorTiles += floorShare;
+      hallwayTiles += hallwayShare;
+    } else {
+      const floorShare = Math.ceil(wallTiles / 2);
+      floorTiles = floorShare;
+      hallwayTiles = wallTiles - floorShare;
+    }
+  }
+
+  return { floorTiles, hallwayTiles };
+}
+
+function resolveWalkableDensityTarget(profile) {
+  const key = typeof profile === "string" ? profile.trim() : "";
+  const density = WALKABLE_DENSITY_TARGETS[key];
+  return typeof density === "number" && density > 0 && density <= 1 ? density : WALKABLE_DENSITY_TARGETS.rectangular;
+}
+
+function deriveLevelSideForWalkableTiles(totalTiles, profile = "rectangular") {
+  const normalizedTotalTiles = Number.isInteger(totalTiles) && totalTiles > 0 ? totalTiles : 1;
+  const densityTarget = resolveWalkableDensityTarget(profile);
+  const interiorArea = Math.ceil(normalizedTotalTiles / densityTarget);
+  const interiorSide = Math.ceil(Math.sqrt(interiorArea));
+  return Math.max(5, interiorSide + 2);
+}
+
 function deriveLevelGenFromLayout(layout = {}, roomDesign) {
-  const wallTiles = Number.isInteger(layout.wallTiles) ? layout.wallTiles : 0;
-  const floorTiles = Number.isInteger(layout.floorTiles) ? layout.floorTiles : 0;
-  const hallwayTiles = Number.isInteger(layout.hallwayTiles) ? layout.hallwayTiles : 0;
-  const totalTiles = wallTiles + floorTiles + hallwayTiles;
-  const size = Math.max(5, Math.ceil(Math.sqrt(Math.max(1, totalTiles))));
+  const { floorTiles, hallwayTiles } = normalizeLayoutTiles(layout);
+  const totalTiles = floorTiles + hallwayTiles;
+  const profile = inferLayoutProfile(roomDesign);
+  const size = deriveLevelSideForWalkableTiles(totalTiles, profile);
   const profileShape = deriveProfileShapeFromDesign(roomDesign, { width: size, height: size });
   const roomShape = profileShape || deriveRoomShapeFromDesign(roomDesign, { width: size, height: size });
-  return {
+  const levelGen = {
     width: size,
     height: size,
     shape: roomShape || { profile: "rectangular" },
   };
+  if (totalTiles > 0) {
+    levelGen.walkableTilesTarget = totalTiles;
+  }
+  return levelGen;
 }
 
 function normalizeActorVitals(vitals) {
@@ -175,6 +232,9 @@ function buildActorsAndGroups(selections) {
           tokenCost: Number.isInteger(inst?.cost) && inst.cost > 0 ? inst.cost : undefined,
           vitals,
         };
+        if (typeof inst?.setupMode === "string" && inst.setupMode.trim()) {
+          entry.setupMode = inst.setupMode.trim();
+        }
         if (affinityTraits) {
           const baseTraits = inst?.traits && typeof inst.traits === "object" && !Array.isArray(inst.traits)
             ? { ...inst.traits }
@@ -223,6 +283,9 @@ export function buildBuildSpecFromSummary({
     ? summary.roomDesign
     : null;
   const levelGen = layout ? deriveLevelGenFromLayout(layout, roomDesign) : deriveLevelGen({ roomCount });
+  const attackerConfig = summary?.attackerConfig && typeof summary.attackerConfig === "object"
+    ? { ...summary.attackerConfig }
+    : null;
 
   const spec = {
     schema: "agent-kernel/BuildSpec",
@@ -234,6 +297,7 @@ export function buildBuildSpecFromSummary({
       hints: {
         levelAffinity: summary?.dungeonAffinity,
         budgetTokens: summary?.budgetTokens,
+        attackerSetupMode: attackerConfig?.setupMode,
       },
     },
     plan: {
@@ -243,6 +307,7 @@ export function buildBuildSpecFromSummary({
           affinity: sel.requested.affinity,
           count: sel.requested.count,
         })),
+        attackerConfig: attackerConfig || undefined,
       },
     },
     configurator: {
@@ -251,14 +316,15 @@ export function buildBuildSpecFromSummary({
         levelAffinity: summary?.dungeonAffinity,
         actors,
         actorGroups,
+        attackerConfig: attackerConfig || undefined,
       },
     },
   };
   if (layout) {
+    const normalizedLayout = normalizeLayoutTiles(layout);
     spec.plan.hints.layout = {
-      wallTiles: layout.wallTiles,
-      floorTiles: layout.floorTiles,
-      hallwayTiles: layout.hallwayTiles,
+      floorTiles: normalizedLayout.floorTiles,
+      hallwayTiles: normalizedLayout.hallwayTiles,
     };
   }
   if (budgetRef || priceListRef || budgetArtifact || priceListArtifact || receiptArtifact) {

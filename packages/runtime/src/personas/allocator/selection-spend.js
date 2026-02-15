@@ -1,3 +1,5 @@
+import { calculateActorConfigurationUnitCost } from "../configurator/spend-proposal.js";
+
 function isInteger(value) {
   return Number.isInteger(value);
 }
@@ -25,21 +27,57 @@ function deriveSelectionCount(selection) {
   return 0;
 }
 
+function resolveActorCostEntry(selection) {
+  if (!selection || typeof selection !== "object") return null;
+  const requested = selection.requested && typeof selection.requested === "object"
+    ? selection.requested
+    : null;
+  const firstInstance = Array.isArray(selection.instances) && selection.instances.length > 0
+    ? selection.instances[0]
+    : null;
+  const vitals = requested?.vitals || firstInstance?.vitals;
+  const affinities = Array.isArray(requested?.affinities) ? requested.affinities : firstInstance?.affinities;
+  if (!vitals && !Array.isArray(affinities)) return null;
+  return { vitals, affinities };
+}
+
 function deriveSelectionCost(selection, priceMap) {
   const kind = selection?.kind;
   const appliedId = selection?.applied?.id || selection?.requested?.id;
+  let baseCost = 0;
   if (kind && appliedId && priceMap?.size) {
     const key = `${kind}:${appliedId}`;
     const override = priceMap.get(key);
     if (Number.isFinite(override) && override > 0) {
-      return override;
+      baseCost = override;
     }
   }
-  const appliedCost = selection?.applied?.cost;
-  if (isInteger(appliedCost) && appliedCost > 0) {
-    return appliedCost;
+  if (!baseCost) {
+    const appliedCost = selection?.applied?.cost;
+    if (isInteger(appliedCost) && appliedCost > 0) {
+      baseCost = appliedCost;
+    }
   }
-  return 0;
+  let configCost = 0;
+  let configDetail;
+  if (kind === "actor") {
+    const entry = resolveActorCostEntry(selection);
+    if (entry) {
+      const computed = calculateActorConfigurationUnitCost({
+        entry,
+        priceMap,
+      });
+      configCost = isInteger(computed?.cost) && computed.cost > 0 ? computed.cost : 0;
+      configDetail = computed?.detail;
+    }
+  }
+
+  return {
+    unitCost: baseCost + configCost,
+    baseCost,
+    configCost,
+    configDetail,
+  };
 }
 
 function cloneSelectionWithCount(selection, count) {
@@ -68,20 +106,30 @@ export function evaluateSelectionSpend({ selections = [], budgetTokens, priceLis
     warnings.push({ code: "invalid_budget_tokens" });
   }
 
+  let cheapestRequestedUnitCost = null;
   selections.forEach((selection, index) => {
     const requestedCount = deriveSelectionCount(selection);
-    const unitCost = deriveSelectionCost(selection, priceMap);
+    const costInfo = deriveSelectionCost(selection, priceMap);
+    const unitCost = costInfo.unitCost;
     const base = {
       index,
       kind: selection?.kind || "unknown",
       id: selection?.applied?.id || selection?.requested?.id || "unknown",
       requestedCount,
       unitCost,
+      baseUnitCost: costInfo.baseCost,
+      configUnitCost: costInfo.configCost,
+      configDetail: costInfo.configDetail,
     };
 
     if (requestedCount <= 0) {
       decisions.push({ ...base, approvedCount: 0, rejectedCount: 0, status: "skipped" });
       return;
+    }
+    if (isInteger(unitCost) && unitCost > 0) {
+      cheapestRequestedUnitCost = cheapestRequestedUnitCost === null
+        ? unitCost
+        : Math.min(cheapestRequestedUnitCost, unitCost);
     }
     if (!isInteger(unitCost) || unitCost <= 0) {
       warnings.push({ code: "missing_cost", index, kind: base.kind, id: base.id });
@@ -126,6 +174,7 @@ export function evaluateSelectionSpend({ selections = [], budgetTokens, priceLis
     remainingBudgetTokens: remaining,
     approvedSelections,
     rejectedSelections,
+    cheapestRequestedUnitCost,
     decisions,
     warnings: warnings.length ? warnings : undefined,
   };

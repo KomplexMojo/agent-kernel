@@ -74,3 +74,74 @@ assert.ok(result.errors.find((e) => e.field === "width"));
 `;
   runEsm(script);
 });
+
+test("normalizeLevelGenInput rejects walkable target above grid capacity", () => {
+  const script = `
+import assert from "node:assert/strict";
+import { normalizeLevelGenInput } from ${JSON.stringify(modulePath)};
+
+const result = normalizeLevelGenInput({
+  width: 10,
+  height: 10,
+  walkableTilesTarget: 1000,
+  shape: { profile: "rectangular" },
+});
+assert.equal(result.ok, false);
+assert.equal(result.value, null);
+assert.ok(result.errors.find((e) => e.field === "walkableTilesTarget"));
+`;
+  runEsm(script);
+});
+
+test("normalizeLevelGenInput switches sparse islands to clustered profile for high fill targets", () => {
+  const script = `
+import assert from "node:assert/strict";
+import { normalizeLevelGenInput } from ${JSON.stringify(modulePath)};
+
+const result = normalizeLevelGenInput({
+  width: 50,
+  height: 50,
+  walkableTilesTarget: 1500,
+  shape: { profile: "sparse_islands", density: 0.35 },
+});
+assert.equal(result.ok, true);
+assert.equal(result.value.shape.profile, "clustered_islands");
+assert.ok(result.warnings.find((entry) => (
+  entry.field === "shape.profile"
+  && entry.code === "adjusted_for_walkable_fill_target"
+  && entry.from === "sparse_islands"
+  && entry.to === "clustered_islands"
+)));
+`;
+  runEsm(script);
+});
+
+test("normalizeLevelGenInput does not enforce fixed max side or walkable limits", () => {
+  const script = `
+import assert from "node:assert/strict";
+import { normalizeLevelGenInput, LEVEL_GEN_LIMITS } from ${JSON.stringify(modulePath)};
+
+assert.equal(LEVEL_GEN_LIMITS.maxLevelSide, null);
+assert.equal(LEVEL_GEN_LIMITS.maxWalkableTilesTarget, null);
+
+const oversized = normalizeLevelGenInput({
+  width: 5000,
+  height: 5000,
+  shape: { profile: "rectangular" },
+});
+assert.equal(oversized.ok, true);
+assert.equal(oversized.value.width, 5000);
+assert.equal(oversized.value.height, 5000);
+
+const excessiveWalkable = normalizeLevelGenInput({
+  width: 20000,
+  height: 20000,
+  walkableTilesTarget: 100000000,
+  shape: { profile: "rectangular" },
+});
+assert.equal(excessiveWalkable.ok, true);
+assert.equal(excessiveWalkable.errors.length, 0);
+assert.equal(excessiveWalkable.value.walkableTilesTarget, 100000000);
+`;
+  runEsm(script);
+});

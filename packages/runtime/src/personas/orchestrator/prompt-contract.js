@@ -1,7 +1,13 @@
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
+  ATTACKER_SETUP_MODES,
+  ATTACKER_SETUP_MODE_SET,
+  DEFAULT_ATTACKER_SETUP_MODE,
+  LEGACY_LAYOUT_TILE_FIELDS as SHARED_LEGACY_LAYOUT_TILE_FIELDS,
+  LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
   DEFAULT_VITALS,
+  VITAL_KEYS,
   normalizeVitals as normalizeDomainVitals,
 } from "../../contracts/domain-constants.js";
 import { MOTIVATION_KINDS } from "../configurator/motivation-loadouts.js";
@@ -9,9 +15,11 @@ import { MOTIVATION_KINDS } from "../configurator/motivation-loadouts.js";
 export const ALLOWED_AFFINITIES = AFFINITY_KINDS;
 export const ALLOWED_AFFINITY_EXPRESSIONS = AFFINITY_EXPRESSIONS;
 export const ALLOWED_MOTIVATIONS = MOTIVATION_KINDS;
+export const ALLOWED_ATTACKER_SETUP_MODES = ATTACKER_SETUP_MODES;
 export const LLM_PHASES = Object.freeze(["layout_only", "actors_only"]);
 export const LLM_STOP_REASONS = Object.freeze(["done", "missing", "no_viable_spend"]);
-export const LAYOUT_TILE_FIELDS = Object.freeze(["wallTiles", "floorTiles", "hallwayTiles"]);
+export const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS;
+const LEGACY_LAYOUT_TILE_FIELDS = SHARED_LEGACY_LAYOUT_TILE_FIELDS;
 export const LAYOUT_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
 export function deriveAllowedOptionsFromCatalog(catalog = {}) {
   const entries = Array.isArray(catalog.entries) ? catalog.entries : Array.isArray(catalog) ? catalog : [];
@@ -47,6 +55,61 @@ function addWarning(warnings, field, code, detail) {
   warnings.push(entry);
 }
 
+function normalizeAttackerSetupMode(mode, errors, fieldBase) {
+  if (mode === undefined) return undefined;
+  if (!isNonEmptyString(mode)) {
+    addError(errors, fieldBase, "invalid_setup_mode");
+    return undefined;
+  }
+  const normalized = mode.trim();
+  if (!ATTACKER_SETUP_MODE_SET.has(normalized)) {
+    addError(errors, fieldBase, "invalid_setup_mode");
+    return undefined;
+  }
+  return normalized;
+}
+
+function normalizeVitalsConfigMap(input, errors, fieldBase) {
+  if (input === undefined) return undefined;
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    addError(errors, fieldBase, "invalid_vitals");
+    return undefined;
+  }
+  const normalized = {};
+  VITAL_KEYS.forEach((key) => {
+    const raw = input[key];
+    if (raw === undefined) return;
+    if (!Number.isInteger(raw) || raw < 0) {
+      addError(errors, `${fieldBase}.${key}`, "invalid_non_negative_int");
+      return;
+    }
+    normalized[key] = raw;
+  });
+  return normalized;
+}
+
+function normalizeAttackerConfig(config, errors) {
+  if (config === undefined) return undefined;
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    addError(errors, "attackerConfig", "invalid_attacker_config");
+    return undefined;
+  }
+  const setupMode = normalizeAttackerSetupMode(config.setupMode, errors, "attackerConfig.setupMode");
+  const vitalsMax = normalizeVitalsConfigMap(config.vitalsMax, errors, "attackerConfig.vitalsMax");
+  const vitalsRegen = normalizeVitalsConfigMap(config.vitalsRegen, errors, "attackerConfig.vitalsRegen");
+
+  const normalized = {
+    setupMode: setupMode || DEFAULT_ATTACKER_SETUP_MODE,
+  };
+  if (vitalsMax && Object.keys(vitalsMax).length > 0) normalized.vitalsMax = vitalsMax;
+  if (vitalsRegen && Object.keys(vitalsRegen).length > 0) normalized.vitalsRegen = vitalsRegen;
+  return normalized;
+}
+
+function isAmbulatoryMotivation(motivation) {
+  return isNonEmptyString(motivation) && motivation !== "stationary";
+}
+
 function normalizeLayoutCounts(layout, errors) {
   if (layout === undefined) return undefined;
   if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
@@ -62,6 +125,30 @@ function normalizeLayoutCounts(layout, errors) {
     }
     normalized[field] = layout[field];
   });
+  let legacyWallTiles = 0;
+  LEGACY_LAYOUT_TILE_FIELDS.forEach((field) => {
+    if (layout[field] === undefined) return;
+    if (!Number.isInteger(layout[field]) || layout[field] < 0) {
+      addError(errors, `layout.${field}`, "invalid_tile_count");
+      return;
+    }
+    legacyWallTiles += layout[field];
+  });
+  if (legacyWallTiles > 0) {
+    const floorTiles = normalized.floorTiles || 0;
+    const hallwayTiles = normalized.hallwayTiles || 0;
+    const walkableTiles = floorTiles + hallwayTiles;
+    if (walkableTiles > 0) {
+      const floorShare = Math.floor((legacyWallTiles * floorTiles) / walkableTiles);
+      const hallwayShare = legacyWallTiles - floorShare;
+      normalized.floorTiles = floorTiles + floorShare;
+      normalized.hallwayTiles = hallwayTiles + hallwayShare;
+    } else {
+      const floorShare = Math.ceil(legacyWallTiles / 2);
+      normalized.floorTiles = floorShare;
+      normalized.hallwayTiles = legacyWallTiles - floorShare;
+    }
+  }
   return normalized;
 }
 
@@ -154,7 +241,7 @@ function normalizeRoomDesign(roomDesign, warnings) {
 }
 
 
-function normalizePick(entry, base, errors) {
+function normalizePick(entry, base, errors, { source = "actor", enforceAmbulatoryStaminaRegen = false } = {}) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
     addError(errors, base, "invalid_pick");
     return null;
@@ -246,12 +333,20 @@ function normalizePick(entry, base, errors) {
     addError(errors, `${base}.expression`, "missing_expression");
   }
 
+  const setupMode = normalizeAttackerSetupMode(entry.setupMode ?? entry.mode, errors, `${base}.setupMode`);
+
   let normalizedVitals;
   if (entry.vitals !== undefined) {
     if (!entry.vitals || typeof entry.vitals !== "object" || Array.isArray(entry.vitals)) {
       addError(errors, `${base}.vitals`, "invalid_vitals");
     } else {
       normalizedVitals = normalizeDomainVitals(entry.vitals, DEFAULT_VITALS);
+    }
+  }
+  if (enforceAmbulatoryStaminaRegen && source === "actor" && isAmbulatoryMotivation(motivation)) {
+    const staminaRegen = normalizedVitals?.stamina?.regen;
+    if (!Number.isInteger(staminaRegen) || staminaRegen <= 0) {
+      addError(errors, `${base}.vitals.stamina.regen`, "missing_stamina_regen_for_ambulatory");
     }
   }
 
@@ -269,6 +364,7 @@ function normalizePick(entry, base, errors) {
   if (normalizedVitals) {
     result.vitals = normalizedVitals;
   }
+  if (setupMode) result.setupMode = setupMode;
   return result;
 }
 
@@ -279,6 +375,7 @@ export function normalizeSummary(summary) {
 export function normalizeSummaryWithOptions(summary, { phase } = {}) {
   const errors = [];
   const warnings = [];
+  const enforceActorMobility = phase === "actors_only" || summary?.phase === "actors_only";
   if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
     addError(errors, "summary", "invalid_summary");
     return { ok: false, errors, warnings, value: null };
@@ -328,6 +425,10 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
   if (roomDesign) {
     value.roomDesign = roomDesign;
   }
+  const attackerConfig = normalizeAttackerConfig(summary.attackerConfig, errors);
+  if (attackerConfig) {
+    value.attackerConfig = attackerConfig;
+  }
   if (summary.budgetTokens !== undefined) {
     if (!Number.isInteger(summary.budgetTokens) || summary.budgetTokens <= 0) {
       addError(errors, "budgetTokens", "invalid_budget");
@@ -348,13 +449,19 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
 
   value.rooms = [];
   roomsInput.forEach((entry, index) => {
-    const normalized = normalizePick(entry, `rooms[${index}]`, errors);
+    const normalized = normalizePick(entry, `rooms[${index}]`, errors, {
+      source: "room",
+      enforceAmbulatoryStaminaRegen: false,
+    });
     if (normalized) value.rooms.push(normalized);
   });
 
   value.actors = [];
   actorsInput.forEach((entry, index) => {
-    const normalized = normalizePick(entry, `actors[${index}]`, errors);
+    const normalized = normalizePick(entry, `actors[${index}]`, errors, {
+      source: "actor",
+      enforceAmbulatoryStaminaRegen: enforceActorMobility,
+    });
     if (normalized) value.actors.push(normalized);
   });
 

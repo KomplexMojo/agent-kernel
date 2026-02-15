@@ -45,7 +45,7 @@ Inspect the emitted `artifacts/demo-bundle/*` JSON to see these in UI/CLI demos.
 pnpm run serve:ui
 # open http://localhost:8001/packages/ui-web/index.html
 ```
-The UI uses primary workflow tabs: Design, Simulation, and Diagnostics. Design is the default entry point for strategic guidance, design brief generation, actor configuration, and a single Build-and-Load action. Simulation focuses on the playing surface, run controls, event stream, and the persistent Actor Inspector drawer. Diagnostics aggregates artifact inspection, adapter playground outputs, and other troubleshooting panels.
+The UI uses primary workflow tabs: Design, Simulation, and Diagnostics. Design is the default entry point for strategic guidance, design brief generation, actor configuration, and a single Build-and-Load action. Design now includes attacker setup mode (`auto` / `user` / `hybrid`), attacker vital max + regen controls, affinity/stacks configuration (multiple affinities per actor), and a live spend ledger with category breakdowns. Simulation focuses on the playing surface, run controls, event stream, and the persistent Actor Inspector drawer. Diagnostics aggregates artifact inspection, adapter playground outputs, and other troubleshooting panels.
 The web UI is live-mode only. For fixture-driven development flows, use CLI commands.
 
 ## 5) Ollama prompt → build → review/run (UI flow)
@@ -56,6 +56,7 @@ This flow runs in live mode in the web UI.
    - Generate a design brief and actor set from your guidance prompt.
 2) Design → Build And Load:
    - Optionally edit the actor set JSON.
+   - Review Spend Ledger (`level config`, `actor base`, `actor configuration`) and resolve over-budget states before build.
    - Run "Build And Load Simulation" to generate BuildSpec from the brief, run build, load bundle artifacts, and open Simulation.
 3) Diagnostics → Build Orchestration panel:
    - Paste or auto-populate the BuildSpec JSON and run build via a local bridge (proxy for `ak.mjs build --spec`).

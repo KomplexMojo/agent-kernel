@@ -6,22 +6,6 @@ import {
 } from "../../runtime/src/contracts/domain-constants.js";
 
 const EVENT_STREAM_LIMIT = 6;
-const UNICODE_ACTOR_SYMBOLS = [
-  "●",
-  "◆",
-  "▲",
-  "■",
-  "★",
-  "⬟",
-  "⬢",
-  "⬣",
-  "⬤",
-  "⬥",
-  "◇",
-  "△",
-  "□",
-  "☆",
-];
 const ASCII_ACTOR_SYMBOLS = [
   "@",
   "A",
@@ -195,7 +179,6 @@ function buildActorOverlay(baseTiles, actors = []) {
   const textGrid = baseTiles.map((row) => String(row).split(""));
   const htmlGrid = baseTiles.map((row) => String(row).split("").map(escapeHtmlChar));
   const asciiSymbols = buildActorSymbolMap(sortedActors, ASCII_ACTOR_SYMBOLS, ASCII_ACTOR_SYMBOLS);
-  const unicodeSymbols = buildActorSymbolMap(sortedActors, UNICODE_ACTOR_SYMBOLS, ASCII_ACTOR_SYMBOLS);
 
   sortedActors.forEach((actor) => {
     const position = actor?.position;
@@ -205,7 +188,6 @@ function buildActorOverlay(baseTiles, actors = []) {
     if (!rowText || !rowHtml || position.x < 0 || position.x >= rowText.length) return;
     const actorId = String(actor?.id || "");
     const asciiSymbol = asciiSymbols.get(actorId) || "@";
-    const unicodeSymbol = unicodeSymbols.get(actorId) || asciiSymbol;
     textGrid[position.y][position.x] = asciiSymbol;
 
     const affinityInfo = resolveAffinityInfo(actor);
@@ -220,7 +202,7 @@ function buildActorOverlay(baseTiles, actors = []) {
       dataAttr = ` data-affinity="${escapeHtml(affinityInfo.kind)}" data-stacks="${stackStyle.stacks}"`;
     }
     const styleAttr = style ? ` style="${style}"` : "";
-    rowHtml[position.x] = `<span class="actor-cell"${actorAttr}${dataAttr}${styleAttr}>${escapeHtmlChar(unicodeSymbol)}</span>`;
+    rowHtml[position.x] = `<span class="actor-cell"${actorAttr}${dataAttr}${styleAttr}>${escapeHtmlChar(asciiSymbol)}</span>`;
   });
 
   return {
