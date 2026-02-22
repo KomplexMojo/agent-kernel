@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { wireDesignView } from "../../packages/ui-web/src/views/design-view.js";
 import { extractLlmCaptures, wireDiagnosticsView } from "../../packages/ui-web/src/views/diagnostics-view.js";
 import { wireSimulationView } from "../../packages/ui-web/src/views/simulation-view.js";
+import { wireRuntimeView } from "../../packages/ui-web/src/views/runtime-view.js";
 
 function makeRoot() {
   return {
@@ -26,13 +27,29 @@ test("view wiring tolerates missing DOM nodes", () => {
     const designView = wireDesignView({ root });
     const diagnosticsView = wireDiagnosticsView({ root });
     const simulationView = wireSimulationView({ root, autoBoot: false });
+    const runtimeView = wireRuntimeView({ root });
 
     assert.ok(designView);
     assert.ok(diagnosticsView);
     assert.ok(simulationView.startRun);
+    assert.ok(runtimeView.updateFromSimulation);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("simulation view exposes level regeneration from runtime tile rows", async () => {
+  const root = makeRoot();
+  const simulationView = wireSimulationView({ root, autoBoot: false });
+  const result = await simulationView.regenerateLevelArtifacts({
+    tiles: ["S.E", ".#."],
+  });
+  assert.equal(result?.ok, true);
+  assert.equal(result.width, 3);
+  assert.equal(result.height, 2);
+  assert.equal(result.walkableTiles, 5);
+  assert.ok(result.ascii?.text);
+  assert.ok(result.image?.pixels instanceof Uint8ClampedArray);
 });
 
 test("diagnostics llm capture extraction deduplicates and filters non-llm captures", () => {

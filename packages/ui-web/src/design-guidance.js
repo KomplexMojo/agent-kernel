@@ -1,8 +1,7 @@
 import { createLlmAdapter } from "../../adapters-web/src/adapters/llm/index.js";
+import { createLevelBuilderAdapter } from "../../adapters-web/src/adapters/level-builder/index.js";
 import { runLlmBudgetLoop } from "../../runtime/src/personas/orchestrator/llm-budget-loop.js";
 import { runLlmSession } from "../../runtime/src/personas/orchestrator/llm-session.js";
-import { buildBuildSpecFromSummary } from "../../runtime/src/personas/director/buildspec-assembler.js";
-import { generateGridLayoutFromInput } from "../../runtime/src/personas/configurator/level-layout.js";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -36,30 +35,43 @@ const MODEL_CONTEXT_TOKENS = DOMAIN_CONSTRAINTS?.llm?.modelContextTokens;
 const LLM_OUTPUT_FORMAT = DOMAIN_CONSTRAINTS?.llm?.outputFormat || "json";
 const DEFAULT_GUIDANCE_BUDGET_TOKENS = 1000;
 const DEFAULT_UI_MAX_ACTOR_ROUNDS = 1;
+const DEFAULT_ATTACKER_COUNT = 1;
+const MAX_ATTACKER_COUNT = 8;
 const DEFAULT_BENCHMARK_MAX_TOKEN_BUDGET = 2000000;
 const DEFAULT_BENCHMARK_SAMPLE_RUNS = 1;
 const DEFAULT_LLM_REQUEST_TIMEOUT_MS = 60000;
 const BENCHMARK_STOP_AFTER_MS = 30000;
 const BENCHMARK_PRACTICAL_MS = 10000;
 const BENCHMARK_MAX_POINTS = 9;
+const HALLWAY_PATTERN_TYPES = Object.freeze({
+  grid: "grid",
+  diagonalGrid: "diagonal_grid",
+  concentricCircles: "concentric_circles",
+  none: "none",
+});
 const DEFAULT_POOL_ALLOCATION_PERCENTAGES = Object.freeze({
   layout: 55,
   defenders: 25,
   attacker: 20,
 });
 const POOL_WEIGHT_ORDER = Object.freeze(["layout", "defenders", "attacker"]);
-const LAYOUT_PROFILE_OPTIONS = Object.freeze([
-  "auto",
-  "rectangular",
-  "rooms",
-  "sparse_islands",
-  "clustered_islands",
-]);
 const INTENT_HEADER = "Intent and constraints:";
 const LEVEL_TEMPLATE_HEADER = "=== Level Prompt Template ===";
 const ATTACKER_TEMPLATE_HEADER = "=== Attacker Prompt Template ===";
 const DEFENDER_TEMPLATE_HEADER = "=== Defender Prompt Template ===";
 const LEGACY_ACTOR_TEMPLATE_HEADER = "=== Actor Prompt Template ===";
+const SHARED_STRATEGY_CONTEXT = Object.freeze({
+  objective:
+    "Shared strategy: the level has a level entry and a level exit; attackers start at level entry and aim to reach level exit.",
+  hiddenExit:
+    "Fog of war: level exit location is unknown to both attackers and defenders at start, so both sides must explore.",
+  level:
+    "Level design requirement: support meaningful exploration routes and defensible chokepoints.",
+  attacker:
+    "Attacker requirement: include exploration-ready capability (mobility, sustain, or control) to discover and reach the hidden exit.",
+  defender:
+    "Defender requirement: stationary defenders must anchor chokepoints (narrow halls, doors, or key junctions).",
+});
 const AFFINITY_ICON_MAP = Object.freeze({
   fire: "🔥",
   water: "💧",
@@ -87,6 +99,119 @@ const AFFINITY_EXPRESSION_ICON_MAP = Object.freeze({
   pull: "⬇️",
   emit: "📡",
 });
+const DEFAULT_AFFINITY_EXPRESSION_HINTS = Object.freeze({
+  push: "repositions targets away from the source and can break guarded formations.",
+  pull: "drags targets into kill-zones, traps, or follow-up range.",
+  emit: "projects affinity output at range to pressure zones without direct contact.",
+});
+const DEFAULT_AFFINITY_HIGH_STACK_HINT =
+  "Higher stacks generally increase force, radius, and duration, but raise mana upkeep and make positioning mistakes costlier.";
+const AFFINITY_PROMPT_HINTS = Object.freeze({
+  fire: Object.freeze({
+    intent: "burst pressure, zone burn, area denial",
+    roles: "skirmisher, finisher, line-breaker",
+    resourcePattern: "high mana, moderate stamina, medium durability",
+    weakness: "predictable commit windows and cooldown volatility",
+    counteredBy: "sustain-heavy water setups and long-range kiting",
+    expressions: Object.freeze({
+      push: "blast pressure knocks targets off angles and briefly opens lanes.",
+      pull: "heat-vacuum drag bunches enemies into hazard clusters.",
+      emit: "flame projection creates chip damage and denial arcs.",
+    }),
+    higherStacks: "Higher stacks amplify burn duration and knockback distance, but mana spikes quickly and overcommit risk rises.",
+  }),
+  water: Object.freeze({
+    intent: "tempo control, repositioning, and sustain pressure",
+    roles: "controller, disruptor, peel specialist",
+    resourcePattern: "moderate mana, low stamina, medium durability",
+    weakness: "lower immediate burst and slower closeouts",
+    counteredBy: "high-burst fire or decay pressure windows",
+    expressions: Object.freeze({
+      push: "surge force pushes enemies out of cover or off objectives.",
+      pull: "current drag pulls enemies into crossfire or bottlenecks.",
+      emit: "spray projection applies steady ranged pressure and spacing control.",
+    }),
+    higherStacks: "Higher stacks widen control radius and extend displacement, but sustained mana drain becomes the limiting factor.",
+  }),
+  earth: Object.freeze({
+    intent: "terrain control, obstruction, durability amplification",
+    roles: "chokepoint defender, controller, area denial",
+    resourcePattern: "moderate mana, moderate stamina, high durability",
+    weakness: "low mobility and vulnerability to ranged pressure",
+    counteredBy: "mobility-focused or burst affinities",
+    expressions: Object.freeze({
+      push: "stone impact shoves targets off stable footing and out of anchor positions.",
+      pull: "gravitic fissures drag targets into narrow kill lanes.",
+      emit: "seismic projection creates short-range tremor denial zones.",
+    }),
+    higherStacks: "Higher stacks create heavier displacement and longer denial uptime, but movement speed drops and stamina recovery matters more.",
+  }),
+  wind: Object.freeze({
+    intent: "mobility control, spacing manipulation, and initiative",
+    roles: "flanker, picker, tempo controller",
+    resourcePattern: "low mana, high stamina, low durability",
+    weakness: "fragility under direct burst trades",
+    counteredBy: "earth lockdown and life sustain anchors",
+    expressions: Object.freeze({
+      push: "gust force blasts targets out of formation and off pursuit lines.",
+      pull: "vacuum shear yanks targets into burst follow-up range.",
+      emit: "wind emission sweeps lanes for safe poke and vision-like pressure.",
+    }),
+    higherStacks: "Higher stacks increase displacement speed and chain-control potential, but stamina burn and misposition punishment increase.",
+  }),
+  life: Object.freeze({
+    intent: "survivability, tempo reset, and attrition resistance",
+    roles: "frontline sustain, support anchor, recovery controller",
+    resourcePattern: "high mana, low stamina, medium durability",
+    weakness: "lower burst and slow objective break pace",
+    counteredBy: "decay anti-sustain and focused burst windows",
+    expressions: Object.freeze({
+      push: "vital pulse push creates breathing room for recovery cycles.",
+      pull: "binding vine pull drags threats into defensive focus fire.",
+      emit: "life emission radiates sustain pressure and ranged stabilizing output.",
+    }),
+    higherStacks: "Higher stacks improve sustain throughput and control persistence, but create mana bottlenecks and invite anti-heal counters.",
+  }),
+  decay: Object.freeze({
+    intent: "attrition, anti-heal pressure, and collapse forcing",
+    roles: "debuffer, siege closer, sustain breaker",
+    resourcePattern: "high mana, moderate stamina, low durability",
+    weakness: "fragility when forced into extended melee",
+    counteredBy: "fast wind repositioning and life burst-heal timing",
+    expressions: Object.freeze({
+      push: "rot shock push breaks protective spacing and weakens grouped defenders.",
+      pull: "entropy pull drags targets into debuff-heavy zones.",
+      emit: "decay emission applies ranged corruption pressure over time.",
+    }),
+    higherStacks: "Higher stacks escalate anti-sustain and control severity, but make you priority focus and increase resource exposure.",
+  }),
+  corrode: Object.freeze({
+    intent: "armor break, structure breach, and defensive erosion",
+    roles: "breacher, anti-tank controller, objective opener",
+    resourcePattern: "moderate mana, high stamina, medium durability",
+    weakness: "setup time before peak value",
+    counteredBy: "burst fire windows and wind disengage loops",
+    expressions: Object.freeze({
+      push: "acid shove displaces armored targets and strips positional safety.",
+      pull: "caustic tether pull drags targets through damage-over-time lanes.",
+      emit: "corrosive emission projects armor erosion into contested space.",
+    }),
+    higherStacks: "Higher stacks accelerate armor break and objective pressure, but cost more stamina to maintain and expose you during setup.",
+  }),
+  dark: Object.freeze({
+    intent: "threat denial, uncertainty, and pick creation",
+    roles: "ambusher, disruptor, backline hunter",
+    resourcePattern: "moderate mana, moderate stamina, low durability",
+    weakness: "susceptible to reveal pressure and hard lockdown",
+    counteredBy: "wide-area emit coverage and earth anchors",
+    expressions: Object.freeze({
+      push: "shadow shove disorients enemies and opens isolation windows.",
+      pull: "void latch pull collapses spacing around vulnerable targets.",
+      emit: "dark emission blankets zones with disruptive ranged pressure.",
+    }),
+    higherStacks: "Higher stacks deepen disruption and pick potential, but failures are costly because defensive stats stay relatively low.",
+  }),
+});
 const VITAL_ICON_MAP = Object.freeze({
   health: "❤️",
   mana: "🔮",
@@ -108,8 +233,8 @@ const LEVEL_PREVIEW_EMPTY_TEXT = "No level preview yet.";
 const LEVEL_PREVIEW_UNAVAILABLE_TEXT = "Preview unavailable for this level.";
 const ATTACKER_HUD_EMPTY_TEXT = "No attacker configuration yet.";
 const ACTOR_HUD_EMPTY_TEXT = "No actors proposed.";
-const LEVEL_PREVIEW_MAX_DIMENSION = 220;
-const LEVEL_PREVIEW_MAX_TILE_SIZE = 6;
+const LEVEL_PREVIEW_MAX_DIMENSION = 560;
+const LEVEL_PREVIEW_MAX_TILE_SIZE = 12;
 const LEVEL_PREVIEW_TILE_COLORS = Object.freeze({
   "#": "#0a0f0d",
   ".": "#d8f6c4",
@@ -117,6 +242,12 @@ const LEVEL_PREVIEW_TILE_COLORS = Object.freeze({
   E: "#f4a261",
   B: "#9ca3af",
 });
+const ACTOR_SET_DERIVED_TOKEN_FIELDS = Object.freeze([
+  "tokenHintPerUnit",
+  "tokenHintTotal",
+  "tokenUnitCost",
+  "tokenTotalCost",
+]);
 
 function setStatus(el, message, isError = false) {
   if (!el) return;
@@ -150,6 +281,36 @@ function readOptionalPositiveInt(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function normalizeAttackerCountValue(value) {
+  const parsed = readOptionalPositiveInt(value);
+  if (!Number.isInteger(parsed)) return DEFAULT_ATTACKER_COUNT;
+  return Math.min(MAX_ATTACKER_COUNT, parsed);
+}
+
+function normalizeHallwayPatternValue(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!normalized) return null;
+  if (normalized === HALLWAY_PATTERN_TYPES.grid) return HALLWAY_PATTERN_TYPES.grid;
+  if (normalized === HALLWAY_PATTERN_TYPES.diagonalGrid || normalized === "diagonal") {
+    return HALLWAY_PATTERN_TYPES.diagonalGrid;
+  }
+  if (normalized === HALLWAY_PATTERN_TYPES.concentricCircles || normalized === "concentric") {
+    return HALLWAY_PATTERN_TYPES.concentricCircles;
+  }
+  if (normalized === HALLWAY_PATTERN_TYPES.none) return HALLWAY_PATTERN_TYPES.none;
+  if (normalized === "horizontal_vertical_grid" || normalized === "horizontal_verticle_grid") {
+    return HALLWAY_PATTERN_TYPES.grid;
+  }
+  if (normalized === "diagonal_grid") {
+    return HALLWAY_PATTERN_TYPES.diagonalGrid;
+  }
+  if (normalized === "concentric_circles") {
+    return HALLWAY_PATTERN_TYPES.concentricCircles;
+  }
+  return null;
+}
+
 function parseAffinityCount(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 0;
@@ -157,6 +318,9 @@ function parseAffinityCount(value) {
 }
 
 function normalizeAllocationPercent(value, fallback) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(0, Math.floor(parsed));
@@ -452,10 +616,50 @@ function resolveSessionLlmOptions({ phase, optionsByPhase, baseOptions } = {}) {
   const phaseOverrides = optionsByPhase && typeof optionsByPhase === "object"
     ? optionsByPhase[phase]
     : null;
-  if (phaseOverrides && typeof phaseOverrides === "object") {
-    return { ...defaultOptions, ...phaseOverrides };
+  const resolvedOptions = phaseOverrides && typeof phaseOverrides === "object"
+    ? { ...defaultOptions, ...phaseOverrides }
+    : defaultOptions;
+  return resolvedOptions;
+}
+
+function resolvePromptNumPredict(promptParams) {
+  const llmTokens = readOptionalPositiveInt(promptParams?.llmTokens);
+  return Number.isInteger(llmTokens) && llmTokens > 0 ? llmTokens : null;
+}
+
+function resolveLoopOptionsByPhase({ llmConfig = {}, promptParams } = {}) {
+  const configured = llmConfig.optionsByPhase && typeof llmConfig.optionsByPhase === "object"
+    ? Object.entries(llmConfig.optionsByPhase).reduce((acc, [phase, value]) => {
+      if (value && typeof value === "object") {
+        acc[phase] = { ...value };
+      }
+      return acc;
+    }, {})
+    : {};
+  const numPredict = resolvePromptNumPredict(promptParams);
+  if (!Number.isInteger(numPredict) || numPredict <= 0) {
+    return Object.keys(configured).length > 0 ? configured : undefined;
   }
-  return defaultOptions;
+  const next = { ...configured };
+  ["layout_only", "actors_only", "attacker"].forEach((phase) => {
+    const existing = next[phase] && typeof next[phase] === "object" ? next[phase] : {};
+    next[phase] = { ...existing, num_predict: numPredict };
+  });
+  return next;
+}
+
+function resolveSessionLlmOptionsWithPromptTokens({
+  phase,
+  optionsByPhase,
+  baseOptions,
+  promptParams,
+} = {}) {
+  const resolvedOptions = resolveSessionLlmOptions({ phase, optionsByPhase, baseOptions });
+  const numPredict = resolvePromptNumPredict(promptParams);
+  if (Number.isInteger(numPredict) && numPredict > 0) {
+    resolvedOptions.num_predict = numPredict;
+  }
+  return resolvedOptions;
 }
 
 function normalizeAffinity(value) {
@@ -496,12 +700,6 @@ function resolveAffinityExpressionIcon(expression) {
   return AFFINITY_EXPRESSION_ICON_MAP[normalized] || "◦";
 }
 
-function resolveLayoutProfile(value) {
-  if (typeof value !== "string") return "auto";
-  const normalized = value.trim();
-  return LAYOUT_PROFILE_OPTIONS.includes(normalized) ? normalized : "auto";
-}
-
 function normalizeAffinityList(values) {
   if (!Array.isArray(values)) return [];
   const seen = new Set();
@@ -528,16 +726,88 @@ function formatAffinityPhrase(values, fallbackAffinity) {
   return `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]}`;
 }
 
-function formatAttackerAffinityConfig(config = {}) {
+function resolveAffinityPromptHint(affinity) {
+  const normalized = normalizeAffinity(affinity);
+  if (!normalized) return null;
+  return AFFINITY_PROMPT_HINTS[normalized] || null;
+}
+
+function normalizeAffinityExpressionSelection(expressionsByAffinity, affinity) {
+  if (!expressionsByAffinity || typeof expressionsByAffinity !== "object") {
+    return [];
+  }
+  const values = expressionsByAffinity[affinity];
+  if (!Array.isArray(values)) return [];
+  const seen = new Set();
+  return values
+    .map((value) => normalizeExpression(value))
+    .filter((value) => value && !seen.has(value) && seen.add(value));
+}
+
+function buildAffinityPromptTipLine(
+  affinity,
+  { expressionsByAffinity = null, stacksByAffinity = null } = {},
+) {
+  const normalized = normalizeAffinity(affinity);
+  if (!normalized) return "";
+  const hint = resolveAffinityPromptHint(normalized);
+  const expressions = {
+    ...DEFAULT_AFFINITY_EXPRESSION_HINTS,
+    ...(hint?.expressions || {}),
+  };
+  const selectedExpressions = normalizeAffinityExpressionSelection(expressionsByAffinity, normalized);
+  const selectedStackRaw = Number(stacksByAffinity?.[normalized]);
+  const selectedStack = Number.isFinite(selectedStackRaw) && selectedStackRaw > 0
+    ? Math.floor(selectedStackRaw)
+    : null;
+  const stackHint = hint?.higherStacks || DEFAULT_AFFINITY_HIGH_STACK_HINT;
+  const selectedExpressionText = selectedExpressions.length > 0
+    ? `Selected expressions: ${selectedExpressions.join(", ")}.`
+    : "Selected expressions: none (all available).";
+  const selectedStackText = Number.isInteger(selectedStack)
+    ? `Selected stacks: x${selectedStack}.`
+    : "";
+  return [
+    `Affinity tip (${normalized})`,
+    `Intent: ${hint?.intent || "role-aligned pressure and control"};`,
+    `Typical roles: ${hint?.roles || "hybrid controller"};`,
+    `Resource pattern: ${hint?.resourcePattern || "moderate mana, stamina, and durability"};`,
+    `Weakness: ${hint?.weakness || "predictable when overcommitted"};`,
+    `Countered by: ${hint?.counteredBy || "faster mobility or focused burst"};`,
+    `Push: ${expressions.push};`,
+    `Pull: ${expressions.pull};`,
+    `Emit: ${expressions.emit};`,
+    `${selectedExpressionText}`,
+    selectedStackText,
+    `Higher stacks: ${stackHint}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildAffinityPromptTips(
+  affinities,
+  { expressionsByAffinity = null, stacksByAffinity = null } = {},
+) {
+  const selectedAffinities = normalizeAffinityList(affinities);
+  if (selectedAffinities.length === 0) return [];
+  return selectedAffinities
+    .map((affinity) => buildAffinityPromptTipLine(affinity, { expressionsByAffinity, stacksByAffinity }))
+    .filter(Boolean);
+}
+
+function formatAttackerAffinityConfig(config = {}, stacksByAffinity = {}) {
   const entries = Object.entries(config)
     .map(([affinity, expressions]) => {
       const kind = normalizeAffinity(affinity);
       if (!kind) return null;
+      const rawStacks = Number(stacksByAffinity?.[kind]);
+      const stacks = Number.isFinite(rawStacks) && rawStacks > 0 ? Math.floor(rawStacks) : 1;
       const expressionList = Array.isArray(expressions)
         ? expressions.map((expr) => normalizeExpression(expr)).filter(Boolean)
         : [];
-      if (expressionList.length === 0) return kind;
-      return `${kind}(${expressionList.join(", ")})`;
+      if (expressionList.length === 0) return `${kind} x${stacks}`;
+      return `${kind} x${stacks} (${expressionList.join(", ")})`;
     })
     .filter(Boolean);
   return entries.length > 0 ? entries.join(", ") : "";
@@ -552,14 +822,6 @@ function formatVitalsConfig(vitals = {}) {
   return lines.length > 0 ? lines.join(", ") : "";
 }
 
-function resolveAllowedLayoutProfiles(layoutProfile = "auto") {
-  const preferred = resolveLayoutProfile(layoutProfile);
-  if (preferred === "auto") {
-    return LAYOUT_PROFILE_OPTIONS.filter((profile) => profile !== "auto");
-  }
-  return [preferred];
-}
-
 function normalizeAttackerSetupModeValue(value) {
   if (typeof value !== "string") return DEFAULT_ATTACKER_SETUP_MODE;
   const normalized = value.trim();
@@ -568,39 +830,8 @@ function normalizeAttackerSetupModeValue(value) {
 
 function resolveAttackerPromptScope(params = {}) {
   const mode = normalizeAttackerSetupModeValue(params?.attackerSetupMode);
-  const affinityMap = params?.attackerAffinities && typeof params.attackerAffinities === "object"
-    ? params.attackerAffinities
-    : {};
-  const scopedAffinities = [];
-  const scopedExpressions = [];
-
-  Object.entries(affinityMap).forEach(([rawAffinity, rawExpressions]) => {
-    const affinity = normalizeAffinity(rawAffinity);
-    if (!affinity) return;
-    if (!scopedAffinities.includes(affinity)) {
-      scopedAffinities.push(affinity);
-    }
-    const expressions = Array.isArray(rawExpressions) ? rawExpressions : [];
-    expressions.forEach((expression) => {
-      const normalized = normalizeExpression(expression);
-      if (!normalized || scopedExpressions.includes(normalized)) return;
-      scopedExpressions.push(normalized);
-    });
-  });
-
-  if (scopedAffinities.length === 0) {
-    const levelAffinities = normalizeAffinityList(params?.levelAffinities);
-    if (levelAffinities.length > 0) {
-      scopedAffinities.push(...levelAffinities);
-    } else {
-      scopedAffinities.push(DEFAULT_DUNGEON_AFFINITY);
-    }
-  }
-
-  if (scopedExpressions.length === 0) {
-    scopedExpressions.push(...AFFINITY_EXPRESSIONS);
-  }
-
+  const scopedAffinities = normalizeAffinityList(AFFINITY_KINDS);
+  const scopedExpressions = AFFINITY_EXPRESSIONS.slice();
   return {
     setupMode: mode,
     setupModes: [mode],
@@ -622,45 +853,45 @@ function resolveDefenderAffinityScope(params = {}) {
 }
 
 function buildPromptContext({ params, phase } = {}) {
-  const lines = [];
-  if (!params || typeof params !== "object") return "";
-  if (Number.isInteger(params.thinkTimeSeconds)) {
-    lines.push(`Think time: ${params.thinkTimeSeconds}s`);
-  }
-  if (Number.isInteger(params.llmTokens)) {
-    lines.push(`LLM response tokens: ${params.llmTokens}`);
+  const lines = [
+    SHARED_STRATEGY_CONTEXT.objective,
+    SHARED_STRATEGY_CONTEXT.hiddenExit,
+  ];
+  if (!params || typeof params !== "object") {
+    if (phase === "level") lines.push(SHARED_STRATEGY_CONTEXT.level);
+    if (phase === "attacker") lines.push(SHARED_STRATEGY_CONTEXT.attacker);
+    if (phase === "defender") lines.push(SHARED_STRATEGY_CONTEXT.defender);
+    return lines.join(" | ");
   }
   if (phase === "level") {
-    const affinities = formatAffinityList(params.levelAffinities);
+    lines.push(SHARED_STRATEGY_CONTEXT.level);
+    const selectedLevelAffinities = normalizeAffinityList(params.levelAffinities);
+    const affinities = formatAffinityList(selectedLevelAffinities);
     if (affinities) {
       lines.push(`Level affinities: ${affinities}`);
     }
-    const preferredLayoutProfile = resolveLayoutProfile(params.layoutProfile);
-    if (preferredLayoutProfile !== "auto") {
-      lines.push(`Layout profile preference: ${preferredLayoutProfile}`);
-      if (preferredLayoutProfile === "rooms") {
-        lines.push("Profile scope: room graph + hallway connectivity only.");
-      } else if (preferredLayoutProfile === "sparse_islands") {
-        lines.push("Profile scope: sparse islands only with density control.");
-      } else if (preferredLayoutProfile === "clustered_islands") {
-        lines.push("Profile scope: clustered islands only with cluster size control.");
-      } else if (preferredLayoutProfile === "rectangular") {
-        lines.push("Profile scope: rectangular layout only.");
-      }
-    }
+    buildAffinityPromptTips(selectedLevelAffinities).forEach((tipLine) => lines.push(tipLine));
+    lines.push("Layout mode: room topology only.");
   }
   if (phase === "defender") {
-    const defenderAffinities = formatAffinityList(resolveDefenderAffinityScope(params));
+    lines.push(SHARED_STRATEGY_CONTEXT.defender);
+    const defenderScope = resolveDefenderAffinityScope(params);
+    const defenderAffinities = formatAffinityList(defenderScope);
     if (defenderAffinities) {
       lines.push(`Defender affinities: ${defenderAffinities}`);
     }
+    buildAffinityPromptTips(defenderScope).forEach((tipLine) => lines.push(tipLine));
   }
   if (phase === "attacker") {
+    lines.push(SHARED_STRATEGY_CONTEXT.attacker);
+    lines.push("Attacker affinities are independent from dungeon and defender affinities.");
     const setupMode = typeof params.attackerSetupMode === "string" && params.attackerSetupMode.trim()
       ? params.attackerSetupMode.trim()
       : DEFAULT_ATTACKER_SETUP_MODE;
+    const attackerCount = normalizeAttackerCountValue(params.attackerCount);
     lines.push(`Default setup mode: ${setupMode}`);
-    const affinityConfig = formatAttackerAffinityConfig(params.attackerAffinities);
+    lines.push(`Requested attacker count: ${attackerCount}`);
+    const affinityConfig = formatAttackerAffinityConfig(params.attackerAffinities, params.attackerAffinityStacks);
     if (affinityConfig) {
       lines.push(`Requested attacker affinities: ${affinityConfig}`);
     }
@@ -672,6 +903,11 @@ function buildPromptContext({ params, phase } = {}) {
     if (vitalsRegen) {
       lines.push(`Requested attacker vitals regen: ${vitalsRegen}`);
     }
+    const attackerSelectedAffinities = normalizeAffinityList(Object.keys(params.attackerAffinities || {}));
+    buildAffinityPromptTips(attackerSelectedAffinities, {
+      expressionsByAffinity: params.attackerAffinities,
+      stacksByAffinity: params.attackerAffinityStacks,
+    }).forEach((tipLine) => lines.push(tipLine));
   }
   return lines.join(" | ");
 }
@@ -681,12 +917,12 @@ function buildLlmAttackerConfigPromptTemplate({
   notes,
   budgetTokens,
   remainingBudgetTokens,
+  attackerCount = DEFAULT_ATTACKER_COUNT,
   context,
   requiredAffinityConfig,
   affinities = AFFINITY_KINDS,
   affinityExpressions = AFFINITY_EXPRESSIONS,
   setupModes = ATTACKER_SETUP_MODES,
-  modelContextTokens = DOMAIN_CONSTRAINTS?.llm?.modelContextTokens || DOMAIN_CONSTRAINTS?.llm?.contextWindowTokens,
 } = {}) {
   const affinityMenu = normalizeAffinityList(affinities).join(", ") || AFFINITY_KINDS.join(", ");
   const expressionMenu = Array.isArray(affinityExpressions) && affinityExpressions.length > 0
@@ -695,35 +931,43 @@ function buildLlmAttackerConfigPromptTemplate({
   const setupModeMenu = Array.isArray(setupModes) && setupModes.length > 0
     ? setupModes.join(", ")
     : ATTACKER_SETUP_MODES.join(", ");
+  const requestedAttackerCount = normalizeAttackerCountValue(attackerCount);
+  const promptBudgetTokens = Number.isInteger(remainingBudgetTokens) && remainingBudgetTokens >= 0
+    ? remainingBudgetTokens
+    : budgetTokens;
   const lines = [];
   if (typeof goal === "string" && goal.trim()) lines.push(`Goal: ${goal.trim()}`);
   if (typeof notes === "string" && notes.trim()) lines.push(`Notes: ${notes.trim()}`);
-  if (Number.isInteger(budgetTokens) && budgetTokens > 0) lines.push(`Total budget tokens: ${budgetTokens}`);
-  if (Number.isInteger(remainingBudgetTokens) && remainingBudgetTokens >= 0) {
-    lines.push(`Attacker phase budget tokens: ${remainingBudgetTokens}`);
+  if (Number.isInteger(promptBudgetTokens) && promptBudgetTokens > 0) {
+    lines.push(`Attacker configuration budget tokens: ${promptBudgetTokens}`);
   }
-  if (Number.isInteger(modelContextTokens) && modelContextTokens > 0) {
-    lines.push(`Model context window token limit: ${modelContextTokens}`);
-  }
-  lines.push("You are an attacker loadout planner.");
-  lines.push("Configure the attacker setup only.");
-  lines.push("Do not return layout or defender actors.");
+  lines.push("Role: attacker loadout planner.");
+  lines.push("Scope: configure attacker setup only; do not return layout or defender actors.");
+  lines.push(`Required attacker count: ${requestedAttackerCount}`);
   lines.push(`Allowed setup modes: ${setupModeMenu}`);
   lines.push(`Allowed affinities: ${affinityMenu}`);
   lines.push(`Allowed affinity expressions: ${expressionMenu}`);
   if (typeof requiredAffinityConfig === "string" && requiredAffinityConfig.trim()) {
-    lines.push(`Required attacker affinities: ${requiredAffinityConfig.trim()}`);
-    lines.push("Guardrails: include every required attacker affinity entry in attackerConfig.affinities.");
+    lines.push(`Preferred attacker affinities: ${requiredAffinityConfig.trim()}`);
   }
-  lines.push("Guardrails: attackerConfig.affinities must include at least one affinity with at least one expression.");
-  lines.push("Guardrails: when affinities are present, attackerConfig.vitalsMax.mana must be an integer greater than 0.");
-  lines.push("Guardrails: when affinities are present, attackerConfig.vitalsRegen.mana must be an integer greater than 0.");
+  const rules = [
+    `attackerConfigs must contain exactly ${requestedAttackerCount} entries.`,
+    "attackerConfig must be identical to attackerConfigs[0] for backward compatibility.",
+    "Attacker affinity and vitals choices are unconstrained by dungeon and defender affinities.",
+    "attackers start at level entry and objective is to reach level exit.",
+    "level exit is hidden at start; each attacker config should support exploration to discover and reach it.",
+  ];
+  lines.push("Rules:");
+  rules.forEach((rule, index) => {
+    lines.push(`${index + 1}. ${rule}`);
+  });
   if (typeof context === "string" && context.trim()) {
     lines.push(`Context: ${context.trim()}`);
   }
   lines.push("");
   lines.push("Response shape:");
-  lines.push("{ \"dungeonAffinity\": <affinity>, \"attackerConfig\": {\"setupMode\": \"auto\"|\"user\"|\"hybrid\", \"vitalsMax\": {\"health\": <int?>, \"mana\": <int?>, \"stamina\": <int?>, \"durability\": <int?>}, \"vitalsRegen\": {\"health\": <int?>, \"mana\": <int?>, \"stamina\": <int?>, \"durability\": <int?>}, \"affinities\": {\"<affinity>\": [\"push\"|\"pull\"|\"emit\"]}}, \"rooms\": [], \"actors\": [] }");
+  lines.push("{ \"dungeonAffinity\": <affinity>, \"attackerCount\": <int>, \"attackerConfigs\": [<AttackerConfig>], \"attackerConfig\": <AttackerConfig>, \"rooms\": [], \"actors\": [] }");
+  lines.push("AttackerConfig = {\"setupMode\": \"auto\"|\"user\"|\"hybrid\", \"vitalsMax\": {\"health\": <int?>, \"mana\": <int?>, \"stamina\": <int?>, \"durability\": <int?>}, \"vitalsRegen\": {\"health\": <int?>, \"mana\": <int?>, \"stamina\": <int?>, \"durability\": <int?>}, \"affinities\": {\"<affinity>\": [\"push\"|\"pull\"|\"emit\"]}}");
   lines.push("");
   lines.push("Respond with valid JSON only.");
   return lines.join("\n");
@@ -807,20 +1051,115 @@ function normalizeSummary(summary, guidanceText = "") {
   return normalized;
 }
 
-function applyLayoutProfilePreference(summary, layoutProfile = "auto") {
+function applyLayoutShapePreferences(
+  summary,
+  {
+    corridorWidth = null,
+    hallwayPattern = null,
+    patternLineWidth = null,
+    patternInfillPercent = null,
+  } = {},
+) {
   if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
     return summary;
   }
-  const preferredProfile = resolveLayoutProfile(layoutProfile);
-  if (preferredProfile === "auto") {
+  const normalizedCorridorWidth = readOptionalPositiveInt(corridorWidth);
+  const normalizedHallwayPattern = normalizeHallwayPatternValue(hallwayPattern);
+  const normalizedPatternLineWidth = readOptionalPositiveInt(patternLineWidth);
+  const rawPatternInfillPercent = readOptionalPositiveInt(patternInfillPercent);
+  const normalizedPatternInfillPercent = Number.isInteger(rawPatternInfillPercent)
+    ? Math.min(100, rawPatternInfillPercent)
+    : null;
+  const hasOverrides = Number.isInteger(normalizedCorridorWidth)
+    || typeof normalizedHallwayPattern === "string"
+    || Number.isInteger(normalizedPatternLineWidth)
+    || Number.isInteger(normalizedPatternInfillPercent);
+  if (!hasOverrides) {
     return summary;
   }
   const nextSummary = { ...summary };
-  const roomDesign = nextSummary.roomDesign && typeof nextSummary.roomDesign === "object" && !Array.isArray(nextSummary.roomDesign)
-    ? { ...nextSummary.roomDesign }
+  const baseRoomDesign = nextSummary.roomDesign && typeof nextSummary.roomDesign === "object" && !Array.isArray(nextSummary.roomDesign)
+    ? nextSummary.roomDesign
     : {};
-  roomDesign.profile = preferredProfile;
+  const roomDesign = {};
+  if (Array.isArray(baseRoomDesign.rooms)) roomDesign.rooms = baseRoomDesign.rooms;
+  if (Array.isArray(baseRoomDesign.connections)) roomDesign.connections = baseRoomDesign.connections;
+  if (typeof baseRoomDesign.hallways === "string") roomDesign.hallways = baseRoomDesign.hallways;
+  if (typeof baseRoomDesign.pattern === "string" && baseRoomDesign.pattern.trim()) {
+    roomDesign.pattern = baseRoomDesign.pattern.trim();
+  }
+  const roomShapeHints = ["roomCount", "roomMinSize", "roomMaxSize", "corridorWidth"];
+  roomShapeHints.forEach((field) => {
+    const value = readOptionalPositiveInt(baseRoomDesign[field]);
+    if (Number.isInteger(value) && value > 0) {
+      roomDesign[field] = value;
+    }
+  });
+  const patternShapeHints = ["patternSpacing", "patternLineWidth", "patternGapEvery"];
+  patternShapeHints.forEach((field) => {
+    const value = readOptionalPositiveInt(baseRoomDesign[field]);
+    if (Number.isInteger(value) && value > 0) {
+      roomDesign[field] = value;
+    }
+  });
+  const patternInset = readOptionalInt(baseRoomDesign.patternInset);
+  if (Number.isInteger(patternInset) && patternInset >= 0) {
+    roomDesign.patternInset = patternInset;
+  }
+  const basePatternInfillPercent = readOptionalPositiveInt(baseRoomDesign.patternInfillPercent);
+  if (Number.isInteger(basePatternInfillPercent) && basePatternInfillPercent > 0) {
+    roomDesign.patternInfillPercent = Math.min(100, basePatternInfillPercent);
+  }
+  if (Number.isInteger(normalizedCorridorWidth) && normalizedCorridorWidth > 0) {
+    roomDesign.corridorWidth = normalizedCorridorWidth;
+  }
+  if (typeof normalizedHallwayPattern === "string" && normalizedHallwayPattern) {
+    roomDesign.pattern = normalizedHallwayPattern;
+  }
+  if (Number.isInteger(normalizedPatternLineWidth) && normalizedPatternLineWidth > 0) {
+    roomDesign.patternLineWidth = normalizedPatternLineWidth;
+  }
+  if (Number.isInteger(normalizedPatternInfillPercent) && normalizedPatternInfillPercent > 0) {
+    roomDesign.patternInfillPercent = normalizedPatternInfillPercent;
+  }
   nextSummary.roomDesign = roomDesign;
+  return nextSummary;
+}
+
+function normalizeLayoutWalkableTiles(summary, targetWalkableTiles = null) {
+  if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
+    return summary;
+  }
+  if (!Number.isInteger(targetWalkableTiles) || targetWalkableTiles <= 0) {
+    return summary;
+  }
+  const nextSummary = { ...summary };
+  const layout = nextSummary.layout && typeof nextSummary.layout === "object" && !Array.isArray(nextSummary.layout)
+    ? { ...nextSummary.layout }
+    : {};
+  const floorTiles = Number.isInteger(layout.floorTiles) && layout.floorTiles > 0 ? layout.floorTiles : 0;
+  const hallwayTiles = Number.isInteger(layout.hallwayTiles) && layout.hallwayTiles > 0 ? layout.hallwayTiles : 0;
+  const currentWalkableTiles = floorTiles + hallwayTiles;
+  if (currentWalkableTiles === targetWalkableTiles) {
+    nextSummary.layout = layout;
+    return nextSummary;
+  }
+  let adjustedFloorTiles = floorTiles;
+  let adjustedHallwayTiles = hallwayTiles;
+  if (currentWalkableTiles < targetWalkableTiles) {
+    adjustedFloorTiles += targetWalkableTiles - currentWalkableTiles;
+  } else {
+    let overflow = currentWalkableTiles - targetWalkableTiles;
+    const hallwayReduction = Math.min(adjustedHallwayTiles, overflow);
+    adjustedHallwayTiles -= hallwayReduction;
+    overflow -= hallwayReduction;
+    if (overflow > 0) {
+      adjustedFloorTiles = Math.max(0, adjustedFloorTiles - overflow);
+    }
+  }
+  layout.floorTiles = adjustedFloorTiles;
+  layout.hallwayTiles = adjustedHallwayTiles;
+  nextSummary.layout = layout;
   return nextSummary;
 }
 
@@ -971,9 +1310,11 @@ export function buildDefaultStrategicGuidancePrompt({
   );
   const defenderAffinityChoices = defenderAffinities.length > 0 ? defenderAffinities : [DEFAULT_DUNGEON_AFFINITY];
   const attackerScope = resolveAttackerPromptScope(promptParams);
-  const attackerAffinityPhrase = formatAffinityPhrase(attackerScope.affinities, DEFAULT_DUNGEON_AFFINITY);
-  const requiredAttackerAffinityConfig = formatAttackerAffinityConfig(promptParams?.attackerAffinities);
-  const allowedLayoutProfiles = resolveAllowedLayoutProfiles(promptParams?.layoutProfile);
+  const attackerCount = normalizeAttackerCountValue(promptParams?.attackerCount);
+  const requiredAttackerAffinityConfig = formatAttackerAffinityConfig(
+    promptParams?.attackerAffinities,
+    promptParams?.attackerAffinityStacks,
+  );
   const actorGoal = `Create dungeon defenders for a ${defenderAffinityPhrase} themed dungeon.`;
   const poolBudgets = promptParams?.poolBudgets && typeof promptParams.poolBudgets === "object"
     ? promptParams.poolBudgets
@@ -999,7 +1340,7 @@ export function buildDefaultStrategicGuidancePrompt({
       : normalizedBudget;
   const attackerBudgetTokens = Number.isInteger(attackerPoolBudget)
     ? attackerPoolBudget
-    : normalizedBudget;
+    : Math.max(0, Math.floor((normalizedBudget * DEFAULT_POOL_ALLOCATION_PERCENTAGES.attacker) / 100));
   const levelContext = buildPromptContext({ params: promptParams, phase: "level" });
   const attackerContext = buildPromptContext({ params: promptParams, phase: "attacker" });
   const actorContext = buildPromptContext({ params: promptParams, phase: "defender" });
@@ -1009,10 +1350,8 @@ export function buildDefaultStrategicGuidancePrompt({
     budgetTokens: normalizedBudget,
     remainingBudgetTokens: levelBudgetTokens,
     layoutCosts: tileCosts,
-    allowedProfiles: allowedLayoutProfiles,
     context: levelContext,
     modelContextTokens: MODEL_CONTEXT_TOKENS || CONTEXT_WINDOW_TOKENS,
-    layoutLatencyMs: DOMAIN_CONSTRAINTS?.llm?.targetLatencyMs?.layoutPhase,
   });
   const actorTemplate = buildLlmActorConfigPromptTemplate({
     goal: actorGoal,
@@ -1027,16 +1366,16 @@ export function buildDefaultStrategicGuidancePrompt({
     modelContextTokens: MODEL_CONTEXT_TOKENS || CONTEXT_WINDOW_TOKENS,
   });
   const attackerTemplate = buildLlmAttackerConfigPromptTemplate({
-    goal: `Configure attacker setup for a ${attackerAffinityPhrase} themed dungeon.`,
+    goal: "Configure attacker setup for the dungeon run.",
     notes: "Phase 2 of 3. Configure attacker setup only.",
-    budgetTokens: normalizedBudget,
+    budgetTokens: attackerBudgetTokens,
     remainingBudgetTokens: attackerBudgetTokens,
+    attackerCount,
     context: attackerContext || "Use the attacker controls as defaults when available.",
     requiredAffinityConfig: requiredAttackerAffinityConfig,
     affinities: attackerScope.affinities,
     affinityExpressions: attackerScope.affinityExpressions,
     setupModes: attackerScope.setupModes,
-    modelContextTokens: MODEL_CONTEXT_TOKENS || CONTEXT_WINDOW_TOKENS,
   });
   return [
     LEVEL_TEMPLATE_HEADER,
@@ -1156,87 +1495,6 @@ export function buildDesignBrief(summary, guidanceText = "", { budgeting, spendL
     .join("\n");
 }
 
-function isPositiveInt(value) {
-  return Number.isInteger(value) && value > 0;
-}
-
-function inferLayoutProfile(summary) {
-  const raw = typeof summary?.roomDesign?.profile === "string"
-    ? summary.roomDesign.profile.trim()
-    : "";
-  if (LAYOUT_PROFILE_OPTIONS.includes(raw) && raw !== "auto") return raw;
-  const hasRooms = Array.isArray(summary?.roomDesign?.rooms) && summary.roomDesign.rooms.length > 0;
-  return hasRooms ? "rooms" : "rectangular";
-}
-
-function deriveFallbackLevelGenFromSummary(summary) {
-  const floorTiles = isPositiveInt(summary?.layout?.floorTiles) ? summary.layout.floorTiles : 0;
-  const hallwayTiles = isPositiveInt(summary?.layout?.hallwayTiles) ? summary.layout.hallwayTiles : 0;
-  const walkableTilesTarget = floorTiles + hallwayTiles;
-  if (!isPositiveInt(walkableTilesTarget)) return null;
-  const profile = inferLayoutProfile(summary);
-  const densityByProfile = {
-    rectangular: 0.7,
-    rooms: 0.55,
-    clustered_islands: 0.45,
-    sparse_islands: 0.35,
-  };
-  const density = densityByProfile[profile] || densityByProfile.rectangular;
-  const interiorArea = Math.ceil(walkableTilesTarget / density);
-  const interiorSide = Math.max(3, Math.ceil(Math.sqrt(interiorArea)));
-  const size = Math.max(5, interiorSide + 2);
-
-  return {
-    width: size,
-    height: size,
-    shape: { profile },
-    walkableTilesTarget,
-  };
-}
-
-function resolveLevelGenFromSummary(summary) {
-  const built = buildBuildSpecFromSummary({
-    summary,
-    source: "design-level-preview",
-    runId: `design_level_preview_${Date.now()}`,
-  });
-  if (built?.ok) {
-    const levelGen = built.spec?.configurator?.inputs?.levelGen;
-    if (levelGen && typeof levelGen === "object") {
-      return levelGen;
-    }
-  }
-  return deriveFallbackLevelGenFromSummary(summary);
-}
-
-function generatePreviewTiles(summary) {
-  if (!summary || typeof summary !== "object") {
-    return { ok: false, reason: "missing_summary" };
-  }
-  const levelGen = resolveLevelGenFromSummary(summary);
-  if (!levelGen) {
-    return { ok: false, reason: "missing_level_gen" };
-  }
-  const generated = generateGridLayoutFromInput(levelGen);
-  if (!generated?.ok) {
-    return {
-      ok: false,
-      reason: "layout_generation_failed",
-      errors: Array.isArray(generated.errors) ? generated.errors : [],
-    };
-  }
-  const tiles = generated.value?.tiles;
-  if (!Array.isArray(tiles) || tiles.length === 0) {
-    return { ok: false, reason: "missing_tiles" };
-  }
-  const width = String(tiles[0] || "").length;
-  const height = tiles.length;
-  if (!isPositiveInt(width) || !isPositiveInt(height)) {
-    return { ok: false, reason: "invalid_dimensions" };
-  }
-  return { ok: true, tiles, width, height };
-}
-
 function formatPreviewGenerationError(preview = {}) {
   const errors = Array.isArray(preview?.errors) ? preview.errors : [];
   if (errors.length === 0) return LEVEL_PREVIEW_UNAVAILABLE_TEXT;
@@ -1287,7 +1545,56 @@ function canRenderLevelPreview(levelDesignOutput, doc) {
   );
 }
 
-function createLevelPreviewCanvas(doc, tiles, width, height, tileSize) {
+function drawLevelImageArtifact(ctx, doc, image, width, height, tileSize) {
+  if (!ctx || !image || typeof image !== "object") return false;
+  const imageWidth = Number.isInteger(image.width) ? image.width : 0;
+  const imageHeight = Number.isInteger(image.height) ? image.height : 0;
+  const rawPixels = image.pixels;
+  if (imageWidth !== width || imageHeight !== height) return false;
+  if (!rawPixels || typeof rawPixels.length !== "number") return false;
+  if (rawPixels.length !== width * height * 4) return false;
+  const pixels = rawPixels instanceof Uint8ClampedArray ? rawPixels : new Uint8ClampedArray(rawPixels);
+  if (pixels.length !== width * height * 4) return false;
+
+  if (
+    tileSize === 1
+      && typeof ImageData === "function"
+      && typeof ctx.putImageData === "function"
+  ) {
+    const imageData = new ImageData(pixels, width, height);
+    ctx.putImageData(imageData, 0, 0);
+    return true;
+  }
+
+  if (!doc || typeof doc.createElement !== "function" || typeof ctx.drawImage !== "function") {
+    return false;
+  }
+  const source = doc.createElement("canvas");
+  if (!source || typeof source.getContext !== "function") return false;
+  source.width = width;
+  source.height = height;
+  const sourceCtx = source.getContext("2d");
+  if (!sourceCtx) return false;
+  sourceCtx.imageSmoothingEnabled = false;
+  if (typeof ImageData === "function" && typeof sourceCtx.putImageData === "function") {
+    sourceCtx.putImageData(new ImageData(pixels, width, height), 0, 0);
+  } else {
+    let idx = 0;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const color = `rgba(${pixels[idx]}, ${pixels[idx + 1]}, ${pixels[idx + 2]}, ${pixels[idx + 3] / 255})`;
+        sourceCtx.fillStyle = color;
+        sourceCtx.fillRect(x, y, 1, 1);
+        idx += 4;
+      }
+    }
+  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(source, 0, 0, width, height, 0, 0, width * tileSize, height * tileSize);
+  return true;
+}
+
+function createLevelPreviewCanvas(doc, { tiles, image, width, height, tileSize }) {
   const canvas = doc.createElement("canvas");
   if (!canvas || typeof canvas.getContext !== "function") return null;
   canvas.className = "level-preview-canvas";
@@ -1298,6 +1605,9 @@ function createLevelPreviewCanvas(doc, tiles, width, height, tileSize) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
   ctx.imageSmoothingEnabled = false;
+  if (drawLevelImageArtifact(ctx, doc, image, width, height, tileSize)) {
+    return canvas;
+  }
   tiles.forEach((rawRow, y) => {
     const row = String(rawRow || "");
     for (let x = 0; x < width; x += 1) {
@@ -1310,28 +1620,193 @@ function createLevelPreviewCanvas(doc, tiles, width, height, tileSize) {
   return canvas;
 }
 
-function renderLevelDesignOutput(levelDesignOutput, summary) {
+function sanitizeFileNamePart(value, fallback = "dungeon") {
+  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+  const normalized = raw.replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  return normalized || fallback;
+}
+
+function buildLevelPreviewExportFileName({ summary, width, height }) {
+  const affinity = sanitizeFileNamePart(summary?.dungeonAffinity, "dungeon");
+  const sizeText = `${Math.max(1, width)}x${Math.max(1, height)}`;
+  return `level-preview-${affinity}-${sizeText}.png`;
+}
+
+function canExportLevelPreviewCanvas(canvas, doc) {
+  if (!canvas || typeof doc?.createElement !== "function") return false;
+  return typeof canvas.toBlob === "function" || typeof canvas.toDataURL === "function";
+}
+
+function triggerLevelPreviewDownload({ doc, href, fileName }) {
+  if (!doc || typeof doc.createElement !== "function") return false;
+  const anchor = doc.createElement("a");
+  if (!anchor) return false;
+  anchor.href = href;
+  anchor.download = fileName;
+  anchor.rel = "noopener";
+  if (typeof anchor.click === "function") {
+    anchor.click();
+    return true;
+  }
+  return false;
+}
+
+function exportLevelPreviewCanvas({ canvas, doc, fileName }) {
+  if (!canvas) return false;
+
+  const urlApi = globalThis?.URL;
+  if (typeof canvas.toBlob === "function" && typeof urlApi?.createObjectURL === "function") {
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const href = urlApi.createObjectURL(blob);
+      triggerLevelPreviewDownload({ doc, href, fileName });
+      if (typeof urlApi.revokeObjectURL === "function") {
+        setTimeout(() => {
+          urlApi.revokeObjectURL(href);
+        }, 0);
+      }
+    }, "image/png");
+    return true;
+  }
+
+  if (typeof canvas.toDataURL === "function") {
+    try {
+      const href = canvas.toDataURL("image/png");
+      return triggerLevelPreviewDownload({ doc, href, fileName });
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+function createLevelPreviewExportButton(doc, { canvas, fileName }) {
+  if (!doc || typeof doc.createElement !== "function") return null;
+  const button = doc.createElement("button");
+  if (!button) return null;
+  button.type = "button";
+  button.className = "secondary level-preview-export";
+  button.textContent = "Export Image";
+  const exportAvailable = canExportLevelPreviewCanvas(canvas, doc);
+  button.disabled = !exportAvailable;
+  if (!exportAvailable) {
+    button.title = "Image export is unavailable in this environment.";
+    return button;
+  }
+
+  const onClick = () => {
+    exportLevelPreviewCanvas({
+      canvas,
+      doc,
+      fileName,
+    });
+  };
+  if (typeof button.addEventListener === "function") {
+    button.addEventListener("click", onClick);
+  } else if ("onclick" in button) {
+    button.onclick = onClick;
+  }
+  return button;
+}
+
+async function renderLevelDesignOutput(
+  levelDesignOutput,
+  summary,
+  {
+    levelBuilder = null,
+    requestId = null,
+    getLatestRequestId = null,
+  } = {},
+) {
+  const isStaleRender = () =>
+    requestId !== null
+      && typeof getLatestRequestId === "function"
+      && getLatestRequestId() !== requestId;
+
   if (!levelDesignOutput) return;
-  const preview = generatePreviewTiles(summary);
-  if (!preview.ok) {
-    if (summary && preview.reason === "layout_generation_failed") {
-      setLevelDesignTextOutput(levelDesignOutput, formatPreviewGenerationError(preview));
-    } else {
-      setLevelDesignTextOutput(levelDesignOutput, summary ? LEVEL_PREVIEW_UNAVAILABLE_TEXT : LEVEL_PREVIEW_EMPTY_TEXT);
+  if (!summary || typeof summary !== "object") {
+    if (!isStaleRender()) {
+      setLevelDesignTextOutput(levelDesignOutput, LEVEL_PREVIEW_EMPTY_TEXT);
     }
     return;
   }
 
-  const walkableTiles = countWalkableTiles(preview.tiles);
-  const fallbackText = `Level preview ready: ${preview.width}x${preview.height}, walkable ${walkableTiles}.`;
+  if (!levelBuilder || typeof levelBuilder.buildFromGuidance !== "function") {
+    if (!isStaleRender()) {
+      setLevelDesignTextOutput(levelDesignOutput, LEVEL_PREVIEW_UNAVAILABLE_TEXT);
+    }
+    return;
+  }
+
+  setLevelDesignTextOutput(levelDesignOutput, "Building level preview...");
+  let preview = null;
+  try {
+    preview = await levelBuilder.buildFromGuidance({
+      summary,
+      renderOptions: {
+        includeAscii: true,
+        includeImage: true,
+        palette: LEVEL_PREVIEW_TILE_COLORS,
+      },
+    });
+  } catch (error) {
+    if (!isStaleRender()) {
+      setLevelDesignTextOutput(levelDesignOutput, `Level preview failed: ${error?.message || String(error)}`);
+    }
+    return;
+  }
+
+  if (isStaleRender()) {
+    return;
+  }
+
+  if (!preview?.ok) {
+    if (preview.reason === "layout_generation_failed") {
+      setLevelDesignTextOutput(levelDesignOutput, formatPreviewGenerationError(preview));
+    } else {
+      setLevelDesignTextOutput(levelDesignOutput, LEVEL_PREVIEW_UNAVAILABLE_TEXT);
+    }
+    return;
+  }
+  const tiles = Array.isArray(preview.tiles)
+    ? preview.tiles
+    : Array.isArray(preview?.ascii?.lines)
+      ? preview.ascii.lines
+      : [];
+  const width = Number.isInteger(preview.width)
+    ? preview.width
+    : Number.isInteger(preview?.image?.width)
+      ? preview.image.width
+      : 0;
+  const height = Number.isInteger(preview.height)
+    ? preview.height
+    : Number.isInteger(preview?.image?.height)
+      ? preview.image.height
+      : 0;
+  if (tiles.length === 0 || width <= 0 || height <= 0) {
+    setLevelDesignTextOutput(levelDesignOutput, LEVEL_PREVIEW_UNAVAILABLE_TEXT);
+    return;
+  }
+
+  const walkableTiles = Number.isInteger(preview.walkableTiles)
+    ? preview.walkableTiles
+    : countWalkableTiles(tiles);
+  const fallbackText = `Level preview ready: ${width}x${height}, walkable ${walkableTiles}.`;
   const doc = levelDesignOutput.ownerDocument || (typeof document === "object" ? document : null);
   if (!canRenderLevelPreview(levelDesignOutput, doc)) {
     setLevelDesignTextOutput(levelDesignOutput, fallbackText);
     return;
   }
 
-  const tileSize = resolveTileSize(preview.width, preview.height);
-  const canvas = createLevelPreviewCanvas(doc, preview.tiles, preview.width, preview.height, tileSize);
+  const tileSize = resolveTileSize(width, height);
+  const canvas = createLevelPreviewCanvas(doc, {
+    tiles,
+    image: preview.image,
+    width,
+    height,
+    tileSize,
+  });
   if (!canvas) {
     setLevelDesignTextOutput(levelDesignOutput, fallbackText);
     return;
@@ -1339,10 +1814,23 @@ function renderLevelDesignOutput(levelDesignOutput, summary) {
 
   const wrapper = doc.createElement("div");
   wrapper.className = "level-preview-shell";
+  const toolbar = doc.createElement("div");
+  toolbar.className = "level-preview-toolbar";
   const meta = doc.createElement("div");
   meta.className = "level-preview-meta";
-  meta.textContent = `${preview.width}x${preview.height} | walkable ${walkableTiles} | ${tileSize}px tiles`;
-  wrapper.append(meta, canvas);
+  meta.textContent = `${width}x${height} | walkable ${walkableTiles} | ${tileSize}px tiles`;
+  toolbar.append(meta);
+  const exportButton = createLevelPreviewExportButton(doc, {
+    canvas,
+    fileName: buildLevelPreviewExportFileName({ summary, width, height }),
+  });
+  if (exportButton) {
+    toolbar.append(exportButton);
+  }
+  const viewport = doc.createElement("div");
+  viewport.className = "level-preview-viewport";
+  viewport.append(canvas);
+  wrapper.append(toolbar, viewport);
 
   levelDesignOutput.replaceChildren(wrapper);
 }
@@ -1353,8 +1841,13 @@ export function buildActorSet(summary) {
   const actors = Array.isArray(summary.actors) ? summary.actors : [];
   const rooms = Array.isArray(summary.rooms) ? summary.rooms : [];
   const dungeonAffinity = normalizeAffinity(summary.dungeonAffinity) || DEFAULT_DUNGEON_AFFINITY;
-  const setupMode = typeof summary?.attackerConfig?.setupMode === "string"
-    ? summary.attackerConfig.setupMode
+  const attackerConfigs = Array.isArray(summary?.attackerConfigs)
+    ? summary.attackerConfigs.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+    : summary?.attackerConfig && typeof summary.attackerConfig === "object"
+      ? [summary.attackerConfig]
+      : [];
+  const setupMode = typeof attackerConfigs[0]?.setupMode === "string"
+    ? attackerConfigs[0].setupMode
     : DEFAULT_ATTACKER_SETUP_MODE;
 
   actors.forEach((entry, index) => {
@@ -1446,7 +1939,9 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     maxTokenBudgetInput,
     thinkTimeInput,
     llmTokensInput,
-    layoutProfileInput,
+    corridorWidthInput,
+    hallwayPatternInput,
+    patternInfillPercentInput,
     layoutAllocationPercentInput,
     defenderAllocationPercentInput,
     attackerAllocationPercentInput,
@@ -1455,13 +1950,21 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     levelBenchmarkOutput,
     benchmarkMaxTokenBudgetInput,
     benchmarkSampleRunsInput,
-    levelAffinitiesContainer,
+    workflowAffinitiesContainer,
+    attackerCountInput,
+    levelAffinitiesContainer: legacyLevelAffinitiesContainer,
     attackerSetupModeInput,
-    attackerAffinitiesContainer,
-    defenderAffinitiesContainer,
+    attackerSelectedAffinitiesContainer,
+    attackerAffinitiesContainer: legacyAttackerAffinitiesContainer,
+    defenderAffinitiesContainer: legacyDefenderAffinitiesContainer,
     attackerVitalsInputs,
     attackerVitalsRegenInputs,
   } = elements;
+  const levelAffinitiesContainer = workflowAffinitiesContainer || legacyLevelAffinitiesContainer;
+  const defenderAffinitiesContainer = workflowAffinitiesContainer
+    || legacyDefenderAffinitiesContainer
+    || levelAffinitiesContainer;
+  const attackerAffinitiesContainer = attackerSelectedAffinitiesContainer || legacyAttackerAffinitiesContainer;
 
   const state = {
     summary: null,
@@ -1471,6 +1974,40 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     spendLedger: null,
     traceRunId: `design_guidance_${Date.now()}`,
   };
+  const providedLevelBuilder = llmConfig.levelBuilderAdapter;
+  const hasProvidedLevelBuilder = Boolean(
+    providedLevelBuilder
+      && typeof providedLevelBuilder === "object"
+      && typeof providedLevelBuilder.buildFromGuidance === "function",
+  );
+  const levelBuilder = hasProvidedLevelBuilder
+    ? providedLevelBuilder
+    : createLevelBuilderAdapter({
+      workerFactory: llmConfig.levelBuilderWorkerFactory,
+      workerUrl: llmConfig.levelBuilderWorkerUrl,
+      requestTimeoutMs: llmConfig.levelBuilderRequestTimeoutMs,
+      forceInProcess: llmConfig.levelBuilderForceInProcess === true,
+    });
+  const ownsLevelBuilder = !hasProvidedLevelBuilder;
+  let levelPreviewRequestId = 0;
+
+  function nextLevelPreviewRequestId() {
+    levelPreviewRequestId += 1;
+    return levelPreviewRequestId;
+  }
+
+  function getLatestLevelPreviewRequestId() {
+    return levelPreviewRequestId;
+  }
+
+  async function renderLevelPreview(summary) {
+    const requestId = nextLevelPreviewRequestId();
+    await renderLevelDesignOutput(levelDesignOutput, summary, {
+      levelBuilder,
+      requestId,
+      getLatestRequestId: getLatestLevelPreviewRequestId,
+    });
+  }
 
   if (modelInput && (!modelInput.value || !modelInput.value.trim())) {
     modelInput.value = DEFAULT_LLM_MODEL;
@@ -1483,6 +2020,9 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
   }
   if (benchmarkSampleRunsInput && (!benchmarkSampleRunsInput.value || !benchmarkSampleRunsInput.value.trim())) {
     benchmarkSampleRunsInput.value = String(DEFAULT_BENCHMARK_SAMPLE_RUNS);
+  }
+  if (attackerCountInput && (!attackerCountInput.value || !String(attackerCountInput.value).trim())) {
+    attackerCountInput.value = String(DEFAULT_ATTACKER_COUNT);
   }
   if (levelBenchmarkOutput && !levelBenchmarkOutput.textContent) {
     levelBenchmarkOutput.textContent = "No benchmark yet.";
@@ -1504,7 +2044,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     }
   }
   if (levelDesignOutput) {
-    renderLevelDesignOutput(levelDesignOutput, null);
+    void renderLevelPreview(null);
   }
   if (attackerConfigOutput && !attackerConfigOutput.textContent) {
     attackerConfigOutput.textContent = "No attacker configuration yet.";
@@ -1515,49 +2055,24 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       || maxTokenBudgetInput
       || thinkTimeInput
       || llmTokensInput
-      || layoutProfileInput
+      || corridorWidthInput
+      || hallwayPatternInput
+      || patternInfillPercentInput
       || layoutAllocationPercentInput
       || defenderAllocationPercentInput
       || attackerAllocationPercentInput
       || budgetAllocationSummary
       || levelAffinitiesContainer
+      || attackerCountInput
       || attackerSetupModeInput
       || attackerAffinitiesContainer
       || defenderAffinitiesContainer
       || attackerVitalsInputs
       || attackerVitalsRegenInputs,
   );
-  const defenderAffinitySyncState = {
-    lastSyncedCounts: AFFINITY_KINDS.reduce((acc, affinity) => {
-      acc[affinity] = 0;
-      return acc;
-    }, {}),
-  };
 
   function resolveAttackerSetupMode(value) {
     return normalizeAttackerSetupModeValue(value);
-  }
-
-  function hydrateLayoutProfileOptions() {
-    if (!layoutProfileInput) return;
-    if (layoutProfileInput.options && layoutProfileInput.options.length > 0) {
-      layoutProfileInput.value = resolveLayoutProfile(layoutProfileInput.value);
-      return;
-    }
-    if (
-      typeof layoutProfileInput.appendChild !== "function"
-      || typeof globalThis.document?.createElement !== "function"
-    ) {
-      layoutProfileInput.value = resolveLayoutProfile(layoutProfileInput.value);
-      return;
-    }
-    LAYOUT_PROFILE_OPTIONS.forEach((profile) => {
-      const option = globalThis.document.createElement("option");
-      option.value = profile;
-      option.textContent = profile;
-      layoutProfileInput.appendChild(option);
-    });
-    layoutProfileInput.value = "auto";
   }
 
   function hydrateAttackerSetupOptions() {
@@ -1669,98 +2184,51 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       .filter(Boolean);
   }
 
-  function readAffinityCounts(container) {
-    if (!container || typeof container.querySelector !== "function") {
-      return {};
-    }
-    return AFFINITY_KINDS.reduce((acc, affinity) => {
-      const input = container.querySelector(`input.affinity-count[data-affinity="${affinity}"]`);
-      acc[affinity] = parseAffinityCount(input?.value);
-      return acc;
-    }, {});
-  }
-
-  function syncDefenderAffinitiesFromLevel({ force = false } = {}) {
-    if (
-      !levelAffinitiesContainer
-      || !defenderAffinitiesContainer
-      || typeof defenderAffinitiesContainer.querySelector !== "function"
-    ) {
-      return;
-    }
-    const levelCounts = readAffinityCounts(levelAffinitiesContainer);
-    const defenderCounts = readAffinityCounts(defenderAffinitiesContainer);
+  function syncAttackerAffinitiesFromWorkflow() {
+    if (!attackerAffinitiesContainer || typeof attackerAffinitiesContainer.querySelector !== "function") return;
     AFFINITY_KINDS.forEach((affinity) => {
-      const levelCount = parseAffinityCount(levelCounts[affinity]);
-      const defenderCount = parseAffinityCount(defenderCounts[affinity]);
-      const lastSynced = parseAffinityCount(defenderAffinitySyncState.lastSyncedCounts[affinity]);
-      const canSync = force || defenderCount === lastSynced;
-      if (!canSync) {
-        return;
+      const stackInput = attackerAffinitiesContainer.querySelector(
+        `input.affinity-count[data-affinity="${affinity}"]`,
+      );
+      const row = stackInput?.closest ? stackInput.closest(".affinity-row") : null;
+      const expressionInputs = Array.from(
+        attackerAffinitiesContainer.querySelectorAll(`input.affinity-expression[data-affinity="${affinity}"]`),
+      );
+      if (!stackInput) return;
+      if (row && "hidden" in row) row.hidden = false;
+      stackInput.min = "0";
+      const stackCount = parseAffinityCount(stackInput.value);
+      const expressionsEnabled = stackCount > 0;
+      expressionInputs.forEach((input) => {
+        input.disabled = !expressionsEnabled;
+        if (!expressionsEnabled) input.checked = false;
+      });
+      if (expressionsEnabled && expressionInputs.length > 0 && expressionInputs.every((input) => !input.checked)) {
+        expressionInputs[0].checked = true;
       }
-      if (defenderCount !== levelCount) {
-        const defenderInput = defenderAffinitiesContainer.querySelector(
-          `input.affinity-count[data-affinity="${affinity}"]`,
-        );
-        if (defenderInput) {
-          defenderInput.value = String(levelCount);
-        }
-      }
-      defenderAffinitySyncState.lastSyncedCounts[affinity] = levelCount;
-    });
-  }
-
-  function resolveRandomValue(randomFn) {
-    const raw = Number(randomFn?.());
-    if (!Number.isFinite(raw)) return Math.random();
-    if (raw <= 0) return 0;
-    if (raw >= 1) return 0.999999;
-    return raw;
-  }
-
-  function pickRandomLevelAffinities() {
-    const randomFn = typeof llmConfig?.randomFn === "function" ? llmConfig.randomFn : Math.random;
-    const maxCount = AFFINITY_KINDS.length;
-    if (maxCount <= 0) return [];
-    const selectedCount = Math.max(1, Math.min(maxCount, Math.floor(resolveRandomValue(randomFn) * maxCount) + 1));
-    const pool = AFFINITY_KINDS.slice();
-    for (let i = pool.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(resolveRandomValue(randomFn) * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    return pool.slice(0, selectedCount);
-  }
-
-  function applyAffinitySelection(container, selectedAffinities = []) {
-    if (!container || typeof container.querySelector !== "function") return;
-    const selected = new Set(normalizeAffinityList(selectedAffinities));
-    AFFINITY_KINDS.forEach((affinity) => {
-      const input = container.querySelector(`input.affinity-count[data-affinity="${affinity}"]`);
-      if (!input) return;
-      input.value = selected.has(affinity) ? "1" : "0";
     });
   }
 
   function ensureRandomLevelAndDefenderAffinities(promptParams = null) {
-    if (!levelAffinitiesContainer || !defenderAffinitiesContainer) {
-      return promptParams && typeof promptParams === "object" ? promptParams : null;
+    if (promptParams && typeof promptParams === "object") {
+      return promptParams;
     }
-    const currentParams = promptParams && typeof promptParams === "object"
-      ? promptParams
-      : readPromptParams();
-    const existingLevelAffinities = normalizeAffinityList(currentParams?.levelAffinities);
-    if (existingLevelAffinities.length > 0) {
-      return currentParams;
-    }
-    const randomLevelAffinities = pickRandomLevelAffinities();
-    if (randomLevelAffinities.length === 0) {
-      return currentParams;
-    }
-    applyAffinitySelection(levelAffinitiesContainer, randomLevelAffinities);
-    syncDefenderAffinitiesFromLevel({ force: true });
-    const nextParams = readPromptParams();
-    refreshPromptTemplate();
-    return nextParams;
+    return hasPromptParamsUI ? readPromptParams() : null;
+  }
+
+  function hasWorkflowAffinitySelection(promptParams = null) {
+    const params = promptParams && typeof promptParams === "object" ? promptParams : null;
+    const scopedAffinities = normalizeAffinityList(
+      params?.workflowAffinities || params?.levelAffinities || params?.defenderAffinities,
+    );
+    return scopedAffinities.length > 0;
+  }
+
+  function enforceWorkflowAffinityPrerequisite(promptParams, phaseLabel = "This phase") {
+    if (!workflowAffinitiesContainer) return true;
+    if (hasWorkflowAffinitySelection(promptParams)) return true;
+    setStatus(statusEl, `${phaseLabel} requires at least one workflow affinity.`, true);
+    return false;
   }
 
   function collectAttackerAffinities(container) {
@@ -1778,6 +2246,20 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
         .map((input) => input.dataset.expression)
         .filter(Boolean);
       result[affinity] = expressions;
+    });
+    return result;
+  }
+
+  function collectAttackerAffinityStacks(container) {
+    if (!container) return {};
+    const result = {};
+    const counts = Array.from(container.querySelectorAll("input.affinity-count"));
+    counts.forEach((countInput) => {
+      const stacks = parseAffinityCount(countInput.value);
+      if (stacks <= 0) return;
+      const affinity = normalizeAffinity(countInput.dataset.affinity);
+      if (!affinity) return;
+      result[affinity] = stacks;
     });
     return result;
   }
@@ -1807,12 +2289,21 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const tokenBudget = allocation.budgetTokens;
     const thinkTimeSeconds = readOptionalInt(thinkTimeInput?.value);
     const llmTokens = readOptionalInt(llmTokensInput?.value);
-    const layoutProfile = resolveLayoutProfile(layoutProfileInput?.value);
+    const corridorWidth = readOptionalPositiveInt(corridorWidthInput?.value);
+    const hallwayPattern = normalizeHallwayPatternValue(hallwayPatternInput?.value);
+    const patternLineWidth = corridorWidth;
+    const rawPatternInfillPercent = readOptionalPositiveInt(patternInfillPercentInput?.value);
+    const patternInfillPercent = Number.isInteger(rawPatternInfillPercent)
+      ? Math.min(100, rawPatternInfillPercent)
+      : null;
+    const attackerCount = normalizeAttackerCountValue(attackerCountInput?.value);
     const levelBudget = allocation.poolBudgets.layout;
-    const attackerBudget = allocation.poolBudgets.defenders;
-    const levelAffinities = collectSelectedAffinities(levelAffinitiesContainer);
-    const defenderAffinities = collectSelectedAffinities(defenderAffinitiesContainer);
+    const attackerBudget = allocation.poolBudgets.attacker;
+    const workflowAffinities = collectSelectedAffinities(levelAffinitiesContainer);
+    const levelAffinities = workflowAffinities.slice();
+    const defenderAffinities = workflowAffinities.slice();
     const attackerAffinities = collectAttackerAffinities(attackerAffinitiesContainer);
+    const attackerAffinityStacks = collectAttackerAffinityStacks(attackerAffinitiesContainer);
     const attackerVitalsMax = collectVitalConfig(
       VITAL_KEYS.reduce((acc, key) => {
         acc[key] = attackerVitalsInputs?.[key]?.max || null;
@@ -1827,7 +2318,11 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       maxTokenBudget,
       thinkTimeSeconds,
       llmTokens,
-      layoutProfile,
+      corridorWidth,
+      hallwayPattern,
+      patternLineWidth,
+      patternInfillPercent,
+      attackerCount,
       levelBudget,
       attackerBudget,
       poolBudgets: { ...allocation.poolBudgets },
@@ -1835,9 +2330,11 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       poolWeights: allocation.poolWeights.map((entry) => ({ ...entry })),
       allocationAdjustments: allocation.adjustments.slice(),
       attackerSetupMode,
+      workflowAffinities,
       levelAffinities,
       defenderAffinities,
       attackerAffinities,
+      attackerAffinityStacks,
       attackerVitalsMax,
       attackerVitalsRegen,
     };
@@ -1915,15 +2412,22 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const affinityMap = config?.affinities && typeof config.affinities === "object"
       ? config.affinities
       : {};
+    const affinityStacks = config?.affinityStacks && typeof config.affinityStacks === "object"
+      ? config.affinityStacks
+      : {};
     const entries = [];
     Object.entries(affinityMap).forEach(([affinity, expressions]) => {
       const kind = normalizeAffinity(affinity);
       if (!kind) return;
+      const stacks = (() => {
+        const parsed = asTokenOrNull(affinityStacks[kind]);
+        return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+      })();
       const expressionList = Array.isArray(expressions) ? expressions : [];
       expressionList.forEach((expression) => {
         const normalized = normalizeExpression(expression);
         if (!normalized) return;
-        entries.push({ kind, expression: normalized, stacks: 1 });
+        entries.push({ kind, expression: normalized, stacks });
       });
     });
     return entries;
@@ -1945,6 +2449,67 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     if (!Number.isInteger(count)) return fallback;
     if (allowZero) return count >= 0 ? count : fallback;
     return count > 0 ? count : fallback;
+  }
+
+  function resolveActorTokenHintPerUnit(entry) {
+    if (!entry || typeof entry !== "object") return 0;
+    const perUnit = asTokenOrNull(entry.tokenHintPerUnit);
+    if (Number.isInteger(perUnit) && perUnit > 0) return perUnit;
+    const tokenHint = asTokenOrNull(entry.tokenHint);
+    if (Number.isInteger(tokenHint) && tokenHint > 0) return tokenHint;
+    return 0;
+  }
+
+  function sanitizeActorSetEntryForBudget(entry) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+    const next = { ...entry };
+    const tokenHintPerUnit = resolveActorTokenHintPerUnit(next);
+    if (tokenHintPerUnit > 0) {
+      next.tokenHint = tokenHintPerUnit;
+    } else {
+      delete next.tokenHint;
+    }
+    ACTOR_SET_DERIVED_TOKEN_FIELDS.forEach((field) => {
+      delete next[field];
+    });
+    return next;
+  }
+
+  function buildActorSetEditorEntries(actorSet = [], priceList) {
+    if (!Array.isArray(actorSet)) return [];
+    return actorSet
+      .filter((entry) => entry && typeof entry === "object")
+      .map((entry) => {
+        const count = parseActorCount(entry.count, { fallback: 1 });
+        const tokenHintPerUnit = resolveActorTokenHintPerUnit(entry);
+        const tokenHintTotal = tokenHintPerUnit > 0 ? tokenHintPerUnit * count : 0;
+        const tokenUnitCost = entry.source === "room"
+          ? tokenHintPerUnit
+          : calculateDefenderEntryUnitTokens(
+              {
+                ...entry,
+                count,
+                tokenHint: tokenHintPerUnit > 0 ? tokenHintPerUnit : entry.tokenHint,
+              },
+              priceList,
+            );
+        const tokenTotalCost = tokenUnitCost * count;
+        const next = {
+          ...entry,
+          count,
+        };
+        ACTOR_SET_DERIVED_TOKEN_FIELDS.forEach((field) => {
+          delete next[field];
+        });
+        if (tokenHintPerUnit > 0) {
+          next.tokenHint = tokenHintPerUnit;
+          next.tokenHintPerUnit = tokenHintPerUnit;
+          next.tokenHintTotal = tokenHintTotal;
+        }
+        next.tokenUnitCost = tokenUnitCost;
+        next.tokenTotalCost = tokenTotalCost;
+        return next;
+      });
   }
 
   function cloneActorSetForBudget(actorSet = []) {
@@ -1977,7 +2542,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
   function calculateDefenderEntryUnitTokens(entry, priceList) {
     if (!entry || typeof entry !== "object") return 0;
     if (entry.source === "room") return 0;
-    const tokenHint = asTokenOrNull(entry.tokenHint) || 0;
+    const tokenHint = resolveActorTokenHintPerUnit(entry);
     const configUnitCost = calculateActorEntryConfigUnitTokens(entry, priceList);
     return tokenHint + configUnitCost;
   }
@@ -2008,7 +2573,16 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       ?? asTokenOrNull(safeSummary?.budgetTokens)
       ?? asTokenOrNull(promptParams?.tokenBudget);
     const levelSpendTokens = asTokenOrNull(provisionalLedger?.categories?.levelConfig?.spentTokens) || 0;
-    const attackerSpendTokens = calculateAttackerConfigSpendTokens(safeSummary?.attackerConfig, state.priceList);
+    const attackerCount = resolveAttackerCountValue({
+      summary: safeSummary,
+      promptParams,
+      fallback: DEFAULT_ATTACKER_COUNT,
+    });
+    const attackerConfigs = ensureAttackerConfigCount(readSummaryAttackerConfigs(safeSummary), attackerCount);
+    const attackerSpendTokens = calculateAttackerConfigsSpendTokens(
+      attackerConfigs,
+      state.priceList,
+    );
     const remainingByTotalTokens = Number.isInteger(totalBudgetTokens)
       ? Math.max(0, totalBudgetTokens - levelSpendTokens - attackerSpendTokens)
       : null;
@@ -2117,7 +2691,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
           : "stationary";
       const affinity = normalizeAffinity(entry.affinity) || dungeonAffinity;
       const count = parseActorCount(entry.count, { fallback: 1 });
-      const tokenHint = asTokenOrNull(entry.tokenHint);
+      const tokenHint = resolveActorTokenHintPerUnit(entry);
       const affinities = normalizeAffinityEntries(entry.affinities, affinity);
 
       if (source === "room") {
@@ -2159,7 +2733,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
 
   function buildActorHudModel(entry, priceList) {
     const count = Number.isInteger(entry?.count) && entry.count > 0 ? entry.count : 1;
-    const tokenHint = asTokenOrNull(entry?.tokenHint) || 0;
+    const tokenHint = resolveActorTokenHintPerUnit(entry);
     const configUnitCost = calculateActorEntryConfigUnitTokens(entry, priceList);
     const tokenUnitCost = tokenHint + configUnitCost;
     const tokenTotalCost = tokenUnitCost * count;
@@ -2192,7 +2766,13 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
 
   function buildAttackerHudModel(
     attackerConfig = {},
-    { attackerBudgetTokens, priceList, fallbackAffinity = DEFAULT_DUNGEON_AFFINITY } = {},
+    {
+      attackerBudgetTokens,
+      priceList,
+      fallbackAffinity = DEFAULT_DUNGEON_AFFINITY,
+      attackerIndex = 0,
+      attackerCount = DEFAULT_ATTACKER_COUNT,
+    } = {},
   ) {
     const normalized = normalizeAttackerConfig(attackerConfig, { fallbackAffinity });
     const spendTokens = calculateAttackerConfigSpendTokens(normalized, priceList);
@@ -2200,9 +2780,12 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const setupMode = typeof normalized?.setupMode === "string" && normalized.setupMode.trim()
       ? normalized.setupMode.trim()
       : DEFAULT_ATTACKER_SETUP_MODE;
+    const normalizedCount = normalizeAttackerCountValue(attackerCount);
+    const normalizedIndex = Number.isInteger(attackerIndex) && attackerIndex >= 0 ? attackerIndex : 0;
+    const label = normalizedCount > 1 ? `Attacker ${normalizedIndex + 1}` : "Attacker";
     return {
-      id: "attacker_config",
-      label: "Attacker",
+      id: `attacker_config_${normalizedIndex + 1}`,
+      label,
       count: 1,
       source: "attacker",
       setupMode,
@@ -2366,6 +2949,12 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     outputEl.replaceChildren(grid);
   }
 
+  function syncActorSetInputValue() {
+    if (!actorSetInput) return;
+    const editorEntries = buildActorSetEditorEntries(state.actorSet, state.priceList);
+    actorSetInput.value = JSON.stringify(editorEntries, null, 2);
+  }
+
   function buildAttackerConfigCostEntry(attackerConfig = {}) {
     if (!attackerConfig || typeof attackerConfig !== "object") return null;
     const vitalsMax = attackerConfig.vitalsMax && typeof attackerConfig.vitalsMax === "object"
@@ -2389,12 +2978,21 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const affinityMap = attackerConfig.affinities && typeof attackerConfig.affinities === "object"
       ? attackerConfig.affinities
       : {};
-    Object.values(affinityMap).forEach((expressions) => {
+    const affinityStacks = attackerConfig.affinityStacks && typeof attackerConfig.affinityStacks === "object"
+      ? attackerConfig.affinityStacks
+      : {};
+    Object.entries(affinityMap).forEach(([affinity, expressions]) => {
+      const kind = normalizeAffinity(affinity);
+      if (!kind) return;
+      const stacks = (() => {
+        const parsed = asTokenOrNull(affinityStacks[kind]);
+        return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+      })();
       const expressionList = Array.isArray(expressions) ? expressions : [];
       expressionList.forEach((expression) => {
         const normalized = normalizeExpression(expression);
         if (!normalized) return;
-        affinityEntries.push({ expression: normalized, stacks: 1 });
+        affinityEntries.push({ expression: normalized, stacks });
       });
     });
     if (vitalPoints <= 0 && regenPoints <= 0 && affinityEntries.length === 0) {
@@ -2413,6 +3011,49 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     } catch {
       return 0;
     }
+  }
+
+  function readSummaryAttackerConfigs(summary = {}) {
+    if (!summary || typeof summary !== "object") return [];
+    if (Array.isArray(summary.attackerConfigs)) {
+      return summary.attackerConfigs
+        .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+        .map((entry) => ({ ...entry }));
+    }
+    if (summary.attackerConfig && typeof summary.attackerConfig === "object" && !Array.isArray(summary.attackerConfig)) {
+      return [{ ...summary.attackerConfig }];
+    }
+    return [];
+  }
+
+  function resolveAttackerCountValue({ summary, promptParams, fallback = DEFAULT_ATTACKER_COUNT } = {}) {
+    const summaryCount = asTokenOrNull(summary?.attackerCount);
+    if (Number.isInteger(summaryCount) && summaryCount > 0) {
+      return normalizeAttackerCountValue(summaryCount);
+    }
+    const promptCount = promptParams?.attackerCount;
+    if (promptCount !== undefined) {
+      return normalizeAttackerCountValue(promptCount);
+    }
+    return normalizeAttackerCountValue(fallback);
+  }
+
+  function distributeAttackerBudgetTokens(totalBudgetTokens, attackerCount) {
+    const budget = asTokenOrNull(totalBudgetTokens);
+    const count = normalizeAttackerCountValue(attackerCount);
+    if (!Number.isInteger(budget)) return null;
+    const base = Math.floor(budget / count);
+    let remainder = Math.max(0, budget - (base * count));
+    return Array.from({ length: count }, () => {
+      const next = remainder > 0 ? base + 1 : base;
+      remainder = Math.max(0, remainder - 1);
+      return next;
+    });
+  }
+
+  function calculateAttackerConfigsSpendTokens(attackerConfigs = [], priceList) {
+    if (!Array.isArray(attackerConfigs) || attackerConfigs.length === 0) return 0;
+    return attackerConfigs.reduce((sum, config) => sum + calculateAttackerConfigSpendTokens(config, priceList), 0);
   }
 
   function cloneAttackerAffinitiesMap(affinities) {
@@ -2438,6 +3079,9 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     if (affinities) {
       clone.affinities = affinities;
     }
+    if (config?.affinityStacks && typeof config.affinityStacks === "object" && !Array.isArray(config.affinityStacks)) {
+      clone.affinityStacks = { ...config.affinityStacks };
+    }
     return clone;
   }
 
@@ -2449,7 +3093,15 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     }, 0);
   }
 
-  function buildAttackerReductionCandidates(config = {}) {
+  function buildAttackerReductionCandidates(
+    config = {},
+    {
+      vitalMaxFloor = {},
+      vitalRegenFloor = {},
+      affinityStackFloor = {},
+      affinityExpressionFloor = {},
+    } = {},
+  ) {
     const candidates = [];
     const setupMode = resolveAttackerSetupMode(config?.setupMode);
     const vitalsMax = config?.vitalsMax && typeof config.vitalsMax === "object"
@@ -2461,18 +3113,20 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const affinityMap = config?.affinities && typeof config.affinities === "object"
       ? config.affinities
       : {};
+    const affinityStacks = config?.affinityStacks && typeof config.affinityStacks === "object"
+      ? config.affinityStacks
+      : {};
     const affinityExpressionCount = countAttackerAffinityExpressions(affinityMap);
-    const enforceManaGuardrail = affinityExpressionCount > 0;
 
     VITAL_KEYS.forEach((key) => {
       const max = asTokenOrNull(vitalsMax[key]) || 0;
-      const minMax = enforceManaGuardrail && key === "mana" ? 1 : 0;
+      const minMax = Math.max(0, asTokenOrNull(vitalMaxFloor[key]) || 0);
       if (max > minMax) {
         candidates.push({ type: "vital_max", key, value: max, priority: 1 });
       }
       if (setupMode !== "auto") {
         const regen = asTokenOrNull(vitalsRegen[key]) || 0;
-        const minRegen = enforceManaGuardrail && key === "mana" ? 1 : 0;
+        const minRegen = Math.max(0, asTokenOrNull(vitalRegenFloor[key]) || 0);
         if (regen > minRegen) {
           candidates.push({ type: "vital_regen", key, value: regen, priority: 2 });
         }
@@ -2482,13 +3136,25 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     Object.entries(affinityMap).forEach(([affinity, expressions]) => {
       const expressionList = Array.isArray(expressions) ? expressions : [];
       if (expressionList.length <= 0) return;
+      const stackValue = asTokenOrNull(affinityStacks[affinity]) || 1;
+      const minStackValue = Math.max(1, asTokenOrNull(affinityStackFloor[affinity]) || 1);
+      if (stackValue > minStackValue) {
+        candidates.push({
+          type: "affinity_stack",
+          affinity,
+          value: stackValue,
+          priority: 3,
+        });
+      }
       if (affinityExpressionCount <= 1) return;
+      const minExpressionCount = Math.max(0, asTokenOrNull(affinityExpressionFloor[affinity]) || 0);
+      if (expressionList.length <= minExpressionCount) return;
       candidates.push({
         type: "affinity_expression",
         affinity,
         index: expressionList.length - 1,
         value: expressionList.length,
-        priority: 3,
+        priority: 4,
       });
     });
 
@@ -2497,7 +3163,6 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
 
   function applyAttackerReductionCandidate(config = {}, candidate = {}, { fallbackAffinity } = {}) {
     const next = cloneAttackerConfig(config);
-    const mode = resolveAttackerSetupMode(next.setupMode);
 
     if (candidate.type === "vital_max") {
       const key = candidate.key;
@@ -2505,13 +3170,9 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       if (currentMax > 0) {
         const reducedMax = currentMax - 1;
         next.vitalsMax = { ...(next.vitalsMax || {}), [key]: reducedMax };
-        if (mode === "auto") {
+        const currentRegen = asTokenOrNull(next?.vitalsRegen?.[key]) || 0;
+        if (currentRegen > reducedMax) {
           next.vitalsRegen = { ...(next.vitalsRegen || {}), [key]: reducedMax };
-        } else {
-          const currentRegen = asTokenOrNull(next?.vitalsRegen?.[key]) || 0;
-          if (currentRegen > reducedMax) {
-            next.vitalsRegen = { ...(next.vitalsRegen || {}), [key]: reducedMax };
-          }
         }
       }
       return normalizeAttackerConfig(next, { fallbackAffinity });
@@ -2548,6 +3209,15 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       return normalizeAttackerConfig(next, { fallbackAffinity });
     }
 
+    if (candidate.type === "affinity_stack") {
+      const affinity = candidate.affinity;
+      const currentStacks = asTokenOrNull(next?.affinityStacks?.[affinity]) || 1;
+      if (currentStacks > 1) {
+        next.affinityStacks = { ...(next.affinityStacks || {}), [affinity]: currentStacks - 1 };
+      }
+      return normalizeAttackerConfig(next, { fallbackAffinity });
+    }
+
     return normalizeAttackerConfig(next, { fallbackAffinity });
   }
 
@@ -2558,6 +3228,35 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     { fallbackAffinity = DEFAULT_DUNGEON_AFFINITY } = {},
   ) {
     const normalized = normalizeAttackerConfig(attackerConfig, { fallbackAffinity });
+    const setupMode = resolveAttackerSetupMode(normalized?.setupMode);
+    const reductionFloors = {
+      vitalMaxFloor: {},
+      vitalRegenFloor: {},
+      affinityStackFloor: {},
+      affinityExpressionFloor: {},
+    };
+    if (setupMode === "user") {
+      VITAL_KEYS.forEach((key) => {
+        const maxValue = asTokenOrNull(normalized?.vitalsMax?.[key]) || 0;
+        if (maxValue > 0) reductionFloors.vitalMaxFloor[key] = maxValue;
+        const regenValue = asTokenOrNull(normalized?.vitalsRegen?.[key]) || 0;
+        if (regenValue > 0) reductionFloors.vitalRegenFloor[key] = regenValue;
+      });
+      const affinityMap = normalized?.affinities && typeof normalized.affinities === "object"
+        ? normalized.affinities
+        : {};
+      const affinityStacks = normalized?.affinityStacks && typeof normalized.affinityStacks === "object"
+        ? normalized.affinityStacks
+        : {};
+      Object.entries(affinityMap).forEach(([affinity, expressions]) => {
+        const expressionList = Array.isArray(expressions) ? expressions : [];
+        if (expressionList.length > 0) {
+          reductionFloors.affinityExpressionFloor[affinity] = expressionList.length;
+        }
+        const stacksValue = asTokenOrNull(affinityStacks[affinity]) || 1;
+        reductionFloors.affinityStackFloor[affinity] = Math.max(1, stacksValue);
+      });
+    }
     const budget = asTokenOrNull(budgetTokens);
     const initialSpendTokens = calculateAttackerConfigSpendTokens(normalized, priceList);
     if (!Number.isInteger(budget)) {
@@ -2585,7 +3284,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     let iterations = 0;
 
     while (workingSpendTokens > budget && iterations < maxIterations) {
-      const candidates = buildAttackerReductionCandidates(workingConfig);
+      const candidates = buildAttackerReductionCandidates(workingConfig, reductionFloors);
       if (candidates.length === 0) break;
 
       let best = null;
@@ -2635,6 +3334,214 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     };
   }
 
+  function ensureAttackerConfigCount(attackerConfigs = [], attackerCount = DEFAULT_ATTACKER_COUNT) {
+    const count = normalizeAttackerCountValue(attackerCount);
+    const normalized = Array.isArray(attackerConfigs)
+      ? attackerConfigs
+        .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+        .map((entry) => cloneAttackerConfig(entry))
+      : [];
+    const fallback = normalized[0] ? cloneAttackerConfig(normalized[0]) : null;
+    while (normalized.length < count) {
+      normalized.push(fallback ? cloneAttackerConfig(fallback) : {});
+    }
+    return normalized.slice(0, count);
+  }
+
+  function mergeAttackerConfigWithPromptConfig(
+    attackerConfig = {},
+    promptConfig = {},
+    { fallbackAffinity = DEFAULT_DUNGEON_AFFINITY } = {},
+  ) {
+    const normalizedPrompt = promptConfig && typeof promptConfig === "object" && !Array.isArray(promptConfig)
+      ? promptConfig
+      : {};
+    const normalizedSource = normalizeAttackerConfig(attackerConfig, { fallbackAffinity });
+    const merged = cloneAttackerConfig(normalizedSource);
+
+    if (typeof normalizedPrompt?.setupMode === "string" && normalizedPrompt.setupMode.trim()) {
+      merged.setupMode = resolveAttackerSetupMode(normalizedPrompt.setupMode);
+    }
+
+    const sourceVitalsMax = merged.vitalsMax && typeof merged.vitalsMax === "object" ? merged.vitalsMax : {};
+    const sourceVitalsRegen = merged.vitalsRegen && typeof merged.vitalsRegen === "object" ? merged.vitalsRegen : {};
+    const promptVitalsMax = normalizedPrompt.vitalsMax && typeof normalizedPrompt.vitalsMax === "object"
+      ? normalizedPrompt.vitalsMax
+      : {};
+    const promptVitalsRegen = normalizedPrompt.vitalsRegen && typeof normalizedPrompt.vitalsRegen === "object"
+      ? normalizedPrompt.vitalsRegen
+      : {};
+    const preferPromptVitals = resolveAttackerSetupMode(merged.setupMode) === "user";
+
+    const nextVitalsMax = { ...sourceVitalsMax };
+    const nextVitalsRegen = { ...sourceVitalsRegen };
+    VITAL_KEYS.forEach((key) => {
+      const sourceMax = asTokenOrNull(sourceVitalsMax[key]) || 0;
+      const promptMax = asTokenOrNull(promptVitalsMax[key]) || 0;
+      if (promptMax > 0 && (preferPromptVitals || sourceMax <= 0)) {
+        nextVitalsMax[key] = promptMax;
+      }
+      const sourceRegen = asTokenOrNull(sourceVitalsRegen[key]) || 0;
+      const promptRegen = asTokenOrNull(promptVitalsRegen[key]) || 0;
+      if (promptRegen > 0 && (preferPromptVitals || sourceRegen <= 0)) {
+        nextVitalsRegen[key] = promptRegen;
+      }
+    });
+    if (Object.keys(nextVitalsMax).length > 0) {
+      merged.vitalsMax = nextVitalsMax;
+    }
+    if (Object.keys(nextVitalsRegen).length > 0) {
+      merged.vitalsRegen = nextVitalsRegen;
+    }
+
+    const sourceAffinities = merged.affinities && typeof merged.affinities === "object" ? merged.affinities : {};
+    const promptAffinities = normalizeOptionalAttackerAffinitiesMap(normalizedPrompt.affinities);
+    const mergedAffinities = cloneAttackerAffinitiesMap(sourceAffinities) || {};
+    Object.entries(promptAffinities).forEach(([affinity, expressions]) => {
+      const normalizedAffinity = normalizeAffinity(affinity);
+      if (!normalizedAffinity) return;
+      const mergedExpressions = Array.isArray(mergedAffinities[normalizedAffinity])
+        ? mergedAffinities[normalizedAffinity].slice()
+        : [];
+      const promptExpressions = Array.isArray(expressions)
+        ? expressions.map((expression) => normalizeExpression(expression)).filter(Boolean)
+        : [];
+      promptExpressions.forEach((expression) => {
+        if (!mergedExpressions.includes(expression)) {
+          mergedExpressions.push(expression);
+        }
+      });
+      if (mergedExpressions.length > 0) {
+        mergedAffinities[normalizedAffinity] = mergedExpressions;
+      }
+    });
+    if (Object.keys(mergedAffinities).length > 0) {
+      merged.affinities = mergedAffinities;
+    }
+
+    const sourceStacks = merged.affinityStacks && typeof merged.affinityStacks === "object"
+      ? merged.affinityStacks
+      : {};
+    const promptStacks = normalizeAttackerAffinityStacksMap(normalizedPrompt.affinityStacks, promptAffinities);
+    const mergedStacks = { ...sourceStacks };
+    Object.entries(promptStacks).forEach(([affinity, stacks]) => {
+      const normalizedAffinity = normalizeAffinity(affinity);
+      const stackValue = asTokenOrNull(stacks);
+      if (!normalizedAffinity || !Number.isInteger(stackValue) || stackValue <= 0) return;
+      const existing = asTokenOrNull(mergedStacks[normalizedAffinity]) || 0;
+      if (existing <= 0) {
+        mergedStacks[normalizedAffinity] = stackValue;
+      }
+    });
+    if (Object.keys(mergedStacks).length > 0) {
+      merged.affinityStacks = mergedStacks;
+    }
+
+    return normalizeAttackerConfig(merged, { fallbackAffinity });
+  }
+
+  function mergeAttackerConfigsWithPromptConfigs(
+    attackerConfigs = [],
+    promptConfigs = [],
+    {
+      attackerCount = DEFAULT_ATTACKER_COUNT,
+      fallbackAffinity = DEFAULT_DUNGEON_AFFINITY,
+    } = {},
+  ) {
+    const ensureAttackerSeedConfigCount = (configs = [], count = DEFAULT_ATTACKER_COUNT) => {
+      const normalizedCount = normalizeAttackerCountValue(count);
+      const normalized = Array.isArray(configs)
+        ? configs
+          .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+          .map((entry) => {
+            const next = {};
+            if (typeof entry?.setupMode === "string" && entry.setupMode.trim()) {
+              next.setupMode = resolveAttackerSetupMode(entry.setupMode);
+            }
+            if (entry?.vitalsMax && typeof entry.vitalsMax === "object" && !Array.isArray(entry.vitalsMax)) {
+              next.vitalsMax = { ...entry.vitalsMax };
+            }
+            if (entry?.vitalsRegen && typeof entry.vitalsRegen === "object" && !Array.isArray(entry.vitalsRegen)) {
+              next.vitalsRegen = { ...entry.vitalsRegen };
+            }
+            const affinities = cloneAttackerAffinitiesMap(entry?.affinities);
+            if (affinities) {
+              next.affinities = affinities;
+            }
+            if (entry?.affinityStacks && typeof entry.affinityStacks === "object" && !Array.isArray(entry.affinityStacks)) {
+              next.affinityStacks = { ...entry.affinityStacks };
+            }
+            return next;
+          })
+        : [];
+      const fallback = normalized[0]
+        ? {
+          ...normalized[0],
+          affinities: cloneAttackerAffinitiesMap(normalized[0].affinities),
+          vitalsMax: normalized[0].vitalsMax ? { ...normalized[0].vitalsMax } : undefined,
+          vitalsRegen: normalized[0].vitalsRegen ? { ...normalized[0].vitalsRegen } : undefined,
+          affinityStacks: normalized[0].affinityStacks ? { ...normalized[0].affinityStacks } : undefined,
+        }
+        : null;
+      while (normalized.length < normalizedCount) {
+        if (fallback) {
+          normalized.push({
+            ...fallback,
+            affinities: cloneAttackerAffinitiesMap(fallback.affinities),
+            vitalsMax: fallback.vitalsMax ? { ...fallback.vitalsMax } : undefined,
+            vitalsRegen: fallback.vitalsRegen ? { ...fallback.vitalsRegen } : undefined,
+            affinityStacks: fallback.affinityStacks ? { ...fallback.affinityStacks } : undefined,
+          });
+        } else {
+          normalized.push({});
+        }
+      }
+      return normalized.slice(0, normalizedCount);
+    };
+
+    const count = normalizeAttackerCountValue(attackerCount);
+    const sourceConfigs = ensureAttackerConfigCount(attackerConfigs, count);
+    const seedConfigs = ensureAttackerSeedConfigCount(promptConfigs, count);
+    return Array.from({ length: count }, (_, index) => mergeAttackerConfigWithPromptConfig(
+      sourceConfigs[index],
+      seedConfigs[index],
+      { fallbackAffinity },
+    ));
+  }
+
+  function enforceAttackerConfigsBudget(
+    attackerConfigs,
+    {
+      attackerCount = DEFAULT_ATTACKER_COUNT,
+      budgetTokens = null,
+      priceList,
+      fallbackAffinity = DEFAULT_DUNGEON_AFFINITY,
+    } = {},
+  ) {
+    const count = normalizeAttackerCountValue(attackerCount);
+    const normalizedConfigs = ensureAttackerConfigCount(attackerConfigs, count)
+      .map((config) => normalizeAttackerConfig(config, { fallbackAffinity }));
+    const budgetSplits = distributeAttackerBudgetTokens(budgetTokens, count);
+    const results = normalizedConfigs.map((config, index) => enforceAttackerConfigBudget(
+      config,
+      Array.isArray(budgetSplits) ? budgetSplits[index] : null,
+      priceList,
+      { fallbackAffinity },
+    ));
+    const configs = results.map((entry) => entry.config);
+    const spendTokens = results.reduce((sum, entry) => sum + (asTokenOrNull(entry.spendTokens) || 0), 0);
+    const initialSpendTokens = results.reduce((sum, entry) => sum + (asTokenOrNull(entry.initialSpendTokens) || 0), 0);
+    const budget = asTokenOrNull(budgetTokens);
+    return {
+      configs,
+      attackerCount: count,
+      spendTokens,
+      initialSpendTokens,
+      budgetTokens: budget,
+      wasClamped: results.some((entry) => entry.wasClamped),
+    };
+  }
+
   function formatTokenIndicatorText(usedTokens, totalTokens) {
     const used = Number.isInteger(usedTokens) && usedTokens >= 0 ? usedTokens : 0;
     const total = Number.isInteger(totalTokens) && totalTokens >= 0 ? totalTokens : 0;
@@ -2668,7 +3575,16 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const attackerBudgetTokens = asTokenOrNull(state.budgeting?.playerBudgetTokens)
       ?? asTokenOrNull(resolvedPromptParams?.poolBudgets?.attacker)
       ?? 0;
-    const attackerSpendTokens = calculateAttackerConfigSpendTokens(state.summary?.attackerConfig, state.priceList);
+    const attackerCount = resolveAttackerCountValue({
+      summary: state.summary,
+      promptParams: resolvedPromptParams,
+      fallback: DEFAULT_ATTACKER_COUNT,
+    });
+    const attackerConfigs = ensureAttackerConfigCount(readSummaryAttackerConfigs(state.summary), attackerCount);
+    const attackerSpendTokens = calculateAttackerConfigsSpendTokens(
+      attackerConfigs,
+      state.priceList,
+    );
 
     const defenderBudgetTokens = asTokenOrNull(state.budgeting?.actorBudgetTokens)
       ?? asTokenOrNull(resolvedPromptParams?.poolBudgets?.defenders)
@@ -2683,8 +3599,10 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       ?? asTokenOrNull(state.budgeting?.actorSpendTokens)
       ?? 0;
 
-    const totalSpendTokens = asTokenOrNull(state.spendLedger?.totalSpentTokens)
-      ?? (levelSpendTokens + attackerSpendTokens + defenderSpendTokens);
+    const totalSpendFromLedger = asTokenOrNull(state.spendLedger?.totalSpentTokens);
+    const totalSpendTokens = Number.isInteger(totalSpendFromLedger)
+      ? totalSpendFromLedger + attackerSpendTokens
+      : (levelSpendTokens + attackerSpendTokens + defenderSpendTokens);
 
     setTokenIndicator(levelTokenIndicator, levelSpendTokens, levelBudgetTokens);
     setTokenIndicator(attackerTokenIndicator, attackerSpendTokens, attackerBudgetTokens);
@@ -2787,9 +3705,11 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const levelAffinities = normalizeAffinityList(params.levelAffinities);
     const defenderAffinities = resolveDefenderAffinityScope(params);
     const attackerScope = resolveAttackerPromptScope(params);
-    const attackerAffinityPhrase = formatAffinityPhrase(attackerScope.affinities, DEFAULT_DUNGEON_AFFINITY);
-    const requiredAttackerAffinityConfig = formatAttackerAffinityConfig(params.attackerAffinities);
-    const allowedLayoutProfiles = resolveAllowedLayoutProfiles(params.layoutProfile);
+    const attackerCount = normalizeAttackerCountValue(params.attackerCount);
+    const requiredAttackerAffinityConfig = formatAttackerAffinityConfig(
+      params.attackerAffinities,
+      params.attackerAffinityStacks,
+    );
     const affinityPhrase = formatAffinityPhrase(levelAffinities, DEFAULT_DUNGEON_AFFINITY);
     const defenderPhrase = formatAffinityPhrase(
       defenderAffinities.length > 0 ? defenderAffinities : levelAffinities,
@@ -2805,22 +3725,20 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       budgetTokens: normalizedBudget,
       remainingBudgetTokens: levelBudgetTokens,
       layoutCosts: DEFAULT_LAYOUT_TILE_COSTS,
-      allowedProfiles: allowedLayoutProfiles,
       context: levelContext,
       modelContextTokens: MODEL_CONTEXT_TOKENS || CONTEXT_WINDOW_TOKENS,
-      layoutLatencyMs: DOMAIN_CONSTRAINTS?.llm?.targetLatencyMs?.layoutPhase,
     });
     const attacker = buildLlmAttackerConfigPromptTemplate({
-      goal: `Configure attacker setup for a ${attackerAffinityPhrase} themed dungeon.`,
+      goal: "Configure attacker setup for the dungeon run.",
       notes: "Phase 2 of 3. Configure attacker setup only.",
-      budgetTokens: normalizedBudget,
+      budgetTokens: attackerBudgetTokens,
       remainingBudgetTokens: attackerBudgetTokens,
+      attackerCount,
       context: attackerContext,
       requiredAffinityConfig: requiredAttackerAffinityConfig,
       affinities: attackerScope.affinities,
       affinityExpressions: attackerScope.affinityExpressions,
       setupModes: attackerScope.setupModes,
-      modelContextTokens: MODEL_CONTEXT_TOKENS || CONTEXT_WINDOW_TOKENS,
     });
     const defender = buildLlmActorConfigPromptTemplate({
       goal: `Create dungeon defenders for a ${defenderPhrase} themed dungeon.`,
@@ -2858,7 +3776,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     }, {});
   }
 
-  function normalizeAttackerAffinitiesMap(affinities, fallbackAffinity = DEFAULT_DUNGEON_AFFINITY) {
+  function normalizeAttackerAffinitiesMap(affinities) {
     const normalized = {};
     if (affinities && typeof affinities === "object" && !Array.isArray(affinities)) {
       Object.entries(affinities).forEach(([rawAffinity, expressions]) => {
@@ -2876,60 +3794,66 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
             next.push(expression);
           }
         });
-        if (next.length === 0) {
-          next.push(DEFAULT_AFFINITY_EXPRESSION);
-        }
+        if (next.length === 0) return;
         normalized[affinity] = next;
       });
-    }
-
-    if (Object.keys(normalized).length === 0) {
-      const fallback = normalizeAffinity(fallbackAffinity) || DEFAULT_DUNGEON_AFFINITY;
-      normalized[fallback] = [DEFAULT_AFFINITY_EXPRESSION];
     }
     return normalized;
   }
 
-  function normalizeAttackerConfig(config = {}, { fallbackAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+  function normalizeOptionalAttackerAffinitiesMap(affinities) {
+    const normalized = {};
+    if (affinities && typeof affinities === "object" && !Array.isArray(affinities)) {
+      Object.entries(affinities).forEach(([rawAffinity, expressions]) => {
+        const affinity = normalizeAffinity(rawAffinity);
+        if (!affinity) return;
+        const normalizedExpressions = Array.isArray(expressions)
+          ? expressions
+            .map((expression) => normalizeExpression(expression))
+            .filter(Boolean)
+          : [];
+        const uniqueExpressions = Array.from(new Set(normalizedExpressions));
+        if (uniqueExpressions.length > 0) {
+          normalized[affinity] = uniqueExpressions;
+        }
+      });
+    }
+    return normalized;
+  }
+
+  function normalizeAttackerAffinityStacksMap(stacks, affinities = {}) {
+    const normalized = {};
+    if (stacks && typeof stacks === "object" && !Array.isArray(stacks)) {
+      Object.entries(stacks).forEach(([rawAffinity, rawStacks]) => {
+        const affinity = normalizeAffinity(rawAffinity);
+        const parsedStacks = asTokenOrNull(rawStacks);
+        if (!affinity || !Number.isInteger(parsedStacks) || parsedStacks <= 0) return;
+        normalized[affinity] = parsedStacks;
+      });
+    }
+    Object.keys(affinities || {}).forEach((rawAffinity) => {
+      const affinity = normalizeAffinity(rawAffinity);
+      if (!affinity) return;
+      if (!Number.isInteger(normalized[affinity]) || normalized[affinity] <= 0) {
+        normalized[affinity] = 1;
+      }
+    });
+    return normalized;
+  }
+
+  function normalizeAttackerConfig(config = {}, { fallbackAffinity: _fallbackAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+    void _fallbackAffinity;
     if (!config || typeof config !== "object") {
-      const defaultAffinity = normalizeAffinity(fallbackAffinity) || DEFAULT_DUNGEON_AFFINITY;
       return {
         setupMode: DEFAULT_ATTACKER_SETUP_MODE,
-        affinities: { [defaultAffinity]: [DEFAULT_AFFINITY_EXPRESSION] },
-        vitalsMax: { mana: 1 },
-        vitalsRegen: { mana: 1 },
       };
     }
     const setupMode = resolveAttackerSetupMode(config.setupMode);
     const normalized = { setupMode };
     const vitalsMax = normalizeAttackerVitalMap(config.vitalsMax);
     const vitalsRegen = normalizeAttackerVitalMap(config.vitalsRegen);
-    const affinities = normalizeAttackerAffinitiesMap(config.affinities, fallbackAffinity);
-    const requiresManaGuardrail = countAttackerAffinityExpressions(affinities) > 0;
-
-    if (requiresManaGuardrail) {
-      const manaMax = asTokenOrNull(vitalsMax.mana) || 0;
-      if (manaMax <= 0) {
-        vitalsMax.mana = 1;
-      }
-    }
-
-    if (setupMode === "auto") {
-      VITAL_KEYS.forEach((key) => {
-        const max = asTokenOrNull(vitalsMax[key]);
-        if (Number.isInteger(max)) {
-          vitalsRegen[key] = max;
-        }
-      });
-    }
-
-    if (requiresManaGuardrail) {
-      const manaRegen = asTokenOrNull(vitalsRegen.mana) || 0;
-      if (manaRegen <= 0) {
-        const manaMax = asTokenOrNull(vitalsMax.mana) || 1;
-        vitalsRegen.mana = setupMode === "auto" ? Math.max(1, manaMax) : 1;
-      }
-    }
+    const affinities = normalizeAttackerAffinitiesMap(config.affinities);
+    const affinityStacks = normalizeAttackerAffinityStacksMap(config.affinityStacks, affinities);
 
     if (Object.keys(vitalsMax).length > 0) {
       normalized.vitalsMax = vitalsMax;
@@ -2937,11 +3861,17 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     if (Object.keys(vitalsRegen).length > 0) {
       normalized.vitalsRegen = vitalsRegen;
     }
-    normalized.affinities = affinities;
+    if (Object.keys(affinities).length > 0) {
+      normalized.affinities = affinities;
+    }
+    if (Object.keys(affinityStacks).length > 0) {
+      normalized.affinityStacks = affinityStacks;
+    }
     return normalized;
   }
 
   function refreshPromptTemplate() {
+    syncAttackerAffinitiesFromWorkflow();
     syncAttackerSetupModeUI();
     const params = readPromptParams();
     renderBudgetAllocationSummary(params);
@@ -2961,9 +3891,39 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     }
   }
 
-  function buildAttackerConfigFromPromptParams(params = {}, { budgetTokens = null, priceList = state.priceList } = {}) {
-    const setupMode = resolveAttackerSetupMode(params.attackerSetupMode);
-    const config = { setupMode };
+  function buildAttackerSeedConfigsFromPromptParams(
+    params = {},
+    { includeSetupMode = true, includeSetupModeDefault = true } = {},
+  ) {
+    const cloneAttackerSeedConfig = (entry = {}) => {
+      const next = {};
+      if (typeof entry?.setupMode === "string" && entry.setupMode.trim()) {
+        next.setupMode = entry.setupMode.trim();
+      }
+      if (entry?.vitalsMax && typeof entry.vitalsMax === "object" && !Array.isArray(entry.vitalsMax)) {
+        next.vitalsMax = { ...entry.vitalsMax };
+      }
+      if (entry?.vitalsRegen && typeof entry.vitalsRegen === "object" && !Array.isArray(entry.vitalsRegen)) {
+        next.vitalsRegen = { ...entry.vitalsRegen };
+      }
+      const affinities = cloneAttackerAffinitiesMap(entry?.affinities);
+      if (affinities) {
+        next.affinities = affinities;
+      }
+      if (entry?.affinityStacks && typeof entry.affinityStacks === "object" && !Array.isArray(entry.affinityStacks)) {
+        next.affinityStacks = { ...entry.affinityStacks };
+      }
+      return next;
+    };
+
+    const config = {};
+    if (includeSetupMode) {
+      if (includeSetupModeDefault) {
+        config.setupMode = resolveAttackerSetupMode(params.attackerSetupMode);
+      } else if (typeof params?.attackerSetupMode === "string" && params.attackerSetupMode.trim()) {
+        config.setupMode = resolveAttackerSetupMode(params.attackerSetupMode);
+      }
+    }
     if (params.attackerVitalsMax && Object.keys(params.attackerVitalsMax).length > 0) {
       config.vitalsMax = { ...params.attackerVitalsMax };
     }
@@ -2973,8 +3933,48 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     if (params.attackerAffinities && Object.keys(params.attackerAffinities).length > 0) {
       config.affinities = { ...params.attackerAffinities };
     }
+    if (params.attackerAffinityStacks && Object.keys(params.attackerAffinityStacks).length > 0) {
+      config.affinityStacks = { ...params.attackerAffinityStacks };
+    }
+    const attackerCount = normalizeAttackerCountValue(params.attackerCount);
+    return Array.from({ length: attackerCount }, () => cloneAttackerSeedConfig(config));
+  }
+
+  function buildAttackerConfigsFromPromptParams(params = {}, { budgetTokens = null, priceList = state.priceList } = {}) {
+    const seedConfigs = buildAttackerSeedConfigsFromPromptParams(params, {
+      includeSetupMode: true,
+      includeSetupModeDefault: true,
+    });
+    const attackerCount = normalizeAttackerCountValue(params.attackerCount);
     const fallbackAffinity = normalizeAffinity(params?.levelAffinities?.[0]) || DEFAULT_DUNGEON_AFFINITY;
-    return enforceAttackerConfigBudget(config, budgetTokens, priceList, { fallbackAffinity }).config;
+    return enforceAttackerConfigsBudget(seedConfigs, {
+      attackerCount,
+      budgetTokens,
+      priceList,
+      fallbackAffinity,
+    }).configs;
+  }
+
+  function buildAttackerConfigFromPromptParams(params = {}, { budgetTokens = null, priceList = state.priceList } = {}) {
+    const configs = buildAttackerConfigsFromPromptParams(params, { budgetTokens, priceList });
+    return configs[0] || normalizeAttackerConfig({}, {
+      fallbackAffinity: normalizeAffinity(params?.levelAffinities?.[0]) || DEFAULT_DUNGEON_AFFINITY,
+    });
+  }
+
+  function applyAttackerConfigsToSummary(summary = {}, attackerConfigs = [], attackerCount = DEFAULT_ATTACKER_COUNT) {
+    const normalizedCount = normalizeAttackerCountValue(attackerCount);
+    const normalizedConfigs = ensureAttackerConfigCount(attackerConfigs, normalizedCount);
+    const nextSummary = summary && typeof summary === "object" ? { ...summary } : {};
+    nextSummary.attackerCount = normalizedCount;
+    if (normalizedConfigs.length > 0) {
+      nextSummary.attackerConfigs = normalizedConfigs.map((config) => cloneAttackerConfig(config));
+      nextSummary.attackerConfig = cloneAttackerConfig(normalizedConfigs[0]);
+    } else {
+      delete nextSummary.attackerConfigs;
+      delete nextSummary.attackerConfig;
+    }
+    return nextSummary;
   }
 
   function renderSpendLedger() {
@@ -2988,20 +3988,29 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
 
   function renderAttackerConfig() {
     if (!attackerConfigOutput) return;
-    const attackerConfig = state.summary?.attackerConfig;
-    if (!attackerConfig || typeof attackerConfig !== "object") {
+    const promptParams = hasPromptParamsUI ? readPromptParams() : null;
+    const requestedCount = resolveAttackerCountValue({
+      summary: state.summary,
+      promptParams,
+      fallback: DEFAULT_ATTACKER_COUNT,
+    });
+    const attackerConfigs = ensureAttackerConfigCount(readSummaryAttackerConfigs(state.summary), requestedCount);
+    if (attackerConfigs.length === 0) {
       renderActorHud(attackerConfigOutput, [], { emptyText: ATTACKER_HUD_EMPTY_TEXT });
       return;
     }
-    const promptParams = hasPromptParamsUI ? readPromptParams() : null;
     const attackerBudgetTokens = asTokenOrNull(state.budgeting?.playerBudgetTokens)
       ?? asTokenOrNull(promptParams?.poolBudgets?.attacker);
-    const model = buildAttackerHudModel(attackerConfig, {
-      attackerBudgetTokens,
+    const budgetSplits = distributeAttackerBudgetTokens(attackerBudgetTokens, requestedCount);
+    const fallbackAffinity = normalizeAffinity(state.summary?.dungeonAffinity) || DEFAULT_DUNGEON_AFFINITY;
+    const models = attackerConfigs.map((config, index) => buildAttackerHudModel(config, {
+      attackerBudgetTokens: Array.isArray(budgetSplits) ? budgetSplits[index] : attackerBudgetTokens,
       priceList: state.priceList,
-      fallbackAffinity: normalizeAffinity(state.summary?.dungeonAffinity) || DEFAULT_DUNGEON_AFFINITY,
-    });
-    renderActorHud(attackerConfigOutput, [model], {
+      fallbackAffinity,
+      attackerIndex: index,
+      attackerCount: requestedCount,
+    }));
+    renderActorHud(attackerConfigOutput, models, {
       emptyText: ATTACKER_HUD_EMPTY_TEXT,
       includeAttackerBudget: true,
       showMotivation: false,
@@ -3048,11 +4057,12 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
 
   if (hasPromptParamsUI) {
     hydrateAttackerSetupOptions();
-    hydrateLayoutProfileOptions();
     renderAffinityOptions(levelAffinitiesContainer);
-    renderAffinityOptions(defenderAffinitiesContainer);
+    if (defenderAffinitiesContainer && defenderAffinitiesContainer !== levelAffinitiesContainer) {
+      renderAffinityOptions(defenderAffinitiesContainer);
+    }
     renderAffinityOptions(attackerAffinitiesContainer, { includeExpressions: true });
-    syncDefenderAffinitiesFromLevel({ force: true });
+    syncAttackerAffinitiesFromWorkflow();
     syncAttackerSetupModeUI();
   }
 
@@ -3061,10 +4071,13 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     maxTokenBudgetInput,
     thinkTimeInput,
     llmTokensInput,
-    layoutProfileInput,
+    corridorWidthInput,
+    hallwayPatternInput,
+    patternInfillPercentInput,
     layoutAllocationPercentInput,
     defenderAllocationPercentInput,
     attackerAllocationPercentInput,
+    attackerCountInput,
     attackerSetupModeInput,
   ].filter(Boolean);
   if (hasPromptParamsUI) {
@@ -3074,16 +4087,24 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     });
     if (levelAffinitiesContainer?.addEventListener) {
       const onLevelAffinityChange = () => {
-        syncDefenderAffinitiesFromLevel();
+        syncAttackerAffinitiesFromWorkflow();
         refreshPromptTemplate();
       };
       levelAffinitiesContainer.addEventListener("input", onLevelAffinityChange);
       levelAffinitiesContainer.addEventListener("change", onLevelAffinityChange);
     }
-    [attackerAffinitiesContainer, defenderAffinitiesContainer].forEach((container) => {
+    [attackerAffinitiesContainer].forEach((container) => {
       container?.addEventListener?.("input", refreshPromptTemplate);
       container?.addEventListener?.("change", refreshPromptTemplate);
     });
+    if (
+      defenderAffinitiesContainer
+      && defenderAffinitiesContainer !== levelAffinitiesContainer
+      && defenderAffinitiesContainer?.addEventListener
+    ) {
+      defenderAffinitiesContainer.addEventListener("input", refreshPromptTemplate);
+      defenderAffinitiesContainer.addEventListener("change", refreshPromptTemplate);
+    }
     if (attackerVitalsInputs) {
       Object.values(attackerVitalsInputs).forEach((group) => {
         if (!group) return;
@@ -3096,6 +4117,10 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
         input?.addEventListener?.("change", refreshPromptTemplate);
       });
     }
+    attackerCountInput?.addEventListener?.("change", () => {
+      attackerCountInput.value = String(normalizeAttackerCountValue(attackerCountInput.value));
+      refreshPromptTemplate();
+    });
     attackerSetupModeInput?.addEventListener?.("change", () => {
       syncAttackerSetupModeUI();
       refreshPromptTemplate();
@@ -3122,12 +4147,13 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       if (!Array.isArray(parsed)) {
         throw new Error("Actor set must be a JSON array.");
       }
-      const mobilityErrors = validateActorSetMobilityConstraints(parsed);
+      const sanitized = parsed.map((entry) => sanitizeActorSetEntryForBudget(entry) || entry);
+      const mobilityErrors = validateActorSetMobilityConstraints(sanitized);
       if (mobilityErrors.length > 0) {
         throw new Error(mobilityErrors[0]);
       }
       const promptParams = hasPromptParamsUI ? readPromptParams() : null;
-      const defenderBudgetResult = enforceDefenderActorSetBudget(parsed, {
+      const defenderBudgetResult = enforceDefenderActorSetBudget(sanitized, {
         summary: state.summary,
         promptParams,
       });
@@ -3135,9 +4161,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       if (state.summary && typeof state.summary === "object") {
         state.summary = applyActorSetToSummary(state.summary, state.actorSet);
       }
-      if (actorSetInput && defenderBudgetResult.wasClamped) {
-        actorSetInput.value = JSON.stringify(state.actorSet, null, 2);
-      }
+      syncActorSetInputValue();
       renderActorSet();
       refreshSpendLedger();
       const overBudget = Boolean(state.spendLedger?.overBudget);
@@ -3172,7 +4196,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     return sections.join("\n\n");
   }
 
-  function renderSummaryOutputs({ summary, guidanceText, promptParams, captures = [], trace = [] } = {}) {
+  async function renderSummaryOutputs({ summary, guidanceText, promptParams, captures = [], trace = [] } = {}) {
     const brief = buildDesignBrief(summary, guidanceText, {
       budgeting: state.budgeting,
       spendLedger: state.spendLedger,
@@ -3181,7 +4205,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     if (briefOutput) {
       briefOutput.textContent = brief;
     }
-    renderLevelDesignOutput(levelDesignOutput, summary);
+    await renderLevelPreview(summary);
     if (Array.isArray(captures) && captures.length > 0 && typeof onLlmCapture === "function") {
       onLlmCapture({
         capture: captures[captures.length - 1],
@@ -3284,7 +4308,6 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
             runId: `design_level_benchmark_${Date.now()}_${budgetIndex}_${runIndex}`,
             producedBy: "orchestrator",
             maxActorRounds: 0,
-            layoutProfiles: resolveAllowedLayoutProfiles(promptParams?.layoutProfile),
             layoutPhaseContext: buildPromptContext({ params: promptParams, phase: "level" }),
             poolWeights:
               Array.isArray(promptParams?.poolWeights) && promptParams.poolWeights.length > 0
@@ -3298,6 +4321,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
                 : undefined,
             priceList:
               resolvedPriceList || undefined,
+            optionsByPhase: resolveLoopOptionsByPhase({ llmConfig, promptParams }),
           });
           const elapsedMs = nowMs() - started;
           if (!result.ok) {
@@ -3410,6 +4434,9 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
   async function generateLevelBrief({ useFixture = false } = {}) {
     let promptParams = hasPromptParamsUI ? readPromptParams() : null;
     promptParams = ensureRandomLevelAndDefenderAffinities(promptParams);
+    if (!enforceWorkflowAffinityPrerequisite(promptParams, "Level creation")) {
+      return { ok: false, reason: "missing_affinity_prerequisite" };
+    }
     const promptTemplateText = getPromptTemplateText();
     const guidanceText = extractGuidanceGoal(promptTemplateText);
     const mode = useFixture ? "fixture" : modeSelect?.value === "fixture" ? "fixture" : "live";
@@ -3417,7 +4444,6 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const baseUrl = baseUrlInput?.value || DEFAULT_LLM_BASE_URL;
     const budgetTokensFromPrompt = extractBudgetTokens(promptTemplateText || guidanceText, DEFAULT_GUIDANCE_BUDGET_TOKENS);
     const budgetTokens = Number.isInteger(promptParams?.tokenBudget) ? promptParams.tokenBudget : budgetTokensFromPrompt;
-    const allowedLayoutProfiles = resolveAllowedLayoutProfiles(promptParams?.layoutProfile);
     const levelPhaseContext = buildPromptContext({ params: promptParams, phase: "level" });
     if (promptParams) {
       renderBudgetAllocationSummary(promptParams);
@@ -3463,7 +4489,6 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
         runId: state.traceRunId,
         producedBy: "orchestrator",
         maxActorRounds: 0,
-        layoutProfiles: allowedLayoutProfiles,
         layoutPhaseContext: levelPhaseContext,
         poolWeights:
           Array.isArray(promptParams?.poolWeights) && promptParams.poolWeights.length > 0
@@ -3477,10 +4502,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
             : undefined,
         priceList:
           resolvedPriceList || undefined,
-        optionsByPhase:
-          llmConfig.optionsByPhase && typeof llmConfig.optionsByPhase === "object"
-            ? llmConfig.optionsByPhase
-            : undefined,
+        optionsByPhase: resolveLoopOptionsByPhase({ llmConfig, promptParams }),
       });
 
       if (!result.ok) {
@@ -3491,24 +4513,29 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       if (!Number.isInteger(summary.budgetTokens) || summary.budgetTokens <= 0) {
         summary.budgetTokens = budgetTokens;
       }
-      summary = applyLayoutProfilePreference(summary, promptParams?.layoutProfile);
+      summary = applyLayoutShapePreferences(summary, {
+        corridorWidth: promptParams?.corridorWidth,
+        hallwayPattern: promptParams?.hallwayPattern,
+        patternLineWidth: promptParams?.patternLineWidth,
+        patternInfillPercent: promptParams?.patternInfillPercent,
+      });
+      summary = normalizeLayoutWalkableTiles(summary, asTokenOrNull(promptParams?.poolBudgets?.layout));
       if (promptParams) {
-        summary.attackerConfig = buildAttackerConfigFromPromptParams(promptParams, {
+        const attackerConfigs = buildAttackerConfigsFromPromptParams(promptParams, {
           budgetTokens: asTokenOrNull(promptParams?.poolBudgets?.attacker),
           priceList: state.priceList,
         });
+        summary = applyAttackerConfigsToSummary(summary, attackerConfigs, promptParams.attackerCount);
       }
 
       state.summary = summary;
       state.budgeting = deriveBudgetBreakdown(result);
       state.actorSet = buildActorSet(summary);
-      if (actorSetInput) {
-        actorSetInput.value = JSON.stringify(state.actorSet, null, 2);
-      }
+      syncActorSetInputValue();
       renderActorSet();
       refreshSpendLedger();
 
-      renderSummaryOutputs({
+      await renderSummaryOutputs({
         summary,
         guidanceText,
         promptParams,
@@ -3536,31 +4563,37 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const attackerBudgetTokens = asTokenOrNull(promptParams?.poolBudgets?.attacker)
       ?? state.budgeting?.playerBudgetTokens
       ?? 0;
-    const fallbackConfig = buildAttackerConfigFromPromptParams(promptParams || {}, {
-      budgetTokens: attackerBudgetTokens,
-      priceList: state.priceList,
+    const requestedAttackerCount = normalizeAttackerCountValue(promptParams?.attackerCount);
+    const attackerLabel = requestedAttackerCount > 1
+      ? `${requestedAttackerCount} attacker configurations`
+      : "attacker configuration";
+    const promptSeedConfigs = buildAttackerSeedConfigsFromPromptParams(promptParams || {}, {
+      includeSetupMode: Boolean(attackerSetupModeInput),
+      includeSetupModeDefault: false,
     });
     const attackerScope = resolveAttackerPromptScope(promptParams || {});
-    const attackerAffinityPhrase = formatAffinityPhrase(attackerScope.affinities, DEFAULT_DUNGEON_AFFINITY);
-    const requiredAttackerAffinityConfig = formatAttackerAffinityConfig(promptParams?.attackerAffinities);
+    const requiredAttackerAffinityConfig = formatAttackerAffinityConfig(
+      promptParams?.attackerAffinities,
+      promptParams?.attackerAffinityStacks,
+    );
     const fallbackAffinity = normalizeAffinity(state.summary?.dungeonAffinity)
       || normalizeAffinity(promptParams?.levelAffinities?.[0])
       || DEFAULT_DUNGEON_AFFINITY;
     const attackerPrompt = buildLlmAttackerConfigPromptTemplate({
-      goal: `Configure attacker setup for a ${attackerAffinityPhrase} themed dungeon.`,
+      goal: "Configure attacker setup for the dungeon run.",
       notes: "Design workflow: attacker setup only.",
-      budgetTokens,
+      budgetTokens: attackerBudgetTokens,
       remainingBudgetTokens: attackerBudgetTokens,
+      attackerCount: requestedAttackerCount,
       context: buildPromptContext({ params: promptParams, phase: "attacker" }),
       requiredAffinityConfig: requiredAttackerAffinityConfig,
       affinities: attackerScope.affinities,
       affinityExpressions: attackerScope.affinityExpressions,
       setupModes: attackerScope.setupModes,
-      modelContextTokens: MODEL_CONTEXT_TOKENS || CONTEXT_WINDOW_TOKENS,
     });
 
     state.traceRunId = `design_guidance_${Date.now()}`;
-    setStatus(statusEl, "Generating attacker configuration...");
+    setStatus(statusEl, `Generating ${attackerLabel}...`);
 
     try {
       const resolvedPriceList = await resolvePriceList(llmConfig);
@@ -3580,10 +4613,11 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
         prompt: attackerPrompt,
         strict: false,
         format: LLM_OUTPUT_FORMAT,
-        options: resolveSessionLlmOptions({
+        options: resolveSessionLlmOptionsWithPromptTokens({
           phase: "attacker",
           optionsByPhase: llmConfig.optionsByPhase,
           baseOptions: llmConfig.options,
+          promptParams,
         }),
         runId: state.traceRunId,
         producedBy: "orchestrator",
@@ -3592,15 +4626,22 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       if (!session.ok) {
         throw new Error(summarizeLoopErrors(session.errors || []));
       }
-      const attackerConfigResult = enforceAttackerConfigBudget(
-        session.summary?.attackerConfig && typeof session.summary.attackerConfig === "object"
-          ? { ...session.summary.attackerConfig }
-          : fallbackConfig,
-        attackerBudgetTokens,
-        state.priceList,
-        { fallbackAffinity },
-      );
-      const attackerConfig = attackerConfigResult.config;
+      const rawSessionConfigs = Array.isArray(session.summary?.attackerConfigs)
+        ? session.summary.attackerConfigs
+        : session.summary?.attackerConfig && typeof session.summary.attackerConfig === "object"
+          ? [session.summary.attackerConfig]
+          : promptSeedConfigs;
+      const mergedSessionConfigs = mergeAttackerConfigsWithPromptConfigs(rawSessionConfigs, promptSeedConfigs, {
+        attackerCount: requestedAttackerCount,
+        fallbackAffinity,
+      });
+      const attackerConfigsResult = enforceAttackerConfigsBudget(mergedSessionConfigs, {
+        attackerCount: requestedAttackerCount,
+        budgetTokens: attackerBudgetTokens,
+        priceList: state.priceList,
+        fallbackAffinity,
+      });
+      const attackerConfigs = attackerConfigsResult.configs;
       const baseSummary = state.summary && typeof state.summary === "object"
         ? { ...state.summary }
         : {};
@@ -3608,31 +4649,28 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       baseSummary.budgetTokens = Number.isInteger(baseSummary.budgetTokens) && baseSummary.budgetTokens > 0
         ? baseSummary.budgetTokens
         : budgetTokens;
-      baseSummary.attackerConfig = attackerConfig;
-      state.summary = baseSummary;
+      state.summary = applyAttackerConfigsToSummary(baseSummary, attackerConfigs, requestedAttackerCount);
       if (Array.isArray(state.summary.actors) && state.summary.actors.length > 0) {
         state.actorSet = buildActorSet(state.summary);
-        if (actorSetInput) {
-          actorSetInput.value = JSON.stringify(state.actorSet, null, 2);
-        }
+        syncActorSetInputValue();
         renderActorSet();
       }
       refreshSpendLedger();
-      renderSummaryOutputs({
+      await renderSummaryOutputs({
         summary: state.summary,
         guidanceText,
         promptParams,
         captures: session.capture ? [session.capture] : [],
         trace: [],
       });
-      if (attackerConfigResult.wasClamped && Number.isInteger(attackerConfigResult.budgetTokens)) {
+      if (attackerConfigsResult.wasClamped && Number.isInteger(attackerConfigsResult.budgetTokens)) {
         setStatus(
           statusEl,
-          `Attacker configuration ready (clamped to ${attackerConfigResult.spendTokens}/${attackerConfigResult.budgetTokens} tokens).`,
+          `${attackerLabel} ready (clamped to ${attackerConfigsResult.spendTokens}/${attackerConfigsResult.budgetTokens} tokens).`,
           false,
         );
       } else {
-        setStatus(statusEl, "Attacker configuration ready.", false);
+        setStatus(statusEl, `${attackerLabel} ready.`, false);
       }
       return { ok: true, summary: state.summary };
     } catch (error) {
@@ -3644,6 +4682,9 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
   async function generateDefenderBrief({ useFixture = false } = {}) {
     let promptParams = hasPromptParamsUI ? readPromptParams() : null;
     promptParams = ensureRandomLevelAndDefenderAffinities(promptParams);
+    if (!enforceWorkflowAffinityPrerequisite(promptParams, "Defender creation")) {
+      return { ok: false, reason: "missing_affinity_prerequisite" };
+    }
     const promptTemplateText = getPromptTemplateText();
     const guidanceText = extractGuidanceGoal(promptTemplateText);
     const mode = useFixture ? "fixture" : modeSelect?.value === "fixture" ? "fixture" : "live";
@@ -3669,7 +4710,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       const allowedPairsText = formatAllowedPairs(deriveAllowedPairs(catalog));
       const layout = state.summary?.layout;
       const layoutContext = layout
-        ? `Layout tiles: floor ${layout.floorTiles || 0}, hallway ${layout.hallwayTiles || 0}`
+        ? `Layout tiles: floor ${layout.floorTiles || 0}, walkable total ${(layout.floorTiles || 0) + (layout.hallwayTiles || 0)}`
         : "";
       const defenderPrompt = buildLlmActorConfigPromptTemplate({
         goal: `Create dungeon defenders for a ${formatAffinityPhrase(defenderAffinityChoices, DEFAULT_DUNGEON_AFFINITY)} themed dungeon.`,
@@ -3699,10 +4740,11 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
         strict: false,
         phase: "actors_only",
         format: LLM_OUTPUT_FORMAT,
-        options: resolveSessionLlmOptions({
+        options: resolveSessionLlmOptionsWithPromptTokens({
           phase: "actors_only",
           optionsByPhase: llmConfig.optionsByPhase,
           baseOptions: llmConfig.options,
+          promptParams,
         }),
         runId: state.traceRunId,
         producedBy: "orchestrator",
@@ -3720,7 +4762,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
           extraLines: [
             "Return defenders only; omit rooms and layout.",
             "Use valid JSON with double quotes and no trailing commas.",
-            "If tokenHint is provided, it must be an integer greater than 0; otherwise omit tokenHint.",
+            "If tokenHint is provided, it is per actor unit and must be an integer greater than 0; otherwise omit tokenHint.",
             "For non-stationary defenders, set vitals.stamina.regen to an integer greater than 0.",
             "Return at least one actor entry with count >= 1.",
           ],
@@ -3744,15 +4786,25 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       }
       if (state.summary?.layout) mergedSummary.layout = { ...state.summary.layout };
       if (state.summary?.roomDesign) mergedSummary.roomDesign = { ...state.summary.roomDesign };
-      if (state.summary?.attackerConfig) {
+      const existingAttackerConfigs = readSummaryAttackerConfigs(state.summary);
+      if (existingAttackerConfigs.length > 0) {
         const attackerBudgetTokens = asTokenOrNull(state.budgeting?.playerBudgetTokens)
           ?? asTokenOrNull(promptParams?.poolBudgets?.attacker);
-        mergedSummary.attackerConfig = enforceAttackerConfigBudget(
-          state.summary.attackerConfig,
-          attackerBudgetTokens,
-          state.priceList,
-          { fallbackAffinity: normalizeAffinity(mergedSummary.dungeonAffinity) || DEFAULT_DUNGEON_AFFINITY },
-        ).config;
+        const attackerCount = resolveAttackerCountValue({
+          summary: state.summary,
+          promptParams,
+          fallback: existingAttackerConfigs.length,
+        });
+        const attackerConfigsResult = enforceAttackerConfigsBudget(existingAttackerConfigs, {
+          attackerCount,
+          budgetTokens: attackerBudgetTokens,
+          priceList: state.priceList,
+          fallbackAffinity: normalizeAffinity(mergedSummary.dungeonAffinity) || DEFAULT_DUNGEON_AFFINITY,
+        });
+        Object.assign(
+          mergedSummary,
+          applyAttackerConfigsToSummary(mergedSummary, attackerConfigsResult.configs, attackerCount),
+        );
       }
 
       state.summary = mergedSummary;
@@ -3777,12 +4829,10 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       });
       state.actorSet = defenderBudgetResult.actorSet;
       state.summary = applyActorSetToSummary(state.summary, state.actorSet);
-      if (actorSetInput) {
-        actorSetInput.value = JSON.stringify(state.actorSet, null, 2);
-      }
+      syncActorSetInputValue();
       renderActorSet();
       refreshSpendLedger();
-      renderSummaryOutputs({
+      await renderSummaryOutputs({
         summary: state.summary,
         guidanceText,
         promptParams,
@@ -3808,6 +4858,9 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
   async function generateBrief({ useFixture = false } = {}) {
     let promptParams = hasPromptParamsUI ? readPromptParams() : null;
     promptParams = ensureRandomLevelAndDefenderAffinities(promptParams);
+    if (!enforceWorkflowAffinityPrerequisite(promptParams, "Design brief generation")) {
+      return { ok: false, reason: "missing_affinity_prerequisite" };
+    }
     const promptTemplateText = getPromptTemplateText();
     const guidanceText = extractGuidanceGoal(promptTemplateText);
     const mode = useFixture ? "fixture" : modeSelect?.value === "fixture" ? "fixture" : "live";
@@ -3815,7 +4868,6 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const baseUrl = baseUrlInput?.value || DEFAULT_LLM_BASE_URL;
     const budgetTokensFromPrompt = extractBudgetTokens(promptTemplateText || guidanceText, DEFAULT_GUIDANCE_BUDGET_TOKENS);
     const budgetTokens = Number.isInteger(promptParams?.tokenBudget) ? promptParams.tokenBudget : budgetTokensFromPrompt;
-    const allowedLayoutProfiles = resolveAllowedLayoutProfiles(promptParams?.layoutProfile);
     const levelPhaseContext = buildPromptContext({ params: promptParams, phase: "level" });
     if (promptParams) {
       renderBudgetAllocationSummary(promptParams);
@@ -3876,7 +4928,6 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
           Number.isInteger(llmConfig.maxActorRounds) && llmConfig.maxActorRounds > 0
             ? llmConfig.maxActorRounds
             : DEFAULT_UI_MAX_ACTOR_ROUNDS,
-        layoutProfiles: allowedLayoutProfiles,
         layoutPhaseContext: levelPhaseContext,
         poolWeights:
           Array.isArray(promptParams?.poolWeights) && promptParams.poolWeights.length > 0
@@ -3890,10 +4941,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
             : undefined,
         priceList:
           resolvedPriceList || undefined,
-        optionsByPhase:
-          llmConfig.optionsByPhase && typeof llmConfig.optionsByPhase === "object"
-            ? llmConfig.optionsByPhase
-            : undefined,
+        optionsByPhase: resolveLoopOptionsByPhase({ llmConfig, promptParams }),
       });
 
       if (!result.ok) {
@@ -3904,12 +4952,19 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       if (!Number.isInteger(summary.budgetTokens) || summary.budgetTokens <= 0) {
         summary.budgetTokens = budgetTokens;
       }
-      summary = applyLayoutProfilePreference(summary, promptParams?.layoutProfile);
+      summary = applyLayoutShapePreferences(summary, {
+        corridorWidth: promptParams?.corridorWidth,
+        hallwayPattern: promptParams?.hallwayPattern,
+        patternLineWidth: promptParams?.patternLineWidth,
+        patternInfillPercent: promptParams?.patternInfillPercent,
+      });
+      summary = normalizeLayoutWalkableTiles(summary, asTokenOrNull(promptParams?.poolBudgets?.layout));
       if (promptParams) {
-        summary.attackerConfig = buildAttackerConfigFromPromptParams(promptParams, {
+        const attackerConfigs = buildAttackerConfigsFromPromptParams(promptParams, {
           budgetTokens: asTokenOrNull(promptParams?.poolBudgets?.attacker),
           priceList: state.priceList,
         });
+        summary = applyAttackerConfigsToSummary(summary, attackerConfigs, promptParams.attackerCount);
       }
 
       state.summary = summary;
@@ -3926,31 +4981,17 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
       });
       state.actorSet = defenderBudgetResult.actorSet;
       state.summary = applyActorSetToSummary(state.summary, state.actorSet);
-      if (actorSetInput) {
-        actorSetInput.value = JSON.stringify(state.actorSet, null, 2);
-      }
+      syncActorSetInputValue();
       renderActorSet();
       refreshSpendLedger();
 
-      const brief = buildDesignBrief(summary, guidanceText, {
-        budgeting: state.budgeting,
-        spendLedger: state.spendLedger,
+      await renderSummaryOutputs({
+        summary,
+        guidanceText,
         promptParams,
+        captures: Array.isArray(result.captures) ? result.captures : [],
+        trace: Array.isArray(result.trace) ? result.trace : [],
       });
-      if (briefOutput) {
-        briefOutput.textContent = brief;
-      }
-      renderLevelDesignOutput(levelDesignOutput, summary);
-
-      const captures = Array.isArray(result.captures) ? result.captures : [];
-      if (captures.length > 0 && typeof onLlmCapture === "function") {
-        onLlmCapture({
-          capture: captures[captures.length - 1],
-          captures,
-          parsedOk: true,
-          trace: result.trace,
-        });
-      }
 
       if (defenderBudgetResult.wasClamped && Number.isInteger(defenderBudgetResult.budgetCapTokens)) {
         setStatus(
@@ -3960,16 +5001,6 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
         );
       } else {
         setStatus(statusEl, "Design brief ready (layout + defender configuration).", false);
-      }
-      if (typeof onSummary === "function") {
-        onSummary({
-          summary,
-          brief,
-          actorSet: state.actorSet,
-          budgeting: state.budgeting,
-          spendLedger: state.spendLedger,
-          loopTrace: result.trace,
-        });
       }
     } catch (error) {
       setStatus(statusEl, `Generation failed: ${error.message || error}`, true);
@@ -4022,5 +5053,11 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     getSummary: () => (state.summary ? { ...state.summary } : null),
     getBudgeting: () => (state.budgeting ? { ...state.budgeting } : null),
     getSpendLedger: () => (state.spendLedger ? { ...state.spendLedger } : null),
+    dispose: () => {
+      if (!ownsLevelBuilder) return;
+      if (typeof levelBuilder?.dispose === "function") {
+        levelBuilder.dispose();
+      }
+    },
   };
 }

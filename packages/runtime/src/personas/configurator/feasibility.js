@@ -1,15 +1,9 @@
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import {
-  LEGACY_LAYOUT_TILE_FIELDS,
   LAYOUT_TILE_FIELDS,
 } from "../../contracts/domain-constants.js";
 
-const WALKABLE_DENSITY_TARGETS = Object.freeze({
-  rectangular: 0.7,
-  rooms: 0.55,
-  clustered_islands: 0.45,
-  sparse_islands: 0.35,
-});
+const WALKABLE_DENSITY_TARGET = 0.5;
 
 function pushError(errors, field, code, detail) {
   const entry = { field, code };
@@ -82,50 +76,23 @@ function normalizeLayoutCounts(layout, errors) {
     counts[field] = normalizeLayoutCount(layout[field], field, errors);
   });
 
-  let legacyWallTiles = 0;
-  LEGACY_LAYOUT_TILE_FIELDS.forEach((field) => {
-    legacyWallTiles += normalizeLayoutCount(layout[field], field, errors);
-  });
-  if (legacyWallTiles > 0) {
-    const floorTiles = counts.floorTiles || 0;
-    const hallwayTiles = counts.hallwayTiles || 0;
-    const walkableTiles = floorTiles + hallwayTiles;
-    if (walkableTiles > 0) {
-      const floorShare = Math.floor((legacyWallTiles * floorTiles) / walkableTiles);
-      const hallwayShare = legacyWallTiles - floorShare;
-      counts.floorTiles = floorTiles + floorShare;
-      counts.hallwayTiles = hallwayTiles + hallwayShare;
-    } else {
-      const floorShare = Math.ceil(legacyWallTiles / 2);
-      counts.floorTiles = floorShare;
-      counts.hallwayTiles = legacyWallTiles - floorShare;
-    }
-  }
-
   return counts;
 }
 
-function resolveWalkableDensityTarget(profile) {
-  const key = typeof profile === "string" ? profile.trim() : "";
-  const density = WALKABLE_DENSITY_TARGETS[key];
-  return typeof density === "number" && density > 0 && density <= 1 ? density : WALKABLE_DENSITY_TARGETS.rectangular;
-}
-
-function deriveLevelSideForWalkableTiles(totalTiles, minSide = 5, profile = "rectangular") {
+function deriveLevelSideForWalkableTiles(totalTiles, minSide = 5) {
   const normalizedTotalTiles = Number.isInteger(totalTiles) && totalTiles > 0 ? totalTiles : 1;
-  const densityTarget = resolveWalkableDensityTarget(profile);
-  const interiorArea = Math.ceil(normalizedTotalTiles / densityTarget);
+  const interiorArea = Math.ceil(normalizedTotalTiles / WALKABLE_DENSITY_TARGET);
   const interiorSide = Math.ceil(Math.sqrt(interiorArea));
   return Math.max(minSide, interiorSide + 2);
 }
 
-function deriveLevelGenFromCounts(counts, minSide, profile = "rectangular") {
+function deriveLevelGenFromCounts(counts, minSide) {
   const totalTiles = (counts.floorTiles || 0) + (counts.hallwayTiles || 0);
-  const side = deriveLevelSideForWalkableTiles(totalTiles, minSide, profile);
+  const side = deriveLevelSideForWalkableTiles(totalTiles, minSide);
   const levelGen = {
     width: side,
     height: side,
-    shape: { profile },
+    shape: {},
   };
   if (totalTiles > 0) {
     levelGen.walkableTilesTarget = totalTiles;
@@ -184,7 +151,7 @@ export function validateLayoutAndActors({ levelGen, actorCount = 0 } = {}) {
   return { ok: errors.length === 0, errors, layout };
 }
 
-export function validateLayoutCountsAndActors({ layout, actorCount = 0, minSide = 5, profile = "rectangular" } = {}) {
+export function validateLayoutCountsAndActors({ layout, actorCount = 0, minSide = 5 } = {}) {
   const errors = [];
   const counts = normalizeLayoutCounts(layout, errors);
   if (!counts) {
@@ -194,7 +161,7 @@ export function validateLayoutCountsAndActors({ layout, actorCount = 0, minSide 
   if (totalTiles <= 0) {
     pushError(errors, "layout", "empty_layout");
   }
-  const levelGen = deriveLevelGenFromCounts(counts, minSide, profile);
+  const levelGen = deriveLevelGenFromCounts(counts, minSide);
   const result = validateLayoutAndActors({ levelGen, actorCount });
   return {
     ok: errors.length === 0 && result.ok,

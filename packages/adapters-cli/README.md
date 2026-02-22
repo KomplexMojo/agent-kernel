@@ -203,7 +203,7 @@ Example `InitialStateArtifact.actors[].traits` snippet:
 }
 ```
 
-Defaults: manaCost=0, stacks=1, shape profile=rectangular, edgeBias=false. Required:
+Defaults: manaCost=0, stacks=1, roomCount=4, roomMinSize=3, roomMaxSize=9, corridorWidth=1, edgeBias=false. Required:
 preset id, kind, expression, actor id. Deterministic ordering is preserved in artifacts.
 
 Affinity summary output (resolved from presets + loadouts):

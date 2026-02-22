@@ -28,6 +28,11 @@ test("simulation view includes run controls and event stream", () => {
   assert.match(simulationPanel, /id="frame-buffer"/);
   assert.match(simulationPanel, /id="play-pause"/);
   assert.match(simulationPanel, /id="event-stream"/);
+  assert.match(simulationPanel, /id="simulation-visibility-mode"/);
+  assert.match(simulationPanel, /id="simulation-viewer-actor"/);
+  assert.match(simulationPanel, /id="simulation-viewport-size"[^>]*value="50"/);
+  assert.match(simulationPanel, /id="simulation-vision-radius"[^>]*value="6"/);
+  assert.match(simulationPanel, /id="simulation-exploration-hud"/);
 });
 
 test("simulation view loads wasm from ui-web assets", () => {

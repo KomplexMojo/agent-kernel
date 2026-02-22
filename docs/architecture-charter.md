@@ -29,6 +29,7 @@ This project is intentionally split into:
 - Action proposal/ordering, orchestration, and integration logic (including budget-aware request_external_fact/request_solver/fulfill/defer loops).
 - Telemetry capture, normalization, and emission; log/telemetry effects are data-only and routed via adapters.
 - UI rendering and presentation logic (consumes core frame buffers).
+- Guidance-to-artifact derivation for background builders (for example, summary-to-level-gen transforms used by worker adapters).
 
 The browser still runs JavaScript to host WASM. Shipping a no-install browser app does not require
 persona code to be inside WASM; it only requires that all code is delivered as static assets.
@@ -41,3 +42,12 @@ Allowed dependency direction:
 - core-as imports nothing outside itself
 
 All external IO must be implemented as adapters via narrow ports.
+
+### Dedicated Builder Port
+
+- The LLM/orchestrator step may stop at guidance summary generation.
+- Heavy level synthesis must run behind a builder adapter (web worker in browser, in-process fallback in tests/unsupported runtimes).
+- UI code must hand off summaries to this adapter instead of synthesizing layouts on the main thread.
+- The builder output contract must include both ASCII and image-ready level artifacts.
+- The same builder adapter must support regeneration from guidance summary, normalized `levelGen`, or direct tile rows so it can be reused during simulation ticks and live gameplay updates.
+- Gameplay visibility policy (fog of war, explored-cell HUDs, viewport limits) lives in runtime/UI layers; simulation review may still render full-map output.

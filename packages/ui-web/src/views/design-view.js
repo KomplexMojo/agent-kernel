@@ -66,7 +66,9 @@ export function wireDesignView({
   const maxTokenBudgetInput = root.querySelector("#prompt-max-token-budget");
   const thinkTimeInput = root.querySelector("#prompt-think-time");
   const llmTokensInput = root.querySelector("#prompt-llm-tokens");
-  const layoutProfileInput = root.querySelector("#prompt-layout-profile");
+  const corridorWidthInput = root.querySelector("#prompt-corridor-width");
+  const hallwayPatternInput = root.querySelector("#prompt-hallway-pattern");
+  const patternInfillPercentInput = root.querySelector("#prompt-pattern-infill-percent");
   const layoutAllocationPercentInput = root.querySelector("#prompt-layout-allocation-percent");
   const defenderAllocationPercentInput = root.querySelector("#prompt-defender-allocation-percent");
   const attackerAllocationPercentInput = root.querySelector("#prompt-attacker-allocation-percent");
@@ -75,10 +77,10 @@ export function wireDesignView({
   const levelBenchmarkOutput = root.querySelector("#design-level-benchmark-output");
   const benchmarkMaxTokenBudgetInput = root.querySelector("#benchmark-max-token-budget");
   const benchmarkSampleRunsInput = root.querySelector("#benchmark-sample-runs");
-  const levelAffinitiesContainer = root.querySelector("#prompt-level-affinities");
+  const workflowAffinitiesContainer = root.querySelector("#prompt-workflow-affinities");
+  const attackerCountInput = root.querySelector("#prompt-attacker-count");
   const attackerSetupModeInput = root.querySelector("#prompt-attacker-setup-mode");
-  const attackerAffinitiesContainer = root.querySelector("#prompt-attacker-affinities");
-  const defenderAffinitiesContainer = root.querySelector("#prompt-defender-affinities");
+  const attackerSelectedAffinitiesContainer = root.querySelector("#prompt-attacker-selected-affinities");
   const attackerVitalsInputs = {
     health: {
       max: root.querySelector("#attacker-vitals-health-max"),
@@ -118,11 +120,30 @@ export function wireDesignView({
     : [];
 
   let running = false;
-  let promptRunInFlight = false;
+  let activePromptRuns = 0;
   let lastPublishedSpecText = "";
   let previewRunId = `design_ui_preview_${Date.now()}`;
   let previewCreatedAt = new Date().toISOString();
   const promptButtonLabelCache = new WeakMap();
+  const phaseCompletion = {
+    level: false,
+    attacker: false,
+    defender: false,
+  };
+
+  function listMissingDesignPhases() {
+    const missing = [];
+    if (!phaseCompletion.level) missing.push("level");
+    if (!phaseCompletion.attacker) missing.push("attacker");
+    if (!phaseCompletion.defender) missing.push("defender");
+    return missing;
+  }
+
+  function updateBuildButtonState() {
+    if (!buildButton) return;
+    const missing = listMissingDesignPhases();
+    buildButton.disabled = running || activePromptRuns > 0 || missing.length > 0;
+  }
 
   function setDesignStep(stepId = "level") {
     if (!stepId) return;
@@ -254,7 +275,9 @@ export function wireDesignView({
       maxTokenBudgetInput,
       thinkTimeInput,
       llmTokensInput,
-      layoutProfileInput,
+      corridorWidthInput,
+      hallwayPatternInput,
+      patternInfillPercentInput,
       layoutAllocationPercentInput,
       defenderAllocationPercentInput,
       attackerAllocationPercentInput,
@@ -263,10 +286,10 @@ export function wireDesignView({
       levelBenchmarkOutput,
       benchmarkMaxTokenBudgetInput,
       benchmarkSampleRunsInput,
-      levelAffinitiesContainer,
+      workflowAffinitiesContainer,
+      attackerCountInput,
       attackerSetupModeInput,
-      attackerAffinitiesContainer,
-      defenderAffinitiesContainer,
+      attackerSelectedAffinitiesContainer,
       attackerVitalsInputs: resolvedAttackerVitalsInputs,
       attackerVitalsRegenInputs: resolvedAttackerVitalsRegenInputs,
       actorSetInput: actorSetJson,
@@ -281,34 +304,52 @@ export function wireDesignView({
     },
   });
 
-  async function runLevelPrompt(options) {
-    const result = await guidance.generateLevelBrief(options);
-    if (result?.ok) {
-      setDesignStep("attacker");
+  async function runPhasePrompt(phaseId, action) {
+    if (!phaseId || typeof action !== "function") {
+      return { ok: false, reason: "invalid_phase_request" };
     }
-    return result;
+    activePromptRuns += 1;
+    updateBuildButtonState();
+    try {
+      const result = await action();
+      phaseCompletion[phaseId] = result?.ok === true;
+      return result;
+    } catch (error) {
+      phaseCompletion[phaseId] = false;
+      throw error;
+    } finally {
+      activePromptRuns = Math.max(0, activePromptRuns - 1);
+      updateBuildButtonState();
+    }
+  }
+
+  async function runLevelPrompt(options) {
+    return runPhasePrompt("level", () => guidance.generateLevelBrief(options));
   }
 
   async function runAttackerPrompt(options) {
-    const result = await guidance.generateAttackerBrief(options);
-    if (result?.ok) {
-      setDesignStep("defender");
-    }
-    return result;
+    return runPhasePrompt("attacker", () => guidance.generateAttackerBrief(options));
   }
 
   async function runDefenderPrompt(options) {
-    const result = await guidance.generateDefenderBrief(options);
-    if (result?.ok) {
-      setDesignStep("simulation");
-    }
-    return result;
+    return runPhasePrompt("defender", () => guidance.generateDefenderBrief(options));
   }
 
   async function buildAndLoad() {
     if (running) return;
+    const missingPhases = listMissingDesignPhases();
+    if (missingPhases.length > 0) {
+      setStatus(buildStatus, `Build blocked: run ${missingPhases.join(", ")} prompt(s) successfully first.`, true);
+      updateBuildButtonState();
+      return;
+    }
+    if (activePromptRuns > 0) {
+      setStatus(buildStatus, "Build blocked while prompt runs are in progress.", true);
+      updateBuildButtonState();
+      return;
+    }
     running = true;
-    if (buildButton) buildButton.disabled = true;
+    updateBuildButtonState();
     setStatus(buildStatus, "Preparing build from current brief...");
 
     try {
@@ -368,7 +409,7 @@ export function wireDesignView({
       setStatus(buildStatus, `Build failed: ${error?.message || String(error)}`, true);
     } finally {
       running = false;
-      if (buildButton) buildButton.disabled = false;
+      updateBuildButtonState();
     }
   }
 
@@ -378,55 +419,27 @@ export function wireDesignView({
     });
   }
 
-  function setPromptButtonsBusy({ activeButton = null, activeLabel = "" } = {}) {
-    const buttons = [
-      runLevelPromptButton,
-      runAttackerPromptButton,
-      runDefenderPromptButton,
-    ].filter(Boolean);
-    buttons.forEach((button) => {
-      if (!promptButtonLabelCache.has(button)) {
-        promptButtonLabelCache.set(button, typeof button.textContent === "string" ? button.textContent : "");
-      }
-      button.disabled = true;
-      if (typeof button.setAttribute === "function") {
-        button.setAttribute("aria-busy", button === activeButton ? "true" : "false");
-      }
-      if (button === activeButton && typeof activeLabel === "string" && activeLabel.trim().length > 0 && "textContent" in button) {
-        button.textContent = activeLabel;
-      }
-    });
-  }
-
-  function clearPromptButtonsBusy() {
-    const buttons = [
-      runLevelPromptButton,
-      runAttackerPromptButton,
-      runDefenderPromptButton,
-    ].filter(Boolean);
-    buttons.forEach((button) => {
+  async function runPromptWithBusyState({ button, activeLabel, action } = {}) {
+    if (!button || button.disabled || button.getAttribute?.("aria-busy") === "true") {
+      return { ok: false, reason: "prompt_busy" };
+    }
+    if (!promptButtonLabelCache.has(button)) {
+      promptButtonLabelCache.set(button, typeof button.textContent === "string" ? button.textContent : "");
+    }
+    button.disabled = true;
+    button.setAttribute?.("aria-busy", "true");
+    if (typeof activeLabel === "string" && activeLabel.trim().length > 0 && "textContent" in button) {
+      button.textContent = activeLabel;
+    }
+    try {
+      return await action();
+    } finally {
       button.disabled = false;
-      if (typeof button.removeAttribute === "function") {
-        button.removeAttribute("aria-busy");
-      }
+      button.removeAttribute?.("aria-busy");
       const originalLabel = promptButtonLabelCache.get(button);
       if (typeof originalLabel === "string" && "textContent" in button) {
         button.textContent = originalLabel;
       }
-    });
-  }
-
-  async function runPromptWithBusyState({ button, activeLabel, action } = {}) {
-    if (promptRunInFlight) {
-      return { ok: false, reason: "prompt_busy" };
-    }
-    promptRunInFlight = true;
-    setPromptButtonsBusy({ activeButton: button, activeLabel });
-    try {
-      return await action();
-    } finally {
-      promptRunInFlight = false;
-      clearPromptButtonsBusy();
     }
   }
 
@@ -472,10 +485,12 @@ export function wireDesignView({
     });
   }
 
+  updateBuildButtonState();
+
   return {
-    generateLevelBrief: (options) => guidance.generateLevelBrief(options),
-    generateAttackerBrief: (options) => guidance.generateAttackerBrief(options),
-    generateDefenderBrief: (options) => guidance.generateDefenderBrief(options),
+    generateLevelBrief: (options) => runLevelPrompt(options),
+    generateAttackerBrief: (options) => runAttackerPrompt(options),
+    generateDefenderBrief: (options) => runDefenderPrompt(options),
     benchmarkLevelGeneration: (options) => guidance.benchmarkLevelGeneration(options),
     generateBrief: (options) => guidance.generateBrief(options),
     buildAndLoad,

@@ -32,7 +32,7 @@ const llmCaptureB = {
   contentType: "application/json",
   payload: {
     prompt: "phase layout",
-    responseRaw: "{\\"layout\\":{\\"wallTiles\\":12}}",
+    responseRaw: "{\\"layout\\":{\\"floorTiles\\":12,\\"hallwayTiles\\":0}}",
     phase: "layout_only",
     phaseTiming: {
       durationMs: 100,

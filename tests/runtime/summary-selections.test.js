@@ -63,3 +63,29 @@ test("normalizeSummaryPick maps actor-set role/source fields", async () => {
   assert.equal(roomPick.affinity, "earth");
   assert.equal(roomPick.vitals, undefined);
 });
+
+test("buildSelectionsFromSummary supports attackerConfigs array", async () => {
+  const { buildSelectionsFromSummary } = await import(
+    "../../packages/runtime/src/personas/director/summary-selections.js"
+  );
+
+  const selections = buildSelectionsFromSummary({
+    dungeonAffinity: "fire",
+    attackerConfigs: [
+      { setupMode: "user", vitalsMax: { mana: 3 } },
+      { setupMode: "hybrid", vitalsMax: { mana: 5 } },
+    ],
+    rooms: [],
+    actors: [
+      { motivation: "attacking", count: 1 },
+      { motivation: "defending", count: 1 },
+    ],
+  });
+
+  const actorSelections = selections.filter((entry) => entry.kind === "actor");
+  assert.equal(actorSelections.length, 2);
+  assert.equal(actorSelections[0].instances[0].setupMode, "user");
+  assert.equal(actorSelections[0].instances[0].vitals.mana.max, 3);
+  assert.equal(actorSelections[1].instances[0].setupMode, "hybrid");
+  assert.equal(actorSelections[1].instances[0].vitals.mana.max, 5);
+});

@@ -2,7 +2,7 @@
   "responses": [
     {
       "model": "fixture",
-      "response": "{\"phase\":\"layout_only\",\"remainingBudgetTokens\":800,\"layout\":{\"wallTiles\":50,\"floorTiles\":100,\"hallwayTiles\":50},\"missing\":[]}",
+      "response": "{\"phase\":\"layout_only\",\"remainingBudgetTokens\":800,\"layout\":{\"floorTiles\":100,\"hallwayTiles\":50},\"missing\":[]}",
       "done": true
     },
     {

@@ -23,7 +23,7 @@ export const BUILD_SPEC_SCHEMA_SNIPPET = `{
         "width": 5,
         "height": 5,
         "seed": 3,
-        "shape": { "profile": "rectangular" },
+        "shape": { "roomCount": 4, "roomMinSize": 3, "roomMaxSize": 6, "corridorWidth": 1 },
         "spawn": { "edgeBias": true, "minDistance": 1 },
         "exit": { "edgeBias": true, "minDistance": 1 }
       },

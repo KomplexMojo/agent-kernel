@@ -2,10 +2,15 @@ import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { runMvpMovement } from "../../../runtime/src/mvp/movement.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
 import { DEFAULT_AFFINITY_EXPRESSION } from "../../../runtime/src/contracts/domain-constants.js";
+import { createLevelBuilderAdapter } from "../../../adapters-web/src/adapters/level-builder/index.js";
 import { setupPlayback } from "../movement-ui.js";
 
 const ACTOR_ID_LABEL = "actor_mvp";
 const ACTOR_ID_VALUE = 1;
+const VISIBILITY_MODE_SIMULATION_FULL = "simulation_full";
+const VISIBILITY_MODE_GAMEPLAY_FOG = "gameplay_fog";
+const DEFAULT_VIEWPORT_SIZE = 50;
+const DEFAULT_VISION_RADIUS = 6;
 
 function sortActorsById(initialState) {
   const actors = Array.isArray(initialState?.actors) ? initialState.actors.slice() : [];
@@ -105,6 +110,56 @@ function cloneTrapEffects(traps) {
     .map((trap) => ({ ...trap }));
 }
 
+function normalizeVisibilityMode(mode) {
+  return mode === VISIBILITY_MODE_GAMEPLAY_FOG
+    ? VISIBILITY_MODE_GAMEPLAY_FOG
+    : VISIBILITY_MODE_SIMULATION_FULL;
+}
+
+function parsePositiveInt(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const normalized = Math.floor(parsed);
+  return normalized > 0 ? normalized : fallback;
+}
+
+function formatVisibilitySummary(visibility) {
+  if (!visibility || typeof visibility !== "object") {
+    return "Exploration HUD unavailable.";
+  }
+  const mode = visibility.mode === VISIBILITY_MODE_GAMEPLAY_FOG ? "gameplay_fog" : "simulation_full";
+  const map = visibility.map && typeof visibility.map === "object"
+    ? visibility.map
+    : { width: 0, height: 0, totalTiles: 0 };
+  const viewport = visibility.viewport && typeof visibility.viewport === "object"
+    ? visibility.viewport
+    : { width: 0, height: 0, startX: 0, startY: 0 };
+  const viewer = visibility.viewer && typeof visibility.viewer === "object"
+    ? visibility.viewer
+    : null;
+  const actorStats = Array.isArray(visibility.actorStats) ? visibility.actorStats : [];
+  const lines = [];
+  lines.push(`mode: ${mode}`);
+  lines.push(`map: ${map.width}x${map.height}`);
+  lines.push(`viewport: ${viewport.width}x${viewport.height} @ (${viewport.startX},${viewport.startY})`);
+  if (viewer) {
+    lines.push(`viewer: ${viewer.id}`);
+    lines.push(`viewer explored: ${viewer.exploredTiles}/${map.totalTiles} (${viewer.exploredPercent}%)`);
+    lines.push(`viewer visible now: ${viewer.visibleNowTiles}`);
+  } else {
+    lines.push("viewer: (none)");
+  }
+  if (actorStats.length > 0) {
+    lines.push("actors:");
+    actorStats.forEach((entry) => {
+      lines.push(
+        `${entry.id} explored ${entry.exploredTiles}/${map.totalTiles} (${entry.exploredPercent}%), visible ${entry.visibleNowTiles}`,
+      );
+    });
+  }
+  return lines.join("\n");
+}
+
 export function resolveArtifactAffinityEffects({ initialState, affinityEffects, primaryActorId } = {}) {
   const { actors, map: actorIdMap } = buildActorIdMap(initialState, primaryActorId);
   const primaryActors = mapAffinityEffectsActors(affinityEffects?.actors, actorIdMap);
@@ -140,6 +195,8 @@ export function wireSimulationView({
   actorInspector,
   getInitialConfig,
   autoBoot = true,
+  levelBuilderOptions = {},
+  onObservation,
 } = {}) {
   const frameEl = root.querySelector("#frame-buffer");
   const actorIdEl = root.querySelector("#actor-id-display");
@@ -159,6 +216,11 @@ export function wireSimulationView({
   const stepForwardButton = root.querySelector("#step-forward");
   const playPauseButton = root.querySelector("#play-pause");
   const resetRunButton = root.querySelector("#reset-run");
+  const visibilityModeInput = root.querySelector("#simulation-visibility-mode");
+  const viewerActorInput = root.querySelector("#simulation-viewer-actor");
+  const viewportSizeInput = root.querySelector("#simulation-viewport-size");
+  const visionRadiusInput = root.querySelector("#simulation-vision-radius");
+  const explorationHudEl = root.querySelector("#simulation-exploration-hud");
 
   let core = null;
   let controller = null;
@@ -166,14 +228,122 @@ export function wireSimulationView({
   let ready = false;
   let pendingConfig = null;
   let pendingArtifacts = null;
+  let levelBuilder = null;
+  let latestLevelArtifacts = null;
+  let lastBaseTilesHash = "";
+  let levelRenderRequestId = 0;
+  let lastVisibilitySummary = null;
+  const visibilityPreferences = {
+    mode: normalizeVisibilityMode(visibilityModeInput?.value),
+    viewportSize: parsePositiveInt(viewportSizeInput?.value, DEFAULT_VIEWPORT_SIZE),
+    visionRadius: parsePositiveInt(visionRadiusInput?.value, DEFAULT_VISION_RADIUS),
+    viewerActorId: "",
+  };
+
+  if (visibilityModeInput) {
+    visibilityModeInput.value = visibilityPreferences.mode;
+  }
+  if (viewportSizeInput && !viewportSizeInput.value) {
+    viewportSizeInput.value = String(DEFAULT_VIEWPORT_SIZE);
+  }
+  if (visionRadiusInput && !visionRadiusInput.value) {
+    visionRadiusInput.value = String(DEFAULT_VISION_RADIUS);
+  }
+  if (explorationHudEl && !explorationHudEl.textContent) {
+    explorationHudEl.textContent = "Exploration HUD unavailable.";
+  }
 
   function setStatus(message) {
     if (statusEl) statusEl.textContent = message;
   }
 
-  function handleObservation({ observation, playing }) {
+  function ensureLevelBuilder() {
+    if (levelBuilder) return levelBuilder;
+    levelBuilder = createLevelBuilderAdapter(levelBuilderOptions);
+    return levelBuilder;
+  }
+
+  function hashTiles(tiles = []) {
+    if (!Array.isArray(tiles)) return "";
+    return tiles.map((row) => String(row || "")).join("\n");
+  }
+
+  async function regenerateLevelArtifacts({ tiles, renderOptions } = {}) {
+    if (!Array.isArray(tiles) || tiles.length === 0) {
+      return { ok: false, reason: "missing_tiles" };
+    }
+    const requestId = ++levelRenderRequestId;
+    const builder = ensureLevelBuilder();
+    const result = await builder.buildFromTiles({
+      tiles,
+      renderOptions: {
+        includeAscii: true,
+        includeImage: true,
+        ...(renderOptions && typeof renderOptions === "object" ? renderOptions : {}),
+      },
+    });
+    if (requestId !== levelRenderRequestId) {
+      return { ok: false, reason: "stale_render_request" };
+    }
+    if (result?.ok) {
+      latestLevelArtifacts = result;
+    }
+    return result;
+  }
+
+  function syncViewerActorOptions(visibility) {
+    if (
+      !viewerActorInput
+      || typeof viewerActorInput.replaceChildren !== "function"
+      || typeof globalThis.document?.createElement !== "function"
+    ) {
+      return;
+    }
+    const actorStats = Array.isArray(visibility?.actorStats) ? visibility.actorStats : [];
+    const selected = visibility?.viewerActorId || visibilityPreferences.viewerActorId || "";
+    const doc = globalThis.document;
+    const options = actorStats.map((entry) => String(entry?.id || "")).filter(Boolean);
+    viewerActorInput.replaceChildren();
+    options.forEach((actorId) => {
+      const option = doc.createElement("option");
+      option.value = actorId;
+      option.textContent = actorId;
+      viewerActorInput.appendChild(option);
+    });
+    if (options.length === 0) {
+      const option = doc.createElement("option");
+      option.value = "";
+      option.textContent = "(none)";
+      viewerActorInput.appendChild(option);
+    }
+    const effective = options.includes(selected) ? selected : options[0] || "";
+    viewerActorInput.value = effective;
+    visibilityPreferences.viewerActorId = effective;
+  }
+
+  function handleObservation({ observation, frame, playing, visibility, actorIdLabel }) {
     actorInspector?.setActors?.(observation?.actors || [], { tick: observation?.tick });
     actorInspector?.setRunning?.(playing);
+    lastVisibilitySummary = visibility || null;
+    syncViewerActorOptions(visibility);
+    if (explorationHudEl) {
+      explorationHudEl.textContent = formatVisibilitySummary(visibility);
+    }
+    if (typeof onObservation === "function") {
+      onObservation({
+        observation,
+        frame,
+        playing,
+        visibility,
+        actorIdLabel,
+      });
+    }
+    const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : null;
+    if (!baseTiles || baseTiles.length === 0) return;
+    const nextHash = hashTiles(baseTiles);
+    if (nextHash === lastBaseTilesHash) return;
+    lastBaseTilesHash = nextHash;
+    void regenerateLevelArtifacts({ tiles: baseTiles });
   }
 
   function mountPlayback(config, { initCore } = {}) {
@@ -186,6 +356,12 @@ export function wireSimulationView({
       actorIdLabel: actorLabel,
       actorIdValue: ACTOR_ID_VALUE,
       affinityEffects: config?.affinityEffects,
+      visibility: {
+        mode: visibilityPreferences.mode,
+        viewportSize: visibilityPreferences.viewportSize,
+        visionRadius: visibilityPreferences.visionRadius,
+        viewerActorId: visibilityPreferences.viewerActorId || actorLabel,
+      },
       elements: {
         frame: frameEl,
         actorId: actorIdEl,
@@ -218,6 +394,8 @@ export function wireSimulationView({
       return;
     }
     try {
+      lastBaseTilesHash = "";
+      latestLevelArtifacts = null;
       const movement = runMvpMovement({
         core,
         actorIdLabel: config.actorId || ACTOR_ID_LABEL,
@@ -241,6 +419,8 @@ export function wireSimulationView({
       return;
     }
     try {
+      lastBaseTilesHash = "";
+      latestLevelArtifacts = null;
       const actorLabel = sortActorsById(initialState)[0]?.id || "actor_bundle";
       const resolvedAffinityEffects = resolveArtifactAffinityEffects({
         initialState,
@@ -281,6 +461,11 @@ export function wireSimulationView({
       const actorId = cell?.dataset?.actorId;
       if (actorId) {
         actorInspector?.selectActorById?.(actorId);
+        visibilityPreferences.viewerActorId = actorId;
+        if (viewerActorInput) {
+          viewerActorInput.value = actorId;
+        }
+        controller?.setViewerActor?.(actorId);
       }
     });
   }
@@ -289,6 +474,28 @@ export function wireSimulationView({
   stepBackButton?.addEventListener("click", () => controller?.stepBack?.());
   playPauseButton?.addEventListener("click", () => controller?.toggle?.());
   resetRunButton?.addEventListener("click", () => controller?.reset?.());
+  visibilityModeInput?.addEventListener("change", () => {
+    const mode = normalizeVisibilityMode(visibilityModeInput.value);
+    visibilityPreferences.mode = mode;
+    controller?.setVisibilityMode?.(mode);
+  });
+  viewerActorInput?.addEventListener("change", () => {
+    const actorId = typeof viewerActorInput.value === "string" ? viewerActorInput.value : "";
+    visibilityPreferences.viewerActorId = actorId;
+    controller?.setViewerActor?.(actorId);
+  });
+  viewportSizeInput?.addEventListener("change", () => {
+    const next = parsePositiveInt(viewportSizeInput.value, DEFAULT_VIEWPORT_SIZE);
+    visibilityPreferences.viewportSize = next;
+    viewportSizeInput.value = String(next);
+    controller?.setViewportSize?.(next);
+  });
+  visionRadiusInput?.addEventListener("change", () => {
+    const next = parsePositiveInt(visionRadiusInput.value, DEFAULT_VISION_RADIUS);
+    visibilityPreferences.visionRadius = next;
+    visionRadiusInput.value = String(next);
+    controller?.setVisionRadius?.(next);
+  });
 
   async function boot() {
     stepBackButton && (stepBackButton.disabled = true);
@@ -323,9 +530,30 @@ export function wireSimulationView({
     boot();
   }
 
+  function setViewerActor(actorId) {
+    const normalized = typeof actorId === "string" ? actorId.trim() : "";
+    if (!normalized) return;
+    visibilityPreferences.viewerActorId = normalized;
+    if (viewerActorInput) {
+      viewerActorInput.value = normalized;
+    }
+    controller?.setViewerActor?.(normalized);
+  }
+
   return {
     startRun,
     startRunFromArtifacts,
+    regenerateLevelArtifacts,
+    getLatestLevelArtifacts: () => latestLevelArtifacts,
+    getVisibilitySummary: () => (lastVisibilitySummary ? { ...lastVisibilitySummary } : null),
+    setViewerActor,
     isReady: () => ready,
+    dispose: () => {
+      controller?.pause?.();
+      if (levelBuilder && typeof levelBuilder.dispose === "function") {
+        levelBuilder.dispose();
+      }
+      levelBuilder = null;
+    },
   };
 }

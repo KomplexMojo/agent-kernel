@@ -9,6 +9,11 @@ Level generation can appear to hang for larger token allocations. The current fl
 - Remove indefinite wait states in UI prompt runs.
 - Provide user-facing progress and completion guarantees.
 - Keep behavior testable from real UI button-click paths.
+- Keep layout synthesis off the browser main thread via a dedicated builder adapter.
+- Ensure the builder can regenerate both ASCII and image level artifacts at any time (design flow, simulation ticks, or live gameplay updates).
+- Support gameplay visibility constraints independently from simulation review:
+  - simulation mode can show the full map,
+  - gameplay mode applies fog of war with per-actor exploration history and viewport-limited rendering.
 
 ## Non-Goals
 - No visual redesign of the Design tab.
@@ -31,6 +36,10 @@ Level generation can appear to hang for larger token allocations. The current fl
 - Generation returns a compact `LevelGenerationResult` artifact.
 - Preview rendering consumes artifact asynchronously and can degrade gracefully.
 - Rendering failure must not block generation completion.
+- Guidance summary handoff goes through a dedicated `level-builder` adapter that can run in a web worker.
+- Builder contract includes:
+  - ASCII artifact (`lines[]`, joined `text`)
+  - Image artifact (`width`, `height`, RGBA pixel buffer + palette metadata)
 
 3. Introduce hard runtime guards
 - Per-request timeout (already introduced for web adapter).
@@ -47,6 +56,12 @@ Level generation can appear to hang for larger token allocations. The current fl
 - Move preview tile generation and canvas painting off critical completion path.
 - Use progressive preview (metadata first, visual second).
 - Add upper-bound rendering budget and skip policy.
+
+6. Add dedicated builder boundary
+- Keep LLM/orchestrator focused on guidance (layout intent + budgets + constraints).
+- Translate guidance to level synthesis inputs in runtime persona code.
+- Execute synthesis in adapters-web worker with in-process fallback for tests/unsupported environments.
+- Support regeneration entrypoints for `summary`, `levelGen`, and direct `tiles` to service both design-time and runtime/live scenarios.
 
 ## Proposed Deliverables
 - Runtime:
@@ -82,5 +97,4 @@ Level generation can appear to hang for larger token allocations. The current fl
 
 ## Open Questions
 - Should timeout defaults differ per phase (layout vs defender)?
-- Should preview rendering move to worker immediately or staged later?
 - Should benchmark include optional render-time mode for end-user expectation?

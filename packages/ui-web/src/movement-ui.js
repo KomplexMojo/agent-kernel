@@ -6,6 +6,15 @@ import {
 } from "../../runtime/src/contracts/domain-constants.js";
 
 const EVENT_STREAM_LIMIT = 6;
+const DEFAULT_VIEWPORT_SIZE = 50;
+const DEFAULT_VISION_RADIUS = 6;
+const VISIBILITY_MODE_SIMULATION_FULL = "simulation_full";
+const VISIBILITY_MODE_GAMEPLAY_FOG = "gameplay_fog";
+const KNOWN_VISIBILITY_MODES = new Set([
+  VISIBILITY_MODE_SIMULATION_FULL,
+  VISIBILITY_MODE_GAMEPLAY_FOG,
+]);
+const FOG_TILE_CHAR = "?";
 const ASCII_ACTOR_SYMBOLS = [
   "@",
   "A",
@@ -263,6 +272,131 @@ function findExit(baseTiles) {
   return null;
 }
 
+function parsePositiveInt(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const normalized = Math.floor(parsed);
+  return normalized > 0 ? normalized : fallback;
+}
+
+function normalizeVisibilityMode(mode) {
+  return KNOWN_VISIBILITY_MODES.has(mode) ? mode : VISIBILITY_MODE_SIMULATION_FULL;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function keyForCell(x, y) {
+  return `${x},${y}`;
+}
+
+function resolveBaseDimensions(baseTiles = []) {
+  const height = Array.isArray(baseTiles) ? baseTiles.length : 0;
+  const width = Array.isArray(baseTiles)
+    ? baseTiles.reduce((max, row) => Math.max(max, String(row || "").length), 0)
+    : 0;
+  return {
+    width: Math.max(0, width),
+    height: Math.max(0, height),
+    totalTiles: Math.max(0, width * height),
+  };
+}
+
+function collectVisionForActor({ baseTiles = [], actor = null, radius = DEFAULT_VISION_RADIUS } = {}) {
+  if (!actor?.position) return new Set();
+  const { width, height } = resolveBaseDimensions(baseTiles);
+  if (width <= 0 || height <= 0) return new Set();
+  const centerX = Number.isFinite(actor.position.x) ? actor.position.x : 0;
+  const centerY = Number.isFinite(actor.position.y) ? actor.position.y : 0;
+  const normalizedRadius = Math.max(1, parsePositiveInt(radius, DEFAULT_VISION_RADIUS));
+  const cells = new Set();
+  for (let y = centerY - normalizedRadius; y <= centerY + normalizedRadius; y += 1) {
+    if (y < 0 || y >= height) continue;
+    for (let x = centerX - normalizedRadius; x <= centerX + normalizedRadius; x += 1) {
+      if (x < 0 || x >= width) continue;
+      const distance = Math.abs(centerX - x) + Math.abs(centerY - y);
+      if (distance <= normalizedRadius) {
+        cells.add(keyForCell(x, y));
+      }
+    }
+  }
+  return cells;
+}
+
+function fogTilesByExploration(baseTiles = [], exploredCells = new Set()) {
+  if (!Array.isArray(baseTiles) || baseTiles.length === 0) return [];
+  return baseTiles.map((rowText, y) => {
+    const row = String(rowText || "");
+    let output = "";
+    for (let x = 0; x < row.length; x += 1) {
+      output += exploredCells.has(keyForCell(x, y)) ? row[x] : FOG_TILE_CHAR;
+    }
+    return output;
+  });
+}
+
+function resolveViewportWindow({
+  width,
+  height,
+  center = null,
+  viewportSize = DEFAULT_VIEWPORT_SIZE,
+} = {}) {
+  const normalizedWidth = Math.max(0, Number(width) || 0);
+  const normalizedHeight = Math.max(0, Number(height) || 0);
+  const targetSize = Math.max(1, parsePositiveInt(viewportSize, DEFAULT_VIEWPORT_SIZE));
+  const viewportWidth = Math.min(targetSize, normalizedWidth || targetSize);
+  const viewportHeight = Math.min(targetSize, normalizedHeight || targetSize);
+  const centerX = Number.isFinite(center?.x) ? center.x : Math.floor(normalizedWidth / 2);
+  const centerY = Number.isFinite(center?.y) ? center.y : Math.floor(normalizedHeight / 2);
+  const maxStartX = Math.max(0, normalizedWidth - viewportWidth);
+  const maxStartY = Math.max(0, normalizedHeight - viewportHeight);
+  const startX = clamp(Math.floor(centerX - viewportWidth / 2), 0, maxStartX);
+  const startY = clamp(Math.floor(centerY - viewportHeight / 2), 0, maxStartY);
+  return {
+    startX,
+    startY,
+    width: viewportWidth,
+    height: viewportHeight,
+    endX: startX + viewportWidth,
+    endY: startY + viewportHeight,
+  };
+}
+
+function cropTilesToViewport(baseTiles = [], viewport = null) {
+  if (!Array.isArray(baseTiles) || baseTiles.length === 0 || !viewport) return [];
+  const rows = [];
+  for (let y = viewport.startY; y < viewport.endY; y += 1) {
+    const row = String(baseTiles[y] || "");
+    rows.push(row.slice(viewport.startX, viewport.endX));
+  }
+  return rows;
+}
+
+function projectActorsForViewport(
+  actors = [],
+  { viewport = null, visibilityMask = null } = {},
+) {
+  if (!Array.isArray(actors) || !viewport) return [];
+  return actors
+    .filter((actor) => {
+      const x = actor?.position?.x;
+      const y = actor?.position?.y;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+      if (x < viewport.startX || x >= viewport.endX) return false;
+      if (y < viewport.startY || y >= viewport.endY) return false;
+      if (visibilityMask && !visibilityMask.has(keyForCell(x, y))) return false;
+      return true;
+    })
+    .map((actor) => ({
+      ...actor,
+      position: {
+        x: actor.position.x - viewport.startX,
+        y: actor.position.y - viewport.startY,
+      },
+    }));
+}
+
 export function formatAffinities(affinities = []) {
   if (!Array.isArray(affinities) || affinities.length === 0) {
     return "No affinities equipped";
@@ -317,16 +451,171 @@ export function setupPlayback({
   elements,
   affinityEffects,
   initCore,
+  visibility = {},
   onObservation,
 }) {
   let currentIndex = 0;
   let playing = false;
   let timer = null;
+  let visibilityMode = normalizeVisibilityMode(visibility?.mode);
+  let viewportSize = parsePositiveInt(visibility?.viewportSize, DEFAULT_VIEWPORT_SIZE);
+  let visionRadius = parsePositiveInt(visibility?.visionRadius, DEFAULT_VISION_RADIUS);
+  let viewerActorId = typeof visibility?.viewerActorId === "string" ? visibility.viewerActorId : actorIdLabel;
+  const exploredByActor = new Map();
+  const visibleNowByActor = new Map();
+  let latestVisibilitySummary = {
+    mode: visibilityMode,
+    viewerActorId: viewerActorId || null,
+    map: { width: 0, height: 0, totalTiles: 0 },
+    viewport: { startX: 0, startY: 0, width: 0, height: 0, endX: 0, endY: 0 },
+    actorStats: [],
+    viewer: null,
+  };
 
-  function render() {
+  function clearVisibilityTracking() {
+    exploredByActor.clear();
+    visibleNowByActor.clear();
+  }
+
+  function ensureExploredSet(actorId) {
+    const normalized = String(actorId || "");
+    if (!normalized) return new Set();
+    if (!exploredByActor.has(normalized)) {
+      exploredByActor.set(normalized, new Set());
+    }
+    return exploredByActor.get(normalized);
+  }
+
+  function sortedActors(actors = []) {
+    if (!Array.isArray(actors)) return [];
+    return actors.slice().sort((a, b) => String(a?.id || "").localeCompare(String(b?.id || "")));
+  }
+
+  function toPercent(part, total) {
+    if (!Number.isFinite(part) || !Number.isFinite(total) || total <= 0) return 0;
+    return Number(((part / total) * 100).toFixed(2));
+  }
+
+  function recordVisibilitySnapshot(frame, obs) {
+    const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : [];
+    const actors = sortedActors(obs?.actors || []);
+    const map = resolveBaseDimensions(baseTiles);
+
+    visibleNowByActor.clear();
+    actors.forEach((actor) => {
+      const actorId = String(actor?.id || "");
+      if (!actorId || !actor?.position) return;
+      const currentVision = collectVisionForActor({
+        baseTiles,
+        actor,
+        radius: visionRadius,
+      });
+      visibleNowByActor.set(actorId, currentVision);
+      const explored = ensureExploredSet(actorId);
+      currentVision.forEach((cellKey) => explored.add(cellKey));
+    });
+
+    if (!viewerActorId && actors.length > 0) {
+      viewerActorId = String(actors[0]?.id || "");
+    }
+
+    const actorStats = actors.map((actor) => {
+      const actorId = String(actor?.id || "");
+      const explored = exploredByActor.get(actorId) || new Set();
+      const visibleNow = visibleNowByActor.get(actorId) || new Set();
+      return {
+        id: actorId,
+        exploredTiles: explored.size,
+        visibleNowTiles: visibleNow.size,
+        exploredPercent: toPercent(explored.size, map.totalTiles),
+      };
+    });
+
+    return {
+      actors,
+      map,
+      actorStats,
+    };
+  }
+
+  function resolveViewerActor(actors = []) {
+    const normalizedViewer = String(viewerActorId || "");
+    if (normalizedViewer) {
+      const match = actors.find((actor) => String(actor?.id || "") === normalizedViewer);
+      if (match) return match;
+    }
+    const primary = actors.find((actor) => String(actor?.id || "") === String(actorIdLabel || ""));
+    if (primary) {
+      viewerActorId = String(primary.id || "");
+      return primary;
+    }
+    if (actors.length > 0) {
+      viewerActorId = String(actors[0]?.id || "");
+      return actors[0];
+    }
+    return null;
+  }
+
+  function cloneVisibilitySummary(summary = null) {
+    if (!summary || typeof summary !== "object") return null;
+    return {
+      ...summary,
+      map: summary.map ? { ...summary.map } : { width: 0, height: 0, totalTiles: 0 },
+      viewport: summary.viewport ? { ...summary.viewport } : null,
+      viewer: summary.viewer ? { ...summary.viewer } : null,
+      actorStats: Array.isArray(summary.actorStats)
+        ? summary.actorStats.map((entry) => ({ ...entry }))
+        : [],
+    };
+  }
+
+  function readSnapshot() {
     const frame = renderFrameBuffer(core, { actorIdLabel });
     const obs = readObservation(core, { actorIdLabel, affinityEffects });
-    const overlay = buildActorOverlay(frame.baseTiles, obs.actors);
+    const visibilityData = recordVisibilitySnapshot(frame, obs);
+    return { frame, obs, visibilityData };
+  }
+
+  function renderFromSnapshot({ frame, obs, visibilityData }) {
+    const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : [];
+    const map = visibilityData?.map || resolveBaseDimensions(baseTiles);
+    const allActors = visibilityData?.actors || sortedActors(obs?.actors || []);
+    const viewerActor = resolveViewerActor(allActors);
+    const viewerKey = viewerActor ? String(viewerActor.id || "") : "";
+    const viewerExplored = viewerKey ? (exploredByActor.get(viewerKey) || new Set()) : new Set();
+    const viewerVisibleNow = viewerKey ? (visibleNowByActor.get(viewerKey) || new Set()) : new Set();
+
+    let renderTiles = baseTiles;
+    let renderActors = allActors;
+    let actorListEntries = allActors;
+    let viewport = resolveViewportWindow({
+      width: map.width,
+      height: map.height,
+      center: viewerActor?.position || null,
+      viewportSize: Math.max(map.width, map.height, 1),
+    });
+
+    if (visibilityMode === VISIBILITY_MODE_GAMEPLAY_FOG) {
+      const fogged = fogTilesByExploration(baseTiles, viewerExplored);
+      viewport = resolveViewportWindow({
+        width: map.width,
+        height: map.height,
+        center: viewerActor?.position || null,
+        viewportSize,
+      });
+      renderTiles = cropTilesToViewport(fogged, viewport);
+      renderActors = projectActorsForViewport(allActors, {
+        viewport,
+        visibilityMask: viewerExplored,
+      });
+      actorListEntries = allActors.filter((actor) => {
+        const x = actor?.position?.x;
+        const y = actor?.position?.y;
+        return Number.isFinite(x) && Number.isFinite(y) && viewerExplored.has(keyForCell(x, y));
+      });
+    }
+
+    const overlay = buildActorOverlay(renderTiles, renderActors);
     if (elements.frame) {
       if ("innerHTML" in elements.frame) {
         elements.frame.innerHTML = overlay.html || overlay.text;
@@ -334,13 +623,13 @@ export function setupPlayback({
         elements.frame.textContent = overlay.text;
       }
     }
-    if (elements.baseTiles) elements.baseTiles.textContent = frame.baseTiles.join("\n");
+    if (elements.baseTiles) elements.baseTiles.textContent = renderTiles.join("\n");
     if (elements.actorId) elements.actorId.textContent = actorIdLabel;
     if (elements.actorPos) elements.actorPos.textContent = `(${obs.actor.x}, ${obs.actor.y})`;
     if (elements.actorHp) elements.actorHp.textContent = `${obs.actor.hp}/${obs.actor.maxHp}`;
     if (elements.tick) elements.tick.textContent = String(frame.tick);
     if (elements.status) {
-      const exit = findExit(frame.baseTiles);
+      const exit = findExit(baseTiles);
       const atExit = exit && obs.actor.x === exit.x && obs.actor.y === exit.y;
       elements.status.textContent = atExit ? "Reached exit" : currentIndex >= actions.length ? "Out of actions" : "Ready";
     }
@@ -352,16 +641,16 @@ export function setupPlayback({
     if (elements.stepForward) elements.stepForward.disabled = currentIndex >= actions.length;
     if (elements.reset) elements.reset.disabled = false;
     if (elements.actorList) {
-      const list = obs.actors || [];
-      elements.actorList.textContent = list.length
-        ? list.map((entry) => renderActorInspectSummary(entry)).join("\n")
+      elements.actorList.textContent = actorListEntries.length
+        ? actorListEntries.map((entry) => renderActorInspectSummary(entry)).join("\n")
         : "-";
     }
     if (elements.affinityList) {
-      const list = obs.actors || [];
-      const hasAffinityData = list.some((entry) => (entry.affinities && entry.affinities.length) || (entry.abilities && entry.abilities.length));
-      elements.affinityList.textContent = list.length && hasAffinityData
-        ? list.map((entry) => renderActorSummary(entry)).join("\n")
+      const hasAffinityData = actorListEntries.some(
+        (entry) => (entry.affinities && entry.affinities.length) || (entry.abilities && entry.abilities.length),
+      );
+      elements.affinityList.textContent = actorListEntries.length && hasAffinityData
+        ? actorListEntries.map((entry) => renderActorSummary(entry)).join("\n")
         : "No affinities resolved";
     }
     if (elements.tileActorList) {
@@ -391,9 +680,39 @@ export function setupPlayback({
     if (elements.eventStreamCount) {
       elements.eventStreamCount.textContent = String(actions.length);
     }
+
+    latestVisibilitySummary = {
+      mode: visibilityMode,
+      viewerActorId: viewerKey || null,
+      map,
+      viewport,
+      actorStats: Array.isArray(visibilityData?.actorStats) ? visibilityData.actorStats : [],
+      viewer: viewerActor
+        ? {
+          id: viewerKey,
+          exploredTiles: viewerExplored.size,
+          visibleNowTiles: viewerVisibleNow.size,
+          exploredPercent: toPercent(viewerExplored.size, map.totalTiles),
+        }
+        : null,
+    };
+
     if (typeof onObservation === "function") {
-      onObservation({ observation: obs, frame, overlay, playing, index: currentIndex });
+      onObservation({
+        observation: obs,
+        frame,
+        overlay,
+        playing,
+        index: currentIndex,
+        actorIdLabel,
+        visibility: cloneVisibilitySummary(latestVisibilitySummary),
+      });
     }
+  }
+
+  function render() {
+    const snapshot = readSnapshot();
+    renderFromSnapshot(snapshot);
   }
 
   function resetCore() {
@@ -422,11 +741,14 @@ export function setupPlayback({
   function gotoIndex(target) {
     const clamped = Math.max(0, Math.min(actions.length, target));
     resetCore();
+    clearVisibilityTracking();
+    let snapshot = readSnapshot();
     for (let i = 0; i < clamped; i += 1) {
       applyAction(actions[i]);
+      snapshot = readSnapshot();
     }
     currentIndex = clamped;
-    render();
+    renderFromSnapshot(snapshot);
   }
 
   function stepForward() {
@@ -479,7 +801,29 @@ export function setupPlayback({
     gotoIndex(0);
   }
 
+  function setVisibilityMode(mode) {
+    visibilityMode = normalizeVisibilityMode(mode);
+    render();
+  }
+
+  function setViewerActor(actorId) {
+    if (!actorId) return;
+    viewerActorId = String(actorId);
+    render();
+  }
+
+  function setViewportSize(size) {
+    viewportSize = Math.max(1, parsePositiveInt(size, DEFAULT_VIEWPORT_SIZE));
+    render();
+  }
+
+  function setVisionRadius(size) {
+    visionRadius = Math.max(1, parsePositiveInt(size, DEFAULT_VISION_RADIUS));
+    gotoIndex(currentIndex);
+  }
+
   resetCore();
+  clearVisibilityTracking();
   render();
 
   return {
@@ -490,6 +834,11 @@ export function setupPlayback({
     toggle,
     reset,
     gotoIndex,
+    setVisibilityMode,
+    setViewerActor,
+    setViewportSize,
+    setVisionRadius,
+    getVisibilitySummary: () => cloneVisibilitySummary(latestVisibilitySummary),
     getIndex: () => currentIndex,
     isPlaying: () => playing,
   };

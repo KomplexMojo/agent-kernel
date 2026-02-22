@@ -44,7 +44,8 @@ test("tier generators produce deterministic actors and layouts", async () => {
     width: 40,
     height: 40,
     seed: 2606,
-    profile: "rectangular",
+    roomCount: 6,
+    corridorWidth: 1,
   });
   assert.equal(layoutResult.ok, true);
   const layout = layoutResult.value;

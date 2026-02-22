@@ -14,13 +14,28 @@ function resolveTierSpec(tier, overrides = {}) {
   if (!base) {
     throw new Error(`Unknown tier ${tier}`);
   }
+  const width = overrides.width ?? base.width;
+  const height = overrides.height ?? base.height;
+  const minSide = Math.max(3, Math.floor(Math.min(width, height) / 20));
+  const maxSide = Math.max(minSide, Math.floor(Math.min(width, height) / 8));
   return {
     tier,
-    width: overrides.width ?? base.width,
-    height: overrides.height ?? base.height,
+    width,
+    height,
     count: overrides.count ?? base.count,
     seed: Number.isFinite(overrides.seed) ? overrides.seed : base.seed,
-    profile: overrides.profile ?? (tier >= 6 ? "rooms" : "rectangular"),
+    roomCount: Number.isInteger(overrides.roomCount)
+      ? Math.max(1, overrides.roomCount)
+      : Math.max(2, Math.min(24, Math.round(Math.min(width, height) / 40))),
+    roomMinSize: Number.isInteger(overrides.roomMinSize)
+      ? Math.max(1, overrides.roomMinSize)
+      : minSide,
+    roomMaxSize: Number.isInteger(overrides.roomMaxSize)
+      ? Math.max(1, overrides.roomMaxSize)
+      : maxSide,
+    corridorWidth: Number.isInteger(overrides.corridorWidth)
+      ? Math.max(1, overrides.corridorWidth)
+      : 1,
     edgePadding: overrides.edgePadding ?? 1,
     idPrefix: overrides.idPrefix ?? `tier${tier}_actor`,
   };
@@ -51,7 +66,12 @@ async function generateTierLayout(options = {}) {
     width: spec.width,
     height: spec.height,
     seed: spec.seed,
-    shape: { profile: spec.profile },
+    shape: {
+      roomCount: spec.roomCount,
+      roomMinSize: spec.roomMinSize,
+      roomMaxSize: spec.roomMaxSize,
+      corridorWidth: spec.corridorWidth,
+    },
   };
   if (Array.isArray(options.traps)) {
     input.traps = options.traps;

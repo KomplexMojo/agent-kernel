@@ -144,9 +144,12 @@ function buildPhaseContext({ roomsSelections = [], actorSelections = [], layout 
 
   const rooms = formatSelections("Rooms approved", roomsSelections);
   const actors = formatSelections("Actors approved", actorSelections);
-  const layoutLine = layout
-    ? `Layout tiles: floor ${layout.floorTiles}, hallway ${layout.hallwayTiles}`
-    : "";
+  const layoutLine = (() => {
+    if (!layout) return "";
+    const floorTiles = Number.isInteger(layout.floorTiles) ? layout.floorTiles : 0;
+    const hallwayTiles = Number.isInteger(layout.hallwayTiles) ? layout.hallwayTiles : 0;
+    return `Layout tiles: floor ${floorTiles}, walkable total ${floorTiles + hallwayTiles}`;
+  })();
   return [layoutLine, rooms, actors].filter(Boolean).join(" | ");
 }
 
@@ -179,11 +182,16 @@ function buildPhaseRepairPrompt({
   missingSelections,
   layoutCosts,
 } = {}) {
-  const affinities = allowedOptions?.affinities?.length ? allowedOptions.affinities : ALLOWED_AFFINITIES;
-  const motivations = allowedOptions?.motivations?.length ? allowedOptions.motivations : ALLOWED_MOTIVATIONS;
-  const expressions = ALLOWED_AFFINITY_EXPRESSIONS;
+  const isLayoutPhase = phase === "layout_only";
+  const affinities = !isLayoutPhase
+    ? (allowedOptions?.affinities?.length ? allowedOptions.affinities : ALLOWED_AFFINITIES)
+    : [];
+  const motivations = !isLayoutPhase
+    ? (allowedOptions?.motivations?.length ? allowedOptions.motivations : ALLOWED_MOTIVATIONS)
+    : [];
+  const expressions = !isLayoutPhase ? ALLOWED_AFFINITY_EXPRESSIONS : [];
   const phaseRequirement =
-    phase === "layout_only"
+    isLayoutPhase
       ? LLM_REPAIR_TEXT.phaseLayoutRequirement
       : LLM_REPAIR_TEXT.phaseActorsRequirement;
   return buildLlmRepairPromptTemplate({
@@ -193,11 +201,11 @@ function buildPhaseRepairPrompt({
     affinities,
     affinityExpressions: expressions,
     motivations,
-    allowedPairsText: phase === "layout_only" ? "" : allowedPairsText,
+    allowedPairsText: isLayoutPhase ? "" : allowedPairsText,
     phaseRequirement,
     extraLines: [
       phase === "layout_only"
-        ? `Tile costs: floor ${layoutCosts?.floorTiles ?? 1}, hallway ${layoutCosts?.hallwayTiles ?? 1} tokens each.`
+        ? `Tile costs: floor ${layoutCosts?.floorTiles ?? 1} tokens each.`
         : null,
       missingSelections ? `Unmatched picks: ${missingSelections}` : null,
       phase === "layout_only"
@@ -599,7 +607,6 @@ async function runPhase({
   phase,
   phaseContext,
   layoutCosts,
-  layoutProfiles,
   affinities,
   strict,
   format,
@@ -633,7 +640,6 @@ async function runPhase({
     allowedPairsText,
     context: phaseContext,
     layoutCosts,
-    layoutProfiles,
     affinities: promptAffinities,
     affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
     motivations: promptMotivations,
@@ -1103,7 +1109,6 @@ export async function runLlmBudgetLoop({
   maxActorRounds = DEFAULT_MAX_ACTOR_ROUNDS,
   optionsByPhase,
   defenderAffinities,
-  layoutProfiles,
   layoutPhaseContext = "",
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
@@ -1197,7 +1202,6 @@ export async function runLlmBudgetLoop({
     phase: "layout_only",
     phaseContext: layoutPhaseContext,
     layoutCosts,
-    layoutProfiles,
     strict,
     format: llmFormat,
     stream,

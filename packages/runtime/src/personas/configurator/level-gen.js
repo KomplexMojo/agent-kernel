@@ -6,15 +6,31 @@ import {
   TRAP_VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
 
-const LEVEL_GEN_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
-const SPARSE_ISLANDS_MAX_FILL_RATIO = 0.45;
-
 const DEFAULT_TRAP_EXPRESSION = DEFAULT_AFFINITY_EXPRESSION;
 const DEFAULT_TRAP_STACKS = 1;
 const DEFAULT_TRAP_BLOCKING = false;
+const LEVEL_PATTERN_TYPES = Object.freeze(["none", "grid", "diagonal_grid", "concentric_circles"]);
 
-function isNumber(value) {
-  return typeof value === "number" && !Number.isNaN(value);
+function normalizePatternType(rawPattern, errors) {
+  if (typeof rawPattern !== "string") {
+    pushError(errors, "shape.pattern", "invalid_pattern");
+    return LEVEL_GEN_DEFAULTS.pattern;
+  }
+  const normalizedPattern = rawPattern.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalizedPattern === "horizontal_vertical_grid" || normalizedPattern === "horizontal_verticle_grid") {
+    return "grid";
+  }
+  if (normalizedPattern === "diagonal") {
+    return "diagonal_grid";
+  }
+  if (normalizedPattern === "concentric") {
+    return "concentric_circles";
+  }
+  if (!LEVEL_PATTERN_TYPES.includes(normalizedPattern)) {
+    pushError(errors, "shape.pattern", "invalid_pattern");
+    return LEVEL_GEN_DEFAULTS.pattern;
+  }
+  return normalizedPattern;
 }
 
 function isPlainObject(value) {
@@ -86,20 +102,6 @@ function clampOptionalInt(value, field, min, max, warnings, errors, defaultValue
   if (!isInteger(value)) {
     pushError(errors, field, "invalid_integer");
     return defaultValue;
-  }
-  if (value < min || value > max) {
-    const clamped = clampNumber(value, min, max);
-    pushWarning(warnings, field, "clamped", value, clamped);
-    return clamped;
-  }
-  return value;
-}
-
-function clampOptionalNumber(value, field, min, max, warnings, errors) {
-  if (value === undefined) return undefined;
-  if (!isNumber(value)) {
-    pushError(errors, field, "invalid_number");
-    return undefined;
   }
   if (value < min || value > max) {
     const clamped = clampNumber(value, min, max);
@@ -192,68 +194,99 @@ export function normalizeLevelGenInput(input = {}) {
   const theme = readOptionalString(input.theme, "theme", errors);
 
   const shapeInput = input.shape || {};
-  const profile = shapeInput.profile ?? LEVEL_GEN_DEFAULTS.profile;
-  if (!LEVEL_GEN_PROFILES.includes(profile)) {
-    pushError(errors, "shape.profile", "invalid_profile");
-  }
-
-  const density = clampOptionalNumber(shapeInput.density, "shape.density", 0, 1, warnings, errors);
-  const clusterSize = clampOptionalInt(shapeInput.clusterSize, "shape.clusterSize", 0, Number.MAX_SAFE_INTEGER, warnings, errors);
 
   const maxRoomSize = width && height ? Math.max(1, Math.min(width, height) - 2) : 1;
   const maxRoomCount = width && height ? Math.max(1, (width - 2) * (height - 2)) : Number.MAX_SAFE_INTEGER;
-  const roomCount =
-    profile === "rooms"
-      ? clampOptionalInt(
-          shapeInput.roomCount,
-          "shape.roomCount",
-          1,
-          maxRoomCount,
-          warnings,
-          errors,
-          LEVEL_GEN_DEFAULTS.roomCount,
-        )
-      : undefined;
-  const roomMinSize =
-    profile === "rooms"
-      ? clampOptionalInt(
-          shapeInput.roomMinSize,
-          "shape.roomMinSize",
-          1,
-          maxRoomSize,
-          warnings,
-          errors,
-          LEVEL_GEN_DEFAULTS.roomMinSize,
-        )
-      : undefined;
+  const roomCount = clampOptionalInt(
+    shapeInput.roomCount,
+    "shape.roomCount",
+    1,
+    maxRoomCount,
+    warnings,
+    errors,
+    LEVEL_GEN_DEFAULTS.roomCount,
+  );
+  const roomMinSize = clampOptionalInt(
+    shapeInput.roomMinSize,
+    "shape.roomMinSize",
+    1,
+    maxRoomSize,
+    warnings,
+    errors,
+    LEVEL_GEN_DEFAULTS.roomMinSize,
+  );
   let roomMaxSize =
-    profile === "rooms"
-      ? clampOptionalInt(
-          shapeInput.roomMaxSize,
-          "shape.roomMaxSize",
-          1,
-          maxRoomSize,
-          warnings,
-          errors,
-          LEVEL_GEN_DEFAULTS.roomMaxSize,
-        )
-      : undefined;
-  if (profile === "rooms" && roomMinSize !== undefined && roomMaxSize !== undefined && roomMaxSize < roomMinSize) {
+    clampOptionalInt(
+      shapeInput.roomMaxSize,
+      "shape.roomMaxSize",
+      1,
+      maxRoomSize,
+      warnings,
+      errors,
+      LEVEL_GEN_DEFAULTS.roomMaxSize,
+    );
+  if (roomMinSize !== undefined && roomMaxSize !== undefined && roomMaxSize < roomMinSize) {
     pushWarning(warnings, "shape.roomMaxSize", "clamped", roomMaxSize, roomMinSize);
     roomMaxSize = roomMinSize;
   }
-  const corridorWidth =
-    profile === "rooms"
-      ? clampOptionalInt(
-          shapeInput.corridorWidth,
-          "shape.corridorWidth",
-          1,
-          maxRoomSize,
-          warnings,
-          errors,
-          LEVEL_GEN_DEFAULTS.corridorWidth,
-        )
-      : undefined;
+  const corridorWidth = clampOptionalInt(
+    shapeInput.corridorWidth,
+    "shape.corridorWidth",
+    1,
+    maxRoomSize,
+    warnings,
+    errors,
+    LEVEL_GEN_DEFAULTS.corridorWidth,
+  );
+  const rawPattern = shapeInput.pattern ?? LEVEL_GEN_DEFAULTS.pattern;
+  const pattern = normalizePatternType(rawPattern, errors);
+  const maxPatternStride = width && height ? Math.max(2, Math.max(width, height) - 2) : 2;
+  const maxPatternInset = Math.max(0, maxRoomSize - 1);
+  const patternSpacing = clampOptionalInt(
+    shapeInput.patternSpacing,
+    "shape.patternSpacing",
+    2,
+    maxPatternStride,
+    warnings,
+    errors,
+    LEVEL_GEN_DEFAULTS.patternSpacing,
+  );
+  const patternLineWidth = clampOptionalInt(
+    shapeInput.patternLineWidth,
+    "shape.patternLineWidth",
+    1,
+    maxRoomSize,
+    warnings,
+    errors,
+    LEVEL_GEN_DEFAULTS.patternLineWidth,
+  );
+  const patternGapEvery = clampOptionalInt(
+    shapeInput.patternGapEvery,
+    "shape.patternGapEvery",
+    2,
+    Math.max(2, maxRoomSize),
+    warnings,
+    errors,
+    LEVEL_GEN_DEFAULTS.patternGapEvery,
+  );
+  const patternInset = clampOptionalInt(
+    shapeInput.patternInset,
+    "shape.patternInset",
+    0,
+    maxPatternInset,
+    warnings,
+    errors,
+    LEVEL_GEN_DEFAULTS.patternInset,
+  );
+  const patternInfillPercent = clampOptionalInt(
+    shapeInput.patternInfillPercent,
+    "shape.patternInfillPercent",
+    1,
+    100,
+    warnings,
+    errors,
+    undefined,
+  );
 
   const maxDistance = width && height ? Math.max(0, width - 1) + Math.max(0, height - 1) : 0;
   const spawnInput = input.spawn || {};
@@ -305,34 +338,19 @@ export function normalizeLevelGenInput(input = {}) {
     return { ok, errors, warnings, value: null };
   }
 
-  let resolvedProfile = profile;
-  if (
-    profile === "sparse_islands"
-    && Number.isInteger(walkableTilesTarget)
-    && walkableTilesTarget > 0
-    && Number.isInteger(availableWalkableTiles)
-    && availableWalkableTiles > 0
-  ) {
-    const fillRatio = walkableTilesTarget / availableWalkableTiles;
-    if (fillRatio > SPARSE_ISLANDS_MAX_FILL_RATIO) {
-      resolvedProfile = "clustered_islands";
-      pushWarning(
-        warnings,
-        "shape.profile",
-        "adjusted_for_walkable_fill_target",
-        "sparse_islands",
-        resolvedProfile,
-      );
-    }
-  }
-
-  const shape = { profile: resolvedProfile };
-  if (density !== undefined) shape.density = density;
-  if (clusterSize !== undefined) shape.clusterSize = clusterSize;
+  const shape = {};
   if (roomCount !== undefined) shape.roomCount = roomCount;
   if (roomMinSize !== undefined) shape.roomMinSize = roomMinSize;
   if (roomMaxSize !== undefined) shape.roomMaxSize = roomMaxSize;
   if (corridorWidth !== undefined) shape.corridorWidth = corridorWidth;
+  if (pattern !== undefined) shape.pattern = pattern;
+  if (pattern !== "none") {
+    if (patternSpacing !== undefined) shape.patternSpacing = patternSpacing;
+    if (patternLineWidth !== undefined) shape.patternLineWidth = patternLineWidth;
+    if (patternGapEvery !== undefined) shape.patternGapEvery = patternGapEvery;
+    if (patternInset !== undefined) shape.patternInset = patternInset;
+    if (patternInfillPercent !== undefined) shape.patternInfillPercent = patternInfillPercent;
+  }
 
   const value = {
     width,
@@ -350,9 +368,7 @@ export function normalizeLevelGenInput(input = {}) {
   return { ok, errors: [], warnings, value };
 }
 
-export { LEVEL_GEN_PROFILES };
 export const LEVEL_GEN_LIMITS = Object.freeze({
   maxLevelSide: null,
   maxWalkableTilesTarget: null,
-  sparseMaxFillRatio: SPARSE_ISLANDS_MAX_FILL_RATIO,
 });

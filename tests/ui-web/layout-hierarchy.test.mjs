@@ -17,5 +17,8 @@ test("layout hierarchy styles include workspace grid and inspector drawer", () =
   const html = readHtml();
   assert.match(html, /\.workspace\s*\{[^}]*grid-template-columns:/);
   assert.match(html, /\.inspector-shell\s*\{[^}]*position:\s*sticky/);
+  assert.match(html, /#frame-buffer\s*\{[^}]*overflow:\s*auto/);
+  assert.match(html, /id="actor-inspector"[^>]*hidden/);
+  assert.match(html, /id="actor-inspector-close"/);
   assert.match(html, /id="actor-inspector"/);
 });

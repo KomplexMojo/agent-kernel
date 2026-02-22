@@ -62,12 +62,63 @@ function roomAnchor(tiles, room) {
   };
 }
 
+function roomCenter(room) {
+  return {
+    x: room.x + Math.floor(room.width / 2),
+    y: room.y + Math.floor(room.height / 2),
+  };
+}
+
+function roomForPoint(rooms, point) {
+  return rooms.find((room) => (
+    point.x >= room.x
+    && point.x < room.x + room.width
+    && point.y >= room.y
+    && point.y < room.y + room.height
+  )) || null;
+}
+
+function pickGreatestDeltaPair(rooms) {
+  let best = null;
+  for (let i = 0; i < rooms.length - 1; i += 1) {
+    for (let j = i + 1; j < rooms.length; j += 1) {
+      const a = roomCenter(rooms[i]);
+      const b = roomCenter(rooms[j]);
+      const dx = Math.abs(a.x - b.x);
+      const dy = Math.abs(a.y - b.y);
+      const score = {
+        total: dx + dy,
+        minAxis: Math.min(dx, dy),
+        maxAxis: Math.max(dx, dy),
+        i,
+        j,
+      };
+      if (!best) {
+        best = score;
+        continue;
+      }
+      if (score.total > best.total) {
+        best = score;
+        continue;
+      }
+      if (score.total === best.total && score.minAxis > best.minAxis) {
+        best = score;
+        continue;
+      }
+      if (score.total === best.total && score.minAxis === best.minAxis && score.maxAxis > best.maxAxis) {
+        best = score;
+      }
+    }
+  }
+  return best;
+}
+
 tiers.forEach((tier) => {
   const normalized = normalizeLevelGenInput({
     width: tier.width,
     height: tier.height,
     seed: tier.seed,
-    shape: { profile: "rooms", roomCount: tier.roomCount },
+    shape: { roomCount: tier.roomCount },
   });
   assert.equal(normalized.ok, true);
   const layout = generateGridLayout(normalized.value);
@@ -94,6 +145,17 @@ tiers.forEach((tier) => {
   assert.equal(layout.connectivity.connectedRooms, layout.rooms.length);
   assert.equal(layout.connectivity.spawnReachable, true);
   assert.equal(layout.connectivity.exitReachable, true);
+
+  const spawnRoom = roomForPoint(layout.rooms, layout.spawn);
+  const exitRoom = roomForPoint(layout.rooms, layout.exit);
+  assert.ok(spawnRoom, "spawn should land inside a room");
+  assert.ok(exitRoom, "exit should land inside a room");
+
+  const bestPair = pickGreatestDeltaPair(layout.rooms);
+  assert.ok(bestPair, "expected at least two rooms for delta pair");
+  const pairRooms = [layout.rooms[bestPair.i], layout.rooms[bestPair.j]];
+  assert.equal(pairRooms.includes(spawnRoom), true, "spawn room should be part of max-delta pair");
+  assert.equal(pairRooms.includes(exitRoom), true, "exit room should be part of max-delta pair");
 });
 `;
   runEsm(script);

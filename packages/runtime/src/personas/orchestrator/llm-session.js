@@ -192,6 +192,26 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, ph
       value.actors = [value.actor];
     }
   }
+  if (!Array.isArray(value.attackerConfigs)) {
+    if (value.attackerConfigs && typeof value.attackerConfigs === "object") {
+      value.attackerConfigs = [value.attackerConfigs];
+    } else if (value.attackerConfig && typeof value.attackerConfig === "object") {
+      value.attackerConfigs = [{ ...value.attackerConfig }];
+    }
+  }
+  if (Array.isArray(value.attackerConfigs)) {
+    value.attackerConfigs = value.attackerConfigs
+      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+      .map((entry) => ({ ...entry }));
+    if (value.attackerConfigs.length > 0) {
+      if (!value.attackerConfig || typeof value.attackerConfig !== "object" || Array.isArray(value.attackerConfig)) {
+        value.attackerConfig = { ...value.attackerConfigs[0] };
+      }
+      if (!Number.isInteger(value.attackerCount) || value.attackerCount <= 0) {
+        value.attackerCount = value.attackerConfigs.length;
+      }
+    }
+  }
 
   const sanitizeTokenHint = (entry) => {
     const tokenHint = entry.tokenHint;
@@ -366,31 +386,6 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, ph
         }
       }
     });
-    let wallTiles = 0;
-    const legacyWallRaw = value.layout.wallTiles;
-    if (Number.isInteger(legacyWallRaw) && legacyWallRaw >= 0) {
-      wallTiles = legacyWallRaw;
-    } else if (typeof legacyWallRaw === "string") {
-      const parsed = Number(legacyWallRaw);
-      if (Number.isInteger(parsed) && parsed >= 0) {
-        wallTiles = parsed;
-      }
-    }
-    if (wallTiles > 0) {
-      const floorTiles = nextLayout.floorTiles || 0;
-      const hallwayTiles = nextLayout.hallwayTiles || 0;
-      const walkableTiles = floorTiles + hallwayTiles;
-      if (walkableTiles > 0) {
-        const floorShare = Math.floor((wallTiles * floorTiles) / walkableTiles);
-        const hallwayShare = wallTiles - floorShare;
-        nextLayout.floorTiles = floorTiles + floorShare;
-        nextLayout.hallwayTiles = hallwayTiles + hallwayShare;
-      } else {
-        const floorShare = Math.ceil(wallTiles / 2);
-        nextLayout.floorTiles = floorShare;
-        nextLayout.hallwayTiles = wallTiles - floorShare;
-      }
-    }
     if (Object.keys(nextLayout).length > 0) {
       value.layout = nextLayout;
     } else {
@@ -442,9 +437,9 @@ function buildRepairRequestOptions(options, { errors, phase } = {}) {
   }
   const next = options && typeof options === "object" ? { ...options } : {};
   const current = Number.isInteger(next.num_predict) && next.num_predict > 0 ? next.num_predict : 0;
-  const minByPhase = phase === "actors_only" ? 320 : 160;
-  const expanded = Math.max(minByPhase, current + 120, Math.ceil(current * 1.75));
-  next.num_predict = Math.min(expanded, 768);
+  const minByPhase = phase === "actors_only" ? 480 : 320;
+  const expanded = Math.max(minByPhase, current + 240, Math.ceil(current * 2));
+  next.num_predict = Math.min(expanded, 2048);
   return next;
 }
 

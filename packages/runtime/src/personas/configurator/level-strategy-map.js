@@ -1,23 +1,19 @@
 const STRATEGY_PRESETS = Object.freeze({
-  "rooms:rectangular": {
-    shape: { profile: "rectangular" },
+  "rooms:connected": {
+    shape: { roomCount: 4, roomMinSize: 3, roomMaxSize: 9, corridorWidth: 1 },
   },
-  "rooms:sparse": {
-    shape: { profile: "sparse_islands", density: 0.25 },
+  "rooms:compact": {
+    shape: { roomCount: 6, roomMinSize: 3, roomMaxSize: 6, corridorWidth: 1 },
   },
-  "rooms:dense": {
-    shape: { profile: "sparse_islands", density: 0.55 },
-  },
-  "rooms:clustered": {
-    shape: { profile: "clustered_islands", clusterSize: 8 },
+  "rooms:expansive": {
+    shape: { roomCount: 3, roomMinSize: 6, roomMaxSize: 14, corridorWidth: 2 },
   },
 });
 
 const STRATEGY_PRIORITY = Object.freeze([
-  "rooms:clustered",
-  "rooms:dense",
-  "rooms:sparse",
-  "rooms:rectangular",
+  "rooms:expansive",
+  "rooms:compact",
+  "rooms:connected",
 ]);
 
 function normalizeTag(tag) {
@@ -65,23 +61,11 @@ function applyShapeOverrides(baseShape, overrides) {
   if (!overrides?.shape) return baseShape;
   const nextShape = baseShape ? { ...baseShape } : {};
   const overrideShape = overrides.shape;
-  const hasProfile = typeof nextShape.profile === "string";
-
-  if (!hasProfile && overrideShape.profile) {
-    nextShape.profile = overrideShape.profile;
-  }
-
-  if (!nextShape.profile || !overrideShape.profile || nextShape.profile !== overrideShape.profile) {
-    return nextShape;
-  }
-
-  if (nextShape.profile === "sparse_islands" && nextShape.density === undefined && overrideShape.density !== undefined) {
-    nextShape.density = overrideShape.density;
-  }
-  if (nextShape.profile === "clustered_islands" && nextShape.clusterSize === undefined && overrideShape.clusterSize !== undefined) {
-    nextShape.clusterSize = overrideShape.clusterSize;
-  }
-
+  ["roomCount", "roomMinSize", "roomMaxSize", "corridorWidth"].forEach((field) => {
+    if (nextShape[field] === undefined && overrideShape[field] !== undefined) {
+      nextShape[field] = overrideShape[field];
+    }
+  });
   return nextShape;
 }
 

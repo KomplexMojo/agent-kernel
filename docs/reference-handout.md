@@ -149,6 +149,8 @@ stateDiagram-v2
 - Persona FSMs are pure, clock-injected, serializable; tick orchestrator drives phases.
 - Effects are data-only with deterministic ids/requestIds and fulfillment hints; adapters fulfill `solver_request`, `need_external_fact` (fulfill/defer), `log`, `telemetry`, and `limit_violation` without core IO.
 - Browser-first, replayable runs.
+- Level building is adapter-driven: guidance -> builder worker/in-process port -> ASCII + image artifacts; regeneration must be callable from design, simulation, and live gameplay paths.
+- Fog-of-war gameplay rendering is view-layer policy: each actor tracks explored cells; simulation can switch between full-map review and actor-scoped fog+viewport mode.
 
 ## Proposed / Not Yet Implemented
 - External fact vault persistence beyond fixtures (cache + replay).

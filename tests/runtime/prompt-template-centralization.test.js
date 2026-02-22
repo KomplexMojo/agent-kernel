@@ -14,7 +14,7 @@ const SEARCH_DIRS = [
 const MARKERS = [
   "You are a dungeon level planner.",
   "You are a dungeon defender strategist.",
-  "Your previous response failed validation. Fix it and return corrected JSON only.",
+  "You are a JSON repair assistant.",
   "You are an agent that returns a single JSON object that conforms to the BuildSpec contract.",
 ];
 

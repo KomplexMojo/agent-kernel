@@ -135,6 +135,19 @@ controller.gotoIndex(actionFixture.actions.length);
 assert.equal(elements.status.textContent, "Reached exit");
 assert.equal(elements.stepForward.disabled, true);
 assert.equal(elements.playButton.disabled, true);
+controller.reset();
+controller.setVisibilityMode("gameplay_fog");
+controller.setViewerActor("actor_mvp");
+controller.setVisionRadius(1);
+controller.setViewportSize(5);
+const fogLines = elements.frame.textContent.trim().split("\\n");
+assert.ok(fogLines.length <= 5);
+assert.ok(fogLines.every((row) => row.length <= 5));
+assert.ok(elements.frame.textContent.includes("?"));
+const visibility = controller.getVisibilitySummary();
+assert.equal(visibility.mode, "gameplay_fog");
+assert.equal(visibility.viewerActorId, "actor_mvp");
+assert.ok(visibility.viewer.exploredTiles > 0);
 `;
 
   await readFile(path.resolve(root, "build/core-as.wasm")); // ensure wasm exists before running

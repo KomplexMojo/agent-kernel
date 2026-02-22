@@ -8,7 +8,7 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
 
   const summary = {
     budgetTokens: 1000,
-    layout: { wallTiles: 10, floorTiles: 10, hallwayTiles: 10 },
+    layout: { floorTiles: 10, hallwayTiles: 10 },
   };
   const actorSet = [
     { source: "room", id: "room_1", role: "stationary", affinity: "fire", count: 2, tokenHint: 50 },
@@ -38,10 +38,10 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
     },
   });
 
-  assert.equal(ledger.totalSpentTokens, 378);
-  assert.equal(ledger.remainingTokens, 622);
+  assert.equal(ledger.totalSpentTokens, 368);
+  assert.equal(ledger.remainingTokens, 632);
   assert.equal(ledger.overBudget, false);
-  assert.equal(ledger.categories.levelConfig.spentTokens, 130);
+  assert.equal(ledger.categories.levelConfig.spentTokens, 120);
   assert.equal(ledger.categories.actorBase.spentTokens, 160);
   assert.equal(ledger.categories.actorConfiguration.spentTokens, 88);
   assert.ok(ledger.lineItems.some((entry) => entry.category === "levelConfig"));
@@ -57,7 +57,7 @@ test("buildDesignSpendLedger flags over-budget totals", async () => {
   const ledger = buildDesignSpendLedger({
     summary: {
       budgetTokens: 100,
-      layout: { wallTiles: 50, floorTiles: 50, hallwayTiles: 50 },
+      layout: { floorTiles: 60, hallwayTiles: 60 },
     },
     actorSet: [],
   });
@@ -74,7 +74,7 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
   const ledger = buildDesignSpendLedger({
     summary: {
       budgetTokens: 1000,
-      layout: { wallTiles: 10, floorTiles: 10, hallwayTiles: 10 },
+      layout: { floorTiles: 10, hallwayTiles: 10 },
     },
     actorSet: [
       {
@@ -114,4 +114,63 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
   assert.equal(configLine.detail.affinityStacks, 2);
   assert.equal(configLine.detail.pricingSource, "price-list");
   assert.ok(configLine.unitCostTokens >= configLine.detail.vitalPoints);
+});
+
+test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by count", async () => {
+  const { buildDesignSpendLedger } = await import(
+    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+  );
+
+  const ledger = buildDesignSpendLedger({
+    summary: {
+      budgetTokens: 77000,
+      layout: {},
+    },
+    actorSet: [
+      {
+        id: "actor_patrolling_1",
+        source: "actor",
+        role: "patrolling",
+        affinity: "wind",
+        count: 9,
+        tokenHint: 7700,
+        affinities: [
+          {
+            kind: "wind",
+            expression: "push",
+            stacks: 2,
+          },
+        ],
+        vitals: {
+          health: {
+            current: 10,
+            max: 10,
+            regen: 1,
+          },
+          mana: {
+            current: 5,
+            max: 5,
+            regen: 1,
+          },
+          stamina: {
+            current: 8,
+            max: 8,
+            regen: 2,
+          },
+          durability: {
+            current: 6,
+            max: 6,
+            regen: 0,
+          },
+        },
+        setupMode: "auto",
+      },
+    ],
+  });
+
+  assert.equal(ledger.categories.actorBase.spentTokens, 69300);
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 621);
+  assert.equal(ledger.totalSpentTokens, 69921);
+  assert.equal(ledger.remainingTokens, 7079);
+  assert.equal(ledger.overBudget, false);
 });

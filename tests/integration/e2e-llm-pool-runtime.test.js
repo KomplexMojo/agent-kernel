@@ -169,7 +169,6 @@ test("e2e trace exercises room layouts for tiered scenario", async () => {
   levelGen.height = scenario.levelSize.height;
   levelGen.seed = Number.isInteger(scenario.levelSeed) ? scenario.levelSeed : 0;
   levelGen.shape = {
-    profile: scenario.layoutProfile || "rooms",
     roomCount: scenario.roomCount,
   };
 

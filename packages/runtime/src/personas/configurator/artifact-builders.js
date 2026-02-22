@@ -13,6 +13,8 @@ function cloneLayoutData(layout) {
     render,
     spawn,
     exit,
+    entryRoomId,
+    exitRoomId,
     bounds,
     rooms,
     connectivity,
@@ -27,6 +29,8 @@ function cloneLayoutData(layout) {
     render,
     spawn,
     exit,
+    entryRoomId,
+    exitRoomId,
     bounds,
   };
   if (Array.isArray(rooms) && rooms.length > 0) {
