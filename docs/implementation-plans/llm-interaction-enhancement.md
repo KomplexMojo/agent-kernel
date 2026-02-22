@@ -117,13 +117,13 @@ Constraints:
 
 ## 8) Layout vs actor requirements mismatch (tiles-based layout budget)
 1. [complete] Replace room affinity picks with tile-based layout planning.
-   - Requirement: Rooms do **not** have affinities or motivations. Layout is defined by tile counts (walls, floors, hallways).
+   - Requirement: Rooms do **not** have affinities or motivations. Layout is defined by tile counts (floors and hallways).
    - Requirement: Each layout tile has a cost; layout spend must be bounded by budget.
    - Requirement: Unspent layout budget rolls into actor budget.
    - Requirement: Actors can be ambulatory or stationary (stationary == trap-like).
 2. [complete] Define a layout spend contract for LLM planning.
-   - Work: Add a layout response shape that includes tile counts (e.g., `layout: { floorTiles, wallTiles, hallwayTiles }`).
-   - Work: Add layout price list mapping (`tile_wall`, `tile_floor`, `tile_hallway`).
+   - Work: Add a layout response shape that includes tile counts (e.g., `layout: { floorTiles, hallwayTiles }`).
+   - Work: Add layout price list mapping (`tile_floor`, `tile_hallway`).
    - Work: Update prompt contract to remove room affinities/motivations and request tile counts.
 3. [complete] Update the budget loop to allocate layout-first then actors.
    - Work: Phase 1 requests layout tile counts and computes layout spend.

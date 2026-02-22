@@ -168,14 +168,21 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
 
 export function buildSelectionsFromSummary(summary) {
   const dungeonAffinity = typeof summary?.dungeonAffinity === "string" ? summary.dungeonAffinity : DEFAULT_DUNGEON_AFFINITY;
-  const attackerConfig = summary?.attackerConfig && typeof summary.attackerConfig === "object"
-    ? summary.attackerConfig
-    : undefined;
+  const attackerConfigs = Array.isArray(summary?.attackerConfigs)
+    ? summary.attackerConfigs
+      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+    : summary?.attackerConfig && typeof summary.attackerConfig === "object"
+      ? [summary.attackerConfig]
+      : [];
+  const fallbackAttackerConfig = attackerConfigs[0];
   const rooms = Array.isArray(summary?.rooms) ? summary.rooms : [];
   const actors = Array.isArray(summary?.actors) ? summary.actors : [];
   const roomSelections = rooms.map((pick, index) => pickToSelection(pick, "room", index, dungeonAffinity));
   const actorSelections = actors.map((pick, index) => pickToSelection(
-    { ...pick, attackerConfig },
+    {
+      ...pick,
+      attackerConfig: attackerConfigs[index % Math.max(1, attackerConfigs.length)] || fallbackAttackerConfig,
+    },
     "actor",
     index,
     dungeonAffinity,

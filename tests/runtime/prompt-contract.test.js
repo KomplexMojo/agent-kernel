@@ -13,7 +13,7 @@ test("buildLlmActorConfigPromptTemplate includes allowed lists and defender phas
     budgetTokens: 800,
     remainingBudgetTokens: 320,
     allowedPairsText: "(attacking, fire)",
-    context: "Layout tiles: floor 40, hallway 10",
+    context: "Layout tiles: floor 40, walkable total 50",
     affinities: ALLOWED_AFFINITIES,
     affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
     motivations: ALLOWED_MOTIVATIONS,
@@ -22,14 +22,17 @@ test("buildLlmActorConfigPromptTemplate includes allowed lists and defender phas
   ALLOWED_AFFINITY_EXPRESSIONS.forEach((expression) => assert.ok(prompt.includes(expression)));
   ALLOWED_MOTIVATIONS.forEach((motivation) => assert.ok(prompt.includes(motivation)));
   assert.ok(prompt.includes("dungeon defender strategist"));
-  assert.ok(prompt.includes("Total budget tokens: 800"));
+  assert.ok(!prompt.includes("Total budget tokens: 800"));
   assert.ok(prompt.includes("Defender phase budget tokens: 320"));
   assert.ok(prompt.includes("Allowed defender profiles (motivation, affinity): (attacking, fire)"));
   assert.ok(prompt.includes("Phase: actors_only"));
   assert.ok(prompt.includes("Return defenders only; omit rooms and layout."));
+  assert.ok(prompt.includes("tokenHint is per defender unit"));
   assert.ok(prompt.includes("Defender viability guardrails"));
+  assert.ok(prompt.includes("Attackers start at level entry"));
+  assert.ok(prompt.includes("Place stationary defenders at chokepoints"));
   assert.ok(prompt.includes("mana regen"));
-  assert.ok(prompt.includes("Model context window token limit: 16384"));
+  assert.ok(!prompt.includes("Model context window token limit: 16384"));
 });
 
 test("buildLlmLevelPromptTemplate injects layout phase metadata", async () => {
@@ -41,52 +44,58 @@ test("buildLlmLevelPromptTemplate injects layout phase metadata", async () => {
     notes: "Phase notes",
     budgetTokens: 500,
     remainingBudgetTokens: 120,
-    context: "Layout tiles: floor 20, hallway 5",
+    context: "Layout tiles: floor 20, walkable total 25",
     layoutCosts: { floorTiles: 3, hallwayTiles: 4 },
   });
   assert.ok(prompt.includes("Phase: layout_only"));
-  assert.ok(prompt.includes("Remaining budget tokens: 120"));
-  assert.ok(prompt.includes("Layout tiles: floor 20, hallway 5"));
-  assert.ok(prompt.includes("Tile costs: floor 3, hallway 4 tokens each."));
+  assert.ok(prompt.includes("Constraint: budget tokens available for room design: 120"));
+  assert.ok(prompt.includes("Layout tiles: floor 20, walkable total 25"));
+  assert.ok(prompt.includes("Assumption: floor tiles cost 3 tokens each."));
   assert.ok(prompt.includes("room design"));
-  assert.ok(prompt.includes("roomDesign.profile"));
+  assert.ok(prompt.includes("rooms connected by hallways"));
+  assert.ok(prompt.includes("level entry to level exit journey"));
+  assert.ok(prompt.includes("separated enough to require exploration"));
+  assert.ok(!prompt.includes("\"diagonal_grid\""));
+  assert.ok(!prompt.includes("\"concentric_circles\""));
+  assert.ok(!prompt.includes("patternInfillPercent"));
+  assert.ok(!prompt.includes("patternLineWidth"));
+  assert.ok(!prompt.includes("roomDesign.corridorWidth"));
   assert.ok(prompt.includes("response concise"));
-  assert.ok(prompt.includes("Model context window token limit: 16384"));
-  assert.ok(prompt.includes("Layout phase latency target: 10000 ms."));
+  assert.ok(!prompt.includes("Budget tokens: 500"));
+  assert.ok(!prompt.includes("Model context window token limit: 16384"));
+  assert.ok(!prompt.includes("Layout phase latency target:"));
   assert.ok(prompt.includes("Keep the response concise"));
+  assert.ok(prompt.includes("Return exactly one JSON object, starting with { and ending with }, with no surrounding text."));
+  assert.ok(prompt.includes("Response format:"));
+  assert.ok(prompt.includes("Example valid response:"));
 });
 
-test("buildLlmLevelPromptTemplate scopes allowed layout profiles when provided", async () => {
+test("buildLlmLevelPromptTemplate encodes room-first response shape", async () => {
   const { buildLlmLevelPromptTemplate } = await import(
     "../../packages/runtime/src/contracts/domain-constants.js"
   );
   const prompt = buildLlmLevelPromptTemplate({
-    goal: "Scoped layout goal",
+    goal: "Rooms layout goal",
     budgetTokens: 500,
     remainingBudgetTokens: 120,
-    allowedProfiles: ["rooms"],
   });
-  assert.ok(prompt.includes("Use roomDesign.profile: rooms."));
-  assert.ok(!prompt.includes("Include roomDesign.profile as one of: rooms."));
-  assert.ok(!prompt.includes("Include roomDesign.profile as one of: rooms, sparse_islands"));
-  assert.ok(!prompt.includes("For sparse_islands, include roomDesign.density"));
-  assert.ok(!prompt.includes("For clustered_islands, include roomDesign.clusterSize"));
-});
-
-test("buildLlmLevelPromptTemplate omits room design summary instruction for sparse islands only", async () => {
-  const { buildLlmLevelPromptTemplate } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
-  );
-  const prompt = buildLlmLevelPromptTemplate({
-    goal: "Sparse-only layout goal",
-    budgetTokens: 500,
-    remainingBudgetTokens: 120,
-    allowedProfiles: ["sparse_islands"],
-  });
-  assert.ok(prompt.includes("Use roomDesign.profile: sparse_islands."));
-  assert.ok(prompt.includes("For sparse_islands, include roomDesign.density in [0,1]."));
-  assert.ok(!prompt.includes("Include a brief room design summary that explains how floor/hallway tiles are used and where non-walkable barriers are implied."));
-  assert.ok(!prompt.includes("Keep the response concise; allow more detail only if needed to describe room structure."));
+  assert.ok(prompt.includes("remainingBudgetTokens, layout, roomDesign, missing, stop"));
+  assert.ok(prompt.includes("roomDesign.totalRooms and roomDesign.totalFloorTilesUsed must be integers > 0"));
+  assert.ok(prompt.includes("roomDesign.rooms must be a non-empty array"));
+  assert.ok(prompt.includes("startX"));
+  assert.ok(prompt.includes("endY"));
+  assert.ok(prompt.includes("\"remainingBudgetTokens\":4200"));
+  assert.ok(prompt.includes("\"layout\":{\"floorTiles\":1300}"));
+  assert.ok(prompt.includes("\"totalRooms\":4"));
+  assert.ok(prompt.includes("\"totalFloorTilesUsed\":1300"));
+  assert.ok(!prompt.includes("\"phase\": \"layout_only\""));
+  assert.ok(!prompt.includes("\"connections\""));
+  assert.ok(!prompt.includes("\"hallwayTiles\": <int>"));
+  assert.ok(!prompt.includes("roomDesign.profile"));
+  assert.ok(!prompt.includes("sparse_islands"));
+  assert.ok(!prompt.includes("clustered_islands"));
+  assert.ok(!prompt.includes("<int>"));
+  assert.ok(!prompt.includes("<affinity?>"));
 });
 
 test("buildLlmPhasePromptTemplate routes to layout and defender templates", async () => {
@@ -273,6 +282,83 @@ test("normalizeSummary defaults attacker config mode when omitted", async () => 
   assert.equal(result.value.attackerConfig.vitalsRegen.mana, 1);
 });
 
+test("normalizeSummary accepts attackerConfigs and derives attackerCount", async () => {
+  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const result = normalizeSummary({
+    dungeonAffinity: "fire",
+    actors: [],
+    rooms: [],
+    attackerConfigs: [
+      { setupMode: "user", vitalsRegen: { mana: 1 } },
+      { setupMode: "hybrid", vitalsRegen: { mana: 2 } },
+    ],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.value.attackerCount, 2);
+  assert.equal(result.value.attackerConfigs.length, 2);
+  assert.equal(result.value.attackerConfig.setupMode, "user");
+});
+
+test("normalizeSummary preserves attacker affinity configuration", async () => {
+  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const result = normalizeSummary({
+    dungeonAffinity: "fire",
+    actors: [],
+    rooms: [],
+    attackerConfig: {
+      setupMode: "user",
+      vitalsMax: { mana: 100 },
+      vitalsRegen: { mana: 10 },
+      affinities: {
+        corrode: ["push", "pull", "emit"],
+      },
+      affinityStacks: {
+        corrode: 5,
+      },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.value.attackerConfig.affinities, { corrode: ["push", "pull", "emit"] });
+  assert.deepEqual(result.value.attackerConfig.affinityStacks, { corrode: 5 });
+});
+
+test("normalizeSummary validates attacker affinity configuration", async () => {
+  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const invalid = normalizeSummary({
+    dungeonAffinity: "fire",
+    actors: [],
+    rooms: [],
+    attackerConfig: {
+      setupMode: "user",
+      affinities: {
+        lava: ["push"],
+      },
+      affinityStacks: {
+        fire: 0,
+      },
+    },
+  });
+  assert.equal(invalid.ok, false);
+  assert.ok(invalid.errors.find((entry) => entry.field === "attackerConfig.affinities.lava" && entry.code === "invalid_affinity"));
+  assert.ok(invalid.errors.find((entry) => entry.field === "attackerConfig.affinityStacks.fire" && entry.code === "invalid_positive_int"));
+});
+
+test("normalizeSummary validates attackerCount against attackerConfigs length", async () => {
+  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const invalid = normalizeSummary({
+    dungeonAffinity: "fire",
+    actors: [],
+    rooms: [],
+    attackerCount: 3,
+    attackerConfigs: [
+      { setupMode: "user", vitalsRegen: { mana: 1 } },
+      { setupMode: "hybrid", vitalsRegen: { mana: 2 } },
+    ],
+  });
+  assert.equal(invalid.ok, false);
+  assert.ok(invalid.errors.find((entry) => entry.field === "attackerConfigs" && entry.code === "attacker_count_mismatch"));
+});
+
 test("normalizeSummary preserves room design details when provided", async () => {
   const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
@@ -280,10 +366,22 @@ test("normalizeSummary preserves room design details when provided", async () =>
     rooms: [],
     actors: [],
     roomDesign: {
-      profile: "sparse_islands",
-      density: 0.35,
+      totalRooms: 6,
+      totalFloorTilesUsed: 180,
+      entryRoomId: "R1",
+      exitRoomId: "R2",
+      corridorWidth: 2,
+      roomCount: 6,
+      roomMinSize: 3,
+      roomMaxSize: 10,
+      pattern: "grid",
+      patternSpacing: 6,
+      patternLineWidth: 1,
+      patternInfillPercent: 60,
+      patternGapEvery: 4,
+      patternInset: 1,
       rooms: [
-        { id: "R1", size: "large", width: 10, height: 10 },
+        { id: "R1", size: "large", startX: 2, startY: 3, endX: 11, endY: 12 },
         { id: "R2", size: "small", width: 5, height: 5 },
       ],
       connections: [
@@ -296,11 +394,27 @@ test("normalizeSummary preserves room design details when provided", async () =>
   assert.equal(result.value.roomDesign.rooms.length, 2);
   assert.equal(result.value.roomDesign.rooms[0].id, "R1");
   assert.equal(result.value.roomDesign.rooms[0].size, "large");
+  assert.equal(result.value.roomDesign.rooms[0].startX, 2);
+  assert.equal(result.value.roomDesign.rooms[0].endY, 12);
+  assert.equal(result.value.roomDesign.rooms[0].width, 10);
+  assert.equal(result.value.roomDesign.rooms[0].height, 10);
   assert.equal(result.value.roomDesign.connections.length, 1);
   assert.equal(result.value.roomDesign.connections[0].from, "R1");
   assert.equal(result.value.roomDesign.hallways, "Simple spine with two short branches.");
-  assert.equal(result.value.roomDesign.profile, "sparse_islands");
-  assert.equal(result.value.roomDesign.density, 0.35);
+  assert.equal(result.value.roomDesign.totalRooms, 6);
+  assert.equal(result.value.roomDesign.totalFloorTilesUsed, 180);
+  assert.equal(result.value.roomDesign.entryRoomId, "R1");
+  assert.equal(result.value.roomDesign.exitRoomId, "R2");
+  assert.equal(result.value.roomDesign.corridorWidth, 2);
+  assert.equal(result.value.roomDesign.roomCount, 6);
+  assert.equal(result.value.roomDesign.roomMinSize, 3);
+  assert.equal(result.value.roomDesign.roomMaxSize, 10);
+  assert.equal(result.value.roomDesign.pattern, "grid");
+  assert.equal(result.value.roomDesign.patternSpacing, 6);
+  assert.equal(result.value.roomDesign.patternLineWidth, 1);
+  assert.equal(result.value.roomDesign.patternInfillPercent, 60);
+  assert.equal(result.value.roomDesign.patternGapEvery, 4);
+  assert.equal(result.value.roomDesign.patternInset, 1);
 });
 
 test("capturePromptResponse parses JSON and surfaces errors", async () => {
@@ -356,4 +470,20 @@ test("deriveAllowedOptionsFromCatalog unions catalog entries", async () => {
   ALLOWED_AFFINITIES.forEach((a) => assert.ok(options.affinities.includes(a)));
   ALLOWED_MOTIVATIONS.forEach((m) => assert.ok(options.motivations.includes(m)));
   assert.ok(options.poolIds.includes("actor_new"));
+});
+
+test("buildLlmRepairPromptTemplate omits allowed lists when not provided", async () => {
+  const { buildLlmRepairPromptTemplate } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
+  );
+  const prompt = buildLlmRepairPromptTemplate({
+    basePrompt: "Base prompt",
+    errors: [{ field: "layout.floorTiles", code: "invalid_tile_count" }],
+    responseText: "{\"phase\":\"layout_only\"}",
+    phaseRequirement: "Provide layout tile counts with non-negative integers (floorTiles).",
+    extraLines: ["Use integers only for floorTiles; omit optional fields."],
+  });
+  assert.ok(!prompt.includes("Allowed affinities:"));
+  assert.ok(!prompt.includes("Allowed expressions:"));
+  assert.ok(!prompt.includes("Allowed motivations:"));
 });

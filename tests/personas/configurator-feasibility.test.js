@@ -7,7 +7,7 @@ const script = `
 import assert from "node:assert/strict";
 import { validateLayoutAndActors, validateLayoutCountsAndActors } from ${JSON.stringify(modulePath)};
 
-const levelGen = { width: 5, height: 5, shape: { profile: "rectangular" } };
+const levelGen = { width: 5, height: 5, shape: {} };
 const ok = validateLayoutAndActors({ levelGen, actorCount: 1 });
 assert.equal(ok.ok, true);
 
@@ -20,13 +20,13 @@ assert.equal(invalid.ok, false);
 assert.ok(invalid.errors.length > 0);
 
 const countsOk = validateLayoutCountsAndActors({
-  layout: { wallTiles: 10, floorTiles: 10, hallwayTiles: 5 },
+  layout: { floorTiles: 10, hallwayTiles: 5 },
   actorCount: 2,
 });
 assert.equal(countsOk.ok, true);
 
 const countsInvalid = validateLayoutCountsAndActors({
-  layout: { wallTiles: -1, floorTiles: 0, hallwayTiles: 0 },
+  layout: { floorTiles: -1, hallwayTiles: 0 },
   actorCount: 1,
 });
 assert.equal(countsInvalid.ok, false);

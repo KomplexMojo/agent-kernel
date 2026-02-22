@@ -30,7 +30,7 @@ function getFirstPanelSlice(html, tabId) {
 test("primary workflow tabs render in the expected order", () => {
   const html = readHtml();
   const tabIds = [...html.matchAll(/data-tab="([a-z-]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(tabIds, ["design", "simulation", "diagnostics"]);
+  assert.deepEqual(tabIds, ["design", "simulation", "runtime", "diagnostics"]);
   assert.match(html, /data-tab="design"[^>]*aria-selected="true"/);
 });
 
@@ -43,13 +43,18 @@ test("design panels are visible by default", () => {
   });
 });
 
-test("simulation and diagnostics panels are hidden by default", () => {
+test("simulation, runtime, and diagnostics panels are hidden by default", () => {
   const html = readHtml();
   const simulationPanels = getPanelOpenings(html, "simulation");
+  const runtimePanels = getPanelOpenings(html, "runtime");
   const diagnosticsPanels = getPanelOpenings(html, "diagnostics");
   assert.ok(simulationPanels.length > 0);
+  assert.ok(runtimePanels.length > 0);
   assert.ok(diagnosticsPanels.length > 0);
   simulationPanels.forEach((panel) => {
+    assert.ok(panel.includes("hidden"));
+  });
+  runtimePanels.forEach((panel) => {
     assert.ok(panel.includes("hidden"));
   });
   diagnosticsPanels.forEach((panel) => {
@@ -65,4 +70,18 @@ test("simulation panel contains playback controls", () => {
   assert.match(simulationPanel, /id="play-pause"/);
   assert.doesNotMatch(simulationPanel, /id="seed-input"/);
   assert.doesNotMatch(simulationPanel, /id="adapter-output"/);
+});
+
+test("runtime panel contains viewport, controls, and actor card sections", () => {
+  const html = readHtml();
+  const runtimePanel = getFirstPanelSlice(html, "runtime");
+  assert.match(runtimePanel, /id="runtime-viewport"/);
+  assert.match(runtimePanel, /id="runtime-move-up"/);
+  assert.match(runtimePanel, /id="runtime-move-down"/);
+  assert.match(runtimePanel, /id="runtime-move-left"/);
+  assert.match(runtimePanel, /id="runtime-move-right"/);
+  assert.match(runtimePanel, /id="runtime-cast"/);
+  assert.match(runtimePanel, /id="runtime-attacker-card"/);
+  assert.match(runtimePanel, /id="runtime-visible-defenders"/);
+  assert.match(runtimePanel, /id="runtime-offscreen-defenders"/);
 });

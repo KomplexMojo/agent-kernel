@@ -94,7 +94,7 @@ actors.forEach((actor) => {
 });
 `;
 
-const defenderGroupingScript = `
+const strategicPlacementScript = `
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -108,9 +108,8 @@ const catalog = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/pool/catal
 const summary = {
   dungeonAffinity: "fire",
   budgetTokens: 1400,
-  layout: { wallTiles: 80, floorTiles: 240, hallwayTiles: 80 },
+  layout: { floorTiles: 240, hallwayTiles: 80 },
   roomDesign: {
-    profile: "rooms",
     rooms: [
       { id: "R1", size: "large", width: 10, height: 10 },
       { id: "R2", size: "medium", width: 8, height: 8 },
@@ -143,43 +142,109 @@ const buildSpecResult = buildBuildSpecFromSummary({
 assert.equal(buildSpecResult.ok, true);
 
 const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-test" });
-const actors = buildResult.spec.configurator.inputs.actors;
+const actors = buildResult.initialState.actors;
+const actorConfig = buildResult.spec.configurator.inputs.actors;
 assert.equal(actors.length, 8);
 
-const tiles = buildResult.simConfig.layout.data.tiles;
+const data = buildResult.simConfig.layout.data;
+const entryRoomId = String(data.entryRoomId || "");
+const exitRoomId = String(data.exitRoomId || "");
+assert.ok(entryRoomId.length > 0);
+assert.ok(exitRoomId.length > 0);
+const roomsById = new Map((data.rooms || []).map((room, index) => {
+  const id = typeof room.id === "string" && room.id.trim() ? room.id.trim() : \`R\${index + 1}\`;
+  return [id, room];
+}));
+const entryRoom = roomsById.get(entryRoomId);
+const exitRoom = roomsById.get(exitRoomId);
+assert.ok(entryRoom);
+assert.ok(exitRoom);
+
+const inRoom = (pos, room) => (
+  pos.x >= room.x
+  && pos.x < room.x + room.width
+  && pos.y >= room.y
+  && pos.y < room.y + room.height
+);
+const nearRoom = (pos, room, radius = 2) => (
+  pos.x >= room.x - radius
+  && pos.x <= room.x + room.width - 1 + radius
+  && pos.y >= room.y - radius
+  && pos.y <= room.y + room.height - 1 + radius
+);
+const actorById = new Map(actorConfig.map((actor) => [actor.id, actor]));
+const isAttacker = (actorId) => {
+  const base = actorById.get(actorId);
+  if (!base) return false;
+  const values = [];
+  if (Array.isArray(base.motivations)) values.push(...base.motivations);
+  if (typeof base.motivation === "string") values.push(base.motivation);
+  return values.join(" ").toLowerCase().includes("attack");
+};
+
 const positionKeys = new Set();
 actors.forEach((actor) => {
   const key = \`\${actor.position.x},\${actor.position.y}\`;
   assert.equal(positionKeys.has(key), false);
   positionKeys.add(key);
-  const row = String(tiles[actor.position.y] ?? "");
+  const row = String(data.tiles[actor.position.y] ?? "");
   const cell = row[actor.position.x];
   assert.ok(cell && cell !== "#" && cell !== "B");
+  if (isAttacker(actor.id)) {
+    assert.equal(inRoom(actor.position, entryRoom), true, \`attacker \${actor.id} should be in entry room\`);
+  } else {
+    assert.equal(
+      inRoom(actor.position, exitRoom) || nearRoom(actor.position, exitRoom, 2),
+      true,
+      \`defender \${actor.id} should be in or near exit room\`,
+    );
+  }
 });
+`;
 
-const power = (actor) => {
-  if (Number.isInteger(actor.tokenCost) && actor.tokenCost > 0) return actor.tokenCost;
-  const match = String(actor.id || "").match(/_(\\d+)_(\\d+)$/);
-  return match ? Number(match[1]) : 1;
+const spawnOrderingScript = `
+import assert from "node:assert/strict";
+import { orchestrateBuild } from ${JSON.stringify(orchestratorModule)};
+
+const spec = {
+  schema: "agent-kernel/BuildSpec",
+  schemaVersion: 1,
+  meta: {
+    id: "spec_spawn_order",
+    runId: "run_spawn_order",
+    createdAt: "2025-01-01T00:00:00Z",
+    source: "runtime-test",
+  },
+  intent: {
+    goal: "spawn ordering check",
+    tags: ["spawn", "ordering"],
+  },
+  plan: {},
+  configurator: {
+    inputs: {
+      levelGen: { width: 8, height: 8, walkableTilesTarget: 36, seed: 1 },
+      actors: [
+        { id: "z_strong", tokenCost: 100, kind: "ambulatory", motivations: ["attacking"], affinity: "fire", position: { x: 0, y: 0 } },
+        { id: "a_support", tokenCost: 10, kind: "ambulatory", motivations: ["defending"], affinity: "water", position: { x: 1, y: 0 } },
+        { id: "b_support", tokenCost: 10, kind: "ambulatory", motivations: ["patrolling"], affinity: "earth", position: { x: 2, y: 0 } },
+      ],
+      actorGroups: [{ role: "attacking", count: 1 }, { role: "defending", count: 2 }],
+    },
+  },
 };
-const sortedByPower = actors
-  .slice()
-  .sort((a, b) => (power(b) - power(a)) || String(a.id).localeCompare(String(b.id)));
-const leaders = sortedByPower.slice(0, 2);
-assert.equal(power(leaders[0]), 200);
-assert.equal(power(leaders[1]), 200);
 
-const distance = (a, b) => Math.abs(a.position.x - b.position.x) + Math.abs(a.position.y - b.position.y);
-assert.ok(distance(leaders[0], leaders[1]) >= 6);
+const buildResult = await orchestrateBuild({ spec, producedBy: "runtime-test" });
+const spawn = buildResult.simConfig.layout.data.spawn;
+const actors = buildResult.initialState.actors;
 
-leaders.forEach((leader) => {
-  const nearbySupports = actors.filter((actor) => (
-    actor.id !== leader.id
-    && power(actor) < power(leader)
-    && distance(actor, leader) <= 3
-  ));
-  assert.ok(nearbySupports.length >= 2, \`leader \${leader.id} should have nearby lower-cost defenders\`);
-});
+assert.ok(spawn);
+assert.equal(actors.length, 3);
+const attacker = actors.find((actor) => actor.id === "z_strong");
+assert.ok(attacker);
+assert.deepEqual(attacker.position, spawn);
+
+const spawnOccupants = actors.filter((actor) => actor.position.x === spawn.x && actor.position.y === spawn.y);
+assert.equal(spawnOccupants.length, 1);
 `;
 
 test("orchestrateBuild uses runtime modules for solver and configurator", () => {
@@ -190,6 +255,10 @@ test("orchestrateBuild aligns actors to walkable layout positions", () => {
   runEsm(actorPlacementScript);
 });
 
-test("orchestrateBuild clusters high-cost defenders with lower-cost nearby supports", () => {
-  runEsm(defenderGroupingScript);
+test("orchestrateBuild places attackers at entry and defenders near exit", () => {
+  runEsm(strategicPlacementScript);
+});
+
+test("orchestrateBuild keeps the inferred attacker on spawn", () => {
+  runEsm(spawnOrderingScript);
 });

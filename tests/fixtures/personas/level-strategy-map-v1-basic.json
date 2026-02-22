@@ -7,17 +7,17 @@
       "input": {
         "levelGen": { "width": 5, "height": 5 },
         "plan": {
-          "theme": { "tags": ["rooms:sparse"] },
-          "directives": { "roomStrategy": "clustered" }
+          "theme": { "tags": ["rooms:compact"] },
+          "directives": { "roomStrategy": "expansive" }
         }
       },
       "expected": {
-        "applied": "rooms:clustered",
+        "applied": "rooms:expansive",
         "source": "directive",
         "value": {
           "width": 5,
           "height": 5,
-          "shape": { "profile": "clustered_islands", "clusterSize": 8 }
+          "shape": { "roomCount": 3, "roomMinSize": 6, "roomMaxSize": 14, "corridorWidth": 2 }
         }
       }
     },
@@ -25,31 +25,31 @@
       "name": "tags apply when shape missing",
       "input": {
         "levelGen": { "width": 6, "height": 6 },
-        "plan": { "theme": { "tags": ["rooms:sparse"] } }
+        "plan": { "theme": { "tags": ["rooms:compact"] } }
       },
       "expected": {
-        "applied": "rooms:sparse",
+        "applied": "rooms:compact",
         "source": "tag",
         "value": {
           "width": 6,
           "height": 6,
-          "shape": { "profile": "sparse_islands", "density": 0.25 }
+          "shape": { "roomCount": 6, "roomMinSize": 3, "roomMaxSize": 6, "corridorWidth": 1 }
         }
       }
     },
     {
       "name": "explicit shape wins over strategy",
       "input": {
-        "levelGen": { "width": 7, "height": 7, "shape": { "profile": "rectangular" } },
-        "plan": { "theme": { "tags": ["rooms:clustered"] } }
+        "levelGen": { "width": 7, "height": 7, "shape": { "roomCount": 9, "corridorWidth": 3 } },
+        "plan": { "theme": { "tags": ["rooms:compact"] } }
       },
       "expected": {
-        "applied": "rooms:clustered",
+        "applied": "rooms:compact",
         "source": "tag",
         "value": {
           "width": 7,
           "height": 7,
-          "shape": { "profile": "rectangular" }
+          "shape": { "roomCount": 9, "corridorWidth": 3, "roomMinSize": 3, "roomMaxSize": 6 }
         }
       }
     }

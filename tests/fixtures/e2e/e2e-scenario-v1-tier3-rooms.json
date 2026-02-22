@@ -9,7 +9,6 @@
   "catalogPath": "tests/fixtures/pool/catalog-basic.json",
   "summaryPath": "tests/fixtures/e2e/summary-v1-tier3-rooms.json",
   "expectedSelectionsPath": "tests/fixtures/e2e/expected-selections-v1-tier3-rooms.json",
-  "layoutProfile": "rooms",
   "roomCount": 2,
   "levelSeed": 303
 }

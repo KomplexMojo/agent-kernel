@@ -80,6 +80,8 @@ function makeNode(tagName = "div") {
     className: "",
     dataset: {},
     children: [],
+    hidden: false,
+    parentNode: null,
     value: "",
     type: "",
     min: "",
@@ -88,6 +90,9 @@ function makeNode(tagName = "div") {
     checked: false,
     disabled: false,
     appendChild(child) {
+      if (child && typeof child === "object") {
+        child.parentNode = this;
+      }
       this.children.push(child);
       return child;
     },
@@ -112,6 +117,14 @@ function makeNode(tagName = "div") {
     querySelector(selector) {
       const matches = this.querySelectorAll(selector);
       return matches.length > 0 ? matches[0] : null;
+    },
+    closest(selector) {
+      let current = this;
+      while (current) {
+        if (matchesSelector(current, selector)) return current;
+        current = current.parentNode || null;
+      }
+      return null;
     },
     get textContent() {
       return textContentValue;
@@ -138,16 +151,15 @@ function collectSelectedAffinityCounts(container) {
   }, {});
 }
 
-test("defender affinity defaults follow level affinity counts and preserve manual overrides", () => {
+test("attacker affinity controls remain independent from workflow affinity selections", () => {
   const originalDocument = globalThis.document;
   globalThis.document = {
     createElement: (tagName) => makeNode(tagName),
   };
 
   try {
-    const levelAffinitiesContainer = makeNode("div");
-    const defenderAffinitiesContainer = makeNode("div");
-    const attackerAffinitiesContainer = makeNode("div");
+    const workflowAffinitiesContainer = makeNode("div");
+    const attackerSelectedAffinitiesContainer = makeNode("div");
     wireDesignGuidance({
       elements: {
         guidanceInput: makeInput(""),
@@ -159,52 +171,108 @@ test("defender affinity defaults follow level affinity counts and preserve manua
         actorSetInput: makeInput("[]"),
         actorSetPreview: { textContent: "" },
         applyActorSetButton: makeButton(),
-        levelAffinitiesContainer,
-        attackerAffinitiesContainer,
-        defenderAffinitiesContainer,
+        workflowAffinitiesContainer,
+        attackerSelectedAffinitiesContainer,
       },
     });
 
-    const levelFire = findAffinityCountInput(levelAffinitiesContainer, "fire");
-    const levelWater = findAffinityCountInput(levelAffinitiesContainer, "water");
-    const defenderFire = findAffinityCountInput(defenderAffinitiesContainer, "fire");
-    const defenderWater = findAffinityCountInput(defenderAffinitiesContainer, "water");
+    const workflowFire = findAffinityCountInput(workflowAffinitiesContainer, "fire");
+    const workflowWater = findAffinityCountInput(workflowAffinitiesContainer, "water");
+    const attackerFire = findAffinityCountInput(attackerSelectedAffinitiesContainer, "fire");
+    const attackerWater = findAffinityCountInput(attackerSelectedAffinitiesContainer, "water");
+    const attackerEarth = findAffinityCountInput(attackerSelectedAffinitiesContainer, "earth");
 
-    assert.ok(levelFire);
-    assert.ok(levelWater);
-    assert.ok(defenderFire);
-    assert.ok(defenderWater);
-    assert.equal(defenderFire.value, "0");
-    assert.equal(defenderWater.value, "0");
+    assert.ok(workflowFire);
+    assert.ok(workflowWater);
+    assert.ok(attackerFire);
+    assert.ok(attackerWater);
+    assert.ok(attackerEarth);
 
-    levelFire.value = "2";
-    levelWater.value = "1";
-    levelAffinitiesContainer.trigger("input");
-    assert.equal(defenderFire.value, "2");
-    assert.equal(defenderWater.value, "1");
+    assert.equal(attackerFire.closest(".affinity-row")?.hidden, false);
+    assert.equal(attackerWater.closest(".affinity-row")?.hidden, false);
+    assert.equal(attackerEarth.closest(".affinity-row")?.hidden, false);
 
-    defenderFire.value = "1";
-    defenderAffinitiesContainer.trigger("input");
-    levelFire.value = "3";
-    levelWater.value = "2";
-    levelAffinitiesContainer.trigger("input");
-    assert.equal(defenderFire.value, "1");
-    assert.equal(defenderWater.value, "2");
+    attackerFire.value = "2";
+    attackerSelectedAffinitiesContainer.trigger("input");
+
+    workflowFire.value = "2";
+    workflowWater.value = "1";
+    workflowAffinitiesContainer.trigger("input");
+    assert.equal(attackerFire.value, "2");
+    assert.equal(attackerWater.value, "0");
+    assert.equal(attackerFire.closest(".affinity-row")?.hidden, false);
+    assert.equal(attackerWater.closest(".affinity-row")?.hidden, false);
+    assert.equal(attackerEarth.closest(".affinity-row")?.hidden, false);
   } finally {
     globalThis.document = originalDocument;
   }
 });
 
-test("generate level picks random affinities when level selection is empty and mirrors to defenders", async () => {
+test("attacker user setup mode unlocks full affinity editing", () => {
   const originalDocument = globalThis.document;
   globalThis.document = {
     createElement: (tagName) => makeNode(tagName),
   };
 
   try {
-    const levelAffinitiesContainer = makeNode("div");
-    const defenderAffinitiesContainer = makeNode("div");
-    const attackerAffinitiesContainer = makeNode("div");
+    const workflowAffinitiesContainer = makeNode("div");
+    const attackerSelectedAffinitiesContainer = makeNode("div");
+    const attackerSetupModeInput = makeInput("auto");
+    wireDesignGuidance({
+      elements: {
+        guidanceInput: makeInput(""),
+        modelInput: makeInput("phi4"),
+        baseUrlInput: makeInput("http://localhost:11434"),
+        generateButton: makeButton(),
+        statusEl: { textContent: "", style: {} },
+        briefOutput: { textContent: "" },
+        actorSetInput: makeInput("[]"),
+        actorSetPreview: { textContent: "" },
+        applyActorSetButton: makeButton(),
+        workflowAffinitiesContainer,
+        attackerSelectedAffinitiesContainer,
+        attackerSetupModeInput,
+      },
+    });
+
+    const workflowFire = findAffinityCountInput(workflowAffinitiesContainer, "fire");
+    const attackerWater = findAffinityCountInput(attackerSelectedAffinitiesContainer, "water");
+    const attackerWaterExpression = attackerSelectedAffinitiesContainer.querySelector(
+      'input.affinity-expression[data-affinity="water"]',
+    );
+
+    assert.ok(workflowFire);
+    assert.ok(attackerWater);
+    assert.ok(attackerWaterExpression);
+
+    workflowFire.value = "1";
+    workflowAffinitiesContainer.trigger("input");
+    assert.equal(attackerWater.closest(".affinity-row")?.hidden, false);
+    assert.equal(attackerWater.disabled, true);
+
+    attackerSetupModeInput.value = "user";
+    attackerSetupModeInput.trigger("change");
+    assert.equal(attackerWater.closest(".affinity-row")?.hidden, false);
+    assert.equal(attackerWater.disabled, false);
+
+    attackerWater.value = "2";
+    attackerSelectedAffinitiesContainer.trigger("input");
+    assert.equal(attackerWaterExpression.disabled, false);
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test("level generation requires workflow affinity selection before running", async () => {
+  const originalDocument = globalThis.document;
+  globalThis.document = {
+    createElement: (tagName) => makeNode(tagName),
+  };
+
+  try {
+    const workflowAffinitiesContainer = makeNode("div");
+    const attackerSelectedAffinitiesContainer = makeNode("div");
+    const statusEl = { textContent: "", style: {} };
     const guidance = wireDesignGuidance({
       elements: {
         guidanceInput: makeInput(""),
@@ -213,18 +281,16 @@ test("generate level picks random affinities when level selection is empty and m
         modeSelect: makeInput("fixture"),
         generateButton: makeButton(),
         fixtureButton: makeButton(),
-        statusEl: { textContent: "", style: {} },
+        statusEl,
         briefOutput: { textContent: "" },
         levelDesignOutput: { textContent: "" },
         actorSetInput: makeInput("[]"),
         actorSetPreview: { textContent: "" },
         applyActorSetButton: makeButton(),
-        levelAffinitiesContainer,
-        attackerAffinitiesContainer,
-        defenderAffinitiesContainer,
+        workflowAffinitiesContainer,
+        attackerSelectedAffinitiesContainer,
       },
       llmConfig: {
-        randomFn: () => 0,
         fixtureResponse: {
           responses: [
             {
@@ -240,13 +306,16 @@ test("generate level picks random affinities when level selection is empty and m
       },
     });
 
-    await guidance.generateLevelBrief({ useFixture: true });
+    const blocked = await guidance.generateLevelBrief({ useFixture: true });
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.reason, "missing_affinity_prerequisite");
+    assert.match(statusEl.textContent, /requires at least one workflow affinity/i);
 
-    const selectedLevel = collectSelectedAffinityCounts(levelAffinitiesContainer);
-    const selectedDefenders = collectSelectedAffinityCounts(defenderAffinitiesContainer);
-    assert.ok(Object.keys(selectedLevel).length >= 1);
-    assert.ok(Object.keys(selectedLevel).length <= AFFINITY_KINDS.length);
-    assert.deepEqual(selectedDefenders, selectedLevel);
+    const workflowFire = findAffinityCountInput(workflowAffinitiesContainer, "fire");
+    workflowFire.value = "1";
+    workflowAffinitiesContainer.trigger("input");
+    const ok = await guidance.generateLevelBrief({ useFixture: true });
+    assert.equal(ok.ok, true);
   } finally {
     globalThis.document = originalDocument;
   }

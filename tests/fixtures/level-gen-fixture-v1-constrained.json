@@ -6,7 +6,10 @@
     "height": 5,
     "seed": 5,
     "shape": {
-      "profile": "rectangular"
+      "roomCount": 1,
+      "roomMinSize": 3,
+      "roomMaxSize": 3,
+      "corridorWidth": 1
     },
     "spawn": {
       "edgeBias": true,

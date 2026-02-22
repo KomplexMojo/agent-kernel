@@ -22,7 +22,9 @@ export function deriveLevelGen({ roomCount }) {
   return {
     width: size,
     height: size,
-    shape: { profile: "rectangular" },
+    shape: {
+      roomCount: normalizePositiveInt(roomCount, 1),
+    },
   };
 }
 
@@ -31,13 +33,7 @@ function normalizePositiveInt(value, fallback = 1) {
   return value;
 }
 
-const LAYOUT_SHAPE_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
-const WALKABLE_DENSITY_TARGETS = Object.freeze({
-  rectangular: 0.7,
-  rooms: 0.55,
-  clustered_islands: 0.45,
-  sparse_islands: 0.35,
-});
+const WALKABLE_DENSITY_TARGET = 0.5;
 
 function readShapeField(roomDesign, field) {
   if (!roomDesign || typeof roomDesign !== "object" || Array.isArray(roomDesign)) {
@@ -53,24 +49,46 @@ function readShapeField(roomDesign, field) {
   return undefined;
 }
 
-function deriveRoomShapeFromDesign(roomDesign, { width, height } = {}) {
-  if (!roomDesign || typeof roomDesign !== "object" || Array.isArray(roomDesign)) {
-    return null;
+const SHAPE_PATTERN_TYPES = new Set(["none", "grid", "diagonal_grid", "concentric_circles"]);
+
+function normalizeShapePattern(value) {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "horizontal_vertical_grid" || normalized === "horizontal_verticle_grid") {
+    return "grid";
   }
+  if (normalized === "diagonal") {
+    return "diagonal_grid";
+  }
+  if (normalized === "concentric") {
+    return "concentric_circles";
+  }
+  return SHAPE_PATTERN_TYPES.has(normalized) ? normalized : "";
+}
+
+function deriveRoomShapeFromDesign(roomDesign, { width, height } = {}) {
+  if (!roomDesign || typeof roomDesign !== "object" || Array.isArray(roomDesign)) return null;
+  const minSide = Math.max(1, Math.min(width, height) - 2);
   const rooms = Array.isArray(roomDesign.rooms)
     ? roomDesign.rooms.filter((room) => room && typeof room === "object" && !Array.isArray(room))
     : [];
-  if (rooms.length === 0) {
-    return null;
-  }
 
-  const minSide = Math.max(1, Math.min(width, height) - 2);
   let roomMinSize = null;
   let roomMaxSize = null;
 
   rooms.forEach((room) => {
-    const roomWidth = Number.isInteger(room.width) && room.width > 0 ? room.width : null;
-    const roomHeight = Number.isInteger(room.height) && room.height > 0 ? room.height : null;
+    let roomWidth = Number.isInteger(room.width) && room.width > 0 ? room.width : null;
+    let roomHeight = Number.isInteger(room.height) && room.height > 0 ? room.height : null;
+    if ((!roomWidth || !roomHeight)
+      && Number.isInteger(room.startX)
+      && Number.isInteger(room.startY)
+      && Number.isInteger(room.endX)
+      && Number.isInteger(room.endY)
+      && room.endX >= room.startX
+      && room.endY >= room.startY) {
+      roomWidth = room.endX - room.startX + 1;
+      roomHeight = room.endY - room.startY + 1;
+    }
     if (!roomWidth || !roomHeight) return;
     const localMin = Math.min(roomWidth, roomHeight);
     const localMax = Math.max(roomWidth, roomHeight);
@@ -78,114 +96,71 @@ function deriveRoomShapeFromDesign(roomDesign, { width, height } = {}) {
     roomMaxSize = roomMaxSize === null ? localMax : Math.max(roomMaxSize, localMax);
   });
 
-  const normalizedRoomMin = normalizePositiveInt(roomMinSize, 3);
-  const normalizedRoomMax = normalizePositiveInt(roomMaxSize, normalizedRoomMin);
+  const roomCountFromRooms = rooms.length > 0 ? rooms.length : null;
+  const totalRoomsInput = normalizePositiveInt(readShapeField(roomDesign, "totalRooms"), 0);
+  const roomCountInput = normalizePositiveInt(readShapeField(roomDesign, "roomCount"), 0);
+  const normalizedRoomCount = normalizePositiveInt(
+    roomCountFromRooms ?? (totalRoomsInput || roomCountInput),
+    1,
+  );
+  const roomMinInput = normalizePositiveInt(readShapeField(roomDesign, "roomMinSize"), 0);
+  const roomMaxInput = normalizePositiveInt(readShapeField(roomDesign, "roomMaxSize"), 0);
+  const normalizedRoomMin = normalizePositiveInt(roomMinSize ?? roomMinInput, 3);
+  const normalizedRoomMax = normalizePositiveInt(roomMaxSize ?? roomMaxInput, normalizedRoomMin);
   const clampedRoomMin = Math.max(1, Math.min(minSide, normalizedRoomMin));
   const clampedRoomMax = Math.max(clampedRoomMin, Math.min(minSide, normalizedRoomMax));
 
-  return {
-    profile: "rooms",
-    roomCount: normalizePositiveInt(rooms.length, 1),
+  const shape = {
+    roomCount: normalizedRoomCount,
     roomMinSize: clampedRoomMin,
     roomMaxSize: clampedRoomMax,
     corridorWidth: normalizePositiveInt(readShapeField(roomDesign, "corridorWidth"), 1),
   };
-}
-
-function deriveProfileShapeFromDesign(roomDesign, { width, height } = {}) {
-  const profileRaw = readShapeField(roomDesign, "profile");
-  if (typeof profileRaw !== "string") {
-    return null;
+  const pattern = readShapeField(roomDesign, "pattern");
+  const normalizedPattern = normalizeShapePattern(pattern);
+  if (normalizedPattern) {
+    shape.pattern = normalizedPattern;
   }
-  const profile = profileRaw.trim();
-  if (!LAYOUT_SHAPE_PROFILES.includes(profile)) {
-    return null;
+  const patternSpacing = normalizePositiveInt(readShapeField(roomDesign, "patternSpacing"), 0);
+  if (patternSpacing > 0) shape.patternSpacing = patternSpacing;
+  const patternLineWidth = normalizePositiveInt(readShapeField(roomDesign, "patternLineWidth"), 0);
+  if (patternLineWidth > 0) shape.patternLineWidth = patternLineWidth;
+  const patternGapEvery = normalizePositiveInt(readShapeField(roomDesign, "patternGapEvery"), 0);
+  if (patternGapEvery > 0) shape.patternGapEvery = patternGapEvery;
+  const patternInset = readShapeField(roomDesign, "patternInset");
+  if (Number.isInteger(patternInset) && patternInset >= 0) {
+    shape.patternInset = patternInset;
   }
-
-  if (profile === "rooms") {
-    return deriveRoomShapeFromDesign(roomDesign, { width, height }) || { profile: "rooms" };
+  const patternInfillPercent = normalizePositiveInt(readShapeField(roomDesign, "patternInfillPercent"), 0);
+  if (patternInfillPercent > 0) {
+    shape.patternInfillPercent = Math.min(100, patternInfillPercent);
   }
-
-  if (profile === "sparse_islands") {
-    const density = readShapeField(roomDesign, "density");
-    const shape = { profile };
-    if (typeof density === "number" && !Number.isNaN(density) && density >= 0 && density <= 1) {
-      shape.density = density;
-    }
-    return shape;
-  }
-
-  if (profile === "clustered_islands") {
-    const clusterSize = readShapeField(roomDesign, "clusterSize");
-    const shape = { profile };
-    if (Number.isInteger(clusterSize) && clusterSize > 0) {
-      shape.clusterSize = clusterSize;
-    }
-    return shape;
-  }
-
-  return { profile: "rectangular" };
-}
-
-function inferLayoutProfile(roomDesign) {
-  const explicitProfile = readShapeField(roomDesign, "profile");
-  if (typeof explicitProfile === "string") {
-    const profile = explicitProfile.trim();
-    if (LAYOUT_SHAPE_PROFILES.includes(profile)) {
-      return profile;
-    }
-  }
-  const rooms = Array.isArray(roomDesign?.rooms) ? roomDesign.rooms : [];
-  return rooms.length > 0 ? "rooms" : "rectangular";
+  return shape;
 }
 
 function normalizeLayoutTiles(layout = {}) {
-  const wallTiles = Number.isInteger(layout.wallTiles) && layout.wallTiles > 0 ? layout.wallTiles : 0;
-  let floorTiles = Number.isInteger(layout.floorTiles) && layout.floorTiles > 0 ? layout.floorTiles : 0;
-  let hallwayTiles = Number.isInteger(layout.hallwayTiles) && layout.hallwayTiles > 0 ? layout.hallwayTiles : 0;
-
-  if (wallTiles > 0) {
-    const walkableTiles = floorTiles + hallwayTiles;
-    if (walkableTiles > 0) {
-      const floorShare = Math.floor((wallTiles * floorTiles) / walkableTiles);
-      const hallwayShare = wallTiles - floorShare;
-      floorTiles += floorShare;
-      hallwayTiles += hallwayShare;
-    } else {
-      const floorShare = Math.ceil(wallTiles / 2);
-      floorTiles = floorShare;
-      hallwayTiles = wallTiles - floorShare;
-    }
-  }
-
+  const floorTiles = Number.isInteger(layout.floorTiles) && layout.floorTiles > 0 ? layout.floorTiles : 0;
+  const hallwayTiles = Number.isInteger(layout.hallwayTiles) && layout.hallwayTiles > 0 ? layout.hallwayTiles : 0;
   return { floorTiles, hallwayTiles };
 }
 
-function resolveWalkableDensityTarget(profile) {
-  const key = typeof profile === "string" ? profile.trim() : "";
-  const density = WALKABLE_DENSITY_TARGETS[key];
-  return typeof density === "number" && density > 0 && density <= 1 ? density : WALKABLE_DENSITY_TARGETS.rectangular;
-}
-
-function deriveLevelSideForWalkableTiles(totalTiles, profile = "rectangular") {
+function deriveLevelSideForWalkableTiles(totalTiles) {
   const normalizedTotalTiles = Number.isInteger(totalTiles) && totalTiles > 0 ? totalTiles : 1;
-  const densityTarget = resolveWalkableDensityTarget(profile);
-  const interiorArea = Math.ceil(normalizedTotalTiles / densityTarget);
+  const interiorArea = Math.ceil(normalizedTotalTiles / WALKABLE_DENSITY_TARGET);
   const interiorSide = Math.ceil(Math.sqrt(interiorArea));
   return Math.max(5, interiorSide + 2);
 }
 
 function deriveLevelGenFromLayout(layout = {}, roomDesign) {
   const { floorTiles, hallwayTiles } = normalizeLayoutTiles(layout);
-  const totalTiles = floorTiles + hallwayTiles;
-  const profile = inferLayoutProfile(roomDesign);
-  const size = deriveLevelSideForWalkableTiles(totalTiles, profile);
-  const profileShape = deriveProfileShapeFromDesign(roomDesign, { width: size, height: size });
-  const roomShape = profileShape || deriveRoomShapeFromDesign(roomDesign, { width: size, height: size });
+  const totalFloorTilesUsed = normalizePositiveInt(readShapeField(roomDesign, "totalFloorTilesUsed"), 0);
+  const totalTiles = floorTiles + hallwayTiles > 0 ? floorTiles + hallwayTiles : totalFloorTilesUsed;
+  const size = deriveLevelSideForWalkableTiles(totalTiles);
+  const roomShape = deriveRoomShapeFromDesign(roomDesign, { width: size, height: size });
   const levelGen = {
     width: size,
     height: size,
-    shape: roomShape || { profile: "rectangular" },
+    shape: roomShape || {},
   };
   if (totalTiles > 0) {
     levelGen.walkableTilesTarget = totalTiles;
@@ -282,10 +257,22 @@ export function buildBuildSpecFromSummary({
   const roomDesign = summary?.roomDesign && typeof summary.roomDesign === "object"
     ? summary.roomDesign
     : null;
-  const levelGen = layout ? deriveLevelGenFromLayout(layout, roomDesign) : deriveLevelGen({ roomCount });
-  const attackerConfig = summary?.attackerConfig && typeof summary.attackerConfig === "object"
-    ? { ...summary.attackerConfig }
-    : null;
+  const levelGen = layout || roomDesign
+    ? deriveLevelGenFromLayout(layout || {}, roomDesign)
+    : deriveLevelGen({ roomCount });
+  const attackerConfigs = Array.isArray(summary?.attackerConfigs)
+    ? summary.attackerConfigs
+      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+      .map((entry) => ({ ...entry }))
+    : summary?.attackerConfig && typeof summary.attackerConfig === "object"
+      ? [{ ...summary.attackerConfig }]
+      : [];
+  const attackerConfig = attackerConfigs[0] || null;
+  const attackerCount = Number.isInteger(summary?.attackerCount) && summary.attackerCount > 0
+    ? summary.attackerCount
+    : attackerConfigs.length > 0
+      ? attackerConfigs.length
+      : undefined;
 
   const spec = {
     schema: "agent-kernel/BuildSpec",
@@ -297,6 +284,7 @@ export function buildBuildSpecFromSummary({
       hints: {
         levelAffinity: summary?.dungeonAffinity,
         budgetTokens: summary?.budgetTokens,
+        attackerCount,
         attackerSetupMode: attackerConfig?.setupMode,
       },
     },
@@ -307,6 +295,8 @@ export function buildBuildSpecFromSummary({
           affinity: sel.requested.affinity,
           count: sel.requested.count,
         })),
+        attackerCount,
+        attackerConfigs: attackerConfigs.length > 0 ? attackerConfigs : undefined,
         attackerConfig: attackerConfig || undefined,
       },
     },
@@ -316,6 +306,8 @@ export function buildBuildSpecFromSummary({
         levelAffinity: summary?.dungeonAffinity,
         actors,
         actorGroups,
+        attackerCount,
+        attackerConfigs: attackerConfigs.length > 0 ? attackerConfigs : undefined,
         attackerConfig: attackerConfig || undefined,
       },
     },

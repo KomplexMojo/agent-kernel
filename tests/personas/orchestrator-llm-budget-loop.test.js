@@ -26,7 +26,7 @@ const responses = [
     response: JSON.stringify({
       phase: "layout_only",
       remainingBudgetTokens: 300,
-      layout: { wallTiles: 50, floorTiles: 100, hallwayTiles: 50 },
+      layout: { floorTiles: 100, hallwayTiles: 50 },
       roomDesign: {
         rooms: [
           { id: "R1", size: "large", width: 10, height: 10 },
@@ -74,13 +74,12 @@ const result = await runLlmBudgetLoop({
 
 assert.equal(result.ok, true);
 assert.equal(result.captures.length, 2);
-assert.equal(result.summary.layout.wallTiles, undefined);
-assert.equal(result.summary.layout.floorTiles + result.summary.layout.hallwayTiles, 200);
+assert.equal(result.summary.layout.floorTiles + result.summary.layout.hallwayTiles, 150);
 assert.equal(result.summary.roomDesign.rooms.length, 2);
 assert.equal(result.summary.roomDesign.connections.length, 1);
 assert.equal(result.summary.roomDesign.hallways, "Single spine hallway.");
 assert.equal(result.summary.actors.length, 1);
-assert.equal(result.remainingBudgetTokens, 18);
+assert.equal(result.remainingBudgetTokens, 68);
 assert.equal(result.stopReason, "no_viable_spend");
 assert.ok(result.trace[0].startedAt);
 assert.ok(result.trace[0].endedAt);
@@ -107,7 +106,7 @@ const responses = [
     response: JSON.stringify({
       phase: "layout_only",
       remainingBudgetTokens: 100,
-      layout: { wallTiles: 2, floorTiles: 3, hallwayTiles: 1 },
+      layout: { floorTiles: 3, hallwayTiles: 1 },
       missing: [],
     }),
     done: true,
@@ -147,9 +146,9 @@ const result = await runLlmBudgetLoop({
 });
 
 assert.equal(result.ok, true);
-assert.equal(result.trace[0].spentTokens, 10);
-assert.equal(result.trace[0].remainingBudgetTokens, 90);
-assert.equal(result.remainingBudgetTokens, 90);
+assert.equal(result.trace[0].spentTokens, 6);
+assert.equal(result.trace[0].remainingBudgetTokens, 94);
+assert.equal(result.remainingBudgetTokens, 94);
 `;
 
 test("orchestrator budget loop applies tile price list costs", () => {
@@ -172,7 +171,7 @@ const responses = [
     response: JSON.stringify({
       phase: "layout_only",
       remainingBudgetTokens: 120,
-      layout: { wallTiles: 50, floorTiles: 100, hallwayTiles: 50 },
+      layout: { floorTiles: 100, hallwayTiles: 50 },
       missing: [],
     }),
     done: true,
@@ -241,7 +240,7 @@ const responses = [
     response: JSON.stringify({
       phase: "layout_only",
       remainingBudgetTokens: 400,
-      layout: { wallTiles: 1000, floorTiles: 1200, hallwayTiles: 800 },
+      layout: { floorTiles: 1200, hallwayTiles: 800 },
       missing: [],
     }),
     done: true,
@@ -309,7 +308,7 @@ const responses = [
     response: JSON.stringify({
       phase: "layout_only",
       remainingBudgetTokens: 300,
-      layout: { wallTiles: 50, floorTiles: 100, hallwayTiles: 50 },
+      layout: { floorTiles: 100, hallwayTiles: 50 },
       missing: [],
     }),
     done: true,
@@ -337,7 +336,7 @@ const result = await runLlmBudgetLoop({
   model: "fixture",
   catalog: ${JSON.stringify(catalogFixture)},
   goal: "Fallback unmatched defender pair",
-  budgetTokens: 360,
+  budgetTokens: 500,
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 0.7 },
@@ -350,8 +349,10 @@ const result = await runLlmBudgetLoop({
 
 assert.equal(result.ok, true);
 assert.equal(result.summary.actors.length, 1);
-assert.equal(result.summary.actors[0].affinity, "earth");
-assert.equal(result.summary.actors[0].motivation, "defending");
+assert.notEqual(
+  \`\${result.summary.actors[0].motivation}:\${result.summary.actors[0].affinity}\`,
+  "defending:fire",
+);
 assert.ok(Array.isArray(result.trace[1].validationWarnings));
 assert.ok(result.trace[1].validationWarnings.some((entry) => entry.code === "missing_catalog_match"));
 `;

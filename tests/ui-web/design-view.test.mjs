@@ -77,6 +77,50 @@ function makeStatusElement() {
 
 function makeRenderableLevelOutput() {
   const children = [];
+  let downloadClickCount = 0;
+  let lastDownload = null;
+  let canvasExportCallCount = 0;
+
+  function createElementStub({ className = "", textContent = "", onClick = null } = {}) {
+    const handlers = {};
+    return {
+      className,
+      textContent,
+      disabled: false,
+      items: [],
+      setAttribute() {},
+      append(...items) {
+        this.items = items;
+      },
+      addEventListener(event, fn) {
+        handlers[event] = fn;
+      },
+      click() {
+        if (this.disabled) return;
+        if (typeof onClick === "function") {
+          onClick(this);
+        }
+        handlers.click?.();
+      },
+    };
+  }
+
+  function findByClassName(className) {
+    const queue = [...children];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current || typeof current !== "object") continue;
+      const classes = typeof current.className === "string" ? current.className.split(/\s+/).filter(Boolean) : [];
+      if (classes.includes(className)) {
+        return current;
+      }
+      if (Array.isArray(current.items) && current.items.length > 0) {
+        queue.push(...current.items);
+      }
+    }
+    return null;
+  }
+
   const doc = {
     createElement(tag) {
       if (tag === "canvas") {
@@ -85,23 +129,33 @@ function makeRenderableLevelOutput() {
           width: 0,
           height: 0,
           setAttribute() {},
+          toDataURL() {
+            canvasExportCallCount += 1;
+            return "data:image/png;base64,AAAA";
+          },
           getContext(type) {
             if (type !== "2d") return null;
             return {
               imageSmoothingEnabled: false,
               fillStyle: "",
               fillRect() {},
+              drawImage() {},
             };
           },
         };
       }
-      return {
-        className: "",
-        textContent: "",
-        append(...items) {
-          this.items = items;
-        },
-      };
+      if (tag === "a") {
+        return createElementStub({
+          onClick: (anchor) => {
+            downloadClickCount += 1;
+            lastDownload = {
+              href: String(anchor?.href || ""),
+              download: String(anchor?.download || ""),
+            };
+          },
+        });
+      }
+      return createElementStub();
     },
   };
   return {
@@ -110,6 +164,16 @@ function makeRenderableLevelOutput() {
     get childrenCount() {
       return children.length;
     },
+    get downloadClickCount() {
+      return downloadClickCount;
+    },
+    get lastDownload() {
+      return lastDownload;
+    },
+    get canvasExportCallCount() {
+      return canvasExportCallCount;
+    },
+    findByClassName,
     replaceChildren(...items) {
       children.splice(0, children.length, ...items);
     },
@@ -169,10 +233,13 @@ test("design view includes guidance and actor set elements", () => {
   assert.match(html, /id="design-level-output"/);
   assert.match(html, /id="design-attacker-output"/);
   assert.match(html, /id="prompt-token-budget"/);
-  assert.match(html, /id="prompt-max-token-budget"/);
+  assert.doesNotMatch(html, /id="prompt-max-token-budget"/);
   assert.match(html, /id="prompt-think-time"/);
   assert.match(html, /id="prompt-llm-tokens"/);
-  assert.match(html, /id="prompt-layout-profile"/);
+  assert.match(html, /id="prompt-corridor-width"/);
+  assert.match(html, /id="prompt-hallway-pattern"/);
+  assert.doesNotMatch(html, /id="prompt-pattern-line-width"/);
+  assert.match(html, /id="prompt-pattern-infill-percent"/);
   assert.match(html, /id="prompt-layout-allocation-percent"/);
   assert.match(html, /id="prompt-defender-allocation-percent"/);
   assert.match(html, /id="prompt-attacker-allocation-percent"/);
@@ -184,15 +251,17 @@ test("design view includes guidance and actor set elements", () => {
   assert.match(html, /Level Configuration/);
   assert.match(html, /Attacker Configuration/);
   assert.match(html, /Defender Configuration/);
-  assert.match(html, /Level Affinities \(count\)/);
-  assert.match(html, /Defender Affinities \(count\)/);
-  assert.match(html, /Attacker Affinities \(count\)/);
+  assert.match(html, /Workflow Affinities \(Level \+ Defender\)/);
+  assert.match(html, /Attacker Affinities/);
   assert.doesNotMatch(html, /id="prompt-level-budget"/);
-  assert.match(html, /id="prompt-level-affinities"/);
+  assert.match(html, /id="prompt-workflow-affinities"/);
   assert.doesNotMatch(html, /id="prompt-attacker-budget"/);
   assert.match(html, /id="prompt-attacker-setup-mode"/);
-  assert.match(html, /id="prompt-attacker-affinities"/);
-  assert.match(html, /id="prompt-defender-affinities"/);
+  assert.match(html, /id="prompt-attacker-count"/);
+  assert.match(html, /id="prompt-attacker-selected-affinities"/);
+  assert.doesNotMatch(html, /id="prompt-level-affinities"/);
+  assert.doesNotMatch(html, /id="prompt-attacker-affinities"/);
+  assert.doesNotMatch(html, /id="prompt-defender-affinities"/);
   assert.match(html, /id="attacker-vitals-health-max"/);
   assert.match(html, /id="attacker-vitals-mana-max"/);
   assert.match(html, /id="attacker-vitals-health-regen"/);
@@ -298,6 +367,138 @@ test("design guidance generates brief and actor set", async () => {
   assert.equal(captures[1].payload.phase, "actors_only");
   assert.match(captures[0].payload.prompt, /Phase: layout_only/);
   assert.match(captures[1].payload.prompt, /Phase: actors_only/);
+});
+
+test("design guidance hands level summaries to the dedicated level builder adapter", async () => {
+  const guidanceInput = makeInput("Fire dungeon with 1200 token budget.");
+  const briefOutput = { textContent: "" };
+  const levelDesignOutput = { textContent: "" };
+  const actorSetInput = makeInput("");
+  const actorSetPreview = { textContent: "" };
+  const statusEl = { textContent: "", style: {} };
+  const levelBuilderCalls = [];
+
+  const fixtureResponse = {
+    responses: [
+      {
+        response: JSON.stringify({
+          phase: "layout_only",
+          remainingBudgetTokens: 600,
+          layout: { floorTiles: 40, hallwayTiles: 10 },
+          missing: [],
+          stop: "done",
+        }),
+      },
+    ],
+  };
+
+  const guidance = wireDesignGuidance({
+    elements: {
+      guidanceInput,
+      modeSelect: makeInput("fixture"),
+      modelInput: makeInput("fixture"),
+      baseUrlInput: makeInput("http://localhost:11434"),
+      generateButton: makeButton(),
+      fixtureButton: makeButton(),
+      statusEl,
+      briefOutput,
+      levelDesignOutput,
+      actorSetInput,
+      actorSetPreview,
+      applyActorSetButton: makeButton(),
+    },
+    llmConfig: {
+      fixtureResponse,
+      catalog: catalogFixture,
+      levelBuilderAdapter: {
+        async buildFromGuidance({ summary, renderOptions }) {
+          levelBuilderCalls.push({ summary, renderOptions });
+          return {
+            ok: true,
+            tiles: ["S..E"],
+            width: 4,
+            height: 1,
+            walkableTiles: 4,
+          };
+        },
+      },
+    },
+  });
+
+  const result = await guidance.generateLevelBrief({ useFixture: true });
+
+  assert.equal(result?.ok, true);
+  assert.equal(levelBuilderCalls.length, 1);
+  assert.ok(levelBuilderCalls[0]?.summary);
+  assert.equal(levelBuilderCalls[0]?.renderOptions?.includeAscii, true);
+  assert.equal(levelBuilderCalls[0]?.renderOptions?.includeImage, true);
+  assert.match(levelDesignOutput.textContent, /Level preview ready: 4x1, walkable 4/);
+});
+
+test("design guidance level preview exposes an export image button", async () => {
+  const guidanceInput = makeInput("Fire dungeon with 1200 token budget.");
+  const briefOutput = { textContent: "" };
+  const levelDesignOutput = makeRenderableLevelOutput();
+  const actorSetInput = makeInput("");
+  const actorSetPreview = { textContent: "" };
+  const statusEl = { textContent: "", style: {} };
+
+  const fixtureResponse = {
+    responses: [
+      {
+        response: JSON.stringify({
+          phase: "layout_only",
+          remainingBudgetTokens: 600,
+          layout: { floorTiles: 40, hallwayTiles: 10 },
+          missing: [],
+          stop: "done",
+        }),
+      },
+    ],
+  };
+
+  const guidance = wireDesignGuidance({
+    elements: {
+      guidanceInput,
+      modeSelect: makeInput("fixture"),
+      modelInput: makeInput("fixture"),
+      baseUrlInput: makeInput("http://localhost:11434"),
+      generateButton: makeButton(),
+      fixtureButton: makeButton(),
+      statusEl,
+      briefOutput,
+      levelDesignOutput,
+      actorSetInput,
+      actorSetPreview,
+      applyActorSetButton: makeButton(),
+    },
+    llmConfig: {
+      fixtureResponse,
+      catalog: catalogFixture,
+      levelBuilderAdapter: {
+        async buildFromGuidance() {
+          return {
+            ok: true,
+            tiles: ["S..E"],
+            width: 4,
+            height: 1,
+            walkableTiles: 4,
+          };
+        },
+      },
+    },
+  });
+
+  const result = await guidance.generateLevelBrief({ useFixture: true });
+  assert.equal(result?.ok, true);
+  const exportButton = levelDesignOutput.findByClassName("level-preview-export");
+  assert.ok(exportButton, "expected level preview export button");
+  assert.equal(exportButton.disabled, false);
+  exportButton.click();
+  assert.equal(levelDesignOutput.canvasExportCallCount, 1);
+  assert.equal(levelDesignOutput.downloadClickCount, 1);
+  assert.match(levelDesignOutput.lastDownload?.download || "", /^level-preview-[a-z0-9_-]+-4x1\.png$/);
+  assert.match(levelDesignOutput.lastDownload?.href || "", /^data:image\/png/);
 });
 
 test("design guidance auto-fits oversized walkable targets without failing generation", async () => {
@@ -525,7 +726,7 @@ test("design guidance defaults to live mode when no mode toggle exists", async (
   assert.match(capturedUrl, /\/api\/generate$/);
   assert.ok(capturedBodies.length >= 2);
   assert.ok(capturedBodies.some((body) => /"model":"phi4"/.test(body)));
-  assert.ok(capturedBodies.some((body) => /Model context window token limit: 16384/.test(body)));
+  assert.ok(!capturedBodies.some((body) => /Model context window token limit: 16384/.test(body)));
   assert.ok(capturedBodies.some((body) => /Phase: layout_only/.test(body)));
   assert.ok(capturedBodies.some((body) => /Phase: actors_only/.test(body)));
   assert.ok(capturedBodies.some((body) => /"format":"json"/.test(body)));
@@ -559,22 +760,25 @@ test("design guidance auto-populates default level, attacker, and defender promp
   assert.match(guidanceInput.value, /=== Attacker Prompt Template ===/);
   assert.match(guidanceInput.value, /=== Defender Prompt Template ===/);
   assert.doesNotMatch(guidanceInput.value, /contextWindowTokens:/);
-  assert.match(guidanceInput.value, /Model context window token limit: 16384/);
-  assert.match(guidanceInput.value, /Goal: Design a fire affinity dungeon layout\./);
-  assert.match(guidanceInput.value, /Goal: Configure attacker setup for a fire themed dungeon\./);
-  assert.match(guidanceInput.value, /Goal: Create dungeon defenders for a fire themed dungeon\./);
+  assert.doesNotMatch(guidanceInput.value, /Model context window token limit: 16384/);
+  assert.match(guidanceInput.value, /Scenario goal: Design a fire affinity dungeon layout\./);
+  assert.match(guidanceInput.value, /Goal: Configure attacker setup for the dungeon run\./);
+  assert.match(guidanceInput.value, /Scenario goal: Create dungeon defenders for a fire themed dungeon\./);
   assert.match(guidanceInput.value, /Affinities: fire/);
   assert.match(guidanceInput.value, /Affinity expressions: push, pull, emit/);
   assert.match(guidanceInput.value, /Motivations: random, stationary, exploring, attacking, defending, patrolling, reflexive, goal_oriented, strategy_focused/);
   assert.match(guidanceInput.value, /Phase: layout_only/);
   assert.match(guidanceInput.value, /Phase: actors_only/);
   assert.match(guidanceInput.value, /Allowed setup modes: auto/);
-  assert.match(guidanceInput.value, /Include roomDesign\.profile as one of:/);
-  assert.match(guidanceInput.value, /Attacker phase budget tokens: 1000/);
-  assert.match(guidanceInput.value, /Tile costs: floor 1, hallway 1 tokens each\./);
-  assert.match(guidanceInput.value, /Budget tokens: 1000/);
-  assert.match(guidanceInput.value, /Remaining budget tokens: 1000/);
-  assert.match(guidanceInput.value, /Total budget tokens: 1000/);
+  assert.match(guidanceInput.value, /Goal: Plan the dungeon layout using rooms only\./);
+  assert.match(guidanceInput.value, /level entry and a level exit/i);
+  assert.match(guidanceInput.value, /Fog of war: level exit location is unknown/i);
+  assert.match(guidanceInput.value, /stationary defenders must anchor chokepoints/i);
+  assert.doesNotMatch(guidanceInput.value, /Attacker phase budget tokens: 1000/);
+  assert.match(guidanceInput.value, /Assumption: floor tiles cost 1 tokens each\./);
+  assert.doesNotMatch(guidanceInput.value, /(^|\n)Budget tokens: 1000(\n|$)/);
+  assert.match(guidanceInput.value, /Constraint: budget tokens available for room design: 1000/);
+  assert.match(guidanceInput.value, /Attacker configuration budget tokens: 200/);
   assert.match(guidanceInput.value, /Defender phase budget tokens: 1000/);
   assert.doesNotMatch(guidanceInput.value, /Max available budget tokens:/);
   assert.doesNotMatch(guidanceInput.value, /Budget pools:/);
@@ -588,9 +792,10 @@ test("design guidance formats multi-affinity goals in the prompt template", () =
     promptParams: { levelAffinities: ["water"], defenderAffinities: ["fire", "wind"] },
   });
 
-  assert.match(prompt, /Goal: Design a water affinity dungeon layout\./);
-  assert.match(prompt, /Goal: Create dungeon defenders for a fire and wind themed dungeon\./);
+  assert.match(prompt, /Scenario goal: Design a water affinity dungeon layout\./);
+  assert.match(prompt, /Scenario goal: Create dungeon defenders for a fire and wind themed dungeon\./);
   assert.match(prompt, /Affinities: fire, wind/);
+  assert.match(prompt, /Affinity tip \(water\)/);
 });
 
 test("design brief affinity line reflects selected multi-affinity level setup", () => {
@@ -614,8 +819,12 @@ test("design guidance prompt template includes attacker setup and regen context"
     budgetTokens: 1200,
     promptParams: {
       defenderAffinities: ["fire"],
+      thinkTimeSeconds: 45,
+      llmTokens: 512,
+      attackerCount: 3,
       attackerSetupMode: "user",
       attackerAffinities: { fire: ["push", "emit"] },
+      attackerAffinityStacks: { fire: 3 },
       attackerVitalsMax: { health: 10, mana: 6 },
       attackerVitalsRegen: { health: 1, mana: 2 },
       attackerAffinityStackRegen: 1,
@@ -623,18 +832,29 @@ test("design guidance prompt template includes attacker setup and regen context"
   });
 
   assert.match(prompt, /Default setup mode: user/);
-  assert.match(prompt, /Requested attacker affinities: fire\(push, emit\)/);
+  assert.match(prompt, /Requested attacker affinities: fire x3 \(push, emit\)/);
   assert.match(prompt, /Requested attacker vitals max: health 10, mana 6/);
   assert.match(prompt, /Requested attacker vitals regen: health 1, mana 2/);
+  assert.match(prompt, /Requested attacker count: 3/);
+  assert.match(prompt, /Required attacker count: 3/);
   assert.match(prompt, /Allowed setup modes: user/);
-  assert.match(prompt, /Allowed affinities: fire/);
-  assert.match(prompt, /Allowed affinity expressions: push, emit/);
-  assert.match(prompt, /Required attacker affinities: fire\(push, emit\)/);
-  assert.match(prompt, /include every required attacker affinity entry in attackerConfig\.affinities/i);
+  assert.match(prompt, /Allowed affinities: /);
+  assert.match(prompt, /Allowed affinity expressions: push, pull, emit/);
+  assert.match(prompt, /Preferred attacker affinities: fire x3 \(push, emit\)/);
+  assert.match(prompt, /Affinity tip \(fire\)/);
+  assert.match(prompt, /Push:/);
+  assert.match(prompt, /Pull:/);
+  assert.match(prompt, /Emit:/);
+  assert.match(prompt, /Selected expressions: push, emit\./);
+  assert.match(prompt, /Selected stacks: x3\./);
+  assert.match(prompt, /Higher stacks:/);
   assert.doesNotMatch(prompt, /Attacker setup mode:/);
-  assert.match(prompt, /attackerConfig\.affinities must include at least one affinity with at least one expression/i);
-  assert.match(prompt, /attackerConfig\.vitalsMax\.mana must be an integer greater than 0/i);
-  assert.match(prompt, /attackerConfig\.vitalsRegen\.mana must be an integer greater than 0/i);
+  assert.match(prompt, /Attacker affinity and vitals choices are unconstrained by dungeon and defender affinities/i);
+  assert.match(prompt, /attackerConfig must be identical to attackerConfigs\[0\]/i);
+  assert.match(prompt, /attackers start at level entry and objective is to reach level exit/i);
+  assert.match(prompt, /level exit is hidden at start/i);
+  assert.doesNotMatch(prompt, /Think time:/);
+  assert.doesNotMatch(prompt, /LLM response tokens:/);
 });
 
 test("design guidance attacker prompt includes all selected attacker affinities", () => {
@@ -653,13 +873,13 @@ test("design guidance attacker prompt includes all selected attacker affinities"
     },
   });
 
-  assert.match(prompt, /Goal: Configure attacker setup for a fire and water themed dungeon\./);
-  assert.match(prompt, /Allowed affinities: fire, water/);
-  assert.match(prompt, /Allowed affinity expressions: push/);
-  assert.match(prompt, /Required attacker affinities: fire\(push\), water\(push\)/);
+  assert.match(prompt, /Goal: Configure attacker setup for the dungeon run\./);
+  assert.match(prompt, /Allowed affinities: .*fire.*water.*earth/i);
+  assert.match(prompt, /Allowed affinity expressions: push, pull, emit/);
+  assert.match(prompt, /Preferred attacker affinities: fire x1 \(push\), water x1 \(push\)/);
 });
 
-test("design guidance layout profile selection flows into prompt and summary", async () => {
+test("design guidance hallway controls flow into prompt params and summary", async () => {
   const guidanceInput = makeInput("");
   const statusEl = { textContent: "", style: {} };
   const briefOutput = { textContent: "" };
@@ -681,7 +901,9 @@ test("design guidance layout profile selection flows into prompt and summary", a
       applyActorSetButton: makeButton(),
       tokenBudgetInput: makeInput("1200"),
       maxTokenBudgetInput: makeInput("1200"),
-      layoutProfileInput: makeInput("clustered_islands"),
+      corridorWidthInput: makeInput("3"),
+      hallwayPatternInput: makeInput("diagonal_grid"),
+      patternInfillPercentInput: makeInput("80"),
       layoutAllocationPercentInput: makeInput("55"),
       defenderAllocationPercentInput: makeInput("25"),
       attackerAllocationPercentInput: makeInput("20"),
@@ -712,15 +934,20 @@ test("design guidance layout profile selection flows into prompt and summary", a
     },
   });
 
-  assert.match(guidanceInput.value, /Layout profile preference: clustered_islands/);
-  assert.match(guidanceInput.value, /Use roomDesign\.profile: clustered_islands/);
-  assert.doesNotMatch(guidanceInput.value, /Include roomDesign\.profile as one of: .*rooms/);
-  assert.doesNotMatch(guidanceInput.value, /For sparse_islands, include roomDesign\.density/);
+  assert.doesNotMatch(guidanceInput.value, /Hallway width preference:/);
+  assert.doesNotMatch(guidanceInput.value, /Hallway pattern:/);
+  assert.doesNotMatch(guidanceInput.value, /Hallway thickness:/);
+  assert.doesNotMatch(guidanceInput.value, /Hallway infill:/);
+  assert.match(guidanceInput.value, /Layout mode: room topology only\./);
+  assert.doesNotMatch(guidanceInput.value, /roomDesign\.profile/);
 
   await guidance.generateBrief({ useFixture: true });
 
   const summary = guidance.getSummary();
-  assert.equal(summary?.roomDesign?.profile, "clustered_islands");
+  assert.equal(summary?.roomDesign?.corridorWidth, 3);
+  assert.equal(summary?.roomDesign?.pattern, "diagonal_grid");
+  assert.equal(summary?.roomDesign?.patternLineWidth, 3);
+  assert.equal(summary?.roomDesign?.patternInfillPercent, 80);
 });
 
 test("design guidance applies explicit max budget with direct allocation percentages", async () => {
@@ -777,8 +1004,9 @@ test("design guidance applies explicit max budget with direct allocation percent
     },
   });
 
-  assert.match(guidanceInput.value, /Budget tokens: 1000/);
-  assert.match(guidanceInput.value, /Remaining budget tokens: 50/);
+  assert.match(guidanceInput.value, /Attacker configuration budget tokens: 250/);
+  assert.doesNotMatch(guidanceInput.value, /(^|\n)Budget tokens: 1000(\n|$)/);
+  assert.match(guidanceInput.value, /Constraint: budget tokens available for room design: 50/);
   assert.match(guidanceInput.value, /Defender phase budget tokens: 700/);
   assert.match(budgetAllocationSummary.textContent, /Layout 50/);
   assert.match(budgetAllocationSummary.textContent, /Defenders 700/);
@@ -823,7 +1051,9 @@ test("design guidance supports scaled budget controls from 10k to 1,000,000,000 
       llmConfig: { catalog: catalogFixture },
     });
 
-    assert.match(guidanceInput.value, new RegExp(`Budget tokens: ${budget}`));
+    const attackerBudget = Math.floor(budget * 0.2);
+    assert.match(guidanceInput.value, new RegExp(`Attacker configuration budget tokens: ${attackerBudget}`));
+    assert.doesNotMatch(guidanceInput.value, new RegExp(`(^|\\n)Budget tokens: ${budget}(\\n|$)`));
     assert.match(budgetAllocationSummary.textContent, new RegExp(`budget ${budget}`));
   });
 
@@ -1052,6 +1282,9 @@ test("design defender clamp stays within budget at one million token scale", asy
   assert.ok(Array.isArray(actorSet));
   assert.ok(actorSet.length > 0);
   assert.ok(Number(actorSet[0]?.count) < 250000);
+  assert.equal(actorSet[0]?.tokenHintPerUnit, actorSet[0]?.tokenHint);
+  assert.equal(actorSet[0]?.tokenHintTotal, (actorSet[0]?.tokenHint || 0) * (actorSet[0]?.count || 0));
+  assert.ok((actorSet[0]?.tokenTotalCost || 0) >= (actorSet[0]?.tokenHintTotal || 0));
 });
 
 test("mergeSummaryWithActorSet maps editable entries into rooms and actors", () => {
@@ -1139,7 +1372,6 @@ test("design view supports phased level -> attacker -> defender generation flow"
       remainingBudgetTokens: 495,
       layout: { floorTiles: 60, hallwayTiles: 20 },
       roomDesign: {
-        profile: "rooms",
         rooms: [{ id: "R1", size: "medium", width: 10, height: 8 }],
         connections: [],
         hallways: "Single connector",
@@ -1193,6 +1425,110 @@ test("design view supports phased level -> attacker -> defender generation flow"
   assert.match(elements["#design-brief-output"].textContent, /Actors Total: 1/);
   assert.match(elements["#design-defender-token-indicator"].textContent, /^Used \d+ \/ \d+ \(\d+(\.\d+)?%\)$/);
   assert.match(elements["#design-simulation-token-indicator"].textContent, /^Used \d+ \/ \d+ \(\d+(\.\d+)?%\)$/);
+});
+
+test("design view keeps phase prompts rerunnable after failures and unlocks build only after all succeed", async () => {
+  const buildButton = makeButton();
+  const elements = {
+    "#design-guidance-input": makeInput(""),
+    "#design-level-prompt-template": makeInput(""),
+    "#design-attacker-prompt-template": makeInput(""),
+    "#design-defender-prompt-template": makeInput(""),
+    "#design-guidance-status": { textContent: "", style: {} },
+    "#design-brief-output": { textContent: "" },
+    "#design-spend-ledger-output": { textContent: "" },
+    "#design-level-output": { textContent: "" },
+    "#design-attacker-output": { textContent: "" },
+    "#design-level-token-indicator": { textContent: "" },
+    "#design-attacker-token-indicator": { textContent: "" },
+    "#design-defender-token-indicator": { textContent: "" },
+    "#design-simulation-token-indicator": { textContent: "" },
+    "#design-actor-set-json": makeInput(""),
+    "#design-actor-set-apply": makeButton(),
+    "#design-actor-set-preview": { textContent: "" },
+    "#design-build-and-load": buildButton,
+    "#design-build-status": { textContent: "", style: {} },
+    "#prompt-token-budget": makeInput("1000"),
+    "#prompt-max-token-budget": makeInput("1000"),
+    "#prompt-layout-allocation-percent": makeInput("55"),
+    "#prompt-defender-allocation-percent": makeInput("25"),
+    "#prompt-attacker-allocation-percent": makeInput("20"),
+  };
+
+  const root = makeRoot(elements);
+  const scriptedResponses = [
+    new Error("level failed"),
+    {
+      phase: "layout_only",
+      remainingBudgetTokens: 550,
+      layout: { floorTiles: 30, hallwayTiles: 20 },
+      missing: [],
+    },
+    new Error("attacker failed"),
+    {
+      dungeonAffinity: "fire",
+      attackerConfig: {
+        setupMode: "user",
+        vitalsMax: { health: 8, mana: 4 },
+        vitalsRegen: { health: 1, mana: 1 },
+        affinities: { fire: ["push"] },
+      },
+      rooms: [],
+      actors: [],
+    },
+    new Error("defender failed"),
+    {
+      phase: "actors_only",
+      remainingBudgetTokens: 250,
+      actors: [{ motivation: "defending", affinity: "fire", count: 1, vitals: makeAmbulatoryVitals() }],
+      missing: [],
+      stop: "done",
+    },
+  ];
+  let responseIndex = 0;
+
+  const view = wireDesignView({
+    root,
+    llmConfig: {
+      catalog: catalogFixture,
+      fetchFn: async () => {
+        const response = scriptedResponses[Math.min(responseIndex++, scriptedResponses.length - 1)];
+        if (response instanceof Error) {
+          throw response;
+        }
+        return {
+          ok: true,
+          json: async () => ({ response: JSON.stringify(response) }),
+        };
+      },
+    },
+  });
+
+  assert.equal(buildButton.disabled, true);
+
+  const levelFail = await view.generateLevelBrief();
+  assert.equal(levelFail.ok, false);
+  assert.equal(buildButton.disabled, true);
+
+  const levelOk = await view.generateLevelBrief();
+  assert.equal(levelOk.ok, true);
+  assert.equal(buildButton.disabled, true);
+
+  const attackerFail = await view.generateAttackerBrief();
+  assert.equal(attackerFail.ok, false);
+  assert.equal(buildButton.disabled, true);
+
+  const attackerOk = await view.generateAttackerBrief();
+  assert.equal(attackerOk.ok, true);
+  assert.equal(buildButton.disabled, true);
+
+  const defenderFail = await view.generateDefenderBrief();
+  assert.equal(defenderFail.ok, false);
+  assert.equal(buildButton.disabled, true);
+
+  const defenderOk = await view.generateDefenderBrief();
+  assert.equal(defenderOk.ok, true);
+  assert.equal(buildButton.disabled, false);
 });
 
 test("design view level timing tracks real button-click path at 2M tokens", async () => {
@@ -1345,7 +1681,7 @@ test("design view level timing test includes repair cycle in button-click path",
   assert.ok(levelOutput.childrenCount > 0);
 });
 
-test("design view marks prompt buttons busy and blocks duplicate level runs while in flight", async () => {
+test("design view marks only the active prompt button busy and blocks duplicate clicks on that button", async () => {
   const statusEl = makeStatusElement();
   let releaseFetch;
   let fetchCalls = 0;
@@ -1413,23 +1749,32 @@ test("design view marks prompt buttons busy and blocks duplicate level runs whil
 
   runLevelButton.click();
   await waitFor(
-    () => runLevelButton.disabled === true && runAttackerButton.disabled === true && runDefenderButton.disabled === true,
-    { timeoutMs: 3000, label: "prompt buttons busy state" },
+    () => runLevelButton.disabled === true && runAttackerButton.disabled === false && runDefenderButton.disabled === false,
+    { timeoutMs: 3000, label: "active prompt button busy state" },
   );
   assert.equal(runLevelButton.textContent, "Running Level Prompt...");
+  assert.equal(runAttackerButton.disabled, false);
+  assert.equal(runDefenderButton.disabled, false);
   await waitFor(
     () => fetchCalls >= 1,
     { timeoutMs: 3000, label: "initial level prompt fetch call" },
   );
   assert.equal(fetchCalls, 1);
 
+  runAttackerButton.click();
+  await waitFor(
+    () => fetchCalls >= 2,
+    { timeoutMs: 3000, label: "parallel attacker prompt fetch call" },
+  );
+  assert.equal(fetchCalls, 2);
+
   runLevelButton.click();
-  assert.equal(fetchCalls, 1);
+  assert.equal(fetchCalls, 2);
 
   releaseFetch();
   await waitFor(
-    () => typeof statusEl.textContent === "string" && statusEl.textContent.includes("Level layout ready."),
-    { timeoutMs: 30000, label: "level completion after busy state" },
+    () => runLevelButton.disabled === false && runAttackerButton.disabled === false,
+    { timeoutMs: 30000, label: "prompt completion after busy state" },
   );
   assert.equal(runLevelButton.disabled, false);
   assert.equal(runAttackerButton.disabled, false);
@@ -1488,7 +1833,7 @@ test("design view level prompt returns with timeout error when LLM request hangs
 
   runLevelButton.click();
   await waitFor(
-    () => runLevelButton.disabled === true && runAttackerButton.disabled === true && runDefenderButton.disabled === true,
+    () => runLevelButton.disabled === true && runAttackerButton.disabled === false && runDefenderButton.disabled === false,
     { timeoutMs: 3000, label: "busy state before timeout" },
   );
   await waitFor(
@@ -1503,7 +1848,7 @@ test("design view level prompt returns with timeout error when LLM request hangs
   assert.equal(runLevelButton.textContent, "Run Level Creation Prompt");
 });
 
-test("design attacker auto setup mirrors regen values from max vitals", async () => {
+test("design attacker auto setup preserves provided regen values", async () => {
   const elements = {
     "#design-guidance-input": makeInput(""),
     "#design-level-prompt-template": makeInput(""),
@@ -1559,7 +1904,7 @@ test("design attacker auto setup mirrors regen values from max vitals", async ()
   assert.equal(attackerResult.ok, true);
   const config = attackerResult.summary?.attackerConfig || {};
   assert.equal(config.setupMode, "auto");
-  assert.deepEqual(config.vitalsRegen, config.vitalsMax);
+  assert.deepEqual(config.vitalsRegen, { health: 0, mana: 0, stamina: 0, durability: 0 });
   const indicatorMatch = elements["#design-attacker-token-indicator"].textContent.match(
     /^Used (\d+) \/ (\d+) \(\d+(\.\d+)?%\)$/,
   );
@@ -1570,7 +1915,7 @@ test("design attacker auto setup mirrors regen values from max vitals", async ()
   assert.ok(usedTokens <= budgetTokens);
 });
 
-test("design attacker generation enforces affinity and mana guardrails", async () => {
+test("design attacker generation does not inject affinity or mana guardrails", async () => {
   const elements = {
     "#design-guidance-input": makeInput(""),
     "#design-level-prompt-template": makeInput(""),
@@ -1626,9 +1971,239 @@ test("design attacker generation enforces affinity and mana guardrails", async (
   const attackerResult = await view.generateAttackerBrief();
   assert.equal(attackerResult.ok, true);
   const config = attackerResult.summary?.attackerConfig || {};
-  assert.ok(config.affinities && Object.keys(config.affinities).length > 0);
-  assert.ok(Number(config.vitalsMax?.mana) > 0);
-  assert.ok(Number(config.vitalsRegen?.mana) > 0);
+  assert.equal(Object.keys(config.affinities || {}).length, 0);
+  assert.equal(Number(config.vitalsMax?.mana || 0), 0);
+  assert.equal(Number(config.vitalsRegen?.mana || 0), 0);
+});
+
+test("design attacker generation supports attacker count and attackerConfigs", async () => {
+  const elements = {
+    "#design-guidance-input": makeInput(""),
+    "#design-level-prompt-template": makeInput(""),
+    "#design-attacker-prompt-template": makeInput(""),
+    "#design-defender-prompt-template": makeInput(""),
+    "#design-guidance-status": { textContent: "", style: {} },
+    "#design-brief-output": { textContent: "" },
+    "#design-spend-ledger-output": { textContent: "" },
+    "#design-level-output": { textContent: "" },
+    "#design-attacker-output": { textContent: "" },
+    "#design-level-token-indicator": { textContent: "" },
+    "#design-attacker-token-indicator": { textContent: "" },
+    "#design-defender-token-indicator": { textContent: "" },
+    "#design-simulation-token-indicator": { textContent: "" },
+    "#design-actor-set-json": makeInput(""),
+    "#design-actor-set-apply": makeButton(),
+    "#design-actor-set-preview": { textContent: "" },
+    "#design-build-and-load": makeButton(),
+    "#design-build-status": { textContent: "", style: {} },
+    "#prompt-token-budget": makeInput("1000"),
+    "#prompt-max-token-budget": makeInput("1000"),
+    "#prompt-layout-allocation-percent": makeInput("55"),
+    "#prompt-defender-allocation-percent": makeInput("25"),
+    "#prompt-attacker-allocation-percent": makeInput("20"),
+    "#prompt-attacker-count": makeInput("3"),
+  };
+
+  const root = makeRoot(elements);
+  const responses = [
+    {
+      dungeonAffinity: "fire",
+      attackerCount: 2,
+      attackerConfigs: [
+        {
+          setupMode: "user",
+          vitalsMax: { health: 8, mana: 6 },
+          vitalsRegen: { health: 1, mana: 2 },
+          affinities: { fire: ["push"] },
+        },
+        {
+          setupMode: "hybrid",
+          vitalsMax: { health: 7, mana: 5 },
+          vitalsRegen: { health: 1, mana: 1 },
+          affinities: { fire: ["emit"] },
+        },
+      ],
+      rooms: [],
+      actors: [],
+    },
+  ];
+  let responseIndex = 0;
+
+  const view = wireDesignView({
+    root,
+    llmConfig: {
+      fetchFn: async () => ({
+        ok: true,
+        json: async () => ({ response: JSON.stringify(responses[Math.min(responseIndex++, responses.length - 1)]) }),
+      }),
+    },
+  });
+
+  const attackerResult = await view.generateAttackerBrief();
+  assert.equal(attackerResult.ok, true);
+  assert.equal(attackerResult.summary?.attackerCount, 3);
+  assert.equal(Array.isArray(attackerResult.summary?.attackerConfigs), true);
+  assert.equal(attackerResult.summary.attackerConfigs.length, 3);
+  assert.equal(attackerResult.summary?.attackerConfig?.setupMode, "user");
+  assert.match(elements["#design-attacker-output"].textContent, /Attacker 1/);
+  assert.match(elements["#design-attacker-output"].textContent, /Attacker 3/);
+});
+
+test("design attacker generation preserves llm attacker affinity map", async () => {
+  const elements = {
+    "#design-guidance-input": makeInput(""),
+    "#design-level-prompt-template": makeInput(""),
+    "#design-attacker-prompt-template": makeInput(""),
+    "#design-defender-prompt-template": makeInput(""),
+    "#design-guidance-status": { textContent: "", style: {} },
+    "#design-brief-output": { textContent: "" },
+    "#design-spend-ledger-output": { textContent: "" },
+    "#design-level-output": { textContent: "" },
+    "#design-attacker-output": { textContent: "" },
+    "#design-level-token-indicator": { textContent: "" },
+    "#design-attacker-token-indicator": { textContent: "" },
+    "#design-defender-token-indicator": { textContent: "" },
+    "#design-simulation-token-indicator": { textContent: "" },
+    "#design-actor-set-json": makeInput(""),
+    "#design-actor-set-apply": makeButton(),
+    "#design-actor-set-preview": { textContent: "" },
+    "#design-build-and-load": makeButton(),
+    "#design-build-status": { textContent: "", style: {} },
+    "#prompt-token-budget": makeInput("1000"),
+    "#prompt-max-token-budget": makeInput("1000"),
+    "#prompt-layout-allocation-percent": makeInput("55"),
+    "#prompt-defender-allocation-percent": makeInput("25"),
+    "#prompt-attacker-allocation-percent": makeInput("20"),
+  };
+
+  const root = makeRoot(elements);
+  const responses = [
+    {
+      dungeonAffinity: "corrode",
+      attackerConfig: {
+        setupMode: "user",
+        vitalsMax: { health: 8, mana: 8, stamina: 8, durability: 8 },
+        vitalsRegen: { health: 1, mana: 1, stamina: 1, durability: 1 },
+        affinities: { corrode: ["push", "pull", "emit"] },
+        affinityStacks: { corrode: 5 },
+      },
+      rooms: [],
+      actors: [],
+    },
+  ];
+  let responseIndex = 0;
+
+  const view = wireDesignView({
+    root,
+    llmConfig: {
+      fetchFn: async () => ({
+        ok: true,
+        json: async () => ({ response: JSON.stringify(responses[Math.min(responseIndex++, responses.length - 1)]) }),
+      }),
+    },
+  });
+
+  const attackerResult = await view.generateAttackerBrief();
+  assert.equal(attackerResult.ok, true);
+  const config = attackerResult.summary?.attackerConfig || {};
+  assert.ok(Array.isArray(config.affinities?.corrode));
+  assert.ok(config.affinities.corrode.includes("push"));
+  assert.equal(Object.prototype.hasOwnProperty.call(config.affinities || {}, "fire"), false);
+});
+
+test("design attacker generation applies prompt vitals when llm omits them in user mode", async () => {
+  const elements = {
+    "#design-guidance-input": makeInput(""),
+    "#design-level-prompt-template": makeInput(""),
+    "#design-attacker-prompt-template": makeInput(""),
+    "#design-defender-prompt-template": makeInput(""),
+    "#design-guidance-status": { textContent: "", style: {} },
+    "#design-brief-output": { textContent: "" },
+    "#design-spend-ledger-output": { textContent: "" },
+    "#design-level-output": { textContent: "" },
+    "#design-attacker-output": { textContent: "" },
+    "#design-level-token-indicator": { textContent: "" },
+    "#design-attacker-token-indicator": { textContent: "" },
+    "#design-defender-token-indicator": { textContent: "" },
+    "#design-simulation-token-indicator": { textContent: "" },
+    "#design-actor-set-json": makeInput(""),
+    "#design-actor-set-apply": makeButton(),
+    "#design-actor-set-preview": { textContent: "" },
+    "#design-build-and-load": makeButton(),
+    "#design-build-status": { textContent: "", style: {} },
+    "#prompt-token-budget": makeInput("1000"),
+    "#prompt-max-token-budget": makeInput("1000"),
+    "#prompt-layout-allocation-percent": makeInput("55"),
+    "#prompt-defender-allocation-percent": makeInput("25"),
+    "#prompt-attacker-allocation-percent": makeInput("20"),
+  };
+
+  const attackerVitalsInputs = {
+    health: { max: makeInput("100") },
+    mana: { max: makeInput("100") },
+    stamina: { max: makeInput("100") },
+    durability: { max: makeInput("100") },
+  };
+  const attackerVitalsRegenInputs = {
+    health: makeInput("10"),
+    mana: makeInput("10"),
+    stamina: makeInput("10"),
+    durability: makeInput("10"),
+  };
+  const root = makeRoot({
+    ...elements,
+    "#prompt-attacker-setup-mode": makeInput("user"),
+    "#attacker-vitals-health-max": attackerVitalsInputs.health.max,
+    "#attacker-vitals-mana-max": attackerVitalsInputs.mana.max,
+    "#attacker-vitals-stamina-max": attackerVitalsInputs.stamina.max,
+    "#attacker-vitals-durability-max": attackerVitalsInputs.durability.max,
+    "#attacker-vitals-health-regen": attackerVitalsRegenInputs.health,
+    "#attacker-vitals-mana-regen": attackerVitalsRegenInputs.mana,
+    "#attacker-vitals-stamina-regen": attackerVitalsRegenInputs.stamina,
+    "#attacker-vitals-durability-regen": attackerVitalsRegenInputs.durability,
+  });
+  const responses = [
+    {
+      dungeonAffinity: "decay",
+      attackerConfig: {
+        setupMode: "user",
+        affinities: {
+          decay: ["push", "pull"],
+          corrode: ["push", "pull"],
+        },
+        affinityStacks: {
+          decay: 1,
+          corrode: 1,
+        },
+      },
+      rooms: [],
+      actors: [],
+    },
+  ];
+  let responseIndex = 0;
+
+  const view = wireDesignView({
+    root,
+    llmConfig: {
+      fetchFn: async () => ({
+        ok: true,
+        json: async () => ({ response: JSON.stringify(responses[Math.min(responseIndex++, responses.length - 1)]) }),
+      }),
+    },
+  });
+
+  const attackerResult = await view.generateAttackerBrief();
+  assert.equal(attackerResult.ok, true);
+  const config = attackerResult.summary?.attackerConfig || {};
+  assert.equal(config.setupMode, "user");
+  assert.equal(config.vitalsMax?.health, 100);
+  assert.equal(config.vitalsMax?.mana, 100);
+  assert.equal(config.vitalsMax?.stamina, 100);
+  assert.equal(config.vitalsMax?.durability, 100);
+  assert.equal(config.vitalsRegen?.health, 10);
+  assert.equal(config.vitalsRegen?.mana, 10);
+  assert.equal(config.vitalsRegen?.stamina, 10);
+  assert.equal(config.vitalsRegen?.durability, 10);
 });
 
 test("design defender generation clamps spend to available budget", async () => {
@@ -1776,7 +2351,75 @@ test("design defender prompt uses actor-phase response token options", async () 
   assert.ok(capturedBodies.some((body) => /"num_predict":320/.test(body)));
 });
 
-test("design view builds and loads simulation from current brief", async () => {
+test("design guidance llm token override applies to level and defender phases", async () => {
+  const elements = {
+    "#design-guidance-input": makeInput(""),
+    "#design-level-prompt-template": makeInput(""),
+    "#design-attacker-prompt-template": makeInput(""),
+    "#design-defender-prompt-template": makeInput(""),
+    "#design-guidance-status": { textContent: "", style: {} },
+    "#design-brief-output": { textContent: "" },
+    "#design-spend-ledger-output": { textContent: "" },
+    "#design-level-output": { textContent: "" },
+    "#design-attacker-output": { textContent: "" },
+    "#design-level-token-indicator": { textContent: "" },
+    "#design-attacker-token-indicator": { textContent: "" },
+    "#design-defender-token-indicator": { textContent: "" },
+    "#design-simulation-token-indicator": { textContent: "" },
+    "#design-actor-set-json": makeInput(""),
+    "#design-actor-set-apply": makeButton(),
+    "#design-actor-set-preview": { textContent: "" },
+    "#design-build-and-load": makeButton(),
+    "#design-build-status": { textContent: "", style: {} },
+    "#prompt-token-budget": makeInput("1000"),
+    "#prompt-max-token-budget": makeInput("1000"),
+    "#prompt-layout-allocation-percent": makeInput("55"),
+    "#prompt-defender-allocation-percent": makeInput("25"),
+    "#prompt-attacker-allocation-percent": makeInput("20"),
+    "#prompt-llm-tokens": makeInput("512"),
+  };
+
+  const root = makeRoot(elements);
+  const responses = [
+    {
+      phase: "layout_only",
+      remainingBudgetTokens: 550,
+      layout: { floorTiles: 350, hallwayTiles: 200 },
+      missing: [],
+    },
+    {
+      phase: "actors_only",
+      remainingBudgetTokens: 200,
+      actors: [{ motivation: "defending", affinity: "water", count: 1, vitals: makeAmbulatoryVitals() }],
+      missing: [],
+      stop: "done",
+    },
+  ];
+  const capturedBodies = [];
+  let responseIndex = 0;
+
+  const view = wireDesignView({
+    root,
+    llmConfig: {
+      catalog: catalogFixture,
+      fetchFn: async (_url, options) => {
+        capturedBodies.push(String(options?.body || ""));
+        return {
+          ok: true,
+          json: async () => ({ response: JSON.stringify(responses[Math.min(responseIndex++, responses.length - 1)]) }),
+        };
+      },
+    },
+  });
+
+  const levelResult = await view.generateLevelBrief();
+  assert.equal(levelResult.ok, true);
+  const defenderResult = await view.generateDefenderBrief();
+  assert.equal(defenderResult.ok, true);
+  assert.ok(capturedBodies.filter((body) => /"num_predict":512/.test(body)).length >= 2);
+});
+
+test("design view builds and loads simulation after level, attacker, and defender complete", async () => {
   const elements = {
     "#design-guidance-input": makeInput("Fire breach with one guard room and a 600 token budget."),
     "#design-guidance-generate": makeButton(),
@@ -1797,6 +2440,17 @@ test("design view builds and loads simulation from current brief", async () => {
       remainingBudgetTokens: 260,
       layout: { floorTiles: 24, hallwayTiles: 8 },
       missing: [],
+    },
+    {
+      dungeonAffinity: "fire",
+      attackerConfig: {
+        setupMode: "user",
+        vitalsMax: { health: 8, mana: 4 },
+        vitalsRegen: { health: 1, mana: 1 },
+        affinities: { fire: ["push"] },
+      },
+      rooms: [],
+      actors: [],
     },
     {
       phase: "actors_only",
@@ -1838,10 +2492,20 @@ test("design view builds and loads simulation from current brief", async () => {
     },
   });
 
-  await view.generateBrief();
+  assert.equal(elements["#design-build-and-load"].disabled, true);
+  const levelResult = await view.generateLevelBrief();
+  assert.equal(levelResult.ok, true);
+  assert.equal(elements["#design-build-and-load"].disabled, true);
+  const attackerResult = await view.generateAttackerBrief();
+  assert.equal(attackerResult.ok, true);
+  assert.equal(elements["#design-build-and-load"].disabled, true);
+  const defenderResult = await view.generateDefenderBrief();
+  assert.equal(defenderResult.ok, true);
+  assert.equal(elements["#design-build-and-load"].disabled, false);
   await view.buildAndLoad();
 
-  assert.deepEqual(calls, ["send", "build", "bundle", "run", "open"]);
+  assert.ok(calls.filter((entry) => entry === "send").length >= 1);
+  assert.deepEqual(calls.filter((entry) => entry !== "send"), ["build", "bundle", "run", "open"]);
   assert.match(elements["#design-build-status"].textContent, /Build complete/);
 });
 
@@ -1922,6 +2586,17 @@ test("design view clamps over-budget defender actor set before build", async () 
       missing: [],
     },
     {
+      dungeonAffinity: "fire",
+      attackerConfig: {
+        setupMode: "user",
+        vitalsMax: { health: 8, mana: 4 },
+        vitalsRegen: { health: 1, mana: 1 },
+        affinities: { fire: ["push"] },
+      },
+      rooms: [],
+      actors: [],
+    },
+    {
       phase: "actors_only",
       remainingBudgetTokens: 50,
       actors: [{ motivation: "attacking", affinity: "fire", count: 1, tokenHint: 10, vitals: makeAmbulatoryVitals() }],
@@ -1954,7 +2629,12 @@ test("design view clamps over-budget defender actor set before build", async () 
     },
   });
 
-  await view.generateBrief();
+  const levelResult = await view.generateLevelBrief();
+  assert.equal(levelResult.ok, true);
+  const attackerResult = await view.generateAttackerBrief();
+  assert.equal(attackerResult.ok, true);
+  const defenderResult = await view.generateDefenderBrief();
+  assert.equal(defenderResult.ok, true);
   elements["#design-actor-set-json"].value = JSON.stringify([
     {
       source: "actor",

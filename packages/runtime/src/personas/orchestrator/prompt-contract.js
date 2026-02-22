@@ -4,7 +4,6 @@ import {
   ATTACKER_SETUP_MODES,
   ATTACKER_SETUP_MODE_SET,
   DEFAULT_ATTACKER_SETUP_MODE,
-  LEGACY_LAYOUT_TILE_FIELDS as SHARED_LEGACY_LAYOUT_TILE_FIELDS,
   LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
   DEFAULT_VITALS,
   VITAL_KEYS,
@@ -19,8 +18,6 @@ export const ALLOWED_ATTACKER_SETUP_MODES = ATTACKER_SETUP_MODES;
 export const LLM_PHASES = Object.freeze(["layout_only", "actors_only"]);
 export const LLM_STOP_REASONS = Object.freeze(["done", "missing", "no_viable_spend"]);
 export const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS;
-const LEGACY_LAYOUT_TILE_FIELDS = SHARED_LEGACY_LAYOUT_TILE_FIELDS;
-export const LAYOUT_PROFILES = Object.freeze(["rectangular", "sparse_islands", "clustered_islands", "rooms"]);
 export function deriveAllowedOptionsFromCatalog(catalog = {}) {
   const entries = Array.isArray(catalog.entries) ? catalog.entries : Array.isArray(catalog) ? catalog : [];
   const affinities = new Set(ALLOWED_AFFINITIES);
@@ -53,6 +50,23 @@ function addWarning(warnings, field, code, detail) {
   const entry = { field, code };
   if (detail !== undefined) entry.detail = detail;
   warnings.push(entry);
+}
+
+const ROOM_DESIGN_PATTERN_TYPES = new Set(["none", "grid", "diagonal_grid", "concentric_circles"]);
+
+function normalizeRoomDesignPattern(rawPattern) {
+  if (!isNonEmptyString(rawPattern)) return "";
+  const normalized = rawPattern.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "horizontal_vertical_grid" || normalized === "horizontal_verticle_grid") {
+    return "grid";
+  }
+  if (normalized === "diagonal") {
+    return "diagonal_grid";
+  }
+  if (normalized === "concentric") {
+    return "concentric_circles";
+  }
+  return ROOM_DESIGN_PATTERN_TYPES.has(normalized) ? normalized : "";
 }
 
 function normalizeAttackerSetupMode(mode, errors, fieldBase) {
@@ -88,22 +102,128 @@ function normalizeVitalsConfigMap(input, errors, fieldBase) {
   return normalized;
 }
 
-function normalizeAttackerConfig(config, errors) {
-  if (config === undefined) return undefined;
-  if (!config || typeof config !== "object" || Array.isArray(config)) {
-    addError(errors, "attackerConfig", "invalid_attacker_config");
+function pushAffinityExpression(target, affinity, expression) {
+  const next = Array.isArray(target[affinity]) ? target[affinity] : [];
+  if (!next.includes(expression)) {
+    next.push(expression);
+  }
+  target[affinity] = next;
+}
+
+function normalizeAttackerAffinitiesMap(input, errors, fieldBase) {
+  if (input === undefined) return undefined;
+  const normalized = {};
+  const addAffinityExpression = (rawAffinity, rawExpression, expressionField) => {
+    if (!isNonEmptyString(rawAffinity) || !ALLOWED_AFFINITIES.includes(rawAffinity.trim())) {
+      addError(errors, expressionField.replace(/\.expression$/, ".kind"), "invalid_affinity");
+      return;
+    }
+    if (!isNonEmptyString(rawExpression) || !ALLOWED_AFFINITY_EXPRESSIONS.includes(rawExpression.trim())) {
+      addError(errors, expressionField, "invalid_affinity_expression");
+      return;
+    }
+    pushAffinityExpression(normalized, rawAffinity.trim(), rawExpression.trim());
+  };
+
+  if (Array.isArray(input)) {
+    input.forEach((entry, index) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        addError(errors, `${fieldBase}[${index}]`, "invalid_affinity_entry");
+        return;
+      }
+      addAffinityExpression(
+        entry.kind ?? entry.affinity,
+        entry.expression ?? entry.affinityExpression,
+        `${fieldBase}[${index}].expression`,
+      );
+    });
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
+  }
+
+  if (!input || typeof input !== "object") {
+    addError(errors, fieldBase, "invalid_affinities_map");
     return undefined;
   }
-  const setupMode = normalizeAttackerSetupMode(config.setupMode, errors, "attackerConfig.setupMode");
-  const vitalsMax = normalizeVitalsConfigMap(config.vitalsMax, errors, "attackerConfig.vitalsMax");
-  const vitalsRegen = normalizeVitalsConfigMap(config.vitalsRegen, errors, "attackerConfig.vitalsRegen");
+
+  Object.entries(input).forEach(([rawAffinity, rawExpressions]) => {
+    if (!isNonEmptyString(rawAffinity) || !ALLOWED_AFFINITIES.includes(rawAffinity.trim())) {
+      addError(errors, `${fieldBase}.${rawAffinity}`, "invalid_affinity");
+      return;
+    }
+    const affinity = rawAffinity.trim();
+    const expressions = Array.isArray(rawExpressions)
+      ? rawExpressions
+      : isNonEmptyString(rawExpressions)
+        ? [rawExpressions]
+        : [];
+    if (expressions.length === 0) {
+      addError(errors, `${fieldBase}.${affinity}`, "invalid_affinity_expressions");
+      return;
+    }
+    expressions.forEach((rawExpression, index) => {
+      if (!isNonEmptyString(rawExpression) || !ALLOWED_AFFINITY_EXPRESSIONS.includes(rawExpression.trim())) {
+        addError(errors, `${fieldBase}.${affinity}[${index}]`, "invalid_affinity_expression");
+        return;
+      }
+      pushAffinityExpression(normalized, affinity, rawExpression.trim());
+    });
+  });
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizeAttackerAffinityStacksMap(input, errors, fieldBase) {
+  if (input === undefined) return undefined;
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    addError(errors, fieldBase, "invalid_affinity_stacks");
+    return undefined;
+  }
+  const normalized = {};
+  Object.entries(input).forEach(([rawAffinity, rawStacks]) => {
+    if (!isNonEmptyString(rawAffinity) || !ALLOWED_AFFINITIES.includes(rawAffinity.trim())) {
+      addError(errors, `${fieldBase}.${rawAffinity}`, "invalid_affinity");
+      return;
+    }
+    if (!Number.isInteger(rawStacks) || rawStacks <= 0) {
+      addError(errors, `${fieldBase}.${rawAffinity.trim()}`, "invalid_positive_int");
+      return;
+    }
+    normalized[rawAffinity.trim()] = rawStacks;
+  });
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizeAttackerConfig(config, errors, { fieldBase = "attackerConfig" } = {}) {
+  if (config === undefined) return undefined;
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    addError(errors, fieldBase, "invalid_attacker_config");
+    return undefined;
+  }
+  const setupMode = normalizeAttackerSetupMode(config.setupMode, errors, `${fieldBase}.setupMode`);
+  const vitalsMax = normalizeVitalsConfigMap(config.vitalsMax, errors, `${fieldBase}.vitalsMax`);
+  const vitalsRegen = normalizeVitalsConfigMap(config.vitalsRegen, errors, `${fieldBase}.vitalsRegen`);
+  const affinities = normalizeAttackerAffinitiesMap(config.affinities, errors, `${fieldBase}.affinities`);
+  const affinityStacks = normalizeAttackerAffinityStacksMap(config.affinityStacks, errors, `${fieldBase}.affinityStacks`);
 
   const normalized = {
     setupMode: setupMode || DEFAULT_ATTACKER_SETUP_MODE,
   };
   if (vitalsMax && Object.keys(vitalsMax).length > 0) normalized.vitalsMax = vitalsMax;
   if (vitalsRegen && Object.keys(vitalsRegen).length > 0) normalized.vitalsRegen = vitalsRegen;
+  if (affinities && Object.keys(affinities).length > 0) normalized.affinities = affinities;
+  if (affinityStacks && Object.keys(affinityStacks).length > 0) normalized.affinityStacks = affinityStacks;
   return normalized;
+}
+
+function normalizeAttackerConfigs(configs, errors) {
+  if (configs === undefined) return undefined;
+  if (!Array.isArray(configs)) {
+    addError(errors, "attackerConfigs", "invalid_attacker_configs");
+    return undefined;
+  }
+  return configs
+    .map((entry, index) => normalizeAttackerConfig(entry, errors, { fieldBase: `attackerConfigs[${index}]` }))
+    .filter(Boolean);
 }
 
 function isAmbulatoryMotivation(motivation) {
@@ -125,30 +245,6 @@ function normalizeLayoutCounts(layout, errors) {
     }
     normalized[field] = layout[field];
   });
-  let legacyWallTiles = 0;
-  LEGACY_LAYOUT_TILE_FIELDS.forEach((field) => {
-    if (layout[field] === undefined) return;
-    if (!Number.isInteger(layout[field]) || layout[field] < 0) {
-      addError(errors, `layout.${field}`, "invalid_tile_count");
-      return;
-    }
-    legacyWallTiles += layout[field];
-  });
-  if (legacyWallTiles > 0) {
-    const floorTiles = normalized.floorTiles || 0;
-    const hallwayTiles = normalized.hallwayTiles || 0;
-    const walkableTiles = floorTiles + hallwayTiles;
-    if (walkableTiles > 0) {
-      const floorShare = Math.floor((legacyWallTiles * floorTiles) / walkableTiles);
-      const hallwayShare = legacyWallTiles - floorShare;
-      normalized.floorTiles = floorTiles + floorShare;
-      normalized.hallwayTiles = hallwayTiles + hallwayShare;
-    } else {
-      const floorShare = Math.ceil(legacyWallTiles / 2);
-      normalized.floorTiles = floorShare;
-      normalized.hallwayTiles = legacyWallTiles - floorShare;
-    }
-  }
   return normalized;
 }
 
@@ -162,32 +258,81 @@ function normalizeRoomDesign(roomDesign, warnings) {
   const shapeInput = roomDesign.shape && typeof roomDesign.shape === "object" && !Array.isArray(roomDesign.shape)
     ? roomDesign.shape
     : null;
-  const profile = isNonEmptyString(roomDesign.profile)
-    ? roomDesign.profile.trim()
-    : isNonEmptyString(shapeInput?.profile)
-      ? shapeInput.profile.trim()
-      : undefined;
-  if (profile !== undefined) {
-    if (!LAYOUT_PROFILES.includes(profile)) {
-      addWarning(warnings, "roomDesign.profile", "invalid_profile");
+  const rawPattern = roomDesign.pattern ?? shapeInput?.pattern;
+  if (rawPattern !== undefined) {
+    const pattern = normalizeRoomDesignPattern(rawPattern);
+    if (pattern) {
+      normalized.pattern = pattern;
     } else {
-      normalized.profile = profile;
+      addWarning(warnings, "roomDesign.pattern", "invalid_pattern");
     }
   }
-  const densityInput = roomDesign.density ?? shapeInput?.density;
-  if (densityInput !== undefined) {
-    if (typeof densityInput !== "number" || Number.isNaN(densityInput) || densityInput < 0 || densityInput > 1) {
-      addWarning(warnings, "roomDesign.density", "invalid_density");
+  const numericShapeFields = ["roomCount", "roomMinSize", "roomMaxSize", "corridorWidth"];
+  numericShapeFields.forEach((field) => {
+    const value = roomDesign[field] ?? shapeInput?.[field];
+    if (value === undefined) return;
+    if (!Number.isInteger(value) || value <= 0) {
+      addWarning(warnings, `roomDesign.${field}`, `invalid_${field.toLowerCase()}`);
+      return;
+    }
+    normalized[field] = value;
+  });
+  const totalRooms = roomDesign.totalRooms ?? shapeInput?.totalRooms;
+  if (totalRooms !== undefined) {
+    if (!Number.isInteger(totalRooms) || totalRooms <= 0) {
+      addWarning(warnings, "roomDesign.totalRooms", "invalid_totalrooms");
     } else {
-      normalized.density = densityInput;
+      normalized.totalRooms = totalRooms;
     }
   }
-  const clusterSizeInput = roomDesign.clusterSize ?? shapeInput?.clusterSize;
-  if (clusterSizeInput !== undefined) {
-    if (!Number.isInteger(clusterSizeInput) || clusterSizeInput <= 0) {
-      addWarning(warnings, "roomDesign.clusterSize", "invalid_cluster_size");
+  const totalFloorTilesUsed = roomDesign.totalFloorTilesUsed ?? shapeInput?.totalFloorTilesUsed;
+  if (totalFloorTilesUsed !== undefined) {
+    if (!Number.isInteger(totalFloorTilesUsed) || totalFloorTilesUsed <= 0) {
+      addWarning(warnings, "roomDesign.totalFloorTilesUsed", "invalid_totalfloortilesused");
     } else {
-      normalized.clusterSize = clusterSizeInput;
+      normalized.totalFloorTilesUsed = totalFloorTilesUsed;
+    }
+  }
+  const entryRoomId = roomDesign.entryRoomId ?? shapeInput?.entryRoomId;
+  if (entryRoomId !== undefined) {
+    if (!isNonEmptyString(entryRoomId)) {
+      addWarning(warnings, "roomDesign.entryRoomId", "invalid_entryroomid");
+    } else {
+      normalized.entryRoomId = entryRoomId.trim();
+    }
+  }
+  const exitRoomId = roomDesign.exitRoomId ?? shapeInput?.exitRoomId;
+  if (exitRoomId !== undefined) {
+    if (!isNonEmptyString(exitRoomId)) {
+      addWarning(warnings, "roomDesign.exitRoomId", "invalid_exitroomid");
+    } else {
+      normalized.exitRoomId = exitRoomId.trim();
+    }
+  }
+  const patternFields = ["patternSpacing", "patternLineWidth", "patternGapEvery"];
+  patternFields.forEach((field) => {
+    const value = roomDesign[field] ?? shapeInput?.[field];
+    if (value === undefined) return;
+    if (!Number.isInteger(value) || value <= 0) {
+      addWarning(warnings, `roomDesign.${field}`, `invalid_${field.toLowerCase()}`);
+      return;
+    }
+    normalized[field] = value;
+  });
+  const patternInset = roomDesign.patternInset ?? shapeInput?.patternInset;
+  if (patternInset !== undefined) {
+    if (!Number.isInteger(patternInset) || patternInset < 0) {
+      addWarning(warnings, "roomDesign.patternInset", "invalid_patterninset");
+    } else {
+      normalized.patternInset = patternInset;
+    }
+  }
+  const patternInfillPercent = roomDesign.patternInfillPercent ?? shapeInput?.patternInfillPercent;
+  if (patternInfillPercent !== undefined) {
+    if (!Number.isInteger(patternInfillPercent) || patternInfillPercent < 1 || patternInfillPercent > 100) {
+      addWarning(warnings, "roomDesign.patternInfillPercent", "invalid_patterninfillpercent");
+    } else {
+      normalized.patternInfillPercent = patternInfillPercent;
     }
   }
   if (Array.isArray(roomDesign.rooms)) {
@@ -200,8 +345,57 @@ function normalizeRoomDesign(roomDesign, warnings) {
         const entry = {};
         if (isNonEmptyString(room.id)) entry.id = room.id.trim();
         if (isNonEmptyString(room.size)) entry.size = room.size.trim();
-        if (Number.isInteger(room.width) && room.width > 0) entry.width = room.width;
-        if (Number.isInteger(room.height) && room.height > 0) entry.height = room.height;
+        if (isNonEmptyString(room.affinity)) {
+          const affinity = room.affinity.trim();
+          if (ALLOWED_AFFINITIES.includes(affinity)) {
+            entry.affinity = affinity;
+          } else {
+            addWarning(warnings, `roomDesign.rooms[${index}].affinity`, "invalid_affinity");
+          }
+        }
+        const hasAnyBoundsField = (
+          room.startX !== undefined
+          || room.startY !== undefined
+          || room.endX !== undefined
+          || room.endY !== undefined
+        );
+        let boundsValid = false;
+        const startX = room.startX;
+        const startY = room.startY;
+        const endX = room.endX;
+        const endY = room.endY;
+        if (hasAnyBoundsField) {
+          if (
+            Number.isInteger(startX)
+            && Number.isInteger(startY)
+            && Number.isInteger(endX)
+            && Number.isInteger(endY)
+            && startX >= 0
+            && startY >= 0
+            && endX >= startX
+            && endY >= startY
+          ) {
+            entry.startX = startX;
+            entry.startY = startY;
+            entry.endX = endX;
+            entry.endY = endY;
+            boundsValid = true;
+          } else {
+            addWarning(warnings, `roomDesign.rooms[${index}]`, "invalid_room_bounds");
+          }
+        }
+        let width = null;
+        let height = null;
+        if (Number.isInteger(room.width) && room.width > 0) width = room.width;
+        else if (room.width !== undefined) addWarning(warnings, `roomDesign.rooms[${index}].width`, "invalid_room_width");
+        if (Number.isInteger(room.height) && room.height > 0) height = room.height;
+        else if (room.height !== undefined) addWarning(warnings, `roomDesign.rooms[${index}].height`, "invalid_room_height");
+        if ((!Number.isInteger(width) || !Number.isInteger(height)) && boundsValid) {
+          width = entry.endX - entry.startX + 1;
+          height = entry.endY - entry.startY + 1;
+        }
+        if (Number.isInteger(width) && width > 0) entry.width = width;
+        if (Number.isInteger(height) && height > 0) entry.height = height;
         if (Object.keys(entry).length === 0) {
           addWarning(warnings, `roomDesign.rooms[${index}]`, "missing_room_dimensions");
           return null;
@@ -425,9 +619,31 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
   if (roomDesign) {
     value.roomDesign = roomDesign;
   }
+  let normalizedAttackerCount;
+  if (summary.attackerCount !== undefined) {
+    if (!Number.isInteger(summary.attackerCount) || summary.attackerCount <= 0) {
+      addError(errors, "attackerCount", "invalid_attacker_count");
+    } else {
+      normalizedAttackerCount = summary.attackerCount;
+    }
+  }
+  const attackerConfigs = normalizeAttackerConfigs(summary.attackerConfigs, errors);
   const attackerConfig = normalizeAttackerConfig(summary.attackerConfig, errors);
-  if (attackerConfig) {
+  if (Array.isArray(attackerConfigs) && attackerConfigs.length > 0) {
+    value.attackerConfigs = attackerConfigs;
+    value.attackerConfig = attackerConfigs[0];
+  } else if (attackerConfig) {
     value.attackerConfig = attackerConfig;
+    value.attackerConfigs = [attackerConfig];
+  }
+  if (Number.isInteger(normalizedAttackerCount)) {
+    value.attackerCount = normalizedAttackerCount;
+    if (Array.isArray(value.attackerConfigs) && value.attackerConfigs.length > 0
+      && value.attackerConfigs.length !== normalizedAttackerCount) {
+      addError(errors, "attackerConfigs", "attacker_count_mismatch");
+    }
+  } else if (Array.isArray(value.attackerConfigs) && value.attackerConfigs.length > 0) {
+    value.attackerCount = value.attackerConfigs.length;
   }
   if (summary.budgetTokens !== undefined) {
     if (!Number.isInteger(summary.budgetTokens) || summary.budgetTokens <= 0) {

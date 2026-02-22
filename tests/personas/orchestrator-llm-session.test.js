@@ -130,7 +130,7 @@ import { createLlmTestAdapter } from ${JSON.stringify(llmAdapterPath)};
 
 const adapter = createLlmTestAdapter();
 const prompt = "Phase prompt";
-const responseRaw = JSON.stringify({ phase: "layout_only", layout: { wallTiles: 1, floorTiles: 1, hallwayTiles: 0 } });
+const responseRaw = JSON.stringify({ phase: "layout_only", layout: { floorTiles: 1, hallwayTiles: 0 } });
 adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
 
 const result = await runLlmSession({

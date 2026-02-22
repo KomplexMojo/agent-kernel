@@ -48,32 +48,6 @@ export function normalizeLayoutCounts(layout, warnings) {
   LAYOUT_TILE_FIELDS.forEach((field) => {
     counts[field] = normalizeTileCount(layout[field], field, warnings);
   });
-  const wallTiles = normalizeTileCount(layout.wallTiles, "wallTiles", warnings);
-  if (wallTiles > 0) {
-    const floorTiles = counts.floorTiles || 0;
-    const hallwayTiles = counts.hallwayTiles || 0;
-    const walkableTiles = floorTiles + hallwayTiles;
-    if (walkableTiles > 0) {
-      const floorShare = Math.floor((wallTiles * floorTiles) / walkableTiles);
-      const hallwayShare = wallTiles - floorShare;
-      counts.floorTiles = floorTiles + floorShare;
-      counts.hallwayTiles = hallwayTiles + hallwayShare;
-    } else {
-      const floorShare = Math.ceil(wallTiles / 2);
-      counts.floorTiles = floorShare;
-      counts.hallwayTiles = wallTiles - floorShare;
-    }
-    if (warnings) {
-      warnings.push({
-        code: "deprecated_wall_tiles_redistributed",
-        detail: {
-          wallTiles,
-          floorTiles: counts.floorTiles,
-          hallwayTiles: counts.hallwayTiles,
-        },
-      });
-    }
-  }
   return counts;
 }
 

@@ -10,16 +10,17 @@ export interface ConfiguratorContext {
   lastConfigRef: string | null;
 }
 
-export type LevelGenProfile = "rectangular" | "sparse_islands" | "clustered_islands" | "rooms";
-
 export interface LevelGenShapeInput {
-  profile: LevelGenProfile;
-  density?: number;
-  clusterSize?: number;
   roomCount?: number;
   roomMinSize?: number;
   roomMaxSize?: number;
   corridorWidth?: number;
+  pattern?: "none" | "grid" | "diagonal_grid" | "concentric_circles";
+  patternSpacing?: number;
+  patternLineWidth?: number;
+  patternGapEvery?: number;
+  patternInset?: number;
+  patternInfillPercent?: number;
 }
 
 export interface LevelGenConstraintInput {

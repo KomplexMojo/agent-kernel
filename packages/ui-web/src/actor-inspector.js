@@ -80,23 +80,39 @@ export function formatActorLiveState(actor, { tick, running } = {}) {
 }
 
 export function createActorInspector({
+  containerEl,
+  closeButtonEl,
   statusEl,
   profileEl,
   capabilitiesEl,
   constraintsEl,
   liveStateEl,
+  onVisibilityChange,
 } = {}) {
   let actors = [];
   let selectedId = null;
   let running = false;
   let tick = null;
+  let visible = false;
 
   function getSelectedActor() {
     return actors.find((actor) => actor?.id === selectedId) || null;
   }
 
+  function setVisible(nextVisible) {
+    const normalized = Boolean(nextVisible);
+    if (containerEl && "hidden" in containerEl) {
+      containerEl.hidden = !normalized;
+    }
+    if (normalized !== visible && typeof onVisibilityChange === "function") {
+      onVisibilityChange(normalized);
+    }
+    visible = normalized;
+  }
+
   function render() {
     const actor = getSelectedActor();
+    setVisible(Boolean(actor));
     if (statusEl) {
       statusEl.textContent = actor ? `Selected: ${actor.id}` : "Select an actor on the stage to inspect.";
     }
@@ -114,15 +130,13 @@ export function createActorInspector({
     if (selectedId && !actors.some((actor) => actor?.id === selectedId)) {
       selectedId = null;
     }
-    if (!selectedId && actors.length) {
-      selectedId = actors[0]?.id ?? null;
-    }
     render();
   }
 
   function selectActorById(id) {
-    if (!id) return;
-    selectedId = id;
+    const normalized = typeof id === "string" ? id.trim() : "";
+    if (!normalized) return;
+    selectedId = normalized;
     render();
   }
 
@@ -131,12 +145,28 @@ export function createActorInspector({
     render();
   }
 
+  function clearSelection() {
+    selectedId = null;
+    render();
+  }
+
+  function close() {
+    clearSelection();
+  }
+
+  closeButtonEl?.addEventListener?.("click", () => {
+    close();
+  });
+
   render();
 
   return {
     setActors,
     selectActorById,
     setRunning,
+    clearSelection,
+    close,
     getSelectedId: () => selectedId,
+    isVisible: () => visible,
   };
 }

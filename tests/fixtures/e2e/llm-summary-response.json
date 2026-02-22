@@ -1,5 +1,5 @@
 {
-  "prompt": "Goal: Validate the end-to-end pipeline with a small deterministic tier.\nBudget tokens: 800\nModel context window token limit: 16384\nYou are a dungeon defender strategist.\nConfigure defender actors and affinity stacks only.\nThe level layout is already planned and must not be changed.\nChoose only from the allowed lists; do not invent new affinities, expressions, or motivations.\nAffinities: fire, water, earth, wind, life, decay, corrode, dark\nAffinity expressions: push, pull, emit\nMotivations: random, stationary, exploring, attacking, defending, patrolling, reflexive, goal_oriented, strategy_focused\n\nPhase instructions:\n- Phase: actors_only\n- Return defenders only; omit rooms and layout.\n- Include at least one defender entry (count >= 1).\n- Use valid JSON with double quotes only; no trailing commas.\n- Spend as much of the remaining budget as possible while staying feasible.\n\nDefender viability guardrails:\n- If you include affinities or stacks, include vitals with mana > 0 and mana regen > 0.\n- For non-stationary defenders, require stamina regen > 0.\n- Stationary/trap-like defenders may use zero regen.\n- Ensure defenders have non-trivial health (current/max >= 6).\n- Keep affinity stacks modest (1-3) unless mana and regen are higher.\n- You may include per-actor vitals: health/mana/stamina/durability each with current/max/regen.\n\nResponse shape:\n{ \"phase\": \"actors_only\", \"remainingBudgetTokens\": <int>, \"actors\": [{\"motivation\":<motivation>,\"affinity\":<affinity>,\"count\":<int>,\"tokenHint\":<int?>,\"affinities\":[{\"kind\":<affinity>,\"expression\":<expression>,\"stacks\":<int?>}],\"vitals\":{\"health\":{\"current\":<int>,\"max\":<int>,\"regen\":<int>},\"mana\":{\"current\":<int>,\"max\":<int>,\"regen\":<int>},\"stamina\":{\"current\":<int>,\"max\":<int>,\"regen\":<int>},\"durability\":{\"current\":<int>,\"max\":<int>,\"regen\":<int>}}}], \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }\n\nFinal request: return the JSON now. Output JSON only (no markdown, no commentary).",
+  "prompt": "Role: You are a dungeon defender strategist.\n\nGoal: Configure defender actors and affinity stacks only.\n\nContext:\n- Scenario goal: Validate the end-to-end pipeline with a small deterministic tier.\n- Budget tokens: 800\n- Model context window token limit: 16384\n- The level layout is already planned and must not be changed.\n- Attackers start at level entry and try to reach a hidden level exit.\n- Defenders must explore to locate likely exit routes, then hold them.\n\nAssumption:\n- The level topology already exists and cannot be modified in this phase.\n- Stationary defenders may use zero stamina regen; ambulatory defenders require stamina regen > 0.\n\nConstraints:\n- Choose only from the allowed lists; do not invent new affinities, expressions, or motivations.\n- Affinities: fire, water, earth, wind, life, decay, corrode, dark.\n- Affinity expressions: push, pull, emit.\n- Motivations: random, stationary, exploring, attacking, defending, patrolling, reflexive, goal_oriented, strategy_focused.\n\nInstructions:\n- Phase: actors_only.\n- Return defenders only; omit rooms and layout.\n- Include at least one defender entry (count >= 1).\n- Use valid JSON with double quotes only and no trailing commas.\n- Spend as much of the remaining budget as possible while staying feasible.\n- tokenHint is per defender unit; total base spend for an entry is tokenHint * count.\n- Defender viability guardrails:\n- If you include affinities or stacks, include vitals with mana > 0 and mana regen > 0.\n- For non-stationary defenders, require stamina regen > 0.\n- Stationary/trap-like defenders may use zero regen.\n- Place stationary defenders at chokepoints (narrow halls, doors, key junctions).\n- Ensure defenders have non-trivial health (current/max >= 6).\n- Keep affinity stacks modest (1-3) unless mana and regen are higher.\n\nResponse format:\n- Return exactly one JSON object with keys: phase, remainingBudgetTokens, actors, missing, stop.\n- phase must be \"actors_only\".\n- stop must be one of: \"done\", \"missing\", \"no_viable_spend\".\n- Each actor must include motivation, affinity, count, and may include tokenHint, affinities[], and vitals.\n- If provided, tokenHint must be an integer > 0.\n- Response shape: { \"phase\": \"actors_only\", \"remainingBudgetTokens\": <int>, \"actors\": [{\"motivation\": <motivation>, \"affinity\": <affinity>, \"count\": <int>, \"tokenHint\": <int?>, \"affinities\": [{\"kind\": <affinity>, \"expression\": <expression>, \"stacks\": <int?>}], \"vitals\": {\"health\": {\"current\": <int>, \"max\": <int>, \"regen\": <int>}, \"mana\": {\"current\": <int>, \"max\": <int>, \"regen\": <int>}, \"stamina\": {\"current\": <int>, \"max\": <int>, \"regen\": <int>}, \"durability\": {\"current\": <int>, \"max\": <int>, \"regen\": <int>}}}], \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }.\n\nFinal request: return the JSON now. Output JSON only (no markdown, no commentary).",
   "responseRaw": "{\"dungeonAffinity\":\"fire\",\"budgetTokens\":800,\"rooms\":[{\"motivation\":\"stationary\",\"affinity\":\"fire\",\"count\":1,\"tokenHint\":200,\"affinities\":[{\"kind\":\"fire\",\"expression\":\"push\",\"stacks\":1}]}],\"actors\":[{\"motivation\":\"attacking\",\"affinity\":\"fire\",\"count\":1,\"tokenHint\":200,\"affinities\":[{\"kind\":\"fire\",\"expression\":\"push\",\"stacks\":2}],\"vitals\":{\"health\":{\"current\":8,\"max\":8,\"regen\":0},\"mana\":{\"current\":4,\"max\":4,\"regen\":1},\"stamina\":{\"current\":4,\"max\":4,\"regen\":1},\"durability\":{\"current\":2,\"max\":2,\"regen\":0}}}],\"missing\":[]}",
   "responseParsed": {
     "dungeonAffinity": "fire",
@@ -33,10 +33,26 @@
           }
         ],
         "vitals": {
-          "health": { "current": 8, "max": 8, "regen": 0 },
-          "mana": { "current": 4, "max": 4, "regen": 1 },
-          "stamina": { "current": 4, "max": 4, "regen": 1 },
-          "durability": { "current": 2, "max": 2, "regen": 0 }
+          "health": {
+            "current": 8,
+            "max": 8,
+            "regen": 0
+          },
+          "mana": {
+            "current": 4,
+            "max": 4,
+            "regen": 1
+          },
+          "stamina": {
+            "current": 4,
+            "max": 4,
+            "regen": 1
+          },
+          "durability": {
+            "current": 2,
+            "max": 2,
+            "regen": 0
+          }
         }
       }
     ],

@@ -99,7 +99,8 @@ test(
     const loadBudgetMs = envNumber("AK_PERF_LOAD_BUDGET_MS", DEFAULT_LOAD_BUDGET_MS);
     const actorScale = envNumber("AK_PERF_ACTOR_SCALE", DEFAULT_ACTOR_SCALE);
     const generatorSeed = envNumber("AK_PERF_GENERATOR_SEED", DEFAULT_GENERATOR_SEED);
-    const layoutProfile = process.env.AK_PERF_LAYOUT_PROFILE || "rectangular";
+    const layoutRoomCount = Math.max(1, Math.floor(envNumber("AK_PERF_LAYOUT_ROOM_COUNT", 24)));
+    const layoutCorridorWidth = Math.max(1, Math.floor(envNumber("AK_PERF_LAYOUT_CORRIDOR_WIDTH", 1)));
 
     const maxDim = Math.max(minDimEnv, Math.min(maxDimByMem, maxDimEnv));
     const minDim = Math.max(DEFAULT_MIN_DIM, Math.min(minDimEnv, maxDim));
@@ -214,7 +215,8 @@ test(
           width: dim,
           height: dim,
           seed: generatorSeed + dim,
-          profile: layoutProfile,
+          roomCount: layoutRoomCount,
+          corridorWidth: layoutCorridorWidth,
         });
         if (!layoutResult.ok) {
           return { ok: false, error: "layout_generator_failed" };

@@ -1,17 +1,17 @@
 import { normalizeLevelGenInput } from "./level-gen.js";
+import { LEVEL_GEN_DEFAULTS } from "./defaults.js";
 
-const DEFAULT_DENSITY = 0.35;
-const DEFAULT_CLUSTER_SIZE = 6;
 const DEFAULT_ROOM_COUNT = 4;
 const DEFAULT_ROOM_MIN_SIZE = 3;
 const DEFAULT_ROOM_MAX_SIZE = 9;
 const DEFAULT_CORRIDOR_WIDTH = 1;
 const ROOM_PLACEMENT_PADDING = 1;
 const ROOM_PLACEMENT_ATTEMPTS = 40;
-const SPARSE_TOPOLOGY_MIN_LARGEST_COMPONENT_RATIO = 0.7;
-const SPARSE_TOPOLOGY_MAX_COMPONENTS = 12;
-const SPARSE_TOPOLOGY_MAX_DEAD_END_RATIO = 0.2;
-const SPARSE_TOPOLOGY_REPAIR_PASSES = 2;
+const TARGET_ROOM_WALKABLE_SHARE = 0.85;
+const ORGANIC_EDGE_DEPTH = 3;
+const ORGANIC_EDGE_CUT_CHANCE = 0.42;
+const ORGANIC_EDGE_HEAL_CHANCE = 0.25;
+const ORGANIC_EDGE_PASSES = 1;
 
 const KIND_STATIONARY = 0;
 const KIND_BARRIER = 1;
@@ -31,6 +31,18 @@ const DEFAULT_RENDER = Object.freeze({
   exit: "E",
   actor: "@",
   barrier: "B",
+});
+const LEVEL_PATTERN_TYPES = Object.freeze({
+  none: "none",
+  grid: "grid",
+  diagonalGrid: "diagonal_grid",
+  concentricCircles: "concentric_circles",
+});
+const PATTERN_GAP_AXES = Object.freeze({
+  x: "x",
+  y: "y",
+  sum: "sum",
+  diff: "diff",
 });
 
 function createRng(seed = 0) {
@@ -103,88 +115,6 @@ function countNeighbors(mask, x, y) {
   return count;
 }
 
-function countWalkableNeighbors(mask, x, y, blockedIndex = null) {
-  let count = 0;
-  for (const delta of NEIGHBORS) {
-    const nx = x + delta.dx;
-    const ny = y + delta.dy;
-    if (ny < 0 || ny >= mask.length) continue;
-    if (nx < 0 || nx >= (mask[ny]?.length || 0)) continue;
-    if (blockedIndex?.has(`${nx},${ny}`)) continue;
-    if (mask[ny][nx]) count += 1;
-  }
-  return count;
-}
-
-function summarizeWalkableTopology(mask, blockedIndex = null) {
-  const height = mask.length;
-  const width = mask[0]?.length || 0;
-  const visited = createMask(width, height, false);
-  let totalWalkable = 0;
-  let componentCount = 0;
-  let largestComponentSize = 0;
-  let deadEnds = 0;
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (!mask[y][x]) continue;
-      if (blockedIndex?.has(`${x},${y}`)) continue;
-      totalWalkable += 1;
-      if (countWalkableNeighbors(mask, x, y, blockedIndex) <= 1) {
-        deadEnds += 1;
-      }
-    }
-  }
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (visited[y][x]) continue;
-      if (!mask[y][x]) continue;
-      if (blockedIndex?.has(`${x},${y}`)) continue;
-      componentCount += 1;
-      let size = 0;
-      const queue = [{ x, y }];
-      visited[y][x] = true;
-      let head = 0;
-      while (head < queue.length) {
-        const current = queue[head];
-        head += 1;
-        size += 1;
-        for (const delta of NEIGHBORS) {
-          const nx = current.x + delta.dx;
-          const ny = current.y + delta.dy;
-          if (ny < 0 || ny >= height) continue;
-          if (nx < 0 || nx >= width) continue;
-          if (visited[ny][nx]) continue;
-          if (!mask[ny][nx]) continue;
-          if (blockedIndex?.has(`${nx},${ny}`)) continue;
-          visited[ny][nx] = true;
-          queue.push({ x: nx, y: ny });
-        }
-      }
-      if (size > largestComponentSize) {
-        largestComponentSize = size;
-      }
-    }
-  }
-
-  const largestComponentRatio = totalWalkable > 0 ? largestComponentSize / totalWalkable : 1;
-  const deadEndRatio = totalWalkable > 0 ? deadEnds / totalWalkable : 0;
-  return {
-    totalWalkable,
-    componentCount,
-    largestComponentRatio,
-    deadEndRatio,
-  };
-}
-
-function sparseTopologyNeedsRepair(metrics) {
-  if (!metrics || metrics.totalWalkable <= 0) return false;
-  return metrics.componentCount > SPARSE_TOPOLOGY_MAX_COMPONENTS
-    || metrics.largestComponentRatio < SPARSE_TOPOLOGY_MIN_LARGEST_COMPONENT_RATIO
-    || metrics.deadEndRatio > SPARSE_TOPOLOGY_MAX_DEAD_END_RATIO;
-}
-
 function seedRectangular(mask) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
@@ -197,71 +127,49 @@ function seedRectangular(mask) {
   }
 }
 
-function seedSparseIslands(mask, density, rng) {
+function applyOrganicEdgePerturbation(mask, rng) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (!isInteriorCell(x, y, width, height)) continue;
-      if (rng() < density) {
-        mask[y][x] = true;
-      }
-    }
-  }
+  if (height <= 4 || width <= 4) return;
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
       if (!mask[y][x]) continue;
-      if (rng() > 0.5) continue;
-      const delta = NEIGHBORS[randomInt(rng, NEIGHBORS.length)];
-      const nx = x + delta.dx;
-      const ny = y + delta.dy;
-      if (isInteriorCell(nx, ny, width, height)) {
-        mask[ny][nx] = true;
-      }
-    }
-  }
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (!mask[y][x]) continue;
-      if (countNeighbors(mask, x, y) === 0) {
+      const edgeDistance = Math.min(x - 1, y - 1, width - 2 - x, height - 2 - y);
+      if (edgeDistance < 0 || edgeDistance > ORGANIC_EDGE_DEPTH) continue;
+      const weight = (ORGANIC_EDGE_DEPTH - edgeDistance + 1) / (ORGANIC_EDGE_DEPTH + 1);
+      if (rng() < ORGANIC_EDGE_CUT_CHANCE * weight) {
         mask[y][x] = false;
       }
     }
   }
-}
 
-function seedClusteredIslands(mask, clusterSize, rng) {
-  const height = mask.length;
-  const width = mask[0]?.length || 0;
-  const interiorCells = [];
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (isInteriorCell(x, y, width, height)) {
-        interiorCells.push({ x, y });
+  for (let pass = 0; pass < ORGANIC_EDGE_PASSES; pass += 1) {
+    const next = createMask(width, height, false);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        if (!isInteriorCell(x, y, width, height)) {
+          next[y][x] = false;
+          continue;
+        }
+        const edgeDistance = Math.min(x - 1, y - 1, width - 2 - x, height - 2 - y);
+        if (edgeDistance > ORGANIC_EDGE_DEPTH + 1) {
+          next[y][x] = mask[y][x];
+          continue;
+        }
+        const neighbors = countNeighbors(mask, x, y);
+        if (mask[y][x]) {
+          next[y][x] = neighbors >= 2;
+        } else {
+          const weight = (ORGANIC_EDGE_DEPTH - Math.max(0, edgeDistance) + 1) / (ORGANIC_EDGE_DEPTH + 1);
+          next[y][x] = neighbors >= 3 && rng() < ORGANIC_EDGE_HEAL_CHANCE * weight;
+        }
       }
     }
-  }
-  if (interiorCells.length === 0) {
-    return;
-  }
-
-  const targetSize = Math.max(1, clusterSize);
-  const clusterCount = Math.max(1, Math.floor(interiorCells.length / (targetSize * 2)));
-
-  for (let i = 0; i < clusterCount; i += 1) {
-    const start = interiorCells[randomInt(rng, interiorCells.length)];
-    let current = { x: start.x, y: start.y };
-    mask[current.y][current.x] = true;
-    for (let step = 0; step < targetSize; step += 1) {
-      const delta = NEIGHBORS[randomInt(rng, NEIGHBORS.length)];
-      const next = { x: current.x + delta.dx, y: current.y + delta.dy };
-      if (!isInteriorCell(next.x, next.y, width, height)) {
-        continue;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        mask[y][x] = next[y][x];
       }
-      current = next;
-      mask[current.y][current.x] = true;
     }
   }
 }
@@ -412,6 +320,130 @@ function collectTopologyPreserve(mask, blockedIndex = null, anchor = null) {
   return preserve;
 }
 
+function reconcileConnectedWalkableTiles({
+  mask,
+  target,
+  isEligible,
+  anchor,
+} = {}) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const totalCells = width * height;
+  const toIndex = (x, y) => (y * width) + x;
+  const toPoint = (index) => {
+    const y = Math.floor(index / width);
+    return { x: index - (y * width), y };
+  };
+  const resolveAnchor = () => {
+    if (anchor && isEligible(anchor.x, anchor.y)) {
+      return { x: anchor.x, y: anchor.y };
+    }
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        if (mask[y][x] && isEligible(x, y)) {
+          return { x, y };
+        }
+      }
+    }
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        if (isEligible(x, y)) {
+          return { x, y };
+        }
+      }
+    }
+    return null;
+  };
+
+  const anchorCell = resolveAnchor();
+  if (!anchorCell) {
+    return;
+  }
+  if (!mask[anchorCell.y][anchorCell.x]) {
+    mask[anchorCell.y][anchorCell.x] = true;
+  }
+
+  const selected = new Uint8Array(totalCells);
+  const queuedWalkable = new Uint8Array(totalCells);
+  const queuedExpansion = new Uint8Array(totalCells);
+  const walkableQueue = [];
+  const expansionQueue = [];
+
+  const tryQueueWalkable = (x, y) => {
+    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    if (!isEligible(x, y)) return;
+    if (!mask[y][x]) return;
+    const index = toIndex(x, y);
+    if (queuedWalkable[index]) return;
+    queuedWalkable[index] = 1;
+    walkableQueue.push(index);
+  };
+
+  const tryQueueExpansion = (x, y) => {
+    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    if (!isEligible(x, y)) return;
+    const index = toIndex(x, y);
+    if (selected[index] || queuedExpansion[index]) return;
+    queuedExpansion[index] = 1;
+    expansionQueue.push(index);
+  };
+
+  const selectCell = (index) => {
+    if (selected[index]) return false;
+    selected[index] = 1;
+    return true;
+  };
+
+  tryQueueWalkable(anchorCell.x, anchorCell.y);
+  let walkableHead = 0;
+  let selectedCount = 0;
+
+  while (walkableHead < walkableQueue.length && selectedCount < target) {
+    const index = walkableQueue[walkableHead];
+    walkableHead += 1;
+    const current = toPoint(index);
+    if (selectCell(index)) {
+      selectedCount += 1;
+    }
+
+    for (const delta of NEIGHBORS) {
+      const nx = current.x + delta.dx;
+      const ny = current.y + delta.dy;
+      if (ny < 0 || ny >= height || nx < 0 || nx >= width) continue;
+      if (!isEligible(nx, ny)) continue;
+      if (mask[ny][nx]) {
+        tryQueueWalkable(nx, ny);
+      } else {
+        tryQueueExpansion(nx, ny);
+      }
+    }
+  }
+
+  let expansionHead = 0;
+  while (selectedCount < target && expansionHead < expansionQueue.length) {
+    const index = expansionQueue[expansionHead];
+    expansionHead += 1;
+    const current = toPoint(index);
+    if (!isEligible(current.x, current.y)) {
+      continue;
+    }
+    if (selectCell(index)) {
+      selectedCount += 1;
+    }
+    for (const delta of NEIGHBORS) {
+      tryQueueExpansion(current.x + delta.dx, current.y + delta.dy);
+    }
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isEligible(x, y)) continue;
+      const index = toIndex(x, y);
+      mask[y][x] = selected[index] === 1;
+    }
+  }
+}
+
 function reconcileWalkableTiles({
   mask,
   targetWalkableTiles,
@@ -444,6 +476,16 @@ function reconcileWalkableTiles({
     isInteriorCell(x, y, width, height)
     && !blockedIndex?.has(`${x},${y}`)
   );
+
+  if (requireConnected) {
+    reconcileConnectedWalkableTiles({
+      mask,
+      target,
+      isEligible,
+      anchor,
+    });
+    return;
+  }
 
   let current = countWalkableMask(mask);
   const fastReconcileWithoutConnectivity = () => {
@@ -640,8 +682,26 @@ function readRoomSettings(levelGen) {
     1,
     maxRoomSize,
   );
-
-  return { roomCount, roomMinSize, roomMaxSize, corridorWidth };
+  const walkableTilesTarget = resolveWalkableTilesTarget(levelGen);
+  if (walkableTilesTarget === null) {
+    return { roomCount, roomMinSize, roomMaxSize, corridorWidth };
+  }
+  const interiorCapacity = countWalkableCapacity(createMask(width, height, false));
+  const normalizedWalkableTarget = Math.min(walkableTilesTarget, interiorCapacity);
+  const averageRoomSide = Math.max(1, (roomMinSize + roomMaxSize) / 2);
+  const averageRoomArea = Math.max(1, Math.round(averageRoomSide * averageRoomSide));
+  const desiredRoomTiles = Math.max(1, Math.round(normalizedWalkableTarget * TARGET_ROOM_WALKABLE_SHARE));
+  const targetRoomCount = clampInt(
+    Math.ceil(desiredRoomTiles / averageRoomArea),
+    1,
+    maxRooms,
+  );
+  return {
+    roomCount: Math.max(roomCount, targetRoomCount),
+    roomMinSize,
+    roomMaxSize,
+    corridorWidth,
+  };
 }
 
 function roomCenter(room) {
@@ -649,6 +709,11 @@ function roomCenter(room) {
     x: Math.floor(room.x + room.width / 2),
     y: Math.floor(room.y + room.height / 2),
   };
+}
+
+function roomIdAt(room, index) {
+  if (typeof room?.id === "string" && room.id.trim()) return room.id.trim();
+  return `R${index + 1}`;
 }
 
 function canPlaceRoom(mask, room, padding) {
@@ -699,6 +764,7 @@ function placeRooms(mask, rng, settings) {
       continue;
     }
     const room = {
+      id: `R${rooms.length + 1}`,
       x: randomIntBetween(rng, 1, maxX),
       y: randomIntBetween(rng, 1, maxY),
       width: roomWidth,
@@ -714,7 +780,13 @@ function placeRooms(mask, rng, settings) {
   if (rooms.length < roomCount) {
     for (let y = 1; y <= height - roomMinSize - 1 && rooms.length < roomCount; y += 1) {
       for (let x = 1; x <= width - roomMinSize - 1 && rooms.length < roomCount; x += 1) {
-        const room = { x, y, width: roomMinSize, height: roomMinSize };
+        const room = {
+          id: `R${rooms.length + 1}`,
+          x,
+          y,
+          width: roomMinSize,
+          height: roomMinSize,
+        };
         if (canPlaceRoom(mask, room, 0)) {
           carveRoom(mask, room);
           rooms.push(room);
@@ -724,6 +796,217 @@ function placeRooms(mask, rng, settings) {
   }
 
   return rooms;
+}
+
+function normalizePatternType(rawPattern) {
+  if (typeof rawPattern !== "string") return LEVEL_PATTERN_TYPES.grid;
+  const normalizedPattern = rawPattern.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalizedPattern === LEVEL_PATTERN_TYPES.none) return LEVEL_PATTERN_TYPES.none;
+  if (normalizedPattern === LEVEL_PATTERN_TYPES.grid) return LEVEL_PATTERN_TYPES.grid;
+  if (normalizedPattern === LEVEL_PATTERN_TYPES.diagonalGrid || normalizedPattern === "diagonal") {
+    return LEVEL_PATTERN_TYPES.diagonalGrid;
+  }
+  if (normalizedPattern === LEVEL_PATTERN_TYPES.concentricCircles || normalizedPattern === "concentric") {
+    return LEVEL_PATTERN_TYPES.concentricCircles;
+  }
+  if (normalizedPattern === "horizontal_vertical_grid" || normalizedPattern === "horizontal_verticle_grid") {
+    return LEVEL_PATTERN_TYPES.grid;
+  }
+  return LEVEL_PATTERN_TYPES.grid;
+}
+
+function derivePatternSpacingFromInfillPercent(infillPercent, maxPatternStride) {
+  const normalizedInfill = clampInt(infillPercent, 1, 100);
+  const spacingFromInfill = Math.round((110 - normalizedInfill) / 10);
+  return clampInt(spacingFromInfill, 2, maxPatternStride);
+}
+
+function readPatternSettings(levelGen) {
+  const shape = levelGen?.shape && typeof levelGen.shape === "object" ? levelGen.shape : {};
+  const type = normalizePatternType(shape.pattern);
+  if (type === LEVEL_PATTERN_TYPES.none) {
+    return { type };
+  }
+  const width = Math.max(1, levelGen?.width || 1);
+  const height = Math.max(1, levelGen?.height || 1);
+  const maxPatternStride = Math.max(2, Math.max(width, height) - 2);
+  const maxPatternLineWidth = Math.max(1, Math.min(width, height) - 2);
+  const maxPatternInset = Math.max(0, Math.min(width, height) - 3);
+  const infillPercent = Number.isInteger(shape.patternInfillPercent)
+    ? clampInt(shape.patternInfillPercent, 1, 100)
+    : null;
+  const spacingFromShape = clampInt(
+    Number.isInteger(shape.patternSpacing) ? shape.patternSpacing : LEVEL_GEN_DEFAULTS.patternSpacing,
+    2,
+    maxPatternStride,
+  );
+  return {
+    type,
+    spacing: Number.isInteger(infillPercent)
+      ? derivePatternSpacingFromInfillPercent(infillPercent, maxPatternStride)
+      : spacingFromShape,
+    lineWidth: clampInt(
+      Number.isInteger(shape.patternLineWidth) ? shape.patternLineWidth : LEVEL_GEN_DEFAULTS.patternLineWidth,
+      1,
+      maxPatternLineWidth,
+    ),
+    gapEvery: clampInt(
+      Number.isInteger(shape.patternGapEvery) ? shape.patternGapEvery : LEVEL_GEN_DEFAULTS.patternGapEvery,
+      2,
+      Math.max(2, maxPatternLineWidth),
+    ),
+    inset: clampInt(
+      Number.isInteger(shape.patternInset) ? shape.patternInset : LEVEL_GEN_DEFAULTS.patternInset,
+      0,
+      maxPatternInset,
+    ),
+    infillPercent,
+  };
+}
+
+function buildRoomIndex(width, height, rooms) {
+  const index = createNumberGrid(width, height, -1);
+  for (let roomId = 0; roomId < rooms.length; roomId += 1) {
+    const room = rooms[roomId];
+    for (let y = room.y; y < room.y + room.height; y += 1) {
+      for (let x = room.x; x < room.x + room.width; x += 1) {
+        if (y < 0 || y >= height || x < 0 || x >= width) continue;
+        index[y][x] = roomId;
+      }
+    }
+  }
+  return index;
+}
+
+function isOnGridLine(coord, spacing, lineWidth, phaseOffset = 1) {
+  const normalized = ((coord - phaseOffset) % spacing + spacing) % spacing;
+  if (lineWidth <= 1) return normalized === 0;
+  return normalized < lineWidth;
+}
+
+function roomEdgeDistance(room, x, y) {
+  return Math.min(
+    x - room.x,
+    room.x + room.width - 1 - x,
+    y - room.y,
+    room.y + room.height - 1 - y,
+  );
+}
+
+function resolvePatternGapOffset(axis, x, y, room) {
+  switch (axis) {
+    case PATTERN_GAP_AXES.x:
+      return x - room.x;
+    case PATTERN_GAP_AXES.y:
+      return y - room.y;
+    case PATTERN_GAP_AXES.sum:
+      return (x - room.x) + (y - room.y);
+    case PATTERN_GAP_AXES.diff:
+      return (x - room.x) - (y - room.y);
+    default:
+      return null;
+  }
+}
+
+function shouldPreservePatternGap({ x, y, room, activeAxes = [], gapEvery, inset }) {
+  if (!room) return false;
+  const edgeDistance = roomEdgeDistance(room, x, y);
+  // Never convert room perimeter tiles into barriers; perimeter cells act as
+  // guaranteed door candidates even when patternInset is zero.
+  if (edgeDistance <= 0) {
+    return true;
+  }
+  if (edgeDistance < inset) {
+    return true;
+  }
+  if (!Array.isArray(activeAxes) || activeAxes.length === 0) {
+    return false;
+  }
+  if (activeAxes.length >= 2) {
+    return true;
+  }
+  for (let i = 0; i < activeAxes.length; i += 1) {
+    const offset = resolvePatternGapOffset(activeAxes[i], x, y, room);
+    if (!Number.isFinite(offset)) continue;
+    const normalizedOffset = ((offset % gapEvery) + gapEvery) % gapEvery;
+    if (normalizedOffset === 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function evaluatePatternCell(pattern, x, y, width, height) {
+  if (pattern.type === LEVEL_PATTERN_TYPES.grid) {
+    const onVertical = isOnGridLine(x, pattern.spacing, pattern.lineWidth);
+    const onHorizontal = isOnGridLine(y, pattern.spacing, pattern.lineWidth);
+    return {
+      onPatternLine: onVertical || onHorizontal,
+      activeAxes: [
+        onVertical ? PATTERN_GAP_AXES.y : null,
+        onHorizontal ? PATTERN_GAP_AXES.x : null,
+      ].filter(Boolean),
+    };
+  }
+  if (pattern.type === LEVEL_PATTERN_TYPES.diagonalGrid) {
+    const onDiagForward = isOnGridLine(x + y, pattern.spacing, pattern.lineWidth, 2);
+    const onDiagBackward = isOnGridLine(x - y, pattern.spacing, pattern.lineWidth, 0);
+    return {
+      onPatternLine: onDiagForward || onDiagBackward,
+      activeAxes: [
+        onDiagForward ? PATTERN_GAP_AXES.x : null,
+        onDiagBackward ? PATTERN_GAP_AXES.y : null,
+      ].filter(Boolean),
+    };
+  }
+  if (pattern.type === LEVEL_PATTERN_TYPES.concentricCircles) {
+    const centerX = (width - 1) / 2;
+    const centerY = (height - 1) / 2;
+    const radius = Math.round(Math.hypot(x - centerX, y - centerY));
+    const onRing = isOnGridLine(radius, pattern.spacing, pattern.lineWidth, 1);
+    return {
+      onPatternLine: onRing,
+      activeAxes: onRing ? [PATTERN_GAP_AXES.sum] : [],
+    };
+  }
+  return { onPatternLine: false, activeAxes: [] };
+}
+
+function applyPatternOverlay(mask, rooms, levelGen) {
+  if (!Array.isArray(mask) || mask.length === 0) return;
+  const pattern = readPatternSettings(levelGen);
+  if (pattern.type === LEVEL_PATTERN_TYPES.none) return;
+
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  if (width <= 0 || height <= 0) return;
+
+  const roomIndex = buildRoomIndex(width, height, rooms || []);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isInteriorCell(x, y, width, height)) continue;
+      const { onPatternLine, activeAxes } = evaluatePatternCell(pattern, x, y, width, height);
+      if (!onPatternLine) continue;
+
+      const roomId = roomIndex[y]?.[x] ?? -1;
+      if (roomId >= 0) {
+        const room = rooms[roomId];
+        if (shouldPreservePatternGap({
+          x,
+          y,
+          room,
+          activeAxes,
+          gapEvery: pattern.gapEvery,
+          inset: pattern.inset,
+        })) {
+          continue;
+        }
+        mask[y][x] = false;
+      } else {
+        mask[y][x] = true;
+      }
+    }
+  }
 }
 
 function carveCell(mask, x, y, corridorWidth, blockedIndex = null) {
@@ -966,6 +1249,182 @@ function pickFarthest(candidates, distances) {
     }
   }
   return best;
+}
+
+function pointInRoom(room, point) {
+  if (!room || !point) return false;
+  return (
+    point.x >= room.x
+    && point.x < room.x + room.width
+    && point.y >= room.y
+    && point.y < room.y + room.height
+  );
+}
+
+function findRoomIndexForPoint(rooms, point) {
+  if (!Array.isArray(rooms) || !point) return -1;
+  for (let i = 0; i < rooms.length; i += 1) {
+    if (pointInRoom(rooms[i], point)) return i;
+  }
+  return -1;
+}
+
+function collectWalkableInRoom(mask, room, trapIndex) {
+  if (!room) return [];
+  const cells = [];
+  const startY = Math.max(0, room.y);
+  const endY = Math.min(mask.length - 1, room.y + room.height - 1);
+  const width = mask[0]?.length || 0;
+  const startX = Math.max(0, room.x);
+  const endX = Math.min(width - 1, room.x + room.width - 1);
+  for (let y = startY; y <= endY; y += 1) {
+    for (let x = startX; x <= endX; x += 1) {
+      if (!mask[y]?.[x]) continue;
+      if (isTrapCell(trapIndex, x, y)) continue;
+      cells.push({ x, y });
+    }
+  }
+  return cells;
+}
+
+function comparePointAsc(a, b) {
+  return (a.y - b.y) || (a.x - b.x);
+}
+
+function selectClosestToRoomCenter(cells, room) {
+  if (!Array.isArray(cells) || cells.length === 0) return null;
+  const center = roomCenter(room);
+  let best = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const cell of cells) {
+    const distance = manhattanDistance(cell, center);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = cell;
+      continue;
+    }
+    if (distance === bestDistance && best && comparePointAsc(cell, best) < 0) {
+      best = cell;
+    }
+  }
+  return best;
+}
+
+function selectBestExitCell(cells, spawn, { distances = null, minDistance = 0 } = {}) {
+  if (!Array.isArray(cells) || cells.length === 0 || !spawn) return null;
+  let best = null;
+  let bestPathDistance = -1;
+  let bestManhattan = -1;
+  for (const cell of cells) {
+    if (cell.x === spawn.x && cell.y === spawn.y) continue;
+    const pathDistance = distances ? (distances[cell.y]?.[cell.x] ?? -1) : -1;
+    if (distances && pathDistance < 0) continue;
+    const distance = manhattanDistance(cell, spawn);
+    if (distance < minDistance) continue;
+    if (pathDistance > bestPathDistance) {
+      bestPathDistance = pathDistance;
+      bestManhattan = distance;
+      best = cell;
+      continue;
+    }
+    if (pathDistance === bestPathDistance) {
+      if (distance > bestManhattan) {
+        bestManhattan = distance;
+        best = cell;
+        continue;
+      }
+      if (distance === bestManhattan && best && comparePointAsc(cell, best) < 0) {
+        best = cell;
+      }
+    }
+  }
+  return best;
+}
+
+function roomPairIsBetter(candidate, best) {
+  if (!candidate) return false;
+  if (!best) return true;
+  if (candidate.totalDelta !== best.totalDelta) return candidate.totalDelta > best.totalDelta;
+  if (candidate.minAxisDelta !== best.minAxisDelta) return candidate.minAxisDelta > best.minAxisDelta;
+  if (candidate.maxAxisDelta !== best.maxAxisDelta) return candidate.maxAxisDelta > best.maxAxisDelta;
+  if (candidate.entryCenter.x !== best.entryCenter.x) return candidate.entryCenter.x < best.entryCenter.x;
+  if (candidate.entryCenter.y !== best.entryCenter.y) return candidate.entryCenter.y < best.entryCenter.y;
+  if (candidate.exitCenter.x !== best.exitCenter.x) return candidate.exitCenter.x < best.exitCenter.x;
+  if (candidate.exitCenter.y !== best.exitCenter.y) return candidate.exitCenter.y < best.exitCenter.y;
+  if (candidate.entryIndex !== best.entryIndex) return candidate.entryIndex < best.entryIndex;
+  return candidate.exitIndex < best.exitIndex;
+}
+
+function pickRoomPairWithGreatestDeltas(rooms, roomWalkable) {
+  if (!Array.isArray(rooms) || rooms.length === 0) return null;
+  const viable = rooms
+    .map((room, index) => ({ room, index, center: roomCenter(room) }))
+    .filter((entry) => Array.isArray(roomWalkable[entry.index]) && roomWalkable[entry.index].length > 0);
+  if (viable.length === 0) return null;
+  if (viable.length === 1) {
+    return { entryIndex: viable[0].index, exitIndex: viable[0].index };
+  }
+
+  let best = null;
+  for (let i = 0; i < viable.length - 1; i += 1) {
+    for (let j = i + 1; j < viable.length; j += 1) {
+      const a = viable[i];
+      const b = viable[j];
+      const dx = Math.abs(a.center.x - b.center.x);
+      const dy = Math.abs(a.center.y - b.center.y);
+      const aBeforeB = (a.center.x < b.center.x) || (a.center.x === b.center.x && a.center.y <= b.center.y);
+      const entry = aBeforeB ? a : b;
+      const exit = aBeforeB ? b : a;
+      const candidate = {
+        entryIndex: entry.index,
+        exitIndex: exit.index,
+        totalDelta: dx + dy,
+        minAxisDelta: Math.min(dx, dy),
+        maxAxisDelta: Math.max(dx, dy),
+        entryCenter: entry.center,
+        exitCenter: exit.center,
+      };
+      if (roomPairIsBetter(candidate, best)) {
+        best = candidate;
+      }
+    }
+  }
+  if (!best) return null;
+  return {
+    entryIndex: best.entryIndex,
+    exitIndex: best.exitIndex,
+  };
+}
+
+function pickSpawnExitFromRooms(mask, levelGen, trapIndex, rooms) {
+  if (!Array.isArray(rooms) || rooms.length === 0) return null;
+  const roomWalkable = rooms.map((room) => collectWalkableInRoom(mask, room, trapIndex));
+  const pair = pickRoomPairWithGreatestDeltas(rooms, roomWalkable);
+  if (!pair) return null;
+
+  const entryRoom = rooms[pair.entryIndex];
+  const exitRoom = rooms[pair.exitIndex];
+  const entryCells = roomWalkable[pair.entryIndex] || [];
+  const exitCells = roomWalkable[pair.exitIndex] || [];
+  const spawn = selectClosestToRoomCenter(entryCells, entryRoom);
+  if (!spawn) return null;
+
+  const requirePath = Boolean(levelGen.connectivity?.requirePath);
+  const distances = requirePath ? distanceFrom(mask, spawn) : null;
+  const minDistance = Math.max(levelGen.spawn.minDistance || 0, levelGen.exit.minDistance || 0);
+  let exit = selectBestExitCell(exitCells, spawn, { distances, minDistance });
+  if (!exit && pair.entryIndex === pair.exitIndex) {
+    exit = selectBestExitCell(entryCells, spawn, { distances, minDistance });
+  }
+
+  return {
+    spawn,
+    exit,
+    entryRoomIndex: pair.entryIndex,
+    exitRoomIndex: pair.exitIndex,
+    entryRoomId: roomIdAt(entryRoom, pair.entryIndex),
+    exitRoomId: roomIdAt(exitRoom, pair.exitIndex),
+  };
 }
 
 function pickSpawn(mask, levelGen, rng, trapIndex) {
@@ -1220,99 +1679,13 @@ function buildKinds(mask, trapIndex) {
 function generateMask(levelGen, rng) {
   const { width, height } = levelGen;
   const mask = createMask(width, height, false);
-  const profile = levelGen.shape?.profile || "rectangular";
-  let rooms = null;
-
-  if (profile === "rectangular") {
-    seedRectangular(mask);
-  } else if (profile === "sparse_islands") {
-    const density = typeof levelGen.shape?.density === "number" ? levelGen.shape.density : DEFAULT_DENSITY;
-    seedSparseIslands(mask, density, rng);
-  } else if (profile === "clustered_islands") {
-    const clusterSize = Number.isInteger(levelGen.shape?.clusterSize) ? levelGen.shape.clusterSize : DEFAULT_CLUSTER_SIZE;
-    seedClusteredIslands(mask, clusterSize, rng);
-  } else if (profile === "rooms") {
-    const settings = readRoomSettings(levelGen);
-    rooms = placeRooms(mask, rng, settings);
-    ensureRoomsConnected(mask, rooms, rng, settings.corridorWidth);
-  } else {
-    seedRectangular(mask);
-  }
+  const settings = readRoomSettings(levelGen);
+  const rooms = placeRooms(mask, rng, settings);
+  applyOrganicEdgePerturbation(mask, rng);
+  ensureRoomsConnected(mask, rooms, rng, settings.corridorWidth);
+  applyPatternOverlay(mask, rooms, levelGen);
   ensureWalkable(mask);
   return { mask, rooms };
-}
-
-function smoothSparseMask(mask, { blockedIndex = null, preserve = [] } = {}) {
-  const height = mask.length;
-  const width = mask[0]?.length || 0;
-  const next = createMask(width, height, false);
-  const preserveSet = new Set(
-    (Array.isArray(preserve) ? preserve : [])
-      .filter((pos) => Number.isInteger(pos?.x) && Number.isInteger(pos?.y))
-      .map((pos) => `${pos.x},${pos.y}`),
-  );
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (!isInteriorCell(x, y, width, height)) continue;
-      if (blockedIndex?.has(`${x},${y}`)) continue;
-      if (preserveSet.has(`${x},${y}`)) {
-        next[y][x] = true;
-        continue;
-      }
-      const neighbors = countWalkableNeighbors(mask, x, y, blockedIndex);
-      if (mask[y][x]) {
-        next[y][x] = neighbors >= 2;
-      } else {
-        next[y][x] = neighbors >= 3;
-      }
-    }
-  }
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      mask[y][x] = next[y][x];
-    }
-  }
-}
-
-function repairSparseTopology({
-  mask,
-  walkableTilesTarget,
-  requiresConnectedWalkable,
-  corridorWidth,
-  blockedIndex,
-  anchor,
-} = {}) {
-  if (!Array.isArray(mask) || mask.length === 0) return;
-  if (!Number.isInteger(walkableTilesTarget) || walkableTilesTarget <= 0) return;
-
-  let metrics = summarizeWalkableTopology(mask, blockedIndex);
-  if (!sparseTopologyNeedsRepair(metrics)) return;
-
-  for (let pass = 0; pass < SPARSE_TOPOLOGY_REPAIR_PASSES; pass += 1) {
-    smoothSparseMask(mask, {
-      blockedIndex,
-      preserve: anchor ? [anchor] : [],
-    });
-    ensureWalkable(mask);
-    if (requiresConnectedWalkable && anchor && mask[anchor.y]?.[anchor.x]) {
-      ensureConnectedToSpawn(mask, anchor, corridorWidth, blockedIndex);
-    }
-    reconcileWalkableTiles({
-      mask,
-      targetWalkableTiles: walkableTilesTarget,
-      blockedIndex,
-      requireConnected: requiresConnectedWalkable,
-      anchor,
-      preserve: anchor ? [anchor] : [],
-    });
-    ensureWalkable(mask);
-    metrics = summarizeWalkableTopology(mask, blockedIndex);
-    if (!sparseTopologyNeedsRepair(metrics)) {
-      break;
-    }
-  }
 }
 
 export function generateGridLayout(levelGen) {
@@ -1321,14 +1694,9 @@ export function generateGridLayout(levelGen) {
   const { mask, rooms } = generateMask(levelGen, rng);
   const traps = Array.isArray(levelGen.traps) ? levelGen.traps : [];
   applyTrapBlocking(mask, traps);
-  const profile = levelGen.shape?.profile || "rectangular";
   const blockingTrapIndex = buildBlockingTrapIndex(traps);
   const walkableTilesTarget = resolveWalkableTilesTarget(levelGen);
-  const sparseTargeted = profile === "sparse_islands" && Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0;
-  const requiresConnectedWalkable = Boolean(
-    levelGen.connectivity?.requirePath
-      && (profile === "clustered_islands" || sparseTargeted),
-  );
+  const requiresConnectedWalkable = Boolean(levelGen.connectivity?.requirePath);
   const corridorWidth = resolveCorridorWidth(levelGen);
 
   ensureWalkable(mask);
@@ -1337,10 +1705,16 @@ export function generateGridLayout(levelGen) {
   let spawn = null;
   if (requiresConnectedWalkable) {
     spawn = pickSpawn(mask, levelGen, rng, trapIndex);
-    ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingTrapIndex);
+    // When an explicit walkable target is set, connected reconciliation will build
+    // a single connected component from spawn. Avoid the expensive pre-pass.
+    if (!walkableTilesTarget) {
+      ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingTrapIndex);
+    }
   }
 
-  if (walkableTilesTarget) {
+  const currentWalkableTiles = countWalkableMask(mask);
+
+  if (walkableTilesTarget && currentWalkableTiles !== walkableTilesTarget) {
     reconcileWalkableTiles({
       mask,
       targetWalkableTiles: walkableTilesTarget,
@@ -1350,24 +1724,28 @@ export function generateGridLayout(levelGen) {
       preserve: spawn ? [spawn] : [],
     });
   }
-
-  if (sparseTargeted) {
-    repairSparseTopology({
-      mask,
-      walkableTilesTarget,
-      requiresConnectedWalkable,
-      corridorWidth,
-      blockedIndex: blockingTrapIndex,
-      anchor: spawn,
-    });
+  if (requiresConnectedWalkable && spawn && mask[spawn.y]?.[spawn.x]) {
+    ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingTrapIndex);
   }
 
   ensureWalkable(mask);
+  const roomPlacement = pickSpawnExitFromRooms(mask, levelGen, trapIndex, rooms);
+  if (roomPlacement?.spawn) {
+    spawn = roomPlacement.spawn;
+  }
   if (!spawn || !mask[spawn.y]?.[spawn.x] || isTrapCell(trapIndex, spawn.x, spawn.y)) {
     spawn = pickSpawn(mask, levelGen, rng, trapIndex);
   }
 
-  const exit = pickExit(mask, levelGen, rng, trapIndex, spawn);
+  let exit = roomPlacement?.exit || null;
+  if (
+    !exit
+    || (exit.x === spawn.x && exit.y === spawn.y)
+    || !mask[exit.y]?.[exit.x]
+    || isTrapCell(trapIndex, exit.x, exit.y)
+  ) {
+    exit = pickExit(mask, levelGen, rng, trapIndex, spawn);
+  }
   const layout = {
     width: levelGen.width,
     height: levelGen.height,
@@ -1381,6 +1759,14 @@ export function generateGridLayout(levelGen) {
   };
   if (rooms && rooms.length > 0) {
     layout.rooms = rooms.map((room) => ({ ...room }));
+    const entryRoomIndex = roomPlacement?.entryRoomIndex ?? findRoomIndexForPoint(rooms, spawn);
+    if (Number.isInteger(entryRoomIndex) && entryRoomIndex >= 0) {
+      layout.entryRoomId = roomIdAt(rooms[entryRoomIndex], entryRoomIndex);
+    }
+    const exitRoomIndex = roomPlacement?.exitRoomIndex ?? findRoomIndexForPoint(rooms, exit);
+    if (Number.isInteger(exitRoomIndex) && exitRoomIndex >= 0) {
+      layout.exitRoomId = roomIdAt(rooms[exitRoomIndex], exitRoomIndex);
+    }
     const connectivity = computeConnectivity(mask, rooms, spawn, exit);
     if (connectivity) {
       layout.connectivity = connectivity;

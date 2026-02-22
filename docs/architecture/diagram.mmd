@@ -28,7 +28,8 @@ flowchart LR
   end
 
   subgraph Adapters["Adapters (IO boundary)"]
-    AWeb["adapters-web (ipfs | blockchain | llm | dom-log)"]
+    AWeb["adapters-web (ipfs | blockchain | llm | dom-log | level-builder)"]
+    LevelBuilderWorker["level-builder worker (summary/levelGen/tiles -> ascii + image artifacts)"]
     ACli["adapters-cli (ipfs | blockchain | llm | solver-wasm)"]
     ATest["adapters-test (fixture adapters)"]
   end
@@ -65,6 +66,7 @@ flowchart LR
   CLI --> ACli
 
   RuntimePorts <--> AWeb
+  AWeb --> LevelBuilderWorker
   ATest -.fixtures.-> RuntimePorts
   RuntimePorts -.effects (id/requestId/adapter hint)-> Adapters
 

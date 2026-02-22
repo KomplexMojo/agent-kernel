@@ -119,6 +119,12 @@
         font-variant-ligatures: none;
       }
 
+      #frame-buffer {
+        min-height: 520px;
+        max-height: min(70vh, 760px);
+        overflow: auto;
+      }
+
       .frame-display .actor-cell {
         font-weight: 600;
         color: var(--text);
@@ -184,13 +190,13 @@
 
       .workspace {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+        grid-template-columns: 1fr;
         gap: 20px;
         align-items: start;
       }
 
-      .workspace:not([data-active-tab="simulation"]) {
-        grid-template-columns: 1fr;
+      .workspace[data-active-tab="simulation"][data-inspector-open="true"] {
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
       }
 
       .workspace:not([data-active-tab="simulation"]) #actor-inspector {
@@ -211,6 +217,19 @@
         border: 1px solid rgba(249, 199, 79, 0.25);
       }
 
+      .inspector-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .inspector-close {
+        flex-shrink: 0;
+        padding: 6px 10px;
+        min-width: 0;
+      }
+
       .inspector-section {
         display: grid;
         gap: 6px;
@@ -219,6 +238,11 @@
       @media (max-width: 960px) {
         .workspace {
           grid-template-columns: 1fr;
+        }
+
+        #frame-buffer {
+          min-height: 360px;
+          max-height: min(62vh, 560px);
         }
 
         .inspector-shell {
@@ -577,11 +601,31 @@
 
       .level-preview-output {
         white-space: normal;
+        min-height: 320px;
+        max-height: min(74vh, 820px);
+        overflow: auto;
       }
 
       .level-preview-shell {
         display: grid;
         gap: 8px;
+      }
+
+      .level-preview-viewport {
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        background: #010101;
+        overflow: auto;
+        max-width: 100%;
+        max-height: min(62vh, 700px);
+      }
+
+      .level-preview-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
       }
 
       .level-preview-meta {
@@ -593,10 +637,9 @@
       .level-preview-canvas {
         image-rendering: pixelated;
         image-rendering: crisp-edges;
-        border: 1px solid var(--border);
-        border-radius: 2px;
+        display: block;
         background: #010101;
-        max-width: 100%;
+        max-width: none;
         height: auto;
       }
 
@@ -671,6 +714,91 @@
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       }
 
+      .runtime-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .runtime-stage-shell {
+        display: grid;
+        gap: 10px;
+      }
+
+      .runtime-viewport {
+        min-height: 560px;
+        max-height: 720px;
+        overflow: auto;
+        line-height: 1;
+        font-size: 0.78rem;
+      }
+
+      .runtime-controls {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .runtime-sidebar {
+        display: grid;
+        gap: 12px;
+      }
+
+      .runtime-card-group {
+        display: grid;
+        gap: 8px;
+      }
+
+      .runtime-card-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      #runtime-visible-defenders,
+      #runtime-offscreen-defenders {
+        max-height: 260px;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .runtime-actor-card {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        background: #070707;
+        color: var(--text);
+        padding: 8px;
+        text-align: left;
+        display: grid;
+        gap: 4px;
+        cursor: pointer;
+      }
+
+      .runtime-actor-card.selected {
+        border-color: var(--accent);
+        box-shadow: inset 0 0 0 1px rgba(249, 199, 79, 0.25);
+      }
+
+      .runtime-actor-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .runtime-actor-meta {
+        font-size: 0.75rem;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .runtime-card-empty {
+        border: 1px dashed var(--border);
+        border-radius: 2px;
+        padding: 8px;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
       .artifact-list {
         display: grid;
         gap: 10px;
@@ -689,6 +817,16 @@
         font-size: 0.85rem;
         margin-bottom: 6px;
       }
+
+      @media (max-width: 960px) {
+        .runtime-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .runtime-viewport {
+          min-height: 380px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -706,6 +844,7 @@
           <div class="tab-bar" role="tablist" aria-label="Primary workflow tabs">
             <button class="tab-button active" type="button" data-tab="design" role="tab" aria-selected="true">Design</button>
             <button class="tab-button" type="button" data-tab="simulation" role="tab" aria-selected="false">Simulation</button>
+            <button class="tab-button" type="button" data-tab="runtime" role="tab" aria-selected="false">Runtime</button>
             <button class="tab-button" type="button" data-tab="diagnostics" role="tab" aria-selected="false">Diagnostics</button>
           </div>
         </div>
@@ -740,6 +879,34 @@
               <button class="secondary" id="reset-run">Reset</button>
               <span class="pill" id="status-message">Loading WASM...</span>
             </div>
+            <div class="stat">
+              <span class="stat-label">Visibility Controls</span>
+              <small class="status">Use <code>simulation_full</code> to inspect the whole map. Use <code>gameplay_fog</code> to apply fog of war with a 50x50 viewport.</small>
+            </div>
+            <div class="adapter-grid">
+              <label>
+                <span class="stat-label">View Mode</span>
+                <select id="simulation-visibility-mode">
+                  <option value="simulation_full">simulation_full</option>
+                  <option value="gameplay_fog">gameplay_fog</option>
+                </select>
+              </label>
+              <label>
+                <span class="stat-label">Viewer Actor</span>
+                <select id="simulation-viewer-actor">
+                  <option value="">(none)</option>
+                </select>
+              </label>
+              <label>
+                <span class="stat-label">Viewport Size</span>
+                <input id="simulation-viewport-size" type="number" min="1" step="1" value="50" />
+              </label>
+              <label>
+                <span class="stat-label">Vision Radius</span>
+                <input id="simulation-vision-radius" type="number" min="1" step="1" value="6" />
+              </label>
+            </div>
+            <pre class="adapter-output" id="simulation-exploration-hud">Exploration HUD unavailable.</pre>
           </div>
           <div class="card">
             <div class="stat">
@@ -750,12 +917,60 @@
           </div>
         </div>
 
+            <div class="tab-panel" data-tab-panel="runtime" role="tabpanel" hidden>
+          <div class="runtime-shell">
+            <div class="card runtime-stage-shell">
+              <div class="stat">
+                <span class="stat-label">Runtime Viewport</span>
+                <small class="status">50x50 active viewport. Choose any actor card to inspect that actor's current view.</small>
+              </div>
+              <pre class="frame-display runtime-viewport" id="runtime-viewport">Runtime viewport unavailable.</pre>
+              <div class="runtime-controls" role="group" aria-label="Runtime controls">
+                <button class="secondary" id="runtime-move-up" type="button">Up</button>
+                <button class="secondary" id="runtime-move-down" type="button">Down</button>
+                <button class="secondary" id="runtime-move-left" type="button">Left</button>
+                <button class="secondary" id="runtime-move-right" type="button">Right</button>
+                <button class="primary" id="runtime-cast" type="button">Cast</button>
+              </div>
+              <small class="status" id="runtime-status">Load a simulation run to populate runtime telemetry.</small>
+            </div>
+            <div class="runtime-sidebar">
+              <div class="card runtime-card-group">
+                <div class="stat">
+                  <span class="stat-label">Attacker</span>
+                  <small class="status">Primary attacker profile card.</small>
+                </div>
+                <div class="runtime-card-list" id="runtime-attacker-card">
+                  <div class="runtime-card-empty">No attacker.</div>
+                </div>
+              </div>
+              <div class="card runtime-card-group">
+                <div class="stat">
+                  <span class="stat-label">Visible Defenders</span>
+                  <small class="status">Defenders currently inside the attacker viewport.</small>
+                </div>
+                <div class="runtime-card-list" id="runtime-visible-defenders">
+                  <div class="runtime-card-empty">No visible defenders.</div>
+                </div>
+              </div>
+              <div class="card runtime-card-group">
+                <div class="stat">
+                  <span class="stat-label">Offscreen Defenders</span>
+                  <small class="status">Defenders outside the attacker viewport.</small>
+                </div>
+                <div class="runtime-card-list" id="runtime-offscreen-defenders">
+                  <div class="runtime-card-empty">No offscreen defenders.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
             <div class="tab-panel" data-tab-panel="design" role="tabpanel">
           <div class="card">
             <div class="stat">
               <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧭</span>Design Workflow</span>
-              <small class="status">Configure and run each phase in order: Level, Attacker, Defender, then Simulation.</small>
+              <small class="status">Set workflow affinities first, then run Level, Attacker, and Defender prompts independently.</small>
             </div>
             <div class="design-workflow-tabs" role="tablist" aria-label="Design workflow phases">
               <button class="tab-button active" type="button" data-design-tab="level" role="tab" aria-selected="true">🗺️ Level</button>
@@ -764,6 +979,15 @@
               <button class="tab-button" type="button" data-design-tab="simulation" role="tab" aria-selected="false">🎮 Simulation</button>
             </div>
             <div class="status" id="design-guidance-status">Configure level settings and run the level prompt.</div>
+            <div class="prompt-params-groups">
+              <section class="prompt-params-group">
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Workflow Affinities (Level + Defender)</span>
+                  <small class="status">Prerequisite for Level and Defender generation. Increase any affinity to include it.</small>
+                </div>
+                <div class="affinity-grid" id="prompt-workflow-affinities"></div>
+              </section>
+            </div>
           </div>
 
           <div class="design-workflow-panels">
@@ -784,10 +1008,6 @@
                       <label>
                         <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🪙</span>Token Budget</span>
                         <input id="prompt-token-budget" type="number" min="0" step="1" value="1000" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📦</span>Max Token Budget</span>
-                        <input id="prompt-max-token-budget" type="number" min="1" step="1" placeholder="optional" />
                       </label>
                       <label>
                         <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⏱️</span>Think Time (seconds)</span>
@@ -825,21 +1045,23 @@
                     </div>
                     <div class="adapter-grid">
                       <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🗺️</span>Layout Profile</span>
-                        <select id="prompt-layout-profile">
-                          <option value="auto" selected>auto</option>
-                          <option value="rectangular">rectangular</option>
-                          <option value="rooms">rooms</option>
-                          <option value="sparse_islands">sparse_islands</option>
-                          <option value="clustered_islands">clustered_islands</option>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛣️</span>Hallway Pattern</span>
+                        <select id="prompt-hallway-pattern">
+                          <option value="grid">Horizontal + Vertical Grid</option>
+                          <option value="diagonal_grid">Diagonal Grid</option>
+                          <option value="concentric_circles">Concentric Circles</option>
                         </select>
                       </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🚪</span>Hallway Width</span>
+                        <input id="prompt-corridor-width" type="number" min="1" step="1" placeholder="optional, default 1" />
+                      </label>
+                      <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧱</span>Hallway Infill (%)</span>
+                        <input id="prompt-pattern-infill-percent" type="number" min="1" max="100" step="1" value="60" />
+                      </label>
                     </div>
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Level Affinities (count)</span>
-                      <small class="status">Defaults to 0. Increase any affinity to include it in level generation.</small>
-                    </div>
-                    <div class="affinity-grid" id="prompt-level-affinities"></div>
+                    <small class="status">Higher infill means tighter hallway spacing.</small>
                   </section>
                 </div>
               </div>
@@ -878,6 +1100,10 @@
                   <section class="prompt-params-group">
                     <div class="adapter-grid">
                       <label>
+                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔢</span>Attacker Count</span>
+                        <input id="prompt-attacker-count" type="number" min="1" max="8" step="1" value="1" />
+                      </label>
+                      <label>
                         <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚙️</span>Attacker Setup Mode</span>
                         <select id="prompt-attacker-setup-mode">
                           <option value="auto" selected>auto</option>
@@ -887,10 +1113,10 @@
                       </label>
                     </div>
                     <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Attacker Affinities (count)</span>
-                      <small class="status">Defaults to 0. Increase any affinity to include it in attacker setup generation.</small>
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Attacker Affinities</span>
+                      <small class="status">Attackers are independent of dungeon/defender affinities. Choose any affinity, stacks, and push/pull/emit mix.</small>
                     </div>
-                    <div class="affinity-grid" id="prompt-attacker-affinities"></div>
+                    <div class="affinity-grid" id="prompt-attacker-selected-affinities"></div>
                   </section>
                   <section class="prompt-params-group">
                     <div class="stat">
@@ -966,15 +1192,7 @@
                     <span class="badge token-indicator" id="design-defender-token-indicator">Used 0 / 0 (0%)</span>
                   </div>
                 </div>
-                <div class="prompt-params-groups">
-                  <section class="prompt-params-group">
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Defender Affinities (count)</span>
-                      <small class="status">Defaults to 0. Increase any affinity to include it in defender generation.</small>
-                    </div>
-                    <div class="affinity-grid" id="prompt-defender-affinities"></div>
-                  </section>
-                </div>
+                <small class="status">Defender generation uses the workflow affinities configured at the top of Design.</small>
               </div>
 
               <div class="card">
@@ -1028,9 +1246,9 @@
                   <small class="status">Build from current level, attacker, and defender outputs, then open simulation.</small>
                 </div>
                 <div class="controls">
-                  <button class="primary" id="design-build-and-load" type="button">🚀 Build And Load Simulation</button>
+                  <button class="primary" id="design-build-and-load" type="button" disabled>🚀 Build And Load Simulation</button>
                 </div>
-                <div class="status" id="design-build-status">Waiting for defender configuration.</div>
+                <div class="status" id="design-build-status">Waiting for successful level, attacker, and defender creation.</div>
               </div>
             </div>
           </div>
@@ -1369,10 +1587,15 @@
             </div>
           </div>
 
-          <aside class="card inspector-shell" id="actor-inspector">
-            <div class="stat">
-              <span class="stat-label">Actor Inspector</span>
-              <small class="status" id="actor-inspector-status">Select an actor on the stage to inspect.</small>
+          <aside class="card inspector-shell" id="actor-inspector" hidden>
+            <div class="inspector-header">
+              <div class="stat">
+                <span class="stat-label">Actor Inspector</span>
+                <small class="status" id="actor-inspector-status">Select an actor on the stage to inspect.</small>
+              </div>
+              <button class="secondary inspector-close" id="actor-inspector-close" type="button" aria-label="Close actor inspector">
+                Close
+              </button>
             </div>
             <div class="inspector-section">
               <span class="stat-label">Profile</span>
