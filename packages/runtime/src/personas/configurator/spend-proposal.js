@@ -1,8 +1,10 @@
 import { validateSpendProposal } from "../allocator/validate-spend.js";
-import { evaluateLayoutSpend } from "../allocator/layout-spend.js";
+import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
-import { VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { ROOM_AFFINITY_STACK_COST_FACTOR, VITAL_KEYS } from "../../contracts/domain-constants.js";
 import { COST_DEFAULTS } from "./cost-model.js";
+import { extractSummaryFromCardSet } from "../director/summary-selections.js";
+import { normalizeCardType } from "./card-model.js";
 
 const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 
@@ -208,6 +210,20 @@ function normalizeBudget(value) {
   return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
+function normalizeCostScale(value, fallback = 1) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function scaleTokenCost(value, scale = 1) {
+  const base = normalizePositiveInt(value, 0);
+  if (base <= 0) return 0;
+  if (scale === 1) return base;
+  const scaled = Math.round(base * scale);
+  return scaled > 0 ? scaled : 1;
+}
+
 function buildPriceMap(priceList) {
   const items = Array.isArray(priceList?.items) ? priceList.items : [];
   const map = new Map();
@@ -230,10 +246,11 @@ function normalizeAffinityEntriesForCost(entry) {
   return entry.affinities
     .map((affinity) => {
       if (!affinity || typeof affinity !== "object") return null;
+      const kind = typeof affinity.kind === "string" ? affinity.kind : "";
       const expression = typeof affinity.expression === "string" ? affinity.expression : "";
       const stacks = normalizePositiveInt(affinity.stacks, 1);
       if (!expression || stacks <= 0) return null;
-      return { expression, stacks };
+      return { kind, expression, stacks };
     })
     .filter(Boolean);
 }
@@ -245,6 +262,8 @@ export function calculateActorConfigurationUnitCost({
 } = {}) {
   const { vitals, regen } = normalizeActorVitalsForCost(entry);
   const affinities = normalizeAffinityEntriesForCost(entry);
+  const affinityCostScale = normalizeCostScale(pricing?.affinityCostScale, 1);
+  const lineItems = [];
 
   let vitalPoints = 0;
   let vitalCost = 0;
@@ -259,7 +278,16 @@ export function calculateActorConfigurationUnitCost({
       id,
       fallback: pricing.tokensPerVital ?? COST_DEFAULTS.tokensPerVital,
     });
-    vitalCost += quantity * unit;
+    const spendTokens = quantity * unit;
+    vitalCost += spendTokens;
+    lineItems.push({
+      category: "vital",
+      id,
+      label: `${key} max`,
+      quantity,
+      unitCostTokens: unit,
+      spendTokens,
+    });
   });
 
   let regenPoints = 0;
@@ -275,7 +303,16 @@ export function calculateActorConfigurationUnitCost({
       id,
       fallback: pricing.tokensPerRegen ?? COST_DEFAULTS.tokensPerRegen,
     });
-    regenCost += quantity * unit;
+    const spendTokens = quantity * unit;
+    regenCost += spendTokens;
+    lineItems.push({
+      category: "vital",
+      id,
+      label: `${key} regen`,
+      quantity,
+      unitCostTokens: unit,
+      spendTokens,
+    });
   });
 
   let affinityStacks = 0;
@@ -290,9 +327,11 @@ export function calculateActorConfigurationUnitCost({
     const stacks = affinity.stacks;
     affinityStacks += stacks;
     const stackWeight = stacks * stacks;
-    affinityCost += affinityStackUnit * stackWeight;
+    const stackCost = scaleTokenCost(affinityStackUnit * stackWeight, affinityCostScale);
+    affinityCost += stackCost;
 
     const expressionId = AFFINITY_EXPRESSION_IDS[affinity.expression];
+    let expressionCost = 0;
     if (!expressionId) return;
     const expressionUnit = resolveUnitCost({
       priceMap,
@@ -300,7 +339,16 @@ export function calculateActorConfigurationUnitCost({
       id: expressionId,
       fallback: pricing.affinityBaseCost ?? COST_DEFAULTS.affinityBaseCost,
     });
-    affinityCost += expressionUnit * stackWeight;
+    expressionCost = scaleTokenCost(expressionUnit * stackWeight, affinityCostScale);
+    affinityCost += expressionCost;
+    lineItems.push({
+      category: "affinity",
+      id: `${affinity.kind || "affinity"}:${affinity.expression}`,
+      label: `${affinity.kind || "affinity"}+${stacks}+${affinity.expression}`,
+      quantity: 1,
+      unitCostTokens: stackCost + expressionCost,
+      spendTokens: stackCost + expressionCost,
+    });
   });
 
   const cost = vitalCost + regenCost + affinityCost;
@@ -310,7 +358,9 @@ export function calculateActorConfigurationUnitCost({
       vitalPoints,
       regenPoints,
       affinityStacks,
+      affinityCostScale,
       pricingSource: priceMap.size > 0 ? "price-list" : "fallback",
+      lineItems,
     },
   };
 }
@@ -327,6 +377,31 @@ function asActorEntries({ actorSet, summary } = {}) {
       vitals: entry?.vitals,
       affinities: entry?.affinities,
     }));
+  }
+
+  const cardSet = Array.isArray(summary?.cardSet)
+    ? summary.cardSet
+    : Array.isArray(summary?.cards)
+      ? summary.cards
+      : null;
+  if (Array.isArray(cardSet) && cardSet.length > 0) {
+    return cardSet
+      .map((entry, index) => {
+        const type = normalizeCardType(entry?.type) || (entry?.source === "room" ? "room" : "defender");
+        const source = type === "room" ? "room" : "actor";
+        const fallbackMotivation = type === "attacker" ? "attacking" : type === "room" ? "stationary" : "defending";
+        return {
+          source,
+          id: entry?.id || `${type}_${index + 1}`,
+          motivation: entry?.motivations?.[0] || entry?.motivation || fallbackMotivation,
+          affinity: entry?.affinity || summary?.dungeonAffinity || "fire",
+          count: normalizePositiveInt(entry?.count, 1) || 1,
+          tokenHint: source === "room" ? 0 : normalizePositiveInt(entry?.tokenHint, 0),
+          vitals: entry?.vitals,
+          affinities: entry?.affinities,
+        };
+      })
+      .filter(Boolean);
   }
 
   const rooms = Array.isArray(summary?.rooms) ? summary.rooms : [];
@@ -377,17 +452,30 @@ export function buildDesignSpendLedger({
   priceList,
   pricing = {},
 } = {}) {
+  const resolvedSummary = extractSummaryFromCardSet(summary || {});
   const warnings = [];
-  const budgetTokens = normalizeBudget(summary?.budgetTokens);
-  const layoutResult = evaluateLayoutSpend({
-    layout: summary?.layout,
-    budgetTokens: Number.isInteger(budgetTokens) ? budgetTokens : undefined,
-    tileCosts,
-  });
+  const budgetTokens = normalizeBudget(resolvedSummary?.budgetTokens);
+  const cardSet = Array.isArray(resolvedSummary?.cardSet)
+    ? resolvedSummary.cardSet
+    : Array.isArray(resolvedSummary?.cards)
+      ? resolvedSummary.cards
+      : null;
+  const layoutResult = Array.isArray(cardSet) && cardSet.length > 0
+    ? evaluateRoomCardLayoutSpend({
+      cardSet,
+      budgetTokens: Number.isInteger(budgetTokens) ? budgetTokens : undefined,
+      priceList,
+      tileCosts,
+    })
+    : evaluateLayoutSpend({
+      layout: resolvedSummary?.layout,
+      budgetTokens: Number.isInteger(budgetTokens) ? budgetTokens : undefined,
+      tileCosts,
+    });
   if (Array.isArray(layoutResult?.warnings)) {
     warnings.push(...layoutResult.warnings);
   }
-  const entries = asActorEntries({ actorSet, summary });
+  const entries = asActorEntries({ actorSet, summary: resolvedSummary });
   const priceMap = buildPriceMap(priceList);
   const lineItems = [];
 
@@ -400,6 +488,14 @@ export function buildDesignSpendLedger({
     const tokenHint = normalizePositiveInt(entry?.tokenHint, 0);
     const entryId = entry.id || `${entry.source}_${entry.motivation}_${entry.affinity}`;
     if (entry.source !== "actor") {
+      const roomPricing = entry.source === "room"
+        ? { ...pricing, affinityCostScale: ROOM_AFFINITY_STACK_COST_FACTOR }
+        : pricing;
+      const levelConfig = calculateActorConfigurationUnitCost({
+        entry,
+        priceMap,
+        pricing: roomPricing,
+      });
       const baseSpend = tokenHint * count;
       if (baseSpend > 0) {
         lineItems.push({
@@ -412,6 +508,21 @@ export function buildDesignSpendLedger({
           spendTokens: baseSpend,
         });
         levelConfigSpent += baseSpend;
+      }
+      const configUnitSpend = normalizePositiveInt(levelConfig.cost, 0);
+      if (configUnitSpend > 0) {
+        const configSpend = configUnitSpend * count;
+        lineItems.push({
+          category: "levelConfig",
+          id: `${entryId}_config`,
+          source: entry.source,
+          label: `${entry.source}-config:${entry.motivation}/${entry.affinity}`,
+          count,
+          unitCostTokens: configUnitSpend,
+          spendTokens: configSpend,
+          detail: levelConfig.detail,
+        });
+        levelConfigSpent += configSpend;
       }
       return;
     }

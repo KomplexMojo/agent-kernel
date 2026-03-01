@@ -1,5 +1,6 @@
 import { buildBuildSpecFromSummary } from "../director/buildspec-assembler.js";
 import { generateGridLayoutFromInput } from "./level-layout.js";
+import { deriveLevelGenFromRoomCards } from "./card-model.js";
 
 const WALKABLE_DENSITY_TARGET = 0.5;
 export const DEFAULT_LEVEL_RENDER_PALETTE = Object.freeze({
@@ -131,8 +132,7 @@ export function buildLevelRenderArtifactsFromTiles(
 
 function deriveFallbackLevelGenFromSummary(summary) {
   const floorTiles = isPositiveInt(summary?.layout?.floorTiles) ? summary.layout.floorTiles : 0;
-  const hallwayTiles = isPositiveInt(summary?.layout?.hallwayTiles) ? summary.layout.hallwayTiles : 0;
-  const walkableTilesTarget = floorTiles + hallwayTiles;
+  const walkableTilesTarget = floorTiles;
   if (!isPositiveInt(walkableTilesTarget)) return null;
   const interiorArea = Math.ceil(walkableTilesTarget / WALKABLE_DENSITY_TARGET);
   const interiorSide = Math.max(3, Math.ceil(Math.sqrt(interiorArea)));
@@ -146,8 +146,17 @@ function deriveFallbackLevelGenFromSummary(summary) {
   };
 }
 
+export function deriveLevelGenFromCardSet(cardSet) {
+  if (!Array.isArray(cardSet) || cardSet.length === 0) return null;
+  return deriveLevelGenFromRoomCards(cardSet);
+}
+
 export function deriveLevelGenFromGuidanceSummary(summary) {
   if (!summary || typeof summary !== "object") return null;
+  const fromCards = deriveLevelGenFromCardSet(summary.cardSet || summary.cards);
+  if (fromCards) {
+    return fromCards;
+  }
   const built = buildBuildSpecFromSummary({
     summary,
     source: "guidance-level-builder",
@@ -169,7 +178,21 @@ export function buildLevelPreviewFromLevelGen(
   if (!levelGen || typeof levelGen !== "object") {
     return { ok: false, reason: "missing_level_gen" };
   }
-  const generated = generateGridLayoutFromInput(levelGen);
+  let generated = generateGridLayoutFromInput(levelGen);
+  let resolvedLevelGen = levelGen;
+  if (!generated?.ok) {
+    const errors = Array.isArray(generated?.errors) ? generated.errors : [];
+    const hasTargetMismatch = errors.some((entry) => entry?.code === "target_mismatch");
+    const alreadyRelaxed = !resolvedLevelGen.shape || Object.keys(resolvedLevelGen.shape).length === 0;
+    if (hasTargetMismatch && !alreadyRelaxed) {
+      const relaxedLevelGen = {
+        ...levelGen,
+        shape: {},
+      };
+      generated = generateGridLayoutFromInput(relaxedLevelGen);
+      resolvedLevelGen = relaxedLevelGen;
+    }
+  }
   if (!generated?.ok) {
     return {
       ok: false,
@@ -187,7 +210,7 @@ export function buildLevelPreviewFromLevelGen(
   }
   return {
     ...rendered,
-    levelGen,
+    levelGen: resolvedLevelGen,
   };
 }
 

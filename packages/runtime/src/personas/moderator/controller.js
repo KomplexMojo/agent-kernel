@@ -1,5 +1,6 @@
 import { createModeratorStateMachine, ModeratorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.js";
+import { planModeratorAffinityActions } from "./affinity-target-effects.js";
 
 export const moderatorSubscribePhases = Object.freeze([
   TickPhases.INIT,
@@ -9,6 +10,7 @@ export const moderatorSubscribePhases = Object.freeze([
   TickPhases.EMIT,
   TickPhases.SUMMARIZE,
 ]);
+const CONTROL_EVENTS = new Set(["start", "pause", "resume", "stop"]);
 
 export function createModeratorPersona({ initialState = ModeratorStates.INITIALIZING, clock = () => new Date().toISOString() } = {}) {
   const fsm = createModeratorStateMachine({ initialState, clock });
@@ -18,7 +20,21 @@ export function createModeratorPersona({ initialState = ModeratorStates.INITIALI
   }
 
   function advance({ phase, event, payload = {}, tick } = {}) {
-    if (!moderatorSubscribePhases.includes(phase) || !event) {
+    if (!moderatorSubscribePhases.includes(phase)) {
+      const snapshot = view();
+      return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
+    }
+    if (phase === TickPhases.APPLY && event === "resolve_affinity") {
+      const snapshot = view();
+      const actions = planModeratorAffinityActions({
+        observation: payload?.observation,
+        affinityEffects: payload?.affinityEffects,
+        tick,
+        maxActions: payload?.maxAffinityActions,
+      });
+      return { ...snapshot, tick, actions, effects: [], telemetry: null };
+    }
+    if (!event || !CONTROL_EVENTS.has(event)) {
       const snapshot = view();
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }

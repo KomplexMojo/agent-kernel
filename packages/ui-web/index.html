@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Agent Kernel MVP</title>
+    <title>Game Generator</title>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Space+Grotesk:wght@400;600&display=swap");
 
@@ -136,6 +136,11 @@
         text-shadow: 0 0 var(--actor-glow, 0px) hsl(var(--actor-hue, 0), var(--actor-sat, 0%), var(--actor-light, 80%));
       }
 
+      .frame-display .affinity-floor-cell[data-affinity] {
+        color: hsl(var(--tile-hue, 0), var(--tile-sat, 45%), var(--tile-light, 70%));
+        text-shadow: 0 0 var(--tile-glow, 1px) hsl(var(--tile-hue, 0), var(--tile-sat, 45%), var(--tile-light, 70%));
+      }
+
       .actor-panel {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -195,7 +200,7 @@
         align-items: start;
       }
 
-      .workspace[data-active-tab="simulation"][data-inspector-open="true"] {
+      .workspace[data-active-tab="simulation"] {
         grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
       }
 
@@ -219,15 +224,9 @@
 
       .inspector-header {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-start;
         align-items: flex-start;
         gap: 10px;
-      }
-
-      .inspector-close {
-        flex-shrink: 0;
-        padding: 6px 10px;
-        min-width: 0;
       }
 
       .inspector-section {
@@ -235,8 +234,170 @@
         gap: 6px;
       }
 
+      .simulation-inspector-groups {
+        display: grid;
+        gap: 10px;
+      }
+
+      .simulation-inspector-group-list {
+        display: grid;
+        gap: 6px;
+        max-height: 180px;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .simulation-inspector-instance.selected {
+        border-color: var(--accent);
+        box-shadow: inset 0 0 0 1px rgba(249, 199, 79, 0.25);
+      }
+
+      .simulation-inspector-detail {
+        display: grid;
+        gap: 8px;
+      }
+
+      .simulation-inspector-detail .design-card {
+        min-height: 0;
+      }
+
+      .simulation-inspector-empty {
+        border: 1px dashed var(--border);
+        border-radius: 4px;
+        padding: 10px;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .simulation-inspector-affinity-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      .simulation-inspector-affinity-row {
+        display: grid;
+        grid-template-columns: 28px 28px 1fr auto;
+        gap: 6px;
+        align-items: center;
+        border: 1px solid #1f2d25;
+        background: #090e0b;
+        border-radius: 6px;
+        padding: 6px;
+      }
+
+      .simulation-inspector-affinity-meta {
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-transform: capitalize;
+      }
+
+      .simulation-inspector-affinity-stack {
+        font-size: 0.78rem;
+        color: var(--accent-strong);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .simulation-inspector-vitals-grid {
+        display: grid;
+        gap: 6px;
+      }
+
+      .simulation-inspector-vital-row {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .simulation-inspector-vital-value {
+        font-size: 0.78rem;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      @media (min-width: 1680px) and (min-height: 900px) {
+        main {
+          max-width: 1760px;
+          padding: 32px 28px 56px;
+        }
+
+        header {
+          margin-bottom: 24px;
+        }
+
+        .workspace {
+          gap: 16px;
+        }
+
+        .workspace[data-active-tab="simulation"] {
+          grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+        }
+
+        .inspector-shell {
+          top: 18px;
+          max-height: calc(100vh - 48px);
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+
+        .simulation-inspector-group-list {
+          max-height: 260px;
+        }
+
+        .design-card-workspace {
+          grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(280px, 360px);
+          gap: 16px;
+        }
+
+        .design-card-grid {
+          grid-template-columns: minmax(360px, 620px);
+          min-height: 460px;
+        }
+
+        .design-card {
+          min-height: 380px;
+        }
+
+        #frame-buffer {
+          min-height: 620px;
+          max-height: min(72vh, 820px);
+        }
+
+        .runtime-shell {
+          grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+        }
+
+        .runtime-viewport {
+          min-height: 620px;
+          max-height: min(74vh, 820px);
+        }
+      }
+
       @media (max-width: 960px) {
         .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .workspace[data-active-tab="simulation"] {
+          grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+        }
+
+        .design-card-workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .design-card-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .design-toolbar {
+          grid-template-columns: 1fr;
+        }
+
+        .design-toolbar > label input {
+          max-width: none;
+        }
+
+        .design-budget-split {
           grid-template-columns: 1fr;
         }
 
@@ -245,8 +406,13 @@
           max-height: min(62vh, 560px);
         }
 
-        .inspector-shell {
+        .workspace:not([data-active-tab="simulation"]) .inspector-shell {
           position: static;
+        }
+
+        .workspace[data-active-tab="simulation"] .inspector-shell {
+          position: sticky;
+          top: 16px;
         }
       }
 
@@ -514,6 +680,619 @@
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
+      }
+
+      .design-card-workspace {
+        display: grid;
+        grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(220px, 280px);
+        gap: 14px;
+        margin-top: 12px;
+      }
+
+      .design-left-rail {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+
+      .design-property-group {
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        background: #070707;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .design-property-group h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .design-property-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .design-property-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #090b0a;
+        color: var(--text);
+        font-size: 0.84rem;
+      }
+
+      .design-property-chip-content {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .design-property-chip-icon {
+        width: 1.1em;
+      }
+
+      .design-property-chip-label {
+        line-height: 1;
+      }
+
+      .design-property-chip:hover:not(:disabled) {
+        border-color: var(--accent);
+      }
+
+      .design-center-workspace {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .design-toolbar {
+        display: grid;
+        grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
+        gap: 8px 10px;
+        align-items: end;
+      }
+
+      .design-toolbar > label {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .design-toolbar > label input {
+        width: 100%;
+        max-width: 170px;
+        padding: 8px 10px;
+      }
+
+      .design-budget-split {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        width: auto;
+        min-width: 0;
+      }
+
+      .design-budget-split-item {
+        display: grid;
+        gap: 2px;
+        border: 1px solid #1e2b23;
+        border-radius: 4px;
+        padding: 4px 6px;
+        background: #090e0b;
+      }
+
+      .design-budget-split-item label {
+        display: grid;
+        gap: 2px;
+      }
+
+      .design-budget-split-item input {
+        width: 100%;
+        padding: 6px 8px;
+      }
+
+      .design-budget-split-item .stat-label {
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+      }
+
+      .design-budget-split-tokens {
+        display: none;
+        font-size: 0.72rem;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-budget-overview {
+        grid-column: 1 / -1;
+        width: 100%;
+        border: 1px solid #203228;
+        border-radius: 4px;
+        background: #090e0b;
+        padding: 8px 10px;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-budget-overview strong {
+        color: var(--accent-strong);
+      }
+
+      .design-budget-overview.is-negative strong {
+        color: #cf3f5b;
+      }
+
+      .design-card-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 460px);
+        justify-content: center;
+        align-content: start;
+        gap: 12px;
+        min-height: 360px;
+        border: 1px dashed var(--border);
+        border-radius: 2px;
+        background: #050606;
+        padding: 10px;
+      }
+
+      .design-card {
+        display: grid;
+        gap: 8px;
+        min-height: 320px;
+        border: 1px solid var(--border);
+        background: linear-gradient(160deg, rgba(18, 24, 20, 0.95), rgba(9, 12, 10, 0.98));
+        border-radius: 6px;
+        padding: 10px;
+      }
+
+      .design-card.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(249, 199, 79, 0.35);
+      }
+
+      .design-card.flipped .design-card-front {
+        display: none;
+      }
+
+      .design-card .design-card-back {
+        display: none;
+      }
+
+      .design-card.flipped .design-card-back {
+        display: block;
+      }
+
+      .design-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 10px;
+      }
+
+      .design-card-heading {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .design-card-title {
+        font-size: 0.88rem;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .design-card-header-count-controls {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .design-card-header-count-value {
+        min-width: 34px;
+        text-align: center;
+        padding: 3px 8px;
+        border: 1px solid #25352c;
+        border-radius: 999px;
+        background: #0b130f;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-header-count-controls .design-card-count-minus,
+      .design-card-header-count-controls .design-card-count-plus {
+        width: 26px;
+        min-width: 26px;
+        height: 26px;
+        padding: 0;
+        line-height: 1;
+      }
+
+      .design-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .design-card-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border: 1px solid #25352c;
+        border-radius: 999px;
+        background: #0b130f;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-traits {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .design-card-icon-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 1px solid #2a3a31;
+        border-radius: 999px;
+        background: #0d1511;
+        font-size: 0.95rem;
+        line-height: 1;
+      }
+
+      .design-card-affinity-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      .design-card-affinity-row {
+        display: grid;
+        grid-template-columns: 34px 34px 1fr;
+        gap: 6px;
+        align-items: center;
+        border: 1px solid #1f2d25;
+        background: #090e0b;
+        border-radius: 6px;
+        padding: 6px;
+      }
+
+      .design-card-affinity-row.active {
+        border-color: var(--accent);
+      }
+
+      .design-card-affinity-row button {
+        height: 30px;
+        min-width: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .design-card-affinity-stack {
+        display: grid;
+        grid-template-columns: 28px 1fr 28px;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .design-card-affinity-stack-value {
+        text-align: center;
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-affinity-empty {
+        border: 1px dashed var(--border);
+        border-radius: 4px;
+        padding: 8px;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .design-card-motivations {
+        display: grid;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid #1e2b23;
+        border-radius: 6px;
+        background: #090e0b;
+      }
+
+      .design-card-motivations-title {
+        font-size: 0.75rem;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .design-card-motivations-empty {
+        border: 1px dashed var(--border);
+        border-radius: 4px;
+        padding: 8px;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .design-card-motivation-row {
+        display: grid;
+        grid-template-columns: 28px 1fr auto;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #1f2d25;
+        border-radius: 6px;
+        background: #090e0b;
+        padding: 6px;
+      }
+
+      .design-card-motivation-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .design-card-motivation-label {
+        font-size: 0.78rem;
+      }
+
+      .design-card-motivation-remove {
+        min-height: 24px;
+        padding: 2px 8px;
+      }
+
+      .design-card-motivation-add-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .design-card-motivation-add {
+        min-height: 24px;
+        padding: 2px 8px;
+      }
+
+      .design-card-body {
+        margin: 0;
+        white-space: pre-wrap;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-vitals {
+        display: grid;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid #1e2b23;
+        border-radius: 6px;
+        background: #090e0b;
+      }
+
+      .design-card-vitals-title {
+        font-size: 0.75rem;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .design-card-vital-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .design-card-vital-label {
+        font-size: 0.78rem;
+      }
+
+      .design-card-vital-controls {
+        display: grid;
+        grid-template-columns: 24px auto 24px;
+        gap: 4px;
+        align-items: center;
+      }
+
+      .design-card-vital-controls button {
+        min-width: 24px;
+        height: 24px;
+        padding: 0;
+      }
+
+      .design-card-vital-value {
+        min-width: 40px;
+        text-align: center;
+        font-size: 0.72rem;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .design-card-controls button {
+        padding: 5px 8px;
+      }
+
+      .design-card-receipt {
+        display: grid;
+        gap: 4px;
+        font-size: 0.76rem;
+        line-height: 1.3;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-receipt-heading {
+        color: var(--muted);
+        margin-bottom: 2px;
+      }
+
+      .design-card-receipt-empty {
+        color: var(--muted);
+      }
+
+      .design-card-receipt-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: center;
+        border-bottom: 1px dashed #25352c;
+        padding: 2px 0;
+      }
+
+      .design-card-receipt-row.is-total {
+        border-top: 1px solid var(--border);
+        border-bottom: 0;
+        margin-top: 2px;
+        padding-top: 6px;
+        font-weight: 700;
+      }
+
+      .design-card-receipt-label {
+        color: var(--text);
+      }
+
+      .design-card-receipt-cost {
+        color: var(--accent-strong);
+        text-align: right;
+      }
+
+      .design-card-back-controls {
+        margin-top: 8px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .design-card-back-controls button {
+        padding: 5px 8px;
+      }
+
+      .design-card-empty {
+        border: 1px dashed var(--border);
+        border-radius: 4px;
+        padding: 14px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .design-card-groups-window {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+
+      .design-card-group {
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        background: #070707;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .design-card-group h3 {
+        margin: 0;
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .design-card-group-icon {
+        font-size: 1rem;
+        line-height: 1;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+
+      .design-card-group-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .design-card-group-budget {
+        font-size: 0.76rem;
+        color: var(--accent-strong);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-group-budget u {
+        text-decoration-thickness: 1px;
+        text-underline-offset: 2px;
+      }
+
+      .design-card-group-budget strong {
+        color: var(--accent-strong);
+      }
+
+      .design-card-group-budget.is-negative strong {
+        color: #cf3f5b;
+      }
+
+      .design-card-group-row,
+      .design-card-group-empty {
+        font-size: 0.82rem;
+        padding: 6px 8px;
+        border: 1px solid #1a241e;
+        background: #0a0b0a;
+        border-radius: 2px;
+      }
+
+      .design-card-group-card {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 8px;
+        align-items: center;
+        cursor: pointer;
+      }
+
+      .design-card-group-preview {
+        display: inline-flex;
+        gap: 4px;
+      }
+
+      .design-card-group-preview .design-card-icon-chip {
+        width: 22px;
+        height: 22px;
+        font-size: 0.8rem;
+      }
+
+      .design-card-group-name {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .design-card-group-meta {
+        color: var(--muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-group-empty {
+        color: var(--muted);
       }
 
       .prompt-params-group {
@@ -832,7 +1611,7 @@
   <body>
     <main>
       <header>
-        <h1>Agent Kernel MVP</h1>
+        <h1>Game Generator</h1>
         <p class="subtitle">
           A minimal end-to-end run that exercises core WASM logic, ports, adapters, and a live UI. Primary workflow tabs
           focus the experience: Design is the default entry point.
@@ -843,8 +1622,7 @@
         <div class="card">
           <div class="tab-bar" role="tablist" aria-label="Primary workflow tabs">
             <button class="tab-button active" type="button" data-tab="design" role="tab" aria-selected="true">Design</button>
-            <button class="tab-button" type="button" data-tab="simulation" role="tab" aria-selected="false">Simulation</button>
-            <button class="tab-button" type="button" data-tab="runtime" role="tab" aria-selected="false">Runtime</button>
+            <button class="tab-button" type="button" data-tab="simulation" role="tab" aria-selected="false">Game Board</button>
             <button class="tab-button" type="button" data-tab="diagnostics" role="tab" aria-selected="false">Diagnostics</button>
           </div>
         </div>
@@ -858,20 +1636,6 @@
               <small class="status">Live ASCII playback of the generated map, including actor positions and tick-by-tick movement updates.</small>
             </div>
             <pre class="frame-display" id="frame-buffer">Loading...</pre>
-            <div class="actor-panel">
-              <div class="badge">
-                Actor <strong id="actor-id-display">-</strong>
-              </div>
-              <div class="badge">
-                Pos <strong id="actor-pos">-</strong>
-              </div>
-              <div class="badge">
-                HP <strong id="actor-hp">-</strong>
-              </div>
-              <div class="badge">
-                Tick <strong id="tick-indicator">-</strong>
-              </div>
-            </div>
             <div class="play-controls">
               <button class="secondary" id="step-back">Step -</button>
               <button class="primary" id="play-pause">Play</button>
@@ -879,378 +1643,114 @@
               <button class="secondary" id="reset-run">Reset</button>
               <span class="pill" id="status-message">Loading WASM...</span>
             </div>
-            <div class="stat">
-              <span class="stat-label">Visibility Controls</span>
-              <small class="status">Use <code>simulation_full</code> to inspect the whole map. Use <code>gameplay_fog</code> to apply fog of war with a 50x50 viewport.</small>
+            <div class="runtime-controls" role="group" aria-label="Runtime controls">
+              <button class="secondary" id="runtime-move-up" type="button" aria-label="Move up" title="Move up">↑</button>
+              <button class="secondary" id="runtime-move-down" type="button" aria-label="Move down" title="Move down">↓</button>
+              <button class="secondary" id="runtime-move-left" type="button" aria-label="Move left" title="Move left">←</button>
+              <button class="secondary" id="runtime-move-right" type="button" aria-label="Move right" title="Move right">→</button>
+              <button class="primary" id="runtime-cast" type="button" aria-label="Cast ability" title="Cast ability">✦</button>
             </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">View Mode</span>
-                <select id="simulation-visibility-mode">
-                  <option value="simulation_full">simulation_full</option>
-                  <option value="gameplay_fog">gameplay_fog</option>
-                </select>
-              </label>
-              <label>
-                <span class="stat-label">Viewer Actor</span>
-                <select id="simulation-viewer-actor">
-                  <option value="">(none)</option>
-                </select>
-              </label>
-              <label>
-                <span class="stat-label">Viewport Size</span>
-                <input id="simulation-viewport-size" type="number" min="1" step="1" value="50" />
-              </label>
-              <label>
-                <span class="stat-label">Vision Radius</span>
-                <input id="simulation-vision-radius" type="number" min="1" step="1" value="6" />
-              </label>
-            </div>
-            <pre class="adapter-output" id="simulation-exploration-hud">Exploration HUD unavailable.</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Event Stream</span>
-              <small class="status">Recent simulation actions and state changes.</small>
-            </div>
-            <pre class="adapter-output" id="event-stream">No events yet.</pre>
-          </div>
-        </div>
-
-            <div class="tab-panel" data-tab-panel="runtime" role="tabpanel" hidden>
-          <div class="runtime-shell">
-            <div class="card runtime-stage-shell">
-              <div class="stat">
-                <span class="stat-label">Runtime Viewport</span>
-                <small class="status">50x50 active viewport. Choose any actor card to inspect that actor's current view.</small>
-              </div>
-              <pre class="frame-display runtime-viewport" id="runtime-viewport">Runtime viewport unavailable.</pre>
-              <div class="runtime-controls" role="group" aria-label="Runtime controls">
-                <button class="secondary" id="runtime-move-up" type="button">Up</button>
-                <button class="secondary" id="runtime-move-down" type="button">Down</button>
-                <button class="secondary" id="runtime-move-left" type="button">Left</button>
-                <button class="secondary" id="runtime-move-right" type="button">Right</button>
-                <button class="primary" id="runtime-cast" type="button">Cast</button>
-              </div>
-              <small class="status" id="runtime-status">Load a simulation run to populate runtime telemetry.</small>
-            </div>
-            <div class="runtime-sidebar">
-              <div class="card runtime-card-group">
-                <div class="stat">
-                  <span class="stat-label">Attacker</span>
-                  <small class="status">Primary attacker profile card.</small>
-                </div>
-                <div class="runtime-card-list" id="runtime-attacker-card">
-                  <div class="runtime-card-empty">No attacker.</div>
-                </div>
-              </div>
-              <div class="card runtime-card-group">
-                <div class="stat">
-                  <span class="stat-label">Visible Defenders</span>
-                  <small class="status">Defenders currently inside the attacker viewport.</small>
-                </div>
-                <div class="runtime-card-list" id="runtime-visible-defenders">
-                  <div class="runtime-card-empty">No visible defenders.</div>
-                </div>
-              </div>
-              <div class="card runtime-card-group">
-                <div class="stat">
-                  <span class="stat-label">Offscreen Defenders</span>
-                  <small class="status">Defenders outside the attacker viewport.</small>
-                </div>
-                <div class="runtime-card-list" id="runtime-offscreen-defenders">
-                  <div class="runtime-card-empty">No offscreen defenders.</div>
-                </div>
-              </div>
-            </div>
+            <small class="status" id="runtime-status">Load a game run to populate runtime telemetry.</small>
           </div>
         </div>
 
             <div class="tab-panel" data-tab-panel="design" role="tabpanel">
           <div class="card">
             <div class="stat">
-              <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧭</span>Design Workflow</span>
-              <small class="status">Set workflow affinities first, then run Level, Attacker, and Defender prompts independently.</small>
+              <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧭</span>Card Builder</span>
+              <small class="status">Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.</small>
             </div>
-            <div class="design-workflow-tabs" role="tablist" aria-label="Design workflow phases">
-              <button class="tab-button active" type="button" data-design-tab="level" role="tab" aria-selected="true">🗺️ Level</button>
-              <button class="tab-button" type="button" data-design-tab="attacker" role="tab" aria-selected="false">⚔️ Attacker</button>
-              <button class="tab-button" type="button" data-design-tab="defender" role="tab" aria-selected="false">🛡️ Defender</button>
-              <button class="tab-button" type="button" data-design-tab="simulation" role="tab" aria-selected="false">🎮 Simulation</button>
-            </div>
-            <div class="status" id="design-guidance-status">Configure level settings and run the level prompt.</div>
-            <div class="prompt-params-groups">
-              <section class="prompt-params-group">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Workflow Affinities (Level + Defender)</span>
-                  <small class="status">Prerequisite for Level and Defender generation. Increase any affinity to include it.</small>
+            <div class="status" id="design-guidance-status">Drag a Type chip onto a card to start configuring.</div>
+            <div class="design-card-workspace">
+              <aside class="design-left-rail">
+                <section class="design-property-group" data-property-order="1">
+                  <h3>Type</h3>
+                  <div class="design-property-chips" id="design-property-group-type"></div>
+                </section>
+                <section class="design-property-group" data-property-order="2">
+                  <h3>Affinities</h3>
+                  <div class="design-property-chips" id="design-property-group-affinities"></div>
+                </section>
+                <section class="design-property-group" data-property-order="3">
+                  <h3>Expressions</h3>
+                  <div class="design-property-chips" id="design-property-group-expressions"></div>
+                </section>
+                <section class="design-property-group" data-property-order="4">
+                  <h3>Motivations</h3>
+                  <div class="design-property-chips" id="design-property-group-motivations"></div>
+                </section>
+              </aside>
+              <section class="design-center-workspace">
+                <div class="design-toolbar">
+                  <label>
+                    <span class="stat-label">Level Budget</span>
+                    <input id="design-level-budget" type="number" min="1" step="1" value="1000" />
+                  </label>
+                  <div class="design-budget-split">
+                    <div class="design-budget-split-item">
+                      <label>
+                        <span class="stat-label">Room %</span>
+                        <input id="design-budget-split-room" type="number" min="0" max="100" step="1" value="55" />
+                      </label>
+                      <span class="design-budget-split-tokens" id="design-budget-split-room-tokens"></span>
+                    </div>
+                    <div class="design-budget-split-item">
+                      <label>
+                        <span class="stat-label">Attacker %</span>
+                        <input id="design-budget-split-attacker" type="number" min="0" max="100" step="1" value="20" />
+                      </label>
+                      <span class="design-budget-split-tokens" id="design-budget-split-attacker-tokens"></span>
+                    </div>
+                    <div class="design-budget-split-item">
+                      <label>
+                        <span class="stat-label">Defender %</span>
+                        <input id="design-budget-split-defender" type="number" min="0" max="100" step="1" value="25" />
+                      </label>
+                      <span class="design-budget-split-tokens" id="design-budget-split-defender-tokens"></span>
+                    </div>
+                  </div>
+                  <div class="design-budget-overview" id="design-budget-overview">
+                    Remaining Tokens 1000 - Current Configuration Tokens 0 = Available Tokens for Configuration 1000
+                  </div>
                 </div>
-                <div class="affinity-grid" id="prompt-workflow-affinities"></div>
+                <small class="status">Drag chips onto this card. Drag the card or use Mint to move it into grouped shelves. Drag a shelved card back here to edit.</small>
+                <div class="design-card-grid" id="design-card-grid"></div>
               </section>
+              <aside class="design-card-groups-window">
+                <section class="design-card-group" data-card-group="room">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Room">🏛️</h3>
+                    <span class="design-card-group-budget" id="design-card-group-budget-room">(0) : 0/0</span>
+                  </div>
+                  <div id="design-card-group-room"></div>
+                </section>
+                <section class="design-card-group" data-card-group="attacker">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Attacker">⚔️</h3>
+                    <span class="design-card-group-budget" id="design-card-group-budget-attacker">(0) : 0/0</span>
+                  </div>
+                  <div id="design-card-group-attacker"></div>
+                </section>
+                <section class="design-card-group" data-card-group="defender">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Defender">🛡️</h3>
+                    <span class="design-card-group-budget" id="design-card-group-budget-defender">(0) : 0/0</span>
+                  </div>
+                  <div id="design-card-group-defender"></div>
+                </section>
+              </aside>
             </div>
           </div>
 
-          <div class="design-workflow-panels">
-            <div class="design-step-panel" data-design-tab-panel="level">
-              <div class="card">
-                <div class="stat">
-                  <div class="stat-row">
-                    <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧱</span>Level Configuration</span>
-                    <span class="badge token-indicator" id="design-level-token-indicator">Used 0 / 0 (0%)</span>
-                  </div>
-                </div>
-                <div class="prompt-params-groups">
-                  <section class="prompt-params-group">
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🪙</span>Level Budgeting</span>
-                    </div>
-                    <div class="adapter-grid">
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🪙</span>Token Budget</span>
-                        <input id="prompt-token-budget" type="number" min="0" step="1" value="1000" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⏱️</span>Think Time (seconds)</span>
-                        <input id="prompt-think-time" type="number" min="0" step="1" placeholder="optional" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🤖</span>LLM Tokens</span>
-                        <input id="prompt-llm-tokens" type="number" min="0" step="1" placeholder="optional" />
-                      </label>
-                    </div>
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📊</span>Layout Allocation (%)</span>
-                      <small class="status">Percentages are proportional weights; no minimum ratios are enforced.</small>
-                    </div>
-                    <div class="adapter-grid">
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🗺️</span>Layout %</span>
-                        <input id="prompt-layout-allocation-percent" type="number" min="0" max="100" step="1" value="55" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛡️</span>Defenders %</span>
-                        <input id="prompt-defender-allocation-percent" type="number" min="0" max="100" step="1" value="25" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚔️</span>Attacker %</span>
-                        <input id="prompt-attacker-allocation-percent" type="number" min="0" max="100" step="1" value="20" />
-                      </label>
-                    </div>
-                    <small class="status" id="prompt-budget-allocation-summary">Layout 550 | Defenders 250 | Attacker 200 tokens (budget 1000)</small>
-                  </section>
-
-                  <section class="prompt-params-group">
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧩</span>Level Shape</span>
-                    </div>
-                    <div class="adapter-grid">
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛣️</span>Hallway Pattern</span>
-                        <select id="prompt-hallway-pattern">
-                          <option value="grid">Horizontal + Vertical Grid</option>
-                          <option value="diagonal_grid">Diagonal Grid</option>
-                          <option value="concentric_circles">Concentric Circles</option>
-                        </select>
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🚪</span>Hallway Width</span>
-                        <input id="prompt-corridor-width" type="number" min="1" step="1" placeholder="optional, default 1" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧱</span>Hallway Infill (%)</span>
-                        <input id="prompt-pattern-infill-percent" type="number" min="1" max="100" step="1" value="60" />
-                      </label>
-                    </div>
-                    <small class="status">Higher infill means tighter hallway spacing.</small>
-                  </section>
-                </div>
-              </div>
-
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧠</span>Level Prompt Template</span>
-                  <small class="status">Generated from current level parameters.</small>
-                </div>
-                <textarea id="design-level-prompt-template" rows="12" placeholder="Level prompt template."></textarea>
-                <textarea id="design-guidance-input" rows="1" hidden></textarea>
-                <div class="design-step-actions">
-                  <button class="primary" id="design-run-level-prompt" type="button">🧱 Run Level Creation Prompt</button>
-                  <button class="secondary" id="design-guidance-generate" type="button" hidden>Legacy Generate</button>
-                </div>
-              </div>
-
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🏗️</span>Level Design</span>
-                  <small class="status">Review room structure and layout strategy before moving to attacker setup.</small>
-                </div>
-                <div class="adapter-output level-preview-output" id="design-level-output">No level preview yet.</div>
-              </div>
+          <div class="card">
+            <div class="stat">
+              <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🚀</span>Build And Load</span>
+              <small class="status">Build from the current card set and open the game board.</small>
             </div>
-
-            <div class="design-step-panel" data-design-tab-panel="attacker" hidden>
-              <div class="card">
-                <div class="stat">
-                  <div class="stat-row">
-                    <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚔️</span>Attacker Configuration</span>
-                    <span class="badge token-indicator" id="design-attacker-token-indicator">Used 0 / 0 (0%)</span>
-                  </div>
-                </div>
-                <div class="prompt-params-groups">
-                  <section class="prompt-params-group">
-                    <div class="adapter-grid">
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔢</span>Attacker Count</span>
-                        <input id="prompt-attacker-count" type="number" min="1" max="8" step="1" value="1" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚙️</span>Attacker Setup Mode</span>
-                        <select id="prompt-attacker-setup-mode">
-                          <option value="auto" selected>auto</option>
-                          <option value="user">user</option>
-                          <option value="hybrid">hybrid</option>
-                        </select>
-                      </label>
-                    </div>
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">✨</span>Attacker Affinities</span>
-                      <small class="status">Attackers are independent of dungeon/defender affinities. Choose any affinity, stacks, and push/pull/emit mix.</small>
-                    </div>
-                    <div class="affinity-grid" id="prompt-attacker-selected-affinities"></div>
-                  </section>
-                  <section class="prompt-params-group">
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📈</span>Attacker Vitals (max)</span>
-                    </div>
-                    <div class="vitals-grid">
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">❤️</span>Health (max)</span>
-                        <input id="attacker-vitals-health-max" type="number" min="0" step="1" placeholder="optional" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔮</span>Mana (max)</span>
-                        <input id="attacker-vitals-mana-max" type="number" min="0" step="1" placeholder="optional" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚡</span>Stamina (max)</span>
-                        <input id="attacker-vitals-stamina-max" type="number" min="0" step="1" placeholder="optional" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛡️</span>Durability (max)</span>
-                        <input id="attacker-vitals-durability-max" type="number" min="0" step="1" placeholder="optional" />
-                      </label>
-                    </div>
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">♻️</span>Attacker Vitals (regen)</span>
-                    </div>
-                    <div class="vitals-grid">
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">❤️</span>Health Regen</span>
-                        <input id="attacker-vitals-health-regen" type="number" min="0" step="1" value="0" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔮</span>Mana Regen</span>
-                        <input id="attacker-vitals-mana-regen" type="number" min="0" step="1" value="0" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">⚡</span>Stamina Regen</span>
-                        <input id="attacker-vitals-stamina-regen" type="number" min="0" step="1" value="0" />
-                      </label>
-                      <label>
-                        <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛡️</span>Durability Regen</span>
-                        <input id="attacker-vitals-durability-regen" type="number" min="0" step="1" value="0" />
-                      </label>
-                    </div>
-                  </section>
-                </div>
-              </div>
-
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧠</span>Attacker Prompt Template</span>
-                  <small class="status">Generated from attacker controls.</small>
-                </div>
-                <textarea id="design-attacker-prompt-template" rows="12" placeholder="Attacker prompt template."></textarea>
-                <div class="design-step-actions">
-                  <button class="primary" id="design-run-attacker-prompt" type="button">⚔️ Run Attacker Creation Prompt</button>
-                </div>
-              </div>
-
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📄</span>Attacker Config Result</span>
-                </div>
-                <div class="adapter-output actor-hud-output" id="design-attacker-output">No attacker configuration yet.</div>
-              </div>
+            <div class="controls">
+              <button class="primary" id="design-build-and-load" type="button">Build And Load Game</button>
             </div>
-
-            <div class="design-step-panel" data-design-tab-panel="defender" hidden>
-              <div class="card">
-                <div class="stat">
-                  <div class="stat-row">
-                    <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🛡️</span>Defender Configuration</span>
-                    <span class="badge token-indicator" id="design-defender-token-indicator">Used 0 / 0 (0%)</span>
-                  </div>
-                </div>
-                <small class="status">Defender generation uses the workflow affinities configured at the top of Design.</small>
-              </div>
-
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧠</span>Defender Prompt Template</span>
-                  <small class="status">Generated from defender controls and current layout context.</small>
-                </div>
-                <textarea id="design-defender-prompt-template" rows="12" placeholder="Defender prompt template."></textarea>
-                <div class="design-step-actions">
-                  <button class="primary" id="design-run-defender-prompt" type="button">🛡️ Run Defender Prompt</button>
-                </div>
-              </div>
-
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">👥</span>Actor Set</span>
-                  <small class="status">Edit generated defender configurations before simulation.</small>
-                </div>
-                <textarea id="design-actor-set-json" rows="8" placeholder="[{\"id\":\"actor_alpha\",\"role\":\"scout\"}]"></textarea>
-                <div class="controls">
-                  <button class="secondary" id="design-actor-set-apply" type="button">Apply edits</button>
-                </div>
-                <div class="adapter-output actor-hud-output" id="design-actor-set-preview">No actors proposed.</div>
-              </div>
-
-            </div>
-
-            <div class="design-step-panel" data-design-tab-panel="simulation" hidden>
-              <div class="card">
-                <div class="stat">
-                  <div class="stat-row">
-                    <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📝</span>Design Brief</span>
-                    <span class="badge token-indicator" id="design-simulation-token-indicator">Used 0 / 0 (0%)</span>
-                  </div>
-                  <small class="status">Summary of the level, attacker, and defender phases.</small>
-                </div>
-                <pre class="adapter-output" id="design-brief-output">No brief yet.</pre>
-              </div>
-
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📒</span>Spend Ledger</span>
-                  <small class="status">Budget provenance across level, attacker, and defender outputs.</small>
-                </div>
-                <pre class="adapter-output" id="design-spend-ledger-output">No spend ledger yet.</pre>
-              </div>
-
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🚀</span>Build And Load</span>
-                  <small class="status">Build from current level, attacker, and defender outputs, then open simulation.</small>
-                </div>
-                <div class="controls">
-                  <button class="primary" id="design-build-and-load" type="button" disabled>🚀 Build And Load Simulation</button>
-                </div>
-                <div class="status" id="design-build-status">Waiting for successful level, attacker, and defender creation.</div>
-              </div>
-            </div>
+            <div class="status" id="design-build-status">Waiting for card updates.</div>
           </div>
         </div>
 
@@ -1590,28 +2090,35 @@
           <aside class="card inspector-shell" id="actor-inspector" hidden>
             <div class="inspector-header">
               <div class="stat">
-                <span class="stat-label">Actor Inspector</span>
-                <small class="status" id="actor-inspector-status">Select an actor on the stage to inspect.</small>
+                <span class="stat-label">Game Inspector</span>
+                <small class="status" id="actor-inspector-status">No generated instances loaded.</small>
               </div>
-              <button class="secondary inspector-close" id="actor-inspector-close" type="button" aria-label="Close actor inspector">
-                Close
-              </button>
             </div>
             <div class="inspector-section">
-              <span class="stat-label">Profile</span>
-              <pre class="adapter-output" id="actor-inspector-profile">No actor selected.</pre>
+              <div class="simulation-inspector-groups">
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Room">🏛️</h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-room-list"></div>
+                </section>
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Attacker">⚔️</h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-attacker-list"></div>
+                </section>
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Defender">🛡️</h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-defender-list"></div>
+                </section>
+              </div>
             </div>
             <div class="inspector-section">
-              <span class="stat-label">Capabilities</span>
-              <pre class="adapter-output" id="actor-inspector-capabilities">No capabilities recorded.</pre>
-            </div>
-            <div class="inspector-section">
-              <span class="stat-label">Constraints</span>
-              <pre class="adapter-output" id="actor-inspector-constraints">No constraints recorded.</pre>
-            </div>
-            <div class="inspector-section">
-              <span class="stat-label">Live State</span>
-              <pre class="adapter-output" id="actor-inspector-live">Simulation paused.</pre>
+              <span class="stat-label">Selected Card</span>
+              <div class="simulation-inspector-detail" id="actor-inspector-detail"></div>
             </div>
           </aside>
         </div>

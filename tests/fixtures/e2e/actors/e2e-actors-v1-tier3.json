@@ -152,7 +152,7 @@
       ],
       "affinities": [
         {
-          "kind": "corrode",
+          "kind": "light",
           "expression": "emit",
           "stacks": 1
         }

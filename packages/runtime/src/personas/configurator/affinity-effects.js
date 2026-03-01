@@ -1,4 +1,11 @@
-import { VITAL_KEYS } from "../../contracts/domain-constants.js";
+import {
+  DEFAULT_AFFINITY_EXPRESSION,
+  VITAL_KEYS,
+} from "../../contracts/domain-constants.js";
+import {
+  normalizeAffinityTargetType,
+  resolveAffinityTargetEffectsForEntry,
+} from "../moderator/affinity-target-effects.js";
 
 function isNumber(value) {
   return typeof value === "number" && !Number.isNaN(value);
@@ -68,11 +75,13 @@ function resolvePresetAbilities(preset) {
 function resolveAbility(ability, preset, stacks) {
   const scaling = preset.stack?.scaling || "linear";
   const baseManaCost = ability.manaCost ?? preset.manaCost ?? 0;
+  const expression = ability.expression || preset.expression;
   return {
     id: ability.id,
     kind: ability.kind,
     affinityKind: ability.affinityKind || preset.kind,
-    expression: ability.expression || preset.expression,
+    expression,
+    targetType: normalizeAffinityTargetType(ability.targetType, expression),
     potency: scaleValue(ability.potency, stacks, scaling),
     manaCost: scaleValue(baseManaCost, stacks, scaling),
   };
@@ -80,6 +89,13 @@ function resolveAbility(ability, preset, stacks) {
 
 function addAffinityStack(map, kind, expression, stacks) {
   const key = `${kind}:${expression}`;
+  const current = map[key];
+  const value = Number.isInteger(stacks) ? stacks : 1;
+  map[key] = current === undefined ? value : current + value;
+}
+
+function addAffinityTargetStack(map, kind, expression, targetType, stacks) {
+  const key = `${kind}:${expression}:${targetType}`;
   const current = map[key];
   const value = Number.isInteger(stacks) ? stacks : 1;
   map[key] = current === undefined ? value : current + value;
@@ -103,6 +119,8 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
   const vitals = ensureVitals(baseVitals);
   const abilities = [];
   const affinityStacks = {};
+  const affinityTargets = {};
+  const resolvedEffects = [];
 
   loadout.affinities.forEach((affinity) => {
     const preset = presetIndex.get(affinity.presetId);
@@ -113,6 +131,21 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
       vitals[key] = updatedVitals[key];
     });
     addAffinityStack(affinityStacks, preset.kind, preset.expression, stacks);
+    const targetType = normalizeAffinityTargetType(
+      affinity.targetType,
+      preset.expression || DEFAULT_AFFINITY_EXPRESSION,
+    );
+    addAffinityTargetStack(affinityTargets, preset.kind, preset.expression, targetType, stacks);
+    resolvedEffects.push(
+      ...resolveAffinityTargetEffectsForEntry(
+        { kind: preset.kind, expression: preset.expression, stacks, targetType },
+        {
+          sourceType: "actor",
+          sourceId: loadout.actorId,
+          manaReserve: vitals?.mana?.current || 0,
+        },
+      ),
+    );
 
     const presetAbilities = resolvePresetAbilities(preset);
     presetAbilities.forEach((ability) => {
@@ -120,7 +153,8 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
     });
   });
 
-  return { vitals, abilities, affinityStacks };
+  resolvedEffects.sort((a, b) => String(a.id || "").localeCompare(String(b.id || "")));
+  return { vitals, abilities, affinityStacks, affinityTargets, resolvedEffects };
 }
 
 function selectPresetForTrap(trap, presets) {
@@ -133,7 +167,15 @@ function resolveTrapEffects(trap, presets) {
   const baseVitals = ensureVitals(trap.vitals || {});
   const abilities = [];
   const affinityStacks = {};
-  addAffinityStack(affinityStacks, trap.affinity.kind, trap.affinity.expression, trap.affinity.stacks);
+  const affinityTargets = {};
+  const expression = trap.affinity.expression;
+  const trapTargetType = trap.affinity.targetType || "floor";
+  const targetType = normalizeAffinityTargetType(
+    trapTargetType,
+    expression || DEFAULT_AFFINITY_EXPRESSION,
+  );
+  addAffinityStack(affinityStacks, trap.affinity.kind, expression, trap.affinity.stacks);
+  addAffinityTargetStack(affinityTargets, trap.affinity.kind, expression, targetType, trap.affinity.stacks);
 
   const preset = selectPresetForTrap(trap, presets);
   if (preset) {
@@ -151,11 +193,28 @@ function resolveTrapEffects(trap, presets) {
     });
   }
 
+  const resolvedEffects = resolveAffinityTargetEffectsForEntry(
+    {
+      kind: trap.affinity.kind,
+      expression,
+      stacks: trap.affinity.stacks,
+      targetType,
+    },
+    {
+      sourceType: "trap",
+      sourceId: `${trap.x},${trap.y}`,
+      manaReserve: baseVitals?.mana?.current || 0,
+    },
+  );
+  resolvedEffects.sort((a, b) => String(a.id || "").localeCompare(String(b.id || "")));
+
   return {
     position: { x: trap.x, y: trap.y },
     vitals: baseVitals,
     abilities,
     affinityStacks,
+    affinityTargets,
+    resolvedEffects,
   };
 }
 
@@ -176,6 +235,8 @@ export function resolveAffinityEffects({ presets = [], loadouts = [], baseVitals
         vitals: resolved.vitals,
         abilities: resolved.abilities,
         affinityStacks: resolved.affinityStacks,
+        affinityTargets: resolved.affinityTargets,
+        resolvedEffects: resolved.resolvedEffects,
       };
     })
     .sort((a, b) => String(a.actorId).localeCompare(String(b.actorId)));

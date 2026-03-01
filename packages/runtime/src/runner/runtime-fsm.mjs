@@ -12,6 +12,7 @@ import { createModeratorPersona } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona } from "../personas/orchestrator/persona.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
 import { applyMoveAction, packMoveAction, readObservation, renderBaseTiles } from "../../../bindings-ts/src/index.js";
+import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS } from "../contracts/domain-constants.js";
 
 const ACTION_KIND = Object.freeze({
   IncrementCounter: 1,
@@ -23,6 +24,22 @@ const ACTION_KIND = Object.freeze({
   DeferRequest: 7,
   Move: 8,
 });
+const TILE_CODES = Object.freeze({
+  floor: 1,
+  barrier: 4,
+});
+const AFFINITY_KIND_CODES = Object.freeze(
+  AFFINITY_KINDS.reduce((acc, kind, index) => {
+    acc[kind] = index + 1;
+    return acc;
+  }, {}),
+);
+const AFFINITY_EXPRESSION_CODES = Object.freeze(
+  AFFINITY_EXPRESSIONS.reduce((acc, expression, index) => {
+    acc[expression] = index + 1;
+    return acc;
+  }, {}),
+);
 
 const DEFAULT_PERSONA_ORDER = Object.freeze([
   "orchestrator",
@@ -407,6 +424,86 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
       });
       return { ok: true, action: { ...action, tick: coreTick }, kind: ACTION_KIND.Move, value: packed };
     }
+    case "destroy_barrier": {
+      const x = toInt(params.x);
+      const y = toInt(params.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return { ok: false, reason: "missing_target_position" };
+      }
+      if (typeof core?.destroyBarrierAt !== "function" && typeof core?.setTileAt !== "function") {
+        return { ok: false, reason: "missing_destroyBarrierAt" };
+      }
+      return {
+        ok: true,
+        action: { ...action, tick: actionTick },
+        direct: { kind: "destroy_barrier", x, y },
+      };
+    }
+    case "raise_barrier": {
+      const x = toInt(params.x);
+      const y = toInt(params.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return { ok: false, reason: "missing_target_position" };
+      }
+      if (typeof core?.raiseBarrierAt !== "function" && typeof core?.setTileAt !== "function") {
+        return { ok: false, reason: "missing_raiseBarrierAt" };
+      }
+      return {
+        ok: true,
+        action: { ...action, tick: actionTick },
+        direct: { kind: "raise_barrier", x, y },
+      };
+    }
+    case "arm_static_trap": {
+      const x = toInt(params.x);
+      const y = toInt(params.y);
+      const kind = typeof params.kind === "string" ? params.kind.toLowerCase() : "";
+      const expression = typeof params.expression === "string" ? params.expression.toLowerCase() : "";
+      const affinityKind = AFFINITY_KIND_CODES[kind];
+      const affinityExpression = AFFINITY_EXPRESSION_CODES[expression];
+      const stacks = toInt(params.stacks);
+      const manaReserve = toInt(params.manaReserve ?? params.mana);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return { ok: false, reason: "missing_target_position" };
+      }
+      if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) {
+        return { ok: false, reason: "invalid_affinity_trap_spec" };
+      }
+      if (!Number.isFinite(stacks) || stacks <= 0 || !Number.isFinite(manaReserve) || manaReserve <= 0) {
+        return { ok: false, reason: "invalid_static_trap_costs" };
+      }
+      if (typeof core?.armStaticTrapAt !== "function") {
+        return { ok: false, reason: "missing_armStaticTrapAt" };
+      }
+      return {
+        ok: true,
+        action: { ...action, tick: actionTick },
+        direct: {
+          kind: "arm_static_trap",
+          x,
+          y,
+          affinityKind,
+          affinityExpression,
+          stacks,
+          manaReserve,
+        },
+      };
+    }
+    case "disarm_static_trap": {
+      const x = toInt(params.x);
+      const y = toInt(params.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return { ok: false, reason: "missing_target_position" };
+      }
+      if (typeof core?.disarmStaticTrapAt !== "function") {
+        return { ok: false, reason: "missing_disarmStaticTrapAt" };
+      }
+      return {
+        ok: true,
+        action: { ...action, tick: actionTick },
+        direct: { kind: "disarm_static_trap", x, y },
+      };
+    }
     default:
       return { ok: false, reason: "unsupported_action_kind" };
   }
@@ -442,6 +539,7 @@ export function createFsmRuntime({
   let lastEffects = [];
   let lastFulfilled = [];
   let observationLog = [];
+  let affinityEffects = null;
   let orchestrator = null;
 
   function nextFrameMeta() {
@@ -534,6 +632,7 @@ export function createFsmRuntime({
       tick,
       simConfig,
       initialState,
+      affinityEffects,
       effects: lastEffects,
       fulfilledEffects: lastFulfilled,
       intentEnvelope,
@@ -592,7 +691,7 @@ export function createFsmRuntime({
       configurator: configuratorPayload,
       director: { ...base, ...directorOverrides },
       allocator: allocatorPayload,
-      moderator: { ...base, actions, ...moderatorOverrides },
+      moderator: { ...base, actions, observation, ...moderatorOverrides },
       orchestrator: { ...base, emittedEffects, fulfilledEffects, ...orchestratorOverrides },
     };
 
@@ -692,6 +791,15 @@ export function createFsmRuntime({
       }
     }
 
+    if (phase === TickPhases.APPLY) {
+      if (!events.moderator) {
+        const hasAffinityEffects = Boolean(personaPayloads?.moderator?.affinityEffects);
+        if (hasAffinityEffects) {
+          events.moderator = "resolve_affinity";
+        }
+      }
+    }
+
     if (phase === TickPhases.EMIT) {
       if (!events.annotator) {
         const annotatorState = orchestrator?.view?.().personaStates?.annotator?.state;
@@ -728,6 +836,54 @@ export function createFsmRuntime({
       const adaptation = adaptActionToCore({ action, core, actorIdMap, defaultTick });
       if (!adaptation.ok) {
         preCoreRejections.push({ action, reason: adaptation.reason || "invalid_action" });
+        continue;
+      }
+      if (adaptation.direct) {
+        const directive = adaptation.direct;
+        if (directive.kind === "destroy_barrier") {
+          const applied = typeof core.destroyBarrierAt === "function"
+            ? core.destroyBarrierAt(directive.x, directive.y)
+            : (core.setTileAt(directive.x, directive.y, TILE_CODES.floor), 1);
+          if (Number.isFinite(applied) && applied === 0) {
+            preCoreRejections.push({ action, reason: "destroy_barrier_rejected" });
+            continue;
+          }
+          acceptedActions.push(adaptation.action);
+          continue;
+        }
+        if (directive.kind === "raise_barrier") {
+          const applied = typeof core.raiseBarrierAt === "function"
+            ? core.raiseBarrierAt(directive.x, directive.y)
+            : (core.setTileAt(directive.x, directive.y, TILE_CODES.barrier), 1);
+          if (Number.isFinite(applied) && applied === 0) {
+            preCoreRejections.push({ action, reason: "raise_barrier_rejected" });
+            continue;
+          }
+          acceptedActions.push(adaptation.action);
+          continue;
+        }
+        if (directive.kind === "arm_static_trap") {
+          const armed = core.armStaticTrapAt(
+            directive.x,
+            directive.y,
+            directive.affinityKind,
+            directive.affinityExpression,
+            directive.stacks,
+            directive.manaReserve,
+          );
+          if (Number.isFinite(armed) && armed === 0) {
+            preCoreRejections.push({ action, reason: "arm_static_trap_rejected" });
+            continue;
+          }
+          acceptedActions.push(adaptation.action);
+          continue;
+        }
+        if (directive.kind === "disarm_static_trap") {
+          core.disarmStaticTrapAt(directive.x, directive.y);
+          acceptedActions.push(adaptation.action);
+          continue;
+        }
+        preCoreRejections.push({ action, reason: "unsupported_directive" });
         continue;
       }
       if (adaptation.kind === ACTION_KIND.Move) {
@@ -774,6 +930,7 @@ export function createFsmRuntime({
       frameCounter = 0;
       simConfig = options.simConfig || null;
       initialState = options.initialState || null;
+      affinityEffects = options.affinityEffects || null;
       intentEnvelope = options.intentEnvelope || options.intent || null;
       planArtifact = options.planArtifact || options.plan || null;
       const mapping = buildActorIdMap(initialState);
@@ -938,7 +1095,8 @@ export function createFsmRuntime({
         personaPayloads: applyPersonaPayloads,
       };
       const applyRecord = await orchestrator.stepPhase("apply", applyInputs);
-      const applied = applyActionsToCore(actions);
+      const applyActions = Array.isArray(applyRecord.actions) ? applyRecord.actions : [];
+      const applied = applyActionsToCore(actions.concat(applyActions));
 
       applyPersonaArtifacts(applyRecord);
       recordTickFrame({

@@ -2,6 +2,7 @@ import { LEVEL_GEN_DEFAULTS } from "./defaults.js";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
+  AFFINITY_TARGET_TYPES,
   DEFAULT_AFFINITY_EXPRESSION,
   TRAP_VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
@@ -160,6 +161,11 @@ function normalizeTrapList(traps, width, height, errors) {
     if (!isInteger(stacks) || stacks < 1) {
       pushError(errors, `${base}.affinity.stacks`, "invalid_stacks");
     }
+    const targetTypeProvided = trap.affinity.targetType !== undefined;
+    const targetType = targetTypeProvided ? trap.affinity.targetType : undefined;
+    if (targetTypeProvided && !AFFINITY_TARGET_TYPES.includes(targetType)) {
+      pushError(errors, `${base}.affinity.targetType`, "invalid_target_type");
+    }
 
     if (trap.vitals && !isPlainObject(trap.vitals)) {
       pushError(errors, `${base}.vitals`, "invalid_vitals");
@@ -176,6 +182,7 @@ function normalizeTrapList(traps, width, height, errors) {
         kind: trap.affinity.kind,
         expression: AFFINITY_EXPRESSIONS.includes(expression) ? expression : DEFAULT_TRAP_EXPRESSION,
         stacks: isInteger(stacks) && stacks > 0 ? stacks : DEFAULT_TRAP_STACKS,
+        targetType: AFFINITY_TARGET_TYPES.includes(targetType) ? targetType : undefined,
       },
       vitals: trap.vitals ? trap.vitals : undefined,
     });

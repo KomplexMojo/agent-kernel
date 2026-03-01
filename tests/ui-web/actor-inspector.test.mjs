@@ -2,157 +2,348 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   createActorInspector,
-  formatActorProfile,
+  deriveTemplateInstanceId,
   formatActorCapabilities,
   formatActorConstraints,
   formatActorLiveState,
+  formatActorProfile,
 } from "../../packages/ui-web/src/actor-inspector.js";
 
-function makeEl() {
-  return { textContent: "" };
+function selectorToDatasetKey(key) {
+  return String(key).replace(/-([a-z])/g, (_, char) => char.toUpperCase());
 }
 
-function makeContainerEl() {
-  return { hidden: false };
+function matchesSelector(node, selector) {
+  if (!node || typeof selector !== "string") return false;
+  if (selector.startsWith("#")) {
+    return node.id === selector.slice(1);
+  }
+  if (selector.startsWith(".")) {
+    const classes = String(node.className || "").split(/\s+/).filter(Boolean);
+    return classes.includes(selector.slice(1));
+  }
+  const dataMatch = selector.match(/^\[data-([a-zA-Z0-9_-]+)="([^"]+)"\]$/);
+  if (dataMatch) {
+    const key = selectorToDatasetKey(dataMatch[1]);
+    return String(node.dataset?.[key] || "") === dataMatch[2];
+  }
+  return false;
 }
 
-function makeButtonEl() {
-  const handlers = new Map();
+function makeNode(tagName = "div", ownerDocument = null) {
+  const handlers = {};
+  let textContentValue = "";
+  let classNameValue = "";
   return {
-    addEventListener(type, handler) {
-      handlers.set(type, handler);
+    tagName: String(tagName).toUpperCase(),
+    ownerDocument,
+    id: "",
+    dataset: {},
+    children: [],
+    parentNode: null,
+    value: "",
+    disabled: false,
+    hidden: false,
+    style: {},
+    type: "",
+    classList: {
+      add(...names) {
+        const set = new Set(classNameValue.split(/\s+/).filter(Boolean));
+        names.forEach((name) => set.add(name));
+        classNameValue = Array.from(set).join(" ");
+      },
+      remove(...names) {
+        const set = new Set(classNameValue.split(/\s+/).filter(Boolean));
+        names.forEach((name) => set.delete(name));
+        classNameValue = Array.from(set).join(" ");
+      },
+      contains(name) {
+        return classNameValue.split(/\s+/).filter(Boolean).includes(name);
+      },
     },
-    click() {
-      handlers.get("click")?.();
+    get className() {
+      return classNameValue;
+    },
+    set className(value) {
+      classNameValue = String(value || "");
+    },
+    get textContent() {
+      if (this.children.length === 0) return textContentValue;
+      return `${textContentValue}${this.children.map((child) => child.textContent || "").join("")}`;
+    },
+    set textContent(value) {
+      textContentValue = String(value ?? "");
+      this.children = [];
+    },
+    appendChild(child) {
+      if (child && typeof child === "object") {
+        child.parentNode = this;
+      }
+      this.children.push(child);
+      return child;
+    },
+    append(...parts) {
+      parts.forEach((part) => {
+        if (part && typeof part === "object") {
+          this.appendChild(part);
+        }
+      });
+    },
+    replaceChildren(...parts) {
+      this.children = [];
+      this.append(...parts);
+    },
+    addEventListener(event, fn) {
+      if (!handlers[event]) handlers[event] = [];
+      handlers[event].push(fn);
+    },
+    trigger(event, payload = {}) {
+      const listeners = handlers[event] || [];
+      listeners.forEach((listener) => listener({ target: this, currentTarget: this, ...payload }));
+    },
+    querySelectorAll(selector) {
+      const matches = [];
+      const walk = (node) => {
+        if (!node || !Array.isArray(node.children)) return;
+        node.children.forEach((child) => {
+          if (matchesSelector(child, selector)) {
+            matches.push(child);
+          }
+          walk(child);
+        });
+      };
+      walk(this);
+      return matches;
+    },
+    querySelector(selector) {
+      const matches = this.querySelectorAll(selector);
+      return matches[0] || null;
     },
   };
 }
 
+function createDocumentStub() {
+  const doc = {
+    createElement(tagName) {
+      return makeNode(tagName, doc);
+    },
+  };
+  return doc;
+}
+
+function makeInspectorElements() {
+  const doc = createDocumentStub();
+  const containerEl = makeNode("aside", doc);
+  const statusEl = makeNode("small", doc);
+  const roomListEl = makeNode("div", doc);
+  const attackerListEl = makeNode("div", doc);
+  const defenderListEl = makeNode("div", doc);
+  const detailEl = makeNode("div", doc);
+  return {
+    containerEl,
+    statusEl,
+    roomListEl,
+    attackerListEl,
+    defenderListEl,
+    detailEl,
+  };
+}
+
 const baseVitals = {
-  health: { current: 5, max: 10, regen: 0 },
-  mana: { current: 1, max: 2, regen: 0 },
-  stamina: { current: 3, max: 5, regen: 1 },
-  durability: { current: 4, max: 4, regen: 0 },
+  health: { current: 10, max: 10, regen: 2 },
+  mana: { current: 10, max: 10, regen: 2 },
+  stamina: { current: 10, max: 10, regen: 2 },
+  durability: { current: 10, max: 10, regen: 2 },
 };
 
-const actorA = {
-  id: "actor_alpha",
-  kind: 2,
-  position: { x: 1, y: 2 },
-  vitals: baseVitals,
-  affinities: [{ kind: "fire", expression: "push", stacks: 2 }],
-  abilities: [{ id: "burst", kind: "attack", affinityKind: "fire", expression: "push", potency: 2, manaCost: 1 }],
-  capabilities: { movementCost: 1, actionCostMana: 2, actionCostStamina: 3 },
-  constraints: ["no-water"],
+const spec = {
+  configurator: {
+    inputs: {
+      cardSet: [
+        {
+          id: "R-Y7E71X",
+          type: "room",
+          source: "room",
+          count: 2,
+          affinity: "dark",
+          affinities: [{ kind: "dark", expression: "emit", stacks: 2 }],
+        },
+        {
+          id: "A-2RB89Z",
+          type: "attacker",
+          source: "actor",
+          count: 1,
+          affinity: "fire",
+          motivations: ["attacking"],
+          affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
+          vitals: baseVitals,
+        },
+        {
+          id: "D-5JH2QW",
+          type: "defender",
+          source: "actor",
+          count: 2,
+          affinity: "water",
+          motivations: ["defending"],
+          affinities: [{ kind: "water", expression: "emit", stacks: 3 }],
+          vitals: baseVitals,
+        },
+      ],
+      actors: [
+        { id: "A-2RB89Z-1", motivations: ["attacking"] },
+        { id: "D-5JH2QW-1", motivations: ["defending"] },
+        { id: "D-5JH2QW-2", motivations: ["defending"] },
+      ],
+    },
+  },
 };
 
-const actorB = {
-  id: "actor_beta",
-  kind: 1,
-  position: { x: 4, y: 5 },
-  vitals: baseVitals,
-  affinities: [],
-  abilities: [],
-  capabilities: { movementCost: 2, actionCostMana: 0, actionCostStamina: 1 },
+const simConfig = {
+  layout: {
+    data: {
+      rooms: [
+        {
+          id: "R1",
+          templateId: "R-Y7E71X",
+          templateInstanceId: "R-Y7E71X-1",
+          x: 1,
+          y: 1,
+          width: 6,
+          height: 5,
+          affinity: "dark",
+          affinities: [{ kind: "dark", expression: "emit", stacks: 2 }],
+        },
+        {
+          id: "R2",
+          templateId: "R-Y7E71X",
+          templateInstanceId: "R-Y7E71X-2",
+          x: 12,
+          y: 2,
+          width: 5,
+          height: 4,
+          affinity: "dark",
+          affinities: [{ kind: "dark", expression: "emit", stacks: 2 }],
+        },
+      ],
+    },
+  },
 };
 
-test("formatters include profile and capabilities", () => {
-  const profile = formatActorProfile(actorA);
-  assert.match(profile, /id: actor_alpha/);
-  assert.match(profile, /kind: motivated/);
-  assert.match(profile, /affinities: fire:push x2/);
+const initialState = {
+  actors: [
+    { id: "A-2RB89Z-1", kind: 2, position: { x: 2, y: 2 }, vitals: baseVitals },
+    { id: "D-5JH2QW-1", kind: 2, position: { x: 14, y: 4 }, vitals: baseVitals },
+    { id: "D-5JH2QW-2", kind: 2, position: { x: 15, y: 4 }, vitals: baseVitals },
+  ],
+};
 
-  const capabilities = formatActorCapabilities(actorA);
-  assert.match(capabilities, /movementCost: 1/);
-  assert.match(capabilities, /actionCostMana: 2/);
-  assert.match(capabilities, /actionCostStamina: 3/);
-
-  const constraints = formatActorConstraints(actorA);
-  assert.match(constraints, /no-water/);
+test("deriveTemplateInstanceId appends ordinal suffix", () => {
+  assert.equal(deriveTemplateInstanceId("R-Y7E71X", 1), "R-Y7E71X-1");
+  assert.equal(deriveTemplateInstanceId("A-2RB89Z", 4), "A-2RB89Z-4");
 });
 
-test("inspector preserves selection across updates", () => {
-  const containerEl = makeContainerEl();
-  const closeButtonEl = makeButtonEl();
-  const statusEl = makeEl();
-  const profileEl = makeEl();
-  const capabilitiesEl = makeEl();
-  const constraintsEl = makeEl();
-  const liveStateEl = makeEl();
-  const inspector = createActorInspector({
-    containerEl,
-    closeButtonEl,
-    statusEl,
-    profileEl,
-    capabilitiesEl,
-    constraintsEl,
-    liveStateEl,
-  });
+test("formatters keep backward-compatible textual output", () => {
+  const actor = {
+    id: "A-2RB89Z-1",
+    position: { x: 2, y: 2 },
+    vitals: baseVitals,
+    affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
+    capabilities: { movementCost: 1, actionCostMana: 2, actionCostStamina: 3 },
+    constraints: ["no-water"],
+  };
 
-  assert.equal(containerEl.hidden, true);
-  inspector.setActors([actorA, actorB], { tick: 1 });
-  assert.equal(containerEl.hidden, true);
-  inspector.selectActorById("actor_beta");
-  assert.equal(containerEl.hidden, false);
-  assert.match(statusEl.textContent, /actor_beta/);
-
-  inspector.setActors([actorB], { tick: 2 });
-  assert.match(profileEl.textContent, /id: actor_beta/);
+  assert.match(formatActorProfile(actor), /A-2RB89Z-1/);
+  assert.match(formatActorCapabilities(actor), /movementCost: 1/);
+  assert.match(formatActorConstraints(actor), /no-water/);
+  assert.match(formatActorLiveState(actor, { tick: 7, running: true }), /tick: 7/);
 });
 
-test("inspector renders live state when running", () => {
-  const containerEl = makeContainerEl();
-  const closeButtonEl = makeButtonEl();
-  const statusEl = makeEl();
-  const profileEl = makeEl();
-  const capabilitiesEl = makeEl();
-  const constraintsEl = makeEl();
-  const liveStateEl = makeEl();
+test("inspector renders grouped template instances and maps runtime actor IDs", () => {
+  const elements = makeInspectorElements();
+  const selections = [];
+
   const inspector = createActorInspector({
-    containerEl,
-    closeButtonEl,
-    statusEl,
-    profileEl,
-    capabilitiesEl,
-    constraintsEl,
-    liveStateEl,
+    ...elements,
+    onSelectEntity: (payload) => selections.push(payload),
   });
 
-  inspector.setActors([actorA], { tick: 7 });
-  inspector.selectActorById("actor_alpha");
-  inspector.setRunning(true);
+  inspector.setScenario({ spec, simConfig, initialState });
+  inspector.setActors(initialState.actors, { tick: 9 });
 
-  const liveState = formatActorLiveState(actorA, { tick: 7, running: true });
-  assert.match(liveState, /tick: 7/);
-  assert.match(liveState, /health: 5\/10\+0/);
-  assert.match(liveStateEl.textContent, /tick: 7/);
-});
+  assert.equal(elements.containerEl.hidden, false);
+  assert.equal(elements.roomListEl.querySelectorAll(".simulation-inspector-instance").length, 2);
+  assert.equal(elements.attackerListEl.querySelectorAll(".simulation-inspector-instance").length, 1);
+  assert.equal(elements.defenderListEl.querySelectorAll(".simulation-inspector-instance").length, 2);
+  assert.match(elements.roomListEl.textContent, /R-Y7E71X-1/);
+  assert.match(elements.roomListEl.textContent, /R-Y7E71X-2/);
+  assert.equal(inspector.getSelectedId(), "R-Y7E71X-1");
+  assert.deepEqual(inspector.getSelectedEntity()?.roomBounds, { x: 1, y: 1, width: 6, height: 5 });
 
-test("inspector supports close and clears selection", () => {
-  const containerEl = makeContainerEl();
-  const closeButtonEl = makeButtonEl();
-  const statusEl = makeEl();
-  const profileEl = makeEl();
-  const capabilitiesEl = makeEl();
-  const constraintsEl = makeEl();
-  const liveStateEl = makeEl();
-  const inspector = createActorInspector({
-    containerEl,
-    closeButtonEl,
-    statusEl,
-    profileEl,
-    capabilitiesEl,
-    constraintsEl,
-    liveStateEl,
-  });
+  inspector.selectEntityById("R-Y7E71X-2");
+  assert.equal(selections.length, 1);
+  assert.equal(selections[0].type, "room");
+  assert.deepEqual(selections[0].roomBounds, { x: 12, y: 2, width: 5, height: 4 });
 
-  inspector.setActors([actorA], { tick: 7 });
-  inspector.selectActorById("actor_alpha");
-  assert.equal(inspector.getSelectedId(), "actor_alpha");
-  assert.equal(containerEl.hidden, false);
+  inspector.selectActorById("D-5JH2QW-2");
+  assert.equal(inspector.getSelectedId(), "D-5JH2QW-2");
 
-  closeButtonEl.click();
+  inspector.selectEntityById("D-5JH2QW-1");
+  assert.equal(selections.length, 2);
+  assert.equal(selections[1].actorId, "D-5JH2QW-1");
+  assert.equal(selections[1].type, "defender");
+  assert.equal(selections[1].roomBounds, null);
+
+  inspector.selectEntityById("D-5JH2QW-1", { toggleIfSelected: true });
   assert.equal(inspector.getSelectedId(), null);
-  assert.equal(containerEl.hidden, true);
-  assert.match(statusEl.textContent, /Select an actor on the stage to inspect/);
+  assert.equal(selections.length, 3);
+  assert.equal(selections[2], null);
+});
+
+test("inspector detail shows affinities, vitals, and card value", () => {
+  const elements = makeInspectorElements();
+  const inspector = createActorInspector({
+    ...elements,
+  });
+
+  inspector.setScenario({ spec, simConfig, initialState });
+  inspector.setActors([
+    {
+      id: "D-5JH2QW-1",
+      kind: 2,
+      position: { x: 14, y: 4 },
+      vitals: {
+        health: { current: 7, max: 10, regen: 2 },
+        mana: { current: 8, max: 10, regen: 2 },
+        stamina: { current: 9, max: 10, regen: 2 },
+        durability: { current: 6, max: 10, regen: 2 },
+      },
+    },
+  ], { tick: 11 });
+  inspector.selectEntityById("D-5JH2QW-1", { notify: false });
+
+  assert.match(elements.detailEl.textContent, /D-5JH2QW-1/);
+  assert.match(elements.detailEl.textContent, /\+3/);
+  assert.match(elements.detailEl.textContent, /7\/10\/\+2/);
+  assert.match(elements.detailEl.textContent, /🪙/);
+});
+
+test("inspector remains visible and toggle/close keep it shown", () => {
+  const elements = makeInspectorElements();
+  const inspector = createActorInspector({
+    ...elements,
+  });
+
+  assert.equal(elements.containerEl.hidden, false);
+
+  inspector.setScenario({ spec, simConfig, initialState });
+  assert.equal(elements.containerEl.hidden, false);
+
+  inspector.close();
+  assert.equal(elements.containerEl.hidden, false);
+
+  inspector.open();
+  assert.equal(elements.containerEl.hidden, false);
+
+  inspector.toggle();
+  assert.equal(elements.containerEl.hidden, false);
 });

@@ -7,11 +7,8 @@ const DEFAULT_ROOM_MAX_SIZE = 9;
 const DEFAULT_CORRIDOR_WIDTH = 1;
 const ROOM_PLACEMENT_PADDING = 1;
 const ROOM_PLACEMENT_ATTEMPTS = 40;
+const ROOM_SURFACE_PLACEMENT_ATTEMPTS = 12;
 const TARGET_ROOM_WALKABLE_SHARE = 0.85;
-const ORGANIC_EDGE_DEPTH = 3;
-const ORGANIC_EDGE_CUT_CHANCE = 0.42;
-const ORGANIC_EDGE_HEAL_CHANCE = 0.25;
-const ORGANIC_EDGE_PASSES = 1;
 
 const KIND_STATIONARY = 0;
 const KIND_BARRIER = 1;
@@ -67,6 +64,23 @@ function clampInt(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function shuffleInPlace(list, rng) {
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = randomInt(rng, i + 1);
+    if (i === j) continue;
+    const swap = list[i];
+    list[i] = list[j];
+    list[j] = swap;
+  }
+}
+
+function randomIntTowardMax(rng, min, max) {
+  if (max <= min) return min;
+  const range = (max - min) + 1;
+  const roll = Math.max(rng(), rng());
+  return min + Math.floor(roll * range);
+}
+
 function createMask(width, height, value = false) {
   const rows = [];
   for (let y = 0; y < height; y += 1) {
@@ -113,65 +127,6 @@ function countNeighbors(mask, x, y) {
     if (mask[ny][nx]) count += 1;
   }
   return count;
-}
-
-function seedRectangular(mask) {
-  const height = mask.length;
-  const width = mask[0]?.length || 0;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (isInteriorCell(x, y, width, height)) {
-        mask[y][x] = true;
-      }
-    }
-  }
-}
-
-function applyOrganicEdgePerturbation(mask, rng) {
-  const height = mask.length;
-  const width = mask[0]?.length || 0;
-  if (height <= 4 || width <= 4) return;
-
-  for (let y = 1; y < height - 1; y += 1) {
-    for (let x = 1; x < width - 1; x += 1) {
-      if (!mask[y][x]) continue;
-      const edgeDistance = Math.min(x - 1, y - 1, width - 2 - x, height - 2 - y);
-      if (edgeDistance < 0 || edgeDistance > ORGANIC_EDGE_DEPTH) continue;
-      const weight = (ORGANIC_EDGE_DEPTH - edgeDistance + 1) / (ORGANIC_EDGE_DEPTH + 1);
-      if (rng() < ORGANIC_EDGE_CUT_CHANCE * weight) {
-        mask[y][x] = false;
-      }
-    }
-  }
-
-  for (let pass = 0; pass < ORGANIC_EDGE_PASSES; pass += 1) {
-    const next = createMask(width, height, false);
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        if (!isInteriorCell(x, y, width, height)) {
-          next[y][x] = false;
-          continue;
-        }
-        const edgeDistance = Math.min(x - 1, y - 1, width - 2 - x, height - 2 - y);
-        if (edgeDistance > ORGANIC_EDGE_DEPTH + 1) {
-          next[y][x] = mask[y][x];
-          continue;
-        }
-        const neighbors = countNeighbors(mask, x, y);
-        if (mask[y][x]) {
-          next[y][x] = neighbors >= 2;
-        } else {
-          const weight = (ORGANIC_EDGE_DEPTH - Math.max(0, edgeDistance) + 1) / (ORGANIC_EDGE_DEPTH + 1);
-          next[y][x] = neighbors >= 3 && rng() < ORGANIC_EDGE_HEAL_CHANCE * weight;
-        }
-      }
-    }
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        mask[y][x] = next[y][x];
-      }
-    }
-  }
 }
 
 function resolveWalkableTilesTarget(levelGen) {
@@ -683,24 +638,49 @@ function readRoomSettings(levelGen) {
     maxRoomSize,
   );
   const walkableTilesTarget = resolveWalkableTilesTarget(levelGen);
-  if (walkableTilesTarget === null) {
-    return { roomCount, roomMinSize, roomMaxSize, corridorWidth };
-  }
-  const interiorCapacity = countWalkableCapacity(createMask(width, height, false));
-  const normalizedWalkableTarget = Math.min(walkableTilesTarget, interiorCapacity);
-  const averageRoomSide = Math.max(1, (roomMinSize + roomMaxSize) / 2);
-  const averageRoomArea = Math.max(1, Math.round(averageRoomSide * averageRoomSide));
-  const desiredRoomTiles = Math.max(1, Math.round(normalizedWalkableTarget * TARGET_ROOM_WALKABLE_SHARE));
-  const targetRoomCount = clampInt(
-    Math.ceil(desiredRoomTiles / averageRoomArea),
-    1,
-    maxRooms,
-  );
-  return {
-    roomCount: Math.max(roomCount, targetRoomCount),
+  const baseSettings = {
+    roomCount,
     roomMinSize,
     roomMaxSize,
     corridorWidth,
+    roomPadding: ROOM_PLACEMENT_PADDING,
+    preferLargeRooms: false,
+  };
+  if (walkableTilesTarget === null) {
+    return baseSettings;
+  }
+  const interiorCapacity = countWalkableCapacity(createMask(width, height, false));
+  if (interiorCapacity <= 0) {
+    return baseSettings;
+  }
+  const normalizedWalkableTarget = Math.min(walkableTilesTarget, interiorCapacity);
+  const desiredRoomTiles = Math.max(1, Math.round(normalizedWalkableTarget * TARGET_ROOM_WALKABLE_SHARE));
+  const maxRoomArea = Math.max(1, roomMaxSize * roomMaxSize);
+  const targetRoomCount = clampInt(
+    Math.ceil(desiredRoomTiles / maxRoomArea),
+    1,
+    maxRooms,
+  );
+  const adjustedRoomCount = Math.max(roomCount, targetRoomCount);
+  const desiredRoomAreaPerRoom = Math.max(1, Math.ceil(desiredRoomTiles / adjustedRoomCount));
+  const desiredRoomSide = clampInt(
+    Math.ceil(Math.sqrt(desiredRoomAreaPerRoom)),
+    roomMinSize,
+    roomMaxSize,
+  );
+  const adjustedRoomMinSize = clampInt(
+    Math.max(roomMinSize, desiredRoomSide - 1),
+    1,
+    roomMaxSize,
+  );
+  const targetDensity = desiredRoomTiles / interiorCapacity;
+  return {
+    roomCount: adjustedRoomCount,
+    roomMinSize: adjustedRoomMinSize,
+    roomMaxSize,
+    corridorWidth,
+    roomPadding: targetDensity > 0.62 ? 0 : ROOM_PLACEMENT_PADDING,
+    preferLargeRooms: true,
   };
 }
 
@@ -746,31 +726,138 @@ function carveRoom(mask, room) {
   }
 }
 
+function resolveInteriorBounds(width, height) {
+  if (hasBorder(width, height)) {
+    return {
+      minX: 1,
+      minY: 1,
+      maxX: Math.max(1, width - 2),
+      maxY: Math.max(1, height - 2),
+    };
+  }
+  return {
+    minX: 0,
+    minY: 0,
+    maxX: Math.max(0, width - 1),
+    maxY: Math.max(0, height - 1),
+  };
+}
+
+function randomRoomSize(rng, min, max, preferLargeRooms = false) {
+  return preferLargeRooms
+    ? randomIntTowardMax(rng, min, max)
+    : randomIntBetween(rng, min, max);
+}
+
+function buildRoomSurfaceSlots(width, height, roomCount) {
+  const slots = [];
+  if (!Number.isInteger(roomCount) || roomCount <= 0) return slots;
+  const bounds = resolveInteriorBounds(width, height);
+  const interiorWidth = (bounds.maxX - bounds.minX) + 1;
+  const interiorHeight = (bounds.maxY - bounds.minY) + 1;
+  if (interiorWidth <= 0 || interiorHeight <= 0) return slots;
+
+  const aspectRatio = interiorWidth / Math.max(1, interiorHeight);
+  const columns = clampInt(Math.ceil(Math.sqrt(roomCount * aspectRatio)), 1, roomCount);
+  const rows = Math.max(1, Math.ceil(roomCount / columns));
+
+  for (let row = 0; row < rows; row += 1) {
+    const startY = bounds.minY + Math.floor((row * interiorHeight) / rows);
+    const endY = bounds.minY + Math.floor(((row + 1) * interiorHeight) / rows) - 1;
+    if (endY < startY) continue;
+    for (let column = 0; column < columns; column += 1) {
+      const startX = bounds.minX + Math.floor((column * interiorWidth) / columns);
+      const endX = bounds.minX + Math.floor(((column + 1) * interiorWidth) / columns) - 1;
+      if (endX < startX) continue;
+      slots.push({
+        startX,
+        startY,
+        endX,
+        endY,
+      });
+    }
+  }
+  return slots;
+}
+
+function placeRoomInSlot(mask, slot, roomId, rng, settings) {
+  const slotWidth = (slot.endX - slot.startX) + 1;
+  const slotHeight = (slot.endY - slot.startY) + 1;
+  if (slotWidth <= 0 || slotHeight <= 0) return null;
+
+  const roomMinWidth = Math.min(settings.roomMinSize, slotWidth);
+  const roomMinHeight = Math.min(settings.roomMinSize, slotHeight);
+  const roomMaxWidth = Math.min(settings.roomMaxSize, slotWidth);
+  const roomMaxHeight = Math.min(settings.roomMaxSize, slotHeight);
+  if (roomMaxWidth <= 0 || roomMaxHeight <= 0) return null;
+
+  for (let attempt = 0; attempt < ROOM_SURFACE_PLACEMENT_ATTEMPTS; attempt += 1) {
+    const roomWidth = randomRoomSize(rng, roomMinWidth, roomMaxWidth, settings.preferLargeRooms);
+    const roomHeight = randomRoomSize(rng, roomMinHeight, roomMaxHeight, settings.preferLargeRooms);
+    const maxX = slot.endX - roomWidth + 1;
+    const maxY = slot.endY - roomHeight + 1;
+    if (maxX < slot.startX || maxY < slot.startY) continue;
+    const room = {
+      id: `R${roomId}`,
+      x: randomIntBetween(rng, slot.startX, maxX),
+      y: randomIntBetween(rng, slot.startY, maxY),
+      width: roomWidth,
+      height: roomHeight,
+    };
+    if (!canPlaceRoom(mask, room, settings.roomPadding)) continue;
+    carveRoom(mask, room);
+    return room;
+  }
+
+  return null;
+}
+
 function placeRooms(mask, rng, settings) {
   const rooms = [];
   const height = mask.length;
   const width = mask[0]?.length || 0;
-  const { roomCount, roomMinSize, roomMaxSize } = settings;
+  const {
+    roomCount,
+    roomMinSize,
+    roomMaxSize,
+    roomPadding = ROOM_PLACEMENT_PADDING,
+    preferLargeRooms = false,
+  } = settings;
+  const bounds = resolveInteriorBounds(width, height);
+
+  const slots = buildRoomSurfaceSlots(width, height, roomCount);
+  shuffleInPlace(slots, rng);
+  for (let i = 0; i < slots.length && rooms.length < roomCount; i += 1) {
+    const room = placeRoomInSlot(mask, slots[i], rooms.length + 1, rng, {
+      roomMinSize,
+      roomMaxSize,
+      roomPadding,
+      preferLargeRooms,
+    });
+    if (!room) continue;
+    rooms.push(room);
+  }
+
   const maxAttempts = Math.max(roomCount * ROOM_PLACEMENT_ATTEMPTS, ROOM_PLACEMENT_ATTEMPTS);
 
   let attempts = 0;
   while (rooms.length < roomCount && attempts < maxAttempts) {
-    const roomWidth = randomIntBetween(rng, roomMinSize, roomMaxSize);
-    const roomHeight = randomIntBetween(rng, roomMinSize, roomMaxSize);
-    const maxX = width - roomWidth - 1;
-    const maxY = height - roomHeight - 1;
-    if (maxX < 1 || maxY < 1) {
+    const roomWidth = randomRoomSize(rng, roomMinSize, roomMaxSize, preferLargeRooms);
+    const roomHeight = randomRoomSize(rng, roomMinSize, roomMaxSize, preferLargeRooms);
+    const maxX = bounds.maxX - roomWidth + 1;
+    const maxY = bounds.maxY - roomHeight + 1;
+    if (maxX < bounds.minX || maxY < bounds.minY) {
       attempts += 1;
       continue;
     }
     const room = {
       id: `R${rooms.length + 1}`,
-      x: randomIntBetween(rng, 1, maxX),
-      y: randomIntBetween(rng, 1, maxY),
+      x: randomIntBetween(rng, bounds.minX, maxX),
+      y: randomIntBetween(rng, bounds.minY, maxY),
       width: roomWidth,
       height: roomHeight,
     };
-    if (canPlaceRoom(mask, room, ROOM_PLACEMENT_PADDING)) {
+    if (canPlaceRoom(mask, room, roomPadding)) {
       carveRoom(mask, room);
       rooms.push(room);
     }
@@ -778,8 +865,10 @@ function placeRooms(mask, rng, settings) {
   }
 
   if (rooms.length < roomCount) {
-    for (let y = 1; y <= height - roomMinSize - 1 && rooms.length < roomCount; y += 1) {
-      for (let x = 1; x <= width - roomMinSize - 1 && rooms.length < roomCount; x += 1) {
+    const maxScanY = bounds.maxY - roomMinSize + 1;
+    const maxScanX = bounds.maxX - roomMinSize + 1;
+    for (let y = bounds.minY; y <= maxScanY && rooms.length < roomCount; y += 1) {
+      for (let x = bounds.minX; x <= maxScanX && rooms.length < roomCount; x += 1) {
         const room = {
           id: `R${rooms.length + 1}`,
           x,
@@ -799,7 +888,7 @@ function placeRooms(mask, rng, settings) {
 }
 
 function normalizePatternType(rawPattern) {
-  if (typeof rawPattern !== "string") return LEVEL_PATTERN_TYPES.grid;
+  if (typeof rawPattern !== "string") return LEVEL_PATTERN_TYPES.none;
   const normalizedPattern = rawPattern.trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (normalizedPattern === LEVEL_PATTERN_TYPES.none) return LEVEL_PATTERN_TYPES.none;
   if (normalizedPattern === LEVEL_PATTERN_TYPES.grid) return LEVEL_PATTERN_TYPES.grid;
@@ -812,7 +901,7 @@ function normalizePatternType(rawPattern) {
   if (normalizedPattern === "horizontal_vertical_grid" || normalizedPattern === "horizontal_verticle_grid") {
     return LEVEL_PATTERN_TYPES.grid;
   }
-  return LEVEL_PATTERN_TYPES.grid;
+  return LEVEL_PATTERN_TYPES.none;
 }
 
 function derivePatternSpacingFromInfillPercent(infillPercent, maxPatternStride) {
@@ -1681,7 +1770,7 @@ function generateMask(levelGen, rng) {
   const mask = createMask(width, height, false);
   const settings = readRoomSettings(levelGen);
   const rooms = placeRooms(mask, rng, settings);
-  applyOrganicEdgePerturbation(mask, rng);
+  // Keep generation room-first: place distinct room islands, then connect.
   ensureRoomsConnected(mask, rooms, rng, settings.corridorWidth);
   applyPatternOverlay(mask, rooms, levelGen);
   ensureWalkable(mask);

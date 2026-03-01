@@ -38,6 +38,7 @@ const BARRIER_DURABILITY_DEFAULT: i32 = 3;
 const DEFAULT_MOVEMENT_COST: i32 = 1;
 const DEFAULT_ACTION_COST_MANA: i32 = 0;
 const DEFAULT_ACTION_COST_STAMINA: i32 = 0;
+const STATIC_TRAP_NONE: i32 = 0;
 
 let width: i32 = 0;
 let height: i32 = 0;
@@ -55,6 +56,11 @@ let tileActorKindByIndex = new StaticArray<u8>(0);
 let tileActorIdByIndex = new StaticArray<i32>(0);
 let tileActorDurabilityByIndex = new StaticArray<i32>(0);
 let tileActorCount: i32 = 0;
+let staticTrapAffinityByCell = new StaticArray<i32>(0);
+let staticTrapExpressionByCell = new StaticArray<i32>(0);
+let staticTrapStacksByCell = new StaticArray<i32>(0);
+let staticTrapManaReserveByCell = new StaticArray<i32>(0);
+let staticTrapCount: i32 = 0;
 let placementActorCount: i32 = 0;
 let placementActorOverflow: bool = false;
 let placementActorId = new StaticArray<i32>(0);
@@ -89,6 +95,7 @@ let motivatedActorVitalRegen = new StaticArray<i32>(0);
 let motivatedActorMovementCost = new StaticArray<i32>(0);
 let motivatedActorActionCostMana = new StaticArray<i32>(0);
 let motivatedActorActionCostStamina = new StaticArray<i32>(0);
+let activeMotivatedActorIndex: i32 = 0;
 let currentTick: i32 = 0;
 
 function resizeGrid(newWidth: i32, newHeight: i32): void {
@@ -108,6 +115,10 @@ function resizeGrid(newWidth: i32, newHeight: i32): void {
   tileActorKindByIndex = new StaticArray<u8>(cellCount);
   tileActorIdByIndex = new StaticArray<i32>(cellCount);
   tileActorDurabilityByIndex = new StaticArray<i32>(cellCount);
+  staticTrapAffinityByCell = new StaticArray<i32>(cellCount);
+  staticTrapExpressionByCell = new StaticArray<i32>(cellCount);
+  staticTrapStacksByCell = new StaticArray<i32>(cellCount);
+  staticTrapManaReserveByCell = new StaticArray<i32>(cellCount);
   placementActorId = new StaticArray<i32>(maxMotivatedActors);
   placementActorX = new StaticArray<i32>(maxMotivatedActors);
   placementActorY = new StaticArray<i32>(maxMotivatedActors);
@@ -166,6 +177,30 @@ function clearTileActorState(): void {
     unchecked(tileActorKindByIndex[i] = ActorKind.Barrier as u8);
     unchecked(tileActorIdByIndex[i] = 0);
     unchecked(tileActorDurabilityByIndex[i] = 0);
+  }
+}
+
+function hasStaticTrapAtIndex(index: i32): bool {
+  return unchecked(staticTrapAffinityByCell[index]) != STATIC_TRAP_NONE;
+}
+
+function clearStaticTrapAtIndex(index: i32): void {
+  if (hasStaticTrapAtIndex(index) && staticTrapCount > 0) {
+    staticTrapCount -= 1;
+  }
+  unchecked(staticTrapAffinityByCell[index] = STATIC_TRAP_NONE);
+  unchecked(staticTrapExpressionByCell[index] = 0);
+  unchecked(staticTrapStacksByCell[index] = 0);
+  unchecked(staticTrapManaReserveByCell[index] = 0);
+}
+
+function clearStaticTraps(): void {
+  staticTrapCount = 0;
+  for (let i = 0; i < cellCount; i += 1) {
+    unchecked(staticTrapAffinityByCell[i] = STATIC_TRAP_NONE);
+    unchecked(staticTrapExpressionByCell[i] = 0);
+    unchecked(staticTrapStacksByCell[i] = 0);
+    unchecked(staticTrapManaReserveByCell[i] = 0);
   }
 }
 
@@ -303,6 +338,7 @@ function applyDefaultCapabilitiesToMotivatedActors(count: i32): void {
 
 function resetMotivatedActors(): void {
   motivatedActorCount = 0;
+  activeMotivatedActorIndex = 0;
   actorActive = false;
   actorId = 1;
   actorKind = ActorKind.Motivated;
@@ -318,6 +354,45 @@ function isValidVitalKind(kind: i32): bool {
 
 function isValidMotivatedActorIndex(index: i32): bool {
   return index >= 0 && index < motivatedActorCount;
+}
+
+function normalizedActiveMotivatedActorIndex(): i32 {
+  if (isValidMotivatedActorIndex(activeMotivatedActorIndex)) {
+    return activeMotivatedActorIndex;
+  }
+  return 0;
+}
+
+function syncActorMirrorFromMotivatedIndex(index: i32): void {
+  if (!isValidMotivatedActorIndex(index)) {
+    return;
+  }
+  activeMotivatedActorIndex = index;
+  actorId = unchecked(motivatedActorId[index]);
+  actorX = unchecked(motivatedActorX[index]);
+  actorY = unchecked(motivatedActorY[index]);
+  actorVitalMask = VITAL_MASK_ALL;
+  for (let kind = 0; kind < VITAL_COUNT; kind += 1) {
+    const offset = vitalIndexFor(index, kind);
+    unchecked(actorVitalCurrent[kind] = motivatedActorVitalCurrent[offset]);
+    unchecked(actorVitalMax[kind] = motivatedActorVitalMax[offset]);
+    unchecked(actorVitalRegen[kind] = motivatedActorVitalRegen[offset]);
+  }
+  actorMovementCost = unchecked(motivatedActorMovementCost[index]);
+  actorActionCostMana = unchecked(motivatedActorActionCostMana[index]);
+  actorActionCostStamina = unchecked(motivatedActorActionCostStamina[index]);
+}
+
+function findMotivatedActorIndexById(id: i32): i32 {
+  if (id <= 0) {
+    return -1;
+  }
+  for (let i = 0; i < motivatedActorCount; i += 1) {
+    if (unchecked(motivatedActorId[i]) == id) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 function vitalIndexFor(actorIndex: i32, kind: i32): i32 {
@@ -337,6 +412,7 @@ function resetWorldState(): void {
   currentTick = 0;
   fillTiles(Tile.Wall);
   clearTileActorState();
+  clearStaticTraps();
   resetActorPlacementsState();
 }
 
@@ -385,6 +461,7 @@ export function spawnActorAt(x: i32, y: i32): void {
     return;
   }
   motivatedActorCount = 1;
+  activeMotivatedActorIndex = 0;
   if (actorId <= 0) {
     actorId = 1;
   }
@@ -404,6 +481,9 @@ function setTile(x: i32, y: i32, tile: Tile): void {
   }
   const index = indexFor(x, y);
   tiles[index] = tile as u8;
+  if (tile != Tile.Floor) {
+    clearStaticTrapAtIndex(index);
+  }
   setTileActorKindAtIndex(index, actorKindForTile(tile));
   setTileDurabilityAtIndex(index, durabilityForTile(tile));
   if (tile == Tile.Spawn) {
@@ -588,6 +668,7 @@ export function applyActorPlacements(): ValidationError {
     return error;
   }
   motivatedActorCount = count;
+  activeMotivatedActorIndex = 0;
   for (let i = 0; i < count; i += 1) {
     let id = getPlacementId(i);
     if (id <= 0) {
@@ -599,9 +680,7 @@ export function applyActorPlacements(): ValidationError {
   }
   actorActive = count > 0;
   if (actorActive) {
-    actorId = unchecked(motivatedActorId[0]);
-    actorX = unchecked(motivatedActorX[0]);
-    actorY = unchecked(motivatedActorY[0]);
+    syncActorMirrorFromMotivatedIndex(0);
   }
   resetActorVitals();
   applyDefaultCapabilitiesToMotivatedActors(count);
@@ -712,6 +791,111 @@ export function applyBarrierDurabilityDamage(x: i32, y: i32, damage: i32): i32 {
   return next - current;
 }
 
+export function raiseBarrierAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  if (getTile(x, y) != Tile.Floor) {
+    return 0;
+  }
+  setTile(x, y, Tile.Barrier);
+  return 1;
+}
+
+export function destroyBarrierAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  if (getTile(x, y) != Tile.Barrier) {
+    return 0;
+  }
+  setTile(x, y, Tile.Floor);
+  return 1;
+}
+
+function isValidStaticTrapAffinityKind(kind: i32): bool {
+  return kind > 0;
+}
+
+function isValidStaticTrapExpression(expression: i32): bool {
+  return expression > 0;
+}
+
+export function armStaticTrapAt(
+  x: i32,
+  y: i32,
+  affinityKind: i32,
+  expression: i32,
+  stacks: i32,
+  manaReserve: i32,
+): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  if (!isValidStaticTrapAffinityKind(affinityKind) || !isValidStaticTrapExpression(expression)) {
+    return 0;
+  }
+  if (stacks <= 0 || manaReserve <= 0) {
+    return 0;
+  }
+  if (getTile(x, y) != Tile.Floor) {
+    return 0;
+  }
+  const index = indexFor(x, y);
+  if (!hasStaticTrapAtIndex(index)) {
+    staticTrapCount += 1;
+  }
+  unchecked(staticTrapAffinityByCell[index] = affinityKind);
+  unchecked(staticTrapExpressionByCell[index] = expression);
+  unchecked(staticTrapStacksByCell[index] = stacks);
+  unchecked(staticTrapManaReserveByCell[index] = manaReserve);
+  return 1;
+}
+
+export function disarmStaticTrapAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  const index = indexFor(x, y);
+  if (!hasStaticTrapAtIndex(index)) {
+    return 0;
+  }
+  clearStaticTrapAtIndex(index);
+  return 1;
+}
+
+export function getStaticTrapCount(): i32 {
+  return staticTrapCount;
+}
+
+export function getStaticTrapAffinityAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return STATIC_TRAP_NONE;
+  }
+  return unchecked(staticTrapAffinityByCell[indexFor(x, y)]);
+}
+
+export function getStaticTrapExpressionAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  return unchecked(staticTrapExpressionByCell[indexFor(x, y)]);
+}
+
+export function getStaticTrapStacksAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  return unchecked(staticTrapStacksByCell[indexFor(x, y)]);
+}
+
+export function getStaticTrapManaReserveAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  return unchecked(staticTrapManaReserveByCell[indexFor(x, y)]);
+}
+
 export function isWalkableActorKind(kind: ActorKind): bool {
   return kind == ActorKind.Stationary;
 }
@@ -805,8 +989,9 @@ export function setActorVital(kind: i32, current: i32, max: i32, regen: i32): vo
   unchecked(actorVitalCurrent[kind] = current);
   unchecked(actorVitalMax[kind] = max);
   unchecked(actorVitalRegen[kind] = regen);
-  if (maxMotivatedActors > 0) {
-    const index = vitalIndexFor(0, kind);
+  if (motivatedActorCount > 0) {
+    const activeIndex = normalizedActiveMotivatedActorIndex();
+    const index = vitalIndexFor(activeIndex, kind);
     unchecked(motivatedActorVitalCurrent[index] = current);
     unchecked(motivatedActorVitalMax[index] = max);
     unchecked(motivatedActorVitalRegen[index] = regen);
@@ -822,7 +1007,7 @@ export function setMotivatedActorVital(index: i32, kind: i32, current: i32, max:
   unchecked(motivatedActorVitalCurrent[offset] = current);
   unchecked(motivatedActorVitalMax[offset] = max);
   unchecked(motivatedActorVitalRegen[offset] = regen);
-  if (index == 0) {
+  if (index == normalizedActiveMotivatedActorIndex()) {
     unchecked(actorVitalCurrent[kind] = current);
     unchecked(actorVitalMax[kind] = max);
     unchecked(actorVitalRegen[kind] = regen);
@@ -832,22 +1017,22 @@ export function setMotivatedActorVital(index: i32, kind: i32, current: i32, max:
 
 export function setActorMovementCost(value: i32): void {
   actorMovementCost = value;
-  if (maxMotivatedActors > 0) {
-    unchecked(motivatedActorMovementCost[0] = value);
+  if (motivatedActorCount > 0) {
+    unchecked(motivatedActorMovementCost[normalizedActiveMotivatedActorIndex()] = value);
   }
 }
 
 export function setActorActionCostMana(value: i32): void {
   actorActionCostMana = value;
-  if (maxMotivatedActors > 0) {
-    unchecked(motivatedActorActionCostMana[0] = value);
+  if (motivatedActorCount > 0) {
+    unchecked(motivatedActorActionCostMana[normalizedActiveMotivatedActorIndex()] = value);
   }
 }
 
 export function setActorActionCostStamina(value: i32): void {
   actorActionCostStamina = value;
-  if (maxMotivatedActors > 0) {
-    unchecked(motivatedActorActionCostStamina[0] = value);
+  if (motivatedActorCount > 0) {
+    unchecked(motivatedActorActionCostStamina[normalizedActiveMotivatedActorIndex()] = value);
   }
 }
 
@@ -856,7 +1041,7 @@ export function setMotivatedActorMovementCost(index: i32, value: i32): void {
     return;
   }
   unchecked(motivatedActorMovementCost[index] = value);
-  if (index == 0) {
+  if (index == normalizedActiveMotivatedActorIndex()) {
     actorMovementCost = value;
   }
 }
@@ -866,7 +1051,7 @@ export function setMotivatedActorActionCostMana(index: i32, value: i32): void {
     return;
   }
   unchecked(motivatedActorActionCostMana[index] = value);
-  if (index == 0) {
+  if (index == normalizedActiveMotivatedActorIndex()) {
     actorActionCostMana = value;
   }
 }
@@ -876,7 +1061,7 @@ export function setMotivatedActorActionCostStamina(index: i32, value: i32): void
     return;
   }
   unchecked(motivatedActorActionCostStamina[index] = value);
-  if (index == 0) {
+  if (index == normalizedActiveMotivatedActorIndex()) {
     actorActionCostStamina = value;
   }
 }
@@ -982,17 +1167,19 @@ export function setActorPosition(x: i32, y: i32): void {
   if (!withinBounds(x, y)) {
     return;
   }
+  const activeIndex = normalizedActiveMotivatedActorIndex();
+  const occupancyId = activeIndex + 1;
   if (actorActive) {
     setMotivatedOccupancyAt(actorX, actorY, 0);
   }
   actorX = x;
   actorY = y;
-  if (motivatedActorCount > 0) {
-    unchecked(motivatedActorX[0] = x);
-    unchecked(motivatedActorY[0] = y);
+  if (isValidMotivatedActorIndex(activeIndex)) {
+    unchecked(motivatedActorX[activeIndex] = x);
+    unchecked(motivatedActorY[activeIndex] = y);
   }
   if (actorActive) {
-    setMotivatedOccupancyAt(actorX, actorY, 1);
+    setMotivatedOccupancyAt(actorX, actorY, occupancyId);
   }
 }
 
@@ -1015,7 +1202,7 @@ function applyRegenForActorIndex(index: i32): void {
     const regen = unchecked(motivatedActorVitalRegen[offset]);
     const next = clampVitalValue(current, max, regen);
     unchecked(motivatedActorVitalCurrent[offset] = next);
-    if (index == 0) {
+    if (index == normalizedActiveMotivatedActorIndex()) {
       unchecked(actorVitalCurrent[kind] = next);
     }
   }
@@ -1053,6 +1240,18 @@ export function setCurrentTick(value: i32): void {
 
 export function getCurrentTick(): i32 {
   return currentTick;
+}
+
+export function setActiveMotivatedActor(id: i32): ValidationError {
+  if (motivatedActorCount <= 0) {
+    return ValidationError.WrongActor;
+  }
+  const index = findMotivatedActorIndexById(id);
+  if (index < 0) {
+    return ValidationError.WrongActor;
+  }
+  syncActorMirrorFromMotivatedIndex(index);
+  return ValidationError.None;
 }
 
 export function getMapWidth(): i32 {

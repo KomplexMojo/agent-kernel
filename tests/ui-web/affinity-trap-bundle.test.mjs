@@ -26,6 +26,7 @@ const core = {
   init: exports.init,
   loadMvpScenario: exports.loadMvpScenario,
   applyAction: exports.applyAction,
+  setMoveAction: exports.setMoveAction,
   getMapWidth: exports.getMapWidth,
   getMapHeight: exports.getMapHeight,
   getActorX: exports.getActorX,

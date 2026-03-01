@@ -1,7 +1,11 @@
 import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { runMvpMovement } from "../../../runtime/src/mvp/movement.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
-import { DEFAULT_AFFINITY_EXPRESSION } from "../../../runtime/src/contracts/domain-constants.js";
+import {
+  AFFINITY_TARGET_TYPES,
+  DEFAULT_AFFINITY_EXPRESSION,
+  DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION,
+} from "../../../runtime/src/contracts/domain-constants.js";
 import { createLevelBuilderAdapter } from "../../../adapters-web/src/adapters/level-builder/index.js";
 import { setupPlayback } from "../movement-ui.js";
 
@@ -18,7 +22,7 @@ function sortActorsById(initialState) {
   return actors;
 }
 
-function buildActorIdMap(initialState, primaryActorId) {
+function buildActorIdMap(initialState, primaryActorId, { preserveIds = false } = {}) {
   const actors = sortActorsById(initialState);
   const map = new Map();
   if (typeof primaryActorId === "string" && primaryActorId.trim()) {
@@ -26,9 +30,11 @@ function buildActorIdMap(initialState, primaryActorId) {
   }
   actors.forEach((actor, index) => {
     const originalId = typeof actor?.id === "string" && actor.id.trim() ? actor.id.trim() : null;
-    const resolvedId = index === 0
-      ? (typeof primaryActorId === "string" && primaryActorId.trim() ? primaryActorId.trim() : originalId)
-      : `actor_${index + 1}`;
+    const resolvedId = preserveIds
+      ? (originalId || `actor_${index + 1}`)
+      : index === 0
+        ? (typeof primaryActorId === "string" && primaryActorId.trim() ? primaryActorId.trim() : originalId)
+        : `actor_${index + 1}`;
     if (originalId && resolvedId) {
       map.set(originalId, resolvedId);
     }
@@ -55,11 +61,40 @@ function normalizeAffinityStacks(affinityStacks) {
   return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
+function normalizeAffinityTargets(affinityTargets) {
+  if (!affinityTargets || typeof affinityTargets !== "object" || Array.isArray(affinityTargets)) {
+    return null;
+  }
+  const normalized = {};
+  Object.entries(affinityTargets).forEach(([rawKey, rawStacks]) => {
+    const stacks = Number.isFinite(rawStacks) ? Math.max(1, Math.floor(rawStacks)) : null;
+    if (!stacks) return;
+    const key = typeof rawKey === "string" ? rawKey.trim() : "";
+    if (!key) return;
+    const [rawKind, rawExpression, rawTargetType] = key.split(":");
+    const kind = rawKind || "";
+    const expression = rawExpression || DEFAULT_AFFINITY_EXPRESSION;
+    const targetType = AFFINITY_TARGET_TYPES.includes(rawTargetType)
+      ? rawTargetType
+      : DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION[expression] || DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION.push;
+    if (!kind) return;
+    normalized[`${kind}:${expression}:${targetType}`] = stacks;
+  });
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
 function cloneAbilities(abilities) {
   if (!Array.isArray(abilities)) return [];
   return abilities
     .filter((ability) => ability && typeof ability === "object" && !Array.isArray(ability))
     .map((ability) => ({ ...ability }));
+}
+
+function cloneResolvedEffects(effects) {
+  if (!Array.isArray(effects)) return [];
+  return effects
+    .filter((effect) => effect && typeof effect === "object" && !Array.isArray(effect))
+    .map((effect) => ({ ...effect }));
 }
 
 function mapAffinityEffectsActors(entries, actorIdMap) {
@@ -70,12 +105,16 @@ function mapAffinityEffectsActors(entries, actorIdMap) {
     const rawId = typeof entry.actorId === "string" ? entry.actorId : "";
     const actorId = actorIdMap.get(rawId) || rawId;
     if (!actorId) return;
+    const affinityTargets = normalizeAffinityTargets(entry.affinityTargets);
     const affinityStacks = normalizeAffinityStacks(entry.affinityStacks);
     const abilities = cloneAbilities(entry.abilities);
-    if (!affinityStacks && abilities.length === 0) return;
+    const resolvedEffects = cloneResolvedEffects(entry.resolvedEffects);
+    if (!affinityTargets && !affinityStacks && abilities.length === 0 && resolvedEffects.length === 0) return;
     const next = { actorId };
+    if (affinityTargets) next.affinityTargets = affinityTargets;
     if (affinityStacks) next.affinityStacks = affinityStacks;
     if (abilities.length > 0) next.abilities = abilities;
+    if (resolvedEffects.length > 0) next.resolvedEffects = resolvedEffects;
     mapped.set(actorId, next);
   });
   return Array.from(mapped.values()).sort((a, b) => a.actorId.localeCompare(b.actorId));
@@ -91,12 +130,16 @@ function buildFallbackAffinityActors(actors, actorIdMap) {
     const traits = actor.traits && typeof actor.traits === "object" && !Array.isArray(actor.traits)
       ? actor.traits
       : null;
+    const affinityTargets = normalizeAffinityTargets(traits?.affinityTargets);
     const affinityStacks = normalizeAffinityStacks(traits?.affinities);
     const abilities = cloneAbilities(traits?.abilities);
-    if (!affinityStacks && abilities.length === 0) return;
+    const resolvedEffects = cloneResolvedEffects(traits?.resolvedEffects);
+    if (!affinityTargets && !affinityStacks && abilities.length === 0 && resolvedEffects.length === 0) return;
     const next = { actorId };
+    if (affinityTargets) next.affinityTargets = affinityTargets;
     if (affinityStacks) next.affinityStacks = affinityStacks;
     if (abilities.length > 0) next.abilities = abilities;
+    if (resolvedEffects.length > 0) next.resolvedEffects = resolvedEffects;
     fallback.push(next);
   });
   fallback.sort((a, b) => a.actorId.localeCompare(b.actorId));
@@ -116,52 +159,28 @@ function normalizeVisibilityMode(mode) {
     : VISIBILITY_MODE_SIMULATION_FULL;
 }
 
-function parsePositiveInt(value, fallback) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  const normalized = Math.floor(parsed);
-  return normalized > 0 ? normalized : fallback;
+function normalizeRoomBounds(roomBounds = null) {
+  if (!roomBounds || typeof roomBounds !== "object") return null;
+  const x = Number(roomBounds.x);
+  const y = Number(roomBounds.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const width = Number.isFinite(roomBounds.width) ? Math.max(1, Math.floor(roomBounds.width)) : 1;
+  const height = Number.isFinite(roomBounds.height) ? Math.max(1, Math.floor(roomBounds.height)) : 1;
+  return {
+    x: Math.floor(x),
+    y: Math.floor(y),
+    width,
+    height,
+  };
 }
 
-function formatVisibilitySummary(visibility) {
-  if (!visibility || typeof visibility !== "object") {
-    return "Exploration HUD unavailable.";
-  }
-  const mode = visibility.mode === VISIBILITY_MODE_GAMEPLAY_FOG ? "gameplay_fog" : "simulation_full";
-  const map = visibility.map && typeof visibility.map === "object"
-    ? visibility.map
-    : { width: 0, height: 0, totalTiles: 0 };
-  const viewport = visibility.viewport && typeof visibility.viewport === "object"
-    ? visibility.viewport
-    : { width: 0, height: 0, startX: 0, startY: 0 };
-  const viewer = visibility.viewer && typeof visibility.viewer === "object"
-    ? visibility.viewer
-    : null;
-  const actorStats = Array.isArray(visibility.actorStats) ? visibility.actorStats : [];
-  const lines = [];
-  lines.push(`mode: ${mode}`);
-  lines.push(`map: ${map.width}x${map.height}`);
-  lines.push(`viewport: ${viewport.width}x${viewport.height} @ (${viewport.startX},${viewport.startY})`);
-  if (viewer) {
-    lines.push(`viewer: ${viewer.id}`);
-    lines.push(`viewer explored: ${viewer.exploredTiles}/${map.totalTiles} (${viewer.exploredPercent}%)`);
-    lines.push(`viewer visible now: ${viewer.visibleNowTiles}`);
-  } else {
-    lines.push("viewer: (none)");
-  }
-  if (actorStats.length > 0) {
-    lines.push("actors:");
-    actorStats.forEach((entry) => {
-      lines.push(
-        `${entry.id} explored ${entry.exploredTiles}/${map.totalTiles} (${entry.exploredPercent}%), visible ${entry.visibleNowTiles}`,
-      );
-    });
-  }
-  return lines.join("\n");
-}
-
-export function resolveArtifactAffinityEffects({ initialState, affinityEffects, primaryActorId } = {}) {
-  const { actors, map: actorIdMap } = buildActorIdMap(initialState, primaryActorId);
+export function resolveArtifactAffinityEffects({
+  initialState,
+  affinityEffects,
+  primaryActorId,
+  preserveActorIds = false,
+} = {}) {
+  const { actors, map: actorIdMap } = buildActorIdMap(initialState, primaryActorId, { preserveIds: preserveActorIds });
   const primaryActors = mapAffinityEffectsActors(affinityEffects?.actors, actorIdMap);
   const primaryTraps = cloneTrapEffects(affinityEffects?.traps);
   const fallbackActors = buildFallbackAffinityActors(actors, actorIdMap);
@@ -199,28 +218,18 @@ export function wireSimulationView({
   onObservation,
 } = {}) {
   const frameEl = root.querySelector("#frame-buffer");
-  const actorIdEl = root.querySelector("#actor-id-display");
-  const actorPosEl = root.querySelector("#actor-pos");
-  const actorHpEl = root.querySelector("#actor-hp");
   const actorListEl = root.querySelector("#actor-list");
   const affinityListEl = root.querySelector("#affinity-list");
   const tileActorListEl = root.querySelector("#tile-actor-list");
   const tileActorCountEl = root.querySelector("#tile-actor-count");
   const trapListEl = root.querySelector("#trap-list");
   const trapTabCountEl = root.querySelector("#trap-tab-count");
-  const eventStreamEl = root.querySelector("#event-stream");
   const baseTilesEl = root.querySelector("#base-tiles");
-  const tickEl = root.querySelector("#tick-indicator");
   const statusEl = root.querySelector("#status-message");
   const stepBackButton = root.querySelector("#step-back");
   const stepForwardButton = root.querySelector("#step-forward");
   const playPauseButton = root.querySelector("#play-pause");
   const resetRunButton = root.querySelector("#reset-run");
-  const visibilityModeInput = root.querySelector("#simulation-visibility-mode");
-  const viewerActorInput = root.querySelector("#simulation-viewer-actor");
-  const viewportSizeInput = root.querySelector("#simulation-viewport-size");
-  const visionRadiusInput = root.querySelector("#simulation-vision-radius");
-  const explorationHudEl = root.querySelector("#simulation-exploration-hud");
 
   let core = null;
   let controller = null;
@@ -233,25 +242,14 @@ export function wireSimulationView({
   let lastBaseTilesHash = "";
   let levelRenderRequestId = 0;
   let lastVisibilitySummary = null;
+  let inspectorVisible = actorInspector?.isVisible?.() === true;
+  let inspectorSelectedEntity = null;
   const visibilityPreferences = {
-    mode: normalizeVisibilityMode(visibilityModeInput?.value),
-    viewportSize: parsePositiveInt(viewportSizeInput?.value, DEFAULT_VIEWPORT_SIZE),
-    visionRadius: parsePositiveInt(visionRadiusInput?.value, DEFAULT_VISION_RADIUS),
+    mode: VISIBILITY_MODE_SIMULATION_FULL,
+    viewportSize: DEFAULT_VIEWPORT_SIZE,
+    visionRadius: DEFAULT_VISION_RADIUS,
     viewerActorId: "",
   };
-
-  if (visibilityModeInput) {
-    visibilityModeInput.value = visibilityPreferences.mode;
-  }
-  if (viewportSizeInput && !viewportSizeInput.value) {
-    viewportSizeInput.value = String(DEFAULT_VIEWPORT_SIZE);
-  }
-  if (visionRadiusInput && !visionRadiusInput.value) {
-    visionRadiusInput.value = String(DEFAULT_VISION_RADIUS);
-  }
-  if (explorationHudEl && !explorationHudEl.textContent) {
-    explorationHudEl.textContent = "Exploration HUD unavailable.";
-  }
 
   function setStatus(message) {
     if (statusEl) statusEl.textContent = message;
@@ -291,44 +289,68 @@ export function wireSimulationView({
     return result;
   }
 
-  function syncViewerActorOptions(visibility) {
-    if (
-      !viewerActorInput
-      || typeof viewerActorInput.replaceChildren !== "function"
-      || typeof globalThis.document?.createElement !== "function"
-    ) {
+  function normalizeInspectorEntity(entity) {
+    if (!entity || typeof entity !== "object") return null;
+    const actorId = typeof entity.actorId === "string" ? entity.actorId.trim() : "";
+    const type = typeof entity.type === "string" ? entity.type.trim().toLowerCase() : "";
+    const roomBounds = normalizeRoomBounds(entity.roomBounds);
+    const position = entity.position && Number.isFinite(entity.position.x) && Number.isFinite(entity.position.y)
+      ? { x: Math.floor(entity.position.x), y: Math.floor(entity.position.y) }
+      : null;
+    return {
+      ...entity,
+      type,
+      actorId,
+      roomBounds,
+      position,
+    };
+  }
+
+  function updateVisibilityModePreference(mode) {
+    const normalized = normalizeVisibilityMode(mode);
+    visibilityPreferences.mode = normalized;
+  }
+
+  function applyInspectorVisibilityOverrides() {
+    if (!controller) return;
+    if (!inspectorVisible) {
+      controller?.setVisibilityFocusRoom?.(null);
+      controller?.setFogFullMap?.(false);
+      updateVisibilityModePreference(VISIBILITY_MODE_SIMULATION_FULL);
+      controller?.setVisibilityMode?.(VISIBILITY_MODE_SIMULATION_FULL);
       return;
     }
-    const actorStats = Array.isArray(visibility?.actorStats) ? visibility.actorStats : [];
-    const selected = visibility?.viewerActorId || visibilityPreferences.viewerActorId || "";
-    const doc = globalThis.document;
-    const options = actorStats.map((entry) => String(entry?.id || "")).filter(Boolean);
-    viewerActorInput.replaceChildren();
-    options.forEach((actorId) => {
-      const option = doc.createElement("option");
-      option.value = actorId;
-      option.textContent = actorId;
-      viewerActorInput.appendChild(option);
-    });
-    if (options.length === 0) {
-      const option = doc.createElement("option");
-      option.value = "";
-      option.textContent = "(none)";
-      viewerActorInput.appendChild(option);
+
+    const selected = inspectorSelectedEntity;
+    const roomBounds = normalizeRoomBounds(selected?.roomBounds);
+    if (selected?.type === "room" && roomBounds) {
+      controller?.setFogFullMap?.(false);
+      controller?.setVisibilityFocusRoom?.(roomBounds);
+      updateVisibilityModePreference(VISIBILITY_MODE_SIMULATION_FULL);
+      controller?.setVisibilityMode?.(VISIBILITY_MODE_SIMULATION_FULL);
+      return;
     }
-    const effective = options.includes(selected) ? selected : options[0] || "";
-    viewerActorInput.value = effective;
-    visibilityPreferences.viewerActorId = effective;
+
+    controller?.setVisibilityFocusRoom?.(null);
+    const actorId = typeof selected?.actorId === "string" ? selected.actorId.trim() : "";
+    if (actorId) {
+      visibilityPreferences.viewerActorId = actorId;
+      controller?.setViewerActor?.(actorId);
+      controller?.setFogFullMap?.(true);
+      updateVisibilityModePreference(VISIBILITY_MODE_GAMEPLAY_FOG);
+      controller?.setVisibilityMode?.(VISIBILITY_MODE_GAMEPLAY_FOG);
+      return;
+    }
+
+    controller?.setFogFullMap?.(false);
+    updateVisibilityModePreference(VISIBILITY_MODE_SIMULATION_FULL);
+    controller?.setVisibilityMode?.(VISIBILITY_MODE_SIMULATION_FULL);
   }
 
   function handleObservation({ observation, frame, playing, visibility, actorIdLabel }) {
     actorInspector?.setActors?.(observation?.actors || [], { tick: observation?.tick });
     actorInspector?.setRunning?.(playing);
     lastVisibilitySummary = visibility || null;
-    syncViewerActorOptions(visibility);
-    if (explorationHudEl) {
-      explorationHudEl.textContent = formatVisibilitySummary(visibility);
-    }
     if (typeof onObservation === "function") {
       onObservation({
         observation,
@@ -354,6 +376,7 @@ export function wireSimulationView({
       core,
       actions,
       actorIdLabel: actorLabel,
+      actorIds: Array.isArray(config?.actorIds) ? config.actorIds : undefined,
       actorIdValue: ACTOR_ID_VALUE,
       affinityEffects: config?.affinityEffects,
       visibility: {
@@ -364,18 +387,13 @@ export function wireSimulationView({
       },
       elements: {
         frame: frameEl,
-        actorId: actorIdEl,
-        actorPos: actorPosEl,
-        actorHp: actorHpEl,
         actorList: actorListEl,
         affinityList: affinityListEl,
         tileActorList: tileActorListEl,
         tileActorCount: tileActorCountEl,
         trapList: trapListEl,
         trapCount: trapTabCountEl,
-        eventStream: eventStreamEl,
         baseTiles: baseTilesEl,
-        tick: tickEl,
         status: statusEl,
         playButton: playPauseButton,
         stepBack: stepBackButton,
@@ -385,6 +403,7 @@ export function wireSimulationView({
       onObservation: handleObservation,
       initCore,
     });
+    applyInspectorVisibilityOverrides();
   }
 
   function startRun(config) {
@@ -396,6 +415,7 @@ export function wireSimulationView({
     try {
       lastBaseTilesHash = "";
       latestLevelArtifacts = null;
+      actorInspector?.setScenario?.({});
       const movement = runMvpMovement({
         core,
         actorIdLabel: config.actorId || ACTOR_ID_LABEL,
@@ -413,23 +433,40 @@ export function wireSimulationView({
     }
   }
 
-  function startRunFromArtifacts({ simConfig, initialState, affinityEffects } = {}) {
+  function startRunFromArtifacts({
+    simConfig,
+    initialState,
+    affinityEffects,
+    spec,
+  } = {}) {
     if (!ready || !core) {
-      pendingArtifacts = { simConfig, initialState, affinityEffects };
+      pendingArtifacts = {
+        simConfig,
+        initialState,
+        affinityEffects,
+        spec,
+      };
       return;
     }
     try {
       lastBaseTilesHash = "";
       latestLevelArtifacts = null;
-      const actorLabel = sortActorsById(initialState)[0]?.id || "actor_bundle";
+      actorInspector?.setScenario?.({ simConfig, initialState, spec });
+      const sortedActors = sortActorsById(initialState);
+      const actorIds = sortedActors
+        .map((actor) => (typeof actor?.id === "string" ? actor.id.trim() : ""))
+        .filter(Boolean);
+      const actorLabel = actorIds[0] || "actor_bundle";
       const resolvedAffinityEffects = resolveArtifactAffinityEffects({
         initialState,
         affinityEffects,
         primaryActorId: actorLabel,
+        preserveActorIds: true,
       });
       mountPlayback(
         {
           actorId: actorLabel,
+          actorIds,
           actions: [],
           affinityEffects: resolvedAffinityEffects,
         },
@@ -462,40 +499,86 @@ export function wireSimulationView({
       if (actorId) {
         actorInspector?.selectActorById?.(actorId);
         visibilityPreferences.viewerActorId = actorId;
-        if (viewerActorInput) {
-          viewerActorInput.value = actorId;
-        }
         controller?.setViewerActor?.(actorId);
       }
     });
+  }
+
+  function scrollFrameToPosition(position) {
+    if (!frameEl || !position) return;
+    const x = Number.isFinite(position.x) ? Math.max(0, Math.floor(position.x)) : null;
+    const y = Number.isFinite(position.y) ? Math.max(0, Math.floor(position.y)) : null;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+    const targetCell = Array.from(frameEl.querySelectorAll?.(".actor-cell") || [])
+      .find((cell) => {
+        const cellX = Number(cell?.dataset?.x);
+        const cellY = Number(cell?.dataset?.y);
+        return Number.isFinite(cellX) && Number.isFinite(cellY) && cellX === x && cellY === y;
+      });
+    if (targetCell && typeof targetCell.scrollIntoView === "function") {
+      targetCell.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+      return;
+    }
+
+    const lineHeight = Number.parseFloat(globalThis.getComputedStyle?.(frameEl)?.lineHeight || "") || 14;
+    const charWidth = Number.parseFloat(globalThis.getComputedStyle?.(frameEl)?.fontSize || "") * 0.62 || 8;
+    if (typeof frameEl.scrollTo === "function") {
+      frameEl.scrollTo({
+        top: Math.max(0, y * lineHeight - lineHeight * 4),
+        left: Math.max(0, x * charWidth - charWidth * 8),
+        behavior: "smooth",
+      });
+      return;
+    }
+    frameEl.scrollTop = Math.max(0, y * lineHeight - lineHeight * 4);
+    frameEl.scrollLeft = Math.max(0, x * charWidth - charWidth * 8);
+  }
+
+  function focusInspectorEntity(entity) {
+    const normalizedEntity = normalizeInspectorEntity(entity);
+    if (!normalizedEntity) {
+      inspectorSelectedEntity = null;
+      applyInspectorVisibilityOverrides();
+      return;
+    }
+    inspectorSelectedEntity = normalizedEntity;
+    applyInspectorVisibilityOverrides();
+    const actorId = normalizedEntity.actorId;
+    if (actorId) {
+      visibilityPreferences.viewerActorId = actorId;
+      controller?.setViewerActor?.(actorId);
+      const actorCell = Array.from(frameEl?.querySelectorAll?.(".actor-cell") || [])
+        .find((cell) => String(cell?.dataset?.actorId || "") === actorId);
+      if (actorCell && typeof actorCell.scrollIntoView === "function") {
+        actorCell.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+      }
+      return;
+    }
+    if (!normalizedEntity.position && normalizedEntity.roomBounds) {
+      scrollFrameToPosition({
+        x: normalizedEntity.roomBounds.x + Math.floor(normalizedEntity.roomBounds.width / 2),
+        y: normalizedEntity.roomBounds.y + Math.floor(normalizedEntity.roomBounds.height / 2),
+      });
+      return;
+    }
+    scrollFrameToPosition(normalizedEntity.position);
+  }
+
+  function setInspectorVisibility(visible, entity = null) {
+    inspectorVisible = Boolean(visible);
+    if (entity && typeof entity === "object") {
+      inspectorSelectedEntity = normalizeInspectorEntity(entity);
+    } else if (!inspectorVisible) {
+      inspectorSelectedEntity = null;
+    }
+    applyInspectorVisibilityOverrides();
   }
 
   stepForwardButton?.addEventListener("click", () => controller?.stepForward?.());
   stepBackButton?.addEventListener("click", () => controller?.stepBack?.());
   playPauseButton?.addEventListener("click", () => controller?.toggle?.());
   resetRunButton?.addEventListener("click", () => controller?.reset?.());
-  visibilityModeInput?.addEventListener("change", () => {
-    const mode = normalizeVisibilityMode(visibilityModeInput.value);
-    visibilityPreferences.mode = mode;
-    controller?.setVisibilityMode?.(mode);
-  });
-  viewerActorInput?.addEventListener("change", () => {
-    const actorId = typeof viewerActorInput.value === "string" ? viewerActorInput.value : "";
-    visibilityPreferences.viewerActorId = actorId;
-    controller?.setViewerActor?.(actorId);
-  });
-  viewportSizeInput?.addEventListener("change", () => {
-    const next = parsePositiveInt(viewportSizeInput.value, DEFAULT_VIEWPORT_SIZE);
-    visibilityPreferences.viewportSize = next;
-    viewportSizeInput.value = String(next);
-    controller?.setViewportSize?.(next);
-  });
-  visionRadiusInput?.addEventListener("change", () => {
-    const next = parsePositiveInt(visionRadiusInput.value, DEFAULT_VISION_RADIUS);
-    visibilityPreferences.visionRadius = next;
-    visionRadiusInput.value = String(next);
-    controller?.setVisionRadius?.(next);
-  });
 
   async function boot() {
     stepBackButton && (stepBackButton.disabled = true);
@@ -530,23 +613,44 @@ export function wireSimulationView({
     boot();
   }
 
+  inspectorSelectedEntity = normalizeInspectorEntity(actorInspector?.getSelectedEntity?.() || null);
+
   function setViewerActor(actorId) {
     const normalized = typeof actorId === "string" ? actorId.trim() : "";
     if (!normalized) return;
     visibilityPreferences.viewerActorId = normalized;
-    if (viewerActorInput) {
-      viewerActorInput.value = normalized;
-    }
     controller?.setViewerActor?.(normalized);
+  }
+
+  function performGameAction({ action, actorId } = {}) {
+    if (!controller || typeof controller.performRealtimeAction !== "function") {
+      return { ok: false, reason: "missing_controller" };
+    }
+    const result = controller.performRealtimeAction({ action, actorId });
+    if (result?.ok === false) {
+      if (result.reason === "cast_unimplemented") {
+        setStatus("Cast not implemented yet.");
+      } else if (result.reason === "actor_not_found") {
+        setStatus(`Actor ${result.actorId || "unknown"} is unavailable.`);
+      } else if (result.reason === "missing_actor") {
+        setStatus("Select an attacker or defender first.");
+      } else if (result.reason === "unsupported_action") {
+        setStatus("Unsupported game action.");
+      }
+    }
+    return result;
   }
 
   return {
     startRun,
     startRunFromArtifacts,
+    focusInspectorEntity,
     regenerateLevelArtifacts,
     getLatestLevelArtifacts: () => latestLevelArtifacts,
     getVisibilitySummary: () => (lastVisibilitySummary ? { ...lastVisibilitySummary } : null),
     setViewerActor,
+    performGameAction,
+    setInspectorVisibility,
     isReady: () => ready,
     dispose: () => {
       controller?.pause?.();

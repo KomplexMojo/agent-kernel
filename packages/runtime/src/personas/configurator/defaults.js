@@ -3,7 +3,7 @@ export const LEVEL_GEN_DEFAULTS = Object.freeze({
   roomMinSize: 3,
   roomMaxSize: 9,
   corridorWidth: 1,
-  pattern: "grid",
+  pattern: "none",
   patternSpacing: 6,
   patternLineWidth: 1,
   patternGapEvery: 4,

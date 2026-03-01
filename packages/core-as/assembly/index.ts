@@ -57,6 +57,15 @@ import {
   getTileActorDurability as getTileActorDurabilityState,
   isBarrierTile as isBarrierTileState,
   applyBarrierDurabilityDamage as applyBarrierDurabilityDamageState,
+  raiseBarrierAt as raiseBarrierAtState,
+  destroyBarrierAt as destroyBarrierAtState,
+  armStaticTrapAt as armStaticTrapAtState,
+  disarmStaticTrapAt as disarmStaticTrapAtState,
+  getStaticTrapCount as getStaticTrapCountState,
+  getStaticTrapAffinityAt as getStaticTrapAffinityAtState,
+  getStaticTrapExpressionAt as getStaticTrapExpressionAtState,
+  getStaticTrapStacksAt as getStaticTrapStacksAtState,
+  getStaticTrapManaReserveAt as getStaticTrapManaReserveAtState,
   setSpawnPosition as setSpawnPositionState,
   clearActorPlacements as clearActorPlacementsState,
   addActorPlacement as addActorPlacementState,
@@ -80,6 +89,7 @@ import {
   getMotivatedActorMovementCostByIndex as getMotivatedActorMovementCostByIndexState,
   getMotivatedActorActionCostManaByIndex as getMotivatedActorActionCostManaByIndexState,
   getMotivatedActorActionCostStaminaByIndex as getMotivatedActorActionCostStaminaByIndexState,
+  setActiveMotivatedActor as setActiveMotivatedActorState,
   setMotivatedActorVital as setMotivatedActorVitalState,
   setMotivatedActorMovementCost as setMotivatedActorMovementCostState,
   setMotivatedActorActionCostMana as setMotivatedActorActionCostManaState,
@@ -397,6 +407,49 @@ export function getTileActorDurability(x: i32, y: i32): i32 {
   return getTileActorDurabilityState(x, y);
 }
 
+export function raiseBarrierAt(x: i32, y: i32): i32 {
+  return raiseBarrierAtState(x, y);
+}
+
+export function destroyBarrierAt(x: i32, y: i32): i32 {
+  return destroyBarrierAtState(x, y);
+}
+
+export function armStaticTrapAt(
+  x: i32,
+  y: i32,
+  affinityKind: i32,
+  expression: i32,
+  stacks: i32,
+  manaReserve: i32,
+): i32 {
+  return armStaticTrapAtState(x, y, affinityKind, expression, stacks, manaReserve);
+}
+
+export function disarmStaticTrapAt(x: i32, y: i32): i32 {
+  return disarmStaticTrapAtState(x, y);
+}
+
+export function getStaticTrapCount(): i32 {
+  return getStaticTrapCountState();
+}
+
+export function getStaticTrapAffinityAt(x: i32, y: i32): i32 {
+  return getStaticTrapAffinityAtState(x, y);
+}
+
+export function getStaticTrapExpressionAt(x: i32, y: i32): i32 {
+  return getStaticTrapExpressionAtState(x, y);
+}
+
+export function getStaticTrapStacksAt(x: i32, y: i32): i32 {
+  return getStaticTrapStacksAtState(x, y);
+}
+
+export function getStaticTrapManaReserveAt(x: i32, y: i32): i32 {
+  return getStaticTrapManaReserveAtState(x, y);
+}
+
 export function getCurrentTick(): i32 {
   return getCurrentTickValue();
 }
@@ -515,4 +568,8 @@ export function getMotivatedActorActionCostManaByIndex(index: i32): i32 {
 
 export function getMotivatedActorActionCostStaminaByIndex(index: i32): i32 {
   return getMotivatedActorActionCostStaminaByIndexState(index);
+}
+
+export function setActiveMotivatedActor(actorId: i32): i32 {
+  return setActiveMotivatedActorState(actorId);
 }

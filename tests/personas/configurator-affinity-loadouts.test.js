@@ -102,6 +102,36 @@ assert.ok(equipmentResult.errors.find((err) => err.code === "non_affinity_equipm
   runEsm(script);
 });
 
+test("loadouts reject invalid target types", () => {
+  const script = `
+import assert from "node:assert/strict";
+import { normalizeAffinityPresetCatalog, normalizeActorLoadoutCatalog } from ${JSON.stringify(modulePath)};
+
+const presetsFixture = ${JSON.stringify(presetsFixture)};
+const presetsResult = normalizeAffinityPresetCatalog(presetsFixture);
+const invalidTargetTypeLoadout = {
+  loadouts: [
+    {
+      actorId: "actor_mvp",
+      affinities: [
+        {
+          presetId: "affinity_fire_push",
+          kind: "fire",
+          expression: "push",
+          stacks: 1,
+          targetType: "ceiling",
+        },
+      ],
+    },
+  ],
+};
+const result = normalizeActorLoadoutCatalog(invalidTargetTypeLoadout, { presets: presetsResult.value.presets });
+assert.equal(result.ok, false);
+assert.ok(result.errors.find((err) => err.code === "invalid_target_type"));
+`;
+  runEsm(script);
+});
+
 test("loadouts reject missing actor ids", () => {
   const script = `
 import assert from "node:assert/strict";

@@ -2,10 +2,13 @@ import { AFFINITY_DEFAULTS } from "./defaults.js";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
+  AFFINITY_TARGET_TYPES,
+  DEFAULT_AFFINITY_EXPRESSION,
+  DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION,
   VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
 
-export { AFFINITY_KINDS, AFFINITY_EXPRESSIONS };
+export { AFFINITY_KINDS, AFFINITY_EXPRESSIONS, AFFINITY_TARGET_TYPES };
 const ABILITY_KINDS = Object.freeze(["attack", "buff", "area"]);
 const STACK_SCALING = Object.freeze(["linear", "multiplier"]);
 
@@ -27,6 +30,11 @@ function addError(errors, field, code, actorId) {
     return;
   }
   errors.push({ field, code });
+}
+
+function defaultTargetTypeForExpression(expression) {
+  return DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION[expression]
+    || DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION[DEFAULT_AFFINITY_EXPRESSION];
 }
 
 function normalizeEffect(effect, fieldBase, errors) {
@@ -96,6 +104,9 @@ function normalizeAbility(ability, fieldBase, errors, preset) {
   if (preset && ability.expression && ability.expression !== preset.expression) {
     addError(errors, `${fieldBase}.expression`, "mismatched_expression");
   }
+  if (ability.targetType !== undefined && !AFFINITY_TARGET_TYPES.includes(ability.targetType)) {
+    addError(errors, `${fieldBase}.targetType`, "invalid_target_type");
+  }
   return {
     id: ability.id,
     kind: ability.kind,
@@ -103,6 +114,7 @@ function normalizeAbility(ability, fieldBase, errors, preset) {
     potency: ability.potency,
     manaCost: ability.manaCost,
     expression: ability.expression,
+    targetType: ability.targetType,
   };
 }
 
@@ -286,6 +298,15 @@ export function normalizeActorLoadoutCatalog(
       if (!AFFINITY_EXPRESSIONS.includes(affinity.expression)) {
         addError(errors, `${affinityBase}.expression`, "invalid_expression", actorIdValue);
       }
+      const normalizedExpression = AFFINITY_EXPRESSIONS.includes(affinity.expression)
+        ? affinity.expression
+        : DEFAULT_AFFINITY_EXPRESSION;
+      const targetType = affinity.targetType === undefined
+        ? defaultTargetTypeForExpression(normalizedExpression)
+        : affinity.targetType;
+      if (!AFFINITY_TARGET_TYPES.includes(targetType)) {
+        addError(errors, `${affinityBase}.targetType`, "invalid_target_type", actorIdValue);
+      }
       if (typeof affinity.presetId !== "string" || affinity.presetId.trim() === "") {
         addError(errors, `${affinityBase}.presetId`, "invalid_preset_id", actorIdValue);
       }
@@ -310,8 +331,11 @@ export function normalizeActorLoadoutCatalog(
       return {
         presetId: affinity.presetId,
         kind: affinity.kind,
-        expression: affinity.expression,
+        expression: normalizedExpression,
         stacks,
+        targetType: AFFINITY_TARGET_TYPES.includes(targetType)
+          ? targetType
+          : defaultTargetTypeForExpression(normalizedExpression),
       };
     });
 

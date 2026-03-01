@@ -653,8 +653,9 @@ export const AFFINITY_PRESET_SCHEMA = "agent-kernel/AffinityPresetArtifact";
 export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
 export const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
 
-export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "dark";
+export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
 export type AffinityExpression = "push" | "pull" | "emit";
+export type AffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 export type AffinityStackScaling = "linear" | "multiplier";
 export type AffinityAbilityKind = "attack" | "buff" | "area";
 
@@ -683,6 +684,7 @@ export interface AffinityAbilityV1 {
   potency: number;
   manaCost?: number;
   expression?: AffinityExpression;
+  targetType?: AffinityTargetType;
 }
 
 export interface AffinityPresetV1 {
@@ -715,6 +717,23 @@ export interface ActorLoadoutAffinityV1 {
   kind: AffinityKind;
   expression: AffinityExpression;
   stacks: number;
+  targetType?: AffinityTargetType;
+}
+
+export interface AffinityResolvedEffectV1 {
+  id: string;
+  category: "vital" | "environment";
+  operation: string;
+  sourceType: "actor" | "trap" | "static_trap";
+  sourceId?: string;
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  stacks: number;
+  targetType: AffinityTargetType;
+  targetVital?: "health" | "mana" | "stamina" | "durability";
+  potency?: number;
+  manaReserve?: number;
+  minimumStacks?: number;
 }
 
 export interface ActorLoadoutV1 {
@@ -742,6 +761,8 @@ export interface AffinitySummaryActorV1 {
   };
   abilities: AffinityAbilityV1[];
   affinityStacks: Record<string, number>;
+  affinityTargets?: Record<string, number>;
+  resolvedEffects?: AffinityResolvedEffectV1[];
 }
 
 export interface AffinitySummaryTrapV1 {
@@ -754,6 +775,8 @@ export interface AffinitySummaryTrapV1 {
   };
   abilities: AffinityAbilityV1[];
   affinityStacks: Record<string, number>;
+  affinityTargets?: Record<string, number>;
+  resolvedEffects?: AffinityResolvedEffectV1[];
 }
 
 export interface AffinitySummaryV1 {
@@ -918,6 +941,10 @@ export interface ActionV1 {
     | "request_solver"
     | "fulfill_request"
     | "defer_request"
+    | "destroy_barrier"
+    | "raise_barrier"
+    | "arm_static_trap"
+    | "disarm_static_trap"
     | "custom";
 
   /**

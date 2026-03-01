@@ -1,4 +1,9 @@
-import { VITAL_KEYS, VITAL_KIND } from "../contracts/domain-constants.js";
+import {
+  AFFINITY_EXPRESSIONS,
+  AFFINITY_KINDS,
+  VITAL_KEYS,
+  VITAL_KIND,
+} from "../contracts/domain-constants.js";
 
 const TILE_CODES = Object.freeze({
   wall: 0,
@@ -29,6 +34,18 @@ const CAPABILITY_DEFAULTS = Object.freeze({
   actionCostMana: 0,
   actionCostStamina: 0,
 });
+const AFFINITY_KIND_CODES = Object.freeze(
+  AFFINITY_KINDS.reduce((acc, kind, index) => {
+    acc[kind] = index + 1;
+    return acc;
+  }, {}),
+);
+const AFFINITY_EXPRESSION_CODES = Object.freeze(
+  AFFINITY_EXPRESSIONS.reduce((acc, expression, index) => {
+    acc[expression] = index + 1;
+    return acc;
+  }, {}),
+);
 
 function toInt(value) {
   const num = Number(value);
@@ -183,6 +200,30 @@ function normalizeCapabilities(capabilities) {
   };
 }
 
+function armStaticTrapsFromLayout(core, layoutData = {}) {
+  if (typeof core?.armStaticTrapAt !== "function") {
+    return;
+  }
+  const traps = Array.isArray(layoutData?.traps) ? layoutData.traps : [];
+  traps.forEach((trap) => {
+    if (!trap || typeof trap !== "object") return;
+    const x = toInt(trap.x);
+    const y = toInt(trap.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const kind = typeof trap.affinity?.kind === "string" ? trap.affinity.kind : "";
+    const expression = typeof trap.affinity?.expression === "string" ? trap.affinity.expression : "push";
+    const stacks = toInt(trap.affinity?.stacks);
+    const manaReserve = toInt(trap.vitals?.mana?.current);
+    const affinityKind = AFFINITY_KIND_CODES[kind];
+    const affinityExpression = AFFINITY_EXPRESSION_CODES[expression];
+    if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) return;
+    if (!Number.isFinite(stacks) || stacks <= 0) return;
+    if (!Number.isFinite(manaReserve) || manaReserve <= 0) return;
+    if (trap.blocking === true) return;
+    core.armStaticTrapAt(x, y, affinityKind, affinityExpression, stacks, manaReserve);
+  });
+}
+
 export function applySimConfigToCore(core, simConfig) {
   if (!core || !simConfig) {
     return { ok: false, reason: "missing_inputs" };
@@ -209,6 +250,7 @@ export function applySimConfigToCore(core, simConfig) {
   if (Number.isFinite(tileError) && tileError !== 0) {
     return { ok: false, reason: "invalid_layout_tiles", error: tileError };
   }
+  armStaticTrapsFromLayout(core, layout.data);
 
   return { ok: true, dimensions, spawn, exit };
 }

@@ -13,11 +13,6 @@ function readHtml() {
   return fs.readFileSync(htmlPath, "utf8");
 }
 
-function getPanelOpenings(html, tabId) {
-  const pattern = new RegExp(`<div class="tab-panel" data-tab-panel="${tabId}"[^>]*>`, "g");
-  return [...html.matchAll(pattern)].map((match) => match[0]);
-}
-
 function getFirstPanelSlice(html, tabId) {
   const marker = `data-tab-panel="${tabId}"`;
   const startIndex = html.indexOf(marker);
@@ -30,58 +25,64 @@ function getFirstPanelSlice(html, tabId) {
 test("primary workflow tabs render in the expected order", () => {
   const html = readHtml();
   const tabIds = [...html.matchAll(/data-tab="([a-z-]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(tabIds, ["design", "simulation", "runtime", "diagnostics"]);
+  assert.deepEqual(tabIds, ["design", "simulation", "diagnostics"]);
+  assert.match(html, /data-tab="simulation"[^>]*>Game Board</);
+  assert.doesNotMatch(html, /data-tab="simulation"[^>]*>Simulation</);
   assert.match(html, /data-tab="design"[^>]*aria-selected="true"/);
 });
 
-test("design panels are visible by default", () => {
+test("design panel contains the unified card workspace layout", () => {
   const html = readHtml();
-  const designPanels = getPanelOpenings(html, "design");
-  assert.ok(designPanels.length > 0);
-  designPanels.forEach((panel) => {
-    assert.equal(panel.includes("hidden"), false);
-  });
-});
+  const designPanel = getFirstPanelSlice(html, "design");
 
-test("simulation, runtime, and diagnostics panels are hidden by default", () => {
-  const html = readHtml();
-  const simulationPanels = getPanelOpenings(html, "simulation");
-  const runtimePanels = getPanelOpenings(html, "runtime");
-  const diagnosticsPanels = getPanelOpenings(html, "diagnostics");
-  assert.ok(simulationPanels.length > 0);
-  assert.ok(runtimePanels.length > 0);
-  assert.ok(diagnosticsPanels.length > 0);
-  simulationPanels.forEach((panel) => {
-    assert.ok(panel.includes("hidden"));
-  });
-  runtimePanels.forEach((panel) => {
-    assert.ok(panel.includes("hidden"));
-  });
-  diagnosticsPanels.forEach((panel) => {
-    assert.ok(panel.includes("hidden"));
-  });
+  const typeIdx = designPanel.indexOf('id="design-property-group-type"');
+  const affinityIdx = designPanel.indexOf('id="design-property-group-affinities"');
+  const expressionIdx = designPanel.indexOf('id="design-property-group-expressions"');
+  const motivationIdx = designPanel.indexOf('id="design-property-group-motivations"');
+
+  assert.ok(typeIdx >= 0);
+  assert.ok(affinityIdx > typeIdx);
+  assert.ok(expressionIdx > affinityIdx);
+  assert.ok(motivationIdx > expressionIdx);
+
+  assert.match(designPanel, /id="design-card-grid"/);
+  assert.match(designPanel, /id="design-level-budget"/);
+  assert.match(designPanel, /id="design-budget-split-room"/);
+  assert.match(designPanel, /id="design-budget-split-attacker"/);
+  assert.match(designPanel, /id="design-budget-split-defender"/);
+  assert.match(designPanel, /id="design-budget-split-room-tokens"/);
+  assert.match(designPanel, /id="design-budget-split-attacker-tokens"/);
+  assert.match(designPanel, /id="design-budget-split-defender-tokens"/);
+  assert.match(designPanel, /id="design-budget-overview"/);
+  assert.match(designPanel, /id="design-card-group-room"/);
+  assert.match(designPanel, /id="design-card-group-attacker"/);
+  assert.match(designPanel, /id="design-card-group-defender"/);
+  assert.match(designPanel, /id="design-card-group-budget-room"/);
+  assert.match(designPanel, /id="design-card-group-budget-attacker"/);
+  assert.match(designPanel, /id="design-card-group-budget-defender"/);
+  assert.doesNotMatch(designPanel, /id="design-ai-prompt"/);
+  assert.doesNotMatch(designPanel, /id="design-ai-generate"/);
+  assert.doesNotMatch(designPanel, /id="design-brief-output"/);
+  assert.doesNotMatch(designPanel, /id="design-spend-ledger-output"/);
+  assert.doesNotMatch(designPanel, /id="design-card-set-json"/);
+  assert.match(designPanel, /id="design-build-and-load"/);
+  assert.match(designPanel, /id="design-build-status"/);
 });
 
 test("simulation panel contains playback controls", () => {
   const html = readHtml();
   const simulationPanel = getFirstPanelSlice(html, "simulation");
   assert.match(simulationPanel, /id="frame-buffer"/);
-  assert.match(simulationPanel, /id="actor-id-display"/);
   assert.match(simulationPanel, /id="play-pause"/);
-  assert.doesNotMatch(simulationPanel, /id="seed-input"/);
-  assert.doesNotMatch(simulationPanel, /id="adapter-output"/);
-});
-
-test("runtime panel contains viewport, controls, and actor card sections", () => {
-  const html = readHtml();
-  const runtimePanel = getFirstPanelSlice(html, "runtime");
-  assert.match(runtimePanel, /id="runtime-viewport"/);
-  assert.match(runtimePanel, /id="runtime-move-up"/);
-  assert.match(runtimePanel, /id="runtime-move-down"/);
-  assert.match(runtimePanel, /id="runtime-move-left"/);
-  assert.match(runtimePanel, /id="runtime-move-right"/);
-  assert.match(runtimePanel, /id="runtime-cast"/);
-  assert.match(runtimePanel, /id="runtime-attacker-card"/);
-  assert.match(runtimePanel, /id="runtime-visible-defenders"/);
-  assert.match(runtimePanel, /id="runtime-offscreen-defenders"/);
+  assert.match(simulationPanel, /id="step-back"/);
+  assert.match(simulationPanel, /id="step-forward"/);
+  assert.match(simulationPanel, /id="runtime-move-up"/);
+  assert.match(simulationPanel, /id="runtime-move-down"/);
+  assert.match(simulationPanel, /id="runtime-move-left"/);
+  assert.match(simulationPanel, /id="runtime-move-right"/);
+  assert.match(simulationPanel, /id="runtime-cast"/);
+  assert.match(simulationPanel, /id="runtime-status"/);
+  assert.doesNotMatch(simulationPanel, /id="actor-id-display"/);
+  assert.doesNotMatch(simulationPanel, /id="simulation-visibility-mode"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-viewport"/);
 });

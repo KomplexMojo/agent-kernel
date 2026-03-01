@@ -17,16 +17,16 @@ assert.equal(costs.costs.floorTiles, 1);
 assert.equal(costs.costs.hallwayTiles, 3);
 
 const spend = evaluateLayoutSpend({ layout, budgetTokens: 12, priceList });
-assert.equal(spend.spentTokens, 6);
-assert.equal(spend.remainingBudgetTokens, 6);
+assert.equal(spend.spentTokens, 3);
+assert.equal(spend.remainingBudgetTokens, 9);
 assert.equal(spend.overBudget, false);
 assert.equal(spend.layout.floorTiles, 3);
-assert.equal(spend.layout.hallwayTiles, 1);
+assert.equal(spend.layout.hallwayTiles, 0);
+assert.ok(spend.warnings?.some((warn) => warn.code === "deprecated_hallway_tiles_ignored"));
 
 const over = evaluateLayoutSpend({ layout, budgetTokens: 5, priceList });
-assert.equal(over.overBudget, true);
-assert.equal(over.remainingBudgetTokens, 0);
-assert.ok(over.warnings?.some((warn) => warn.code === "layout_over_budget"));
+assert.equal(over.overBudget, false);
+assert.equal(over.remainingBudgetTokens, 2);
 `;
 
 test("allocator layout spend applies tile costs and budget bounds", () => {

@@ -9,6 +9,7 @@ import {
   buildLlmPhasePromptTemplate,
 } from "../../contracts/domain-constants.js";
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
+import { buildCardSetFromSummary } from "../director/summary-selections.js";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -454,6 +455,10 @@ function sanitizeSummaryResponse(responseText, { allowedAffinities, allowedExpre
   return sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, phase });
 }
 
+export function buildCardModelFromLlmSummary(summary) {
+  return buildCardSetFromSummary(summary || {});
+}
+
 function normalizeSessionPrompt({
   prompt,
   goal,
@@ -683,12 +688,19 @@ export async function runLlmSession({
     endedAt,
     durationMs,
   };
+  const cardSet = buildCardModelFromLlmSummary(capture.summary || {});
+  const summaryWithCards = capture.summary && typeof capture.summary === "object"
+    ? {
+      ...capture.summary,
+      cardSet,
+    }
+    : capture.summary;
 
   const captureResult = buildLlmCaptureArtifact({
     prompt: finalPrompt,
     responseText,
     responseParsed: capture.responseParsed,
-    summary: capture.summary,
+    summary: summaryWithCards,
     parseErrors: capture.errors,
     model,
     baseUrl,
@@ -710,7 +722,8 @@ export async function runLlmSession({
     prompt: finalPrompt,
     responseText,
     responseParsed: capture.responseParsed,
-    summary: capture.summary,
+    summary: summaryWithCards,
+    cardSet,
     errors: capture.errors,
     capture: captureResult.capture,
     captureErrors: captureResult.errors,

@@ -19,19 +19,33 @@ function parseStringUnion(sourceText, typeName) {
 }
 
 test("affinity and expression type unions stay aligned with shared runtime constants", async () => {
-  const { AFFINITY_KINDS, AFFINITY_EXPRESSIONS } = await import("../../packages/runtime/src/contracts/domain-constants.js");
+  const {
+    AFFINITY_KINDS,
+    AFFINITY_EXPRESSIONS,
+    AFFINITY_TARGET_TYPES,
+    AFFINITY_OPPOSITES,
+  } = await import("../../packages/runtime/src/contracts/domain-constants.js");
   const artifactsSource = readFileSync(ARTIFACTS_TS, "utf8");
   const configuratorSource = readFileSync(CONFIGURATOR_CONTRACTS_TS, "utf8");
 
   const affinityKinds = parseStringUnion(artifactsSource, "AffinityKind");
   const affinityExpressions = parseStringUnion(artifactsSource, "AffinityExpression");
+  const affinityTargetTypes = parseStringUnion(artifactsSource, "AffinityTargetType");
   const trapAffinityKinds = parseStringUnion(configuratorSource, "TrapAffinityKind");
   const trapAffinityExpressions = parseStringUnion(configuratorSource, "TrapAffinityExpression");
+  const trapAffinityTargetTypes = parseStringUnion(configuratorSource, "TrapAffinityTargetType");
 
   assert.deepEqual(affinityKinds, Array.from(AFFINITY_KINDS));
   assert.deepEqual(affinityExpressions, Array.from(AFFINITY_EXPRESSIONS));
+  assert.deepEqual(affinityTargetTypes, Array.from(AFFINITY_TARGET_TYPES));
   assert.deepEqual(trapAffinityKinds, Array.from(AFFINITY_KINDS));
   assert.deepEqual(trapAffinityExpressions, Array.from(AFFINITY_EXPRESSIONS));
+  assert.deepEqual(trapAffinityTargetTypes, Array.from(AFFINITY_TARGET_TYPES));
+  AFFINITY_KINDS.forEach((kind) => {
+    const opposite = AFFINITY_OPPOSITES[kind];
+    assert.ok(AFFINITY_KINDS.includes(opposite), `opposite for ${kind} must be a known affinity`);
+    assert.equal(AFFINITY_OPPOSITES[opposite], kind, `opposites must be symmetric for ${kind}`);
+  });
 });
 
 test("domain constraints expose canonical llm defaults", async () => {

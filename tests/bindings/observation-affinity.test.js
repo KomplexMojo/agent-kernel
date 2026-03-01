@@ -26,14 +26,14 @@ assert.equal(baseObs.traps, undefined);
 
 const obs = readObservation(core, { affinityEffects: fixture.expected });
 assert.deepEqual(obs.actors[0].affinities, [
-  { kind: "fire", expression: "push", stacks: 2 },
-  { kind: "life", expression: "pull", stacks: 1 },
+  { kind: "fire", expression: "push", targetType: "enemy", stacks: 2 },
+  { kind: "life", expression: "pull", targetType: "self", stacks: 1 },
 ]);
 assert.deepEqual(obs.actors[0].abilities, fixture.expected.actors[0].abilities);
 assert.equal(obs.traps.length, 1);
 assert.deepEqual(obs.traps[0].position, fixture.expected.traps[0].position);
 assert.deepEqual(obs.traps[0].affinities, [
-  { kind: "fire", expression: "push", stacks: 2 },
+  { kind: "fire", expression: "push", targetType: "floor", stacks: 2 },
 ]);
 assert.deepEqual(obs.traps[0].abilities, fixture.expected.traps[0].abilities);
 assert.deepEqual(obs.traps[0].vitals, fixture.expected.traps[0].vitals);

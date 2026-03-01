@@ -272,7 +272,7 @@ export function wireBundleReview({
 
   function runFromBundle() {
     if (!state.bundle) {
-      setStatus(statusEl, "Load a bundle.json to run the simulation.");
+      setStatus(statusEl, "Load a bundle.json to run the game.");
       return false;
     }
     const simConfig = findArtifact(SIM_CONFIG_SCHEMA);
@@ -289,7 +289,12 @@ export function wireBundleReview({
       }
       : null;
     if (typeof onRun === "function") {
-      onRun({ simConfig, initialState, affinityEffects });
+      onRun({
+        simConfig,
+        initialState,
+        affinityEffects,
+        spec: state.spec || state.bundle?.spec || null,
+      });
     }
     setStatus(statusEl, "Loaded artifacts into Runtime controls.");
     return true;

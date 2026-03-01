@@ -17,7 +17,13 @@ const fixture = ${JSON.stringify(fixture)};
 
 assert.equal(formatAffinities([]), "No affinities equipped");
 const darkAffinity = formatAffinities([{ kind: "dark", expression: "pull", stacks: 1 }]);
-assert.ok(darkAffinity.includes("reduces visibility"));
+assert.ok(darkAffinity.includes("obscures self and can blind"));
+const lightAffinity = formatAffinities([{ kind: "light", expression: "emit", stacks: 1 }]);
+assert.ok(lightAffinity.includes("extends sight in fog of war"));
+const corrodeAffinity = formatAffinities([{ kind: "corrode", expression: "push", stacks: 1 }]);
+assert.ok(corrodeAffinity.includes("erodes durability"));
+const fortifyAffinity = formatAffinities([{ kind: "fortify", expression: "emit", stacks: 1 }]);
+assert.ok(fortifyAffinity.includes("reinforces durability-bearing targets"));
 
 const abilityText = formatAbilities([
   { id: "life_surge", kind: "buff", affinityKind: "life", expression: "pull", potency: 1, manaCost: 0 },

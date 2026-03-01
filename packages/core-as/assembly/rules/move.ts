@@ -7,6 +7,10 @@ import {
   getActorVitalCurrent,
   getActorVitalMax,
   getActorVitalRegen,
+  getStaticTrapAffinityAt,
+  getStaticTrapExpressionAt,
+  getStaticTrapManaReserveAt,
+  getStaticTrapStacksAt,
   getActorX,
   getActorY,
   getCurrentTick,
@@ -19,6 +23,56 @@ import {
   withinBounds,
 } from "../state/world";
 import { ValidationError } from "../validate/inputs";
+
+const STATIC_TRAP_EMIT_EXPRESSION: i32 = 3;
+const STACK_ONE_EMIT_POWER: i32 = 10;
+
+function resolveTrapTargetVital(affinityKind: i32): i32 {
+  if (affinityKind == 1 || affinityKind == 2 || affinityKind == 5 || affinityKind == 6) {
+    return VitalKind.Health;
+  }
+  if (affinityKind == 3 || affinityKind == 4) {
+    return VitalKind.Stamina;
+  }
+  if (affinityKind == 9 || affinityKind == 10) {
+    return VitalKind.Mana;
+  }
+  if (affinityKind == 7 || affinityKind == 8) {
+    return VitalKind.Durability;
+  }
+  return -1;
+}
+
+function computeTrapDamage(stacks: i32, manaReserve: i32): i32 {
+  if (stacks <= 0 || manaReserve <= 0) {
+    return 0;
+  }
+  const scaled = (STACK_ONE_EMIT_POWER * stacks * manaReserve) / 100;
+  return scaled > 0 ? scaled : 1;
+}
+
+function applyStaticTrapDamageAt(x: i32, y: i32): void {
+  const expression = getStaticTrapExpressionAt(x, y);
+  if (expression != STATIC_TRAP_EMIT_EXPRESSION) {
+    return;
+  }
+  const affinityKind = getStaticTrapAffinityAt(x, y);
+  const targetVital = resolveTrapTargetVital(affinityKind);
+  if (targetVital < 0) {
+    return;
+  }
+  const stacks = getStaticTrapStacksAt(x, y);
+  const manaReserve = getStaticTrapManaReserveAt(x, y);
+  const damage = computeTrapDamage(stacks, manaReserve);
+  if (damage <= 0) {
+    return;
+  }
+  const current = getActorVitalCurrent(targetVital);
+  const max = getActorVitalMax(targetVital);
+  const regen = getActorVitalRegen(targetVital);
+  const next = current > damage ? current - damage : 0;
+  setActorVital(targetVital, next, max, regen);
+}
 
 export class MoveAction {
   actorId: i32 = 0;
@@ -118,6 +172,7 @@ export function applyMove(action: MoveAction): ValidationError {
   const staminaRemaining = staminaNext - movementCost;
   setActorVital(VitalKind.Stamina, staminaRemaining, staminaMax, staminaRegen);
   setActorPosition(action.toX, action.toY);
+  applyStaticTrapDamageAt(action.toX, action.toY);
   return ValidationError.None;
 }
 

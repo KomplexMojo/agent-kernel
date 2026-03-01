@@ -281,7 +281,7 @@
       ],
       "affinities": [
         {
-          "kind": "corrode",
+          "kind": "light",
           "expression": "pull",
           "stacks": 1
         }
@@ -625,7 +625,7 @@
       ],
       "affinities": [
         {
-          "kind": "corrode",
+          "kind": "light",
           "expression": "emit",
           "stacks": 1
         }

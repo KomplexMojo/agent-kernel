@@ -1,5 +1,9 @@
 import { mapSummaryToPool } from "./pool-mapper.js";
-import { buildSelectionsFromSummary } from "./summary-selections.js";
+import {
+  buildCardSetFromSummary,
+  buildSelectionsFromSummary,
+  extractSummaryFromCardSet,
+} from "./summary-selections.js";
 import { validateBuildSpec } from "../../contracts/build-spec.js";
 import {
   DEFAULT_VITALS,
@@ -66,6 +70,11 @@ function normalizeShapePattern(value) {
   return SHAPE_PATTERN_TYPES.has(normalized) ? normalized : "";
 }
 
+function deriveRoomCountFromRooms(rooms = []) {
+  if (!Array.isArray(rooms) || rooms.length === 0) return 0;
+  return rooms.reduce((sum, room) => sum + normalizePositiveInt(room?.count, 1), 0);
+}
+
 function deriveRoomShapeFromDesign(roomDesign, { width, height } = {}) {
   if (!roomDesign || typeof roomDesign !== "object" || Array.isArray(roomDesign)) return null;
   const minSide = Math.max(1, Math.min(width, height) - 2);
@@ -96,11 +105,11 @@ function deriveRoomShapeFromDesign(roomDesign, { width, height } = {}) {
     roomMaxSize = roomMaxSize === null ? localMax : Math.max(roomMaxSize, localMax);
   });
 
-  const roomCountFromRooms = rooms.length > 0 ? rooms.length : null;
+  const roomCountFromRooms = deriveRoomCountFromRooms(rooms);
   const totalRoomsInput = normalizePositiveInt(readShapeField(roomDesign, "totalRooms"), 0);
   const roomCountInput = normalizePositiveInt(readShapeField(roomDesign, "roomCount"), 0);
   const normalizedRoomCount = normalizePositiveInt(
-    roomCountFromRooms ?? (totalRoomsInput || roomCountInput),
+    roomCountInput || totalRoomsInput || roomCountFromRooms,
     1,
   );
   const roomMinInput = normalizePositiveInt(readShapeField(roomDesign, "roomMinSize"), 0);
@@ -140,8 +149,13 @@ function deriveRoomShapeFromDesign(roomDesign, { width, height } = {}) {
 
 function normalizeLayoutTiles(layout = {}) {
   const floorTiles = Number.isInteger(layout.floorTiles) && layout.floorTiles > 0 ? layout.floorTiles : 0;
-  const hallwayTiles = Number.isInteger(layout.hallwayTiles) && layout.hallwayTiles > 0 ? layout.hallwayTiles : 0;
-  return { floorTiles, hallwayTiles };
+  const connectorFloorTiles = Number.isInteger(layout.connectorFloorTiles) && layout.connectorFloorTiles > 0
+    ? layout.connectorFloorTiles
+    : 0;
+  const billableFloorTiles = Number.isInteger(layout.billableFloorTiles) && layout.billableFloorTiles > 0
+    ? layout.billableFloorTiles
+    : Math.max(0, floorTiles - connectorFloorTiles);
+  return { floorTiles, connectorFloorTiles, billableFloorTiles };
 }
 
 function deriveLevelSideForWalkableTiles(totalTiles) {
@@ -152,9 +166,9 @@ function deriveLevelSideForWalkableTiles(totalTiles) {
 }
 
 function deriveLevelGenFromLayout(layout = {}, roomDesign) {
-  const { floorTiles, hallwayTiles } = normalizeLayoutTiles(layout);
+  const { floorTiles } = normalizeLayoutTiles(layout);
   const totalFloorTilesUsed = normalizePositiveInt(readShapeField(roomDesign, "totalFloorTilesUsed"), 0);
-  const totalTiles = floorTiles + hallwayTiles > 0 ? floorTiles + hallwayTiles : totalFloorTilesUsed;
+  const totalTiles = floorTiles > 0 ? floorTiles : totalFloorTilesUsed;
   const size = deriveLevelSideForWalkableTiles(totalTiles);
   const roomShape = deriveRoomShapeFromDesign(roomDesign, { width: size, height: size });
   const levelGen = {
@@ -241,11 +255,13 @@ export function buildBuildSpecFromSummary({
   priceListArtifact,
   receiptArtifact,
 } = {}) {
+  const resolvedSummary = extractSummaryFromCardSet(summary || {});
+  const cardSet = buildCardSetFromSummary(resolvedSummary);
   const mapped = selections
     ? { ok: true, selections }
     : catalog
-      ? mapSummaryToPool({ summary, catalog })
-      : { ok: true, selections: buildSelectionsFromSummary(summary) };
+      ? mapSummaryToPool({ summary: resolvedSummary, catalog })
+      : { ok: true, selections: buildSelectionsFromSummary(resolvedSummary) };
   if (!mapped.ok) {
     return { ok: false, errors: mapped.errors, spec: null, selections: mapped.selections || [] };
   }
@@ -253,23 +269,25 @@ export function buildBuildSpecFromSummary({
   const rooms = mapped.selections.filter((sel) => sel.kind === "room");
   const roomCount = rooms.reduce((sum, sel) => sum + (sel.instances?.length || 0), 0);
   const { actors, actorGroups } = buildActorsAndGroups(mapped.selections);
-  const layout = summary?.layout && typeof summary.layout === "object" ? summary.layout : null;
-  const roomDesign = summary?.roomDesign && typeof summary.roomDesign === "object"
-    ? summary.roomDesign
+  const layout = resolvedSummary?.layout && typeof resolvedSummary.layout === "object"
+    ? resolvedSummary.layout
+    : null;
+  const roomDesign = resolvedSummary?.roomDesign && typeof resolvedSummary.roomDesign === "object"
+    ? resolvedSummary.roomDesign
     : null;
   const levelGen = layout || roomDesign
     ? deriveLevelGenFromLayout(layout || {}, roomDesign)
     : deriveLevelGen({ roomCount });
-  const attackerConfigs = Array.isArray(summary?.attackerConfigs)
-    ? summary.attackerConfigs
+  const attackerConfigs = Array.isArray(resolvedSummary?.attackerConfigs)
+    ? resolvedSummary.attackerConfigs
       .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
       .map((entry) => ({ ...entry }))
-    : summary?.attackerConfig && typeof summary.attackerConfig === "object"
-      ? [{ ...summary.attackerConfig }]
+    : resolvedSummary?.attackerConfig && typeof resolvedSummary.attackerConfig === "object"
+      ? [{ ...resolvedSummary.attackerConfig }]
       : [];
   const attackerConfig = attackerConfigs[0] || null;
-  const attackerCount = Number.isInteger(summary?.attackerCount) && summary.attackerCount > 0
-    ? summary.attackerCount
+  const attackerCount = Number.isInteger(resolvedSummary?.attackerCount) && resolvedSummary.attackerCount > 0
+    ? resolvedSummary.attackerCount
     : attackerConfigs.length > 0
       ? attackerConfigs.length
       : undefined;
@@ -277,13 +295,13 @@ export function buildBuildSpecFromSummary({
   const spec = {
     schema: "agent-kernel/BuildSpec",
     schemaVersion: 1,
-    meta: defaultMeta({ runId, source, createdAt, summary }),
+    meta: defaultMeta({ runId, source, createdAt, summary: resolvedSummary }),
     intent: {
-      goal: summary?.goal || `Dungeon plan for ${summary?.dungeonAffinity || "unknown"}`,
-      tags: summary?.tags || (summary?.dungeonAffinity ? [summary.dungeonAffinity] : []),
+      goal: resolvedSummary?.goal || `Dungeon plan for ${resolvedSummary?.dungeonAffinity || "unknown"}`,
+      tags: resolvedSummary?.tags || (resolvedSummary?.dungeonAffinity ? [resolvedSummary.dungeonAffinity] : []),
       hints: {
-        levelAffinity: summary?.dungeonAffinity,
-        budgetTokens: summary?.budgetTokens,
+        levelAffinity: resolvedSummary?.dungeonAffinity,
+        budgetTokens: resolvedSummary?.budgetTokens,
         attackerCount,
         attackerSetupMode: attackerConfig?.setupMode,
       },
@@ -298,17 +316,19 @@ export function buildBuildSpecFromSummary({
         attackerCount,
         attackerConfigs: attackerConfigs.length > 0 ? attackerConfigs : undefined,
         attackerConfig: attackerConfig || undefined,
+        cardSet: cardSet.length > 0 ? cardSet : undefined,
       },
     },
     configurator: {
       inputs: {
         levelGen,
-        levelAffinity: summary?.dungeonAffinity,
+        levelAffinity: resolvedSummary?.dungeonAffinity,
         actors,
         actorGroups,
         attackerCount,
         attackerConfigs: attackerConfigs.length > 0 ? attackerConfigs : undefined,
         attackerConfig: attackerConfig || undefined,
+        cardSet: cardSet.length > 0 ? cardSet : undefined,
       },
     },
   };
@@ -316,7 +336,8 @@ export function buildBuildSpecFromSummary({
     const normalizedLayout = normalizeLayoutTiles(layout);
     spec.plan.hints.layout = {
       floorTiles: normalizedLayout.floorTiles,
-      hallwayTiles: normalizedLayout.hallwayTiles,
+      connectorFloorTiles: normalizedLayout.connectorFloorTiles,
+      billableFloorTiles: normalizedLayout.billableFloorTiles,
     };
   }
   if (budgetRef || priceListRef || budgetArtifact || priceListArtifact || receiptArtifact) {

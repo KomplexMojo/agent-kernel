@@ -83,7 +83,7 @@ test("summary without catalog still produces actor configuration via shared sele
   assert.equal(result.spec.configurator.inputs.actors.length, 1);
   assert.equal(result.spec.configurator.inputs.actors[0].affinity, "water");
   assert.equal(result.spec.configurator.inputs.actors[0].vitals.health.current, 5);
-  assert.equal(result.spec.configurator.inputs.actors[0].setupMode, "user");
+  assert.equal(result.spec.configurator.inputs.actors[0].setupMode, "auto");
   assert.equal(result.spec.configurator.inputs.actors[0].traits.affinities.water, 2);
   assert.equal(result.spec.intent.hints.attackerCount, 2);
   assert.equal(result.spec.plan.hints.attackerCount, 2);
@@ -99,7 +99,7 @@ test("summary roomDesign drives connected-room level shape in BuildSpec", async 
   const summary = {
     dungeonAffinity: "fire",
     budgetTokens: 1000,
-    layout: { floorTiles: 240, hallwayTiles: 80 },
+    layout: { floorTiles: 240, connectorFloorTiles: 80, billableFloorTiles: 160 },
     roomDesign: {
       rooms: [
         { id: "R1", size: "large", width: 10, height: 10 },
@@ -124,9 +124,9 @@ test("summary roomDesign drives connected-room level shape in BuildSpec", async 
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.spec.configurator.inputs.levelGen.width, 28);
-  assert.equal(result.spec.configurator.inputs.levelGen.height, 28);
-  assert.equal(result.spec.configurator.inputs.levelGen.walkableTilesTarget, 320);
+  assert.equal(result.spec.configurator.inputs.levelGen.width, 24);
+  assert.equal(result.spec.configurator.inputs.levelGen.height, 24);
+  assert.equal(result.spec.configurator.inputs.levelGen.walkableTilesTarget, 240);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.roomCount, 3);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.roomMinSize, 3);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.roomMaxSize, 20);
@@ -140,7 +140,7 @@ test("summary roomDesign numeric hints drive level shape in BuildSpec", async ()
   const summary = {
     dungeonAffinity: "water",
     budgetTokens: 900,
-    layout: { floorTiles: 180, hallwayTiles: 40 },
+    layout: { floorTiles: 180, connectorFloorTiles: 40, billableFloorTiles: 140 },
     roomDesign: {
       roomCount: 5,
       roomMinSize: 3,
@@ -160,13 +160,46 @@ test("summary roomDesign numeric hints drive level shape in BuildSpec", async ()
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.spec.configurator.inputs.levelGen.width, 23);
-  assert.equal(result.spec.configurator.inputs.levelGen.height, 23);
-  assert.equal(result.spec.configurator.inputs.levelGen.walkableTilesTarget, 220);
+  assert.equal(result.spec.configurator.inputs.levelGen.width, 21);
+  assert.equal(result.spec.configurator.inputs.levelGen.height, 21);
+  assert.equal(result.spec.configurator.inputs.levelGen.walkableTilesTarget, 180);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.roomCount, 5);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.roomMinSize, 3);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.roomMaxSize, 7);
   assert.equal(result.spec.configurator.inputs.levelGen.shape.corridorWidth, 2);
+});
+
+test("summary roomDesign rooms with counts map to level roomCount", async () => {
+  const { buildBuildSpecFromSummary } = await import(
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+  );
+  const summary = {
+    dungeonAffinity: "dark",
+    budgetTokens: 1000,
+    layout: { floorTiles: 192, connectorFloorTiles: 48, billableFloorTiles: 144 },
+    roomDesign: {
+      roomMinSize: 3,
+      roomMaxSize: 12,
+      corridorWidth: 1,
+      rooms: [
+        { id: "R-DARK-S", size: "small", count: 3 },
+        { id: "R-DARK-L", size: "large", count: 1 },
+      ],
+    },
+    rooms: [{ motivation: "stationary", affinity: "dark", count: 1 }],
+    actors: [{ motivation: "defending", affinity: "light", count: 1 }],
+  };
+
+  const result = buildBuildSpecFromSummary({
+    summary,
+    runId: "pool_room_counted_cards_run",
+    createdAt: "2024-01-01T00:00:00Z",
+    source: "director-pool-test",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.spec.configurator.inputs.levelGen.shape.roomCount, 4);
+  assert.equal(result.spec.configurator.inputs.levelGen.shape.corridorWidth, 1);
 });
 
 test("summary hallway overlay hints propagate to level shape in BuildSpec", async () => {
@@ -176,7 +209,7 @@ test("summary hallway overlay hints propagate to level shape in BuildSpec", asyn
   const summary = {
     dungeonAffinity: "earth",
     budgetTokens: 800,
-    layout: { floorTiles: 160, hallwayTiles: 40 },
+    layout: { floorTiles: 160, connectorFloorTiles: 40, billableFloorTiles: 120 },
     roomDesign: {
       roomCount: 5,
       roomMinSize: 3,

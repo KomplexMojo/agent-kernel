@@ -17,11 +17,11 @@ assert.equal(result.value.shape.roomCount, 4);
 assert.equal(result.value.shape.roomMinSize, 3);
 assert.equal(result.value.shape.roomMaxSize, 9);
 assert.equal(result.value.shape.corridorWidth, 1);
-assert.equal(result.value.shape.pattern, "grid");
-assert.equal(result.value.shape.patternSpacing, 6);
-assert.equal(result.value.shape.patternLineWidth, 1);
-assert.equal(result.value.shape.patternGapEvery, 4);
-assert.equal(result.value.shape.patternInset, 1);
+assert.equal(result.value.shape.pattern, "none");
+assert.equal("patternSpacing" in result.value.shape, false);
+assert.equal("patternLineWidth" in result.value.shape, false);
+assert.equal("patternGapEvery" in result.value.shape, false);
+assert.equal("patternInset" in result.value.shape, false);
 assert.equal(result.value.spawn.edgeBias, false);
 assert.equal(result.value.spawn.minDistance, 0);
 assert.equal(result.value.exit.edgeBias, false);
@@ -212,6 +212,42 @@ assert.equal(concentric.ok, true);
 assert.equal(concentric.value.shape.pattern, "concentric_circles");
 assert.equal(concentric.value.shape.patternLineWidth, 1);
 assert.equal(concentric.value.shape.patternInfillPercent, 55);
+`;
+  runEsm(script);
+});
+
+test("normalizeLevelGenInput validates optional trap target types", () => {
+  const script = `
+import assert from "node:assert/strict";
+import { normalizeLevelGenInput } from ${JSON.stringify(modulePath)};
+
+const valid = normalizeLevelGenInput({
+  width: 8,
+  height: 8,
+  traps: [
+    {
+      x: 1,
+      y: 1,
+      affinity: { kind: "fire", expression: "emit", stacks: 2, targetType: "floor" },
+    },
+  ],
+});
+assert.equal(valid.ok, true);
+assert.equal(valid.value.traps[0].affinity.targetType, "floor");
+
+const invalid = normalizeLevelGenInput({
+  width: 8,
+  height: 8,
+  traps: [
+    {
+      x: 1,
+      y: 1,
+      affinity: { kind: "fire", expression: "emit", stacks: 2, targetType: "ceiling" },
+    },
+  ],
+});
+assert.equal(invalid.ok, false);
+assert.ok(invalid.errors.find((entry) => entry.code === "invalid_target_type"));
 `;
   runEsm(script);
 });

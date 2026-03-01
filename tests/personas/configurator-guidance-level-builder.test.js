@@ -16,7 +16,7 @@ import {
   const summary = {
   dungeonAffinity: "fire",
   budgetTokens: 1200,
-  layout: { floorTiles: 120, hallwayTiles: 30 },
+  layout: { floorTiles: 120, connectorFloorTiles: 30, billableFloorTiles: 90 },
   roomDesign: {
     corridorWidth: 2,
     rooms: [{ id: "R1", size: "medium", width: 10, height: 8 }],
@@ -29,11 +29,11 @@ import {
 
 const levelGen = deriveLevelGenFromGuidanceSummary(summary);
 assert.ok(levelGen && typeof levelGen === "object");
-assert.equal(levelGen.walkableTilesTarget, 150);
+assert.equal(levelGen.walkableTilesTarget, 120);
 
 const preview = buildLevelPreviewFromGuidanceSummary(summary);
 assert.equal(preview.ok, true);
-assert.equal(preview.walkableTiles, 150);
+assert.equal(preview.walkableTiles, 120);
 assert.ok(Array.isArray(preview.tiles));
 assert.ok(preview.width > 0);
 assert.ok(preview.height > 0);
@@ -44,7 +44,7 @@ assert.equal(preview.image.pixels.length, preview.width * preview.height * 4);
 
 const fromLevelGen = buildLevelPreviewFromLevelGen(levelGen);
 assert.equal(fromLevelGen.ok, true);
-assert.equal(fromLevelGen.walkableTiles, 150);
+assert.equal(fromLevelGen.walkableTiles, 120);
 
 const fromTiles = buildLevelRenderArtifactsFromTiles(["S.E", ".#."], { includeAscii: true, includeImage: true });
 assert.equal(fromTiles.ok, true);
@@ -66,7 +66,7 @@ highBudgetShapes.forEach((shape, index) => {
   const highBudgetPreview = buildLevelPreviewFromGuidanceSummary({
     dungeonAffinity: "water",
     budgetTokens: 10000,
-    layout: { floorTiles: 5500, hallwayTiles: 0 },
+    layout: { floorTiles: 5500, connectorFloorTiles: 0, billableFloorTiles: 5500 },
     roomDesign: shape,
     actors: [],
     rooms: [],
@@ -78,6 +78,42 @@ highBudgetShapes.forEach((shape, index) => {
   assert.equal(highBudgetPreview.walkableTiles, 5500, "shape index " + index);
 });
 
+`;
+
+  runEsm(script);
+});
+
+test("guidance level builder maps room cards into level generation inputs", () => {
+  const script = `
+import assert from "node:assert/strict";
+import {
+  deriveLevelGenFromCardSet,
+  deriveLevelGenFromGuidanceSummary,
+  buildLevelPreviewFromGuidanceSummary,
+} from ${JSON.stringify(builderModule)};
+
+const cardSet = [
+  { id: "room_small", type: "room", affinity: "fire", roomSize: "small", count: 2 },
+  { id: "room_large", type: "room", affinity: "water", roomSize: "large", count: 1 },
+];
+
+const levelGen = deriveLevelGenFromCardSet(cardSet);
+assert.ok(levelGen);
+assert.equal(levelGen.shape.roomCount, 3);
+assert.ok(levelGen.walkableTilesTarget > 0);
+
+const summary = {
+  dungeonAffinity: "fire",
+  budgetTokens: 1800,
+  cardSet,
+};
+const summaryLevelGen = deriveLevelGenFromGuidanceSummary(summary);
+assert.ok(summaryLevelGen);
+assert.equal(summaryLevelGen.shape.roomCount, 3);
+
+const preview = buildLevelPreviewFromGuidanceSummary(summary, { includeAscii: false, includeImage: false });
+assert.equal(preview.ok, true);
+assert.ok(preview.walkableTiles > 0);
 `;
 
   runEsm(script);

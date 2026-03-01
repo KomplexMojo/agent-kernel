@@ -22,17 +22,24 @@ function slicePanel(html, tabId) {
   return nextPanelIndex === -1 ? html.slice(panelStart) : html.slice(panelStart, nextPanelIndex);
 }
 
-test("simulation view includes run controls and event stream", () => {
+test("simulation view keeps only playing surface and playback controls", () => {
   const html = readHtml();
   const simulationPanel = slicePanel(html, "simulation");
   assert.match(simulationPanel, /id="frame-buffer"/);
   assert.match(simulationPanel, /id="play-pause"/);
-  assert.match(simulationPanel, /id="event-stream"/);
-  assert.match(simulationPanel, /id="simulation-visibility-mode"/);
-  assert.match(simulationPanel, /id="simulation-viewer-actor"/);
-  assert.match(simulationPanel, /id="simulation-viewport-size"[^>]*value="50"/);
-  assert.match(simulationPanel, /id="simulation-vision-radius"[^>]*value="6"/);
-  assert.match(simulationPanel, /id="simulation-exploration-hud"/);
+  assert.match(simulationPanel, /id="step-back"/);
+  assert.match(simulationPanel, /id="step-forward"/);
+  assert.match(simulationPanel, /id="reset-run"/);
+  assert.doesNotMatch(simulationPanel, /id="simulation-inspector-toggle"/);
+  assert.doesNotMatch(simulationPanel, /id="actor-id-display"/);
+  assert.doesNotMatch(simulationPanel, /id="actor-pos"/);
+  assert.doesNotMatch(simulationPanel, /id="actor-hp"/);
+  assert.doesNotMatch(simulationPanel, /id="simulation-visibility-mode"/);
+  assert.doesNotMatch(simulationPanel, /id="simulation-viewer-actor"/);
+  assert.doesNotMatch(simulationPanel, /id="simulation-viewport-size"/);
+  assert.doesNotMatch(simulationPanel, /id="simulation-vision-radius"/);
+  assert.doesNotMatch(simulationPanel, /id="simulation-exploration-hud"/);
+  assert.doesNotMatch(simulationPanel, /id="event-stream"/);
 });
 
 test("simulation view loads wasm from ui-web assets", () => {

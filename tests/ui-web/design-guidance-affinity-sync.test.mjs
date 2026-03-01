@@ -1,322 +1,134 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { wireDesignGuidance } from "../../packages/ui-web/src/design-guidance.js";
-import { AFFINITY_KINDS } from "../../packages/runtime/src/contracts/domain-constants.js";
+import {
+  adjustAffinityStack,
+  createDesignCard,
+  dropPropertyOnCard,
+} from "../../packages/ui-web/src/design-guidance.js";
 
-function makeInput(value = "") {
-  const handlers = {};
-  return {
-    value,
-    addEventListener(event, fn) {
-      handlers[event] = fn;
-    },
-    trigger(event) {
-      handlers[event]?.();
-    },
-  };
-}
+test("card drop rules accept valid type + affinity + expression sequence", () => {
+  const blank = createDesignCard({ type: "defender", affinity: "fire", motivations: ["defending"] });
 
-function makeButton() {
-  const handlers = {};
-  return {
-    addEventListener(event, fn) {
-      handlers[event] = fn;
-    },
-    click() {
-      handlers.click?.();
-    },
-  };
-}
+  const withAffinity = dropPropertyOnCard(blank, { group: "affinities", value: "water" });
+  assert.equal(withAffinity.ok, true);
+  assert.equal(withAffinity.reason, "affinity_added");
+  assert.ok(withAffinity.card.affinities.some((entry) => entry.kind === "water"));
 
-function selectorToDatasetKey(key) {
-  return String(key).replace(/-([a-z])/g, (_, char) => char.toUpperCase());
-}
-
-function matchesSelector(node, selector) {
-  if (!node || typeof selector !== "string") return false;
-  const match = selector.trim().match(
-    /^([a-zA-Z][a-zA-Z0-9_-]*)?(?:\.([a-zA-Z0-9_-]+))?(?:\[data-([a-zA-Z0-9_-]+)="([^"]+)"\])?$/,
-  );
-  if (!match) return false;
-  const [, tag, className, dataAttr, dataValue] = match;
-  if (tag && String(node.tagName || "").toLowerCase() !== tag.toLowerCase()) {
-    return false;
-  }
-  if (className) {
-    const classes = String(node.className || "").split(/\s+/).filter(Boolean);
-    if (!classes.includes(className)) {
-      return false;
-    }
-  }
-  if (dataAttr) {
-    const datasetKey = selectorToDatasetKey(dataAttr);
-    if (String(node.dataset?.[datasetKey] || "") !== dataValue) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function querySelectorAll(root, selector) {
-  const matches = [];
-  const walk = (node) => {
-    if (!node || !Array.isArray(node.children)) return;
-    node.children.forEach((child) => {
-      if (matchesSelector(child, selector)) {
-        matches.push(child);
-      }
-      walk(child);
-    });
-  };
-  walk(root);
-  return matches;
-}
-
-function makeNode(tagName = "div") {
-  const handlers = {};
-  let textContentValue = "";
-  return {
-    tagName: String(tagName).toUpperCase(),
-    className: "",
-    dataset: {},
-    children: [],
-    hidden: false,
-    parentNode: null,
-    value: "",
-    type: "",
-    min: "",
-    max: "",
-    step: "",
-    checked: false,
-    disabled: false,
-    appendChild(child) {
-      if (child && typeof child === "object") {
-        child.parentNode = this;
-      }
-      this.children.push(child);
-      return child;
-    },
-    append(...parts) {
-      parts.forEach((part) => {
-        if (part && typeof part === "object") {
-          this.appendChild(part);
-        }
-      });
-    },
-    addEventListener(event, fn) {
-      if (!handlers[event]) handlers[event] = [];
-      handlers[event].push(fn);
-    },
-    trigger(event) {
-      const listeners = handlers[event] || [];
-      listeners.forEach((listener) => listener({ target: this }));
-    },
-    querySelectorAll(selector) {
-      return querySelectorAll(this, selector);
-    },
-    querySelector(selector) {
-      const matches = this.querySelectorAll(selector);
-      return matches.length > 0 ? matches[0] : null;
-    },
-    closest(selector) {
-      let current = this;
-      while (current) {
-        if (matchesSelector(current, selector)) return current;
-        current = current.parentNode || null;
-      }
-      return null;
-    },
-    get textContent() {
-      return textContentValue;
-    },
-    set textContent(value) {
-      textContentValue = String(value);
-      this.children = [];
-    },
-  };
-}
-
-function findAffinityCountInput(container, affinity) {
-  return container.querySelector(`input.affinity-count[data-affinity="${affinity}"]`);
-}
-
-function collectSelectedAffinityCounts(container) {
-  return AFFINITY_KINDS.reduce((acc, affinity) => {
-    const input = findAffinityCountInput(container, affinity);
-    const count = Number(input?.value || 0);
-    if (Number.isFinite(count) && count > 0) {
-      acc[affinity] = count;
-    }
-    return acc;
-  }, {});
-}
-
-test("attacker affinity controls remain independent from workflow affinity selections", () => {
-  const originalDocument = globalThis.document;
-  globalThis.document = {
-    createElement: (tagName) => makeNode(tagName),
-  };
-
-  try {
-    const workflowAffinitiesContainer = makeNode("div");
-    const attackerSelectedAffinitiesContainer = makeNode("div");
-    wireDesignGuidance({
-      elements: {
-        guidanceInput: makeInput(""),
-        modelInput: makeInput("phi4"),
-        baseUrlInput: makeInput("http://localhost:11434"),
-        generateButton: makeButton(),
-        statusEl: { textContent: "", style: {} },
-        briefOutput: { textContent: "" },
-        actorSetInput: makeInput("[]"),
-        actorSetPreview: { textContent: "" },
-        applyActorSetButton: makeButton(),
-        workflowAffinitiesContainer,
-        attackerSelectedAffinitiesContainer,
-      },
-    });
-
-    const workflowFire = findAffinityCountInput(workflowAffinitiesContainer, "fire");
-    const workflowWater = findAffinityCountInput(workflowAffinitiesContainer, "water");
-    const attackerFire = findAffinityCountInput(attackerSelectedAffinitiesContainer, "fire");
-    const attackerWater = findAffinityCountInput(attackerSelectedAffinitiesContainer, "water");
-    const attackerEarth = findAffinityCountInput(attackerSelectedAffinitiesContainer, "earth");
-
-    assert.ok(workflowFire);
-    assert.ok(workflowWater);
-    assert.ok(attackerFire);
-    assert.ok(attackerWater);
-    assert.ok(attackerEarth);
-
-    assert.equal(attackerFire.closest(".affinity-row")?.hidden, false);
-    assert.equal(attackerWater.closest(".affinity-row")?.hidden, false);
-    assert.equal(attackerEarth.closest(".affinity-row")?.hidden, false);
-
-    attackerFire.value = "2";
-    attackerSelectedAffinitiesContainer.trigger("input");
-
-    workflowFire.value = "2";
-    workflowWater.value = "1";
-    workflowAffinitiesContainer.trigger("input");
-    assert.equal(attackerFire.value, "2");
-    assert.equal(attackerWater.value, "0");
-    assert.equal(attackerFire.closest(".affinity-row")?.hidden, false);
-    assert.equal(attackerWater.closest(".affinity-row")?.hidden, false);
-    assert.equal(attackerEarth.closest(".affinity-row")?.hidden, false);
-  } finally {
-    globalThis.document = originalDocument;
-  }
+  const withExpression = dropPropertyOnCard(withAffinity.card, { group: "expressions", value: "push" });
+  assert.equal(withExpression.ok, true);
+  assert.equal(withExpression.reason, "expression_added");
+  assert.ok(withExpression.card.expressions.includes("push"));
+  const waterEntries = withExpression.card.affinities.filter((entry) => entry.kind === "water");
+  assert.ok(waterEntries.some((entry) => entry.expression === "emit"));
+  assert.ok(waterEntries.some((entry) => entry.expression === "push"));
+  assert.ok(withExpression.card.affinities.some((entry) => entry.kind === "fire" && entry.expression === "emit"));
 });
 
-test("attacker user setup mode unlocks full affinity editing", () => {
-  const originalDocument = globalThis.document;
-  globalThis.document = {
-    createElement: (tagName) => makeNode(tagName),
-  };
-
-  try {
-    const workflowAffinitiesContainer = makeNode("div");
-    const attackerSelectedAffinitiesContainer = makeNode("div");
-    const attackerSetupModeInput = makeInput("auto");
-    wireDesignGuidance({
-      elements: {
-        guidanceInput: makeInput(""),
-        modelInput: makeInput("phi4"),
-        baseUrlInput: makeInput("http://localhost:11434"),
-        generateButton: makeButton(),
-        statusEl: { textContent: "", style: {} },
-        briefOutput: { textContent: "" },
-        actorSetInput: makeInput("[]"),
-        actorSetPreview: { textContent: "" },
-        applyActorSetButton: makeButton(),
-        workflowAffinitiesContainer,
-        attackerSelectedAffinitiesContainer,
-        attackerSetupModeInput,
-      },
-    });
-
-    const workflowFire = findAffinityCountInput(workflowAffinitiesContainer, "fire");
-    const attackerWater = findAffinityCountInput(attackerSelectedAffinitiesContainer, "water");
-    const attackerWaterExpression = attackerSelectedAffinitiesContainer.querySelector(
-      'input.affinity-expression[data-affinity="water"]',
-    );
-
-    assert.ok(workflowFire);
-    assert.ok(attackerWater);
-    assert.ok(attackerWaterExpression);
-
-    workflowFire.value = "1";
-    workflowAffinitiesContainer.trigger("input");
-    assert.equal(attackerWater.closest(".affinity-row")?.hidden, false);
-    assert.equal(attackerWater.disabled, true);
-
-    attackerSetupModeInput.value = "user";
-    attackerSetupModeInput.trigger("change");
-    assert.equal(attackerWater.closest(".affinity-row")?.hidden, false);
-    assert.equal(attackerWater.disabled, false);
-
-    attackerWater.value = "2";
-    attackerSelectedAffinitiesContainer.trigger("input");
-    assert.equal(attackerWaterExpression.disabled, false);
-  } finally {
-    globalThis.document = originalDocument;
-  }
+test("card drop rules support expression binding for room card affinities", () => {
+  const roomCard = createDesignCard({ type: "room", affinity: "earth", roomSize: "small" });
+  const result = dropPropertyOnCard(roomCard, { group: "expressions", value: "pull" });
+  assert.equal(result.ok, true);
+  assert.equal(result.reason, "expression_added");
+  const earthEntries = result.card.affinities.filter((entry) => entry.kind === "earth");
+  assert.ok(earthEntries.some((entry) => entry.expression === "emit"));
+  assert.ok(earthEntries.some((entry) => entry.expression === "pull"));
 });
 
-test("level generation requires workflow affinity selection before running", async () => {
-  const originalDocument = globalThis.document;
-  globalThis.document = {
-    createElement: (tagName) => makeNode(tagName),
-  };
+test("room cards default to dark emit with two stacks", () => {
+  const roomCard = createDesignCard({ type: "room", roomSize: "medium" });
+  assert.equal(roomCard.affinity, "dark");
+  const darkEmit = roomCard.affinities.find((entry) => entry.kind === "dark" && entry.expression === "emit");
+  assert.ok(darkEmit);
+  assert.equal(darkEmit.stacks, 2);
+});
 
-  try {
-    const workflowAffinitiesContainer = makeNode("div");
-    const attackerSelectedAffinitiesContainer = makeNode("div");
-    const statusEl = { textContent: "", style: {} };
-    const guidance = wireDesignGuidance({
-      elements: {
-        guidanceInput: makeInput(""),
-        modelInput: makeInput("phi4"),
-        baseUrlInput: makeInput("http://localhost:11434"),
-        modeSelect: makeInput("fixture"),
-        generateButton: makeButton(),
-        fixtureButton: makeButton(),
-        statusEl,
-        briefOutput: { textContent: "" },
-        levelDesignOutput: { textContent: "" },
-        actorSetInput: makeInput("[]"),
-        actorSetPreview: { textContent: "" },
-        applyActorSetButton: makeButton(),
-        workflowAffinitiesContainer,
-        attackerSelectedAffinitiesContainer,
-      },
-      llmConfig: {
-        fixtureResponse: {
-          responses: [
-            {
-              response: JSON.stringify({
-                phase: "layout_only",
-                remainingBudgetTokens: 500,
-                layout: { floorTiles: 20, hallwayTiles: 10 },
-                missing: [],
-              }),
-            },
-          ],
-        },
-      },
-    });
+test("card drop rules toggle affinity removal when same affinity is dropped twice", () => {
+  const defender = createDesignCard({
+    type: "defender",
+    affinity: "fire",
+    affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
+    motivations: ["defending"],
+  });
 
-    const blocked = await guidance.generateLevelBrief({ useFixture: true });
-    assert.equal(blocked.ok, false);
-    assert.equal(blocked.reason, "missing_affinity_prerequisite");
-    assert.match(statusEl.textContent, /requires at least one workflow affinity/i);
+  const addWater = dropPropertyOnCard(defender, { group: "affinities", value: "water" });
+  assert.equal(addWater.ok, true);
+  assert.ok(addWater.card.affinities.some((entry) => entry.kind === "water"));
 
-    const workflowFire = findAffinityCountInput(workflowAffinitiesContainer, "fire");
-    workflowFire.value = "1";
-    workflowAffinitiesContainer.trigger("input");
-    const ok = await guidance.generateLevelBrief({ useFixture: true });
-    assert.equal(ok.ok, true);
-  } finally {
-    globalThis.document = originalDocument;
-  }
+  const removeWater = dropPropertyOnCard(addWater.card, { group: "affinities", value: "water" });
+  assert.equal(removeWater.ok, true);
+  assert.equal(removeWater.reason, "affinity_removed");
+  assert.ok(!removeWater.card.affinities.some((entry) => entry.kind === "water"));
+});
+
+test("affinity stacks are per affinity-expression combo and zero removes the combo", () => {
+  const defender = createDesignCard({
+    type: "defender",
+    affinity: "fire",
+    affinities: [
+      { kind: "fire", expression: "push", stacks: 1 },
+      { kind: "fire", expression: "pull", stacks: 1 },
+      { kind: "water", expression: "emit", stacks: 2 },
+    ],
+    motivations: ["defending"],
+  });
+
+  const boosted = adjustAffinityStack(defender, "water", 2, "emit");
+  const removed = adjustAffinityStack(boosted, "fire", -1, "push");
+
+  assert.equal(removed.affinities.find((entry) => entry.kind === "water" && entry.expression === "emit")?.stacks, 4);
+  assert.equal(removed.affinities.find((entry) => entry.kind === "fire" && entry.expression === "push"), undefined);
+  assert.equal(removed.affinities.find((entry) => entry.kind === "fire" && entry.expression === "pull")?.stacks, 1);
+});
+
+test("same affinity supports multiple expression combos", () => {
+  const attacker = createDesignCard({
+    type: "attacker",
+    affinity: "fire",
+    affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
+    motivations: ["attacking"],
+  });
+
+  const withPull = dropPropertyOnCard(attacker, { group: "expressions", value: "pull" });
+  const withEmit = dropPropertyOnCard(withPull.card, { group: "expressions", value: "emit" });
+  const fireCombos = withEmit.card.affinities.filter((entry) => entry.kind === "fire");
+
+  assert.equal(withEmit.ok, true);
+  assert.ok(fireCombos.some((entry) => entry.expression === "push" && entry.stacks === 1));
+  assert.ok(fireCombos.some((entry) => entry.expression === "pull" && entry.stacks === 1));
+  assert.ok(fireCombos.some((entry) => entry.expression === "emit" && entry.stacks === 1));
+});
+
+test("motivation toggles support removing and re-adding motivations", () => {
+  const attacker = createDesignCard({
+    type: "attacker",
+    affinity: "fire",
+    motivations: ["attacking"],
+  });
+
+  const removed = dropPropertyOnCard(attacker, { group: "motivations", value: "attacking" });
+  assert.equal(removed.ok, true);
+  assert.equal(removed.reason, "motivation_removed");
+  assert.deepEqual(removed.card.motivations, []);
+
+  const added = dropPropertyOnCard(removed.card, { group: "motivations", value: "defending" });
+  assert.equal(added.ok, true);
+  assert.equal(added.reason, "motivation_added");
+  assert.deepEqual(added.card.motivations, ["defending"]);
+});
+
+test("changing card type replaces incompatible card payload", () => {
+  const defender = createDesignCard({
+    type: "defender",
+    affinity: "wind",
+    motivations: ["patrolling"],
+    expressions: ["pull"],
+  });
+
+  const switched = dropPropertyOnCard(defender, { group: "type", value: "room" });
+  assert.equal(switched.ok, true);
+  assert.equal(switched.card.type, "room");
+  assert.equal(switched.card.source, "room");
+  assert.deepEqual(switched.card.motivations, []);
+  assert.equal(switched.card.vitals, undefined);
+  assert.ok(["small", "medium", "large"].includes(switched.card.roomSize));
 });

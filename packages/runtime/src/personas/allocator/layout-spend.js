@@ -3,6 +3,7 @@ import {
   LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
   LAYOUT_TILE_PRICE_IDS as SHARED_LAYOUT_TILE_PRICE_IDS,
 } from "../../contracts/domain-constants.js";
+import { deriveLayoutFromRoomCards } from "../configurator/card-model.js";
 
 const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS;
 const DEFAULT_TILE_COSTS = SHARED_DEFAULT_LAYOUT_TILE_COSTS;
@@ -65,6 +66,26 @@ function normalizeLayoutCosts(layoutCosts) {
   return costs;
 }
 
+function buildLayoutLineItems(layoutCounts, tileCosts) {
+  if (!layoutCounts || !tileCosts) return [];
+  return LAYOUT_TILE_FIELDS
+    .filter((field) => field !== "hallwayTiles")
+    .map((field) => {
+      const quantity = Number.isInteger(layoutCounts[field]) ? layoutCounts[field] : 0;
+      const unitCostTokens = Number.isInteger(tileCosts[field]) ? tileCosts[field] : 0;
+      if (quantity <= 0 || unitCostTokens <= 0) return null;
+      return {
+        kind: "layout",
+        id: field,
+        label: field,
+        quantity,
+        unitCostTokens,
+        spendTokens: quantity * unitCostTokens,
+      };
+    })
+    .filter(Boolean);
+}
+
 export function resolveLayoutTileCosts(priceList) {
   const warnings = [];
   const priceMap = buildPriceMap(priceList);
@@ -88,12 +109,16 @@ export function resolveLayoutTileCosts(priceList) {
 
 export function sumLayoutTiles(layout) {
   if (!layout) return 0;
-  return (layout.floorTiles || 0) + (layout.hallwayTiles || 0);
+  return layout.floorTiles || 0;
 }
 
 export function evaluateLayoutSpend({ layout, budgetTokens, priceList, tileCosts } = {}) {
   const warnings = [];
   const normalized = normalizeLayoutCounts(layout, warnings);
+  if (normalized && Number.isInteger(normalized.hallwayTiles) && normalized.hallwayTiles > 0) {
+    warnings.push({ code: "deprecated_hallway_tiles_ignored" });
+    normalized.hallwayTiles = 0;
+  }
   const costResult = tileCosts
     ? { costs: normalizeLayoutCosts(tileCosts), warnings: undefined }
     : resolveLayoutTileCosts(priceList);
@@ -114,6 +139,7 @@ export function evaluateLayoutSpend({ layout, budgetTokens, priceList, tileCosts
     (sum, field) => sum + normalized[field] * costResult.costs[field],
     0,
   );
+  const lineItems = buildLayoutLineItems(normalized, costResult.costs);
   let remainingBudgetTokens = 0;
   if (!isInteger(budgetTokens)) {
     warnings.push({ code: "invalid_budget_tokens" });
@@ -130,8 +156,50 @@ export function evaluateLayoutSpend({ layout, budgetTokens, priceList, tileCosts
     remainingBudgetTokens,
     layout: normalized,
     tileCosts: costResult.costs,
+    lineItems,
     warnings: warnings.length > 0 ? warnings : undefined,
     overBudget,
+  };
+}
+
+export function evaluateRoomCardLayoutSpend({
+  cardSet,
+  budgetTokens,
+  priceList,
+  tileCosts,
+} = {}) {
+  const layout = deriveLayoutFromRoomCards(cardSet);
+  if (!layout) {
+    return {
+      spentTokens: 0,
+      remainingBudgetTokens: Number.isInteger(budgetTokens) ? budgetTokens : 0,
+      layout: null,
+      tileCosts: tileCosts || { ...DEFAULT_TILE_COSTS },
+      lineItems: [],
+      warnings: undefined,
+      overBudget: false,
+    };
+  }
+  const billableFloorTiles = Number.isInteger(layout.billableFloorTiles) && layout.billableFloorTiles > 0
+    ? layout.billableFloorTiles
+    : Number.isInteger(layout.floorTiles)
+      ? layout.floorTiles
+      : 0;
+  const result = evaluateLayoutSpend({
+    layout: {
+      floorTiles: billableFloorTiles,
+    },
+    budgetTokens,
+    priceList,
+    tileCosts,
+  });
+  return {
+    ...result,
+    layout: {
+      floorTiles: Number.isInteger(layout.floorTiles) ? layout.floorTiles : 0,
+      connectorFloorTiles: Number.isInteger(layout.connectorFloorTiles) ? layout.connectorFloorTiles : 0,
+      billableFloorTiles,
+    },
   };
 }
 

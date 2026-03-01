@@ -29,10 +29,14 @@ function cloneLayoutData(layout) {
     render,
     spawn,
     exit,
-    entryRoomId,
-    exitRoomId,
     bounds,
   };
+  if (entryRoomId !== undefined) {
+    data.entryRoomId = entryRoomId;
+  }
+  if (exitRoomId !== undefined) {
+    data.exitRoomId = exitRoomId;
+  }
   if (Array.isArray(rooms) && rooms.length > 0) {
     data.rooms = rooms.map((room) => ({ ...room }));
   }
@@ -55,8 +59,14 @@ function buildResolvedTraits(actorTraits, resolved) {
   if (resolved?.affinityStacks) {
     traits.affinities = { ...resolved.affinityStacks };
   }
+  if (resolved?.affinityTargets) {
+    traits.affinityTargets = { ...resolved.affinityTargets };
+  }
   if (Array.isArray(resolved?.abilities)) {
     traits.abilities = resolved.abilities.map((ability) => ({ ...ability }));
+  }
+  if (Array.isArray(resolved?.resolvedEffects)) {
+    traits.resolvedEffects = resolved.resolvedEffects.map((effect) => ({ ...effect }));
   }
   return Object.keys(traits).length > 0 ? traits : undefined;
 }

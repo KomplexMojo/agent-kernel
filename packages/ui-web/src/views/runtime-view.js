@@ -205,7 +205,7 @@ export function wireRuntimeView({
       viewportEl.textContent = "Runtime viewport unavailable.";
     }
     if (statusEl) {
-      statusEl.textContent = "Load a simulation run to populate runtime telemetry.";
+      statusEl.textContent = "Load a game run to populate runtime telemetry.";
     }
     if (attackerCardEl && "innerHTML" in attackerCardEl) {
       attackerCardEl.innerHTML = '<div class="runtime-card-empty">No attacker.</div>';
@@ -276,12 +276,16 @@ export function wireRuntimeView({
     renderCardList(offscreenDefendersEl, offscreenDefenders, selectedActorId);
   }
 
-  function selectActor(actorId) {
+  function selectActor(actorId, { notify = true } = {}) {
     const normalized = normalizeActorId(actorId);
-    if (!normalized) return;
+    if (!normalized) {
+      selectedActorId = "";
+      renderFromState();
+      return;
+    }
     selectedActorId = normalized;
     renderFromState();
-    if (typeof onSelectActor === "function") {
+    if (notify && typeof onSelectActor === "function") {
       onSelectActor(normalized);
     }
   }

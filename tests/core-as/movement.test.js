@@ -246,3 +246,42 @@ test("core-as moves across large coordinates with new encoding", async (t) => {
   assert.equal(core.getActorX(), 18);
   assert.equal(core.getActorY(), 17);
 });
+
+test("core-as applies emit trap damage when moving onto an affinity tile", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+  if (typeof core.armStaticTrapAt !== "function") {
+    t.skip("WASM binary does not expose static traps");
+    return;
+  }
+
+  core.init(0);
+  core.configureGrid(4, 4);
+  for (let y = 0; y < 4; y += 1) {
+    for (let x = 0; x < 4; x += 1) {
+      core.setTileAt(x, y, 1);
+    }
+  }
+  core.spawnActorAt(1, 1);
+  core.setActorVital(0, 10, 10, 0); // health
+  core.setActorVital(1, 0, 0, 0); // mana
+  core.setActorVital(2, 8, 8, 0); // stamina
+  core.setActorVital(3, 1, 1, 0); // durability
+  core.armStaticTrapAt(2, 1, 1, 3, 1, 20); // fire + emit at 20% stack-one power
+  core.clearEffects();
+
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 1, y: 1 },
+    to: { x: 2, y: 1 },
+    direction: DIRECTION.east,
+    tick: 1,
+  }));
+
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorMoved);
+  assert.equal(core.getActorX(), 2);
+  assert.equal(core.getActorY(), 1);
+  assert.equal(core.getActorVitalCurrent(0), 8);
+});

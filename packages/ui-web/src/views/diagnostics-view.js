@@ -249,9 +249,19 @@ export function wireDiagnosticsView({
         buildSpecPath.dispatchEvent(new Event("input", { bubbles: true }));
       }
     },
-    onRun: ({ simConfig, initialState, affinityEffects }) => {
+    onRun: ({
+      simConfig,
+      initialState,
+      affinityEffects,
+      spec,
+    }) => {
       if (typeof onRunFromBundle === "function") {
-        onRunFromBundle({ simConfig, initialState, affinityEffects });
+        onRunFromBundle({
+          simConfig,
+          initialState,
+          affinityEffects,
+          spec,
+        });
       }
     },
     onBundleLoaded: (payload) => {

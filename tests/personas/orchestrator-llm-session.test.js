@@ -3,6 +3,8 @@ const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const sessionModulePath = moduleUrl("packages/runtime/src/personas/orchestrator/llm-session.js");
 const llmAdapterPath = moduleUrl("packages/adapters-test/src/adapters/llm/index.js");
+const summarySelectionsPath = moduleUrl("packages/runtime/src/personas/director/summary-selections.js");
+const buildspecAssemblerPath = moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js");
 
 const happyScript = `
 import assert from "node:assert/strict";
@@ -298,6 +300,70 @@ assert.equal(result.summary.actors[0].affinity, "water");
 assert.equal(result.summary.actors[0].tokenHint, 40);
 `;
 
+const cardRoundTripScript = `
+import assert from "node:assert/strict";
+import { runLlmSession } from ${JSON.stringify(sessionModulePath)};
+import { createLlmTestAdapter } from ${JSON.stringify(llmAdapterPath)};
+import { extractSummaryFromCardSet } from ${JSON.stringify(summarySelectionsPath)};
+import { buildBuildSpecFromSummary } from ${JSON.stringify(buildspecAssemblerPath)};
+
+const adapter = createLlmTestAdapter();
+const prompt = "Generate summary for card round-trip.";
+adapter.setResponse("fixture", prompt, {
+  response: JSON.stringify({
+    dungeonAffinity: "water",
+    rooms: [{ motivation: "stationary", affinity: "water", count: 2, size: "small" }],
+    actors: [{ motivation: "defending", affinity: "earth", count: 1 }],
+    attackerConfigs: [{
+      setupMode: "hybrid",
+      vitalsMax: { health: 8, mana: 6, stamina: 5, durability: 3 },
+      vitalsRegen: { health: 1, mana: 1, stamina: 1, durability: 0 },
+      affinities: { water: ["emit"] },
+      affinityStacks: { water: 2 },
+    }],
+  }),
+  done: true,
+});
+
+const result = await runLlmSession({
+  adapter,
+  model: "fixture",
+  prompt,
+  runId: "run_llm_card_roundtrip",
+  clock: () => "2025-01-01T00:00:00Z",
+  strict: false,
+});
+
+assert.equal(result.ok, true);
+assert.ok(Array.isArray(result.cardSet));
+assert.ok(result.cardSet.length >= 3);
+
+const editedCardSet = result.cardSet.map((card) => {
+  if (card.type !== "defender") return card;
+  return {
+    ...card,
+    affinities: [...(card.affinities || []), { kind: "fire", expression: "push", stacks: 1 }],
+  };
+});
+
+const summaryFromCards = extractSummaryFromCardSet({
+  dungeonAffinity: "water",
+  budgetTokens: 1200,
+  cardSet: editedCardSet,
+});
+const built = buildBuildSpecFromSummary({
+  summary: summaryFromCards,
+  runId: "run_llm_card_roundtrip",
+  source: "test",
+  createdAt: "2025-01-01T00:00:00Z",
+});
+
+assert.equal(built.ok, true);
+assert.ok(Array.isArray(built.spec.plan.hints.cardSet));
+assert.ok(built.spec.configurator.inputs.levelGen);
+assert.ok(built.spec.configurator.inputs.actors.length >= 1);
+`;
+
 test("orchestrator llm session captures prompt/response", () => {
   runEsm(happyScript);
 });
@@ -324,4 +390,8 @@ test("orchestrator llm session sanitizes invalid defender token hints and stamin
 
 test("orchestrator llm session recovers defender JSON with trailing commas", () => {
   runEsm(lenientDefenderRecoveryScript);
+});
+
+test("orchestrator llm session supports AI summary to card model to build spec round-trip", () => {
+  runEsm(cardRoundTripScript);
 });

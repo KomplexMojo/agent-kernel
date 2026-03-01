@@ -40,6 +40,44 @@ inputs.forEach((input) => {
   runEsm(script);
 });
 
+test("default layout uses room-first flow with explicit room chambers", () => {
+const script = `
+import assert from "node:assert/strict";
+import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+
+const base = {
+  width: 36,
+  height: 36,
+  seed: 1,
+  shape: { roomCount: 8, roomMinSize: 4, roomMaxSize: 8, corridorWidth: 1 },
+  connectivity: { requirePath: true },
+};
+
+const implicit = generateGridLayoutFromInput(base);
+const explicit = generateGridLayoutFromInput({
+  ...base,
+  shape: { ...base.shape, pattern: "none" },
+});
+
+assert.equal(implicit.ok, true);
+assert.equal(explicit.ok, true);
+assert.deepEqual(implicit.value.tiles, explicit.value.tiles);
+assert.deepEqual(implicit.value.rooms, explicit.value.rooms);
+
+let blockedInsideRooms = 0;
+(implicit.value.rooms || []).forEach((room) => {
+  for (let y = room.y; y < room.y + room.height; y += 1) {
+    const row = String(implicit.value.tiles[y] || "");
+    for (let x = room.x; x < room.x + room.width; x += 1) {
+      if (row[x] === "#") blockedInsideRooms += 1;
+    }
+  }
+});
+assert.equal(blockedInsideRooms, 0);
+`;
+  runEsm(script);
+});
+
 test("level layout honors walkable tile targets for connected rooms", () => {
 const script = `
 import assert from "node:assert/strict";

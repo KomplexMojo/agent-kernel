@@ -173,7 +173,7 @@ When overrides are provided, `run` writes `resolved-sim-config.json` and
 ## Configurator artifacts (affinities + traps)
 
 Configurator artifacts are affinity-only (no martial weapons). Affinity kinds:
-fire, water, earth, wind, life, decay, corrode, dark. Expressions: push, pull, emit.
+fire, water, earth, wind, life, decay, corrode, fortify, light, dark. Expressions: push, pull, emit.
 
 Example `SimConfigArtifact.layout.data` snippet with traps:
 ```json

@@ -9,10 +9,24 @@ const tabButtons = document.querySelectorAll("[data-tab]");
 const tabPanels = document.querySelectorAll("[data-tab-panel]");
 const workspace = document.querySelector(".workspace");
 const actorInspectorRoot = document.querySelector("#actor-inspector");
+let simulationView = null;
+let latestInspectorSelection = null;
+let inspectorRef = null;
 
 function setInspectorOpenState(open) {
   if (!workspace) return;
   workspace.dataset.inspectorOpen = open ? "true" : "false";
+}
+
+function syncSimulationInspectorVisibility(visible) {
+  const normalized = Boolean(visible);
+  const selectedEntity = normalized
+    ? (latestInspectorSelection || inspectorRef?.getSelectedEntity?.() || null)
+    : null;
+  simulationView?.setInspectorVisibility?.(normalized, selectedEntity);
+  if (normalized && selectedEntity) {
+    simulationView?.focusInspectorEntity?.(selectedEntity);
+  }
 }
 
 wireTabs({
@@ -27,30 +41,53 @@ wireTabs({
 
 const actorInspector = createActorInspector({
   containerEl: actorInspectorRoot,
-  closeButtonEl: document.querySelector("#actor-inspector-close"),
   statusEl: document.querySelector("#actor-inspector-status"),
-  profileEl: document.querySelector("#actor-inspector-profile"),
-  capabilitiesEl: document.querySelector("#actor-inspector-capabilities"),
-  constraintsEl: document.querySelector("#actor-inspector-constraints"),
-  liveStateEl: document.querySelector("#actor-inspector-live"),
+  roomListEl: document.querySelector("#actor-inspector-room-list"),
+  attackerListEl: document.querySelector("#actor-inspector-attacker-list"),
+  defenderListEl: document.querySelector("#actor-inspector-defender-list"),
+  detailEl: document.querySelector("#actor-inspector-detail"),
+  onSelectEntity: (entity) => {
+    latestInspectorSelection = entity;
+    simulationView?.focusInspectorEntity?.(entity);
+    runtimeView?.selectActor?.(entity?.actorId || "", { notify: false });
+  },
   onVisibilityChange: (visible) => {
     setInspectorOpenState(visible);
+    syncSimulationInspectorVisibility(visible);
   },
 });
-setInspectorOpenState(actorInspector?.isVisible?.() === true);
+inspectorRef = actorInspector;
+setInspectorOpenState(true);
 
-let simulationView = null;
 const runtimeView = wireRuntimeView({
   onSelectActor: (actorId) => {
     actorInspector?.selectActorById?.(actorId);
-    simulationView?.setViewerActor?.(actorId);
+    const selectedEntity = actorInspector?.getSelectedEntity?.() || null;
+    if (selectedEntity) {
+      latestInspectorSelection = selectedEntity;
+      simulationView?.focusInspectorEntity?.(selectedEntity);
+    } else {
+      simulationView?.setViewerActor?.(actorId);
+    }
+  },
+  onAction: (payload) => {
+    simulationView?.performGameAction?.(payload);
   },
 });
 
 simulationView = wireSimulationView({
   actorInspector,
-  onObservation: (payload) => runtimeView.updateFromSimulation(payload),
+  onObservation: (payload) => {
+    runtimeView.updateFromSimulation(payload);
+    const selectedEntity = inspectorRef?.getSelectedEntity?.() || latestInspectorSelection || null;
+    latestInspectorSelection = selectedEntity;
+    const selectedActorId = typeof selectedEntity?.actorId === "string"
+      ? selectedEntity.actorId.trim()
+      : "";
+    runtimeView.selectActor(selectedActorId, { notify: false });
+  },
 });
+syncSimulationInspectorVisibility(true);
 
 const diagnosticsView = wireDiagnosticsView({
   onRunFromBundle: (payload) => {

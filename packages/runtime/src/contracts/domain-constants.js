@@ -6,12 +6,41 @@ export const AFFINITY_KINDS = Object.freeze([
   "life",
   "decay",
   "corrode",
+  "fortify",
+  "light",
   "dark",
 ]);
 
 export const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
+export const AFFINITY_TARGET_TYPES = Object.freeze(["self", "ally", "enemy", "area", "barrier", "floor"]);
 export const DEFAULT_DUNGEON_AFFINITY = AFFINITY_KINDS[0];
 export const DEFAULT_AFFINITY_EXPRESSION = AFFINITY_EXPRESSIONS[0];
+export const DEFAULT_ROOM_CARD_AFFINITY = "dark";
+export const DEFAULT_ROOM_AFFINITY_EXPRESSION = "emit";
+export const DEFAULT_ROOM_AFFINITY_STACKS = 2;
+export const DARKNESS_OBSCURE_STACK_THRESHOLD = 2;
+export const DARKNESS_OBSCURE_RADIUS = 1;
+export const LIGHT_SIGHT_MIN_STACK = 1;
+export const DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION = Object.freeze({
+  push: "enemy",
+  pull: "self",
+  emit: "area",
+});
+export const DEFAULT_AFFINITY_TARGET_TYPE = DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION[DEFAULT_AFFINITY_EXPRESSION];
+export const AFFINITY_OPPOSITES = Object.freeze({
+  fire: "water",
+  water: "fire",
+  earth: "wind",
+  wind: "earth",
+  life: "decay",
+  decay: "life",
+  corrode: "fortify",
+  fortify: "corrode",
+  light: "dark",
+  dark: "light",
+});
+export const ROOM_AFFINITY_STACK_COST_FACTOR = 0.1;
+export const ROOM_AFFINITY_EMIT_PERCENT_PER_STACK = 10;
 export const ATTACKER_SETUP_MODES = Object.freeze(["auto", "user", "hybrid"]);
 export const DEFAULT_ATTACKER_SETUP_MODE = ATTACKER_SETUP_MODES[0];
 export const DEFAULT_LLM_MODEL = "phi4";
@@ -56,6 +85,7 @@ export const VITAL_COUNT = VITAL_KEYS.length;
 
 export const AFFINITY_KIND_SET = new Set(AFFINITY_KINDS);
 export const AFFINITY_EXPRESSION_SET = new Set(AFFINITY_EXPRESSIONS);
+export const AFFINITY_TARGET_TYPE_SET = new Set(AFFINITY_TARGET_TYPES);
 export const ATTACKER_SETUP_MODE_SET = new Set(ATTACKER_SETUP_MODES);
 export const DOMAIN_CONSTRAINTS = Object.freeze({
   llm: Object.freeze({
@@ -254,7 +284,7 @@ export function buildLlmLevelPromptTemplate({
     "roomDesign.rooms must be a non-empty array; each room must include id, startX, startY, endX, endY as integers.",
     "Optional room fields: affinity, size, width, height.",
     "If present, roomDesign.entryRoomId and roomDesign.exitRoomId must match ids in roomDesign.rooms.",
-    "Example valid response: {\"remainingBudgetTokens\":4200,\"layout\":{\"floorTiles\":1300},\"roomDesign\":{\"totalRooms\":4,\"totalFloorTilesUsed\":1300,\"entryRoomId\":\"R1\",\"exitRoomId\":\"R4\",\"rooms\":[{\"id\":\"R1\",\"affinity\":\"water\",\"size\":\"medium\",\"startX\":2,\"startY\":3,\"endX\":18,\"endY\":16},{\"id\":\"R2\",\"affinity\":\"decay\",\"size\":\"small\",\"startX\":22,\"startY\":5,\"endX\":32,\"endY\":13},{\"id\":\"R3\",\"affinity\":\"corrode\",\"size\":\"large\",\"startX\":8,\"startY\":20,\"endX\":28,\"endY\":38},{\"id\":\"R4\",\"affinity\":\"decay\",\"size\":\"medium\",\"startX\":34,\"startY\":24,\"endX\":50,\"endY\":38}]},\"missing\":[],\"stop\":\"done\"}.",
+    "Example valid response: {\"remainingBudgetTokens\":4200,\"layout\":{\"floorTiles\":1300},\"roomDesign\":{\"totalRooms\":4,\"totalFloorTilesUsed\":1300,\"entryRoomId\":\"R1\",\"exitRoomId\":\"R4\",\"rooms\":[{\"id\":\"R1\",\"affinity\":\"water\",\"size\":\"medium\",\"startX\":2,\"startY\":3,\"endX\":18,\"endY\":16},{\"id\":\"R2\",\"affinity\":\"decay\",\"size\":\"small\",\"startX\":22,\"startY\":5,\"endX\":32,\"endY\":13},{\"id\":\"R3\",\"affinity\":\"light\",\"size\":\"large\",\"startX\":8,\"startY\":20,\"endX\":28,\"endY\":38},{\"id\":\"R4\",\"affinity\":\"decay\",\"size\":\"medium\",\"startX\":34,\"startY\":24,\"endX\":50,\"endY\":38}]},\"missing\":[],\"stop\":\"done\"}.",
     "Return exactly one JSON object, starting with { and ending with }, with no surrounding text.",
   ];
   return buildStructuredPrompt({
@@ -298,6 +328,10 @@ export function buildLlmActorConfigPromptTemplate({
     "The level layout is already planned and must not be changed.",
     "Attackers start at level entry and try to reach a hidden level exit.",
     "Defenders must explore to locate likely exit routes, then hold them.",
+    "Fog-of-war semantics: light affinity extends sight and discovery range.",
+    "Fog-of-war semantics: dark affinity supports self-obscuration and blinding pressure.",
+    "Durability semantics: corrode pressure reduces durability.",
+    "Durability semantics: fortify reinforces any target that has durability.",
   ];
   if (isNonEmptyString(context)) {
     contextLines.push(context);

@@ -1,6 +1,10 @@
 import { applyMoveAction, packMoveAction, renderFrameBuffer, readObservation } from "../../bindings-ts/src/mvp-movement.js";
 import {
   AFFINITY_KINDS,
+  DARKNESS_OBSCURE_RADIUS,
+  DARKNESS_OBSCURE_STACK_THRESHOLD,
+  LIGHT_SIGHT_MIN_STACK,
+  ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
   TRAP_VITAL_KEYS,
   VITAL_KEYS,
 } from "../../runtime/src/contracts/domain-constants.js";
@@ -83,7 +87,9 @@ const AFFINITY_HUE_OVERRIDES = Object.freeze({
   wind: 175,
   life: 140,
   decay: 280,
-  corrode: 45,
+  corrode: 32,
+  fortify: 102,
+  light: 52,
   dark: 230,
 });
 const AFFINITY_HUES = Object.freeze(
@@ -92,6 +98,12 @@ const AFFINITY_HUES = Object.freeze(
     return acc;
   }, {}),
 );
+const REALTIME_MOVE_BY_ACTION = Object.freeze({
+  up: { direction: "north", dx: 0, dy: -1 },
+  down: { direction: "south", dx: 0, dy: 1 },
+  left: { direction: "west", dx: -1, dy: 0 },
+  right: { direction: "east", dx: 1, dy: 0 },
+});
 const STACK_STYLES = [
   { sat: 55, light: 55, glow: 0 },
   { sat: 65, light: 50, glow: 4 },
@@ -180,7 +192,54 @@ function buildActorSymbolMap(actors = [], symbols, fallbackSymbols) {
   return map;
 }
 
-function buildActorOverlay(baseTiles, actors = []) {
+function resolveTrapAffinityEntry(trap = null) {
+  if (!trap || typeof trap !== "object") return null;
+  const candidates = Array.isArray(trap.affinities)
+    ? trap.affinities
+    : trap.affinity && typeof trap.affinity === "object"
+      ? [trap.affinity]
+      : [];
+  const valid = candidates
+    .map((entry) => {
+      const kind = normalizeAffinityKind(entry?.kind);
+      const stacks = normalizeStacks(entry?.stacks);
+      const targetType = typeof entry?.targetType === "string" ? entry.targetType.trim().toLowerCase() : "";
+      if (!kind || !AFFINITY_HUES[kind]) return null;
+      return { kind, stacks, targetType };
+    })
+    .filter(Boolean);
+  if (valid.length === 0) return null;
+  const floorFirst = valid.filter((entry) => entry.targetType === "floor");
+  const pool = floorFirst.length > 0 ? floorFirst : valid;
+  pool.sort((a, b) => b.stacks - a.stacks);
+  return pool[0];
+}
+
+function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
+  if (!Array.isArray(traps) || traps.length === 0) return new Map();
+  const index = new Map();
+  traps.forEach((trap) => {
+    const x = Number(trap?.position?.x);
+    const y = Number(trap?.position?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    if (viewport) {
+      if (x < viewport.startX || x >= viewport.endX) return;
+      if (y < viewport.startY || y >= viewport.endY) return;
+    }
+    const affinity = resolveTrapAffinityEntry(trap);
+    if (!affinity) return;
+    const localX = viewport ? x - viewport.startX : x;
+    const localY = viewport ? y - viewport.startY : y;
+    const key = keyForCell(localX, localY);
+    const prior = index.get(key);
+    if (!prior || affinity.stacks > prior.stacks) {
+      index.set(key, affinity);
+    }
+  });
+  return index;
+}
+
+function buildActorOverlay(baseTiles, actors = [], { floorAffinityByCell = null } = {}) {
   if (!Array.isArray(baseTiles) || baseTiles.length === 0) {
     return { text: "", html: "" };
   }
@@ -188,6 +247,23 @@ function buildActorOverlay(baseTiles, actors = []) {
   const textGrid = baseTiles.map((row) => String(row).split(""));
   const htmlGrid = baseTiles.map((row) => String(row).split("").map(escapeHtmlChar));
   const asciiSymbols = buildActorSymbolMap(sortedActors, ASCII_ACTOR_SYMBOLS, ASCII_ACTOR_SYMBOLS);
+  if (floorAffinityByCell && typeof floorAffinityByCell.get === "function") {
+    for (let y = 0; y < textGrid.length; y += 1) {
+      const rowText = textGrid[y];
+      const rowHtml = htmlGrid[y];
+      if (!Array.isArray(rowText) || !Array.isArray(rowHtml)) continue;
+      for (let x = 0; x < rowText.length; x += 1) {
+        if (rowText[x] !== ".") continue;
+        const affinity = floorAffinityByCell.get(keyForCell(x, y));
+        if (!affinity?.kind) continue;
+        const hue = AFFINITY_HUES[affinity.kind];
+        if (!Number.isFinite(hue)) continue;
+        const style = resolveStackStyle(affinity.stacks);
+        const tileStyle = `--tile-hue:${hue};--tile-sat:${Math.max(35, style.sat - 18)}%;--tile-light:${Math.min(75, style.light + 22)}%;--tile-glow:${Math.max(1, style.glow - 1)}px;`;
+        rowHtml[x] = `<span class="affinity-floor-cell" data-affinity="${escapeHtml(affinity.kind)}" data-stacks="${style.stacks}" style="${tileStyle}">${escapeHtmlChar(".")}</span>`;
+      }
+    }
+  }
 
   sortedActors.forEach((actor) => {
     const position = actor?.position;
@@ -291,6 +367,119 @@ function keyForCell(x, y) {
   return `${x},${y}`;
 }
 
+function normalizeAffinityKind(value) {
+  if (typeof value !== "string") return "";
+  return value.trim().toLowerCase();
+}
+
+function parseAffinityStacks(value, fallback = 0) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return fallback;
+  return Math.max(1, Math.round(num));
+}
+
+function accumulateAffinityStack(target, kind, stacks) {
+  const normalizedKind = normalizeAffinityKind(kind);
+  const normalizedStacks = parseAffinityStacks(stacks, 0);
+  if (!normalizedKind || normalizedStacks <= 0) return;
+  const current = target.get(normalizedKind) || 0;
+  if (normalizedStacks > current) {
+    target.set(normalizedKind, normalizedStacks);
+  }
+}
+
+function collectEntityAffinityStacks(entry = null) {
+  const stacks = new Map();
+  const traits = entry?.traits?.affinities;
+  if (traits && typeof traits === "object" && !Array.isArray(traits)) {
+    Object.entries(traits).forEach(([key, value]) => {
+      const [kind] = String(key || "").split(":");
+      accumulateAffinityStack(stacks, kind, value);
+    });
+  }
+  if (Array.isArray(entry?.affinities)) {
+    entry.affinities.forEach((affinity) => {
+      accumulateAffinityStack(stacks, affinity?.kind, affinity?.stacks);
+    });
+  }
+  if (typeof entry?.affinity === "string" && entry.affinity.trim()) {
+    accumulateAffinityStack(stacks, entry.affinity, 1);
+  }
+  return stacks;
+}
+
+function resolveTrapDarknessStacks(trap = null) {
+  const affinityStacks = collectEntityAffinityStacks(trap);
+  const darkStacks = affinityStacks.get("dark") || 0;
+  const manaReserve = Number(trap?.manaReserve);
+  const potencyFromPercent = Number.isFinite(manaReserve) && manaReserve > 0
+    ? Math.floor(manaReserve / ROOM_AFFINITY_EMIT_PERCENT_PER_STACK)
+    : 0;
+  return Math.max(darkStacks, potencyFromPercent);
+}
+
+function addObscuredRadius(obscuredCells, { x, y }, { width, height, radius = 0 } = {}) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  const maxRadius = Math.max(0, Math.floor(radius));
+  for (let py = y - maxRadius; py <= y + maxRadius; py += 1) {
+    if (py < 0 || py >= height) continue;
+    for (let px = x - maxRadius; px <= x + maxRadius; px += 1) {
+      if (px < 0 || px >= width) continue;
+      const distance = Math.abs(px - x) + Math.abs(py - y);
+      if (distance > maxRadius) continue;
+      obscuredCells.add(keyForCell(px, py));
+    }
+  }
+}
+
+function buildDarknessOcclusion({ baseTiles = [], actors = [], traps = [] } = {}) {
+  const map = resolveBaseDimensions(baseTiles);
+  const obscuredCells = new Set();
+  const hiddenActorIds = new Set();
+
+  (Array.isArray(traps) ? traps : []).forEach((trap) => {
+    const darkStacks = resolveTrapDarknessStacks(trap);
+    if (darkStacks < DARKNESS_OBSCURE_STACK_THRESHOLD) return;
+    addObscuredRadius(
+      obscuredCells,
+      trap?.position || {},
+      { width: map.width, height: map.height, radius: DARKNESS_OBSCURE_RADIUS },
+    );
+  });
+
+  (Array.isArray(actors) ? actors : []).forEach((actor) => {
+    const affinityStacks = collectEntityAffinityStacks(actor);
+    const darkStacks = affinityStacks.get("dark") || 0;
+    if (darkStacks < DARKNESS_OBSCURE_STACK_THRESHOLD) return;
+    const actorId = String(actor?.id || "");
+    if (actorId) hiddenActorIds.add(actorId);
+    addObscuredRadius(
+      obscuredCells,
+      actor?.position || {},
+      { width: map.width, height: map.height, radius: DARKNESS_OBSCURE_RADIUS },
+    );
+  });
+
+  return { obscuredCells, hiddenActorIds };
+}
+
+function actorCanRevealDarkness(actor) {
+  const affinityStacks = collectEntityAffinityStacks(actor);
+  const lightStacks = affinityStacks.get("light") || 0;
+  return lightStacks >= LIGHT_SIGHT_MIN_STACK;
+}
+
+function filterVisionByDarkness(cells = new Set(), { obscuredCells = new Set(), canRevealDarkness = false } = {}) {
+  if (canRevealDarkness) return cells;
+  const filtered = new Set();
+  cells.forEach((cellKey) => {
+    if (!obscuredCells.has(cellKey)) {
+      filtered.add(cellKey);
+    }
+  });
+  return filtered;
+}
+
 function resolveBaseDimensions(baseTiles = []) {
   const height = Array.isArray(baseTiles) ? baseTiles.length : 0;
   const width = Array.isArray(baseTiles)
@@ -363,6 +552,41 @@ function resolveViewportWindow({
   };
 }
 
+function normalizeRoomBounds(bounds = null) {
+  if (!bounds || typeof bounds !== "object") return null;
+  const x = Number(bounds.x);
+  const y = Number(bounds.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const width = Number.isFinite(bounds.width) ? Math.max(1, Math.floor(bounds.width)) : 1;
+  const height = Number.isFinite(bounds.height) ? Math.max(1, Math.floor(bounds.height)) : 1;
+  return {
+    x: Math.floor(x),
+    y: Math.floor(y),
+    width,
+    height,
+  };
+}
+
+function resolveRoomViewport({ roomBounds = null, map = null } = {}) {
+  const bounds = normalizeRoomBounds(roomBounds);
+  const mapWidth = Math.max(0, Number(map?.width) || 0);
+  const mapHeight = Math.max(0, Number(map?.height) || 0);
+  if (!bounds || mapWidth <= 0 || mapHeight <= 0) return null;
+  const startX = clamp(bounds.x, 0, mapWidth);
+  const startY = clamp(bounds.y, 0, mapHeight);
+  const endX = Math.min(mapWidth, bounds.x + bounds.width);
+  const endY = Math.min(mapHeight, bounds.y + bounds.height);
+  if (endX <= startX || endY <= startY) return null;
+  return {
+    startX,
+    startY,
+    width: endX - startX,
+    height: endY - startY,
+    endX,
+    endY,
+  };
+}
+
 function cropTilesToViewport(baseTiles = [], viewport = null) {
   if (!Array.isArray(baseTiles) || baseTiles.length === 0 || !viewport) return [];
   const rows = [];
@@ -405,7 +629,11 @@ export function formatAffinities(affinities = []) {
     const kind = affinity?.kind || "unknown";
     const expression = affinity?.expression || "unknown";
     const stacks = Number.isFinite(affinity?.stacks) ? affinity.stacks : 1;
-    const note = kind === "dark" ? " (reduces visibility)" : "";
+    let note = "";
+    if (kind === "corrode") note = " (erodes durability)";
+    if (kind === "fortify") note = " (reinforces durability-bearing targets)";
+    if (kind === "light") note = " (extends sight in fog of war)";
+    if (kind === "dark") note = " (obscures self and can blind)";
     return `${kind}:${expression} x${stacks}${note}`;
   }).join(", ");
 }
@@ -446,6 +674,7 @@ export function setupPlayback({
   core,
   actions,
   actorIdLabel = "actor_mvp",
+  actorIds,
   actorIdValue = 1,
   intervalMs = 500,
   elements,
@@ -458,9 +687,22 @@ export function setupPlayback({
   let playing = false;
   let timer = null;
   let visibilityMode = normalizeVisibilityMode(visibility?.mode);
+  let visibilityFocusRoom = normalizeRoomBounds(visibility?.focusRoom);
+  let fogFullMap = Boolean(visibility?.fogFullMap);
   let viewportSize = parsePositiveInt(visibility?.viewportSize, DEFAULT_VIEWPORT_SIZE);
   let visionRadius = parsePositiveInt(visibility?.visionRadius, DEFAULT_VISION_RADIUS);
   let viewerActorId = typeof visibility?.viewerActorId === "string" ? visibility.viewerActorId : actorIdLabel;
+  const actorIdValueByLabel = new Map();
+  if (Array.isArray(actorIds)) {
+    actorIds.forEach((entry, index) => {
+      const label = typeof entry === "string" ? entry.trim() : "";
+      if (!label) return;
+      actorIdValueByLabel.set(label, index + 1);
+    });
+  }
+  if (typeof actorIdLabel === "string" && actorIdLabel.trim()) {
+    actorIdValueByLabel.set(actorIdLabel.trim(), actorIdValue);
+  }
   const exploredByActor = new Map();
   const visibleNowByActor = new Map();
   let latestVisibilitySummary = {
@@ -470,6 +712,8 @@ export function setupPlayback({
     viewport: { startX: 0, startY: 0, width: 0, height: 0, endX: 0, endY: 0 },
     actorStats: [],
     viewer: null,
+    roomFocus: visibilityFocusRoom ? { ...visibilityFocusRoom } : null,
+    fogFullMap,
   };
 
   function clearVisibilityTracking() {
@@ -499,17 +743,28 @@ export function setupPlayback({
   function recordVisibilitySnapshot(frame, obs) {
     const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : [];
     const actors = sortedActors(obs?.actors || []);
+    const traps = Array.isArray(obs?.traps) ? obs.traps : [];
     const map = resolveBaseDimensions(baseTiles);
+    const darkness = buildDarknessOcclusion({ baseTiles, actors, traps });
 
     visibleNowByActor.clear();
     actors.forEach((actor) => {
       const actorId = String(actor?.id || "");
       if (!actorId || !actor?.position) return;
-      const currentVision = collectVisionForActor({
+      const baseVision = collectVisionForActor({
         baseTiles,
         actor,
         radius: visionRadius,
       });
+      const currentVision = filterVisionByDarkness(baseVision, {
+        obscuredCells: darkness.obscuredCells,
+        canRevealDarkness: actorCanRevealDarkness(actor),
+      });
+      const selfX = actor?.position?.x;
+      const selfY = actor?.position?.y;
+      if (Number.isFinite(selfX) && Number.isFinite(selfY)) {
+        currentVision.add(keyForCell(selfX, selfY));
+      }
       visibleNowByActor.set(actorId, currentVision);
       const explored = ensureExploredSet(actorId);
       currentVision.forEach((cellKey) => explored.add(cellKey));
@@ -528,6 +783,7 @@ export function setupPlayback({
         exploredTiles: explored.size,
         visibleNowTiles: visibleNow.size,
         exploredPercent: toPercent(explored.size, map.totalTiles),
+        lightSight: actorCanRevealDarkness(actor),
       };
     });
 
@@ -535,6 +791,7 @@ export function setupPlayback({
       actors,
       map,
       actorStats,
+      darkness,
     };
   }
 
@@ -563,15 +820,65 @@ export function setupPlayback({
       map: summary.map ? { ...summary.map } : { width: 0, height: 0, totalTiles: 0 },
       viewport: summary.viewport ? { ...summary.viewport } : null,
       viewer: summary.viewer ? { ...summary.viewer } : null,
+      roomFocus: summary.roomFocus ? { ...summary.roomFocus } : null,
+      fogFullMap: Boolean(summary.fogFullMap),
       actorStats: Array.isArray(summary.actorStats)
         ? summary.actorStats.map((entry) => ({ ...entry }))
         : [],
     };
   }
 
+  function resolveActorIdValueForLabel(label, observationActors = []) {
+    const normalized = typeof label === "string" ? label.trim() : "";
+    if (!normalized) return actorIdValue;
+    if (actorIdValueByLabel.has(normalized)) {
+      return actorIdValueByLabel.get(normalized);
+    }
+    if (Array.isArray(observationActors) && observationActors.length > 0) {
+      const index = observationActors.findIndex((entry) => String(entry?.id || "") === normalized);
+      if (index >= 0) {
+        const fromCore = typeof core?.getMotivatedActorIdByIndex === "function"
+          ? Number(core.getMotivatedActorIdByIndex(index))
+          : NaN;
+        const resolved = Number.isFinite(fromCore) && fromCore > 0 ? fromCore : index + 1;
+        actorIdValueByLabel.set(normalized, resolved);
+        return resolved;
+      }
+    }
+    return actorIdValue;
+  }
+
+  function resolveActionActorIdValue(action = null) {
+    const explicit = Number(action?.actorIdValue);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    return resolveActorIdValueForLabel(action?.actorId);
+  }
+
+  function setActiveActorByValue(value) {
+    const normalized = Number(value);
+    if (!Number.isFinite(normalized) || normalized <= 0) {
+      return false;
+    }
+    if (typeof core?.setActiveMotivatedActor !== "function") {
+      return true;
+    }
+    return Number(core.setActiveMotivatedActor(normalized)) === 0;
+  }
+
   function readSnapshot() {
     const frame = renderFrameBuffer(core, { actorIdLabel });
-    const obs = readObservation(core, { actorIdLabel, affinityEffects });
+    const obs = readObservation(core, { actorIdLabel, actorIds, affinityEffects });
+    if (Array.isArray(obs?.actors)) {
+      obs.actors.forEach((entry, index) => {
+        const label = String(entry?.id || "").trim();
+        if (!label) return;
+        const fromCore = typeof core?.getMotivatedActorIdByIndex === "function"
+          ? Number(core.getMotivatedActorIdByIndex(index))
+          : NaN;
+        const resolved = Number.isFinite(fromCore) && fromCore > 0 ? fromCore : index + 1;
+        actorIdValueByLabel.set(label, resolved);
+      });
+    }
     const visibilityData = recordVisibilitySnapshot(frame, obs);
     return { frame, obs, visibilityData };
   }
@@ -580,8 +887,10 @@ export function setupPlayback({
     const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : [];
     const map = visibilityData?.map || resolveBaseDimensions(baseTiles);
     const allActors = visibilityData?.actors || sortedActors(obs?.actors || []);
+    const darkness = visibilityData?.darkness || { obscuredCells: new Set(), hiddenActorIds: new Set() };
     const viewerActor = resolveViewerActor(allActors);
     const viewerKey = viewerActor ? String(viewerActor.id || "") : "";
+    const viewerCanRevealDarkness = viewerActor ? actorCanRevealDarkness(viewerActor) : false;
     const viewerExplored = viewerKey ? (exploredByActor.get(viewerKey) || new Set()) : new Set();
     const viewerVisibleNow = viewerKey ? (visibleNowByActor.get(viewerKey) || new Set()) : new Set();
 
@@ -595,15 +904,39 @@ export function setupPlayback({
       viewportSize: Math.max(map.width, map.height, 1),
     });
 
+    if (visibilityMode === VISIBILITY_MODE_SIMULATION_FULL) {
+      const roomViewport = resolveRoomViewport({ roomBounds: visibilityFocusRoom, map });
+      if (roomViewport) {
+        viewport = roomViewport;
+        renderTiles = cropTilesToViewport(baseTiles, viewport);
+        renderActors = projectActorsForViewport(allActors, { viewport });
+        actorListEntries = allActors.filter((actor) => {
+          const x = actor?.position?.x;
+          const y = actor?.position?.y;
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+          return x >= viewport.startX && x < viewport.endX && y >= viewport.startY && y < viewport.endY;
+        });
+      }
+    }
+
     if (visibilityMode === VISIBILITY_MODE_GAMEPLAY_FOG) {
       const fogged = fogTilesByExploration(baseTiles, viewerExplored);
-      viewport = resolveViewportWindow({
-        width: map.width,
-        height: map.height,
-        center: viewerActor?.position || null,
-        viewportSize,
-      });
-      renderTiles = cropTilesToViewport(fogged, viewport);
+      viewport = fogFullMap
+        ? {
+          startX: 0,
+          startY: 0,
+          width: map.width,
+          height: map.height,
+          endX: map.width,
+          endY: map.height,
+        }
+        : resolveViewportWindow({
+          width: map.width,
+          height: map.height,
+          center: viewerActor?.position || null,
+          viewportSize,
+        });
+      renderTiles = fogFullMap ? fogged : cropTilesToViewport(fogged, viewport);
       renderActors = projectActorsForViewport(allActors, {
         viewport,
         visibilityMask: viewerExplored,
@@ -613,9 +946,24 @@ export function setupPlayback({
         const y = actor?.position?.y;
         return Number.isFinite(x) && Number.isFinite(y) && viewerExplored.has(keyForCell(x, y));
       });
+      if (!viewerCanRevealDarkness) {
+        const canSeeActor = (actor) => {
+          const actorId = String(actor?.id || "");
+          if (!actorId) return false;
+          if (actorId === viewerKey) return true;
+          if (darkness.hiddenActorIds.has(actorId)) return false;
+          const x = actor?.position?.x;
+          const y = actor?.position?.y;
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+          return !darkness.obscuredCells.has(keyForCell(x, y));
+        };
+        renderActors = renderActors.filter(canSeeActor);
+        actorListEntries = actorListEntries.filter(canSeeActor);
+      }
     }
 
-    const overlay = buildActorOverlay(renderTiles, renderActors);
+    const floorAffinityByCell = buildFloorAffinityIndex(obs?.traps || [], { viewport });
+    const overlay = buildActorOverlay(renderTiles, renderActors, { floorAffinityByCell });
     if (elements.frame) {
       if ("innerHTML" in elements.frame) {
         elements.frame.innerHTML = overlay.html || overlay.text;
@@ -686,6 +1034,8 @@ export function setupPlayback({
       viewerActorId: viewerKey || null,
       map,
       viewport,
+      roomFocus: visibilityFocusRoom ? { ...visibilityFocusRoom } : null,
+      fogFullMap,
       actorStats: Array.isArray(visibilityData?.actorStats) ? visibilityData.actorStats : [],
       viewer: viewerActor
         ? {
@@ -693,6 +1043,7 @@ export function setupPlayback({
           exploredTiles: viewerExplored.size,
           visibleNowTiles: viewerVisibleNow.size,
           exploredPercent: toPercent(viewerExplored.size, map.totalTiles),
+          lightSight: viewerCanRevealDarkness,
         }
         : null,
     };
@@ -727,8 +1078,10 @@ export function setupPlayback({
   }
 
   function applyAction(action) {
+    const resolvedActorIdValue = resolveActionActorIdValue(action);
+    setActiveActorByValue(resolvedActorIdValue);
     const packed = packMoveAction({
-      actorId: actorIdValue,
+      actorId: resolvedActorIdValue,
       from: action.params.from,
       to: action.params.to,
       direction: action.params.direction,
@@ -806,6 +1159,16 @@ export function setupPlayback({
     render();
   }
 
+  function setVisibilityFocusRoom(roomBounds) {
+    visibilityFocusRoom = normalizeRoomBounds(roomBounds);
+    render();
+  }
+
+  function setFogFullMap(enabled) {
+    fogFullMap = Boolean(enabled);
+    render();
+  }
+
   function setViewerActor(actorId) {
     if (!actorId) return;
     viewerActorId = String(actorId);
@@ -822,6 +1185,59 @@ export function setupPlayback({
     gotoIndex(currentIndex);
   }
 
+  function performRealtimeAction({ action, actorId } = {}) {
+    const normalizedAction = String(action || "").toLowerCase();
+    if (normalizedAction === "cast") {
+      return { ok: false, reason: "cast_unimplemented" };
+    }
+    const move = REALTIME_MOVE_BY_ACTION[normalizedAction];
+    if (!move) {
+      return { ok: false, reason: "unsupported_action" };
+    }
+
+    const snapshot = readSnapshot();
+    const observedActors = Array.isArray(snapshot?.obs?.actors) ? snapshot.obs.actors : [];
+    const selectedActorId = String(actorId || viewerActorId || actorIdLabel || "").trim();
+    if (!selectedActorId) {
+      return { ok: false, reason: "missing_actor" };
+    }
+    const actor = observedActors.find((entry) => String(entry?.id || "") === selectedActorId);
+    if (!actor || !actor.position) {
+      return { ok: false, reason: "actor_not_found", actorId: selectedActorId };
+    }
+    const fromX = Number(actor.position.x);
+    const fromY = Number(actor.position.y);
+    if (!Number.isFinite(fromX) || !Number.isFinite(fromY)) {
+      return { ok: false, reason: "invalid_position", actorId: selectedActorId };
+    }
+
+    const actorValue = resolveActorIdValueForLabel(selectedActorId, observedActors);
+    const entry = {
+      kind: "move",
+      actorId: selectedActorId,
+      actorIdValue: actorValue,
+      tick: Number(core?.getCurrentTick?.() ?? 0) + 1,
+      params: {
+        from: { x: fromX, y: fromY },
+        to: { x: fromX + move.dx, y: fromY + move.dy },
+        direction: move.direction,
+      },
+    };
+
+    stop();
+    viewerActorId = selectedActorId;
+    try {
+      applyAction(entry);
+    } catch (error) {
+      return { ok: false, reason: "apply_failed", actorId: selectedActorId, error };
+    }
+    actions = actions.slice(0, currentIndex);
+    actions.push(entry);
+    currentIndex = actions.length;
+    render();
+    return { ok: true, actorId: selectedActorId, action: normalizedAction };
+  }
+
   resetCore();
   clearVisibilityTracking();
   render();
@@ -835,9 +1251,12 @@ export function setupPlayback({
     reset,
     gotoIndex,
     setVisibilityMode,
+    setVisibilityFocusRoom,
+    setFogFullMap,
     setViewerActor,
     setViewportSize,
     setVisionRadius,
+    performRealtimeAction,
     getVisibilitySummary: () => cloneVisibilitySummary(latestVisibilitySummary),
     getIndex: () => currentIndex,
     isPlaying: () => playing,
