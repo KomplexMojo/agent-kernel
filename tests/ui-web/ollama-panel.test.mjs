@@ -46,6 +46,19 @@ test("ollama panel parses fixture response into a valid BuildSpec", async () => 
   const calls = [];
   let capturedSpec = null;
   let capturedSpecText = "";
+  let helperCalls = 0;
+  let hostCalls = 0;
+
+  const commandHost = {
+    async llm(opts) {
+      hostCalls += 1;
+      calls.push(opts);
+      return { output: fixture };
+    },
+    async normalizeBuildSpec({ spec }) {
+      return { spec, changed: false };
+    },
+  };
 
   wireOllamaPromptPanel({
     elements: {
@@ -61,10 +74,12 @@ test("ollama panel parses fixture response into a valid BuildSpec", async () => 
     },
     helpers: {
       runLlmDemo: async (opts) => {
+        helperCalls += 1;
         calls.push(opts);
         return fixture;
       },
     },
+    commandHost,
     fixturePath: "/tests/fixtures/adapters/llm-build-spec.json",
     onValidSpec: ({ spec, specText }) => {
       capturedSpec = spec;
@@ -78,7 +93,10 @@ test("ollama panel parses fixture response into a valid BuildSpec", async () => 
   await runButton.click();
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].mode, "fixture");
+  assert.equal(helperCalls, 0);
+  assert.equal(hostCalls, 1);
+  assert.equal(calls[0].model, "fixture");
+  assert.equal(calls[0].fixturePath, "/tests/fixtures/adapters/llm-build-spec.json");
   assert.match(calls[0].prompt, /agent-kernel\/BuildSpec/);
   assert.match(status.textContent, /validated/i);
 

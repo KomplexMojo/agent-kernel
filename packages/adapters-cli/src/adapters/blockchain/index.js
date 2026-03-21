@@ -35,9 +35,39 @@ export function createBlockchainAdapter({ rpcUrl, fetchFn = globalThis.fetch } =
     return call("eth_chainId");
   }
 
+  async function mintCard({
+    owner,
+    contractAddress,
+    card,
+    tokenId,
+    metadata = {},
+  } = {}) {
+    return call("ak_mintCard", [{
+      owner,
+      contractAddress,
+      tokenId,
+      card,
+      metadata,
+    }]);
+  }
+
+  async function loadMintedCard({
+    tokenId,
+    owner,
+    contractAddress,
+  } = {}) {
+    return call("ak_getMintedCard", [{
+      tokenId,
+      owner,
+      contractAddress,
+    }]);
+  }
+
   return {
     call,
     getBalance,
     getChainId,
+    mintCard,
+    loadMintedCard,
   };
 }

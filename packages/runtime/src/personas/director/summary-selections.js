@@ -18,6 +18,7 @@ import {
   normalizeCardType,
   normalizeRoomCardSize,
 } from "../configurator/card-model.js";
+import { normalizeMotivationKindList } from "../configurator/motivation-loadouts.js";
 
 function normalizePositiveInt(value, fallback = 1) {
   const num = Number(value);
@@ -98,7 +99,7 @@ function applyVitalMaxOverrides(vitals, vitalsMax) {
   return next;
 }
 
-function normalizeMotivations(value, fallback) {
+function normalizeStringList(value, fallback) {
   const raw = Array.isArray(value)
     ? value
     : typeof fallback === "string" && fallback.trim()
@@ -110,13 +111,25 @@ function normalizeMotivations(value, fallback) {
     .filter((entry) => entry && !seen.has(entry) && seen.add(entry));
 }
 
+function normalizeMotivationKinds(value, fallback) {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof fallback === "string" && fallback.trim()
+      ? [fallback.trim()]
+      : [];
+  return normalizeMotivationKindList(raw, {
+    allowEmpty: true,
+    fieldBase: "motivations",
+  }).value;
+}
+
 function isAttackingMotivation(value) {
   if (typeof value !== "string") return false;
   return value.trim().toLowerCase().includes("attack");
 }
 
 function pickHasAttackingMotivation(pick) {
-  const motivations = normalizeMotivations(
+  const motivations = normalizeMotivationKinds(
     pick?.motivations,
     pick?.motivation || pick?.role || "",
   );
@@ -235,11 +248,10 @@ export function normalizeSummaryPick(
   const defaultAffinity = source === "room"
     ? DEFAULT_ROOM_CARD_AFFINITY
     : (dungeonAffinity || DEFAULT_DUNGEON_AFFINITY);
-  const motivation = typeof entry?.role === "string" && entry.role.trim()
-    ? entry.role.trim()
-    : typeof entry?.motivation === "string" && entry.motivation.trim()
-      ? entry.motivation.trim()
-      : "stationary";
+  const motivation = normalizeMotivationKinds(
+    entry?.motivations,
+    entry?.role || entry?.motivation || "stationary",
+  )[0] || "stationary";
   const affinity = typeof entry?.affinity === "string" && entry.affinity.trim()
     ? entry.affinity.trim()
     : defaultAffinity;
@@ -285,13 +297,16 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
       fallbackStacks: DEFAULT_ROOM_AFFINITY_STACKS,
     })
     : normalizeAffinityEntries(entry?.affinities, affinity);
-  const expressions = normalizeMotivations(
+  const expressions = normalizeStringList(
     normalizedAffinities.map((affinityEntry) => affinityEntry.expression),
     DEFAULT_AFFINITY_EXPRESSION,
   );
   const motivations = type === "room"
     ? []
-    : normalizeMotivations(entry?.motivations, entry?.motivation || entry?.role || (type === "attacker" ? "attacking" : "defending"));
+    : normalizeMotivationKinds(
+      entry?.motivations,
+      entry?.motivation || entry?.role || (type === "attacker" ? "attacking" : "defending"),
+    );
   const id = typeof entry?.id === "string" && entry.id.trim()
     ? entry.id.trim()
     : `card_${type}_${index + 1}`;
@@ -419,7 +434,7 @@ function reduceAttackerConfigsToCards(attackerConfigs = [], dungeonAffinity = DE
     count: entry.count,
     affinity: entry.affinities[0]?.kind || dungeonAffinity,
     affinities: entry.affinities,
-    expressions: normalizeMotivations(entry.affinities.map((affinityEntry) => affinityEntry.expression), DEFAULT_AFFINITY_EXPRESSION),
+    expressions: normalizeStringList(entry.affinities.map((affinityEntry) => affinityEntry.expression), DEFAULT_AFFINITY_EXPRESSION),
     motivations: ["attacking"],
     setupMode: entry.setupMode,
     vitals: entry.vitals,
@@ -461,7 +476,7 @@ export function buildCardSetFromSummary(summary) {
   ));
 
   const actorCards = actors.map((entry, index) => {
-    const motivations = normalizeMotivations(
+    const motivations = normalizeMotivationKinds(
       entry?.motivations,
       entry?.motivation || entry?.role || "defending",
     );

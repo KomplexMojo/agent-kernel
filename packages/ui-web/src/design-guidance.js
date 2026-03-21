@@ -6,6 +6,7 @@ import {
   AFFINITY_EXPRESSION_SET,
   AFFINITY_KINDS,
   AFFINITY_KIND_SET,
+  AFFINITY_OPPOSITES,
   DEFAULT_AFFINITY_EXPRESSION,
   DEFAULT_DUNGEON_AFFINITY,
   DEFAULT_ROOM_AFFINITY_EXPRESSION,
@@ -23,7 +24,12 @@ import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
 } from "../../runtime/src/personas/configurator/spend-proposal.js";
-import { MOTIVATION_KINDS } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
+import {
+  getConflictingMotivationKinds,
+  MOTIVATION_DISPLAY_GROUPS,
+  MOTIVATION_KINDS,
+  normalizeMotivationKindList,
+} from "../../runtime/src/personas/configurator/motivation-loadouts.js";
 import {
   buildCardSetFromSummary,
   extractSummaryFromCardSet,
@@ -95,6 +101,28 @@ const MOTIVATION_ICON_MAP = Object.freeze({
   goal_oriented: "🎯",
   strategy_focused: "♟️",
 });
+const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.";
+const EXCLUSIVE_PAIR_NOTE = "Choose 1";
+
+const AFFINITY_DISPLAY_GROUPS = Object.freeze(
+  (() => {
+    const groups = [];
+    const seen = new Set();
+    AFFINITY_KINDS.forEach((kind) => {
+      if (seen.has(kind)) return;
+      const opposite = typeof AFFINITY_OPPOSITES?.[kind] === "string" ? AFFINITY_OPPOSITES[kind] : "";
+      if (opposite && AFFINITY_KIND_SET.has(opposite) && !seen.has(opposite) && opposite !== kind) {
+        groups.push(Object.freeze({ id: `${kind}_${opposite}`, kinds: Object.freeze([kind, opposite]) }));
+        seen.add(kind);
+        seen.add(opposite);
+        return;
+      }
+      groups.push(Object.freeze({ id: kind, kinds: Object.freeze([kind]) }));
+      seen.add(kind);
+    });
+    return groups;
+  })(),
+);
 
 function formatDisplayLabel(value, fallback = "") {
   if (typeof value !== "string" || !value.trim()) return fallback;
@@ -163,8 +191,13 @@ function normalizeBudgetSplit(values = {}) {
 
 function setStatus(el, message, isError = false) {
   if (!el) return;
-  el.textContent = message;
-  el.style.color = isError ? "#cf3f5b" : "inherit";
+  const text = typeof message === "string" ? message.trim() : "";
+  el.textContent = text;
+  el.hidden = text.length === 0;
+  if (el.dataset) {
+    el.dataset.level = isError ? "error" : "info";
+  }
+  el.style.color = "";
 }
 
 function normalizeAffinity(value, fallback = DEFAULT_DUNGEON_AFFINITY) {
@@ -184,30 +217,24 @@ function normalizeExpression(value, fallback = DEFAULT_AFFINITY_EXPRESSION) {
 }
 
 function normalizeMotivationList(values, fallback = "defending") {
-  const list = Array.isArray(values)
-    ? values
-    : typeof values === "string"
-      ? [values]
-      : [];
-  const seen = new Set();
-  const normalized = list
-    .map((value) => (typeof value === "string" ? value.trim().toLowerCase() : ""))
-    .filter((value) => value && MOTIVATION_KINDS.includes(value) && !seen.has(value) && seen.add(value));
-  if (normalized.length > 0) return normalized;
-  if (fallback && MOTIVATION_KINDS.includes(fallback)) return [fallback];
-  return [];
+  return normalizeMotivationKindList(values, {
+    fallback,
+    fieldBase: "motivations",
+  }).value;
 }
 
 function normalizeMotivationListAllowEmpty(values) {
-  const list = Array.isArray(values)
-    ? values
-    : typeof values === "string"
-      ? [values]
-      : [];
-  const seen = new Set();
-  return list
-    .map((value) => (typeof value === "string" ? value.trim().toLowerCase() : ""))
-    .filter((value) => value && MOTIVATION_KINDS.includes(value) && !seen.has(value) && seen.add(value));
+  return normalizeMotivationKindList(values, {
+    allowEmpty: true,
+    fieldBase: "motivations",
+  }).value;
+}
+
+function findMotivationConflict(currentMotivations = [], nextMotivation = "") {
+  const normalizedCurrent = normalizeMotivationListAllowEmpty(currentMotivations);
+  const conflicts = new Set(getConflictingMotivationKinds(nextMotivation));
+  if (conflicts.size === 0) return "";
+  return normalizedCurrent.find((entry) => conflicts.has(entry)) || "";
 }
 
 function normalizeExpressionList(values) {
@@ -799,6 +826,16 @@ function applyMotivationDrop(card, motivationValue) {
   const working = createDesignCard(card);
   const current = normalizeMotivationListAllowEmpty(working.motivations);
   const exists = current.includes(motivation);
+  const conflictsWith = exists ? "" : findMotivationConflict(current, motivation);
+  if (conflictsWith) {
+    return {
+      ok: false,
+      reason: "motivation_conflict",
+      conflictsWith,
+      attempted: motivation,
+      card: working,
+    };
+  }
   const next = exists
     ? current.filter((value) => value !== motivation)
     : [...current, motivation];
@@ -1167,6 +1204,232 @@ export function buildSummaryFromCardSet({
   };
 }
 
+const AUTO_GENERATE_ROOM_BLUEPRINTS = Object.freeze([
+  {
+    key: "room_large_dark",
+    preference: 3,
+    card: {
+      type: "room",
+      affinity: "dark",
+      roomSize: "large",
+      count: 1,
+      source: "auto-generated",
+    },
+  },
+  {
+    key: "room_medium_fire",
+    preference: 2,
+    card: {
+      type: "room",
+      affinity: "fire",
+      roomSize: "medium",
+      count: 1,
+      source: "auto-generated",
+    },
+  },
+  {
+    key: "room_small_water",
+    preference: 1,
+    card: {
+      type: "room",
+      affinity: "water",
+      roomSize: "small",
+      count: 1,
+      source: "auto-generated",
+    },
+  },
+]);
+
+const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
+  attacker: Object.freeze([
+    {
+      key: "attacker_light",
+      card: {
+        type: "attacker",
+        affinity: "light",
+        motivations: ["attacking"],
+        count: 1,
+        source: "auto-generated",
+      },
+    },
+    {
+      key: "attacker_fire",
+      card: {
+        type: "attacker",
+        affinity: "fire",
+        expressions: ["push"],
+        motivations: ["attacking"],
+        count: 1,
+        source: "auto-generated",
+      },
+    },
+  ]),
+  defender: Object.freeze([
+    {
+      key: "defender_dark",
+      card: {
+        type: "defender",
+        affinity: "dark",
+        motivations: ["defending"],
+        count: 1,
+        source: "auto-generated",
+      },
+    },
+    {
+      key: "defender_earth",
+      card: {
+        type: "defender",
+        affinity: "earth",
+        expressions: ["pull"],
+        motivations: ["defending"],
+        count: 1,
+        source: "auto-generated",
+      },
+    },
+  ]),
+});
+
+function resolveAutoGenerateVariants(blueprints = [], costContext = {}) {
+  return blueprints
+    .map((blueprint) => {
+      const card = createDesignCard(blueprint.card);
+      const unitTokens = readPositiveInt(calculateCardValue(card, costContext)?.unitTokens, 0);
+      return {
+        ...blueprint,
+        card,
+        unitTokens,
+      };
+    })
+    .filter((variant) => variant.unitTokens > 0);
+}
+
+function buildAutoGeneratedRoomCards(availableTokens, costContext = {}) {
+  const budget = readNonNegativeInt(availableTokens, 0);
+  if (budget <= 0) return [];
+
+  const variants = resolveAutoGenerateVariants(AUTO_GENERATE_ROOM_BLUEPRINTS, costContext);
+  if (variants.length === 0) return [];
+
+  const plans = Array.from({ length: budget + 1 }, () => null);
+  plans[0] = {
+    counts: Object.create(null),
+    cardUnits: 0,
+    preferenceScore: 0,
+  };
+
+  for (let spent = 1; spent <= budget; spent += 1) {
+    let bestPlan = null;
+    variants.forEach((variant) => {
+      if (variant.unitTokens > spent) return;
+      const priorPlan = plans[spent - variant.unitTokens];
+      if (!priorPlan) return;
+      const counts = {
+        ...priorPlan.counts,
+        [variant.key]: (priorPlan.counts[variant.key] || 0) + 1,
+      };
+      const candidate = {
+        counts,
+        cardUnits: priorPlan.cardUnits + 1,
+        preferenceScore: priorPlan.preferenceScore + readNonNegativeInt(variant.preference, 0),
+      };
+      const better =
+        !bestPlan
+        || candidate.cardUnits < bestPlan.cardUnits
+        || (
+          candidate.cardUnits === bestPlan.cardUnits
+          && candidate.preferenceScore > bestPlan.preferenceScore
+        );
+      if (better) {
+        bestPlan = candidate;
+      }
+    });
+    plans[spent] = bestPlan;
+  }
+
+  let bestSpent = budget;
+  while (bestSpent > 0 && !plans[bestSpent]) {
+    bestSpent -= 1;
+  }
+  if (bestSpent <= 0 || !plans[bestSpent]) {
+    return [];
+  }
+
+  return variants
+    .map((variant) => {
+      const count = readPositiveInt(plans[bestSpent]?.counts?.[variant.key], 0);
+      if (count <= 0) return null;
+      return createDesignCard({
+        ...variant.card,
+        count,
+        source: "auto-generated",
+      });
+    })
+    .filter(Boolean);
+}
+
+function buildAutoGeneratedActorCards(type, availableTokens, costContext = {}) {
+  const normalizedType = normalizeCardType(type);
+  if (normalizedType !== "attacker" && normalizedType !== "defender") {
+    return [];
+  }
+
+  const budget = readNonNegativeInt(availableTokens, 0);
+  if (budget <= 0) return [];
+
+  const variants = resolveAutoGenerateVariants(AUTO_GENERATE_ACTOR_BLUEPRINTS[normalizedType], costContext);
+  if (variants.length === 0) return [];
+
+  const minUnitTokens = variants.reduce((min, variant) => Math.min(min, variant.unitTokens), Number.POSITIVE_INFINITY);
+  if (!Number.isFinite(minUnitTokens) || minUnitTokens <= 0) {
+    return [];
+  }
+
+  const totalCount = Math.floor(budget / minUnitTokens);
+  if (totalCount <= 0) return [];
+
+  const cheapestVariants = variants.filter((variant) => variant.unitTokens === minUnitTokens);
+  if (cheapestVariants.length <= 1 || totalCount === 1) {
+    return [
+      createDesignCard({
+        ...cheapestVariants[0].card,
+        count: totalCount,
+        source: "auto-generated",
+      }),
+    ];
+  }
+
+  const primaryCount = Math.ceil(totalCount / 2);
+  const secondaryCount = totalCount - primaryCount;
+  return [
+    primaryCount > 0
+      ? createDesignCard({
+        ...cheapestVariants[0].card,
+        count: primaryCount,
+        source: "auto-generated",
+      })
+      : null,
+    secondaryCount > 0
+      ? createDesignCard({
+        ...cheapestVariants[1].card,
+        count: secondaryCount,
+        source: "auto-generated",
+      })
+      : null,
+  ].filter(Boolean);
+}
+
+function formatAutoGenerateCount(type, count) {
+  const normalizedType = normalizeCardType(type) || type;
+  const safeCount = readNonNegativeInt(count, 0);
+  if (normalizedType === "attacker") {
+    return `${safeCount} attacker${safeCount === 1 ? "" : "s"}`;
+  }
+  if (normalizedType === "defender") {
+    return `${safeCount} defender${safeCount === 1 ? "" : "s"}`;
+  }
+  return `${safeCount} room${safeCount === 1 ? "" : "s"}`;
+}
+
 function normalizeFixtureResponses(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.responses)) return payload.responses;
@@ -1213,26 +1476,44 @@ function replaceChildren(el, children) {
 }
 
 function buildPropertyCatalog() {
+  const affinityOptionMap = new Map(
+    AFFINITY_KINDS.map((value) => [value, {
+      value,
+      label: formatDisplayLabel(value, value),
+      icon: iconForAffinity(value),
+    }]),
+  );
+  const motivationOptionMap = new Map(
+    MOTIVATION_KINDS.map((value) => [value, {
+      value,
+      label: formatDisplayLabel(value, value),
+      icon: iconForMotivation(value),
+    }]),
+  );
   return {
     type: CARD_TYPE_ORDER.map((value) => ({
       value,
       label: formatDisplayLabel(value, value),
       icon: iconForType(value),
     })),
-    affinities: AFFINITY_KINDS.map((value) => ({
-      value,
-      label: formatDisplayLabel(value, value),
-      icon: iconForAffinity(value),
+    affinities: AFFINITY_DISPLAY_GROUPS.map((group) => ({
+      id: group.id,
+      kinds: group.kinds.slice(),
+      options: group.kinds
+        .map((value) => affinityOptionMap.get(value))
+        .filter(Boolean),
     })),
     expressions: AFFINITY_EXPRESSIONS.map((value) => ({
       value,
       label: formatDisplayLabel(value, value),
       icon: iconForExpression(value),
     })),
-    motivations: MOTIVATION_KINDS.map((value) => ({
-      value,
-      label: formatDisplayLabel(value, value),
-      icon: iconForMotivation(value),
+    motivations: MOTIVATION_DISPLAY_GROUPS.map((group) => ({
+      id: group.id,
+      kinds: group.kinds.slice(),
+      options: group.kinds
+        .map((value) => motivationOptionMap.get(value))
+        .filter(Boolean),
     })),
   };
 }
@@ -1273,7 +1554,13 @@ function parseDropProperty(event) {
 const ACTIVE_CARD_DRAG_TYPE = "application/x-agent-kernel-active-card";
 const SHELF_CARD_DRAG_TYPE = "application/x-agent-kernel-shelf-card-id";
 
-export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, onLlmCapture } = {}) {
+export function wireDesignGuidance({
+  elements = {},
+  llmConfig = {},
+  onSummary,
+  onLlmCapture,
+  onMintCard,
+} = {}) {
   const {
     statusEl,
     leftRailType,
@@ -1619,6 +1906,52 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     return true;
   }
 
+  async function mintActiveCardToGroup(groupType = null) {
+    const active = createDesignCard(state.activeCard || {});
+    const activeType = normalizeCardType(active.type);
+    const targetType = normalizeCardType(groupType || activeType);
+    if (!targetType) {
+      setStatus(statusEl, "Set card type before minting.", true);
+      return { ok: false, reason: "missing_type" };
+    }
+    if (activeType && targetType && activeType !== targetType) {
+      setStatus(statusEl, `Card type ${activeType} cannot be minted to ${targetType} group.`, true);
+      return { ok: false, reason: "type_mismatch" };
+    }
+    const staged = activeType
+      ? active
+      : createDesignCard({
+        ...active,
+        type: targetType,
+      });
+    if (typeof onMintCard === "function") {
+      const mintResult = await onMintCard({ card: staged, targetType });
+      if (!mintResult || mintResult.ok === false) {
+        const message = mintResult?.error || mintResult?.message || "Mint failed.";
+        setStatus(statusEl, message, true);
+        return { ok: false, reason: "mint_failed", error: message };
+      }
+      const moved = stashActiveCardToGroup(targetType);
+      if (!moved) {
+        return { ok: false, reason: "stash_failed_after_mint" };
+      }
+      const tokenId = mintResult?.tokenId || mintResult?.result?.tokenId || "";
+      setStatus(
+        statusEl,
+        tokenId
+          ? `Minted ${staged.id} as ${tokenId} and moved to ${targetType} group.`
+          : `Minted ${staged.id} and moved to ${targetType} group.`,
+      );
+      return { ok: true, tokenId };
+    }
+
+    const moved = stashActiveCardToGroup(targetType);
+    if (!moved) {
+      return { ok: false, reason: "stash_failed" };
+    }
+    return { ok: true, skippedMint: true };
+  }
+
   function pullCardToEditor(cardId) {
     const index = state.cards.findIndex((card) => card.id === cardId);
     if (index < 0) return false;
@@ -1757,6 +2090,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     state.allocationLedger = built.allocationLedger;
     renderCards();
     renderGroups();
+    renderLeftRail();
     syncOutputs();
     if (notify) {
       onSummary?.({
@@ -2143,6 +2477,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
             const row = createDomElement(motivations, "div");
             if (!row) return;
             row.className = "design-card-motivation-row";
+            row.title = formatDisplayLabel(motivation, motivation);
 
             const icon = createDomElement(row, "span");
             if (icon) {
@@ -2150,18 +2485,13 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
               icon.textContent = iconForMotivation(motivation);
               row.append(icon);
             }
-            const label = createDomElement(row, "span");
-            if (label) {
-              label.className = "design-card-motivation-label";
-              label.textContent = formatDisplayLabel(motivation, motivation);
-              row.append(label);
-            }
             const remove = createDomElement(row, "button");
             if (remove) {
               remove.type = "button";
               remove.className = "design-card-motivation-remove";
               remove.dataset.motivationRemove = motivation;
-              remove.textContent = "Remove";
+              remove.textContent = "×";
+              remove.title = `Remove ${formatDisplayLabel(motivation, motivation)}`;
               remove.addEventListener?.("click", (event) => {
                 event.stopPropagation?.();
                 applyPropertyDrop(card.id, {
@@ -2173,31 +2503,6 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
             }
             motivations.append(row);
           });
-
-          const addList = createDomElement(motivations, "div");
-          if (addList) {
-            addList.className = "design-card-motivation-add-list";
-            const activeMotivations = new Set(motivationEntries);
-            MOTIVATION_KINDS
-              .filter((motivation) => !activeMotivations.has(motivation))
-              .forEach((motivation) => {
-                const add = createDomElement(addList, "button");
-                if (!add) return;
-                add.type = "button";
-                add.className = "design-card-motivation-add";
-                add.dataset.motivationAdd = motivation;
-                add.textContent = `+ ${formatDisplayLabel(motivation, motivation)}`;
-                add.addEventListener?.("click", (event) => {
-                  event.stopPropagation?.();
-                  applyPropertyDrop(card.id, {
-                    group: "motivations",
-                    value: motivation,
-                  });
-                });
-                addList.append(add);
-              });
-            motivations.append(addList);
-          }
           front.append(motivations);
         }
 
@@ -2321,7 +2626,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
           stash.disabled = !targetType;
           stash.addEventListener?.("click", (event) => {
             event.stopPropagation?.();
-            stashActiveCardToGroup(targetType);
+            void mintActiveCardToGroup(targetType);
           });
           controls.append(stash);
         }
@@ -2428,55 +2733,166 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     replaceChildren(cardGrid, [cardEl]);
   }
 
+  function createPropertyChip(container, group, option, {
+    disabled = false,
+    dragEnabled = true,
+    selected = false,
+    groupId = "",
+    title,
+  } = {}) {
+    const chip = createDomElement(container, "button");
+    if (!chip) return null;
+    chip.type = "button";
+    chip.className = "design-property-chip";
+    chip.dataset.propertyGroup = group;
+    chip.dataset.propertyValue = option.value;
+    if (groupId) {
+      chip.dataset.motivationGroupId = groupId;
+    }
+    if (selected) {
+      chip.classList?.add("is-selected");
+    }
+    chip.disabled = disabled;
+    chip.title = title || `${option.label}`;
+    const content = createDomElement(chip, "span");
+    if (content) {
+      content.className = "design-property-chip-content";
+      const icon = createDomElement(content, "span");
+      if (icon) {
+        icon.className = "ui-icon design-property-chip-icon";
+        icon.textContent = option.icon || "◈";
+        content.append(icon);
+      }
+      const label = createDomElement(content, "span");
+      if (label) {
+        label.className = "design-property-chip-label";
+        label.textContent = option.label;
+        content.append(label);
+      }
+      chip.append(content);
+    } else {
+      chip.textContent = `${option.icon || "◈"} ${option.label}`;
+    }
+    const property = { group, value: option.value };
+    if (dragEnabled && !disabled) {
+      bindChipDrag(chip, property);
+    }
+    chip.addEventListener?.("click", () => {
+      if (chip.disabled) return;
+      if (!state.activeCard?.id) {
+        setStatus(statusEl, "No active card in the configuration area.", true);
+        return;
+      }
+      applyPropertyDrop(state.activeCard.id, property);
+    });
+    return chip;
+  }
+
   function renderPropertyChips(container, group, options) {
     if (!container) return;
-    const chips = options.map((option) => {
-      const chip = createDomElement(container, "button");
-      if (!chip) return null;
-      chip.type = "button";
-      chip.className = "design-property-chip";
-      chip.dataset.propertyGroup = group;
-      chip.dataset.propertyValue = option.value;
-      chip.title = `${option.label}`;
-      const content = createDomElement(chip, "span");
-      if (content) {
-        content.className = "design-property-chip-content";
-        const icon = createDomElement(content, "span");
-        if (icon) {
-          icon.className = "ui-icon design-property-chip-icon";
-          icon.textContent = option.icon || "◈";
-          content.append(icon);
-        }
-        const label = createDomElement(content, "span");
-        if (label) {
-          label.className = "design-property-chip-label";
-          label.textContent = option.label;
-          content.append(label);
-        }
-        chip.append(content);
-      } else {
-        chip.textContent = `${option.icon || "◈"} ${option.label}`;
-      }
-      const property = { group, value: option.value };
-      bindChipDrag(chip, property);
-      chip.addEventListener?.("click", () => {
-        if (!state.activeCard?.id) {
-          setStatus(statusEl, "No active card in the configuration area.", true);
-          return;
-        }
-        applyPropertyDrop(state.activeCard.id, property);
-      });
-      return chip;
-    }).filter(Boolean);
+    const chips = options
+      .map((option) => createPropertyChip(container, group, option))
+      .filter(Boolean);
     replaceChildren(container, chips);
+  }
+
+  function renderPropertyChipPairs(container, group, groups, {
+    activeValues = [],
+    exclusive = false,
+  } = {}) {
+    if (!container) return;
+    const active = new Set(activeValues);
+    const wrappers = groups.map((groupEntry) => {
+      const wrapper = createDomElement(container, "div");
+      if (!wrapper) return null;
+      wrapper.className = "design-property-chip-group";
+      wrapper.dataset.propertyGroup = group;
+      wrapper.dataset.propertyGroupId = groupEntry.id;
+      if (exclusive && groupEntry.options.length > 1) {
+        wrapper.dataset.exclusive = "true";
+        const note = createDomElement(wrapper, "span");
+        if (note) {
+          note.className = "design-property-chip-group-note";
+          note.textContent = EXCLUSIVE_PAIR_NOTE;
+          wrapper.append(note);
+        }
+      }
+
+      const row = createDomElement(wrapper, "div");
+      if (!row) return wrapper;
+      row.className = "design-property-chip-pair";
+      row.dataset.propertyGroupId = groupEntry.id;
+      if (groupEntry.options.length === 1) {
+        row.classList?.add("is-single");
+      }
+
+      groupEntry.options.forEach((option) => {
+        const chip = createPropertyChip(container, group, option, {
+          selected: active.has(option.value),
+        });
+        if (chip) {
+          row.append(chip);
+        }
+      });
+      wrapper.append(row);
+      return wrapper;
+    }).filter(Boolean);
+    replaceChildren(container, wrappers);
+  }
+
+  function renderMotivationPairChips(container, groups) {
+    if (!container) return;
+    const activeMotivationList = normalizeMotivationListAllowEmpty(state.activeCard?.motivations);
+    const activeMotivations = new Set(activeMotivationList);
+    const wrappers = groups.map((group) => {
+      const wrapper = createDomElement(container, "div");
+      if (!wrapper) return null;
+      wrapper.className = "design-property-chip-group";
+      wrapper.dataset.propertyGroup = "motivations";
+      wrapper.dataset.propertyGroupId = group.id;
+      if (group.options.length > 1) {
+        wrapper.dataset.exclusive = "true";
+        const note = createDomElement(wrapper, "span");
+        if (note) {
+          note.className = "design-property-chip-group-note";
+          note.textContent = EXCLUSIVE_PAIR_NOTE;
+          wrapper.append(note);
+        }
+      }
+      const row = createDomElement(wrapper, "div");
+      if (!row) return wrapper;
+      row.className = "design-property-chip-pair";
+      row.dataset.motivationGroupId = group.id;
+      if (group.options.length === 1) {
+        row.classList?.add("is-single");
+      }
+      group.options.forEach((option) => {
+        const conflictsWith = findMotivationConflict(activeMotivationList, option.value);
+        const chip = createPropertyChip(container, "motivations", option, {
+          disabled: Boolean(conflictsWith && !activeMotivations.has(option.value)),
+          dragEnabled: !conflictsWith || activeMotivations.has(option.value),
+          selected: activeMotivations.has(option.value),
+          groupId: group.id,
+          title: conflictsWith && !activeMotivations.has(option.value)
+            ? `${option.label} is unavailable while ${formatDisplayLabel(conflictsWith, conflictsWith)} is selected.`
+            : option.label,
+        });
+        if (chip) {
+          row.append(chip);
+        }
+      });
+      wrapper.append(row);
+      return wrapper;
+    }).filter(Boolean);
+    replaceChildren(container, wrappers);
   }
 
   function renderLeftRail() {
     const catalog = buildPropertyCatalog();
     renderPropertyChips(leftRailType, "type", catalog.type);
-    renderPropertyChips(leftRailAffinities, "affinities", catalog.affinities);
+    renderPropertyChipPairs(leftRailAffinities, "affinities", catalog.affinities);
     renderPropertyChips(leftRailExpressions, "expressions", catalog.expressions);
-    renderPropertyChips(leftRailMotivations, "motivations", catalog.motivations);
+    renderMotivationPairChips(leftRailMotivations, catalog.motivations);
   }
 
   function addCard(initial = {}) {
@@ -2554,6 +2970,12 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     const updated = updateCard(cardId, (card) => {
       const result = dropPropertyOnCard(card, property);
       if (!result.ok) {
+        if (result.reason === "motivation_conflict") {
+          const attempted = formatDisplayLabel(result.attempted, result.attempted || "motivation");
+          const conflictsWith = formatDisplayLabel(result.conflictsWith, result.conflictsWith || "active motivation");
+          setStatus(statusEl, `Drop blocked: ${attempted} conflicts with ${conflictsWith}.`, true);
+          return card;
+        }
         setStatus(statusEl, `Drop blocked: ${result.reason}.`, true);
         return card;
       }
@@ -2599,6 +3021,57 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     state.budgetSplitPercent = nextBudgetSplit;
     recompute({ notify: false });
     return true;
+  }
+
+  function autoGenerateCards() {
+    const allocation = state.allocationLedger || resolveAllocationLedger(state.cards);
+    const costContext = {
+      tileCosts: state.tileCosts,
+      priceList: state.priceList,
+    };
+    const generatedCards = [
+      ...buildAutoGeneratedRoomCards(allocation?.byType?.room?.remainingTokens, costContext),
+      ...buildAutoGeneratedActorCards("attacker", allocation?.byType?.attacker?.remainingTokens, costContext),
+      ...buildAutoGeneratedActorCards("defender", allocation?.byType?.defender?.remainingTokens, costContext),
+    ];
+
+    if (generatedCards.length === 0) {
+      setStatus(statusEl, "No remaining allocation available for auto-generation.");
+      return { ok: false, reason: "no_remaining_allocation", cards: [] };
+    }
+
+    const identified = normalizeCardIdentifiers([...state.cards, ...generatedCards], state.activeCard);
+    const evaluation = evaluateShelvedCards(identified.cards);
+    if (evaluation.overBudget) {
+      setStatus(statusEl, `Cannot auto-generate cards: ${describeBudgetViolation(evaluation)}`, true);
+      return { ok: false, reason: "budget_overflow", cards: generatedCards };
+    }
+
+    state.cards = identified.cards;
+    const counts = generatedCards.reduce((acc, card) => {
+      const type = normalizeCardType(card?.type);
+      if (!type) return acc;
+      acc[type] += normalizeCardCount(card?.count, 1);
+      return acc;
+    }, {
+      room: 0,
+      attacker: 0,
+      defender: 0,
+    });
+
+    recompute();
+
+    const description = BUDGET_BUCKET_ORDER
+      .filter((type) => counts[type] > 0)
+      .map((type) => formatAutoGenerateCount(type, counts[type]))
+      .join(", ");
+    setStatus(statusEl, `Auto-generated ${description} using the remaining allocation.`);
+
+    return {
+      ok: true,
+      cards: generatedCards,
+      counts,
+    };
   }
 
   async function resolveAiSummary(prompt) {
@@ -2698,6 +3171,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
   }
 
   function initialize() {
+    setStatus(statusEl, DEFAULT_DESIGN_HELP_TEXT);
     renderLeftRail();
     if (levelBudgetInput?.addEventListener) {
       levelBudgetInput.addEventListener("input", () => {
@@ -2732,6 +3206,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     addCard,
     setCards,
     stashActiveCard: stashActiveCardToGroup,
+    mintActiveCard: mintActiveCardToGroup,
     pullCardToEditor,
     applyPropertyDrop,
     adjustCardCount: adjustCount,
@@ -2743,6 +3218,7 @@ export function wireDesignGuidance({ elements = {}, llmConfig = {}, onSummary, o
     cycleRoomSize,
     setBudget,
     setBudgetSplit,
+    autoGenerateCards,
     generateAiConfiguration,
     buildSummary: () => ({ summary: state.summary, spendLedger: state.spendLedger, cards: state.cards }),
     getActiveCard: () => ({ ...state.activeCard }),

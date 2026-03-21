@@ -20,6 +20,28 @@ pnpm run build:wasm
 ```
 This produces `build/core-as.wasm` (default `--wasm` path).
 
+## Minimum-install baseline
+
+The default Design -> Preview -> Run workflow is intended to work with the repo
+baseline plus the browser UI. It does not require live IPFS, blockchain, or
+Ollama services.
+
+Required for the baseline:
+- repository dependencies
+- a browser to open `packages/ui-web/index.html`
+- `pnpm run build:wasm` only when you want `Run` or `Replay`
+
+Optional and not required for the baseline:
+- `AK_ALLOW_NETWORK`
+- an IPFS gateway
+- a blockchain JSON-RPC endpoint
+- a live Ollama-compatible LLM endpoint
+
+The fastest offline smoke path is:
+1. `pnpm run build:wasm`
+2. `pnpm run serve:ui`
+3. open the UI, author in `Design`, stage in `Preview`, then launch `Run`
+
 ## Determinism and network safety
 
 - Fixture-first: use `--fixture` flags to keep runs deterministic and offline.

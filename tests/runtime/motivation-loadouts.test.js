@@ -42,3 +42,30 @@ test("normalizeMotivations surfaces invalid kinds/patterns and clamps intensity"
   assert.equal(result.value[0].pattern, MOTIVATION_PATTERNS.attacking[0]);
   assert.equal(result.value[0].intensity, 10); // clamped to max
 });
+
+test("normalizeMotivations rejects contradictory motivations from the same exclusive group", async () => {
+  const {
+    MOTIVATION_DISPLAY_GROUPS,
+    getConflictingMotivationKinds,
+    normalizeMotivations,
+  } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
+
+  const combatGroup = MOTIVATION_DISPLAY_GROUPS.find((group) => group.id === "combat");
+  assert.deepEqual(combatGroup?.kinds, ["attacking", "defending"]);
+  assert.deepEqual(getConflictingMotivationKinds("stationary"), ["exploring", "patrolling"]);
+
+  const result = normalizeMotivations([
+    "attacking",
+    "defending",
+    "stationary",
+    "patrolling",
+  ]);
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.find((err) => err.code === "conflicting_kind" && err.field === "motivations[1]"));
+  assert.ok(result.errors.find((err) => err.code === "conflicting_kind" && err.field === "motivations[3]"));
+  assert.deepEqual(
+    result.value.map((entry) => entry.kind),
+    ["attacking", "stationary"],
+  );
+});

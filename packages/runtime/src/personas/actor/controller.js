@@ -1,8 +1,17 @@
 import { createActorStateMachine, ActorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.js";
-import { buildAction, buildRequestActionsFromEffects } from "../_shared/persona-helpers.js";
+import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.js";
+import {
+  RUNTIME_DECISION_CONTRACT,
+  allowsLiveLlmRuntime,
+  buildRuntimeDecisionEnvelope,
+  resolveRuntimeDecisionProviderPolicy,
+} from "../_shared/runtime-decision.js";
 
 export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
+
+const SOLVER_REQUEST_SCHEMA = "agent-kernel/SolverRequest";
+const SOLVER_ENGINE = "z3";
 
 const DEFAULT_DELTAS = Object.freeze([
   { dx: 0, dy: -1, direction: "north" },
@@ -24,6 +33,10 @@ const MOTIVATION_IDS = Object.freeze({
   goal_oriented: "motivation_goal_oriented",
   strategy_focused: "motivation_strategy_focused",
 });
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
 function isMotivatedKind(kind) {
   if (typeof kind === "number") return kind === MOTIVATED_KIND;
@@ -219,11 +232,414 @@ function resolveActor(view, actorId, observation) {
   return null;
 }
 
+function resolveActorRecord(view, actorId, observation) {
+  if (view?.actors && Array.isArray(view.actors)) {
+    const matchId = actorId || observation?.actorId;
+    const selected = matchId ? view.actors.find((actor) => actor?.id === matchId) : view.actors[0];
+    if (selected) {
+      return selected;
+    }
+  }
+  if (view?.actor) {
+    return view.actor;
+  }
+  return null;
+}
+
+function resolveConfiguredActor(payload, actorId) {
+  const actors = Array.isArray(payload?.initialState?.actors) ? payload.initialState.actors : [];
+  if (!actorId) return actors[0] || null;
+  return actors.find((actor) => actor?.id === actorId) || null;
+}
+
 function resolveTileKinds(view, payload) {
   if (Array.isArray(view?.tiles?.kinds)) return view.tiles.kinds;
   if (Array.isArray(view?.kinds)) return view.kinds;
   if (Array.isArray(payload?.tiles?.kinds)) return payload.tiles.kinds;
   return null;
+}
+
+function buildAdjacentMoveProposals({ actor, tileKinds, baseTiles }) {
+  if (!actor?.position) {
+    return [];
+  }
+  const proposals = [];
+  for (const delta of DEFAULT_DELTAS) {
+    const to = {
+      x: actor.position.x + delta.dx,
+      y: actor.position.y + delta.dy,
+    };
+    if (!isPassable(to, tileKinds, baseTiles)) {
+      continue;
+    }
+    proposals.push({
+      kind: "move",
+      params: {
+        direction: delta.direction,
+        from: actor.position,
+        to,
+      },
+    });
+  }
+  return proposals;
+}
+
+function buildCandidateActionId(proposal, index) {
+  if (!proposal || typeof proposal !== "object") {
+    return `candidate_${index + 1}`;
+  }
+  if (typeof proposal.candidateId === "string" && proposal.candidateId.trim()) {
+    return proposal.candidateId.trim();
+  }
+  const kind = typeof proposal.kind === "string" && proposal.kind.trim()
+    ? proposal.kind.trim().toLowerCase()
+    : "candidate";
+  const params = isObject(proposal.params) ? proposal.params : proposal;
+  if (kind === "move") {
+    const direction = typeof params.direction === "string" && params.direction.trim()
+      ? params.direction.trim().toLowerCase()
+      : null;
+    if (direction) return `move_${direction}`;
+  }
+  const targetId = typeof params.targetId === "string" && params.targetId.trim()
+    ? params.targetId.trim()
+    : null;
+  if (targetId) {
+    return `${kind}_${targetId}`;
+  }
+  return `${kind}_${index + 1}`;
+}
+
+function cloneCandidateParams(proposal) {
+  if (!proposal || typeof proposal !== "object") {
+    return {};
+  }
+  if (isObject(proposal.params)) {
+    return { ...proposal.params };
+  }
+  return { ...proposal };
+}
+
+function buildRuntimeDecisionCandidateActions({ actor, actorId, tick, proposals = [], tileKinds, baseTiles }) {
+  const baseCandidates = [];
+  const seen = new Set();
+  const addCandidate = (candidateId, action) => {
+    const signature = `${action.kind}:${JSON.stringify(action.params || {})}`;
+    if (seen.has(signature)) {
+      return;
+    }
+    seen.add(signature);
+    baseCandidates.push({
+      id: candidateId,
+      action,
+    });
+  };
+
+  const proposalList = Array.isArray(proposals) ? proposals : [];
+  proposalList.forEach((proposal, index) => {
+    if (!proposal || typeof proposal !== "object") {
+      return;
+    }
+    const kind = typeof proposal.kind === "string" && proposal.kind.trim() ? proposal.kind.trim() : "custom";
+    addCandidate(
+      buildCandidateActionId(proposal, index),
+      buildAction({
+        tick,
+        kind,
+        actorId,
+        personaRef: "actor",
+        params: cloneCandidateParams(proposal),
+      }),
+    );
+  });
+
+  const movementCandidates = buildAdjacentMoveProposals({ actor, tileKinds, baseTiles });
+  movementCandidates.forEach((proposal, index) => {
+    addCandidate(
+      buildCandidateActionId(proposal, proposalList.length + index),
+      buildAction({
+        tick,
+        kind: proposal.kind,
+        actorId,
+        personaRef: "actor",
+        params: { ...proposal.params },
+      }),
+    );
+  });
+
+  addCandidate(
+    "wait_here",
+    buildAction({
+      tick,
+      kind: "wait",
+      actorId,
+      personaRef: "actor",
+      params: {},
+    }),
+  );
+
+  return baseCandidates;
+}
+
+function resolveVisibleActors(view, actorId) {
+  const actors = Array.isArray(view?.actors) ? view.actors : [];
+  return actors
+    .filter((entry) => entry && entry.id && entry.id !== actorId)
+    .map((entry) => {
+      const next = {
+        id: entry.id,
+      };
+      if (entry.kind !== undefined) next.kind = entry.kind;
+      if (entry.role !== undefined) next.role = entry.role;
+      if (entry.position) next.position = { ...entry.position };
+      if (entry.vitals) next.vitals = JSON.parse(JSON.stringify(entry.vitals));
+      return next;
+    });
+}
+
+function resolveHazards(payload, view) {
+  const hazards = [];
+  const seen = new Set();
+
+  function addHazard(entry, fallbackKind = "hazard") {
+    if (!entry || typeof entry !== "object") return;
+    const position = isObject(entry.position)
+      ? { ...entry.position }
+      : Number.isFinite(entry.x) && Number.isFinite(entry.y)
+        ? { x: entry.x, y: entry.y }
+        : null;
+    if (!position) return;
+    const kind = typeof entry.kind === "string" && entry.kind.trim() ? entry.kind.trim() : fallbackKind;
+    const id = typeof entry.id === "string" && entry.id.trim()
+      ? entry.id.trim()
+      : `${kind}_${position.x}_${position.y}`;
+    const key = `${id}:${position.x}:${position.y}:${kind}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const next = { id, kind, position };
+    if (typeof entry.expression === "string" && entry.expression.trim()) next.expression = entry.expression.trim();
+    if (typeof entry.affinity === "string" && entry.affinity.trim()) next.affinity = entry.affinity.trim();
+    if (Number.isFinite(entry.stacks)) next.stacks = Math.max(1, Math.trunc(entry.stacks));
+    hazards.push(next);
+  }
+
+  const affinityTraps = Array.isArray(payload?.affinityEffects?.traps) ? payload.affinityEffects.traps : [];
+  affinityTraps.forEach((entry) => addHazard(entry, "trap"));
+
+  const viewTraps = Array.isArray(view?.traps) ? view.traps : [];
+  viewTraps.forEach((entry) => addHazard(entry, "trap"));
+
+  const explicitHazards = Array.isArray(payload?.hazards) ? payload.hazards : [];
+  explicitHazards.forEach((entry) => addHazard(entry, "hazard"));
+
+  return hazards;
+}
+
+function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }) {
+  const objectives = {};
+  const role = typeof configuredActor?.role === "string" && configuredActor.role.trim()
+    ? configuredActor.role.trim()
+    : null;
+  if (role) {
+    objectives.role = role;
+  }
+  if (visibleActors.length > 0) {
+    objectives.primary = role === "boss" ? "control_visible_opponents" : "resolve_visible_contacts";
+    objectives.visibleContactCount = visibleActors.length;
+  } else if (exit) {
+    objectives.primary = "advance_to_exit";
+  }
+  if (exit) {
+    objectives.exit = { ...exit };
+  }
+  return Object.keys(objectives).length > 0 ? objectives : undefined;
+}
+
+function buildRuntimeDecisionConstraints({ actorRecord }) {
+  const vitals = isObject(actorRecord?.vitals) ? actorRecord.vitals : null;
+  if (!vitals) {
+    return undefined;
+  }
+  const constraints = {};
+  ["health", "mana", "stamina", "durability"].forEach((key) => {
+    if (isObject(vitals[key])) {
+      constraints[key] = {
+        current: Number.isFinite(vitals[key].current) ? vitals[key].current : 0,
+        max: Number.isFinite(vitals[key].max) ? vitals[key].max : 0,
+      };
+    }
+  });
+  return Object.keys(constraints).length > 0 ? constraints : undefined;
+}
+
+function resolveRuntimeDecisionConfig({ payload, actorId, view, observation }) {
+  const configuredActor = resolveConfiguredActor(payload, actorId);
+  const actorRecord = resolveActorRecord(view, actorId, observation);
+  const actorTraits = isObject(configuredActor?.traits) ? configuredActor.traits : {};
+  const runtimeDecisioning = payload?.runtimeDecisioning;
+  const payloadDecisioning = runtimeDecisioning === true ? { enabled: true } : isObject(runtimeDecisioning) ? runtimeDecisioning : {};
+  const configuredPolicy = isObject(configuredActor?.providerPolicy)
+    ? configuredActor.providerPolicy
+    : isObject(actorTraits.providerPolicy)
+      ? actorTraits.providerPolicy
+      : {};
+  const mode = payloadDecisioning.mode
+    || configuredActor?.decisionMode
+    || actorTraits.decisionMode
+    || configuredActor?.decisionProvider
+    || actorTraits.decisionProvider
+    || configuredPolicy.mode
+    || configuredPolicy.preferred;
+  const preferred = payloadDecisioning.preferred
+    || configuredActor?.decisionProvider
+    || actorTraits.decisionProvider
+    || configuredPolicy.preferred;
+  const enabled = payloadDecisioning.enabled === true
+    || configuredActor?.runtimeDecisioning === true
+    || actorTraits.runtimeDecisioning === true
+    || Boolean(mode)
+    || Boolean(preferred);
+  if (!enabled) {
+    return null;
+  }
+  const providerPolicy = resolveRuntimeDecisionProviderPolicy({
+    ...configuredPolicy,
+    ...(isObject(payloadDecisioning.providerPolicy) ? payloadDecisioning.providerPolicy : {}),
+    ...(mode ? { mode } : {}),
+    ...(preferred ? { preferred } : {}),
+    ...(payloadDecisioning.liveLlmMode ? { liveLlmMode: payloadDecisioning.liveLlmMode } : {}),
+    ...(payloadDecisioning.model ? { model: payloadDecisioning.model } : {}),
+    ...(payloadDecisioning.baseUrl ? { baseUrl: payloadDecisioning.baseUrl } : {}),
+    ...(payloadDecisioning.format ? { format: payloadDecisioning.format } : {}),
+    ...(isObject(payloadDecisioning.options) ? { options: payloadDecisioning.options } : {}),
+  });
+  return {
+    actorRecord,
+    configuredActor,
+    providerPolicy,
+    liveLlmRuntime: allowsLiveLlmRuntime(providerPolicy),
+    targetAdapter: payloadDecisioning.targetAdapter
+      || payload?.targetAdapter
+      || (providerPolicy.preferred === "llm" ? "ollama" : undefined),
+  };
+}
+
+function buildArtifactRef(artifact) {
+  if (!artifact || typeof artifact !== "object") {
+    return undefined;
+  }
+  if (!artifact.schema || !artifact.schemaVersion || !artifact.meta?.id) {
+    return undefined;
+  }
+  return {
+    id: artifact.meta.id,
+    schema: artifact.schema,
+    schemaVersion: artifact.schemaVersion,
+  };
+}
+
+function buildRuntimeDecisionSolverRequest({ envelope, payload, actorId, tick, clock }) {
+  const requestId = `solver_runtime_decision_${actorId || "actor"}_${tick}`;
+  const providerPolicy = resolveRuntimeDecisionProviderPolicy(envelope?.providerPolicy);
+  const request = {
+    schema: SOLVER_REQUEST_SCHEMA,
+    schemaVersion: 1,
+    meta: {
+      id: requestId,
+      runId: payload?.runId || "run_runtime_decision",
+      createdAt: clock(),
+      producedBy: "actor",
+    },
+    problem: {
+      language: "custom",
+      data: envelope,
+    },
+    options: {
+      engine: providerPolicy.preferred === "llm" ? "custom" : SOLVER_ENGINE,
+      params: {
+        contract: RUNTIME_DECISION_CONTRACT,
+        decisionKind: envelope.decisionKind,
+        actorId,
+        provider: providerPolicy.preferred,
+      },
+    },
+  };
+  const intentRef = buildArtifactRef(payload?.intentEnvelope) || payload?.intentRef;
+  const planRef = buildArtifactRef(payload?.planArtifact) || payload?.planRef;
+  const simConfigRef = buildArtifactRef(payload?.simConfig);
+  if (intentRef) request.intentRef = intentRef;
+  if (planRef) request.planRef = planRef;
+  if (simConfigRef) request.simConfigRef = simConfigRef;
+  return request;
+}
+
+function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick, baseTiles, exit }) {
+  const decisionConfig = resolveRuntimeDecisionConfig({ payload, actorId, view, observation });
+  if (!decisionConfig) {
+    return null;
+  }
+  const actor = resolveActor(view, actorId, observation);
+  const actorRecord = decisionConfig.actorRecord || resolveActorRecord(view, actorId, observation);
+  if (!actor || !actorRecord) {
+    return null;
+  }
+  const tileKinds = resolveTileKinds(view, payload);
+  const proposals = Array.isArray(payload?.proposals) ? payload.proposals : [];
+  const candidateActions = buildRuntimeDecisionCandidateActions({
+    actor,
+    actorId,
+    tick,
+    proposals,
+    tileKinds,
+    baseTiles,
+  });
+  if (candidateActions.length === 0) {
+    return null;
+  }
+  const visibleActors = resolveVisibleActors(view, actorId);
+  const hazards = resolveHazards(payload, view);
+  const envelope = buildRuntimeDecisionEnvelope({
+    decisionKind: "next_move",
+    phase: "decide",
+    tick,
+    actor: {
+      id: actorId,
+      role: decisionConfig.configuredActor?.role || actorRecord?.role,
+      kind: actorRecord?.kind,
+      position: actor.position ? { ...actor.position } : undefined,
+      vitals: isObject(actorRecord?.vitals) ? JSON.parse(JSON.stringify(actorRecord.vitals)) : undefined,
+    },
+    visibleActors,
+    hazards,
+    candidateActions,
+    objectives: buildRuntimeDecisionObjectives({
+      configuredActor: decisionConfig.configuredActor,
+      visibleActors,
+      exit,
+    }),
+    constraints: buildRuntimeDecisionConstraints({ actorRecord }),
+    providerPolicy: decisionConfig.providerPolicy,
+  });
+  const solverEffect = buildSolverRequestEffect({
+    solverRequest: buildRuntimeDecisionSolverRequest({
+      envelope,
+      payload,
+      actorId,
+      tick,
+      clock: payload?.clock || (() => new Date().toISOString()),
+    }),
+    intentRef: payload?.intentRef,
+    planRef: payload?.planRef,
+    personaRef: "actor",
+    targetAdapter: decisionConfig.targetAdapter,
+  });
+  if (!solverEffect) {
+    return null;
+  }
+  return {
+    envelope,
+    solverEffect,
+  };
 }
 
 function isPassable({ x, y }, tileKinds, baseTiles) {
@@ -319,6 +735,8 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
   let lastObservation = null;
   let lastBaseTiles = null;
   let lastSimConfig = null;
+  let lastAffinityEffects = null;
+  let lastHazards = null;
 
   function view() {
     return fsm.view();
@@ -341,6 +759,12 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
     if (payload.simConfig) {
       lastSimConfig = payload.simConfig;
     }
+    if (payload.affinityEffects) {
+      lastAffinityEffects = payload.affinityEffects;
+    }
+    if (Array.isArray(payload.hazards)) {
+      lastHazards = payload.hazards;
+    }
 
     const shouldEmitActions = event === "propose";
     const derivedProposals = shouldEmitActions ? buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig }) : [];
@@ -348,7 +772,25 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
     const budgetReceipt = payload.budgetReceipt || payload.budget?.receipt || payload.budget?.receiptArtifact || null;
     const budgetAllocation = payload.budgetAllocation || payload.budget?.allocation || null;
     const gatedProposals = shouldEmitActions ? filterBudgetedProposals(proposals, { budgetReceipt, budgetAllocation }) : [];
-    if (shouldEmitActions && (!Array.isArray(gatedProposals) || gatedProposals.length === 0)) {
+    const exit = resolveExit(payload, observationView, lastBaseTiles, lastSimConfig);
+    const runtimeDecisionEffect = shouldEmitActions
+      ? buildRuntimeDecisionEffect({
+          payload: {
+            ...payload,
+            proposals: gatedProposals,
+            affinityEffects: payload.affinityEffects || lastAffinityEffects,
+            hazards: payload.hazards || lastHazards,
+            clock,
+          },
+          observation,
+          view: observationView,
+          actorId: payload.actorId || observation?.actorId || "actor",
+          tick,
+          baseTiles: lastBaseTiles,
+          exit,
+        })
+      : null;
+    if (shouldEmitActions && (!Array.isArray(gatedProposals) || gatedProposals.length === 0) && !runtimeDecisionEffect) {
       const snapshot = view();
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }
@@ -362,22 +804,32 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
     const baseActorId = payload.actorId || observation?.actorId || "actor";
     const baseIsMotivated = isMotivatedActor(baseActorId, observationView, observation);
     const actions = [];
+    const effects = [];
     const proposalList = Array.isArray(gatedProposals) ? gatedProposals : [];
-    for (let i = 0; i < proposalList.length; i += 1) {
-      const proposal = proposalList[i];
-      const proposalActorId = proposal.actorId || baseActorId;
-      if (!isMotivatedActor(proposalActorId, observationView, observation)) {
-        continue;
+    if (!runtimeDecisionEffect) {
+      for (let i = 0; i < proposalList.length; i += 1) {
+        const proposal = proposalList[i];
+        const proposalActorId = proposal.actorId || baseActorId;
+        if (!isMotivatedActor(proposalActorId, observationView, observation)) {
+          continue;
+        }
+        actions.push(
+          buildAction({
+            tick,
+            kind: proposal.kind || "custom",
+            actorId: proposalActorId,
+            personaRef: "actor",
+            params: proposal.params || proposal,
+          }),
+        );
       }
-      actions.push(
-        buildAction({
-          tick,
-          kind: proposal.kind || "custom",
-          actorId: proposalActorId,
-          personaRef: "actor",
-          params: proposal.params || proposal,
-        }),
-      );
+    } else {
+      effects.push(runtimeDecisionEffect.solverEffect);
+      result.context = {
+        ...result.context,
+        lastSolverRequest: runtimeDecisionEffect.solverEffect.request,
+        lastRuntimeDecisionEnvelope: runtimeDecisionEffect.envelope,
+      };
     }
 
     const log = payload.trace;
@@ -419,7 +871,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
       ...result,
       tick,
       actions,
-      effects: [],
+      effects,
       telemetry: null,
     };
   }

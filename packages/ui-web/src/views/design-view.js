@@ -1,25 +1,11 @@
-import { wireDesignGuidance } from "../design-guidance.js";
-import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
-
-function setStatus(el, message, isError = false) {
-  if (!el) return;
-  el.textContent = message;
-  el.style.color = isError ? "#cf3f5b" : "inherit";
-}
-
-function summarizeErrors(errors) {
-  if (!Array.isArray(errors) || errors.length === 0) return "unknown error";
-  return errors.map((err) => (typeof err === "string" ? err : JSON.stringify(err))).join("; ");
-}
+import { createDesignCard, wireDesignGuidance } from "../design-guidance.js";
+import { createCliWorkerAdapter } from "../../../adapters-web/src/adapters/cli-worker/index.js";
 
 export function wireDesignView({
   root = document,
   llmConfig = {},
+  commandHost = createCliWorkerAdapter({ forceInProcess: typeof Worker !== "function" }),
   onSendBuildSpec,
-  onRunBuild,
-  onLoadBundle,
-  onRunBundle,
-  onOpenSimulation,
   onLlmCapture,
 } = {}) {
   const guidanceStatus = root.querySelector("#design-guidance-status");
@@ -42,15 +28,22 @@ export function wireDesignView({
   const budgetSplitAttackerTokens = root.querySelector("#design-budget-split-attacker-tokens");
   const budgetSplitDefenderTokens = root.querySelector("#design-budget-split-defender-tokens");
   const budgetOverviewEl = root.querySelector("#design-budget-overview");
-  const buildButton = root.querySelector("#design-build-and-load");
-  const buildStatus = root.querySelector("#design-build-status");
+  const autoGenerateButton = root.querySelector("#design-auto-generate");
+  const loadMintedButton = root.querySelector("#design-load-minted");
 
-  let running = false;
   let lastPublishedSpecText = "";
   let previewRunId = `design_ui_preview_${Date.now()}`;
   let previewCreatedAt = new Date().toISOString();
   let guidance = null;
   let pendingSummaryPublish = false;
+  const mintedCardStore = new Map();
+  let lastMintedTokenId = "";
+
+  function setGuidanceMessage(message, level = "info") {
+    if (!guidanceStatus) return;
+    guidanceStatus.dataset.level = level;
+    guidanceStatus.textContent = message;
+  }
 
   function refreshPreviewIdentity() {
     previewRunId = `design_ui_preview_${Date.now()}`;
@@ -60,7 +53,7 @@ export function wireDesignView({
   function handleSummary() {
     refreshPreviewIdentity();
     if (guidance) {
-      publishPreviewSpec();
+      void publishPreviewSpec();
       return;
     }
     pendingSummaryPublish = true;
@@ -92,13 +85,111 @@ export function wireDesignView({
     llmConfig,
     onLlmCapture,
     onSummary: handleSummary,
+    onMintCard: async ({ card }) => {
+      if (typeof commandHost?.blockchainMint !== "function") {
+        return { ok: false, error: "Blockchain mint command is unavailable." };
+      }
+      const tokenId = `token_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const mintFixture = {
+        jsonrpc: "2.0",
+        id: 1,
+        result: {
+          tokenId,
+          txHash: `0x${tokenId}`,
+          owner: "local-designer",
+          card,
+          metadata: {
+            source: "design-ui",
+          },
+        },
+      };
+      const result = await commandHost.blockchainMint({
+        rpcUrl: "http://fixture",
+        owner: "local-designer",
+        cardJson: card,
+        tokenId,
+        fixtureChainIdJson: { jsonrpc: "2.0", id: 1, result: "0x1" },
+        fixtureMintJson: mintFixture,
+      });
+      const output = result?.output || result || {};
+      const mintedTokenId = output?.tokenId || tokenId;
+      mintedCardStore.set(mintedTokenId, card);
+      lastMintedTokenId = mintedTokenId;
+      return { ok: true, tokenId: mintedTokenId, result: output };
+    },
   });
   if (pendingSummaryPublish) {
     pendingSummaryPublish = false;
-    publishPreviewSpec();
+    void publishPreviewSpec();
   }
 
-  function buildSpecFromCurrentSummary({ runId, source = "design-ui", createdAt } = {}) {
+  if (autoGenerateButton?.addEventListener) {
+    autoGenerateButton.addEventListener("click", () => {
+      guidance.autoGenerateCards();
+    });
+  }
+
+  async function loadMintedCard(tokenIdInput) {
+    if (typeof commandHost?.blockchainLoad !== "function") {
+      setGuidanceMessage("Blockchain load command is unavailable.", "error");
+      return { ok: false, reason: "missing_blockchain_load" };
+    }
+    const tokenId = typeof tokenIdInput === "string" ? tokenIdInput.trim() : "";
+    if (!tokenId) {
+      setGuidanceMessage("Load minted card cancelled.", "info");
+      return { ok: false, reason: "cancelled" };
+    }
+    const storedCard = mintedCardStore.get(tokenId);
+    const loadFixture = {
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        tokenId,
+        owner: "local-designer",
+        card: storedCard || null,
+        metadata: {
+          source: "design-ui",
+        },
+      },
+    };
+    try {
+      const result = await commandHost.blockchainLoad({
+        rpcUrl: "http://fixture",
+        tokenId,
+        fixtureChainIdJson: { jsonrpc: "2.0", id: 1, result: "0x1" },
+        fixtureLoadJson: loadFixture,
+      });
+      const output = result?.output || result || {};
+      const loadedCard = output?.card || loadFixture?.result?.card || null;
+      if (!loadedCard || typeof loadedCard !== "object") {
+        setGuidanceMessage(`No card payload found for ${tokenId}.`, "error");
+        return { ok: false, reason: "missing_card_payload" };
+      }
+      const importedCard = createDesignCard(loadedCard);
+      const existing = guidance.getCards();
+      const withoutDuplicate = existing.filter((entry) => entry.id !== importedCard.id);
+      guidance.setCards([...withoutDuplicate, importedCard]);
+      guidance.pullCardToEditor(importedCard.id);
+      setGuidanceMessage(`Loaded minted card ${tokenId} into the editor.`, "info");
+      return { ok: true, tokenId, card: importedCard };
+    } catch (error) {
+      const message = error?.message || String(error);
+      setGuidanceMessage(message, "error");
+      return { ok: false, reason: "load_failed", error: message };
+    }
+  }
+
+  if (loadMintedButton?.addEventListener) {
+    loadMintedButton.addEventListener("click", async () => {
+      const promptFn = typeof globalThis.prompt === "function" ? globalThis.prompt.bind(globalThis) : null;
+      const tokenIdInput = promptFn
+        ? promptFn("Enter minted token id", lastMintedTokenId || "")
+        : (lastMintedTokenId || "");
+      await loadMintedCard(tokenIdInput);
+    });
+  }
+
+  async function buildSpecFromCurrentSummary({ runId, source = "design-ui", createdAt } = {}) {
     const summary = guidance?.getSummary?.();
     if (!summary) {
       return { ok: false, reason: "missing_summary", errors: ["Create at least one configured card first."] };
@@ -107,7 +198,7 @@ export function wireDesignView({
     const effectiveRunId = typeof runId === "string" && runId.trim()
       ? runId.trim()
       : `design_ui_${Date.now()}`;
-    const built = buildBuildSpecFromSummary({
+    const built = await commandHost.buildSpecFromSummary({
       summary,
       runId: effectiveRunId,
       source,
@@ -130,7 +221,7 @@ export function wireDesignView({
     };
   }
 
-  function publishSpecToDiagnostics({
+  async function publishSpecToDiagnostics({
     runId,
     createdAt,
     source = "design-preview",
@@ -143,7 +234,7 @@ export function wireDesignView({
     const effectiveCreatedAt = typeof createdAt === "string" && createdAt.trim()
       ? createdAt.trim()
       : previewCreatedAt;
-    const built = buildSpecFromCurrentSummary({
+    const built = await buildSpecFromCurrentSummary({
       runId: effectiveRunId,
       source: "design-ui",
       createdAt: effectiveCreatedAt,
@@ -165,94 +256,17 @@ export function wireDesignView({
     return { ok: true, runId: built.runId, spec: built.spec, specText: built.specText };
   }
 
-  function publishPreviewSpec() {
-    const published = publishSpecToDiagnostics({
+  async function publishPreviewSpec(options = {}) {
+    return publishSpecToDiagnostics({
       runId: previewRunId,
       createdAt: previewCreatedAt,
       source: "design-preview",
       resetBuildOutput: true,
-    });
-    if (!published.ok) {
-      setStatus(buildStatus, `BuildSpec preview failed: ${summarizeErrors(published.errors)}`, true);
-      return false;
-    }
-    return true;
-  }
-
-  async function buildAndLoad() {
-    if (running) return;
-    running = true;
-    if (buildButton) buildButton.disabled = true;
-    setStatus(buildStatus, "Preparing build from card set...");
-
-    try {
-      const spendLedger = guidance?.getSpendLedger?.();
-      if (spendLedger?.overBudget) {
-        const allocationType = ["room", "attacker", "defender"].find((type) => (
-          Number(spendLedger?.allocations?.[type]?.overByTokens) > 0
-        ));
-        if (allocationType) {
-          const detail = spendLedger.allocations[allocationType];
-          setStatus(
-            buildStatus,
-            `Build blocked: ${allocationType} allocation exceeded (${detail.usedTokens}/${detail.allocatedTokens}).`,
-            true,
-          );
-          return;
-        }
-        const overBy = Number.isInteger(spendLedger.totalOverBudgetBy) ? spendLedger.totalOverBudgetBy : "unknown";
-        setStatus(buildStatus, `Build blocked: over budget by ${overBy} tokens.`, true);
-        return;
-      }
-
-      const published = publishSpecToDiagnostics({
-        runId: previewRunId,
-        createdAt: previewCreatedAt,
-        source: "design-build",
-        resetBuildOutput: false,
-      });
-      if (!published.ok) {
-        setStatus(buildStatus, `BuildSpec validation failed: ${summarizeErrors(published.errors)}`, true);
-        return;
-      }
-
-      setStatus(buildStatus, "Running build...");
-      const buildResult = await onRunBuild?.();
-      if (buildResult && buildResult.ok === false) {
-        setStatus(buildStatus, "Build failed. Check Diagnostics for details.", true);
-        return;
-      }
-
-      setStatus(buildStatus, "Loading bundle...");
-      const loaded = await onLoadBundle?.();
-      if (loaded === false) {
-        setStatus(buildStatus, "Build completed, but no bundle was available to load.", true);
-        return;
-      }
-
-      const ran = await onRunBundle?.();
-      if (ran === false) {
-        setStatus(buildStatus, "Bundle loaded, but runtime artifacts were missing.", true);
-        return;
-      }
-
-      onOpenSimulation?.();
-      setStatus(buildStatus, "Build complete. Game loaded.");
-    } catch (error) {
-      setStatus(buildStatus, `Build failed: ${error?.message || String(error)}`, true);
-    } finally {
-      running = false;
-      if (buildButton) buildButton.disabled = false;
-    }
-  }
-
-  if (buildButton?.addEventListener) {
-    buildButton.addEventListener("click", () => {
-      buildAndLoad();
+      ...options,
     });
   }
 
-  publishPreviewSpec();
+  void publishPreviewSpec();
 
   return {
     addCard: guidance.addCard,
@@ -264,10 +278,13 @@ export function wireDesignView({
     cycleAffinityExpression: guidance.cycleAffinityExpression,
     setPrimaryAffinity: guidance.setPrimaryAffinity,
     stashActiveCard: guidance.stashActiveCard,
+    mintActiveCard: guidance.mintActiveCard,
     pullCardToEditor: guidance.pullCardToEditor,
+    loadMintedCard,
     setBudgetSplit: guidance.setBudgetSplit,
+    autoGenerateCards: guidance.autoGenerateCards,
     generateAiConfiguration: guidance.generateAiConfiguration,
-    buildAndLoad,
+    publishPreviewSpec,
     getActiveCard: guidance.getActiveCard,
     getSummary: guidance.getSummary,
     getCards: guidance.getCards,

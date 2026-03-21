@@ -123,14 +123,12 @@ function renderArtifacts(container, artifacts) {
 export function wireBundleReview({
   elements = {},
   onSpec,
-  onRun,
   onBundleLoaded,
 } = {}) {
   const {
     bundleInput,
     manifestInput,
     loadLastButton,
-    runButton,
     clearButton,
     statusEl,
     schemaList,
@@ -145,10 +143,6 @@ export function wireBundleReview({
     configuratorOutput,
     artifactsContainer,
   } = elements;
-
-  const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
-  const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
-  const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
 
   const sessionStorage = storageFor("session");
   const localStorage = storageFor("local");
@@ -265,41 +259,6 @@ export function wireBundleReview({
     setStatus(statusEl, "Spec sent to build panel.");
   }
 
-  function findArtifact(schema) {
-    const artifacts = state.bundle?.artifacts || [];
-    return artifacts.find((artifact) => artifact?.schema === schema) || null;
-  }
-
-  function runFromBundle() {
-    if (!state.bundle) {
-      setStatus(statusEl, "Load a bundle.json to run the game.");
-      return false;
-    }
-    const simConfig = findArtifact(SIM_CONFIG_SCHEMA);
-    const initialState = findArtifact(INITIAL_STATE_SCHEMA);
-    const affinitySummary = findArtifact(AFFINITY_SUMMARY_SCHEMA);
-    if (!simConfig || !initialState) {
-      setStatus(statusEl, "Bundle missing SimConfigArtifact or InitialStateArtifact.");
-      return false;
-    }
-    const affinityEffects = affinitySummary
-      ? {
-        actors: Array.isArray(affinitySummary.actors) ? affinitySummary.actors : [],
-        traps: Array.isArray(affinitySummary.traps) ? affinitySummary.traps : [],
-      }
-      : null;
-    if (typeof onRun === "function") {
-      onRun({
-        simConfig,
-        initialState,
-        affinityEffects,
-        spec: state.spec || state.bundle?.spec || null,
-      });
-    }
-    setStatus(statusEl, "Loaded artifacts into Runtime controls.");
-    return true;
-  }
-
   function downloadSpec() {
     if (!specTextarea) return;
     const text = specTextarea.value || "";
@@ -398,6 +357,34 @@ export function wireBundleReview({
     }
   }
 
+  function loadBundlePayload(bundle, { source = "ipfs" } = {}) {
+    if (!bundle || typeof bundle !== "object") {
+      setStatus(statusEl, "Bundle payload missing.");
+      return false;
+    }
+    state.bundle = bundle;
+    state.spec = bundle?.spec || null;
+    const specText = state.spec ? JSON.stringify(state.spec, null, 2) : "";
+    updateSpecText(specText);
+    renderBundle();
+    setStatus(statusEl, `Bundle loaded (${source}).`);
+    if (typeof onBundleLoaded === "function") {
+      onBundleLoaded({ bundle: state.bundle, manifest: state.manifest, source });
+    }
+    return true;
+  }
+
+  function loadManifestPayload(manifest, { source = "ipfs" } = {}) {
+    if (!manifest || typeof manifest !== "object") {
+      setStatus(statusEl, "Manifest payload missing.");
+      return false;
+    }
+    state.manifest = manifest;
+    renderBundle();
+    setStatus(statusEl, `Manifest loaded (${source}).`);
+    return true;
+  }
+
   function loadLastBuild() {
     const sessionSnapshot = readSnapshot(sessionStorage, STORAGE_KEYS.session);
     if (sessionSnapshot) {
@@ -436,7 +423,6 @@ export function wireBundleReview({
   sendSpecButton?.addEventListener("click", sendSpecToBuild);
   downloadSpecButton?.addEventListener("click", downloadSpec);
   loadLastButton?.addEventListener("click", loadLastBuild);
-  runButton?.addEventListener("click", runFromBundle);
   clearButton?.addEventListener("click", clear);
 
   setStatus(statusEl, "No bundle loaded.");
@@ -448,5 +434,17 @@ export function wireBundleReview({
     loadFromSnapshot(sessionSnapshot);
   }
 
-  return { loadLastBuild, clear, applySpecEdits, runFromBundle };
+  return {
+    loadLastBuild,
+    clear,
+    applySpecEdits,
+    loadBundlePayload,
+    loadManifestPayload,
+    getCurrentBundle() {
+      return state.bundle;
+    },
+    getCurrentManifest() {
+      return state.manifest;
+    },
+  };
 }

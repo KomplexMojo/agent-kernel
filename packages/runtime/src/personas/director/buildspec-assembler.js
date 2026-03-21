@@ -211,6 +211,15 @@ function buildActorsAndGroups(selections) {
     .forEach((sel) => {
       sel.instances.forEach((inst, idx) => {
         const vitals = normalizeActorVitals(inst?.vitals);
+        const affinityEntries = Array.isArray(inst?.affinities)
+          ? inst.affinities
+            .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+            .map((entry) => ({
+              kind: entry.kind,
+              expression: entry.expression,
+              stacks: Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1,
+            }))
+          : [];
         const affinityTraits = normalizeAffinityTraits(inst?.affinities, inst?.affinity);
         const entry = {
           id: inst.id,
@@ -223,6 +232,9 @@ function buildActorsAndGroups(selections) {
         };
         if (typeof inst?.setupMode === "string" && inst.setupMode.trim()) {
           entry.setupMode = inst.setupMode.trim();
+        }
+        if (affinityEntries.length > 0) {
+          entry.affinities = affinityEntries;
         }
         if (affinityTraits) {
           const baseTraits = inst?.traits && typeof inst.traits === "object" && !Array.isArray(inst.traits)

@@ -20,6 +20,20 @@ assert.equal(
   "https://example.com/ipfs/cid/path",
 );
 
+const publishAdapter = createIpfsAdapter({
+  gatewayUrl: "https://example.com/ipfs",
+  fetchFn: async (_url, options) => {
+    assert.equal(options?.method, "POST");
+    assert.ok(options?.body instanceof FormData);
+    return {
+      ok: true,
+      text: async () => '{"Name":"bundle.json","Hash":"bafyfile","Size":"10"}\\n{"Name":"wrap","Hash":"bafyroot","Size":"20"}\\n',
+    };
+  },
+});
+const publish = await publishAdapter.publishJsonMap({ "bundle.json": { spec: { schema: "agent-kernel/BuildSpec" } } }, { pathPrefix: "run_1" });
+assert.equal(publish.cid, "bafyroot");
+
 const failing = createIpfsAdapter({
   gatewayUrl: "https://example.com/ipfs",
   fetchFn: async () => ({ ok: false, status: 500, statusText: "Boom" }),
@@ -38,6 +52,27 @@ const adapter = createBlockchainAdapter({
   fetchFn: async () => ({ ok: true, json: async () => ({ error: { message: "nope" } }) }),
 });
 await assert.rejects(() => adapter.getChainId(), /nope/);
+
+const happy = createBlockchainAdapter({
+  rpcUrl: "http://rpc.local",
+  fetchFn: async (_url, options) => {
+    const body = JSON.parse(options?.body || "{}");
+    if (body.method === "eth_chainId") {
+      return { ok: true, json: async () => ({ result: "0x1" }) };
+    }
+    if (body.method === "ak_mintCard") {
+      return { ok: true, json: async () => ({ result: { tokenId: "token_1", txHash: "0xmint" } }) };
+    }
+    if (body.method === "ak_getMintedCard") {
+      return { ok: true, json: async () => ({ result: { tokenId: "token_1", card: { type: "defender" } } }) };
+    }
+    return { ok: true, json: async () => ({ result: null }) };
+  },
+});
+const minted = await happy.mintCard({ card: { id: "D-1", type: "defender" }, owner: "0xabc" });
+assert.equal(minted.tokenId, "token_1");
+const loaded = await happy.loadMintedCard({ tokenId: "token_1" });
+assert.equal(loaded.card.type, "defender");
 `;
 
 const llmScript = `
@@ -79,7 +114,7 @@ const summary = {
 const inProcess = createLevelBuilderAdapter({ forceInProcess: true });
 const inProcessResult = await inProcess.buildFromGuidance({ summary });
 assert.equal(inProcessResult.ok, true);
-assert.equal(inProcessResult.walkableTiles, 150);
+assert.equal(inProcessResult.walkableTiles, 120);
 assert.ok(inProcessResult.ascii && typeof inProcessResult.ascii.text === "string");
 assert.ok(inProcessResult.image && inProcessResult.image.pixels instanceof Uint8ClampedArray);
 
@@ -91,7 +126,7 @@ assert.equal(fromTiles.walkableTiles, 5);
 
 const fromLevelGen = await inProcess.buildFromLevelGen({ levelGen: inProcessResult.levelGen });
 assert.equal(fromLevelGen.ok, true);
-assert.equal(fromLevelGen.walkableTiles, 150);
+assert.equal(fromLevelGen.walkableTiles, 120);
 
 let workerMessageHandler = null;
 let workerTerminated = false;

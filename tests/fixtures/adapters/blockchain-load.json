@@ -1,0 +1,21 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tokenId": "token_fixture_1",
+    "owner": "0xabc",
+    "card": {
+      "id": "A-FIXTURE01",
+      "type": "attacker",
+      "count": 1,
+      "affinity": "fire",
+      "affinities": [
+        { "kind": "fire", "expression": "emit", "stacks": 2 }
+      ],
+      "motivations": ["attacking"]
+    },
+    "metadata": {
+      "source": "fixture"
+    }
+  }
+}

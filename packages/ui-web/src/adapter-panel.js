@@ -10,6 +10,9 @@ function valueOf(el, fallback = "") {
 export function wireAdapterPanel({
   elements,
   helpers = { runIpfsDemo, runBlockchainDemo, runLlmDemo, runSolverDemo },
+  commandHost = null,
+  onIpfsLoaded,
+  resolveIpfsPublishArtifacts,
 } = {}) {
   const emptyOutput = "No JSON output yet.";
   const {
@@ -81,38 +84,98 @@ export function wireAdapterPanel({
   }
 
   ipfsButton?.addEventListener("click", () =>
-    run("IPFS", () =>
-      helpers.runIpfsDemo({
+    run("IPFS", async () => {
+      const cidValue = valueOf(cidInput, "");
+      if (!cidValue && typeof commandHost?.ipfsPublish === "function") {
+        const artifactMap = typeof resolveIpfsPublishArtifacts === "function"
+          ? (resolveIpfsPublishArtifacts() || null)
+          : null;
+        if (!artifactMap || typeof artifactMap !== "object") {
+          throw new Error("No bundle artifacts available to publish.");
+        }
+        const result = await commandHost.ipfsPublish({
+          gatewayUrl: valueOf(gatewayInput, "https://ipfs.io/ipfs"),
+          path: valueOf(ipfsPathInput, ""),
+          artifactMap,
+          fixtureCid: currentMode() === "fixture" ? "bafydiagnosticsfixture" : undefined,
+        });
+        return result?.output ?? result;
+      }
+      if (typeof commandHost?.ipfsLoad === "function") {
+        const fixtureMap = currentMode() === "fixture" && fixtures.ipfsJson
+          ? fixtures.ipfsJson
+          : undefined;
+        const result = await commandHost.ipfsLoad({
+          gatewayUrl: valueOf(gatewayInput, "https://ipfs.io/ipfs"),
+          cid: cidValue || "fixture",
+          path: valueOf(ipfsPathInput, ""),
+          fixtureMap,
+        });
+        if (typeof onIpfsLoaded === "function") {
+          onIpfsLoaded({
+            bundle: result?.bundle,
+            manifest: result?.manifest,
+            fetched: result?.fetched,
+            result,
+          });
+        }
+        return result?.output ?? result;
+      }
+      if (typeof commandHost?.ipfs === "function") {
+        const result = await commandHost.ipfs({
+          gatewayUrl: valueOf(gatewayInput, "https://ipfs.io/ipfs"),
+          cid: cidValue || "fixture",
+          path: valueOf(ipfsPathInput, ""),
+          json: true,
+          fixtureText: currentMode() === "fixture" ? fixtures.ipfsText : undefined,
+        });
+        return result?.output ?? result;
+      }
+      return helpers.runIpfsDemo({
         mode: currentMode(),
         gatewayUrl: valueOf(gatewayInput, "https://ipfs.io/ipfs"),
-        cid: valueOf(cidInput, "fixture"),
+        cid: cidValue || "fixture",
         path: valueOf(ipfsPathInput, ""),
         fixtureText: fixtures.ipfsText,
-      }),
-    ),
+      });
+    }),
   );
 
   blockchainButton?.addEventListener("click", () =>
     run("Blockchain", () =>
-      helpers.runBlockchainDemo({
-        mode: currentMode(),
-        rpcUrl: valueOf(rpcInput, "http://fixture"),
-        address: valueOf(addressInput, "0xabc"),
-        fixtureChain: fixtures.blockchainChain,
-        fixtureBalance: fixtures.blockchainBalance,
-      }),
+      typeof commandHost?.blockchain === "function"
+        ? commandHost.blockchain({
+          rpcUrl: valueOf(rpcInput, "http://fixture"),
+          address: valueOf(addressInput, "0xabc"),
+          fixtureChainIdJson: currentMode() === "fixture" ? fixtures.blockchainChain : undefined,
+          fixtureBalanceJson: currentMode() === "fixture" ? fixtures.blockchainBalance : undefined,
+        }).then((result) => result?.output ?? result)
+        : helpers.runBlockchainDemo({
+          mode: currentMode(),
+          rpcUrl: valueOf(rpcInput, "http://fixture"),
+          address: valueOf(addressInput, "0xabc"),
+          fixtureChain: fixtures.blockchainChain,
+          fixtureBalance: fixtures.blockchainBalance,
+        }),
     ),
   );
 
   llmButton?.addEventListener("click", () =>
     run("LLM", () =>
-      helpers.runLlmDemo({
-        mode: currentMode(),
-        baseUrl: valueOf(llmInput, DEFAULT_LLM_BASE_URL),
-        model: DEFAULT_LLM_MODEL,
-        prompt: valueOf(promptInput, "hello"),
-        fixtureResponse: fixtures.llmResponse,
-      }),
+      typeof commandHost?.llm === "function"
+        ? commandHost.llm({
+          baseUrl: valueOf(llmInput, DEFAULT_LLM_BASE_URL),
+          model: DEFAULT_LLM_MODEL,
+          prompt: valueOf(promptInput, "hello"),
+          fixtureJson: currentMode() === "fixture" ? fixtures.llmResponse : undefined,
+        }).then((result) => result?.output ?? result)
+        : helpers.runLlmDemo({
+          mode: currentMode(),
+          baseUrl: valueOf(llmInput, DEFAULT_LLM_BASE_URL),
+          model: DEFAULT_LLM_MODEL,
+          prompt: valueOf(promptInput, "hello"),
+          fixtureResponse: fixtures.llmResponse,
+        }),
     ),
   );
 

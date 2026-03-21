@@ -1,4 +1,14 @@
 import { createTickStateMachine, TickPhases } from "./tick-state-machine.js";
+import { buildLlmCaptureArtifact } from "../orchestrator/llm-capture.js";
+import {
+  allowsLiveLlmRuntime,
+  buildRuntimeDecisionLlmPrompt,
+  extractLlmResponseText,
+  parseRuntimeDecisionResponseText,
+  resolveActionFromLlmCapture,
+  resolveActionFromSolverResult,
+  resolveRuntimeDecisionProviderPolicy,
+} from "./runtime-decision.js";
 
 // Pure tick orchestrator that advances the tick FSM and dispatches phase events to personas.
 // Personas must declare subscribePhases and expose advance/view methods.
@@ -9,6 +19,7 @@ export function createTickOrchestrator({
   logger = null,
   solverPort = null,
   solverAdapter = null,
+  llmAdapter = null,
 } = {}) {
   const fsm = createTickStateMachine({ clock, debug, logger });
   const personas = new Map();
@@ -42,26 +53,258 @@ export function createTickOrchestrator({
     };
   }
 
+  async function fulfillLlmRuntimeRequest(entry, tickValue) {
+    const envelope = entry?.request?.problem?.data;
+    const providerPolicy = resolveRuntimeDecisionProviderPolicy(envelope?.providerPolicy);
+    if (!allowsLiveLlmRuntime(providerPolicy)) {
+      return {
+        result: {
+          status: "deferred",
+          reason: "llm_live_runtime_disabled",
+          provider: {
+            selected: "llm",
+            status: "deferred",
+            deterministic: false,
+          },
+        },
+        fulfilled: {
+          status: "deferred",
+          reason: "llm_live_runtime_disabled",
+          tick: tickValue,
+        },
+        action: null,
+        artifact: null,
+      };
+    }
+    if (!llmAdapter?.generate) {
+      return {
+        result: {
+          status: "deferred",
+          reason: "missing_llm",
+          provider: {
+            selected: "llm",
+            status: "deferred",
+            deterministic: false,
+          },
+        },
+        fulfilled: {
+          status: "deferred",
+          reason: "missing_llm",
+          tick: tickValue,
+        },
+        action: null,
+        artifact: null,
+      };
+    }
+
+    const prompt = buildRuntimeDecisionLlmPrompt({ requestEnvelope: envelope });
+    try {
+      const response = await llmAdapter.generate({
+        model: providerPolicy.model,
+        prompt,
+        options: providerPolicy.options || {},
+        stream: false,
+        format: providerPolicy.format,
+      });
+      const responseText = extractLlmResponseText(response);
+      const parsed = parseRuntimeDecisionResponseText(responseText, {
+        defaultDecisionKind: envelope?.decisionKind,
+      });
+      const captureResult = buildLlmCaptureArtifact({
+        prompt,
+        responseText,
+        responseParsed: parsed.responseParsed || undefined,
+        parseErrors: parsed.errors.length > 0 ? parsed.errors : undefined,
+        requestEnvelope: envelope,
+        model: providerPolicy.model,
+        baseUrl: providerPolicy.baseUrl,
+        options: providerPolicy.options,
+        stream: false,
+        requestId: entry?.request?.id || entry?.request?.requestId,
+        runId: entry?.request?.meta?.runId,
+        producedBy: "runtime-llm",
+        phase: envelope?.phase || "decide",
+        phaseContext: envelope?.decisionKind || "next_move",
+        clock,
+      });
+      const capture = captureResult.capture;
+      if (!capture) {
+        const reason = Array.isArray(captureResult.errors) && captureResult.errors.length > 0
+          ? captureResult.errors.join(",")
+          : "invalid_llm_capture";
+        return {
+          result: {
+            status: "error",
+            reason,
+            provider: {
+              selected: "llm",
+              status: "error",
+              deterministic: false,
+            },
+          },
+          fulfilled: {
+            status: "error",
+            reason,
+            tick: tickValue,
+          },
+          action: null,
+          artifact: null,
+        };
+      }
+
+      const normalized = resolveActionFromLlmCapture({ captureArtifact: capture });
+      const status = normalized.ok ? "fulfilled" : "error";
+      const result = normalized.ok
+        ? {
+            status,
+            provider: {
+              selected: "llm",
+              status,
+              deterministic: false,
+            },
+            captureRef: {
+              id: capture.meta?.id,
+              schema: capture.schema,
+              schemaVersion: capture.schemaVersion,
+            },
+            decision: normalized.decision,
+            action: normalized.action,
+          }
+        : {
+            status,
+            reason: Array.isArray(normalized.errors) ? normalized.errors.join(",") : "invalid_llm_runtime_decision",
+            provider: {
+              selected: "llm",
+              status,
+              deterministic: false,
+            },
+            captureRef: {
+              id: capture.meta?.id,
+              schema: capture.schema,
+              schemaVersion: capture.schemaVersion,
+            },
+          };
+      return {
+        result,
+        fulfilled: {
+          status,
+          result,
+          reason: result.reason,
+          tick: tickValue,
+        },
+        action: normalized.ok ? normalized.action : null,
+        artifact: capture,
+      };
+    } catch (error) {
+      const reason = error?.message || "llm_runtime_error";
+      return {
+        result: {
+          status: "error",
+          reason,
+          provider: {
+            selected: "llm",
+            status: "error",
+            deterministic: false,
+          },
+        },
+        fulfilled: {
+          status: "error",
+          reason,
+          tick: tickValue,
+        },
+        action: null,
+        artifact: null,
+      };
+    }
+  }
+
   async function handleSolverRequests(effects, tickValue) {
     if (!Array.isArray(effects) || effects.length === 0) {
-      return { results: [], fulfilled: [] };
+      return { results: [], fulfilled: [], actions: [], artifacts: [] };
     }
     const requests = effects.filter((effect) => effect?.kind === "solver_request" && effect.request);
     if (requests.length === 0) {
-      return { results: [], fulfilled: [] };
+      return { results: [], fulfilled: [], actions: [], artifacts: [] };
     }
     const results = [];
     const fulfilled = [];
+    const actions = [];
+    const artifacts = [];
     for (const entry of requests) {
-      if (solverPort && solverAdapter) {
+      const envelope = entry?.request?.problem?.data;
+      const providerPolicy = resolveRuntimeDecisionProviderPolicy(envelope?.providerPolicy);
+      const prefersLlm = providerPolicy.preferred === "llm" || providerPolicy.mode === "llm";
+      const useLiveLlm = allowsLiveLlmRuntime(providerPolicy);
+      if (prefersLlm && useLiveLlm) {
+        const llmOutcome = await fulfillLlmRuntimeRequest(entry, tickValue);
+        results.push(llmOutcome.result);
+        fulfilled.push(llmOutcome.fulfilled);
+        if (llmOutcome.action) {
+          actions.push(llmOutcome.action);
+        }
+        if (llmOutcome.artifact) {
+          artifacts.push(llmOutcome.artifact);
+        }
+      } else if (prefersLlm) {
+        const result = {
+          status: "deferred",
+          reason: "llm_runtime_requires_capture_or_manual_mode",
+          provider: {
+            selected: "llm",
+            status: "deferred",
+            deterministic: false,
+          },
+        };
+        results.push(result);
+        fulfilled.push({ status: "deferred", reason: result.reason, result, tick: tickValue });
+      } else if (solverPort && solverAdapter) {
         const res = await solverPort.solve(solverAdapter, entry.request);
-        results.push(res);
-        fulfilled.push({ status: res.status || "fulfilled", result: res, tick: tickValue });
+        const normalized = resolveActionFromSolverResult({
+          solverRequest: entry.request,
+          solverResult: res,
+        });
+        const solverStatus = typeof res?.status === "string" && res.status.trim()
+          ? res.status.trim()
+          : "fulfilled";
+        const fallbackRequested = providerPolicy.allowLlmFallback === true;
+        const fallbackStatus = {
+          requested: fallbackRequested,
+          performed: false,
+          reason: fallbackRequested ? "auto_llm_fallback_disabled" : "not_requested",
+        };
+        const result = normalized.ok
+          ? {
+              ...res,
+              provider: {
+                selected: "solver",
+                status: solverStatus,
+                deterministic: true,
+              },
+              decision: normalized.decision,
+              action: normalized.action,
+            }
+          : {
+              ...res,
+              provider: {
+                selected: "solver",
+                status: solverStatus,
+                deterministic: true,
+              },
+              fallback: fallbackStatus,
+              reason: (typeof res?.reason === "string" && res.reason.trim())
+                ? res.reason.trim()
+                : fallbackStatus.reason,
+            };
+        results.push(result);
+        fulfilled.push({ status: solverStatus, result, tick: tickValue });
+        if (normalized.ok) {
+          actions.push(normalized.action);
+        }
       } else {
         fulfilled.push({ status: "deferred", reason: "missing_solver", tick: tickValue });
       }
     }
-    return { results, fulfilled };
+    return { results, fulfilled, actions, artifacts };
   }
 
   async function collectPhaseRecord({ phase, event, payload = {}, tickValue }) {
@@ -125,6 +368,12 @@ export function createTickOrchestrator({
 
     // Handle solver requests emitted by personas
     const solverOutcome = await handleSolverRequests(effects, currentTick);
+    if (solverOutcome.actions.length > 0) {
+      actions.push(...solverOutcome.actions);
+    }
+    if (solverOutcome.artifacts.length > 0) {
+      artifacts.push(...solverOutcome.artifacts);
+    }
 
     if (actions.length) {
       onActions(actions);

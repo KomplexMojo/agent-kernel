@@ -1,14 +1,33 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { wireDesignView } from "../../packages/ui-web/src/views/design-view.js";
+import { wirePreviewView } from "../../packages/ui-web/src/views/preview-view.js";
 import { extractLlmCaptures, wireDiagnosticsView } from "../../packages/ui-web/src/views/diagnostics-view.js";
 import { wireSimulationView } from "../../packages/ui-web/src/views/simulation-view.js";
-import { wireRuntimeView } from "../../packages/ui-web/src/views/runtime-view.js";
 
 function makeRoot() {
   return {
     querySelector() {
       return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+  };
+}
+
+function makeSimulationRoot() {
+  const elements = {
+    "#frame-buffer": { textContent: "" },
+    "#status-message": { textContent: "", dataset: {} },
+  };
+  return {
+    elements,
+    querySelector(selector) {
+      return elements[selector] || null;
+    },
+    querySelectorAll() {
+      return [];
     },
   };
 }
@@ -25,14 +44,21 @@ test("view wiring tolerates missing DOM nodes", () => {
 
   try {
     const designView = wireDesignView({ root });
+    const previewView = wirePreviewView({ root });
     const diagnosticsView = wireDiagnosticsView({ root });
     const simulationView = wireSimulationView({ root, autoBoot: false });
-    const runtimeView = wireRuntimeView({ root });
 
     assert.ok(designView);
+    assert.ok(previewView);
     assert.ok(diagnosticsView);
-    assert.ok(simulationView.startRun);
-    assert.ok(runtimeView.updateFromSimulation);
+    assert.ok(simulationView);
+    assert.ok(designView.publishPreviewSpec);
+    assert.ok(designView.autoGenerateCards);
+    assert.ok(previewView.loadBundle);
+    assert.ok(previewView.buildAndLoadGame);
+    assert.ok(diagnosticsView.runBuild);
+    assert.ok(simulationView.startRunFromArtifacts);
+    assert.ok(simulationView.performGameAction);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -50,6 +76,31 @@ test("simulation view exposes level regeneration from runtime tile rows", async 
   assert.equal(result.walkableTiles, 5);
   assert.ok(result.ascii?.text);
   assert.ok(result.image?.pixels instanceof Uint8ClampedArray);
+});
+
+test("simulation view clear resets the game board shell", () => {
+  const root = makeSimulationRoot();
+  const simulationView = wireSimulationView({ root, autoBoot: false });
+
+  simulationView.clear("Bundle has no actors. Use Preview to inspect the layout-only result.");
+
+  assert.equal(root.elements["#frame-buffer"].textContent, "No game loaded.");
+  assert.equal(root.elements["#status-message"].textContent, "Bundle has no actors. Use Preview to inspect the layout-only result.");
+  assert.equal(root.elements["#status-message"].dataset.level, "info");
+});
+
+test("simulation view clear uses the shared Run help text by default", () => {
+  const root = makeSimulationRoot();
+  const simulationView = wireSimulationView({ root, autoBoot: false });
+
+  simulationView.clear();
+
+  assert.equal(root.elements["#frame-buffer"].textContent, "No game loaded.");
+  assert.equal(
+    root.elements["#status-message"].textContent,
+    "Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.",
+  );
+  assert.equal(root.elements["#status-message"].dataset.level, "info");
 });
 
 test("diagnostics llm capture extraction deduplicates and filters non-llm captures", () => {

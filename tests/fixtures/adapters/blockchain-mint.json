@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tokenId": "token_fixture_1",
+    "txHash": "0xmintfixture",
+    "owner": "0xabc",
+    "metadata": {
+      "source": "fixture"
+    }
+  }
+}

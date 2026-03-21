@@ -64,6 +64,23 @@ test("normalizeSummaryPick maps actor-set role/source fields", async () => {
   assert.equal(roomPick.vitals, undefined);
 });
 
+test("normalizeCardEntry removes contradictory motivations from shared exclusive groups", async () => {
+  const { normalizeCardEntry } = await import(
+    "../../packages/runtime/src/personas/director/summary-selections.js"
+  );
+
+  const card = normalizeCardEntry({
+    id: "card_conflict",
+    type: "attacker",
+    affinity: "fire",
+    motivations: ["attacking", "defending", "stationary", "patrolling"],
+  }, {
+    dungeonAffinity: "fire",
+  });
+
+  assert.deepEqual(card.motivations, ["attacking", "stationary"]);
+});
+
 test("buildSelectionsFromSummary supports attackerConfigs array", async () => {
   const { buildSelectionsFromSummary } = await import(
     "../../packages/runtime/src/personas/director/summary-selections.js"

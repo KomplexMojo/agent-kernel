@@ -197,3 +197,158 @@ test("wireAdapterPanel updates status/output and calls helpers", async () => {
   assert.equal(output.textContent, "No JSON output yet.");
   assert.equal(status.textContent, "Cleared");
 });
+
+test("wireAdapterPanel prefers commandHost rails for ipfs/blockchain/llm when available", async () => {
+  const output = { textContent: "" };
+  const status = { textContent: "" };
+  const buttons = {
+    ipfs: makeButton(),
+    blockchain: makeButton(),
+    llm: makeButton(),
+    solver: makeButton(),
+    clear: makeButton(),
+  };
+
+  const helperCalls = [];
+  const helpers = {
+    runIpfsDemo: async () => {
+      helperCalls.push("ipfs");
+      return { source: "helper" };
+    },
+    runBlockchainDemo: async () => {
+      helperCalls.push("blockchain");
+      return { source: "helper" };
+    },
+    runLlmDemo: async () => {
+      helperCalls.push("llm");
+      return { source: "helper" };
+    },
+    runSolverDemo: async () => ({ status: "fulfilled" }),
+  };
+
+  const hostCalls = [];
+  const commandHost = {
+    ipfsLoad: async (payload) => {
+      hostCalls.push({ kind: "ipfsLoad", payload });
+      return {
+        output: { source: "host-ipfs-load" },
+        bundle: { spec: { schema: "agent-kernel/BuildSpec" }, artifacts: [] },
+        manifest: { specPath: "spec.json" },
+      };
+    },
+    ipfs: async (payload) => {
+      hostCalls.push({ kind: "ipfs", payload });
+      return { output: { source: "host-ipfs" } };
+    },
+    blockchain: async (payload) => {
+      hostCalls.push({ kind: "blockchain", payload });
+      return { output: { source: "host-chain" } };
+    },
+    llm: async (payload) => {
+      hostCalls.push({ kind: "llm", payload });
+      return { output: { source: "host-llm" } };
+    },
+  };
+  const loaded = { count: 0, bundle: null, manifest: null };
+
+  wireAdapterPanel({
+    elements: {
+      modeSelect: { value: "fixture" },
+      gatewayInput: makeInput("https://ipfs.io/ipfs"),
+      rpcInput: makeInput("http://fixture"),
+      llmInput: makeInput("http://localhost:11434"),
+      addressInput: makeInput("0xabc"),
+      cidInput: makeInput("fixture"),
+      ipfsPathInput: makeInput(""),
+      promptInput: makeInput("hello"),
+      outputEl: output,
+      statusEl: status,
+      clearButton: buttons.clear,
+      ipfsButton: buttons.ipfs,
+      blockchainButton: buttons.blockchain,
+      llmButton: buttons.llm,
+      solverButton: buttons.solver,
+      fixtures: {
+        ipfsText: "{\"schema\":\"agent-kernel/PriceList\"}",
+        blockchainChain: { result: "0x1" },
+        blockchainBalance: { result: "0x3e8" },
+        llmResponse: { response: "ok" },
+      },
+    },
+    helpers,
+    commandHost,
+    onIpfsLoaded: ({ bundle, manifest }) => {
+      loaded.count += 1;
+      loaded.bundle = bundle;
+      loaded.manifest = manifest;
+    },
+  });
+
+  await buttons.ipfs.click();
+  await buttons.blockchain.click();
+  await buttons.llm.click();
+
+  assert.equal(helperCalls.length, 0);
+  assert.equal(hostCalls.length, 3);
+  assert.equal(hostCalls[0].kind, "ipfsLoad");
+  assert.equal(hostCalls[1].kind, "blockchain");
+  assert.equal(hostCalls[2].kind, "llm");
+  assert.equal(loaded.count, 1);
+  assert.equal(loaded.bundle?.spec?.schema, "agent-kernel/BuildSpec");
+  assert.equal(loaded.manifest?.specPath, "spec.json");
+  assert.match(output.textContent, /host-llm/);
+});
+
+test("wireAdapterPanel publishes artifacts via commandHost when CID is empty", async () => {
+  const output = { textContent: "" };
+  const status = { textContent: "" };
+  const buttons = {
+    ipfs: makeButton(),
+    blockchain: makeButton(),
+    llm: makeButton(),
+    solver: makeButton(),
+    clear: makeButton(),
+  };
+
+  const hostCalls = [];
+  const commandHost = {
+    ipfsPublish: async (payload) => {
+      hostCalls.push({ kind: "ipfsPublish", payload });
+      return { output: { cid: "bafydiagnosticsfixture", mode: "fixture" } };
+    },
+  };
+
+  wireAdapterPanel({
+    elements: {
+      modeSelect: { value: "fixture" },
+      gatewayInput: makeInput("https://ipfs.io/ipfs"),
+      rpcInput: makeInput("http://fixture"),
+      llmInput: makeInput("http://localhost:11434"),
+      addressInput: makeInput("0xabc"),
+      cidInput: makeInput(""),
+      ipfsPathInput: makeInput(""),
+      promptInput: makeInput("hello"),
+      outputEl: output,
+      statusEl: status,
+      clearButton: buttons.clear,
+      ipfsButton: buttons.ipfs,
+      blockchainButton: buttons.blockchain,
+      llmButton: buttons.llm,
+      solverButton: buttons.solver,
+    },
+    commandHost,
+    resolveIpfsPublishArtifacts: () => ({
+      "bundle.json": { spec: { schema: "agent-kernel/BuildSpec" }, artifacts: [] },
+      "manifest.json": { specPath: "spec.json" },
+      "spec.json": { schema: "agent-kernel/BuildSpec" },
+    }),
+  });
+
+  await buttons.ipfs.click();
+
+  assert.equal(hostCalls.length, 1);
+  assert.equal(hostCalls[0].kind, "ipfsPublish");
+  assert.equal(hostCalls[0].payload.fixtureCid, "bafydiagnosticsfixture");
+  assert.match(output.textContent, /bafydiagnosticsfixture/);
+  assert.match(status.textContent, /complete/);
+});

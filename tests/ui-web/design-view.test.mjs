@@ -12,6 +12,7 @@ import {
   wireDesignGuidance,
 } from "../../packages/ui-web/src/design-guidance.js";
 import { wireDesignView } from "../../packages/ui-web/src/views/design-view.js";
+import { buildSpecFromSummaryFlow as buildSpecFromSummaryViaCommandHost } from "../../packages/runtime/src/commands/ui-flow.js";
 
 function selectorToDatasetKey(key) {
   return String(key).replace(/-([a-z])/g, (_, char) => char.toUpperCase());
@@ -173,8 +174,8 @@ function createRootElements() {
     "#design-brief-output": make("pre"),
     "#design-spend-ledger-output": make("pre"),
     "#design-card-set-json": make("textarea"),
-    "#design-build-and-load": make("button"),
-    "#design-build-status": make("div"),
+    "#design-auto-generate": make("button"),
+    "#design-load-minted": make("button"),
   };
   elements["#design-level-budget"].value = "1000";
   elements["#design-budget-split-room"].value = "55";
@@ -400,6 +401,20 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   assert.equal(elements["#design-budget-split-attacker-tokens"].textContent, "");
   assert.equal(elements["#design-budget-split-defender-tokens"].textContent, "");
   assert.equal(elements["#design-budget-overview"].textContent, "");
+  const affinityGroups = elements["#design-property-group-affinities"].querySelectorAll(".design-property-chip-pair");
+  assert.ok(affinityGroups.length >= 5);
+  const fireWaterGroup = affinityGroups.find((group) => {
+    const values = group.querySelectorAll("button").map((chip) => chip.dataset?.propertyValue);
+    return values.includes("fire") && values.includes("water");
+  });
+  assert.ok(fireWaterGroup);
+  const motivationExclusiveGroups = elements["#design-property-group-motivations"].querySelectorAll('[data-exclusive="true"]');
+  assert.ok(motivationExclusiveGroups.length >= 3);
+  const combatGroup = elements["#design-property-group-motivations"].querySelector('[data-property-group-id="combat"]');
+  assert.ok(combatGroup);
+  const combatNote = combatGroup.querySelector(".design-property-chip-group-note");
+  assert.ok(combatNote);
+  assert.equal(combatNote.textContent, "Choose 1");
 
   const blank = guidance.getActiveCard();
   assert.ok(blank);
@@ -424,6 +439,15 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   assert.ok(initialSpendValues.allocated > 0);
   const motivationSection = renderedCard.querySelector(".design-card-motivations");
   assert.ok(motivationSection);
+  const motivationGroups = elements["#design-property-group-motivations"].querySelectorAll(".design-property-chip-pair");
+  assert.ok(motivationGroups.length >= 4);
+  const leftRailAttacking = elements["#design-property-group-motivations"].querySelector('[data-property-value="attacking"]');
+  const leftRailDefending = elements["#design-property-group-motivations"].querySelector('[data-property-value="defending"]');
+  assert.ok(leftRailAttacking);
+  assert.ok(leftRailDefending);
+  assert.equal(leftRailDefending.disabled, true);
+  assert.equal(renderedCard.querySelector('[data-motivation-add="defending"]'), null);
+  assert.equal(renderedCard.querySelectorAll(".design-card-motivation-label").length, 0);
   const removeAttacking = renderedCard.querySelector('[data-motivation-remove="attacking"]');
   assert.ok(removeAttacking);
   removeAttacking.trigger("click");
@@ -432,9 +456,11 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   renderedCard = elements["#design-card-grid"].children.find(
     (child) => child.dataset?.cardId === attacker.id,
   );
-  const addDefending = renderedCard.querySelector('[data-motivation-add="defending"]');
-  assert.ok(addDefending);
-  addDefending.trigger("click");
+  const leftRailDefendingAfterRemove = elements["#design-property-group-motivations"].querySelector('[data-property-value="defending"]');
+  assert.ok(leftRailDefendingAfterRemove);
+  assert.equal(leftRailDefendingAfterRemove.disabled, false);
+  const addDefending = guidance.applyPropertyDrop(attacker.id, { group: "motivations", value: "defending" });
+  assert.deepEqual(addDefending, { ok: true });
   updated = guidance.getActiveCard();
   assert.ok(updated.motivations.includes("defending"));
   renderedCard = elements["#design-card-grid"].children.find(
@@ -545,6 +571,157 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   elements["#design-budget-split-room"].value = "60";
   elements["#design-budget-split-room"].trigger("input");
   assert.equal(elements["#design-budget-split-room-tokens"].textContent, "");
+});
+
+test("wireDesignGuidance shows default help text until a drop error occurs", () => {
+  const { elements } = createRootElements();
+  const guidance = wireDesignGuidance({
+    elements: {
+      statusEl: elements["#design-guidance-status"],
+      leftRailType: elements["#design-property-group-type"],
+      leftRailAffinities: elements["#design-property-group-affinities"],
+      leftRailExpressions: elements["#design-property-group-expressions"],
+      leftRailMotivations: elements["#design-property-group-motivations"],
+      cardGrid: elements["#design-card-grid"],
+      roomGroup: elements["#design-card-group-room"],
+      attackerGroup: elements["#design-card-group-attacker"],
+      defenderGroup: elements["#design-card-group-defender"],
+      roomGroupBudget: elements["#design-card-group-budget-room"],
+      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
+      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      levelBudgetInput: elements["#design-level-budget"],
+      budgetSplitRoomInput: elements["#design-budget-split-room"],
+      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
+      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetOverviewEl: elements["#design-budget-overview"],
+      aiPromptInput: elements["#design-ai-prompt"],
+      aiGenerateButton: elements["#design-ai-generate"],
+      briefOutput: elements["#design-brief-output"],
+      spendLedgerOutput: elements["#design-spend-ledger-output"],
+      cardSetOutput: elements["#design-card-set-json"],
+    },
+  });
+
+  assert.equal(elements["#design-guidance-status"].hidden, false);
+  assert.equal(elements["#design-guidance-status"].dataset.level, "info");
+  assert.equal(
+    elements["#design-guidance-status"].textContent,
+    "Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.",
+  );
+
+  const blank = guidance.getActiveCard();
+  const result = guidance.applyPropertyDrop(blank.id, { group: "affinities", value: "fire" });
+
+  assert.equal(result.ok, true);
+  assert.equal(elements["#design-guidance-status"].hidden, false);
+  assert.equal(elements["#design-guidance-status"].dataset.level, "error");
+  assert.match(elements["#design-guidance-status"].textContent, /Drop blocked: missing_type\./);
+});
+
+test("wireDesignGuidance auto-generates cards to fill the remaining per-type allocation", () => {
+  const { elements } = createRootElements();
+  const guidance = wireDesignGuidance({
+    elements: {
+      statusEl: elements["#design-guidance-status"],
+      leftRailType: elements["#design-property-group-type"],
+      leftRailAffinities: elements["#design-property-group-affinities"],
+      leftRailExpressions: elements["#design-property-group-expressions"],
+      leftRailMotivations: elements["#design-property-group-motivations"],
+      cardGrid: elements["#design-card-grid"],
+      roomGroup: elements["#design-card-group-room"],
+      attackerGroup: elements["#design-card-group-attacker"],
+      defenderGroup: elements["#design-card-group-defender"],
+      roomGroupBudget: elements["#design-card-group-budget-room"],
+      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
+      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      levelBudgetInput: elements["#design-level-budget"],
+      budgetSplitRoomInput: elements["#design-budget-split-room"],
+      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
+      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetOverviewEl: elements["#design-budget-overview"],
+      aiPromptInput: elements["#design-ai-prompt"],
+      aiGenerateButton: elements["#design-ai-generate"],
+      briefOutput: elements["#design-brief-output"],
+      spendLedgerOutput: elements["#design-spend-ledger-output"],
+      cardSetOutput: elements["#design-card-set-json"],
+    },
+  });
+
+  const result = guidance.autoGenerateCards();
+
+  assert.equal(result?.ok, true);
+  const cards = guidance.getCards();
+  assert.ok(cards.some((card) => card.type === "room"));
+  assert.ok(cards.some((card) => card.type === "attacker"));
+  assert.ok(cards.some((card) => card.type === "defender"));
+  const spendLedger = guidance.getSpendLedger();
+  assert.ok(spendLedger);
+  assert.ok(spendLedger.allocations.room.usedTokens <= spendLedger.allocations.room.allocatedTokens);
+  assert.ok(spendLedger.allocations.attacker.usedTokens <= spendLedger.allocations.attacker.allocatedTokens);
+  assert.ok(spendLedger.allocations.defender.usedTokens <= spendLedger.allocations.defender.allocatedTokens);
+  assert.ok(spendLedger.allocations.room.remainingTokens < 28);
+  assert.ok(spendLedger.allocations.attacker.remainingTokens < 64);
+  assert.ok(spendLedger.allocations.defender.remainingTokens < 64);
+  assert.equal(elements["#design-guidance-status"].dataset.level, "info");
+  assert.match(elements["#design-guidance-status"].textContent, /Auto-generated/i);
+});
+
+test("wireDesignGuidance auto-generate tops up remaining allocation without replacing existing cards", () => {
+  const { elements } = createRootElements();
+  const guidance = wireDesignGuidance({
+    elements: {
+      statusEl: elements["#design-guidance-status"],
+      leftRailType: elements["#design-property-group-type"],
+      leftRailAffinities: elements["#design-property-group-affinities"],
+      leftRailExpressions: elements["#design-property-group-expressions"],
+      leftRailMotivations: elements["#design-property-group-motivations"],
+      cardGrid: elements["#design-card-grid"],
+      roomGroup: elements["#design-card-group-room"],
+      attackerGroup: elements["#design-card-group-attacker"],
+      defenderGroup: elements["#design-card-group-defender"],
+      roomGroupBudget: elements["#design-card-group-budget-room"],
+      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
+      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      levelBudgetInput: elements["#design-level-budget"],
+      budgetSplitRoomInput: elements["#design-budget-split-room"],
+      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
+      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetOverviewEl: elements["#design-budget-overview"],
+      aiPromptInput: elements["#design-ai-prompt"],
+      aiGenerateButton: elements["#design-ai-generate"],
+      briefOutput: elements["#design-brief-output"],
+      spendLedgerOutput: elements["#design-spend-ledger-output"],
+      cardSetOutput: elements["#design-card-set-json"],
+    },
+  });
+
+  const existing = createDesignCard({
+    id: "existing_attacker",
+    type: "attacker",
+    affinity: "fire",
+    motivations: ["attacking"],
+    count: 1,
+  });
+  assert.equal(guidance.setCards([existing]), true);
+  const preservedId = guidance.getCards()[0]?.id;
+
+  const result = guidance.autoGenerateCards();
+
+  assert.equal(result?.ok, true);
+  const cards = guidance.getCards();
+  assert.ok(cards.some((card) => card.id === preservedId));
+  assert.ok(cards.length > 1);
+  const spendLedger = guidance.getSpendLedger();
+  assert.ok(spendLedger.allocations.attacker.remainingTokens < 64);
 });
 
 test("wireDesignGuidance assigns unique prefixed card identifiers", () => {
@@ -949,15 +1126,20 @@ test("wireDesignGuidance minus at x1 resets active typed card to blank editor", 
   assert.match(elements["#design-guidance-status"].textContent, /reset to blank editor/i);
 });
 
-test("wireDesignView runs build from card model and publishes build spec", async () => {
+test("wireDesignView publishes preview spec from the current card model", async () => {
   const { root, elements } = createRootElements();
   const publishedSpecs = [];
-  let runBuildCount = 0;
-  let loadCount = 0;
-  let runBundleCount = 0;
+  let buildSpecCalls = 0;
+  const commandHost = {
+    async buildSpecFromSummary(payload) {
+      buildSpecCalls += 1;
+      return buildSpecFromSummaryViaCommandHost(payload);
+    },
+  };
 
   const view = wireDesignView({
     root,
+    commandHost,
     onSendBuildSpec: ({ spec }) => publishedSpecs.push(spec),
     onRunBuild: async () => {
       runBuildCount += 1;
@@ -967,9 +1149,11 @@ test("wireDesignView runs build from card model and publishes build spec", async
       loadCount += 1;
       return true;
     },
-    onRunBundle: async () => {
-      runBundleCount += 1;
-      return true;
+    onOpenSimulation: () => {
+      openSimulationCount += 1;
+    },
+    onOpenPreview: () => {
+      openPreviewCount += 1;
     },
   });
 
@@ -979,17 +1163,185 @@ test("wireDesignView runs build from card model and publishes build spec", async
     createDesignCard({ id: "def_build", type: "defender", affinity: "earth", motivations: ["defending"], count: 1 }),
   ]);
 
-  await view.buildAndLoad();
+  const published = await view.publishPreviewSpec({ force: true });
 
+  assert.equal(published?.ok, true);
   assert.ok(publishedSpecs.length >= 1);
-  assert.equal(runBuildCount, 1);
-  assert.equal(loadCount, 1);
-  assert.equal(runBundleCount, 1);
-  assert.equal(elements["#design-build-status"].textContent, "Build complete. Game loaded.");
+  assert.ok(buildSpecCalls >= 1);
   const latestSpec = publishedSpecs[publishedSpecs.length - 1];
   assert.ok(Array.isArray(latestSpec.plan?.hints?.cardSet));
   assert.ok(latestSpec.configurator?.inputs?.levelGen);
   assert.equal(latestSpec.configurator.inputs.levelGen.shape.roomCount, 3);
+});
+
+test("wireDesignView publishes preview spec through the command host even with a minimal budget", async () => {
+  const { root, elements } = createRootElements();
+  elements["#design-level-budget"].value = "1";
+
+  let buildSpecCalls = 0;
+  const commandHost = {
+    async buildSpecFromSummary(payload) {
+      buildSpecCalls += 1;
+      return buildSpecFromSummaryViaCommandHost(payload);
+    },
+  };
+
+  const view = wireDesignView({
+    root,
+    commandHost,
+  });
+
+  view.setCards([
+    createDesignCard({ id: "room_over_budget", type: "room", roomSize: "large", affinity: "fire", count: 1, tokenHint: 5000 }),
+    createDesignCard({ id: "atk_over_budget", type: "attacker", affinity: "fire", motivations: ["attacking"], count: 1, tokenHint: 5000 }),
+  ]);
+
+  const published = await view.publishPreviewSpec({ force: true });
+
+  assert.ok(buildSpecCalls >= 1);
+  assert.equal(published?.ok, true);
+});
+
+test("wireDesignView publishes single-element card sets for preview", async () => {
+  const scenarios = [
+    {
+      label: "single room",
+      cards: [createDesignCard({ id: "room_only", type: "room", roomSize: "small", affinity: "dark", count: 1 })],
+      expectedType: "room",
+    },
+    {
+      label: "single attacker",
+      cards: [
+        createDesignCard({
+          id: "attacker_only",
+          type: "attacker",
+          affinity: "fire",
+          motivations: ["attacking"],
+          count: 1,
+        }),
+      ],
+      expectedType: "attacker",
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    const { root } = createRootElements();
+    let publishedSpecs = [];
+
+    const commandHost = {
+      async buildSpecFromSummary(payload) {
+        return buildSpecFromSummaryViaCommandHost(payload);
+      },
+    };
+
+    const view = wireDesignView({
+      root,
+      commandHost,
+      onSendBuildSpec: ({ spec }) => {
+        publishedSpecs.push(spec);
+      },
+    });
+
+    view.setCards(scenario.cards);
+    const published = await view.publishPreviewSpec({ force: true });
+
+    assert.equal(published?.ok, true, `${scenario.label} should publish successfully`);
+    assert.ok(publishedSpecs.length >= 1, `${scenario.label} should publish a spec`);
+
+    const latestSpec = publishedSpecs[publishedSpecs.length - 1];
+    const cardSet = latestSpec?.plan?.hints?.cardSet || [];
+    assert.equal(cardSet.length, 1, `${scenario.label} should publish exactly one design card`);
+    assert.equal(cardSet[0]?.type, scenario.expectedType, `${scenario.label} should preserve the card type`);
+    assert.ok(latestSpec?.configurator?.inputs?.levelGen, `${scenario.label} should still include level generation`);
+  }
+});
+
+test("wireDesignView can publish a preview spec from the blank editor state", async () => {
+  const { root } = createRootElements();
+
+  const commandHost = {
+    async buildSpecFromSummary(payload) {
+      return buildSpecFromSummaryViaCommandHost(payload);
+    },
+  };
+
+  const view = wireDesignView({
+    root,
+    commandHost,
+  });
+
+  const published = await view.publishPreviewSpec({ force: true });
+
+  assert.equal(published?.ok, true);
+  assert.ok(published?.spec);
+  assert.equal(typeof published?.specText, "string");
+});
+
+test("wireDesignView mints active card via blockchain rails and can load it back by token id", async () => {
+  const { root, elements } = createRootElements();
+  elements["#design-budget-split-room"].value = "0";
+  elements["#design-budget-split-attacker"].value = "100";
+  elements["#design-budget-split-defender"].value = "0";
+  const mintedByToken = new Map();
+  let mintCalls = 0;
+  let loadCalls = 0;
+
+  const commandHost = {
+    async buildSpecFromSummary(payload) {
+      return buildSpecFromSummaryViaCommandHost(payload);
+    },
+    async blockchainMint(payload) {
+      mintCalls += 1;
+      const tokenId = payload.tokenId || "token_test_1";
+      mintedByToken.set(tokenId, payload.cardJson);
+      return {
+        output: {
+          chainId: "0x1",
+          tokenId,
+          card: payload.cardJson,
+        },
+      };
+    },
+    async blockchainLoad(payload) {
+      loadCalls += 1;
+      const fallbackCard = {
+        id: "A-LOADED1",
+        type: "attacker",
+        count: 1,
+        affinity: "fire",
+        affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+        motivations: ["attacking"],
+      };
+      return {
+        output: {
+          chainId: "0x1",
+          tokenId: payload.tokenId,
+          card: mintedByToken.get(payload.tokenId) || fallbackCard,
+        },
+      };
+    },
+  };
+
+  const view = wireDesignView({
+    root,
+    commandHost,
+  });
+
+  const active = view.getActiveCard();
+  view.applyPropertyDrop(active.id, { group: "type", value: "attacker" });
+  const configured = view.getActiveCard();
+  view.applyPropertyDrop(configured.id, { group: "affinities", value: "fire" });
+
+  const minted = await view.mintActiveCard("attacker");
+  assert.equal(minted?.ok, true);
+  assert.equal(mintCalls, 1);
+  assert.equal(view.getCards().length, 1);
+
+  const tokenId = minted.tokenId || "token_test_1";
+  const loaded = await view.loadMintedCard(tokenId);
+  assert.equal(loaded?.ok, true, JSON.stringify(loaded));
+  assert.equal(loadCalls, 1);
+  assert.equal(view.getActiveCard().type, "attacker");
 });
 
 test("AI summary round-trip populates editable card model", async () => {

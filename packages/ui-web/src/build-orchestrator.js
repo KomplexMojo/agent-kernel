@@ -1,8 +1,7 @@
-import { createBuildBridgeAdapter } from "../../adapters-web/src/adapters/build-bridge/index.js";
+import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
 import { validateBuildSpec } from "../../runtime/src/contracts/build-spec.js";
 
 const EMPTY_OUTPUT = "No build output yet.";
-const DEFAULT_BRIDGE_URL = "/bridge/build";
 const STORAGE_KEYS = Object.freeze({
   session: "ak.build.last.session",
   local: "ak.build.last",
@@ -91,11 +90,11 @@ function extractSpecPath({ response, specPath }) {
 
 export function wireBuildOrchestrator({
   elements,
-  adapterFactory = createBuildBridgeAdapter,
+  commandHost,
+  adapterFactory = createCliWorkerAdapter,
   onBuildComplete,
 } = {}) {
   const {
-    bridgeUrlInput,
     specPathInput,
     specJsonInput,
     outDirInput,
@@ -116,6 +115,7 @@ export function wireBuildOrchestrator({
     validation: { ok: true, errors: [], spec: null, specText: "" },
     running: false,
   };
+  const adapter = commandHost || adapterFactory();
 
   const sessionStorage = storageFor("session");
   const localStorage = storageFor("local");
@@ -309,7 +309,6 @@ export function wireBuildOrchestrator({
     setDownloadVisible(false);
     const specPath = valueOf(specPathInput);
     const specText = valueOf(specJsonInput);
-    const bridgeUrl = valueOf(bridgeUrlInput, DEFAULT_BRIDGE_URL);
     const requestedOutDir = valueOf(outDirInput);
 
     const validation = validateSpecInput({ notifyStatus: true });
@@ -345,7 +344,6 @@ export function wireBuildOrchestrator({
     updateBuildAvailability();
 
     try {
-      const adapter = adapterFactory({ baseUrl: bridgeUrl });
       const response = await adapter.build({ specPath: specPath || undefined, specJson: specJson || undefined, outDir: outDir || undefined });
       const snapshot = {
         runId: extractRunId({ response, specJson }),
@@ -363,7 +361,7 @@ export function wireBuildOrchestrator({
       return { ok: true, snapshot, response };
     } catch (error) {
       setOutput(outputEl, { error: error?.message || String(error) });
-      setStatus(statusEl, "Build failed. Download spec.json to run build manually.");
+      setStatus(statusEl, "Build failed. Download spec.json for inspection.");
       if (state.lastSpecText) {
         setDownloadVisible(true);
       }
@@ -404,7 +402,7 @@ export function wireBuildOrchestrator({
   }
 
   setOutput(outputEl, "");
-  setStatus(statusEl, "Bridge idle.");
+  setStatus(statusEl, "Command host ready.");
   setDownloadVisible(false);
   updateBuildAvailability();
   const sessionSnapshot = readSnapshot(sessionStorage, STORAGE_KEYS.session);
@@ -414,9 +412,19 @@ export function wireBuildOrchestrator({
     const localSnapshot = readSnapshot(localStorage, STORAGE_KEYS.local);
     setLoadAvailable(Boolean(localSnapshot));
     if (localSnapshot) {
-      setStatus(statusEl, "Bridge idle. Last build available.");
+      setStatus(statusEl, "Command host ready. Last build available.");
     }
   }
 
-  return { runBuild, loadLastBuild, reset };
+  return {
+    runBuild,
+    loadLastBuild,
+    reset,
+    getLastSnapshot() {
+      return state.lastSnapshot;
+    },
+    dispose() {
+      adapter?.dispose?.();
+    },
+  };
 }

@@ -31,6 +31,12 @@ The simulation core (`core-as`) remains the sole authority on legality, state tr
 
 Dynamic actors express behavior through **stackable motivations**. Motivations are atomic (e.g., `random`, `stationary`, `exploring`, `attacking`, `defending`, `patrolling`) and can be combined (e.g., `stationary_attacking`). Boss status is a tier/cost outcome, not a motivation.
 
+Some motivation families are mutually exclusive and are rejected when combined:
+- Combat posture: `attacking` vs `defending`
+- Movement posture: `stationary`, `exploring`, `patrolling`
+- Planning style: `random` vs `strategy_focused`
+- Response style: `reflexive` vs `goal_oriented`
+
 Motivations are:
 - Ordered and composable.
 - Evaluated outside the simulation core.
@@ -48,6 +54,21 @@ The Actor persona follows a simple loop:
 4. Submit the action to the simulation runner.
 
 How motivations are resolved (priority, scoring, veto, etc.) is an implementation detail of the Actor persona and may evolve over time.
+
+When runtime decisioning is enabled for an actor or boss, the Actor persona now constructs a `runtime-decision-v1`
+envelope from live observation plus candidate-action context and emits it through the existing `solver_request`
+pipeline. Solver-selected decisions are normalized back into executable `Action` records on the same runtime rail.
+
+Live LLM-backed runtime decisions are not implicit. Default execution remains deterministic and replay-safe:
+- solver-first during execution
+- LLM only from pre-captured/deferred structured responses
+- live local Ollama allowed only in an explicit manual non-deterministic mode
+
+That explicit manual mode now runs on the same `solver_request` transport:
+- the actor still emits a `runtime-decision-v1` request envelope
+- the tick orchestrator fulfills it through the configured local LLM adapter
+- the prompt/response is captured as `CapturedInputArtifact`
+- the chosen action is normalized and enacted on the same runtime rail
 
 ---
 

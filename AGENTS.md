@@ -42,6 +42,13 @@ Keep it short, strict, and easy to follow.
 - If public behavior or flags change, update `packages/adapters-cli/README.md`.
 - Keep `docs/README.md` and `docs/architecture/diagram.mmd` in sync with architecture changes.
 
+## Codex large-change artifacts
+
+- For large deliverables, use `local-codex/Prompt.md`, `local-codex/Plan.md`, `local-codex/Implement.md`, and `local-codex/Documentation.md` as the execution source of truth.
+- Read all four files before making code changes.
+- Execute milestones as requirements -> tests -> code -> validation.
+- Update `local-codex/Documentation.md` (status, decisions, validation log) before handoff.
+
 ## Pre-merge checklist (solo)
 
 - Requirements -> tests -> code traceable in the diff.

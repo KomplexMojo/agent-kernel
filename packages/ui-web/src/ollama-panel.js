@@ -1,4 +1,5 @@
 import { runLlmDemo, DEFAULT_FIXTURES } from "./adapter-playground.js";
+import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
 import { validateBuildSpec } from "../../runtime/src/contracts/build-spec.js";
 import { buildBuildSpecPrompt } from "./ollama-template.js";
 import { DEFAULT_LLM_BASE_URL, DEFAULT_LLM_MODEL } from "../../runtime/src/contracts/domain-constants.js";
@@ -137,78 +138,11 @@ function parseJsonWithDetails(text) {
   }
 }
 
-function normalizeArrayField(container, key) {
-  if (!container || typeof container !== "object") return { changed: false };
-  const value = container[key];
-  if (value === undefined) return { changed: false };
-  if (Array.isArray(value)) return { changed: false };
-  if (value && typeof value === "object") {
-    container[key] = [value];
-    return { changed: true };
-  }
-  return { changed: false };
-}
-
-function normalizeAgentHints(hints) {
-  if (!hints || typeof hints !== "object" || Array.isArray(hints)) return { changed: false };
-  let changed = false;
-  if (normalizeArrayField(hints, "rooms").changed) changed = true;
-  if (normalizeArrayField(hints, "actors").changed) changed = true;
-  if (normalizeArrayField(hints, "actorGroups").changed) changed = true;
-  return { changed };
-}
-
-function normalizeArtifactRef(ref, schema) {
-  if (ref === undefined || ref === null) return { value: ref, changed: false };
-  if (typeof ref === "string" || typeof ref === "number") {
-    return { value: { id: String(ref), schema, schemaVersion: 1 }, changed: true };
-  }
-  if (ref && typeof ref === "object" && !Array.isArray(ref)) {
-    let changed = false;
-    if (!ref.schema) {
-      ref.schema = schema;
-      changed = true;
-    }
-    if (!Number.isInteger(ref.schemaVersion)) {
-      ref.schemaVersion = 1;
-      changed = true;
-    }
-    return { value: ref, changed };
-  }
-  return { value: ref, changed: false };
-}
-
-function normalizeBuildSpec(spec) {
-  if (!spec || typeof spec !== "object") return { spec, changed: false };
-  let changed = false;
-
-  if (spec.intent?.hints) {
-    if (normalizeAgentHints(spec.intent.hints).changed) changed = true;
-  }
-  if (spec.configurator?.inputs) {
-    if (normalizeAgentHints(spec.configurator.inputs).changed) changed = true;
-  }
-
-  if (spec.budget && typeof spec.budget === "object" && !Array.isArray(spec.budget)) {
-    const budgetRef = normalizeArtifactRef(spec.budget.budgetRef, "agent-kernel/BudgetArtifact");
-    if (budgetRef.changed) {
-      spec.budget.budgetRef = budgetRef.value;
-      changed = true;
-    }
-    const priceListRef = normalizeArtifactRef(spec.budget.priceListRef, "agent-kernel/PriceList");
-    if (priceListRef.changed) {
-      spec.budget.priceListRef = priceListRef.value;
-      changed = true;
-    }
-  }
-
-  return { spec, changed };
-}
-
 export function wireOllamaPromptPanel({
   elements,
   helpers = { runLlmDemo },
   fixturePath = DEFAULT_FIXTURES.llm,
+  commandHost = createCliWorkerAdapter({ forceInProcess: typeof Worker !== "function" }),
   onValidSpec,
 } = {}) {
   const {
@@ -324,14 +258,25 @@ export function wireOllamaPromptPanel({
       const prompt = buildBuildSpecPrompt({ userPrompt: next.prompt });
       lastFullPrompt = prompt;
       setPromptDownloadAvailable(Boolean(prompt));
-      const response = await helpers.runLlmDemo({
-        mode: next.mode,
-        model: next.model,
-        baseUrl: next.baseUrl,
-        prompt,
-        options: optionsResult.value,
-        fixturePath,
-      });
+      let response;
+      if (typeof commandHost?.llm === "function") {
+        const commandResult = await commandHost.llm({
+          model: next.model,
+          baseUrl: next.baseUrl,
+          prompt,
+          fixturePath: next.mode === "fixture" ? fixturePath : undefined,
+        });
+        response = commandResult?.output ?? commandResult;
+      } else {
+        response = await helpers.runLlmDemo({
+          mode: next.mode,
+          model: next.model,
+          baseUrl: next.baseUrl,
+          prompt,
+          options: optionsResult.value,
+          fixturePath,
+        });
+      }
       const responseText = extractResponseText(response);
       lastRawResponse = responseText;
       setDownloadAvailable(Boolean(responseText));
@@ -352,7 +297,7 @@ export function wireOllamaPromptPanel({
         setStatus(statusEl, "Fix JSON response and retry.");
         return;
       }
-      const normalized = normalizeBuildSpec(parsed.value);
+      const normalized = await commandHost.normalizeBuildSpec({ spec: parsed.value });
       const validation = validateBuildSpec(normalized.spec);
       if (!validation.ok) {
         setOutput(outputEl, { error: "BuildSpec validation failed.", errors: validation.errors });

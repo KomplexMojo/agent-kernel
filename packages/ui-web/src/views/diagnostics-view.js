@@ -2,9 +2,9 @@ import { wireAdapterPanel } from "../adapter-panel.js";
 import { wireBuildOrchestrator } from "../build-orchestrator.js";
 import { wireBundleReview } from "../bundle-review.js";
 import { wireBudgetPanels } from "../budget-panels.js";
-import { wireAffinityLegend } from "../affinity-legend.js";
 import { wireOllamaPromptPanel } from "../ollama-panel.js";
 import { wireLlmTracePanel } from "../llm-trace-panel.js";
+import { createCliWorkerAdapter } from "../../../adapters-web/src/adapters/cli-worker/index.js";
 import { isLlmCaptureArtifact } from "../../../runtime/src/personas/annotator/llm-trace.js";
 
 function captureKey(capture, index) {
@@ -49,11 +49,11 @@ export function extractLlmCaptures({
 
 export function wireDiagnosticsView({
   root = document,
+  commandHost = createCliWorkerAdapter({ forceInProcess: typeof Worker !== "function" }),
   onBuildComplete,
   onBundleLoaded,
   onBuildStateReset,
   onBundleStateReset,
-  onRunFromBundle,
 } = {}) {
   const adapterGateway = root.querySelector("#adapter-gateway");
   const adapterRpc = root.querySelector("#adapter-rpc-url");
@@ -81,7 +81,6 @@ export function wireDiagnosticsView({
   const ollamaStatus = root.querySelector("#ollama-status");
   const ollamaOutput = root.querySelector("#ollama-output");
 
-  const buildBridgeUrl = root.querySelector("#build-bridge-url");
   const buildSpecPath = root.querySelector("#build-spec-path");
   const buildSpecJson = root.querySelector("#build-spec-json");
   const buildOutDir = root.querySelector("#build-out-dir");
@@ -106,7 +105,6 @@ export function wireDiagnosticsView({
   const bundleApplySpec = root.querySelector("#bundle-apply-spec");
   const bundleSendSpec = root.querySelector("#bundle-send-spec");
   const bundleDownloadSpec = root.querySelector("#bundle-download-spec");
-  const bundleRunRuntime = root.querySelector("#bundle-run-runtime");
   const bundleIntent = root.querySelector("#bundle-intent");
   const bundlePlan = root.querySelector("#bundle-plan");
   const bundleConfigurator = root.querySelector("#bundle-configurator");
@@ -119,10 +117,6 @@ export function wireDiagnosticsView({
   const allocatorPriceListJson = root.querySelector("#allocator-price-list-json");
   const allocatorReceiptJson = root.querySelector("#allocator-receipt-json");
 
-  const affinityLegendToggle = root.querySelector("#affinity-legend-toggle");
-  const affinityLegendPanel = root.querySelector("#affinity-legend");
-  const affinityLegendKinds = root.querySelector("#legend-kinds");
-  const affinityLegendExpressions = root.querySelector("#legend-expressions");
   const llmTraceStatus = root.querySelector("#llm-trace-status");
   const llmTraceCount = root.querySelector("#llm-trace-count");
   const llmTraceTurns = root.querySelector("#llm-trace-turns");
@@ -133,6 +127,34 @@ export function wireDiagnosticsView({
   const llmTraceSummary = root.querySelector("#llm-trace-summary");
   const llmTraceTelemetry = root.querySelector("#llm-trace-telemetry");
   const llmTraceClear = root.querySelector("#llm-trace-clear");
+
+  const diagnosticToggles = typeof root.querySelectorAll === "function"
+    ? Array.from(root.querySelectorAll("[data-diagnostic-toggle]"))
+    : [];
+  const diagnosticSections = new Map();
+  const diagnosticSectionNodes = typeof root.querySelectorAll === "function"
+    ? root.querySelectorAll("[data-diagnostic-section]")
+    : [];
+  Array.from(diagnosticSectionNodes).forEach((section) => {
+    const key = section?.dataset?.diagnosticSection;
+    if (!key) return;
+    diagnosticSections.set(key, section);
+  });
+
+  function setDiagnosticSectionVisible(key, visible) {
+    const section = diagnosticSections.get(key);
+    if (!section) return;
+    section.classList.toggle("diagnostic-section-hidden", !visible);
+  }
+
+  diagnosticToggles.forEach((toggle) => {
+    const key = toggle?.dataset?.diagnosticToggle;
+    if (!key) return;
+    setDiagnosticSectionVisible(key, Boolean(toggle.checked));
+    toggle.addEventListener("change", () => {
+      setDiagnosticSectionVisible(key, Boolean(toggle.checked));
+    });
+  });
 
   const llmTracePanel = wireLlmTracePanel({
     elements: {
@@ -148,6 +170,9 @@ export function wireDiagnosticsView({
       clearButton: llmTraceClear,
     },
   });
+
+  let bundleReview = null;
+  let buildOrchestrator = null;
 
   wireAdapterPanel({
     elements: {
@@ -166,6 +191,36 @@ export function wireDiagnosticsView({
       llmButton: adapterLlmButton,
       solverButton: adapterSolver,
     },
+    commandHost,
+    onIpfsLoaded: ({ bundle, manifest }) => {
+      if (manifest) {
+        bundleReview?.loadManifestPayload?.(manifest, { source: "ipfs" });
+      }
+      if (bundle) {
+        bundleReview?.loadBundlePayload?.(bundle, { source: "ipfs" });
+      }
+    },
+    resolveIpfsPublishArtifacts: () => {
+      const bundle = bundleReview?.getCurrentBundle?.()
+        || buildOrchestrator?.getLastSnapshot?.()?.response?.bundle
+        || null;
+      const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
+      const artifactMap = {};
+      artifacts.forEach((artifact) => {
+        if (!artifact || typeof artifact !== "object") return;
+        const id = typeof artifact.meta?.id === "string" ? artifact.meta.id.trim() : "";
+        const schema = typeof artifact.schema === "string" ? artifact.schema.trim() : "";
+        const stem = id || schema.replace(/^agent-kernel\//, "").replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
+        if (!stem) return;
+        const fileName = `${stem}.json`;
+        artifactMap[fileName] = artifact;
+      });
+      if (bundle?.spec) artifactMap["spec.json"] = bundle.spec;
+      if (bundle) artifactMap["bundle.json"] = bundle;
+      const manifest = bundleReview?.getCurrentManifest?.();
+      if (manifest) artifactMap["manifest.json"] = manifest;
+      return Object.keys(artifactMap).length > 0 ? artifactMap : null;
+    },
   });
 
   wireOllamaPromptPanel({
@@ -183,6 +238,7 @@ export function wireDiagnosticsView({
       outputEl: ollamaOutput,
     },
     fixturePath: "/tests/fixtures/adapters/llm-build-spec.json",
+    commandHost,
     onValidSpec: ({ specText }) => {
       if (buildSpecJson) {
         buildSpecJson.value = specText;
@@ -195,9 +251,8 @@ export function wireDiagnosticsView({
     },
   });
 
-  const buildOrchestrator = wireBuildOrchestrator({
+  buildOrchestrator = wireBuildOrchestrator({
     elements: {
-      bridgeUrlInput: buildBridgeUrl,
       specPathInput: buildSpecPath,
       specJsonInput: buildSpecJson,
       outDirInput: buildOutDir,
@@ -210,21 +265,25 @@ export function wireDiagnosticsView({
       outputEl: buildOutput,
       validationList: buildValidation,
     },
+    commandHost,
     onBuildComplete: (payload) => {
       const captures = extractLlmCaptures({ snapshot: payload?.snapshot });
       llmTracePanel.appendCaptures(captures, { source: "Loaded build captures" });
+      budgetPanels.setFromArtifacts({
+        snapshot: payload?.snapshot,
+        response: payload?.snapshot?.response,
+      });
       if (typeof onBuildComplete === "function") {
         onBuildComplete(payload);
       }
     },
   });
 
-  const bundleReview = wireBundleReview({
+  bundleReview = wireBundleReview({
     elements: {
       bundleInput,
       manifestInput: bundleManifestInput,
       loadLastButton: bundleLoadLast,
-      runButton: bundleRunRuntime,
       clearButton: bundleClear,
       statusEl: bundleStatus,
       schemaList: bundleSchemas,
@@ -249,27 +308,14 @@ export function wireDiagnosticsView({
         buildSpecPath.dispatchEvent(new Event("input", { bubbles: true }));
       }
     },
-    onRun: ({
-      simConfig,
-      initialState,
-      affinityEffects,
-      spec,
-    }) => {
-      if (typeof onRunFromBundle === "function") {
-        onRunFromBundle({
-          simConfig,
-          initialState,
-          affinityEffects,
-          spec,
-        });
-      }
-    },
     onBundleLoaded: (payload) => {
       if (payload?.source === "clear") {
         llmTracePanel.clear({ source: "Bundle cleared" });
+        budgetPanels.setData();
       } else {
         const captures = extractLlmCaptures({ bundle: payload?.bundle });
         llmTracePanel.setCaptures(captures, { source: "Loaded bundle captures" });
+        budgetPanels.setFromArtifacts({ bundle: payload?.bundle });
       }
       if (typeof onBundleLoaded === "function") {
         onBundleLoaded(payload);
@@ -301,13 +347,6 @@ export function wireDiagnosticsView({
   });
   budgetPanels.refresh();
 
-  wireAffinityLegend({
-    button: affinityLegendToggle,
-    panel: affinityLegendPanel,
-    kindsEl: affinityLegendKinds,
-    expressionsEl: affinityLegendExpressions,
-  });
-
   function setBuildSpecText(specText, { source = "design", resetOutput = true } = {}) {
     if (buildSpecJson) {
       buildSpecJson.value = specText;
@@ -331,7 +370,6 @@ export function wireDiagnosticsView({
   return {
     runBuild: () => buildOrchestrator?.runBuild?.(),
     loadLastBundle: () => bundleReview?.loadLastBuild?.(),
-    runBundle: () => bundleReview?.runFromBundle?.(),
     setBuildSpecText,
     refreshBudgetPanels: (mode = "live") => budgetPanels.refresh(mode),
     setLlmCaptures: (captures, options) => llmTracePanel.setCaptures(captures, options),

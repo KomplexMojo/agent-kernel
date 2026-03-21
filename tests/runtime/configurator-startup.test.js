@@ -72,7 +72,7 @@ assert.equal(core.getActorVitalCurrent(0), 11);
 assert.equal(core.getActorVitalMax(0), 12);
 assert.equal(core.getActorVitalMax(1), 2);
 assert.equal(String.fromCharCode(core.renderBaseCellChar(2, 1)), "S");
-assert.equal(String.fromCharCode(core.renderBaseCellChar(3, 2)), "E");
+assert.equal(String.fromCharCode(core.renderBaseCellChar(1, 3)), "E");
 assert.equal(core.getTileActorKind(2, 2), 0);
 `;
   runEsm(script);

@@ -66,3 +66,58 @@ assert.match(panels.allocatorReceipt.textContent, /BudgetReceiptArtifact/);
 
   runEsm(script);
 });
+
+test("budget panels render live artifact JSON from bundle and build outputs", async () => {
+  const script = `
+import assert from "node:assert/strict";
+import { wireBudgetPanels } from ${JSON.stringify(pathToFileURL(path.resolve(root, "packages/ui-web/src/budget-panels.js")).href)};
+
+function makePanel() {
+  return { textContent: "" };
+}
+
+const panels = {
+  configBudget: makePanel(),
+  configPriceList: makePanel(),
+  configReceipt: makePanel(),
+  allocatorBudget: makePanel(),
+  allocatorPriceList: makePanel(),
+  allocatorReceipt: makePanel(),
+};
+
+const wiring = wireBudgetPanels({
+  elements: panels,
+  mode: "live",
+});
+
+wiring.setFromArtifacts({
+  bundle: {
+    artifacts: [
+      { schema: "agent-kernel/BudgetArtifact", schemaVersion: 1, totalTokens: 1000 },
+      { schema: "agent-kernel/PriceList", schemaVersion: 1, entries: [] },
+      { schema: "agent-kernel/BudgetReceiptArtifact", schemaVersion: 1, remainingBudgetTokens: 900 },
+    ],
+  },
+});
+
+assert.match(panels.configBudget.textContent, /BudgetArtifact/);
+assert.match(panels.configPriceList.textContent, /PriceList/);
+assert.match(panels.configReceipt.textContent, /BudgetReceiptArtifact/);
+
+wiring.setFromArtifacts({
+  response: {
+    artifacts: {
+      "budget.json": { schema: "agent-kernel/BudgetArtifact", schemaVersion: 1, totalTokens: 1200 },
+      "price-list.json": { schema: "agent-kernel/PriceList", schemaVersion: 1, entries: [{ kind: "fire", baseCost: 1 }] },
+      "budget-receipt.json": { schema: "agent-kernel/BudgetReceiptArtifact", schemaVersion: 1, remainingBudgetTokens: 850 },
+    },
+  },
+});
+
+assert.match(panels.allocatorBudget.textContent, /1200/);
+assert.match(panels.allocatorPriceList.textContent, /baseCost/);
+assert.match(panels.allocatorReceipt.textContent, /850/);
+`;
+
+  runEsm(script);
+});

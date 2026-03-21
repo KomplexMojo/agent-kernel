@@ -161,4 +161,5 @@ stateDiagram-v2
 ## Manual Smoke (fixtures, offline)
 - `pnpm run build:wasm` then `pnpm run demo:cli` → artifacts in `artifacts/demo-bundle`.
 - `pnpm run serve:ui` → open `http://localhost:8001/packages/ui-web/index.html` and run the Adapter Playground in fixture mode (IPFS/blockchain/LLM/solver); counter/effect log should show effect ids/requestIds/fulfillment.
+- This is the minimum-install baseline: the default author/build/preview/run path works without live IPFS, blockchain, or Ollama services.
 - Expected artifacts: solve (`solver-request.json`, `solver-result.json`), run (`tick-frames.json`, `effects-log.json` with ids/requestIds/adapter hints), replay (`replay-summary.json`), inspect (`inspect-summary.json`), adapters (`ipfs.json`, `blockchain.json`, `llm.json`).

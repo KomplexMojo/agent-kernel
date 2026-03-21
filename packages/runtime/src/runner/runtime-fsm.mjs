@@ -597,6 +597,7 @@ export function createFsmRuntime({
       clock: activeClock,
       solverPort: solverPortInstance,
       solverAdapter: solverAdapter || adapters?.solver || null,
+      llmAdapter: adapters?.llm || adapters?.ollama || null,
     });
 
     const registry = personas && typeof personas === "object" ? personas : buildDefaultPersonas({ clock: activeClock });

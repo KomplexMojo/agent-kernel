@@ -121,8 +121,11 @@ test("cli llm-plan budget loop writes multiple captures", () => {
   const trace = telemetry?.data?.llm?.trace || [];
   assert.ok(Array.isArray(trace));
   assert.equal(trace[0].phase, "layout_only");
-  assert.equal(trace[0].spentTokens, 200);
-  assert.equal(trace[0].remainingBudgetTokens, 440);
+  assert.equal(trace[0].spentTokens, 100);
+  assert.equal(trace[0].remainingBudgetTokens, 540);
+  assert.ok(
+    trace[0].warnings?.some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
+  );
   assert.ok(trace[0].startedAt);
   assert.ok(trace[0].endedAt);
   assert.equal(typeof trace[0].durationMs, "number");
@@ -205,7 +208,10 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
   assert.equal(poolsById.player, 0);
 
   const trace = telemetry?.data?.llm?.trace || [];
-  assert.equal(trace[0].remainingBudgetTokens, 600);
+  assert.equal(trace[0].remainingBudgetTokens, 700);
+  assert.ok(
+    trace[0].warnings?.some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
+  );
 });
 
 test("cli llm-plan budget loop requires budget tokens", () => {

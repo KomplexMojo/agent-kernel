@@ -6,7 +6,8 @@ flowchart LR
   end
 
   subgraph Runtime["Runtime (TypeScript)"]
-    RuntimePorts["runtime runner + ports\n(effect routing + tick frames)"]
+    CommandKernel["shared command kernel\n(default UI/CLI rail)\n(build | solve | run | replay | inspect |\nconfigurator | budget | llm-plan)"]
+    RuntimePorts["runtime runner + ports\n(effect routing + tick frames + decision capture)"]
     TickOrch["tick orchestrator (phases)"]
     subgraph Personas["Personas"]
       Orchestrator["Orchestrator: workflow coordination"]
@@ -28,22 +29,26 @@ flowchart LR
   end
 
   subgraph Adapters["Adapters (IO boundary)"]
-    AWeb["adapters-web (ipfs | blockchain | llm | dom-log | level-builder)"]
+    AWeb["adapters-web (cli-worker | ipfs | blockchain |\nllm | dom-log | level-builder)"]
     LevelBuilderWorker["level-builder worker (summary/levelGen/tiles -> ascii + image artifacts)"]
-    ACli["adapters-cli (ipfs | blockchain | llm | solver-wasm)"]
+    ACli["adapters-cli (ak.mjs host shell | ipfs |\nblockchain | llm | solver-wasm)"]
     ATest["adapters-test (fixture adapters)"]
   end
 
   subgraph External["External Services"]
     IPFS["IPFS gateway"]
     Chain["Blockchain JSON-RPC"]
-    LLM["LLM API (OpenAI | Ollama | etc)"]
+    LLM["LLM API (local Ollama primary)"]
     Storage["Persistence"]
   end
 
   UIWeb --> RuntimePorts
-  UIWeb --> BindingsTS
   UIWeb --> AWeb
+  CLI --> ACli
+  AWeb --> CommandKernel
+  ACli --> CommandKernel
+  CommandKernel --> RuntimePorts
+  CommandKernel --> BindingsTS
   RuntimePorts --> TickOrch
   Moderator --> TickOrch
   TickOrch --> Director
@@ -61,9 +66,6 @@ flowchart LR
   Configurator --> RuntimePorts
   RuntimePorts --> CoreEngine
   BindingsTS --> CoreEngine
-
-  CLI --> CoreEngine
-  CLI --> ACli
 
   RuntimePorts <--> AWeb
   AWeb --> LevelBuilderWorker

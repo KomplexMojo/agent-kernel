@@ -99,7 +99,6 @@ test("build response snapshot loads into bundle review panel", async () => {
 
     const buildRun = makeButton();
     const buildElements = {
-      bridgeUrlInput: makeInput("/bridge/build"),
       specPathInput: makeInput(""),
       specJsonInput: makeInput(specText),
       outDirInput: makeInput(""),

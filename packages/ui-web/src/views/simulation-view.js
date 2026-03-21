@@ -15,6 +15,7 @@ const VISIBILITY_MODE_SIMULATION_FULL = "simulation_full";
 const VISIBILITY_MODE_GAMEPLAY_FOG = "gameplay_fog";
 const DEFAULT_VIEWPORT_SIZE = 50;
 const DEFAULT_VISION_RADIUS = 6;
+const DEFAULT_RUN_HELP_TEXT = "Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.";
 
 function sortActorsById(initialState) {
   const actors = Array.isArray(initialState?.actors) ? initialState.actors.slice() : [];
@@ -230,6 +231,11 @@ export function wireSimulationView({
   const stepForwardButton = root.querySelector("#step-forward");
   const playPauseButton = root.querySelector("#play-pause");
   const resetRunButton = root.querySelector("#reset-run");
+  const moveUpButton = root.querySelector("#runtime-move-up");
+  const moveDownButton = root.querySelector("#runtime-move-down");
+  const moveLeftButton = root.querySelector("#runtime-move-left");
+  const moveRightButton = root.querySelector("#runtime-move-right");
+  const castButton = root.querySelector("#runtime-cast");
 
   let core = null;
   let controller = null;
@@ -251,8 +257,36 @@ export function wireSimulationView({
     viewerActorId: "",
   };
 
-  function setStatus(message) {
-    if (statusEl) statusEl.textContent = message;
+  function setStatus(message, level = "info") {
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    if (statusEl.dataset) {
+      statusEl.dataset.level = level === "error" ? "error" : "info";
+    }
+  }
+
+  function getSelectedActorId() {
+    const actorId = typeof actorInspector?.getSelectedEntity?.()?.actorId === "string"
+      ? actorInspector.getSelectedEntity().actorId.trim()
+      : "";
+    return actorId || null;
+  }
+
+  function clear(message = DEFAULT_RUN_HELP_TEXT) {
+    controller?.pause?.();
+    controller = null;
+    pendingConfig = null;
+    pendingArtifacts = null;
+    latestLevelArtifacts = null;
+    lastBaseTilesHash = "";
+    lastVisibilitySummary = null;
+    if (frameEl) {
+      frameEl.textContent = "No game loaded.";
+    }
+    actorInspector?.setScenario?.({});
+    actorInspector?.setActors?.([], { tick: null });
+    actorInspector?.setRunning?.(false);
+    setStatus(message);
   }
 
   function ensureLevelBuilder() {
@@ -426,9 +460,9 @@ export function wireSimulationView({
         actorId: config.actorId,
         actions: movement.actions,
       });
-      setStatus("Ready");
+      setStatus("Select a room, attacker, or defender to inspect and control it here.");
     } catch (err) {
-      setStatus(err.message || "Failed to start run");
+      setStatus(err.message || "Failed to start run", "error");
       console.error(err);
     }
   }
@@ -484,9 +518,9 @@ export function wireSimulationView({
           },
         },
       );
-      setStatus("Ready (bundle artifacts).");
+      setStatus("Select a room, attacker, or defender to inspect and control it here.");
     } catch (err) {
-      setStatus(err.message || "Failed to start bundle run");
+      setStatus(err.message || "Failed to start bundle run", "error");
       console.error(err);
     }
   }
@@ -579,6 +613,11 @@ export function wireSimulationView({
   stepBackButton?.addEventListener("click", () => controller?.stepBack?.());
   playPauseButton?.addEventListener("click", () => controller?.toggle?.());
   resetRunButton?.addEventListener("click", () => controller?.reset?.());
+  moveUpButton?.addEventListener("click", () => performGameAction({ action: "up", actorId: getSelectedActorId() }));
+  moveDownButton?.addEventListener("click", () => performGameAction({ action: "down", actorId: getSelectedActorId() }));
+  moveLeftButton?.addEventListener("click", () => performGameAction({ action: "left", actorId: getSelectedActorId() }));
+  moveRightButton?.addEventListener("click", () => performGameAction({ action: "right", actorId: getSelectedActorId() }));
+  castButton?.addEventListener("click", () => performGameAction({ action: "cast", actorId: getSelectedActorId() }));
 
   async function boot() {
     stepBackButton && (stepBackButton.disabled = true);
@@ -590,7 +629,7 @@ export function wireSimulationView({
       const wasmUrl = new URL("../../assets/core-as.wasm", import.meta.url);
       core = await loadCore({ wasmUrl });
       ready = true;
-      setStatus("Ready");
+      clear(DEFAULT_RUN_HELP_TEXT);
 
       if (pendingArtifacts) {
         const payload = pendingArtifacts;
@@ -605,7 +644,7 @@ export function wireSimulationView({
         startRun(initialConfig);
       }
     } catch (error) {
-      setStatus(`Failed to load: ${error.message}`);
+      setStatus(`Failed to load: ${error.message}`, "error");
     }
   }
 
@@ -631,17 +670,18 @@ export function wireSimulationView({
       if (result.reason === "cast_unimplemented") {
         setStatus("Cast not implemented yet.");
       } else if (result.reason === "actor_not_found") {
-        setStatus(`Actor ${result.actorId || "unknown"} is unavailable.`);
+        setStatus(`Actor ${result.actorId || "unknown"} is unavailable.`, "error");
       } else if (result.reason === "missing_actor") {
-        setStatus("Select an attacker or defender first.");
+        setStatus("Select an attacker or defender first.", "error");
       } else if (result.reason === "unsupported_action") {
-        setStatus("Unsupported game action.");
+        setStatus("Unsupported game action.", "error");
       }
     }
     return result;
   }
 
   return {
+    clear,
     startRun,
     startRunFromArtifacts,
     focusInspectorEntity,

@@ -127,14 +127,18 @@ test("cli run writes tick frames and logs", (t) => {
 
   const tickFramesPath = join(outDir, "tick-frames.json");
   const effectsLogPath = join(outDir, "effects-log.json");
+  const runtimeDecisionCapturesPath = join(outDir, "runtime-decision-captures.json");
   const runSummaryPath = join(outDir, "run-summary.json");
   assert.ok(existsSync(tickFramesPath));
   assert.ok(existsSync(effectsLogPath));
+  assert.ok(existsSync(runtimeDecisionCapturesPath));
   assert.ok(existsSync(runSummaryPath));
 
   const frames = readJson(tickFramesPath);
+  const runtimeDecisionCaptures = readJson(runtimeDecisionCapturesPath);
   assert.ok(Array.isArray(frames));
   assert.ok(frames.length > 0);
+  assert.ok(Array.isArray(runtimeDecisionCaptures));
   assert.equal(frames[0].schema, "agent-kernel/TickFrame");
 });
 
@@ -185,6 +189,8 @@ test("cli replay writes replay summary", (t) => {
 
   const summary = readJson(replaySummaryPath);
   assert.equal(typeof summary.match, "boolean");
+  assert.ok(summary.runtimeDecisions);
+  assert.equal(typeof summary.runtimeDecisions.match, "boolean");
 });
 
 test("cli inspect writes summary", (t) => {
@@ -229,4 +235,6 @@ test("cli inspect writes summary", (t) => {
   const summary = readJson(inspectSummaryPath);
   assert.equal(summary.schema, "agent-kernel/TelemetryRecord");
   assert.equal(summary.schemaVersion, 1);
+  assert.ok(summary.data.runtimeDecisions);
+  assert.equal(typeof summary.data.runtimeDecisions.total, "number");
 });

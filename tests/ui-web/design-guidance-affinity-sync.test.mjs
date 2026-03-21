@@ -116,6 +116,24 @@ test("motivation toggles support removing and re-adding motivations", () => {
   assert.deepEqual(added.card.motivations, ["defending"]);
 });
 
+test("motivation toggles block contradictory motivations from the same exclusive group", () => {
+  const attacker = createDesignCard({
+    type: "attacker",
+    affinity: "fire",
+    motivations: ["attacking", "patrolling"],
+  });
+
+  const blockedCombat = dropPropertyOnCard(attacker, { group: "motivations", value: "defending" });
+  assert.equal(blockedCombat.ok, false);
+  assert.equal(blockedCombat.reason, "motivation_conflict");
+  assert.equal(blockedCombat.conflictsWith, "attacking");
+
+  const blockedMobility = dropPropertyOnCard(attacker, { group: "motivations", value: "stationary" });
+  assert.equal(blockedMobility.ok, false);
+  assert.equal(blockedMobility.reason, "motivation_conflict");
+  assert.equal(blockedMobility.conflictsWith, "patrolling");
+});
+
 test("changing card type replaces incompatible card payload", () => {
   const defender = createDesignCard({
     type: "defender",

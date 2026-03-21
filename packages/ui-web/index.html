@@ -99,10 +99,40 @@
         margin-top: 12px;
       }
 
-      .frame-shell {
+      .frame-shell,
+      .preview-shell {
         display: grid;
         gap: 12px;
-        grid-template-columns: 1fr;
+      }
+
+      .preview-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .preview-header .controls {
+        margin-top: 0;
+        justify-content: flex-end;
+      }
+
+      .design-panel-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .design-panel-title {
+        min-width: 0;
+      }
+
+      .design-panel-header .controls {
+        margin-top: 0;
+        justify-content: flex-end;
       }
 
       .frame-display {
@@ -117,12 +147,17 @@
         white-space: pre;
         letter-spacing: 0;
         font-variant-ligatures: none;
+        overflow: auto;
+      }
+
+      #preview-frame-buffer {
+        min-height: 420px;
+        max-height: min(64vh, 720px);
       }
 
       #frame-buffer {
         min-height: 520px;
         max-height: min(70vh, 760px);
-        overflow: auto;
       }
 
       .frame-display .actor-cell {
@@ -141,15 +176,45 @@
         text-shadow: 0 0 var(--tile-glow, 1px) hsl(var(--tile-hue, 0), var(--tile-sat, 45%), var(--tile-light, 70%));
       }
 
-      .actor-panel {
+      .preview-meta-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 10px;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       }
 
-      .actor-list-shell {
+      .diagnostic-toggle-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
         display: grid;
+        gap: 8px;
+        max-height: none;
+        overflow: visible;
+      }
+
+      .diagnostic-toggle-item {
+        display: grid;
+        grid-template-columns: auto minmax(140px, 180px) 1fr;
+        align-items: center;
         gap: 10px;
+        padding: 10px 12px;
+        border-radius: 2px;
+        background: #0a0a0a;
+        border: 1px solid var(--border);
+      }
+
+      .diagnostic-toggle-item label {
+        margin: 0;
+        color: var(--text);
+      }
+
+      .diagnostic-toggle-description {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .diagnostic-section-hidden {
+        display: none !important;
       }
 
       .stat-row {
@@ -242,9 +307,10 @@
       .simulation-inspector-group-list {
         display: grid;
         gap: 6px;
-        max-height: 180px;
+        max-height: calc(4 * 34px + 3 * 6px);
         overflow-y: auto;
         overflow-x: hidden;
+        scrollbar-gutter: stable;
       }
 
       .simulation-inspector-instance.selected {
@@ -344,17 +410,16 @@
         }
 
         .design-card-workspace {
-          grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(280px, 360px);
-          gap: 16px;
+          grid-template-columns: minmax(240px, 320px) minmax(0, 1.6fr) minmax(190px, 240px);
+          gap: 12px;
         }
 
         .design-card-grid {
-          grid-template-columns: minmax(360px, 620px);
-          min-height: 460px;
+          grid-template-columns: minmax(520px, 1fr);
         }
 
         .design-card {
-          min-height: 380px;
+          min-height: 0;
         }
 
         #frame-buffer {
@@ -362,14 +427,6 @@
           max-height: min(72vh, 820px);
         }
 
-        .runtime-shell {
-          grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-        }
-
-        .runtime-viewport {
-          min-height: 620px;
-          max-height: min(74vh, 820px);
-        }
       }
 
       @media (max-width: 960px) {
@@ -378,11 +435,16 @@
         }
 
         .workspace[data-active-tab="simulation"] {
-          grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+          grid-template-columns: 1fr;
         }
 
         .design-card-workspace {
           grid-template-columns: 1fr;
+        }
+
+        .design-panel-header .controls {
+          width: 100%;
+          justify-content: flex-start;
         }
 
         .design-card-grid {
@@ -401,19 +463,21 @@
           grid-template-columns: 1fr;
         }
 
+        .diagnostic-toggle-item {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+
+        #preview-frame-buffer {
+          min-height: 320px;
+          max-height: min(56vh, 560px);
+        }
+
         #frame-buffer {
           min-height: 360px;
           max-height: min(62vh, 560px);
         }
 
-        .workspace:not([data-active-tab="simulation"]) .inspector-shell {
-          position: static;
-        }
-
-        .workspace[data-active-tab="simulation"] .inspector-shell {
-          position: sticky;
-          top: 16px;
-        }
       }
 
       @keyframes panel-rise {
@@ -459,37 +523,6 @@
         background: #0a0a0a;
         font-size: 0.8rem;
         color: var(--muted);
-      }
-
-      .actor-list {
-        background: #030303;
-        border: 1px dashed var(--muted);
-        border-radius: 2px;
-        padding: 10px;
-        font-size: 0.85rem;
-        line-height: 1.4;
-        white-space: pre;
-        max-height: 220px;
-        overflow-y: auto;
-      }
-
-      .actor-list-shell details {
-        border: 1px solid var(--border);
-        border-radius: 2px;
-        padding: 8px;
-        background: #0a0a0a;
-      }
-
-      .base-tiles-shell {
-        display: grid;
-        gap: 6px;
-      }
-
-      .actor-list-shell summary {
-        cursor: pointer;
-        color: var(--muted);
-        font-size: 0.85rem;
-        margin-bottom: 6px;
       }
 
       .badge {
@@ -684,14 +717,15 @@
 
       .design-card-workspace {
         display: grid;
-        grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(220px, 280px);
-        gap: 14px;
-        margin-top: 12px;
+        grid-template-columns: minmax(220px, 280px) minmax(0, 1.35fr) minmax(180px, 220px);
+        gap: 10px;
+        margin-top: 8px;
+        align-items: start;
       }
 
       .design-left-rail {
         display: grid;
-        gap: 10px;
+        gap: 8px;
         align-content: start;
       }
 
@@ -699,9 +733,9 @@
         border: 1px solid var(--border);
         border-radius: 2px;
         background: #070707;
-        padding: 10px;
+        padding: 8px;
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
 
       .design-property-group h3 {
@@ -713,20 +747,51 @@
       }
 
       .design-property-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .design-property-chip-group {
+        display: grid;
+        gap: 4px;
+      }
+
+      .design-property-chip-group-note {
+        font-size: 0.66rem;
+        line-height: 1;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent-strong);
+        padding-left: 4px;
+      }
+
+      .design-property-chip-pair {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .design-property-chip-pair.is-single {
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .design-property-chip {
         display: inline-flex;
         align-items: center;
+        justify-content: flex-start;
+        width: 100%;
         padding: 6px 10px;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: #090b0a;
         color: var(--text);
         font-size: 0.84rem;
+      }
+
+      .design-property-chip.is-selected {
+        border-color: var(--accent);
+        color: var(--accent-strong);
+        background: #10150f;
       }
 
       .design-property-chip-content {
@@ -749,54 +814,80 @@
 
       .design-center-workspace {
         display: grid;
-        gap: 10px;
+        gap: 8px;
         min-width: 0;
+        align-content: start;
+        grid-auto-rows: max-content;
+      }
+
+      .surface-status {
+        margin-top: 0;
+        padding: 8px 10px;
+        border: 1px solid #203228;
+        border-radius: 4px;
+        background: #090e0b;
+        font-size: 0.78rem;
+        line-height: 1.25;
+        max-height: 4rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-gutter: stable;
+      }
+
+      .surface-status[data-level="error"] {
+        border-color: #612933;
+        background: #120a0d;
+        color: #ffb3bf;
+      }
+
+      .surface-status[data-level="info"] {
+        color: var(--muted);
       }
 
       .design-toolbar {
         display: grid;
-        grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
-        gap: 8px 10px;
-        align-items: end;
+        grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+        gap: 6px 8px;
+        align-items: start;
       }
 
       .design-toolbar > label {
         display: grid;
-        gap: 4px;
+        gap: 2px;
         min-width: 0;
       }
 
       .design-toolbar > label input {
         width: 100%;
-        max-width: 170px;
-        padding: 8px 10px;
+        max-width: 150px;
+        padding: 6px 8px;
       }
 
       .design-budget-split {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 6px;
+        grid-template-columns: repeat(3, minmax(140px, 1fr));
+        gap: 4px;
         width: auto;
         min-width: 0;
       }
 
       .design-budget-split-item {
         display: grid;
-        gap: 2px;
+        gap: 1px;
         border: 1px solid #1e2b23;
         border-radius: 4px;
-        padding: 4px 6px;
+        padding: 3px 5px;
         background: #090e0b;
       }
 
       .design-budget-split-item label {
         display: grid;
-        gap: 2px;
+        gap: 1px;
       }
 
       .design-budget-split-item input {
         width: 100%;
-        padding: 6px 8px;
+        padding: 5px 7px;
       }
 
       .design-budget-split-item .stat-label {
@@ -817,11 +908,15 @@
         border: 1px solid #203228;
         border-radius: 4px;
         background: #090e0b;
-        padding: 8px 10px;
-        font-size: 0.78rem;
-        line-height: 1.35;
+        padding: 6px 8px;
+        font-size: 0.72rem;
+        line-height: 1.25;
         color: var(--muted);
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-budget-overview:empty {
+        display: none;
       }
 
       .design-budget-overview strong {
@@ -834,25 +929,29 @@
 
       .design-card-grid {
         display: grid;
-        grid-template-columns: minmax(260px, 460px);
-        justify-content: center;
+        grid-template-columns: minmax(420px, 1fr);
+        justify-content: stretch;
         align-content: start;
-        gap: 12px;
-        min-height: 360px;
+        align-items: start;
+        gap: 10px;
+        min-height: 0;
         border: 1px dashed var(--border);
         border-radius: 2px;
         background: #050606;
-        padding: 10px;
+        padding: 8px;
+        width: 100%;
       }
 
       .design-card {
         display: grid;
-        gap: 8px;
-        min-height: 320px;
+        gap: 6px;
+        min-height: 0;
+        align-content: start;
+        width: 100%;
         border: 1px solid var(--border);
         background: linear-gradient(160deg, rgba(18, 24, 20, 0.95), rgba(9, 12, 10, 0.98));
         border-radius: 6px;
-        padding: 10px;
+        padding: 8px;
       }
 
       .design-card.selected {
@@ -1033,7 +1132,7 @@
 
       .design-card-motivation-row {
         display: grid;
-        grid-template-columns: 28px 1fr auto;
+        grid-template-columns: 1fr auto;
         align-items: center;
         gap: 6px;
         border: 1px solid #1f2d25;
@@ -1046,26 +1145,18 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-      }
-
-      .design-card-motivation-label {
-        font-size: 0.78rem;
+        width: 24px;
+        height: 24px;
+        border: 1px solid #25352c;
+        border-radius: 999px;
+        background: #0b130f;
       }
 
       .design-card-motivation-remove {
+        width: 24px;
         min-height: 24px;
-        padding: 2px 8px;
-      }
-
-      .design-card-motivation-add-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-
-      .design-card-motivation-add {
-        min-height: 24px;
-        padding: 2px 8px;
+        padding: 0;
+        line-height: 1;
       }
 
       .design-card-body {
@@ -1197,7 +1288,7 @@
 
       .design-card-groups-window {
         display: grid;
-        gap: 10px;
+        gap: 8px;
         align-content: start;
       }
 
@@ -1205,9 +1296,9 @@
         border: 1px solid var(--border);
         border-radius: 2px;
         background: #070707;
-        padding: 10px;
+        padding: 8px;
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
 
       .design-card-group h3 {
@@ -1493,91 +1584,6 @@
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       }
 
-      .runtime-shell {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-        gap: 14px;
-        align-items: start;
-      }
-
-      .runtime-stage-shell {
-        display: grid;
-        gap: 10px;
-      }
-
-      .runtime-viewport {
-        min-height: 560px;
-        max-height: 720px;
-        overflow: auto;
-        line-height: 1;
-        font-size: 0.78rem;
-      }
-
-      .runtime-controls {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
-      }
-
-      .runtime-sidebar {
-        display: grid;
-        gap: 12px;
-      }
-
-      .runtime-card-group {
-        display: grid;
-        gap: 8px;
-      }
-
-      .runtime-card-list {
-        display: grid;
-        gap: 8px;
-      }
-
-      #runtime-visible-defenders,
-      #runtime-offscreen-defenders {
-        max-height: 260px;
-        overflow-y: auto;
-        overflow-x: hidden;
-      }
-
-      .runtime-actor-card {
-        width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 2px;
-        background: #070707;
-        color: var(--text);
-        padding: 8px;
-        text-align: left;
-        display: grid;
-        gap: 4px;
-        cursor: pointer;
-      }
-
-      .runtime-actor-card.selected {
-        border-color: var(--accent);
-        box-shadow: inset 0 0 0 1px rgba(249, 199, 79, 0.25);
-      }
-
-      .runtime-actor-title {
-        font-size: 0.85rem;
-        font-weight: 600;
-      }
-
-      .runtime-actor-meta {
-        font-size: 0.75rem;
-        color: var(--muted);
-        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      }
-
-      .runtime-card-empty {
-        border: 1px dashed var(--border);
-        border-radius: 2px;
-        padding: 8px;
-        font-size: 0.8rem;
-        color: var(--muted);
-      }
-
       .artifact-list {
         display: grid;
         gap: 10px;
@@ -1597,14 +1603,10 @@
         margin-bottom: 6px;
       }
 
-      @media (max-width: 960px) {
-        .runtime-shell {
-          grid-template-columns: 1fr;
-        }
-
-        .runtime-viewport {
-          min-height: 380px;
-        }
+      .runtime-controls {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
       }
     </style>
   </head>
@@ -1612,17 +1614,14 @@
     <main>
       <header>
         <h1>Game Generator</h1>
-        <p class="subtitle">
-          A minimal end-to-end run that exercises core WASM logic, ports, adapters, and a live UI. Primary workflow tabs
-          focus the experience: Design is the default entry point.
-        </p>
       </header>
 
       <section class="stack">
         <div class="card">
           <div class="tab-bar" role="tablist" aria-label="Primary workflow tabs">
             <button class="tab-button active" type="button" data-tab="design" role="tab" aria-selected="true">Design</button>
-            <button class="tab-button" type="button" data-tab="simulation" role="tab" aria-selected="false">Game Board</button>
+            <button class="tab-button" type="button" data-tab="preview" role="tab" aria-selected="false">Preview</button>
+            <button class="tab-button" type="button" data-tab="simulation" role="tab" aria-selected="false">Run</button>
             <button class="tab-button" type="button" data-tab="diagnostics" role="tab" aria-selected="false">Diagnostics</button>
           </div>
         </div>
@@ -1633,15 +1632,14 @@
           <div class="card frame-shell">
             <div class="stat">
               <span class="stat-label">Playing Surface</span>
-              <small class="status">Live ASCII playback of the generated map, including actor positions and tick-by-tick movement updates.</small>
             </div>
+            <div class="status surface-status" id="status-message" data-level="info">Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.</div>
             <pre class="frame-display" id="frame-buffer">Loading...</pre>
             <div class="play-controls">
               <button class="secondary" id="step-back">Step -</button>
               <button class="primary" id="play-pause">Play</button>
               <button class="secondary" id="step-forward">Step +</button>
               <button class="secondary" id="reset-run">Reset</button>
-              <span class="pill" id="status-message">Loading WASM...</span>
             </div>
             <div class="runtime-controls" role="group" aria-label="Runtime controls">
               <button class="secondary" id="runtime-move-up" type="button" aria-label="Move up" title="Move up">↑</button>
@@ -1650,17 +1648,20 @@
               <button class="secondary" id="runtime-move-right" type="button" aria-label="Move right" title="Move right">→</button>
               <button class="primary" id="runtime-cast" type="button" aria-label="Cast ability" title="Cast ability">✦</button>
             </div>
-            <small class="status" id="runtime-status">Load a game run to populate runtime telemetry.</small>
           </div>
         </div>
 
             <div class="tab-panel" data-tab-panel="design" role="tabpanel">
           <div class="card">
-            <div class="stat">
-              <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧭</span>Card Builder</span>
-              <small class="status">Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.</small>
+            <div class="design-panel-header">
+              <div class="design-panel-title">
+                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧭</span>Card Builder</span>
+              </div>
+              <div class="controls">
+                <button class="secondary" id="design-load-minted" type="button">Load Minted</button>
+                <button class="secondary" id="design-auto-generate" type="button">Auto-generate</button>
+              </div>
             </div>
-            <div class="status" id="design-guidance-status">Drag a Type chip onto a card to start configuring.</div>
             <div class="design-card-workspace">
               <aside class="design-left-rail">
                 <section class="design-property-group" data-property-order="1">
@@ -1709,11 +1710,9 @@
                       <span class="design-budget-split-tokens" id="design-budget-split-defender-tokens"></span>
                     </div>
                   </div>
-                  <div class="design-budget-overview" id="design-budget-overview">
-                    Remaining Tokens 1000 - Current Configuration Tokens 0 = Available Tokens for Configuration 1000
-                  </div>
+                  <div class="design-budget-overview" id="design-budget-overview"></div>
                 </div>
-                <small class="status">Drag chips onto this card. Drag the card or use Mint to move it into grouped shelves. Drag a shelved card back here to edit.</small>
+                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.</div>
                 <div class="design-card-grid" id="design-card-grid"></div>
               </section>
               <aside class="design-card-groups-window">
@@ -1742,75 +1741,66 @@
             </div>
           </div>
 
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🚀</span>Build And Load</span>
-              <small class="status">Build from the current card set and open the game board.</small>
+        </div>
+
+            <div class="tab-panel" data-tab-panel="preview" role="tabpanel" hidden>
+          <div class="card preview-shell">
+            <div class="preview-header">
+              <div class="stat">
+                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🗺️</span>Game Preview</span>
+              </div>
+              <div class="controls">
+                <button class="primary" id="preview-build-and-load" type="button">Build And Load Game</button>
+              </div>
             </div>
-            <div class="controls">
-              <button class="primary" id="design-build-and-load" type="button">Build And Load Game</button>
+            <div class="status surface-status" id="preview-status" data-level="info">Inspect the current design bundle here. When ready, use Build And Load Game to open Run.</div>
+            <pre class="frame-display" id="preview-frame-buffer">No preview loaded.</pre>
+            <div class="preview-meta-grid">
+              <div class="stat">
+                <span class="stat-label">Preview Summary</span>
+                <pre class="adapter-output" id="preview-summary">No preview bundle loaded.</pre>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Actors</span>
+                <pre class="adapter-output" id="preview-actor-list">No actors loaded.</pre>
+              </div>
             </div>
-            <div class="status" id="design-build-status">Waiting for card updates.</div>
           </div>
         </div>
 
-
             <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
-          <div class="card actor-list-shell">
-            <div class="stat">
-              <span class="stat-label">Motivated Actors</span>
-              <small class="status">Observation order with vitals and positions.</small>
+              <div class="card">
+                <div class="stat">
+                  <span class="stat-label">Diagnostics Visibility</span>
+                  <small class="status">Toggle diagnostics sections on or off. Unchecked items stay hidden.</small>
+                </div>
+                <ul class="diagnostic-toggle-list">
+                  <li class="diagnostic-toggle-item">
+                    <input id="diagnostic-toggle-allocator" data-diagnostic-toggle="allocator" type="checkbox" checked aria-controls="diagnostic-section-allocator" />
+                    <label for="diagnostic-toggle-allocator">Allocator</label>
+                    <span class="diagnostic-toggle-description">Budget, price list, and receipt output from allocator flows.</span>
+                  </li>
+                  <li class="diagnostic-toggle-item">
+                    <input id="diagnostic-toggle-llm-trace" data-diagnostic-toggle="llm-trace" type="checkbox" checked aria-controls="diagnostic-section-llm-trace" />
+                    <label for="diagnostic-toggle-llm-trace">LLM Trace</label>
+                    <span class="diagnostic-toggle-description">Prompt/response capture, parsed trace, and annotator summaries.</span>
+                  </li>
+                  <li class="diagnostic-toggle-item">
+                    <input id="diagnostic-toggle-build" data-diagnostic-toggle="build" type="checkbox" checked aria-controls="diagnostic-section-build" />
+                    <label for="diagnostic-toggle-build">Build And Bundle</label>
+                    <span class="diagnostic-toggle-description">Build orchestration, bundle review, and budget inputs.</span>
+                  </li>
+                  <li class="diagnostic-toggle-item">
+                    <input id="diagnostic-toggle-adapter-playground" data-diagnostic-toggle="adapter-playground" type="checkbox" checked aria-controls="diagnostic-section-adapter-playground" />
+                    <label for="diagnostic-toggle-adapter-playground">Adapter Playground</label>
+                    <span class="diagnostic-toggle-description">Manual adapter calls for IPFS, blockchain, LLM, and solver.</span>
+                  </li>
+                </ul>
+              </div>
             </div>
-            <pre class="actor-list" id="actor-list">-</pre>
-            <details open>
-              <summary>Tile Actors (<span id="tile-actor-count">0</span>)</summary>
-              <pre class="actor-list" id="tile-actor-list">-</pre>
-            </details>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Actor JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="actor-json-output">No JSON output yet.</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📈</span>Level Generation Benchmark</span>
-              <small class="status">Run local layout generation throughput checks and compare expected timing at your current level size.</small>
-            </div>
-            <div class="controls">
-              <button id="design-run-level-benchmark" type="button">Benchmark Level Generation</button>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">📈</span>Benchmark Max Tokens</span>
-                <input id="benchmark-max-token-budget" type="number" min="1" step="1" value="2000000" />
-              </label>
-              <label>
-                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔁</span>Benchmark Runs / Size</span>
-                <input id="benchmark-sample-runs" type="number" min="1" step="1" value="1" />
-              </label>
-            </div>
-            <pre class="adapter-output" id="design-level-benchmark-output">No benchmark yet.</pre>
-          </div>
-        </div>
 
 
-            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Director</span>
-              <small class="status">No director panels yet.</small>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Director JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="director-json-output">No JSON output yet.</pre>
-          </div>
-        </div>
-
-
-            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+            <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="allocator" id="diagnostic-section-allocator" role="tabpanel" hidden>
           <div class="card">
             <div class="stat">
               <span class="stat-label">Allocator</span>
@@ -1832,60 +1822,7 @@
         </div>
 
 
-            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <div class="stat-row">
-                <span class="stat-label">Affinity Loadouts</span>
-                <button class="secondary" type="button" id="affinity-legend-toggle" aria-expanded="false">Legend</button>
-              </div>
-              <small class="status">Resolved affinities and abilities per motivated actor.</small>
-            </div>
-            <div class="legend-panel" id="affinity-legend" hidden>
-              <div class="legend-grid">
-                <div>
-                  <span class="stat-label">Kinds</span>
-                  <div class="legend-list" id="legend-kinds"></div>
-                </div>
-                <div>
-                  <span class="stat-label">Expressions</span>
-                  <div class="legend-list" id="legend-expressions"></div>
-                </div>
-              </div>
-            </div>
-            <pre class="actor-list" id="affinity-list">No affinities resolved</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Trap Inspector (<span id="trap-tab-count">0</span>)</span>
-              <small class="status">Affinity metadata, vitals, and abilities per trap tile.</small>
-            </div>
-            <pre class="actor-list" id="trap-list">No traps detected</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Annotator JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="annotator-json-output">No JSON output yet.</pre>
-          </div>
-        </div>
-
-
-            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Moderator</span>
-              <small class="status">Playback controls live in the Runtime tab.</small>
-            </div>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Moderator JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="moderator-json-output">No JSON output yet.</pre>
-          </div>
-        </div>
-            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+            <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="llm-trace" id="diagnostic-section-llm-trace" role="tabpanel" hidden>
           <div class="card">
             <div class="stat">
               <span class="stat-label">LLM Trace</span>
@@ -1930,17 +1867,13 @@
             </div>
           </div>
         </div>
-            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+            <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="build" id="diagnostic-section-build" role="tabpanel" hidden>
           <div class="card">
             <div class="stat">
               <span class="stat-label">Build Orchestration</span>
-              <small class="status">Send a BuildSpec to a local bridge that runs `ak.mjs build --spec`.</small>
+              <small class="status">Run BuildSpec execution through the browser command host.</small>
             </div>
             <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Bridge URL</span>
-                <input id="build-bridge-url" type="text" value="/bridge/build" />
-              </label>
               <label>
                 <span class="stat-label">Spec Path (optional)</span>
                 <input id="build-spec-path" type="text" placeholder="tests/fixtures/artifacts/build-spec-v1-basic.json" />
@@ -1962,7 +1895,7 @@
               <button class="secondary" id="build-download" hidden>Download spec.json</button>
               <button class="secondary" id="build-clear">Clear</button>
             </div>
-            <div class="status" id="build-status">Bridge idle.</div>
+            <div class="status" id="build-status">Command host ready.</div>
             <div class="stat">
               <span class="stat-label">Build Output</span>
             </div>
@@ -2005,7 +1938,6 @@
               <button class="primary" id="bundle-apply-spec">Apply spec edits</button>
               <button class="secondary" id="bundle-send-spec">Send to Build</button>
               <button class="secondary" id="bundle-download-spec">Download spec.json</button>
-              <button class="secondary" id="bundle-run-runtime">Run in Runtime</button>
             </div>
             <div class="adapter-grid">
               <div class="stat">
@@ -2039,7 +1971,7 @@
           </div>
         </div>
 
-            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
+            <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="adapter-playground" id="diagnostic-section-adapter-playground" role="tabpanel" hidden>
           <div class="card">
             <div class="stat">
               <span class="stat-label">Adapter Playground</span>
@@ -2086,12 +2018,10 @@
           </div>
             </div>
           </div>
-
           <aside class="card inspector-shell" id="actor-inspector" hidden>
             <div class="inspector-header">
               <div class="stat">
                 <span class="stat-label">Game Inspector</span>
-                <small class="status" id="actor-inspector-status">No generated instances loaded.</small>
               </div>
             </div>
             <div class="inspector-section">

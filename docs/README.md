@@ -31,7 +31,7 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - Expressions define delivery: push (external), pull (internal), emit (area).
 - Presets and loadouts are captured as artifacts with deterministic ordering and defaults (manaCost=0, stacks=1).
 - Traps are tile actors with mana + durability only and an affinity expression payload.
-- UI tabs are organized by persona with Runtime as the default playback view; the Annotator tab surfaces affinity + trap metadata with a collapsible legend.
+- The active UI workflow is `Design -> Preview -> Run`, with `Diagnostics` as the supporting inspection surface. The UI is expected to publish canonical artifacts and then render them, not maintain a parallel gameplay/configuration rail.
 
 ## Budgeting + price lists
 
@@ -64,7 +64,17 @@ Key artifacts and fixtures:
 - Schema catalog: `node packages/adapters-cli/src/cli/ak.mjs schemas` prints the full catalog (or writes `schemas.json` with `--out-dir`).
 - Fixtures: `tests/fixtures/ui/build-spec-bundle/` shows a round-trip build bundle, and `tests/fixtures/artifacts/build-spec-v1-basic.json` shows the build spec shape.
 
-## LLM Orchestrator pipeline (flags)
+## Shared command execution
+
+- `packages/runtime/src/commands/kernel.js` is the shared command layer for `build`, `solve`, `run`, `replay`, `inspect`, `configurator`, `budget`, and `llm-plan`.
+- `packages/adapters-cli/src/cli/ak.mjs` is the Node host shell for those commands: it provides filesystem/process access plus WASM loading, but delegates command policy to the runtime kernel.
+- `packages/adapters-web/src/adapters/cli-worker/` is the browser host for the same kernel: it uses a fetch-backed virtual filesystem, worker or in-process execution, and browser-side WASM loading from `/assets/core-as.wasm`.
+- `tests/integration/ui-cli-equivalence.test.js` enforces canonical Node-vs-browser artifact equivalence for the shared kernel commands.
+- Runtime reasoning also reuses the existing effect rail: actors emit `solver_request` entries carrying `runtime-decision-v1`, solver/captured-LLM responses normalize to `Action`, and explicit live local-Ollama fulfillment is allowed only in manual non-deterministic mode.
+- The default Design -> Preview -> Run workflow is browser-hosted and fixture-first; live IPFS, blockchain, and Ollama services are optional capabilities, not baseline requirements.
+- `ipfs`, `blockchain`, and standalone `llm` now have browser-hosted shared-rail hook points through the command kernel; deeper product workflows for those capabilities can continue on dedicated follow-on branches without changing the baseline Design -> Preview -> Run path.
+
+## LLM pipeline + runtime reasoning
 
 - `AK_LLM_LIVE=1`: enable LLM-guided planning flows (otherwise fall back to fixtures).
 - `AK_LLM_MODEL`: model name for LLM requests (required when `AK_LLM_LIVE=1`).
@@ -79,6 +89,11 @@ Key artifacts and fixtures:
 Budget loop captures are phase-indexed for deterministic ordering; telemetry includes the loop trace (phase order, remaining budget, trims/warnings, and per-phase timing).
 Budget pools default to player/layout/defenders/loot weights (0.2/0.4/0.4/0.0) and can be overridden in `llm-plan` via `--budget-pool` entries and `--budget-reserve`.
 llm-plan runs require a total budget (`--budget-tokens` or scenario `budgetTokens`).
+
+Runtime-decision note:
+- deterministic/default runtime reasoning remains solver-first plus captured/deferred LLM only;
+- explicit live local-Ollama runtime fulfillment is available only when provider policy opts into manual non-deterministic mode;
+- runtime decision payloads stay structured (`runtime-decision-v1`) and are carried through `SolverRequest` / `SolverResult` / `CapturedInputArtifact` rather than a second artifact family.
 
 Determinism: prefer fixture-driven runs (`--fixture` on adapters, scenario `summaryPath` for
 LLM flows) to keep outputs replayable and stable.

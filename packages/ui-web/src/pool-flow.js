@@ -1,6 +1,4 @@
-import { mapSummaryToPool } from "../../runtime/src/personas/director/pool-mapper.js";
-import { enforceBudget } from "../../runtime/src/personas/director/budget-enforcer.js";
-import { buildBuildSpecFromSummary } from "../../runtime/src/personas/director/buildspec-assembler.js";
+import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
 import { deriveAllowedOptionsFromCatalog } from "../../runtime/src/personas/orchestrator/prompt-contract.js";
 
 async function readFileInput(fileInput) {
@@ -32,6 +30,7 @@ export function setupPoolFlow(elements = {}) {
     onSummaryLoaded,
     onBuildSpec,
     onSendSpec,
+    commandHost = createCliWorkerAdapter({ forceInProcess: typeof Worker !== "function" }),
   } = elements;
 
   const state = {
@@ -146,42 +145,30 @@ export function setupPoolFlow(elements = {}) {
       if (summaryOut) summaryOut.value = JSON.stringify(state.summary, null, 2);
       updateBuildSpecState(null, "");
 
-      const mapped = mapSummaryToPool({ summary: state.summary, catalog: state.catalog });
-      if (!mapped.ok) {
-        await updateStatus(`Mapping failed: ${JSON.stringify(mapped.errors)}`, true);
-        return;
-      }
-
-      const enforced = enforceBudget({ selections: mapped.selections, budgetTokens: state.summary.budgetTokens });
-      if (selectionsOut) selectionsOut.value = JSON.stringify(enforced.selections, null, 2);
-      if (receiptsOut) receiptsOut.value = JSON.stringify(enforced.actions, null, 2);
-      const allowed = deriveAllowedOptionsFromCatalog(state.catalog);
-      if (allowedOut) allowedOut.value = JSON.stringify(allowed, null, 2);
-
-      const built = buildBuildSpecFromSummary({
+      const result = await commandHost.runPoolFlow({
         summary: state.summary,
-        selections: enforced.selections,
+        catalog: state.catalog,
         runId: "pool_ui_run",
         source: "pool-ui",
       });
-
-      if (!built.ok) {
-        await updateStatus(`BuildSpec validation failed: ${JSON.stringify(built.errors)}`, true);
-        if (buildSpecOut) buildSpecOut.value = JSON.stringify(built.spec, null, 2);
+      if (!result.ok) {
+        await updateStatus(`Pool flow failed: ${JSON.stringify(result.errors || [])}`, true);
         return;
       }
 
-      const specText = JSON.stringify(built.spec, null, 2);
-      if (buildSpecOut) buildSpecOut.value = specText;
-      updateBuildSpecState(built.spec, specText);
+      if (selectionsOut) selectionsOut.value = JSON.stringify(result.selections, null, 2);
+      if (receiptsOut) receiptsOut.value = JSON.stringify(result.receipts, null, 2);
+      if (allowedOut) allowedOut.value = JSON.stringify(result.allowed, null, 2);
+      if (buildSpecOut) buildSpecOut.value = result.specText;
+      updateBuildSpecState(result.spec, result.specText);
       if (typeof onBuildSpec === "function") {
         onBuildSpec({
           summary: state.summary,
           catalog: state.catalog,
-          selections: enforced.selections,
-          receipts: enforced.actions,
-          spec: built.spec,
-          specText,
+          selections: result.selections,
+          receipts: result.receipts,
+          spec: result.spec,
+          specText: result.specText,
         });
       }
       await updateStatus("Pool flow completed: BuildSpec ready.");

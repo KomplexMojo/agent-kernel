@@ -121,6 +121,21 @@ test("cli blockchain rejects missing rpc-url", () => {
   assert.match(result.stderr, /blockchain requires --rpc-url/);
 });
 
+test("cli blockchain-mint rejects missing rpc-url", () => {
+  const result = runCliExpectFailure(["blockchain-mint", "--card", "tests/fixtures/adapters/card-config-attacker.json"]);
+  assert.match(result.stderr, /blockchain-mint requires --rpc-url/);
+});
+
+test("cli blockchain-mint rejects missing card", () => {
+  const result = runCliExpectFailure(["blockchain-mint", "--rpc-url", "http://local"]);
+  assert.match(result.stderr, /blockchain-mint requires --card/);
+});
+
+test("cli blockchain-load rejects missing token-id", () => {
+  const result = runCliExpectFailure(["blockchain-load", "--rpc-url", "http://local"]);
+  assert.match(result.stderr, /blockchain-load requires --token-id/);
+});
+
 test("cli llm rejects missing args", () => {
   const result = runCliExpectFailure(["llm"]);
   assert.match(result.stderr, /llm requires --prompt/);

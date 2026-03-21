@@ -28,6 +28,7 @@ export function buildLlmCaptureArtifact({
   prompt,
   responseText,
   responseParsed,
+  requestEnvelope,
   summary,
   parseErrors,
   model,
@@ -59,6 +60,9 @@ export function buildLlmCaptureArtifact({
 
   const payload = { prompt, responseRaw: responseText };
   if (responseParsed !== undefined) payload.responseParsed = responseParsed;
+  if (requestEnvelope && typeof requestEnvelope === "object" && !Array.isArray(requestEnvelope)) {
+    payload.requestEnvelope = requestEnvelope;
+  }
   if (summary !== undefined) payload.summary = summary;
   if (Array.isArray(parseErrors) && parseErrors.length > 0) payload.errors = parseErrors;
   if (isNonEmptyString(phase)) payload.phase = phase;

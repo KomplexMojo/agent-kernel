@@ -29,7 +29,6 @@ function getPanelSlices(html, tabId) {
 test("artifact panels live only under diagnostics", () => {
   const html = readHtml();
   const designText = getPanelSlices(html, "design").join("\n");
-  const simulationText = getPanelSlices(html, "simulation").join("\n");
   const diagnosticsText = getPanelSlices(html, "diagnostics").join("\n");
 
   const artifactIds = [
@@ -59,19 +58,31 @@ test("artifact panels live only under diagnostics", () => {
     "llm-trace-summary",
     "llm-trace-telemetry",
   ];
+  const removedIds = [
+    "bundle-run-runtime",
+    "diagnostic-toggle-actors",
+    "diagnostic-toggle-director",
+    "diagnostic-toggle-affinity",
+    "diagnostic-toggle-moderator",
+    "actor-json-output",
+    "director-json-output",
+    "annotator-json-output",
+    "moderator-json-output",
+  ];
 
   artifactIds.forEach((id) => {
     assert.ok(diagnosticsText.includes(`id=\"${id}\"`), `Expected diagnostics to include ${id}`);
     assert.equal(designText.includes(`id=\"${id}\"`), false, `Did not expect design to include ${id}`);
-    assert.equal(simulationText.includes(`id=\"${id}\"`), false, `Did not expect simulation to include ${id}`);
   });
   diagnosticsOnlyIds.forEach((id) => {
     assert.ok(diagnosticsText.includes(`id=\"${id}\"`), `Expected diagnostics to include ${id}`);
     assert.equal(designText.includes(`id=\"${id}\"`), false, `Did not expect design to include ${id}`);
-    assert.equal(simulationText.includes(`id=\"${id}\"`), false, `Did not expect simulation to include ${id}`);
+  });
+  removedIds.forEach((id) => {
+    assert.equal(diagnosticsText.includes(`id=\"${id}\"`), false, `Did not expect diagnostics to include ${id}`);
   });
 
-  assert.equal(diagnosticsText.includes("id=\"adapter-mode\""), false, "Did not expect fixture/live mode toggle");
+  assert.equal(diagnosticsText.includes('id="adapter-mode"'), false, "Did not expect fixture/live mode toggle");
   assert.equal(diagnosticsText.includes("Ready in fixture mode"), false, "Did not expect fixture status text");
   assert.ok(diagnosticsText.includes("Ready in live mode"), "Expected live mode status text");
 });

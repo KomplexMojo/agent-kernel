@@ -7,6 +7,7 @@ export { BUILD_SPEC_SCHEMA, BUILD_SPEC_SCHEMA_VERSION, validateBuildSpec } from 
 export { mapBuildSpecToArtifacts } from "./build/map-build-spec.js";
 export { orchestrateBuild } from "./build/orchestrate-build.js";
 export { buildBuildTelemetryRecord } from "./build/telemetry.js";
+export { createCommandKernel } from "./commands/kernel.js";
 export { createSchemaCatalog, filterSchemaCatalogEntries } from "./contracts/schema-catalog.js";
 export {
   AFFINITY_KINDS,
