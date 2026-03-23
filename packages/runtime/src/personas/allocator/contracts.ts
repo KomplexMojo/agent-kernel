@@ -1,6 +1,8 @@
 // Local contracts for the Allocator persona state machine.
 // Cross-persona artifacts live in packages/runtime/src/contracts/artifacts.ts.
 
+import type { SolverRequestV1 } from "../../contracts/artifacts.js";
+
 export type AllocatorState = "idle" | "budgeting" | "allocating" | "monitoring" | "rebalancing";
 
 export interface PriceListInput {
@@ -30,7 +32,7 @@ export interface AllocatorContext {
   lastBudgetCount: number;
   lastSignalCount: number;
   budgetRemaining?: number;
-  lastSolverRequest?: unknown;
+  lastSolverRequest?: SolverRequestV1 | null;
 }
 
 export interface AllocatorView {

@@ -1,6 +1,8 @@
 // Local contracts for the Director persona state machine.
 // Cross-persona artifacts live in packages/runtime/src/contracts/artifacts.ts.
 
+import type { SolverRequestV1 } from "../../contracts/artifacts.js";
+
 export type DirectorState = "uninitialized" | "intake" | "draft_plan" | "refine" | "ready" | "stale";
 
 export interface DirectorContext {
@@ -9,7 +11,7 @@ export interface DirectorContext {
   planRef: string | null;
   lastEvent: string | null;
   updatedAt: string;
-  lastSolverRequest?: unknown;
+  lastSolverRequest?: SolverRequestV1 | null;
 }
 
 export interface DirectorView {
