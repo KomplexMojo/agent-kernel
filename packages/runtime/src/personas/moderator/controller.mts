@@ -12,7 +12,8 @@ export const moderatorSubscribePhases = Object.freeze([
 ]);
 const CONTROL_EVENTS = new Set(["start", "pause", "resume", "stop"]);
 
-export function createModeratorPersona({ initialState = ModeratorStates.INITIALIZING, clock = () => new Date().toISOString() } = {}) {
+export function createModeratorPersona({ initialState = ModeratorStates.INITIALIZING, clock }: { initialState?: string; clock: () => string } = {} as any) {
+  if (typeof clock !== "function") throw new TypeError("createModeratorPersona: clock must be injected as a function");
   const fsm = createModeratorStateMachine({ initialState, clock });
 
   function view() {

@@ -4,7 +4,8 @@ import { buildTelemetry } from "../_shared/persona-helpers.js";
 
 export const annotatorSubscribePhases = Object.freeze([TickPhases.EMIT, TickPhases.SUMMARIZE]);
 
-export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, clock } = {}) {
+  if (typeof clock !== "function") throw new TypeError("createAnnotatorPersona: clock must be injected as a function");
   const fsm = createAnnotatorStateMachine({ initialState, clock });
 
   function view() {

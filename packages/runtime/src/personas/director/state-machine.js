@@ -71,7 +71,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createDirectorStateMachine({ initialState = DirectorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
+export function createDirectorStateMachine({ initialState = DirectorStates.UNINITIALIZED, clock } = {}) {
+  if (typeof clock !== "function") throw new TypeError("createDirectorStateMachine: clock must be injected as a function");
   let state = initialState;
   let context = {
     intentRef: null,

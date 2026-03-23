@@ -108,7 +108,8 @@ function resolvePlanArtifact({ event, payload, tick, clock }) {
 export const directorSubscribePhases = Object.freeze([TickPhases.DECIDE]);
 
 // Phase-aware Director persona wrapper. Pure/deterministic; no IO.
-export function createDirectorPersona({ initialState = DirectorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
+export function createDirectorPersona({ initialState = DirectorStates.UNINITIALIZED, clock }: { initialState?: string; clock: () => string } = {} as any) {
+  if (typeof clock !== "function") throw new TypeError("createDirectorPersona: clock must be injected as a function");
   const fsm = createDirectorStateMachine({ initialState, clock });
 
   function view() {

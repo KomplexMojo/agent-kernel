@@ -32,6 +32,11 @@ const MOTIVATION_IDS = Object.freeze({
   reflexive: "motivation_reflexive",
   goal_oriented: "motivation_goal_oriented",
   strategy_focused: "motivation_strategy_focused",
+  exploring: "mobility_exploring",
+  patrolling: "mobility_patrolling",
+  stationary: "mobility_stationary",
+  attacking: "combat_attacking",
+  defending: "combat_defending",
 });
 
 function isObject(value) {
@@ -72,6 +77,11 @@ function normalizeMotivationTier(value) {
   if (normalized === "goal_oriented") return "goal_oriented";
   if (normalized === "strategy_focused") return "strategy_focused";
   if (normalized === "reflexive") return "reflexive";
+  if (normalized === "attacking") return "attacking";
+  if (normalized === "defending") return "defending";
+  if (normalized === "exploring") return "exploring";
+  if (normalized === "patrolling") return "patrolling";
+  if (normalized === "stationary") return "stationary";
   return null;
 }
 
@@ -626,7 +636,7 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
       payload,
       actorId,
       tick,
-      clock: payload?.clock || (() => new Date().toISOString()),
+      clock: payload?.clock,
     }),
     intentRef: payload?.intentRef,
     planRef: payload?.planRef,
@@ -730,7 +740,8 @@ function buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig 
   ];
 }
 
-export function createActorPersona({ initialState = ActorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createActorPersona({ initialState = ActorStates.IDLE, clock }: { initialState?: string; clock: () => string } = {} as any) {
+  if (typeof clock !== "function") throw new TypeError("createActorPersona: clock must be injected as a function");
   const fsm = createActorStateMachine({ initialState, clock });
   let lastObservation = null;
   let lastBaseTiles = null;

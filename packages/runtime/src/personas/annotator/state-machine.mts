@@ -31,7 +31,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createAnnotatorStateMachine({ initialState = AnnotatorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createAnnotatorStateMachine({ initialState = AnnotatorStates.IDLE, clock }: { initialState?: string; clock: () => string } = {} as any) {
+  if (typeof clock !== "function") throw new TypeError("createAnnotatorStateMachine: clock must be injected as a function");
   let state = initialState;
   let context = {
     lastEvent: null,

@@ -4,7 +4,8 @@ import { buildSolverRequestEffect } from "../_shared/persona-helpers.js";
 
 export const configuratorSubscribePhases = Object.freeze([TickPhases.INIT, TickPhases.OBSERVE]);
 
-export function createConfiguratorPersona({ initialState = ConfiguratorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
+export function createConfiguratorPersona({ initialState = ConfiguratorStates.UNINITIALIZED, clock } = {}) {
+  if (typeof clock !== "function") throw new TypeError("createConfiguratorPersona: clock must be injected as a function");
   const fsm = createConfiguratorStateMachine({ initialState, clock });
 
   function view() {

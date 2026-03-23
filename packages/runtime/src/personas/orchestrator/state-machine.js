@@ -37,7 +37,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createOrchestratorStateMachine({ initialState = OrchestratorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createOrchestratorStateMachine({ initialState = OrchestratorStates.IDLE, clock } = {}) {
+  if (typeof clock !== "function") throw new TypeError("createOrchestratorStateMachine: clock must be injected as a function");
   let state = initialState;
   let context = {
     lastEvent: null,

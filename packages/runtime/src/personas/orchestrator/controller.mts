@@ -3,7 +3,8 @@ import { TickPhases } from "../_shared/tick-state-machine.mts";
 
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 
-export function createOrchestratorPersona({ initialState = OrchestratorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createOrchestratorPersona({ initialState = OrchestratorStates.IDLE, clock }: { initialState?: string; clock: () => string } = {} as any) {
+  if (typeof clock !== "function") throw new TypeError("createOrchestratorPersona: clock must be injected as a function");
   const fsm = createOrchestratorStateMachine({ initialState, clock });
 
   function view() {

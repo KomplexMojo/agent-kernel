@@ -4,7 +4,8 @@ import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect }
 
 export const allocatorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
-export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock }: { initialState?: string; clock: () => string } = {} as any) {
+  if (typeof clock !== "function") throw new TypeError("createAllocatorPersona: clock must be injected as a function");
   const fsm = createAllocatorStateMachine({ initialState, clock });
 
   function view() {
