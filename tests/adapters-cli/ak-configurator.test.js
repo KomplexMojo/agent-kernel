@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, readFileSync } = require("node:fs");
+const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
 
@@ -12,6 +12,8 @@ const LEVEL_GEN = resolve(ROOT, "tests/fixtures/configurator/level-gen-input-v1-
 const ACTORS = resolve(ROOT, "tests/fixtures/configurator/actors-v1-affinity-base.json");
 const PRESETS = resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json");
 const LOADOUTS = resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json");
+const RULES = resolve(ROOT, "tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json");
+const MOTIVATION_RULES = resolve(ROOT, "tests/fixtures/artifacts/motivation-rules-artifact-v1-basic.json");
 const PLAN = resolve(ROOT, "tests/fixtures/artifacts/plan-artifact-v1-basic.json");
 const BUDGET = resolve(ROOT, "tests/fixtures/artifacts/budget-receipt-v1-basic.json");
 const BUDGET_ARTIFACT = resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json");
@@ -66,6 +68,7 @@ test("cli configurator builds sim config and initial state artifacts", () => {
 
   const simConfig = readJson(join(outDir, "sim-config.json"));
   const initialState = readJson(join(outDir, "initial-state.json"));
+  const resourceBundle = readJson(join(outDir, "resource-bundle.json"));
   const expectedSim = readJson(EXPECTED_SIM_CONFIG);
   const expectedInitial = readJson(EXPECTED_INITIAL);
 
@@ -82,6 +85,53 @@ test("cli configurator builds sim config and initial state artifacts", () => {
   assert.equal(initialState.simConfigRef.schema, simConfig.schema);
   assert.equal(initialState.simConfigRef.schemaVersion, simConfig.schemaVersion);
   assert.equal(initialState.simConfigRef.id, simConfig.meta.id);
+  assert.equal(resourceBundle.schema, "agent-kernel/ResourceBundleArtifact");
+  assert.equal(resourceBundle.schemaVersion, 1);
+});
+
+test("cli configurator carries affinity and motivation rules references and emits both rules artifacts", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-configurator-rules-"));
+  const outDir = join(workDir, "out");
+
+  runCli([
+    "configurator",
+    "--level-gen",
+    LEVEL_GEN,
+    "--actors",
+    ACTORS,
+    "--affinity-presets",
+    PRESETS,
+    "--affinity-loadouts",
+    LOADOUTS,
+    "--affinity-rules",
+    RULES,
+    "--motivation-rules",
+    MOTIVATION_RULES,
+    "--out-dir",
+    outDir,
+    "--run-id",
+    "run_configurator_rules",
+  ]);
+
+  const simConfig = readJson(join(outDir, "sim-config.json"));
+  const initialState = readJson(join(outDir, "initial-state.json"));
+  const affinityRules = readJson(join(outDir, "affinity-rules.json"));
+  const motivationRules = readJson(join(outDir, "motivation-rules.json"));
+
+  assert.equal(affinityRules.schema, "agent-kernel/AffinityRulesArtifact");
+  assert.equal(motivationRules.schema, "agent-kernel/MotivationRulesArtifact");
+  assert.deepEqual(simConfig.affinityRulesRef, {
+    id: affinityRules.meta.id,
+    schema: affinityRules.schema,
+    schemaVersion: affinityRules.schemaVersion,
+  });
+  assert.deepEqual(simConfig.motivationRulesRef, {
+    id: motivationRules.meta.id,
+    schema: motivationRules.schema,
+    schemaVersion: motivationRules.schemaVersion,
+  });
+  assert.deepEqual(initialState.affinityRulesRef, simConfig.affinityRulesRef);
+  assert.deepEqual(initialState.motivationRulesRef, simConfig.motivationRulesRef);
 });
 
 test("cli configurator emits a budget receipt from budget inputs", () => {
@@ -158,4 +208,55 @@ test("cli configurator rejects invalid level-gen input", () => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /level-gen/i);
+});
+
+test("cli configurator can emit png visual output", () => {
+  const wasmPath = resolve(ROOT, "build/core-as.wasm");
+  if (!existsSync(wasmPath)) {
+    return;
+  }
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-configurator-visual-"));
+  const outDir = join(workDir, "out");
+
+  runCli([
+    "configurator",
+    "--level-gen",
+    LEVEL_GEN,
+    "--actors",
+    ACTORS,
+    "--visual-output",
+    "png",
+    "--wasm",
+    wasmPath,
+    "--out-dir",
+    outDir,
+    "--run-id",
+    "run_configurator_visual",
+  ]);
+
+  assert.equal(existsSync(join(outDir, "visual-preview.png")), true);
+});
+
+test("cli configurator can emit visual assets and a v2 resource bundle", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-configurator-visual-assets-"));
+  const outDir = join(workDir, "out");
+
+  runCli([
+    "configurator",
+    "--level-gen",
+    LEVEL_GEN,
+    "--actors",
+    ACTORS,
+    "--emit-visual-assets",
+    "--out-dir",
+    outDir,
+    "--run-id",
+    "run_configurator_visual_assets",
+  ]);
+
+  const resourceBundle = readJson(join(outDir, "resource-bundle.json"));
+  assert.equal(resourceBundle.schemaVersion, 2);
+  assert.equal(existsSync(join(outDir, "visual-assets", "tiles", "fog.png")), true);
+  assert.equal(existsSync(join(outDir, "visual-assets", "actors", "delver-fire.png")), true);
+  assert.equal(existsSync(join(outDir, "visual-assets", "actors", "warden-fire.png")), true);
 });

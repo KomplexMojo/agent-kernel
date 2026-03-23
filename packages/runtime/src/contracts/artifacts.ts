@@ -552,6 +552,8 @@ export interface SimConfigArtifactV1 {
   /** References that led to this config for traceability. */
   planRef: ArtifactRef;
   budgetReceiptRef?: ArtifactRef;
+  affinityRulesRef?: ArtifactRef;
+  motivationRulesRef?: ArtifactRef;
 
   /** Deterministic seed for the run. */
   seed: number;
@@ -615,6 +617,8 @@ export interface InitialStateArtifactV1 {
 
   /** Reference to the executable config. */
   simConfigRef: ArtifactRef;
+  affinityRulesRef?: ArtifactRef;
+  motivationRulesRef?: ArtifactRef;
 
   /**
    * Actor instantiation data. Keep it minimal and serializable.
@@ -652,12 +656,27 @@ export type InitialStateArtifact = InitialStateArtifactV1;
 export const AFFINITY_PRESET_SCHEMA = "agent-kernel/AffinityPresetArtifact";
 export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
 export const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
+export const AFFINITY_RULES_SCHEMA = "agent-kernel/AffinityRulesArtifact";
+export const MOTIVATION_RULES_SCHEMA = "agent-kernel/MotivationRulesArtifact";
 
 export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
-export type AffinityExpression = "push" | "pull" | "emit";
+export type AffinityExpression = "push" | "pull" | "emit" | "draw";
 export type AffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 export type AffinityStackScaling = "linear" | "multiplier";
 export type AffinityAbilityKind = "attack" | "buff" | "area";
+export type AffinityInteractionOutcome = "cancel" | "suppress" | "convert" | "amplify" | "mutate_environment" | "apply_status" | "reflect";
+export type AffinityManaSpendPolicy = "full" | "none" | "half";
+export type BehaviorComplexityClass = "instinctual" | "tactical" | "strategic";
+export type MotivationKind = "random" | "stationary" | "exploring" | "attacking" | "defending" | "patrolling" | "reflexive" | "goal_oriented" | "strategy_focused";
+export type MotivationMobility = "stationary" | "exploring" | "patrolling";
+export type MotivationCombat = "none" | "attacking" | "defending";
+export type MotivationCognition = "none" | "reflexive" | "goal_oriented" | "strategy_focused";
+
+export interface MotivationProfileV1 {
+  mobility: MotivationMobility;
+  combat: MotivationCombat;
+  cognition: MotivationCognition;
+}
 
 export interface AffinityEffectV1 {
   id: string;
@@ -684,7 +703,126 @@ export interface AffinityAbilityV1 {
   potency: number;
   manaCost?: number;
   expression?: AffinityExpression;
+  expressionAlias?: string;
   targetType?: AffinityTargetType;
+  complexityClass?: BehaviorComplexityClass;
+}
+
+export interface AffinityRulesManaScalingV1 {
+  areaSizeMultiplier?: number;
+  targetCountMultiplier?: number;
+  durationMultiplier?: number;
+  persistentAreaSurcharge?: number;
+  environmentMutationSurcharge?: number;
+  overrideAffinitySurcharge?: number;
+}
+
+export interface AffinityRulesStackTierV1 {
+  tier: 1 | 2 | 3 | 4 | 5;
+  manaCost: number;
+  potency?: number;
+  unlockedEffects?: string[];
+  defaultDesignCostTokens?: number;
+  complexityClass?: BehaviorComplexityClass;
+}
+
+export interface AffinityRulesExpressionV1 {
+  id: string;
+  label?: string;
+  verb: AffinityExpression;
+  defaultTargetType?: AffinityTargetType;
+  stackTiers: AffinityRulesStackTierV1[];
+  manaScaling?: AffinityRulesManaScalingV1;
+}
+
+export interface AffinityRulesAffinityV1 {
+  kind: AffinityKind;
+  opposite: AffinityKind;
+  basePriority?: number;
+  expressions: AffinityRulesExpressionV1[];
+}
+
+export interface AffinityRulesGlobalManaV1 {
+  winnerSpend?: AffinityManaSpendPolicy;
+  loserSpend?: AffinityManaSpendPolicy;
+  tieSpend?: AffinityManaSpendPolicy;
+  refundPercent?: number;
+  clashCost?: number;
+  overpowerBonusCost?: number;
+  drainOnFail?: number;
+}
+
+export interface AffinityRulesDrawConversionRuleV1 {
+  targetVital?: VitalKey;
+  efficiency?: number;
+}
+
+export interface AffinityRulesDrawConversionV1 {
+  defaultRule?: AffinityRulesDrawConversionRuleV1;
+  byAffinity?: Partial<Record<AffinityKind, AffinityRulesDrawConversionRuleV1>>;
+}
+
+export interface AffinityRulesInteractionV1 {
+  sourceKind: AffinityKind;
+  targetKind: AffinityKind;
+  outcomeOnSourceWin?: AffinityInteractionOutcome;
+  outcomeOnTargetWin?: AffinityInteractionOutcome;
+  outcomeOnTie?: AffinityInteractionOutcome;
+  mana?: AffinityRulesGlobalManaV1;
+}
+
+export interface AffinityRulesGlobalsV1 {
+  defaultOutcomeOnWin?: AffinityInteractionOutcome;
+  defaultOutcomeOnTie?: AffinityInteractionOutcome;
+  defaultMana?: AffinityRulesGlobalManaV1;
+  drawConversion?: AffinityRulesDrawConversionV1;
+}
+
+export interface AffinityRulesArtifactV1 {
+  schema: typeof AFFINITY_RULES_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  balanceVersion: string;
+  contentHash: string;
+  rulesetName: string;
+  globals?: AffinityRulesGlobalsV1;
+  affinities: AffinityRulesAffinityV1[];
+  interactions?: AffinityRulesInteractionV1[];
+}
+
+export interface MotivationRulesProfileCostsV1 {
+  mobility: Record<MotivationMobility, number>;
+  combat: Record<MotivationCombat, number>;
+  cognition: Record<MotivationCognition, number>;
+}
+
+export interface MotivationRulesGlobalsV1 {
+  defaultIntensity: number;
+  maxIntensity: number;
+  reasoningClasses: Record<MotivationCognition, BehaviorComplexityClass>;
+  profileCosts: MotivationRulesProfileCostsV1;
+}
+
+export interface MotivationRulesMotivationV1 {
+  kind: MotivationKind;
+  profile: MotivationProfileV1;
+  exclusiveGroup?: string;
+  displayGroup?: string;
+  patterns?: string[];
+  defaultPattern?: string;
+  defaultFlags?: Record<string, boolean>;
+  defaultDesignCostTokens?: number;
+}
+
+export interface MotivationRulesArtifactV1 {
+  schema: typeof MOTIVATION_RULES_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  balanceVersion: string;
+  contentHash: string;
+  rulesetName: string;
+  globals: MotivationRulesGlobalsV1;
+  motivations: MotivationRulesMotivationV1[];
 }
 
 export interface AffinityPresetV1 {
@@ -732,6 +870,10 @@ export interface AffinityResolvedEffectV1 {
   targetType: AffinityTargetType;
   targetVital?: "health" | "mana" | "stamina" | "durability";
   potency?: number;
+  siphonedStacks?: number;
+  manaCost?: number;
+  expressionAlias?: string;
+  complexityClass?: BehaviorComplexityClass;
   manaReserve?: number;
   minimumStacks?: number;
 }
@@ -750,6 +892,8 @@ export interface ActorLoadoutArtifactV1 {
 
 export type AffinityPresetArtifact = AffinityPresetArtifactV1;
 export type ActorLoadoutArtifact = ActorLoadoutArtifactV1;
+export type AffinityRulesArtifact = AffinityRulesArtifactV1;
+export type MotivationRulesArtifact = MotivationRulesArtifactV1;
 
 export interface AffinitySummaryActorV1 {
   actorId: string;
@@ -779,16 +923,43 @@ export interface AffinitySummaryTrapV1 {
   resolvedEffects?: AffinityResolvedEffectV1[];
 }
 
+export interface AffinityPressureSourceV1 {
+  source: { kind: "room" | "trap"; id: string };
+  sourceId: string;
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  stacks: number;
+  channel?: "spatial" | "field";
+  polarity?: "outward" | "inward";
+}
+
+export interface AffinityPressureCancellationV1 {
+  kind: AffinityKind;
+  opposite: AffinityKind;
+  sourceStacks: number;
+  oppositeStacks: number;
+  canceled: number;
+}
+
+export interface AffinityPressureSummaryV1 {
+  sources: AffinityPressureSourceV1[];
+  baseByKind: Record<AffinityKind, number>;
+  netByKind: Record<AffinityKind, number>;
+  cancellations: AffinityPressureCancellationV1[];
+}
+
 export interface AffinitySummaryV1 {
   schema: typeof AFFINITY_SUMMARY_SCHEMA;
   schemaVersion: 1;
   meta: ArtifactMeta;
   presetsRef?: ArtifactRef;
   loadoutsRef?: ArtifactRef;
+  affinityRulesRef?: ArtifactRef;
   simConfigRef?: ArtifactRef;
   initialStateRef?: ArtifactRef;
   actors: AffinitySummaryActorV1[];
   traps: AffinitySummaryTrapV1[];
+  ambientPressure?: AffinityPressureSummaryV1;
 }
 
 export type AffinitySummary = AffinitySummaryV1;
@@ -1202,6 +1373,10 @@ export type TickFrame = TickFrameV1;
 
 export const TELEMETRY_RECORD_SCHEMA = "agent-kernel/TelemetryRecord";
 export const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
+export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
+export const IPFS_PACKAGE_SCHEMA = "agent-kernel/IpfsPackageArtifact";
+export const IPFS_SESSION_MANIFEST_SCHEMA = "agent-kernel/IpfsSessionManifestArtifact";
+export const RUNTIME_CHECKPOINT_SCHEMA = "agent-kernel/RuntimeCheckpointArtifact";
 
 /**
  * Canonical telemetry record emitted by Annotator. These can be streamed or stored.
@@ -1238,6 +1413,8 @@ export interface RunSummaryV1 {
   planRef?: ArtifactRef;
   simConfigRef?: ArtifactRef;
   budgetReceiptRef?: ArtifactRef;
+  affinityRulesRef?: ArtifactRef;
+  motivationRulesRef?: ArtifactRef;
 
   /** Outcome classification (intentionally minimal). */
   outcome: "success" | "failure" | "aborted" | "unknown";
@@ -1252,5 +1429,169 @@ export interface RunSummaryV1 {
   artifacts?: Array<ArtifactRef>;
 }
 
+export type IpfsPackageScope = "core" | "session" | "package";
+export type IpfsLoadMode = "core" | "resume";
+export type RuntimeCheckpointStatus = "started" | "checkpoint" | "completed" | "abandoned";
+
+export interface ResourceBundleAssetEntryV1 {
+  id: string;
+  kind: "tile" | "actor" | "affinity" | "motivation" | "expression" | "card" | "overlay";
+  label: string;
+  ipfsUri: string;
+  mimeType: string;
+  width: number;
+  height: number;
+}
+
+export interface ResourceBundleMappingsV1 {
+  tiles: Record<string, string>;
+  actors: Record<string, string>;
+  affinities: Record<string, string>;
+  motivations: Record<string, string>;
+  expressions: Record<string, string>;
+  cards: Record<string, string>;
+}
+
+export interface ResourceBundleAssetEntryV2 extends ResourceBundleAssetEntryV1 {
+  dataUri: string;
+  relativePath: string;
+}
+
+export interface ResourceBundleActorMappingsV2 extends Record<string, unknown> {
+  delver: string;
+  warden: string;
+  byRoleAndAffinity: {
+    delver: Record<string, string>;
+    warden: Record<string, string>;
+  };
+}
+
+export interface ResourceBundleOverlayMappingsV2 {
+  affinities: Record<string, string>;
+  expressions: Record<string, string>;
+  stackTiers: Record<string, string>;
+  motivations: Record<string, string>;
+  darknessMask: string;
+}
+
+export interface ResourceBundleMappingsV2 {
+  tiles: Record<string, string>;
+  actors: ResourceBundleActorMappingsV2;
+  cards: Record<string, string>;
+  overlays: ResourceBundleOverlayMappingsV2;
+  affinities?: Record<string, string>;
+  motivations?: Record<string, string>;
+  expressions?: Record<string, string>;
+}
+
+export interface ResourceBundleArtifactV1 {
+  schema: typeof RESOURCE_BUNDLE_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  bundleId: string;
+  bundleVersion: 1;
+  tileWidth: number;
+  tileHeight: number;
+  gatewayBaseUrl?: string;
+  assets: ResourceBundleAssetEntryV1[];
+  mappings: ResourceBundleMappingsV1;
+}
+
+export interface ResourceBundleArtifactV2 {
+  schema: typeof RESOURCE_BUNDLE_SCHEMA;
+  schemaVersion: 2;
+  meta: ArtifactMeta;
+
+  bundleId: string;
+  bundleVersion: 2;
+  tileWidth: number;
+  tileHeight: number;
+  gatewayBaseUrl?: string;
+  assets: ResourceBundleAssetEntryV2[];
+  mappings: ResourceBundleMappingsV2;
+}
+
+export interface IpfsPackageSessionEntryV1 {
+  sessionId: string;
+  checkpointId?: string;
+  manifestPath: string;
+  checkpointPath?: string;
+  status: RuntimeCheckpointStatus;
+}
+
+export interface IpfsPackageArtifactV1 {
+  schema: typeof IPFS_PACKAGE_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  packageId: string;
+  packageVersion: 1;
+  scope: IpfsPackageScope;
+
+  /**
+   * The package root CID is resolved after publication and may be omitted inside the stored artifact.
+   * Callers should use the publish command result as the authoritative resolved CID.
+   */
+  rootCid?: string;
+  previousPackageCid?: string;
+
+  corePath: string;
+  latestSessionIndexPath: string;
+  requiredCoreFiles: string[];
+  optionalCoreFiles: string[];
+
+  latestSession?: IpfsPackageSessionEntryV1;
+  sessions?: IpfsPackageSessionEntryV1[];
+}
+
+export interface IpfsSessionManifestArtifactV1 {
+  schema: typeof IPFS_SESSION_MANIFEST_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  packageId: string;
+  parentPackageCid?: string;
+  sessionId: string;
+  checkpointId: string;
+  checkpointPath: string;
+  requiredSessionFiles: string[];
+  optionalSessionFiles: string[];
+  resumeMode: "snapshot_plus_replay";
+  status: RuntimeCheckpointStatus;
+}
+
+export interface RuntimeCheckpointArtifactV1 {
+  schema: typeof RUNTIME_CHECKPOINT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  sessionId: string;
+  checkpointId: string;
+  tick: number;
+  status: RuntimeCheckpointStatus;
+  resumeMode: "snapshot_plus_replay";
+
+  simConfigRef?: ArtifactRef;
+  initialStateRef?: ArtifactRef;
+  runSummaryRef?: ArtifactRef;
+  actionLogRef?: ArtifactRef;
+
+  state: {
+    actionIndex?: number;
+    actionCount?: number;
+    frameCount?: number;
+    effectCount?: number;
+    runtime?: Record<string, unknown>;
+    view?: Record<string, unknown>;
+  };
+
+  artifacts?: Array<ArtifactRef>;
+}
+
 export type TelemetryRecord = TelemetryRecordV1;
 export type RunSummary = RunSummaryV1;
+export type ResourceBundleArtifact = ResourceBundleArtifactV1 | ResourceBundleArtifactV2;
+export type IpfsPackageArtifact = IpfsPackageArtifactV1;
+export type IpfsSessionManifestArtifact = IpfsSessionManifestArtifactV1;
+export type RuntimeCheckpointArtifact = RuntimeCheckpointArtifactV1;

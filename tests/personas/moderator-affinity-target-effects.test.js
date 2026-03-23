@@ -93,3 +93,31 @@ assert.equal(actions[1].params.manaReserve, 2);
 `;
   runEsm(script);
 });
+
+test("moderator expression semantics keep draw as siphon-only and non-mutating", () => {
+  const script = `
+import assert from "node:assert/strict";
+import { resolveAffinityTargetEffectsForList } from ${JSON.stringify(modulePath)};
+
+const effects = resolveAffinityTargetEffectsForList(
+  [
+    { kind: "water", expression: "draw", stacks: 3, targetType: "floor" },
+    { kind: "earth", expression: "draw", stacks: 4, targetType: "floor" },
+  ],
+  { sourceType: "actor", sourceId: "A-2", manaReserve: 6 },
+);
+
+assert.equal(effects.length, 2);
+const ids = effects.map((entry) => entry.id);
+assert.ok(ids.includes("water:draw:floor:vital"));
+assert.ok(ids.includes("earth:draw:floor:vital"));
+assert.ok(!ids.some((id) => id.includes(":arm_static_trap")));
+assert.ok(!ids.some((id) => id.includes(":destroy_barrier")));
+assert.ok(!ids.some((id) => id.includes(":raise_barrier")));
+
+const drawVital = effects.find((entry) => entry.id === "water:draw:floor:vital");
+assert.equal(drawVital.operation, "draw_vital_affinity");
+assert.equal(drawVital.targetVital, "health");
+`;
+  runEsm(script);
+});

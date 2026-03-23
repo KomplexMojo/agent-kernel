@@ -1,50 +1,55 @@
-const BASE_MOTIVATION_KINDS = Object.freeze(["random", "stationary", "exploring", "attacking", "defending", "patrolling"]);
-const LEGACY_MOTIVATION_KINDS = Object.freeze(["reflexive", "goal_oriented", "strategy_focused"]);
+import {
+  DEFAULT_MOTIVATION_FLAGS,
+  DEFAULT_MOTIVATION_PROFILE,
+  DEFAULT_MOTIVATION_RULES,
+  MOTIVATION_AXIS_VALUES,
+  MOTIVATION_COST_DEFAULTS,
+  MOTIVATION_FLAG_KEYS,
+  MOTIVATION_KIND_IDS,
+  MOTIVATION_KINDS,
+  MOTIVATION_PROFILE_ITEM_IDS,
+  MOTIVATION_REASONING_CLASSES,
+  findMotivationRule,
+  getMotivationDisplayGroups,
+  getMotivationExclusiveGroups,
+  getMotivationPatterns,
+  resolveMotivationRules,
+} from "./motivation-rules.js";
 
-export const MOTIVATION_KINDS = Object.freeze([...BASE_MOTIVATION_KINDS, ...LEGACY_MOTIVATION_KINDS]);
-export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
-  Object.freeze({ id: "combat", kinds: Object.freeze(["attacking", "defending"]) }),
-  Object.freeze({ id: "mobility", kinds: Object.freeze(["stationary", "exploring", "patrolling"]) }),
-  Object.freeze({ id: "planning", kinds: Object.freeze(["random", "strategy_focused"]) }),
-  Object.freeze({ id: "response", kinds: Object.freeze(["reflexive", "goal_oriented"]) }),
-]);
-export const MOTIVATION_DISPLAY_GROUPS = Object.freeze([
-  Object.freeze({ id: "combat", kinds: Object.freeze(["attacking", "defending"]) }),
-  Object.freeze({ id: "mobility", kinds: Object.freeze(["stationary", "exploring"]) }),
-  Object.freeze({ id: "mobility_route", kinds: Object.freeze(["patrolling"]) }),
-  Object.freeze({ id: "planning", kinds: Object.freeze(["random", "strategy_focused"]) }),
-  Object.freeze({ id: "response", kinds: Object.freeze(["reflexive", "goal_oriented"]) }),
-]);
-export const MOTIVATION_PATTERNS = Object.freeze({
-  patrolling: Object.freeze(["loop", "ping_pong", "random_walk"]),
-  attacking: Object.freeze(["melee", "ranged", "mixed"]),
-  defending: Object.freeze(["hold_point", "bodyguard"]),
+export {
+  DEFAULT_MOTIVATION_PROFILE,
+  MOTIVATION_AXIS_VALUES,
+  MOTIVATION_COST_DEFAULTS,
+  MOTIVATION_KIND_IDS,
+  MOTIVATION_KINDS,
+  MOTIVATION_PROFILE_ITEM_IDS,
+  MOTIVATION_REASONING_CLASSES,
+} from "./motivation-rules.js";
+
+const LEGACY_MOTIVATION_PROFILE_MAP = Object.freeze(
+  DEFAULT_MOTIVATION_RULES.motivations.reduce((acc, entry) => {
+    acc[entry.kind] = Object.freeze({ ...entry.profile });
+    return acc;
+  }, {}),
+);
+
+const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze(
+  getMotivationExclusiveGroups(),
+);
+
+const MOTIVATION_DISPLAY_GROUPS = Object.freeze(
+  getMotivationDisplayGroups(),
+);
+
+const MOTIVATION_PATTERNS = Object.freeze(
+  getMotivationPatterns(),
+);
+
+const MOTIVATION_DEFAULTS = Object.freeze({
+  intensity: DEFAULT_MOTIVATION_RULES.globals.defaultIntensity,
+  flags: Object.freeze({ ...DEFAULT_MOTIVATION_FLAGS }),
 });
 
-export const MOTIVATION_DEFAULTS = Object.freeze({
-  intensity: 1,
-  flags: Object.freeze({
-    canMove: true,
-    prefersStealth: false,
-    prefersCover: false,
-    aggroRangeBoost: false,
-  }),
-});
-
-export const MOTIVATION_KIND_IDS = Object.freeze({
-  random: "motivation_random",
-  stationary: "motivation_stationary",
-  exploring: "motivation_exploring",
-  attacking: "motivation_attacking",
-  defending: "motivation_defending",
-  patrolling: "motivation_patrolling",
-  reflexive: "motivation_reflexive",
-  goal_oriented: "motivation_goal_oriented",
-  strategy_focused: "motivation_strategy_focused",
-});
-
-const MOTIVATION_FLAG_KEYS = Object.freeze(["canMove", "prefersStealth", "prefersCover", "aggroRangeBoost"]);
-const MOTIVATION_MAX_INTENSITY = 10;
 const MOTIVATION_EXCLUSIVE_GROUP_BY_KIND = Object.freeze(
   MOTIVATION_EXCLUSIVE_GROUPS.reduce((acc, group) => {
     group.kinds.forEach((kind) => {
@@ -58,32 +63,145 @@ function addError(errors, field, code) {
   errors.push({ field, code });
 }
 
-export function normalizeMotivationKind(raw) {
-  if (typeof raw !== "string") return null;
-  const normalized = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (MOTIVATION_KINDS.includes(normalized)) return normalized;
-  return null;
+function normalizeName(value) {
+  if (typeof value !== "string") return null;
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
-export function getMotivationExclusiveGroup(kind) {
-  const normalized = normalizeMotivationKind(kind);
+function normalizeAxisValue(axis, value, fallback) {
+  const allowed = MOTIVATION_AXIS_VALUES[axis] || [];
+  const normalized = normalizeName(value);
+  if (normalized && allowed.includes(normalized)) {
+    return normalized;
+  }
+  return fallback;
+}
+
+function mergeMotivationProfile(profile, next) {
+  const nextMobility = normalizeAxisValue("mobility", next?.mobility, profile.mobility);
+  return {
+    mobility: profile.mobility !== DEFAULT_MOTIVATION_PROFILE.mobility && nextMobility === DEFAULT_MOTIVATION_PROFILE.mobility
+      ? profile.mobility
+      : nextMobility,
+    combat: normalizeAxisValue("combat", next?.combat, profile.combat),
+    cognition: normalizeAxisValue("cognition", next?.cognition, profile.cognition),
+  };
+}
+
+function buildExclusiveGroupByKind(rules) {
+  return Object.freeze(
+    rules.motivations.reduce((acc, entry) => {
+      if (!entry.exclusiveGroup) return acc;
+      acc[entry.kind] = {
+        id: entry.exclusiveGroup,
+        kinds: rules.motivations
+          .filter((candidate) => candidate.exclusiveGroup === entry.exclusiveGroup)
+          .map((candidate) => candidate.kind),
+      };
+      return acc;
+    }, {}),
+  );
+}
+
+function resolveGroupByKind(rules) {
+  if (!rules || rules === DEFAULT_MOTIVATION_RULES) {
+    return MOTIVATION_EXCLUSIVE_GROUP_BY_KIND;
+  }
+  return buildExclusiveGroupByKind(rules);
+}
+
+export { LEGACY_MOTIVATION_PROFILE_MAP, MOTIVATION_EXCLUSIVE_GROUPS, MOTIVATION_DISPLAY_GROUPS, MOTIVATION_PATTERNS, MOTIVATION_DEFAULTS };
+
+export function normalizeMotivationKind(raw, { rules } = {}) {
+  const normalized = normalizeName(raw);
   if (!normalized) return null;
-  return MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized] || null;
+  const resolvedRules = resolveMotivationRules(rules);
+  return resolvedRules.motivations.some((entry) => entry.kind === normalized) ? normalized : null;
 }
 
-export function getConflictingMotivationKinds(kind) {
-  const normalized = normalizeMotivationKind(kind);
-  if (!normalized) return [];
-  const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized];
+export function getMotivationExclusiveGroup(kind, { rules } = {}) {
+  const normalized = normalizeMotivationKind(kind, { rules });
+  if (!normalized) return null;
+  return resolveGroupByKind(resolveMotivationRules(rules))[normalized] || null;
+}
+
+export function getConflictingMotivationKinds(kind, { rules } = {}) {
+  const group = getMotivationExclusiveGroup(kind, { rules });
   if (!group) return [];
+  const normalized = normalizeMotivationKind(kind, { rules });
   return group.kinds.filter((entry) => entry !== normalized);
 }
 
-export function normalizeMotivationKindList(input, { fieldBase = "motivations", fallback = "", allowEmpty = false } = {}) {
+export function normalizeMotivationProfile(input, { rules } = {}) {
+  const resolvedRules = resolveMotivationRules(rules);
+  const fallback = DEFAULT_MOTIVATION_PROFILE;
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { ...fallback };
+  }
+  return {
+    mobility: normalizeAxisValue("mobility", input.mobility, fallback.mobility),
+    combat: normalizeAxisValue("combat", input.combat, fallback.combat),
+    cognition: normalizeAxisValue("cognition", input.cognition, fallback.cognition),
+  };
+}
+
+export function deriveMotivationProfile(input, fallback = DEFAULT_MOTIVATION_PROFILE, { rules } = {}) {
+  const resolvedRules = resolveMotivationRules(rules);
+  const list = Array.isArray(input)
+    ? input
+    : typeof input === "string"
+      ? [input]
+      : [];
+  let profile = normalizeMotivationProfile(fallback, { rules: resolvedRules });
+  list.forEach((entry) => {
+    const kind = normalizeMotivationKind(entry, { rules: resolvedRules });
+    if (!kind) return;
+    const mapped = findMotivationRule(resolvedRules, kind)?.profile;
+    if (!mapped) return;
+    profile = mergeMotivationProfile(profile, mapped);
+  });
+  return profile;
+}
+
+export function expandMotivationProfile(profile, { includeLegacyCognition = false, rules } = {}) {
+  const normalized = normalizeMotivationProfile(profile, { rules });
+  const motivations = [];
+  if (normalized.mobility !== "stationary" || normalized.combat === "none" || normalized.cognition === "none") {
+    motivations.push(normalized.mobility);
+  }
+  if (normalized.combat !== "none") {
+    motivations.push(normalized.combat);
+  }
+  if (includeLegacyCognition && normalized.cognition !== "none") {
+    motivations.push(normalized.cognition);
+  }
+  return motivations.filter(Boolean);
+}
+
+export function deriveReasoningClass(profile, { rules } = {}) {
+  const resolvedRules = resolveMotivationRules(rules);
+  const normalized = normalizeMotivationProfile(profile, { rules: resolvedRules });
+  return resolvedRules.globals.reasoningClasses[normalized.cognition] || "instinctual";
+}
+
+export function buildMotivationCostItems(profile, { rules } = {}) {
+  const resolvedRules = resolveMotivationRules(rules);
+  const normalized = normalizeMotivationProfile(profile, { rules: resolvedRules });
+  return Object.entries(normalized).map(([axis, value]) => ({
+    axis,
+    value,
+    id: MOTIVATION_PROFILE_ITEM_IDS[axis][value],
+    defaultCostTokens: resolvedRules.globals.profileCosts[axis][value] || 0,
+  }));
+}
+
+export function normalizeMotivationKindList(input, { fieldBase = "motivations", fallback = "", allowEmpty = false, rules } = {}) {
+  const resolvedRules = resolveMotivationRules(rules);
   const errors = [];
   const warnings = [];
+  const groupByKind = resolveGroupByKind(resolvedRules);
   if (input === undefined) {
-    const fallbackKind = normalizeMotivationKind(fallback);
+    const fallbackKind = normalizeMotivationKind(fallback, { rules: resolvedRules });
     return {
       ok: errors.length === 0,
       errors,
@@ -102,13 +220,13 @@ export function normalizeMotivationKindList(input, { fieldBase = "motivations", 
   const seen = new Set();
   const selectedGroupKinds = new Map();
   list.forEach((entry, index) => {
-    const kind = normalizeMotivationKind(entry);
+    const kind = normalizeMotivationKind(entry, { rules: resolvedRules });
     if (!kind) {
       addError(errors, `${fieldBase}[${index}]`, "invalid_kind");
       return;
     }
     if (seen.has(kind)) return;
-    const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[kind];
+    const group = groupByKind[kind];
     if (group) {
       const selectedKind = selectedGroupKinds.get(group.id);
       if (selectedKind && selectedKind !== kind) {
@@ -122,22 +240,22 @@ export function normalizeMotivationKindList(input, { fieldBase = "motivations", 
   });
 
   if (value.length === 0 && !allowEmpty) {
-    const fallbackKind = normalizeMotivationKind(fallback);
+    const fallbackKind = normalizeMotivationKind(fallback, { rules: resolvedRules });
     if (fallbackKind) value.push(fallbackKind);
   }
 
   return { ok: errors.length === 0, errors, warnings, value };
 }
 
-function normalizeFlags(flags, base, errors) {
+function normalizeFlags(flags, base, errors, rules) {
   if (flags === undefined) {
-    return MOTIVATION_DEFAULTS.flags;
+    return { ...DEFAULT_MOTIVATION_FLAGS };
   }
   if (!flags || typeof flags !== "object" || Array.isArray(flags)) {
     addError(errors, base, "invalid_flags");
-    return MOTIVATION_DEFAULTS.flags;
+    return { ...DEFAULT_MOTIVATION_FLAGS };
   }
-  const normalized = { ...MOTIVATION_DEFAULTS.flags };
+  const normalized = { ...DEFAULT_MOTIVATION_FLAGS };
   Object.entries(flags).forEach(([key, value]) => {
     if (!MOTIVATION_FLAG_KEYS.includes(key)) {
       addError(errors, `${base}.${key}`, "unknown_flag");
@@ -152,39 +270,51 @@ function normalizeFlags(flags, base, errors) {
   return normalized;
 }
 
-function normalizePattern(kind, pattern, base, errors) {
-  const allowedPatterns = MOTIVATION_PATTERNS[kind];
-  if (!allowedPatterns) {
+function normalizePattern(rule, pattern, base, errors) {
+  const allowedPatterns = Array.isArray(rule?.patterns) ? rule.patterns : [];
+  const fallback = rule?.defaultPattern || allowedPatterns[0];
+  if (allowedPatterns.length === 0) {
     return undefined;
   }
   if (pattern === undefined) {
-    return allowedPatterns[0];
+    return fallback;
   }
   if (typeof pattern !== "string") {
     addError(errors, `${base}.pattern`, "invalid_pattern");
-    return allowedPatterns[0];
+    return fallback;
   }
   const normalized = pattern.trim().toLowerCase();
   if (!allowedPatterns.includes(normalized)) {
     addError(errors, `${base}.pattern`, "unknown_pattern");
-    return allowedPatterns[0];
+    return fallback;
   }
   return normalized;
 }
 
-export function normalizeMotivation(entry, base, errors = []) {
+export function normalizeMotivation(entry, base, errors = [], { rules } = {}) {
+  const resolvedRules = resolveMotivationRules(rules);
   const entryBase = base || "motivations";
+  const defaultIntensity = resolvedRules.globals.defaultIntensity;
+  const maxIntensity = resolvedRules.globals.maxIntensity;
+
   if (typeof entry === "string" || typeof entry === "number") {
-    const kind = normalizeMotivationKind(String(entry));
+    const kind = normalizeMotivationKind(String(entry), { rules: resolvedRules });
     if (!kind) {
       addError(errors, entryBase, "invalid_kind");
       return null;
     }
+    const rule = findMotivationRule(resolvedRules, kind);
+    const motivationProfile = deriveMotivationProfile([kind], DEFAULT_MOTIVATION_PROFILE, { rules: resolvedRules });
+    const reasoningClass = deriveReasoningClass(motivationProfile, { rules: resolvedRules });
     return {
       kind,
-      intensity: MOTIVATION_DEFAULTS.intensity,
-      pattern: normalizePattern(kind, undefined, entryBase, errors),
-      flags: MOTIVATION_DEFAULTS.flags,
+      intensity: defaultIntensity,
+      pattern: normalizePattern(rule, undefined, entryBase, errors),
+      flags: rule?.defaultFlags ? { ...rule.defaultFlags } : { ...DEFAULT_MOTIVATION_FLAGS },
+      motivationProfile,
+      reasoningClass,
+      complexityClass: reasoningClass,
+      defaultDesignCostTokens: rule?.defaultDesignCostTokens || 0,
     };
   }
 
@@ -193,41 +323,53 @@ export function normalizeMotivation(entry, base, errors = []) {
     return null;
   }
 
-  const kind = normalizeMotivationKind(entry.kind || entry.name || entry.type);
+  const kind = normalizeMotivationKind(entry.kind || entry.name || entry.type, { rules: resolvedRules });
   if (!kind) {
     addError(errors, `${entryBase}.kind`, "invalid_kind");
     return null;
   }
+  const rule = findMotivationRule(resolvedRules, kind);
 
-  const intensityRaw = entry.intensity ?? entry.stacks ?? MOTIVATION_DEFAULTS.intensity;
-  const intensity = Number.isInteger(intensityRaw) ? intensityRaw : MOTIVATION_DEFAULTS.intensity;
+  const intensityRaw = entry.intensity ?? entry.stacks ?? defaultIntensity;
+  const intensity = Number.isInteger(intensityRaw) ? intensityRaw : defaultIntensity;
   if (!Number.isInteger(intensityRaw) || intensityRaw < 1) {
     addError(errors, `${entryBase}.intensity`, "invalid_intensity");
   }
-  if (intensity > MOTIVATION_MAX_INTENSITY) {
+  if (intensity > maxIntensity) {
     addError(errors, `${entryBase}.intensity`, "intensity_clamped");
   }
-  const clampedIntensity = Math.min(Math.max(intensity, 1), MOTIVATION_MAX_INTENSITY);
+  const clampedIntensity = Math.min(Math.max(intensity, 1), maxIntensity);
 
-  const pattern = normalizePattern(kind, entry.pattern, entryBase, errors);
-  const flags = normalizeFlags(entry.flags, `${entryBase}.flags`, errors);
+  const pattern = normalizePattern(rule, entry.pattern, entryBase, errors);
+  const flags = normalizeFlags(entry.flags, `${entryBase}.flags`, errors, resolvedRules);
   const priority = entry.priority === undefined ? undefined : entry.priority;
   if (priority !== undefined && (!Number.isInteger(priority) || priority < 0)) {
     addError(errors, `${entryBase}.priority`, "invalid_priority");
   }
 
+  const motivationProfile = mergeMotivationProfile(
+    deriveMotivationProfile([kind], DEFAULT_MOTIVATION_PROFILE, { rules: resolvedRules }),
+    normalizeMotivationProfile(entry.motivationProfile, { rules: resolvedRules }),
+  );
+  const reasoningClass = deriveReasoningClass(motivationProfile, { rules: resolvedRules });
   return {
     kind,
     intensity: clampedIntensity,
     pattern,
     flags,
     priority: Number.isInteger(priority) && priority >= 0 ? priority : undefined,
+    motivationProfile,
+    reasoningClass,
+    complexityClass: reasoningClass,
+    defaultDesignCostTokens: rule?.defaultDesignCostTokens || 0,
   };
 }
 
-export function normalizeMotivations(input, fieldBase = "motivations") {
+export function normalizeMotivations(input, fieldBase = "motivations", { rules } = {}) {
+  const resolvedRules = resolveMotivationRules(rules);
   const errors = [];
   const warnings = [];
+  const groupByKind = resolveGroupByKind(resolvedRules);
   if (input === undefined) {
     return { ok: true, errors, warnings, value: [] };
   }
@@ -241,9 +383,9 @@ export function normalizeMotivations(input, fieldBase = "motivations") {
   const value = [];
   const selectedGroupKinds = new Map();
   list.forEach((entry, index) => {
-    const normalized = normalizeMotivation(entry, `${fieldBase}[${index}]`, errors);
+    const normalized = normalizeMotivation(entry, `${fieldBase}[${index}]`, errors, { rules: resolvedRules });
     if (normalized) {
-      const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized.kind];
+      const group = groupByKind[normalized.kind];
       if (group) {
         const selectedKind = selectedGroupKinds.get(group.id);
         if (selectedKind && selectedKind !== normalized.kind) {

@@ -21,7 +21,7 @@ const proposalVam = readAllocatorFixture("spend-proposal-v1-vam.json");
 
 const script = `
 import assert from "node:assert/strict";
-import { buildSpendProposal, evaluateConfiguratorSpend } from ${JSON.stringify(configuratorModule)};
+import { buildSpendProposal, evaluateConfiguratorSpend, calculateActorConfigurationUnitCost } from ${JSON.stringify(configuratorModule)};
 
 const budget = ${JSON.stringify(budget)};
 const priceList = ${JSON.stringify(priceList)};
@@ -93,6 +93,24 @@ const builtVam = buildSpendProposal({
 });
 
 assert.deepEqual(builtVam, proposalVam);
+
+const barrierCost = calculateActorConfigurationUnitCost({
+  entry: {
+    id: "barrier",
+    motivationProfile: { mobility: "stationary", combat: "none", cognition: "none" },
+  },
+  priceMap: new Map(priceList.items.map((item) => [\`\${item.kind}:\${item.id}\`, item.costTokens])),
+});
+assert.equal(barrierCost.cost, 0);
+
+const tacticalHunterCost = calculateActorConfigurationUnitCost({
+  entry: {
+    id: "hunter",
+    motivationProfile: { mobility: "exploring", combat: "attacking", cognition: "goal_oriented" },
+  },
+  priceMap: new Map(priceList.items.map((item) => [\`\${item.kind}:\${item.id}\`, item.costTokens])),
+});
+assert.equal(tacticalHunterCost.cost, 11);
 `;
 
 test("configurator builds spend proposals and validates receipts", () => {

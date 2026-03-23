@@ -136,15 +136,15 @@ function makeInspectorElements() {
   const containerEl = makeNode("aside", doc);
   const statusEl = makeNode("small", doc);
   const roomListEl = makeNode("div", doc);
-  const attackerListEl = makeNode("div", doc);
-  const defenderListEl = makeNode("div", doc);
+  const delverListEl = makeNode("div", doc);
+  const wardenListEl = makeNode("div", doc);
   const detailEl = makeNode("div", doc);
   return {
     containerEl,
     statusEl,
     roomListEl,
-    attackerListEl,
-    defenderListEl,
+    delverListEl,
+    wardenListEl,
     detailEl,
   };
 }
@@ -170,7 +170,7 @@ const spec = {
         },
         {
           id: "A-2RB89Z",
-          type: "attacker",
+          type: "delver",
           source: "actor",
           count: 1,
           affinity: "fire",
@@ -180,7 +180,7 @@ const spec = {
         },
         {
           id: "D-5JH2QW",
-          type: "defender",
+          type: "warden",
           source: "actor",
           count: 2,
           affinity: "water",
@@ -253,6 +253,9 @@ test("formatters keep backward-compatible textual output", () => {
   };
 
   assert.match(formatActorProfile(actor), /A-2RB89Z-1/);
+  assert.match(formatActorProfile(actor), /mobility: stationary/);
+  assert.match(formatActorProfile(actor), /combat: none/);
+  assert.match(formatActorProfile(actor), /reasoning: instinctual/);
   assert.match(formatActorCapabilities(actor), /movementCost: 1/);
   assert.match(formatActorConstraints(actor), /no-water/);
   assert.match(formatActorLiveState(actor, { tick: 7, running: true }), /tick: 7/);
@@ -272,8 +275,8 @@ test("inspector renders grouped template instances and maps runtime actor IDs", 
 
   assert.equal(elements.containerEl.hidden, false);
   assert.equal(elements.roomListEl.querySelectorAll(".simulation-inspector-instance").length, 2);
-  assert.equal(elements.attackerListEl.querySelectorAll(".simulation-inspector-instance").length, 1);
-  assert.equal(elements.defenderListEl.querySelectorAll(".simulation-inspector-instance").length, 2);
+  assert.equal(elements.delverListEl.querySelectorAll(".simulation-inspector-instance").length, 1);
+  assert.equal(elements.wardenListEl.querySelectorAll(".simulation-inspector-instance").length, 2);
   assert.match(elements.roomListEl.textContent, /R-Y7E71X-1/);
   assert.match(elements.roomListEl.textContent, /R-Y7E71X-2/);
   assert.equal(inspector.getSelectedId(), "R-Y7E71X-1");
@@ -290,7 +293,7 @@ test("inspector renders grouped template instances and maps runtime actor IDs", 
   inspector.selectEntityById("D-5JH2QW-1");
   assert.equal(selections.length, 2);
   assert.equal(selections[1].actorId, "D-5JH2QW-1");
-  assert.equal(selections[1].type, "defender");
+  assert.equal(selections[1].type, "warden");
   assert.equal(selections[1].roomBounds, null);
 
   inspector.selectEntityById("D-5JH2QW-1", { toggleIfSelected: true });
@@ -325,6 +328,10 @@ test("inspector detail shows affinities, vitals, and card value", () => {
   assert.match(elements.detailEl.textContent, /\+3/);
   assert.match(elements.detailEl.textContent, /7\/10\/\+2/);
   assert.match(elements.detailEl.textContent, /🪙/);
+  assert.match(elements.detailEl.textContent, /mobility: stationary/i);
+  assert.match(elements.detailEl.textContent, /combat: defending/i);
+  assert.match(elements.detailEl.textContent, /cognition: goal_oriented/i);
+  assert.match(elements.detailEl.textContent, /reasoning: Tactical/);
 });
 
 test("inspector remains visible and toggle/close keep it shown", () => {

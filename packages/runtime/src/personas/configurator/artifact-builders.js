@@ -75,6 +75,8 @@ export function buildSimConfigArtifact({
   meta,
   planRef,
   budgetReceiptRef,
+  affinityRulesRef,
+  motivationRulesRef,
   seed = 0,
   layout,
   flags,
@@ -93,13 +95,22 @@ export function buildSimConfigArtifact({
     },
   };
   if (budgetReceiptRef) artifact.budgetReceiptRef = budgetReceiptRef;
+  if (affinityRulesRef) artifact.affinityRulesRef = affinityRulesRef;
+  if (motivationRulesRef) artifact.motivationRulesRef = motivationRulesRef;
   if (executionPolicy) artifact.executionPolicy = executionPolicy;
   if (flags) artifact.flags = flags;
   if (constraints) artifact.constraints = constraints;
   return artifact;
 }
 
-export function buildInitialStateArtifact({ meta, simConfigRef, actors = [], resolvedEffects = {} } = {}) {
+export function buildInitialStateArtifact({
+  meta,
+  simConfigRef,
+  affinityRulesRef,
+  motivationRulesRef,
+  actors = [],
+  resolvedEffects = {},
+} = {}) {
   const resolvedByActor = new Map();
   if (Array.isArray(resolvedEffects.actors)) {
     resolvedEffects.actors.forEach((entry) => {
@@ -130,6 +141,8 @@ export function buildInitialStateArtifact({ meta, simConfigRef, actors = [], res
     schemaVersion: 1,
     meta,
     simConfigRef,
+    affinityRulesRef,
+    motivationRulesRef,
     actors: normalizedActors,
   };
 }

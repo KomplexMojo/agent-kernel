@@ -129,17 +129,21 @@ test("cli run writes tick frames and logs", (t) => {
   const effectsLogPath = join(outDir, "effects-log.json");
   const runtimeDecisionCapturesPath = join(outDir, "runtime-decision-captures.json");
   const runSummaryPath = join(outDir, "run-summary.json");
+  const checkpointStatePath = join(outDir, "checkpoint-state.json");
   assert.ok(existsSync(tickFramesPath));
   assert.ok(existsSync(effectsLogPath));
   assert.ok(existsSync(runtimeDecisionCapturesPath));
   assert.ok(existsSync(runSummaryPath));
+  assert.ok(existsSync(checkpointStatePath));
 
   const frames = readJson(tickFramesPath);
   const runtimeDecisionCaptures = readJson(runtimeDecisionCapturesPath);
+  const checkpointState = readJson(checkpointStatePath);
   assert.ok(Array.isArray(frames));
   assert.ok(frames.length > 0);
   assert.ok(Array.isArray(runtimeDecisionCaptures));
   assert.equal(frames[0].schema, "agent-kernel/TickFrame");
+  assert.equal(checkpointState.schema, "agent-kernel/RuntimeCheckpointArtifact");
 });
 
 test("cli replay writes replay summary", (t) => {

@@ -16,6 +16,12 @@ function joinPath(base, path) {
   return `${base}/${trimmed}`;
 }
 
+function buildAddUrl(baseUrl) {
+  const target = new URL(baseUrl);
+  target.searchParams.set("wrap-with-directory", "true");
+  return target.toString();
+}
+
 export function createIpfsAdapter({ gatewayUrl = "https://ipfs.io/ipfs", fetchFn = globalThis.fetch } = {}) {
   if (!fetchFn) {
     throw new Error("IPFS adapter requires a fetch implementation.");
@@ -44,9 +50,9 @@ export function createIpfsAdapter({ gatewayUrl = "https://ipfs.io/ipfs", fetchFn
   function defaultAddUrl() {
     const trimmed = gatewayUrl.endsWith("/") ? gatewayUrl.slice(0, -1) : gatewayUrl;
     if (trimmed.endsWith("/ipfs")) {
-      return `${trimmed.slice(0, -5)}/api/v0/add`;
+      return buildAddUrl(`${trimmed.slice(0, -5)}/api/v0/add`);
     }
-    return `${trimmed}/api/v0/add`;
+    return buildAddUrl(`${trimmed}/api/v0/add`);
   }
 
   async function publishJsonMap(artifactMap = {}, { pathPrefix = "", addUrl } = {}) {

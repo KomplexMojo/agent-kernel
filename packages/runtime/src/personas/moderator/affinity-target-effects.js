@@ -1,10 +1,11 @@
 import {
-  AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
   AFFINITY_TARGET_TYPES,
   DEFAULT_AFFINITY_EXPRESSION,
   DEFAULT_AFFINITY_TARGET_TYPE,
   DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION,
+  normalizeAffinityExpression,
+  resolveAffinityExpressionProfile,
 } from "../../contracts/domain-constants.js";
 
 const DEFAULT_ENVIRONMENT_THRESHOLD = 3;
@@ -45,13 +46,6 @@ function toNonNegativeInt(value, fallback = 0) {
   return normalized;
 }
 
-function normalizeExpression(rawExpression, fallback = DEFAULT_AFFINITY_EXPRESSION) {
-  if (AFFINITY_EXPRESSIONS.includes(rawExpression)) {
-    return rawExpression;
-  }
-  return fallback;
-}
-
 export function normalizeAffinityTargetType(rawTargetType, expression = DEFAULT_AFFINITY_EXPRESSION) {
   if (AFFINITY_TARGET_TYPES.includes(rawTargetType)) {
     return rawTargetType;
@@ -66,7 +60,7 @@ function normalizeAffinityEntry(entry = {}) {
   if (!AFFINITY_KINDS.includes(entry.kind)) {
     return null;
   }
-  const expression = normalizeExpression(entry.expression);
+  const expression = normalizeAffinityExpression(entry.expression);
   return {
     kind: entry.kind,
     expression,
@@ -87,10 +81,11 @@ function buildVitalEffect({
   if (!targetVital) {
     return null;
   }
+  const expressionProfile = resolveAffinityExpressionProfile(expression);
   return {
     id: `${kind}:${expression}:${targetType}:vital`,
     category: "vital",
-    operation: "apply_vital_affinity",
+    operation: expressionProfile?.vitalOperation || "apply_vital_affinity",
     sourceType,
     sourceId,
     kind,
@@ -112,10 +107,11 @@ function buildEnvironmentEffects({
   sourceId = null,
   environmentThreshold = DEFAULT_ENVIRONMENT_THRESHOLD,
 } = {}) {
+  const expressionProfile = resolveAffinityExpressionProfile(expression);
   const effects = [];
-  if (stacks >= environmentThreshold) {
+  if (expressionProfile?.allowsEnvironmentMutation && stacks >= environmentThreshold) {
     if (kind === "earth") {
-      const operation = expression === "pull" ? "raise_barrier" : "destroy_barrier";
+      const operation = expressionProfile?.polarity === "inward" ? "raise_barrier" : "destroy_barrier";
       const environmentTarget = operation === "raise_barrier" ? "floor" : "barrier";
       effects.push({
         id: `${kind}:${expression}:${targetType}:${operation}`,
@@ -146,7 +142,7 @@ function buildEnvironmentEffects({
     }
   }
 
-  if (targetType === "floor" && manaReserve > 0) {
+  if (expressionProfile?.allowsTrapArming && targetType === "floor" && manaReserve > 0) {
     effects.push({
       id: `${kind}:${expression}:${targetType}:arm_static_trap`,
       category: "environment",
@@ -226,7 +222,7 @@ function parseAffinityCombosFromStacks(entry = {}) {
       const key = String(rawKey || "");
       const [kind, expression, targetType] = key.split(":");
       if (!AFFINITY_KINDS.includes(kind)) return;
-      const normalizedExpression = normalizeExpression(expression);
+      const normalizedExpression = normalizeAffinityExpression(expression);
       combos.push({
         kind,
         expression: normalizedExpression,
@@ -244,7 +240,7 @@ function parseAffinityCombosFromStacks(entry = {}) {
     const key = String(rawKey || "");
     const [kind, expression] = key.split(":");
     if (!AFFINITY_KINDS.includes(kind)) return;
-    const normalizedExpression = normalizeExpression(expression);
+    const normalizedExpression = normalizeAffinityExpression(expression);
     combos.push({
       kind,
       expression: normalizedExpression,

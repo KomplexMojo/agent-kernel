@@ -156,6 +156,11 @@ function createBrowserKernelHost({
     fileStore.set(resolved, cloneJson(value));
   }
 
+  async function writeBinary(pathValue, value) {
+    const resolved = resolveResourcePath(pathValue);
+    fileStore.set(resolved, value instanceof Uint8Array ? new Uint8Array(value) : value);
+  }
+
   return {
     files: fileStore,
     logs: logSink,
@@ -164,10 +169,28 @@ function createBrowserKernelHost({
       readJson,
       readText,
       writeJson,
+      writeBinary,
       resolvePath: resolveResourcePath,
       join: pathJoin,
       dirname: dirnamePath,
       exists: (pathValue) => fileStore.has(resolveResourcePath(pathValue)),
+      listFiles: (dirPath) => {
+        const resolvedDir = resolveResourcePath(dirPath || "/");
+        const basePrefix = ensureDirectoryHref(resolvedDir);
+        const names = new Set();
+        fileStore.forEach((_value, key) => {
+          const resolvedKey = resolveResourcePath(key);
+          if (!resolvedKey.startsWith(basePrefix)) {
+            return;
+          }
+          const remainder = resolvedKey.slice(basePrefix.length);
+          if (!remainder || remainder.includes("/")) {
+            return;
+          }
+          names.add(remainder);
+        });
+        return Array.from(names).sort((left, right) => left.localeCompare(right));
+      },
       makeId: (prefix) => `${prefix}_${++seq}`,
       createMeta: ({ producedBy = "web-cli", runId, correlationId, note } = {}) => ({
         id: `artifact_${++seq}`,
@@ -250,6 +273,12 @@ function readStoredValue(files, pathValue) {
   const resolved = resolveResourcePath(pathValue);
   if (!files.has(resolved)) return null;
   const value = files.get(resolved);
+  if (value instanceof Uint8Array || value instanceof Uint8ClampedArray) {
+    return {
+      kind: "binary",
+      byteLength: value.byteLength,
+    };
+  }
   if (typeof value === "string") {
     try {
       return JSON.parse(value);
@@ -303,16 +332,32 @@ export async function executeBrowserCommand(
 
   if (action === "build") {
     const requestedOutDir = payload?.outDir ? resolveResourcePath(payload.outDir) : null;
+    const inputBase = requestedOutDir
+      ? pathJoin(requestedOutDir, "..", "inputs")
+      : `/inputs/${payload?.specJson?.meta?.runId || context.host.makeId("run")}/build`;
     let specPath = await seedJsonInput(context, {
       path: payload?.specPath,
       json: payload?.specJson,
       fallbackPath: requestedOutDir
         ? pathJoin(requestedOutDir, "spec.json")
-        : `/inputs/${payload?.specJson?.meta?.runId || context.host.makeId("run")}/spec.json`,
+        : pathJoin(inputBase, "spec.json"),
+    });
+    const affinityRulesPath = await seedJsonInput(context, {
+      path: payload?.affinityRulesPath,
+      json: payload?.affinityRulesJson,
+      fallbackPath: pathJoin(inputBase, "affinity-rules.json"),
+    });
+    const motivationRulesPath = await seedJsonInput(context, {
+      path: payload?.motivationRulesPath,
+      json: payload?.motivationRulesJson,
+      fallbackPath: pathJoin(inputBase, "motivation-rules.json"),
     });
 
     const result = await kernel.build({
       spec: specPath,
+      "affinity-rules": affinityRulesPath || undefined,
+      "motivation-rules": motivationRulesPath || undefined,
+      "emit-visual-assets": payload?.emitVisualAssets ? true : undefined,
       "out-dir": requestedOutDir || undefined,
     });
     const outDir = result?.outDir || requestedOutDir || "";
@@ -433,6 +478,16 @@ export async function executeBrowserCommand(
       json: payload?.affinityLoadoutsJson,
       fallbackPath: pathJoin(inputBase, "affinity-loadouts.json"),
     });
+    const affinityRulesPath = await seedJsonInput(context, {
+      path: payload?.affinityRulesPath,
+      json: payload?.affinityRulesJson,
+      fallbackPath: pathJoin(inputBase, "affinity-rules.json"),
+    });
+    const motivationRulesPath = await seedJsonInput(context, {
+      path: payload?.motivationRulesPath,
+      json: payload?.motivationRulesJson,
+      fallbackPath: pathJoin(inputBase, "motivation-rules.json"),
+    });
     const receiptOutPath = payload?.receiptOut ? resolveResourcePath(payload.receiptOut) : null;
 
     const result = await kernel.configurator({
@@ -445,6 +500,9 @@ export async function executeBrowserCommand(
       "receipt-out": receiptOutPath || undefined,
       "affinity-presets": affinityPresetsPath || undefined,
       "affinity-loadouts": affinityLoadoutsPath || undefined,
+      "affinity-rules": affinityRulesPath || undefined,
+      "motivation-rules": motivationRulesPath || undefined,
+      "emit-visual-assets": payload?.emitVisualAssets ? true : undefined,
       "out-dir": requestedOutDir || undefined,
       "run-id": payload?.runId || undefined,
     });
@@ -575,18 +633,37 @@ export async function executeBrowserCommand(
     const artifactMap = payload?.artifactMap && typeof payload.artifactMap === "object"
       ? payload.artifactMap
       : {};
+    const coreArtifactMap = payload?.coreArtifactMap && typeof payload.coreArtifactMap === "object"
+      ? payload.coreArtifactMap
+      : null;
+    const sessionArtifactMap = payload?.sessionArtifactMap && typeof payload.sessionArtifactMap === "object"
+      ? payload.sessionArtifactMap
+      : null;
 
     const result = await kernel.ipfsPublish({
+      scope: payload?.scope,
       path: payload?.path,
       gateway: payload?.gatewayUrl || payload?.gateway,
       "fixture-cid": payload?.fixtureCid,
       "artifact-map": artifactMap,
+      "core-artifact-map": coreArtifactMap,
+      "core-dir": payload?.coreDir,
+      "session-artifact-map": sessionArtifactMap,
+      "session-dir": payload?.sessionDir,
+      "session-id": payload?.sessionId,
+      "checkpoint-id": payload?.checkpointId,
+      "session-status": payload?.sessionStatus,
+      "previous-package-cid": payload?.previousPackageCid,
+      "package-id": payload?.packageId,
     });
     const output = {
       cid: result.cid,
       rootPath: result.rootPath || "",
       publishedFiles: result.publishedFiles || [],
       mode: result.mode || "live",
+      scope: result.scope || payload?.scope || "core",
+      package: result.package || null,
+      sessionManifest: result.sessionManifest || null,
     };
     await context.host.writeJson(outPath, output);
     return {
@@ -594,6 +671,8 @@ export async function executeBrowserCommand(
       outPath,
       output,
       published: result.published || {},
+      package: result.package || null,
+      sessionManifest: result.sessionManifest || null,
     };
   }
 
@@ -607,8 +686,10 @@ export async function executeBrowserCommand(
 
     const result = await kernel.ipfsLoad({
       cid: payload?.cid,
+      "load-mode": payload?.loadMode,
+      "session-id": payload?.sessionId,
+      "checkpoint-id": payload?.checkpointId,
       path: payload?.path,
-      file: payload?.file,
       gateway: payload?.gatewayUrl || payload?.gateway,
       "fixture-map": payload?.fixtureMap,
     });
@@ -619,8 +700,11 @@ export async function executeBrowserCommand(
     await context.host.writeJson(outPath, {
       cid: result.cid,
       rootPath: result.rootPath || "",
+      loadMode: result.loadMode || payload?.loadMode || "core",
       fetchedFiles: Object.keys(fetched),
       missing: result.missing || [],
+      package: result.package || null,
+      sessionManifest: result.sessionManifest || null,
     });
     return {
       ...buildCommandResult({ context, outDir }),
@@ -628,12 +712,19 @@ export async function executeBrowserCommand(
       output: {
         cid: result.cid,
         rootPath: result.rootPath || "",
+        loadMode: result.loadMode || payload?.loadMode || "core",
         fetchedFiles: Object.keys(fetched),
         missing: result.missing || [],
+        package: result.package || null,
+        sessionManifest: result.sessionManifest || null,
       },
       fetched,
       bundle: fetched["bundle.json"] || null,
       manifest: fetched["manifest.json"] || null,
+      checkpoint: fetched["checkpoint-state.json"] || null,
+      actionLog: fetched["action-log.json"] || null,
+      package: result.package || null,
+      sessionManifest: result.sessionManifest || null,
     };
   }
 
@@ -806,6 +897,7 @@ export async function executeBrowserCommand(
       "budget-loop": payload?.budgetLoop ? true : undefined,
       "budget-pool": payload?.budgetPool,
       "budget-reserve": payload?.budgetReserve,
+      "emit-visual-assets": payload?.emitVisualAssets ? true : undefined,
       "out-dir": requestedOutDir || undefined,
       "run-id": payload?.runId || undefined,
       "created-at": payload?.createdAt,
@@ -859,6 +951,16 @@ export async function executeBrowserCommand(
       json: payload?.affinityLoadoutsJson,
       fallbackPath: pathJoin(inputBase, "affinity-loadouts.json"),
     });
+    const affinityRulesPath = await seedJsonInput(context, {
+      path: payload?.affinityRulesPath,
+      json: payload?.affinityRulesJson,
+      fallbackPath: pathJoin(inputBase, "affinity-rules.json"),
+    });
+    const motivationRulesPath = await seedJsonInput(context, {
+      path: payload?.motivationRulesPath,
+      json: payload?.motivationRulesJson,
+      fallbackPath: pathJoin(inputBase, "motivation-rules.json"),
+    });
     const affinitySummaryArg = payload?.affinitySummaryPath
       ? resolveResourcePath(payload.affinitySummaryPath)
       : payload?.affinitySummary
@@ -872,12 +974,16 @@ export async function executeBrowserCommand(
       actions: actionsPath || undefined,
       "affinity-presets": affinityPresetsPath || undefined,
       "affinity-loadouts": affinityLoadoutsPath || undefined,
+      "affinity-rules": affinityRulesPath || undefined,
+      "motivation-rules": motivationRulesPath || undefined,
       "affinity-summary": affinitySummaryArg,
       wasm: payload?.wasmPath ? resolveResourcePath(payload.wasmPath) : undefined,
       ticks: payload?.ticks,
       seed: payload?.seed,
       "out-dir": requestedOutDir || undefined,
       "run-id": payload?.runId || undefined,
+      "session-id": payload?.sessionId || undefined,
+      "checkpoint-id": payload?.checkpointId || undefined,
       actor: payload?.actor,
       vital: payload?.vital,
       "vital-default": payload?.vitalDefault,
@@ -901,6 +1007,7 @@ export async function executeBrowserCommand(
         runtimeDecisionCaptures: readJsonOutput(context.files, pathJoin(outDir, "runtime-decision-captures.json")),
         runSummary: readJsonOutput(context.files, pathJoin(outDir, "run-summary.json")),
         actionLog: readJsonOutput(context.files, pathJoin(outDir, "action-log.json")),
+        checkpointState: readJsonOutput(context.files, pathJoin(outDir, "checkpoint-state.json")),
         resolvedSimConfig: readJsonOutput(context.files, pathJoin(outDir, "resolved-sim-config.json")),
         resolvedInitialState: readJsonOutput(context.files, pathJoin(outDir, "resolved-initial-state.json")),
         affinitySummary: affinitySummaryPath ? readJsonOutput(context.files, affinitySummaryPath) : null,

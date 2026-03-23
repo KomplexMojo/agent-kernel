@@ -10,6 +10,7 @@ const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 const PRESETS = resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json");
 const LOADOUTS = resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json");
+const RULES = resolve(ROOT, "tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json");
 const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json");
 const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json");
 const AFFINITY_FIXTURE = resolve(ROOT, "tests/fixtures/personas/affinity-resolution-v1-basic.json");
@@ -62,6 +63,54 @@ test("cli run writes affinity summary", (t) => {
   assert.equal(summary.schemaVersion, 1);
   assert.deepEqual(summary.actors, expected.actors);
   assert.deepEqual(summary.traps, expected.traps);
+  assert.ok(summary.ambientPressure);
+  assert.equal(summary.ambientPressure.baseByKind.fire, 2);
+  assert.equal(summary.ambientPressure.netByKind.fire, 2);
+});
+
+test("cli run affinity summary records affinity rules and rules-based mana costs", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH}`);
+    return;
+  }
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-rules-"));
+  const outDir = join(workDir, "out");
+
+  runCli([
+    "run",
+    "--sim-config",
+    SIM_CONFIG,
+    "--initial-state",
+    INITIAL_STATE,
+    "--ticks",
+    "0",
+    "--wasm",
+    WASM_PATH,
+    "--out-dir",
+    outDir,
+    "--affinity-presets",
+    PRESETS,
+    "--affinity-loadouts",
+    LOADOUTS,
+    "--affinity-rules",
+    RULES,
+    "--affinity-summary",
+  ]);
+
+  const summary = JSON.parse(readFileSync(join(outDir, "affinity-summary.json"), "utf8"));
+  assert.equal(summary.affinityRulesRef.schema, "agent-kernel/AffinityRulesArtifact");
+  const actor = summary.actors.find((entry) => entry.actorId === "actor_mvp");
+  const fireAbility = actor.abilities.find((ability) => ability.id === "fire_bolt");
+  const decayTrap = summary.traps[0].resolvedEffects.find((effect) => effect.id === "fire:push:floor:vital");
+  assert.equal(fireAbility.expressionAlias, "flame_surge");
+  assert.equal(fireAbility.manaCost, 6);
+  assert.equal(fireAbility.complexityClass, "tactical");
+  assert.equal(decayTrap.expressionAlias, "flame_surge");
+  assert.equal(decayTrap.manaCost, 6);
+  assert.equal(decayTrap.complexityClass, "tactical");
+  assert.ok(summary.ambientPressure);
+  assert.equal(summary.ambientPressure.baseByKind.fire, 2);
+  assert.equal(summary.ambientPressure.netByKind.fire, 2);
 });
 
 test("cli run rejects affinity summary without presets or loadouts", (t) => {

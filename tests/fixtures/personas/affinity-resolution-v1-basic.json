@@ -104,8 +104,8 @@
           "durability": { "current": 0, "max": 0, "regen": 0 }
         },
         "abilities": [
-          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "targetType": "enemy", "potency": 4, "manaCost": 6 },
-          { "id": "life_surge", "kind": "buff", "affinityKind": "life", "expression": "pull", "targetType": "self", "potency": 1, "manaCost": 0 }
+          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "expressionAlias": "flame_surge", "targetType": "enemy", "potency": 4, "manaCost": 6, "complexityClass": "tactical" },
+          { "id": "life_surge", "kind": "buff", "affinityKind": "life", "expression": "pull", "expressionAlias": "vital_draw", "targetType": "self", "potency": 1, "manaCost": 0, "complexityClass": "instinctual" }
         ],
         "affinityStacks": { "fire:push": 2, "life:pull": 1 },
         "affinityTargets": { "fire:push:enemy": 2, "life:pull:self": 1 },
@@ -121,7 +121,10 @@
             "stacks": 2,
             "targetType": "enemy",
             "targetVital": "health",
-            "potency": 2
+            "potency": 2,
+            "manaCost": 6,
+            "expressionAlias": "flame_surge",
+            "complexityClass": "tactical"
           },
           {
             "id": "life:pull:self:vital",
@@ -134,7 +137,10 @@
             "stacks": 1,
             "targetType": "self",
             "targetVital": "health",
-            "potency": 1
+            "potency": 1,
+            "manaCost": 0,
+            "expressionAlias": "vital_draw",
+            "complexityClass": "instinctual"
           }
         ]
       },
@@ -147,7 +153,7 @@
           "durability": { "current": 0, "max": 0, "regen": 0 }
         },
         "abilities": [
-          { "id": "decay_field", "kind": "area", "affinityKind": "decay", "expression": "emit", "targetType": "area", "potency": 1, "manaCost": 2 }
+          { "id": "decay_field", "kind": "area", "affinityKind": "decay", "expression": "emit", "expressionAlias": "blight_mist", "targetType": "area", "potency": 1, "manaCost": 2, "complexityClass": "instinctual" }
         ],
         "affinityStacks": { "decay:emit": 1 },
         "affinityTargets": { "decay:emit:area": 1 },
@@ -163,7 +169,10 @@
             "stacks": 1,
             "targetType": "area",
             "targetVital": "health",
-            "potency": 1
+            "potency": 1,
+            "manaCost": 2,
+            "expressionAlias": "blight_mist",
+            "complexityClass": "instinctual"
           }
         ]
       }
@@ -178,7 +187,7 @@
           "durability": { "current": 5, "max": 5, "regen": 0 }
         },
         "abilities": [
-          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "targetType": "enemy", "potency": 4, "manaCost": 6 }
+          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "expressionAlias": "flame_surge", "targetType": "enemy", "potency": 4, "manaCost": 6, "complexityClass": "tactical" }
         ],
         "affinityStacks": { "fire:push": 2 },
         "affinityTargets": { "fire:push:floor": 2 },
@@ -193,7 +202,10 @@
             "expression": "push",
             "stacks": 2,
             "targetType": "floor",
-            "manaReserve": 3
+            "manaReserve": 3,
+            "manaCost": 6,
+            "expressionAlias": "flame_surge",
+            "complexityClass": "tactical"
           },
           {
             "id": "fire:push:floor:vital",
@@ -206,7 +218,10 @@
             "stacks": 2,
             "targetType": "floor",
             "targetVital": "health",
-            "potency": 2
+            "potency": 2,
+            "manaCost": 6,
+            "expressionAlias": "flame_surge",
+            "complexityClass": "tactical"
           }
         ]
       }

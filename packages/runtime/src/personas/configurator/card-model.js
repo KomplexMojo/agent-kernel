@@ -1,4 +1,4 @@
-export const CARD_TYPE_IDS = Object.freeze(["room", "attacker", "defender"]);
+export const CARD_TYPE_IDS = Object.freeze(["room", "delver", "warden"]);
 export const ROOM_CARD_SIZE_IDS = Object.freeze(["small", "medium", "large"]);
 export const DEFAULT_ROOM_CARD_SIZE = "medium";
 

@@ -1,6 +1,6 @@
 import {
-  ATTACKER_SETUP_MODE_SET,
-  DEFAULT_ATTACKER_SETUP_MODE,
+  DELVER_SETUP_MODE_SET,
+  DEFAULT_DELVER_SETUP_MODE,
   AFFINITY_EXPRESSION_SET,
   DEFAULT_AFFINITY_EXPRESSION,
   DEFAULT_DUNGEON_AFFINITY,
@@ -18,7 +18,11 @@ import {
   normalizeCardType,
   normalizeRoomCardSize,
 } from "../configurator/card-model.js";
-import { normalizeMotivationKindList } from "../configurator/motivation-loadouts.js";
+import {
+  normalizeMotivationKindList,
+  normalizeMotivationProfile,
+} from "../configurator/motivation-loadouts.js";
+import { resolveMotivationBehaviorProfile } from "../configurator/behavior-rules.js";
 
 function normalizePositiveInt(value, fallback = 1) {
   const num = Number(value);
@@ -69,9 +73,9 @@ function normalizeVitals(vitals) {
 }
 
 function normalizeSetupMode(value) {
-  if (typeof value !== "string") return DEFAULT_ATTACKER_SETUP_MODE;
+  if (typeof value !== "string") return DEFAULT_DELVER_SETUP_MODE;
   const normalized = value.trim();
-  return ATTACKER_SETUP_MODE_SET.has(normalized) ? normalized : DEFAULT_ATTACKER_SETUP_MODE;
+  return DELVER_SETUP_MODE_SET.has(normalized) ? normalized : DEFAULT_DELVER_SETUP_MODE;
 }
 
 function normalizeVitalsConfigMap(value) {
@@ -111,7 +115,7 @@ function normalizeStringList(value, fallback) {
     .filter((entry) => entry && !seen.has(entry) && seen.add(entry));
 }
 
-function normalizeMotivationKinds(value, fallback) {
+function normalizeMotivationKinds(value, fallback, { motivationRules } = {}) {
   const raw = Array.isArray(value)
     ? value
     : typeof fallback === "string" && fallback.trim()
@@ -120,6 +124,7 @@ function normalizeMotivationKinds(value, fallback) {
   return normalizeMotivationKindList(raw, {
     allowEmpty: true,
     fieldBase: "motivations",
+    rules: motivationRules,
   }).value;
 }
 
@@ -149,7 +154,7 @@ function readCardSet(summary) {
   return null;
 }
 
-function buildAffinityMapForAttackerConfig(affinities = []) {
+function buildAffinityMapForDelverConfig(affinities = []) {
   const config = {};
   const stacks = {};
   affinities.forEach((entry) => {
@@ -164,7 +169,7 @@ function buildAffinityMapForAttackerConfig(affinities = []) {
   return { affinities: config, affinityStacks: stacks };
 }
 
-function buildVitalsConfigForAttacker(vitals) {
+function buildVitalsConfigForDelver(vitals) {
   const normalized = normalizeVitals(vitals);
   const vitalsMax = {};
   const vitalsRegen = {};
@@ -176,12 +181,12 @@ function buildVitalsConfigForAttacker(vitals) {
   return { vitalsMax, vitalsRegen };
 }
 
-function expandAttackerConfigsFromCards(cards = [], dungeonAffinity = DEFAULT_DUNGEON_AFFINITY) {
+function expandDelverConfigsFromCards(cards = [], dungeonAffinity = DEFAULT_DUNGEON_AFFINITY) {
   const configs = [];
   cards.forEach((card) => {
     const count = normalizeCardCount(card?.count, 1);
-    const affinityMap = buildAffinityMapForAttackerConfig(card?.affinities || []);
-    const vitalsConfig = buildVitalsConfigForAttacker(card?.vitals);
+    const affinityMap = buildAffinityMapForDelverConfig(card?.affinities || []);
+    const vitalsConfig = buildVitalsConfigForDelver(card?.vitals);
     const config = {
       setupMode: normalizeSetupMode(card?.setupMode),
       affinities: affinityMap.affinities,
@@ -196,7 +201,7 @@ function expandAttackerConfigsFromCards(cards = [], dungeonAffinity = DEFAULT_DU
   return configs;
 }
 
-function attackerConfigToAffinityEntries(config, dungeonAffinity) {
+function delverConfigToAffinityEntries(config, dungeonAffinity) {
   const affinityMap = config?.affinities && typeof config.affinities === "object"
     ? config.affinities
     : {};
@@ -220,7 +225,7 @@ function attackerConfigToAffinityEntries(config, dungeonAffinity) {
   return [{ kind: dungeonAffinity, expression: DEFAULT_AFFINITY_EXPRESSION, stacks: 1 }];
 }
 
-function attackerConfigToVitals(config) {
+function delverConfigToVitals(config) {
   const vitals = {};
   VITAL_KEYS.forEach((key) => {
     const max = Number.isInteger(config?.vitalsMax?.[key]) ? config.vitalsMax[key] : DEFAULT_VITALS[key].max;
@@ -239,7 +244,8 @@ export function normalizeSummaryPick(
   {
     dungeonAffinity = DEFAULT_DUNGEON_AFFINITY,
     source = "actor",
-    attackerConfig,
+    delverConfig,
+    motivationRules,
   } = {},
 ) {
   const id = typeof entry?.id === "string" && entry.id.trim()
@@ -248,10 +254,17 @@ export function normalizeSummaryPick(
   const defaultAffinity = source === "room"
     ? DEFAULT_ROOM_CARD_AFFINITY
     : (dungeonAffinity || DEFAULT_DUNGEON_AFFINITY);
-  const motivation = normalizeMotivationKinds(
+  const motivations = normalizeMotivationKinds(
     entry?.motivations,
     entry?.role || entry?.motivation || "stationary",
-  )[0] || "stationary";
+    { motivationRules },
+  );
+  const resolvedMotivation = resolveMotivationBehaviorProfile({
+    rules: motivationRules,
+    motivations: motivations.length > 0 ? motivations : [entry?.role || entry?.motivation || "stationary"],
+    motivationProfile: normalizeMotivationProfile(entry?.motivationProfile, { rules: motivationRules }),
+  });
+  const motivation = motivations[0] || "stationary";
   const affinity = typeof entry?.affinity === "string" && entry.affinity.trim()
     ? entry.affinity.trim()
     : defaultAffinity;
@@ -263,8 +276,15 @@ export function normalizeSummaryPick(
       fallbackStacks: DEFAULT_ROOM_AFFINITY_STACKS,
     })
     : normalizeAffinityEntries(entry?.affinities, affinity);
-  const setupMode = normalizeSetupMode(entry?.setupMode ?? entry?.mode ?? attackerConfig?.setupMode);
-  const pick = { motivation, affinity, count };
+  const setupMode = normalizeSetupMode(entry?.setupMode ?? entry?.mode ?? delverConfig?.setupMode);
+  const pick = {
+    motivation,
+    motivationProfile: resolvedMotivation.motivationProfile,
+    reasoningClass: resolvedMotivation.reasoningClass,
+    complexityClass: resolvedMotivation.complexityClass,
+    affinity,
+    count,
+  };
   if (id) pick.id = id;
   if (tokenHint !== undefined) pick.tokenHint = tokenHint;
   if (affinities.length > 0) pick.affinities = affinities;
@@ -276,14 +296,18 @@ export function normalizeSummaryPick(
   pick.setupMode = setupMode;
   const withMaxOverrides = applyVitalMaxOverrides(
     normalizeVitals(entry?.vitals),
-    attackerConfig?.vitalsMax,
+    delverConfig?.vitalsMax,
   );
   pick.vitals = withMaxOverrides;
   return pick;
 }
 
-export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AFFINITY, index = 0 } = {}) {
-  const fallbackType = entry?.source === "room" ? "room" : "defender";
+export function normalizeCardEntry(entry, {
+  dungeonAffinity = DEFAULT_DUNGEON_AFFINITY,
+  index = 0,
+  motivationRules,
+} = {}) {
+  const fallbackType = entry?.source === "room" ? "room" : "warden";
   const type = normalizeCardType(entry?.type) || fallbackType;
   const affinity = normalizeCardAffinity(
     entry?.affinity,
@@ -305,8 +329,18 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
     ? []
     : normalizeMotivationKinds(
       entry?.motivations,
-      entry?.motivation || entry?.role || (type === "attacker" ? "attacking" : "defending"),
+      entry?.motivation || entry?.role || (type === "delver" ? "attacking" : "defending"),
+      { motivationRules },
     );
+  const resolvedMotivation = type === "room"
+    ? {
+      motivationProfile: normalizeMotivationProfile(entry?.motivationProfile, { rules: motivationRules }),
+    }
+    : resolveMotivationBehaviorProfile({
+      rules: motivationRules,
+      motivations,
+      motivationProfile: normalizeMotivationProfile(entry?.motivationProfile, { rules: motivationRules }),
+    });
   const id = typeof entry?.id === "string" && entry.id.trim()
     ? entry.id.trim()
     : `card_${type}_${index + 1}`;
@@ -320,6 +354,7 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
     affinities: normalizedAffinities,
     expressions,
     motivations,
+    motivationProfile: resolvedMotivation.motivationProfile,
     setupMode: normalizeSetupMode(entry?.setupMode),
     roomSize: type === "room" ? normalizeRoomCardSize(entry?.roomSize ?? entry?.size) : undefined,
     tokenHint,
@@ -329,11 +364,11 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
   return card;
 }
 
-export function normalizeCardSet(cardSet, { dungeonAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+export function normalizeCardSet(cardSet, { dungeonAffinity = DEFAULT_DUNGEON_AFFINITY, motivationRules } = {}) {
   if (!Array.isArray(cardSet)) return [];
   const seen = new Set();
   return cardSet
-    .map((entry, index) => normalizeCardEntry(entry, { dungeonAffinity, index }))
+    .map((entry, index) => normalizeCardEntry(entry, { dungeonAffinity, index, motivationRules }))
     .filter((entry) => {
       if (!entry || !entry.id) return false;
       if (seen.has(entry.id)) return false;
@@ -358,7 +393,7 @@ function cardEntryToRoomPick(card, dungeonAffinity) {
   );
 }
 
-function cardEntryToDefenderPick(card, dungeonAffinity) {
+function cardEntryToWardenPick(card, dungeonAffinity) {
   return normalizeSummaryPick(
     {
       id: card.id,
@@ -374,7 +409,7 @@ function cardEntryToDefenderPick(card, dungeonAffinity) {
   );
 }
 
-function cardEntryToAttackerPick(card, dungeonAffinity) {
+function cardEntryToDelverPick(card, dungeonAffinity) {
   return normalizeSummaryPick(
     {
       id: card.id,
@@ -390,9 +425,9 @@ function cardEntryToAttackerPick(card, dungeonAffinity) {
   );
 }
 
-function cardEntryToAttackerConfig(card, dungeonAffinity) {
-  const affinityMap = buildAffinityMapForAttackerConfig(card.affinities || []);
-  const vitalsConfig = buildVitalsConfigForAttacker(card.vitals);
+function cardEntryToDelverConfig(card, dungeonAffinity) {
+  const affinityMap = buildAffinityMapForDelverConfig(card.affinities || []);
+  const vitalsConfig = buildVitalsConfigForDelver(card.vitals);
   return {
     setupMode: normalizeSetupMode(card.setupMode),
     affinities: affinityMap.affinities,
@@ -402,9 +437,9 @@ function cardEntryToAttackerConfig(card, dungeonAffinity) {
   };
 }
 
-function reduceAttackerConfigsToCards(attackerConfigs = [], dungeonAffinity = DEFAULT_DUNGEON_AFFINITY) {
+function reduceDelverConfigsToCards(delverConfigs = [], dungeonAffinity = DEFAULT_DUNGEON_AFFINITY) {
   const grouped = new Map();
-  attackerConfigs.forEach((config) => {
+  delverConfigs.forEach((config) => {
     if (!config || typeof config !== "object" || Array.isArray(config)) return;
     const normalizedConfig = {
       setupMode: normalizeSetupMode(config.setupMode),
@@ -421,15 +456,15 @@ function reduceAttackerConfigsToCards(attackerConfigs = [], dungeonAffinity = DE
     }
     grouped.set(signature, {
       setupMode: normalizedConfig.setupMode,
-      affinities: attackerConfigToAffinityEntries(config, dungeonAffinity),
-      vitals: attackerConfigToVitals(config),
+      affinities: delverConfigToAffinityEntries(config, dungeonAffinity),
+      vitals: delverConfigToVitals(config),
       count: 1,
     });
   });
 
   return Array.from(grouped.values()).map((entry, index) => ({
-    id: `card_attacker_${index + 1}`,
-    type: "attacker",
+    id: `card_delver_${index + 1}`,
+    type: "delver",
     source: "actor",
     count: entry.count,
     affinity: entry.affinities[0]?.kind || dungeonAffinity,
@@ -453,10 +488,10 @@ export function buildCardSetFromSummary(summary) {
 
   const rooms = Array.isArray(summary?.rooms) ? summary.rooms : [];
   const actors = Array.isArray(summary?.actors) ? summary.actors : [];
-  const attackerConfigs = Array.isArray(summary?.attackerConfigs)
-    ? summary.attackerConfigs.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
-    : summary?.attackerConfig && typeof summary.attackerConfig === "object"
-      ? [summary.attackerConfig]
+  const delverConfigs = Array.isArray(summary?.delverConfigs)
+    ? summary.delverConfigs.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+    : summary?.delverConfig && typeof summary.delverConfig === "object"
+      ? [summary.delverConfig]
       : [];
 
   const roomCards = rooms.map((entry, index) => normalizeCardEntry(
@@ -480,8 +515,8 @@ export function buildCardSetFromSummary(summary) {
       entry?.motivations,
       entry?.motivation || entry?.role || "defending",
     );
-    const attacker = motivations.some((motivation) => isAttackingMotivation(motivation));
-    const type = attacker ? "attacker" : "defender";
+    const delver = motivations.some((motivation) => isAttackingMotivation(motivation));
+    const type = delver ? "delver" : "warden";
     return normalizeCardEntry(
     {
       id: entry?.id || `card_${type}_${index + 1}`,
@@ -499,11 +534,11 @@ export function buildCardSetFromSummary(summary) {
   );
   });
 
-  const hasAttackerCardsFromActors = actorCards.some((card) => card?.type === "attacker");
-  const attackerCardsFromConfigs = hasAttackerCardsFromActors
+  const hasDelverCardsFromActors = actorCards.some((card) => card?.type === "delver");
+  const delverCardsFromConfigs = hasDelverCardsFromActors
     ? []
-    : reduceAttackerConfigsToCards(attackerConfigs, dungeonAffinity);
-  return normalizeCardSet([...roomCards, ...attackerCardsFromConfigs, ...actorCards], { dungeonAffinity });
+    : reduceDelverConfigsToCards(delverConfigs, dungeonAffinity);
+  return normalizeCardSet([...roomCards, ...delverCardsFromConfigs, ...actorCards], { dungeonAffinity });
 }
 
 export function extractSummaryFromCardSet(summary) {
@@ -520,16 +555,16 @@ export function extractSummaryFromCardSet(summary) {
 
   const cardSet = normalizeCardSet(cardInput, { dungeonAffinity });
   const roomCards = cardSet.filter((card) => card.type === "room");
-  const attackerCards = cardSet.filter((card) => card.type === "attacker");
-  const actorCards = cardSet.filter((card) => card.type === "attacker" || card.type === "defender");
+  const delverCards = cardSet.filter((card) => card.type === "delver");
+  const actorCards = cardSet.filter((card) => card.type === "delver" || card.type === "warden");
 
   const rooms = roomCards.map((card) => cardEntryToRoomPick(card, dungeonAffinity));
   const actors = actorCards.map((card) => (
-    card.type === "attacker"
-      ? cardEntryToAttackerPick(card, dungeonAffinity)
-      : cardEntryToDefenderPick(card, dungeonAffinity)
+    card.type === "delver"
+      ? cardEntryToDelverPick(card, dungeonAffinity)
+      : cardEntryToWardenPick(card, dungeonAffinity)
   ));
-  const attackerConfigs = expandAttackerConfigsFromCards(attackerCards, dungeonAffinity);
+  const delverConfigs = expandDelverConfigsFromCards(delverCards, dungeonAffinity);
   const layoutFromCards = deriveLayoutFromRoomCards(roomCards);
   const roomDesignFromCards = buildRoomDesignFromRoomCards(roomCards);
 
@@ -553,14 +588,14 @@ export function extractSummaryFromCardSet(summary) {
     };
   }
 
-  if (attackerConfigs.length > 0) {
-    resolved.attackerConfigs = attackerConfigs;
-    resolved.attackerConfig = { ...attackerConfigs[0] };
-    resolved.attackerCount = attackerConfigs.length;
+  if (delverConfigs.length > 0) {
+    resolved.delverConfigs = delverConfigs;
+    resolved.delverConfig = { ...delverConfigs[0] };
+    resolved.delverCount = delverConfigs.length;
   } else {
-    delete resolved.attackerConfigs;
-    delete resolved.attackerConfig;
-    delete resolved.attackerCount;
+    delete resolved.delverConfigs;
+    delete resolved.delverConfig;
+    delete resolved.delverCount;
   }
 
   return resolved;
@@ -570,7 +605,7 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
   const normalizedPick = normalizeSummaryPick(pick, {
     dungeonAffinity,
     source: kind === "room" ? "room" : "actor",
-    attackerConfig: pick?.attackerConfig,
+    delverConfig: pick?.delverConfig,
   });
   const cost = normalizedPick.tokenHint || 1;
   const subType = kind === "room" ? "static" : "dynamic";
@@ -627,24 +662,24 @@ export function buildSelectionsFromSummary(summary) {
   const dungeonAffinity = typeof resolvedSummary?.dungeonAffinity === "string"
     ? resolvedSummary.dungeonAffinity
     : DEFAULT_DUNGEON_AFFINITY;
-  const attackerConfigs = Array.isArray(resolvedSummary?.attackerConfigs)
-    ? resolvedSummary.attackerConfigs
+  const delverConfigs = Array.isArray(resolvedSummary?.delverConfigs)
+    ? resolvedSummary.delverConfigs
       .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
-    : resolvedSummary?.attackerConfig && typeof resolvedSummary.attackerConfig === "object"
-      ? [resolvedSummary.attackerConfig]
+    : resolvedSummary?.delverConfig && typeof resolvedSummary.delverConfig === "object"
+      ? [resolvedSummary.delverConfig]
       : [];
-  const fallbackAttackerConfig = attackerConfigs[0];
+  const fallbackDelverConfig = delverConfigs[0];
   const rooms = Array.isArray(resolvedSummary?.rooms) ? resolvedSummary.rooms : [];
   const actors = Array.isArray(resolvedSummary?.actors) ? resolvedSummary.actors : [];
   const roomSelections = rooms.map((pick, index) => pickToSelection(pick, "room", index, dungeonAffinity));
-  let attackerConfigIndex = 0;
+  let delverConfigIndex = 0;
   const actorSelections = actors.map((pick, index) => pickToSelection(
     {
       ...pick,
-      attackerConfig: pickHasAttackingMotivation(pick)
+      delverConfig: pickHasAttackingMotivation(pick)
         ? (
-          attackerConfigs[attackerConfigIndex++ % Math.max(1, attackerConfigs.length)]
-          || fallbackAttackerConfig
+          delverConfigs[delverConfigIndex++ % Math.max(1, delverConfigs.length)]
+          || fallbackDelverConfig
         )
         : undefined,
     },

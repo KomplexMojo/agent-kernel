@@ -7,6 +7,9 @@ import { generateGridLayoutFromInput } from "../personas/configurator/level-layo
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
 import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
+import { buildAmbientAffinityPressure } from "../personas/configurator/affinity-pressure.js";
+import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../personas/configurator/affinity-rules.js";
+import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { runLlmSession } from "../personas/orchestrator/llm-session.js";
 import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
 import { createRuntime } from "../runner/runtime.js";
@@ -42,6 +45,13 @@ import {
   buildLlmConstraintSection,
   buildLlmRepairPromptTemplate,
 } from "../contracts/domain-constants.js";
+import {
+  createDefaultResourceBundleArtifact,
+  encodeRgbaToPng,
+  listResourceBundleAssetFiles,
+  renderBoardWithResourceBundle,
+  validateResourceBundleArtifact,
+} from "../render/resource-bundle.js";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
@@ -59,11 +69,62 @@ const SCHEMAS = Object.freeze({
   effect: "agent-kernel/Effect",
   telemetry: "agent-kernel/TelemetryRecord",
   runSummary: "agent-kernel/RunSummary",
+  resourceBundle: "agent-kernel/ResourceBundleArtifact",
+  ipfsPackage: "agent-kernel/IpfsPackageArtifact",
+  ipfsSessionManifest: "agent-kernel/IpfsSessionManifestArtifact",
+  runtimeCheckpoint: "agent-kernel/RuntimeCheckpointArtifact",
   affinityPreset: "agent-kernel/AffinityPresetArtifact",
   actorLoadout: "agent-kernel/ActorLoadoutArtifact",
+  affinityRules: "agent-kernel/AffinityRulesArtifact",
+  motivationRules: "agent-kernel/MotivationRulesArtifact",
   affinitySummary: "agent-kernel/AffinitySummary",
   capturedInput: "agent-kernel/CapturedInputArtifact",
 });
+
+const IPFS_PACKAGE_VERSION = 1;
+const IPFS_ROOT_MANIFEST_FILE = "ipfs-package.json";
+const IPFS_CORE_DIR = "core";
+const IPFS_SESSIONS_DIR = "sessions";
+const IPFS_SESSION_INDEX_FILE = `${IPFS_SESSIONS_DIR}/index.json`;
+const CORE_REQUIRED_CANDIDATE_FILES = Object.freeze([
+  "bundle.json",
+  "manifest.json",
+  "spec.json",
+  "intent.json",
+  "plan.json",
+  "sim-config.json",
+  "initial-state.json",
+  "resource-bundle.json",
+  "affinity-rules.json",
+  "motivation-rules.json",
+  "telemetry.json",
+]);
+const CORE_OPTIONAL_CANDIDATE_FILES = Object.freeze([
+  "budget.json",
+  "price-list.json",
+  "budget-receipt.json",
+  "budget-allocation.json",
+  "solver-request.json",
+  "solver-result.json",
+  "affinity-summary.json",
+]);
+const SESSION_REQUIRED_BASE_FILES = Object.freeze([
+  "checkpoint-state.json",
+  "action-log.json",
+  "run-summary.json",
+]);
+const SESSION_REQUIRED_WHEN_PRESENT_FILES = Object.freeze([
+  "runtime-decision-captures.json",
+  "resolved-sim-config.json",
+  "resolved-initial-state.json",
+]);
+const SESSION_OPTIONAL_CANDIDATE_FILES = Object.freeze([
+  "tick-frames.json",
+  "effects-log.json",
+  "replay-summary.json",
+  "replay-tick-frames.json",
+  "inspect-summary.json",
+]);
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -108,6 +169,49 @@ function assertSchema(artifact, expectedSchema) {
   }
 }
 
+function normalizeArtifactWithSchema({
+  artifact,
+  expectedSchema,
+  normalizeArtifact,
+  label,
+} = {}) {
+  assertSchema(artifact, expectedSchema);
+  const normalized = normalizeArtifact(artifact);
+  if (!normalized.ok) {
+    const details = normalized.errors.map((entry) => `${entry.field}:${entry.code}`).join(", ");
+    throw new Error(`${label} invalid: ${details}`);
+  }
+  return normalized.value;
+}
+
+async function readResolvedRulesArtifact({
+  path,
+  readJson,
+  expectedSchema,
+  normalizeArtifact,
+  resolveDefaultArtifact,
+  label,
+} = {}) {
+  if (!path) {
+    return resolveDefaultArtifact();
+  }
+  const artifact = await readJson(path);
+  return normalizeArtifactWithSchema({
+    artifact,
+    expectedSchema,
+    normalizeArtifact,
+    label,
+  });
+}
+
+function refsEqual(left, right) {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return left.id === right.id
+    && left.schema === right.schema
+    && left.schemaVersion === right.schemaVersion;
+}
+
 function addManifestEntry(entries, artifact, path) {
   if (!artifact || typeof artifact !== "object") {
     return;
@@ -138,6 +242,278 @@ function buildCapturedInputPath(adapter, index, outputRefId) {
   }
   const safeAdapter = sanitizeFileSegment(adapter);
   return `captured-input-${safeAdapter}-${index + 1}.json`;
+}
+
+function normalizeIpfsFileName(value) {
+  return String(value || "").replace(/^\/+/, "").trim();
+}
+
+function normalizeIpfsArtifactMap(artifactMap = {}) {
+  if (!isObject(artifactMap)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(artifactMap)
+      .map(([fileName, value]) => [normalizeIpfsFileName(fileName), value])
+      .filter(([fileName, value]) => isNonEmptyString(fileName) && value !== undefined),
+  );
+}
+
+function isCapturedInputFile(fileName = "") {
+  return /^captured-input-.*\.json$/i.test(String(fileName || ""));
+}
+
+function classifyCoreFiles(artifactMap = {}) {
+  const required = [];
+  const optional = [];
+  Object.keys(normalizeIpfsArtifactMap(artifactMap))
+    .sort((left, right) => left.localeCompare(right))
+    .forEach((fileName) => {
+      if (CORE_REQUIRED_CANDIDATE_FILES.includes(fileName) || isCapturedInputFile(fileName)) {
+        required.push(fileName);
+        return;
+      }
+      if (CORE_OPTIONAL_CANDIDATE_FILES.includes(fileName)) {
+        optional.push(fileName);
+        return;
+      }
+      optional.push(fileName);
+    });
+  return { required, optional };
+}
+
+function classifySessionFiles(artifactMap = {}) {
+  const normalized = normalizeIpfsArtifactMap(artifactMap);
+  const required = [];
+  const optional = [];
+  Object.keys(normalized)
+    .sort((left, right) => left.localeCompare(right))
+    .forEach((fileName) => {
+      const value = normalized[fileName];
+      if (SESSION_REQUIRED_BASE_FILES.includes(fileName)) {
+        required.push(fileName);
+        return;
+      }
+      if (SESSION_REQUIRED_WHEN_PRESENT_FILES.includes(fileName)) {
+        if (fileName === "runtime-decision-captures.json" && Array.isArray(value) && value.length === 0) {
+          optional.push(fileName);
+          return;
+        }
+        required.push(fileName);
+        return;
+      }
+      if (SESSION_OPTIONAL_CANDIDATE_FILES.includes(fileName) || isCapturedInputFile(fileName)) {
+        optional.push(fileName);
+        return;
+      }
+      optional.push(fileName);
+    });
+  return { required, optional };
+}
+
+function firstArtifactWithMeta(artifactMap = {}) {
+  return Object.values(normalizeIpfsArtifactMap(artifactMap))
+    .find((value) => isObject(value) && isObject(value.meta));
+}
+
+function resolveArtifactRunId(artifactMap = {}, fallback = "") {
+  const first = firstArtifactWithMeta(artifactMap);
+  const runId = first?.meta?.runId;
+  return isNonEmptyString(runId) ? runId : fallback;
+}
+
+function resolvePackageId({ packageId, coreArtifactMap = {}, sessionArtifactMap = {}, fallback = "ipfs-package" } = {}) {
+  if (isNonEmptyString(packageId)) {
+    return packageId.trim();
+  }
+  const bundleSpecRunId = coreArtifactMap?.["bundle.json"]?.spec?.meta?.runId;
+  if (isNonEmptyString(bundleSpecRunId)) {
+    return bundleSpecRunId.trim();
+  }
+  const runId = resolveArtifactRunId(coreArtifactMap, resolveArtifactRunId(sessionArtifactMap, ""));
+  if (isNonEmptyString(runId)) {
+    return runId.trim();
+  }
+  return fallback;
+}
+
+function buildSessionPaths({ sessionId, checkpointId }) {
+  const safeSessionId = sanitizeFileName(sessionId || "session");
+  const safeCheckpointId = sanitizeFileName(checkpointId || "checkpoint");
+  const checkpointDir = `${IPFS_SESSIONS_DIR}/${safeSessionId}/checkpoints/${safeCheckpointId}`;
+  return {
+    sessionId: safeSessionId,
+    checkpointId: safeCheckpointId,
+    manifestPath: `${IPFS_SESSIONS_DIR}/${safeSessionId}/session-manifest.json`,
+    checkpointDir,
+    checkpointPath: `${checkpointDir}/checkpoint-state.json`,
+  };
+}
+
+function buildResolvedIpfsPackageArtifact({
+  packageArtifact,
+  cid,
+  latestSession,
+} = {}) {
+  if (!packageArtifact) {
+    return null;
+  }
+  return {
+    ...packageArtifact,
+    rootCid: cid || packageArtifact.rootCid,
+    latestSession: latestSession || packageArtifact.latestSession,
+    sessions: latestSession ? [latestSession] : packageArtifact.sessions,
+  };
+}
+
+function buildIpfsSessionIndex({ nowIso, sessions = [] }) {
+  return {
+    generatedAt: typeof nowIso === "function" ? nowIso() : new Date().toISOString(),
+    sessions,
+  };
+}
+
+function buildIpfsPackageContents({
+  createMeta,
+  nowIso,
+  packageId,
+  previousPackageCid,
+  scope,
+  coreArtifactMap = {},
+  sessionArtifactMap = null,
+  sessionId = "",
+  checkpointId = "",
+  sessionStatus = "checkpoint",
+  producedBy = "cli-ipfs",
+} = {}) {
+  const normalizedCore = normalizeIpfsArtifactMap(coreArtifactMap);
+  const normalizedSession = sessionArtifactMap ? normalizeIpfsArtifactMap(sessionArtifactMap) : null;
+  const coreFiles = classifyCoreFiles(normalizedCore);
+  const sessionFiles = normalizedSession ? classifySessionFiles(normalizedSession) : null;
+  const packageRunId = resolveArtifactRunId(normalizedCore, resolveArtifactRunId(normalizedSession || {}, packageId));
+  const packageMeta = createMeta({ producedBy, runId: packageRunId || packageId });
+
+  let latestSession = null;
+  let sessionManifest = null;
+  const published = {
+    [IPFS_ROOT_MANIFEST_FILE]: null,
+    [IPFS_SESSION_INDEX_FILE]: buildIpfsSessionIndex({ nowIso, sessions: [] }),
+  };
+
+  Object.entries(normalizedCore).forEach(([fileName, payload]) => {
+    published[`${IPFS_CORE_DIR}/${fileName}`] = payload;
+  });
+
+  if (normalizedSession) {
+    const paths = buildSessionPaths({ sessionId, checkpointId });
+    const sessionRunId = resolveArtifactRunId(normalizedSession, packageRunId || packageId);
+    sessionManifest = {
+      schema: SCHEMAS.ipfsSessionManifest,
+      schemaVersion: 1,
+      meta: createMeta({ producedBy, runId: sessionRunId || paths.sessionId }),
+      packageId,
+      parentPackageCid: previousPackageCid,
+      sessionId: paths.sessionId,
+      checkpointId: paths.checkpointId,
+      checkpointPath: paths.checkpointPath,
+      requiredSessionFiles: sessionFiles.required,
+      optionalSessionFiles: sessionFiles.optional,
+      resumeMode: "snapshot_plus_replay",
+      status: sessionStatus,
+    };
+    latestSession = {
+      sessionId: paths.sessionId,
+      checkpointId: paths.checkpointId,
+      manifestPath: paths.manifestPath,
+      checkpointPath: paths.checkpointPath,
+      status: sessionStatus,
+    };
+    published[paths.manifestPath] = sessionManifest;
+    Object.entries(normalizedSession).forEach(([fileName, payload]) => {
+      published[`${paths.checkpointDir}/${fileName}`] = payload;
+    });
+    published[IPFS_SESSION_INDEX_FILE] = buildIpfsSessionIndex({ nowIso, sessions: [latestSession] });
+  }
+
+  const packageArtifact = {
+    schema: SCHEMAS.ipfsPackage,
+    schemaVersion: 1,
+    meta: packageMeta,
+    packageId,
+    packageVersion: IPFS_PACKAGE_VERSION,
+    scope,
+    previousPackageCid: previousPackageCid || undefined,
+    corePath: IPFS_CORE_DIR,
+    latestSessionIndexPath: IPFS_SESSION_INDEX_FILE,
+    requiredCoreFiles: coreFiles.required,
+    optionalCoreFiles: coreFiles.optional,
+    latestSession: latestSession || undefined,
+    sessions: latestSession ? [latestSession] : [],
+  };
+  published[IPFS_ROOT_MANIFEST_FILE] = packageArtifact;
+
+  return {
+    packageArtifact,
+    sessionManifest,
+    latestSession,
+    published,
+  };
+}
+
+function buildRuntimeCheckpointArtifact({
+  createMeta,
+  runId,
+  sessionId,
+  checkpointId,
+  status = "checkpoint",
+  tick = 0,
+  simConfig = null,
+  initialState = null,
+  runSummary = null,
+  actionLog = null,
+  runtimeState = null,
+  frameSummary = null,
+  runtimeDecisionSummary = null,
+  runtimeDecisionCaptureSummary = null,
+  metrics = {},
+  toRef,
+  producedBy = "cli-run",
+  view = {},
+} = {}) {
+  return {
+    schema: SCHEMAS.runtimeCheckpoint,
+    schemaVersion: 1,
+    meta: createMeta({ producedBy, runId }),
+    sessionId,
+    checkpointId,
+    tick,
+    status,
+    resumeMode: "snapshot_plus_replay",
+    simConfigRef: simConfig ? toRef(simConfig) : undefined,
+    initialStateRef: initialState ? toRef(initialState) : undefined,
+    runSummaryRef: runSummary ? toRef(runSummary) : undefined,
+    actionLogRef: actionLog?.meta?.id
+      ? {
+        id: actionLog.meta.id,
+        schema: actionLog.schema || "agent-kernel/ActionSequence",
+        schemaVersion: actionLog.schemaVersion || 1,
+      }
+      : undefined,
+    state: {
+      actionIndex: Array.isArray(actionLog?.actions) ? actionLog.actions.length : 0,
+      actionCount: Array.isArray(actionLog?.actions) ? actionLog.actions.length : 0,
+      frameCount: Number(metrics.frames) || 0,
+      effectCount: Number(metrics.effects) || 0,
+      runtime: isObject(runtimeState) ? runtimeState : {},
+      view: {
+        frameSummary: frameSummary || null,
+        runtimeDecisions: runtimeDecisionSummary || null,
+        runtimeDecisionCaptures: runtimeDecisionCaptureSummary || null,
+        ...view,
+      },
+    },
+    artifacts: [simConfig, initialState, runSummary].filter(Boolean).map((artifact) => toRef(artifact)),
+  };
 }
 
 function parsePositiveNumber(value, label) {
@@ -483,7 +859,7 @@ async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy
   };
 }
 
-function buildBuildArtifacts(buildResult, { includeBudgetAllocation = null, capturedInputs = [] } = {}) {
+function buildBuildArtifacts(buildResult, { includeBudgetAllocation = null, capturedInputs = [], resourceBundle = null } = {}) {
   const artifacts = [];
   if (buildResult.intent) artifacts.push(buildResult.intent);
   if (buildResult.plan) artifacts.push(buildResult.plan);
@@ -493,8 +869,12 @@ function buildBuildArtifacts(buildResult, { includeBudgetAllocation = null, capt
   if (includeBudgetAllocation) artifacts.push(includeBudgetAllocation);
   if (buildResult.solverRequest) artifacts.push(buildResult.solverRequest);
   if (buildResult.solverResult) artifacts.push(buildResult.solverResult);
+  if (buildResult.affinityRules) artifacts.push(buildResult.affinityRules);
+  if (buildResult.motivationRules) artifacts.push(buildResult.motivationRules);
+  if (buildResult.affinitySummary) artifacts.push(buildResult.affinitySummary);
   if (buildResult.simConfig) artifacts.push(buildResult.simConfig);
   if (buildResult.initialState) artifacts.push(buildResult.initialState);
+  if (resourceBundle) artifacts.push(resourceBundle);
   capturedInputs.forEach((entry) => {
     artifacts.push(entry.artifact || entry);
   });
@@ -509,7 +889,7 @@ function buildBuildArtifacts(buildResult, { includeBudgetAllocation = null, capt
   return artifacts;
 }
 
-function buildBuildManifestEntries(buildResult, { includeBudgetAllocation = null, capturedInputs = [] } = {}) {
+function buildBuildManifestEntries(buildResult, { includeBudgetAllocation = null, capturedInputs = [], resourceBundle = null } = {}) {
   const entries = [];
   addManifestEntry(entries, buildResult.intent, "intent.json");
   addManifestEntry(entries, buildResult.plan, "plan.json");
@@ -519,8 +899,12 @@ function buildBuildManifestEntries(buildResult, { includeBudgetAllocation = null
   addManifestEntry(entries, includeBudgetAllocation, "budget-allocation.json");
   addManifestEntry(entries, buildResult.solverRequest, "solver-request.json");
   addManifestEntry(entries, buildResult.solverResult, "solver-result.json");
+  addManifestEntry(entries, buildResult.affinityRules, "affinity-rules.json");
+  addManifestEntry(entries, buildResult.motivationRules, "motivation-rules.json");
+  addManifestEntry(entries, buildResult.affinitySummary, "affinity-summary.json");
   addManifestEntry(entries, buildResult.simConfig, "sim-config.json");
   addManifestEntry(entries, buildResult.initialState, "initial-state.json");
+  addManifestEntry(entries, resourceBundle, "resource-bundle.json");
   capturedInputs.forEach((entry, index) => {
     const artifact = entry.artifact || entry;
     const capturePath = entry.path || buildCapturedInputPath("llm", index, artifact?.meta?.id);
@@ -537,14 +921,117 @@ function buildBuildManifestEntries(buildResult, { includeBudgetAllocation = null
   return entries;
 }
 
+async function loadResourceBundleFromArg({
+  source,
+  readJson,
+  createIpfsAdapter,
+} = {}) {
+  if (!isNonEmptyString(source)) {
+    return null;
+  }
+  const trimmed = source.trim();
+  if (trimmed.endsWith(".json") || trimmed.includes("/") || trimmed.startsWith(".")) {
+    return readJson(trimmed);
+  }
+  const cidValue = trimmed.startsWith("ipfs://") ? trimmed.slice("ipfs://".length) : trimmed;
+  const slashIndex = cidValue.indexOf("/");
+  const cid = slashIndex === -1 ? cidValue : cidValue.slice(0, slashIndex);
+  const path = slashIndex === -1 ? "resource-bundle.json" : cidValue.slice(slashIndex + 1) || "resource-bundle.json";
+  const adapter = await createIpfsAdapter();
+  return adapter.fetchJson(cid, path);
+}
+
+async function resolveResourceBundleArtifact({
+  args,
+  readJson,
+  createIpfsAdapter,
+  createMeta,
+  runId,
+  producedBy,
+  writeBinary,
+  outDir,
+  join,
+} = {}) {
+  const emitVisualAssets = Boolean(args?.["emit-visual-assets"]);
+  const provided = await loadResourceBundleFromArg({
+    source: args?.["resource-bundle"],
+    readJson,
+    createIpfsAdapter,
+  });
+  let artifact = provided || createDefaultResourceBundleArtifact({
+    createMeta,
+    runId,
+    producedBy,
+    emitVisualAssets,
+  });
+  if (emitVisualAssets && Number(artifact?.schemaVersion) < 2) {
+    artifact = createDefaultResourceBundleArtifact({
+      createMeta,
+      runId,
+      producedBy,
+      emitVisualAssets: true,
+    });
+  }
+  const validation = validateResourceBundleArtifact(artifact);
+  if (!validation.ok) {
+    throw new Error(`resource bundle invalid: ${validation.errors.join(", ")}`);
+  }
+  if (emitVisualAssets && typeof writeBinary === "function" && outDir && typeof join === "function") {
+    const assetFiles = listResourceBundleAssetFiles(artifact);
+    for (let i = 0; i < assetFiles.length; i += 1) {
+      const assetFile = assetFiles[i];
+      await writeBinary(join(outDir, assetFile.relativePath), assetFile.bytes);
+    }
+  }
+  return artifact;
+}
+
+async function renderVisualOutput({
+  simConfig,
+  initialState,
+  resourceBundle,
+  writeBinary,
+  outDir,
+  join,
+  fileName,
+} = {}) {
+  if (typeof writeBinary !== "function") {
+    return null;
+  }
+  const tiles = Array.isArray(simConfig?.layout?.data?.tiles)
+    ? simConfig.layout.data.tiles
+    : null;
+  if (!tiles || tiles.length === 0) {
+    throw new Error("visual render failed: sim-config layout is missing tile rows.");
+  }
+  const rendered = await renderBoardWithResourceBundle({
+    tiles,
+    actors: initialState?.actors || [],
+    resourceBundle,
+  });
+  if (!rendered.ok) {
+    throw new Error(`visual render failed: ${rendered.reason || "unknown"}.`);
+  }
+  const png = encodeRgbaToPng(rendered);
+  const outputPath = join(outDir, fileName);
+  await writeBinary(outputPath, png);
+  return {
+    path: outputPath,
+    width: rendered.width,
+    height: rendered.height,
+  };
+}
+
 export function createCommandKernel(host = {}) {
   const readJson = requireHostFunction(host, "readJson");
   const readText = requireHostFunction(host, "readText");
   const writeJson = requireHostFunction(host, "writeJson");
+  const writeBinary = typeof host.writeBinary === "function" ? host.writeBinary : null;
   const resolvePath = requireHostFunction(host, "resolvePath");
   const join = requireHostFunction(host, "join");
   const dirname = requireHostFunction(host, "dirname");
   const exists = requireHostFunction(host, "exists");
+  const listFiles = typeof host.listFiles === "function" ? host.listFiles : null;
   const makeId = requireHostFunction(host, "makeId");
   const createMeta = requireHostFunction(host, "createMeta");
   const toRef = requireHostFunction(host, "toRef");
@@ -558,11 +1045,98 @@ export function createCommandKernel(host = {}) {
   const isLocalBaseUrl = requireHostFunction(host, "isLocalBaseUrl");
   const createSolverAdapter = requireHostFunction(host, "createSolverAdapter");
   const createLlmAdapter = requireHostFunction(host, "createLlmAdapter");
+  const createIpfsAdapter = typeof host.createIpfsAdapter === "function" ? host.createIpfsAdapter : null;
   const nowIso = requireHostFunction(host, "nowIso");
 
   const log = typeof host.log === "function" ? host.log : () => {};
   const warn = typeof host.warn === "function" ? host.warn : () => {};
   const cwd = typeof host.cwd === "function" ? host.cwd : () => ".";
+
+  async function listJsonFiles(dirPath) {
+    if (!dirPath || typeof listFiles !== "function") {
+      return [];
+    }
+    const listed = await listFiles(dirPath);
+    if (!Array.isArray(listed)) {
+      return [];
+    }
+    return listed
+      .map((entry) => normalizeIpfsFileName(entry))
+      .filter((entry) => entry.endsWith(".json") && !entry.includes("/"));
+  }
+
+  async function readArtifactMapFromDir(dirPath, files = []) {
+    const artifactMap = {};
+    const uniqueFiles = Array.from(new Set(files.map((fileName) => normalizeIpfsFileName(fileName)).filter(Boolean)));
+    for (const fileName of uniqueFiles) {
+      const filePath = join(dirPath, fileName);
+      if (!exists(filePath)) {
+        continue;
+      }
+      artifactMap[fileName] = await readJson(filePath);
+    }
+    return artifactMap;
+  }
+
+  async function resolveCoreArtifactMap({ coreDir, artifactMap }) {
+    if (isObject(artifactMap)) {
+      return normalizeIpfsArtifactMap(artifactMap);
+    }
+    if (!isNonEmptyString(coreDir)) {
+      return {};
+    }
+    const resolvedCoreDir = resolvePath(coreDir);
+    if (!resolvedCoreDir) {
+      return {};
+    }
+    const files = new Set([...CORE_REQUIRED_CANDIDATE_FILES, ...CORE_OPTIONAL_CANDIDATE_FILES]);
+    const manifestPath = join(resolvedCoreDir, "manifest.json");
+    if (exists(manifestPath)) {
+      const manifest = await readJson(manifestPath);
+      if (isNonEmptyString(manifest?.specPath)) {
+        files.add(manifest.specPath);
+      }
+      if (Array.isArray(manifest?.artifacts)) {
+        manifest.artifacts.forEach((entry) => {
+          if (isNonEmptyString(entry?.path)) {
+            files.add(entry.path);
+          }
+        });
+      }
+    }
+    const listed = await listJsonFiles(resolvedCoreDir);
+    listed.forEach((fileName) => {
+      if (isCapturedInputFile(fileName)) {
+        files.add(fileName);
+      }
+    });
+    return readArtifactMapFromDir(resolvedCoreDir, Array.from(files));
+  }
+
+  async function resolveSessionArtifactMap({ sessionDir, artifactMap }) {
+    if (isObject(artifactMap)) {
+      return normalizeIpfsArtifactMap(artifactMap);
+    }
+    if (!isNonEmptyString(sessionDir)) {
+      return {};
+    }
+    const resolvedSessionDir = resolvePath(sessionDir);
+    if (!resolvedSessionDir) {
+      return {};
+    }
+    const files = new Set([
+      ...SESSION_REQUIRED_BASE_FILES,
+      ...SESSION_REQUIRED_WHEN_PRESENT_FILES,
+      ...SESSION_OPTIONAL_CANDIDATE_FILES,
+    ]);
+    const listed = await listJsonFiles(resolvedSessionDir);
+    listed.forEach((fileName) => {
+      if (isCapturedInputFile(fileName)) {
+        files.add(fileName);
+      }
+    });
+    return readArtifactMapFromDir(resolvedSessionDir, Array.from(files));
+  }
 
   async function solve(args) {
     const runId = args["run-id"] || makeId("run");
@@ -645,11 +1219,36 @@ export function createCommandKernel(host = {}) {
     let result = null;
     let manifestEntries = [];
     let capturedInputs = [];
+    let resourceBundle = null;
     const producedBy = "cli-build";
     const baseDir = dirname(specPath);
+    const affinityRulesPath = resolvePath(args["affinity-rules"], baseDir);
+    const motivationRulesPath = resolvePath(args["motivation-rules"], baseDir);
 
     try {
       spec = await readJson(specPath);
+      if (affinityRulesPath) {
+        const affinityRules = normalizeArtifactWithSchema({
+          artifact: await readJson(affinityRulesPath),
+          expectedSchema: SCHEMAS.affinityRules,
+          normalizeArtifact: normalizeAffinityRulesArtifact,
+          label: "affinity rules",
+        });
+        spec.configurator = spec.configurator || {};
+        spec.configurator.inputs = spec.configurator.inputs || {};
+        spec.configurator.inputs.affinityRules = affinityRules;
+      }
+      if (motivationRulesPath) {
+        const motivationRules = normalizeArtifactWithSchema({
+          artifact: await readJson(motivationRulesPath),
+          expectedSchema: SCHEMAS.motivationRules,
+          normalizeArtifact: normalizeMotivationRulesArtifact,
+          label: "motivation rules",
+        });
+        spec.configurator = spec.configurator || {};
+        spec.configurator.inputs = spec.configurator.inputs || {};
+        spec.configurator.inputs.motivationRules = motivationRules;
+      }
       outDir = resolvePath(args["out-dir"]) || defaultBuildOutDir(spec);
 
       let solver = null;
@@ -703,12 +1302,33 @@ export function createCommandKernel(host = {}) {
       if (result.solverResult) {
         await writeJson(join(outDir, "solver-result.json"), result.solverResult);
       }
+      if (result.affinityRules) {
+        await writeJson(join(outDir, "affinity-rules.json"), result.affinityRules);
+      }
+      if (result.motivationRules) {
+        await writeJson(join(outDir, "motivation-rules.json"), result.motivationRules);
+      }
+      if (result.affinitySummary) {
+        await writeJson(join(outDir, "affinity-summary.json"), result.affinitySummary);
+      }
       if (result.simConfig) {
         await writeJson(join(outDir, "sim-config.json"), result.simConfig);
       }
       if (result.initialState) {
         await writeJson(join(outDir, "initial-state.json"), result.initialState);
       }
+      resourceBundle = await resolveResourceBundleArtifact({
+        args,
+        readJson,
+        createIpfsAdapter,
+        createMeta,
+        runId: spec.meta.runId,
+        producedBy,
+        writeBinary,
+        outDir,
+        join,
+      });
+      await writeJson(join(outDir, "resource-bundle.json"), resourceBundle);
 
       const captures = Array.isArray(spec.adapters?.capture) ? spec.adapters.capture : [];
       if (captures.length > 0) {
@@ -728,8 +1348,8 @@ export function createCommandKernel(host = {}) {
         }
       }
 
-      const bundleArtifacts = buildBuildArtifacts(result, { capturedInputs });
-      manifestEntries = buildBuildManifestEntries(result, { capturedInputs });
+      const bundleArtifacts = buildBuildArtifacts(result, { capturedInputs, resourceBundle });
+      manifestEntries = buildBuildManifestEntries(result, { capturedInputs, resourceBundle });
 
       const schemaEntries = filterSchemaCatalogEntries({
         schemaRefs: [
@@ -740,6 +1360,7 @@ export function createCommandKernel(host = {}) {
 
       const bundle = {
         spec: result.spec,
+        resourceBundleRef: toRef(resourceBundle),
         schemas: schemaEntries,
         artifacts: bundleArtifacts,
       };
@@ -753,6 +1374,7 @@ export function createCommandKernel(host = {}) {
           source: spec.meta.source,
           correlationId: spec.meta.correlationId,
         },
+        resourceBundleRef: toRef(resourceBundle),
         schemas: schemaEntries,
         artifacts: manifestEntries,
       };
@@ -773,6 +1395,18 @@ export function createCommandKernel(host = {}) {
       });
       await writeJson(join(outDir, "telemetry.json"), telemetry);
 
+      if (args["visual-output"] === "png" && result.simConfig && result.initialState) {
+        await renderVisualOutput({
+          simConfig: result.simConfig,
+          initialState: result.initialState,
+          resourceBundle,
+          writeBinary,
+          outDir,
+          join,
+          fileName: "visual-preview.png",
+        });
+      }
+
       log(`build: wrote ${outDir}`);
       return { outDir };
     } catch (error) {
@@ -781,7 +1415,7 @@ export function createCommandKernel(host = {}) {
       outDir = outDir || defaultRunCommandOutDir("build", runId);
       let artifactRefs = buildArtifactRefs(manifestEntries);
       if (artifactRefs.length === 0 && result) {
-        const fallbackEntries = buildBuildManifestEntries(result, { capturedInputs });
+        const fallbackEntries = buildBuildManifestEntries(result, { capturedInputs, resourceBundle });
         artifactRefs = buildArtifactRefs(fallbackEntries);
       }
       const telemetry = buildBuildTelemetryRecord({
@@ -806,6 +1440,8 @@ export function createCommandKernel(host = {}) {
     const actionsPath = resolvePath(args.actions);
     const affinityPresetsPath = resolvePath(args["affinity-presets"]);
     const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
+    const affinityRulesPath = resolvePath(args["affinity-rules"]);
+    const motivationRulesPath = resolvePath(args["motivation-rules"]);
     const affinitySummaryArg = args["affinity-summary"];
     const wasmPath = resolvePath(args.wasm || defaultWasmPath);
     const ticks = args.ticks !== undefined ? Number(args.ticks) : 1;
@@ -832,6 +1468,8 @@ export function createCommandKernel(host = {}) {
       || simConfig?.meta?.runId
       || initialState?.meta?.runId
       || makeId("run");
+    const sessionId = isNonEmptyString(args["session-id"]) ? String(args["session-id"]).trim() : runId;
+    const checkpointId = isNonEmptyString(args["checkpoint-id"]) ? String(args["checkpoint-id"]).trim() : `tick-${ticks}`;
     const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("run", runId);
 
     if (executionPolicyPath) {
@@ -853,6 +1491,22 @@ export function createCommandKernel(host = {}) {
       affinityLoadouts = await readJson(affinityLoadoutsPath);
       assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
     }
+    const affinityRules = await readResolvedRulesArtifact({
+      path: affinityRulesPath,
+      readJson,
+      expectedSchema: SCHEMAS.affinityRules,
+      normalizeArtifact: normalizeAffinityRulesArtifact,
+      resolveDefaultArtifact: () => resolveAffinityRules(),
+      label: "affinity rules",
+    });
+    const motivationRules = await readResolvedRulesArtifact({
+      path: motivationRulesPath,
+      readJson,
+      expectedSchema: SCHEMAS.motivationRules,
+      normalizeArtifact: normalizeMotivationRulesArtifact,
+      resolveDefaultArtifact: () => resolveMotivationRules(),
+      label: "motivation rules",
+    });
 
     let actionLog = null;
     if (actionsPath) {
@@ -895,6 +1549,21 @@ export function createCommandKernel(host = {}) {
       vitalDefaults,
     });
     const overridesApplied = tileOverrideResult.mutated || actorOverrideResult.mutated;
+    const resolvedAffinityRulesRef = toRef(affinityRules) || simConfig?.affinityRulesRef || initialState?.affinityRulesRef;
+    const resolvedMotivationRulesRef = toRef(motivationRules) || simConfig?.motivationRulesRef || initialState?.motivationRulesRef;
+    const rulesRefsChanged = !refsEqual(simConfig?.affinityRulesRef, resolvedAffinityRulesRef)
+      || !refsEqual(initialState?.affinityRulesRef, resolvedAffinityRulesRef)
+      || !refsEqual(simConfig?.motivationRulesRef, resolvedMotivationRulesRef)
+      || !refsEqual(initialState?.motivationRulesRef, resolvedMotivationRulesRef);
+    if (resolvedAffinityRulesRef) {
+      simConfig.affinityRulesRef = resolvedAffinityRulesRef;
+      initialState.affinityRulesRef = resolvedAffinityRulesRef;
+    }
+    if (resolvedMotivationRulesRef) {
+      simConfig.motivationRulesRef = resolvedMotivationRulesRef;
+      initialState.motivationRulesRef = resolvedMotivationRulesRef;
+    }
+    const resolvedArtifactsChanged = overridesApplied || rulesRefsChanged;
 
     const affinitySummaryPath = wantsAffinitySummary
       ? (typeof affinitySummaryArg === "string" ? resolvePath(affinitySummaryArg) : join(outDir, "affinity-summary.json"))
@@ -902,10 +1571,17 @@ export function createCommandKernel(host = {}) {
     let affinitySummary = null;
     if (wantsAffinitySummary) {
       const traps = simConfig?.layout?.data?.traps;
+      const rooms = simConfig?.layout?.data?.rooms;
       const resolved = resolveAffinityEffects({
         presets: affinityPresets?.presets,
         loadouts: affinityLoadouts?.loadouts,
         baseVitalsByActorId: baseVitalsFromActors(initialState?.actors),
+        rooms: Array.isArray(rooms) ? rooms : [],
+        traps: Array.isArray(traps) ? traps : [],
+        affinityRules,
+      });
+      const ambientPressure = buildAmbientAffinityPressure({
+        rooms: Array.isArray(rooms) ? rooms : [],
         traps: Array.isArray(traps) ? traps : [],
       });
       affinitySummary = {
@@ -914,10 +1590,12 @@ export function createCommandKernel(host = {}) {
         meta: createMeta({ producedBy: "cli-run", runId }),
         presetsRef: toRef(affinityPresets),
         loadoutsRef: toRef(affinityLoadouts),
+        affinityRulesRef: resolvedAffinityRulesRef,
         simConfigRef: toRef(simConfig),
         initialStateRef: toRef(initialState),
         actors: resolved.actors,
         traps: resolved.traps,
+        ambientPressure,
       };
     }
 
@@ -931,12 +1609,16 @@ export function createCommandKernel(host = {}) {
 
     const tickFrames = runtime.getTickFrames();
     const effectLog = runtime.getEffectLog();
-    const runtimeDecisionCaptures = summarizeRuntimeDecisionCaptures(tickFrames).captures;
+    const runtimeDecisionSummary = summarizeRuntimeDecisions(tickFrames);
+    const runtimeDecisionCaptureSummary = summarizeRuntimeDecisionCaptures(tickFrames);
+    const runtimeDecisionCaptures = runtimeDecisionCaptureSummary.captures;
     const runSummary = {
       schema: SCHEMAS.runSummary,
       schemaVersion: 1,
       meta: createMeta({ producedBy: "cli-run", runId }),
       simConfigRef: toRef(simConfig),
+      affinityRulesRef: resolvedAffinityRulesRef,
+      motivationRulesRef: resolvedMotivationRulesRef,
       outcome: "unknown",
       metrics: {
         ticks,
@@ -944,16 +1626,43 @@ export function createCommandKernel(host = {}) {
         effects: effectLog.length,
       },
     };
+    const lastFrame = tickFrames.length > 0 ? summarizeFrame(tickFrames[tickFrames.length - 1]) : null;
+    const checkpointState = buildRuntimeCheckpointArtifact({
+      createMeta,
+      runId,
+      sessionId,
+      checkpointId,
+      status: "completed",
+      tick: lastFrame?.tick || ticks,
+      simConfig,
+      initialState,
+      runSummary,
+      actionLog,
+      runtimeState: typeof runtime.getState === "function" ? runtime.getState() : {},
+      frameSummary: lastFrame,
+      runtimeDecisionSummary,
+      runtimeDecisionCaptureSummary,
+      metrics: runSummary.metrics,
+      toRef,
+      view: {
+        resolvedSimConfigPath: resolvedArtifactsChanged ? "resolved-sim-config.json" : "sim-config.json",
+        resolvedInitialStatePath: resolvedArtifactsChanged ? "resolved-initial-state.json" : "initial-state.json",
+        tickFramePath: "tick-frames.json",
+        effectLogPath: "effects-log.json",
+        actionLogPath: "action-log.json",
+      },
+    });
 
     await writeJson(join(outDir, "tick-frames.json"), tickFrames);
     await writeJson(join(outDir, "effects-log.json"), effectLog);
     await writeJson(join(outDir, "runtime-decision-captures.json"), runtimeDecisionCaptures);
     await writeJson(join(outDir, "run-summary.json"), runSummary);
     await writeJson(join(outDir, "action-log.json"), actionLog);
+    await writeJson(join(outDir, "checkpoint-state.json"), checkpointState);
     if (affinitySummary && affinitySummaryPath) {
       await writeJson(affinitySummaryPath, affinitySummary);
     }
-    if (overridesApplied) {
+    if (resolvedArtifactsChanged) {
       await writeJson(join(outDir, "resolved-sim-config.json"), simConfig);
       await writeJson(join(outDir, "resolved-initial-state.json"), initialState);
     }
@@ -1111,6 +1820,8 @@ export function createCommandKernel(host = {}) {
     const receiptOutPath = resolvePath(args["receipt-out"]);
     const affinityPresetsPath = resolvePath(args["affinity-presets"]);
     const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
+    const affinityRulesPath = resolvePath(args["affinity-rules"]);
+    const motivationRulesPath = resolvePath(args["motivation-rules"]);
     const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("configurator", runId);
 
     if (!levelGenPath || !actorsPath) {
@@ -1171,6 +1882,22 @@ export function createCommandKernel(host = {}) {
       affinityLoadouts = await readJson(affinityLoadoutsPath);
       assertSchema(affinityLoadouts, "agent-kernel/ActorLoadoutArtifact");
     }
+    const affinityRules = await readResolvedRulesArtifact({
+      path: affinityRulesPath,
+      readJson,
+      expectedSchema: SCHEMAS.affinityRules,
+      normalizeArtifact: normalizeAffinityRulesArtifact,
+      resolveDefaultArtifact: () => resolveAffinityRules(),
+      label: "affinity rules",
+    });
+    const motivationRules = await readResolvedRulesArtifact({
+      path: motivationRulesPath,
+      readJson,
+      expectedSchema: SCHEMAS.motivationRules,
+      normalizeArtifact: normalizeMotivationRulesArtifact,
+      resolveDefaultArtifact: () => resolveMotivationRules(),
+      label: "motivation rules",
+    });
 
     const layout = layoutResult.value;
     const baseVitalsByActorId = baseVitalsFromActors(actorsInput.actors);
@@ -1179,7 +1906,9 @@ export function createCommandKernel(host = {}) {
         presets: affinityPresets.presets,
         loadouts: affinityLoadouts.loadouts,
         baseVitalsByActorId,
+        rooms: Array.isArray(layout.rooms) ? layout.rooms : [],
         traps: Array.isArray(layout.traps) ? layout.traps : [],
+        affinityRules,
       })
       : {};
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
@@ -1190,6 +1919,8 @@ export function createCommandKernel(host = {}) {
         priceList,
         layout,
         actors: actorsInput.actors,
+        motivationRules,
+        affinityRules,
         proposalMeta: createMeta({ producedBy: "cli-configurator", runId }),
         receiptMeta: createMeta({ producedBy: "cli-configurator", runId }),
       });
@@ -1200,24 +1931,57 @@ export function createCommandKernel(host = {}) {
       meta: createMeta({ producedBy: "cli-configurator", runId }),
       planRef: plan ? toRef(plan) : undefined,
       budgetReceiptRef: budgetReceipt ? toRef(budgetReceipt) : undefined,
+      affinityRulesRef: affinityRules ? toRef(affinityRules) : undefined,
+      motivationRulesRef: motivationRules ? toRef(motivationRules) : undefined,
       seed,
       layout,
     });
     const initialState = buildInitialStateArtifact({
       meta: createMeta({ producedBy: "cli-configurator", runId }),
       simConfigRef: toRef(simConfig),
+      affinityRulesRef: affinityRules ? toRef(affinityRules) : undefined,
+      motivationRulesRef: motivationRules ? toRef(motivationRules) : undefined,
       actors: actorsInput.actors,
       resolvedEffects,
     });
 
     await writeJson(join(outDir, "sim-config.json"), simConfig);
     await writeJson(join(outDir, "initial-state.json"), initialState);
+    const resourceBundle = await resolveResourceBundleArtifact({
+      args,
+      readJson,
+      createIpfsAdapter,
+      createMeta,
+      runId,
+      producedBy: "cli-configurator",
+      writeBinary,
+      outDir,
+      join,
+    });
+    await writeJson(join(outDir, "resource-bundle.json"), resourceBundle);
+    if (affinityRules) {
+      await writeJson(join(outDir, "affinity-rules.json"), affinityRules);
+    }
+    if (motivationRules) {
+      await writeJson(join(outDir, "motivation-rules.json"), motivationRules);
+    }
     if (budget && priceList && budgetReceipt) {
       const receiptPath = join(outDir, "budget-receipt.json");
       await writeJson(receiptPath, budgetReceipt);
       if (receiptOutPath) {
         await writeJson(receiptOutPath, budgetReceipt);
       }
+    }
+    if (args["visual-output"] === "png") {
+      await renderVisualOutput({
+        simConfig,
+        initialState,
+        resourceBundle,
+        writeBinary,
+        outDir,
+        join,
+        fileName: "visual-preview.png",
+      });
     }
 
     log(`configurator: wrote ${outDir}`);
@@ -1307,24 +2071,78 @@ export function createCommandKernel(host = {}) {
     const gatewayUrl = args.gateway || "https://ipfs.io/ipfs";
     const rootPath = isNonEmptyString(args.path) ? args.path.trim().replace(/^\/+|\/+$/g, "") : "";
     const fixtureCid = isNonEmptyString(args["fixture-cid"]) ? args["fixture-cid"].trim() : "";
-    const artifactMap = isObject(args["artifact-map"]) ? args["artifact-map"] : null;
+    const rawScope = isNonEmptyString(args.scope) ? String(args.scope).trim().toLowerCase() : "";
+    const scope = rawScope === "session" || rawScope === "package" || rawScope === "core"
+      ? rawScope
+      : (
+        isObject(args["session-artifact-map"]) || isNonEmptyString(args["session-dir"])
+          ? "package"
+          : "core"
+      );
+    const coreArtifactMap = await resolveCoreArtifactMap({
+      coreDir: args["core-dir"],
+      artifactMap: args["core-artifact-map"] || args["artifact-map"],
+    });
+    const sessionArtifactMap = scope === "core"
+      ? null
+      : await resolveSessionArtifactMap({
+        sessionDir: args["session-dir"],
+        artifactMap: args["session-artifact-map"],
+      });
+    if (Object.keys(coreArtifactMap).length === 0) {
+      throw new Error("ipfs-publish requires core artifacts via --artifact-map, --core-artifact-map, or --core-dir.");
+    }
+    if ((scope === "session" || scope === "package") && (!sessionArtifactMap || Object.keys(sessionArtifactMap).length === 0)) {
+      throw new Error("ipfs-publish session/package scope requires session artifacts via --session-artifact-map or --session-dir.");
+    }
 
-    if (!artifactMap) {
-      throw new Error("ipfs-publish requires --artifact-map.");
-    }
-    const entries = Object.entries(artifactMap)
-      .filter(([fileName, value]) => isNonEmptyString(fileName) && value !== undefined);
-    if (entries.length === 0) {
-      throw new Error("ipfs-publish requires at least one artifact.");
-    }
+    const checkpointArtifact = sessionArtifactMap?.["checkpoint-state.json"];
+    const packageId = resolvePackageId({
+      packageId: args["package-id"],
+      coreArtifactMap,
+      sessionArtifactMap: sessionArtifactMap || {},
+      fallback: makeId("ipfs_package"),
+    });
+    const sessionId = isNonEmptyString(args["session-id"])
+      ? String(args["session-id"]).trim()
+      : (checkpointArtifact?.sessionId || resolveArtifactRunId(sessionArtifactMap || {}, packageId));
+    const checkpointId = isNonEmptyString(args["checkpoint-id"])
+      ? String(args["checkpoint-id"]).trim()
+      : (checkpointArtifact?.checkpointId || "checkpoint");
+    const sessionStatus = isNonEmptyString(args["session-status"])
+      ? String(args["session-status"]).trim().toLowerCase()
+      : (checkpointArtifact?.status || "checkpoint");
+    const packageContents = buildIpfsPackageContents({
+      createMeta,
+      nowIso,
+      packageId,
+      previousPackageCid: args["previous-package-cid"] || args["previous-cid"],
+      scope,
+      coreArtifactMap,
+      sessionArtifactMap,
+      sessionId,
+      checkpointId,
+      sessionStatus,
+      producedBy: "cli-ipfs",
+    });
+    const publishedFiles = Object.keys(packageContents.published).sort((left, right) => left.localeCompare(right));
 
     if (fixtureCid) {
+      const resolvedPackage = buildResolvedIpfsPackageArtifact({
+        packageArtifact: packageContents.packageArtifact,
+        cid: fixtureCid,
+        latestSession: packageContents.latestSession,
+      });
       return {
         cid: fixtureCid,
         rootPath: rootPath || "",
-        published: Object.fromEntries(entries),
-        publishedFiles: entries.map(([fileName]) => String(fileName).replace(/^\/+/, "")),
+        published: packageContents.published,
+        publishedFiles,
         mode: "fixture",
+        scope,
+        package: resolvedPackage,
+        sessionManifest: packageContents.sessionManifest,
+        latestSession: packageContents.latestSession,
       };
     }
 
@@ -1333,17 +2151,21 @@ export function createCommandKernel(host = {}) {
       throw new Error("ipfs-publish requires an adapter with publishJsonMap support.");
     }
 
-    const published = Object.fromEntries(entries.map(([fileName, value]) => [
-      String(fileName).replace(/^\/+/, ""),
-      value,
-    ]));
-    const publishResult = await adapter.publishJsonMap(published, { pathPrefix: rootPath || "" });
+    const publishResult = await adapter.publishJsonMap(packageContents.published, { pathPrefix: rootPath || "" });
     return {
       cid: publishResult.cid,
       rootPath: rootPath || "",
-      published,
-      publishedFiles: Object.keys(published),
+      published: packageContents.published,
+      publishedFiles,
       mode: "live",
+      scope,
+      package: buildResolvedIpfsPackageArtifact({
+        packageArtifact: packageContents.packageArtifact,
+        cid: publishResult.cid,
+        latestSession: packageContents.latestSession,
+      }),
+      sessionManifest: packageContents.sessionManifest,
+      latestSession: packageContents.latestSession,
       entries: Array.isArray(publishResult.entries) ? publishResult.entries : [],
       rootName: publishResult.rootName || "",
     };
@@ -1354,19 +2176,9 @@ export function createCommandKernel(host = {}) {
     const cid = args.cid;
     const rootPath = isNonEmptyString(args.path) ? args.path.trim().replace(/^\/+|\/+$/g, "") : "";
     const gatewayUrl = args.gateway || "https://ipfs.io/ipfs";
-    const files = normalizeStringList(args.file);
-    const targetFiles = files.length > 0
-      ? files
-      : [
-        "bundle.json",
-        "manifest.json",
-        "spec.json",
-        "sim-config.json",
-        "initial-state.json",
-        "budget.json",
-        "price-list.json",
-        "budget-receipt.json",
-      ];
+    const loadMode = isNonEmptyString(args["load-mode"])
+      ? String(args["load-mode"]).trim().toLowerCase()
+      : "core";
     const fixtureMap = isObject(args["fixture-map"]) ? args["fixture-map"] : null;
 
     if (!isNonEmptyString(cid)) {
@@ -1393,29 +2205,102 @@ export function createCommandKernel(host = {}) {
     const adapter = createIpfsAdapter({ gatewayUrl, fetchFn });
     const fetched = {};
     const missing = [];
-
-    for (const fileName of targetFiles) {
-      const normalizedFile = fileName.replace(/^\/+/, "");
-      const ipfsPath = rootPath ? `${rootPath}/${normalizedFile}` : normalizedFile;
+    const resolvedRoot = (relativePath) => {
+      const normalized = normalizeIpfsFileName(relativePath);
+      return rootPath ? `${rootPath}/${normalized}` : normalized;
+    };
+    const fetchFile = async (packagePath, localFileName, { required = false } = {}) => {
       try {
-        fetched[normalizedFile] = await adapter.fetchJson(cid, ipfsPath);
+        fetched[localFileName] = await adapter.fetchJson(cid, resolvedRoot(packagePath));
+        return true;
       } catch (error) {
         missing.push({
-          file: normalizedFile,
+          file: localFileName,
+          path: normalizeIpfsFileName(packagePath),
           error: error?.message || String(error),
         });
+        if (required) {
+          return false;
+        }
+        return false;
+      }
+    };
+
+    const packageLoaded = await fetchFile(IPFS_ROOT_MANIFEST_FILE, IPFS_ROOT_MANIFEST_FILE, { required: true });
+    if (!packageLoaded) {
+      throw new Error("ipfs-load could not fetch required ipfs-package.json.");
+    }
+    const packageArtifact = fetched[IPFS_ROOT_MANIFEST_FILE];
+    assertSchema(packageArtifact, SCHEMAS.ipfsPackage);
+
+    const loadCoreFiles = async () => {
+      const requiredFiles = Array.isArray(packageArtifact.requiredCoreFiles) ? packageArtifact.requiredCoreFiles : [];
+      const optionalFiles = Array.isArray(packageArtifact.optionalCoreFiles) ? packageArtifact.optionalCoreFiles : [];
+      for (const fileName of requiredFiles) {
+        const ok = await fetchFile(`${packageArtifact.corePath || IPFS_CORE_DIR}/${fileName}`, fileName, { required: true });
+        if (!ok) {
+          throw new Error(`ipfs-load missing required core file ${fileName}.`);
+        }
+      }
+      for (const fileName of optionalFiles) {
+        await fetchFile(`${packageArtifact.corePath || IPFS_CORE_DIR}/${fileName}`, fileName, { required: false });
+      }
+    };
+
+    await loadCoreFiles();
+
+    let sessionManifest = null;
+    if (loadMode === "resume") {
+      const sessionsIndexLoaded = await fetchFile(IPFS_SESSION_INDEX_FILE, "sessions-index.json", { required: false });
+      const requestedSessionId = isNonEmptyString(args["session-id"]) ? String(args["session-id"]).trim() : "";
+      const requestedCheckpointId = isNonEmptyString(args["checkpoint-id"]) ? String(args["checkpoint-id"]).trim() : "";
+      const sessionIndex = sessionsIndexLoaded ? fetched["sessions-index.json"] : null;
+      const sessionEntries = [
+        ...(Array.isArray(packageArtifact.sessions) ? packageArtifact.sessions : []),
+        ...(Array.isArray(sessionIndex?.sessions) ? sessionIndex.sessions : []),
+      ];
+      const sessionEntry = sessionEntries.find((entry) => {
+        if (!entry || !isNonEmptyString(entry.sessionId)) return false;
+        if (requestedSessionId && entry.sessionId !== requestedSessionId) return false;
+        if (requestedCheckpointId && isNonEmptyString(entry.checkpointId) && entry.checkpointId !== requestedCheckpointId) {
+          return false;
+        }
+        return true;
+      }) || packageArtifact.latestSession;
+      if (!sessionEntry?.manifestPath) {
+        throw new Error("ipfs-load resume mode requires a session manifest in the package.");
+      }
+      const manifestLoaded = await fetchFile(sessionEntry.manifestPath, "session-manifest.json", { required: true });
+      if (!manifestLoaded) {
+        throw new Error("ipfs-load resume mode could not fetch session-manifest.json.");
+      }
+      sessionManifest = fetched["session-manifest.json"];
+      assertSchema(sessionManifest, SCHEMAS.ipfsSessionManifest);
+      const checkpointDir = dirname(sessionManifest.checkpointPath);
+      for (const fileName of sessionManifest.requiredSessionFiles || []) {
+        const ok = await fetchFile(`${checkpointDir}/${fileName}`, fileName, { required: true });
+        if (!ok) {
+          throw new Error(`ipfs-load missing required session file ${fileName}.`);
+        }
+      }
+      for (const fileName of sessionManifest.optionalSessionFiles || []) {
+        await fetchFile(`${checkpointDir}/${fileName}`, fileName, { required: false });
       }
     }
 
-    if (!fetched["bundle.json"]) {
-      throw new Error("ipfs-load could not fetch required bundle.json.");
+    if (!fetched["bundle.json"] && !fetched["sim-config.json"]) {
+      throw new Error("ipfs-load requires either bundle.json or sim-config.json in the loaded core package.");
     }
 
     return {
       cid,
       rootPath: rootPath || "",
+      loadMode,
       fetched,
       missing,
+      package: packageArtifact,
+      sessionManifest,
+      latestSession: packageArtifact.latestSession || null,
     };
   }
 
@@ -1471,6 +2356,8 @@ export function createCommandKernel(host = {}) {
     const tokenIdHint = args["token-id"];
     const cardJson = isObject(args["card-json"]) ? args["card-json"] : null;
     const cardPath = resolvePath(args.card, cwd());
+    const affinityRulesPath = resolvePath(args["affinity-rules"], cwd());
+    const motivationRulesPath = resolvePath(args["motivation-rules"], cwd());
     const chainFixture = await resolveJsonFixture(args["fixture-chain-id"]);
     const mintFixture = await resolveJsonFixture(args["fixture-mint"]);
 
@@ -1488,6 +2375,36 @@ export function createCommandKernel(host = {}) {
       cardType: isNonEmptyString(card?.type) ? card.type : null,
       cardId: isNonEmptyString(card?.id) ? card.id : null,
     };
+    const affinityRules = await readResolvedRulesArtifact({
+      path: affinityRulesPath,
+      readJson,
+      expectedSchema: SCHEMAS.affinityRules,
+      normalizeArtifact: normalizeAffinityRulesArtifact,
+      resolveDefaultArtifact: () => resolveAffinityRules(),
+      label: "affinity rules",
+    });
+    const motivationRules = await readResolvedRulesArtifact({
+      path: motivationRulesPath,
+      readJson,
+      expectedSchema: SCHEMAS.motivationRules,
+      normalizeArtifact: normalizeMotivationRulesArtifact,
+      resolveDefaultArtifact: () => resolveMotivationRules(),
+      label: "motivation rules",
+    });
+    metadata.affinityRulesRef = {
+      id: affinityRules.meta.id,
+      schema: affinityRules.schema,
+      schemaVersion: affinityRules.schemaVersion,
+    };
+    metadata.affinityRulesVersion = affinityRules.balanceVersion;
+    metadata.affinityRulesHash = affinityRules.contentHash;
+    metadata.motivationRulesRef = {
+      id: motivationRules.meta.id,
+      schema: motivationRules.schema,
+      schemaVersion: motivationRules.schemaVersion,
+    };
+    metadata.motivationRulesVersion = motivationRules.balanceVersion;
+    metadata.motivationRulesHash = motivationRules.contentHash;
 
     let fetchFn;
     if (chainFixture || mintFixture) {
@@ -1509,6 +2426,12 @@ export function createCommandKernel(host = {}) {
     if (isNonEmptyString(owner)) output.owner = owner;
     if (isNonEmptyString(contractAddress)) output.contractAddress = contractAddress;
     output.card = card;
+    output.affinityRulesRef = metadata.affinityRulesRef;
+    output.affinityRulesVersion = metadata.affinityRulesVersion;
+    output.affinityRulesHash = metadata.affinityRulesHash;
+    output.motivationRulesRef = metadata.motivationRulesRef;
+    output.motivationRulesVersion = metadata.motivationRulesVersion;
+    output.motivationRulesHash = metadata.motivationRulesHash;
     const mintResult = await adapter.mintCard({
       owner,
       contractAddress,
@@ -1935,12 +2858,33 @@ export function createCommandKernel(host = {}) {
     if (buildResult.solverResult) {
       await writeJson(join(outDir, "solver-result.json"), buildResult.solverResult);
     }
+    if (buildResult.affinityRules) {
+      await writeJson(join(outDir, "affinity-rules.json"), buildResult.affinityRules);
+    }
+    if (buildResult.motivationRules) {
+      await writeJson(join(outDir, "motivation-rules.json"), buildResult.motivationRules);
+    }
+    if (buildResult.affinitySummary) {
+      await writeJson(join(outDir, "affinity-summary.json"), buildResult.affinitySummary);
+    }
     if (buildResult.simConfig) {
       await writeJson(join(outDir, "sim-config.json"), buildResult.simConfig);
     }
     if (buildResult.initialState) {
       await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
     }
+    const resourceBundle = await resolveResourceBundleArtifact({
+      args,
+      readJson,
+      createIpfsAdapter,
+      createMeta,
+      runId: buildResult.spec.meta.runId,
+      producedBy: "cli-llm-plan",
+      writeBinary,
+      outDir,
+      join,
+    });
+    await writeJson(join(outDir, "resource-bundle.json"), resourceBundle);
 
     const capturedInputs = Array.isArray(buildResult.capturedInputs) ? buildResult.capturedInputs : [];
     for (let i = 0; i < capturedInputs.length; i += 1) {
@@ -1952,11 +2896,13 @@ export function createCommandKernel(host = {}) {
     const bundleArtifacts = buildBuildArtifacts(buildResult, {
       includeBudgetAllocation: budgetAllocation,
       capturedInputs,
+      resourceBundle,
     });
 
     const manifestEntries = buildBuildManifestEntries(buildResult, {
       includeBudgetAllocation: budgetAllocation,
       capturedInputs,
+      resourceBundle,
     });
 
     const schemaEntries = filterSchemaCatalogEntries({
@@ -1968,6 +2914,7 @@ export function createCommandKernel(host = {}) {
 
     const bundle = {
       spec: buildResult.spec,
+      resourceBundleRef: toRef(resourceBundle),
       schemas: schemaEntries,
       artifacts: bundleArtifacts,
     };
@@ -1980,6 +2927,7 @@ export function createCommandKernel(host = {}) {
         source: buildResult.spec.meta.source,
         correlationId: buildResult.spec.meta.correlationId,
       },
+      resourceBundleRef: toRef(resourceBundle),
       schemas: schemaEntries,
       artifacts: manifestEntries,
     };

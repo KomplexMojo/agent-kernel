@@ -1,13 +1,13 @@
-# UI Attacker Config, Regen Controls, and Budget Visibility Plan
+# UI Delver Config, Regen Controls, and Budget Visibility Plan
 
 Date: 2026-02-11
 
 ## Objective
-Expose key combat configuration decisions directly in the UI so users can choose attacker setup mode, tune regen behavior, and see budget impact in real time while building a scenario.
+Expose key combat configuration decisions directly in the UI so users can choose delver setup mode, tune regen behavior, and see budget impact in real time while building a scenario.
 
 ## Success Criteria
-- Users can choose attacker setup mode per run: `auto`, `user`, or `hybrid`.
-- Users can set attacker vital max values and regen rates with clear validation and defaults.
+- Users can choose delver setup mode per run: `auto`, `user`, or `hybrid`.
+- Users can set delver vital max values and regen rates with clear validation and defaults.
 - Users can configure multiple affinities per actor with explicit stack counts per affinity.
 - A budget panel shows total budget, spend by category, and remaining tokens live as values change.
 - Build/run actions are gated when spend rules are invalid or over budget.
@@ -25,17 +25,17 @@ Expose key combat configuration decisions directly in the UI so users can choose
 - Replacing existing build orchestration flow end-to-end.
 
 ## Implementation Steps
-1. Define the runtime contract for attacker setup mode and regen controls.
-   Requirement: Add explicit fields for attacker setup strategy and regen inputs so UI and runtime share one schema.
+1. Define the runtime contract for delver setup mode and regen controls.
+   Requirement: Add explicit fields for delver setup strategy and regen inputs so UI and runtime share one schema.
    Tests: Add/extend tests in `tests/runtime/prompt-contract.test.js` and `tests/runtime/build-orchestrator.test.js` for valid and invalid mode/rate combinations.
    Code: `packages/runtime/src/personas/orchestrator/prompt-contract.js`, `packages/runtime/src/contracts/domain-constants.js`, `packages/runtime/src/index.js`.
 
-2. Add attacker setup mode controls in Design view.
+2. Add delver setup mode controls in Design view.
    Requirement: Users can choose `auto`, `user`, or `hybrid`; control states should reflect mode (for example, manual fields disabled in `auto`).
    Tests: Add UI behavior tests in `tests/ui-web/design-view.test.mjs` and wiring assertions in `tests/ui-web/view-wiring.test.mjs`.
    Code: `packages/ui-web/src/views/design-view.js`, `packages/ui-web/src/main.js`, `packages/ui-web/index.html`.
 
-3. Add attacker regen controls for vitals and affinity stack editing.
+3. Add delver regen controls for vitals and affinity stack editing.
    Requirement: UI exposes regen rates for relevant vitals and affinity stack counts per affinity with bounded numeric validation and sensible defaults.
    Tests: Extend `tests/ui-web/simulation-affinity-effects.test.mjs` and add runtime validation coverage in `tests/runtime/build-orchestrator.test.js`.
    Code: `packages/ui-web/src/views/design-view.js`, `packages/runtime/src/personas/configurator/affinity-effects.js`, `packages/runtime/src/personas/configurator/actor-generator.js`.
@@ -56,15 +56,15 @@ Expose key combat configuration decisions directly in the UI so users can choose
    Code: `packages/ui-web/src/build-orchestrator.js`, `packages/ui-web/src/views/design-view.js`, `packages/runtime/src/personas/orchestrator/llm-budget-loop.js`.
 
 7. Update docs for new UI behavior and decision model.
-   Requirement: Document attacker mode tradeoffs, regen controls, and budget breakdown semantics.
+   Requirement: Document delver mode tradeoffs, regen controls, and budget breakdown semantics.
    Tests: Documentation-only change.
    Code: `docs/human-interfaces.md`, `packages/adapters-cli/README.md` (if CLI flags/settings are exposed for parity).
 
 ## Recommendations
-- Default to `hybrid` mode: auto-propose attacker settings, but keep user override available to reduce friction and preserve control.
+- Default to `hybrid` mode: auto-propose delver settings, but keep user override available to reduce friction and preserve control.
 - Use a shared pricing registry for level, actor, and config spend categories so UI and runtime totals cannot drift.
 - Add a lightweight "What changed?" spend timeline to surface deltas after each edit.
-- Persist last-used attacker/regen preset per session to speed iterative tuning.
+- Persist last-used delver/regen preset per session to speed iterative tuning.
 - Keep adapter boundaries intact: calculate spend and validation in runtime modules, keep UI as presentation + interaction only.
 
 ## Risks And Mitigations
@@ -78,12 +78,12 @@ Expose key combat configuration decisions directly in the UI so users can choose
 ## Open Questions
 - Should over-budget edits be hard-blocked immediately or allowed with deferred build-time gating only?
 - Which regen units should be canonical (`per tick`, `per turn`, or normalized)?
-- Should attacker mode be scenario-global or actor-specific in advanced workflows?
+- Should delver mode be scenario-global or actor-specific in advanced workflows?
 - Should affinity stack editing support both quick presets and per-affinity manual inputs on day one?
 
 ## Acceptance Checklist
-- Attacker setup mode selector (`auto`/`user`/`hybrid`) is visible and functional in Design view.
-- Attacker vital regen controls validate and persist in session state.
+- Delver setup mode selector (`auto`/`user`/`hybrid`) is visible and functional in Design view.
+- Delver vital regen controls validate and persist in session state.
 - Affinity stack values per affinity are visible and editable in the actor configuration flow.
 - Budget panel shows total, category spend, remaining, and line-item deltas while editing.
 - Build/run is gated on invalid or over-budget state with clear remediation cues.

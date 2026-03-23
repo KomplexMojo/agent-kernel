@@ -1,0 +1,255 @@
+{
+  "ipfs-package.json": {
+    "schema": "agent-kernel/IpfsPackageArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "ipfs_package_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "packageId": "run_ipfs_fixture",
+    "packageVersion": 1,
+    "scope": "package",
+    "corePath": "core",
+    "latestSessionIndexPath": "sessions/index.json",
+    "requiredCoreFiles": [
+      "bundle.json",
+      "manifest.json",
+      "spec.json",
+      "sim-config.json",
+      "initial-state.json"
+    ],
+    "optionalCoreFiles": [],
+    "latestSession": {
+      "sessionId": "run_ipfs_fixture",
+      "checkpointId": "tick-0",
+      "manifestPath": "sessions/run_ipfs_fixture/session-manifest.json",
+      "checkpointPath": "sessions/run_ipfs_fixture/checkpoints/tick-0/checkpoint-state.json",
+      "status": "checkpoint"
+    },
+    "sessions": [
+      {
+        "sessionId": "run_ipfs_fixture",
+        "checkpointId": "tick-0",
+        "manifestPath": "sessions/run_ipfs_fixture/session-manifest.json",
+        "checkpointPath": "sessions/run_ipfs_fixture/checkpoints/tick-0/checkpoint-state.json",
+        "status": "checkpoint"
+      }
+    ]
+  },
+  "sessions/index.json": {
+    "generatedAt": "2025-01-01T00:00:00Z",
+    "sessions": [
+      {
+        "sessionId": "run_ipfs_fixture",
+        "checkpointId": "tick-0",
+        "manifestPath": "sessions/run_ipfs_fixture/session-manifest.json",
+        "checkpointPath": "sessions/run_ipfs_fixture/checkpoints/tick-0/checkpoint-state.json",
+        "status": "checkpoint"
+      }
+    ]
+  },
+  "core/bundle.json": {
+    "spec": {
+      "schema": "agent-kernel/BuildSpec",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "spec_ipfs_fixture",
+        "runId": "run_ipfs_fixture",
+        "createdAt": "2025-01-01T00:00:00Z",
+        "source": "ipfs-fixture"
+      }
+    },
+    "schemas": [],
+    "artifacts": [
+      {
+        "schema": "agent-kernel/SimConfigArtifact",
+        "schemaVersion": 1,
+        "meta": {
+          "id": "sim_config_ipfs_fixture",
+          "runId": "run_ipfs_fixture",
+          "createdAt": "2025-01-01T00:00:00Z",
+          "producedBy": "ipfs-fixture"
+        },
+        "layout": {
+          "data": {
+            "width": 2,
+            "height": 1,
+            "tiles": [
+              "SE"
+            ]
+          }
+        }
+      },
+      {
+        "schema": "agent-kernel/InitialStateArtifact",
+        "schemaVersion": 1,
+        "meta": {
+          "id": "initial_state_ipfs_fixture",
+          "runId": "run_ipfs_fixture",
+          "createdAt": "2025-01-01T00:00:00Z",
+          "producedBy": "ipfs-fixture"
+        },
+        "actors": [
+          {
+            "id": "delver_1",
+            "kind": "delver",
+            "position": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "core/manifest.json": {
+    "specPath": "spec.json",
+    "correlation": {
+      "runId": "run_ipfs_fixture",
+      "source": "ipfs-fixture"
+    },
+    "schemas": [],
+    "artifacts": []
+  },
+  "core/spec.json": {
+    "schema": "agent-kernel/BuildSpec",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "spec_ipfs_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "source": "ipfs-fixture"
+    }
+  },
+  "core/sim-config.json": {
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "sim_config_ipfs_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "layout": {
+      "data": {
+        "width": 2,
+        "height": 1,
+        "tiles": [
+          "SE"
+        ]
+      }
+    }
+  },
+  "core/initial-state.json": {
+    "schema": "agent-kernel/InitialStateArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "initial_state_ipfs_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "actors": [
+      {
+        "id": "delver_1",
+        "kind": "delver",
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    ]
+  },
+  "sessions/run_ipfs_fixture/session-manifest.json": {
+    "schema": "agent-kernel/IpfsSessionManifestArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "ipfs_session_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "packageId": "run_ipfs_fixture",
+    "sessionId": "run_ipfs_fixture",
+    "checkpointId": "tick-0",
+    "checkpointPath": "sessions/run_ipfs_fixture/checkpoints/tick-0/checkpoint-state.json",
+    "requiredSessionFiles": [
+      "checkpoint-state.json",
+      "action-log.json",
+      "run-summary.json"
+    ],
+    "optionalSessionFiles": [
+      "runtime-decision-captures.json"
+    ],
+    "resumeMode": "snapshot_plus_replay",
+    "status": "checkpoint"
+  },
+  "sessions/run_ipfs_fixture/checkpoints/tick-0/checkpoint-state.json": {
+    "schema": "agent-kernel/RuntimeCheckpointArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "runtime_checkpoint_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "sessionId": "run_ipfs_fixture",
+    "checkpointId": "tick-0",
+    "tick": 0,
+    "status": "checkpoint",
+    "resumeMode": "snapshot_plus_replay",
+    "simConfigRef": {
+      "id": "sim_config_ipfs_fixture",
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1
+    },
+    "initialStateRef": {
+      "id": "initial_state_ipfs_fixture",
+      "schema": "agent-kernel/InitialStateArtifact",
+      "schemaVersion": 1
+    },
+    "state": {
+      "actionIndex": 0,
+      "actionCount": 0,
+      "runtime": {},
+      "view": {
+        "viewerActorId": "delver_1"
+      }
+    },
+    "artifacts": []
+  },
+  "sessions/run_ipfs_fixture/checkpoints/tick-0/action-log.json": {
+    "schema": "agent-kernel/ActionSequence",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "action_log_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "actions": []
+  },
+  "sessions/run_ipfs_fixture/checkpoints/tick-0/run-summary.json": {
+    "schema": "agent-kernel/RunSummary",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "run_summary_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "simConfigRef": {
+      "id": "sim_config_ipfs_fixture",
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1
+    },
+    "outcome": "unknown",
+    "metrics": {
+      "ticks": 0,
+      "actions": 0
+    }
+  },
+  "sessions/run_ipfs_fixture/checkpoints/tick-0/runtime-decision-captures.json": []
+}

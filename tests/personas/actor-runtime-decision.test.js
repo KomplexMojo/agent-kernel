@@ -37,8 +37,8 @@ const observation = {
         stamina: { current: 2, max: 4, regen: 0 },
       },
     },
-    { id: "def_1", kind: 2, role: "defender", position: { x: 2, y: 1 } },
-    { id: "def_2", kind: 2, role: "defender", position: { x: 1, y: 2 } },
+    { id: "def_1", kind: 2, role: "warden", position: { x: 2, y: 1 } },
+    { id: "def_2", kind: 2, role: "warden", position: { x: 1, y: 2 } },
   ],
   tiles: {
     kinds: [
@@ -135,7 +135,7 @@ const observation = {
       role: "boss",
       position: { x: 1, y: 1 },
     },
-    { id: "def_1", kind: 2, role: "defender", position: { x: 2, y: 1 } },
+    { id: "def_1", kind: 2, role: "warden", position: { x: 2, y: 1 } },
   ],
   tiles: {
     kinds: [

@@ -45,7 +45,7 @@ Inspect the emitted `artifacts/demo-bundle/*` JSON to see these in UI/CLI demos.
 pnpm run serve:ui
 # open http://localhost:8001/packages/ui-web/index.html
 ```
-The UI uses primary workflow tabs: Design, Simulation, and Diagnostics. Design is the default entry point for strategic guidance, design brief generation, actor configuration, and a single Build-and-Load action. Design now includes attacker setup mode (`auto` / `user` / `hybrid`), attacker vital max + regen controls, affinity/stacks configuration (multiple affinities per actor), and a live spend ledger with category breakdowns. Simulation focuses on the playing surface, run controls, event stream, and the persistent Actor Inspector drawer. Diagnostics aggregates artifact inspection, adapter playground outputs, and other troubleshooting panels.
+The UI uses primary workflow tabs: Design, Simulation, and Diagnostics. Design is the default entry point for strategic guidance, design brief generation, actor configuration, and a single Build-and-Load action. Design now includes delver setup mode (`auto` / `user` / `hybrid`), delver vital max + regen controls, affinity/stacks configuration (multiple affinities per actor), and a live spend ledger with category breakdowns. Simulation focuses on the playing surface, run controls, event stream, and the persistent Actor Inspector drawer. Diagnostics aggregates artifact inspection, adapter playground outputs, and other troubleshooting panels.
 The web UI is live-mode only. For fixture-driven development flows, use CLI commands.
 
 ## 5) Ollama prompt → build → review/run (UI flow)

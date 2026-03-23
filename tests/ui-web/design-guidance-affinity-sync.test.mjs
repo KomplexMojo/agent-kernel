@@ -7,7 +7,7 @@ import {
 } from "../../packages/ui-web/src/design-guidance.js";
 
 test("card drop rules accept valid type + affinity + expression sequence", () => {
-  const blank = createDesignCard({ type: "defender", affinity: "fire", motivations: ["defending"] });
+  const blank = createDesignCard({ type: "warden", affinity: "fire", motivations: ["defending"] });
 
   const withAffinity = dropPropertyOnCard(blank, { group: "affinities", value: "water" });
   assert.equal(withAffinity.ok, true);
@@ -43,14 +43,14 @@ test("room cards default to dark emit with two stacks", () => {
 });
 
 test("card drop rules toggle affinity removal when same affinity is dropped twice", () => {
-  const defender = createDesignCard({
-    type: "defender",
+  const warden = createDesignCard({
+    type: "warden",
     affinity: "fire",
     affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
     motivations: ["defending"],
   });
 
-  const addWater = dropPropertyOnCard(defender, { group: "affinities", value: "water" });
+  const addWater = dropPropertyOnCard(warden, { group: "affinities", value: "water" });
   assert.equal(addWater.ok, true);
   assert.ok(addWater.card.affinities.some((entry) => entry.kind === "water"));
 
@@ -61,8 +61,8 @@ test("card drop rules toggle affinity removal when same affinity is dropped twic
 });
 
 test("affinity stacks are per affinity-expression combo and zero removes the combo", () => {
-  const defender = createDesignCard({
-    type: "defender",
+  const warden = createDesignCard({
+    type: "warden",
     affinity: "fire",
     affinities: [
       { kind: "fire", expression: "push", stacks: 1 },
@@ -72,7 +72,7 @@ test("affinity stacks are per affinity-expression combo and zero removes the com
     motivations: ["defending"],
   });
 
-  const boosted = adjustAffinityStack(defender, "water", 2, "emit");
+  const boosted = adjustAffinityStack(warden, "water", 2, "emit");
   const removed = adjustAffinityStack(boosted, "fire", -1, "push");
 
   assert.equal(removed.affinities.find((entry) => entry.kind === "water" && entry.expression === "emit")?.stacks, 4);
@@ -81,31 +81,33 @@ test("affinity stacks are per affinity-expression combo and zero removes the com
 });
 
 test("same affinity supports multiple expression combos", () => {
-  const attacker = createDesignCard({
-    type: "attacker",
+  const delver = createDesignCard({
+    type: "delver",
     affinity: "fire",
     affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
     motivations: ["attacking"],
   });
 
-  const withPull = dropPropertyOnCard(attacker, { group: "expressions", value: "pull" });
+  const withPull = dropPropertyOnCard(delver, { group: "expressions", value: "pull" });
   const withEmit = dropPropertyOnCard(withPull.card, { group: "expressions", value: "emit" });
-  const fireCombos = withEmit.card.affinities.filter((entry) => entry.kind === "fire");
+  const withDraw = dropPropertyOnCard(withEmit.card, { group: "expressions", value: "draw" });
+  const fireCombos = withDraw.card.affinities.filter((entry) => entry.kind === "fire");
 
-  assert.equal(withEmit.ok, true);
+  assert.equal(withDraw.ok, true);
   assert.ok(fireCombos.some((entry) => entry.expression === "push" && entry.stacks === 1));
   assert.ok(fireCombos.some((entry) => entry.expression === "pull" && entry.stacks === 1));
   assert.ok(fireCombos.some((entry) => entry.expression === "emit" && entry.stacks === 1));
+  assert.ok(fireCombos.some((entry) => entry.expression === "draw" && entry.stacks === 1));
 });
 
 test("motivation toggles support removing and re-adding motivations", () => {
-  const attacker = createDesignCard({
-    type: "attacker",
+  const delver = createDesignCard({
+    type: "delver",
     affinity: "fire",
     motivations: ["attacking"],
   });
 
-  const removed = dropPropertyOnCard(attacker, { group: "motivations", value: "attacking" });
+  const removed = dropPropertyOnCard(delver, { group: "motivations", value: "attacking" });
   assert.equal(removed.ok, true);
   assert.equal(removed.reason, "motivation_removed");
   assert.deepEqual(removed.card.motivations, []);
@@ -117,32 +119,32 @@ test("motivation toggles support removing and re-adding motivations", () => {
 });
 
 test("motivation toggles block contradictory motivations from the same exclusive group", () => {
-  const attacker = createDesignCard({
-    type: "attacker",
+  const delver = createDesignCard({
+    type: "delver",
     affinity: "fire",
     motivations: ["attacking", "patrolling"],
   });
 
-  const blockedCombat = dropPropertyOnCard(attacker, { group: "motivations", value: "defending" });
+  const blockedCombat = dropPropertyOnCard(delver, { group: "motivations", value: "defending" });
   assert.equal(blockedCombat.ok, false);
   assert.equal(blockedCombat.reason, "motivation_conflict");
   assert.equal(blockedCombat.conflictsWith, "attacking");
 
-  const blockedMobility = dropPropertyOnCard(attacker, { group: "motivations", value: "stationary" });
+  const blockedMobility = dropPropertyOnCard(delver, { group: "motivations", value: "stationary" });
   assert.equal(blockedMobility.ok, false);
   assert.equal(blockedMobility.reason, "motivation_conflict");
   assert.equal(blockedMobility.conflictsWith, "patrolling");
 });
 
 test("changing card type replaces incompatible card payload", () => {
-  const defender = createDesignCard({
-    type: "defender",
+  const warden = createDesignCard({
+    type: "warden",
     affinity: "wind",
     motivations: ["patrolling"],
     expressions: ["pull"],
   });
 
-  const switched = dropPropertyOnCard(defender, { group: "type", value: "room" });
+  const switched = dropPropertyOnCard(warden, { group: "type", value: "room" });
   assert.equal(switched.ok, true);
   assert.equal(switched.card.type, "room");
   assert.equal(switched.card.source, "room");

@@ -1,4 +1,5 @@
 import {
+  AFFINITY_KINDS,
   DEFAULT_AFFINITY_EXPRESSION,
   VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
@@ -6,6 +7,8 @@ import {
   normalizeAffinityTargetType,
   resolveAffinityTargetEffectsForEntry,
 } from "../moderator/affinity-target-effects.js";
+import { buildAmbientAffinityPressure } from "./affinity-pressure.js";
+import { resolveAffinityBehaviorProfile } from "./behavior-rules.js";
 
 function isNumber(value) {
   return typeof value === "number" && !Number.isNaN(value);
@@ -25,6 +28,20 @@ function ensureVitals(vitals = {}) {
     return acc;
   }, {});
 }
+
+const DEFAULT_DRAW_CONVERSION_BY_AFFINITY = Object.freeze({
+  fire: Object.freeze({ targetVital: "mana", efficiency: 1 }),
+  water: Object.freeze({ targetVital: "mana", efficiency: 1 }),
+  earth: Object.freeze({ targetVital: "stamina", efficiency: 1 }),
+  wind: Object.freeze({ targetVital: "stamina", efficiency: 1 }),
+  life: Object.freeze({ targetVital: "health", efficiency: 1 }),
+  decay: Object.freeze({ targetVital: "health", efficiency: 1 }),
+  corrode: Object.freeze({ targetVital: "durability", efficiency: 1 }),
+  fortify: Object.freeze({ targetVital: "durability", efficiency: 1 }),
+  light: Object.freeze({ targetVital: "mana", efficiency: 1 }),
+  dark: Object.freeze({ targetVital: "mana", efficiency: 1 }),
+});
+const DEFAULT_DRAW_CONVERSION_FALLBACK = Object.freeze({ targetVital: "mana", efficiency: 1 });
 
 function scaleValue(value, stacks, scaling) {
   const base = isNumber(value) ? value : 0;
@@ -72,18 +89,27 @@ function resolvePresetAbilities(preset) {
   return sortedById(deriveAbilitiesFromEffects(preset));
 }
 
-function resolveAbility(ability, preset, stacks) {
+function resolveAbility(ability, preset, stacks, affinityRules) {
   const scaling = preset.stack?.scaling || "linear";
   const baseManaCost = ability.manaCost ?? preset.manaCost ?? 0;
   const expression = ability.expression || preset.expression;
+  const resolved = resolveAffinityBehaviorProfile({
+    rules: affinityRules,
+    kind: ability.affinityKind || preset.kind,
+    expression,
+    stacks,
+  });
+  const castProfile = resolved.castProfile;
   return {
     id: ability.id,
     kind: ability.kind,
     affinityKind: ability.affinityKind || preset.kind,
     expression,
-    targetType: normalizeAffinityTargetType(ability.targetType, expression),
+    expressionAlias: castProfile?.expressionId,
+    targetType: normalizeAffinityTargetType(ability.targetType || castProfile?.targetType, expression),
     potency: scaleValue(ability.potency, stacks, scaling),
-    manaCost: scaleValue(baseManaCost, stacks, scaling),
+    manaCost: castProfile?.manaCost ?? scaleValue(baseManaCost, stacks, scaling),
+    complexityClass: resolved.complexityClass || undefined,
   };
 }
 
@@ -101,6 +127,91 @@ function addAffinityTargetStack(map, kind, expression, targetType, stacks) {
   map[key] = current === undefined ? value : current + value;
 }
 
+function toPositiveNumber(value, fallback = 1) {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  return fallback;
+}
+
+function resolveDrawConversionRule(affinityRules, kind) {
+  const globals = affinityRules?.globals;
+  const configured = globals?.drawConversion;
+  const byAffinity = (configured && typeof configured.byAffinity === "object" && !Array.isArray(configured.byAffinity))
+    ? configured.byAffinity
+    : null;
+  const fallback = (configured?.defaultRule && typeof configured.defaultRule === "object")
+    ? configured.defaultRule
+    : DEFAULT_DRAW_CONVERSION_FALLBACK;
+  const rule = byAffinity?.[kind] || DEFAULT_DRAW_CONVERSION_BY_AFFINITY[kind] || fallback;
+  const targetVital = VITAL_KEYS.includes(rule?.targetVital) ? rule.targetVital : fallback.targetVital;
+  const efficiency = toPositiveNumber(rule?.efficiency, toPositiveNumber(fallback?.efficiency, 1));
+  return { targetVital, efficiency };
+}
+
+function createDrawPressureState(ambientPressure) {
+  const baseNet = ambientPressure?.netByKind && typeof ambientPressure.netByKind === "object"
+    ? ambientPressure.netByKind
+    : {};
+  const netByKind = Object.fromEntries(AFFINITY_KINDS.map((kind) => [kind, Math.max(0, Number(baseNet[kind]) || 0)]));
+  return {
+    siphon(kind, stacks) {
+      if (!AFFINITY_KINDS.includes(kind)) return 0;
+      const request = Number.isInteger(stacks) && stacks > 0 ? stacks : 1;
+      const available = netByKind[kind] || 0;
+      const siphoned = Math.min(available, request);
+      netByKind[kind] = available - siphoned;
+      return siphoned;
+    },
+  };
+}
+
+function applyDrawConversion(vitals, {
+  kind,
+  expression,
+  stacks,
+  affinityRules,
+  drawPressureState,
+} = {}) {
+  if (expression !== "draw" || !drawPressureState) {
+    return null;
+  }
+  const siphoned = drawPressureState.siphon(kind, stacks);
+  const conversion = resolveDrawConversionRule(affinityRules, kind);
+  const targetVital = conversion.targetVital;
+  const gain = Math.max(0, Math.round(siphoned * conversion.efficiency));
+  const vital = vitals[targetVital];
+  if (!vital || gain <= 0 || vital.max <= 0) {
+    return {
+      targetVital,
+      siphoned,
+      converted: 0,
+    };
+  }
+  const availableCap = Math.max(0, vital.max - vital.current);
+  const converted = Math.min(gain, availableCap);
+  vitals[targetVital] = {
+    ...vital,
+    current: vital.current + converted,
+  };
+  return {
+    targetVital,
+    siphoned,
+    converted,
+  };
+}
+
+function annotateDrawEffect(effect, drawOutcome) {
+  if (!drawOutcome) return effect;
+  if (effect?.operation !== "draw_vital_affinity") return effect;
+  return {
+    ...effect,
+    targetVital: drawOutcome.targetVital,
+    potency: drawOutcome.converted,
+    siphonedStacks: drawOutcome.siphoned,
+  };
+}
+
 function applyPresetToVitals(vitals, preset, stacks, allowByVital = {}) {
   const modifiers = preset.vitalsModifiers;
   if (!modifiers) return vitals;
@@ -115,7 +226,7 @@ function applyPresetToVitals(vitals, preset, stacks, allowByVital = {}) {
   return next;
 }
 
-function resolveActorEffects(loadout, presetIndex, baseVitals) {
+function resolveActorEffects(loadout, presetIndex, baseVitals, affinityRules, drawPressureState) {
   const vitals = ensureVitals(baseVitals);
   const abilities = [];
   const affinityStacks = {};
@@ -135,21 +246,38 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
       affinity.targetType,
       preset.expression || DEFAULT_AFFINITY_EXPRESSION,
     );
+    const resolved = resolveAffinityBehaviorProfile({
+      rules: affinityRules,
+      kind: preset.kind,
+      expression: preset.expression,
+      stacks,
+    });
+    const castProfile = resolved.castProfile;
     addAffinityTargetStack(affinityTargets, preset.kind, preset.expression, targetType, stacks);
-    resolvedEffects.push(
-      ...resolveAffinityTargetEffectsForEntry(
-        { kind: preset.kind, expression: preset.expression, stacks, targetType },
-        {
-          sourceType: "actor",
-          sourceId: loadout.actorId,
-          manaReserve: vitals?.mana?.current || 0,
-        },
-      ),
-    );
+    const drawOutcome = applyDrawConversion(vitals, {
+      kind: preset.kind,
+      expression: preset.expression,
+      stacks,
+      affinityRules,
+      drawPressureState,
+    });
+    resolvedEffects.push(...resolveAffinityTargetEffectsForEntry(
+      { kind: preset.kind, expression: preset.expression, stacks, targetType },
+      {
+        sourceType: "actor",
+        sourceId: loadout.actorId,
+        manaReserve: vitals?.mana?.current || 0,
+      },
+    ).map((effect) => ({
+      ...annotateDrawEffect(effect, drawOutcome),
+      manaCost: castProfile?.manaCost,
+      expressionAlias: castProfile?.expressionId,
+      complexityClass: resolved.complexityClass || undefined,
+    })));
 
     const presetAbilities = resolvePresetAbilities(preset);
     presetAbilities.forEach((ability) => {
-      abilities.push(resolveAbility(ability, preset, stacks));
+      abilities.push(resolveAbility(ability, preset, stacks, affinityRules));
     });
   });
 
@@ -163,7 +291,7 @@ function selectPresetForTrap(trap, presets) {
   return matches.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))[0];
 }
 
-function resolveTrapEffects(trap, presets) {
+function resolveTrapEffects(trap, presets, affinityRules, drawPressureState) {
   const baseVitals = ensureVitals(trap.vitals || {});
   const abilities = [];
   const affinityStacks = {};
@@ -178,6 +306,13 @@ function resolveTrapEffects(trap, presets) {
   addAffinityTargetStack(affinityTargets, trap.affinity.kind, expression, targetType, trap.affinity.stacks);
 
   const preset = selectPresetForTrap(trap, presets);
+  const resolved = resolveAffinityBehaviorProfile({
+    rules: affinityRules,
+    kind: trap.affinity.kind,
+    expression,
+    stacks: trap.affinity.stacks,
+  });
+  const castProfile = resolved.castProfile;
   if (preset) {
     const allowHealth = preset.kind === "life" || preset.kind === "decay";
     const updatedVitals = applyPresetToVitals(baseVitals, preset, trap.affinity.stacks, {
@@ -189,10 +324,17 @@ function resolveTrapEffects(trap, presets) {
     });
     const presetAbilities = resolvePresetAbilities(preset);
     presetAbilities.forEach((ability) => {
-      abilities.push(resolveAbility(ability, preset, trap.affinity.stacks));
+      abilities.push(resolveAbility(ability, preset, trap.affinity.stacks, affinityRules));
     });
   }
 
+  const drawOutcome = applyDrawConversion(baseVitals, {
+    kind: trap.affinity.kind,
+    expression,
+    stacks: trap.affinity.stacks,
+    affinityRules,
+    drawPressureState,
+  });
   const resolvedEffects = resolveAffinityTargetEffectsForEntry(
     {
       kind: trap.affinity.kind,
@@ -205,7 +347,12 @@ function resolveTrapEffects(trap, presets) {
       sourceId: `${trap.x},${trap.y}`,
       manaReserve: baseVitals?.mana?.current || 0,
     },
-  );
+  ).map((effect) => ({
+    ...annotateDrawEffect(effect, drawOutcome),
+    manaCost: castProfile?.manaCost,
+    expressionAlias: castProfile?.expressionId,
+    complexityClass: resolved.complexityClass || undefined,
+  }));
   resolvedEffects.sort((a, b) => String(a.id || "").localeCompare(String(b.id || "")));
 
   return {
@@ -218,18 +365,31 @@ function resolveTrapEffects(trap, presets) {
   };
 }
 
-export function resolveAffinityEffects({ presets = [], loadouts = [], baseVitalsByActorId = {}, traps = [] } = {}) {
+export function resolveAffinityEffects({
+  presets = [],
+  loadouts = [],
+  baseVitalsByActorId = {},
+  traps = [],
+  rooms = [],
+  ambientPressure = null,
+  affinityRules = null,
+} = {}) {
   const presetIndex = new Map();
   presets.forEach((preset) => {
     if (preset && preset.id) {
       presetIndex.set(preset.id, preset);
     }
   });
+  const resolvedAmbientPressure = ambientPressure || buildAmbientAffinityPressure({
+    rooms,
+    traps,
+  });
+  const drawPressureState = createDrawPressureState(resolvedAmbientPressure);
 
   const actors = loadouts
     .map((loadout) => {
       const baseVitals = baseVitalsByActorId?.[loadout.actorId] || {};
-      const resolved = resolveActorEffects(loadout, presetIndex, baseVitals);
+      const resolved = resolveActorEffects(loadout, presetIndex, baseVitals, affinityRules, drawPressureState);
       return {
         actorId: loadout.actorId,
         vitals: resolved.vitals,
@@ -242,7 +402,7 @@ export function resolveAffinityEffects({ presets = [], loadouts = [], baseVitals
     .sort((a, b) => String(a.actorId).localeCompare(String(b.actorId)));
 
   const trapResults = (Array.isArray(traps) ? traps : [])
-    .map((trap) => resolveTrapEffects(trap, presets))
+    .map((trap) => resolveTrapEffects(trap, presets, affinityRules, drawPressureState))
     .sort((a, b) => (a.position.y - b.position.y) || (a.position.x - b.position.x));
 
   return { actors, traps: trapResults };

@@ -233,7 +233,7 @@ const persona = {
                   },
                 },
               ],
-              visibleActors: [{ id: "def_1", role: "defender" }],
+              visibleActors: [{ id: "def_1", role: "warden" }],
             }),
           },
         },

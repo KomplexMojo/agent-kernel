@@ -168,6 +168,10 @@ persona-name/
 | **Annotator** | Telemetry capture, formatting, and emission |
 | **Moderator** | Responsible for the orderly running of the simulation. |
 
+Affinity balance is data-driven: authored `AffinityRulesArtifact` files define stack tiers,
+mana costs, expression aliases, and cross-affinity outcomes, then travel through build,
+configurator, run, IPFS packaging, and blockchain metadata as immutable game-definition inputs.
+
 
 ---
 

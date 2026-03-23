@@ -10,6 +10,17 @@ export { buildBuildTelemetryRecord } from "./build/telemetry.js";
 export { createCommandKernel } from "./commands/kernel.js";
 export { createSchemaCatalog, filterSchemaCatalogEntries } from "./contracts/schema-catalog.js";
 export {
+  RESOURCE_BUNDLE_SCHEMA,
+  RESOURCE_BUNDLE_VERSION,
+  DEFAULT_RESOURCE_TILE_SIZE,
+  createDefaultResourceBundleArtifact,
+  validateResourceBundleArtifact,
+  hasGeneratedResourceBundleAssets,
+  listResourceBundleAssetFiles,
+  renderBoardWithResourceBundle,
+  encodeRgbaToPng,
+} from "./render/resource-bundle.js";
+export {
   AFFINITY_KINDS,
   AFFINITY_EXPRESSIONS,
   AFFINITY_TARGET_TYPES,
@@ -18,9 +29,9 @@ export {
   AFFINITY_OPPOSITES,
   DEFAULT_DUNGEON_AFFINITY,
   DEFAULT_AFFINITY_EXPRESSION,
-  ATTACKER_SETUP_MODES,
-  DEFAULT_ATTACKER_SETUP_MODE,
-  ATTACKER_SETUP_MODE_SET,
+  DELVER_SETUP_MODES,
+  DEFAULT_DELVER_SETUP_MODE,
+  DELVER_SETUP_MODE_SET,
   AFFINITY_TARGET_TYPE_SET,
   DEFAULT_LLM_MODEL,
   DEFAULT_LLM_BASE_URL,

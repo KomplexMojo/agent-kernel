@@ -1,4 +1,5 @@
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { resolveAffinityBehaviorProfile } from "./behavior-rules.js";
 
 const REGEN_KEYS = Object.freeze(VITAL_KEYS.filter((key) => key !== "durability"));
 
@@ -149,7 +150,10 @@ export function calculateRegenCost({
 }
 
 export function calculateAffinityCost({
+  kind,
+  expression,
   stacks,
+  affinityRules,
   affinityBaseCost = COST_DEFAULTS.affinityBaseCost,
   affinityStackExponent = COST_DEFAULTS.affinityStackExponent,
 } = {}) {
@@ -166,8 +170,23 @@ export function calculateAffinityCost({
   if (errors.length > 0) {
     return { ok: false, errors, cost: 0 };
   }
+  const resolvedRule = resolveAffinityBehaviorProfile({
+    rules: affinityRules,
+    kind,
+    expression,
+    stacks,
+  });
+  if (Number.isInteger(resolvedRule.defaultDesignCostTokens) && resolvedRule.defaultDesignCostTokens >= 0) {
+    return {
+      ok: true,
+      errors: [],
+      cost: resolvedRule.defaultDesignCostTokens,
+      source: "affinity-rules",
+      complexityClass: resolvedRule.complexityClass || undefined,
+    };
+  }
   const cost = affinityBaseCost * Math.pow(stacks, affinityStackExponent);
-  return { ok: true, errors: [], cost };
+  return { ok: true, errors: [], cost, source: "legacy_formula" };
 }
 
 export function validateAffinityPrereqs({
@@ -196,6 +215,9 @@ export function calculateActorCost({
   vitals,
   regen,
   affinityStacks = 1,
+  affinityKind,
+  affinityExpression,
+  affinityRules,
   tokensPerVital = COST_DEFAULTS.tokensPerVital,
   tokensPerRegen = COST_DEFAULTS.tokensPerRegen,
   affinityBaseCost = COST_DEFAULTS.affinityBaseCost,
@@ -216,7 +238,10 @@ export function calculateActorCost({
   }
 
   const affinityResult = calculateAffinityCost({
+    kind: affinityKind,
+    expression: affinityExpression,
     stacks: affinityStacks,
+    affinityRules,
     affinityBaseCost,
     affinityStackExponent,
   });

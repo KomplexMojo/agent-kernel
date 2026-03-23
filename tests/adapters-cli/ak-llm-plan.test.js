@@ -76,6 +76,34 @@ test("cli llm-plan writes build outputs with captured input artifact", () => {
   assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/CapturedInputArtifact"));
 });
 
+test("cli llm-plan can emit visual assets and a v2 resource bundle", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-visual-assets-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary.json",
+      "--emit-visual-assets",
+      "--run-id",
+      "run_llm_plan_visual_assets",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "1" },
+  );
+
+  const resourceBundle = JSON.parse(readFileSync(join(outDir, "resource-bundle.json"), "utf8"));
+  assert.equal(resourceBundle.schemaVersion, 2);
+  assert.equal(existsSync(join(outDir, "visual-assets", "tiles", "fog.png")), true);
+  assert.equal(existsSync(join(outDir, "visual-assets", "actors", "delver-fire.png")), true);
+});
+
 test("cli llm-plan budget loop writes multiple captures", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-"));
   runCli(
@@ -133,7 +161,7 @@ test("cli llm-plan budget loop writes multiple captures", () => {
   assert.ok(allocation);
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
   assert.equal(poolsById.layout, 320);
-  assert.equal(poolsById.defenders, 320);
+  assert.equal(poolsById.wardens, 320);
   assert.equal(poolsById.player, 160);
 });
 
@@ -187,7 +215,7 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
       "--budget-pool",
       "layout=0.5",
       "--budget-pool",
-      "defenders=0.5",
+      "wardens=0.5",
       "--budget-pool",
       "loot=0",
       "--run-id",
@@ -204,7 +232,7 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
   const allocation = telemetry?.data?.llm?.budgetAllocation;
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
   assert.equal(poolsById.layout, 400);
-  assert.equal(poolsById.defenders, 400);
+  assert.equal(poolsById.wardens, 400);
   assert.equal(poolsById.player, 0);
 
   const trace = telemetry?.data?.llm?.trace || [];

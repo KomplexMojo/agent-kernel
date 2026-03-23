@@ -128,6 +128,28 @@ test("cli room-plan supports multiple room configurations in one command", () =>
   ]);
 });
 
+test("cli room-plan accepts draw affinity expression", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-draw-"));
+  runCliOk([
+    "room-plan",
+    "--room",
+    "size=small;count=1;affinities=water:draw:2",
+    "--run-id",
+    "run_room_plan_draw",
+    "--created-at",
+    "2026-03-23T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const cards = listRoomCards(spec);
+  assert.equal(cards.length, 1);
+  assert.deepEqual(listAffinityTuples(cards[0]), [
+    { kind: "water", expression: "draw", stacks: 2 },
+  ]);
+});
+
 test("cli room-plan writes budget receipt with room layout and room-affinity spend", () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budget-"));
   const outDir = join(workDir, "out");

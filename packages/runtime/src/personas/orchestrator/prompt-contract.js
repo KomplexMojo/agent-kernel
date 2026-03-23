@@ -1,9 +1,9 @@
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
-  ATTACKER_SETUP_MODES,
-  ATTACKER_SETUP_MODE_SET,
-  DEFAULT_ATTACKER_SETUP_MODE,
+  DELVER_SETUP_MODES,
+  DELVER_SETUP_MODE_SET,
+  DEFAULT_DELVER_SETUP_MODE,
   LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
   DEFAULT_VITALS,
   VITAL_KEYS,
@@ -14,7 +14,7 @@ import { MOTIVATION_KINDS } from "../configurator/motivation-loadouts.js";
 export const ALLOWED_AFFINITIES = AFFINITY_KINDS;
 export const ALLOWED_AFFINITY_EXPRESSIONS = AFFINITY_EXPRESSIONS;
 export const ALLOWED_MOTIVATIONS = MOTIVATION_KINDS;
-export const ALLOWED_ATTACKER_SETUP_MODES = ATTACKER_SETUP_MODES;
+export const ALLOWED_DELVER_SETUP_MODES = DELVER_SETUP_MODES;
 export const LLM_PHASES = Object.freeze(["layout_only", "actors_only"]);
 export const LLM_STOP_REASONS = Object.freeze(["done", "missing", "no_viable_spend"]);
 export const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS;
@@ -69,14 +69,14 @@ function normalizeRoomDesignPattern(rawPattern) {
   return ROOM_DESIGN_PATTERN_TYPES.has(normalized) ? normalized : "";
 }
 
-function normalizeAttackerSetupMode(mode, errors, fieldBase) {
+function normalizeDelverSetupMode(mode, errors, fieldBase) {
   if (mode === undefined) return undefined;
   if (!isNonEmptyString(mode)) {
     addError(errors, fieldBase, "invalid_setup_mode");
     return undefined;
   }
   const normalized = mode.trim();
-  if (!ATTACKER_SETUP_MODE_SET.has(normalized)) {
+  if (!DELVER_SETUP_MODE_SET.has(normalized)) {
     addError(errors, fieldBase, "invalid_setup_mode");
     return undefined;
   }
@@ -110,7 +110,7 @@ function pushAffinityExpression(target, affinity, expression) {
   target[affinity] = next;
 }
 
-function normalizeAttackerAffinitiesMap(input, errors, fieldBase) {
+function normalizeDelverAffinitiesMap(input, errors, fieldBase) {
   if (input === undefined) return undefined;
   const normalized = {};
   const addAffinityExpression = (rawAffinity, rawExpression, expressionField) => {
@@ -172,7 +172,7 @@ function normalizeAttackerAffinitiesMap(input, errors, fieldBase) {
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
-function normalizeAttackerAffinityStacksMap(input, errors, fieldBase) {
+function normalizeDelverAffinityStacksMap(input, errors, fieldBase) {
   if (input === undefined) return undefined;
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     addError(errors, fieldBase, "invalid_affinity_stacks");
@@ -193,20 +193,20 @@ function normalizeAttackerAffinityStacksMap(input, errors, fieldBase) {
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
-function normalizeAttackerConfig(config, errors, { fieldBase = "attackerConfig" } = {}) {
+function normalizeDelverConfig(config, errors, { fieldBase = "delverConfig" } = {}) {
   if (config === undefined) return undefined;
   if (!config || typeof config !== "object" || Array.isArray(config)) {
-    addError(errors, fieldBase, "invalid_attacker_config");
+    addError(errors, fieldBase, "invalid_delver_config");
     return undefined;
   }
-  const setupMode = normalizeAttackerSetupMode(config.setupMode, errors, `${fieldBase}.setupMode`);
+  const setupMode = normalizeDelverSetupMode(config.setupMode, errors, `${fieldBase}.setupMode`);
   const vitalsMax = normalizeVitalsConfigMap(config.vitalsMax, errors, `${fieldBase}.vitalsMax`);
   const vitalsRegen = normalizeVitalsConfigMap(config.vitalsRegen, errors, `${fieldBase}.vitalsRegen`);
-  const affinities = normalizeAttackerAffinitiesMap(config.affinities, errors, `${fieldBase}.affinities`);
-  const affinityStacks = normalizeAttackerAffinityStacksMap(config.affinityStacks, errors, `${fieldBase}.affinityStacks`);
+  const affinities = normalizeDelverAffinitiesMap(config.affinities, errors, `${fieldBase}.affinities`);
+  const affinityStacks = normalizeDelverAffinityStacksMap(config.affinityStacks, errors, `${fieldBase}.affinityStacks`);
 
   const normalized = {
-    setupMode: setupMode || DEFAULT_ATTACKER_SETUP_MODE,
+    setupMode: setupMode || DEFAULT_DELVER_SETUP_MODE,
   };
   if (vitalsMax && Object.keys(vitalsMax).length > 0) normalized.vitalsMax = vitalsMax;
   if (vitalsRegen && Object.keys(vitalsRegen).length > 0) normalized.vitalsRegen = vitalsRegen;
@@ -215,14 +215,14 @@ function normalizeAttackerConfig(config, errors, { fieldBase = "attackerConfig" 
   return normalized;
 }
 
-function normalizeAttackerConfigs(configs, errors) {
+function normalizeDelverConfigs(configs, errors) {
   if (configs === undefined) return undefined;
   if (!Array.isArray(configs)) {
-    addError(errors, "attackerConfigs", "invalid_attacker_configs");
+    addError(errors, "delverConfigs", "invalid_delver_configs");
     return undefined;
   }
   return configs
-    .map((entry, index) => normalizeAttackerConfig(entry, errors, { fieldBase: `attackerConfigs[${index}]` }))
+    .map((entry, index) => normalizeDelverConfig(entry, errors, { fieldBase: `delverConfigs[${index}]` }))
     .filter(Boolean);
 }
 
@@ -527,7 +527,7 @@ function normalizePick(entry, base, errors, { source = "actor", enforceAmbulator
     addError(errors, `${base}.expression`, "missing_expression");
   }
 
-  const setupMode = normalizeAttackerSetupMode(entry.setupMode ?? entry.mode, errors, `${base}.setupMode`);
+  const setupMode = normalizeDelverSetupMode(entry.setupMode ?? entry.mode, errors, `${base}.setupMode`);
 
   let normalizedVitals;
   if (entry.vitals !== undefined) {
@@ -619,31 +619,31 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
   if (roomDesign) {
     value.roomDesign = roomDesign;
   }
-  let normalizedAttackerCount;
-  if (summary.attackerCount !== undefined) {
-    if (!Number.isInteger(summary.attackerCount) || summary.attackerCount <= 0) {
-      addError(errors, "attackerCount", "invalid_attacker_count");
+  let normalizedDelverCount;
+  if (summary.delverCount !== undefined) {
+    if (!Number.isInteger(summary.delverCount) || summary.delverCount <= 0) {
+      addError(errors, "delverCount", "invalid_delver_count");
     } else {
-      normalizedAttackerCount = summary.attackerCount;
+      normalizedDelverCount = summary.delverCount;
     }
   }
-  const attackerConfigs = normalizeAttackerConfigs(summary.attackerConfigs, errors);
-  const attackerConfig = normalizeAttackerConfig(summary.attackerConfig, errors);
-  if (Array.isArray(attackerConfigs) && attackerConfigs.length > 0) {
-    value.attackerConfigs = attackerConfigs;
-    value.attackerConfig = attackerConfigs[0];
-  } else if (attackerConfig) {
-    value.attackerConfig = attackerConfig;
-    value.attackerConfigs = [attackerConfig];
+  const delverConfigs = normalizeDelverConfigs(summary.delverConfigs, errors);
+  const delverConfig = normalizeDelverConfig(summary.delverConfig, errors);
+  if (Array.isArray(delverConfigs) && delverConfigs.length > 0) {
+    value.delverConfigs = delverConfigs;
+    value.delverConfig = delverConfigs[0];
+  } else if (delverConfig) {
+    value.delverConfig = delverConfig;
+    value.delverConfigs = [delverConfig];
   }
-  if (Number.isInteger(normalizedAttackerCount)) {
-    value.attackerCount = normalizedAttackerCount;
-    if (Array.isArray(value.attackerConfigs) && value.attackerConfigs.length > 0
-      && value.attackerConfigs.length !== normalizedAttackerCount) {
-      addError(errors, "attackerConfigs", "attacker_count_mismatch");
+  if (Number.isInteger(normalizedDelverCount)) {
+    value.delverCount = normalizedDelverCount;
+    if (Array.isArray(value.delverConfigs) && value.delverConfigs.length > 0
+      && value.delverConfigs.length !== normalizedDelverCount) {
+      addError(errors, "delverConfigs", "delver_count_mismatch");
     }
-  } else if (Array.isArray(value.attackerConfigs) && value.attackerConfigs.length > 0) {
-    value.attackerCount = value.attackerConfigs.length;
+  } else if (Array.isArray(value.delverConfigs) && value.delverConfigs.length > 0) {
+    value.delverCount = value.delverConfigs.length;
   }
   if (summary.budgetTokens !== undefined) {
     if (!Number.isInteger(summary.budgetTokens) || summary.budgetTokens <= 0) {
@@ -656,11 +656,11 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
   const roomsInput = Array.isArray(summary.rooms) ? summary.rooms : [];
   const actorsInput = Array.isArray(summary.actors)
     ? summary.actors
-    : Array.isArray(summary.defenders)
-      ? summary.defenders
+    : Array.isArray(summary.wardens)
+      ? summary.wardens
       : [];
-  if (!Array.isArray(summary.actors) && Array.isArray(summary.defenders)) {
-    addWarning(warnings, "actors", "aliased_from_defenders");
+  if (!Array.isArray(summary.actors) && Array.isArray(summary.wardens)) {
+    addWarning(warnings, "actors", "aliased_from_wardens");
   }
 
   value.rooms = [];

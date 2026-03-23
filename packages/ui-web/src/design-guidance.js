@@ -26,10 +26,11 @@ import {
 } from "../../runtime/src/personas/configurator/spend-proposal.js";
 import {
   getConflictingMotivationKinds,
-  MOTIVATION_DISPLAY_GROUPS,
   MOTIVATION_KINDS,
   normalizeMotivationKindList,
 } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
+import { getMotivationDisplayGroups } from "../../runtime/src/personas/configurator/motivation-rules.js";
+import { resolveMotivationBehaviorProfile } from "../../runtime/src/personas/configurator/behavior-rules.js";
 import {
   buildCardSetFromSummary,
   extractSummaryFromCardSet,
@@ -42,13 +43,13 @@ import {
 } from "../../runtime/src/personas/configurator/card-model.js";
 
 const DEFAULT_LEVEL_BUDGET_TOKENS = 1000;
-const DEFAULT_AI_PROMPT = "Generate a balanced room, attacker, and defender card set for a stealth dungeon run.";
+const DEFAULT_AI_PROMPT = "Generate a balanced room, delver, and warden card set for a stealth dungeon run.";
 const FIXTURE_DEFAULT_RESPONSE = {
   response: JSON.stringify({
     dungeonAffinity: "fire",
     rooms: [{ affinity: "fire", size: "medium", count: 2 }],
     actors: [{ motivation: "defending", affinity: "earth", count: 2 }],
-    attackerConfigs: [{
+    delverConfigs: [{
       setupMode: "hybrid",
       vitalsMax: { health: 10, mana: 6, stamina: 5, durability: 4 },
       vitalsRegen: { health: 1, mana: 1, stamina: 1, durability: 0 },
@@ -58,19 +59,19 @@ const FIXTURE_DEFAULT_RESPONSE = {
   }),
 };
 
-export const CARD_TYPE_ORDER = Object.freeze(["room", "attacker", "defender"]);
+export const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden"]);
 export const CARD_PROPERTY_GROUP_ORDER = Object.freeze(["type", "affinities", "expressions", "motivations"]);
 export const ROOM_SIZE_ORDER = Object.freeze(["small", "medium", "large"]);
-const BUDGET_BUCKET_ORDER = Object.freeze(["room", "attacker", "defender"]);
+const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden"]);
 const DEFAULT_BUDGET_SPLIT = Object.freeze({
   room: 55,
-  attacker: 20,
-  defender: 25,
+  delver: 20,
+  warden: 25,
 });
 const TYPE_ICON_MAP = Object.freeze({
   room: "🏛️",
-  attacker: "⚔️",
-  defender: "🛡️",
+  delver: "🗝️",
+  warden: "🏰",
   untyped: "◻️",
 });
 const AFFINITY_ICON_MAP = Object.freeze({
@@ -89,6 +90,13 @@ const EXPRESSION_ICON_MAP = Object.freeze({
   push: "⬆️",
   pull: "⬇️",
   emit: "📡",
+  draw: "🌀",
+});
+const EXPRESSION_HELP_TEXT = Object.freeze({
+  push: "Push projects affinity outward as direct force.",
+  pull: "Pull moves position through attraction and repositioning.",
+  emit: "Emit projects a local field into the environment.",
+  draw: "Draw transfers essence/resource through siphon and recharge.",
 });
 const MOTIVATION_ICON_MAP = Object.freeze({
   random: "🎲",
@@ -101,8 +109,15 @@ const MOTIVATION_ICON_MAP = Object.freeze({
   goal_oriented: "🎯",
   strategy_focused: "♟️",
 });
-const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.";
+const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.";
 const EXCLUSIVE_PAIR_NOTE = "Choose 1";
+const MOTIVATION_GROUP_LABELS = Object.freeze({
+  combat: "Combat",
+  mobility: "Mobility",
+  mobility_route: "Route",
+  planning: "Legacy Planning",
+  response: "Legacy Response",
+});
 
 const AFFINITY_DISPLAY_GROUPS = Object.freeze(
   (() => {
@@ -157,6 +172,28 @@ function iconForMotivation(motivation) {
   return MOTIVATION_ICON_MAP[normalized] || "❖";
 }
 
+function describeReasoningClass(reasoningClass) {
+  if (reasoningClass === "strategic") return "Strategic";
+  if (reasoningClass === "tactical") return "Tactical";
+  return "Instinctual";
+}
+
+function deriveMotivationUiState(card, fallbackType = "warden", { motivationRules } = {}) {
+  const motivations = normalizeMotivationListAllowEmpty(card?.motivations);
+  const fallback = fallbackType === "delver" ? "attacking" : "defending";
+  const resolved = resolveMotivationBehaviorProfile({
+    rules: motivationRules,
+    motivations: motivations.length > 0 ? motivations : [fallback],
+    motivationProfile: card?.motivationProfile,
+  });
+  return {
+    motivations,
+    motivationProfile: resolved.motivationProfile,
+    reasoningClass: resolved.reasoningClass,
+    complexityClass: resolved.complexityClass,
+  };
+}
+
 function readPositiveInt(value, fallback = 0) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -184,8 +221,8 @@ function readBoundedPercent(value, fallback = 0) {
 function normalizeBudgetSplit(values = {}) {
   return {
     room: readBoundedPercent(values.room, DEFAULT_BUDGET_SPLIT.room),
-    attacker: readBoundedPercent(values.attacker, DEFAULT_BUDGET_SPLIT.attacker),
-    defender: readBoundedPercent(values.defender, DEFAULT_BUDGET_SPLIT.defender),
+    delver: readBoundedPercent(values.delver, DEFAULT_BUDGET_SPLIT.delver),
+    warden: readBoundedPercent(values.warden, DEFAULT_BUDGET_SPLIT.warden),
   };
 }
 
@@ -230,9 +267,9 @@ function normalizeMotivationListAllowEmpty(values) {
   }).value;
 }
 
-function findMotivationConflict(currentMotivations = [], nextMotivation = "") {
+function findMotivationConflict(currentMotivations = [], nextMotivation = "", { motivationRules } = {}) {
   const normalizedCurrent = normalizeMotivationListAllowEmpty(currentMotivations);
-  const conflicts = new Set(getConflictingMotivationKinds(nextMotivation));
+  const conflicts = new Set(getConflictingMotivationKinds(nextMotivation, { rules: motivationRules }));
   if (conflicts.size === 0) return "";
   return normalizedCurrent.find((entry) => conflicts.has(entry)) || "";
 }
@@ -273,13 +310,13 @@ const NEW_CARD_VITALS = Object.freeze(
     return acc;
   }, {}),
 );
-const DEFAULT_ATTACKER_CARD_AFFINITY = "light";
-const DEFAULT_DEFENDER_CARD_AFFINITY = "dark";
+const DEFAULT_DELVER_CARD_AFFINITY = "light";
+const DEFAULT_WARDEN_CARD_AFFINITY = "dark";
 const DEFAULT_ACTOR_CARD_AFFINITY_EXPRESSION = "emit";
 
 function defaultActorAffinityForType(type) {
-  if (type === "attacker") return DEFAULT_ATTACKER_CARD_AFFINITY;
-  if (type === "defender") return DEFAULT_DEFENDER_CARD_AFFINITY;
+  if (type === "delver") return DEFAULT_DELVER_CARD_AFFINITY;
+  if (type === "warden") return DEFAULT_WARDEN_CARD_AFFINITY;
   return DEFAULT_DUNGEON_AFFINITY;
 }
 
@@ -302,16 +339,16 @@ const CARD_ID_MAX_GENERATION_ATTEMPTS = 256;
 const GLOBAL_ISSUED_CARD_IDS = new Set();
 const CARD_ID_PREFIX_BY_TYPE = Object.freeze({
   room: "R",
-  attacker: "A",
-  defender: "D",
+  delver: "A",
+  warden: "D",
   untyped: "C",
 });
 
 function cardPrefixForType(type) {
   const normalized = normalizeCardType(type);
   if (normalized === "room") return CARD_ID_PREFIX_BY_TYPE.room;
-  if (normalized === "attacker") return CARD_ID_PREFIX_BY_TYPE.attacker;
-  if (normalized === "defender") return CARD_ID_PREFIX_BY_TYPE.defender;
+  if (normalized === "delver") return CARD_ID_PREFIX_BY_TYPE.delver;
+  if (normalized === "warden") return CARD_ID_PREFIX_BY_TYPE.warden;
   return CARD_ID_PREFIX_BY_TYPE.untyped;
 }
 
@@ -516,7 +553,7 @@ export function createDesignCard({
   const hasExplicitEmptyMotivations = Array.isArray(motivations) && normalizedInputMotivations.length === 0;
   const normalizedCard = normalizeCardEntry({
     id: typeof id === "string" && id.trim() ? id.trim() : buildCardId(normalizedType || "untyped"),
-    type: normalizedType || "defender",
+    type: normalizedType || "warden",
     source: normalizedType === "room" ? "room" : "actor",
     affinity: normalizedAffinityInput,
     roomSize: normalizeRoomCardSize(roomSize),
@@ -526,7 +563,7 @@ export function createDesignCard({
       ? []
       : normalizeMotivationList(
         motivations,
-        normalizedType === "attacker" ? "attacking" : "defending",
+        normalizedType === "delver" ? "attacking" : "defending",
       ),
     affinities: normalizedInputAffinities ?? injectedDefaultActorAffinities,
     vitals: normalizedVitals,
@@ -565,8 +602,8 @@ export function createDesignCard({
     return normalizedCard;
   }
 
-  const fallbackMotivation = normalizedType === "attacker" ? "attacking" : "defending";
-  normalizedCard.type = normalizedType || "defender";
+  const fallbackMotivation = normalizedType === "delver" ? "attacking" : "defending";
+  normalizedCard.type = normalizedType || "warden";
   normalizedCard.source = "actor";
   normalizedCard.roomSize = undefined;
   normalizedCard.vitals = resolveActorCardVitals(normalizedCard.vitals);
@@ -650,8 +687,8 @@ export function buildCardsFromSummary(summary, { dungeonAffinity = DEFAULT_DUNGE
 export function groupCardsByType(cards = []) {
   const grouped = {
     room: [],
-    attacker: [],
-    defender: [],
+    delver: [],
+    warden: [],
     untyped: [],
   };
   normalizeDesignCardSet(cards).forEach((card) => {
@@ -690,7 +727,7 @@ function replaceCardType(card, typeValue) {
         : card?.expressions,
     motivations: type === "room"
       ? []
-      : normalizeMotivationList(card?.motivations, type === "attacker" ? "attacking" : "defending"),
+      : normalizeMotivationList(card?.motivations, type === "delver" ? "attacking" : "defending"),
     vitals: type === "room" ? undefined : card?.vitals,
     roomSize: type === "room" ? card?.roomSize || "medium" : undefined,
   });
@@ -816,7 +853,7 @@ function applyExpressionDrop(card, expressionValue, { affinityKind, sourceExpres
 
 function applyMotivationDrop(card, motivationValue) {
   const type = normalizeCardType(card?.type);
-  if (type !== "attacker" && type !== "defender") {
+  if (type !== "delver" && type !== "warden") {
     return { ok: false, reason: "invalid_card_type", card };
   }
   const motivation = normalizeMotivationList([motivationValue], "")[0];
@@ -921,7 +958,7 @@ export function adjustAffinityStack(card, affinityKind, delta = 0, expressionVal
 export function adjustCardVital(card, vitalKey, field, delta = 0) {
   const working = createDesignCard(card || {});
   const type = normalizeCardType(working.type);
-  if (type !== "attacker" && type !== "defender") return working;
+  if (type !== "delver" && type !== "warden") return working;
   if (!VITAL_KEYS.includes(vitalKey)) return working;
   if (field !== "max" && field !== "regen") return working;
   const amount = Math.trunc(delta);
@@ -997,6 +1034,7 @@ function buildCardReceipt(card, { unitTokens, totalTokens, lineItems: inputLineI
         unitCostTokens,
         unitTokens: unitLineTotal,
         totalTokens: unitLineTotal * multiplier,
+        complexityClass: typeof item?.complexityClass === "string" ? item.complexityClass : undefined,
       };
     })
     .filter((item) => item.totalTokens > 0);
@@ -1067,6 +1105,7 @@ function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
       quantity: readPositiveInt(item?.quantity, 1),
       unitCostTokens: readPositiveInt(item?.unitCostTokens, 0),
       spendTokens: readPositiveInt(item?.spendTokens, 0),
+      complexityClass: typeof item?.complexityClass === "string" ? item.complexityClass : undefined,
     }))
     : [];
   return {
@@ -1095,6 +1134,7 @@ function calculateActorCardUnitValue(card, { priceList } = {}) {
       quantity: readPositiveInt(item?.quantity, 1),
       unitCostTokens: readPositiveInt(item?.unitCostTokens, 0),
       spendTokens: readPositiveInt(item?.spendTokens, 0),
+      complexityClass: typeof item?.complexityClass === "string" ? item.complexityClass : undefined,
     }))
     : [];
   const tokenHint = readPositiveInt(card?.tokenHint, 0);
@@ -1241,11 +1281,11 @@ const AUTO_GENERATE_ROOM_BLUEPRINTS = Object.freeze([
 ]);
 
 const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
-  attacker: Object.freeze([
+  delver: Object.freeze([
     {
-      key: "attacker_light",
+      key: "delver_light",
       card: {
-        type: "attacker",
+        type: "delver",
         affinity: "light",
         motivations: ["attacking"],
         count: 1,
@@ -1253,9 +1293,9 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
       },
     },
     {
-      key: "attacker_fire",
+      key: "delver_fire",
       card: {
-        type: "attacker",
+        type: "delver",
         affinity: "fire",
         expressions: ["push"],
         motivations: ["attacking"],
@@ -1264,11 +1304,11 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
       },
     },
   ]),
-  defender: Object.freeze([
+  warden: Object.freeze([
     {
-      key: "defender_dark",
+      key: "warden_dark",
       card: {
-        type: "defender",
+        type: "warden",
         affinity: "dark",
         motivations: ["defending"],
         count: 1,
@@ -1276,9 +1316,9 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
       },
     },
     {
-      key: "defender_earth",
+      key: "warden_earth",
       card: {
-        type: "defender",
+        type: "warden",
         affinity: "earth",
         expressions: ["pull"],
         motivations: ["defending"],
@@ -1288,6 +1328,11 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
     },
   ]),
 });
+
+const AUTO_GENERATE_REDUCTION_ORDER = Object.freeze(["delver", "warden", "room"]);
+const AUTO_GENERATE_ROOM_VARIANT_SEARCH_WINDOW = 512;
+const AUTO_GENERATE_MAX_TOTAL_UNITS = 25000;
+const AUTO_GENERATE_MAX_TOTAL_UNITS_MIN = 500;
 
 function resolveAutoGenerateVariants(blueprints = [], costContext = {}) {
   return blueprints
@@ -1303,6 +1348,26 @@ function resolveAutoGenerateVariants(blueprints = [], costContext = {}) {
     .filter((variant) => variant.unitTokens > 0);
 }
 
+function estimateAutoGenerateCapacityProfile() {
+  const nav = typeof globalThis?.navigator === "object" && globalThis.navigator
+    ? globalThis.navigator
+    : null;
+  const memoryGb = readPositiveInt(nav?.deviceMemory, 8);
+  const logicalCores = readPositiveInt(nav?.hardwareConcurrency, 8);
+  const estimatedMaxTotalUnits = Math.min(
+    AUTO_GENERATE_MAX_TOTAL_UNITS,
+    Math.max(
+      AUTO_GENERATE_MAX_TOTAL_UNITS_MIN,
+      (memoryGb * 1100) + (logicalCores * 250),
+    ),
+  );
+  return {
+    memoryGb,
+    logicalCores,
+    estimatedMaxTotalUnits,
+  };
+}
+
 function buildAutoGeneratedRoomCards(availableTokens, costContext = {}) {
   const budget = readNonNegativeInt(availableTokens, 0);
   if (budget <= 0) return [];
@@ -1310,66 +1375,74 @@ function buildAutoGeneratedRoomCards(availableTokens, costContext = {}) {
   const variants = resolveAutoGenerateVariants(AUTO_GENERATE_ROOM_BLUEPRINTS, costContext);
   if (variants.length === 0) return [];
 
-  const plans = Array.from({ length: budget + 1 }, () => null);
-  plans[0] = {
-    counts: Object.create(null),
-    cardUnits: 0,
-    preferenceScore: 0,
-  };
+  const sortedByPreference = variants
+    .slice()
+    .sort((a, b) => {
+      const prefDiff = readNonNegativeInt(b.preference, 0) - readNonNegativeInt(a.preference, 0);
+      if (prefDiff !== 0) return prefDiff;
+      return b.unitTokens - a.unitTokens;
+    });
+  const primary = sortedByPreference[0];
+  const maxPrimaryCount = Math.floor(budget / primary.unitTokens);
+  const minPrimaryCount = Math.max(0, maxPrimaryCount - AUTO_GENERATE_ROOM_VARIANT_SEARCH_WINDOW);
+  let best = null;
 
-  for (let spent = 1; spent <= budget; spent += 1) {
-    let bestPlan = null;
-    variants.forEach((variant) => {
-      if (variant.unitTokens > spent) return;
-      const priorPlan = plans[spent - variant.unitTokens];
-      if (!priorPlan) return;
-      const counts = {
-        ...priorPlan.counts,
-        [variant.key]: (priorPlan.counts[variant.key] || 0) + 1,
-      };
+  for (let primaryCount = maxPrimaryCount; primaryCount >= minPrimaryCount; primaryCount -= 1) {
+    const primarySpend = primaryCount * primary.unitTokens;
+    if (primarySpend > budget) continue;
+    const remainderBudget = budget - primarySpend;
+    variants.forEach((filler) => {
+      if (!Number.isFinite(filler?.unitTokens) || filler.unitTokens <= 0) return;
+      const fillerCount = Math.floor(remainderBudget / filler.unitTokens);
+      const spent = primarySpend + (fillerCount * filler.unitTokens);
+      if (spent <= 0) return;
+      const counts = Object.create(null);
+      if (primaryCount > 0) counts[primary.key] = primaryCount;
+      if (fillerCount > 0) {
+        counts[filler.key] = (counts[filler.key] || 0) + fillerCount;
+      }
+      const cardUnits = primaryCount + fillerCount;
+      const preferenceScore = (primaryCount * readNonNegativeInt(primary.preference, 0))
+        + (fillerCount * readNonNegativeInt(filler.preference, 0));
       const candidate = {
         counts,
-        cardUnits: priorPlan.cardUnits + 1,
-        preferenceScore: priorPlan.preferenceScore + readNonNegativeInt(variant.preference, 0),
+        spent,
+        cardUnits,
+        preferenceScore,
       };
       const better =
-        !bestPlan
-        || candidate.cardUnits < bestPlan.cardUnits
+        !best
+        || candidate.spent > best.spent
         || (
-          candidate.cardUnits === bestPlan.cardUnits
-          && candidate.preferenceScore > bestPlan.preferenceScore
+          candidate.spent === best.spent
+          && candidate.cardUnits < best.cardUnits
+        )
+        || (
+          candidate.spent === best.spent
+          && candidate.cardUnits === best.cardUnits
+          && candidate.preferenceScore > best.preferenceScore
         );
       if (better) {
-        bestPlan = candidate;
+        best = candidate;
       }
     });
-    plans[spent] = bestPlan;
   }
 
-  let bestSpent = budget;
-  while (bestSpent > 0 && !plans[bestSpent]) {
-    bestSpent -= 1;
-  }
-  if (bestSpent <= 0 || !plans[bestSpent]) {
-    return [];
-  }
-
-  return variants
-    .map((variant) => {
-      const count = readPositiveInt(plans[bestSpent]?.counts?.[variant.key], 0);
-      if (count <= 0) return null;
-      return createDesignCard({
-        ...variant.card,
-        count,
-        source: "auto-generated",
-      });
-    })
-    .filter(Boolean);
+  if (!best || best.spent <= 0) return [];
+  return variants.map((variant) => {
+    const count = readPositiveInt(best?.counts?.[variant.key], 0);
+    if (count <= 0) return null;
+    return createDesignCard({
+      ...variant.card,
+      count,
+      source: "auto-generated",
+    });
+  }).filter(Boolean);
 }
 
 function buildAutoGeneratedActorCards(type, availableTokens, costContext = {}) {
   const normalizedType = normalizeCardType(type);
-  if (normalizedType !== "attacker" && normalizedType !== "defender") {
+  if (normalizedType !== "delver" && normalizedType !== "warden") {
     return [];
   }
 
@@ -1421,13 +1494,173 @@ function buildAutoGeneratedActorCards(type, availableTokens, costContext = {}) {
 function formatAutoGenerateCount(type, count) {
   const normalizedType = normalizeCardType(type) || type;
   const safeCount = readNonNegativeInt(count, 0);
-  if (normalizedType === "attacker") {
-    return `${safeCount} attacker${safeCount === 1 ? "" : "s"}`;
+  if (normalizedType === "delver") {
+    return `${safeCount} delver${safeCount === 1 ? "" : "s"}`;
   }
-  if (normalizedType === "defender") {
-    return `${safeCount} defender${safeCount === 1 ? "" : "s"}`;
+  if (normalizedType === "warden") {
+    return `${safeCount} warden${safeCount === 1 ? "" : "s"}`;
   }
   return `${safeCount} room${safeCount === 1 ? "" : "s"}`;
+}
+
+function countUnitsByType(cards = []) {
+  return cards.reduce((acc, card) => {
+    const type = normalizeCardType(card?.type);
+    if (!type) return acc;
+    acc[type] += normalizeCardCount(card?.count, 1);
+    return acc;
+  }, {
+    room: 0,
+    delver: 0,
+    warden: 0,
+  });
+}
+
+function getReductionCandidateIndex(cards = [], type, costContext = {}) {
+  let bestIndex = -1;
+  let bestUnitTokens = -1;
+  cards.forEach((card, index) => {
+    if (normalizeCardType(card?.type) !== type) return;
+    const count = normalizeCardCount(card?.count, 1);
+    if (count <= 0) return;
+    const unitTokens = readPositiveInt(calculateCardValue(card, costContext)?.unitTokens, 0);
+    if (unitTokens > bestUnitTokens) {
+      bestUnitTokens = unitTokens;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}
+
+function reduceGeneratedCardsByType(generatedCards = [], reductionType, reductionUnits = 0, costContext = {}) {
+  let remaining = readNonNegativeInt(reductionUnits, 0);
+  if (remaining <= 0) return { cards: generatedCards.slice(), reducedUnits: 0 };
+  const next = generatedCards.slice();
+  let reducedUnits = 0;
+
+  while (remaining > 0) {
+    const index = getReductionCandidateIndex(next, reductionType, costContext);
+    if (index < 0) break;
+    const card = next[index];
+    const cardCount = normalizeCardCount(card?.count, 1);
+    const step = Math.min(cardCount, remaining);
+    const remainingCount = cardCount - step;
+    reducedUnits += step;
+    remaining -= step;
+    if (remainingCount <= 0) {
+      next.splice(index, 1);
+      continue;
+    }
+    next[index] = createDesignCard({
+      ...card,
+      count: remainingCount,
+      source: "auto-generated",
+    });
+  }
+
+  return { cards: next, reducedUnits };
+}
+
+function trimAutoGeneratedCardsForCapacity({
+  generatedCards = [],
+  existingCards = [],
+  maxTotalUnits = 0,
+  costContext = {},
+} = {}) {
+  const cap = readNonNegativeInt(maxTotalUnits, 0);
+  if (cap <= 0) {
+    return {
+      cards: [],
+      reductions: { room: 0, delver: 0, warden: 0 },
+      hadCapacityClamp: generatedCards.length > 0,
+    };
+  }
+  const existingCounts = countUnitsByType(existingCards);
+  const generatedCounts = countUnitsByType(generatedCards);
+  const totalExisting = existingCounts.room + existingCounts.delver + existingCounts.warden;
+  const totalGenerated = generatedCounts.room + generatedCounts.delver + generatedCounts.warden;
+  const totalUnits = totalExisting + totalGenerated;
+  if (totalUnits <= cap) {
+    return {
+      cards: generatedCards.slice(),
+      reductions: { room: 0, delver: 0, warden: 0 },
+      hadCapacityClamp: false,
+    };
+  }
+
+  let needToReduce = totalUnits - cap;
+  let nextCards = generatedCards.slice();
+  const reductions = { room: 0, delver: 0, warden: 0 };
+  AUTO_GENERATE_REDUCTION_ORDER.forEach((type) => {
+    if (needToReduce <= 0) return;
+    const reducible = countUnitsByType(nextCards)[type];
+    if (reducible <= 0) return;
+    const step = Math.min(reducible, needToReduce);
+    const reduced = reduceGeneratedCardsByType(nextCards, type, step, costContext);
+    nextCards = reduced.cards;
+    reductions[type] += reduced.reducedUnits;
+    needToReduce -= reduced.reducedUnits;
+  });
+
+  return {
+    cards: nextCards,
+    reductions,
+    hadCapacityClamp: true,
+    unreducedUnits: Math.max(0, needToReduce),
+  };
+}
+
+function trimAutoGeneratedCardsToBudget({
+  existingCards = [],
+  generatedCards = [],
+  evaluateCards,
+  costContext = {},
+} = {}) {
+  let nextGenerated = generatedCards.slice();
+  const reductions = { room: 0, delver: 0, warden: 0 };
+  let safety = 0;
+  while (safety < 128) {
+    safety += 1;
+    const evaluation = evaluateCards([...existingCards, ...nextGenerated]);
+    if (!evaluation.overBudget) {
+      return {
+        ok: true,
+        cards: nextGenerated,
+        reductions,
+        evaluation,
+      };
+    }
+    const overBy = Math.max(1, readNonNegativeInt(evaluation?.spendLedger?.totalOverBudgetBy, 1));
+    let changed = false;
+    AUTO_GENERATE_REDUCTION_ORDER.forEach((type) => {
+      if (changed) return;
+      const index = getReductionCandidateIndex(nextGenerated, type, costContext);
+      if (index < 0) return;
+      const target = nextGenerated[index];
+      const unitTokens = Math.max(1, readPositiveInt(calculateCardValue(target, costContext)?.unitTokens, 1));
+      const maxReducible = normalizeCardCount(target?.count, 1);
+      const reductionUnits = Math.max(1, Math.min(maxReducible, Math.ceil(overBy / unitTokens)));
+      const reduced = reduceGeneratedCardsByType(nextGenerated, type, reductionUnits, costContext);
+      nextGenerated = reduced.cards;
+      reductions[type] += reduced.reducedUnits;
+      changed = reduced.reducedUnits > 0;
+    });
+    if (!changed) {
+      return {
+        ok: false,
+        cards: nextGenerated,
+        reductions,
+        evaluation,
+      };
+    }
+  }
+  const finalEvaluation = evaluateCards([...existingCards, ...nextGenerated]);
+  return {
+    ok: finalEvaluation.overBudget !== true,
+    cards: nextGenerated,
+    reductions,
+    evaluation: finalEvaluation,
+  };
 }
 
 function normalizeFixtureResponses(payload) {
@@ -1475,7 +1708,7 @@ function replaceChildren(el, children) {
   }
 }
 
-function buildPropertyCatalog() {
+function buildPropertyCatalog({ motivationRules } = {}) {
   const affinityOptionMap = new Map(
     AFFINITY_KINDS.map((value) => [value, {
       value,
@@ -1490,6 +1723,7 @@ function buildPropertyCatalog() {
       icon: iconForMotivation(value),
     }]),
   );
+  const motivationDisplayGroups = getMotivationDisplayGroups({ rules: motivationRules });
   return {
     type: CARD_TYPE_ORDER.map((value) => ({
       value,
@@ -1507,9 +1741,11 @@ function buildPropertyCatalog() {
       value,
       label: formatDisplayLabel(value, value),
       icon: iconForExpression(value),
+      description: EXPRESSION_HELP_TEXT[value] || "",
     })),
-    motivations: MOTIVATION_DISPLAY_GROUPS.map((group) => ({
+    motivations: motivationDisplayGroups.map((group) => ({
       id: group.id,
+      label: MOTIVATION_GROUP_LABELS[group.id] || formatDisplayLabel(group.id, group.id),
       kinds: group.kinds.slice(),
       options: group.kinds
         .map((value) => motivationOptionMap.get(value))
@@ -1569,18 +1805,18 @@ export function wireDesignGuidance({
     leftRailMotivations,
     cardGrid,
     roomGroup,
-    attackerGroup,
-    defenderGroup,
+    delverGroup,
+    wardenGroup,
     roomGroupBudget,
-    attackerGroupBudget,
-    defenderGroupBudget,
+    delverGroupBudget,
+    wardenGroupBudget,
     levelBudgetInput,
     budgetSplitRoomInput,
-    budgetSplitAttackerInput,
-    budgetSplitDefenderInput,
+    budgetSplitDelverInput,
+    budgetSplitWardenInput,
     budgetSplitRoomTokens,
-    budgetSplitAttackerTokens,
-    budgetSplitDefenderTokens,
+    budgetSplitDelverTokens,
+    budgetSplitWardenTokens,
     budgetOverviewEl,
   } = elements;
 
@@ -1598,13 +1834,17 @@ export function wireDesignGuidance({
     budgetTokens: readPositiveInt(levelBudgetInput?.value, DEFAULT_LEVEL_BUDGET_TOKENS),
     budgetSplitPercent: normalizeBudgetSplit({
       room: budgetSplitRoomInput?.value,
-      attacker: budgetSplitAttackerInput?.value,
-      defender: budgetSplitDefenderInput?.value,
+      delver: budgetSplitDelverInput?.value,
+      warden: budgetSplitWardenInput?.value,
     }),
     dungeonAffinity: DEFAULT_DUNGEON_AFFINITY,
     runningAi: false,
     priceList: llmConfig.priceList || null,
     tileCosts: llmConfig.tileCosts || null,
+    rules: {
+      affinityRules: llmConfig.affinityRules || null,
+      motivationRules: llmConfig.motivationRules || null,
+    },
   };
 
   function createEditorCard(overrides = {}) {
@@ -1700,8 +1940,8 @@ export function wireDesignGuidance({
       return acc;
     }, {
       room: 0,
-      attacker: 0,
-      defender: 0,
+      delver: 0,
+      warden: 0,
     });
   }
 
@@ -1815,8 +2055,8 @@ export function wireDesignGuidance({
       el.classList?.toggle?.("is-negative", remaining < 0);
     };
     setGroupValue(roomGroupBudget, "room");
-    setGroupValue(attackerGroupBudget, "attacker");
-    setGroupValue(defenderGroupBudget, "defender");
+    setGroupValue(delverGroupBudget, "delver");
+    setGroupValue(wardenGroupBudget, "warden");
   }
 
   function updateBudgetOverviewIndicator() {
@@ -1849,20 +2089,20 @@ export function wireDesignGuidance({
     if (budgetSplitRoomInput) {
       budgetSplitRoomInput.value = String(allocatedByType.room.percent);
     }
-    if (budgetSplitAttackerInput) {
-      budgetSplitAttackerInput.value = String(allocatedByType.attacker.percent);
+    if (budgetSplitDelverInput) {
+      budgetSplitDelverInput.value = String(allocatedByType.delver.percent);
     }
-    if (budgetSplitDefenderInput) {
-      budgetSplitDefenderInput.value = String(allocatedByType.defender.percent);
+    if (budgetSplitWardenInput) {
+      budgetSplitWardenInput.value = String(allocatedByType.warden.percent);
     }
     if (budgetSplitRoomTokens) {
       budgetSplitRoomTokens.textContent = "";
     }
-    if (budgetSplitAttackerTokens) {
-      budgetSplitAttackerTokens.textContent = "";
+    if (budgetSplitDelverTokens) {
+      budgetSplitDelverTokens.textContent = "";
     }
-    if (budgetSplitDefenderTokens) {
-      budgetSplitDefenderTokens.textContent = "";
+    if (budgetSplitWardenTokens) {
+      budgetSplitWardenTokens.textContent = "";
     }
     updateGroupBudgetIndicators();
     updateBudgetOverviewIndicator();
@@ -2057,8 +2297,8 @@ export function wireDesignGuidance({
   function renderGroups() {
     const grouped = groupCardsByType(state.cards);
     renderGroupList(roomGroup, grouped.room, "room");
-    renderGroupList(attackerGroup, grouped.attacker, "attacker");
-    renderGroupList(defenderGroup, grouped.defender, "defender");
+    renderGroupList(delverGroup, grouped.delver, "delver");
+    renderGroupList(wardenGroup, grouped.warden, "warden");
   }
 
   function updateCard(cardId, updater) {
@@ -2397,7 +2637,10 @@ export function wireDesignGuidance({
             expressionButton.type = "button";
             expressionButton.className = "design-card-affinity-expression";
             expressionButton.textContent = iconForExpression(entry.expression);
-            expressionButton.title = `Expression: ${entry.expression}`;
+            const expressionHelp = EXPRESSION_HELP_TEXT[entry.expression] || "";
+            expressionButton.title = expressionHelp
+              ? `Expression: ${entry.expression}. ${expressionHelp}`
+              : `Expression: ${entry.expression}`;
             expressionButton.addEventListener?.("click", (event) => {
               event.stopPropagation?.();
               cycleCardAffinityExpression(card.id, entry.kind, entry.expression, 1);
@@ -2444,7 +2687,7 @@ export function wireDesignGuidance({
         front.append(affinityList);
       }
 
-      if (card.type === "attacker" || card.type === "defender") {
+      if (card.type === "delver" || card.type === "warden") {
         const motivations = createDomElement(front, "section");
         if (motivations) {
           motivations.className = "design-card-motivations";
@@ -2464,7 +2707,28 @@ export function wireDesignGuidance({
             heading.textContent = "Motivations";
             motivations.append(heading);
           }
-          const motivationEntries = Array.isArray(card.motivations) ? card.motivations : [];
+          const motivationUi = deriveMotivationUiState(card, card.type, {
+            motivationRules: state.rules.motivationRules,
+          });
+          const motivationEntries = motivationUi.motivations;
+          const profileSummary = createDomElement(motivations, "div");
+          if (profileSummary) {
+            profileSummary.className = "design-card-motivation-profile";
+            [
+              `Mobility: ${formatDisplayLabel(motivationUi.motivationProfile.mobility, motivationUi.motivationProfile.mobility)}`,
+              `Combat: ${formatDisplayLabel(motivationUi.motivationProfile.combat, motivationUi.motivationProfile.combat)}`,
+              `Cognition: ${formatDisplayLabel(motivationUi.motivationProfile.cognition, motivationUi.motivationProfile.cognition)}`,
+              `Reasoning: ${describeReasoningClass(motivationUi.reasoningClass)}`,
+              `Complexity: ${describeReasoningClass(motivationUi.complexityClass)}`,
+            ].forEach((text) => {
+              const chip = createDomElement(profileSummary, "span");
+              if (!chip) return;
+              chip.className = "design-card-motivation-profile-chip";
+              chip.textContent = text;
+              profileSummary.append(chip);
+            });
+            motivations.append(profileSummary);
+          }
           if (motivationEntries.length === 0) {
             const empty = createDomElement(motivations, "div");
             if (empty) {
@@ -2484,6 +2748,12 @@ export function wireDesignGuidance({
               icon.className = "design-card-motivation-icon";
               icon.textContent = iconForMotivation(motivation);
               row.append(icon);
+            }
+            const label = createDomElement(row, "span");
+            if (label) {
+              label.className = "design-card-motivation-label";
+              label.textContent = formatDisplayLabel(motivation, motivation);
+              row.append(label);
             }
             const remove = createDomElement(row, "button");
             if (remove) {
@@ -2677,7 +2947,10 @@ export function wireDesignGuidance({
             const label = createDomElement(row, "span");
             if (label) {
               label.className = "design-card-receipt-label";
-              label.textContent = entry.label || entry.id || "item";
+              const baseLabel = entry.label || entry.id || "item";
+              label.textContent = typeof entry?.complexityClass === "string"
+                ? `${baseLabel} (${describeReasoningClass(entry.complexityClass)})`
+                : baseLabel;
               row.append(label);
             }
             const value = createDomElement(row, "span");
@@ -2753,7 +3026,7 @@ export function wireDesignGuidance({
       chip.classList?.add("is-selected");
     }
     chip.disabled = disabled;
-    chip.title = title || `${option.label}`;
+    chip.title = title || option.description || `${option.label}`;
     const content = createDomElement(chip, "span");
     if (content) {
       content.className = "design-property-chip-content";
@@ -2850,6 +3123,12 @@ export function wireDesignGuidance({
       wrapper.className = "design-property-chip-group";
       wrapper.dataset.propertyGroup = "motivations";
       wrapper.dataset.propertyGroupId = group.id;
+      const heading = createDomElement(wrapper, "span");
+      if (heading) {
+        heading.className = "design-property-chip-group-heading";
+        heading.textContent = group.label || formatDisplayLabel(group.id, group.id);
+        wrapper.append(heading);
+      }
       if (group.options.length > 1) {
         wrapper.dataset.exclusive = "true";
         const note = createDomElement(wrapper, "span");
@@ -2867,7 +3146,9 @@ export function wireDesignGuidance({
         row.classList?.add("is-single");
       }
       group.options.forEach((option) => {
-        const conflictsWith = findMotivationConflict(activeMotivationList, option.value);
+        const conflictsWith = findMotivationConflict(activeMotivationList, option.value, {
+          motivationRules: state.rules.motivationRules,
+        });
         const chip = createPropertyChip(container, "motivations", option, {
           disabled: Boolean(conflictsWith && !activeMotivations.has(option.value)),
           dragEnabled: !conflictsWith || activeMotivations.has(option.value),
@@ -2888,7 +3169,9 @@ export function wireDesignGuidance({
   }
 
   function renderLeftRail() {
-    const catalog = buildPropertyCatalog();
+    const catalog = buildPropertyCatalog({
+      motivationRules: state.rules.motivationRules,
+    });
     renderPropertyChips(leftRailType, "type", catalog.type);
     renderPropertyChipPairs(leftRailAffinities, "affinities", catalog.affinities);
     renderPropertyChips(leftRailExpressions, "expressions", catalog.expressions);
@@ -3029,34 +3312,61 @@ export function wireDesignGuidance({
       tileCosts: state.tileCosts,
       priceList: state.priceList,
     };
-    const generatedCards = [
+    const baselineGeneratedCards = [
       ...buildAutoGeneratedRoomCards(allocation?.byType?.room?.remainingTokens, costContext),
-      ...buildAutoGeneratedActorCards("attacker", allocation?.byType?.attacker?.remainingTokens, costContext),
-      ...buildAutoGeneratedActorCards("defender", allocation?.byType?.defender?.remainingTokens, costContext),
+      ...buildAutoGeneratedActorCards("delver", allocation?.byType?.delver?.remainingTokens, costContext),
+      ...buildAutoGeneratedActorCards("warden", allocation?.byType?.warden?.remainingTokens, costContext),
     ];
 
-    if (generatedCards.length === 0) {
+    if (baselineGeneratedCards.length === 0) {
       setStatus(statusEl, "No remaining allocation available for auto-generation.");
       return { ok: false, reason: "no_remaining_allocation", cards: [] };
     }
 
-    const identified = normalizeCardIdentifiers([...state.cards, ...generatedCards], state.activeCard);
-    const evaluation = evaluateShelvedCards(identified.cards);
-    if (evaluation.overBudget) {
-      setStatus(statusEl, `Cannot auto-generate cards: ${describeBudgetViolation(evaluation)}`, true);
-      return { ok: false, reason: "budget_overflow", cards: generatedCards };
+    const hardwareProfile = estimateAutoGenerateCapacityProfile();
+    const configuredMaxUnits = readPositiveInt(llmConfig?.hardwareProfile?.maxAutoGenerateUnits, 0);
+    const maxAutoGenerateUnits = configuredMaxUnits > 0
+      ? configuredMaxUnits
+      : hardwareProfile.estimatedMaxTotalUnits;
+    const capacityTrim = trimAutoGeneratedCardsForCapacity({
+      generatedCards: baselineGeneratedCards,
+      existingCards: state.cards,
+      maxTotalUnits: maxAutoGenerateUnits,
+      costContext,
+    });
+    const budgetTrim = trimAutoGeneratedCardsToBudget({
+      existingCards: state.cards,
+      generatedCards: capacityTrim.cards,
+      evaluateCards: (cards) => evaluateShelvedCards(cards),
+      costContext,
+    });
+    if (!budgetTrim.ok) {
+      setStatus(statusEl, `Cannot auto-generate cards: ${describeBudgetViolation(budgetTrim.evaluation)}`, true);
+      return { ok: false, reason: "budget_overflow", cards: budgetTrim.cards };
+    }
+
+    if (budgetTrim.cards.length === 0) {
+      setStatus(statusEl, "No remaining allocation available for auto-generation.");
+      return { ok: false, reason: "no_remaining_allocation", cards: [] };
+    }
+
+    const identified = normalizeCardIdentifiers([...state.cards, ...budgetTrim.cards], state.activeCard);
+    const finalEvaluation = evaluateShelvedCards(identified.cards);
+    if (finalEvaluation.overBudget) {
+      setStatus(statusEl, `Cannot auto-generate cards: ${describeBudgetViolation(finalEvaluation)}`, true);
+      return { ok: false, reason: "budget_overflow", cards: budgetTrim.cards };
     }
 
     state.cards = identified.cards;
-    const counts = generatedCards.reduce((acc, card) => {
+    const counts = budgetTrim.cards.reduce((acc, card) => {
       const type = normalizeCardType(card?.type);
       if (!type) return acc;
       acc[type] += normalizeCardCount(card?.count, 1);
       return acc;
     }, {
       room: 0,
-      attacker: 0,
-      defender: 0,
+      delver: 0,
+      warden: 0,
     });
 
     recompute();
@@ -3065,12 +3375,27 @@ export function wireDesignGuidance({
       .filter((type) => counts[type] > 0)
       .map((type) => formatAutoGenerateCount(type, counts[type]))
       .join(", ");
-    setStatus(statusEl, `Auto-generated ${description} using the remaining allocation.`);
+    const reductionSummary = AUTO_GENERATE_REDUCTION_ORDER
+      .filter((type) => (budgetTrim.reductions?.[type] || 0) > 0)
+      .map((type) => `${formatDisplayLabel(type, type).toLowerCase()} -${budgetTrim.reductions[type]}`)
+      .join(", ");
+    const capacityWarning = capacityTrim.hadCapacityClamp
+      ? `Warning: requested scale exceeded estimated hardware capacity (${maxAutoGenerateUnits} total units cap from ${hardwareProfile.memoryGb}GB / ${hardwareProfile.logicalCores} cores), so counts were reduced.`
+      : "";
+    const budgetReductionNote = reductionSummary
+      ? ` Reduced to fit budget (${reductionSummary}).`
+      : "";
+    setStatus(
+      statusEl,
+      `Auto-generated ${description} using the remaining allocation.${budgetReductionNote}${capacityWarning ? ` ${capacityWarning}` : ""}`,
+    );
 
     return {
       ok: true,
-      cards: generatedCards,
+      cards: budgetTrim.cards,
       counts,
+      capacityWarning: capacityTrim.hadCapacityClamp ? capacityWarning : "",
+      reductions: budgetTrim.reductions,
     };
   }
 
@@ -3095,7 +3420,7 @@ export function wireDesignGuidance({
         model: llmConfig.model || DEFAULT_LLM_MODEL,
         catalog: llmConfig.catalog || { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] },
         goal: prompt,
-        notes: "Generate card-ready room, attacker, and defender outputs.",
+        notes: "Generate card-ready room, delver, and warden outputs.",
         budgetTokens: state.budgetTokens,
         priceList: llmConfig.priceList,
         maxActorRounds: 1,
@@ -3185,19 +3510,29 @@ export function wireDesignGuidance({
       });
       budgetSplitRoomInput.value = String(state.budgetSplitPercent.room);
     }
-    if (budgetSplitAttackerInput?.addEventListener) {
-      budgetSplitAttackerInput.addEventListener("input", () => {
-        setBudgetSplit("attacker", budgetSplitAttackerInput.value);
+    if (budgetSplitDelverInput?.addEventListener) {
+      budgetSplitDelverInput.addEventListener("input", () => {
+        setBudgetSplit("delver", budgetSplitDelverInput.value);
       });
-      budgetSplitAttackerInput.value = String(state.budgetSplitPercent.attacker);
+      budgetSplitDelverInput.value = String(state.budgetSplitPercent.delver);
     }
-    if (budgetSplitDefenderInput?.addEventListener) {
-      budgetSplitDefenderInput.addEventListener("input", () => {
-        setBudgetSplit("defender", budgetSplitDefenderInput.value);
+    if (budgetSplitWardenInput?.addEventListener) {
+      budgetSplitWardenInput.addEventListener("input", () => {
+        setBudgetSplit("warden", budgetSplitWardenInput.value);
       });
-      budgetSplitDefenderInput.value = String(state.budgetSplitPercent.defender);
+      budgetSplitWardenInput.value = String(state.budgetSplitPercent.warden);
     }
     recompute();
+  }
+
+  function setRules({ affinityRules, motivationRules } = {}) {
+    if (affinityRules !== undefined) {
+      state.rules.affinityRules = affinityRules || null;
+    }
+    if (motivationRules !== undefined) {
+      state.rules.motivationRules = motivationRules || null;
+    }
+    recompute({ notify: false });
   }
 
   initialize();
@@ -3218,6 +3553,7 @@ export function wireDesignGuidance({
     cycleRoomSize,
     setBudget,
     setBudgetSplit,
+    setRules,
     autoGenerateCards,
     generateAiConfiguration,
     buildSummary: () => ({ summary: state.summary, spendLedger: state.spendLedger, cards: state.cards }),

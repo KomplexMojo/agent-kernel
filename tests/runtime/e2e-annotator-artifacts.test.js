@@ -18,9 +18,19 @@ function toRef(artifact, fallbackSchema) {
   };
 }
 
+function normalizeSummaryEntries(entries) {
+  return JSON.parse(JSON.stringify(entries, (key, value) => {
+    if (key === "expressionAlias" || key === "manaCost" || key === "affinityRulesRef") {
+      return undefined;
+    }
+    return value;
+  }));
+}
+
 test("annotator affinity summary artifacts are deterministic and schema-valid", async () => {
   const presets = readJson(resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json"));
   const loadouts = readJson(resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json"));
+  const affinityRules = readJson(resolve(ROOT, "tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json"));
   const simConfig = readJson(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json"));
   const initialState = readJson(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json"));
   const expected = readJson(resolve(ROOT, "tests/fixtures/personas/affinity-resolution-v1-basic.json")).expected;
@@ -53,6 +63,7 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
         actors: initialState.actors,
         affinityPresets: presets,
         affinityLoadouts: loadouts,
+        affinityRules,
       },
     },
   };
@@ -66,6 +77,14 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
   assert.equal(summary.meta.runId, runId);
   assert.deepEqual(summary.presetsRef, toRef(presets, "agent-kernel/AffinityPresetArtifact"));
   assert.deepEqual(summary.loadoutsRef, toRef(loadouts, "agent-kernel/ActorLoadoutArtifact"));
-  assert.deepEqual(summary.actors, expected.actors);
-  assert.deepEqual(summary.traps, expected.traps);
+  assert.deepEqual(summary.affinityRulesRef, toRef(affinityRules, "agent-kernel/AffinityRulesArtifact"));
+  assert.deepEqual(normalizeSummaryEntries(summary.actors), normalizeSummaryEntries(expected.actors));
+  assert.deepEqual(normalizeSummaryEntries(summary.traps), normalizeSummaryEntries(expected.traps));
+  assert.ok(summary.ambientPressure);
+  assert.ok(summary.ambientPressure.baseByKind);
+  assert.ok(summary.ambientPressure.netByKind);
+  assert.equal(summary.ambientPressure.baseByKind.fire, 2);
+  assert.equal(summary.ambientPressure.netByKind.fire, 2);
+  assert.equal(summary.actors[0].abilities[0].expressionAlias, "flame_surge");
+  assert.equal(summary.actors[0].abilities[0].manaCost, 6);
 });

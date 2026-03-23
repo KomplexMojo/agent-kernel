@@ -42,6 +42,15 @@ The fastest offline smoke path is:
 2. `pnpm run serve:ui`
 3. open the UI, author in `Design`, stage in `Preview`, then launch `Run`
 
+`pnpm run serve:ui` now also ensures the local IPFS stack used by the shared
+IPFS flows:
+- starts `ipfs daemon` if Kubo is not already running
+- starts `scripts/ipfs-local-proxy.mjs` if the local proxy is not already running
+- serves the UI on `http://localhost:8001`
+
+If you only want the static file server without IPFS startup, use
+`pnpm run serve:ui:static`.
+
 ## Determinism and network safety
 
 - Fixture-first: use `--fixture` flags to keep runs deterministic and offline.
@@ -83,6 +92,8 @@ Runtime and inspection:
 
 Adapter demos (direct IO, fixture-first):
 - `ipfs`: fetch JSON/text by CID.
+- `ipfs-publish`: publish canonical `core/` + optional `sessions/` package trees.
+- `ipfs-load`: restore canonical packages in `core` or `resume` mode.
 - `blockchain`: fetch chain id and balance by JSON-RPC.
 - `llm` (alias `ollama`): request a raw LLM response (Ollama/OpenAI-compatible).
 
@@ -151,6 +162,49 @@ node packages/adapters-cli/src/cli/ak.mjs inspect \
   --effects-log artifacts/runs/run_demo/run/effects-log.json \
   --out-dir artifacts/runs/run_demo/inspect
 ```
+
+### 5) IPFS package publish/load
+
+Core package publish from canonical build outputs:
+```
+node packages/adapters-cli/src/cli/ak.mjs ipfs-publish \
+  --scope core \
+  --core-dir artifacts/runs/run_build_demo/build \
+  --fixture-cid bafyfixturecore \
+  --out-dir artifacts/runs/run_build_demo/ipfs-publish
+```
+
+Session checkpoint publish from canonical run outputs:
+```
+node packages/adapters-cli/src/cli/ak.mjs ipfs-publish \
+  --scope session \
+  --core-dir artifacts/runs/run_build_demo/build \
+  --session-dir artifacts/runs/run_demo/run \
+  --session-id run_demo \
+  --checkpoint-id tick-3 \
+  --fixture-cid bafyfixturesession \
+  --out-dir artifacts/runs/run_demo/ipfs-publish
+```
+
+Core package load:
+```
+node packages/adapters-cli/src/cli/ak.mjs ipfs-load \
+  --cid bafyfixturecore \
+  --fixture-map tests/fixtures/adapters/ipfs-package-map.json \
+  --out-dir artifacts/ipfs_load_core
+```
+
+Resume package load:
+```
+node packages/adapters-cli/src/cli/ak.mjs ipfs-load \
+  --cid bafyfixturesession \
+  --load-mode resume \
+  --fixture-map tests/fixtures/adapters/ipfs-package-map.json \
+  --out-dir artifacts/ipfs_load_resume
+```
+
+`run` now emits `checkpoint-state.json` alongside `tick-frames.json`, `effects-log.json`,
+`runtime-decision-captures.json`, `run-summary.json`, and `action-log.json`.
 
 ## Notes for agent-driven automation
 

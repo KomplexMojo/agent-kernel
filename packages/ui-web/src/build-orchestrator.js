@@ -305,7 +305,7 @@ export function wireBuildOrchestrator({
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
-  async function runBuild() {
+  async function runBuild({ emitVisualAssets = false } = {}) {
     setDownloadVisible(false);
     const specPath = valueOf(specPathInput);
     const specText = valueOf(specJsonInput);
@@ -344,7 +344,12 @@ export function wireBuildOrchestrator({
     updateBuildAvailability();
 
     try {
-      const response = await adapter.build({ specPath: specPath || undefined, specJson: specJson || undefined, outDir: outDir || undefined });
+      const response = await adapter.build({
+        specPath: specPath || undefined,
+        specJson: specJson || undefined,
+        outDir: outDir || undefined,
+        emitVisualAssets: emitVisualAssets ? true : undefined,
+      });
       const snapshot = {
         runId: extractRunId({ response, specJson }),
         specPath: extractSpecPath({ response, specPath }),

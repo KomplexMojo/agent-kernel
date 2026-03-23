@@ -1,13 +1,19 @@
 import { VITAL_KEYS } from "../../runtime/src/contracts/domain-constants.js";
-import { normalizeMotivationKindList } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
+import {
+  normalizeMotivationKindList,
+} from "../../runtime/src/personas/configurator/motivation-loadouts.js";
+import {
+  resolveAffinityBehaviorProfile,
+  resolveMotivationBehaviorProfile,
+} from "../../runtime/src/personas/configurator/behavior-rules.js";
 import { calculateCardValue } from "./design-guidance.js";
 
-const TYPE_ORDER = Object.freeze(["room", "attacker", "defender"]);
+const TYPE_ORDER = Object.freeze(["room", "delver", "warden"]);
 
 const TYPE_ICON_MAP = Object.freeze({
   room: "🏛️",
-  attacker: "⚔️",
-  defender: "🛡️",
+  delver: "⚔️",
+  warden: "🛡️",
   untyped: "◻️",
 });
 
@@ -49,7 +55,7 @@ const VITAL_ICON_MAP = Object.freeze({
   durability: "🛡️",
 });
 
-const ATTACKER_KEYWORDS = Object.freeze(["attack", "attacker", "assault", "intruder", "raider", "player"]);
+const DELVER_KEYWORDS = Object.freeze(["attack", "delver", "assault", "intruder", "raider", "player"]);
 
 function readPositiveInt(value, fallback = 0) {
   const parsed = Number(value);
@@ -142,10 +148,10 @@ function buildTextBag(value) {
 
 function inferActorType(actor, specActor) {
   const bag = `${buildTextBag(specActor)} ${buildTextBag(actor)}`.trim();
-  if (ATTACKER_KEYWORDS.some((token) => bag.includes(token))) {
-    return "attacker";
+  if (DELVER_KEYWORDS.some((token) => bag.includes(token))) {
+    return "delver";
   }
-  return "defender";
+  return "warden";
 }
 
 function normalizeVitalRecord(entry = {}) {
@@ -233,14 +239,50 @@ function normalizeActorAffinities(actor) {
   });
 }
 
-function normalizeMotivations(card, fallbackType = "defender") {
+function normalizeMotivations(card, fallbackType = "warden") {
   const source = Array.isArray(card?.motivations) ? card.motivations : [];
   const fallback = normalizeName(card?.motivation || card?.role)
-    || (fallbackType === "attacker" ? "attacking" : "defending");
+    || (fallbackType === "delver"
+      ? "attacking"
+      : fallbackType === "warden"
+        ? "defending"
+        : "stationary");
   return normalizeMotivationKindList(source.length > 0 ? source : fallback, {
     fallback,
     fieldBase: "motivations",
   }).value;
+}
+
+function describeReasoningClass(reasoningClass) {
+  if (reasoningClass === "strategic") return "Strategic";
+  if (reasoningClass === "tactical") return "Tactical";
+  return "Instinctual";
+}
+
+function describeComplexityClass(complexityClass) {
+  if (complexityClass === "strategic") return "Strategic";
+  if (complexityClass === "tactical") return "Tactical";
+  return "Instinctual";
+}
+
+function resolveMotivationState(card, fallbackType = "warden", { motivationRules } = {}) {
+  const motivations = normalizeMotivations(card, fallbackType);
+  const fallback = fallbackType === "delver"
+    ? "attacking"
+    : fallbackType === "warden"
+      ? "defending"
+      : "stationary";
+  const resolved = resolveMotivationBehaviorProfile({
+    rules: motivationRules,
+    motivations: motivations.length > 0 ? motivations : [fallback],
+    motivationProfile: card?.motivationProfile,
+  });
+  return {
+    motivations,
+    motivationProfile: resolved.motivationProfile,
+    reasoningClass: resolved.reasoningClass,
+    complexityClass: resolved.complexityClass,
+  };
 }
 
 function sortById(list = [], key = "id") {
@@ -268,7 +310,7 @@ function resolveCardValue(card, { priceList, tileCosts } = {}) {
 }
 
 function normalizeCardTemplate(card, index, options = {}) {
-  const type = normalizeCardType(card?.type) || (card?.source === "room" ? "room" : "defender");
+  const type = normalizeCardType(card?.type) || (card?.source === "room" ? "room" : "warden");
   if (!type) return null;
   const id = normalizeName(card?.id, `CARD-${index + 1}`);
   const count = Math.max(1, readPositiveInt(card?.count, 1));
@@ -429,8 +471,8 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
 
   const groups = {
     room: [],
-    attacker: [],
-    defender: [],
+    delver: [],
+    warden: [],
   };
 
   const runtimeActorPool = runtimeActors
@@ -573,7 +615,7 @@ function createIconChip(root, {
   return chip;
 }
 
-function formatActorProfile(actor) {
+function formatActorProfile(actor, { motivationRules } = {}) {
   if (!actor) return "No actor selected.";
   const parts = [];
   parts.push(`id: ${actor.id || "-"}`);
@@ -584,6 +626,12 @@ function formatActorProfile(actor) {
     .map((entry) => `${entry.kind}:${entry.expression} x${entry.stacks}`)
     .join(", ");
   parts.push(`affinities: ${affinities || "-"}`);
+  const motivationState = resolveMotivationState(actor, "actor", { motivationRules });
+  parts.push(`mobility: ${motivationState.motivationProfile.mobility}`);
+  parts.push(`combat: ${motivationState.motivationProfile.combat}`);
+  parts.push(`cognition: ${motivationState.motivationProfile.cognition}`);
+  parts.push(`reasoning: ${describeReasoningClass(motivationState.reasoningClass).toLowerCase()}`);
+  parts.push(`complexity: ${describeComplexityClass(motivationState.complexityClass).toLowerCase()}`);
   return parts.join("\n");
 }
 
@@ -677,14 +725,14 @@ export function createActorInspector({
   containerEl,
   statusEl,
   roomListEl,
-  attackerListEl,
-  defenderListEl,
+  delverListEl,
+  wardenListEl,
   detailEl,
   onSelectEntity,
   onVisibilityChange,
 } = {}) {
   let model = {
-    groups: { room: [], attacker: [], defender: [] },
+    groups: { room: [], delver: [], warden: [] },
     all: [],
     byInstanceId: new Map(),
     runtimeActorToInstance: new Map(),
@@ -696,11 +744,15 @@ export function createActorInspector({
   let tick = null;
   let visible = true;
   let hasInteractedWithSelection = false;
+  let scenarioRules = {
+    affinityRules: null,
+    motivationRules: null,
+  };
 
   function fallbackModelFromLiveActors() {
     if (!Array.isArray(liveActors) || liveActors.length === 0) {
       return {
-        groups: { room: [], attacker: [], defender: [] },
+        groups: { room: [], delver: [], warden: [] },
         all: [],
         byInstanceId: new Map(),
         runtimeActorToInstance: new Map(),
@@ -785,7 +837,10 @@ export function createActorInspector({
         preview.className = "design-card-group-preview";
         const liveActor = getLiveActor(entity);
         const affinities = resolveEntityAffinities(entity, liveActor);
-        const motivations = Array.isArray(entity?.card?.motivations) ? entity.card.motivations : [];
+        const motivationState = resolveMotivationState(entity?.card, entity?.type, {
+          motivationRules: scenarioRules.motivationRules,
+        });
+        const motivations = motivationState.motivations;
 
         const chips = [
           createIconChip(preview, {
@@ -807,6 +862,19 @@ export function createActorInspector({
           chips.push(createIconChip(preview, {
             icon: iconForMotivation(motivations[0]),
             title: `Motivation: ${motivations[0]}`,
+            className: "is-motivation",
+          }));
+        }
+
+        chips.push(createIconChip(preview, {
+          icon: motivationState.reasoningClass === "strategic" ? "♟️" : motivationState.reasoningClass === "tactical" ? "🎯" : "⚡",
+          title: `Reasoning: ${describeReasoningClass(motivationState.reasoningClass)}`,
+          className: "is-motivation",
+        }));
+        if (motivationState.complexityClass) {
+          chips.push(createIconChip(preview, {
+            icon: motivationState.complexityClass === "strategic" ? "♟️" : motivationState.complexityClass === "tactical" ? "🎯" : "⚡",
+            title: `Complexity: ${describeComplexityClass(motivationState.complexityClass)}`,
             className: "is-motivation",
           }));
         }
@@ -858,7 +926,10 @@ export function createActorInspector({
     const affinities = resolveEntityAffinities(entity, liveActor);
     const vitals = resolveEntityVitals(entity, liveActor);
     const totalValue = resolveEntityValue(entity, liveActor);
-    const motivations = Array.isArray(entity?.card?.motivations) ? entity.card.motivations : [];
+    const motivationState = resolveMotivationState(entity?.card, entity?.type, {
+      motivationRules: scenarioRules.motivationRules,
+    });
+    const motivations = motivationState.motivations;
 
     const card = createDomElement(detailEl, "article");
     if (!card) {
@@ -918,6 +989,27 @@ export function createActorInspector({
         });
         if (motivationChip) traits.append(motivationChip);
       });
+      ["mobility", "combat", "cognition"].forEach((axis) => {
+        const chip = createDomElement(traits, "span");
+        if (!chip) return;
+        chip.className = "design-card-meta-chip";
+        chip.textContent = `${axis}: ${motivationState.motivationProfile[axis]}`;
+        traits.append(chip);
+      });
+      const reasoningChip = createDomElement(traits, "span");
+      if (reasoningChip) {
+        reasoningChip.className = "design-card-meta-chip";
+        reasoningChip.textContent = `reasoning: ${describeReasoningClass(motivationState.reasoningClass)}`;
+        traits.append(reasoningChip);
+      }
+      if (motivationState.complexityClass) {
+        const complexityChip = createDomElement(traits, "span");
+        if (complexityChip) {
+          complexityChip.className = "design-card-meta-chip";
+          complexityChip.textContent = `complexity: ${describeComplexityClass(motivationState.complexityClass)}`;
+          traits.append(complexityChip);
+        }
+      }
       card.append(traits);
     }
 
@@ -936,6 +1028,12 @@ export function createActorInspector({
           const row = createDomElement(affinityList, "div");
           if (!row) return;
           row.className = "simulation-inspector-affinity-row";
+          const behavior = resolveAffinityBehaviorProfile({
+            rules: scenarioRules.affinityRules,
+            kind: entry.kind,
+            expression: entry.expression,
+            stacks: entry.stacks,
+          });
 
           const affinityIcon = createIconChip(row, {
             icon: iconForAffinity(entry.kind),
@@ -954,7 +1052,10 @@ export function createActorInspector({
           const meta = createDomElement(row, "span");
           if (meta) {
             meta.className = "simulation-inspector-affinity-meta";
-            meta.textContent = entry.targetType ? `${entry.kind} · ${entry.targetType}` : entry.kind;
+            const parts = [entry.kind];
+            if (entry.targetType) parts.push(entry.targetType);
+            if (behavior.complexityClass) parts.push(describeComplexityClass(behavior.complexityClass));
+            meta.textContent = parts.join(" · ");
             row.append(meta);
           }
 
@@ -1048,8 +1149,8 @@ export function createActorInspector({
     }
 
     renderGroup(roomListEl, resolved.groups.room);
-    renderGroup(attackerListEl, resolved.groups.attacker);
-    renderGroup(defenderListEl, resolved.groups.defender);
+    renderGroup(delverListEl, resolved.groups.delver);
+    renderGroup(wardenListEl, resolved.groups.warden);
 
     const selected = selectedInstanceId ? resolved.byInstanceId.get(selectedInstanceId) || null : null;
     if (statusEl) {
@@ -1066,7 +1167,8 @@ export function createActorInspector({
     setVisible(true);
   }
 
-  function setScenario({ simConfig, initialState, spec } = {}) {
+  function setScenario({ simConfig, initialState, spec, affinityRules = null, motivationRules = null } = {}) {
+    scenarioRules = { affinityRules, motivationRules };
     model = buildInspectorModel({ simConfig, initialState, spec });
     hasInteractedWithSelection = false;
     const first = model.all[0]?.instanceId || "";

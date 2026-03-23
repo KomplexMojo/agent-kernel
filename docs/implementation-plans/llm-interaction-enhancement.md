@@ -141,29 +141,29 @@ Constraints:
 7. [complete] Update documentation.
    - Work: Document layout tile budgeting, actor types, and budget rollover rules.
 
-## 9) Budget pool allocation (player/layout/defenders/loot)
+## 9) Budget pool allocation (player/layout/wardens/loot)
 1. [complete] Add pool-based budget allocation with user-configurable weights.
    - Requirement: Split total budget into pools for player actor configuration, level build (layout), defending actor counts/config, and optional loot/drops.
    - Requirement: Allow users to override pool weights from the CLI (deterministic, validated, and captured).
    - Behavior details:
-     - Default weights (e.g., player=0.2, layout=0.4, defenders=0.4, loot=0.0) with deterministic rounding.
+     - Default weights (e.g., player=0.2, layout=0.4, wardens=0.4, loot=0.0) with deterministic rounding.
      - Loot pool is optional; when unset or zero, no loot budget is allocated.
      - Optional reserve tokens for player config (hard floor) before applying weights.
-     - Unspent layout budget can roll into defenders (explicit rule in loop).
+     - Unspent layout budget can roll into wardens (explicit rule in loop).
    - Work:
      - Extend Director budget allocation to accept custom pool weights (id + weight list) and return a `BudgetAllocationArtifact`.
-     - Add CLI flags for pool weights (e.g., `--budget-pool player=0.2 --budget-pool layout=0.4 --budget-pool defenders=0.4 --budget-pool loot=0.0`)
+     - Add CLI flags for pool weights (e.g., `--budget-pool player=0.2 --budget-pool layout=0.4 --budget-pool wardens=0.4 --budget-pool loot=0.0`)
        and validate sum > 0; normalize weights deterministically.
      - Thread allocation into the LLM budget loop:
        - Layout phase uses only the layout pool budget.
-       - Defenders phase uses only the defenders pool budget (+ rollover from layout).
+       - Wardens phase uses only the wardens pool budget (+ rollover from layout).
        - Player config is handled first (pre-costed or dedicated phase) and deducted from total budget.
        - Loot pool is reserved for future drops/loot generation; no spend until loot implementation lands.
      - Capture the allocation (weights + computed pool budgets) in telemetry/manifest for replay.
    - Tests:
      - Unit test for deterministic pool allocation with custom weights + reserve tokens.
      - CLI test that passes `--budget-pool` flags and asserts pool budgets are respected in the loop trace.
-     - Budget loop test asserting rollover behavior from layout → defenders.
+     - Budget loop test asserting rollover behavior from layout → wardens.
 
 
 

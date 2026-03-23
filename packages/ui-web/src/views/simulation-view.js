@@ -1,6 +1,7 @@
 import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { runMvpMovement } from "../../../runtime/src/mvp/movement.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
+import { hasGeneratedResourceBundleAssets } from "../../../runtime/src/render/resource-bundle.js";
 import {
   AFFINITY_TARGET_TYPES,
   DEFAULT_AFFINITY_EXPRESSION,
@@ -8,6 +9,7 @@ import {
 } from "../../../runtime/src/contracts/domain-constants.js";
 import { createLevelBuilderAdapter } from "../../../adapters-web/src/adapters/level-builder/index.js";
 import { setupPlayback } from "../movement-ui.js";
+import { clearBundleCanvas, positionFromCanvasEvent, renderBundleBoardToCanvas } from "../resource-bundle-view.js";
 
 const ACTOR_ID_LABEL = "actor_mvp";
 const ACTOR_ID_VALUE = 1;
@@ -15,7 +17,21 @@ const VISIBILITY_MODE_SIMULATION_FULL = "simulation_full";
 const VISIBILITY_MODE_GAMEPLAY_FOG = "gameplay_fog";
 const DEFAULT_VIEWPORT_SIZE = 50;
 const DEFAULT_VISION_RADIUS = 6;
-const DEFAULT_RUN_HELP_TEXT = "Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.";
+const DEFAULT_RUN_HELP_TEXT = "Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here.";
+const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
+const RUNTIME_CHECKPOINT_SCHEMA = "agent-kernel/RuntimeCheckpointArtifact";
+
+function toArtifactRef(artifact) {
+  if (!artifact || typeof artifact !== "object") return undefined;
+  if (typeof artifact.schema !== "string" || !Number.isFinite(artifact.schemaVersion)) return undefined;
+  const id = typeof artifact?.meta?.id === "string" ? artifact.meta.id.trim() : "";
+  if (!id) return undefined;
+  return {
+    id,
+    schema: artifact.schema,
+    schemaVersion: artifact.schemaVersion,
+  };
+}
 
 function sortActorsById(initialState) {
   const actors = Array.isArray(initialState?.actors) ? initialState.actors.slice() : [];
@@ -175,6 +191,19 @@ function normalizeRoomBounds(roomBounds = null) {
   };
 }
 
+export function resolveCanvasBoardPosition(position, visibilitySummary = null) {
+  if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) {
+    return null;
+  }
+  const viewport = visibilitySummary?.viewport;
+  const startX = Number(viewport?.startX);
+  const startY = Number(viewport?.startY);
+  return {
+    x: Math.floor(position.x + (Number.isFinite(startX) ? startX : 0)),
+    y: Math.floor(position.y + (Number.isFinite(startY) ? startY : 0)),
+  };
+}
+
 export function resolveArtifactAffinityEffects({
   initialState,
   affinityEffects,
@@ -218,6 +247,7 @@ export function wireSimulationView({
   levelBuilderOptions = {},
   onObservation,
 } = {}) {
+  const renderCanvasEl = root.querySelector("#simulation-render-canvas");
   const frameEl = root.querySelector("#frame-buffer");
   const actorListEl = root.querySelector("#actor-list");
   const affinityListEl = root.querySelector("#affinity-list");
@@ -245,9 +275,11 @@ export function wireSimulationView({
   let pendingArtifacts = null;
   let levelBuilder = null;
   let latestLevelArtifacts = null;
+  let latestRuntimeArtifacts = null;
   let lastBaseTilesHash = "";
   let levelRenderRequestId = 0;
   let lastVisibilitySummary = null;
+  let lastObservationActors = [];
   let inspectorVisible = actorInspector?.isVisible?.() === true;
   let inspectorSelectedEntity = null;
   const visibilityPreferences = {
@@ -280,6 +312,10 @@ export function wireSimulationView({
     latestLevelArtifacts = null;
     lastBaseTilesHash = "";
     lastVisibilitySummary = null;
+    lastObservationActors = [];
+    clearBundleCanvas(renderCanvasEl);
+    if (renderCanvasEl) renderCanvasEl.hidden = true;
+    if (frameEl) frameEl.hidden = false;
     if (frameEl) {
       frameEl.textContent = "No game loaded.";
     }
@@ -381,10 +417,11 @@ export function wireSimulationView({
     controller?.setVisibilityMode?.(VISIBILITY_MODE_SIMULATION_FULL);
   }
 
-  function handleObservation({ observation, frame, playing, visibility, actorIdLabel }) {
+  function handleObservation({ observation, frame, playing, visibility, actorIdLabel, scene }) {
     actorInspector?.setActors?.(observation?.actors || [], { tick: observation?.tick });
     actorInspector?.setRunning?.(playing);
     lastVisibilitySummary = visibility || null;
+    lastObservationActors = Array.isArray(observation?.actors) ? observation.actors.slice() : [];
     if (typeof onObservation === "function") {
       onObservation({
         observation,
@@ -392,10 +429,32 @@ export function wireSimulationView({
         playing,
         visibility,
         actorIdLabel,
+        scene,
       });
     }
     const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : null;
     if (!baseTiles || baseTiles.length === 0) return;
+    const renderScene = scene && Array.isArray(scene.tiles) && scene.tiles.length > 0 ? scene : null;
+    const bundle = latestRuntimeArtifacts?.resourceBundle
+      ? { spec: latestRuntimeArtifacts?.spec || null, artifacts: [latestRuntimeArtifacts.resourceBundle] }
+      : null;
+    const canRenderGeneratedBundle = hasGeneratedResourceBundleAssets(latestRuntimeArtifacts?.resourceBundle);
+    if (renderScene && canRenderGeneratedBundle) {
+      void renderBundleBoardToCanvas({
+        canvas: renderCanvasEl,
+        tiles: renderScene.tiles,
+        actors: Array.isArray(renderScene.actors) ? renderScene.actors : [],
+        bundle,
+      }).then((result) => {
+        if (!renderCanvasEl || !frameEl) return;
+        const rendered = result?.ok === true;
+        renderCanvasEl.hidden = !rendered;
+        frameEl.hidden = rendered;
+      });
+    } else if (renderCanvasEl && frameEl) {
+      renderCanvasEl.hidden = true;
+      frameEl.hidden = false;
+    }
     const nextHash = hashTiles(baseTiles);
     if (nextHash === lastBaseTilesHash) return;
     lastBaseTilesHash = nextHash;
@@ -460,7 +519,7 @@ export function wireSimulationView({
         actorId: config.actorId,
         actions: movement.actions,
       });
-      setStatus("Select a room, attacker, or defender to inspect and control it here.");
+      setStatus("Select a room, delver, or warden to inspect and control it here.");
     } catch (err) {
       setStatus(err.message || "Failed to start run", "error");
       console.error(err);
@@ -471,26 +530,42 @@ export function wireSimulationView({
     simConfig,
     initialState,
     affinityEffects,
+    affinityRules,
+    motivationRules,
     spec,
+    resourceBundle,
+    actionLog,
+    checkpointState,
   } = {}) {
     if (!ready || !core) {
       pendingArtifacts = {
         simConfig,
         initialState,
         affinityEffects,
+        affinityRules,
+        motivationRules,
         spec,
+        resourceBundle,
+        actionLog,
+        checkpointState,
       };
       return;
     }
     try {
       lastBaseTilesHash = "";
       latestLevelArtifacts = null;
-      actorInspector?.setScenario?.({ simConfig, initialState, spec });
+      latestRuntimeArtifacts = { simConfig, initialState, affinityEffects, affinityRules, motivationRules, spec, resourceBundle };
+      actorInspector?.setScenario?.({ simConfig, initialState, spec, affinityRules, motivationRules });
       const sortedActors = sortActorsById(initialState);
       const actorIds = sortedActors
         .map((actor) => (typeof actor?.id === "string" ? actor.id.trim() : ""))
         .filter(Boolean);
       const actorLabel = actorIds[0] || "actor_bundle";
+      const replayActions = Array.isArray(actionLog?.actions)
+        ? actionLog.actions
+        : Array.isArray(actionLog)
+          ? actionLog
+          : [];
       const resolvedAffinityEffects = resolveArtifactAffinityEffects({
         initialState,
         affinityEffects,
@@ -501,7 +576,7 @@ export function wireSimulationView({
         {
           actorId: actorLabel,
           actorIds,
-          actions: [],
+          actions: replayActions,
           affinityEffects: resolvedAffinityEffects,
         },
         {
@@ -518,11 +593,124 @@ export function wireSimulationView({
           },
         },
       );
-      setStatus("Select a room, attacker, or defender to inspect and control it here.");
+      const checkpointIndex = Number(checkpointState?.state?.actionIndex);
+      if (Number.isFinite(checkpointIndex) && checkpointIndex > 0) {
+        controller?.gotoIndex?.(checkpointIndex);
+      }
+      const checkpointViewerActorId = typeof checkpointState?.state?.view?.viewerActorId === "string"
+        ? checkpointState.state.view.viewerActorId.trim()
+        : "";
+      if (checkpointViewerActorId) {
+        visibilityPreferences.viewerActorId = checkpointViewerActorId;
+        controller?.setViewerActor?.(checkpointViewerActorId);
+      }
+      setStatus("Select a room, delver, or warden to inspect and control it here.");
     } catch (err) {
       setStatus(err.message || "Failed to start bundle run", "error");
       console.error(err);
     }
+  }
+
+  function exportSessionArtifacts({
+    packageId = "",
+    sessionId,
+    checkpointId,
+    status = "checkpoint",
+  } = {}) {
+    if (!controller || !latestRuntimeArtifacts?.simConfig || !latestRuntimeArtifacts?.initialState) {
+      return { ok: false, reason: "missing_runtime_session" };
+    }
+    const sessionState = controller.getSessionState?.();
+    const specRunId = latestRuntimeArtifacts?.spec?.meta?.runId;
+    const simRunId = latestRuntimeArtifacts?.simConfig?.meta?.runId;
+    const effectiveRunId = specRunId || simRunId || `ui_run_${Date.now()}`;
+    const effectiveSessionId = typeof sessionId === "string" && sessionId.trim()
+      ? sessionId.trim()
+      : effectiveRunId;
+    const effectiveCheckpointId = typeof checkpointId === "string" && checkpointId.trim()
+      ? checkpointId.trim()
+      : `ui-${sessionState?.frame?.tick ?? 0}`;
+    const createdAt = new Date().toISOString();
+    const actionLog = {
+      schema: "agent-kernel/ActionSequence",
+      schemaVersion: 1,
+      meta: {
+        id: `${effectiveSessionId}_actions_${effectiveCheckpointId}`,
+        runId: effectiveRunId,
+        createdAt,
+        producedBy: "ui-run",
+      },
+      simConfigRef: toArtifactRef(latestRuntimeArtifacts.simConfig),
+      initialStateRef: toArtifactRef(latestRuntimeArtifacts.initialState),
+      actions: Array.isArray(sessionState?.actionLog) ? sessionState.actionLog : [],
+    };
+    const runSummary = {
+      schema: RUN_SUMMARY_SCHEMA,
+      schemaVersion: 1,
+      meta: {
+        id: `${effectiveSessionId}_summary_${effectiveCheckpointId}`,
+        runId: effectiveRunId,
+        createdAt,
+        producedBy: "ui-run",
+      },
+      simConfigRef: toArtifactRef(latestRuntimeArtifacts.simConfig),
+      affinityRulesRef: toArtifactRef(latestRuntimeArtifacts.affinityRules) || latestRuntimeArtifacts.simConfig?.affinityRulesRef,
+      motivationRulesRef: toArtifactRef(latestRuntimeArtifacts.motivationRules) || latestRuntimeArtifacts.simConfig?.motivationRulesRef,
+      outcome: "unknown",
+      metrics: {
+        ticks: Number(sessionState?.frame?.tick) || 0,
+        actions: Array.isArray(sessionState?.actionLog) ? sessionState.actionLog.length : 0,
+      },
+    };
+    const checkpointState = {
+      schema: RUNTIME_CHECKPOINT_SCHEMA,
+      schemaVersion: 1,
+      meta: {
+        id: `${effectiveSessionId}_checkpoint_${effectiveCheckpointId}`,
+        runId: effectiveRunId,
+        createdAt,
+        producedBy: "ui-run",
+      },
+      sessionId: effectiveSessionId,
+      checkpointId: effectiveCheckpointId,
+      tick: Number(sessionState?.frame?.tick) || 0,
+      status,
+      resumeMode: "snapshot_plus_replay",
+      simConfigRef: toArtifactRef(latestRuntimeArtifacts.simConfig),
+      initialStateRef: toArtifactRef(latestRuntimeArtifacts.initialState),
+      runSummaryRef: toArtifactRef(runSummary),
+      actionLogRef: toArtifactRef(actionLog),
+      state: {
+        actionIndex: Number(sessionState?.actionIndex) || 0,
+        actionCount: Array.isArray(sessionState?.actionLog) ? sessionState.actionLog.length : 0,
+        runtime: {},
+        view: {
+          packageId: typeof packageId === "string" && packageId.trim() ? packageId.trim() : undefined,
+          viewerActorId: sessionState?.viewerActorId || "",
+          frame: sessionState?.frame || null,
+          observation: sessionState?.observation || null,
+          visibility: sessionState?.visibility || null,
+        },
+      },
+      artifacts: [latestRuntimeArtifacts.simConfig, latestRuntimeArtifacts.initialState, runSummary]
+        .map((artifact) => toArtifactRef(artifact))
+        .filter(Boolean),
+    };
+
+    return {
+      ok: true,
+      sessionId: effectiveSessionId,
+      checkpointId: effectiveCheckpointId,
+      checkpointState,
+      actionLog,
+      runSummary,
+      artifacts: {
+        "checkpoint-state.json": checkpointState,
+        "action-log.json": actionLog,
+        "run-summary.json": runSummary,
+        "runtime-decision-captures.json": [],
+      },
+    };
   }
 
   if (frameEl?.addEventListener) {
@@ -534,6 +722,22 @@ export function wireSimulationView({
         actorInspector?.selectActorById?.(actorId);
         visibilityPreferences.viewerActorId = actorId;
         controller?.setViewerActor?.(actorId);
+      }
+    });
+  }
+
+  if (renderCanvasEl?.addEventListener) {
+    renderCanvasEl.addEventListener("click", (event) => {
+      const position = positionFromCanvasEvent(event, renderCanvasEl);
+      const boardPosition = resolveCanvasBoardPosition(position, lastVisibilitySummary);
+      if (!boardPosition) return;
+      const actor = lastObservationActors.find(
+        (entry) => entry?.position?.x === boardPosition.x && entry?.position?.y === boardPosition.y,
+      );
+      if (actor?.id) {
+        actorInspector?.selectActorById?.(actor.id);
+        visibilityPreferences.viewerActorId = actor.id;
+        controller?.setViewerActor?.(actor.id);
       }
     });
   }
@@ -672,7 +876,7 @@ export function wireSimulationView({
       } else if (result.reason === "actor_not_found") {
         setStatus(`Actor ${result.actorId || "unknown"} is unavailable.`, "error");
       } else if (result.reason === "missing_actor") {
-        setStatus("Select an attacker or defender first.", "error");
+        setStatus("Select an delver or warden first.", "error");
       } else if (result.reason === "unsupported_action") {
         setStatus("Unsupported game action.", "error");
       }
@@ -690,6 +894,7 @@ export function wireSimulationView({
     getVisibilitySummary: () => (lastVisibilitySummary ? { ...lastVisibilitySummary } : null),
     setViewerActor,
     performGameAction,
+    exportSessionArtifacts,
     setInspectorVisibility,
     isReady: () => ready,
     dispose: () => {

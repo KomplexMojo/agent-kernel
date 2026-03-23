@@ -253,13 +253,13 @@ assert.equal(result.summary.actors[0].tokenHint, undefined);
 assert.equal(result.summary.actors[0].vitals.stamina.regen, 1);
 `;
 
-const lenientDefenderRecoveryScript = `
+const lenientWardenRecoveryScript = `
 import assert from "node:assert/strict";
 import { runLlmSession } from ${JSON.stringify(sessionModulePath)};
 import { createLlmTestAdapter } from ${JSON.stringify(llmAdapterPath)};
 
 const adapter = createLlmTestAdapter();
-const prompt = "lenient defender recovery prompt";
+const prompt = "lenient warden recovery prompt";
 const responseRaw = [
   "{",
   "  \\"phase\\": \\"actors_only\\",",
@@ -284,7 +284,7 @@ const result = await runLlmSession({
   adapter,
   model: "fixture",
   prompt,
-  runId: "run_llm_session_lenient_defender_recovery",
+  runId: "run_llm_session_lenient_warden_recovery",
   clock: () => "2025-01-01T00:00:00Z",
   phase: "actors_only",
   strict: false,
@@ -314,7 +314,7 @@ adapter.setResponse("fixture", prompt, {
     dungeonAffinity: "water",
     rooms: [{ motivation: "stationary", affinity: "water", count: 2, size: "small" }],
     actors: [{ motivation: "defending", affinity: "earth", count: 1 }],
-    attackerConfigs: [{
+    delverConfigs: [{
       setupMode: "hybrid",
       vitalsMax: { health: 8, mana: 6, stamina: 5, durability: 3 },
       vitalsRegen: { health: 1, mana: 1, stamina: 1, durability: 0 },
@@ -339,7 +339,7 @@ assert.ok(Array.isArray(result.cardSet));
 assert.ok(result.cardSet.length >= 3);
 
 const editedCardSet = result.cardSet.map((card) => {
-  if (card.type !== "defender") return card;
+  if (card.type !== "warden") return card;
   return {
     ...card,
     affinities: [...(card.affinities || []), { kind: "fire", expression: "push", stacks: 1 }],
@@ -384,12 +384,12 @@ test("orchestrator llm session expands repair output budget when actor response 
   runEsm(repairBudgetExpansionScript);
 });
 
-test("orchestrator llm session sanitizes invalid defender token hints and stamina regen", () => {
+test("orchestrator llm session sanitizes invalid warden token hints and stamina regen", () => {
   runEsm(actorsSanitizationScript);
 });
 
-test("orchestrator llm session recovers defender JSON with trailing commas", () => {
-  runEsm(lenientDefenderRecoveryScript);
+test("orchestrator llm session recovers warden JSON with trailing commas", () => {
+  runEsm(lenientWardenRecoveryScript);
 });
 
 test("orchestrator llm session supports AI summary to card model to build spec round-trip", () => {

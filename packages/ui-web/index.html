@@ -1633,8 +1633,18 @@
             <div class="stat">
               <span class="stat-label">Playing Surface</span>
             </div>
-            <div class="status surface-status" id="status-message" data-level="info">Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.</div>
-            <pre class="frame-display" id="frame-buffer">Loading...</pre>
+            <div class="controls">
+              <input id="run-session-name" type="text" placeholder="checkpoint label" />
+              <input id="run-session-cid" type="text" placeholder="ipfs cid" />
+              <button class="secondary" id="run-session-save" type="button">Save Checkpoint</button>
+              <button class="secondary" id="run-session-load" type="button">Restore Checkpoint</button>
+            </div>
+            <div class="status surface-status" id="run-session-status" data-level="info">Save the active run to IPFS or restore a saved session package by CID.</div>
+            <div class="status surface-status" id="status-message" data-level="info">Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here.</div>
+            <div class="level-preview-viewport">
+              <canvas class="level-preview-canvas" id="simulation-render-canvas" hidden></canvas>
+              <pre class="frame-display" id="frame-buffer">Loading...</pre>
+            </div>
             <div class="play-controls">
               <button class="secondary" id="step-back">Step -</button>
               <button class="primary" id="play-pause">Play</button>
@@ -1697,22 +1707,22 @@
                     </div>
                     <div class="design-budget-split-item">
                       <label>
-                        <span class="stat-label">Attacker %</span>
-                        <input id="design-budget-split-attacker" type="number" min="0" max="100" step="1" value="20" />
+                        <span class="stat-label">Delver %</span>
+                        <input id="design-budget-split-delver" type="number" min="0" max="100" step="1" value="20" />
                       </label>
-                      <span class="design-budget-split-tokens" id="design-budget-split-attacker-tokens"></span>
+                      <span class="design-budget-split-tokens" id="design-budget-split-delver-tokens"></span>
                     </div>
                     <div class="design-budget-split-item">
                       <label>
-                        <span class="stat-label">Defender %</span>
-                        <input id="design-budget-split-defender" type="number" min="0" max="100" step="1" value="25" />
+                        <span class="stat-label">Warden %</span>
+                        <input id="design-budget-split-warden" type="number" min="0" max="100" step="1" value="25" />
                       </label>
-                      <span class="design-budget-split-tokens" id="design-budget-split-defender-tokens"></span>
+                      <span class="design-budget-split-tokens" id="design-budget-split-warden-tokens"></span>
                     </div>
                   </div>
                   <div class="design-budget-overview" id="design-budget-overview"></div>
                 </div>
-                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.</div>
+                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.</div>
                 <div class="design-card-grid" id="design-card-grid"></div>
               </section>
               <aside class="design-card-groups-window">
@@ -1723,19 +1733,19 @@
                   </div>
                   <div id="design-card-group-room"></div>
                 </section>
-                <section class="design-card-group" data-card-group="attacker">
+                <section class="design-card-group" data-card-group="delver">
                   <div class="design-card-group-header">
-                    <h3 class="design-card-group-icon" aria-label="Attacker">⚔️</h3>
-                    <span class="design-card-group-budget" id="design-card-group-budget-attacker">(0) : 0/0</span>
+                    <h3 class="design-card-group-icon" aria-label="Delver">⚔️</h3>
+                    <span class="design-card-group-budget" id="design-card-group-budget-delver">(0) : 0/0</span>
                   </div>
-                  <div id="design-card-group-attacker"></div>
+                  <div id="design-card-group-delver"></div>
                 </section>
-                <section class="design-card-group" data-card-group="defender">
+                <section class="design-card-group" data-card-group="warden">
                   <div class="design-card-group-header">
-                    <h3 class="design-card-group-icon" aria-label="Defender">🛡️</h3>
-                    <span class="design-card-group-budget" id="design-card-group-budget-defender">(0) : 0/0</span>
+                    <h3 class="design-card-group-icon" aria-label="Warden">🛡️</h3>
+                    <span class="design-card-group-budget" id="design-card-group-budget-warden">(0) : 0/0</span>
                   </div>
-                  <div id="design-card-group-defender"></div>
+                  <div id="design-card-group-warden"></div>
                 </section>
               </aside>
             </div>
@@ -1747,14 +1757,17 @@
           <div class="card preview-shell">
             <div class="preview-header">
               <div class="stat">
-                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🗺️</span>Game Preview</span>
+                <span class="stat-label">Game Preview</span>
               </div>
               <div class="controls">
                 <button class="primary" id="preview-build-and-load" type="button">Build And Load Game</button>
               </div>
             </div>
             <div class="status surface-status" id="preview-status" data-level="info">Inspect the current design bundle here. When ready, use Build And Load Game to open Run.</div>
-            <pre class="frame-display" id="preview-frame-buffer">No preview loaded.</pre>
+            <div class="level-preview-viewport">
+              <canvas class="level-preview-canvas" id="preview-render-canvas" hidden></canvas>
+              <pre class="frame-display" id="preview-frame-buffer">No preview loaded.</pre>
+            </div>
             <div class="preview-meta-grid">
               <div class="stat">
                 <span class="stat-label">Preview Summary</span>
@@ -2034,15 +2047,15 @@
                 </section>
                 <section class="design-card-group">
                   <div class="design-card-group-header">
-                    <h3 class="design-card-group-icon" aria-label="Attacker">⚔️</h3>
+                    <h3 class="design-card-group-icon" aria-label="Delver">⚔️</h3>
                   </div>
-                  <div class="simulation-inspector-group-list" id="actor-inspector-attacker-list"></div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-delver-list"></div>
                 </section>
                 <section class="design-card-group">
                   <div class="design-card-group-header">
-                    <h3 class="design-card-group-icon" aria-label="Defender">🛡️</h3>
+                    <h3 class="design-card-group-icon" aria-label="Warden">🛡️</h3>
                   </div>
-                  <div class="simulation-inspector-group-list" id="actor-inspector-defender-list"></div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-warden-list"></div>
                 </section>
               </div>
             </div>

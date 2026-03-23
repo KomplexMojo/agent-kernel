@@ -33,7 +33,7 @@ Plainly: the interface and the CLI should produce and consume the same artifacts
 
 In scope:
 - Maintain and finish the UI-to-CLI parity matrix for all meaningful user-facing features in `packages/ui-web`.
-- Keep Room/Attacker/Defender authoring parity complete and validated.
+- Keep Room/Delver/Warden authoring parity complete and validated.
 - Finish the shared command-rail transition for the active UI workflow.
 - Keep `ipfs`, `blockchain`, and `llm` on shared rails at the contract/hook level:
   - `ipfs` hook points store and retrieve canonical game artifacts,
@@ -129,7 +129,7 @@ Functional:
 - Core Design -> Preview -> Run behavior is artifact-driven and aligned with CLI command behavior.
 - Core author/build/run commands execute on shared rails in both Node and browser-hosted environments.
 - The active UI workflow does not depend on a Node subprocess bridge or parallel UI-only domain logic.
-- Room/Attacker/Defender authoring parity remains complete and validated.
+- Room/Delver/Warden authoring parity remains complete and validated.
 - `ipfs`, `blockchain`, and `llm` flows expose shared-rails contracts/hooks in the main code, even if deeper product completion is deferred to follow-on branches.
 - Runtime reasoning through solver or LLM is treated as shared-rails capability, not an ad hoc gameplay exception.
 

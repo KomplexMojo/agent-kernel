@@ -10,6 +10,13 @@
   "items": [
     { "id": "actor_spawn", "kind": "actor", "costTokens": 50 },
     { "id": "layout_grid_9x9", "kind": "layout", "costTokens": 200 },
-    { "id": "trap_basic", "kind": "trap", "costTokens": 75 }
+    { "id": "trap_basic", "kind": "trap", "costTokens": 75 },
+    { "id": "mobility_exploring", "kind": "motivation_axis", "costTokens": 1 },
+    { "id": "mobility_patrolling", "kind": "motivation_axis", "costTokens": 2 },
+    { "id": "combat_attacking", "kind": "motivation_axis", "costTokens": 5 },
+    { "id": "combat_defending", "kind": "motivation_axis", "costTokens": 4 },
+    { "id": "cognition_reflexive", "kind": "motivation_axis", "costTokens": 1 },
+    { "id": "cognition_goal_oriented", "kind": "motivation_axis", "costTokens": 5 },
+    { "id": "cognition_strategy_focused", "kind": "motivation_axis", "costTokens": 20 }
   ]
 }

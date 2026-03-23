@@ -82,13 +82,13 @@
     <text x="240" y="877" text-anchor="middle" class="pillText">Manual Mode (AI Alternative Available)</text>
   </g>
 
-  <!-- CARD 2: ATTACKER -->
+  <!-- CARD 2: DELVER -->
   <g transform="translate(660,150)" filter="url(#shadow)">
     <rect x="0" y="0" rx="26" ry="26" width="480" height="920" fill="#4b275d"/>
     <rect x="16" y="16" rx="20" ry="20" width="448" height="888" fill="url(#cardBody)" stroke="#3f2350" stroke-width="3"/>
 
     <rect x="34" y="34" rx="14" ry="14" width="412" height="58" fill="#6f3e86"/>
-    <text x="56" y="71" class="title" fill="#f7eaff">Attacker Card</text>
+    <text x="56" y="71" class="title" fill="#f7eaff">Delver Card</text>
     <circle cx="408" cy="63" r="20" fill="#7a1d6d"/>
     <text x="408" y="70" text-anchor="middle" class="cost">A</text>
 
@@ -98,7 +98,7 @@
     <text x="48" y="398" class="small" fill="#fff2ff">Combat Identity Illustration</text>
 
     <rect x="34" y="426" width="412" height="58" rx="10" ry="10" fill="#f3e5b6" stroke="#7d6633"/>
-    <text x="48" y="462" class="sub">Type: Attacker | Motivation: Goal-Oriented</text>
+    <text x="48" y="462" class="sub">Type: Delver | Motivation: Goal-Oriented</text>
 
     <rect x="34" y="500" width="412" height="208" rx="12" ry="12" fill="#f9f2d7" stroke="#8d7741"/>
     <text x="48" y="530" class="abilityName">Affinities</text>
@@ -131,13 +131,13 @@
     <text x="240" y="877" text-anchor="middle" class="pillText">Drop Type + Traits Here</text>
   </g>
 
-  <!-- CARD 3: DEFENDER -->
+  <!-- CARD 3: WARDEN -->
   <g transform="translate(1190,150)" filter="url(#shadow)">
     <rect x="0" y="0" rx="26" ry="26" width="480" height="920" fill="#304f2c"/>
     <rect x="16" y="16" rx="20" ry="20" width="448" height="888" fill="url(#cardBody)" stroke="#2c4429" stroke-width="3"/>
 
     <rect x="34" y="34" rx="14" ry="14" width="412" height="58" fill="#466d40"/>
-    <text x="56" y="71" class="title" fill="#edffe8">Defender Card</text>
+    <text x="56" y="71" class="title" fill="#edffe8">Warden Card</text>
     <circle cx="408" cy="63" r="20" fill="#2f6439"/>
     <text x="408" y="70" text-anchor="middle" class="cost">D</text>
 
@@ -147,7 +147,7 @@
     <text x="48" y="398" class="small" fill="#f0fff1">Hold Position Illustration</text>
 
     <rect x="34" y="426" width="412" height="58" rx="10" ry="10" fill="#f3e5b6" stroke="#7d6633"/>
-    <text x="48" y="462" class="sub">Type: Defender | Motivation: Stationary</text>
+    <text x="48" y="462" class="sub">Type: Warden | Motivation: Stationary</text>
 
     <rect x="34" y="500" width="412" height="208" rx="12" ry="12" fill="#f9f2d7" stroke="#8d7741"/>
     <text x="48" y="530" class="abilityName">Affinities</text>

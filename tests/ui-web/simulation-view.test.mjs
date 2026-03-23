@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolveCanvasBoardPosition } from "../../packages/ui-web/src/views/simulation-view.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,10 @@ test("simulation view keeps the playing surface, playback controls, and board ac
   const html = readHtml();
   const simulationPanel = slicePanel(html, "simulation");
   assert.match(simulationPanel, /id="frame-buffer"/);
+  assert.match(simulationPanel, /id="run-session-name"/);
+  assert.match(simulationPanel, /id="run-session-cid"/);
+  assert.match(simulationPanel, /id="run-session-save"/);
+  assert.match(simulationPanel, /id="run-session-load"/);
   assert.match(simulationPanel, /id="play-pause"/);
   assert.match(simulationPanel, /id="step-back"/);
   assert.match(simulationPanel, /id="step-forward"/);
@@ -46,9 +51,9 @@ test("simulation view keeps the playing surface, playback controls, and board ac
   assert.doesNotMatch(simulationPanel, /id="simulation-exploration-hud"/);
   assert.doesNotMatch(simulationPanel, /id="event-stream"/);
   assert.doesNotMatch(simulationPanel, /id="runtime-viewport"/);
-  assert.doesNotMatch(simulationPanel, /id="runtime-attacker-card"/);
-  assert.doesNotMatch(simulationPanel, /id="runtime-visible-defenders"/);
-  assert.doesNotMatch(simulationPanel, /id="runtime-offscreen-defenders"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-delver-card"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-visible-wardens"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-offscreen-wardens"/);
   assert.doesNotMatch(simulationPanel, /Selected Actor View/);
 });
 
@@ -62,4 +67,16 @@ test("simulation view loads wasm from ui-web assets", () => {
   const wasmPath = fileURLToPath(wasmUrl);
   assert.ok(fs.existsSync(wasmPath), `expected wasm file at ${wasmPath}`);
   assert.match(wasmPath, /packages\/ui-web\/assets\/core-as\.wasm$/);
+});
+
+test("simulation canvas hit-testing translates viewport-local tile positions back to board coordinates", () => {
+  assert.deepEqual(
+    resolveCanvasBoardPosition(
+      { x: 2, y: 3 },
+      { viewport: { startX: 10, startY: 20, width: 5, height: 5, endX: 15, endY: 25 } },
+    ),
+    { x: 12, y: 23 },
+  );
+  assert.deepEqual(resolveCanvasBoardPosition({ x: 1, y: 1 }, null), { x: 1, y: 1 });
+  assert.equal(resolveCanvasBoardPosition(null, { viewport: { startX: 4, startY: 7 } }), null);
 });

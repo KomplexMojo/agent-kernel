@@ -649,7 +649,8 @@ export function formatAbilities(abilities = []) {
     const expression = ability?.expression || "unknown";
     const potency = Number.isFinite(ability?.potency) ? ability.potency : 0;
     const manaCost = Number.isFinite(ability?.manaCost) ? ability.manaCost : 0;
-    return `${id} (${kind}, ${affinityKind}/${expression}, pot ${potency}, mana ${manaCost})`;
+    const complexity = typeof ability?.complexityClass === "string" ? `, complexity ${ability.complexityClass}` : "";
+    return `${id} (${kind}, ${affinityKind}/${expression}, pot ${potency}, mana ${manaCost}${complexity})`;
   }).join("; ");
 }
 
@@ -821,6 +822,18 @@ export function setupPlayback({
       viewport: summary.viewport ? { ...summary.viewport } : null,
       viewer: summary.viewer ? { ...summary.viewer } : null,
       roomFocus: summary.roomFocus ? { ...summary.roomFocus } : null,
+      scene: summary.scene
+        ? {
+          tiles: Array.isArray(summary.scene.tiles) ? summary.scene.tiles.slice() : [],
+          actors: Array.isArray(summary.scene.actors)
+            ? summary.scene.actors.map((actor) => ({
+              ...actor,
+              position: actor?.position ? { ...actor.position } : actor?.position,
+            }))
+            : [],
+          viewport: summary.scene.viewport ? { ...summary.scene.viewport } : null,
+        }
+        : null,
       fogFullMap: Boolean(summary.fogFullMap),
       actorStats: Array.isArray(summary.actorStats)
         ? summary.actorStats.map((entry) => ({ ...entry }))
@@ -1046,6 +1059,16 @@ export function setupPlayback({
           lightSight: viewerCanRevealDarkness,
         }
         : null,
+      scene: {
+        tiles: Array.isArray(renderTiles) ? renderTiles.slice() : [],
+        actors: Array.isArray(renderActors)
+          ? renderActors.map((actor) => ({
+            ...actor,
+            position: actor?.position ? { ...actor.position } : actor?.position,
+          }))
+          : [],
+        viewport: viewport ? { ...viewport } : null,
+      },
     };
 
     if (typeof onObservation === "function") {
@@ -1057,6 +1080,7 @@ export function setupPlayback({
         index: currentIndex,
         actorIdLabel,
         visibility: cloneVisibilitySummary(latestVisibilitySummary),
+        scene: cloneVisibilitySummary(latestVisibilitySummary)?.scene || null,
       });
     }
   }
@@ -1260,5 +1284,17 @@ export function setupPlayback({
     getVisibilitySummary: () => cloneVisibilitySummary(latestVisibilitySummary),
     getIndex: () => currentIndex,
     isPlaying: () => playing,
+    getSessionState: () => {
+      const snapshot = readSnapshot();
+      return {
+        actionLog: JSON.parse(JSON.stringify(actions)),
+        actionIndex: currentIndex,
+        viewerActorId: viewerActorId || "",
+        frame: snapshot?.frame ? JSON.parse(JSON.stringify(snapshot.frame)) : null,
+        observation: snapshot?.obs ? JSON.parse(JSON.stringify(snapshot.obs)) : null,
+        visibility: cloneVisibilitySummary(latestVisibilitySummary),
+        playing,
+      };
+    },
   };
 }

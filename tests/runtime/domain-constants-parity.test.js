@@ -20,10 +20,13 @@ function parseStringUnion(sourceText, typeName) {
 
 test("affinity and expression type unions stay aligned with shared runtime constants", async () => {
   const {
+    AFFINITY_EXPRESSION_PROFILES,
     AFFINITY_KINDS,
     AFFINITY_EXPRESSIONS,
     AFFINITY_TARGET_TYPES,
     AFFINITY_OPPOSITES,
+    DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION,
+    resolveAffinityExpressionProfile,
   } = await import("../../packages/runtime/src/contracts/domain-constants.js");
   const artifactsSource = readFileSync(ARTIFACTS_TS, "utf8");
   const configuratorSource = readFileSync(CONFIGURATOR_CONTRACTS_TS, "utf8");
@@ -41,6 +44,13 @@ test("affinity and expression type unions stay aligned with shared runtime const
   assert.deepEqual(trapAffinityKinds, Array.from(AFFINITY_KINDS));
   assert.deepEqual(trapAffinityExpressions, Array.from(AFFINITY_EXPRESSIONS));
   assert.deepEqual(trapAffinityTargetTypes, Array.from(AFFINITY_TARGET_TYPES));
+  AFFINITY_EXPRESSIONS.forEach((expression) => {
+    const targetType = DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION[expression];
+    assert.ok(AFFINITY_TARGET_TYPES.includes(targetType), `default target type missing for expression ${expression}`);
+    assert.ok(AFFINITY_EXPRESSION_PROFILES[expression], `profile missing for expression ${expression}`);
+    assert.equal(resolveAffinityExpressionProfile(expression)?.id, expression);
+  });
+  assert.equal(resolveAffinityExpressionProfile("invalid", "draw")?.id, "draw");
   AFFINITY_KINDS.forEach((kind) => {
     const opposite = AFFINITY_OPPOSITES[kind];
     assert.ok(AFFINITY_KINDS.includes(opposite), `opposite for ${kind} must be a known affinity`);
@@ -50,8 +60,8 @@ test("affinity and expression type unions stay aligned with shared runtime const
 
 test("domain constraints expose canonical llm defaults", async () => {
   const {
-    ATTACKER_SETUP_MODES,
-    DEFAULT_ATTACKER_SETUP_MODE,
+    DELVER_SETUP_MODES,
+    DEFAULT_DELVER_SETUP_MODE,
     DEFAULT_LLM_BASE_URL,
     DEFAULT_LLM_CONTEXT_WINDOW_TOKENS,
     DEFAULT_LLM_MODEL,
@@ -75,6 +85,6 @@ test("domain constraints expose canonical llm defaults", async () => {
   assert.deepEqual(DOMAIN_CONSTRAINTS.llm.responseTokenBudget, PHI4_RESPONSE_TOKEN_BUDGET);
   assert.equal(DOMAIN_CONSTRAINTS.llm.responseTokenBudget.layoutPhase, 160);
   assert.equal(DOMAIN_CONSTRAINTS.llm.responseTokenBudget.designSummary, 220);
-  assert.deepEqual(DOMAIN_CONSTRAINTS.attacker.setupModes, ATTACKER_SETUP_MODES);
-  assert.equal(DOMAIN_CONSTRAINTS.attacker.defaultSetupMode, DEFAULT_ATTACKER_SETUP_MODE);
+  assert.deepEqual(DOMAIN_CONSTRAINTS.delver.setupModes, DELVER_SETUP_MODES);
+  assert.equal(DOMAIN_CONSTRAINTS.delver.defaultSetupMode, DEFAULT_DELVER_SETUP_MODE);
 });

@@ -258,6 +258,10 @@ test("browser host configurator artifacts are equivalent to Node CLI output", as
     "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
     "--price-list",
     "tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
+    "--affinity-rules",
+    "tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json",
+    "--motivation-rules",
+    "tests/fixtures/artifacts/motivation-rules-artifact-v1-basic.json",
     "--out-dir",
     outDir,
     "--run-id",
@@ -271,6 +275,8 @@ test("browser host configurator artifacts are equivalent to Node CLI output", as
     actorsPath: "/tests/fixtures/configurator/actors-v1-affinity-base.json",
     budgetPath: "/tests/fixtures/artifacts/budget-artifact-v1-basic.json",
     priceListPath: "/tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
+    affinityRulesPath: "/tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json",
+    motivationRulesPath: "/tests/fixtures/artifacts/motivation-rules-artifact-v1-basic.json",
     outDir: "/artifacts/equivalence/configurator",
     runId: "run_equivalence_configurator",
   });
@@ -343,7 +349,7 @@ test("browser host ipfs-load artifacts are equivalent to Node CLI output", async
     "--cid",
     "bafyequivalenceload",
     "--fixture-map",
-    "tests/fixtures/adapters/ipfs-artifacts-map.json",
+    "tests/fixtures/adapters/ipfs-package-map.json",
     "--out-dir",
     outDir,
   ]);
@@ -352,8 +358,37 @@ test("browser host ipfs-load artifacts are equivalent to Node CLI output", async
   const adapter = await createBrowserAdapter();
   const browserResult = await adapter.ipfsLoad({
     cid: "bafyequivalenceload",
-    fixtureMap: readJson(resolve(ROOT, "tests/fixtures/adapters/ipfs-artifacts-map.json")),
+    fixtureMap: readJson(resolve(ROOT, "tests/fixtures/adapters/ipfs-package-map.json")),
     outDir: "/artifacts/equivalence/ipfs-load",
+  });
+
+  assert.deepEqual(
+    normalizeArtifacts(browserResult.artifacts),
+    normalizeArtifacts(cliArtifacts),
+  );
+});
+
+test("browser host ipfs-load resume artifacts are equivalent to Node CLI output", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-ipfs-resume-"));
+  runCli([
+    "ipfs-load",
+    "--cid",
+    "bafyequivalenceresume",
+    "--load-mode",
+    "resume",
+    "--fixture-map",
+    "tests/fixtures/adapters/ipfs-package-map.json",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const cliArtifacts = collectJsonArtifacts(outDir);
+  const adapter = await createBrowserAdapter();
+  const browserResult = await adapter.ipfsLoad({
+    cid: "bafyequivalenceresume",
+    loadMode: "resume",
+    fixtureMap: readJson(resolve(ROOT, "tests/fixtures/adapters/ipfs-package-map.json")),
+    outDir: "/artifacts/equivalence/ipfs-resume",
   });
 
   assert.deepEqual(
@@ -369,7 +404,7 @@ test("browser host blockchain-mint artifacts are equivalent to Node CLI output",
     "--rpc-url",
     "http://local",
     "--card",
-    "tests/fixtures/adapters/card-config-attacker.json",
+    "tests/fixtures/adapters/card-config-delver.json",
     "--owner",
     "0xabc",
     "--fixture-chain-id",
@@ -385,7 +420,7 @@ test("browser host blockchain-mint artifacts are equivalent to Node CLI output",
   const browserResult = await adapter.blockchainMint({
     rpcUrl: "http://local",
     owner: "0xabc",
-    cardJson: readJson(resolve(ROOT, "tests/fixtures/adapters/card-config-attacker.json")),
+    cardJson: readJson(resolve(ROOT, "tests/fixtures/adapters/card-config-delver.json")),
     fixtureChainIdJson: readJson(resolve(ROOT, "tests/fixtures/adapters/blockchain-chain-id.json")),
     fixtureMintJson: readJson(resolve(ROOT, "tests/fixtures/adapters/blockchain-mint.json")),
     outDir: "/artifacts/equivalence/blockchain-mint",
@@ -520,6 +555,10 @@ test("browser host run artifacts are equivalent to Node CLI output", async (t) =
     "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
     "--affinity-loadouts",
     "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json",
+    "--affinity-rules",
+    "tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json",
+    "--motivation-rules",
+    "tests/fixtures/artifacts/motivation-rules-artifact-v1-basic.json",
     "--affinity-summary",
     "--actions",
     "tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json",
@@ -541,6 +580,8 @@ test("browser host run artifacts are equivalent to Node CLI output", async (t) =
     outDir: "/artifacts/equivalence/run",
     affinityPresetsPath: "/tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
     affinityLoadoutsPath: "/tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json",
+    affinityRulesPath: "/tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json",
+    motivationRulesPath: "/tests/fixtures/artifacts/motivation-rules-artifact-v1-basic.json",
     affinitySummary: true,
     actionsPath: "/tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json",
     actor: "actor_probe,1,1,motivated",

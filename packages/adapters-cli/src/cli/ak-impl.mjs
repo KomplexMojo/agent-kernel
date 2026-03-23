@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { resolve, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
@@ -15,7 +15,7 @@ import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/c
 import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
-  ALLOWED_ATTACKER_SETUP_MODES,
+  ALLOWED_DELVER_SETUP_MODES,
   ALLOWED_MOTIVATIONS,
 } from "../../../runtime/src/personas/orchestrator/prompt-contract.js";
 import {
@@ -62,25 +62,25 @@ function usage() {
     ? filename.slice(base.length + 1)
     : filename;
   return `Usage:
-  node ${rel} build --spec path [--out-dir dir]
+  node ${rel} build --spec path [--affinity-rules path] [--motivation-rules path] [--resource-bundle path-or-cid] [--emit-visual-assets] [--visual-output png] [--wasm path] [--out-dir dir]
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
-  node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path]
-  node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
+  node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--session-id id] [--checkpoint-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-rules path] [--motivation-rules path] [--affinity-summary path]
+  node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-rules path] [--motivation-rules path] [--resource-bundle path-or-cid] [--visual-output png] [--wasm path] [--out-dir dir] [--run-id id]
   node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir]
   node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
-  node ${rel} ipfs-publish --artifact-map path [--path root] [--gateway url] [--fixture-cid cid] [--out path] [--out-dir dir]
-  node ${rel} ipfs-load --cid cid [--path root] [--file name --file name] [--gateway url] [--fixture-map path] [--out path] [--out-dir dir]
+  node ${rel} ipfs-publish [--scope core|session|package] [--artifact-map path | --core-artifact-map path | --core-dir dir] [--session-artifact-map path | --session-dir dir] [--session-id id] [--checkpoint-id id] [--previous-package-cid cid] [--path root] [--gateway url] [--fixture-cid cid] [--out path] [--out-dir dir]
+  node ${rel} ipfs-load --cid cid [--load-mode core|resume] [--session-id id] [--checkpoint-id id] [--path root] [--gateway url] [--fixture-map path] [--out path] [--out-dir dir]
   node ${rel} blockchain --rpc-url url [--address addr] [--fixture-chain-id path] [--fixture-balance path] [--out path] [--out-dir dir]
-  node ${rel} blockchain-mint --rpc-url url --card path [--owner addr] [--contract addr] [--token-id id] [--fixture-chain-id path] [--fixture-mint path] [--out path] [--out-dir dir]
+  node ${rel} blockchain-mint --rpc-url url --card path [--owner addr] [--contract addr] [--token-id id] [--affinity-rules path] [--motivation-rules path] [--fixture-chain-id path] [--fixture-mint path] [--out path] [--out-dir dir]
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | --prompt text --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} attacker-plan --attacker "count=2;affinity=fire;motivation=attacking" [--attacker "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} defender-plan --defender "count=2;affinity=dark;motivation=defending" [--defender "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -98,6 +98,8 @@ Options:
   --actions       Action log (ActionSequence) path for deterministic replay
   --affinity-presets  Affinity preset artifact path (AffinityPresetArtifact)
   --affinity-loadouts Actor loadout artifact path (ActorLoadoutArtifact)
+  --affinity-rules Affinity rules artifact path (AffinityRulesArtifact)
+  --motivation-rules Motivation rules artifact path (MotivationRulesArtifact)
   --affinity-summary  Write affinity summary JSON (default: <out-dir>/affinity-summary.json)
   --level-gen     Level generation input path (Configurator levelGen input)
   --actors        Actors input path (object with actors array)
@@ -107,21 +109,34 @@ Options:
   --receipt       Budget receipt artifact path (BudgetReceiptArtifact)
   --receipt-out   Output path for budget receipt JSON
   --spec          Build spec JSON path (build command only)
+  --resource-bundle Resource bundle artifact path or IPFS CID/path
+  --emit-visual-assets Emit generated visual asset files and a v2 resource bundle
+  --visual-output Visual export format (currently: png)
   --scenario      Scenario fixture path for llm-plan
   --catalog       Catalog path for prompt-only llm-plan runs
   --goal          Goal text override (llm-plan prompt-only)
-  --dungeon-affinity Dungeon affinity for room/attacker/defender summary defaults
-  --budget-tokens Budget token hint (llm-plan prompt-only, optional for room-plan/attacker-plan/defender-plan)
+  --dungeon-affinity Dungeon affinity for room/delver/warden summary defaults
+  --budget-tokens Budget token hint (llm-plan prompt-only, optional for room-plan/delver-plan/warden-plan)
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...
-  --attacker      Attacker spec for attacker-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]
-  --defender      Defender spec for defender-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]
+  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]
+  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]
   --prompt        Prompt override (llm-plan)
   --budget-loop   Enable budget loop (layout then actors)
   --budget-pool   Budget pool weight entry (repeatable): id=weight (e.g., player=0.2)
   --budget-reserve Reserve tokens before pooling (llm-plan budget loop)
   --model         LLM model name (default: ${DEFAULT_LLM_MODEL})
   --fixture       Fixture response for adapter commands (no network)
-  --artifact-map  Canonical artifact JSON map path for ipfs-publish
+  --artifact-map  Canonical artifact JSON map path for ipfs-publish core scope
+  --core-artifact-map Canonical core artifact JSON map path for ipfs-publish
+  --core-dir      Directory containing canonical core artifacts for ipfs-publish
+  --session-artifact-map Canonical session artifact JSON map path for ipfs-publish
+  --session-dir   Directory containing session artifacts for ipfs-publish
+  --scope         IPFS publish scope: core, session, or package
+  --load-mode     IPFS load mode: core or resume
+  --session-id    Session identifier for run/ipfs session lifecycle
+  --checkpoint-id Checkpoint identifier for run/ipfs session lifecycle
+  --previous-package-cid Prior package CID for ipfs-publish package chaining
+  --package-id    Override package id for ipfs-publish package manifests
   --fixture-cid   Deterministic CID for ipfs-publish fixture mode
   --fixture-map   Fixture JSON map for ipfs-load (keys are artifact paths under CID)
   --card          Card configuration JSON path for blockchain-mint
@@ -130,7 +145,7 @@ Options:
   --fixture-mint  Fixture JSON-RPC response for blockchain-mint
   --fixture-load  Fixture JSON-RPC response for blockchain-load
   --run-id        Override run id for output artifacts
-  --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/attacker-plan/defender-plan
+  --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/delver-plan/warden-plan
   --help          Show this help
 `;
 }
@@ -139,8 +154,8 @@ function parseArgs(argv) {
   const args = { _: [] };
   const repeatable = new Set([
     "actor",
-    "attacker",
-    "defender",
+    "delver",
+    "warden",
     "vital",
     "vital-default",
     "tile-wall",
@@ -434,17 +449,17 @@ function parseRoomSpecs(rawRooms) {
   return values.map((value, index) => parseRoomSpec(value, index + 1));
 }
 
-function parseAttackerSpec(value, attackerIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
   const raw = String(value || "").trim();
   if (!raw) {
-    throw new Error(`attacker[${attackerIndex}] requires a non-empty spec.`);
+    throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
   }
 
   const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
-    throw new Error(`attacker[${attackerIndex}] requires at least one field.`);
+    throw new Error(`delver[${delverIndex}] requires at least one field.`);
   }
 
   segments.forEach((segment) => {
@@ -456,97 +471,97 @@ function parseAttackerSpec(value, attackerIndex, { defaultAffinity = DEFAULT_DUN
       }
       if (ALLOWED_MOTIVATIONS.includes(shorthand)) {
         if (fields.has("motivation")) {
-          throw new Error(`attacker[${attackerIndex}] motivation may only be specified once.`);
+          throw new Error(`delver[${delverIndex}] motivation may only be specified once.`);
         }
         fields.set("motivation", shorthand);
         return;
       }
-      throw new Error(`attacker[${attackerIndex}] segment "${segment}" is invalid; expected key=value.`);
+      throw new Error(`delver[${delverIndex}] segment "${segment}" is invalid; expected key=value.`);
     }
 
     const separator = segment.indexOf("=");
     const key = segment.slice(0, separator).trim().toLowerCase();
     const fieldValue = segment.slice(separator + 1).trim();
     if (!allowedFields.has(key)) {
-      throw new Error(`attacker[${attackerIndex}] field "${key}" is not supported.`);
+      throw new Error(`delver[${delverIndex}] field "${key}" is not supported.`);
     }
     if (!fieldValue) {
-      throw new Error(`attacker[${attackerIndex}] field "${key}" requires a value.`);
+      throw new Error(`delver[${delverIndex}] field "${key}" requires a value.`);
     }
     if (key === "motivation" && fields.has("motivation")) {
-      throw new Error(`attacker[${attackerIndex}] motivation may only be specified once.`);
+      throw new Error(`delver[${delverIndex}] motivation may only be specified once.`);
     }
     fields.set(key, fieldValue);
   });
 
   const affinity = String(fields.get("affinity") || defaultAffinity).trim().toLowerCase();
   if (!ALLOWED_AFFINITIES.includes(affinity)) {
-    throw new Error(`attacker[${attackerIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+    throw new Error(`delver[${delverIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
   const motivation = String(fields.get("motivation") || "attacking").trim().toLowerCase();
   if (!ALLOWED_MOTIVATIONS.includes(motivation)) {
-    throw new Error(`attacker[${attackerIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
+    throw new Error(`delver[${delverIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
   }
 
   const count = fields.has("count")
-    ? parsePositiveIntStrict(fields.get("count"), `attacker[${attackerIndex}] count`)
+    ? parsePositiveIntStrict(fields.get("count"), `delver[${delverIndex}] count`)
     : 1;
   const id = isNonEmptyString(fields.get("id"))
     ? String(fields.get("id")).trim()
-    : `card_attacker_${attackerIndex}`;
-  const affinities = parseActorAffinities(fields.get("affinities"), "attacker", attackerIndex);
-  const vitals = parseActorVitals(fields.get("vitals"), "attacker", attackerIndex);
+    : `card_delver_${delverIndex}`;
+  const affinities = parseActorAffinities(fields.get("affinities"), "delver", delverIndex);
+  const vitals = parseActorVitals(fields.get("vitals"), "delver", delverIndex);
   const setupModeRaw = fields.get("setup-mode") || fields.get("setupmode");
   let setupMode;
   if (isNonEmptyString(setupModeRaw)) {
     setupMode = String(setupModeRaw).trim().toLowerCase();
-    if (!ALLOWED_ATTACKER_SETUP_MODES.includes(setupMode)) {
-      throw new Error(`attacker[${attackerIndex}] setup-mode must be one of: ${ALLOWED_ATTACKER_SETUP_MODES.join(", ")}.`);
+    if (!ALLOWED_DELVER_SETUP_MODES.includes(setupMode)) {
+      throw new Error(`delver[${delverIndex}] setup-mode must be one of: ${ALLOWED_DELVER_SETUP_MODES.join(", ")}.`);
     }
   }
 
-  const attacker = {
+  const delver = {
     id,
-    type: "attacker",
+    type: "delver",
     source: "actor",
     count,
     affinity,
     motivations: [motivation],
   };
   if (affinities && affinities.length > 0) {
-    attacker.affinities = affinities;
+    delver.affinities = affinities;
   }
   if (vitals && Object.keys(vitals).length > 0) {
-    attacker.vitals = vitals;
+    delver.vitals = vitals;
   }
   if (setupMode) {
-    attacker.setupMode = setupMode;
+    delver.setupMode = setupMode;
   }
-  return attacker;
+  return delver;
 }
 
-function parseAttackerSpecs(rawAttackers, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
-  const values = normalizeList(rawAttackers)
+function parseDelverSpecs(rawDelvers, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+  const values = normalizeList(rawDelvers)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean);
   if (values.length === 0) {
-    throw new Error("attacker-plan requires at least one --attacker entry.");
+    throw new Error("delver-plan requires at least one --delver entry.");
   }
-  return values.map((value, index) => parseAttackerSpec(value, index + 1, { defaultAffinity }));
+  return values.map((value, index) => parseDelverSpec(value, index + 1, { defaultAffinity }));
 }
 
-function parseDefenderSpec(value, defenderIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
   const raw = String(value || "").trim();
   if (!raw) {
-    throw new Error(`defender[${defenderIndex}] requires a non-empty spec.`);
+    throw new Error(`warden[${wardenIndex}] requires a non-empty spec.`);
   }
 
   const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
-    throw new Error(`defender[${defenderIndex}] requires at least one field.`);
+    throw new Error(`warden[${wardenIndex}] requires at least one field.`);
   }
 
   segments.forEach((segment) => {
@@ -558,73 +573,73 @@ function parseDefenderSpec(value, defenderIndex, { defaultAffinity = DEFAULT_DUN
       }
       if (ALLOWED_MOTIVATIONS.includes(shorthand)) {
         if (fields.has("motivation")) {
-          throw new Error(`defender[${defenderIndex}] motivation may only be specified once.`);
+          throw new Error(`warden[${wardenIndex}] motivation may only be specified once.`);
         }
         fields.set("motivation", shorthand);
         return;
       }
-      throw new Error(`defender[${defenderIndex}] segment "${segment}" is invalid; expected key=value.`);
+      throw new Error(`warden[${wardenIndex}] segment "${segment}" is invalid; expected key=value.`);
     }
 
     const separator = segment.indexOf("=");
     const key = segment.slice(0, separator).trim().toLowerCase();
     const fieldValue = segment.slice(separator + 1).trim();
     if (!allowedFields.has(key)) {
-      throw new Error(`defender[${defenderIndex}] field "${key}" is not supported.`);
+      throw new Error(`warden[${wardenIndex}] field "${key}" is not supported.`);
     }
     if (!fieldValue) {
-      throw new Error(`defender[${defenderIndex}] field "${key}" requires a value.`);
+      throw new Error(`warden[${wardenIndex}] field "${key}" requires a value.`);
     }
     if (key === "motivation" && fields.has("motivation")) {
-      throw new Error(`defender[${defenderIndex}] motivation may only be specified once.`);
+      throw new Error(`warden[${wardenIndex}] motivation may only be specified once.`);
     }
     fields.set(key, fieldValue);
   });
 
   const affinity = String(fields.get("affinity") || defaultAffinity).trim().toLowerCase();
   if (!ALLOWED_AFFINITIES.includes(affinity)) {
-    throw new Error(`defender[${defenderIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+    throw new Error(`warden[${wardenIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
   const motivation = String(fields.get("motivation") || "defending").trim().toLowerCase();
   if (!ALLOWED_MOTIVATIONS.includes(motivation)) {
-    throw new Error(`defender[${defenderIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
+    throw new Error(`warden[${wardenIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
   }
 
   const count = fields.has("count")
-    ? parsePositiveIntStrict(fields.get("count"), `defender[${defenderIndex}] count`)
+    ? parsePositiveIntStrict(fields.get("count"), `warden[${wardenIndex}] count`)
     : 1;
   const id = isNonEmptyString(fields.get("id"))
     ? String(fields.get("id")).trim()
-    : `card_defender_${defenderIndex}`;
-  const affinities = parseActorAffinities(fields.get("affinities"), "defender", defenderIndex);
-  const vitals = parseActorVitals(fields.get("vitals"), "defender", defenderIndex);
+    : `card_warden_${wardenIndex}`;
+  const affinities = parseActorAffinities(fields.get("affinities"), "warden", wardenIndex);
+  const vitals = parseActorVitals(fields.get("vitals"), "warden", wardenIndex);
 
-  const defender = {
+  const warden = {
     id,
-    type: "defender",
+    type: "warden",
     source: "actor",
     count,
     affinity,
     motivations: [motivation],
   };
   if (affinities && affinities.length > 0) {
-    defender.affinities = affinities;
+    warden.affinities = affinities;
   }
   if (vitals && Object.keys(vitals).length > 0) {
-    defender.vitals = vitals;
+    warden.vitals = vitals;
   }
-  return defender;
+  return warden;
 }
 
-function parseDefenderSpecs(rawDefenders, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
-  const values = normalizeList(rawDefenders)
+function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
+  const values = normalizeList(rawWardens)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean);
   if (values.length === 0) {
-    throw new Error("defender-plan requires at least one --defender entry.");
+    throw new Error("warden-plan requires at least one --warden entry.");
   }
-  return values.map((value, index) => parseDefenderSpec(value, index + 1, { defaultAffinity }));
+  return values.map((value, index) => parseWardenSpec(value, index + 1, { defaultAffinity }));
 }
 
 function resolvePath(input, cwd = process.cwd()) {
@@ -687,6 +702,11 @@ async function writeJson(filePath, value) {
 async function writeText(filePath, value) {
   await mkdir(dirname(filePath), { recursive: true });
   await writeFile(filePath, value, "utf8");
+}
+
+async function writeBinary(filePath, value) {
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, value);
 }
 
 function assertSchema(artifact, expectedSchema) {
@@ -761,7 +781,7 @@ function isLocalBaseUrl(raw) {
 }
 
 function assertAllowedBuildArgs(args) {
-  const allowed = new Set(["spec", "out-dir"]);
+  const allowed = new Set(["spec", "affinity-rules", "motivation-rules", "resource-bundle", "emit-visual-assets", "visual-output", "wasm", "out-dir"]);
   const unknown = [];
   for (const key of Object.keys(args)) {
     if (key === "_" || key === "help") {
@@ -775,7 +795,9 @@ function assertAllowedBuildArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`build only accepts --spec and --out-dir. Unknown: ${unknown.join(", ")}`);
+    throw new Error(
+      `build only accepts --spec, --affinity-rules, --motivation-rules, --resource-bundle, --emit-visual-assets, --visual-output, --wasm, and --out-dir. Unknown: ${unknown.join(", ")}`,
+    );
   }
 }
 
@@ -827,9 +849,9 @@ function assertAllowedRoomPlanArgs(args) {
   }
 }
 
-function assertAllowedAttackerPlanArgs(args) {
+function assertAllowedDelverPlanArgs(args) {
   const allowed = new Set([
-    "attacker",
+    "delver",
     "goal",
     "dungeon-affinity",
     "budget-tokens",
@@ -852,13 +874,13 @@ function assertAllowedAttackerPlanArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`attacker-plan only accepts --attacker, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`delver-plan only accepts --delver, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
   }
 }
 
-function assertAllowedDefenderPlanArgs(args) {
+function assertAllowedWardenPlanArgs(args) {
   const allowed = new Set([
-    "defender",
+    "warden",
     "goal",
     "dungeon-affinity",
     "budget-tokens",
@@ -881,7 +903,7 @@ function assertAllowedDefenderPlanArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`defender-plan only accepts --defender, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`warden-plan only accepts --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -918,10 +940,20 @@ const commandKernel = createCommandKernel({
   readJson,
   readText,
   writeJson,
+  writeBinary,
   resolvePath,
   join,
   dirname,
   exists: existsSync,
+  listFiles: (dirPath) => {
+    if (!dirPath || !existsSync(dirPath)) {
+      return [];
+    }
+    return readdirSync(dirPath, { withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort((left, right) => left.localeCompare(right));
+  },
   makeId,
   createMeta,
   toRef,
@@ -1071,27 +1103,40 @@ async function ipfsPublishCommand(argv) {
     console.log(usage());
     return;
   }
-  const artifactMapPath = resolvePath(args["artifact-map"]);
-  if (!artifactMapPath) {
-    throw new Error("ipfs-publish requires --artifact-map.");
-  }
-
   const runId = makeId("run");
   const outDir = resolvePath(args["out-dir"]) || defaultOutDir("ipfs-publish", runId);
   const outPath = resolvePath(args.out) || join(outDir, "ipfs-publish.json");
-  const artifactMap = await readJson(artifactMapPath);
+  const artifactMapPath = resolvePath(args["artifact-map"]);
+  const coreArtifactMapPath = resolvePath(args["core-artifact-map"]);
+  const sessionArtifactMapPath = resolvePath(args["session-artifact-map"]);
+  const artifactMap = artifactMapPath ? await readJson(artifactMapPath) : undefined;
+  const coreArtifactMap = coreArtifactMapPath ? await readJson(coreArtifactMapPath) : undefined;
+  const sessionArtifactMap = sessionArtifactMapPath ? await readJson(sessionArtifactMapPath) : undefined;
 
   const result = await commandKernel.ipfsPublish({
+    scope: args.scope,
     path: args.path,
     gateway: args.gateway,
     "fixture-cid": args["fixture-cid"],
     "artifact-map": artifactMap,
+    "core-artifact-map": coreArtifactMap,
+    "core-dir": args["core-dir"],
+    "session-artifact-map": sessionArtifactMap,
+    "session-dir": args["session-dir"],
+    "session-id": args["session-id"],
+    "checkpoint-id": args["checkpoint-id"],
+    "session-status": args["session-status"],
+    "previous-package-cid": args["previous-package-cid"],
+    "package-id": args["package-id"],
   });
   await writeJson(outPath, {
     cid: result.cid,
     rootPath: result.rootPath || "",
     publishedFiles: result.publishedFiles || [],
     mode: result.mode || "live",
+    scope: result.scope || args.scope || "core",
+    package: result.package || null,
+    sessionManifest: result.sessionManifest || null,
   });
   console.log(`ipfs-publish: wrote ${outPath}`);
 }
@@ -1110,8 +1155,10 @@ async function ipfsLoadCommand(argv) {
 
   const result = await commandKernel.ipfsLoad({
     cid: args.cid,
+    "load-mode": args["load-mode"],
+    "session-id": args["session-id"],
+    "checkpoint-id": args["checkpoint-id"],
     path: args.path,
-    file: args.file,
     gateway: args.gateway,
     "fixture-map": fixtureMap,
   });
@@ -1123,8 +1170,11 @@ async function ipfsLoadCommand(argv) {
   await writeJson(outPath, {
     cid: result.cid,
     rootPath: result.rootPath || "",
+    loadMode: result.loadMode || args["load-mode"] || "core",
     fetchedFiles: Object.keys(fetched),
     missing: result.missing || [],
+    package: result.package || null,
+    sessionManifest: result.sessionManifest || null,
   });
   console.log(`ipfs-load: wrote ${outDir}`);
 }
@@ -1360,18 +1410,18 @@ async function roomPlanCommand(argv) {
   console.log(`room-plan: wrote ${outDir}`);
 }
 
-async function attackerPlanCommand(argv) {
+async function delverPlanCommand(argv) {
   const args = parseArgs(argv);
   if (args.help) {
     console.log(usage());
     return;
   }
 
-  assertAllowedAttackerPlanArgs(args);
+  assertAllowedDelverPlanArgs(args);
 
   const runId = args["run-id"] || makeId("run");
   const createdAt = args["created-at"] || new Date().toISOString();
-  const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("attacker-plan", runId);
+  const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("delver-plan", runId);
   const budgetPath = resolvePath(args.budget);
   const priceListPath = resolvePath(args["price-list"]);
 
@@ -1379,17 +1429,17 @@ async function attackerPlanCommand(argv) {
     ? args["dungeon-affinity"].trim().toLowerCase()
     : DEFAULT_DUNGEON_AFFINITY;
   if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
-    throw new Error(`attacker-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+    throw new Error(`delver-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
-  const attackers = parseAttackerSpecs(args.attacker, { defaultAffinity: dungeonAffinity });
+  const delvers = parseDelverSpecs(args.delver, { defaultAffinity: dungeonAffinity });
 
   let budgetTokens;
   if (args["budget-tokens"] !== undefined) {
-    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], "attacker-plan --budget-tokens");
+    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], "delver-plan --budget-tokens");
   }
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
-    throw new Error("attacker-plan requires both --budget and --price-list.");
+    throw new Error("delver-plan requires both --budget and --price-list.");
   }
 
   let budgetArtifact = null;
@@ -1405,11 +1455,11 @@ async function attackerPlanCommand(argv) {
 
   const goal = isNonEmptyString(args.goal)
     ? args.goal.trim()
-    : `Author attackers (${attackers.length} configuration${attackers.length === 1 ? "" : "s"}).`;
+    : `Author delvers (${delvers.length} configuration${delvers.length === 1 ? "" : "s"}).`;
   const summary = {
     goal,
     dungeonAffinity,
-    cardSet: attackers,
+    cardSet: delvers,
   };
   if (budgetTokens !== undefined) {
     summary.budgetTokens = budgetTokens;
@@ -1419,17 +1469,17 @@ async function attackerPlanCommand(argv) {
     summary,
     runId,
     createdAt,
-    source: "cli-attacker-plan",
+    source: "cli-delver-plan",
     budgetArtifact: budgetArtifact || undefined,
     priceListArtifact: priceListArtifact || undefined,
   });
   if (!built.ok) {
-    throw new Error(`attacker-plan build spec failed: ${built.errors.join("; ")}`);
+    throw new Error(`delver-plan build spec failed: ${built.errors.join("; ")}`);
   }
 
   const buildResult = await orchestrateBuild({
     spec: built.spec,
-    producedBy: "cli-attacker-plan",
+    producedBy: "cli-delver-plan",
   });
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
@@ -1527,26 +1577,26 @@ async function attackerPlanCommand(argv) {
     spec: buildResult.spec,
     status: "success",
     artifactRefs: buildArtifactRefs(manifestEntries),
-    producedBy: "cli-attacker-plan",
+    producedBy: "cli-delver-plan",
     clock: () => buildResult.spec.meta.createdAt,
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
-  console.log(`attacker-plan: wrote ${outDir}`);
+  console.log(`delver-plan: wrote ${outDir}`);
 }
 
-async function defenderPlanCommand(argv) {
+async function wardenPlanCommand(argv) {
   const args = parseArgs(argv);
   if (args.help) {
     console.log(usage());
     return;
   }
 
-  assertAllowedDefenderPlanArgs(args);
+  assertAllowedWardenPlanArgs(args);
 
   const runId = args["run-id"] || makeId("run");
   const createdAt = args["created-at"] || new Date().toISOString();
-  const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("defender-plan", runId);
+  const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("warden-plan", runId);
   const budgetPath = resolvePath(args.budget);
   const priceListPath = resolvePath(args["price-list"]);
 
@@ -1554,17 +1604,17 @@ async function defenderPlanCommand(argv) {
     ? args["dungeon-affinity"].trim().toLowerCase()
     : DEFAULT_DUNGEON_AFFINITY;
   if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
-    throw new Error(`defender-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+    throw new Error(`warden-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
-  const defenders = parseDefenderSpecs(args.defender, { defaultAffinity: dungeonAffinity });
+  const wardens = parseWardenSpecs(args.warden, { defaultAffinity: dungeonAffinity });
 
   let budgetTokens;
   if (args["budget-tokens"] !== undefined) {
-    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], "defender-plan --budget-tokens");
+    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], "warden-plan --budget-tokens");
   }
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
-    throw new Error("defender-plan requires both --budget and --price-list.");
+    throw new Error("warden-plan requires both --budget and --price-list.");
   }
 
   let budgetArtifact = null;
@@ -1580,11 +1630,11 @@ async function defenderPlanCommand(argv) {
 
   const goal = isNonEmptyString(args.goal)
     ? args.goal.trim()
-    : `Author defenders (${defenders.length} configuration${defenders.length === 1 ? "" : "s"}).`;
+    : `Author wardens (${wardens.length} configuration${wardens.length === 1 ? "" : "s"}).`;
   const summary = {
     goal,
     dungeonAffinity,
-    cardSet: defenders,
+    cardSet: wardens,
   };
   if (budgetTokens !== undefined) {
     summary.budgetTokens = budgetTokens;
@@ -1594,17 +1644,17 @@ async function defenderPlanCommand(argv) {
     summary,
     runId,
     createdAt,
-    source: "cli-defender-plan",
+    source: "cli-warden-plan",
     budgetArtifact: budgetArtifact || undefined,
     priceListArtifact: priceListArtifact || undefined,
   });
   if (!built.ok) {
-    throw new Error(`defender-plan build spec failed: ${built.errors.join("; ")}`);
+    throw new Error(`warden-plan build spec failed: ${built.errors.join("; ")}`);
   }
 
   const buildResult = await orchestrateBuild({
     spec: built.spec,
-    producedBy: "cli-defender-plan",
+    producedBy: "cli-warden-plan",
   });
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
@@ -1702,12 +1752,12 @@ async function defenderPlanCommand(argv) {
     spec: buildResult.spec,
     status: "success",
     artifactRefs: buildArtifactRefs(manifestEntries),
-    producedBy: "cli-defender-plan",
+    producedBy: "cli-warden-plan",
     clock: () => buildResult.spec.meta.createdAt,
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
-  console.log(`defender-plan: wrote ${outDir}`);
+  console.log(`warden-plan: wrote ${outDir}`);
 }
 
 async function llmPlanCommand(argv) {
@@ -1737,8 +1787,8 @@ const COMMANDS = {
   llm: llmCommand,
   ollama: llmCommand,
   "room-plan": roomPlanCommand,
-  "attacker-plan": attackerPlanCommand,
-  "defender-plan": defenderPlanCommand,
+  "delver-plan": delverPlanCommand,
+  "warden-plan": wardenPlanCommand,
   "llm-plan": llmPlanCommand,
 };
 

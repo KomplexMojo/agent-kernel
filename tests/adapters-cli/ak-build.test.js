@@ -15,6 +15,8 @@ const ADAPTER_REMOTE_SPEC = resolve(
 );
 const BUDGET_INLINE_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-budget-inline-only.json");
 const CONFIG_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-configurator.json");
+const AFFINITY_RULES = resolve(ROOT, "tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json");
+const MOTIVATION_RULES = resolve(ROOT, "tests/fixtures/artifacts/motivation-rules-artifact-v1-basic.json");
 const SOLVER_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-solver.json");
 const INVALID_SPEC = resolve(ROOT, "tests/fixtures/artifacts/invalid/build-spec-v1-missing-goal.json");
 
@@ -40,12 +42,28 @@ test("cli build accepts --spec and writes mapped artifacts", () => {
   assert.equal(existsSync(join(outDir, "spec.json")), true);
   assert.equal(existsSync(join(outDir, "intent.json")), true);
   assert.equal(existsSync(join(outDir, "plan.json")), true);
+  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
+  const resourceBundle = JSON.parse(readFileSync(join(outDir, "resource-bundle.json"), "utf8"));
+  assert.equal(resourceBundle.schemaVersion, 1);
+  assert.equal(existsSync(join(outDir, "visual-assets")), false);
 });
 
 test("cli build rejects unknown flags", () => {
   const result = runCli(["build", "--spec", SPEC, "--plan", "x"]);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /build only accepts --spec and --out-dir/);
+  assert.match(result.stderr, /build only accepts --spec, --affinity-rules, --motivation-rules, --resource-bundle, --emit-visual-assets, --visual-output, --wasm, and --out-dir/);
+});
+
+test("cli build can emit visual assets and a v2 resource bundle", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-visual-assets-"));
+  const result = runCli(["build", "--spec", SPEC, "--emit-visual-assets", "--out-dir", outDir]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const resourceBundle = JSON.parse(readFileSync(join(outDir, "resource-bundle.json"), "utf8"));
+  assert.equal(resourceBundle.schemaVersion, 2);
+  assert.equal(existsSync(join(outDir, "visual-assets", "tiles", "fog.png")), true);
+  assert.equal(existsSync(join(outDir, "visual-assets", "actors", "delver-fire.png")), true);
+  assert.equal(existsSync(join(outDir, "visual-assets", "actors", "warden-fire.png")), true);
 });
 
 test("cli build runs configurator inputs without executing core", () => {
@@ -56,6 +74,41 @@ test("cli build runs configurator inputs without executing core", () => {
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
   assert.equal(existsSync(join(outDir, "tick-frames.json")), false);
+});
+
+test("cli build writes affinity and motivation rules and propagates rules references", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-rules-"));
+  const result = runCli([
+    "build",
+    "--spec",
+    CONFIG_SPEC,
+    "--affinity-rules",
+    AFFINITY_RULES,
+    "--motivation-rules",
+    MOTIVATION_RULES,
+    "--out-dir",
+    outDir,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const rules = JSON.parse(readFileSync(join(outDir, "affinity-rules.json"), "utf8"));
+  const motivationRules = JSON.parse(readFileSync(join(outDir, "motivation-rules.json"), "utf8"));
+  const simConfig = JSON.parse(readFileSync(join(outDir, "sim-config.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  assert.equal(rules.schema, "agent-kernel/AffinityRulesArtifact");
+  assert.equal(motivationRules.schema, "agent-kernel/MotivationRulesArtifact");
+  assert.deepEqual(simConfig.affinityRulesRef, {
+    id: rules.meta.id,
+    schema: rules.schema,
+    schemaVersion: rules.schemaVersion,
+  });
+  assert.deepEqual(simConfig.motivationRulesRef, {
+    id: motivationRules.meta.id,
+    schema: motivationRules.schema,
+    schemaVersion: motivationRules.schemaVersion,
+  });
+  assert.ok(manifest.artifacts.find((entry) => entry.path === "affinity-rules.json"));
+  assert.ok(manifest.artifacts.find((entry) => entry.path === "motivation-rules.json"));
 });
 
 test("cli build writes a sorted manifest for emitted artifacts", () => {
@@ -100,6 +153,8 @@ test("cli build writes bundle.json with inlined artifacts", () => {
   assert.equal(Array.isArray(bundle.artifacts), true);
   assert.equal(bundle.artifacts.length, manifest.artifacts.length);
   assert.deepEqual(bundle.schemas, manifest.schemas);
+  assert.equal(bundle.resourceBundleRef.schema, "agent-kernel/ResourceBundleArtifact");
+  assert.equal(manifest.resourceBundleRef.schema, "agent-kernel/ResourceBundleArtifact");
 
   const sorted = [...bundle.artifacts].sort((a, b) => {
     if (a.schema === b.schema) {

@@ -18,7 +18,7 @@ const chainId = await blockchain.getChainId();
 const balance = await blockchain.getBalance("0xabc");
 const minted = await blockchain.mintCard({
   owner: "0xabc",
-  card: { id: "A-1", type: "attacker" },
+  card: { id: "A-1", type: "delver" },
 });
 const loaded = await blockchain.loadMintedCard({ tokenId: minted.tokenId });
 ```

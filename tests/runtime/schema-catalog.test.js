@@ -20,7 +20,13 @@ const required = [
   "agent-kernel/BuildSpec",
   "agent-kernel/SimConfigArtifact",
   "agent-kernel/InitialStateArtifact",
+  "agent-kernel/AffinityRulesArtifact",
+  "agent-kernel/MotivationRulesArtifact",
   "agent-kernel/TelemetryRecord",
+  "agent-kernel/ResourceBundleArtifact",
+  "agent-kernel/IpfsPackageArtifact",
+  "agent-kernel/IpfsSessionManifestArtifact",
+  "agent-kernel/RuntimeCheckpointArtifact",
 ];
 required.forEach((schema) => assert.ok(names.includes(schema), "Missing " + schema));
 `;

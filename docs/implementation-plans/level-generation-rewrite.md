@@ -96,5 +96,5 @@ Level generation can appear to hang for larger token allocations. The current fl
 - Large layout edge cases may require profile-specific safeguards.
 
 ## Open Questions
-- Should timeout defaults differ per phase (layout vs defender)?
+- Should timeout defaults differ per phase (layout vs warden)?
 - Should benchmark include optional render-time mode for end-user expectation?

@@ -7,7 +7,7 @@ Purpose: define `B2-S4` by reusing the existing solver and LLM artifact pipeline
 Runtime reasoning is a gameplay capability, not a side utility.
 
 Canonical example:
-- an attacker sees two defenders and must choose its next move.
+- an delver sees two wardens and must choose its next move.
 
 This branch should support:
 - deterministic tactical choice through the existing solver path,
@@ -92,7 +92,7 @@ Recommended shape:
   "tick": 12,
   "actor": {
     "id": "actor_mvp",
-    "role": "attacker",
+    "role": "delver",
     "position": { "x": 4, "y": 6 },
     "vitals": {
       "health": { "current": 8, "max": 12, "regen": 0 },
@@ -107,14 +107,14 @@ Recommended shape:
   "visibleActors": [
     {
       "id": "def_a",
-      "role": "defender",
+      "role": "warden",
       "position": { "x": 6, "y": 6 },
       "distance": 2,
       "threatScore": 7
     },
     {
       "id": "def_b",
-      "role": "defender",
+      "role": "warden",
       "position": { "x": 4, "y": 8 },
       "distance": 2,
       "threatScore": 5
@@ -398,7 +398,7 @@ Recommended capture shape:
         "selectedTargetId": "def_a",
         "confidence": 0.82,
         "rationaleTags": [
-          "focus_weakened_defender",
+          "focus_weakened_warden",
           "preserve_stamina"
         ]
       }
@@ -459,12 +459,12 @@ This matches the current Moderator/runtime contract:
 - deterministic effects may be fulfilled during execution
 - IO-bound effects must be deferred and captured for replay
 
-## 7) Tactical Example: Two Visible Defenders
+## 7) Tactical Example: Two Visible Wardens
 
 Scenario:
-- attacker sees `def_a` and `def_b`
+- delver sees `def_a` and `def_b`
 - `def_a` is weaker but close to a trap
-- attacker has enough mana for one cast
+- delver has enough mana for one cast
 
 Expected solver-first flow:
 1. runtime constructs the `runtime-decision-v1` request envelope

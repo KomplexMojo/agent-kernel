@@ -50,19 +50,44 @@ test("cli ipfs-load command writes canonical artifact files from fixture map", a
     "--cid",
     "bafyfixture",
     "--fixture-map",
-    "tests/fixtures/adapters/ipfs-artifacts-map.json",
+    "tests/fixtures/adapters/ipfs-package-map.json",
     "--out-dir",
     outDir,
   ]);
   const summary = JSON.parse(readFileSync(join(outDir, "ipfs-load.json"), "utf8"));
   assert.equal(summary.cid, "bafyfixture");
+  assert.equal(summary.loadMode, "core");
   assert.ok(summary.fetchedFiles.includes("bundle.json"));
   assert.ok(summary.fetchedFiles.includes("manifest.json"));
+  assert.ok(summary.fetchedFiles.includes("ipfs-package.json"));
 
   const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
   assert.equal(bundle.spec.schema, "agent-kernel/BuildSpec");
   const simConfig = JSON.parse(readFileSync(join(outDir, "sim-config.json"), "utf8"));
   assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
+});
+
+test("cli ipfs-load resume writes checkpoint payloads from package fixture", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-ipfs-load-resume-"));
+  runCli([
+    "ipfs-load",
+    "--cid",
+    "bafyfixture",
+    "--load-mode",
+    "resume",
+    "--fixture-map",
+    "tests/fixtures/adapters/ipfs-package-map.json",
+    "--out-dir",
+    outDir,
+  ]);
+  const summary = JSON.parse(readFileSync(join(outDir, "ipfs-load.json"), "utf8"));
+  assert.equal(summary.loadMode, "resume");
+  assert.ok(summary.fetchedFiles.includes("checkpoint-state.json"));
+  assert.ok(summary.fetchedFiles.includes("action-log.json"));
+  assert.ok(summary.fetchedFiles.includes("run-summary.json"));
+
+  const checkpoint = JSON.parse(readFileSync(join(outDir, "checkpoint-state.json"), "utf8"));
+  assert.equal(checkpoint.schema, "agent-kernel/RuntimeCheckpointArtifact");
 });
 
 test("cli ipfs-publish command writes publish summary from canonical artifact map", async () => {
@@ -79,8 +104,10 @@ test("cli ipfs-publish command writes publish summary from canonical artifact ma
   const summary = JSON.parse(readFileSync(join(outDir, "ipfs-publish.json"), "utf8"));
   assert.equal(summary.cid, "bafypublishfixture");
   assert.equal(summary.mode, "fixture");
-  assert.ok(summary.publishedFiles.includes("bundle.json"));
-  assert.ok(summary.publishedFiles.includes("manifest.json"));
+  assert.equal(summary.scope, "core");
+  assert.ok(summary.publishedFiles.includes("ipfs-package.json"));
+  assert.ok(summary.publishedFiles.includes("core/bundle.json"));
+  assert.ok(summary.publishedFiles.includes("core/manifest.json"));
 });
 
 test("cli blockchain command writes chainId and balance", async () => {
@@ -110,7 +137,7 @@ test("cli blockchain-mint command writes minted token metadata", async () => {
     "--rpc-url",
     "http://local",
     "--card",
-    "tests/fixtures/adapters/card-config-attacker.json",
+    "tests/fixtures/adapters/card-config-delver.json",
     "--owner",
     "0xabc",
     "--fixture-chain-id",
@@ -124,6 +151,34 @@ test("cli blockchain-mint command writes minted token metadata", async () => {
   assert.equal(payload.chainId, JSON.parse(chainFixture).result);
   assert.equal(payload.tokenId, JSON.parse(blockchainMintFixture).result.tokenId);
   assert.equal(payload.txHash, JSON.parse(blockchainMintFixture).result.txHash);
+});
+
+test("cli blockchain-mint includes affinity and motivation rules anchoring metadata", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-blockchain-mint-rules-"));
+  runCli([
+    "blockchain-mint",
+    "--rpc-url",
+    "http://local",
+    "--card",
+    "tests/fixtures/adapters/card-config-delver.json",
+    "--affinity-rules",
+    "tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json",
+    "--motivation-rules",
+    "tests/fixtures/artifacts/motivation-rules-artifact-v1-basic.json",
+    "--fixture-chain-id",
+    "tests/fixtures/adapters/blockchain-chain-id.json",
+    "--fixture-mint",
+    "tests/fixtures/adapters/blockchain-mint.json",
+    "--out-dir",
+    outDir,
+  ]);
+  const payload = JSON.parse(readFileSync(join(outDir, "blockchain-mint.json"), "utf8"));
+  assert.equal(payload.affinityRulesRef.schema, "agent-kernel/AffinityRulesArtifact");
+  assert.equal(payload.affinityRulesVersion, "2026.03.22");
+  assert.equal(payload.affinityRulesHash, "sha256:affinity-rules-basic");
+  assert.equal(payload.motivationRulesRef.schema, "agent-kernel/MotivationRulesArtifact");
+  assert.equal(payload.motivationRulesVersion, "2026.03.22");
+  assert.equal(payload.motivationRulesHash, "sha256:motivation-rules-basic");
 });
 
 test("cli blockchain-load command writes minted card payload", async () => {
@@ -145,7 +200,7 @@ test("cli blockchain-load command writes minted card payload", async () => {
   assert.equal(payload.chainId, JSON.parse(chainFixture).result);
   assert.equal(payload.tokenId, "token_fixture_1");
   assert.equal(payload.card.id, JSON.parse(blockchainLoadFixture).result.card.id);
-  assert.equal(payload.card.type, "attacker");
+  assert.equal(payload.card.type, "delver");
 });
 
 test("cli llm command writes response JSON", async () => {

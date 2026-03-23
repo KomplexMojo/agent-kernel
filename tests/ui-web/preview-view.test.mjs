@@ -19,6 +19,12 @@ function makeElement() {
 function createRoot() {
   const elements = {
     "#preview-build-and-load": makeElement(),
+    "#preview-render-canvas": {
+      hidden: false,
+      getContext() {
+        throw new Error("preview should not request a canvas context");
+      },
+    },
     "#preview-frame-buffer": makeElement(),
     "#preview-status": makeElement(),
     "#preview-summary": makeElement(),
@@ -35,11 +41,11 @@ function createRoot() {
 }
 
 function createBundle({
-  actors = [{ id: "attacker_alpha", position: { x: 1, y: 1 }, vitals: { health: { current: 8, max: 10 }, mana: { current: 2, max: 4 }, stamina: { current: 3, max: 5 }, durability: { current: 6, max: 6 } } }],
+  actors = [{ id: "delver_alpha", position: { x: 1, y: 1 }, vitals: { health: { current: 8, max: 10 }, mana: { current: 2, max: 4 }, stamina: { current: 3, max: 5 }, durability: { current: 6, max: 6 } } }],
   cardSet = [
     { id: "room_alpha", type: "room", count: 1 },
-    { id: "attacker_alpha", type: "attacker", count: 1 },
-    { id: "defender_alpha", type: "defender", count: 1 },
+    { id: "delver_alpha", type: "delver", count: 1 },
+    { id: "warden_alpha", type: "warden", count: 1 },
   ],
 } = {}) {
   return {
@@ -70,23 +76,23 @@ function createBundle({
   };
 }
 
-test("preview launch validation requires at least one room, attacker, and defender in the authored card set", () => {
+test("preview launch validation requires at least one room, delver, and warden in the authored card set", () => {
   const valid = validatePreviewLaunchBundle(createBundle());
   assert.equal(valid.ok, true);
   assert.equal(valid.counts.room, 1);
-  assert.equal(valid.counts.attacker, 1);
-  assert.equal(valid.counts.defender, 1);
+  assert.equal(valid.counts.delver, 1);
+  assert.equal(valid.counts.warden, 1);
 
   const invalid = validatePreviewLaunchBundle(createBundle({
     cardSet: [
       { id: "room_alpha", type: "room", count: 1 },
-      { id: "attacker_alpha", type: "attacker", count: 1 },
+      { id: "delver_alpha", type: "delver", count: 1 },
     ],
   }));
   assert.equal(invalid.ok, false);
   assert.equal(invalid.reason, "missing_required_types");
-  assert.deepEqual(invalid.missing, ["defender"]);
-  assert.match(invalid.message, /configure at least 1 room, 1 attacker, and 1 defender/i);
+  assert.deepEqual(invalid.missing, ["warden"]);
+  assert.match(invalid.message, /configure at least 1 room, 1 delver, and 1 warden/i);
 });
 
 test("preview view renders bundle-backed frame and actor summaries", async () => {
@@ -99,13 +105,13 @@ test("preview view renders bundle-backed frame and actor summaries", async () =>
       },
     }),
     applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    applyInitialState: () => ({ ok: true, actorId: "attacker_alpha" }),
+    applyInitialState: () => ({ ok: true, actorId: "delver_alpha" }),
     renderFrame: () => ({ buffer: ["#####", "#@..#", "#...#", "#####"] }),
     renderBase: () => ["#####", "#...#", "#...#", "#####"],
     readObservationFn: () => ({
       actors: [
         {
-          id: "attacker_alpha",
+          id: "delver_alpha",
           position: { x: 1, y: 1 },
           vitals: {
             health: { current: 8, max: 10 },
@@ -123,7 +129,8 @@ test("preview view renders bundle-backed frame and actor summaries", async () =>
   assert.match(elements["#preview-frame-buffer"].textContent, /#@\.\.#/);
   assert.match(elements["#preview-summary"].textContent, /Map 5x4/);
   assert.match(elements["#preview-summary"].textContent, /Rooms 1/);
-  assert.match(elements["#preview-actor-list"].textContent, /attacker_alpha/);
+  assert.match(elements["#preview-actor-list"].textContent, /delver_alpha/);
+  assert.equal(elements["#preview-render-canvas"].hidden, true);
   assert.equal(elements["#preview-status"].textContent, "Preview loaded from design-build.");
   assert.equal(elements["#preview-status"].dataset.level, "info");
 });
@@ -158,7 +165,7 @@ test("preview view surfaces launch guard errors returned by the preview build ha
     onBuildAndLoadGame: async () => validatePreviewLaunchBundle(createBundle({
       cardSet: [
         { id: "room_alpha", type: "room", count: 1 },
-        { id: "attacker_alpha", type: "attacker", count: 1 },
+        { id: "delver_alpha", type: "delver", count: 1 },
       ],
     })),
   });
@@ -167,7 +174,7 @@ test("preview view surfaces launch guard errors returned by the preview build ha
 
   assert.equal(result.ok, false);
   assert.equal(result.reason, "missing_required_types");
-  assert.match(elements["#preview-status"].textContent, /Missing: defender/i);
+  assert.match(elements["#preview-status"].textContent, /Missing: warden/i);
   assert.equal(elements["#preview-status"].dataset.level, "error");
 });
 

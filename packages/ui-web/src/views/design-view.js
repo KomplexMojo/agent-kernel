@@ -15,18 +15,18 @@ export function wireDesignView({
   const leftRailMotivations = root.querySelector("#design-property-group-motivations");
   const cardGrid = root.querySelector("#design-card-grid");
   const roomGroup = root.querySelector("#design-card-group-room");
-  const attackerGroup = root.querySelector("#design-card-group-attacker");
-  const defenderGroup = root.querySelector("#design-card-group-defender");
+  const delverGroup = root.querySelector("#design-card-group-delver");
+  const wardenGroup = root.querySelector("#design-card-group-warden");
   const roomGroupBudget = root.querySelector("#design-card-group-budget-room");
-  const attackerGroupBudget = root.querySelector("#design-card-group-budget-attacker");
-  const defenderGroupBudget = root.querySelector("#design-card-group-budget-defender");
+  const delverGroupBudget = root.querySelector("#design-card-group-budget-delver");
+  const wardenGroupBudget = root.querySelector("#design-card-group-budget-warden");
   const levelBudgetInput = root.querySelector("#design-level-budget");
   const budgetSplitRoomInput = root.querySelector("#design-budget-split-room");
-  const budgetSplitAttackerInput = root.querySelector("#design-budget-split-attacker");
-  const budgetSplitDefenderInput = root.querySelector("#design-budget-split-defender");
+  const budgetSplitDelverInput = root.querySelector("#design-budget-split-delver");
+  const budgetSplitWardenInput = root.querySelector("#design-budget-split-warden");
   const budgetSplitRoomTokens = root.querySelector("#design-budget-split-room-tokens");
-  const budgetSplitAttackerTokens = root.querySelector("#design-budget-split-attacker-tokens");
-  const budgetSplitDefenderTokens = root.querySelector("#design-budget-split-defender-tokens");
+  const budgetSplitDelverTokens = root.querySelector("#design-budget-split-delver-tokens");
+  const budgetSplitWardenTokens = root.querySelector("#design-budget-split-warden-tokens");
   const budgetOverviewEl = root.querySelector("#design-budget-overview");
   const autoGenerateButton = root.querySelector("#design-auto-generate");
   const loadMintedButton = root.querySelector("#design-load-minted");
@@ -68,18 +68,18 @@ export function wireDesignView({
       leftRailMotivations,
       cardGrid,
       roomGroup,
-      attackerGroup,
-      defenderGroup,
+      delverGroup,
+      wardenGroup,
       roomGroupBudget,
-      attackerGroupBudget,
-      defenderGroupBudget,
+      delverGroupBudget,
+      wardenGroupBudget,
       levelBudgetInput,
       budgetSplitRoomInput,
-      budgetSplitAttackerInput,
-      budgetSplitDefenderInput,
+      budgetSplitDelverInput,
+      budgetSplitWardenInput,
       budgetSplitRoomTokens,
-      budgetSplitAttackerTokens,
-      budgetSplitDefenderTokens,
+      budgetSplitDelverTokens,
+      budgetSplitWardenTokens,
       budgetOverviewEl,
     },
     llmConfig,
@@ -271,6 +271,7 @@ export function wireDesignView({
   return {
     addCard: guidance.addCard,
     setCards: guidance.setCards,
+    setRules: guidance.setRules,
     applyPropertyDrop: guidance.applyPropertyDrop,
     adjustCardCount: guidance.adjustCardCount,
     adjustAffinityStack: guidance.adjustAffinityStack,

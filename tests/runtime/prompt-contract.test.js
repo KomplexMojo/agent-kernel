@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-test("buildLlmActorConfigPromptTemplate includes allowed lists and defender phase shape", async () => {
+test("buildLlmActorConfigPromptTemplate includes allowed lists and warden phase shape", async () => {
   const { ALLOWED_AFFINITIES, ALLOWED_AFFINITY_EXPRESSIONS, ALLOWED_MOTIVATIONS } = await import(
     "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
@@ -21,16 +21,16 @@ test("buildLlmActorConfigPromptTemplate includes allowed lists and defender phas
   ALLOWED_AFFINITIES.forEach((affinity) => assert.ok(prompt.includes(affinity)));
   ALLOWED_AFFINITY_EXPRESSIONS.forEach((expression) => assert.ok(prompt.includes(expression)));
   ALLOWED_MOTIVATIONS.forEach((motivation) => assert.ok(prompt.includes(motivation)));
-  assert.ok(prompt.includes("dungeon defender strategist"));
+  assert.ok(prompt.includes("dungeon warden strategist"));
   assert.ok(!prompt.includes("Total budget tokens: 800"));
-  assert.ok(prompt.includes("Defender phase budget tokens: 320"));
-  assert.ok(prompt.includes("Allowed defender profiles (motivation, affinity): (attacking, fire)"));
+  assert.ok(prompt.includes("Warden phase budget tokens: 320"));
+  assert.ok(prompt.includes("Allowed warden profiles (motivation, affinity): (attacking, fire)"));
   assert.ok(prompt.includes("Phase: actors_only"));
-  assert.ok(prompt.includes("Return defenders only; omit rooms and layout."));
-  assert.ok(prompt.includes("tokenHint is per defender unit"));
-  assert.ok(prompt.includes("Defender viability guardrails"));
-  assert.ok(prompt.includes("Attackers start at level entry"));
-  assert.ok(prompt.includes("Place stationary defenders at chokepoints"));
+  assert.ok(prompt.includes("Return wardens only; omit rooms and layout."));
+  assert.ok(prompt.includes("tokenHint is per warden unit"));
+  assert.ok(prompt.includes("Warden viability guardrails"));
+  assert.ok(prompt.includes("Delvers start at level entry"));
+  assert.ok(prompt.includes("Place stationary wardens at chokepoints"));
   assert.ok(prompt.includes("mana regen"));
   assert.ok(!prompt.includes("Model context window token limit: 16384"));
 });
@@ -98,7 +98,7 @@ test("buildLlmLevelPromptTemplate encodes room-first response shape", async () =
   assert.ok(!prompt.includes("<affinity?>"));
 });
 
-test("buildLlmPhasePromptTemplate routes to layout and defender templates", async () => {
+test("buildLlmPhasePromptTemplate routes to layout and warden templates", async () => {
   const { buildLlmPhasePromptTemplate } = await import(
     "../../packages/runtime/src/contracts/domain-constants.js"
   );
@@ -117,15 +117,15 @@ test("buildLlmPhasePromptTemplate routes to layout and defender templates", asyn
   assert.ok(layoutPrompt.includes("Phase: layout_only"));
   assert.ok(layoutPrompt.includes("Return layout tile counts and a room layout summary"));
   assert.ok(actorsPrompt.includes("Phase: actors_only"));
-  assert.ok(actorsPrompt.includes("Return defenders only; omit rooms and layout."));
+  assert.ok(actorsPrompt.includes("Return wardens only; omit rooms and layout."));
 });
 
-test("buildLlmActorConfigPromptTemplate scopes defender affinities when provided", async () => {
+test("buildLlmActorConfigPromptTemplate scopes warden affinities when provided", async () => {
   const { buildLlmActorConfigPromptTemplate } = await import(
     "../../packages/runtime/src/contracts/domain-constants.js"
   );
   const prompt = buildLlmActorConfigPromptTemplate({
-    goal: "Defender goal",
+    goal: "Warden goal",
     budgetTokens: 800,
     remainingBudgetTokens: 320,
     affinities: ["fire", "wind"],
@@ -166,7 +166,7 @@ test("normalizeSummary accepts valid summary and rejects invalid fields", async 
         },
       },
     ],
-    attackerConfig: {
+    delverConfig: {
       setupMode: "user",
       vitalsMax: { health: 8, mana: 5 },
       vitalsRegen: { mana: 2 },
@@ -177,14 +177,14 @@ test("normalizeSummary accepts valid summary and rejects invalid fields", async 
   assert.equal(valid.errors.length, 0);
   assert.equal(valid.value.rooms.length, 1);
   assert.equal(valid.value.actors.length, 1);
-  assert.equal(valid.value.attackerConfig.setupMode, "user");
+  assert.equal(valid.value.delverConfig.setupMode, "user");
   assert.equal(valid.value.actors[0].setupMode, "hybrid");
 
   const invalid = normalizeSummary({
     dungeonAffinity: "invalid",
     rooms: [{ motivation: "bad", affinity: "fire", count: 0, affinities: [{ kind: "fire", expression: "bad" }] }],
     actors: [{ motivation: "attacking", affinity: "bad", count: -1, tokenHint: -5, stacks: -1, setupMode: "manual" }],
-    attackerConfig: { setupMode: "invalid" },
+    delverConfig: { setupMode: "invalid" },
   });
   assert.equal(invalid.ok, false);
   assert.ok(invalid.errors.find((e) => e.field === "dungeonAffinity"));
@@ -193,7 +193,7 @@ test("normalizeSummary accepts valid summary and rejects invalid fields", async 
   assert.ok(invalid.errors.find((e) => e.field === "actors[0].tokenHint"));
   assert.ok(invalid.errors.find((e) => e.field === "actors[0].stacks"));
   assert.ok(invalid.errors.find((e) => e.field === "actors[0].setupMode"));
-  assert.ok(invalid.errors.find((e) => e.field === "attackerConfig.setupMode"));
+  assert.ok(invalid.errors.find((e) => e.field === "delverConfig.setupMode"));
   assert.ok(invalid.errors.find((e) => e.field === "rooms[0].affinities[0].expression"));
 });
 
@@ -267,50 +267,50 @@ test("normalizeSummary requires stamina regen for non-stationary actors", async 
   assert.equal(stationary.ok, true);
 });
 
-test("normalizeSummary defaults attacker config mode when omitted", async () => {
+test("normalizeSummary defaults delver config mode when omitted", async () => {
   const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
     rooms: [],
-    attackerConfig: {
+    delverConfig: {
       vitalsRegen: { mana: 1 },
     },
   });
   assert.equal(result.ok, true);
-  assert.equal(result.value.attackerConfig.setupMode, "auto");
-  assert.equal(result.value.attackerConfig.vitalsRegen.mana, 1);
+  assert.equal(result.value.delverConfig.setupMode, "auto");
+  assert.equal(result.value.delverConfig.vitalsRegen.mana, 1);
 });
 
-test("normalizeSummary accepts attackerConfigs and derives attackerCount", async () => {
+test("normalizeSummary accepts delverConfigs and derives delverCount", async () => {
   const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
     rooms: [],
-    attackerConfigs: [
+    delverConfigs: [
       { setupMode: "user", vitalsRegen: { mana: 1 } },
       { setupMode: "hybrid", vitalsRegen: { mana: 2 } },
     ],
   });
   assert.equal(result.ok, true);
-  assert.equal(result.value.attackerCount, 2);
-  assert.equal(result.value.attackerConfigs.length, 2);
-  assert.equal(result.value.attackerConfig.setupMode, "user");
+  assert.equal(result.value.delverCount, 2);
+  assert.equal(result.value.delverConfigs.length, 2);
+  assert.equal(result.value.delverConfig.setupMode, "user");
 });
 
-test("normalizeSummary preserves attacker affinity configuration", async () => {
+test("normalizeSummary preserves delver affinity configuration", async () => {
   const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
     rooms: [],
-    attackerConfig: {
+    delverConfig: {
       setupMode: "user",
       vitalsMax: { mana: 100 },
       vitalsRegen: { mana: 10 },
       affinities: {
-        corrode: ["push", "pull", "emit"],
+        corrode: ["push", "pull", "emit", "draw"],
       },
       affinityStacks: {
         corrode: 5,
@@ -318,17 +318,17 @@ test("normalizeSummary preserves attacker affinity configuration", async () => {
     },
   });
   assert.equal(result.ok, true);
-  assert.deepEqual(result.value.attackerConfig.affinities, { corrode: ["push", "pull", "emit"] });
-  assert.deepEqual(result.value.attackerConfig.affinityStacks, { corrode: 5 });
+  assert.deepEqual(result.value.delverConfig.affinities, { corrode: ["push", "pull", "emit", "draw"] });
+  assert.deepEqual(result.value.delverConfig.affinityStacks, { corrode: 5 });
 });
 
-test("normalizeSummary validates attacker affinity configuration", async () => {
+test("normalizeSummary validates delver affinity configuration", async () => {
   const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const invalid = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
     rooms: [],
-    attackerConfig: {
+    delverConfig: {
       setupMode: "user",
       affinities: {
         lava: ["push"],
@@ -339,24 +339,24 @@ test("normalizeSummary validates attacker affinity configuration", async () => {
     },
   });
   assert.equal(invalid.ok, false);
-  assert.ok(invalid.errors.find((entry) => entry.field === "attackerConfig.affinities.lava" && entry.code === "invalid_affinity"));
-  assert.ok(invalid.errors.find((entry) => entry.field === "attackerConfig.affinityStacks.fire" && entry.code === "invalid_positive_int"));
+  assert.ok(invalid.errors.find((entry) => entry.field === "delverConfig.affinities.lava" && entry.code === "invalid_affinity"));
+  assert.ok(invalid.errors.find((entry) => entry.field === "delverConfig.affinityStacks.fire" && entry.code === "invalid_positive_int"));
 });
 
-test("normalizeSummary validates attackerCount against attackerConfigs length", async () => {
+test("normalizeSummary validates delverCount against delverConfigs length", async () => {
   const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const invalid = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
     rooms: [],
-    attackerCount: 3,
-    attackerConfigs: [
+    delverCount: 3,
+    delverConfigs: [
       { setupMode: "user", vitalsRegen: { mana: 1 } },
       { setupMode: "hybrid", vitalsRegen: { mana: 2 } },
     ],
   });
   assert.equal(invalid.ok, false);
-  assert.ok(invalid.errors.find((entry) => entry.field === "attackerConfigs" && entry.code === "attacker_count_mismatch"));
+  assert.ok(invalid.errors.find((entry) => entry.field === "delverConfigs" && entry.code === "delver_count_mismatch"));
 });
 
 test("normalizeSummary preserves room design details when provided", async () => {

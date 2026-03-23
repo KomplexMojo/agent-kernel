@@ -4,7 +4,7 @@ import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
-const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "attacker", "defender"]);
+const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "delver", "warden"]);
 const DEFAULT_PREVIEW_HELP_TEXT = "Inspect the current design bundle here. When ready, use Build And Load Game to open Run.";
 
 function setText(el, value) {
@@ -44,8 +44,8 @@ function readConfiguredCount(count) {
 function formatMissingCardTypes(types = []) {
   return types.map((type) => {
     if (type === "room") return "room";
-    if (type === "attacker") return "attacker";
-    if (type === "defender") return "defender";
+    if (type === "delver") return "delver";
+    if (type === "warden") return "warden";
     return type;
   }).join(", ");
 }
@@ -80,7 +80,7 @@ export function validatePreviewLaunchBundle(bundle) {
       reason: "missing_required_types",
       missing,
       counts,
-      message: `Build blocked: configure at least 1 room, 1 attacker, and 1 defender before loading the run. Missing: ${formatMissingCardTypes(missing)}.`,
+      message: `Build blocked: configure at least 1 room, 1 delver, and 1 warden before loading the run. Missing: ${formatMissingCardTypes(missing)}.`,
     };
   }
 
@@ -125,6 +125,7 @@ export function wirePreviewView({
   onBuildAndLoadGame,
 } = {}) {
   const buildButton = root.querySelector("#preview-build-and-load");
+  const canvasEl = root.querySelector("#preview-render-canvas");
   const frameEl = root.querySelector("#preview-frame-buffer");
   const statusEl = root.querySelector("#preview-status");
   const summaryEl = root.querySelector("#preview-summary");
@@ -157,6 +158,8 @@ export function wirePreviewView({
     level = "info",
   ) {
     lastBundle = null;
+    if (canvasEl) canvasEl.hidden = true;
+    if (frameEl) frameEl.hidden = false;
     setText(frameEl, "No preview loaded.");
     setText(summaryEl, "No preview bundle loaded.");
     setText(actorsEl, "No actors loaded.");
@@ -245,6 +248,8 @@ export function wirePreviewView({
         : { actors: [] };
 
       setText(frameEl, Array.isArray(frame?.buffer) ? frame.buffer.join("\n") : "No preview frame available.");
+      if (canvasEl) canvasEl.hidden = true;
+      if (frameEl) frameEl.hidden = false;
       setText(summaryEl, summarizePreview(simConfig, initialState));
       setText(
         actorsEl,

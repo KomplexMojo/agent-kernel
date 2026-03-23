@@ -17,7 +17,7 @@ const DEFAULT_CATALOG_PATH = "tests/fixtures/pool/catalog-basic.json";
 const DEFAULT_POOL_WEIGHTS = Object.freeze([
   { id: "player", weight: 20 },
   { id: "layout", weight: 55 },
-  { id: "defenders", weight: 25 },
+  { id: "wardens", weight: 25 },
   { id: "loot", weight: 0 },
 ]);
 

@@ -8,6 +8,7 @@ This folder contains the design intent and architecture rules for the project.
 - `docs/architecture-charter.md` — Ports & Adapters rules and dependency direction.
 - `docs/architecture/diagram.mmd` — Mermaid architecture overview (printable).
 - `docs/architecture/persona-state-machines.md` — Deterministic persona FSM rules and state sets.
+- `docs/ipfs-package-lifecycle.md` — Canonical IPFS package/session model for generated artifacts.
 
 If a plan or README conflicts with these documents, the charter and vision contract win.
 
@@ -30,6 +31,7 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - Affinity-only equipment (no martial weapons): kinds = fire, water, earth, wind, life, decay, corrode, dark.
 - Expressions define delivery: push (external), pull (internal), emit (area).
 - Presets and loadouts are captured as artifacts with deterministic ordering and defaults (manaCost=0, stacks=1).
+- `agent-kernel/AffinityRulesArtifact` is the mutable balance file for affinity tiers, mana costs, expression aliases, and pairwise interaction outcomes.
 - Traps are tile actors with mana + durability only and an affinity expression payload.
 - The active UI workflow is `Design -> Preview -> Run`, with `Diagnostics` as the supporting inspection surface. The UI is expected to publish canonical artifacts and then render them, not maintain a parallel gameplay/configuration rail.
 
@@ -40,7 +42,7 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - Configurator emits a spend proposal from layout/actor/trap inputs; Allocator validates against budget + price list and emits a receipt.
 - Tokens are integer units (future ERC20 linkage remains at the adapter boundary).
 - Tile budgeting uses price list ids `tile_wall`, `tile_floor`, and `tile_hallway` (kind `tile`) when provided; otherwise layout tiles default to cost 1 each.
-- Layout budgeting is tile-count based; layout spend uses the layout pool and any unspent layout tokens roll into defenders. Actors are categorized as ambulatory or stationary (trap-like) during planning.
+- Layout budgeting is tile-count based; layout spend uses the layout pool and any unspent layout tokens roll into wardens. Actors are categorized as ambulatory or stationary (trap-like) during planning.
 
 Example flow (proposal → receipt):
 ```json
@@ -52,6 +54,7 @@ Example flow (proposal → receipt):
 
 Key artifacts and fixtures:
 - `agent-kernel/AffinityPresetArtifact` → `tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json`
+- `agent-kernel/AffinityRulesArtifact` → `tests/fixtures/artifacts/affinity-rules-artifact-v1-basic.json`
 - `agent-kernel/ActorLoadoutsArtifact` → `tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json`
 - `agent-kernel/SimConfigArtifact` (layout + traps) → `tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json`
 - `agent-kernel/InitialStateArtifact` (traits.affinities/abilities) → `tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json`
@@ -73,6 +76,7 @@ Key artifacts and fixtures:
 - Runtime reasoning also reuses the existing effect rail: actors emit `solver_request` entries carrying `runtime-decision-v1`, solver/captured-LLM responses normalize to `Action`, and explicit live local-Ollama fulfillment is allowed only in manual non-deterministic mode.
 - The default Design -> Preview -> Run workflow is browser-hosted and fixture-first; live IPFS, blockchain, and Ollama services are optional capabilities, not baseline requirements.
 - `ipfs`, `blockchain`, and standalone `llm` now have browser-hosted shared-rail hook points through the command kernel; deeper product workflows for those capabilities can continue on dedicated follow-on branches without changing the baseline Design -> Preview -> Run path.
+- IPFS now has a canonical package/session lifecycle on those shared rails: `ipfs-publish` creates root packages with `core/` and `sessions/` subtrees, `ipfs-load` supports `core` and `resume` modes, and runtime checkpoints are stored as `checkpoint-state.json`.
 
 ## LLM pipeline + runtime reasoning
 
@@ -87,7 +91,7 @@ Key artifacts and fixtures:
 - `AK_ALLOW_NETWORK=1`: allow non-local network access for adapters; localhost is always allowed.
 
 Budget loop captures are phase-indexed for deterministic ordering; telemetry includes the loop trace (phase order, remaining budget, trims/warnings, and per-phase timing).
-Budget pools default to player/layout/defenders/loot weights (0.2/0.4/0.4/0.0) and can be overridden in `llm-plan` via `--budget-pool` entries and `--budget-reserve`.
+Budget pools default to player/layout/wardens/loot weights (0.2/0.4/0.4/0.0) and can be overridden in `llm-plan` via `--budget-pool` entries and `--budget-reserve`.
 llm-plan runs require a total budget (`--budget-tokens` or scenario `budgetTokens`).
 
 Runtime-decision note:

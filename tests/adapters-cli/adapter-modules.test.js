@@ -18,9 +18,10 @@ assert.equal(adapter.buildUrl("cid", "path"), "https://example.com/ipfs/cid/path
 
 const publishAdapter = createIpfsAdapter({
   gatewayUrl: "https://example.com/ipfs",
-  fetchFn: async (_url, options) => {
+  fetchFn: async (url, options) => {
     assert.equal(options?.method, "POST");
     assert.ok(options?.body instanceof FormData);
+    assert.equal(url, "https://example.com/api/v0/add?wrap-with-directory=true");
     return {
       ok: true,
       text: async () => '{"Name":"bundle.json","Hash":"bafyfile","Size":"10"}\\n{"Name":"wrap","Hash":"bafyroot","Size":"20"}\\n',
@@ -60,15 +61,15 @@ const happy = createBlockchainAdapter({
       return { ok: true, json: async () => ({ result: { tokenId: "token_1", txHash: "0xmint" } }) };
     }
     if (body.method === "ak_getMintedCard") {
-      return { ok: true, json: async () => ({ result: { tokenId: "token_1", card: { type: "attacker" } } }) };
+      return { ok: true, json: async () => ({ result: { tokenId: "token_1", card: { type: "delver" } } }) };
     }
     return { ok: true, json: async () => ({ result: null }) };
   },
 });
-const minted = await happy.mintCard({ card: { id: "A-1", type: "attacker" }, owner: "0xabc" });
+const minted = await happy.mintCard({ card: { id: "A-1", type: "delver" }, owner: "0xabc" });
 assert.equal(minted.tokenId, "token_1");
 const loaded = await happy.loadMintedCard({ tokenId: "token_1" });
-assert.equal(loaded.card.type, "attacker");
+assert.equal(loaded.card.type, "delver");
 `;
 
 const llmScript = `

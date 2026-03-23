@@ -29,18 +29,31 @@ The simulation core (`core-as`) remains the sole authority on legality, state tr
 
 ## Motivations
 
-Dynamic actors express behavior through **stackable motivations**. Motivations are atomic (e.g., `random`, `stationary`, `exploring`, `attacking`, `defending`, `patrolling`) and can be combined (e.g., `stationary_attacking`). Boss status is a tier/cost outcome, not a motivation.
+Dynamic actors now use a layered **motivation profile** as the canonical internal model:
+- Mobility: `stationary`, `exploring`, `patrolling`
+- Combat: `none`, `attacking`, `defending`
+- Cognition: `none`, `reflexive`, `goal_oriented`, `strategy_focused`
 
-Some motivation families are mutually exclusive and are rejected when combined:
-- Combat posture: `attacking` vs `defending`
-- Movement posture: `stationary`, `exploring`, `patrolling`
-- Planning style: `random` vs `strategy_focused`
-- Response style: `reflexive` vs `goal_oriented`
+Legacy flat motivations remain accepted as compatibility shorthands and are normalized into the profile:
+- `stationary` => `stationary + none + none`
+- `exploring` => `exploring + none + reflexive`
+- `attacking` => `exploring + attacking + goal_oriented`
+- `defending` => `stationary + defending + goal_oriented`
+- `patrolling` => `patrolling + none + reflexive`
+- `random` => `exploring + none + reflexive`
 
-Motivations are:
-- Ordered and composable.
-- Evaluated outside the simulation core.
-- Explicit and inspectable, enabling debugging and experimentation.
+Reasoning class is derived from cognition tier:
+- `instinctual`: encoded local rules, no solver/LLM required
+- `tactical`: constraint-solving / short-horizon planning
+- `strategic`: higher-order coordination across goals or phases
+
+Token cost follows decision complexity rather than the old flat label:
+- `stationary + none + none` = 0-token barrier behavior
+- mobility adds marginal cost
+- combat posture adds medium cost
+- cognition tier adds the major cost jump
+
+Motivations remain explicit, inspectable, and resolved outside the simulation core.
 
 ---
 

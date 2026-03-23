@@ -25,11 +25,17 @@ const loadoutsFixture = ${JSON.stringify(loadoutsFixture)};
 
 const presetsResult = normalizeAffinityPresetCatalog(presetsFixture);
 assert.equal(presetsResult.ok, true);
+const normalizedAgain = normalizeAffinityPresetCatalog(presetsFixture);
+assert.deepEqual(normalizedAgain, presetsResult);
 const lifePull = presetsResult.value.presets.find((preset) => preset.id === "affinity_life_pull");
 assert.equal(lifePull.manaCost, 0);
 assert.equal(Array.isArray(lifePull.abilities), true);
 assert.equal(lifePull.abilities.length, 1);
 assert.equal(lifePull.vitalsModifiers.health.max, 2);
+const waterDraw = presetsResult.value.presets.find((preset) => preset.id === "affinity_water_draw");
+assert.ok(waterDraw);
+assert.equal(waterDraw.expression, "draw");
+assert.equal(waterDraw.kind, "water");
 
 const loadoutsResult = normalizeActorLoadoutCatalog(loadoutsFixture, { presets: presetsResult.value.presets });
 assert.equal(loadoutsResult.ok, true);

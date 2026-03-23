@@ -111,14 +111,27 @@ assert.ok(ipfsResult.artifacts["ipfs.json"]);
 
 const ipfsLoadResult = await adapter.ipfsLoad({
   cid: "bafyfixture",
-  fixtureMap: loadJson("tests/fixtures/adapters/ipfs-artifacts-map.json"),
+  fixtureMap: loadJson("tests/fixtures/adapters/ipfs-package-map.json"),
   outDir: "/artifacts/browser/ipfs-load",
 });
 assert.equal(ipfsLoadResult.output.cid, "bafyfixture");
+assert.equal(ipfsLoadResult.output.loadMode, "core");
 assert.ok(ipfsLoadResult.bundle);
 assert.equal(ipfsLoadResult.bundle.spec.schema, "agent-kernel/BuildSpec");
 assert.ok(ipfsLoadResult.artifacts["bundle.json"]);
 assert.ok(ipfsLoadResult.artifacts["manifest.json"]);
+assert.equal(ipfsLoadResult.package.schema, "agent-kernel/IpfsPackageArtifact");
+
+const ipfsResumeResult = await adapter.ipfsLoad({
+  cid: "bafyfixture",
+  loadMode: "resume",
+  fixtureMap: loadJson("tests/fixtures/adapters/ipfs-package-map.json"),
+  outDir: "/artifacts/browser/ipfs-resume",
+});
+assert.equal(ipfsResumeResult.output.loadMode, "resume");
+assert.equal(ipfsResumeResult.checkpoint.schema, "agent-kernel/RuntimeCheckpointArtifact");
+assert.equal(ipfsResumeResult.actionLog.schema, "agent-kernel/ActionSequence");
+assert.ok(ipfsResumeResult.artifacts["checkpoint-state.json"]);
 
 const ipfsPublishResult = await adapter.ipfsPublish({
   fixtureCid: "bafypublishfixture",
@@ -127,7 +140,9 @@ const ipfsPublishResult = await adapter.ipfsPublish({
 });
 assert.equal(ipfsPublishResult.output.cid, "bafypublishfixture");
 assert.equal(ipfsPublishResult.output.mode, "fixture");
-assert.ok(ipfsPublishResult.output.publishedFiles.includes("bundle.json"));
+assert.equal(ipfsPublishResult.output.scope, "core");
+assert.ok(ipfsPublishResult.output.publishedFiles.includes("ipfs-package.json"));
+assert.ok(ipfsPublishResult.output.publishedFiles.includes("core/bundle.json"));
 assert.ok(ipfsPublishResult.artifacts["ipfs-publish.json"]);
 
 const blockchainResult = await adapter.blockchain({
@@ -144,7 +159,7 @@ assert.ok(blockchainResult.artifacts["blockchain.json"]);
 const blockchainMintResult = await adapter.blockchainMint({
   rpcUrl: "http://local",
   owner: "0xabc",
-  cardJson: loadJson("tests/fixtures/adapters/card-config-attacker.json"),
+  cardJson: loadJson("tests/fixtures/adapters/card-config-delver.json"),
   fixtureChainIdJson: loadJson("tests/fixtures/adapters/blockchain-chain-id.json"),
   fixtureMintJson: loadJson("tests/fixtures/adapters/blockchain-mint.json"),
   outDir: "/artifacts/browser/blockchain-mint",
@@ -162,7 +177,7 @@ const blockchainLoadResult = await adapter.blockchainLoad({
 });
 assert.equal(blockchainLoadResult.output.chainId, "0x1");
 assert.equal(blockchainLoadResult.output.tokenId, "token_fixture_1");
-assert.equal(blockchainLoadResult.output.card.type, "attacker");
+assert.equal(blockchainLoadResult.output.card.type, "delver");
 assert.ok(blockchainLoadResult.artifacts["blockchain-load.json"]);
 
 const llmResult = await adapter.llm({
@@ -220,11 +235,14 @@ if (existsSync(path.resolve(root, "build/core-as.wasm"))) {
   assert.ok(Array.isArray(runResult.tickFrames));
   assert.ok(Array.isArray(runResult.effectsLog));
   assert.equal(runResult.runSummary.schema, "agent-kernel/RunSummary");
+  assert.equal(runResult.runSummary.motivationRulesRef.schema, "agent-kernel/MotivationRulesArtifact");
   assert.equal(runResult.actionLog.schema, "agent-kernel/ActionSequence");
+  assert.equal(runResult.checkpointState.schema, "agent-kernel/RuntimeCheckpointArtifact");
   assert.ok(Array.isArray(runResult.runtimeDecisionCaptures));
   assert.equal(runResult.affinitySummary.schema, "agent-kernel/AffinitySummary");
   assert.ok(runResult.artifacts["tick-frames.json"]);
   assert.ok(runResult.artifacts["runtime-decision-captures.json"]);
+  assert.ok(runResult.artifacts["checkpoint-state.json"]);
   assert.ok(runResult.artifacts["inspect-summary.json"] === undefined);
 
   const replayResult = await adapter.replay({

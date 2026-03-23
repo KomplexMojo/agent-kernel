@@ -6,7 +6,7 @@ Use this file to define the remaining milestones, validations, and branch-comple
 
 Already completed:
 - M1: parity inventory and matrix creation
-- M2: direct Room/Attacker/Defender CLI authoring parity
+- M2: direct Room/Delver/Warden CLI authoring parity
 - U1: shared command kernel extraction for core artifact/runtime commands
 - U2: browser worker command host for shared-kernel commands
 - U3: active UI build/planning flows moved onto the browser command host
@@ -16,12 +16,15 @@ Branch-close status:
 - branch-close items 1-5 are complete in the narrowed hook-first scope
 - `B2-S4` remains at the current checkpoint by design; deeper IPFS/blockchain/live-runtime-LLM product work now belongs to follow-on branches because the shared hooks are already present here
 
+Current workspace addendum:
+- `B2-S1C` is implemented locally: IPFS now supports canonical root package/session publication and resume (`ipfs-package.json`, `session-manifest.json`, `checkpoint-state.json`, `ipfs-load --load-mode resume`) on the same CLI/browser-host rails, with Run-side checkpoint save/restore controls in the UI.
+
 ## 2) Branch Milestones
 
 | Milestone | Status | Requirement | Tests | Code Targets | Validation |
 | --- | --- | --- | --- | --- | --- |
 | M1 | Completed | Create UI-to-CLI parity inventory and classify gaps by severity. | Docs-only | `local-codex/ui-cli-parity-matrix.md` | Recorded |
-| M2 | Completed | Implement high-priority direct authoring parity for Room, Attacker, and Defender flows. | `tests/adapters-cli/**` | `packages/adapters-cli/src/cli/ak-impl.mjs`, related runtime glue | Recorded |
+| M2 | Completed | Implement high-priority direct authoring parity for Room, Delver, and Warden flows. | `tests/adapters-cli/**` | `packages/adapters-cli/src/cli/ak-impl.mjs`, related runtime glue | Recorded |
 | M3 | Completed | Close remaining deterministic parity gaps and resolve partial parity rows that affect the active workflow. | `tests/adapters-cli/**`, `tests/adapters-web/**`, `tests/integration/**`, `tests/ui-web/**` | Shared command/kernel, browser host, targeted UI/diagnostics/runtime files | Parity matrix normalized; targeted parity/equivalence suites green |
 | M4 | Completed | Finish shared-rails unification and dependency reduction for the default workflow. | Targeted adapter/runtime/browser tests | `packages/runtime/src/commands/**`, `packages/adapters-web/src/adapters/**`, `packages/adapters-cli/src/adapters/**`, active UI wiring | Core workflow no longer depends on unnecessary environment-specific paths; deeper capability product work split to follow-on branches |
 | M5 | Completed | Final verification, minimal-install gate, docs close-out, and branch handoff. | Full/targeted regression pass | `local-codex/Documentation.md`, docs, remaining touched files | Validation matrix green and logged |
@@ -245,6 +248,54 @@ Completion criteria:
 
 Status update:
 - Completed on 2026-03-21.
+
+### Completed Slice: B2-S1C
+
+Completed slice summary:
+
+- Slice ID: `B2-S1C`
+- Scope:
+  - formalize a canonical IPFS package/session layout for generated game artifacts,
+  - add resumable runtime checkpoint metadata as a first-class artifact,
+  - extend CLI/browser-host IPFS publish/load flows for package and resume semantics,
+  - and wire Run-side checkpoint save/restore onto those same rails.
+
+Requirement:
+- move IPFS beyond raw bundle publish/load by supporting resumable package/session lifecycle behavior in the current workspace without introducing a second execution path.
+
+Tests updated:
+- `tests/runtime/command-kernel-ipfs-package.test.js`
+- `tests/runtime/schema-catalog.test.js`
+- `tests/adapters-cli/ak-adapter-commands.test.js`
+- `tests/adapters-cli/ak.test.js`
+- `tests/adapters-web/cli-worker.test.js`
+- `tests/integration/ui-cli-equivalence.test.js`
+- `tests/ui-web/simulation-view.test.mjs`
+- `tests/ui-web/view-wiring.test.mjs`
+- new fixture: `tests/fixtures/adapters/ipfs-package-map.json`
+
+Code targets:
+- `packages/runtime/src/commands/kernel.js`
+- `packages/runtime/src/contracts/artifacts.ts`
+- `packages/runtime/src/contracts/schema-catalog.js`
+- `packages/adapters-cli/src/cli/ak-impl.mjs`
+- `packages/adapters-web/src/adapters/cli-worker/shared.js`
+- `packages/ui-web/src/main.js`
+- `packages/ui-web/src/movement-ui.js`
+- `packages/ui-web/src/views/diagnostics-view.js`
+- `packages/ui-web/src/views/simulation-view.js`
+- `packages/ui-web/index.html`
+- `docs/ipfs-package-lifecycle.md`
+
+Completion criteria:
+- `run` emits canonical `checkpoint-state.json` output for IPFS session packaging.
+- `ipfs-publish` supports `core`, `session`, and `package` scopes and emits package/session manifest data.
+- `ipfs-load --load-mode resume` restores both core artifacts and required checkpoint payloads.
+- Browser-host output remains artifact-equivalent with CLI for core and resume loads.
+- Run UI can package the current session checkpoint and restore a checkpoint package by CID on shared rails.
+
+Status update:
+- Completed locally on 2026-03-22 with targeted runtime/CLI/browser/integration/UI validation green.
 
 ### Completed Slice: B2-S2
 

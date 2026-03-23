@@ -169,3 +169,59 @@ test("build response snapshot loads into bundle review panel", async () => {
     globalThis.sessionStorage = originalSessionStorage;
   }
 });
+
+test("build orchestrator forwards emitVisualAssets to the shared build adapter", async () => {
+  const originalLocalStorage = globalThis.localStorage;
+  const originalSessionStorage = globalThis.sessionStorage;
+  globalThis.localStorage = createStorage();
+  globalThis.sessionStorage = createStorage();
+
+  try {
+    let receivedPayload = null;
+    const buildElements = {
+      specPathInput: makeInput(""),
+      specJsonInput: makeInput(JSON.stringify({
+        schema: "agent-kernel/BuildSpec",
+        schemaVersion: 1,
+        meta: {
+          id: "spec_build_visual",
+          runId: "run_build_visual",
+          createdAt: "2026-03-22T00:00:00.000Z",
+          source: "test",
+        },
+        intent: { goal: "Visual build" },
+      })),
+      outDirInput: makeInput(""),
+      buildButton: makeButton(),
+      loadButton: makeButton(),
+      downloadButton: makeButton(),
+      clearButton: makeButton(),
+      statusEl: { textContent: "" },
+      outputEl: { textContent: "" },
+      validationList: makeElement("ul"),
+    };
+
+    const orchestrator = wireBuildOrchestrator({
+      elements: buildElements,
+      adapterFactory: () => ({
+        build: async (payload) => {
+          receivedPayload = payload;
+          return {
+            bundle: { spec: payload.specJson, artifacts: [] },
+            manifest: { specPath: "spec.json", correlation: { runId: payload.specJson.meta.runId, source: payload.specJson.meta.source }, artifacts: [] },
+            telemetry: { data: { status: "success" } },
+            spec: payload.specJson,
+          };
+        },
+      }),
+    });
+
+    const result = await orchestrator.runBuild({ emitVisualAssets: true });
+
+    assert.equal(result.ok, true);
+    assert.equal(receivedPayload?.emitVisualAssets, true);
+  } finally {
+    globalThis.localStorage = originalLocalStorage;
+    globalThis.sessionStorage = originalSessionStorage;
+  }
+});

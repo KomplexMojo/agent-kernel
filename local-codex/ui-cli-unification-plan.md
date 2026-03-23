@@ -10,10 +10,11 @@ Completed:
 - active UI build/planning flow moved onto the shared command host
 - Node-vs-browser equivalence coverage for the shared-kernel command set
 - solver-first runtime reasoning now reuses the existing `solver_request` / `SolverRequest` / `SolverResult` rail, and explicit manual local-Ollama fulfillment runs on that same rail with capture recording
+- current workspace IPFS implementation now includes canonical `core/` + `sessions/` package trees, resumable `checkpoint-state.json` artifacts, `ipfs-load --load-mode resume`, and Run-side checkpoint save/restore on the shared rails
 
 Still open:
 - none inside the current branch-close scope
-- remaining adapter duplication outside the default workflow and deeper IPFS/blockchain/live-runtime-LLM productization continue in follow-on branches
+- remaining adapter duplication outside the default workflow and deeper IPFS/blockchain/live-runtime-LLM productization continue in follow-on branches beyond the current package/session lifecycle
 
 ## 2) Review Findings (Ordered by Severity)
 
@@ -53,7 +54,7 @@ Still open:
   - `ipfs`, `blockchain`, and `llm` use the same command rails as the rest of the product at the hook/contract layer,
   - live services remain optional for the baseline author/build/run workflow.
 - Capability posture:
-  - `ipfs` stores canonical artifacts through shared hooks; deeper storage/regeneration product flows can continue in a dedicated branch.
+  - `ipfs` now stores canonical core/session packages through shared rails, including resumable checkpoint packages; deeper storage/distribution/history product flows can continue in a dedicated branch.
   - `blockchain` mints canonical card configurations through shared hooks; deeper marketplace/loadout product flows can continue in a dedicated branch.
   - `llm` is local-first, with Ollama as the primary live target, and runtime decisions use structured payloads carried through the existing capture artifacts; richer live-runtime product flows can continue in a dedicated branch.
   - `solver` is the primary deterministic runtime reasoning provider and should be used first when a gameplay decision can be expressed as constraints/objectives, reusing the existing `solver_request` / `SolverRequest` / `SolverResult` path rather than inventing a parallel transport.

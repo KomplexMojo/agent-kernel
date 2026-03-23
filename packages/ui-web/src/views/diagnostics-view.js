@@ -47,6 +47,27 @@ export function extractLlmCaptures({
   return toLlmCaptureList(list);
 }
 
+function buildBundleArtifactMap(bundle, manifest) {
+  const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
+  const artifactMap = {};
+  artifacts.forEach((artifact) => {
+    if (!artifact || typeof artifact !== "object") return;
+    if (artifact.schema === "agent-kernel/ResourceBundleArtifact") {
+      artifactMap["resource-bundle.json"] = artifact;
+      return;
+    }
+    const id = typeof artifact.meta?.id === "string" ? artifact.meta.id.trim() : "";
+    const schema = typeof artifact.schema === "string" ? artifact.schema.trim() : "";
+    const stem = id || schema.replace(/^agent-kernel\//, "").replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
+    if (!stem) return;
+    artifactMap[`${stem}.json`] = artifact;
+  });
+  if (bundle?.spec) artifactMap["spec.json"] = bundle.spec;
+  if (bundle) artifactMap["bundle.json"] = bundle;
+  if (manifest) artifactMap["manifest.json"] = manifest;
+  return Object.keys(artifactMap).length > 0 ? artifactMap : null;
+}
+
 export function wireDiagnosticsView({
   root = document,
   commandHost = createCliWorkerAdapter({ forceInProcess: typeof Worker !== "function" }),
@@ -192,34 +213,32 @@ export function wireDiagnosticsView({
       solverButton: adapterSolver,
     },
     commandHost,
-    onIpfsLoaded: ({ bundle, manifest }) => {
+    onIpfsLoaded: ({ bundle, manifest, fetched, result }) => {
       if (manifest) {
         bundleReview?.loadManifestPayload?.(manifest, { source: "ipfs" });
       }
       if (bundle) {
         bundleReview?.loadBundlePayload?.(bundle, { source: "ipfs" });
       }
+      if (typeof onBundleLoaded === "function") {
+        onBundleLoaded({
+          bundle,
+          manifest,
+          fetched,
+          source: "ipfs",
+          ipfsPackage: result?.package || null,
+          sessionManifest: result?.sessionManifest || null,
+          checkpoint: result?.checkpoint || fetched?.["checkpoint-state.json"] || null,
+          actionLog: result?.actionLog || fetched?.["action-log.json"] || null,
+        });
+      }
     },
     resolveIpfsPublishArtifacts: () => {
       const bundle = bundleReview?.getCurrentBundle?.()
         || buildOrchestrator?.getLastSnapshot?.()?.response?.bundle
         || null;
-      const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
-      const artifactMap = {};
-      artifacts.forEach((artifact) => {
-        if (!artifact || typeof artifact !== "object") return;
-        const id = typeof artifact.meta?.id === "string" ? artifact.meta.id.trim() : "";
-        const schema = typeof artifact.schema === "string" ? artifact.schema.trim() : "";
-        const stem = id || schema.replace(/^agent-kernel\//, "").replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
-        if (!stem) return;
-        const fileName = `${stem}.json`;
-        artifactMap[fileName] = artifact;
-      });
-      if (bundle?.spec) artifactMap["spec.json"] = bundle.spec;
-      if (bundle) artifactMap["bundle.json"] = bundle;
       const manifest = bundleReview?.getCurrentManifest?.();
-      if (manifest) artifactMap["manifest.json"] = manifest;
-      return Object.keys(artifactMap).length > 0 ? artifactMap : null;
+      return buildBundleArtifactMap(bundle, manifest);
     },
   });
 
@@ -368,8 +387,16 @@ export function wireDiagnosticsView({
   }
 
   return {
-    runBuild: () => buildOrchestrator?.runBuild?.(),
+    runBuild: (options) => buildOrchestrator?.runBuild?.(options),
     loadLastBundle: () => bundleReview?.loadLastBuild?.(),
+    loadBundlePayload: (bundle, options) => bundleReview?.loadBundlePayload?.(bundle, options),
+    loadManifestPayload: (manifest, options) => bundleReview?.loadManifestPayload?.(manifest, options),
+    getCurrentBundle: () => bundleReview?.getCurrentBundle?.() || null,
+    getCurrentManifest: () => bundleReview?.getCurrentManifest?.() || null,
+    getIpfsCoreArtifacts: () => buildBundleArtifactMap(
+      bundleReview?.getCurrentBundle?.() || null,
+      bundleReview?.getCurrentManifest?.() || null,
+    ),
     setBuildSpecText,
     refreshBudgetPanels: (mode = "live") => budgetPanels.refresh(mode),
     setLlmCaptures: (captures, options) => llmTracePanel.setCaptures(captures, options),
