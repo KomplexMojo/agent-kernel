@@ -49,6 +49,23 @@ Keep it short, strict, and easy to follow.
 - Execute milestones as requirements -> tests -> code -> validation.
 - Update `local-codex/Documentation.md` (status, decisions, validation log) before handoff.
 
+## Milestone execution defaults
+
+- Do not implement an entire large plan in one Codex task. Rewrite it into milestones first.
+- Keep the source plan in repo files and reference file paths instead of pasting the full plan repeatedly.
+- Milestone size bands:
+- `XS`: <= 30 minutes, <= 100 LOC, <= 2 files.
+- `S`: <= 1 hour, <= 250 LOC, <= 5 files.
+- `M`: <= 2 hours, <= 500 LOC, <= 8 files.
+- Anything larger than `M`, crossing multiple packages, or changing architecture must be split before implementation.
+- Execute at most one `M` milestone or two `S` milestones per Codex task, then stop and produce a short handoff.
+- If scope grows during implementation, stop, re-split the remaining work, and continue only with the next bounded milestone.
+- Each milestone should name target files, tests, validation commands, and an explicit stop condition.
+- Model guidance:
+- Planning, decomposition, risky refactors, and root-cause debugging: use the strongest coding model available with `high` reasoning.
+- Bounded `XS` or `S` implementation and routine test fixes: use a smaller or mini coding model with `medium` reasoning.
+- Default implementation work: use `medium` reasoning; reserve `xhigh` for ambiguous architecture or debugging tasks only.
+
 ## Pre-merge checklist (solo)
 
 - Requirements -> tests -> code traceable in the diff.
