@@ -1,13 +1,27 @@
 # AGENTS.md
 
-This file defines how the solo developer and Codex work together on this repo.
+This file defines how the solo developer, Codex, and Claude work together on this repo.
 Keep it short, strict, and easy to follow.
+
+## Collaboration model
+
+This repo uses a two-agent workflow:
+
+- **Codex (you)** — generates feature code, tests, and implementation based on prompts and plans.
+- **Claude** — actively enforces the architecture. Claude will refactor any code that violates the
+  Ports & Adapters pattern or the persona FSM contract, preserving your intent but correcting structure.
+
+Claude's full enforcement rules are in `CLAUDE.md`. Read it to understand what will be changed and why.
+
+The goal is that Codex produces conformant code from the start and Claude's changes are minimal.
+Treat a Claude refactor as a correction, not a rejection — the logic is kept, the structure is fixed.
 
 ## Working agreement
 
 - Always connect requirements -> tests -> code in the same change set when feasible.
 - Prefer small, reviewable diffs over large refactors.
 - If a change alters architecture boundaries, update the charter + diagram in the same PR.
+- Produce code that conforms to the architecture checklist in `CLAUDE.md` before handoff.
 
 ## Architecture guardrails
 
@@ -66,9 +80,15 @@ Keep it short, strict, and easy to follow.
 - Bounded `XS` or `S` implementation and routine test fixes: use a smaller or mini coding model with `medium` reasoning.
 - Default implementation work: use `medium` reasoning; reserve `xhigh` for ambiguous architecture or debugging tasks only.
 
-## Pre-merge checklist (solo)
+## Pre-handoff checklist (Codex)
+
+Before passing a diff to Claude for enforcement review, verify:
 
 - Requirements -> tests -> code traceable in the diff.
+- Dependency direction: adapters/ui -> runtime -> bindings-ts -> core-as. No inversions.
 - No `core-as` IO or forbidden imports.
+- Personas are pure FSMs: `view()` + `advance(event, payload)`, clock injected, context serializable.
+- All boundary-crossing data uses a versioned artifact schema from `contracts/artifacts.ts`.
+- New files placed in the correct package (see file placement rules above).
 - README/diagram updated if behavior/architecture changed.
 - Tests pass locally or documented reason for skipping.
