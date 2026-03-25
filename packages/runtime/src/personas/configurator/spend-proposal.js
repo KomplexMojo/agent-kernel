@@ -5,6 +5,7 @@ import { ROOM_AFFINITY_STACK_COST_FACTOR, VITAL_KEYS } from "../../contracts/dom
 import { COST_DEFAULTS } from "./cost-model.js";
 import { extractSummaryFromCardSet } from "../director/summary-selections.js";
 import { normalizeCardType } from "./card-model.js";
+import { calculateMotivationStackCost } from "../allocator/motivation-price-policy.js";
 
 const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 
@@ -351,13 +352,19 @@ export function calculateActorConfigurationUnitCost({
     });
   });
 
-  const cost = vitalCost + regenCost + affinityCost;
+  const motivations = extractMotivations(entry);
+  const motivationResult = calculateMotivationStackCost(motivations, priceMap);
+  const motivationCost = motivationResult.cost;
+  lineItems.push(...motivationResult.lineItems);
+
+  const cost = vitalCost + regenCost + affinityCost + motivationCost;
   return {
     cost,
     detail: {
       vitalPoints,
       regenPoints,
       affinityStacks,
+      motivationCost,
       affinityCostScale,
       pricingSource: priceMap.size > 0 ? "price-list" : "fallback",
       lineItems,

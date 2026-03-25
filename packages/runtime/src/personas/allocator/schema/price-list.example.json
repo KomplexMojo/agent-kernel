@@ -39,6 +39,72 @@
       "unitCost": 5,
       "unit": "essence",
       "description": "One attack action"
+    },
+    {
+      "id": "motivation_random",
+      "kind": "motivation",
+      "costTokens": 1,
+      "description": "Motivation: random (mobility)"
+    },
+    {
+      "id": "motivation_stationary",
+      "kind": "motivation",
+      "costTokens": 0,
+      "description": "Motivation: stationary (mobility)"
+    },
+    {
+      "id": "motivation_exploring",
+      "kind": "motivation",
+      "costTokens": 2,
+      "description": "Motivation: exploring (mobility)"
+    },
+    {
+      "id": "motivation_patrolling",
+      "kind": "motivation",
+      "costTokens": 3,
+      "description": "Motivation: patrolling (mobility)"
+    },
+    {
+      "id": "motivation_attacking",
+      "kind": "motivation",
+      "costTokens": 3,
+      "description": "Motivation: attacking (posture)"
+    },
+    {
+      "id": "motivation_defending",
+      "kind": "motivation",
+      "costTokens": 2,
+      "description": "Motivation: defending (posture)"
+    },
+    {
+      "id": "motivation_stealthy",
+      "kind": "motivation",
+      "costTokens": 4,
+      "description": "Motivation: stealthy (posture)"
+    },
+    {
+      "id": "motivation_friendly",
+      "kind": "motivation",
+      "costTokens": 1,
+      "description": "Motivation: friendly (posture)"
+    },
+    {
+      "id": "motivation_reflexive",
+      "kind": "motivation",
+      "costTokens": 1,
+      "description": "Motivation: reflexive (cognition)"
+    },
+    {
+      "id": "motivation_goal_oriented",
+      "kind": "motivation",
+      "costTokens": 5,
+      "description": "Motivation: goal_oriented (cognition)"
+    },
+    {
+      "id": "motivation_strategy_focused",
+      "kind": "motivation",
+      "costTokens": 10,
+      "description": "Motivation: strategy_focused (cognition)"
     }
   ]
 }

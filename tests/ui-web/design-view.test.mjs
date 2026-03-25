@@ -410,11 +410,11 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   assert.ok(fireWaterGroup);
   const motivationExclusiveGroups = elements["#design-property-group-motivations"].querySelectorAll('[data-exclusive="true"]');
   assert.ok(motivationExclusiveGroups.length >= 3);
-  const combatGroup = elements["#design-property-group-motivations"].querySelector('[data-property-group-id="combat"]');
-  assert.ok(combatGroup);
-  const combatNote = combatGroup.querySelector(".design-property-chip-group-note");
-  assert.ok(combatNote);
-  assert.equal(combatNote.textContent, "Choose 1");
+  const postureGroup = elements["#design-property-group-motivations"].querySelector('[data-property-group-id="posture"]');
+  assert.ok(postureGroup);
+  const postureNote = postureGroup.querySelector(".design-property-chip-group-note");
+  assert.ok(postureNote);
+  assert.equal(postureNote.textContent, "Choose 1");
 
   const blank = guidance.getActiveCard();
   assert.ok(blank);

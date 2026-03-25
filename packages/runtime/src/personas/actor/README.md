@@ -29,13 +29,19 @@ The simulation core (`core-as`) remains the sole authority on legality, state tr
 
 ## Motivations
 
-Dynamic actors express behavior through **stackable motivations**. Motivations are atomic (e.g., `random`, `stationary`, `exploring`, `attacking`, `defending`, `patrolling`) and can be combined (e.g., `stationary_attacking`). Boss status is a tier/cost outcome, not a motivation.
+Dynamic actors express behavior through **stackable motivations** organised into three canonical families. Motivations within the same family are mutually exclusive; motivations from different families compose freely (e.g. `random + attacking + reflexive`). Boss status is a tier/cost outcome, not a motivation.
 
-Some motivation families are mutually exclusive and are rejected when combined:
-- Combat posture: `attacking` vs `defending`
-- Movement posture: `stationary`, `exploring`, `patrolling`
-- Planning style: `random` vs `strategy_focused`
-- Response style: `reflexive` vs `goal_oriented`
+### Motivation Families
+
+| Family | Kinds | Purpose |
+|---|---|---|
+| **Mobility** | `random`, `stationary`, `exploring`, `patrolling` | How the actor moves |
+| **Posture** | `attacking`, `defending`, `stealthy`, `friendly` | How the actor engages |
+| **Cognition** | `reflexive`, `goal_oriented`, `strategy_focused` | How the actor thinks |
+
+Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". A `reflexive` actor reacts instantly; a `strategy_focused` actor plans ahead.
+
+Conflicting motivations within the same family are rejected (e.g. `attacking + defending`, `stealthy + friendly`, `random + patrolling`, `reflexive + goal_oriented`). Compatible cross-family combinations are allowed (e.g. `random + attacking`, `goal_oriented + stealthy`).
 
 Motivations are:
 - Ordered and composable.

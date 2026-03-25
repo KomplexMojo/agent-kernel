@@ -435,6 +435,24 @@ function resolveHazards(payload, view) {
   return hazards;
 }
 
+function extractMotivationGoals(configuredActor) {
+  const motivations = configuredActor?.motivations || configuredActor?.traits?.motivations;
+  if (!Array.isArray(motivations)) return [];
+  const goals = [];
+  for (const entry of motivations) {
+    if (!entry || typeof entry !== "object") continue;
+    if (!entry.goal || typeof entry.goal !== "object") continue;
+    const goal = { kind: entry.kind };
+    if (typeof entry.goal.type === "string") goal.type = entry.goal.type;
+    if (typeof entry.goal.objective === "string") goal.objective = entry.goal.objective;
+    if (entry.goal.params && typeof entry.goal.params === "object") {
+      goal.params = { ...entry.goal.params };
+    }
+    goals.push(goal);
+  }
+  return goals;
+}
+
 function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }) {
   const objectives = {};
   const role = typeof configuredActor?.role === "string" && configuredActor.role.trim()
@@ -451,6 +469,10 @@ function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }
   }
   if (exit) {
     objectives.exit = { ...exit };
+  }
+  const goals = extractMotivationGoals(configuredActor);
+  if (goals.length > 0) {
+    objectives.goals = goals;
   }
   return Object.keys(objectives).length > 0 ? objectives : undefined;
 }
