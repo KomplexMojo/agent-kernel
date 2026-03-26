@@ -19,6 +19,10 @@ import {
   ALLOWED_MOTIVATIONS,
 } from "../../../runtime/src/personas/orchestrator/prompt-contract.js";
 import {
+  normalizeMotivationKind,
+  getConflictingMotivationKinds,
+} from "../../../runtime/src/personas/configurator/motivation-loadouts.js";
+import {
   DEFAULT_LLM_BASE_URL,
   DEFAULT_LLM_MODEL,
   DEFAULT_DUNGEON_AFFINITY,
@@ -113,8 +117,13 @@ Options:
   --dungeon-affinity Dungeon affinity for room/attacker/defender summary defaults
   --budget-tokens Budget token hint (llm-plan prompt-only, optional for room-plan/attacker-plan/defender-plan)
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...
-  --attacker      Attacker spec for attacker-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]
-  --defender      Defender spec for defender-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]
+  --attacker      Attacker spec for attacker-plan (repeatable): count=<n>;affinity=<kind>;motivations=<kind1>+<kind2>+...[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;motivation-flags=<flag>=<bool>,...]
+                  Motivation syntax: kind[:pattern][:intensity] or kind[:goalType:params...][:intensity]
+                  Examples: "motivations=random+attacking+reflexive", "motivations=patrolling:loop:3+attacking:melee:5", "motivations=defending:defend_point:5:3+goal_oriented"
+                  Flags: canMove, prefersStealth, prefersCover, aggroRangeBoost (e.g., "motivation-flags=canMove=false,prefersStealth=true")
+  --defender      Defender spec for defender-plan (repeatable): count=<n>;affinity=<kind>;motivations=<kind1>+<kind2>+...[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;motivation-flags=<flag>=<bool>,...]
+                  Motivation syntax: kind[:pattern][:intensity] or kind[:goalType:params...][:intensity]
+                  Examples: "motivations=stationary+defending+strategy_focused", "motivations=defending:hold_point:7"
   --prompt        Prompt override (llm-plan)
   --budget-loop   Enable budget loop (layout then actors)
   --budget-pool   Budget pool weight entry (repeatable): id=weight (e.g., player=0.2)
@@ -434,13 +443,223 @@ function parseRoomSpecs(rawRooms) {
   return values.map((value, index) => parseRoomSpec(value, index + 1));
 }
 
+/**
+ * Parse motivations string into array of motivation objects with patterns, intensity, goals.
+ *
+ * Syntax:
+ *   - Basic: "kind1+kind2+kind3" or "kind1,kind2,kind3"
+ *   - With intensity: "kind:intensity" (e.g., "attacking:5")
+ *   - With pattern: "kind:pattern" (e.g., "patrolling:loop", "attacking:melee")
+ *   - With goal: "kind:goalType:x:y" (e.g., "defending:defend_point:5:3")
+ *   - Combined: "patrolling:loop:3+attacking:melee:5"
+ *
+ * Examples:
+ *   - "random+attacking+reflexive"
+ *   - "patrolling:loop:3+attacking:melee:5"
+ *   - "defending:defend_point:5:3+goal_oriented"
+ */
+function parseMotivationsList(rawValue, defaultMotivation, contextLabel) {
+  if (!rawValue) {
+    return [{ kind: defaultMotivation }];
+  }
+
+  const raw = String(rawValue).trim();
+  // Support both comma-separated and plus-separated syntax
+  const separator = raw.includes("+") ? "+" : ",";
+  const motivationSpecs = raw.split(separator).map((s) => s.trim()).filter(Boolean);
+
+  if (motivationSpecs.length === 0) {
+    return [{ kind: defaultMotivation }];
+  }
+
+  const motivations = [];
+  const seen = new Set();
+  const selectedFamilies = new Map();
+
+  // Pattern and goal type definitions (from motivation-loadouts.js)
+  const ALLOWED_PATTERNS = {
+    patrolling: ["loop", "ping_pong", "random_walk"],
+    attacking: ["melee", "ranged", "mixed"],
+    defending: ["hold_point", "bodyguard"],
+  };
+
+  const ALLOWED_GOAL_TYPES = {
+    defending: ["defend_point", "defend_zone", "defend_actor"],
+    attacking: ["attack_target", "attack_zone"],
+    patrolling: ["patrol_route", "patrol_zone"],
+  };
+
+  motivationSpecs.forEach((spec, index) => {
+    const parts = spec.split(":").map((p) => p.trim());
+
+    // First part is always the motivation kind
+    const kind = normalizeMotivationKind(parts[0]);
+    if (!kind) {
+      throw new Error(`${contextLabel} motivation[${index}] has invalid kind "${parts[0]}". Must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
+    }
+
+    if (seen.has(kind)) {
+      return; // Skip duplicates
+    }
+
+    // Check for same-family conflicts
+    const conflictingKinds = getConflictingMotivationKinds(kind);
+    for (const existingKind of Array.from(selectedFamilies.keys())) {
+      if (conflictingKinds.includes(existingKind)) {
+        // Find family name for error message
+        let familyName = "unknown";
+        for (const [family, kinds] of Object.entries({ mobility: ["random", "stationary", "exploring", "patrolling"], posture: ["attacking", "defending", "stealthy", "friendly"], cognition: ["reflexive", "goal_oriented", "strategy_focused"] })) {
+          if (kinds.includes(kind) && kinds.includes(existingKind)) {
+            familyName = family;
+            break;
+          }
+        }
+        throw new Error(`${contextLabel} cannot combine "${existingKind}" and "${kind}": both are ${familyName} motivations.`);
+      }
+    }
+    selectedFamilies.set(kind, true);
+    seen.add(kind);
+
+    // Build motivation object
+    const motivation = { kind };
+    let partIndex = 1;
+
+    // Try to parse pattern (only for kinds that support patterns)
+    if (partIndex < parts.length && ALLOWED_PATTERNS[kind]) {
+      const potentialPattern = parts[partIndex].toLowerCase();
+      if (ALLOWED_PATTERNS[kind].includes(potentialPattern)) {
+        motivation.pattern = potentialPattern;
+        partIndex++;
+      } else if (isNaN(parseInt(parts[partIndex], 10))) {
+        // It's not a number, might be an invalid pattern or goal type
+        // Check if it might be a goal type instead
+        const potentialGoalType = potentialPattern.replace(/[\s-]+/g, "_");
+        if (ALLOWED_GOAL_TYPES[kind] && ALLOWED_GOAL_TYPES[kind].includes(potentialGoalType)) {
+          // It's a goal type, let it fall through to goal parsing
+        } else {
+          throw new Error(`${contextLabel} motivation[${index}] pattern "${parts[partIndex]}" is not compatible with "${kind}". Allowed patterns: ${ALLOWED_PATTERNS[kind].join(", ")}.`);
+        }
+      }
+    }
+
+    // Try to parse goal type (only for kinds that support goals)
+    if (partIndex < parts.length && ALLOWED_GOAL_TYPES[kind]) {
+      const potentialGoalType = parts[partIndex].toLowerCase().replace(/[\s-]+/g, "_");
+      if (ALLOWED_GOAL_TYPES[kind].includes(potentialGoalType)) {
+        const goal = { type: potentialGoalType };
+        partIndex++;
+
+        // Parse goal parameters based on goal type
+        if (potentialGoalType.endsWith("_point")) {
+          // Expect x, y coordinates
+          if (partIndex < parts.length && partIndex + 1 < parts.length) {
+            const x = parseNonNegativeIntStrict(parts[partIndex], `${contextLabel} motivation[${index}] goal x`);
+            const y = parseNonNegativeIntStrict(parts[partIndex + 1], `${contextLabel} motivation[${index}] goal y`);
+            goal.params = { x, y };
+            partIndex += 2;
+          } else {
+            throw new Error(`${contextLabel} motivation[${index}] goal type "${potentialGoalType}" requires x and y coordinates.`);
+          }
+        } else if (potentialGoalType.endsWith("_actor") || potentialGoalType.endsWith("_target")) {
+          // Expect targetId
+          if (partIndex < parts.length) {
+            goal.params = { targetId: parts[partIndex] };
+            partIndex++;
+          } else {
+            throw new Error(`${contextLabel} motivation[${index}] goal type "${potentialGoalType}" requires a target ID.`);
+          }
+        } else if (potentialGoalType.endsWith("_zone")) {
+          // Expect zone identifier
+          if (partIndex < parts.length) {
+            goal.params = { zone: parts[partIndex] };
+            partIndex++;
+          } else {
+            throw new Error(`${contextLabel} motivation[${index}] goal type "${potentialGoalType}" requires a zone identifier.`);
+          }
+        } else if (potentialGoalType.endsWith("_route")) {
+          // Expect route data (for now, treat as string)
+          if (partIndex < parts.length) {
+            goal.params = { route: parts[partIndex] };
+            partIndex++;
+          } else {
+            throw new Error(`${contextLabel} motivation[${index}] goal type "${potentialGoalType}" requires route data.`);
+          }
+        }
+
+        motivation.goal = goal;
+      }
+    }
+
+    // Try to parse intensity (last numeric value if not already consumed by goal params)
+    if (partIndex < parts.length) {
+      const intensityStr = parts[partIndex];
+      const intensity = parseInt(intensityStr, 10);
+      if (!isNaN(intensity)) {
+        if (intensity < 1 || intensity > 10) {
+          throw new Error(`${contextLabel} motivation[${index}] intensity must be between 1 and 10.`);
+        }
+        motivation.intensity = intensity;
+        partIndex++;
+      }
+    }
+
+    // If there are remaining unparsed parts, that's an error
+    if (partIndex < parts.length) {
+      throw new Error(`${contextLabel} motivation[${index}] has unexpected syntax after parsing: "${parts.slice(partIndex).join(":")}".`);
+    }
+
+    motivations.push(motivation);
+  });
+
+  return motivations.length > 0 ? motivations : [{ kind: defaultMotivation }];
+}
+
+/**
+ * Parse --motivation-flags parameter.
+ *
+ * Syntax: "key=value,key=value,..."
+ * Example: "canMove=false,prefersStealth=true"
+ */
+function parseMotivationFlags(flagsRaw, contextLabel) {
+  if (!isNonEmptyString(flagsRaw)) {
+    return undefined;
+  }
+
+  const raw = String(flagsRaw).trim();
+  const flagPairs = raw.split(",").map((s) => s.trim()).filter(Boolean);
+
+  const flags = {};
+  const allowedFlags = ["canMove", "prefersStealth", "prefersCover", "aggroRangeBoost"];
+
+  flagPairs.forEach((pair, index) => {
+    if (!pair.includes("=")) {
+      throw new Error(`${contextLabel} flag[${index + 1}] must be in format "key=value".`);
+    }
+
+    const [key, value] = pair.split("=").map((s) => s.trim());
+
+    if (!allowedFlags.includes(key)) {
+      throw new Error(`${contextLabel} flag[${index + 1}] has unknown flag "${key}". Allowed: ${allowedFlags.join(", ")}.`);
+    }
+
+    const lowerValue = value.toLowerCase();
+    if (lowerValue !== "true" && lowerValue !== "false") {
+      throw new Error(`${contextLabel} flag[${index + 1}] value must be "true" or "false".`);
+    }
+
+    flags[key] = lowerValue === "true";
+  });
+
+  return Object.keys(flags).length > 0 ? flags : undefined;
+}
+
 function parseAttackerSpec(value, attackerIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
   const raw = String(value || "").trim();
   if (!raw) {
     throw new Error(`attacker[${attackerIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "motivations", "vitals", "setup-mode", "setupmode", "motivation-flags", "motivationflags"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -455,7 +674,7 @@ function parseAttackerSpec(value, attackerIndex, { defaultAffinity = DEFAULT_DUN
         return;
       }
       if (ALLOWED_MOTIVATIONS.includes(shorthand)) {
-        if (fields.has("motivation")) {
+        if (fields.has("motivation") || fields.has("motivations")) {
           throw new Error(`attacker[${attackerIndex}] motivation may only be specified once.`);
         }
         fields.set("motivation", shorthand);
@@ -473,8 +692,8 @@ function parseAttackerSpec(value, attackerIndex, { defaultAffinity = DEFAULT_DUN
     if (!fieldValue) {
       throw new Error(`attacker[${attackerIndex}] field "${key}" requires a value.`);
     }
-    if (key === "motivation" && fields.has("motivation")) {
-      throw new Error(`attacker[${attackerIndex}] motivation may only be specified once.`);
+    if ((key === "motivation" || key === "motivations") && (fields.has("motivation") || fields.has("motivations"))) {
+      throw new Error(`attacker[${attackerIndex}] motivation/motivations may only be specified once.`);
     }
     fields.set(key, fieldValue);
   });
@@ -484,9 +703,19 @@ function parseAttackerSpec(value, attackerIndex, { defaultAffinity = DEFAULT_DUN
     throw new Error(`attacker[${attackerIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
-  const motivation = String(fields.get("motivation") || "attacking").trim().toLowerCase();
-  if (!ALLOWED_MOTIVATIONS.includes(motivation)) {
-    throw new Error(`attacker[${attackerIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
+  // Parse motivations - support both "motivation" (legacy single) and "motivations" (new multi)
+  const motivationsRaw = fields.get("motivations") || fields.get("motivation");
+  const motivations = parseMotivationsList(motivationsRaw, "attacking", `attacker[${attackerIndex}]`);
+
+  // Parse motivation flags
+  const motivationFlagsRaw = fields.get("motivation-flags") || fields.get("motivationflags");
+  const motivationFlags = parseMotivationFlags(motivationFlagsRaw, `attacker[${attackerIndex}]`);
+
+  // Apply flags to all motivations if specified
+  if (motivationFlags) {
+    motivations.forEach((motivation) => {
+      motivation.flags = motivationFlags;
+    });
   }
 
   const count = fields.has("count")
@@ -512,7 +741,7 @@ function parseAttackerSpec(value, attackerIndex, { defaultAffinity = DEFAULT_DUN
     source: "actor",
     count,
     affinity,
-    motivations: [motivation],
+    motivations,
   };
   if (affinities && affinities.length > 0) {
     attacker.affinities = affinities;
@@ -542,7 +771,7 @@ function parseDefenderSpec(value, defenderIndex, { defaultAffinity = DEFAULT_DUN
     throw new Error(`defender[${defenderIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "motivations", "vitals", "motivation-flags", "motivationflags"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -557,7 +786,7 @@ function parseDefenderSpec(value, defenderIndex, { defaultAffinity = DEFAULT_DUN
         return;
       }
       if (ALLOWED_MOTIVATIONS.includes(shorthand)) {
-        if (fields.has("motivation")) {
+        if (fields.has("motivation") || fields.has("motivations")) {
           throw new Error(`defender[${defenderIndex}] motivation may only be specified once.`);
         }
         fields.set("motivation", shorthand);
@@ -575,8 +804,8 @@ function parseDefenderSpec(value, defenderIndex, { defaultAffinity = DEFAULT_DUN
     if (!fieldValue) {
       throw new Error(`defender[${defenderIndex}] field "${key}" requires a value.`);
     }
-    if (key === "motivation" && fields.has("motivation")) {
-      throw new Error(`defender[${defenderIndex}] motivation may only be specified once.`);
+    if ((key === "motivation" || key === "motivations") && (fields.has("motivation") || fields.has("motivations"))) {
+      throw new Error(`defender[${defenderIndex}] motivation/motivations may only be specified once.`);
     }
     fields.set(key, fieldValue);
   });
@@ -586,9 +815,19 @@ function parseDefenderSpec(value, defenderIndex, { defaultAffinity = DEFAULT_DUN
     throw new Error(`defender[${defenderIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
-  const motivation = String(fields.get("motivation") || "defending").trim().toLowerCase();
-  if (!ALLOWED_MOTIVATIONS.includes(motivation)) {
-    throw new Error(`defender[${defenderIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
+  // Parse motivations - support both "motivation" (legacy single) and "motivations" (new multi)
+  const motivationsRaw = fields.get("motivations") || fields.get("motivation");
+  const motivations = parseMotivationsList(motivationsRaw, "defending", `defender[${defenderIndex}]`);
+
+  // Parse motivation flags
+  const motivationFlagsRaw = fields.get("motivation-flags") || fields.get("motivationflags");
+  const motivationFlags = parseMotivationFlags(motivationFlagsRaw, `defender[${defenderIndex}]`);
+
+  // Apply flags to all motivations if specified
+  if (motivationFlags) {
+    motivations.forEach((motivation) => {
+      motivation.flags = motivationFlags;
+    });
   }
 
   const count = fields.has("count")
@@ -606,7 +845,7 @@ function parseDefenderSpec(value, defenderIndex, { defaultAffinity = DEFAULT_DUN
     source: "actor",
     count,
     affinity,
-    motivations: [motivation],
+    motivations,
   };
   if (affinities && affinities.length > 0) {
     defender.affinities = affinities;

@@ -98,10 +98,38 @@ Inputs/outputs:
 - Input: one or more `--attacker` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--attacker` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]`
+- `--attacker` format: `count=<n>;affinity=<kind>;motivations=<kind1>+<kind2>+...[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
-- If `motivation` is omitted, default is `attacking`.
-- `motivation` is singular for direct CLI authoring; repeating it in the same `--attacker` spec is rejected.
+- **Motivations** support multiple values from three families:
+  - **Mobility**: `random`, `stationary`, `exploring`, `patrolling` (mutually exclusive within family)
+  - **Posture**: `attacking`, `defending`, `stealthy`, `friendly` (mutually exclusive within family)
+  - **Cognition**: `reflexive`, `goal_oriented`, `strategy_focused` (mutually exclusive within family)
+- Syntax: `motivations=<kind1>+<kind2>+...` or `motivations=<kind1>,<kind2>,...`
+- If `motivations` is omitted, default is `attacking`.
+- **Legacy syntax** `motivation=<kind>` (singular) is still supported for backward compatibility.
+- Examples:
+  - `motivations=random+attacking+reflexive` (cross-family composition)
+  - `motivations=stationary,defending,goal_oriented` (comma-separated)
+  - `motivation=attacking` (legacy single motivation)
+- **Advanced Motivation Syntax**:
+  - **Patterns**: `motivations=patrolling:loop` or `motivations=attacking:melee`
+    - Supported patterns:
+      - `patrolling`: `loop`, `ping_pong`, `random_walk`
+      - `attacking`: `melee`, `ranged`, `mixed`
+      - `defending`: `hold_point`, `bodyguard`
+  - **Intensity** (1-10): `motivations=attacking:5` or `motivations=patrolling:loop:3`
+  - **Goals**: `motivations=defending:defend_point:5:3` (goal type + params)
+    - Goal types:
+      - `defending`: `defend_point` (x, y), `defend_zone` (zone), `defend_actor` (targetId)
+      - `attacking`: `attack_target` (targetId), `attack_zone` (zone)
+      - `patrolling`: `patrol_route` (route), `patrol_zone` (zone)
+  - **Motivation Flags**: `motivation-flags=canMove=false,prefersStealth=true`
+    - Available flags: `canMove`, `prefersStealth`, `prefersCover`, `aggroRangeBoost`
+    - Applies to all motivations in the actor spec
+  - **Combined Examples**:
+    - `motivations=patrolling:loop:3+attacking:melee:5`
+    - `motivations=defending:defend_point:10:15:7+strategy_focused`
+    - `motivations=random+stealthy+reflexive;motivation-flags=prefersStealth=true,canMove=true`
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from attacker-plan runs.
 - Output dir: `artifacts/runs/<runId>/attacker-plan` by default, or `--out-dir`.
@@ -116,10 +144,25 @@ Inputs/outputs:
 - Input: one or more `--defender` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--defender` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]`
+- `--defender` format: `count=<n>;affinity=<kind>;motivations=<kind1>+<kind2>+...[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
-- If `motivation` is omitted, default is `defending`.
-- `motivation` is singular for direct CLI authoring; repeating it in the same `--defender` spec is rejected.
+- **Motivations** support multiple values from three families (same as `attacker-plan`):
+  - **Mobility**: `random`, `stationary`, `exploring`, `patrolling`
+  - **Posture**: `attacking`, `defending`, `stealthy`, `friendly`
+  - **Cognition**: `reflexive`, `goal_oriented`, `strategy_focused`
+- Syntax: `motivations=<kind1>+<kind2>+...` or `motivations=<kind1>,<kind2>,...`
+- If `motivations` is omitted, default is `defending`.
+- **Legacy syntax** `motivation=<kind>` (singular) is still supported for backward compatibility.
+- Examples:
+  - `motivations=stationary+defending+strategy_focused`
+  - `motivations=random,friendly,goal_oriented`
+  - `motivation=defending` (legacy single motivation)
+- **Advanced Motivation Syntax** (same as `attacker-plan`):
+  - **Patterns**: `motivations=defending:hold_point:7`
+  - **Intensity** (1-10): `motivations=defending:5`
+  - **Goals**: `motivations=defending:defend_point:5:3`
+  - **Motivation Flags**: `motivation-flags=canMove=false`
+  - See `attacker-plan` section for complete syntax and examples
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from defender-plan runs.
 - Output dir: `artifacts/runs/<runId>/defender-plan` by default, or `--out-dir`.
@@ -181,10 +224,13 @@ node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1" --run-id run_room_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1;affinities=fire:emit:2" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=2;affinity=fire;motivation=attacking" --attacker "count=1;affinity=earth;motivation=patrolling" --run-id run_attacker_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_plan_demo
+node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=2;affinity=fire;motivations=random+attacking+reflexive" --run-id run_attacker_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=1;affinity=fire" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_attacker_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_attacker_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_plan_advanced_demo
-node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=2;affinity=dark;motivation=defending" --defender "count=1;affinity=earth;motivation=stationary" --run-id run_defender_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/defender_plan_demo
+node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=1;affinity=fire;motivations=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_attacker_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_plan_advanced_demo
+# Advanced motivation syntax examples:
+node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=1;affinity=fire;motivations=patrolling:loop:3+attacking:melee:5" --run-id run_attacker_patterns_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_patterns_demo
+node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=1;affinity=dark;motivations=stationary+defending:defend_point:10:15:7+strategy_focused;motivation-flags=canMove=false" --run-id run_defender_goals_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/defender_goals_demo
+node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=2;affinity=dark;motivations=stationary+defending+strategy_focused" --defender "count=1;affinity=earth;motivations=exploring+friendly" --run-id run_defender_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/defender_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=1;affinity=dark" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_defender_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/defender_plan_budget_demo
 node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_defender_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/defender_plan_advanced_demo
 node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
