@@ -28,12 +28,14 @@ npx @_davideast/stitch-mcp tool get_screen_code -d '{"projectId": "PROJECT_ID", 
 **CRITICAL**: Stitch generates HTML—you must adapt it, not copy it directly.
 
 **Architecture Requirements:**
+
 - Place UI code in `packages/ui-web/src/` (adapters layer)
 - Follow ports & adapters pattern (UI code must not access runtime/core-as directly)
 - UI receives serializable state and dispatches events (no direct IO)
 - Create fixture-based tests in `tests/ui-web/`
 
 **Workflow:**
+
 1. Use `get_screen_code` to retrieve Stitch-generated HTML
 2. Identify reusable components and patterns
 3. Adapt HTML to match project's component structure (Views, Panels, Templates)
@@ -62,19 +64,26 @@ Before writing any UI code, understand existing patterns:
 
 1. **Check Stitch project**: Use `list_screens` to see available designs
 2. **Find design tokens**: Search for CSS variables, theme files, or token definitions
-   - Look for: `--color-`, `--spacing-`, `--radius-`, theme.ts, tokens.css, variables.scss
-3. **Find component primitives**: Identify the UI component library in use
-   - Look for: Button, Input, Card components; check package.json for UI libraries
-4. **Study existing patterns**: Find similar UI in the codebase and match its conventions
-   - Spacing scale, color usage, typography, animation patterns
-5. **Note the stack**: Identify CSS approach (Tailwind, CSS modules, styled-components, etc.)
-6. **Review Design.md**: Reference `Design.md` for project-specific UI guidelines and Stitch integration
+
+- Look for: `--color-`, `--spacing-`, `--radius-`, theme.ts, tokens.css, variables.scss
+
+1. **Find component primitives**: Identify the UI component library in use
+
+- Look for: Button, Input, Card components; check package.json for UI libraries
+
+1. **Study existing patterns**: Find similar UI in the codebase and match its conventions
+
+- Spacing scale, color usage, typography, animation patterns
+
+1. **Note the stack**: Identify CSS approach (Tailwind, CSS modules, styled-components, etc.)
+2. **Review Design.md**: Reference `Design.md` for project-specific UI guidelines and Stitch integration
 
 **MUST use discovered patterns consistently. NEVER introduce conflicting design systems.**
 
 ## Hard Rules (MUST follow)
 
 ### Architecture Compliance (non-negotiable)
+
 - MUST place UI code in `packages/ui-web/src/` only
 - MUST follow ports & adapters pattern—no direct access to runtime or core-as
 - MUST receive serializable state and dispatch events (no direct IO)
@@ -83,6 +92,7 @@ Before writing any UI code, understand existing patterns:
 - NEVER copy Stitch HTML directly—adapt it to component patterns
 
 ### Accessibility (non-negotiable)
+
 - MUST meet WCAG AA contrast ratios (4.5:1 for text, 3:1 for UI elements)
 - MUST include visible focus indicators on all interactive elements using `:focus-visible`
 - MUST use semantic HTML elements before ARIA (`button` not `div role="button"`)
@@ -91,6 +101,7 @@ Before writing any UI code, understand existing patterns:
 - NEVER rely on color alone to convey meaning
 
 ### Consistency with Project
+
 - MUST use the project's spacing scale—find it, don't invent one
 - MUST use the project's color tokens—never hardcode colors if tokens exist
 - MUST use existing component primitives before creating new ones
@@ -98,16 +109,19 @@ Before writing any UI code, understand existing patterns:
 - NEVER mix different component systems (e.g., don't add Material UI to a Radix project)
 
 ### Interactive States
+
 - MUST include all states for interactive elements: default, hover, active, focus, disabled
 - MUST show loading indicators during async operations
 - MUST handle error states with actionable messages
 
 ### Layout & Responsiveness
+
 - MUST ensure touch targets are large enough for mobile (follow project's existing patterns)
 - MUST specify explicit dimensions for images to prevent layout shift
 - MUST test layouts at different viewport sizes
 
 ### Code Quality
+
 - NEVER use `transition: all`—explicitly list animated properties
 - MUST honor `prefers-reduced-motion` for animations
 - MUST use semantic tokens over raw values when the project has them
@@ -115,18 +129,21 @@ Before writing any UI code, understand existing patterns:
 ## Aesthetic Guidelines (SHOULD follow)
 
 ### Visual Design
+
 - SHOULD use layered shadows for natural depth (if project uses shadows)
 - SHOULD apply nested radii rule: child radius ≤ parent radius - parent padding
 - SHOULD prefer compositor-friendly animations (`transform`, `opacity`)
 - SHOULD create clear visual hierarchy through spacing, size, and contrast
 
 ### Content & UX
+
 - SHOULD design all states: empty, sparse, dense, error, loading, success
 - SHOULD make error messages actionable ("Check your API key" not "Invalid")
 - SHOULD provide visual feedback within 100ms of user action
 - SHOULD use inline explanations before tooltips
 
 ### Component Patterns
+
 - PREFER CSS animations over JavaScript when possible
 - PREFER semantic tokens (`var(--color-primary)`) over raw values
 
@@ -137,18 +154,21 @@ Before writing any UI code, understand existing patterns:
 3. **Discover Project Patterns**: Search codebase for design system, tokens, existing components
 4. **Understand**: What's the core action? What's most important to the user?
 5. **Adapt**: Transform Stitch HTML to match project's component structure
-   - Views → `packages/ui-web/src/views/`
-   - Panels → `packages/ui-web/src/` (feature-specific panels)
-   - Templates → `packages/ui-web/src/` (reusable templates)
-6. **Structure**: Semantic HTML, proper heading hierarchy, ports & adapters compliance
-7. **Style**: Apply project's design tokens consistently
-8. **Interact**: Add all states (hover, focus, active, disabled, loading, error)
-9. **Test**: Create fixture-based tests in `tests/ui-web/`
-10. **Verify**: Check accessibility, responsiveness, consistency, architecture compliance
+
+- Views → `packages/ui-web/src/views/`
+- Panels → `packages/ui-web/src/` (feature-specific panels)
+- Templates → `packages/ui-web/src/` (reusable templates)
+
+1. **Structure**: Semantic HTML, proper heading hierarchy, ports & adapters compliance
+2. **Style**: Apply project's design tokens consistently
+3. **Interact**: Add all states (hover, focus, active, disabled, loading, error)
+4. **Test**: Create fixture-based tests in `tests/ui-web/`
+5. **Verify**: Check accessibility, responsiveness, consistency, architecture compliance
 
 ## Pre-Completion Checklist
 
 Before delivering, verify:
+
 - [ ] Used Stitch MCP tools to get design assets
 - [ ] Adapted Stitch code to project's component structure (not direct copy)
 - [ ] Placed UI code in `packages/ui-web/src/` following Views/Panels/Templates pattern
