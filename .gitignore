@@ -9,6 +9,7 @@ yarn-error.log*
 
 # Build outputs
 build/
+!packages/runtime/src/build/
 dist/
 coverage/
 *.wasm
