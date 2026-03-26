@@ -1,24 +1,36 @@
-const BASE_MOTIVATION_KINDS = Object.freeze(["random", "stationary", "exploring", "attacking", "defending", "patrolling"]);
-const LEGACY_MOTIVATION_KINDS = Object.freeze(["reflexive", "goal_oriented", "strategy_focused"]);
+export const MOTIVATION_FAMILIES = Object.freeze({
+  mobility: Object.freeze(["random", "stationary", "exploring", "patrolling"]),
+  posture: Object.freeze(["attacking", "defending", "stealthy", "friendly"]),
+  cognition: Object.freeze(["reflexive", "goal_oriented", "strategy_focused"]),
+});
 
-export const MOTIVATION_KINDS = Object.freeze([...BASE_MOTIVATION_KINDS, ...LEGACY_MOTIVATION_KINDS]);
+export const MOTIVATION_KINDS = Object.freeze([
+  ...MOTIVATION_FAMILIES.mobility,
+  ...MOTIVATION_FAMILIES.posture,
+  ...MOTIVATION_FAMILIES.cognition,
+]);
 export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
-  Object.freeze({ id: "combat", kinds: Object.freeze(["attacking", "defending"]) }),
-  Object.freeze({ id: "mobility", kinds: Object.freeze(["stationary", "exploring", "patrolling"]) }),
-  Object.freeze({ id: "planning", kinds: Object.freeze(["random", "strategy_focused"]) }),
-  Object.freeze({ id: "response", kinds: Object.freeze(["reflexive", "goal_oriented"]) }),
+  Object.freeze({ id: "mobility", kinds: MOTIVATION_FAMILIES.mobility }),
+  Object.freeze({ id: "posture", kinds: MOTIVATION_FAMILIES.posture }),
+  Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
 ]);
 export const MOTIVATION_DISPLAY_GROUPS = Object.freeze([
-  Object.freeze({ id: "combat", kinds: Object.freeze(["attacking", "defending"]) }),
-  Object.freeze({ id: "mobility", kinds: Object.freeze(["stationary", "exploring"]) }),
-  Object.freeze({ id: "mobility_route", kinds: Object.freeze(["patrolling"]) }),
-  Object.freeze({ id: "planning", kinds: Object.freeze(["random", "strategy_focused"]) }),
-  Object.freeze({ id: "response", kinds: Object.freeze(["reflexive", "goal_oriented"]) }),
+  Object.freeze({ id: "mobility", kinds: MOTIVATION_FAMILIES.mobility }),
+  Object.freeze({ id: "posture", kinds: MOTIVATION_FAMILIES.posture }),
+  Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
 ]);
 export const MOTIVATION_PATTERNS = Object.freeze({
   patrolling: Object.freeze(["loop", "ping_pong", "random_walk"]),
   attacking: Object.freeze(["melee", "ranged", "mixed"]),
   defending: Object.freeze(["hold_point", "bodyguard"]),
+});
+
+export const MOTIVATION_GOAL_TYPES = Object.freeze({
+  defending: Object.freeze(["defend_point", "defend_zone", "defend_actor"]),
+  attacking: Object.freeze(["attack_target", "attack_zone"]),
+  patrolling: Object.freeze(["patrol_route", "patrol_zone"]),
+  goal_oriented: Object.freeze(["reach_point", "reach_zone", "acquire_item", "defend_point", "defend_zone", "defend_actor", "attack_target", "attack_zone"]),
+  strategy_focused: Object.freeze(["reach_point", "reach_zone", "acquire_item", "defend_point", "defend_zone", "defend_actor", "attack_target", "attack_zone", "patrol_route", "patrol_zone"]),
 });
 
 export const MOTIVATION_DEFAULTS = Object.freeze({
@@ -35,9 +47,11 @@ export const MOTIVATION_KIND_IDS = Object.freeze({
   random: "motivation_random",
   stationary: "motivation_stationary",
   exploring: "motivation_exploring",
+  patrolling: "motivation_patrolling",
   attacking: "motivation_attacking",
   defending: "motivation_defending",
-  patrolling: "motivation_patrolling",
+  stealthy: "motivation_stealthy",
+  friendly: "motivation_friendly",
   reflexive: "motivation_reflexive",
   goal_oriented: "motivation_goal_oriented",
   strategy_focused: "motivation_strategy_focused",
@@ -172,6 +186,70 @@ function normalizePattern(kind, pattern, base, errors) {
   return normalized;
 }
 
+const GOAL_PARAM_KEYS = Object.freeze(["x", "y", "zone", "targetId", "route", "itemId"]);
+
+function normalizeGoalParams(params, base, errors) {
+  if (params === undefined || params === null) return undefined;
+  if (typeof params !== "object" || Array.isArray(params)) {
+    addError(errors, `${base}.params`, "invalid_goal_params");
+    return undefined;
+  }
+  const normalized = {};
+  let hasKeys = false;
+  for (const [key, value] of Object.entries(params)) {
+    if (!GOAL_PARAM_KEYS.includes(key)) {
+      addError(errors, `${base}.params.${key}`, "unknown_goal_param");
+      continue;
+    }
+    if (value === undefined || value === null) continue;
+    if (typeof value !== "string" && typeof value !== "number" && !Array.isArray(value)) {
+      addError(errors, `${base}.params.${key}`, "invalid_goal_param_value");
+      continue;
+    }
+    if (Array.isArray(value)) {
+      normalized[key] = value.filter(
+        (v) => typeof v === "string" || typeof v === "number",
+      );
+    } else {
+      normalized[key] = value;
+    }
+    hasKeys = true;
+  }
+  return hasKeys ? Object.freeze(normalized) : undefined;
+}
+
+function normalizeGoal(kind, goal, base, errors) {
+  const allowedTypes = MOTIVATION_GOAL_TYPES[kind];
+  if (!allowedTypes) {
+    if (goal !== undefined && goal !== null) {
+      addError(errors, `${base}.goal`, "goal_not_supported");
+    }
+    return undefined;
+  }
+  if (goal === undefined || goal === null) return undefined;
+  if (typeof goal !== "object" || Array.isArray(goal)) {
+    addError(errors, `${base}.goal`, "invalid_goal");
+    return undefined;
+  }
+  const type = typeof goal.type === "string" ? goal.type.trim().toLowerCase().replace(/[\s-]+/g, "_") : null;
+  if (!type) {
+    addError(errors, `${base}.goal.type`, "missing_goal_type");
+    return undefined;
+  }
+  if (!allowedTypes.includes(type)) {
+    addError(errors, `${base}.goal.type`, "unknown_goal_type");
+    return undefined;
+  }
+  const objective = typeof goal.objective === "string" && goal.objective.trim()
+    ? goal.objective.trim()
+    : undefined;
+  const params = normalizeGoalParams(goal.params, `${base}.goal`, errors);
+  const result = { type };
+  if (objective) result.objective = objective;
+  if (params) result.params = params;
+  return Object.freeze(result);
+}
+
 export function normalizeMotivation(entry, base, errors = []) {
   const entryBase = base || "motivations";
   if (typeof entry === "string" || typeof entry === "number") {
@@ -211,18 +289,21 @@ export function normalizeMotivation(entry, base, errors = []) {
 
   const pattern = normalizePattern(kind, entry.pattern, entryBase, errors);
   const flags = normalizeFlags(entry.flags, `${entryBase}.flags`, errors);
+  const goal = normalizeGoal(kind, entry.goal, entryBase, errors);
   const priority = entry.priority === undefined ? undefined : entry.priority;
   if (priority !== undefined && (!Number.isInteger(priority) || priority < 0)) {
     addError(errors, `${entryBase}.priority`, "invalid_priority");
   }
 
-  return {
+  const result = {
     kind,
     intensity: clampedIntensity,
     pattern,
     flags,
     priority: Number.isInteger(priority) && priority >= 0 ? priority : undefined,
   };
+  if (goal) result.goal = goal;
+  return result;
 }
 
 export function normalizeMotivations(input, fieldBase = "motivations") {
