@@ -15,7 +15,7 @@ coverage/
 *.wasm
 *.wat
 *.map
-artifacts/
+/artifacts/
 
 # CLI-generated artifacts
 packages/adapters-cli/artifacts/solve_cli_test/*.json
