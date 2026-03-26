@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "serve-ui",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/serve-ui.mjs", "--with-ipfs"],
+      "port": 8001
+    },
+    {
+      "name": "serve-ui-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/serve-ui.mjs", "--static-only"],
+      "port": 8001
+    },
+    {
+      "name": "ipfs-proxy",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/ipfs-local-proxy.mjs"],
+      "port": 8088
+    },
+    {
+      "name": "ipfs-daemon",
+      "runtimeExecutable": "ipfs",
+      "runtimeArgs": ["daemon"],
+      "port": 5001
+    }
+  ]
+}
