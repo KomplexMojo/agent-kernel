@@ -30,6 +30,19 @@ export function wireDesignView({
   const budgetOverviewEl = root.querySelector("#design-budget-overview");
   const autoGenerateButton = root.querySelector("#design-auto-generate");
   const loadMintedButton = root.querySelector("#design-load-minted");
+  const motivationPatternContainer = root.querySelector("#design-motivation-pattern-container");
+  const motivationPatternSelect = root.querySelector("#design-motivation-pattern");
+  const motivationGoalContainer = root.querySelector("#design-motivation-goal-container");
+  const motivationGoalTypeSelect = root.querySelector("#design-motivation-goal-type");
+  const motivationGoalParams = root.querySelector("#design-motivation-goal-params");
+  const motivationIntensityContainer = root.querySelector("#design-motivation-intensity-container");
+  const motivationIntensityInput = root.querySelector("#design-motivation-intensity");
+  const motivationIntensityValue = root.querySelector("#design-motivation-intensity-value");
+  const motivationFlagsContainer = root.querySelector("#design-motivation-flags-container");
+  const motivationFlagCanMove = root.querySelector("#design-motivation-flag-canMove");
+  const motivationFlagPrefersStealth = root.querySelector("#design-motivation-flag-prefersStealth");
+  const motivationFlagPrefersCover = root.querySelector("#design-motivation-flag-prefersCover");
+  const motivationFlagAggroRangeBoost = root.querySelector("#design-motivation-flag-aggroRangeBoost");
 
   let lastPublishedSpecText = "";
   let previewRunId = `design_ui_preview_${Date.now()}`;
@@ -81,6 +94,19 @@ export function wireDesignView({
       budgetSplitAttackerTokens,
       budgetSplitDefenderTokens,
       budgetOverviewEl,
+      motivationPatternContainer,
+      motivationPatternSelect,
+      motivationGoalContainer,
+      motivationGoalTypeSelect,
+      motivationGoalParams,
+      motivationIntensityContainer,
+      motivationIntensityInput,
+      motivationIntensityValue,
+      motivationFlagsContainer,
+      motivationFlagCanMove,
+      motivationFlagPrefersStealth,
+      motivationFlagPrefersCover,
+      motivationFlagAggroRangeBoost,
     },
     llmConfig,
     onLlmCapture,

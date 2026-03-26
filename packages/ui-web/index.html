@@ -1680,6 +1680,36 @@
                   <h3>Motivations</h3>
                   <div class="design-property-chips" id="design-property-group-motivations"></div>
                 </section>
+                <section class="design-property-group" data-property-order="5" id="design-motivation-details">
+                  <h3>Motivation Details</h3>
+                  <div id="design-motivation-pattern-container" class="design-motivation-control" style="display:none;">
+                    <label>
+                      <span class="stat-label">Pattern</span>
+                      <select id="design-motivation-pattern"></select>
+                    </label>
+                  </div>
+                  <div id="design-motivation-goal-container" class="design-motivation-control" style="display:none;">
+                    <label>
+                      <span class="stat-label">Goal Type</span>
+                      <select id="design-motivation-goal-type"></select>
+                    </label>
+                    <div id="design-motivation-goal-params"></div>
+                  </div>
+                  <div id="design-motivation-intensity-container" class="design-motivation-control" style="display:none;">
+                    <label>
+                      <span class="stat-label">Intensity</span>
+                      <input id="design-motivation-intensity" type="range" min="1" max="10" step="1" value="1" />
+                      <span id="design-motivation-intensity-value">1</span>
+                    </label>
+                  </div>
+                  <div id="design-motivation-flags-container" class="design-motivation-control">
+                    <h4>Behavior Flags</h4>
+                    <label><input type="checkbox" id="design-motivation-flag-canMove" checked /> Can Move</label>
+                    <label><input type="checkbox" id="design-motivation-flag-prefersStealth" /> Prefers Stealth</label>
+                    <label><input type="checkbox" id="design-motivation-flag-prefersCover" /> Prefers Cover</label>
+                    <label><input type="checkbox" id="design-motivation-flag-aggroRangeBoost" /> Aggro Range Boost</label>
+                  </div>
+                </section>
               </aside>
               <section class="design-center-workspace">
                 <div class="design-toolbar">

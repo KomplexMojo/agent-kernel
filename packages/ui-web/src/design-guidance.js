@@ -28,7 +28,12 @@ import {
   getConflictingMotivationKinds,
   MOTIVATION_DISPLAY_GROUPS,
   MOTIVATION_KINDS,
+  MOTIVATION_PATTERNS,
+  MOTIVATION_GOAL_TYPES,
+  MOTIVATION_DEFAULTS,
   normalizeMotivationKindList,
+  normalizeMotivation,
+  normalizeMotivations,
 } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
 import {
   buildCardSetFromSummary,
@@ -448,6 +453,13 @@ function stableSortAffinities(entries = []) {
 }
 
 function stableCardForSerialize(card) {
+  // Sort motivations by kind for stable serialization
+  const motivations = Array.isArray(card.motivations)
+    ? card.motivations.map(m => typeof m === 'string' ? normalizeMotivation(m, '', []) : m)
+        .filter(Boolean)
+        .sort((a, b) => (a.kind || '').localeCompare(b.kind || ''))
+    : [];
+
   const next = {
     id: card.id,
     type: card.type,
@@ -457,7 +469,7 @@ function stableCardForSerialize(card) {
     setupMode: card.setupMode,
     affinities: stableSortAffinities(card.affinities),
     expressions: normalizeExpressionListAllowEmpty(card.expressions),
-    motivations: Array.isArray(card.motivations) ? card.motivations.slice().sort() : [],
+    motivations,
     vitals: card.vitals ? cloneVitals(card.vitals) : undefined,
     tokenHint: readOptionalToken(card.tokenHint),
     source: card.source,
@@ -494,7 +506,7 @@ export function createDesignCard({
   const hasExplicitAffinitiesInput = Array.isArray(affinities);
   const hasExplicitExpressionsInput = Array.isArray(expressions) || typeof expressions === "string";
   const normalizedInputAffinities = hasExplicitAffinitiesInput ? stableSortAffinities(affinities) : undefined;
-  const normalizedInputMotivations = normalizeMotivationListAllowEmpty(motivations);
+  const normalizedInputMotivations = normalizeMotivations(motivations).value || [];
   const normalizedVitals = resolveActorCardVitals(vitals);
   const normalizedInputExpressions = hasExplicitExpressionsInput
     ? normalizeExpressionList(expressions)
@@ -524,10 +536,9 @@ export function createDesignCard({
     expressions: normalizedInputExpressions,
     motivations: hasExplicitEmptyMotivations
       ? []
-      : normalizeMotivationList(
-        motivations,
-        normalizedType === "attacker" ? "attacking" : "defending",
-      ),
+      : normalizedInputMotivations.length > 0
+        ? normalizedInputMotivations
+        : [normalizeMotivation(normalizedType === "attacker" ? "attacking" : "defending", '', [])].filter(Boolean),
     affinities: normalizedInputAffinities ?? injectedDefaultActorAffinities,
     vitals: normalizedVitals,
     setupMode,
@@ -819,26 +830,46 @@ function applyMotivationDrop(card, motivationValue) {
   if (type !== "attacker" && type !== "defender") {
     return { ok: false, reason: "invalid_card_type", card };
   }
-  const motivation = normalizeMotivationList([motivationValue], "")[0];
-  if (!motivation) {
+
+  const motivationKind = typeof motivationValue === 'string' ? motivationValue : motivationValue?.kind;
+  if (!motivationKind) {
     return { ok: false, reason: "invalid_motivation", card };
   }
+
   const working = createDesignCard(card);
-  const current = normalizeMotivationListAllowEmpty(working.motivations);
-  const exists = current.includes(motivation);
-  const conflictsWith = exists ? "" : findMotivationConflict(current, motivation);
+
+  // Convert current motivations to normalized objects
+  const currentObjects = Array.isArray(working.motivations)
+    ? working.motivations.map(m => typeof m === 'string' ? normalizeMotivation(m, '', []) : m).filter(Boolean)
+    : [];
+  const currentKinds = currentObjects.map(m => m.kind);
+
+  const exists = currentKinds.includes(motivationKind);
+  const conflictsWith = exists ? "" : findMotivationConflict(currentKinds, motivationKind);
+
   if (conflictsWith) {
     return {
       ok: false,
       reason: "motivation_conflict",
       conflictsWith,
-      attempted: motivation,
+      attempted: motivationKind,
       card: working,
     };
   }
-  const next = exists
-    ? current.filter((value) => value !== motivation)
-    : [...current, motivation];
+
+  let next;
+  if (exists) {
+    // Remove motivation
+    next = currentObjects.filter((m) => m.kind !== motivationKind);
+  } else {
+    // Add motivation as normalized object
+    const newMotivation = normalizeMotivation(motivationValue, '', []);
+    if (!newMotivation) {
+      return { ok: false, reason: "invalid_motivation", card: working };
+    }
+    next = [...currentObjects, newMotivation];
+  }
+
   working.motivations = next;
 
   return {
@@ -1582,6 +1613,19 @@ export function wireDesignGuidance({
     budgetSplitAttackerTokens,
     budgetSplitDefenderTokens,
     budgetOverviewEl,
+    motivationPatternContainer,
+    motivationPatternSelect,
+    motivationGoalContainer,
+    motivationGoalTypeSelect,
+    motivationGoalParams,
+    motivationIntensityContainer,
+    motivationIntensityInput,
+    motivationIntensityValue,
+    motivationFlagsContainer,
+    motivationFlagCanMove,
+    motivationFlagPrefersStealth,
+    motivationFlagPrefersCover,
+    motivationFlagAggroRangeBoost,
   } = elements;
 
   const state = {
@@ -2887,12 +2931,88 @@ export function wireDesignGuidance({
     replaceChildren(container, wrappers);
   }
 
+  function renderMotivationDetails() {
+    const card = state.activeCard;
+    if (!card || (card.type !== "attacker" && card.type !== "defender")) {
+      if (motivationPatternContainer) motivationPatternContainer.style.display = "none";
+      if (motivationGoalContainer) motivationGoalContainer.style.display = "none";
+      if (motivationIntensityContainer) motivationIntensityContainer.style.display = "none";
+      if (motivationFlagsContainer) motivationFlagsContainer.style.display = "none";
+      return;
+    }
+
+    // Get normalized motivation objects (convert strings to objects if needed)
+    const motivations = Array.isArray(card.motivations)
+      ? card.motivations.map(m => typeof m === 'string' ? normalizeMotivation(m, '', []) : m).filter(Boolean)
+      : [];
+
+    // Show flags container for all actor cards
+    if (motivationFlagsContainer) {
+      motivationFlagsContainer.style.display = "block";
+      const flags = motivations[0]?.flags || MOTIVATION_DEFAULTS.flags;
+      if (motivationFlagCanMove) motivationFlagCanMove.checked = flags.canMove !== false;
+      if (motivationFlagPrefersStealth) motivationFlagPrefersStealth.checked = flags.prefersStealth === true;
+      if (motivationFlagPrefersCover) motivationFlagPrefersCover.checked = flags.prefersCover === true;
+      if (motivationFlagAggroRangeBoost) motivationFlagAggroRangeBoost.checked = flags.aggroRangeBoost === true;
+    }
+
+    // Find first selected motivation with patterns
+    const motivationWithPattern = motivations.find(m => m && MOTIVATION_PATTERNS[m.kind]);
+    if (motivationWithPattern && motivationPatternContainer && motivationPatternSelect) {
+      motivationPatternContainer.style.display = "block";
+      const patterns = MOTIVATION_PATTERNS[motivationWithPattern.kind] || [];
+      replaceChildren(motivationPatternSelect, patterns.map(pattern => {
+        const option = createDomElement(motivationPatternSelect, "option");
+        if (!option) return null;
+        option.value = pattern;
+        option.textContent = formatDisplayLabel(pattern, pattern);
+        if (motivationWithPattern.pattern === pattern) {
+          option.selected = true;
+        }
+        return option;
+      }).filter(Boolean));
+    } else if (motivationPatternContainer) {
+      motivationPatternContainer.style.display = "none";
+    }
+
+    // Find first selected motivation with goals
+    const motivationWithGoal = motivations.find(m => m && MOTIVATION_GOAL_TYPES[m.kind]);
+    if (motivationWithGoal && motivationGoalContainer && motivationGoalTypeSelect) {
+      motivationGoalContainer.style.display = "block";
+      const goalTypes = MOTIVATION_GOAL_TYPES[motivationWithGoal.kind] || [];
+      replaceChildren(motivationGoalTypeSelect, goalTypes.map(goalType => {
+        const option = createDomElement(motivationGoalTypeSelect, "option");
+        if (!option) return null;
+        option.value = goalType;
+        option.textContent = formatDisplayLabel(goalType, goalType);
+        if (motivationWithGoal.goal?.type === goalType) {
+          option.selected = true;
+        }
+        return option;
+      }).filter(Boolean));
+      // TODO: Render goal params based on goal type
+    } else if (motivationGoalContainer) {
+      motivationGoalContainer.style.display = "none";
+    }
+
+    // Show intensity slider if any motivations are selected
+    if (motivations.length > 0 && motivationIntensityContainer && motivationIntensityInput && motivationIntensityValue) {
+      motivationIntensityContainer.style.display = "block";
+      const intensity = motivations[0]?.intensity || MOTIVATION_DEFAULTS.intensity;
+      motivationIntensityInput.value = String(intensity);
+      motivationIntensityValue.textContent = String(intensity);
+    } else if (motivationIntensityContainer) {
+      motivationIntensityContainer.style.display = "none";
+    }
+  }
+
   function renderLeftRail() {
     const catalog = buildPropertyCatalog();
     renderPropertyChips(leftRailType, "type", catalog.type);
     renderPropertyChipPairs(leftRailAffinities, "affinities", catalog.affinities);
     renderPropertyChips(leftRailExpressions, "expressions", catalog.expressions);
     renderMotivationPairChips(leftRailMotivations, catalog.motivations);
+    renderMotivationDetails();
   }
 
   function addCard(initial = {}) {
@@ -3197,6 +3317,97 @@ export function wireDesignGuidance({
       });
       budgetSplitDefenderInput.value = String(state.budgetSplitPercent.defender);
     }
+
+    // Motivation detail controls
+    if (motivationIntensityInput?.addEventListener) {
+      motivationIntensityInput.addEventListener("input", () => {
+        if (!state.activeCard) return;
+        const intensity = parseInt(motivationIntensityInput.value, 10);
+        if (!Number.isInteger(intensity) || intensity < 1 || intensity > 10) return;
+        if (motivationIntensityValue) motivationIntensityValue.textContent = String(intensity);
+
+        // Update all motivations with new intensity
+        const motivations = Array.isArray(state.activeCard.motivations)
+          ? state.activeCard.motivations.map(m => {
+              const obj = typeof m === 'string' ? normalizeMotivation(m, '', []) : m;
+              return obj ? { ...obj, intensity } : obj;
+            }).filter(Boolean)
+          : [];
+        state.activeCard.motivations = motivations;
+        recompute();
+      });
+    }
+
+    if (motivationPatternSelect?.addEventListener) {
+      motivationPatternSelect.addEventListener("change", () => {
+        if (!state.activeCard) return;
+        const pattern = motivationPatternSelect.value;
+
+        // Update the motivation that supports patterns
+        const motivations = Array.isArray(state.activeCard.motivations)
+          ? state.activeCard.motivations.map(m => {
+              const obj = typeof m === 'string' ? normalizeMotivation(m, '', []) : m;
+              if (obj && MOTIVATION_PATTERNS[obj.kind]) {
+                return { ...obj, pattern };
+              }
+              return obj;
+            }).filter(Boolean)
+          : [];
+        state.activeCard.motivations = motivations;
+        recompute();
+      });
+    }
+
+    if (motivationGoalTypeSelect?.addEventListener) {
+      motivationGoalTypeSelect.addEventListener("change", () => {
+        if (!state.activeCard) return;
+        const goalType = motivationGoalTypeSelect.value;
+
+        // Update the motivation that supports goals
+        const motivations = Array.isArray(state.activeCard.motivations)
+          ? state.activeCard.motivations.map(m => {
+              const obj = typeof m === 'string' ? normalizeMotivation(m, '', []) : m;
+              if (obj && MOTIVATION_GOAL_TYPES[obj.kind]) {
+                return { ...obj, goal: { type: goalType } };
+              }
+              return obj;
+            }).filter(Boolean)
+          : [];
+        state.activeCard.motivations = motivations;
+        recompute();
+      });
+    }
+
+    // Motivation flags
+    const flagHandlers = [
+      { input: motivationFlagCanMove, flag: 'canMove' },
+      { input: motivationFlagPrefersStealth, flag: 'prefersStealth' },
+      { input: motivationFlagPrefersCover, flag: 'prefersCover' },
+      { input: motivationFlagAggroRangeBoost, flag: 'aggroRangeBoost' },
+    ];
+    flagHandlers.forEach(({ input, flag }) => {
+      if (input?.addEventListener) {
+        input.addEventListener("change", () => {
+          if (!state.activeCard) return;
+          const checked = input.checked;
+
+          // Update all motivations with new flag
+          const motivations = Array.isArray(state.activeCard.motivations)
+            ? state.activeCard.motivations.map(m => {
+                const obj = typeof m === 'string' ? normalizeMotivation(m, '', []) : m;
+                if (obj) {
+                  const flags = { ...(obj.flags || MOTIVATION_DEFAULTS.flags), [flag]: checked };
+                  return { ...obj, flags };
+                }
+                return obj;
+              }).filter(Boolean)
+            : [];
+          state.activeCard.motivations = motivations;
+          recompute();
+        });
+      }
+    });
+
     recompute();
   }
 
