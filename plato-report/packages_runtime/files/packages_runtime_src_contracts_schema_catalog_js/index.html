@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - packages/runtime/src/contracts/schema-catalog.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>packages/runtime/src/contracts/schema-catalog.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">76.83</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">274</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">23.01</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">1.79</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">const CATALOG = [
+  {
+    schema: &quot;agent-kernel/CapturedInputArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Captured external adapter payload inputs.&quot;,
+    fields: [&quot;meta&quot;, &quot;source&quot;, &quot;contentType&quot;, &quot;payload&quot;, &quot;payloadRef&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/BuildSpec&quot;,
+    schemaVersion: 1,
+    description: &quot;Agent-facing build specification.&quot;,
+    fields: [&quot;meta&quot;, &quot;intent&quot;, &quot;plan&quot;, &quot;configurator&quot;, &quot;budget&quot;, &quot;adapters&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/IntentEnvelope&quot;,
+    schemaVersion: 1,
+    description: &quot;Normalized intake intent for Director.&quot;,
+    fields: [&quot;meta&quot;, &quot;source&quot;, &quot;intent&quot;, &quot;context&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/PlanArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Structured plan produced by Director.&quot;,
+    fields: [&quot;meta&quot;, &quot;intentRef&quot;, &quot;plan&quot;, &quot;directives&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/BudgetRequest&quot;,
+    schemaVersion: 1,
+    description: &quot;Request for allocator budget evaluation.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/BudgetReceipt&quot;,
+    schemaVersion: 1,
+    description: &quot;Allocator decision on requested caps/limits.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/BudgetArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Token budget input.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/BudgetReceiptArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Token spend receipt output.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/SpendProposal&quot;,
+    schemaVersion: 1,
+    description: &quot;Configurator spend proposal.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/PriceList&quot;,
+    schemaVersion: 1,
+    description: &quot;Price list for token budgeting.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/BudgetAllocationArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Allocator budget allocation output.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/BudgetLedgerArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Budget ledger of spend events.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/ExecutionPolicy&quot;,
+    schemaVersion: 1,
+    description: &quot;Moderator execution ordering policy.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/SimConfigArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Executable simulation configuration.&quot;,
+    fields: [&quot;meta&quot;, &quot;planRef&quot;, &quot;budgetReceiptRef&quot;, &quot;affinityRulesRef&quot;, &quot;motivationRulesRef&quot;, &quot;seed&quot;, &quot;executionPolicy&quot;, &quot;layout&quot;, &quot;constraints&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/InitialStateArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Initial actor state for a run.&quot;,
+    fields: [&quot;meta&quot;, &quot;simConfigRef&quot;, &quot;affinityRulesRef&quot;, &quot;motivationRulesRef&quot;, &quot;actors&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/AffinityPresetArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Affinity preset catalog.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/ActorLoadoutArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Actor affinity loadouts.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/AffinityRulesArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Affinity behavior, tier, mana, and interaction rules.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/MotivationRulesArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Motivation behavior, profile, and design-cost rules.&quot;,
+    fields: [&quot;meta&quot;, &quot;balanceVersion&quot;, &quot;contentHash&quot;, &quot;rulesetName&quot;, &quot;globals&quot;, &quot;motivations&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/AffinitySummary&quot;,
+    schemaVersion: 1,
+    description: &quot;Resolved affinity/trap summary.&quot;,
+    fields: [&quot;meta&quot;, &quot;presetsRef&quot;, &quot;loadoutsRef&quot;, &quot;affinityRulesRef&quot;, &quot;simConfigRef&quot;, &quot;initialStateRef&quot;, &quot;actors&quot;, &quot;traps&quot;, &quot;ambientPressure&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/ActorState&quot;,
+    schemaVersion: 1,
+    description: &quot;Canonical actor state.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/SolverRequest&quot;,
+    schemaVersion: 1,
+    description: &quot;Solver request artifact.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/SolverResult&quot;,
+    schemaVersion: 1,
+    description: &quot;Solver result artifact.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/Action&quot;,
+    schemaVersion: 1,
+    description: &quot;Core action proposal.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/Observation&quot;,
+    schemaVersion: 1,
+    description: &quot;Core observation record.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/Event&quot;,
+    schemaVersion: 1,
+    description: &quot;Core event record.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/Effect&quot;,
+    schemaVersion: 1,
+    description: &quot;Core effect record.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/Snapshot&quot;,
+    schemaVersion: 1,
+    description: &quot;Core snapshot record.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/DebugDump&quot;,
+    schemaVersion: 1,
+    description: &quot;Debug-only dump artifact.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/TickFrame&quot;,
+    schemaVersion: 1,
+    description: &quot;Moderator tick frame output.&quot;,
+  },
+  {
+    schema: &quot;agent-kernel/TelemetryRecord&quot;,
+    schemaVersion: 1,
+    description: &quot;Annotator telemetry record.&quot;,
+    fields: [&quot;meta&quot;, &quot;scope&quot;, &quot;tick&quot;, &quot;persona&quot;, &quot;data&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/RunSummary&quot;,
+    schemaVersion: 1,
+    description: &quot;Run summary output.&quot;,
+    fields: [&quot;meta&quot;, &quot;intentRef&quot;, &quot;planRef&quot;, &quot;simConfigRef&quot;, &quot;budgetReceiptRef&quot;, &quot;affinityRulesRef&quot;, &quot;motivationRulesRef&quot;, &quot;outcome&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/ResourceBundleArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Canonical IPFS-backed visual resource bundle metadata.&quot;,
+    fields: [&quot;meta&quot;, &quot;bundleId&quot;, &quot;bundleVersion&quot;, &quot;tileWidth&quot;, &quot;tileHeight&quot;, &quot;gatewayBaseUrl&quot;, &quot;assets&quot;, &quot;mappings&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/ResourceBundleArtifact&quot;,
+    schemaVersion: 2,
+    description: &quot;Canonical visual resource bundle metadata with generated asset payloads.&quot;,
+    fields: [&quot;meta&quot;, &quot;bundleId&quot;, &quot;bundleVersion&quot;, &quot;tileWidth&quot;, &quot;tileHeight&quot;, &quot;gatewayBaseUrl&quot;, &quot;assets&quot;, &quot;mappings&quot;],
+  },
+  {
+    schema: &quot;agent-kernel/IpfsPackageArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Canonical IPFS package root manifest.&quot;,
+    fields: [
+      &quot;meta&quot;,
+      &quot;packageId&quot;,
+      &quot;packageVersion&quot;,
+      &quot;scope&quot;,
+      &quot;rootCid&quot;,
+      &quot;previousPackageCid&quot;,
+      &quot;corePath&quot;,
+      &quot;latestSessionIndexPath&quot;,
+      &quot;requiredCoreFiles&quot;,
+      &quot;optionalCoreFiles&quot;,
+      &quot;latestSession&quot;,
+      &quot;sessions&quot;,
+    ],
+  },
+  {
+    schema: &quot;agent-kernel/IpfsSessionManifestArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Session checkpoint manifest inside an IPFS package.&quot;,
+    fields: [
+      &quot;meta&quot;,
+      &quot;packageId&quot;,
+      &quot;parentPackageCid&quot;,
+      &quot;sessionId&quot;,
+      &quot;checkpointId&quot;,
+      &quot;checkpointPath&quot;,
+      &quot;requiredSessionFiles&quot;,
+      &quot;optionalSessionFiles&quot;,
+      &quot;resumeMode&quot;,
+      &quot;status&quot;,
+    ],
+  },
+  {
+    schema: &quot;agent-kernel/RuntimeCheckpointArtifact&quot;,
+    schemaVersion: 1,
+    description: &quot;Resumable runtime checkpoint snapshot for IPFS session packages.&quot;,
+    fields: [
+      &quot;meta&quot;,
+      &quot;sessionId&quot;,
+      &quot;checkpointId&quot;,
+      &quot;tick&quot;,
+      &quot;status&quot;,
+      &quot;resumeMode&quot;,
+      &quot;simConfigRef&quot;,
+      &quot;initialStateRef&quot;,
+      &quot;runSummaryRef&quot;,
+      &quot;actionLogRef&quot;,
+      &quot;state&quot;,
+      &quot;artifacts&quot;,
+    ],
+  },
+];
+
+function sortSchemas(entries) {
+  return entries.slice().sort((a, b) =&gt; a.schema.localeCompare(b.schema));
+}
+
+function schemaKey(schema, schemaVersion) {
+  return `${schema}@${schemaVersion}`;
+}
+
+export function filterSchemaCatalogEntries({ schemaRefs, entries = CATALOG } = {}) {
+  if (!Array.isArray(schemaRefs) || schemaRefs.length === 0) {
+    return sortSchemas(entries);
+  }
+  const allowed = new Set();
+  schemaRefs.forEach((ref) =&gt; {
+    if (!ref || typeof ref !== &quot;object&quot;) {
+      return;
+    }
+    const schema = ref.schema;
+    const schemaVersion = Number.isFinite(ref.schemaVersion) ? ref.schemaVersion : 1;
+    if (typeof schema !== &quot;string&quot; || schema.length === 0) {
+      return;
+    }
+    allowed.add(schemaKey(schema, schemaVersion));
+  });
+  return sortSchemas(entries.filter((entry) =&gt; allowed.has(schemaKey(entry.schema, entry.schemaVersion))));
+}
+
+export function createSchemaCatalog({ clock = () =&gt; new Date().toISOString(), schemaRefs } = {}) {
+  const schemas = filterSchemaCatalogEntries({ schemaRefs });
+  return {
+    generatedAt: clock(),
+    schemas,
+  };
+}</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

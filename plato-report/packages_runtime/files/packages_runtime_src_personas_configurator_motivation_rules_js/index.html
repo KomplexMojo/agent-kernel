@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - packages/runtime/src/personas/configurator/motivation-rules.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>packages/runtime/src/personas/configurator/motivation-rules.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">67.77</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">498</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">55.08</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">6.11</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">export const BEHAVIOR_COMPLEXITY_CLASSES = Object.freeze([&quot;instinctual&quot;, &quot;tactical&quot;, &quot;strategic&quot;]);
+
+export const MOTIVATION_AXIS_VALUES = Object.freeze({
+  mobility: Object.freeze([&quot;stationary&quot;, &quot;exploring&quot;, &quot;patrolling&quot;]),
+  combat: Object.freeze([&quot;none&quot;, &quot;attacking&quot;, &quot;defending&quot;]),
+  cognition: Object.freeze([&quot;none&quot;, &quot;reflexive&quot;, &quot;goal_oriented&quot;, &quot;strategy_focused&quot;]),
+});
+
+export const DEFAULT_MOTIVATION_PROFILE = Object.freeze({
+  mobility: &quot;stationary&quot;,
+  combat: &quot;none&quot;,
+  cognition: &quot;none&quot;,
+});
+
+export const DEFAULT_MOTIVATION_FLAGS = Object.freeze({
+  canMove: true,
+  prefersStealth: false,
+  prefersCover: false,
+  aggroRangeBoost: false,
+});
+
+export const MOTIVATION_KIND_IDS = Object.freeze({
+  random: &quot;motivation_random&quot;,
+  stationary: &quot;motivation_stationary&quot;,
+  exploring: &quot;motivation_exploring&quot;,
+  attacking: &quot;motivation_attacking&quot;,
+  defending: &quot;motivation_defending&quot;,
+  patrolling: &quot;motivation_patrolling&quot;,
+  reflexive: &quot;motivation_reflexive&quot;,
+  goal_oriented: &quot;motivation_goal_oriented&quot;,
+  strategy_focused: &quot;motivation_strategy_focused&quot;,
+});
+
+export const MOTIVATION_PROFILE_ITEM_IDS = Object.freeze({
+  mobility: Object.freeze({
+    stationary: &quot;mobility_stationary&quot;,
+    exploring: &quot;mobility_exploring&quot;,
+    patrolling: &quot;mobility_patrolling&quot;,
+  }),
+  combat: Object.freeze({
+    none: &quot;combat_none&quot;,
+    attacking: &quot;combat_attacking&quot;,
+    defending: &quot;combat_defending&quot;,
+  }),
+  cognition: Object.freeze({
+    none: &quot;cognition_none&quot;,
+    reflexive: &quot;cognition_reflexive&quot;,
+    goal_oriented: &quot;cognition_goal_oriented&quot;,
+    strategy_focused: &quot;cognition_strategy_focused&quot;,
+  }),
+});
+
+export const MOTIVATION_FLAG_KEYS = Object.freeze(Object.keys(DEFAULT_MOTIVATION_FLAGS));
+export const MOTIVATION_KINDS = Object.freeze(Object.keys(MOTIVATION_KIND_IDS));
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isPlainObject(value) {
+  return value &amp;&amp; typeof value === &quot;object&quot; &amp;&amp; !Array.isArray(value);
+}
+
+function isNonEmptyString(value) {
+  return typeof value === &quot;string&quot; &amp;&amp; value.trim().length &gt; 0;
+}
+
+function isNonNegativeInteger(value) {
+  return Number.isInteger(value) &amp;&amp; value &gt;= 0;
+}
+
+function addError(errors, field, code) {
+  errors.push({ field, code });
+}
+
+function normalizeAxisValue(axis, value, fallback, fieldBase, errors) {
+  const allowed = MOTIVATION_AXIS_VALUES[axis] || [];
+  if (value !== undefined &amp;&amp; typeof value !== &quot;string&quot;) {
+    addError(errors, fieldBase, &quot;invalid_axis_value&quot;);
+    return fallback;
+  }
+  if (typeof value === &quot;string&quot;) {
+    const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, &quot;_&quot;);
+    if (allowed.includes(normalized)) return normalized;
+    addError(errors, fieldBase, &quot;invalid_axis_value&quot;);
+  }
+  return fallback;
+}
+
+function normalizeProfile(profile, fieldBase, errors) {
+  const value = isPlainObject(profile) ? profile : {};
+  return {
+    mobility: normalizeAxisValue(&quot;mobility&quot;, value.mobility, DEFAULT_MOTIVATION_PROFILE.mobility, `${fieldBase}.mobility`, errors),
+    combat: normalizeAxisValue(&quot;combat&quot;, value.combat, DEFAULT_MOTIVATION_PROFILE.combat, `${fieldBase}.combat`, errors),
+    cognition: normalizeAxisValue(&quot;cognition&quot;, value.cognition, DEFAULT_MOTIVATION_PROFILE.cognition, `${fieldBase}.cognition`, errors),
+  };
+}
+
+function normalizeFlags(flags, fieldBase, errors) {
+  if (flags === undefined) {
+    return { ...DEFAULT_MOTIVATION_FLAGS };
+  }
+  if (!isPlainObject(flags)) {
+    addError(errors, fieldBase, &quot;invalid_flags&quot;);
+    return { ...DEFAULT_MOTIVATION_FLAGS };
+  }
+  const normalized = { ...DEFAULT_MOTIVATION_FLAGS };
+  Object.entries(flags).forEach(([key, value]) =&gt; {
+    if (!MOTIVATION_FLAG_KEYS.includes(key)) {
+      addError(errors, `${fieldBase}.${key}`, &quot;unknown_flag&quot;);
+      return;
+    }
+    if (typeof value !== &quot;boolean&quot;) {
+      addError(errors, `${fieldBase}.${key}`, &quot;invalid_flag_value&quot;);
+      return;
+    }
+    normalized[key] = value;
+  });
+  return normalized;
+}
+
+function normalizePatternList(patterns, fieldBase, errors) {
+  if (patterns === undefined) return [];
+  if (!Array.isArray(patterns)) {
+    addError(errors, fieldBase, &quot;invalid_list&quot;);
+    return [];
+  }
+  const seen = new Set();
+  const value = [];
+  patterns.forEach((pattern, index) =&gt; {
+    if (!isNonEmptyString(pattern)) {
+      addError(errors, `${fieldBase}[${index}]`, &quot;invalid_pattern&quot;);
+      return;
+    }
+    const normalized = pattern.trim().toLowerCase();
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    value.push(normalized);
+  });
+  return value;
+}
+
+function normalizeProfileCosts(profileCosts, fieldBase, errors) {
+  if (!isPlainObject(profileCosts)) {
+    addError(errors, fieldBase, &quot;invalid_profile_costs&quot;);
+    return null;
+  }
+  const output = {};
+  Object.entries(MOTIVATION_AXIS_VALUES).forEach(([axis, allowedValues]) =&gt; {
+    const axisBase = `${fieldBase}.${axis}`;
+    const rawAxis = isPlainObject(profileCosts[axis]) ? profileCosts[axis] : {};
+    output[axis] = {};
+    allowedValues.forEach((value) =&gt; {
+      const rawCost = rawAxis[value];
+      if (!isNonNegativeInteger(rawCost)) {
+        addError(errors, `${axisBase}.${value}`, &quot;invalid_non_negative_int&quot;);
+        output[axis][value] = 0;
+        return;
+      }
+      output[axis][value] = rawCost;
+    });
+  });
+  return output;
+}
+
+function normalizeReasoningClasses(reasoningClasses, fieldBase, errors) {
+  if (!isPlainObject(reasoningClasses)) {
+    addError(errors, fieldBase, &quot;invalid_reasoning_classes&quot;);
+    return null;
+  }
+  const output = {};
+  MOTIVATION_AXIS_VALUES.cognition.forEach((value) =&gt; {
+    const complexityClass = reasoningClasses[value];
+    if (!BEHAVIOR_COMPLEXITY_CLASSES.includes(complexityClass)) {
+      addError(errors, `${fieldBase}.${value}`, &quot;invalid_complexity_class&quot;);
+      output[value] = &quot;instinctual&quot;;
+      return;
+    }
+    output[value] = complexityClass;
+  });
+  return output;
+}
+
+function normalizeGlobals(globals, errors) {
+  if (!isPlainObject(globals)) {
+    addError(errors, &quot;globals&quot;, &quot;invalid_globals&quot;);
+    return null;
+  }
+  const defaultIntensity = globals.defaultIntensity;
+  const maxIntensity = globals.maxIntensity;
+  if (!Number.isInteger(defaultIntensity) || defaultIntensity &lt; 1) {
+    addError(errors, &quot;globals.defaultIntensity&quot;, &quot;invalid_positive_int&quot;);
+  }
+  if (!Number.isInteger(maxIntensity) || maxIntensity &lt; 1) {
+    addError(errors, &quot;globals.maxIntensity&quot;, &quot;invalid_positive_int&quot;);
+  }
+  if (Number.isInteger(defaultIntensity) &amp;&amp; Number.isInteger(maxIntensity) &amp;&amp; defaultIntensity &gt; maxIntensity) {
+    addError(errors, &quot;globals.maxIntensity&quot;, &quot;less_than_default_intensity&quot;);
+  }
+  return {
+    defaultIntensity: Number.isInteger(defaultIntensity) &amp;&amp; defaultIntensity &gt; 0 ? defaultIntensity : 1,
+    maxIntensity: Number.isInteger(maxIntensity) &amp;&amp; maxIntensity &gt; 0 ? maxIntensity : 10,
+    reasoningClasses: normalizeReasoningClasses(globals.reasoningClasses, &quot;globals.reasoningClasses&quot;, errors),
+    profileCosts: normalizeProfileCosts(globals.profileCosts, &quot;globals.profileCosts&quot;, errors),
+  };
+}
+
+function normalizeMotivationRule(entry, fieldBase, errors) {
+  if (!isPlainObject(entry)) {
+    addError(errors, fieldBase, &quot;invalid_motivation_rule&quot;);
+    return null;
+  }
+  const kind = typeof entry.kind === &quot;string&quot; ? entry.kind.trim().toLowerCase().replace(/[\s-]+/g, &quot;_&quot;) : &quot;&quot;;
+  if (!MOTIVATION_KINDS.includes(kind)) {
+    addError(errors, `${fieldBase}.kind`, &quot;invalid_kind&quot;);
+  }
+  const patterns = normalizePatternList(entry.patterns, `${fieldBase}.patterns`, errors);
+  const defaultPattern = entry.defaultPattern === undefined
+    ? (patterns[0] || undefined)
+    : isNonEmptyString(entry.defaultPattern)
+      ? entry.defaultPattern.trim().toLowerCase()
+      : undefined;
+  if (defaultPattern !== undefined &amp;&amp; patterns.length &gt; 0 &amp;&amp; !patterns.includes(defaultPattern)) {
+    addError(errors, `${fieldBase}.defaultPattern`, &quot;unknown_default_pattern&quot;);
+  }
+  if (entry.defaultDesignCostTokens !== undefined &amp;&amp; !isNonNegativeInteger(entry.defaultDesignCostTokens)) {
+    addError(errors, `${fieldBase}.defaultDesignCostTokens`, &quot;invalid_non_negative_int&quot;);
+  }
+  return {
+    kind,
+    profile: normalizeProfile(entry.profile, `${fieldBase}.profile`, errors),
+    exclusiveGroup: isNonEmptyString(entry.exclusiveGroup) ? entry.exclusiveGroup.trim() : undefined,
+    displayGroup: isNonEmptyString(entry.displayGroup) ? entry.displayGroup.trim() : undefined,
+    patterns,
+    defaultPattern,
+    defaultFlags: normalizeFlags(entry.defaultFlags, `${fieldBase}.defaultFlags`, errors),
+    defaultDesignCostTokens: isNonNegativeInteger(entry.defaultDesignCostTokens) ? entry.defaultDesignCostTokens : 0,
+  };
+}
+
+export function normalizeMotivationRulesArtifact(input = {}) {
+  const errors = [];
+  const warnings = [];
+  if (!isPlainObject(input)) {
+    addError(errors, &quot;artifact&quot;, &quot;invalid_artifact&quot;);
+    return { ok: false, errors, warnings, value: null };
+  }
+  if (input.schema !== &quot;agent-kernel/MotivationRulesArtifact&quot;) {
+    addError(errors, &quot;schema&quot;, &quot;invalid_schema&quot;);
+  }
+  if (input.schemaVersion !== 1) {
+    addError(errors, &quot;schemaVersion&quot;, &quot;invalid_schema_version&quot;);
+  }
+  if (!isPlainObject(input.meta) || !isNonEmptyString(input.meta.id)) {
+    addError(errors, &quot;meta&quot;, &quot;invalid_meta&quot;);
+  }
+  if (!isNonEmptyString(input.balanceVersion)) {
+    addError(errors, &quot;balanceVersion&quot;, &quot;invalid_balance_version&quot;);
+  }
+  if (!isNonEmptyString(input.contentHash)) {
+    addError(errors, &quot;contentHash&quot;, &quot;invalid_content_hash&quot;);
+  }
+  if (!isNonEmptyString(input.rulesetName)) {
+    addError(errors, &quot;rulesetName&quot;, &quot;invalid_ruleset_name&quot;);
+  }
+  if (!Array.isArray(input.motivations)) {
+    addError(errors, &quot;motivations&quot;, &quot;invalid_list&quot;);
+    return { ok: false, errors, warnings, value: null };
+  }
+
+  const globals = normalizeGlobals(input.globals, errors);
+  const motivations = input.motivations
+    .map((entry, index) =&gt; normalizeMotivationRule(entry, `motivations[${index}]`, errors))
+    .filter(Boolean);
+  const seenKinds = new Set();
+  motivations.forEach((entry, index) =&gt; {
+    if (seenKinds.has(entry.kind)) {
+      addError(errors, `motivations[${index}].kind`, &quot;duplicate_kind&quot;);
+    }
+    seenKinds.add(entry.kind);
+  });
+  MOTIVATION_KINDS.forEach((kind) =&gt; {
+    if (!seenKinds.has(kind)) {
+      addError(errors, &quot;motivations&quot;, `missing_motivation_${kind}`);
+    }
+  });
+
+  const ok = errors.length === 0;
+  return {
+    ok,
+    errors,
+    warnings,
+    value: ok
+      ? {
+        schema: input.schema,
+        schemaVersion: input.schemaVersion,
+        meta: cloneJson(input.meta),
+        balanceVersion: input.balanceVersion,
+        contentHash: input.contentHash,
+        rulesetName: input.rulesetName,
+        globals,
+        motivations,
+      }
+      : null,
+  };
+}
+
+export function findMotivationRule(rules, kind) {
+  const normalizedRules = resolveMotivationRules(rules);
+  const normalizedKind = typeof kind === &quot;string&quot; ? kind.trim().toLowerCase().replace(/[\s-]+/g, &quot;_&quot;) : &quot;&quot;;
+  if (!normalizedKind) return null;
+  return normalizedRules.motivations.find((entry) =&gt; entry.kind === normalizedKind) || null;
+}
+
+export function resolveMotivationRules(rules) {
+  if (!rules) return DEFAULT_MOTIVATION_RULES;
+  const normalized = normalizeMotivationRulesArtifact(rules);
+  return normalized.ok ? normalized.value : DEFAULT_MOTIVATION_RULES;
+}
+
+export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
+  schema: &quot;agent-kernel/MotivationRulesArtifact&quot;,
+  schemaVersion: 1,
+  meta: Object.freeze({
+    id: &quot;motivation_rules_basic&quot;,
+    runId: &quot;run_motivation_rules_basic&quot;,
+    createdAt: &quot;2026-03-22T00:00:00.000Z&quot;,
+    producedBy: &quot;runtime-defaults&quot;,
+  }),
+  balanceVersion: &quot;2026.03.22&quot;,
+  contentHash: &quot;sha256:motivation-rules-basic&quot;,
+  rulesetName: &quot;Basic Motivation Rules&quot;,
+  globals: Object.freeze({
+    defaultIntensity: 1,
+    maxIntensity: 10,
+    reasoningClasses: Object.freeze({
+      none: &quot;instinctual&quot;,
+      reflexive: &quot;instinctual&quot;,
+      goal_oriented: &quot;tactical&quot;,
+      strategy_focused: &quot;strategic&quot;,
+    }),
+    profileCosts: Object.freeze({
+      mobility: Object.freeze({
+        stationary: 0,
+        exploring: 1,
+        patrolling: 2,
+      }),
+      combat: Object.freeze({
+        none: 0,
+        attacking: 5,
+        defending: 4,
+      }),
+      cognition: Object.freeze({
+        none: 0,
+        reflexive: 1,
+        goal_oriented: 5,
+        strategy_focused: 20,
+      }),
+    }),
+  }),
+  motivations: Object.freeze([
+    Object.freeze({
+      kind: &quot;random&quot;,
+      profile: Object.freeze({ mobility: &quot;exploring&quot;, combat: &quot;none&quot;, cognition: &quot;reflexive&quot; }),
+      exclusiveGroup: &quot;planning&quot;,
+      displayGroup: &quot;planning&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 0,
+    }),
+    Object.freeze({
+      kind: &quot;stationary&quot;,
+      profile: Object.freeze({ mobility: &quot;stationary&quot;, combat: &quot;none&quot;, cognition: &quot;none&quot; }),
+      exclusiveGroup: &quot;mobility&quot;,
+      displayGroup: &quot;mobility&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 0,
+    }),
+    Object.freeze({
+      kind: &quot;exploring&quot;,
+      profile: Object.freeze({ mobility: &quot;exploring&quot;, combat: &quot;none&quot;, cognition: &quot;reflexive&quot; }),
+      exclusiveGroup: &quot;mobility&quot;,
+      displayGroup: &quot;mobility&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 0,
+    }),
+    Object.freeze({
+      kind: &quot;attacking&quot;,
+      profile: Object.freeze({ mobility: &quot;exploring&quot;, combat: &quot;attacking&quot;, cognition: &quot;goal_oriented&quot; }),
+      exclusiveGroup: &quot;combat&quot;,
+      displayGroup: &quot;combat&quot;,
+      patterns: Object.freeze([&quot;melee&quot;, &quot;ranged&quot;, &quot;mixed&quot;]),
+      defaultPattern: &quot;melee&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 0,
+    }),
+    Object.freeze({
+      kind: &quot;defending&quot;,
+      profile: Object.freeze({ mobility: &quot;stationary&quot;, combat: &quot;defending&quot;, cognition: &quot;goal_oriented&quot; }),
+      exclusiveGroup: &quot;combat&quot;,
+      displayGroup: &quot;combat&quot;,
+      patterns: Object.freeze([&quot;hold_point&quot;, &quot;bodyguard&quot;]),
+      defaultPattern: &quot;hold_point&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 0,
+    }),
+    Object.freeze({
+      kind: &quot;patrolling&quot;,
+      profile: Object.freeze({ mobility: &quot;patrolling&quot;, combat: &quot;none&quot;, cognition: &quot;reflexive&quot; }),
+      exclusiveGroup: &quot;mobility&quot;,
+      displayGroup: &quot;mobility_route&quot;,
+      patterns: Object.freeze([&quot;loop&quot;, &quot;ping_pong&quot;, &quot;random_walk&quot;]),
+      defaultPattern: &quot;loop&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 0,
+    }),
+    Object.freeze({
+      kind: &quot;reflexive&quot;,
+      profile: Object.freeze({ mobility: &quot;stationary&quot;, combat: &quot;none&quot;, cognition: &quot;reflexive&quot; }),
+      exclusiveGroup: &quot;response&quot;,
+      displayGroup: &quot;response&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 1,
+    }),
+    Object.freeze({
+      kind: &quot;goal_oriented&quot;,
+      profile: Object.freeze({ mobility: &quot;stationary&quot;, combat: &quot;none&quot;, cognition: &quot;goal_oriented&quot; }),
+      exclusiveGroup: &quot;response&quot;,
+      displayGroup: &quot;response&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 5,
+    }),
+    Object.freeze({
+      kind: &quot;strategy_focused&quot;,
+      profile: Object.freeze({ mobility: &quot;stationary&quot;, combat: &quot;none&quot;, cognition: &quot;strategy_focused&quot; }),
+      exclusiveGroup: &quot;planning&quot;,
+      displayGroup: &quot;planning&quot;,
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 20,
+    }),
+  ]),
+});
+
+const DEFAULT_MOTIVATION_RULES_RESULT = normalizeMotivationRulesArtifact(DEFAULT_MOTIVATION_RULES_ARTIFACT);
+
+if (!DEFAULT_MOTIVATION_RULES_RESULT.ok) {
+  throw new Error(
+    `Default motivation rules invalid: ${DEFAULT_MOTIVATION_RULES_RESULT.errors.map((entry) =&gt; `${entry.field}:${entry.code}`).join(&quot;, &quot;)}`,
+  );
+}
+
+export const DEFAULT_MOTIVATION_RULES = Object.freeze(DEFAULT_MOTIVATION_RULES_RESULT.value);
+export const MOTIVATION_REASONING_CLASSES = Object.freeze({ ...DEFAULT_MOTIVATION_RULES.globals.reasoningClasses });
+export const MOTIVATION_COST_DEFAULTS = Object.freeze(
+  Object.entries(MOTIVATION_PROFILE_ITEM_IDS).reduce((acc, [axis, values]) =&gt; {
+    Object.entries(values).forEach(([value, id]) =&gt; {
+      acc[id] = DEFAULT_MOTIVATION_RULES.globals.profileCosts[axis][value] || 0;
+    });
+    return acc;
+  }, {}),
+);
+
+function buildRuleGroups(rules, fieldName) {
+  return Object.freeze(
+    Array.from(
+      rules.motivations.reduce((groups, entry) =&gt; {
+        if (!entry[fieldName]) return groups;
+        if (!groups.has(entry[fieldName])) {
+          groups.set(entry[fieldName], []);
+        }
+        groups.get(entry[fieldName]).push(entry.kind);
+        return groups;
+      }, new Map()).entries(),
+    ).map(([id, kinds]) =&gt; Object.freeze({ id, kinds: Object.freeze(kinds.slice()) })),
+  );
+}
+
+function buildPatternMap(rules) {
+  return Object.freeze(
+    rules.motivations.reduce((acc, entry) =&gt; {
+      if (Array.isArray(entry.patterns) &amp;&amp; entry.patterns.length &gt; 0) {
+        acc[entry.kind] = Object.freeze(entry.patterns.slice());
+      }
+      return acc;
+    }, {}),
+  );
+}
+
+export function getMotivationExclusiveGroups({ rules } = {}) {
+  return buildRuleGroups(resolveMotivationRules(rules), &quot;exclusiveGroup&quot;);
+}
+
+export function getMotivationDisplayGroups({ rules } = {}) {
+  return buildRuleGroups(resolveMotivationRules(rules), &quot;displayGroup&quot;);
+}
+
+export function getMotivationPatterns({ rules } = {}) {
+  return buildPatternMap(resolveMotivationRules(rules));
+}</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

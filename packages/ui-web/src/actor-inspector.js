@@ -6,54 +6,17 @@ import {
   resolveAffinityBehaviorProfile,
   resolveMotivationBehaviorProfile,
 } from "../../runtime/src/personas/configurator/behavior-rules.js";
+import {
+  getAffinityIcon,
+  getCardTypeIcon,
+  getExpressionIcon,
+  getMotivationIcon,
+  getReasoningClassIcon,
+  getVitalIcon,
+} from "../../runtime/src/render/resource-icons.js";
 import { calculateCardValue } from "./design-guidance.js";
 
 const TYPE_ORDER = Object.freeze(["room", "delver", "warden"]);
-
-const TYPE_ICON_MAP = Object.freeze({
-  room: "🏛️",
-  delver: "⚔️",
-  warden: "🛡️",
-  untyped: "◻️",
-});
-
-const AFFINITY_ICON_MAP = Object.freeze({
-  fire: "🔥",
-  water: "💧",
-  earth: "🪨",
-  wind: "🌪️",
-  life: "🌿",
-  decay: "🧪",
-  corrode: "🧫",
-  fortify: "🧱",
-  light: "🌟",
-  dark: "🌑",
-});
-
-const EXPRESSION_ICON_MAP = Object.freeze({
-  push: "⬆️",
-  pull: "⬇️",
-  emit: "📡",
-});
-
-const MOTIVATION_ICON_MAP = Object.freeze({
-  random: "🎲",
-  stationary: "🧱",
-  exploring: "🧭",
-  attacking: "⚔️",
-  defending: "🛡️",
-  patrolling: "👣",
-  reflexive: "⚡",
-  goal_oriented: "🎯",
-  strategy_focused: "♟️",
-});
-
-const VITAL_ICON_MAP = Object.freeze({
-  health: "❤️",
-  mana: "🔷",
-  stamina: "👟",
-  durability: "🛡️",
-});
 
 const DELVER_KEYWORDS = Object.freeze(["attack", "delver", "assault", "intruder", "raider", "player"]);
 
@@ -74,28 +37,23 @@ function normalizeName(value, fallback = "") {
 }
 
 function iconForType(type) {
-  const normalized = normalizeCardType(type);
-  return TYPE_ICON_MAP[normalized] || TYPE_ICON_MAP.untyped;
+  return getCardTypeIcon(normalizeCardType(type));
 }
 
 function iconForAffinity(kind) {
-  const normalized = typeof kind === "string" ? kind.trim().toLowerCase() : "";
-  return AFFINITY_ICON_MAP[normalized] || "◈";
+  return getAffinityIcon(kind);
 }
 
 function iconForExpression(expression) {
-  const normalized = typeof expression === "string" ? expression.trim().toLowerCase() : "";
-  return EXPRESSION_ICON_MAP[normalized] || "✦";
+  return getExpressionIcon(expression);
 }
 
 function iconForMotivation(motivation) {
-  const normalized = typeof motivation === "string" ? motivation.trim().toLowerCase() : "";
-  return MOTIVATION_ICON_MAP[normalized] || "❖";
+  return getMotivationIcon(motivation);
 }
 
 function iconForVital(vital) {
-  const normalized = typeof vital === "string" ? vital.trim().toLowerCase() : "";
-  return VITAL_ICON_MAP[normalized] || "◦";
+  return getVitalIcon(vital);
 }
 
 function deriveTemplateInstanceId(templateId, index) {
@@ -867,13 +825,13 @@ export function createActorInspector({
         }
 
         chips.push(createIconChip(preview, {
-          icon: motivationState.reasoningClass === "strategic" ? "♟️" : motivationState.reasoningClass === "tactical" ? "🎯" : "⚡",
+          icon: getReasoningClassIcon(motivationState.reasoningClass),
           title: `Reasoning: ${describeReasoningClass(motivationState.reasoningClass)}`,
           className: "is-motivation",
         }));
         if (motivationState.complexityClass) {
           chips.push(createIconChip(preview, {
-            icon: motivationState.complexityClass === "strategic" ? "♟️" : motivationState.complexityClass === "tactical" ? "🎯" : "⚡",
+            icon: getReasoningClassIcon(motivationState.complexityClass),
             title: `Complexity: ${describeComplexityClass(motivationState.complexityClass)}`,
             className: "is-motivation",
           }));

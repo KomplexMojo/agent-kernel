@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Plato - packages/runtime/src/contracts/build-spec.js</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+
+  <link href="../../assets/css/vendor/morris.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/bootstrap.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/font-awesome.css" rel="stylesheet">
+  <link href="../../assets/css/vendor/codemirror.css" rel="stylesheet">
+  <link href="../../assets/css/plato.css" rel="stylesheet">
+  <link href="../../assets/css/plato-file.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="http://github.com/es-analysis/plato">Plato on Github</a>
+    <ul class="nav navbar-nav">
+      <li>
+        <a href="../../index.html">Report Home</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="jumbotron">
+  <div class="container">
+    <h1>packages/runtime/src/contracts/build-spec.js</h1>
+  </div>
+</div>
+
+<div class="container aggregate-stats">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Maintainability <a href="http://blogs.msdn.com/b/codeanalysis/archive/2007/11/20/maintainability-index-range-and-meaning.aspx"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="A value between 0 and 100 that represents the relative ease of maintaining the code. A high value means better maintainability." data-original-title="Maintainability Index"  data-container="body"></i></a></h2>
+      <p class="stat">61.02</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Lines of code <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h2>
+      <p class="stat">274</p>
+    </div>
+  </div>
+  <div class="row historical">
+    <div class="col-md-6">
+      <p id="chart_historical_maint" class="chart"></p>
+    </div>
+    <div class="col-md-6">
+      <p id="chart_historical_sloc" class="chart"></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="header">Difficulty  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="The difficulty measure is related to the difficulty of the program to write or understand." data-original-title="Difficulty" data-container="body"></i></a></h2>
+      <p class="stat">42.01</p>
+    </div>
+    <div class="col-md-6">
+      <h2 class="header">Estimated Errors  <a href="http://en.wikipedia.org/wiki/Halstead_complexity_measures"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Halstead's delivered bugs is an estimate for the number of errors in the implementation." data-original-title="Delivered Bugs" data-container="body"></i></a></h2>
+      <p class="stat">2.68</p>
+    </div>
+  </div>
+</div>
+
+<div class="container charts">
+  <div class="row">
+    <h2 class="header">Function weight</h2>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <h3 class="chart-header">By Complexity <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity"><i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="This metric counts the number of distinct paths through a block of code. Lower values are better." data-original-title="Cyclomatic Complexity" data-container="body"></i></a></h3>
+      <div id="fn-by-complexity" class="stat"></div>
+    </div>
+    <div class="col-md-6">
+      <h3 class="chart-header">By SLOC  <i class="icon icon-info-sign" rel="popover" data-placement="top" data-trigger="hover" data-content="Source Lines of Code / Logical Lines of Code" data-original-title="SLOC/LSLOC" data-container="body"></i></h3>
+      <div id="fn-by-sloc" class="stat"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <textarea id="file-source" class="col-md-12">export const BUILD_SPEC_SCHEMA = &quot;agent-kernel/BuildSpec&quot;;
+export const BUILD_SPEC_SCHEMA_VERSION = 1;
+
+const BUDGET_SCHEMA = &quot;agent-kernel/BudgetArtifact&quot;;
+const PRICE_LIST_SCHEMA = &quot;agent-kernel/PriceList&quot;;
+const BUDGET_RECEIPT_SCHEMA = &quot;agent-kernel/BudgetReceiptArtifact&quot;;
+
+function isObject(value) {
+  return value !== null &amp;&amp; typeof value === &quot;object&quot; &amp;&amp; !Array.isArray(value);
+}
+
+function isNonEmptyString(value) {
+  return typeof value === &quot;string&quot; &amp;&amp; value.trim().length &gt; 0;
+}
+
+function addError(errors, path, message) {
+  errors.push(`${path}: ${message}`);
+}
+
+function validateArtifactRef(value, path, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, &quot;expected object&quot;);
+    return;
+  }
+  if (!isNonEmptyString(value.id)) {
+    addError(errors, `${path}.id`, &quot;expected non-empty string&quot;);
+  }
+  if (!isNonEmptyString(value.schema)) {
+    addError(errors, `${path}.schema`, &quot;expected non-empty string&quot;);
+  }
+  if (!Number.isInteger(value.schemaVersion)) {
+    addError(errors, `${path}.schemaVersion`, &quot;expected integer&quot;);
+  }
+}
+
+function validateInlineArtifact(value, path, expectedSchema, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, &quot;expected object&quot;);
+    return;
+  }
+  if (value.schema !== expectedSchema) {
+    addError(errors, `${path}.schema`, `expected ${expectedSchema}`);
+  }
+  if (value.schemaVersion !== 1) {
+    addError(errors, `${path}.schemaVersion`, &quot;expected 1&quot;);
+  }
+}
+
+function validateOptionalString(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!isNonEmptyString(value)) {
+    addError(errors, path, &quot;expected non-empty string&quot;);
+  }
+}
+
+function validateOptionalNumber(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!Number.isFinite(value)) {
+    addError(errors, path, &quot;expected number&quot;);
+  }
+}
+
+function validateStringArray(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value) || !value.every(isNonEmptyString)) {
+    addError(errors, path, &quot;expected array of non-empty strings&quot;);
+  }
+}
+
+function validateRoomHints(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value)) {
+    addError(errors, path, &quot;expected array&quot;);
+    return;
+  }
+  value.forEach((room, index) =&gt; {
+    const basePath = `${path}[${index}]`;
+    if (!isObject(room)) {
+      addError(errors, basePath, &quot;expected object&quot;);
+      return;
+    }
+    validateOptionalString(room.affinity, `${basePath}.affinity`, errors);
+    validateOptionalString(room.trap, `${basePath}.trap`, errors);
+    validateOptionalString(room.trapAffinity, `${basePath}.trapAffinity`, errors);
+  });
+}
+
+function validateActorHints(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value)) {
+    addError(errors, path, &quot;expected array&quot;);
+    return;
+  }
+  value.forEach((actor, index) =&gt; {
+    const basePath = `${path}[${index}]`;
+    if (!isObject(actor)) {
+      addError(errors, basePath, &quot;expected object&quot;);
+      return;
+    }
+    validateOptionalString(actor.role, `${basePath}.role`, errors);
+    validateOptionalNumber(actor.count, `${basePath}.count`, errors);
+    validateOptionalString(actor.affinity, `${basePath}.affinity`, errors);
+    validateOptionalString(actor.motivation, `${basePath}.motivation`, errors);
+    validateStringArray(actor.motivations, `${basePath}.motivations`, errors);
+    validateOptionalNumber(actor.strength, `${basePath}.strength`, errors);
+  });
+}
+
+function validateActorGroupHints(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value)) {
+    addError(errors, path, &quot;expected array&quot;);
+    return;
+  }
+  value.forEach((group, index) =&gt; {
+    const basePath = `${path}[${index}]`;
+    if (!isObject(group)) {
+      addError(errors, basePath, &quot;expected object&quot;);
+      return;
+    }
+    validateOptionalString(group.role, `${basePath}.role`, errors);
+    validateOptionalNumber(group.count, `${basePath}.count`, errors);
+  });
+}
+
+function validateAgentHints(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!isObject(value)) {
+    addError(errors, path, &quot;expected object&quot;);
+    return;
+  }
+  validateOptionalNumber(value.budgetTokens, `${path}.budgetTokens`, errors);
+  validateOptionalString(value.levelSize, `${path}.levelSize`, errors);
+  validateOptionalString(value.levelAffinity, `${path}.levelAffinity`, errors);
+  validateOptionalNumber(value.roomCount, `${path}.roomCount`, errors);
+  validateRoomHints(value.rooms, `${path}.rooms`, errors);
+  validateActorHints(value.actors, `${path}.actors`, errors);
+  validateActorGroupHints(value.actorGroups, `${path}.actorGroups`, errors);
+}
+
+export function validateBuildSpec(spec) {
+  const errors = [];
+
+  if (!isObject(spec)) {
+    return { ok: false, errors: [&quot;spec: expected object&quot;] };
+  }
+
+  if (spec.schema !== BUILD_SPEC_SCHEMA) {
+    addError(errors, &quot;schema&quot;, `expected ${BUILD_SPEC_SCHEMA}`);
+  }
+
+  if (spec.schemaVersion !== BUILD_SPEC_SCHEMA_VERSION) {
+    addError(errors, &quot;schemaVersion&quot;, `expected ${BUILD_SPEC_SCHEMA_VERSION}`);
+  }
+
+  if (!isObject(spec.meta)) {
+    addError(errors, &quot;meta&quot;, &quot;expected object&quot;);
+  } else {
+    if (!isNonEmptyString(spec.meta.id)) {
+      addError(errors, &quot;meta.id&quot;, &quot;expected non-empty string&quot;);
+    }
+    if (!isNonEmptyString(spec.meta.runId)) {
+      addError(errors, &quot;meta.runId&quot;, &quot;expected non-empty string&quot;);
+    }
+    if (!isNonEmptyString(spec.meta.createdAt)) {
+      addError(errors, &quot;meta.createdAt&quot;, &quot;expected non-empty string&quot;);
+    }
+    if (!isNonEmptyString(spec.meta.source)) {
+      addError(errors, &quot;meta.source&quot;, &quot;expected non-empty string&quot;);
+    }
+  }
+
+  if (!isObject(spec.intent)) {
+    addError(errors, &quot;intent&quot;, &quot;expected object&quot;);
+  } else {
+    if (!isNonEmptyString(spec.intent.goal)) {
+      addError(errors, &quot;intent.goal&quot;, &quot;expected non-empty string&quot;);
+    }
+    if (spec.intent.tags !== undefined) {
+      if (!Array.isArray(spec.intent.tags)) {
+        addError(errors, &quot;intent.tags&quot;, &quot;expected array of strings&quot;);
+      } else if (!spec.intent.tags.every(isNonEmptyString)) {
+        addError(errors, &quot;intent.tags&quot;, &quot;expected array of non-empty strings&quot;);
+      }
+    }
+    validateAgentHints(spec.intent.hints, &quot;intent.hints&quot;, errors);
+  }
+
+  if (spec.plan !== undefined) {
+    if (!isObject(spec.plan)) {
+      addError(errors, &quot;plan&quot;, &quot;expected object&quot;);
+    } else if (spec.plan.hints !== undefined &amp;&amp; !isObject(spec.plan.hints)) {
+      addError(errors, &quot;plan.hints&quot;, &quot;expected object&quot;);
+    }
+  }
+
+  if (spec.configurator !== undefined) {
+    if (!isObject(spec.configurator)) {
+      addError(errors, &quot;configurator&quot;, &quot;expected object&quot;);
+    } else {
+      validateAgentHints(spec.configurator.inputs, &quot;configurator.inputs&quot;, errors);
+    }
+  }
+
+  if (spec.budget !== undefined) {
+    if (!isObject(spec.budget)) {
+      addError(errors, &quot;budget&quot;, &quot;expected object&quot;);
+    } else {
+      if (spec.budget.budgetRef !== undefined) {
+        validateArtifactRef(spec.budget.budgetRef, &quot;budget.budgetRef&quot;, errors);
+      }
+      if (spec.budget.priceListRef !== undefined) {
+        validateArtifactRef(spec.budget.priceListRef, &quot;budget.priceListRef&quot;, errors);
+      }
+      if (spec.budget.receiptRef !== undefined) {
+        validateArtifactRef(spec.budget.receiptRef, &quot;budget.receiptRef&quot;, errors);
+      }
+      if (spec.budget.budget !== undefined) {
+        validateInlineArtifact(spec.budget.budget, &quot;budget.budget&quot;, BUDGET_SCHEMA, errors);
+      }
+      if (spec.budget.priceList !== undefined) {
+        validateInlineArtifact(spec.budget.priceList, &quot;budget.priceList&quot;, PRICE_LIST_SCHEMA, errors);
+      }
+      if (spec.budget.receipt !== undefined) {
+        validateInlineArtifact(spec.budget.receipt, &quot;budget.receipt&quot;, BUDGET_RECEIPT_SCHEMA, errors);
+      }
+    }
+  }
+
+  if (spec.adapters !== undefined) {
+    if (!isObject(spec.adapters)) {
+      addError(errors, &quot;adapters&quot;, &quot;expected object&quot;);
+    } else if (spec.adapters.capture !== undefined) {
+      if (!Array.isArray(spec.adapters.capture)) {
+        addError(errors, &quot;adapters.capture&quot;, &quot;expected array&quot;);
+      } else {
+        spec.adapters.capture.forEach((capture, index) =&gt; {
+          const basePath = `adapters.capture[${index}]`;
+          if (!isObject(capture)) {
+            addError(errors, basePath, &quot;expected object&quot;);
+            return;
+          }
+          if (!isNonEmptyString(capture.adapter)) {
+            addError(errors, `${basePath}.adapter`, &quot;expected non-empty string&quot;);
+          }
+          if (capture.request !== undefined &amp;&amp; !isObject(capture.request)) {
+            addError(errors, `${basePath}.request`, &quot;expected object&quot;);
+          }
+          validateOptionalString(capture.contentType, `${basePath}.contentType`, errors);
+          validateOptionalString(capture.fixturePath, `${basePath}.fixturePath`, errors);
+          if (capture.outputRef !== undefined) {
+            validateArtifactRef(capture.outputRef, `${basePath}.outputRef`, errors);
+          }
+        });
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}</textarea>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p>.</p>
+  </div>
+</footer>
+
+<script type="text/html" id="complexity-popover-template">
+  <div class="complexity-notice">
+    Complexity : {{ cyclomatic }} <br>
+    Length : {{ halstead.length }} <br>
+    Difficulty : {{ halstead.difficulty.toFixed(2) }} <br>
+    Est # bugs : {{ halstead.bugs.toFixed(2) }}<br>
+  </div>
+</script>
+
+<script type="text/javascript" src="../../assets/scripts/bundles/core-bundle.js"></script>
+<script type="text/javascript" src="../../assets/scripts/bundles/codemirror.js"></script>
+<script type="text/javascript" src="../../assets/scripts/codemirror.markpopovertext.js"></script>
+<script type="text/javascript" src="report.js"></script>
+<script type="text/javascript" src="report.history.js"></script>
+<script type="text/javascript" src="../../assets/scripts/plato-file.js"></script>
+</body>
+</html>

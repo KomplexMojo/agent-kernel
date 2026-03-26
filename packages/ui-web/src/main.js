@@ -5,6 +5,7 @@ import { wireDesignView } from "./views/design-view.js";
 import { wirePreviewView, validatePreviewLaunchBundle } from "./views/preview-view.js";
 import { wireSimulationView } from "./views/simulation-view.js";
 import { wireDiagnosticsView } from "./views/diagnostics-view.js";
+import { wireCardTypeIcons } from "./resource-icons-dom.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -29,6 +30,8 @@ const runSessionCidInput = document.querySelector("#run-session-cid");
 const runSessionSaveButton = document.querySelector("#run-session-save");
 const runSessionLoadButton = document.querySelector("#run-session-load");
 const runSessionStatus = document.querySelector("#run-session-status");
+
+wireCardTypeIcons();
 
 function openTab(tabId) {
   const button = document.querySelector(`[data-tab="${tabId}"]`);

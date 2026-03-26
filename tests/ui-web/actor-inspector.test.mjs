@@ -8,6 +8,9 @@ import {
   formatActorLiveState,
   formatActorProfile,
 } from "../../packages/ui-web/src/actor-inspector.js";
+import {
+  getCardTypeIcon,
+} from "../../packages/runtime/src/render/resource-icons.js";
 
 function selectorToDatasetKey(key) {
   return String(key).replace(/-([a-z])/g, (_, char) => char.toUpperCase());
@@ -277,6 +280,8 @@ test("inspector renders grouped template instances and maps runtime actor IDs", 
   assert.equal(elements.roomListEl.querySelectorAll(".simulation-inspector-instance").length, 2);
   assert.equal(elements.delverListEl.querySelectorAll(".simulation-inspector-instance").length, 1);
   assert.equal(elements.wardenListEl.querySelectorAll(".simulation-inspector-instance").length, 2);
+  assert.equal(elements.delverListEl.querySelector(".is-type")?.textContent, getCardTypeIcon("delver"));
+  assert.equal(elements.wardenListEl.querySelector(".is-type")?.textContent, getCardTypeIcon("warden"));
   assert.match(elements.roomListEl.textContent, /R-Y7E71X-1/);
   assert.match(elements.roomListEl.textContent, /R-Y7E71X-2/);
   assert.equal(inspector.getSelectedId(), "R-Y7E71X-1");
@@ -325,6 +330,7 @@ test("inspector detail shows affinities, vitals, and card value", () => {
   inspector.selectEntityById("D-5JH2QW-1", { notify: false });
 
   assert.match(elements.detailEl.textContent, /D-5JH2QW-1/);
+  assert.equal(elements.detailEl.querySelector(".is-type")?.textContent, getCardTypeIcon("warden"));
   assert.match(elements.detailEl.textContent, /\+3/);
   assert.match(elements.detailEl.textContent, /7\/10\/\+2/);
   assert.match(elements.detailEl.textContent, /🪙/);
