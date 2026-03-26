@@ -34,10 +34,19 @@ Treat a Claude refactor as a correction, not a rejection — the logic is kept, 
 - Runtime code: `packages/runtime/src/`
 - Core logic: `packages/core-as/assembly/`
 - Web adapters: `packages/adapters-web/src/adapters/`
+- UI code: `packages/ui-web/src/` (views, panels, templates)
 - CLI adapters and commands: `packages/adapters-cli/src/`
 - Test adapters: `packages/adapters-test/src/`
 - Tests: `tests/**`
 - Shared fixtures: `tests/fixtures/**`
+
+## UI development
+
+- For UI design and development, reference `Design.md` for design principles and Stitch MCP integration
+- Use Google Stitch MCP server for AI-assisted UI design via `@_davideast/stitch-mcp`
+- Configure Stitch API key in `.env` (see `.env.example` for template)
+- All UI code must follow the ports & adapters pattern and reside in `packages/ui-web/`
+- UI tests belong in `tests/ui-web/` and should be fixture-based
 
 ## Naming conventions
 
