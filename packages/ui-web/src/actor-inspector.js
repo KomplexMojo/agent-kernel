@@ -1,5 +1,5 @@
 import { VITAL_KEYS } from "../../runtime/src/contracts/domain-constants.js";
-import { normalizeMotivationKindList } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
+import { normalizeMotivationKindList, MOTIVATION_FAMILIES } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
 import { calculateCardValue } from "./design-guidance.js";
 
 const TYPE_ORDER = Object.freeze(["room", "attacker", "defender"]);
@@ -37,6 +37,8 @@ const MOTIVATION_ICON_MAP = Object.freeze({
   attacking: "⚔️",
   defending: "🛡️",
   patrolling: "👣",
+  stealthy: "🥷",
+  friendly: "🤝",
   reflexive: "⚡",
   goal_oriented: "🎯",
   strategy_focused: "♟️",
@@ -85,6 +87,15 @@ function iconForExpression(expression) {
 function iconForMotivation(motivation) {
   const normalized = typeof motivation === "string" ? motivation.trim().toLowerCase() : "";
   return MOTIVATION_ICON_MAP[normalized] || "❖";
+}
+
+function familyForMotivation(kind) {
+  for (const [family, members] of Object.entries(MOTIVATION_FAMILIES)) {
+    if (members.includes(kind)) {
+      return family;
+    }
+  }
+  return null;
 }
 
 function iconForVital(vital) {
@@ -803,12 +814,25 @@ export function createActorInspector({
           }));
         }
 
-        if (motivations[0]) {
+        const visibleMotivations = motivations.slice(0, 4);
+        visibleMotivations.forEach((motivation) => {
+          const kind = typeof motivation === "string" ? motivation : motivation.kind;
+          const family = familyForMotivation(kind);
+          const tooltip = family ? `${kind} (${family})` : kind;
           chips.push(createIconChip(preview, {
-            icon: iconForMotivation(motivations[0]),
-            title: `Motivation: ${motivations[0]}`,
+            icon: iconForMotivation(kind),
+            title: `Motivation: ${tooltip}`,
             className: "is-motivation",
           }));
+        });
+
+        if (motivations.length > 4) {
+          const moreChip = createDomElement(preview, "span");
+          if (moreChip) {
+            moreChip.className = "chip chip-more";
+            moreChip.textContent = `+${motivations.length - 4}`;
+            chips.push(moreChip);
+          }
         }
 
         preview.append(...chips.filter(Boolean));
@@ -911,14 +935,107 @@ export function createActorInspector({
         if (affinityChip) traits.append(affinityChip);
       });
       motivations.slice(0, 4).forEach((motivation) => {
+        const kind = typeof motivation === "string" ? motivation : motivation.kind;
+        const family = familyForMotivation(kind);
+        const tooltip = family ? `${kind} (${family})` : kind;
         const motivationChip = createIconChip(traits, {
-          icon: iconForMotivation(motivation),
-          title: `Motivation: ${motivation}`,
+          icon: iconForMotivation(kind),
+          title: `Motivation: ${tooltip}`,
           className: "is-motivation",
         });
         if (motivationChip) traits.append(motivationChip);
       });
       card.append(traits);
+    }
+
+    const motivationList = createDomElement(card, "div");
+    if (motivationList) {
+      motivationList.className = "simulation-inspector-motivation-list";
+      if (motivations.length === 0) {
+        const empty = createDomElement(motivationList, "div");
+        if (empty) {
+          empty.className = "design-card-motivation-empty";
+          empty.textContent = "No motivations";
+          motivationList.append(empty);
+        }
+      } else {
+        motivations.forEach((motivation) => {
+          const row = createDomElement(motivationList, "div");
+          if (!row) return;
+          row.className = "simulation-inspector-motivation-row";
+
+          const kind = typeof motivation === "string" ? motivation : motivation.kind;
+          const family = familyForMotivation(kind);
+
+          const motivationIcon = createIconChip(row, {
+            icon: iconForMotivation(kind),
+            title: family ? `${kind} (${family})` : kind,
+            className: "is-motivation",
+          });
+          if (motivationIcon) row.append(motivationIcon);
+
+          const meta = createDomElement(row, "span");
+          if (meta) {
+            meta.className = "simulation-inspector-motivation-meta";
+            const parts = [kind];
+
+            if (typeof motivation === "object" && motivation.pattern) {
+              parts.push(motivation.pattern);
+            }
+
+            if (typeof motivation === "object" && motivation.goal) {
+              const goal = motivation.goal;
+              if (typeof goal === "string") {
+                parts.push(goal);
+              } else if (goal.type) {
+                let goalText = goal.type;
+                if (goal.x !== undefined && goal.y !== undefined) {
+                  goalText += ` (${goal.x}, ${goal.y})`;
+                } else if (goal.zone) {
+                  goalText += ` (${goal.zone})`;
+                } else if (goal.targetId) {
+                  goalText += ` (${goal.targetId})`;
+                }
+                parts.push(goalText);
+              }
+            }
+
+            meta.textContent = parts.join(" · ");
+            row.append(meta);
+          }
+
+          if (typeof motivation === "object" && motivation.intensity !== undefined) {
+            const intensity = createDomElement(row, "span");
+            if (intensity) {
+              intensity.className = "simulation-inspector-motivation-intensity";
+              const level = Math.max(1, Math.min(10, readPositiveInt(motivation.intensity, 5)));
+              intensity.textContent = `${level}/10`;
+              intensity.title = `Intensity: ${level}`;
+              row.append(intensity);
+            }
+          }
+
+          if (typeof motivation === "object" && motivation.flags) {
+            const flagsSpan = createDomElement(row, "span");
+            if (flagsSpan) {
+              flagsSpan.className = "simulation-inspector-motivation-flags";
+              const activeFlags = [];
+              if (motivation.flags.canMove) activeFlags.push("canMove");
+              if (motivation.flags.prefersStealth) activeFlags.push("stealth");
+              if (motivation.flags.prefersCover) activeFlags.push("cover");
+              if (motivation.flags.aggroRangeBoost) activeFlags.push("aggroBoost");
+              if (activeFlags.length > 0) {
+                flagsSpan.textContent = `[${activeFlags.join(", ")}]`;
+                flagsSpan.title = `Flags: ${activeFlags.join(", ")}`;
+              }
+              row.append(flagsSpan);
+            }
+          }
+
+          motivationList.append(row);
+        });
+      }
+      card.append(motivationList);
     }
 
     const affinityList = createDomElement(card, "div");
