@@ -164,21 +164,56 @@
         justify-content: flex-end;
       }
 
+      .design-surface {
+        display: grid;
+        gap: 16px;
+        background:
+          linear-gradient(155deg, rgba(44, 34, 34, 0.92), rgba(24, 18, 18, 0.97)),
+          radial-gradient(780px 340px at -6% -18%, rgba(255, 185, 168, 0.14), transparent 62%);
+      }
+
       .design-panel-header {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: start;
+        padding: 14px 16px;
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--border) 86%, var(--accent));
+        background: color-mix(in srgb, var(--card) 84%, black);
       }
 
       .design-panel-title {
         min-width: 0;
+        display: grid;
+        gap: 6px;
+      }
+
+      .design-panel-title h2 {
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Newsreader", "Times New Roman", serif;
+        font-size: clamp(1.5rem, 2.2vw, 2rem);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .design-panel-title p {
+        margin: 0;
+        color: color-mix(in srgb, var(--muted) 90%, var(--text));
+        max-width: 64ch;
       }
 
       .design-panel-header .controls {
         margin-top: 0;
         justify-content: flex-end;
+        align-self: center;
+      }
+
+      .design-panel-header .controls button {
+        min-width: 132px;
       }
 
       .frame-display {
@@ -511,6 +546,10 @@
           grid-template-columns: 1fr;
         }
 
+        .design-panel-header {
+          grid-template-columns: 1fr;
+        }
+
         .design-panel-header .controls {
           width: 100%;
           justify-content: flex-start;
@@ -787,32 +826,42 @@
       .design-card-workspace {
         display: grid;
         grid-template-columns: minmax(220px, 280px) minmax(0, 1.35fr) minmax(180px, 220px);
-        gap: 10px;
-        margin-top: 8px;
+        gap: 12px;
+        margin-top: 4px;
         align-items: start;
       }
 
       .design-left-rail {
         display: grid;
-        gap: 8px;
+        gap: 10px;
         align-content: start;
       }
 
+      .design-rail-label {
+        margin: 0;
+        color: var(--accent);
+        font-family: "Space Grotesk", "Work Sans", sans-serif;
+        font-size: 0.68rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
       .design-property-group {
-        border: 1px solid var(--border);
-        border-radius: 2px;
-        background: #070707;
-        padding: 8px;
+        border: 1px solid color-mix(in srgb, var(--border) 88%, var(--accent));
+        border-radius: 10px;
+        background: linear-gradient(165deg, rgba(30, 24, 24, 0.92), rgba(21, 16, 16, 0.96));
+        padding: 10px;
         display: grid;
-        gap: 6px;
+        gap: 8px;
       }
 
       .design-property-group h3 {
         margin: 0;
-        font-size: 0.9rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
         color: var(--muted);
+        font-family: "Space Grotesk", "Work Sans", sans-serif;
+        font-size: 0.7rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
       }
 
       .design-property-chips {
@@ -826,9 +875,9 @@
       }
 
       .design-property-chip-group-note {
-        font-size: 0.66rem;
+        font-size: 0.62rem;
         line-height: 1;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--accent-strong);
         padding-left: 4px;
@@ -849,18 +898,19 @@
         align-items: center;
         justify-content: flex-start;
         width: 100%;
-        padding: 6px 10px;
+        padding: 7px 10px;
         border-radius: 999px;
-        border: 1px solid var(--border);
-        background: #090b0a;
+        border: 1px solid #624a45;
+        background: linear-gradient(165deg, rgba(35, 28, 28, 0.95), rgba(21, 16, 16, 0.97));
         color: var(--text);
-        font-size: 0.84rem;
+        font-size: 0.82rem;
+        transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
       }
 
       .design-property-chip.is-selected {
         border-color: var(--accent);
         color: var(--accent-strong);
-        background: #10150f;
+        background: linear-gradient(165deg, rgba(58, 38, 35, 0.95), rgba(33, 22, 22, 0.98));
       }
 
       .design-property-chip-content {
@@ -881,9 +931,14 @@
         border-color: var(--accent);
       }
 
+      .design-property-chip:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
       .design-center-workspace {
         display: grid;
-        gap: 8px;
+        gap: 10px;
         min-width: 0;
         align-content: start;
         grid-auto-rows: max-content;
@@ -891,22 +946,22 @@
 
       .surface-status {
         margin-top: 0;
-        padding: 8px 10px;
-        border: 1px solid #203228;
-        border-radius: 4px;
-        background: #090e0b;
+        padding: 10px 12px;
+        border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent));
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--card) 86%, black);
         font-size: 0.78rem;
-        line-height: 1.25;
-        max-height: 4rem;
+        line-height: 1.3;
+        max-height: 4.2rem;
         overflow-y: auto;
         overflow-x: hidden;
         scrollbar-gutter: stable;
       }
 
       .surface-status[data-level="error"] {
-        border-color: #612933;
-        background: #120a0d;
-        color: #ffb3bf;
+        border-color: #7b3a46;
+        background: #1a1013;
+        color: #ffbfca;
       }
 
       .surface-status[data-level="info"] {
@@ -916,13 +971,17 @@
       .design-toolbar {
         display: grid;
         grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
-        gap: 6px 8px;
+        gap: 8px 10px;
         align-items: start;
+        border: 1px solid color-mix(in srgb, var(--border) 82%, var(--accent));
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--card) 85%, black);
+        padding: 10px;
       }
 
       .design-toolbar > label {
         display: grid;
-        gap: 2px;
+        gap: 4px;
         min-width: 0;
       }
 
@@ -935,23 +994,23 @@
       .design-budget-split {
         display: grid;
         grid-template-columns: repeat(3, minmax(140px, 1fr));
-        gap: 4px;
+        gap: 6px;
         width: auto;
         min-width: 0;
       }
 
       .design-budget-split-item {
         display: grid;
-        gap: 1px;
-        border: 1px solid #1e2b23;
-        border-radius: 4px;
-        padding: 3px 5px;
-        background: #090e0b;
+        gap: 3px;
+        border: 1px solid #5b4641;
+        border-radius: 8px;
+        padding: 6px 8px;
+        background: linear-gradient(165deg, rgba(33, 26, 26, 0.96), rgba(20, 16, 16, 0.98));
       }
 
       .design-budget-split-item label {
         display: grid;
-        gap: 1px;
+        gap: 2px;
       }
 
       .design-budget-split-item input {
@@ -960,13 +1019,13 @@
       }
 
       .design-budget-split-item .stat-label {
-        font-size: 0.66rem;
-        letter-spacing: 0.12em;
+        font-size: 0.64rem;
+        letter-spacing: 0.16em;
       }
 
       .design-budget-split-tokens {
-        display: none;
-        font-size: 0.72rem;
+        display: block;
+        font-size: 0.7rem;
         color: var(--muted);
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       }
@@ -974,12 +1033,12 @@
       .design-budget-overview {
         grid-column: 1 / -1;
         width: 100%;
-        border: 1px solid #203228;
-        border-radius: 4px;
-        background: #090e0b;
-        padding: 6px 8px;
+        border: 1px solid #5c4842;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--card-strong) 80%, black);
+        padding: 8px 10px;
         font-size: 0.72rem;
-        line-height: 1.25;
+        line-height: 1.3;
         color: var(--muted);
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       }
@@ -993,7 +1052,7 @@
       }
 
       .design-budget-overview.is-negative strong {
-        color: #cf3f5b;
+        color: #e88e9d;
       }
 
       .design-card-grid {
@@ -1002,30 +1061,32 @@
         justify-content: stretch;
         align-content: start;
         align-items: start;
-        gap: 10px;
+        gap: 12px;
         min-height: 0;
-        border: 1px dashed var(--border);
-        border-radius: 2px;
-        background: #050606;
-        padding: 8px;
+        border: 1px dashed #6a514a;
+        border-radius: 12px;
+        background:
+          linear-gradient(155deg, rgba(33, 26, 26, 0.9), rgba(20, 15, 15, 0.96)),
+          radial-gradient(420px 180px at -8% -28%, rgba(255, 185, 168, 0.12), transparent 70%);
+        padding: 12px;
         width: 100%;
       }
 
       .design-card {
         display: grid;
-        gap: 6px;
+        gap: 7px;
         min-height: 0;
         align-content: start;
         width: 100%;
-        border: 1px solid var(--border);
-        background: linear-gradient(160deg, rgba(18, 24, 20, 0.95), rgba(9, 12, 10, 0.98));
-        border-radius: 6px;
-        padding: 8px;
+        border: 1px solid color-mix(in srgb, var(--border) 82%, var(--accent));
+        background: linear-gradient(160deg, rgba(34, 27, 27, 0.95), rgba(20, 15, 15, 0.98));
+        border-radius: 10px;
+        padding: 10px;
       }
 
       .design-card.selected {
         border-color: var(--accent);
-        box-shadow: 0 0 0 1px rgba(249, 199, 79, 0.35);
+        box-shadow: 0 0 0 1px rgba(255, 185, 168, 0.35);
       }
 
       .design-card.flipped .design-card-front {
@@ -1054,9 +1115,11 @@
       }
 
       .design-card-title {
-        font-size: 0.88rem;
-        letter-spacing: 0.08em;
         color: var(--muted);
+        font-family: "Space Grotesk", "Work Sans", sans-serif;
+        font-size: 0.76rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
       }
 
       .design-card-header-count-controls {
@@ -1070,9 +1133,9 @@
         min-width: 34px;
         text-align: center;
         padding: 3px 8px;
-        border: 1px solid #25352c;
+        border: 1px solid #5d4741;
         border-radius: 999px;
-        background: #0b130f;
+        background: rgba(23, 18, 18, 0.92);
         color: var(--muted);
         font-size: 0.72rem;
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -1097,9 +1160,9 @@
         display: inline-flex;
         align-items: center;
         padding: 3px 8px;
-        border: 1px solid #25352c;
+        border: 1px solid #5d4741;
         border-radius: 999px;
-        background: #0b130f;
+        background: rgba(23, 18, 18, 0.92);
         color: var(--muted);
         font-size: 0.72rem;
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -1117,9 +1180,9 @@
         justify-content: center;
         width: 28px;
         height: 28px;
-        border: 1px solid #2a3a31;
+        border: 1px solid #674f48;
         border-radius: 999px;
-        background: #0d1511;
+        background: color-mix(in srgb, var(--card) 84%, black);
         font-size: 0.95rem;
         line-height: 1;
       }
@@ -1134,9 +1197,9 @@
         grid-template-columns: 34px 34px 1fr;
         gap: 6px;
         align-items: center;
-        border: 1px solid #1f2d25;
-        background: #090e0b;
-        border-radius: 6px;
+        border: 1px solid #58443f;
+        background: color-mix(in srgb, var(--card-strong) 76%, black);
+        border-radius: 8px;
         padding: 6px;
       }
 
@@ -1168,8 +1231,8 @@
       }
 
       .design-card-affinity-empty {
-        border: 1px dashed var(--border);
-        border-radius: 4px;
+        border: 1px dashed #5f4b45;
+        border-radius: 8px;
         padding: 8px;
         color: var(--muted);
         font-size: 0.78rem;
@@ -1179,21 +1242,22 @@
         display: grid;
         gap: 6px;
         padding: 8px;
-        border: 1px solid #1e2b23;
-        border-radius: 6px;
-        background: #090e0b;
+        border: 1px solid #58443f;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--card-strong) 76%, black);
       }
 
       .design-card-motivations-title {
-        font-size: 0.75rem;
         color: var(--muted);
-        letter-spacing: 0.08em;
+        font-family: "Space Grotesk", "Work Sans", sans-serif;
+        font-size: 0.66rem;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
       }
 
       .design-card-motivations-empty {
-        border: 1px dashed var(--border);
-        border-radius: 4px;
+        border: 1px dashed #5f4b45;
+        border-radius: 8px;
         padding: 8px;
         color: var(--muted);
         font-size: 0.78rem;
@@ -1204,9 +1268,9 @@
         grid-template-columns: 1fr auto;
         align-items: center;
         gap: 6px;
-        border: 1px solid #1f2d25;
-        border-radius: 6px;
-        background: #090e0b;
+        border: 1px solid #58443f;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--card-strong) 80%, black);
         padding: 6px;
       }
 
@@ -1216,9 +1280,9 @@
         justify-content: center;
         width: 24px;
         height: 24px;
-        border: 1px solid #25352c;
+        border: 1px solid #674f48;
         border-radius: 999px;
-        background: #0b130f;
+        background: color-mix(in srgb, var(--card) 84%, black);
       }
 
       .design-card-motivation-remove {
@@ -1240,15 +1304,16 @@
         display: grid;
         gap: 6px;
         padding: 8px;
-        border: 1px solid #1e2b23;
-        border-radius: 6px;
-        background: #090e0b;
+        border: 1px solid #58443f;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--card-strong) 76%, black);
       }
 
       .design-card-vitals-title {
-        font-size: 0.75rem;
         color: var(--muted);
-        letter-spacing: 0.08em;
+        font-family: "Space Grotesk", "Work Sans", sans-serif;
+        font-size: 0.66rem;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
       }
 
@@ -1316,12 +1381,12 @@
         grid-template-columns: 1fr auto;
         gap: 8px;
         align-items: center;
-        border-bottom: 1px dashed #25352c;
+        border-bottom: 1px dashed #5d4741;
         padding: 2px 0;
       }
 
       .design-card-receipt-row.is-total {
-        border-top: 1px solid var(--border);
+        border-top: 1px solid #6a514a;
         border-bottom: 0;
         margin-top: 2px;
         padding-top: 6px;
@@ -1348,8 +1413,8 @@
       }
 
       .design-card-empty {
-        border: 1px dashed var(--border);
-        border-radius: 4px;
+        border: 1px dashed #5f4b45;
+        border-radius: 8px;
         padding: 14px;
         color: var(--muted);
         font-size: 0.9rem;
@@ -1357,25 +1422,26 @@
 
       .design-card-groups-window {
         display: grid;
-        gap: 8px;
+        gap: 10px;
         align-content: start;
       }
 
       .design-card-group {
-        border: 1px solid var(--border);
-        border-radius: 2px;
-        background: #070707;
-        padding: 8px;
+        border: 1px solid color-mix(in srgb, var(--border) 88%, var(--accent));
+        border-radius: 10px;
+        background: linear-gradient(165deg, rgba(30, 24, 24, 0.92), rgba(21, 16, 16, 0.96));
+        padding: 10px;
         display: grid;
         gap: 6px;
       }
 
       .design-card-group h3 {
         margin: 0;
-        font-size: 0.85rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
         color: var(--muted);
+        font-family: "Space Grotesk", "Work Sans", sans-serif;
+        font-size: 0.66rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
       }
 
       .design-card-group-icon {
@@ -1393,7 +1459,7 @@
       }
 
       .design-card-group-budget {
-        font-size: 0.76rem;
+        font-size: 0.74rem;
         color: var(--accent-strong);
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       }
@@ -1408,16 +1474,16 @@
       }
 
       .design-card-group-budget.is-negative strong {
-        color: #cf3f5b;
+        color: #e88e9d;
       }
 
       .design-card-group-row,
       .design-card-group-empty {
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         padding: 6px 8px;
-        border: 1px solid #1a241e;
-        background: #0a0b0a;
-        border-radius: 2px;
+        border: 1px solid #5a4540;
+        background: color-mix(in srgb, var(--card-strong) 78%, black);
+        border-radius: 8px;
       }
 
       .design-card-group-card {
@@ -1737,10 +1803,12 @@
         </div>
 
             <div class="tab-panel" data-tab-panel="design" role="tabpanel">
-          <div class="card">
+          <div class="card design-surface">
             <div class="design-panel-header">
               <div class="design-panel-title">
-                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧭</span>Card Builder</span>
+                <p class="shell-kicker">Design Surface</p>
+                <h2><span class="ui-icon" aria-hidden="true">🧭</span>Card Builder</h2>
+                <p>Tune the draft deck, lock split budgets, and publish canonical BuildSpec output to the shared rails.</p>
               </div>
               <div class="controls">
                 <button class="secondary" id="design-load-minted" type="button">Load Minted</button>
@@ -1748,7 +1816,8 @@
               </div>
             </div>
             <div class="design-card-workspace">
-              <aside class="design-left-rail">
+              <aside class="design-left-rail" aria-label="Card property rail">
+                <p class="design-rail-label">Property Rail</p>
                 <section class="design-property-group" data-property-order="1">
                   <h3>Type</h3>
                   <div class="design-property-chips" id="design-property-group-type"></div>
@@ -1800,7 +1869,8 @@
                 <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.</div>
                 <div class="design-card-grid" id="design-card-grid"></div>
               </section>
-              <aside class="design-card-groups-window">
+              <aside class="design-card-groups-window" aria-label="Card shelf groups">
+                <p class="design-rail-label">Shelf Groups</p>
                 <section class="design-card-group" data-card-group="room">
                   <div class="design-card-group-header">
                     <h3 class="design-card-group-icon" aria-label="Room">🏛️</h3>
