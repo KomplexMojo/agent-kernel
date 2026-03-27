@@ -151,17 +151,45 @@
         gap: 12px;
       }
 
+      .preview-shell {
+        background:
+          linear-gradient(165deg, rgba(34, 26, 26, 0.95), rgba(17, 13, 13, 0.98)),
+          radial-gradient(760px 260px at 8% -24%, rgba(255, 185, 168, 0.18), transparent 66%);
+      }
+
+      .frame-shell {
+        background:
+          linear-gradient(165deg, rgba(27, 30, 37, 0.94), rgba(16, 17, 23, 0.98)),
+          radial-gradient(720px 240px at 86% -18%, rgba(126, 166, 255, 0.18), transparent 62%);
+      }
+
       .preview-header {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-start;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
         gap: 12px;
       }
 
       .preview-header .controls {
         margin-top: 0;
         justify-content: flex-end;
+        align-self: center;
+      }
+
+      .preview-title {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .preview-kicker {
+        letter-spacing: 0.15em;
+      }
+
+      .preview-caption {
+        margin: 0;
+        color: color-mix(in srgb, var(--muted) 90%, var(--text));
+        font-size: 0.9rem;
       }
 
       .design-surface {
@@ -261,6 +289,129 @@
         display: grid;
         gap: 12px;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .preview-stage {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
+        align-items: start;
+      }
+
+      .preview-frame-card,
+      .preview-meta-card {
+        border: 1px solid color-mix(in srgb, var(--border) 84%, var(--accent));
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--card) 88%, black);
+        padding: 10px;
+      }
+
+      .preview-frame-card {
+        display: grid;
+        gap: 8px;
+      }
+
+      .preview-sidebar {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+        align-content: start;
+      }
+
+      .preview-meta-card {
+        display: grid;
+        gap: 8px;
+      }
+
+      .preview-meta-card .adapter-output {
+        margin-top: 0;
+      }
+
+      .preview-meta-card #preview-summary {
+        min-height: 96px;
+      }
+
+      .preview-meta-card #preview-actor-list {
+        min-height: 160px;
+      }
+
+      .simulation-shell {
+        display: grid;
+        gap: 12px;
+      }
+
+      .simulation-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .simulation-title {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .simulation-kicker {
+        letter-spacing: 0.14em;
+      }
+
+      .simulation-badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .simulation-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid #4f6389;
+        background: rgba(14, 19, 30, 0.85);
+        color: #c8d7ff;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .simulation-stage {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+        align-items: start;
+      }
+
+      .simulation-board-card,
+      .simulation-control-card {
+        border: 1px solid color-mix(in srgb, #4f6389 66%, var(--border));
+        border-radius: 10px;
+        background: rgba(12, 17, 26, 0.9);
+        padding: 10px;
+      }
+
+      .simulation-board-card {
+        display: grid;
+        gap: 8px;
+      }
+
+      .simulation-control-deck {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+        align-content: start;
+      }
+
+      .simulation-control-card {
+        display: grid;
+        gap: 8px;
+      }
+
+      .simulation-control-card .play-controls,
+      .simulation-control-card .runtime-controls {
+        margin-top: 0;
       }
 
       .diagnostic-toggle-list {
@@ -384,10 +535,20 @@
       }
 
       .inspector-header {
-        display: flex;
-        justify-content: flex-start;
-        align-items: flex-start;
-        gap: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .inspector-title {
+        display: grid;
+        gap: 6px;
+      }
+
+      .inspector-copy {
+        margin: 0;
+        color: color-mix(in srgb, var(--muted) 88%, var(--text));
+        font-size: 0.78rem;
+        line-height: 1.3;
       }
 
       .inspector-section {
@@ -546,6 +707,21 @@
           grid-template-columns: 1fr;
         }
 
+        .preview-header,
+        .simulation-header {
+          grid-template-columns: 1fr;
+        }
+
+        .preview-header .controls,
+        .simulation-badge-row {
+          justify-content: flex-start;
+        }
+
+        .preview-stage,
+        .simulation-stage {
+          grid-template-columns: 1fr;
+        }
+
         .design-panel-header {
           grid-template-columns: 1fr;
         }
@@ -680,6 +856,7 @@
 
       .play-controls button {
         min-width: 72px;
+        min-height: 34px;
       }
 
       .form-grid {
@@ -1743,6 +1920,12 @@
         grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 8px;
       }
+
+      .runtime-controls button {
+        min-height: 38px;
+        padding: 0;
+        font-size: 1rem;
+      }
     </style>
   </head>
   <body>
@@ -1780,24 +1963,46 @@
         <div class="workspace">
           <div class="workspace-main">
             <div class="tab-panel" data-tab-panel="simulation" role="tabpanel" hidden>
-          <div class="card frame-shell">
-            <div class="stat">
-              <span class="stat-label">Playing Surface</span>
+          <div class="card frame-shell simulation-shell">
+            <div class="simulation-header">
+              <div class="simulation-title">
+                <p class="shell-kicker simulation-kicker">Run Surface</p>
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🎮</span>Playing Surface</span>
+                </div>
+              </div>
+              <div class="simulation-badge-row" aria-label="Run flow context">
+                <span class="simulation-badge">Artifact rail</span>
+                <span class="simulation-badge">Inspector synced</span>
+              </div>
             </div>
             <div class="status surface-status" id="status-message" data-level="info">Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.</div>
-            <pre class="frame-display" id="frame-buffer">Loading...</pre>
-            <div class="play-controls">
-              <button class="secondary" id="step-back">Step -</button>
-              <button class="primary" id="play-pause">Play</button>
-              <button class="secondary" id="step-forward">Step +</button>
-              <button class="secondary" id="reset-run">Reset</button>
-            </div>
-            <div class="runtime-controls" role="group" aria-label="Runtime controls">
-              <button class="secondary" id="runtime-move-up" type="button" aria-label="Move up" title="Move up">↑</button>
-              <button class="secondary" id="runtime-move-down" type="button" aria-label="Move down" title="Move down">↓</button>
-              <button class="secondary" id="runtime-move-left" type="button" aria-label="Move left" title="Move left">←</button>
-              <button class="secondary" id="runtime-move-right" type="button" aria-label="Move right" title="Move right">→</button>
-              <button class="primary" id="runtime-cast" type="button" aria-label="Cast ability" title="Cast ability">✦</button>
+            <div class="simulation-stage">
+              <section class="simulation-board-card">
+                <span class="stat-label">Board State</span>
+                <pre class="frame-display" id="frame-buffer">Loading...</pre>
+              </section>
+              <div class="simulation-control-deck">
+                <section class="simulation-control-card" aria-label="Playback controls">
+                  <span class="stat-label">Playback Controls</span>
+                  <div class="play-controls">
+                    <button class="secondary" id="step-back">Step -</button>
+                    <button class="primary" id="play-pause">Play</button>
+                    <button class="secondary" id="step-forward">Step +</button>
+                    <button class="secondary" id="reset-run">Reset</button>
+                  </div>
+                </section>
+                <section class="simulation-control-card" aria-label="Runtime controls">
+                  <span class="stat-label">Runtime Actions</span>
+                  <div class="runtime-controls" role="group" aria-label="Runtime controls">
+                    <button class="secondary" id="runtime-move-up" type="button" aria-label="Move up" title="Move up">↑</button>
+                    <button class="secondary" id="runtime-move-down" type="button" aria-label="Move down" title="Move down">↓</button>
+                    <button class="secondary" id="runtime-move-left" type="button" aria-label="Move left" title="Move left">←</button>
+                    <button class="secondary" id="runtime-move-right" type="button" aria-label="Move right" title="Move right">→</button>
+                    <button class="primary" id="runtime-cast" type="button" aria-label="Cast ability" title="Cast ability">✦</button>
+                  </div>
+                </section>
+              </div>
             </div>
           </div>
         </div>
@@ -1899,25 +2104,34 @@
         </div>
 
             <div class="tab-panel" data-tab-panel="preview" role="tabpanel" hidden>
-          <div class="card preview-shell">
+          <div class="card preview-shell preview-surface">
             <div class="preview-header">
-              <div class="stat">
-                <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🗺️</span>Game Preview</span>
+              <div class="preview-title">
+                <p class="shell-kicker preview-kicker">Preview Surface</p>
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🗺️</span>Game Preview</span>
+                </div>
+                <p class="preview-caption">Validate artifact output before launching Run.</p>
               </div>
               <div class="controls">
                 <button class="primary" id="preview-build-and-load" type="button">Build And Load Game</button>
               </div>
             </div>
             <div class="status surface-status" id="preview-status" data-level="info">Inspect the current design bundle here. When ready, use Build And Load Game to open Run.</div>
-            <pre class="frame-display" id="preview-frame-buffer">No preview loaded.</pre>
-            <div class="preview-meta-grid">
-              <div class="stat">
-                <span class="stat-label">Preview Summary</span>
-                <pre class="adapter-output" id="preview-summary">No preview bundle loaded.</pre>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Actors</span>
-                <pre class="adapter-output" id="preview-actor-list">No actors loaded.</pre>
+            <div class="preview-stage">
+              <section class="preview-frame-card">
+                <span class="stat-label">Rendered Board</span>
+                <pre class="frame-display" id="preview-frame-buffer">No preview loaded.</pre>
+              </section>
+              <div class="preview-sidebar">
+                <section class="preview-meta-card">
+                  <span class="stat-label">Preview Summary</span>
+                  <pre class="adapter-output" id="preview-summary">No preview bundle loaded.</pre>
+                </section>
+                <section class="preview-meta-card">
+                  <span class="stat-label">Actors</span>
+                  <pre class="adapter-output" id="preview-actor-list">No actors loaded.</pre>
+                </section>
               </div>
             </div>
           </div>
@@ -2173,10 +2387,14 @@
           </div>
             </div>
           </div>
-          <aside class="card inspector-shell" id="actor-inspector" hidden>
+          <aside class="card inspector-shell inspector-surface" id="actor-inspector" hidden>
             <div class="inspector-header">
-              <div class="stat">
-                <span class="stat-label">Game Inspector</span>
+              <div class="inspector-title">
+                <p class="shell-kicker">Run Companion</p>
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔎</span>Game Inspector</span>
+                </div>
+                <p class="inspector-copy">Select a room, attacker, or defender to steer visibility and runtime action focus.</p>
               </div>
             </div>
             <div class="inspector-section">
