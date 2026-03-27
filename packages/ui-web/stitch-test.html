@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stitch Main Menu POC</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,700;6..72,800&family=Space+Grotesk:wght@400;600&family=Work+Sans:wght@300;400;600&display=swap");
+
+      :root {
+        --bg: #121010;
+        --card: #1f1a1a;
+        --card-strong: #2b2222;
+        --text: #f2e9e6;
+        --muted: #ceb8b2;
+        --accent: #ffb4aa;
+        --danger: #ff8d86;
+        --border: #5a413d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        font-family: "Work Sans", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(900px 500px at 10% -15%, rgba(255, 180, 170, 0.14), transparent 62%),
+          radial-gradient(700px 400px at 95% 8%, rgba(120, 70, 65, 0.22), transparent 56%),
+          var(--bg);
+      }
+
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 40px 20px 56px;
+      }
+
+      header {
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0;
+        letter-spacing: 0.12em;
+        font-size: clamp(2.1rem, 7vw, 4rem);
+        font-family: "Newsreader", serif;
+        font-weight: 800;
+      }
+
+      .subtitle {
+        margin-top: 8px;
+        color: var(--muted);
+        font-family: "Space Grotesk", monospace;
+        font-size: 0.86rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .status {
+        margin: 18px 0 24px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        background: color-mix(in srgb, var(--card) 90%, black);
+        font-size: 0.92rem;
+      }
+
+      .status[data-level="error"] {
+        color: var(--danger);
+      }
+
+      .layout {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .menu-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+
+      .menu-action {
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text);
+        text-align: left;
+        cursor: pointer;
+        padding: 16px 18px;
+        min-height: 78px;
+        transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+      }
+
+      .menu-action:active {
+        transform: translateY(1px) scale(0.995);
+      }
+
+      .menu-action:hover {
+        border-color: var(--accent);
+        background: var(--card-strong);
+      }
+
+      .menu-action[data-style="hero"] {
+        min-height: 120px;
+      }
+
+      .menu-label {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-family: "Space Grotesk", monospace;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      .menu-title {
+        margin: 6px 0 0;
+        font-family: "Newsreader", serif;
+        font-size: clamp(1.3rem, 3.6vw, 2rem);
+        font-weight: 700;
+      }
+
+      .fixture-card {
+        border: 1px solid var(--border);
+        background: color-mix(in srgb, var(--card) 84%, black);
+        padding: 16px;
+      }
+
+      .fixture-card h2 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-family: "Space Grotesk", monospace;
+      }
+
+      .fixture-goal {
+        margin: 0 0 12px;
+        color: var(--text);
+      }
+
+      .fixture-metrics {
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 12px;
+      }
+
+      .fixture-metrics dt {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-family: "Space Grotesk", monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .fixture-metrics dd {
+        margin: 4px 0 0;
+        font-weight: 600;
+      }
+
+      @media (min-width: 940px) {
+        .layout {
+          grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+          align-items: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="stitch-poc-root">
+      <header>
+        <h1>IRON CRYPT</h1>
+        <p class="subtitle">Tactical Gothic Crawler</p>
+      </header>
+
+      <div class="status" id="stitch-poc-status" data-level="info">Loading Main Menu fixture bundle...</div>
+
+      <section class="layout" aria-label="Stitch Main Menu proof of concept">
+        <div class="menu-grid">
+          <button class="menu-action" data-style="hero" id="stitch-poc-menu-new" type="button">
+            <p class="menu-label">Commence Protocol</p>
+            <h2 class="menu-title">New Journey</h2>
+          </button>
+          <button class="menu-action" id="stitch-poc-menu-continue" type="button">
+            <p class="menu-label">Resume Saved</p>
+            <h2 class="menu-title">Continue</h2>
+          </button>
+          <button class="menu-action" id="stitch-poc-menu-settings" type="button">
+            <p class="menu-label">Calibration</p>
+            <h2 class="menu-title">Settings</h2>
+          </button>
+          <button class="menu-action" id="stitch-poc-menu-exit" type="button">
+            <p class="menu-label">Abandon All</p>
+            <h2 class="menu-title">Exit</h2>
+          </button>
+        </div>
+
+        <aside class="fixture-card" aria-label="Fixture-backed run summary">
+          <h2>Fixture Snapshot</h2>
+          <p class="fixture-goal" id="stitch-poc-goal">No fixture goal available.</p>
+          <dl class="fixture-metrics">
+            <div>
+              <dt>Run Id</dt>
+              <dd id="stitch-poc-run-id">unknown_run</dd>
+            </div>
+            <div>
+              <dt>Map Size</dt>
+              <dd id="stitch-poc-map-size">Unknown</dd>
+            </div>
+            <div>
+              <dt>Actors</dt>
+              <dd id="stitch-poc-actor-count">0</dd>
+            </div>
+            <div>
+              <dt>Artifacts</dt>
+              <dd id="stitch-poc-artifact-count">0</dd>
+            </div>
+            <div>
+              <dt>Tags</dt>
+              <dd id="stitch-poc-tags">none</dd>
+            </div>
+          </dl>
+        </aside>
+      </section>
+    </main>
+    <script type="module">
+      import { createCliWorkerAdapter } from "../adapters-web/src/adapters/cli-worker/index.js";
+      import { wireStitchPocView } from "./src/views/stitch-poc-view.js";
+
+      const commandHost = createCliWorkerAdapter();
+      wireStitchPocView({ commandHost });
+    </script>
+  </body>
+</html>
