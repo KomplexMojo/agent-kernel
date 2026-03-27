@@ -2,6 +2,23 @@
 
 Runbook for execution, verification, and branch-close handoff.
 
+## Stitch UI Rewrite Execution Overlay (M0 -> M7)
+
+Use this overlay when executing the Stitch rewrite plan mirrored from `[Spec](intent://local/note/spec)`.
+
+1. Confirm the current Stitch milestone and stop condition in `local-codex/Plan.md`.
+2. For each milestone, keep requirement -> tests -> code -> validation traceable in one change set.
+3. For M7, run and record this exact ring:
+   - `pnpm run build:wasm`
+   - `node --test tests/ui-web/*.test.mjs`
+   - `node --test tests/integration/*.test.js`
+   - `pnpm run serve:ui` smoke check (`/packages/ui-web/index.html`)
+4. Sync documentation for the rewritten flow:
+   - `docs/human-interfaces.md`
+   - `docs/README.md` (if user-facing workflow text changed)
+5. Update all `local-codex/*` status files (`Prompt.md`, `Plan.md`, `Implement.md`, `Documentation.md`) before handoff.
+6. If regressions fail, stop and record exact failing suites + root missing artifacts/modules; do not widen scope into refactors during M7 handoff.
+
 ## 1) Preflight
 
 1. Confirm working directory is repo root.

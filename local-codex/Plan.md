@@ -2,6 +2,31 @@
 
 Use this file to define the remaining milestones, validations, and branch-completion criteria.
 
+## Stitch UI Rewrite Plan Overlay (2026-03-27)
+
+Source plan: `[Spec](intent://local/note/spec)` sections `M0` through `M7`.
+
+| Milestone | Status | Notes |
+| --- | --- | --- |
+| M0 | Completed | Stitch readiness and screen inventory recorded. |
+| M1 | Completed | Standalone Stitch POC page implemented with deterministic test coverage. |
+| M2 | Completed | Command-host proof completed; rewrite decision recorded as `go`. |
+| M3 | Completed | Shell/navigation rewrite landed on approved rails. |
+| M4 | Completed | Design surface rewrite landed on approved rails. |
+| M5 | Completed | Preview/Run surface rewrite landed on approved rails. |
+| M6 | Completed | Diagnostics surface rewrite landed on approved rails. |
+| M7 | In progress (regression-blocked) | Validation ring executed; failures recorded for handoff. |
+
+M7 validation ring executed on 2026-03-27:
+- `pnpm run build:wasm` -> pass
+- `node --test tests/ui-web/*.test.mjs` -> fail
+- `node --test tests/integration/*.test.js` -> fail
+- `pnpm run serve:ui` smoke -> pass (`http://localhost:8001/packages/ui-web/index.html` returned `200`)
+
+Current blockers from M7 regression ring:
+- Missing runtime module import target: `packages/runtime/src/build/orchestrate-build.js` (imported by `packages/runtime/src/commands/kernel.js`).
+- Missing fixture file referenced by UI test: `tests/fixtures/artifacts/budget-artifact-v1-basic.json`.
+
 ## 1) Current Checkpoint
 
 Already completed:
