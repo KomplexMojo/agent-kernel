@@ -414,6 +414,55 @@
         margin-top: 0;
       }
 
+      .diagnostics-shell {
+        display: grid;
+        gap: 14px;
+        background:
+          linear-gradient(162deg, rgba(30, 24, 24, 0.96), rgba(16, 13, 13, 0.99)),
+          radial-gradient(760px 280px at 92% -18%, rgba(255, 185, 168, 0.18), transparent 64%);
+      }
+
+      .diagnostics-intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 12px;
+      }
+
+      .diagnostics-title {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .diagnostics-caption {
+        margin: 0;
+        color: color-mix(in srgb, var(--muted) 90%, var(--text));
+        max-width: 72ch;
+        font-size: 0.92rem;
+      }
+
+      .diagnostics-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        align-self: center;
+      }
+
+      .diagnostics-chip-row .simulation-badge {
+        border-color: color-mix(in srgb, var(--accent) 48%, #4f6389);
+      }
+
+      .diagnostics-toggle-card {
+        border: 1px solid color-mix(in srgb, var(--border) 84%, var(--accent));
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--card) 87%, black);
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
       .diagnostic-toggle-list {
         list-style: none;
         margin: 0;
@@ -426,23 +475,116 @@
 
       .diagnostic-toggle-item {
         display: grid;
-        grid-template-columns: auto minmax(140px, 180px) 1fr;
+        grid-template-columns: auto minmax(130px, 180px) 1fr;
         align-items: center;
         gap: 10px;
         padding: 10px 12px;
-        border-radius: 2px;
-        background: #0a0a0a;
-        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: rgba(14, 10, 10, 0.88);
+        border: 1px solid color-mix(in srgb, var(--border) 86%, var(--accent));
+      }
+
+      .diagnostic-toggle-item input[type="checkbox"] {
+        margin: 0;
+        width: 16px;
+        height: 16px;
+        accent-color: var(--accent);
       }
 
       .diagnostic-toggle-item label {
         margin: 0;
         color: var(--text);
+        font-family: "Space Grotesk", "Work Sans", sans-serif;
+        font-size: 0.76rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
       }
 
       .diagnostic-toggle-description {
         color: var(--muted);
-        font-size: 0.85rem;
+        font-size: 0.82rem;
+        line-height: 1.35;
+      }
+
+      .diagnostic-surface {
+        display: grid;
+        gap: 12px;
+        background:
+          linear-gradient(165deg, rgba(31, 24, 24, 0.94), rgba(18, 14, 14, 0.98)),
+          radial-gradient(660px 220px at 8% -20%, rgba(255, 185, 168, 0.12), transparent 68%);
+      }
+
+      .diagnostic-panel-header {
+        display: grid;
+        gap: 6px;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--border) 86%, var(--accent));
+        background: color-mix(in srgb, var(--card) 86%, black);
+      }
+
+      .diagnostic-panel-header p {
+        margin: 0;
+        color: color-mix(in srgb, var(--muted) 90%, var(--text));
+        font-size: 0.88rem;
+      }
+
+      .diagnostic-pane-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        align-items: start;
+      }
+
+      .diagnostic-pane {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--border) 84%, var(--accent));
+        background: rgba(14, 10, 10, 0.88);
+        min-width: 0;
+      }
+
+      .diagnostic-pane-wide {
+        grid-column: 1 / -1;
+      }
+
+      .diagnostic-pane .adapter-output {
+        margin-top: 0;
+        min-height: 120px;
+      }
+
+      .diagnostic-build-stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .diagnostic-build-card {
+        display: grid;
+        gap: 10px;
+      }
+
+      .diagnostic-input-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
+
+      .diagnostic-build-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .diagnostic-trace-row {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+
+      .diagnostic-trace-row .diagnostic-pane .adapter-output {
+        min-height: 140px;
       }
 
       .diagnostic-section-hidden {
@@ -750,6 +892,19 @@
         .diagnostic-toggle-item {
           grid-template-columns: 1fr;
           align-items: start;
+        }
+
+        .diagnostics-intro {
+          grid-template-columns: 1fr;
+        }
+
+        .diagnostics-chip-row {
+          justify-content: flex-start;
+        }
+
+        .diagnostic-input-grid,
+        .diagnostic-trace-row {
+          grid-template-columns: 1fr;
         }
 
         #preview-frame-buffer {
@@ -2138,253 +2293,285 @@
         </div>
 
             <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
-              <div class="card">
-                <div class="stat">
-                  <span class="stat-label">Diagnostics Visibility</span>
-                  <small class="status">Toggle diagnostics sections on or off. Unchecked items stay hidden.</small>
+              <div class="card diagnostics-shell">
+                <div class="diagnostics-intro">
+                  <div class="diagnostics-title">
+                    <p class="shell-kicker">Diagnostics Surface</p>
+                    <div class="stat">
+                      <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🧪</span>System Console</span>
+                    </div>
+                    <p class="diagnostics-caption">Inspect build orchestration, bundle payloads, adapter calls, and LLM traces while preserving the existing command-host rails.</p>
+                  </div>
+                  <div class="diagnostics-chip-row">
+                    <span class="simulation-badge">Allocator</span>
+                    <span class="simulation-badge">LLM Trace</span>
+                    <span class="simulation-badge">Build + Bundle</span>
+                    <span class="simulation-badge">Adapters</span>
+                  </div>
                 </div>
-                <ul class="diagnostic-toggle-list">
-                  <li class="diagnostic-toggle-item">
-                    <input id="diagnostic-toggle-allocator" data-diagnostic-toggle="allocator" type="checkbox" checked aria-controls="diagnostic-section-allocator" />
-                    <label for="diagnostic-toggle-allocator">Allocator</label>
-                    <span class="diagnostic-toggle-description">Budget, price list, and receipt output from allocator flows.</span>
-                  </li>
-                  <li class="diagnostic-toggle-item">
-                    <input id="diagnostic-toggle-llm-trace" data-diagnostic-toggle="llm-trace" type="checkbox" checked aria-controls="diagnostic-section-llm-trace" />
-                    <label for="diagnostic-toggle-llm-trace">LLM Trace</label>
-                    <span class="diagnostic-toggle-description">Prompt/response capture, parsed trace, and annotator summaries.</span>
-                  </li>
-                  <li class="diagnostic-toggle-item">
-                    <input id="diagnostic-toggle-build" data-diagnostic-toggle="build" type="checkbox" checked aria-controls="diagnostic-section-build" />
-                    <label for="diagnostic-toggle-build">Build And Bundle</label>
-                    <span class="diagnostic-toggle-description">Build orchestration, bundle review, and budget inputs.</span>
-                  </li>
-                  <li class="diagnostic-toggle-item">
-                    <input id="diagnostic-toggle-adapter-playground" data-diagnostic-toggle="adapter-playground" type="checkbox" checked aria-controls="diagnostic-section-adapter-playground" />
-                    <label for="diagnostic-toggle-adapter-playground">Adapter Playground</label>
-                    <span class="diagnostic-toggle-description">Manual adapter calls for IPFS, blockchain, LLM, and solver.</span>
-                  </li>
-                </ul>
+                <section class="diagnostics-toggle-card" aria-label="Diagnostics visibility controls">
+                  <div class="stat-row">
+                    <span class="stat-label">Diagnostics Visibility</span>
+                    <span class="status">Toggle diagnostics sections on or off. Unchecked items stay hidden.</span>
+                  </div>
+                  <ul class="diagnostic-toggle-list">
+                    <li class="diagnostic-toggle-item">
+                      <input id="diagnostic-toggle-allocator" data-diagnostic-toggle="allocator" type="checkbox" checked aria-controls="diagnostic-section-allocator" />
+                      <label for="diagnostic-toggle-allocator">Allocator</label>
+                      <span class="diagnostic-toggle-description">Budget, price list, and receipt output from allocator flows.</span>
+                    </li>
+                    <li class="diagnostic-toggle-item">
+                      <input id="diagnostic-toggle-llm-trace" data-diagnostic-toggle="llm-trace" type="checkbox" checked aria-controls="diagnostic-section-llm-trace" />
+                      <label for="diagnostic-toggle-llm-trace">LLM Trace</label>
+                      <span class="diagnostic-toggle-description">Prompt/response capture, parsed trace, and annotator summaries.</span>
+                    </li>
+                    <li class="diagnostic-toggle-item">
+                      <input id="diagnostic-toggle-build" data-diagnostic-toggle="build" type="checkbox" checked aria-controls="diagnostic-section-build" />
+                      <label for="diagnostic-toggle-build">Build And Bundle</label>
+                      <span class="diagnostic-toggle-description">Build orchestration, bundle review, and budget inputs.</span>
+                    </li>
+                    <li class="diagnostic-toggle-item">
+                      <input id="diagnostic-toggle-adapter-playground" data-diagnostic-toggle="adapter-playground" type="checkbox" checked aria-controls="diagnostic-section-adapter-playground" />
+                      <label for="diagnostic-toggle-adapter-playground">Adapter Playground</label>
+                      <span class="diagnostic-toggle-description">Manual adapter calls for IPFS, blockchain, LLM, and solver.</span>
+                    </li>
+                  </ul>
+                </section>
               </div>
             </div>
 
 
             <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="allocator" id="diagnostic-section-allocator" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Allocator</span>
-              <small class="status">Budgeting artifacts are surfaced here.</small>
+              <div class="card diagnostic-surface">
+                <div class="diagnostic-panel-header">
+                  <span class="stat-label">Allocator</span>
+                  <p>Budgeting artifacts are surfaced here.</p>
+                </div>
+                <div class="diagnostic-pane-grid">
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Budget</span>
+                    <pre class="adapter-output" id="allocator-budget-json">No JSON output yet.</pre>
+                  </section>
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Price List</span>
+                    <pre class="adapter-output" id="allocator-price-list-json">No JSON output yet.</pre>
+                  </section>
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Receipt</span>
+                    <pre class="adapter-output" id="allocator-receipt-json">No JSON output yet.</pre>
+                  </section>
+                </div>
+              </div>
             </div>
-            <div class="stat">
-              <span class="stat-label">Budget</span>
-            </div>
-            <pre class="adapter-output" id="allocator-budget-json">No JSON output yet.</pre>
-            <div class="stat">
-              <span class="stat-label">Price List</span>
-            </div>
-            <pre class="adapter-output" id="allocator-price-list-json">No JSON output yet.</pre>
-            <div class="stat">
-              <span class="stat-label">Receipt</span>
-            </div>
-            <pre class="adapter-output" id="allocator-receipt-json">No JSON output yet.</pre>
-          </div>
-        </div>
 
 
             <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="llm-trace" id="diagnostic-section-llm-trace" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">LLM Trace</span>
-              <small class="status">Prompt and response transcript captured by the Orchestrator, summarized by the Annotator.</small>
-            </div>
-            <div class="controls">
-              <div class="badge">Turns <strong id="llm-trace-count">0</strong></div>
-              <button class="secondary" id="llm-trace-clear" type="button">Clear Trace</button>
-            </div>
-            <div class="status" id="llm-trace-status">No LLM captures yet.</div>
-            <label>
-              <span class="stat-label">Turn</span>
-              <select id="llm-trace-turns"></select>
-            </label>
-            <div class="adapter-grid">
-              <div class="stat">
-                <span class="stat-label">Prompt</span>
-                <pre class="adapter-output" id="llm-trace-prompt">No prompt captured.</pre>
+              <div class="card diagnostic-surface">
+                <div class="diagnostic-panel-header">
+                  <span class="stat-label">LLM Trace</span>
+                  <p>Prompt and response transcript captured by the Orchestrator, summarized by the Annotator.</p>
+                </div>
+                <div class="stat-row">
+                  <div class="badge">Turns <strong id="llm-trace-count">0</strong></div>
+                  <button class="secondary" id="llm-trace-clear" type="button">Clear Trace</button>
+                </div>
+                <div class="status" id="llm-trace-status">No LLM captures yet.</div>
+                <label>
+                  <span class="stat-label">Turn</span>
+                  <select id="llm-trace-turns"></select>
+                </label>
+                <div class="diagnostic-trace-row">
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Prompt</span>
+                    <pre class="adapter-output" id="llm-trace-prompt">No prompt captured.</pre>
+                  </section>
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Response (Raw)</span>
+                    <pre class="adapter-output" id="llm-trace-response-raw">No response captured.</pre>
+                  </section>
+                </div>
+                <div class="diagnostic-trace-row">
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Response (Parsed)</span>
+                    <pre class="adapter-output" id="llm-trace-response-parsed">No parsed response.</pre>
+                  </section>
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Errors</span>
+                    <pre class="adapter-output" id="llm-trace-errors">No parse/contract errors.</pre>
+                  </section>
+                </div>
+                <div class="diagnostic-pane-grid">
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Annotator Summary</span>
+                    <pre class="adapter-output" id="llm-trace-summary">No annotator summary yet.</pre>
+                  </section>
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Annotator Telemetry Record</span>
+                    <pre class="adapter-output" id="llm-trace-telemetry">No annotator telemetry yet.</pre>
+                  </section>
+                </div>
               </div>
-              <div class="stat">
-                <span class="stat-label">Response (Raw)</span>
-                <pre class="adapter-output" id="llm-trace-response-raw">No response captured.</pre>
-              </div>
             </div>
-            <div class="adapter-grid">
-              <div class="stat">
-                <span class="stat-label">Response (Parsed)</span>
-                <pre class="adapter-output" id="llm-trace-response-parsed">No parsed response.</pre>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Errors</span>
-                <pre class="adapter-output" id="llm-trace-errors">No parse/contract errors.</pre>
-              </div>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Annotator Summary</span>
-              <pre class="adapter-output" id="llm-trace-summary">No annotator summary yet.</pre>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Annotator Telemetry Record</span>
-              <pre class="adapter-output" id="llm-trace-telemetry">No annotator telemetry yet.</pre>
-            </div>
-          </div>
-        </div>
             <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="build" id="diagnostic-section-build" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Build Orchestration</span>
-              <small class="status">Run BuildSpec execution through the browser command host.</small>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Spec Path (optional)</span>
-                <input id="build-spec-path" type="text" placeholder="tests/fixtures/artifacts/build-spec-v1-basic.json" />
-              </label>
-              <label>
-                <span class="stat-label">Out Dir (optional)</span>
-                <input id="build-out-dir" type="text" placeholder="artifacts/runs/runId/build" />
-              </label>
-            </div>
-            <label>
-              <span class="stat-label">Spec JSON</span>
-              <textarea id="build-spec-json" placeholder="{...}"></textarea>
-            </label>
-            <ul id="build-validation" hidden></ul>
-            <div class="controls">
-              <button class="primary" id="build-run">Run Build</button>
-              <button class="secondary" id="build-load" disabled>Load last build</button>
-              <button class="secondary" id="build-send-bundle" disabled>Load last build in Bundle Review</button>
-              <button class="secondary" id="build-download" hidden>Download spec.json</button>
-              <button class="secondary" id="build-clear">Clear</button>
-            </div>
-            <div class="status" id="build-status">Command host ready.</div>
-            <div class="stat">
-              <span class="stat-label">Build Output</span>
-            </div>
-            <pre class="adapter-output" id="build-output">No build output yet.</pre>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Bundle Review</span>
-              <small class="status">Load a bundle.json/manifest.json set to inspect and edit the BuildSpec.</small>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">Bundle JSON</span>
-                <input id="bundle-file" type="file" accept="application/json" />
-              </label>
-              <label>
-                <span class="stat-label">Manifest JSON (optional)</span>
-                <input id="bundle-manifest-file" type="file" accept="application/json" />
-              </label>
-            </div>
-            <div class="controls">
-              <button class="secondary" id="bundle-load-last">Load last build</button>
-              <button class="secondary" id="bundle-clear">Clear</button>
-            </div>
-            <div class="status" id="bundle-status">No bundle loaded.</div>
-            <div class="stat">
-              <span class="stat-label">Schemas</span>
-            </div>
-            <ul id="bundle-schemas" hidden></ul>
-            <div class="stat">
-              <span class="stat-label">Manifest JSON</span>
-            </div>
-            <pre class="adapter-output" id="bundle-manifest">No JSON output yet.</pre>
-            <div class="stat">
-              <span class="stat-label">BuildSpec (editable)</span>
-            </div>
-            <textarea id="bundle-spec-edit" placeholder="{...}"></textarea>
-            <ul id="bundle-spec-errors" hidden></ul>
-            <div class="controls">
-              <button class="primary" id="bundle-apply-spec">Apply spec edits</button>
-              <button class="secondary" id="bundle-send-spec">Send to Build</button>
-              <button class="secondary" id="bundle-download-spec">Download spec.json</button>
-            </div>
-            <div class="adapter-grid">
-              <div class="stat">
-                <span class="stat-label">Intent</span>
-                <pre class="adapter-output" id="bundle-intent">No JSON output yet.</pre>
+              <div class="card diagnostic-surface diagnostic-build-stack">
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Build Orchestration</span>
+                    <p>Run BuildSpec execution through the browser command host.</p>
+                  </div>
+                  <div class="diagnostic-input-grid">
+                    <label>
+                      <span class="stat-label">Spec Path (optional)</span>
+                      <input id="build-spec-path" type="text" placeholder="tests/fixtures/artifacts/build-spec-v1-basic.json" />
+                    </label>
+                    <label>
+                      <span class="stat-label">Out Dir (optional)</span>
+                      <input id="build-out-dir" type="text" placeholder="artifacts/runs/runId/build" />
+                    </label>
+                  </div>
+                  <label>
+                    <span class="stat-label">Spec JSON</span>
+                    <textarea id="build-spec-json" placeholder="{...}"></textarea>
+                  </label>
+                  <ul id="build-validation" hidden></ul>
+                  <div class="controls diagnostic-build-actions">
+                    <button class="primary" id="build-run">Run Build</button>
+                    <button class="secondary" id="build-load" disabled>Load last build</button>
+                    <button class="secondary" id="build-send-bundle" disabled>Load last build in Bundle Review</button>
+                    <button class="secondary" id="build-download" hidden>Download spec.json</button>
+                    <button class="secondary" id="build-clear">Clear</button>
+                  </div>
+                  <div class="status" id="build-status">Command host ready.</div>
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Build Output</span>
+                    <pre class="adapter-output" id="build-output">No build output yet.</pre>
+                  </section>
+                </section>
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Bundle Review</span>
+                    <p>Load a bundle.json/manifest.json set to inspect and edit the BuildSpec.</p>
+                  </div>
+                  <div class="diagnostic-input-grid">
+                    <label>
+                      <span class="stat-label">Bundle JSON</span>
+                      <input id="bundle-file" type="file" accept="application/json" />
+                    </label>
+                    <label>
+                      <span class="stat-label">Manifest JSON (optional)</span>
+                      <input id="bundle-manifest-file" type="file" accept="application/json" />
+                    </label>
+                  </div>
+                  <div class="controls diagnostic-build-actions">
+                    <button class="secondary" id="bundle-load-last">Load last build</button>
+                    <button class="secondary" id="bundle-clear">Clear</button>
+                  </div>
+                  <div class="status" id="bundle-status">No bundle loaded.</div>
+                  <div class="diagnostic-pane-grid">
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Schemas</span>
+                      <ul id="bundle-schemas" hidden></ul>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Manifest JSON</span>
+                      <pre class="adapter-output" id="bundle-manifest">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane diagnostic-pane-wide">
+                      <span class="stat-label">BuildSpec (editable)</span>
+                      <textarea id="bundle-spec-edit" placeholder="{...}"></textarea>
+                      <ul id="bundle-spec-errors" hidden></ul>
+                      <div class="controls diagnostic-build-actions">
+                        <button class="primary" id="bundle-apply-spec">Apply spec edits</button>
+                        <button class="secondary" id="bundle-send-spec">Send to Build</button>
+                        <button class="secondary" id="bundle-download-spec">Download spec.json</button>
+                      </div>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Intent</span>
+                      <pre class="adapter-output" id="bundle-intent">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Plan</span>
+                      <pre class="adapter-output" id="bundle-plan">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Configurator</span>
+                      <pre class="adapter-output" id="bundle-configurator">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane diagnostic-pane-wide">
+                      <span class="stat-label">Artifacts</span>
+                      <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
+                    </section>
+                  </div>
+                </section>
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Budget Inputs</span>
+                    <p>Configurator and allocator budget artifacts synced from build/bundle payloads.</p>
+                  </div>
+                  <div class="diagnostic-pane-grid">
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Budget</span>
+                      <pre class="adapter-output" id="config-budget-json">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Price List</span>
+                      <pre class="adapter-output" id="config-price-list-json">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Receipt</span>
+                      <pre class="adapter-output" id="config-receipt-json">No JSON output yet.</pre>
+                    </section>
+                  </div>
+                </section>
               </div>
-              <div class="stat">
-                <span class="stat-label">Plan</span>
-                <pre class="adapter-output" id="bundle-plan">No JSON output yet.</pre>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Configurator</span>
-                <pre class="adapter-output" id="bundle-configurator">No JSON output yet.</pre>
-              </div>
             </div>
-            <div class="stat">
-              <span class="stat-label">Artifacts</span>
-            </div>
-            <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
-          </div>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Budget Inputs</span>
-            </div>
-            <pre class="adapter-output" id="config-budget-json">No JSON output yet.</pre>
-            <pre class="adapter-output" id="config-price-list-json">No JSON output yet.</pre>
-            <div class="stat">
-              <span class="stat-label">Receipt</span>
-            </div>
-            <pre class="adapter-output" id="config-receipt-json">No JSON output yet.</pre>
-          </div>
-        </div>
 
             <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="adapter-playground" id="diagnostic-section-adapter-playground" role="tabpanel" hidden>
-          <div class="card">
-            <div class="stat">
-              <span class="stat-label">Adapter Playground</span>
-              <small class="status">Live mode only. Development fixtures should be run from CLI workflows.</small>
-            </div>
-            <div class="adapter-grid">
-              <label>
-                <span class="stat-label">IPFS Gateway</span>
-                <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
-              </label>
-              <label>
-                <span class="stat-label">IPFS CID</span>
-                <input id="adapter-cid" type="text" value="" placeholder="bafy..." />
-              </label>
-              <label>
-                <span class="stat-label">IPFS Path</span>
-                <input id="adapter-path" type="text" placeholder="optional/path.json" />
-              </label>
-              <label>
-                <span class="stat-label">RPC URL</span>
-                <input id="adapter-rpc-url" type="text" value="http://localhost:8545" />
-              </label>
-              <label>
-                <span class="stat-label">Address</span>
-                <input id="adapter-address" type="text" value="0xabc" />
-              </label>
-              <label>
-                <span class="stat-label">Prompt</span>
-                <input id="adapter-prompt" type="text" value="hello" />
-              </label>
-            </div>
-            <div class="controls">
-              <button class="primary" id="adapter-ipfs">Run IPFS</button>
-              <button class="secondary" id="adapter-blockchain">Run Blockchain</button>
-              <button class="secondary" id="adapter-llm">Run LLM</button>
-              <button class="secondary" id="adapter-solver">Run Solver</button>
-              <button class="secondary" id="adapter-clear">Clear</button>
-            </div>
-            <div class="status" id="adapter-status">Ready in live mode.</div>
-            <div class="stat">
-              <span class="stat-label">Orchestrator JSON Output</span>
-            </div>
-            <pre class="adapter-output" id="adapter-output">No JSON output yet.</pre>
-          </div>
+              <div class="card diagnostic-surface">
+                <div class="diagnostic-panel-header">
+                  <span class="stat-label">Adapter Playground</span>
+                  <p>Live mode only. Development fixtures should be run from CLI workflows.</p>
+                </div>
+                <div class="diagnostic-input-grid">
+                  <label>
+                    <span class="stat-label">IPFS Gateway</span>
+                    <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
+                  </label>
+                  <label>
+                    <span class="stat-label">IPFS CID</span>
+                    <input id="adapter-cid" type="text" value="" placeholder="bafy..." />
+                  </label>
+                  <label>
+                    <span class="stat-label">IPFS Path</span>
+                    <input id="adapter-path" type="text" placeholder="optional/path.json" />
+                  </label>
+                  <label>
+                    <span class="stat-label">RPC URL</span>
+                    <input id="adapter-rpc-url" type="text" value="http://localhost:8545" />
+                  </label>
+                  <label>
+                    <span class="stat-label">Address</span>
+                    <input id="adapter-address" type="text" value="0xabc" />
+                  </label>
+                  <label>
+                    <span class="stat-label">Prompt</span>
+                    <input id="adapter-prompt" type="text" value="hello" />
+                  </label>
+                </div>
+                <div class="controls diagnostic-build-actions">
+                  <button class="primary" id="adapter-ipfs">Run IPFS</button>
+                  <button class="secondary" id="adapter-blockchain">Run Blockchain</button>
+                  <button class="secondary" id="adapter-llm">Run LLM</button>
+                  <button class="secondary" id="adapter-solver">Run Solver</button>
+                  <button class="secondary" id="adapter-clear">Clear</button>
+                </div>
+                <div class="status" id="adapter-status">Ready in live mode.</div>
+                <section class="diagnostic-pane">
+                  <span class="stat-label">Orchestrator JSON Output</span>
+                  <pre class="adapter-output" id="adapter-output">No JSON output yet.</pre>
+                </section>
+              </div>
             </div>
           </div>
           <aside class="card inspector-shell inspector-surface" id="actor-inspector" hidden>
