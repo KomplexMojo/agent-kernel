@@ -2,6 +2,33 @@
 
 Use this file as the source-of-truth prompt for the UI/CLI parity and unification branch.
 
+## Stitch UI Rewrite Execution Overlay (2026-03-27)
+
+This repo is also executing the approved Stitch rewrite plan from `[Spec](intent://local/note/spec)` (milestones `M0 -> M7`) under existing architecture constraints.
+
+Execution focus for this overlay:
+- Keep all Stitch-derived presentation changes in `packages/ui-web/`.
+- Preserve command/artifact rails and ports/adapters boundaries.
+- Execute one bounded milestone at a time and log requirement -> tests -> code -> validation.
+
+Milestone target set (from spec):
+- `M0`: Stitch readiness and screen inventory.
+- `M1`: standalone Stitch POC page.
+- `M2`: command-host proof and `go` decision.
+- `M3`: shell/navigation rewrite.
+- `M4`: Design surface rewrite.
+- `M5`: Preview/Run surface rewrite.
+- `M6`: Diagnostics surface rewrite.
+- `M7`: regression ring, docs sync, and handoff.
+
+M7 acceptance gate for handoff:
+- `pnpm run build:wasm`
+- `node --test tests/ui-web/*.test.mjs`
+- `node --test tests/integration/*.test.js`
+- `pnpm run serve:ui` smoke check on `/packages/ui-web/index.html`
+- `docs/human-interfaces.md` and `docs/README.md` aligned with the rewritten UI workflow
+- `local-codex/Prompt.md`, `local-codex/Plan.md`, `local-codex/Implement.md`, and `local-codex/Documentation.md` updated with current execution status
+
 ## 1) Problem Statement
 
 `agent-kernel` has working capability in both the UI and the CLI, but the system is still exposed to three forms of drift:

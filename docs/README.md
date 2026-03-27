@@ -112,4 +112,5 @@ LLM flows) to keep outputs replayable and stable.
 - `docs/human-interfaces.md` — Fixture-first CLI + web UI quickstart (build WASM, run demos, serve UI).
 - `docs/cli-runbook.md` — End-to-end CLI usage and agent-friendly workflows.
 - Manual smoke (offline): `pnpm run build:wasm`; `pnpm run demo:cli`; `pnpm run serve:ui` then open `http://localhost:8001/packages/ui-web/index.html`. Expect `artifacts/demo-bundle/` to contain solve/run/replay/inspect outputs plus adapter payloads (`ipfs.json`, `blockchain.json`, `llm.json`).
+- Active web workflow tabs are `Design -> Preview -> Run`, with `Diagnostics` as the supporting inspection surface.
 - Effect routing: TickFrames/effects logs now include effect ids, requestIds, targetAdapter hints, and fulfillment status (log/telemetry/solver_request/need_external_fact fulfill/defer). Fixture adapters cover these paths.

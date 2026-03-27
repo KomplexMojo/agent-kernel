@@ -2,6 +2,43 @@
 
 Status tracker and decision log for this deliverable.
 
+## Stitch UI Rewrite Handoff Status (2026-03-27)
+
+- Source plan: `[Spec](intent://local/note/spec)` (`M0 -> M7`)
+- Current checkpoint: `M0` through `M6` implemented; `M7` regression/docs/handoff executed with regressions detected.
+- Handoff state: ready for coordinator/architecture enforcement review with explicit blockers.
+
+### Stitch Milestone Snapshot
+
+- M0: Completed
+- M1: Completed
+- M2: Completed (`go` decision recorded)
+- M3: Completed
+- M4: Completed
+- M5: Completed
+- M6: Completed
+- M7: In progress (validation-blocked)
+
+### M7 Validation Log (2026-03-27)
+
+| Command | Result | Notes |
+| --- | --- | --- |
+| `pnpm run build:wasm` | Passed | WASM built and copied to `packages/ui-web/assets/core-as.wasm`. |
+| `node --test tests/ui-web/*.test.mjs` | Failed | 49 passed / 6 failed. Primary failures: missing `packages/runtime/src/build/orchestrate-build.js`; missing `tests/fixtures/artifacts/budget-artifact-v1-basic.json`. |
+| `node --test tests/integration/*.test.js` | Failed | 0 passed / 15 failed / 1 skipped. Failures chain from missing `packages/runtime/src/build/orchestrate-build.js`. |
+| `pnpm run serve:ui` smoke | Passed | Server active at `http://localhost:8001`; page check returned HTTP `200` for `/packages/ui-web/index.html`. |
+
+### M7 Documentation Sync
+
+- Updated `docs/human-interfaces.md` to reflect current tab flow: `Design -> Preview -> Run -> Diagnostics`, and to reference browser command-host build execution.
+- Updated `docs/README.md` quickstart summary to match the same active workflow tab order.
+- Updated `local-codex/Prompt.md`, `local-codex/Plan.md`, `local-codex/Implement.md`, and this file with Stitch rewrite execution/handoff tracking.
+
+### M7 Open Blockers
+
+1. `packages/runtime/src/commands/kernel.js` imports `../build/orchestrate-build.js`, but `packages/runtime/src/build/orchestrate-build.js` does not exist.
+2. `tests/ui-web/budget-panels.test.mjs` references `tests/fixtures/artifacts/budget-artifact-v1-basic.json`, but that fixture file is missing.
+
 ## 1) Current Status
 
 - Deliverable: Aligning UI features with CLI
