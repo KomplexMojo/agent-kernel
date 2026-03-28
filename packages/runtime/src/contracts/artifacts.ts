@@ -1254,3 +1254,73 @@ export interface RunSummaryV1 {
 
 export type TelemetryRecord = TelemetryRecordV1;
 export type RunSummary = RunSummaryV1;
+
+// -------------------------
+// Resource Bundle (rendering)
+// -------------------------
+
+export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
+
+/**
+ * Visual resource bundle for rendering simulation state.
+ * V1 uses IPFS references; V2 includes embedded data URIs and relative paths.
+ */
+export interface ResourceBundleAssetV1 {
+  id: string;
+  kind: "tile" | "actor" | "card" | "overlay" | "affinity" | "motivation" | "expression";
+  label: string;
+  ipfsUri: string;
+  mimeType: string;
+  width: number;
+  height: number;
+  /** V2+: Embedded data URI for offline rendering. */
+  dataUri?: string;
+  /** V2+: Relative path for file export. */
+  relativePath?: string;
+}
+
+export interface ResourceBundleMappingsV1 {
+  tiles: Record<string, string>;
+  actors: Record<string, string> & {
+    byRoleAndAffinity?: Record<string, Record<string, string>>;
+  };
+  cards: Record<string, string>;
+  affinities?: Record<string, string>;
+  motivations?: Record<string, string>;
+  expressions?: Record<string, string>;
+  overlays?: {
+    affinities?: Record<string, string>;
+    expressions?: Record<string, string>;
+    stackTiers?: Record<string, string>;
+    motivations?: Record<string, string>;
+    darknessMask?: string;
+  };
+}
+
+export interface ResourceBundleArtifactV1 {
+  schema: typeof RESOURCE_BUNDLE_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  bundleId: string;
+  bundleVersion: number;
+  tileWidth: number;
+  tileHeight: number;
+  gatewayBaseUrl: string;
+  assets: ResourceBundleAssetV1[];
+  mappings: ResourceBundleMappingsV1;
+}
+
+export interface ResourceBundleArtifactV2 {
+  schema: typeof RESOURCE_BUNDLE_SCHEMA;
+  schemaVersion: 2;
+  meta: ArtifactMeta;
+  bundleId: string;
+  bundleVersion: number;
+  tileWidth: number;
+  tileHeight: number;
+  gatewayBaseUrl: string;
+  assets: ResourceBundleAssetV1[];
+  mappings: ResourceBundleMappingsV1;
+}
+
+export type ResourceBundleArtifact = ResourceBundleArtifactV1 | ResourceBundleArtifactV2;

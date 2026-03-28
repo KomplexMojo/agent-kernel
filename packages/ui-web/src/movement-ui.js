@@ -8,6 +8,7 @@ import {
   TRAP_VITAL_KEYS,
   VITAL_KEYS,
 } from "../../runtime/src/contracts/domain-constants.js";
+import { AFFINITY_COLOR_HEX, STACK_INTENSITY_TIERS, resolveStackIntensity } from "../../runtime/src/render/affinity-palette.js";
 
 const EVENT_STREAM_LIMIT = 6;
 const DEFAULT_VIEWPORT_SIZE = 50;
@@ -104,12 +105,10 @@ const REALTIME_MOVE_BY_ACTION = Object.freeze({
   left: { direction: "west", dx: -1, dy: 0 },
   right: { direction: "east", dx: 1, dy: 0 },
 });
-const STACK_STYLES = [
-  { sat: 55, light: 55, glow: 0 },
-  { sat: 65, light: 50, glow: 4 },
-  { sat: 75, light: 45, glow: 6 },
-  { sat: 85, light: 40, glow: 8 },
-];
+// Stack intensity rules now sourced from shared affinity-palette module
+const STACK_STYLES = STACK_INTENSITY_TIERS;
+// Affinity render order for deterministic tie-breaks (matches guidance-level-builder.js)
+const AFFINITY_RENDER_ORDER = Object.freeze(Object.keys(AFFINITY_COLOR_HEX));
 
 function escapeHtmlChar(char) {
   if (char === "&") return "&amp;";
@@ -128,6 +127,11 @@ function normalizeStacks(value) {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return 1;
   return Math.max(1, Math.round(num));
+}
+
+function affinityOrder(kind) {
+  const index = AFFINITY_RENDER_ORDER.indexOf(kind);
+  return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
 }
 
 function resolveAffinityFromTraits(traits) {
@@ -175,10 +179,9 @@ function resolveAffinityInfo(actor) {
   return null;
 }
 
+// Use shared stack intensity resolver
 function resolveStackStyle(stacks) {
-  const normalized = normalizeStacks(stacks);
-  const index = Math.min(STACK_STYLES.length - 1, normalized - 1);
-  return { ...STACK_STYLES[index], stacks: normalized };
+  return resolveStackIntensity(stacks);
 }
 
 function buildActorSymbolMap(actors = [], symbols, fallbackSymbols) {
@@ -202,7 +205,7 @@ function resolveTrapAffinityEntry(trap = null) {
   const valid = candidates
     .map((entry) => {
       const kind = normalizeAffinityKind(entry?.kind);
-      const stacks = normalizeStacks(entry?.stacks);
+      const stacks = normalizeStacks(entry?.roomStacks ?? entry?.stacks);
       const targetType = typeof entry?.targetType === "string" ? entry.targetType.trim().toLowerCase() : "";
       if (!kind || !AFFINITY_HUES[kind]) return null;
       return { kind, stacks, targetType };
@@ -211,7 +214,10 @@ function resolveTrapAffinityEntry(trap = null) {
   if (valid.length === 0) return null;
   const floorFirst = valid.filter((entry) => entry.targetType === "floor");
   const pool = floorFirst.length > 0 ? floorFirst : valid;
-  pool.sort((a, b) => b.stacks - a.stacks);
+  pool.sort((left, right) => {
+    if (right.stacks !== left.stacks) return right.stacks - left.stacks;
+    return affinityOrder(left.kind) - affinityOrder(right.kind);
+  });
   return pool[0];
 }
 
@@ -219,8 +225,8 @@ function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
   if (!Array.isArray(traps) || traps.length === 0) return new Map();
   const index = new Map();
   traps.forEach((trap) => {
-    const x = Number(trap?.position?.x);
-    const y = Number(trap?.position?.y);
+    const x = Number(trap?.position?.x ?? trap?.x);
+    const y = Number(trap?.position?.y ?? trap?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     if (viewport) {
       if (x < viewport.startX || x >= viewport.endX) return;
@@ -232,7 +238,15 @@ function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
     const localY = viewport ? y - viewport.startY : y;
     const key = keyForCell(localX, localY);
     const prior = index.get(key);
-    if (!prior || affinity.stacks > prior.stacks) {
+    if (!prior) {
+      index.set(key, affinity);
+      return;
+    }
+    if (affinity.stacks > prior.stacks) {
+      index.set(key, affinity);
+      return;
+    }
+    if (affinity.stacks === prior.stacks && affinityOrder(affinity.kind) < affinityOrder(prior.kind)) {
       index.set(key, affinity);
     }
   });

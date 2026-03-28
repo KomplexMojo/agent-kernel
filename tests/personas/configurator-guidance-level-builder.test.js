@@ -53,6 +53,21 @@ assert.equal(fromTiles.height, 2);
 assert.equal(fromTiles.walkableTiles, 5);
 assert.ok(fromTiles.image && fromTiles.image.pixels instanceof Uint8ClampedArray);
 
+const fromAffinityTiles = buildLevelRenderArtifactsFromTiles(["..."], {
+  includeAscii: true,
+  includeImage: true,
+  floorAffinityTraps: [
+    { x: 0, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 1 } },
+    { x: 1, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 1, roomStacks: 3 } },
+  ],
+});
+assert.equal(fromAffinityTiles.ok, true);
+assert.equal(fromAffinityTiles.ascii.lines[0][0], "f");
+assert.equal(fromAffinityTiles.ascii.lines[0][1], "F");
+const lowStackPixel = Array.from(fromAffinityTiles.image.pixels.slice(0, 4));
+const highStackPixel = Array.from(fromAffinityTiles.image.pixels.slice(4, 8));
+assert.notDeepEqual(lowStackPixel, highStackPixel);
+
 const invalidPreview = buildLevelPreviewFromGuidanceSummary(null);
 assert.equal(invalidPreview.ok, false);
 assert.equal(invalidPreview.reason, "missing_summary");
@@ -78,6 +93,104 @@ highBudgetShapes.forEach((shape, index) => {
   assert.equal(highBudgetPreview.walkableTiles, 5500, "shape index " + index);
 });
 
+`;
+
+  runEsm(script);
+});
+
+test("mixed-affinity floor resolution is invariant to trap ordering (permutation test)", () => {
+  const script = `
+import assert from "node:assert/strict";
+import {
+  buildLevelRenderArtifactsFromTiles,
+} from ${JSON.stringify(builderModule)};
+
+// Three traps at the same cell (1,0) with equal stacks but different affinities.
+// The tie-break rule uses AFFINITY_RENDER_ORDER index, so "fire" (index 0) should
+// always win over "water" (index 1) and "earth" (index 2) when stacks are equal.
+const baseTrap = (kind) => ({
+  x: 1, y: 0,
+  affinity: { kind, expression: "emit", targetType: "floor", stacks: 2 },
+});
+
+const trapSets = [
+  [baseTrap("fire"), baseTrap("water"), baseTrap("earth")],
+  [baseTrap("water"), baseTrap("fire"), baseTrap("earth")],
+  [baseTrap("earth"), baseTrap("water"), baseTrap("fire")],
+  [baseTrap("earth"), baseTrap("fire"), baseTrap("water")],
+  [baseTrap("water"), baseTrap("earth"), baseTrap("fire")],
+  [baseTrap("fire"), baseTrap("earth"), baseTrap("water")],
+];
+
+const tiles = ["..."];
+let referenceAscii = null;
+let referencePixels = null;
+
+trapSets.forEach((traps, permIndex) => {
+  const result = buildLevelRenderArtifactsFromTiles(tiles, {
+    includeAscii: true,
+    includeImage: true,
+    floorAffinityTraps: traps,
+  });
+  assert.equal(result.ok, true, "permutation " + permIndex + " should succeed");
+
+  // Cell (1,0) should resolve to "fire" (lowest AFFINITY_RENDER_ORDER index at equal stacks)
+  // ASCII glyph for fire at stacks>=2 is uppercase "F"
+  assert.equal(result.ascii.lines[0][1], "F",
+    "permutation " + permIndex + ": cell (1,0) should be fire uppercase glyph");
+
+  const cellPixelOffset = 1 * 4; // cell (1,0) -> pixel index 1
+  const pixel = Array.from(result.image.pixels.slice(cellPixelOffset, cellPixelOffset + 4));
+
+  if (permIndex === 0) {
+    referenceAscii = result.ascii.lines[0];
+    referencePixels = pixel;
+  } else {
+    assert.equal(result.ascii.lines[0], referenceAscii,
+      "permutation " + permIndex + ": ASCII row must match reference");
+    assert.deepStrictEqual(pixel, referencePixels,
+      "permutation " + permIndex + ": pixel RGBA must match reference");
+  }
+});
+
+// Also verify a second cell with different stacks to ensure higher-stacks still wins
+// regardless of ordering. Place a stacks=3 water trap and a stacks=2 fire trap at (0,0).
+const mixedStackTraps = [
+  [
+    { x: 0, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 2 } },
+    { x: 0, y: 0, affinity: { kind: "water", expression: "emit", targetType: "floor", stacks: 3 } },
+  ],
+  [
+    { x: 0, y: 0, affinity: { kind: "water", expression: "emit", targetType: "floor", stacks: 3 } },
+    { x: 0, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 2 } },
+  ],
+];
+
+let refStackAscii = null;
+let refStackPixel = null;
+
+mixedStackTraps.forEach((traps, permIndex) => {
+  const result = buildLevelRenderArtifactsFromTiles(tiles, {
+    includeAscii: true,
+    includeImage: true,
+    floorAffinityTraps: traps,
+  });
+  assert.equal(result.ok, true);
+  // Water at stacks=3 should win (higher stacks). Uppercase "W"
+  assert.equal(result.ascii.lines[0][0], "W",
+    "mixed-stacks perm " + permIndex + ": higher-stacks water should win");
+
+  const pixel = Array.from(result.image.pixels.slice(0, 4));
+  if (permIndex === 0) {
+    refStackAscii = result.ascii.lines[0][0];
+    refStackPixel = pixel;
+  } else {
+    assert.equal(result.ascii.lines[0][0], refStackAscii,
+      "mixed-stacks perm " + permIndex + ": ASCII must match");
+    assert.deepStrictEqual(pixel, refStackPixel,
+      "mixed-stacks perm " + permIndex + ": pixel must match");
+  }
+});
 `;
 
   runEsm(script);

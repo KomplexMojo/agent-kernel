@@ -124,6 +124,25 @@ assert.equal(fromTiles.width, 3);
 assert.equal(fromTiles.height, 2);
 assert.equal(fromTiles.walkableTiles, 5);
 
+const affinityFromTiles = await inProcess.buildFromTiles({
+  tiles: ["..."],
+  renderOptions: {
+    includeAscii: true,
+    includeImage: true,
+    floorAffinityTraps: [
+      { x: 0, y: 0, affinity: { kind: "water", targetType: "floor", stacks: 1 } },
+      { x: 1, y: 0, affinity: { kind: "water", targetType: "floor", stacks: 1, roomStacks: 3 } },
+    ],
+  },
+});
+assert.equal(affinityFromTiles.ok, true);
+assert.equal(affinityFromTiles.ascii.lines[0][0], "w");
+assert.equal(affinityFromTiles.ascii.lines[0][1], "W");
+assert.notDeepEqual(
+  Array.from(affinityFromTiles.image.pixels.slice(0, 4)),
+  Array.from(affinityFromTiles.image.pixels.slice(4, 8)),
+);
+
 const fromLevelGen = await inProcess.buildFromLevelGen({ levelGen: inProcessResult.levelGen });
 assert.equal(fromLevelGen.ok, true);
 assert.equal(fromLevelGen.walkableTiles, 120);
