@@ -91,7 +91,30 @@ const server = createServer((req, res) => {
   handleStatic(req, res);
 });
 
-server.listen(port, () => {
-  console.log(`Serving UI on http://localhost:${port}`);
-  console.log("Open /packages/ui-web/index.html");
-});
+function tryListen(portToTry, maxAttempts = 10) {
+  server.listen(portToTry, () => {
+    const url = `http://localhost:${portToTry}/packages/ui-web/index.html`;
+    console.log(`\nServing UI at: ${url}\n`);
+  });
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      const nextPort = portToTry + 1;
+      const remainingAttempts = maxAttempts - 1;
+
+      if (remainingAttempts > 0) {
+        console.warn(`Port ${portToTry} is in use, trying ${nextPort}...`);
+        server.close();
+        tryListen(nextPort, remainingAttempts);
+      } else {
+        console.error(`Could not find an available port after ${maxAttempts} attempts.`);
+        process.exit(1);
+      }
+    } else {
+      console.error("Server error:", err);
+      process.exit(1);
+    }
+  });
+}
+
+tryListen(port);
