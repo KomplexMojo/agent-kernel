@@ -1,0 +1,18 @@
+{
+  "schema": "agent-kernel/PriceList",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "price_list_basic",
+    "runId": "run_budget_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "items": [
+    {
+      "id": "tile_floor",
+      "kind": "tile",
+      "costTokens": 1,
+      "notes": "floor tile"
+    }
+  ]
+}

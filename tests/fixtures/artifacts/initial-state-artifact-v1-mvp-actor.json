@@ -1,0 +1,30 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "initial_state_mvp_actor",
+    "runId": "run_mvp_grid",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "simConfigRef": {
+    "id": "sim_config_mvp_grid",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "actor_mvp",
+      "kind": "ambulatory",
+      "position": {
+        "x": 1,
+        "y": 1
+      },
+      "traits": {
+        "hp": 10,
+        "maxHp": 10,
+        "speed": 1
+      }
+    }
+  ]
+}

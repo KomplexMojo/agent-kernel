@@ -1,0 +1,39 @@
+{
+  "schema": "agent-kernel/ActorState",
+  "schemaVersion": 1,
+  "actor": {
+    "id": "1",
+    "kind": "motivated",
+    "position": {
+      "x": 1,
+      "y": 1
+    },
+    "vitals": {
+      "health": {
+        "current": 10,
+        "max": 10,
+        "regen": 0
+      },
+      "mana": {
+        "current": 0,
+        "max": 0,
+        "regen": 0
+      },
+      "stamina": {
+        "current": 12,
+        "max": 12,
+        "regen": 0
+      },
+      "durability": {
+        "current": 0,
+        "max": 0,
+        "regen": 0
+      }
+    },
+    "capabilities": {
+      "movementCost": -1,
+      "actionCostMana": 0,
+      "actionCostStamina": 0
+    }
+  }
+}

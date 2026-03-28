@@ -1,0 +1,51 @@
+{
+  "schema": "agent-kernel/BudgetLedgerArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "budget_ledger_basic",
+    "runId": "run_budget_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "budgetRef": {
+    "id": "budget_basic",
+    "schema": "agent-kernel/BudgetArtifact",
+    "schemaVersion": 1
+  },
+  "receiptRef": {
+    "id": "budget_receipt_basic",
+    "schema": "agent-kernel/BudgetReceiptArtifact",
+    "schemaVersion": 1
+  },
+  "remaining": 100,
+  "spendEvents": [
+    {
+      "id": "layout_grid_9x9",
+      "kind": "layout",
+      "quantity": 1,
+      "unitCost": 0,
+      "totalCost": 0
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 2,
+      "unitCost": 0,
+      "totalCost": 0
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "unitCost": 0,
+      "totalCost": 0
+    },
+    {
+      "id": "unknown_item",
+      "kind": "unknown",
+      "quantity": 3,
+      "unitCost": 0,
+      "totalCost": 0
+    }
+  ]
+}

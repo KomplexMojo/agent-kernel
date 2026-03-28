@@ -1,0 +1,39 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_basic",
+    "runId": "run_build_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Build a minimal dungeon run from fixtures.",
+    "hints": "nope"
+  },
+  "plan": {
+    "hints": {
+      "directives": [
+        "fixture"
+      ]
+    }
+  },
+  "configurator": {
+    "inputs": {
+      "levelAffinity": "fire",
+      "rooms": [
+        {
+          "affinity": "fire",
+          "trapAffinity": "fire"
+        }
+      ],
+      "actors": [
+        {
+          "role": "delver",
+          "count": 1,
+          "affinity": "fire"
+        }
+      ]
+    }
+  }
+}

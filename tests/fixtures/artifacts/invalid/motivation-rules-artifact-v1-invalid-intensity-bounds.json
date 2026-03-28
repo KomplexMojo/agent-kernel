@@ -1,0 +1,213 @@
+{
+  "schema": "agent-kernel/MotivationRulesArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "motivation_rules_basic",
+    "runId": "run_motivation_rules_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "runtime-defaults"
+  },
+  "balanceVersion": "2026.03.22",
+  "contentHash": "sha256:motivation-rules-basic",
+  "rulesetName": "Basic Motivation Rules",
+  "globals": {
+    "defaultIntensity": 5,
+    "maxIntensity": 4,
+    "reasoningClasses": {
+      "none": "instinctual",
+      "reflexive": "instinctual",
+      "goal_oriented": "tactical",
+      "strategy_focused": "strategic"
+    },
+    "profileCosts": {
+      "mobility": {
+        "stationary": 0,
+        "exploring": 1,
+        "patrolling": 2
+      },
+      "combat": {
+        "none": 0,
+        "attacking": 5,
+        "defending": 4
+      },
+      "cognition": {
+        "none": 0,
+        "reflexive": 1,
+        "goal_oriented": 5,
+        "strategy_focused": 20
+      }
+    }
+  },
+  "motivations": [
+    {
+      "kind": "random",
+      "profile": {
+        "mobility": "exploring",
+        "combat": "none",
+        "cognition": "reflexive"
+      },
+      "exclusiveGroup": "planning",
+      "displayGroup": "planning",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
+    },
+    {
+      "kind": "stationary",
+      "profile": {
+        "mobility": "stationary",
+        "combat": "none",
+        "cognition": "none"
+      },
+      "exclusiveGroup": "mobility",
+      "displayGroup": "mobility",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
+    },
+    {
+      "kind": "exploring",
+      "profile": {
+        "mobility": "exploring",
+        "combat": "none",
+        "cognition": "reflexive"
+      },
+      "exclusiveGroup": "mobility",
+      "displayGroup": "mobility",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
+    },
+    {
+      "kind": "attacking",
+      "profile": {
+        "mobility": "exploring",
+        "combat": "attacking",
+        "cognition": "goal_oriented"
+      },
+      "exclusiveGroup": "combat",
+      "displayGroup": "combat",
+      "patterns": [
+        "melee",
+        "ranged",
+        "mixed"
+      ],
+      "defaultPattern": "melee",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
+    },
+    {
+      "kind": "defending",
+      "profile": {
+        "mobility": "stationary",
+        "combat": "defending",
+        "cognition": "goal_oriented"
+      },
+      "exclusiveGroup": "combat",
+      "displayGroup": "combat",
+      "patterns": [
+        "hold_point",
+        "bodyguard"
+      ],
+      "defaultPattern": "hold_point",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
+    },
+    {
+      "kind": "patrolling",
+      "profile": {
+        "mobility": "patrolling",
+        "combat": "none",
+        "cognition": "reflexive"
+      },
+      "exclusiveGroup": "mobility",
+      "displayGroup": "mobility_route",
+      "patterns": [
+        "loop",
+        "ping_pong",
+        "random_walk"
+      ],
+      "defaultPattern": "loop",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
+    },
+    {
+      "kind": "reflexive",
+      "profile": {
+        "mobility": "stationary",
+        "combat": "none",
+        "cognition": "reflexive"
+      },
+      "exclusiveGroup": "response",
+      "displayGroup": "response",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 1
+    },
+    {
+      "kind": "goal_oriented",
+      "profile": {
+        "mobility": "stationary",
+        "combat": "none",
+        "cognition": "goal_oriented"
+      },
+      "exclusiveGroup": "response",
+      "displayGroup": "response",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 5
+    },
+    {
+      "kind": "strategy_focused",
+      "profile": {
+        "mobility": "stationary",
+        "combat": "none",
+        "cognition": "strategy_focused"
+      },
+      "exclusiveGroup": "planning",
+      "displayGroup": "planning",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 20
+    }
+  ]
+}

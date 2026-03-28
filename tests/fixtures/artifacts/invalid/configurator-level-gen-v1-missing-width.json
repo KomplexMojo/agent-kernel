@@ -1,0 +1,45 @@
+{
+  "height": 5,
+  "seed": 3,
+  "shape": {
+    "roomCount": 1,
+    "roomMinSize": 3,
+    "roomMaxSize": 3,
+    "corridorWidth": 1
+  },
+  "spawn": {
+    "edgeBias": true,
+    "minDistance": 1
+  },
+  "exit": {
+    "edgeBias": true,
+    "minDistance": 1
+  },
+  "connectivity": {
+    "requirePath": true
+  },
+  "traps": [
+    {
+      "x": 2,
+      "y": 2,
+      "blocking": false,
+      "affinity": {
+        "kind": "fire",
+        "expression": "push",
+        "stacks": 2
+      },
+      "vitals": {
+        "mana": {
+          "current": 3,
+          "max": 3,
+          "regen": 1
+        },
+        "durability": {
+          "current": 5,
+          "max": 5,
+          "regen": 0
+        }
+      }
+    }
+  ]
+}

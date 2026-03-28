@@ -1,0 +1,977 @@
+{
+  "schema": "agent-kernel/AffinityRulesArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "affinity_rules_legacy_basic",
+    "runId": "run_affinity_rules_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "runtime-defaults"
+  },
+  "balanceVersion": "2026.03.22",
+  "contentHash": "sha256:affinity-rules-basic",
+  "rulesetName": "Basic Affinity Rules",
+  "globals": {
+    "defaultOutcomeOnWin": "suppress",
+    "defaultOutcomeOnTie": "cancel",
+    "defaultMana": {
+      "winnerSpend": "full",
+      "loserSpend": "half",
+      "tieSpend": "full",
+      "clashCost": 1,
+      "overpowerBonusCost": 1,
+      "drainOnFail": 0
+    }
+  },
+  "affinities": [
+    {
+      "kind": "fire",
+      "opposite": "water",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "flame_surge",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 3,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 6,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 9,
+              "potency": 4
+            },
+            {
+              "tier": 4,
+              "manaCost": 12,
+              "potency": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 15,
+              "potency": 16
+            }
+          ]
+        },
+        {
+          "id": "ember_grasp",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "potency": 5
+            }
+          ]
+        },
+        {
+          "id": "pyre_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "potency": 5
+            }
+          ],
+          "manaScaling": {
+            "persistentAreaSurcharge": 2,
+            "environmentMutationSurcharge": 1
+          }
+        }
+      ]
+    },
+    {
+      "kind": "water",
+      "opposite": "fire",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "tidal_ram",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "potency": 5
+            }
+          ]
+        },
+        {
+          "id": "current_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "potency": 5
+            }
+          ]
+        },
+        {
+          "id": "tidal_veil",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 3,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 5,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 7,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 9,
+              "potency": 5
+            }
+          ],
+          "manaScaling": {
+            "persistentAreaSurcharge": 1
+          }
+        }
+      ]
+    },
+    {
+      "kind": "earth",
+      "opposite": "wind",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "stone_ram",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 3
+            },
+            {
+              "tier": 2,
+              "manaCost": 5
+            },
+            {
+              "tier": 3,
+              "manaCost": 7
+            },
+            {
+              "tier": 4,
+              "manaCost": 9
+            },
+            {
+              "tier": 5,
+              "manaCost": 11
+            }
+          ]
+        },
+        {
+          "id": "stone_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
+        },
+        {
+          "id": "stone_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "wind",
+      "opposite": "earth",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "gust_lance",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "draft_pull",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
+        },
+        {
+          "id": "storm_ring",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "life",
+      "opposite": "decay",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "bloom_strike",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "vital_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 0,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 1,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 2,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 3,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 4,
+              "potency": 5
+            }
+          ]
+        },
+        {
+          "id": "verdant_aura",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "decay",
+      "opposite": "life",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "rot_strike",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "wither_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
+        },
+        {
+          "id": "blight_mist",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "corrode",
+      "opposite": "fortify",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "rust_blow",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "etch_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
+        },
+        {
+          "id": "acid_haze",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "fortify",
+      "opposite": "corrode",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "bulwark_drive",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "anchor_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
+        },
+        {
+          "id": "bulwark_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "light",
+      "opposite": "dark",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "prism_burst",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "lumen_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
+        },
+        {
+          "id": "radiant_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "dark",
+      "opposite": "light",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "shade_lash",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "gloom_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
+        },
+        {
+          "id": "umbral_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2
+            },
+            {
+              "tier": 2,
+              "manaCost": 4
+            },
+            {
+              "tier": 3,
+              "manaCost": 6
+            },
+            {
+              "tier": 4,
+              "manaCost": 8
+            },
+            {
+              "tier": 5,
+              "manaCost": 10
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "sourceKind": "fire",
+      "targetKind": "water",
+      "outcomeOnSourceWin": "mutate_environment",
+      "outcomeOnTargetWin": "suppress",
+      "outcomeOnTie": "cancel",
+      "mana": {
+        "winnerSpend": "full",
+        "loserSpend": "half",
+        "tieSpend": "full",
+        "clashCost": 1,
+        "overpowerBonusCost": 1
+      }
+    },
+    {
+      "sourceKind": "light",
+      "targetKind": "dark",
+      "outcomeOnSourceWin": "reflect",
+      "outcomeOnTargetWin": "suppress",
+      "outcomeOnTie": "cancel",
+      "mana": {
+        "winnerSpend": "full",
+        "loserSpend": "full",
+        "tieSpend": "half"
+      }
+    }
+  ]
+}

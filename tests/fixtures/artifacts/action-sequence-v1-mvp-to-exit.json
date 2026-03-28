@@ -1,0 +1,186 @@
+{
+  "schema": "agent-kernel/ActionSequence",
+  "schemaVersion": 1,
+  "actions": [
+    {
+      "actorId": "actor_mvp",
+      "tick": 1,
+      "params": {
+        "from": {
+          "x": 1,
+          "y": 1
+        },
+        "to": {
+          "x": 2,
+          "y": 1
+        },
+        "direction": "east"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 2,
+      "params": {
+        "from": {
+          "x": 2,
+          "y": 1
+        },
+        "to": {
+          "x": 3,
+          "y": 1
+        },
+        "direction": "east"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 3,
+      "params": {
+        "from": {
+          "x": 3,
+          "y": 1
+        },
+        "to": {
+          "x": 3,
+          "y": 2
+        },
+        "direction": "south"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 4,
+      "params": {
+        "from": {
+          "x": 3,
+          "y": 2
+        },
+        "to": {
+          "x": 3,
+          "y": 3
+        },
+        "direction": "south"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 5,
+      "params": {
+        "from": {
+          "x": 3,
+          "y": 3
+        },
+        "to": {
+          "x": 4,
+          "y": 3
+        },
+        "direction": "east"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 6,
+      "params": {
+        "from": {
+          "x": 4,
+          "y": 3
+        },
+        "to": {
+          "x": 5,
+          "y": 3
+        },
+        "direction": "east"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 7,
+      "params": {
+        "from": {
+          "x": 5,
+          "y": 3
+        },
+        "to": {
+          "x": 5,
+          "y": 4
+        },
+        "direction": "south"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 8,
+      "params": {
+        "from": {
+          "x": 5,
+          "y": 4
+        },
+        "to": {
+          "x": 5,
+          "y": 5
+        },
+        "direction": "south"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 9,
+      "params": {
+        "from": {
+          "x": 5,
+          "y": 5
+        },
+        "to": {
+          "x": 5,
+          "y": 6
+        },
+        "direction": "south"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 10,
+      "params": {
+        "from": {
+          "x": 5,
+          "y": 6
+        },
+        "to": {
+          "x": 5,
+          "y": 7
+        },
+        "direction": "south"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 11,
+      "params": {
+        "from": {
+          "x": 5,
+          "y": 7
+        },
+        "to": {
+          "x": 6,
+          "y": 7
+        },
+        "direction": "east"
+      }
+    },
+    {
+      "actorId": "actor_mvp",
+      "tick": 12,
+      "params": {
+        "from": {
+          "x": 6,
+          "y": 7
+        },
+        "to": {
+          "x": 7,
+          "y": 7
+        },
+        "direction": "east"
+      }
+    }
+  ]
+}

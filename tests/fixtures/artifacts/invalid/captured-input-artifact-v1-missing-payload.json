@@ -1,0 +1,18 @@
+{
+  "schema": "agent-kernel/CapturedInputArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "captured_ref_json",
+    "runId": "run_capture_fixture",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "source": {
+    "adapter": "llm",
+    "requestId": "req_2",
+    "request": {
+      "model": "fixture"
+    }
+  },
+  "contentType": "application/json"
+}

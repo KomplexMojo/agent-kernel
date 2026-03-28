@@ -1,0 +1,31 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_configurator",
+    "runId": "run_configurator_trap",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Build configurator artifacts from trap fixtures.",
+    "hints": {
+      "budgetTokens": 100,
+      "levelSize": "small",
+      "roomCount": 1
+    }
+  },
+  "plan": {
+    "hints": {
+      "directives": [
+        "fixture"
+      ]
+    }
+  },
+  "configurator": {
+    "inputs": {
+      "levelSize": "small",
+      "budgetTokens": 25
+    }
+  }
+}

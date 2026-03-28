@@ -1,0 +1,87 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "artifact_mn8ioaa5_x5u57u",
+    "runId": "run_configurator_trap",
+    "createdAt": "2026-03-27T06:24:59.405Z",
+    "producedBy": "cli-configurator"
+  },
+  "simConfigRef": {
+    "id": "artifact_mn8ioaa4_hs05j2",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "affinityRulesRef": {
+    "id": "affinity_rules_basic",
+    "schema": "agent-kernel/AffinityRulesArtifact",
+    "schemaVersion": 1
+  },
+  "motivationRulesRef": {
+    "id": "motivation_rules_basic",
+    "schema": "agent-kernel/MotivationRulesArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "actor_mvp",
+      "kind": "ambulatory",
+      "position": {
+        "x": 2,
+        "y": 1
+      },
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "actor_rival",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 2
+      },
+      "vitals": {
+        "health": {
+          "current": 6,
+          "max": 6,
+          "regen": 0
+        },
+        "mana": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        }
+      }
+    }
+  ]
+}

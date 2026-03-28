@@ -1,0 +1,21 @@
+{
+  "schema": "agent-kernel/CapturedInputArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "captured_inline_json",
+    "runId": "run_capture_fixture",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "source": {
+    "adapter": "ipfs",
+    "requestId": "req_1",
+    "request": {
+      "cid": "bafyfixture"
+    }
+  },
+  "contentType": "application/json",
+  "payload": {
+    "ok": true
+  }
+}

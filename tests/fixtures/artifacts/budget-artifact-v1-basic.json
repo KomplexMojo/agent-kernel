@@ -1,0 +1,13 @@
+{
+  "schema": "agent-kernel/BudgetArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "budget_basic",
+    "runId": "run_budget_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "budget": {
+    "tokens": 100
+  }
+}
