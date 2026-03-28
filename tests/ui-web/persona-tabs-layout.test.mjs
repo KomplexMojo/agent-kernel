@@ -50,11 +50,11 @@ test("design panel contains the unified card workspace layout", () => {
   assert.match(designPanel, /id="design-auto-generate"/);
   assert.match(designPanel, /id="design-level-budget"/);
   assert.match(designPanel, /id="design-budget-split-room"/);
-  assert.match(designPanel, /id="design-budget-split-attacker"/);
-  assert.match(designPanel, /id="design-budget-split-defender"/);
+  assert.match(designPanel, /id="design-budget-split-delver"/);
+  assert.match(designPanel, /id="design-budget-split-warden"/);
   assert.match(designPanel, /id="design-card-group-room"/);
-  assert.match(designPanel, /id="design-card-group-attacker"/);
-  assert.match(designPanel, /id="design-card-group-defender"/);
+  assert.match(designPanel, /id="design-card-group-delver"/);
+  assert.match(designPanel, /id="design-card-group-warden"/);
   const budgetOverviewIdx = designPanel.indexOf('id="design-budget-overview"');
   const statusIdx = designPanel.indexOf('id="design-guidance-status"');
   const cardGridIdx = designPanel.indexOf('id="design-card-grid"');
@@ -67,7 +67,7 @@ test("design panel contains the unified card workspace layout", () => {
   assert.doesNotMatch(designPanel, /Drag chips onto this card\./);
   assert.match(
     designPanel,
-    /id="design-guidance-status"[^>]*>Configure one card in the center, then pull it right into grouped Room\/Attacker\/Defender shelves\.<\/div>/,
+    /id="design-guidance-status"[^>]*>Configure one card in the center, then pull it right into grouped Room\/Delver\/Warden shelves\.<\/div>/,
   );
 });
 
@@ -96,15 +96,15 @@ test("game board panel contains playback controls and action controls only", () 
   assert.doesNotMatch(simulationPanel, /<small class="status">/);
   assert.match(
     simulationPanel,
-    /id="status-message"[^>]*>Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here\.<\/div>/,
+    /id="status-message"[^>]*>Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here\.<\/div>/,
   );
   assert.doesNotMatch(simulationPanel, /Selected Actor View/);
   [
     "runtime-viewport",
     "runtime-status",
-    "runtime-attacker-card",
-    "runtime-visible-defenders",
-    "runtime-offscreen-defenders",
+    "runtime-delver-card",
+    "runtime-visible-wardens",
+    "runtime-offscreen-wardens",
   ].forEach((id) => {
     assert.doesNotMatch(simulationPanel, new RegExp(`id="${id}"`));
   });
@@ -140,8 +140,8 @@ test("game board layout includes the right-rail actor inspector", () => {
   [
     "actor-inspector",
     "actor-inspector-room-list",
-    "actor-inspector-attacker-list",
-    "actor-inspector-defender-list",
+    "actor-inspector-delver-list",
+    "actor-inspector-warden-list",
     "actor-inspector-detail",
   ].forEach((id) => {
     assert.match(html, new RegExp(`id="${id}"`));

@@ -42,7 +42,7 @@ import {
 } from "../../runtime/src/personas/configurator/card-model.js";
 
 const DEFAULT_LEVEL_BUDGET_TOKENS = 1000;
-const DEFAULT_AI_PROMPT = "Generate a balanced room, attacker, and defender card set for a stealth dungeon run.";
+const DEFAULT_AI_PROMPT = "Generate a balanced room, delver, and warden card set for a stealth dungeon run.";
 const FIXTURE_DEFAULT_RESPONSE = {
   response: JSON.stringify({
     dungeonAffinity: "fire",
@@ -101,7 +101,7 @@ const MOTIVATION_ICON_MAP = Object.freeze({
   goal_oriented: "🎯",
   strategy_focused: "♟️",
 });
-const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.";
+const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.";
 const EXCLUSIVE_PAIR_NOTE = "Choose 1";
 
 const AFFINITY_DISPLAY_GROUPS = Object.freeze(
@@ -1422,10 +1422,10 @@ function formatAutoGenerateCount(type, count) {
   const normalizedType = normalizeCardType(type) || type;
   const safeCount = readNonNegativeInt(count, 0);
   if (normalizedType === "attacker") {
-    return `${safeCount} attacker${safeCount === 1 ? "" : "s"}`;
+    return `${safeCount} delver${safeCount === 1 ? "" : "s"}`;
   }
   if (normalizedType === "defender") {
-    return `${safeCount} defender${safeCount === 1 ? "" : "s"}`;
+    return `${safeCount} warden${safeCount === 1 ? "" : "s"}`;
   }
   return `${safeCount} room${safeCount === 1 ? "" : "s"}`;
 }
@@ -3095,7 +3095,7 @@ export function wireDesignGuidance({
         model: llmConfig.model || DEFAULT_LLM_MODEL,
         catalog: llmConfig.catalog || { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] },
         goal: prompt,
-        notes: "Generate card-ready room, attacker, and defender outputs.",
+        notes: "Generate card-ready room, delver, and warden outputs.",
         budgetTokens: state.budgetTokens,
         priceList: llmConfig.priceList,
         maxActorRounds: 1,

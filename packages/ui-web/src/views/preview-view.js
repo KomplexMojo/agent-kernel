@@ -32,7 +32,10 @@ function findArtifact(bundle, schema) {
 }
 
 function normalizeCardTypeName(type) {
-  return typeof type === "string" ? type.trim().toLowerCase() : "";
+  const normalized = typeof type === "string" ? type.trim().toLowerCase() : "";
+  if (normalized === "delver") return "attacker";
+  if (normalized === "warden") return "defender";
+  return normalized;
 }
 
 function readConfiguredCount(count) {
@@ -44,8 +47,8 @@ function readConfiguredCount(count) {
 function formatMissingCardTypes(types = []) {
   return types.map((type) => {
     if (type === "room") return "room";
-    if (type === "attacker") return "attacker";
-    if (type === "defender") return "defender";
+    if (type === "attacker") return "delver";
+    if (type === "defender") return "warden";
     return type;
   }).join(", ");
 }
@@ -80,7 +83,7 @@ export function validatePreviewLaunchBundle(bundle) {
       reason: "missing_required_types",
       missing,
       counts,
-      message: `Build blocked: configure at least 1 room, 1 attacker, and 1 defender before loading the run. Missing: ${formatMissingCardTypes(missing)}.`,
+      message: `Build blocked: configure at least 1 room, 1 delver, and 1 warden before loading the run. Missing: ${formatMissingCardTypes(missing)}.`,
     };
   }
 

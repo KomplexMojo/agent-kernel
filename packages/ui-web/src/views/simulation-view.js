@@ -15,7 +15,7 @@ const VISIBILITY_MODE_SIMULATION_FULL = "simulation_full";
 const VISIBILITY_MODE_GAMEPLAY_FOG = "gameplay_fog";
 const DEFAULT_VIEWPORT_SIZE = 50;
 const DEFAULT_VISION_RADIUS = 6;
-const DEFAULT_RUN_HELP_TEXT = "Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.";
+const DEFAULT_RUN_HELP_TEXT = "Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here.";
 
 function sortActorsById(initialState) {
   const actors = Array.isArray(initialState?.actors) ? initialState.actors.slice() : [];
@@ -460,7 +460,7 @@ export function wireSimulationView({
         actorId: config.actorId,
         actions: movement.actions,
       });
-      setStatus("Select a room, attacker, or defender to inspect and control it here.");
+      setStatus("Select a room, delver, or warden to inspect and control it here.");
     } catch (err) {
       setStatus(err.message || "Failed to start run", "error");
       console.error(err);
@@ -518,7 +518,7 @@ export function wireSimulationView({
           },
         },
       );
-      setStatus("Select a room, attacker, or defender to inspect and control it here.");
+      setStatus("Select a room, delver, or warden to inspect and control it here.");
     } catch (err) {
       setStatus(err.message || "Failed to start bundle run", "error");
       console.error(err);
@@ -672,7 +672,7 @@ export function wireSimulationView({
       } else if (result.reason === "actor_not_found") {
         setStatus(`Actor ${result.actorId || "unknown"} is unavailable.`, "error");
       } else if (result.reason === "missing_actor") {
-        setStatus("Select an attacker or defender first.", "error");
+        setStatus("Select an delver or warden first.", "error");
       } else if (result.reason === "unsupported_action") {
         setStatus("Unsupported game action.", "error");
       }

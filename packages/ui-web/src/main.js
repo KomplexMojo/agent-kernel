@@ -63,8 +63,8 @@ const previewView = wirePreviewView({
 const actorInspector = createActorInspector({
   containerEl: actorInspectorRoot,
   roomListEl: document.querySelector("#actor-inspector-room-list"),
-  attackerListEl: document.querySelector("#actor-inspector-attacker-list"),
-  defenderListEl: document.querySelector("#actor-inspector-defender-list"),
+  attackerListEl: document.querySelector("#actor-inspector-delver-list"),
+  defenderListEl: document.querySelector("#actor-inspector-warden-list"),
   detailEl: document.querySelector("#actor-inspector-detail"),
   onSelectEntity: (entity) => {
     simulationView?.focusInspectorEntity?.(entity);
