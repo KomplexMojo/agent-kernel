@@ -156,18 +156,18 @@ function createRootElements() {
     "#design-property-group-motivations": make("div"),
     "#design-card-grid": make("div"),
     "#design-card-group-room": make("div"),
-    "#design-card-group-attacker": make("div"),
-    "#design-card-group-defender": make("div"),
+    "#design-card-group-delver": make("div"),
+    "#design-card-group-warden": make("div"),
     "#design-card-group-budget-room": make("div"),
-    "#design-card-group-budget-attacker": make("div"),
-    "#design-card-group-budget-defender": make("div"),
+    "#design-card-group-budget-delver": make("div"),
+    "#design-card-group-budget-warden": make("div"),
     "#design-level-budget": make("input"),
     "#design-budget-split-room": make("input"),
-    "#design-budget-split-attacker": make("input"),
-    "#design-budget-split-defender": make("input"),
+    "#design-budget-split-delver": make("input"),
+    "#design-budget-split-warden": make("input"),
     "#design-budget-split-room-tokens": make("div"),
-    "#design-budget-split-attacker-tokens": make("div"),
-    "#design-budget-split-defender-tokens": make("div"),
+    "#design-budget-split-delver-tokens": make("div"),
+    "#design-budget-split-warden-tokens": make("div"),
     "#design-budget-overview": make("div"),
     "#design-ai-prompt": make("textarea"),
     "#design-ai-generate": make("button"),
@@ -179,8 +179,8 @@ function createRootElements() {
   };
   elements["#design-level-budget"].value = "1000";
   elements["#design-budget-split-room"].value = "55";
-  elements["#design-budget-split-attacker"].value = "20";
-  elements["#design-budget-split-defender"].value = "25";
+  elements["#design-budget-split-delver"].value = "20";
+  elements["#design-budget-split-warden"].value = "25";
 
   const root = {
     querySelector(selector) {
@@ -208,7 +208,7 @@ test("unified card schema normalizes type-specific fields and serializes determi
   const cards = normalizeDesignCardSet([
     {
       id: "c2",
-      type: "attacker",
+      type: "delver",
       count: 2,
       affinity: "fire",
       motivations: ["attacking"],
@@ -225,7 +225,7 @@ test("unified card schema normalizes type-specific fields and serializes determi
     },
     {
       id: "c3",
-      type: "defender",
+      type: "warden",
       count: 1,
       affinity: "earth",
       motivations: ["defending"],
@@ -234,20 +234,20 @@ test("unified card schema normalizes type-specific fields and serializes determi
   ]);
 
   const room = cardById(cards, "c1");
-  const attacker = cardById(cards, "c2");
-  const defender = cardById(cards, "c3");
+  const delver = cardById(cards, "c2");
+  const warden = cardById(cards, "c3");
 
   assert.equal(room.type, "room");
   assert.equal(room.roomSize, "large");
   assert.deepEqual(room.motivations, []);
   assert.equal(room.vitals, undefined);
 
-  assert.equal(attacker.type, "attacker");
-  assert.ok(attacker.vitals.health.max > 0);
-  assert.ok(attacker.motivations.includes("attacking"));
+  assert.equal(delver.type, "delver");
+  assert.ok(delver.vitals.health.max > 0);
+  assert.ok(delver.motivations.includes("attacking"));
 
-  assert.equal(defender.type, "defender");
-  assert.ok(defender.vitals.durability.max >= 1);
+  assert.equal(warden.type, "warden");
+  assert.ok(warden.vitals.durability.max >= 1);
 
   const serializedA = serializeDesignCardSet(cards);
   const serializedB = serializeDesignCardSet(cards.slice().reverse());
@@ -255,27 +255,27 @@ test("unified card schema normalizes type-specific fields and serializes determi
 });
 
 test("new actor cards default vitals to max 10 and regen 2", () => {
-  const attacker = createDesignCard({ type: "attacker", affinity: "fire", motivations: ["attacking"] });
-  const defender = createDesignCard({ type: "defender", affinity: "earth", motivations: ["defending"] });
+  const delver = createDesignCard({ type: "delver", affinity: "fire", motivations: ["attacking"] });
+  const warden = createDesignCard({ type: "warden", affinity: "earth", motivations: ["defending"] });
   ["health", "mana", "stamina", "durability"].forEach((key) => {
-    assert.equal(attacker.vitals[key].current, 10);
-    assert.equal(attacker.vitals[key].max, 10);
-    assert.equal(attacker.vitals[key].regen, 2);
-    assert.equal(defender.vitals[key].current, 10);
-    assert.equal(defender.vitals[key].max, 10);
-    assert.equal(defender.vitals[key].regen, 2);
+    assert.equal(delver.vitals[key].current, 10);
+    assert.equal(delver.vitals[key].max, 10);
+    assert.equal(delver.vitals[key].regen, 2);
+    assert.equal(warden.vitals[key].current, 10);
+    assert.equal(warden.vitals[key].max, 10);
+    assert.equal(warden.vitals[key].regen, 2);
   });
 });
 
-test("new attacker/defender cards default to light/dark emit affinity", () => {
-  const attacker = createDesignCard({ type: "attacker" });
-  const defender = createDesignCard({ type: "defender" });
+test("new delver/warden cards default to light/dark emit affinity", () => {
+  const delver = createDesignCard({ type: "delver" });
+  const warden = createDesignCard({ type: "warden" });
 
-  assert.equal(attacker.affinity, "light");
-  assert.deepEqual(attacker.affinities, [{ kind: "light", expression: "emit", stacks: 1 }]);
+  assert.equal(delver.affinity, "light");
+  assert.deepEqual(delver.affinities, [{ kind: "light", expression: "emit", stacks: 1 }]);
 
-  assert.equal(defender.affinity, "dark");
-  assert.deepEqual(defender.affinities, [{ kind: "dark", expression: "emit", stacks: 1 }]);
+  assert.equal(warden.affinity, "dark");
+  assert.deepEqual(warden.affinities, [{ kind: "dark", expression: "emit", stacks: 1 }]);
 });
 
 test("room cards map to level inputs and room design shape", () => {
@@ -310,30 +310,30 @@ test("shared level budget propagates as room cards are added", () => {
   assert.ok(expanded.spendLedger.remainingTokens < base.spendLedger.remainingTokens);
 });
 
-test("card values update across room, attacker, and defender cards", () => {
+test("card values update across room, delver, and warden cards", () => {
   const room = createDesignCard({ id: "room", type: "room", roomSize: "medium", affinity: "fire", count: 1 });
-  const attacker = createDesignCard({
+  const delver = createDesignCard({
     id: "atk",
-    type: "attacker",
+    type: "delver",
     affinity: "fire",
     count: 1,
     motivations: ["attacking"],
     affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
   });
-  const defender = createDesignCard({
+  const warden = createDesignCard({
     id: "def",
-    type: "defender",
+    type: "warden",
     affinity: "earth",
     count: 1,
     motivations: ["defending"],
     affinities: [{ kind: "earth", expression: "emit", stacks: 1 }],
   });
 
-  const initial = buildSummaryFromCardSet({ cards: [room, attacker, defender], budgetTokens: 4000 });
+  const initial = buildSummaryFromCardSet({ cards: [room, delver, warden], budgetTokens: 4000 });
   const attackerInitialValue = cardById(initial.cards, "atk").cardValue.totalTokens;
 
-  const withAffinity = dropPropertyOnCard(attacker, { group: "affinities", value: "water" }).card;
-  const updated = buildSummaryFromCardSet({ cards: [room, withAffinity, defender], budgetTokens: 4000 });
+  const withAffinity = dropPropertyOnCard(delver, { group: "affinities", value: "water" }).card;
+  const updated = buildSummaryFromCardSet({ cards: [room, withAffinity, warden], budgetTokens: 4000 });
   const attackerUpdatedValue = cardById(updated.cards, "atk").cardValue.totalTokens;
 
   assert.ok(cardById(initial.cards, "room").cardValue.totalTokens > 0);
@@ -374,18 +374,18 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       budgetOverviewEl: elements["#design-budget-overview"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
@@ -398,8 +398,8 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   const firstTypeChip = elements["#design-property-group-type"].children[0];
   assert.ok(firstTypeChip.textContent.includes("Room"));
   assert.equal(elements["#design-budget-split-room-tokens"].textContent, "");
-  assert.equal(elements["#design-budget-split-attacker-tokens"].textContent, "");
-  assert.equal(elements["#design-budget-split-defender-tokens"].textContent, "");
+  assert.equal(elements["#design-budget-split-delver-tokens"].textContent, "");
+  assert.equal(elements["#design-budget-split-warden-tokens"].textContent, "");
   assert.equal(elements["#design-budget-overview"].textContent, "");
   const affinityGroups = elements["#design-property-group-affinities"].querySelectorAll(".design-property-chip-pair");
   assert.ok(affinityGroups.length >= 5);
@@ -421,15 +421,15 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   assert.equal(blank.type, "");
   assert.match(blank.id, /^C-[A-Z0-9]{6}$/);
 
-  guidance.applyPropertyDrop(blank.id, { group: "type", value: "attacker" });
-  const attacker = guidance.getActiveCard();
-  assert.equal(attacker.type, "attacker");
-  assert.match(attacker.id, /^A-[A-Z0-9]{6}$/);
-  assert.equal(attacker.affinity, "light");
-  assert.ok(attacker.affinities.some((entry) => entry.kind === "light" && entry.expression === "emit" && entry.stacks === 1));
-  const initialConfigurationValue = attacker.cardValue.totalTokens;
+  guidance.applyPropertyDrop(blank.id, { group: "type", value: "delver" });
+  const delver = guidance.getActiveCard();
+  assert.equal(delver.type, "delver");
+  assert.match(delver.id, /^A-[A-Z0-9]{6}$/);
+  assert.equal(delver.affinity, "light");
+  assert.ok(delver.affinities.some((entry) => entry.kind === "light" && entry.expression === "emit" && entry.stacks === 1));
+  const initialConfigurationValue = delver.cardValue.totalTokens;
   let renderedCard = elements["#design-card-grid"].children.find(
-    (child) => child.dataset?.cardId === attacker.id,
+    (child) => child.dataset?.cardId === delver.id,
   );
   const initialSpendChip = renderedCard.querySelector(".is-configuration-spend");
   assert.ok(initialSpendChip);
@@ -454,17 +454,17 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   let updated = guidance.getActiveCard();
   assert.ok(!updated.motivations.includes("attacking"));
   renderedCard = elements["#design-card-grid"].children.find(
-    (child) => child.dataset?.cardId === attacker.id,
+    (child) => child.dataset?.cardId === delver.id,
   );
   const leftRailDefendingAfterRemove = elements["#design-property-group-motivations"].querySelector('[data-property-value="defending"]');
   assert.ok(leftRailDefendingAfterRemove);
   assert.equal(leftRailDefendingAfterRemove.disabled, false);
-  const addDefending = guidance.applyPropertyDrop(attacker.id, { group: "motivations", value: "defending" });
+  const addDefending = guidance.applyPropertyDrop(delver.id, { group: "motivations", value: "defending" });
   assert.deepEqual(addDefending, { ok: true });
   updated = guidance.getActiveCard();
   assert.ok(updated.motivations.includes("defending"));
   renderedCard = elements["#design-card-grid"].children.find(
-    (child) => child.dataset?.cardId === attacker.id,
+    (child) => child.dataset?.cardId === delver.id,
   );
   assert.equal(renderedCard.querySelectorAll(".design-card-header .is-affinity").length, 0);
   assert.equal(renderedCard.querySelectorAll(".design-card-header .is-expression").length, 0);
@@ -481,18 +481,18 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   assert.ok(headerCountMinus);
   headerCountPlus.trigger("click");
   updated = guidance.getActiveCard();
-  assert.equal(updated.count, attacker.count + 1);
+  assert.equal(updated.count, delver.count + 1);
   headerCountMinus.trigger("click");
   updated = guidance.getActiveCard();
-  assert.equal(updated.count, attacker.count);
+  assert.equal(updated.count, delver.count);
 
   const healthBefore = updated.vitals.health.max;
-  guidance.adjustVital(attacker.id, "health", "max", 1);
+  guidance.adjustVital(delver.id, "health", "max", 1);
   updated = guidance.getActiveCard();
   assert.equal(updated.vitals.health.max, healthBefore + 1);
 
   renderedCard = elements["#design-card-grid"].children.find(
-    (child) => child.dataset?.cardId === attacker.id,
+    (child) => child.dataset?.cardId === delver.id,
   );
   const firstVitalRow = renderedCard.querySelector(".design-card-vital-row");
   assert.ok(firstVitalRow);
@@ -515,16 +515,16 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   updated = guidance.getActiveCard();
   assert.equal(updated.vitals.health.regen, regenBeforeControl);
 
-  guidance.flipCard(attacker.id);
+  guidance.flipCard(delver.id);
   updated = guidance.getActiveCard();
   assert.equal(updated.flipped, true);
 
-  guidance.applyPropertyDrop(attacker.id, { group: "affinities", value: "water" });
-  guidance.applyPropertyDrop(attacker.id, { group: "expressions", value: "emit" });
-  guidance.adjustAffinityStack(attacker.id, "water", 2, "emit");
+  guidance.applyPropertyDrop(delver.id, { group: "affinities", value: "water" });
+  guidance.applyPropertyDrop(delver.id, { group: "expressions", value: "emit" });
+  guidance.adjustAffinityStack(delver.id, "water", 2, "emit");
   updated = guidance.getActiveCard();
   renderedCard = elements["#design-card-grid"].children.find(
-    (child) => child.dataset?.cardId === attacker.id,
+    (child) => child.dataset?.cardId === delver.id,
   );
   const updatedConfigurationValue = updated.cardValue.totalTokens;
   assert.ok(updatedConfigurationValue > initialConfigurationValue);
@@ -549,24 +549,24 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   updated = guidance.getActiveCard();
   assert.equal(updated.flipped, false);
 
-  assert.equal(guidance.setBudgetSplit("attacker", 100), true);
-  guidance.stashActiveCard("attacker");
+  assert.equal(guidance.setBudgetSplit("delver", 100), true);
+  guidance.stashActiveCard("delver");
   assert.equal(guidance.getCards().length, 1);
-  assert.equal(guidance.getCards()[0].id, attacker.id);
-  assert.notEqual(guidance.getActiveCard().id, attacker.id, "active card is replaced with a fresh editor card id");
+  assert.equal(guidance.getCards()[0].id, delver.id);
+  assert.notEqual(guidance.getActiveCard().id, delver.id, "active card is replaced with a fresh editor card id");
   assert.equal(guidance.getActiveCard().type, "");
-  const shelvedRow = elements["#design-card-group-attacker"].children.find((child) => child.dataset?.cardId === attacker.id);
+  const shelvedRow = elements["#design-card-group-delver"].children.find((child) => child.dataset?.cardId === delver.id);
   assert.ok(shelvedRow);
   assert.equal(shelvedRow.querySelectorAll(".is-expression").length, 0);
   assert.ok(shelvedRow.querySelectorAll(".is-affinity").length >= 1);
   assert.ok(shelvedRow.querySelectorAll(".is-motivation").length >= 1);
-  assert.match(elements["#design-card-group-budget-attacker"].textContent, /^1000 - \[\d+\] = -?\d+$/);
+  assert.match(elements["#design-card-group-budget-delver"].textContent, /^1000 - \[\d+\] = -?\d+$/);
   assert.equal(elements["#design-card-group-budget-room"].textContent, "550 - [0] = 550");
 
-  guidance.pullCardToEditor(attacker.id);
+  guidance.pullCardToEditor(delver.id);
   assert.equal(guidance.getCards().length, 0);
-  assert.equal(guidance.getActiveCard().id, attacker.id);
-  assert.equal(guidance.getActiveCard().type, "attacker");
+  assert.equal(guidance.getActiveCard().id, delver.id);
+  assert.equal(guidance.getActiveCard().type, "delver");
 
   elements["#design-budget-split-room"].value = "60";
   elements["#design-budget-split-room"].trigger("input");
@@ -584,18 +584,18 @@ test("wireDesignGuidance shows default help text until a drop error occurs", () 
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       budgetOverviewEl: elements["#design-budget-overview"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
@@ -609,7 +609,7 @@ test("wireDesignGuidance shows default help text until a drop error occurs", () 
   assert.equal(elements["#design-guidance-status"].dataset.level, "info");
   assert.equal(
     elements["#design-guidance-status"].textContent,
-    "Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.",
+    "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.",
   );
 
   const blank = guidance.getActiveCard();
@@ -632,18 +632,18 @@ test("wireDesignGuidance auto-generates cards to fill the remaining per-type all
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       budgetOverviewEl: elements["#design-budget-overview"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
@@ -658,16 +658,16 @@ test("wireDesignGuidance auto-generates cards to fill the remaining per-type all
   assert.equal(result?.ok, true);
   const cards = guidance.getCards();
   assert.ok(cards.some((card) => card.type === "room"));
-  assert.ok(cards.some((card) => card.type === "attacker"));
-  assert.ok(cards.some((card) => card.type === "defender"));
+  assert.ok(cards.some((card) => card.type === "delver"));
+  assert.ok(cards.some((card) => card.type === "warden"));
   const spendLedger = guidance.getSpendLedger();
   assert.ok(spendLedger);
   assert.ok(spendLedger.allocations.room.usedTokens <= spendLedger.allocations.room.allocatedTokens);
-  assert.ok(spendLedger.allocations.attacker.usedTokens <= spendLedger.allocations.attacker.allocatedTokens);
-  assert.ok(spendLedger.allocations.defender.usedTokens <= spendLedger.allocations.defender.allocatedTokens);
+  assert.ok(spendLedger.allocations.delver.usedTokens <= spendLedger.allocations.delver.allocatedTokens);
+  assert.ok(spendLedger.allocations.warden.usedTokens <= spendLedger.allocations.warden.allocatedTokens);
   assert.ok(spendLedger.allocations.room.remainingTokens < 28);
-  assert.ok(spendLedger.allocations.attacker.remainingTokens < 64);
-  assert.ok(spendLedger.allocations.defender.remainingTokens < 64);
+  assert.ok(spendLedger.allocations.delver.remainingTokens < 64);
+  assert.ok(spendLedger.allocations.warden.remainingTokens < 64);
   assert.equal(elements["#design-guidance-status"].dataset.level, "info");
   assert.match(elements["#design-guidance-status"].textContent, /Auto-generated/i);
 });
@@ -683,18 +683,18 @@ test("wireDesignGuidance auto-generate tops up remaining allocation without repl
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       budgetOverviewEl: elements["#design-budget-overview"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
@@ -706,7 +706,7 @@ test("wireDesignGuidance auto-generate tops up remaining allocation without repl
 
   const existing = createDesignCard({
     id: "existing_attacker",
-    type: "attacker",
+    type: "delver",
     affinity: "fire",
     motivations: ["attacking"],
     count: 1,
@@ -721,7 +721,7 @@ test("wireDesignGuidance auto-generate tops up remaining allocation without repl
   assert.ok(cards.some((card) => card.id === preservedId));
   assert.ok(cards.length > 1);
   const spendLedger = guidance.getSpendLedger();
-  assert.ok(spendLedger.allocations.attacker.remainingTokens < 64);
+  assert.ok(spendLedger.allocations.delver.remainingTokens < 64);
 });
 
 test("wireDesignGuidance assigns unique prefixed card identifiers", () => {
@@ -735,18 +735,18 @@ test("wireDesignGuidance assigns unique prefixed card identifiers", () => {
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
       briefOutput: elements["#design-brief-output"],
@@ -757,16 +757,16 @@ test("wireDesignGuidance assigns unique prefixed card identifiers", () => {
 
   guidance.addCard({ type: "room", affinity: "fire", roomSize: "small" });
   guidance.stashActiveCard("room");
-  guidance.addCard({ type: "attacker", affinity: "fire", motivations: ["attacking"] });
-  guidance.stashActiveCard("attacker");
-  guidance.addCard({ type: "defender", affinity: "earth", motivations: ["defending"] });
-  guidance.stashActiveCard("defender");
+  guidance.addCard({ type: "delver", affinity: "fire", motivations: ["attacking"] });
+  guidance.stashActiveCard("delver");
+  guidance.addCard({ type: "warden", affinity: "earth", motivations: ["defending"] });
+  guidance.stashActiveCard("warden");
 
   const cards = guidance.getCards();
   assert.equal(cards.length, 3);
   assert.match(cards.find((card) => card.type === "room").id, /^R-[A-Z0-9]{6}$/);
-  assert.match(cards.find((card) => card.type === "attacker").id, /^A-[A-Z0-9]{6}$/);
-  assert.match(cards.find((card) => card.type === "defender").id, /^D-[A-Z0-9]{6}$/);
+  assert.match(cards.find((card) => card.type === "delver").id, /^A-[A-Z0-9]{6}$/);
+  assert.match(cards.find((card) => card.type === "warden").id, /^D-[A-Z0-9]{6}$/);
   const ids = cards.map((card) => card.id);
   assert.equal(new Set(ids).size, ids.length);
 });
@@ -808,18 +808,18 @@ test("wireDesignGuidance card identifiers retry UUID collisions without numeric 
         leftRailMotivations: elements["#design-property-group-motivations"],
         cardGrid: elements["#design-card-grid"],
         roomGroup: elements["#design-card-group-room"],
-        attackerGroup: elements["#design-card-group-attacker"],
-        defenderGroup: elements["#design-card-group-defender"],
+        attackerGroup: elements["#design-card-group-delver"],
+        defenderGroup: elements["#design-card-group-warden"],
         roomGroupBudget: elements["#design-card-group-budget-room"],
-        attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-        defenderGroupBudget: elements["#design-card-group-budget-defender"],
+        attackerGroupBudget: elements["#design-card-group-budget-delver"],
+        defenderGroupBudget: elements["#design-card-group-budget-warden"],
         levelBudgetInput: elements["#design-level-budget"],
         budgetSplitRoomInput: elements["#design-budget-split-room"],
-        budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-        budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+        budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+        budgetSplitDefenderInput: elements["#design-budget-split-warden"],
         budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-        budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-        budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+        budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+        budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
         aiPromptInput: elements["#design-ai-prompt"],
         aiGenerateButton: elements["#design-ai-generate"],
         briefOutput: elements["#design-brief-output"],
@@ -859,18 +859,18 @@ test("wireDesignGuidance enforces per-group allocation caps", () => {
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
       briefOutput: elements["#design-brief-output"],
@@ -881,33 +881,33 @@ test("wireDesignGuidance enforces per-group allocation caps", () => {
 
   guidance.addCard({
     id: "atk_big",
-    type: "attacker",
+    type: "delver",
     affinity: "fire",
     motivations: ["attacking"],
     affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
     tokenHint: 5000,
   });
-  const stashed = guidance.stashActiveCard("attacker");
+  const stashed = guidance.stashActiveCard("delver");
   assert.equal(stashed, false);
   assert.equal(guidance.getCards().length, 0);
   assert.match(elements["#design-guidance-status"].textContent, /allocation exceeded/i);
 
   guidance.addCard({
     id: "atk_small",
-    type: "attacker",
+    type: "delver",
     affinity: "fire",
     motivations: ["attacking"],
     affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
     tokenHint: 10,
   });
-  assert.equal(guidance.stashActiveCard("attacker"), true);
+  assert.equal(guidance.stashActiveCard("delver"), true);
   assert.equal(guidance.getCards().length, 1);
-  assert.equal(guidance.setBudgetSplit("attacker", 0), false);
-  assert.equal(elements["#design-budget-split-attacker"].value, "20");
+  assert.equal(guidance.setBudgetSplit("delver", 0), false);
+  assert.equal(elements["#design-budget-split-delver"].value, "20");
   assert.match(elements["#design-guidance-status"].textContent, /allocation exceeded/i);
 });
 
-test("wireDesignGuidance shows configuration spend helper for room, attacker, and defender", () => {
+test("wireDesignGuidance shows configuration spend helper for room, delver, and warden", () => {
   const { elements } = createRootElements();
   const guidance = wireDesignGuidance({
     elements: {
@@ -918,18 +918,18 @@ test("wireDesignGuidance shows configuration spend helper for room, attacker, an
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       budgetOverviewEl: elements["#design-budget-overview"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
@@ -955,10 +955,10 @@ test("wireDesignGuidance shows configuration spend helper for room, attacker, an
   guidance.addCard({ type: "room", roomSize: "small", affinity: "dark" });
   assertSpendChipForActive();
 
-  guidance.addCard({ type: "attacker", affinity: "fire", motivations: ["attacking"] });
+  guidance.addCard({ type: "delver", affinity: "fire", motivations: ["attacking"] });
   assertSpendChipForActive();
 
-  guidance.addCard({ type: "defender", affinity: "earth", motivations: ["defending"] });
+  guidance.addCard({ type: "warden", affinity: "earth", motivations: ["defending"] });
   assertSpendChipForActive();
 });
 
@@ -973,18 +973,18 @@ test("wireDesignGuidance configuration spend helper uses total room allocation f
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       budgetOverviewEl: elements["#design-budget-overview"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
@@ -1026,18 +1026,18 @@ test("wireDesignGuidance applies card count multiplier to vitality token updates
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       budgetOverviewEl: elements["#design-budget-overview"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
@@ -1047,17 +1047,17 @@ test("wireDesignGuidance applies card count multiplier to vitality token updates
     },
   });
 
-  guidance.addCard({ type: "defender", affinity: "earth", motivations: ["defending"], count: 2 });
-  const defender = guidance.getActiveCard();
-  const renderedBefore = elements["#design-card-grid"].children.find((child) => child.dataset?.cardId === defender.id);
+  guidance.addCard({ type: "warden", affinity: "earth", motivations: ["defending"], count: 2 });
+  const warden = guidance.getActiveCard();
+  const renderedBefore = elements["#design-card-grid"].children.find((child) => child.dataset?.cardId === warden.id);
   assert.ok(renderedBefore);
   const spendChipBefore = renderedBefore.querySelector(".is-configuration-spend");
   assert.ok(spendChipBefore);
   const spendBefore = parseConfigurationSpendChip(spendChipBefore.textContent);
   assert.ok(spendBefore);
-  assert.equal(spendBefore.spent, defender.cardValue.totalTokens);
+  assert.equal(spendBefore.spent, warden.cardValue.totalTokens);
 
-  guidance.adjustVital(defender.id, "health", "max", 10);
+  guidance.adjustVital(warden.id, "health", "max", 10);
   const updated = guidance.getActiveCard();
   const renderedAfter = elements["#design-card-grid"].children.find((child) => child.dataset?.cardId === updated.id);
   assert.ok(renderedAfter);
@@ -1082,18 +1082,18 @@ test("wireDesignGuidance minus at x1 resets active typed card to blank editor", 
       leftRailMotivations: elements["#design-property-group-motivations"],
       cardGrid: elements["#design-card-grid"],
       roomGroup: elements["#design-card-group-room"],
-      attackerGroup: elements["#design-card-group-attacker"],
-      defenderGroup: elements["#design-card-group-defender"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
       roomGroupBudget: elements["#design-card-group-budget-room"],
-      attackerGroupBudget: elements["#design-card-group-budget-attacker"],
-      defenderGroupBudget: elements["#design-card-group-budget-defender"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
       levelBudgetInput: elements["#design-level-budget"],
       budgetSplitRoomInput: elements["#design-budget-split-room"],
-      budgetSplitAttackerInput: elements["#design-budget-split-attacker"],
-      budgetSplitDefenderInput: elements["#design-budget-split-defender"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
       budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
-      budgetSplitAttackerTokens: elements["#design-budget-split-attacker-tokens"],
-      budgetSplitDefenderTokens: elements["#design-budget-split-defender-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
       budgetOverviewEl: elements["#design-budget-overview"],
       aiPromptInput: elements["#design-ai-prompt"],
       aiGenerateButton: elements["#design-ai-generate"],
@@ -1104,9 +1104,9 @@ test("wireDesignGuidance minus at x1 resets active typed card to blank editor", 
   });
 
   const blank = guidance.getActiveCard();
-  guidance.applyPropertyDrop(blank.id, { group: "type", value: "attacker" });
+  guidance.applyPropertyDrop(blank.id, { group: "type", value: "delver" });
   const configured = guidance.getActiveCard();
-  assert.equal(configured.type, "attacker");
+  assert.equal(configured.type, "delver");
   assert.equal(configured.count, 1);
 
   const renderedCard = elements["#design-card-grid"].children.find(
@@ -1159,8 +1159,8 @@ test("wireDesignView publishes preview spec from the current card model", async 
 
   view.setCards([
     createDesignCard({ id: "room_build", type: "room", roomSize: "medium", affinity: "fire", count: 3 }),
-    createDesignCard({ id: "atk_build", type: "attacker", affinity: "fire", motivations: ["attacking"], count: 1 }),
-    createDesignCard({ id: "def_build", type: "defender", affinity: "earth", motivations: ["defending"], count: 1 }),
+    createDesignCard({ id: "atk_build", type: "delver", affinity: "fire", motivations: ["attacking"], count: 1 }),
+    createDesignCard({ id: "def_build", type: "warden", affinity: "earth", motivations: ["defending"], count: 1 }),
   ]);
 
   const published = await view.publishPreviewSpec({ force: true });
@@ -1193,7 +1193,7 @@ test("wireDesignView publishes preview spec through the command host even with a
 
   view.setCards([
     createDesignCard({ id: "room_over_budget", type: "room", roomSize: "large", affinity: "fire", count: 1, tokenHint: 5000 }),
-    createDesignCard({ id: "atk_over_budget", type: "attacker", affinity: "fire", motivations: ["attacking"], count: 1, tokenHint: 5000 }),
+    createDesignCard({ id: "atk_over_budget", type: "delver", affinity: "fire", motivations: ["attacking"], count: 1, tokenHint: 5000 }),
   ]);
 
   const published = await view.publishPreviewSpec({ force: true });
@@ -1210,17 +1210,17 @@ test("wireDesignView publishes single-element card sets for preview", async () =
       expectedType: "room",
     },
     {
-      label: "single attacker",
+      label: "single delver",
       cards: [
         createDesignCard({
           id: "attacker_only",
-          type: "attacker",
+          type: "delver",
           affinity: "fire",
           motivations: ["attacking"],
           count: 1,
         }),
       ],
-      expectedType: "attacker",
+      expectedType: "delver",
     },
   ];
 
@@ -1280,8 +1280,8 @@ test("wireDesignView can publish a preview spec from the blank editor state", as
 test("wireDesignView mints active card via blockchain rails and can load it back by token id", async () => {
   const { root, elements } = createRootElements();
   elements["#design-budget-split-room"].value = "0";
-  elements["#design-budget-split-attacker"].value = "100";
-  elements["#design-budget-split-defender"].value = "0";
+  elements["#design-budget-split-delver"].value = "100";
+  elements["#design-budget-split-warden"].value = "0";
   const mintedByToken = new Map();
   let mintCalls = 0;
   let loadCalls = 0;
@@ -1306,7 +1306,7 @@ test("wireDesignView mints active card via blockchain rails and can load it back
       loadCalls += 1;
       const fallbackCard = {
         id: "A-LOADED1",
-        type: "attacker",
+        type: "delver",
         count: 1,
         affinity: "fire",
         affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
@@ -1328,11 +1328,11 @@ test("wireDesignView mints active card via blockchain rails and can load it back
   });
 
   const active = view.getActiveCard();
-  view.applyPropertyDrop(active.id, { group: "type", value: "attacker" });
+  view.applyPropertyDrop(active.id, { group: "type", value: "delver" });
   const configured = view.getActiveCard();
   view.applyPropertyDrop(configured.id, { group: "affinities", value: "fire" });
 
-  const minted = await view.mintActiveCard("attacker");
+  const minted = await view.mintActiveCard("delver");
   assert.equal(minted?.ok, true);
   assert.equal(mintCalls, 1);
   assert.equal(view.getCards().length, 1);
@@ -1341,7 +1341,7 @@ test("wireDesignView mints active card via blockchain rails and can load it back
   const loaded = await view.loadMintedCard(tokenId);
   assert.equal(loaded?.ok, true, JSON.stringify(loaded));
   assert.equal(loadCalls, 1);
-  assert.equal(view.getActiveCard().type, "attacker");
+  assert.equal(view.getActiveCard().type, "delver");
 });
 
 test("AI summary round-trip populates editable card model", async () => {
@@ -1350,7 +1350,7 @@ test("AI summary round-trip populates editable card model", async () => {
     dungeonAffinity: "water",
     rooms: [{ affinity: "water", size: "small", count: 2 }],
     actors: [{ motivation: "defending", affinity: "earth", count: 1 }],
-    attackerConfigs: [{
+    delverConfigs: [{
       setupMode: "hybrid",
       vitalsMax: { health: 8, mana: 6, stamina: 5, durability: 3 },
       vitalsRegen: { health: 1, mana: 1, stamina: 1, durability: 0 },
@@ -1369,32 +1369,32 @@ test("AI summary round-trip populates editable card model", async () => {
 
   const cards = view.getCards();
   assert.ok(cards.some((card) => card.type === "room"));
-  assert.ok(cards.some((card) => card.type === "attacker"));
-  assert.ok(cards.some((card) => card.type === "defender"));
+  assert.ok(cards.some((card) => card.type === "delver"));
+  assert.ok(cards.some((card) => card.type === "warden"));
 
-  const defender = cards.find((card) => card.type === "defender");
-  view.pullCardToEditor(defender.id);
+  const warden = cards.find((card) => card.type === "warden");
+  view.pullCardToEditor(warden.id);
   const active = view.getActiveCard();
-  assert.equal(active.id, defender.id);
+  assert.equal(active.id, warden.id);
   view.applyPropertyDrop(active.id, { group: "affinities", value: "fire" });
-  view.stashActiveCard("defender");
+  view.stashActiveCard("warden");
 
-  const updated = view.getCards().find((card) => card.id === defender.id);
+  const updated = view.getCards().find((card) => card.id === warden.id);
   assert.ok(updated.affinities.some((entry) => entry.kind === "fire"));
 });
 
 test("groupCardsByType and count updates preserve card payload while regrouping", () => {
   const cards = [
     createDesignCard({ id: "r", type: "room", count: 1, roomSize: "small" }),
-    createDesignCard({ id: "a", type: "attacker", count: 1, motivations: ["attacking"] }),
-    createDesignCard({ id: "d", type: "defender", count: 2, motivations: ["defending"] }),
+    createDesignCard({ id: "a", type: "delver", count: 1, motivations: ["attacking"] }),
+    createDesignCard({ id: "d", type: "warden", count: 2, motivations: ["defending"] }),
   ];
 
   const adjusted = [cards[0], adjustCardCount(cards[1], 2), adjustCardCount(cards[2], -1)];
   const grouped = groupCardsByType(adjusted);
 
   assert.equal(grouped.room.length, 1);
-  assert.equal(grouped.attacker[0].count, 3);
-  assert.equal(grouped.defender[0].count, 1);
-  assert.ok(grouped.attacker[0].vitals.health.max > 0);
+  assert.equal(grouped.delver[0].count, 3);
+  assert.equal(grouped.warden[0].count, 1);
+  assert.ok(grouped.delver[0].vitals.health.max > 0);
 });

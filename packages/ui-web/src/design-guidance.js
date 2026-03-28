@@ -48,7 +48,7 @@ const FIXTURE_DEFAULT_RESPONSE = {
     dungeonAffinity: "fire",
     rooms: [{ affinity: "fire", size: "medium", count: 2 }],
     actors: [{ motivation: "defending", affinity: "earth", count: 2 }],
-    attackerConfigs: [{
+    delverConfigs: [{
       setupMode: "hybrid",
       vitalsMax: { health: 10, mana: 6, stamina: 5, durability: 4 },
       vitalsRegen: { health: 1, mana: 1, stamina: 1, durability: 0 },
@@ -58,19 +58,19 @@ const FIXTURE_DEFAULT_RESPONSE = {
   }),
 };
 
-export const CARD_TYPE_ORDER = Object.freeze(["room", "attacker", "defender"]);
+export const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden"]);
 export const CARD_PROPERTY_GROUP_ORDER = Object.freeze(["type", "affinities", "expressions", "motivations"]);
 export const ROOM_SIZE_ORDER = Object.freeze(["small", "medium", "large"]);
-const BUDGET_BUCKET_ORDER = Object.freeze(["room", "attacker", "defender"]);
+const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden"]);
 const DEFAULT_BUDGET_SPLIT = Object.freeze({
   room: 55,
-  attacker: 20,
-  defender: 25,
+  delver: 20,
+  warden: 25,
 });
 const TYPE_ICON_MAP = Object.freeze({
   room: "🏛️",
-  attacker: "⚔️",
-  defender: "🛡️",
+  delver: "⚔️",
+  warden: "🛡️",
   untyped: "◻️",
 });
 const AFFINITY_ICON_MAP = Object.freeze({
@@ -184,8 +184,8 @@ function readBoundedPercent(value, fallback = 0) {
 function normalizeBudgetSplit(values = {}) {
   return {
     room: readBoundedPercent(values.room, DEFAULT_BUDGET_SPLIT.room),
-    attacker: readBoundedPercent(values.attacker, DEFAULT_BUDGET_SPLIT.attacker),
-    defender: readBoundedPercent(values.defender, DEFAULT_BUDGET_SPLIT.defender),
+    delver: readBoundedPercent(values.delver, DEFAULT_BUDGET_SPLIT.delver),
+    warden: readBoundedPercent(values.warden, DEFAULT_BUDGET_SPLIT.warden),
   };
 }
 
@@ -278,8 +278,8 @@ const DEFAULT_DEFENDER_CARD_AFFINITY = "dark";
 const DEFAULT_ACTOR_CARD_AFFINITY_EXPRESSION = "emit";
 
 function defaultActorAffinityForType(type) {
-  if (type === "attacker") return DEFAULT_ATTACKER_CARD_AFFINITY;
-  if (type === "defender") return DEFAULT_DEFENDER_CARD_AFFINITY;
+  if (type === "delver") return DEFAULT_ATTACKER_CARD_AFFINITY;
+  if (type === "warden") return DEFAULT_DEFENDER_CARD_AFFINITY;
   return DEFAULT_DUNGEON_AFFINITY;
 }
 
@@ -302,16 +302,16 @@ const CARD_ID_MAX_GENERATION_ATTEMPTS = 256;
 const GLOBAL_ISSUED_CARD_IDS = new Set();
 const CARD_ID_PREFIX_BY_TYPE = Object.freeze({
   room: "R",
-  attacker: "A",
-  defender: "D",
+  delver: "A",
+  warden: "D",
   untyped: "C",
 });
 
 function cardPrefixForType(type) {
   const normalized = normalizeCardType(type);
   if (normalized === "room") return CARD_ID_PREFIX_BY_TYPE.room;
-  if (normalized === "attacker") return CARD_ID_PREFIX_BY_TYPE.attacker;
-  if (normalized === "defender") return CARD_ID_PREFIX_BY_TYPE.defender;
+  if (normalized === "delver") return CARD_ID_PREFIX_BY_TYPE.delver;
+  if (normalized === "warden") return CARD_ID_PREFIX_BY_TYPE.warden;
   return CARD_ID_PREFIX_BY_TYPE.untyped;
 }
 
@@ -516,7 +516,7 @@ export function createDesignCard({
   const hasExplicitEmptyMotivations = Array.isArray(motivations) && normalizedInputMotivations.length === 0;
   const normalizedCard = normalizeCardEntry({
     id: typeof id === "string" && id.trim() ? id.trim() : buildCardId(normalizedType || "untyped"),
-    type: normalizedType || "defender",
+    type: normalizedType || "warden",
     source: normalizedType === "room" ? "room" : "actor",
     affinity: normalizedAffinityInput,
     roomSize: normalizeRoomCardSize(roomSize),
@@ -526,7 +526,7 @@ export function createDesignCard({
       ? []
       : normalizeMotivationList(
         motivations,
-        normalizedType === "attacker" ? "attacking" : "defending",
+        normalizedType === "delver" ? "attacking" : "defending",
       ),
     affinities: normalizedInputAffinities ?? injectedDefaultActorAffinities,
     vitals: normalizedVitals,
@@ -565,8 +565,8 @@ export function createDesignCard({
     return normalizedCard;
   }
 
-  const fallbackMotivation = normalizedType === "attacker" ? "attacking" : "defending";
-  normalizedCard.type = normalizedType || "defender";
+  const fallbackMotivation = normalizedType === "delver" ? "attacking" : "defending";
+  normalizedCard.type = normalizedType || "warden";
   normalizedCard.source = "actor";
   normalizedCard.roomSize = undefined;
   normalizedCard.vitals = resolveActorCardVitals(normalizedCard.vitals);
@@ -650,8 +650,8 @@ export function buildCardsFromSummary(summary, { dungeonAffinity = DEFAULT_DUNGE
 export function groupCardsByType(cards = []) {
   const grouped = {
     room: [],
-    attacker: [],
-    defender: [],
+    delver: [],
+    warden: [],
     untyped: [],
   };
   normalizeDesignCardSet(cards).forEach((card) => {
@@ -690,7 +690,7 @@ function replaceCardType(card, typeValue) {
         : card?.expressions,
     motivations: type === "room"
       ? []
-      : normalizeMotivationList(card?.motivations, type === "attacker" ? "attacking" : "defending"),
+      : normalizeMotivationList(card?.motivations, type === "delver" ? "attacking" : "defending"),
     vitals: type === "room" ? undefined : card?.vitals,
     roomSize: type === "room" ? card?.roomSize || "medium" : undefined,
   });
@@ -816,7 +816,7 @@ function applyExpressionDrop(card, expressionValue, { affinityKind, sourceExpres
 
 function applyMotivationDrop(card, motivationValue) {
   const type = normalizeCardType(card?.type);
-  if (type !== "attacker" && type !== "defender") {
+  if (type !== "delver" && type !== "warden") {
     return { ok: false, reason: "invalid_card_type", card };
   }
   const motivation = normalizeMotivationList([motivationValue], "")[0];
@@ -921,7 +921,7 @@ export function adjustAffinityStack(card, affinityKind, delta = 0, expressionVal
 export function adjustCardVital(card, vitalKey, field, delta = 0) {
   const working = createDesignCard(card || {});
   const type = normalizeCardType(working.type);
-  if (type !== "attacker" && type !== "defender") return working;
+  if (type !== "delver" && type !== "warden") return working;
   if (!VITAL_KEYS.includes(vitalKey)) return working;
   if (field !== "max" && field !== "regen") return working;
   const amount = Math.trunc(delta);
@@ -1241,11 +1241,11 @@ const AUTO_GENERATE_ROOM_BLUEPRINTS = Object.freeze([
 ]);
 
 const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
-  attacker: Object.freeze([
+  delver: Object.freeze([
     {
       key: "attacker_light",
       card: {
-        type: "attacker",
+        type: "delver",
         affinity: "light",
         motivations: ["attacking"],
         count: 1,
@@ -1255,7 +1255,7 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
     {
       key: "attacker_fire",
       card: {
-        type: "attacker",
+        type: "delver",
         affinity: "fire",
         expressions: ["push"],
         motivations: ["attacking"],
@@ -1264,11 +1264,11 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
       },
     },
   ]),
-  defender: Object.freeze([
+  warden: Object.freeze([
     {
       key: "defender_dark",
       card: {
-        type: "defender",
+        type: "warden",
         affinity: "dark",
         motivations: ["defending"],
         count: 1,
@@ -1278,7 +1278,7 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
     {
       key: "defender_earth",
       card: {
-        type: "defender",
+        type: "warden",
         affinity: "earth",
         expressions: ["pull"],
         motivations: ["defending"],
@@ -1369,7 +1369,7 @@ function buildAutoGeneratedRoomCards(availableTokens, costContext = {}) {
 
 function buildAutoGeneratedActorCards(type, availableTokens, costContext = {}) {
   const normalizedType = normalizeCardType(type);
-  if (normalizedType !== "attacker" && normalizedType !== "defender") {
+  if (normalizedType !== "delver" && normalizedType !== "warden") {
     return [];
   }
 
@@ -1421,10 +1421,10 @@ function buildAutoGeneratedActorCards(type, availableTokens, costContext = {}) {
 function formatAutoGenerateCount(type, count) {
   const normalizedType = normalizeCardType(type) || type;
   const safeCount = readNonNegativeInt(count, 0);
-  if (normalizedType === "attacker") {
+  if (normalizedType === "delver") {
     return `${safeCount} delver${safeCount === 1 ? "" : "s"}`;
   }
-  if (normalizedType === "defender") {
+  if (normalizedType === "warden") {
     return `${safeCount} warden${safeCount === 1 ? "" : "s"}`;
   }
   return `${safeCount} room${safeCount === 1 ? "" : "s"}`;
@@ -1598,8 +1598,8 @@ export function wireDesignGuidance({
     budgetTokens: readPositiveInt(levelBudgetInput?.value, DEFAULT_LEVEL_BUDGET_TOKENS),
     budgetSplitPercent: normalizeBudgetSplit({
       room: budgetSplitRoomInput?.value,
-      attacker: budgetSplitAttackerInput?.value,
-      defender: budgetSplitDefenderInput?.value,
+      delver: budgetSplitAttackerInput?.value,
+      warden: budgetSplitDefenderInput?.value,
     }),
     dungeonAffinity: DEFAULT_DUNGEON_AFFINITY,
     runningAi: false,
@@ -1700,8 +1700,8 @@ export function wireDesignGuidance({
       return acc;
     }, {
       room: 0,
-      attacker: 0,
-      defender: 0,
+      delver: 0,
+      warden: 0,
     });
   }
 
@@ -1815,8 +1815,8 @@ export function wireDesignGuidance({
       el.classList?.toggle?.("is-negative", remaining < 0);
     };
     setGroupValue(roomGroupBudget, "room");
-    setGroupValue(attackerGroupBudget, "attacker");
-    setGroupValue(defenderGroupBudget, "defender");
+    setGroupValue(attackerGroupBudget, "delver");
+    setGroupValue(defenderGroupBudget, "warden");
   }
 
   function updateBudgetOverviewIndicator() {
@@ -1850,10 +1850,10 @@ export function wireDesignGuidance({
       budgetSplitRoomInput.value = String(allocatedByType.room.percent);
     }
     if (budgetSplitAttackerInput) {
-      budgetSplitAttackerInput.value = String(allocatedByType.attacker.percent);
+      budgetSplitAttackerInput.value = String(allocatedByType.delver.percent);
     }
     if (budgetSplitDefenderInput) {
-      budgetSplitDefenderInput.value = String(allocatedByType.defender.percent);
+      budgetSplitDefenderInput.value = String(allocatedByType.warden.percent);
     }
     if (budgetSplitRoomTokens) {
       budgetSplitRoomTokens.textContent = "";
@@ -2057,8 +2057,8 @@ export function wireDesignGuidance({
   function renderGroups() {
     const grouped = groupCardsByType(state.cards);
     renderGroupList(roomGroup, grouped.room, "room");
-    renderGroupList(attackerGroup, grouped.attacker, "attacker");
-    renderGroupList(defenderGroup, grouped.defender, "defender");
+    renderGroupList(attackerGroup, grouped.delver, "delver");
+    renderGroupList(defenderGroup, grouped.warden, "warden");
   }
 
   function updateCard(cardId, updater) {
@@ -2444,7 +2444,7 @@ export function wireDesignGuidance({
         front.append(affinityList);
       }
 
-      if (card.type === "attacker" || card.type === "defender") {
+      if (card.type === "delver" || card.type === "warden") {
         const motivations = createDomElement(front, "section");
         if (motivations) {
           motivations.className = "design-card-motivations";
@@ -3031,8 +3031,8 @@ export function wireDesignGuidance({
     };
     const generatedCards = [
       ...buildAutoGeneratedRoomCards(allocation?.byType?.room?.remainingTokens, costContext),
-      ...buildAutoGeneratedActorCards("attacker", allocation?.byType?.attacker?.remainingTokens, costContext),
-      ...buildAutoGeneratedActorCards("defender", allocation?.byType?.defender?.remainingTokens, costContext),
+      ...buildAutoGeneratedActorCards("delver", allocation?.byType?.delver?.remainingTokens, costContext),
+      ...buildAutoGeneratedActorCards("warden", allocation?.byType?.warden?.remainingTokens, costContext),
     ];
 
     if (generatedCards.length === 0) {
@@ -3055,8 +3055,8 @@ export function wireDesignGuidance({
       return acc;
     }, {
       room: 0,
-      attacker: 0,
-      defender: 0,
+      delver: 0,
+      warden: 0,
     });
 
     recompute();
@@ -3187,15 +3187,15 @@ export function wireDesignGuidance({
     }
     if (budgetSplitAttackerInput?.addEventListener) {
       budgetSplitAttackerInput.addEventListener("input", () => {
-        setBudgetSplit("attacker", budgetSplitAttackerInput.value);
+        setBudgetSplit("delver", budgetSplitAttackerInput.value);
       });
-      budgetSplitAttackerInput.value = String(state.budgetSplitPercent.attacker);
+      budgetSplitAttackerInput.value = String(state.budgetSplitPercent.delver);
     }
     if (budgetSplitDefenderInput?.addEventListener) {
       budgetSplitDefenderInput.addEventListener("input", () => {
-        setBudgetSplit("defender", budgetSplitDefenderInput.value);
+        setBudgetSplit("warden", budgetSplitDefenderInput.value);
       });
-      budgetSplitDefenderInput.value = String(state.budgetSplitPercent.defender);
+      budgetSplitDefenderInput.value = String(state.budgetSplitPercent.warden);
     }
     recompute();
   }
