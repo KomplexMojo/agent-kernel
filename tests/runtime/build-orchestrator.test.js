@@ -168,7 +168,7 @@ const inRoom = (pos, room) => (
 );
 const inAnyRoom = (pos) => (data.rooms || []).some((room) => inRoom(pos, room));
 const actorById = new Map(actorConfig.map((actor) => [actor.id, actor]));
-const isAttacker = (actorId) => {
+const isDelver = (actorId) => {
   const base = actorById.get(actorId);
   if (!base) return false;
   const values = [];
@@ -185,10 +185,10 @@ actors.forEach((actor) => {
   const row = String(data.tiles[actor.position.y] ?? "");
   const cell = row[actor.position.x];
   assert.ok(cell && cell !== "#" && cell !== "B");
-  if (isAttacker(actor.id)) {
-    assert.equal(inRoom(actor.position, entryRoom), true, \`attacker \${actor.id} should be in entry room\`);
+  if (isDelver(actor.id)) {
+    assert.equal(inRoom(actor.position, entryRoom), true, \`delver \${actor.id} should be in entry room\`);
   } else {
-    assert.equal(inAnyRoom(actor.position), true, \`defender \${actor.id} should be in a room\`);
+    assert.equal(inAnyRoom(actor.position), true, \`warden \${actor.id} should be in a room\`);
   }
 });
 `;
@@ -222,7 +222,7 @@ const summary = {
     },
     {
       id: "A-FIRE01",
-      type: "attacker",
+      type: "delver",
       source: "actor",
       count: 1,
       affinity: "fire",
@@ -237,7 +237,7 @@ const summary = {
     },
     {
       id: "D-WATER01",
-      type: "defender",
+      type: "warden",
       source: "actor",
       count: 1,
       affinity: "water",
@@ -268,12 +268,12 @@ const byRole = actorConfig.reduce((acc, actor) => {
     ...(Array.isArray(actor?.motivations) ? actor.motivations : []),
     typeof actor?.motivation === "string" ? actor.motivation : "",
   ].join(" ").toLowerCase();
-  if (bag.includes("attack")) acc.attackers.push(actor.id);
-  else acc.defenders.push(actor.id);
+  if (bag.includes("attack")) acc.delvers.push(actor.id);
+  else acc.wardens.push(actor.id);
   return acc;
-}, { attackers: [], defenders: [] });
-assert.equal(byRole.attackers.length, 1);
-assert.equal(byRole.defenders.length, 1);
+}, { delvers: [], wardens: [] });
+assert.equal(byRole.delvers.length, 1);
+assert.equal(byRole.wardens.length, 1);
 
 const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-test" });
 const actors = buildResult.initialState.actors;
@@ -302,16 +302,16 @@ const roomHasAffinity = (room, kind) => (
   && room.affinities.some((entry) => entry?.kind === kind)
 );
 
-const attacker = actors.find((actor) => byRole.attackers.includes(actor.id));
-const defender = actors.find((actor) => byRole.defenders.includes(actor.id));
-assert.ok(attacker);
-assert.ok(defender);
-assert.equal(inRoom(attacker.position, entryRoom), true);
+const delver = actors.find((actor) => byRole.delvers.includes(actor.id));
+const warden = actors.find((actor) => byRole.wardens.includes(actor.id));
+assert.ok(delver);
+assert.ok(warden);
+assert.equal(inRoom(delver.position, entryRoom), true);
 
 const affinityRoom = (data.rooms || []).find((room) => roomHasAffinity(room, "water"));
-const defenderInAffinityRoom = affinityRoom ? inRoom(defender.position, affinityRoom) : false;
-const defenderInExitRoom = inRoom(defender.position, exitRoom);
-assert.equal(defenderInAffinityRoom || defenderInExitRoom, true);
+const wardenInAffinityRoom = affinityRoom ? inRoom(warden.position, affinityRoom) : false;
+const wardenInExitRoom = inRoom(warden.position, exitRoom);
+assert.equal(wardenInAffinityRoom || wardenInExitRoom, true);
 `;
 
 const spawnOrderingScript = `
@@ -351,9 +351,9 @@ const actors = buildResult.initialState.actors;
 
 assert.ok(spawn);
 assert.equal(actors.length, 3);
-const attacker = actors.find((actor) => actor.id === "z_strong");
-assert.ok(attacker);
-assert.deepEqual(attacker.position, spawn);
+const delver = actors.find((actor) => actor.id === "z_strong");
+assert.ok(delver);
+assert.deepEqual(delver.position, spawn);
 
 const spawnOccupants = actors.filter((actor) => actor.position.x === spawn.x && actor.position.y === spawn.y);
 assert.equal(spawnOccupants.length, 1);
@@ -401,7 +401,7 @@ const spec = {
         shape: { roomCount: 2, roomMinSize: 4, roomMaxSize: 6, corridorWidth: 1 },
         connectivity: { requirePath: true },
       },
-      attackerCount: 1,
+      delverCount: 1,
       cardSet: [
         {
           id: "R-FIRE",
@@ -424,7 +424,7 @@ const spec = {
       ],
       actors: [
         {
-          id: "attacker_1",
+          id: "delver_1",
           kind: "ambulatory",
           motivations: ["attacking"],
           affinity: "earth",
@@ -468,12 +468,12 @@ assert.ok(fireRoom);
 assert.ok(waterRoom);
 
 const actors = first.initialState.actors;
-const fireDefender = actors.find((actor) => actor.id === "def_fire");
-const waterDefender = actors.find((actor) => actor.id === "def_water");
-assert.ok(fireDefender);
-assert.ok(waterDefender);
-assert.equal(inRoom(fireDefender.position, fireRoom), true);
-assert.equal(inRoom(waterDefender.position, waterRoom), true);
+const fireWarden = actors.find((actor) => actor.id === "def_fire");
+const waterWarden = actors.find((actor) => actor.id === "def_water");
+assert.ok(fireWarden);
+assert.ok(waterWarden);
+assert.equal(inRoom(fireWarden.position, fireRoom), true);
+assert.equal(inRoom(waterWarden.position, waterRoom), true);
 
 const generatedTraps = (layout.traps || []).filter((trap) => trap?.source === "room_affinity_tile");
 assert.ok(generatedTraps.length > 0);
@@ -507,18 +507,18 @@ test("orchestrateBuild aligns actors to walkable layout positions", () => {
   runEsm(actorPlacementScript);
 });
 
-test("orchestrateBuild places attackers at entry and defenders inside rooms", () => {
+test("orchestrateBuild places delvers at entry and wardens inside rooms", () => {
   runEsm(strategicPlacementScript);
 });
 
-test("orchestrateBuild translates cardSet attackers/defenders and applies strategic placement", () => {
+test("orchestrateBuild translates cardSet delvers/wardens and applies strategic placement", () => {
   runEsm(cardSetStrategicPlacementScript);
 });
 
-test("orchestrateBuild keeps the inferred attacker on spawn", () => {
+test("orchestrateBuild keeps the inferred delver on spawn", () => {
   runEsm(spawnOrderingScript);
 });
 
-test("orchestrateBuild maps room affinities to defender placement and tile emit traps", () => {
+test("orchestrateBuild maps room affinities to warden placement and tile emit traps", () => {
   runEsm(roomAffinityPlacementScript);
 });

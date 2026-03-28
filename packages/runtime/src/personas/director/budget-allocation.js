@@ -5,7 +5,7 @@ const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 const DEFAULT_POOLS = Object.freeze([
   { id: "player", weight: 0.2, notes: "Player actor configuration" },
   { id: "layout", weight: 0.4, notes: "Level layout + tiles" },
-  { id: "defenders", weight: 0.4, notes: "Defending actors + configuration" },
+  { id: "wardens", weight: 0.4, notes: "Defending actors + configuration" },
   { id: "loot", weight: 0.0, notes: "Optional drops/loot reserve" },
 ]);
 

@@ -41,8 +41,8 @@ export const AFFINITY_OPPOSITES = Object.freeze({
 });
 export const ROOM_AFFINITY_STACK_COST_FACTOR = 0.1;
 export const ROOM_AFFINITY_EMIT_PERCENT_PER_STACK = 10;
-export const ATTACKER_SETUP_MODES = Object.freeze(["auto", "user", "hybrid"]);
-export const DEFAULT_ATTACKER_SETUP_MODE = ATTACKER_SETUP_MODES[0];
+export const DELVER_SETUP_MODES = Object.freeze(["auto", "user", "hybrid"]);
+export const DEFAULT_DELVER_SETUP_MODE = DELVER_SETUP_MODES[0];
 export const DEFAULT_LLM_MODEL = "phi4";
 export const DEFAULT_LLM_BASE_URL = "http://localhost:11434";
 export const DEFAULT_LLM_CONTEXT_WINDOW_TOKENS = 256000;
@@ -86,7 +86,7 @@ export const VITAL_COUNT = VITAL_KEYS.length;
 export const AFFINITY_KIND_SET = new Set(AFFINITY_KINDS);
 export const AFFINITY_EXPRESSION_SET = new Set(AFFINITY_EXPRESSIONS);
 export const AFFINITY_TARGET_TYPE_SET = new Set(AFFINITY_TARGET_TYPES);
-export const ATTACKER_SETUP_MODE_SET = new Set(ATTACKER_SETUP_MODES);
+export const DELVER_SETUP_MODE_SET = new Set(DELVER_SETUP_MODES);
 export const DOMAIN_CONSTRAINTS = Object.freeze({
   llm: Object.freeze({
     model: DEFAULT_LLM_MODEL,
@@ -100,9 +100,9 @@ export const DOMAIN_CONSTRAINTS = Object.freeze({
     responseTokenBudget: PHI4_RESPONSE_TOKEN_BUDGET,
     options: PHI4_OLLAMA_OPTIONS,
   }),
-  attacker: Object.freeze({
-    setupModes: ATTACKER_SETUP_MODES,
-    defaultSetupMode: DEFAULT_ATTACKER_SETUP_MODE,
+  delver: Object.freeze({
+    setupModes: DELVER_SETUP_MODES,
+    defaultSetupMode: DEFAULT_DELVER_SETUP_MODE,
   }),
 });
 
@@ -256,8 +256,8 @@ export function buildLlmLevelPromptTemplate({
   });
   const contextLines = [
     ...preamble,
-    "Levels are made up of rooms connected by hallways and populated with attackers and defenders.",
-    "This phase focuses on creating rooms and laying them out. Attackers and defenders are configured in separate phases.",
+    "Levels are made up of rooms connected by hallways and populated with delvers and wardens.",
+    "This phase focuses on creating rooms and laying them out. Delvers and wardens are configured in separate phases.",
   ];
   if (isNonEmptyString(context)) {
     contextLines.push(`Selected room affinities and descriptions: ${context}`);
@@ -271,7 +271,7 @@ export function buildLlmLevelPromptTemplate({
     "Return layout tile counts and a room layout summary.",
     "Design for a clear level entry to level exit journey and keep routes meaningful.",
     "Entry and exit should be separated enough to require exploration.",
-    "Create defensible chokepoints and key junctions for stationary defenders.",
+    "Create defensible chokepoints and key junctions for stationary wardens.",
     "Use inclusive room bounds: startX/startY and endX/endY are both part of the room footprint.",
     "Include a brief room design summary explaining room placement and strategic flow.",
     "Keep the response concise; allow more detail only when needed to describe room structure.",
@@ -326,8 +326,8 @@ export function buildLlmActorConfigPromptTemplate({
   const contextLines = [
     ...preamble,
     "The level layout is already planned and must not be changed.",
-    "Attackers start at level entry and try to reach a hidden level exit.",
-    "Defenders must explore to locate likely exit routes, then hold them.",
+    "Delvers start at level entry and try to reach a hidden level exit.",
+    "Wardens must explore to locate likely exit routes, then hold them.",
     "Fog-of-war semantics: light affinity extends sight and discovery range.",
     "Fog-of-war semantics: dark affinity supports self-obscuration and blinding pressure.",
     "Durability semantics: corrode pressure reduces durability.",
@@ -338,7 +338,7 @@ export function buildLlmActorConfigPromptTemplate({
   }
   const constraints = [
     hasPhaseBudget
-      ? `Defender phase budget tokens: ${remainingBudgetTokens}.`
+      ? `Warden phase budget tokens: ${remainingBudgetTokens}.`
       : null,
     "Choose only from the allowed lists; do not invent new affinities, expressions, or motivations.",
     `Affinities: ${affinityMenu}.`,
@@ -346,21 +346,21 @@ export function buildLlmActorConfigPromptTemplate({
     `Motivations: ${motivationMenu}.`,
   ].filter(Boolean);
   if (isNonEmptyString(allowedPairsText)) {
-    constraints.push(`Allowed defender profiles (motivation, affinity): ${allowedPairsText}.`);
+    constraints.push(`Allowed warden profiles (motivation, affinity): ${allowedPairsText}.`);
   }
   const instructions = [
     "Phase: actors_only.",
-    "Return defenders only; omit rooms and layout.",
-    "Include at least one defender entry (count >= 1).",
+    "Return wardens only; omit rooms and layout.",
+    "Include at least one warden entry (count >= 1).",
     "Use valid JSON with double quotes only and no trailing commas.",
     "Spend as much of the remaining budget as possible while staying feasible.",
-    "tokenHint is per defender unit; total base spend for an entry is tokenHint * count.",
-    "Defender viability guardrails:",
+    "tokenHint is per warden unit; total base spend for an entry is tokenHint * count.",
+    "Warden viability guardrails:",
     "If you include affinities or stacks, include vitals with mana > 0 and mana regen > 0.",
-    "For non-stationary defenders, require stamina regen > 0.",
-    "Stationary/trap-like defenders may use zero regen.",
-    "Place stationary defenders at chokepoints (narrow halls, doors, key junctions).",
-    "Ensure defenders have non-trivial health (current/max >= 6).",
+    "For non-stationary wardens, require stamina regen > 0.",
+    "Stationary/trap-like wardens may use zero regen.",
+    "Place stationary wardens at chokepoints (narrow halls, doors, key junctions).",
+    "Ensure wardens have non-trivial health (current/max >= 6).",
     "Keep affinity stacks modest (1-3) unless mana and regen are higher.",
   ];
   const responseFormat = [
@@ -372,12 +372,12 @@ export function buildLlmActorConfigPromptTemplate({
     "Response shape: { \"phase\": \"actors_only\", \"remainingBudgetTokens\": <int>, \"actors\": [{\"motivation\": <motivation>, \"affinity\": <affinity>, \"count\": <int>, \"tokenHint\": <int?>, \"affinities\": [{\"kind\": <affinity>, \"expression\": <expression>, \"stacks\": <int?>}], \"vitals\": {\"health\": {\"current\": <int>, \"max\": <int>, \"regen\": <int>}, \"mana\": {\"current\": <int>, \"max\": <int>, \"regen\": <int>}, \"stamina\": {\"current\": <int>, \"max\": <int>, \"regen\": <int>}, \"durability\": {\"current\": <int>, \"max\": <int>, \"regen\": <int>}}}], \"missing\": [], \"stop\": \"done\" | \"missing\" | \"no_viable_spend\" }.",
   ];
   return buildStructuredPrompt({
-    role: "You are a dungeon defender strategist.",
-    goal: "Configure defender actors and affinity stacks only.",
+    role: "You are a dungeon warden strategist.",
+    goal: "Configure warden actors and affinity stacks only.",
     context: contextLines,
     assumption: [
       "The level topology already exists and cannot be modified in this phase.",
-      "Stationary defenders may use zero stamina regen; ambulatory defenders require stamina regen > 0.",
+      "Stationary wardens may use zero stamina regen; ambulatory wardens require stamina regen > 0.",
     ],
     constraints,
     instructions,

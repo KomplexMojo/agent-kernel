@@ -46,9 +46,9 @@ test("simulation view keeps the playing surface, playback controls, and board ac
   assert.doesNotMatch(simulationPanel, /id="simulation-exploration-hud"/);
   assert.doesNotMatch(simulationPanel, /id="event-stream"/);
   assert.doesNotMatch(simulationPanel, /id="runtime-viewport"/);
-  assert.doesNotMatch(simulationPanel, /id="runtime-attacker-card"/);
-  assert.doesNotMatch(simulationPanel, /id="runtime-visible-defenders"/);
-  assert.doesNotMatch(simulationPanel, /id="runtime-offscreen-defenders"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-delver-card"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-visible-wardens"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-offscreen-wardens"/);
   assert.doesNotMatch(simulationPanel, /Selected Actor View/);
 });
 

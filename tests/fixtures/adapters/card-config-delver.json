@@ -1,0 +1,10 @@
+{
+  "id": "A-FIXTURE01",
+  "type": "delver",
+  "count": 1,
+  "affinity": "fire",
+  "affinities": [
+    { "kind": "fire", "expression": "emit", "stacks": 2 }
+  ],
+  "motivations": ["attacking"]
+}

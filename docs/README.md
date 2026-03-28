@@ -40,7 +40,7 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - Configurator emits a spend proposal from layout/actor/trap inputs; Allocator validates against budget + price list and emits a receipt.
 - Tokens are integer units (future ERC20 linkage remains at the adapter boundary).
 - Tile budgeting uses price list ids `tile_wall`, `tile_floor`, and `tile_hallway` (kind `tile`) when provided; otherwise layout tiles default to cost 1 each.
-- Layout budgeting is tile-count based; layout spend uses the layout pool and any unspent layout tokens roll into defenders. Actors are categorized as ambulatory or stationary (trap-like) during planning.
+- Layout budgeting is tile-count based; layout spend uses the layout pool and any unspent layout tokens roll into wardens. Actors are categorized as ambulatory or stationary (trap-like) during planning.
 
 Example flow (proposal → receipt):
 ```json
@@ -87,7 +87,7 @@ Key artifacts and fixtures:
 - `AK_ALLOW_NETWORK=1`: allow non-local network access for adapters; localhost is always allowed.
 
 Budget loop captures are phase-indexed for deterministic ordering; telemetry includes the loop trace (phase order, remaining budget, trims/warnings, and per-phase timing).
-Budget pools default to player/layout/defenders/loot weights (0.2/0.4/0.4/0.0) and can be overridden in `llm-plan` via `--budget-pool` entries and `--budget-reserve`.
+Budget pools default to player/layout/wardens/loot weights (0.2/0.4/0.4/0.0) and can be overridden in `llm-plan` via `--budget-pool` entries and `--budget-reserve`.
 llm-plan runs require a total budget (`--budget-tokens` or scenario `budgetTokens`).
 
 Runtime-decision note:

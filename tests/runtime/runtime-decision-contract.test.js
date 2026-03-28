@@ -15,8 +15,8 @@ import {
 
 const envelope = buildRuntimeDecisionEnvelope({
   tick: 3,
-  actor: { id: "actor_1", role: "attacker" },
-  visibleActors: [{ id: "def_1", role: "defender" }],
+  actor: { id: "actor_1", role: "delver" },
+  visibleActors: [{ id: "def_1", role: "warden" }],
   hazards: [{ kind: "trap", position: { x: 1, y: 2 } }],
   candidateActions: [
     {

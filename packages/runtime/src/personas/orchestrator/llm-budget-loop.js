@@ -1068,25 +1068,25 @@ function buildCombinedSummary({ baseSummary, selections, layout } = {}) {
   return summary;
 }
 
-function buildActorPhaseGoal({ baseGoal, dungeonAffinity, defenderAffinities } = {}) {
-  const defenderPhrase = formatAffinityPhrase(defenderAffinities);
-  if (isNonEmptyString(defenderPhrase)) {
-    return `Create dungeon defenders for a ${defenderPhrase} themed dungeon.`;
+function buildActorPhaseGoal({ baseGoal, dungeonAffinity, wardenAffinities } = {}) {
+  const wardenPhrase = formatAffinityPhrase(wardenAffinities);
+  if (isNonEmptyString(wardenPhrase)) {
+    return `Create dungeon wardens for a ${wardenPhrase} themed dungeon.`;
   }
   if (isNonEmptyString(dungeonAffinity)) {
-    return `Create dungeon defenders for a ${dungeonAffinity} themed dungeon.`;
+    return `Create dungeon wardens for a ${dungeonAffinity} themed dungeon.`;
   }
   if (isNonEmptyString(baseGoal)) {
     const trimmed = baseGoal.trim();
-    if (/defender/i.test(trimmed)) {
+    if (/warden/i.test(trimmed)) {
       return trimmed;
     }
     const affinityMatch = trimmed.match(/\b([a-z]+)\s+affinity\b/i);
     if (affinityMatch) {
-      return `Create dungeon defenders for a ${affinityMatch[1].toLowerCase()} themed dungeon.`;
+      return `Create dungeon wardens for a ${affinityMatch[1].toLowerCase()} themed dungeon.`;
     }
   }
-  return "Create dungeon defenders for this dungeon.";
+  return "Create dungeon wardens for this dungeon.";
 }
 
 export async function runLlmBudgetLoop({
@@ -1109,7 +1109,7 @@ export async function runLlmBudgetLoop({
   requestId,
   maxActorRounds = DEFAULT_MAX_ACTOR_ROUNDS,
   optionsByPhase,
-  defenderAffinities,
+  wardenAffinities,
   layoutPhaseContext = "",
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
@@ -1136,15 +1136,15 @@ export async function runLlmBudgetLoop({
   const llmFormat = isNonEmptyString(format) ? format : DOMAIN_CONSTRAINTS?.llm?.outputFormat;
 
   const allowedOptions = deriveAllowedOptionsFromCatalog(catalog);
-  const defenderAffinityChoices = Array.isArray(defenderAffinities)
-    ? defenderAffinities
+  const wardenAffinityChoices = Array.isArray(wardenAffinities)
+    ? wardenAffinities
       .map((value) => (typeof value === "string" ? value.trim().toLowerCase() : ""))
       .filter(Boolean)
     : [];
-  const defenderAffinitySet = new Set(allowedOptions.affinities || []);
-  const filteredDefenderAffinities = defenderAffinityChoices.filter((value) => defenderAffinitySet.has(value));
-  const defenderAllowedOptions = filteredDefenderAffinities.length > 0
-    ? { ...allowedOptions, affinities: filteredDefenderAffinities }
+  const wardenAffinitySet = new Set(allowedOptions.affinities || []);
+  const filteredWardenAffinities = wardenAffinityChoices.filter((value) => wardenAffinitySet.has(value));
+  const wardenAllowedOptions = filteredWardenAffinities.length > 0
+    ? { ...allowedOptions, affinities: filteredWardenAffinities }
     : allowedOptions;
   const allowedPairs = deriveAllowedPairs(catalog);
   const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
@@ -1181,7 +1181,7 @@ export async function runLlmBudgetLoop({
   const poolMap = new Map(budgetAllocation.pools.map((pool) => [pool.id, pool.tokens]));
   const playerBudgetTokens = poolMap.get("player") || 0;
   const layoutBudgetTokens = poolMap.get("layout") || 0;
-  const defendersBudgetTokens = poolMap.get("defenders") || 0;
+  const wardensBudgetTokens = poolMap.get("wardens") || 0;
   const lootBudgetTokens = poolMap.get("loot") || 0;
 
   const captures = [];
@@ -1236,10 +1236,10 @@ export async function runLlmBudgetLoop({
   const actorGoal = buildActorPhaseGoal({
     baseGoal: goal,
     dungeonAffinity: layoutPhase.summary?.dungeonAffinity,
-    defenderAffinities: filteredDefenderAffinities,
+    wardenAffinities: filteredWardenAffinities,
   });
-  const defenderBudgetWithRollover = defendersBudgetTokens + layoutSpendResult.remainingBudgetTokens;
-  remainingBudgetTokens = defenderBudgetWithRollover;
+  const wardenBudgetWithRollover = wardensBudgetTokens + layoutSpendResult.remainingBudgetTokens;
+  remainingBudgetTokens = wardenBudgetWithRollover;
   const layoutWarnings = [
     ...(layoutCostResult.warnings || []),
     ...(layoutSpendResult.warnings || []),
@@ -1289,11 +1289,11 @@ export async function runLlmBudgetLoop({
       budgetTokens,
       remainingBudgetTokens,
       allowedPairsText,
-      allowedOptions: defenderAllowedOptions,
+      allowedOptions: wardenAllowedOptions,
       phase: "actors_only",
       phaseContext,
       layoutCosts,
-      affinities: filteredDefenderAffinities.length > 0 ? filteredDefenderAffinities : undefined,
+      affinities: filteredWardenAffinities.length > 0 ? filteredWardenAffinities : undefined,
       strict,
       format: llmFormat,
       stream,
@@ -1395,7 +1395,7 @@ export async function runLlmBudgetLoop({
     poolBudgets: {
       player: playerBudgetTokens,
       layout: layoutBudgetTokens,
-      defenders: defendersBudgetTokens,
+      wardens: wardensBudgetTokens,
       loot: lootBudgetTokens,
     },
     poolPolicy: budgetAllocation.policy,

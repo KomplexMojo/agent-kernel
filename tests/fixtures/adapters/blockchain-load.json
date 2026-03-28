@@ -6,7 +6,7 @@
     "owner": "0xabc",
     "card": {
       "id": "A-FIXTURE01",
-      "type": "attacker",
+      "type": "delver",
       "count": 1,
       "affinity": "fire",
       "affinities": [

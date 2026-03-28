@@ -110,7 +110,7 @@ test("cli blockchain-mint command writes minted token metadata", async () => {
     "--rpc-url",
     "http://local",
     "--card",
-    "tests/fixtures/adapters/card-config-attacker.json",
+    "tests/fixtures/adapters/card-config-delver.json",
     "--owner",
     "0xabc",
     "--fixture-chain-id",
@@ -145,7 +145,7 @@ test("cli blockchain-load command writes minted card payload", async () => {
   assert.equal(payload.chainId, JSON.parse(chainFixture).result);
   assert.equal(payload.tokenId, "token_fixture_1");
   assert.equal(payload.card.id, JSON.parse(blockchainLoadFixture).result.card.id);
-  assert.equal(payload.card.type, "attacker");
+  assert.equal(payload.card.type, "delver");
 });
 
 test("cli llm command writes response JSON", async () => {
