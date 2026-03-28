@@ -157,6 +157,18 @@ const CATALOG = [
     description: "Run summary output.",
     fields: ["meta", "intentRef", "planRef", "simConfigRef", "budgetReceiptRef", "outcome"],
   },
+  {
+    schema: "agent-kernel/ResourceBundleArtifact",
+    schemaVersion: 1,
+    description: "Visual resource bundle for rendering.",
+    fields: ["meta", "bundleId", "bundleVersion", "tileWidth", "tileHeight", "gatewayBaseUrl", "assets", "mappings"],
+  },
+  {
+    schema: "agent-kernel/ResourceBundleArtifact",
+    schemaVersion: 2,
+    description: "Visual resource bundle with embedded data URIs.",
+    fields: ["meta", "bundleId", "bundleVersion", "tileWidth", "tileHeight", "gatewayBaseUrl", "assets", "mappings"],
+  },
 ];
 
 function sortSchemas(entries) {
