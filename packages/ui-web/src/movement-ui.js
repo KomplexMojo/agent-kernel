@@ -8,7 +8,7 @@ import {
   TRAP_VITAL_KEYS,
   VITAL_KEYS,
 } from "../../runtime/src/contracts/domain-constants.js";
-import { STACK_INTENSITY_TIERS, resolveStackIntensity } from "../../runtime/src/render/affinity-palette.js";
+import { AFFINITY_COLOR_HEX, STACK_INTENSITY_TIERS, resolveStackIntensity } from "../../runtime/src/render/affinity-palette.js";
 
 const EVENT_STREAM_LIMIT = 6;
 const DEFAULT_VIEWPORT_SIZE = 50;
@@ -107,6 +107,8 @@ const REALTIME_MOVE_BY_ACTION = Object.freeze({
 });
 // Stack intensity rules now sourced from shared affinity-palette module
 const STACK_STYLES = STACK_INTENSITY_TIERS;
+// Affinity render order for deterministic tie-breaks (matches guidance-level-builder.js)
+const AFFINITY_RENDER_ORDER = Object.freeze(Object.keys(AFFINITY_COLOR_HEX));
 
 function escapeHtmlChar(char) {
   if (char === "&") return "&amp;";
@@ -125,6 +127,11 @@ function normalizeStacks(value) {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return 1;
   return Math.max(1, Math.round(num));
+}
+
+function affinityOrder(kind) {
+  const index = AFFINITY_RENDER_ORDER.indexOf(kind);
+  return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
 }
 
 function resolveAffinityFromTraits(traits) {
@@ -207,7 +214,10 @@ function resolveTrapAffinityEntry(trap = null) {
   if (valid.length === 0) return null;
   const floorFirst = valid.filter((entry) => entry.targetType === "floor");
   const pool = floorFirst.length > 0 ? floorFirst : valid;
-  pool.sort((a, b) => b.stacks - a.stacks);
+  pool.sort((left, right) => {
+    if (right.stacks !== left.stacks) return right.stacks - left.stacks;
+    return affinityOrder(left.kind) - affinityOrder(right.kind);
+  });
   return pool[0];
 }
 
@@ -228,7 +238,15 @@ function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
     const localY = viewport ? y - viewport.startY : y;
     const key = keyForCell(localX, localY);
     const prior = index.get(key);
-    if (!prior || affinity.stacks > prior.stacks) {
+    if (!prior) {
+      index.set(key, affinity);
+      return;
+    }
+    if (affinity.stacks > prior.stacks) {
+      index.set(key, affinity);
+      return;
+    }
+    if (affinity.stacks === prior.stacks && affinityOrder(affinity.kind) < affinityOrder(prior.kind)) {
       index.set(key, affinity);
     }
   });
