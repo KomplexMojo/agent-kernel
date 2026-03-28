@@ -290,18 +290,18 @@ export function buildBuildSpecFromSummary({
   const levelGen = layout || roomDesign
     ? deriveLevelGenFromLayout(layout || {}, roomDesign)
     : deriveLevelGen({ roomCount });
-  const attackerConfigs = Array.isArray(resolvedSummary?.attackerConfigs)
-    ? resolvedSummary.attackerConfigs
+  const delverConfigs = Array.isArray(resolvedSummary?.delverConfigs)
+    ? resolvedSummary.delverConfigs
       .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
       .map((entry) => ({ ...entry }))
-    : resolvedSummary?.attackerConfig && typeof resolvedSummary.attackerConfig === "object"
-      ? [{ ...resolvedSummary.attackerConfig }]
+    : resolvedSummary?.delverConfig && typeof resolvedSummary.delverConfig === "object"
+      ? [{ ...resolvedSummary.delverConfig }]
       : [];
-  const attackerConfig = attackerConfigs[0] || null;
-  const attackerCount = Number.isInteger(resolvedSummary?.attackerCount) && resolvedSummary.attackerCount > 0
-    ? resolvedSummary.attackerCount
-    : attackerConfigs.length > 0
-      ? attackerConfigs.length
+  const delverConfig = delverConfigs[0] || null;
+  const delverCount = Number.isInteger(resolvedSummary?.delverCount) && resolvedSummary.delverCount > 0
+    ? resolvedSummary.delverCount
+    : delverConfigs.length > 0
+      ? delverConfigs.length
       : undefined;
 
   const spec = {
@@ -314,8 +314,8 @@ export function buildBuildSpecFromSummary({
       hints: {
         levelAffinity: resolvedSummary?.dungeonAffinity,
         budgetTokens: resolvedSummary?.budgetTokens,
-        attackerCount,
-        attackerSetupMode: attackerConfig?.setupMode,
+        delverCount,
+        delverSetupMode: delverConfig?.setupMode,
       },
     },
     plan: {
@@ -325,9 +325,9 @@ export function buildBuildSpecFromSummary({
           affinity: sel.requested.affinity,
           count: sel.requested.count,
         })),
-        attackerCount,
-        attackerConfigs: attackerConfigs.length > 0 ? attackerConfigs : undefined,
-        attackerConfig: attackerConfig || undefined,
+        delverCount,
+        delverConfigs: delverConfigs.length > 0 ? delverConfigs : undefined,
+        delverConfig: delverConfig || undefined,
         cardSet: cardSet.length > 0 ? cardSet : undefined,
       },
     },
@@ -337,9 +337,9 @@ export function buildBuildSpecFromSummary({
         levelAffinity: resolvedSummary?.dungeonAffinity,
         actors,
         actorGroups,
-        attackerCount,
-        attackerConfigs: attackerConfigs.length > 0 ? attackerConfigs : undefined,
-        attackerConfig: attackerConfig || undefined,
+        delverCount,
+        delverConfigs: delverConfigs.length > 0 ? delverConfigs : undefined,
+        delverConfig: delverConfig || undefined,
         cardSet: cardSet.length > 0 ? cardSet : undefined,
       },
     },

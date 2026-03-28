@@ -28,20 +28,20 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
-function listAttackerCards(spec) {
+function listDelverCards(spec) {
   const cardSet = spec?.plan?.hints?.cardSet;
   if (!Array.isArray(cardSet)) return [];
-  return cardSet.filter((entry) => entry?.type === "attacker");
+  return cardSet.filter((entry) => entry?.type === "delver");
 }
 
-test("cli attacker-plan authors attacker cards directly from attacker flags", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-attacker-plan-basic-"));
+test("cli delver-plan authors delver cards directly from delver flags", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-basic-"));
   runCliOk([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "affinity=fire;motivation=attacking;count=2",
     "--run-id",
-    "run_attacker_plan_basic",
+    "run_delver_plan_basic",
     "--created-at",
     "2026-03-07T00:00:00.000Z",
     "--out-dir",
@@ -53,26 +53,26 @@ test("cli attacker-plan authors attacker cards directly from attacker flags", ()
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
 
   const spec = readJson(join(outDir, "spec.json"));
-  assert.equal(spec.meta.runId, "run_attacker_plan_basic");
+  assert.equal(spec.meta.runId, "run_delver_plan_basic");
 
-  const cards = listAttackerCards(spec);
+  const cards = listDelverCards(spec);
   assert.equal(cards.length, 1);
-  const attacker = cards[0];
-  assert.equal(attacker.count, 2);
-  assert.equal(attacker.affinity, "fire");
-  assert.deepEqual(attacker.motivations, ["attacking"]);
+  const delver = cards[0];
+  assert.equal(delver.count, 2);
+  assert.equal(delver.affinity, "fire");
+  assert.deepEqual(delver.motivations, ["attacking"]);
 });
 
-test("cli attacker-plan applies default attacker motivation and affinity fallback", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-attacker-plan-defaults-"));
+test("cli delver-plan applies default delver motivation and affinity fallback", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-defaults-"));
   runCliOk([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "count=1",
     "--dungeon-affinity",
     "water",
     "--run-id",
-    "run_attacker_plan_defaults",
+    "run_delver_plan_defaults",
     "--created-at",
     "2026-03-07T00:00:00.000Z",
     "--out-dir",
@@ -80,24 +80,24 @@ test("cli attacker-plan applies default attacker motivation and affinity fallbac
   ]);
 
   const spec = readJson(join(outDir, "spec.json"));
-  const cards = listAttackerCards(spec);
+  const cards = listDelverCards(spec);
   assert.equal(cards.length, 1);
-  const attacker = cards[0];
-  assert.equal(attacker.count, 1);
-  assert.equal(attacker.affinity, "water");
-  assert.deepEqual(attacker.motivations, ["attacking"]);
+  const delver = cards[0];
+  assert.equal(delver.count, 1);
+  assert.equal(delver.affinity, "water");
+  assert.deepEqual(delver.motivations, ["attacking"]);
 });
 
-test("cli attacker-plan supports multiple attacker configurations in one command", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-attacker-plan-multi-"));
+test("cli delver-plan supports multiple delver configurations in one command", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-multi-"));
   runCliOk([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "affinity=fire;motivation=attacking;count=2",
-    "--attacker",
+    "--delver",
     "affinity=earth;motivation=patrolling;count=1",
     "--run-id",
-    "run_attacker_plan_multi",
+    "run_delver_plan_multi",
     "--created-at",
     "2026-03-07T00:00:00.000Z",
     "--out-dir",
@@ -105,7 +105,7 @@ test("cli attacker-plan supports multiple attacker configurations in one command
   ]);
 
   const spec = readJson(join(outDir, "spec.json"));
-  const cards = listAttackerCards(spec);
+  const cards = listDelverCards(spec);
   assert.equal(cards.length, 2);
 
   const byAffinity = new Map(cards.map((card) => [card.affinity, card]));
@@ -114,18 +114,18 @@ test("cli attacker-plan supports multiple attacker configurations in one command
   assert.deepEqual(byAffinity.get("earth")?.motivations, ["patrolling"]);
 });
 
-test("cli attacker-plan supports advanced affinities, vitals, setup mode, and receipt accounting", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-attacker-plan-advanced-"));
+test("cli delver-plan supports advanced affinities, vitals, setup mode, and receipt accounting", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-advanced-"));
   runCliOk([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0",
     "--budget",
     "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
     "--price-list",
     "tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
     "--run-id",
-    "run_attacker_plan_advanced",
+    "run_delver_plan_advanced",
     "--created-at",
     "2026-03-07T00:00:00.000Z",
     "--out-dir",
@@ -133,16 +133,16 @@ test("cli attacker-plan supports advanced affinities, vitals, setup mode, and re
   ]);
 
   const spec = readJson(join(outDir, "spec.json"));
-  const cards = listAttackerCards(spec);
+  const cards = listDelverCards(spec);
   assert.equal(cards.length, 1);
-  const attacker = cards[0];
-  assert.equal(attacker.setupMode, "user");
-  assert.deepEqual(attacker.affinities, [
+  const delver = cards[0];
+  assert.equal(delver.setupMode, "user");
+  assert.deepEqual(delver.affinities, [
     { kind: "fire", expression: "push", stacks: 3 },
     { kind: "wind", expression: "emit", stacks: 2 },
   ]);
-  assert.equal(attacker.vitals.health.max, 12);
-  assert.equal(attacker.vitals.mana.regen, 2);
+  assert.equal(delver.vitals.health.max, 12);
+  assert.equal(delver.vitals.mana.regen, 2);
 
   const initialState = readJson(join(outDir, "initial-state.json"));
   assert.equal(initialState.actors.length, 1);
@@ -161,50 +161,50 @@ test("cli attacker-plan supports advanced affinities, vitals, setup mode, and re
   assert.equal(byId.get("vital_mana_regen_tick")?.quantity, 2);
 });
 
-test("cli attacker-plan rejects invalid motivation", () => {
+test("cli delver-plan rejects invalid motivation", () => {
   const result = runCli([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "affinity=fire;motivation=berserk;count=1",
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /motivation must be one of/i);
 });
 
-test("cli attacker-plan rejects duplicate motivation declarations", () => {
+test("cli delver-plan rejects duplicate motivation declarations", () => {
   const result = runCli([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "affinity=fire;attacking;motivation=defending;count=1",
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /motivation may only be specified once/i);
 });
 
-test("cli attacker-plan rejects invalid setup mode", () => {
+test("cli delver-plan rejects invalid setup mode", () => {
   const result = runCli([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "affinity=fire;setup-mode=manual;count=1",
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /setup-mode must be one of/i);
 });
 
-test("cli attacker-plan rejects invalid vital tuple", () => {
+test("cli delver-plan rejects invalid vital tuple", () => {
   const result = runCli([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "affinity=fire;vitals=health:notanumber:1",
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /non-negative integer/i);
 });
 
-test("cli attacker-plan requires --budget and --price-list together", () => {
+test("cli delver-plan requires --budget and --price-list together", () => {
   const result = runCli([
-    "attacker-plan",
-    "--attacker",
+    "delver-plan",
+    "--delver",
     "affinity=fire;count=1",
     "--budget",
     "tests/fixtures/artifacts/budget-artifact-v1-basic.json",

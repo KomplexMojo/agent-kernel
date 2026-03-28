@@ -394,9 +394,9 @@ function asActorEntries({ actorSet, summary } = {}) {
   if (Array.isArray(cardSet) && cardSet.length > 0) {
     return cardSet
       .map((entry, index) => {
-        const type = normalizeCardType(entry?.type) || (entry?.source === "room" ? "room" : "defender");
+        const type = normalizeCardType(entry?.type) || (entry?.source === "room" ? "room" : "warden");
         const source = type === "room" ? "room" : "actor";
-        const fallbackMotivation = type === "attacker" ? "attacking" : type === "room" ? "stationary" : "defending";
+        const fallbackMotivation = type === "delver" ? "attacking" : type === "room" ? "stationary" : "defending";
         return {
           source,
           id: entry?.id || `${type}_${index + 1}`,

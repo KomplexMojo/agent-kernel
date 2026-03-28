@@ -122,7 +122,7 @@ test("cli blockchain rejects missing rpc-url", () => {
 });
 
 test("cli blockchain-mint rejects missing rpc-url", () => {
-  const result = runCliExpectFailure(["blockchain-mint", "--card", "tests/fixtures/adapters/card-config-attacker.json"]);
+  const result = runCliExpectFailure(["blockchain-mint", "--card", "tests/fixtures/adapters/card-config-delver.json"]);
   assert.match(result.stderr, /blockchain-mint requires --rpc-url/);
 });
 

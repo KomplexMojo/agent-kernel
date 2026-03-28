@@ -2131,7 +2131,7 @@
                 <span class="simulation-badge">Inspector synced</span>
               </div>
             </div>
-            <div class="status surface-status" id="status-message" data-level="info">Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.</div>
+            <div class="status surface-status" id="status-message" data-level="info">Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here.</div>
             <div class="simulation-stage">
               <section class="simulation-board-card">
                 <span class="stat-label">Board State</span>
@@ -2211,22 +2211,22 @@
                     </div>
                     <div class="design-budget-split-item">
                       <label>
-                        <span class="stat-label">Attacker %</span>
-                        <input id="design-budget-split-attacker" type="number" min="0" max="100" step="1" value="20" />
+                        <span class="stat-label">Delver %</span>
+                        <input id="design-budget-split-delver" type="number" min="0" max="100" step="1" value="20" />
                       </label>
-                      <span class="design-budget-split-tokens" id="design-budget-split-attacker-tokens"></span>
+                      <span class="design-budget-split-tokens" id="design-budget-split-delver-tokens"></span>
                     </div>
                     <div class="design-budget-split-item">
                       <label>
-                        <span class="stat-label">Defender %</span>
-                        <input id="design-budget-split-defender" type="number" min="0" max="100" step="1" value="25" />
+                        <span class="stat-label">Warden %</span>
+                        <input id="design-budget-split-warden" type="number" min="0" max="100" step="1" value="25" />
                       </label>
-                      <span class="design-budget-split-tokens" id="design-budget-split-defender-tokens"></span>
+                      <span class="design-budget-split-tokens" id="design-budget-split-warden-tokens"></span>
                     </div>
                   </div>
                   <div class="design-budget-overview" id="design-budget-overview"></div>
                 </div>
-                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Attacker/Defender shelves.</div>
+                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.</div>
                 <div class="design-card-grid" id="design-card-grid"></div>
               </section>
               <aside class="design-card-groups-window" aria-label="Card shelf groups">
@@ -2240,17 +2240,17 @@
                 </section>
                 <section class="design-card-group" data-card-group="attacker">
                   <div class="design-card-group-header">
-                    <h3 class="design-card-group-icon" aria-label="Attacker">⚔️</h3>
-                    <span class="design-card-group-budget" id="design-card-group-budget-attacker">(0) : 0/0</span>
+                    <h3 class="design-card-group-icon" aria-label="Delver">⚔️</h3>
+                    <span class="design-card-group-budget" id="design-card-group-budget-delver">(0) : 0/0</span>
                   </div>
-                  <div id="design-card-group-attacker"></div>
+                  <div id="design-card-group-delver"></div>
                 </section>
                 <section class="design-card-group" data-card-group="defender">
                   <div class="design-card-group-header">
-                    <h3 class="design-card-group-icon" aria-label="Defender">🛡️</h3>
-                    <span class="design-card-group-budget" id="design-card-group-budget-defender">(0) : 0/0</span>
+                    <h3 class="design-card-group-icon" aria-label="Warden">🛡️</h3>
+                    <span class="design-card-group-budget" id="design-card-group-budget-warden">(0) : 0/0</span>
                   </div>
-                  <div id="design-card-group-defender"></div>
+                  <div id="design-card-group-warden"></div>
                 </section>
               </aside>
             </div>
@@ -2581,7 +2581,7 @@
                 <div class="stat">
                   <span class="stat-label icon-label"><span class="ui-icon" aria-hidden="true">🔎</span>Game Inspector</span>
                 </div>
-                <p class="inspector-copy">Select a room, attacker, or defender to steer visibility and runtime action focus.</p>
+                <p class="inspector-copy">Select a room, delver, or warden to steer visibility and runtime action focus.</p>
               </div>
             </div>
             <div class="inspector-section">
@@ -2594,15 +2594,15 @@
                 </section>
                 <section class="design-card-group">
                   <div class="design-card-group-header">
-                    <h3 class="design-card-group-icon" aria-label="Attacker">⚔️</h3>
+                    <h3 class="design-card-group-icon" aria-label="Delver">⚔️</h3>
                   </div>
-                  <div class="simulation-inspector-group-list" id="actor-inspector-attacker-list"></div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-delver-list"></div>
                 </section>
                 <section class="design-card-group">
                   <div class="design-card-group-header">
-                    <h3 class="design-card-group-icon" aria-label="Defender">🛡️</h3>
+                    <h3 class="design-card-group-icon" aria-label="Warden">🛡️</h3>
                   </div>
-                  <div class="simulation-inspector-group-list" id="actor-inspector-defender-list"></div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-warden-list"></div>
                 </section>
               </div>
             </div>

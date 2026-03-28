@@ -60,15 +60,15 @@ const happy = createBlockchainAdapter({
       return { ok: true, json: async () => ({ result: { tokenId: "token_1", txHash: "0xmint" } }) };
     }
     if (body.method === "ak_getMintedCard") {
-      return { ok: true, json: async () => ({ result: { tokenId: "token_1", card: { type: "attacker" } } }) };
+      return { ok: true, json: async () => ({ result: { tokenId: "token_1", card: { type: "delver" } } }) };
     }
     return { ok: true, json: async () => ({ result: null }) };
   },
 });
-const minted = await happy.mintCard({ card: { id: "A-1", type: "attacker" }, owner: "0xabc" });
+const minted = await happy.mintCard({ card: { id: "A-1", type: "delver" }, owner: "0xabc" });
 assert.equal(minted.tokenId, "token_1");
 const loaded = await happy.loadMintedCard({ tokenId: "token_1" });
-assert.equal(loaded.card.type, "attacker");
+assert.equal(loaded.card.type, "delver");
 `;
 
 const llmScript = `

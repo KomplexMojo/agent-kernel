@@ -751,8 +751,8 @@ function deriveRoomPlacementContext({ data, walkable } = {}) {
   };
 }
 
-const ATTACKER_KEYWORDS = Object.freeze(["attacker", "attack", "attacking", "player", "assault", "intruder", "raider", "runner"]);
-const DEFENDER_KEYWORDS = Object.freeze(["defender", "defend", "defending", "stationary", "guard", "patrol", "patrolling", "sentry"]);
+const DELVER_KEYWORDS = Object.freeze(["delver", "attack", "attacking", "player", "assault", "intruder", "raider", "runner"]);
+const WARDEN_KEYWORDS = Object.freeze(["warden", "defend", "defending", "stationary", "guard", "patrol", "patrolling", "sentry"]);
 
 function actorTextBag(actor) {
   const values = [];
@@ -771,55 +771,55 @@ function actorTextBag(actor) {
 function inferActorRole(actor) {
   const bag = actorTextBag(actor);
   if (!bag) return null;
-  if (ATTACKER_KEYWORDS.some((token) => bag.includes(token))) return "attacker";
-  if (DEFENDER_KEYWORDS.some((token) => bag.includes(token))) return "defender";
+  if (DELVER_KEYWORDS.some((token) => bag.includes(token))) return "delver";
+  if (WARDEN_KEYWORDS.some((token) => bag.includes(token))) return "warden";
   return null;
 }
 
-function partitionActorsByRole(actors, { attackerCountHint = 1 } = {}) {
+function partitionActorsByRole(actors, { delverCountHint = 1 } = {}) {
   const sorted = actors.slice().sort(compareActorIdsAsc);
-  const explicitAttackers = [];
-  const explicitDefenders = [];
+  const explicitDelvers = [];
+  const explicitWardens = [];
   const unknown = [];
 
   sorted.forEach((actor) => {
     const role = inferActorRole(actor);
-    if (role === "attacker") {
-      explicitAttackers.push(actor);
+    if (role === "delver") {
+      explicitDelvers.push(actor);
       return;
     }
-    if (role === "defender") {
-      explicitDefenders.push(actor);
+    if (role === "warden") {
+      explicitWardens.push(actor);
       return;
     }
     unknown.push(actor);
   });
 
-  const attackers = explicitAttackers.slice();
-  const defenders = explicitDefenders.slice();
-  const targetAttackers = Math.min(sorted.length, Math.max(1, normalizePositiveInt(attackerCountHint, 1)));
+  const delvers = explicitDelvers.slice();
+  const wardens = explicitWardens.slice();
+  const targetDelvers = Math.min(sorted.length, Math.max(1, normalizePositiveInt(delverCountHint, 1)));
 
-  while (attackers.length < targetAttackers && unknown.length > 0) {
-    attackers.push(unknown.shift());
+  while (delvers.length < targetDelvers && unknown.length > 0) {
+    delvers.push(unknown.shift());
   }
-  while (attackers.length < targetAttackers && defenders.length > 0) {
-    attackers.push(defenders.shift());
+  while (delvers.length < targetDelvers && wardens.length > 0) {
+    delvers.push(wardens.shift());
   }
 
-  const attackerIds = new Set(attackers.map((actor) => actor.id));
-  const finalDefenders = sorted.filter((actor) => !attackerIds.has(actor.id));
+  const delverIds = new Set(delvers.map((actor) => actor.id));
+  const finalWardens = sorted.filter((actor) => !delverIds.has(actor.id));
 
-  if (attackers.length === 0 && sorted.length > 0) {
-    attackers.push(sorted[0]);
+  if (delvers.length === 0 && sorted.length > 0) {
+    delvers.push(sorted[0]);
     return {
-      attackers,
-      defenders: sorted.slice(1),
+      delvers,
+      wardens: sorted.slice(1),
     };
   }
 
   return {
-    attackers,
-    defenders: finalDefenders,
+    delvers,
+    wardens: finalWardens,
   };
 }
 
@@ -838,7 +838,7 @@ function pickPreferredPosition({ candidateSets = [], used, anchor, preferFarthes
   return null;
 }
 
-function normalizeActorPositions(actors, layout, { attackerCount = 1 } = {}) {
+function normalizeActorPositions(actors, layout, { delverCount = 1 } = {}) {
   if (!Array.isArray(actors) || actors.length === 0) {
     return { actors, changed: false };
   }
@@ -864,7 +864,7 @@ function normalizeActorPositions(actors, layout, { attackerCount = 1 } = {}) {
     return normalizeActorPositionsLegacy(actors, layout);
   }
 
-  const { attackers, defenders } = partitionActorsByRole(actors, { attackerCountHint: attackerCount });
+  const { delvers, wardens } = partitionActorsByRole(actors, { delverCountHint: delverCount });
   const used = new Set();
   const assignedById = new Map();
   let changed = false;
@@ -876,7 +876,7 @@ function normalizeActorPositions(actors, layout, { attackerCount = 1 } = {}) {
     ? { x: exit.x, y: exit.y }
     : context.exitRoomWalkable[0];
 
-  attackers.forEach((actor, index) => {
+  delvers.forEach((actor, index) => {
     let assigned = null;
     if (index === 0 && entryAnchor && !used.has(positionKey(entryAnchor))) {
       assigned = { x: entryAnchor.x, y: entryAnchor.y };
@@ -895,7 +895,7 @@ function normalizeActorPositions(actors, layout, { attackerCount = 1 } = {}) {
     assignedById.set(actor.id, assigned);
   });
 
-  defenders.forEach((actor) => {
+  wardens.forEach((actor) => {
     const affinityCandidateSets = collectActorAffinityKinds(actor)
       .map((kind) => context.roomAffinityWalkableByKind?.[kind])
       .filter((set) => Array.isArray(set) && set.length > 0);
@@ -906,7 +906,7 @@ function normalizeActorPositions(actors, layout, { attackerCount = 1 } = {}) {
       anchor: affinityAnchor || exitAnchor || context.exitRoomWalkable[0] || context.allRoomsWalkable[0] || walkable[0],
     });
     if (!assigned) {
-      throw new Error("configurator inputs could not place actors: insufficient room tiles for defenders");
+      throw new Error("configurator inputs could not place actors: insufficient room tiles for wardens");
     }
     used.add(positionKey(assigned));
     assignedById.set(actor.id, assigned);
@@ -1057,7 +1057,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
     }
 
     const normalizedActors = normalizeActorPositions(actorsInput.actors, layout, {
-      attackerCount: configuratorInputs?.attackerCount,
+      delverCount: configuratorInputs?.delverCount,
     });
     if (normalizedActors.changed) {
       actorsInput.actors = normalizedActors.actors;

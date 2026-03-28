@@ -181,35 +181,35 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, ph
   if (!Array.isArray(value.rooms) && value.rooms && typeof value.rooms === "object") {
     value.rooms = [value.rooms];
   }
-  if (!Array.isArray(value.defenders) && value.defenders && typeof value.defenders === "object") {
-    value.defenders = [value.defenders];
+  if (!Array.isArray(value.wardens) && value.wardens && typeof value.wardens === "object") {
+    value.wardens = [value.wardens];
   }
   if (!Array.isArray(value.actors)) {
     if (value.actors && typeof value.actors === "object") {
       value.actors = [value.actors];
-    } else if (Array.isArray(value.defenders)) {
-      value.actors = value.defenders.map((entry) => ({ ...entry }));
+    } else if (Array.isArray(value.wardens)) {
+      value.actors = value.wardens.map((entry) => ({ ...entry }));
     } else if (value.actor && typeof value.actor === "object") {
       value.actors = [value.actor];
     }
   }
-  if (!Array.isArray(value.attackerConfigs)) {
-    if (value.attackerConfigs && typeof value.attackerConfigs === "object") {
-      value.attackerConfigs = [value.attackerConfigs];
-    } else if (value.attackerConfig && typeof value.attackerConfig === "object") {
-      value.attackerConfigs = [{ ...value.attackerConfig }];
+  if (!Array.isArray(value.delverConfigs)) {
+    if (value.delverConfigs && typeof value.delverConfigs === "object") {
+      value.delverConfigs = [value.delverConfigs];
+    } else if (value.delverConfig && typeof value.delverConfig === "object") {
+      value.delverConfigs = [{ ...value.delverConfig }];
     }
   }
-  if (Array.isArray(value.attackerConfigs)) {
-    value.attackerConfigs = value.attackerConfigs
+  if (Array.isArray(value.delverConfigs)) {
+    value.delverConfigs = value.delverConfigs
       .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
       .map((entry) => ({ ...entry }));
-    if (value.attackerConfigs.length > 0) {
-      if (!value.attackerConfig || typeof value.attackerConfig !== "object" || Array.isArray(value.attackerConfig)) {
-        value.attackerConfig = { ...value.attackerConfigs[0] };
+    if (value.delverConfigs.length > 0) {
+      if (!value.delverConfig || typeof value.delverConfig !== "object" || Array.isArray(value.delverConfig)) {
+        value.delverConfig = { ...value.delverConfigs[0] };
       }
-      if (!Number.isInteger(value.attackerCount) || value.attackerCount <= 0) {
-        value.attackerCount = value.attackerConfigs.length;
+      if (!Number.isInteger(value.delverCount) || value.delverCount <= 0) {
+        value.delverCount = value.delverConfigs.length;
       }
     }
   }
@@ -363,10 +363,10 @@ function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, ph
   if (Array.isArray(value.rooms)) {
     value.rooms = value.rooms.map(sanitizePick).filter(Boolean);
   }
-  if (Array.isArray(value.defenders)) {
-    value.defenders = value.defenders.map(sanitizePick).filter(Boolean);
+  if (Array.isArray(value.wardens)) {
+    value.wardens = value.wardens.map(sanitizePick).filter(Boolean);
     if (!Array.isArray(value.actors)) {
-      value.actors = value.defenders.map((entry) => ({ ...entry }));
+      value.actors = value.wardens.map((entry) => ({ ...entry }));
     }
   }
   if (Array.isArray(value.actors)) {

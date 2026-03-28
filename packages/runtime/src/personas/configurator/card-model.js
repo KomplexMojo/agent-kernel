@@ -1,4 +1,4 @@
-export const CARD_TYPE_IDS = Object.freeze(["room", "attacker", "defender"]);
+export const CARD_TYPE_IDS = Object.freeze(["room", "delver", "warden"]);
 export const ROOM_CARD_SIZE_IDS = Object.freeze(["small", "medium", "large"]);
 export const DEFAULT_ROOM_CARD_SIZE = "medium";
 
@@ -19,6 +19,8 @@ function normalizePositiveInt(value, fallback = 1) {
 export function normalizeCardType(value) {
   if (typeof value !== "string") return "";
   const normalized = value.trim().toLowerCase();
+  if (normalized === "attacker") return "delver";
+  if (normalized === "defender") return "warden";
   return CARD_TYPE_IDS.includes(normalized) ? normalized : "";
 }
 

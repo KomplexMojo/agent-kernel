@@ -9,6 +9,6 @@ Use them to stub fetch/RPC responses when testing CLI or web adapters.
 - blockchain-balance.json: JSON-RPC balance result for blockchain adapter tests.
 - blockchain-mint.json: JSON-RPC result payload for `ak_mintCard` blockchain mint tests.
 - blockchain-load.json: JSON-RPC result payload for `ak_getMintedCard` blockchain load tests.
-- card-config-attacker.json: Canonical attacker card configuration used as mint input fixture.
+- card-config-delver.json: Canonical delver card configuration used as mint input fixture.
 - llm-generate.json: LLM (Ollama-style) `/api/generate` response payload for adapter tests.
 - effects-routing.json: Effect payloads (log, telemetry, solver_request, need_external_fact) used by adapter/runtime routing tests.

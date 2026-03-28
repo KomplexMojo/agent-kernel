@@ -1,6 +1,7 @@
 import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { runMvpMovement } from "../../../runtime/src/mvp/movement.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
+import { hasGeneratedResourceBundleAssets } from "../../../runtime/src/render/resource-bundle.js";
 import {
   AFFINITY_TARGET_TYPES,
   DEFAULT_AFFINITY_EXPRESSION,
@@ -8,6 +9,7 @@ import {
 } from "../../../runtime/src/contracts/domain-constants.js";
 import { createLevelBuilderAdapter } from "../../../adapters-web/src/adapters/level-builder/index.js";
 import { setupPlayback } from "../movement-ui.js";
+import { clearBundleCanvas, positionFromCanvasEvent, renderBundleBoardToCanvas } from "../resource-bundle-view.js";
 
 const ACTOR_ID_LABEL = "actor_mvp";
 const ACTOR_ID_VALUE = 1;
@@ -15,7 +17,7 @@ const VISIBILITY_MODE_SIMULATION_FULL = "simulation_full";
 const VISIBILITY_MODE_GAMEPLAY_FOG = "gameplay_fog";
 const DEFAULT_VIEWPORT_SIZE = 50;
 const DEFAULT_VISION_RADIUS = 6;
-const DEFAULT_RUN_HELP_TEXT = "Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.";
+const DEFAULT_RUN_HELP_TEXT = "Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here.";
 
 function sortActorsById(initialState) {
   const actors = Array.isArray(initialState?.actors) ? initialState.actors.slice() : [];
@@ -175,6 +177,35 @@ function normalizeRoomBounds(roomBounds = null) {
   };
 }
 
+function ensureRenderCanvas(root, frameEl) {
+  const existingCanvas = root?.querySelector?.("#simulation-render-canvas");
+  if (existingCanvas) return existingCanvas;
+  const parent = frameEl?.parentElement || frameEl?.parentNode;
+  const doc = frameEl?.ownerDocument || (typeof document !== "undefined" ? document : null);
+  if (!parent || typeof parent.insertBefore !== "function" || !doc || typeof doc.createElement !== "function") {
+    return null;
+  }
+  const canvas = doc.createElement("canvas");
+  canvas.id = "simulation-render-canvas";
+  canvas.className = "level-preview-canvas";
+  canvas.hidden = true;
+  parent.insertBefore(canvas, frameEl);
+  return canvas;
+}
+
+export function resolveCanvasBoardPosition(position, visibilitySummary = null) {
+  if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) {
+    return null;
+  }
+  const viewport = visibilitySummary?.viewport;
+  const startX = Number(viewport?.startX);
+  const startY = Number(viewport?.startY);
+  return {
+    x: Math.floor(position.x + (Number.isFinite(startX) ? startX : 0)),
+    y: Math.floor(position.y + (Number.isFinite(startY) ? startY : 0)),
+  };
+}
+
 export function resolveArtifactAffinityEffects({
   initialState,
   affinityEffects,
@@ -219,6 +250,7 @@ export function wireSimulationView({
   onObservation,
 } = {}) {
   const frameEl = root.querySelector("#frame-buffer");
+  const renderCanvasEl = ensureRenderCanvas(root, frameEl);
   const actorListEl = root.querySelector("#actor-list");
   const affinityListEl = root.querySelector("#affinity-list");
   const tileActorListEl = root.querySelector("#tile-actor-list");
@@ -245,9 +277,11 @@ export function wireSimulationView({
   let pendingArtifacts = null;
   let levelBuilder = null;
   let latestLevelArtifacts = null;
+  let latestRuntimeArtifacts = null;
   let lastBaseTilesHash = "";
   let levelRenderRequestId = 0;
   let lastVisibilitySummary = null;
+  let lastObservationActors = [];
   let inspectorVisible = actorInspector?.isVisible?.() === true;
   let inspectorSelectedEntity = null;
   const visibilityPreferences = {
@@ -278,8 +312,13 @@ export function wireSimulationView({
     pendingConfig = null;
     pendingArtifacts = null;
     latestLevelArtifacts = null;
+    latestRuntimeArtifacts = null;
     lastBaseTilesHash = "";
     lastVisibilitySummary = null;
+    lastObservationActors = [];
+    clearBundleCanvas(renderCanvasEl);
+    if (renderCanvasEl) renderCanvasEl.hidden = true;
+    if (frameEl) frameEl.hidden = false;
     if (frameEl) {
       frameEl.textContent = "No game loaded.";
     }
@@ -385,6 +424,7 @@ export function wireSimulationView({
     actorInspector?.setActors?.(observation?.actors || [], { tick: observation?.tick });
     actorInspector?.setRunning?.(playing);
     lastVisibilitySummary = visibility || null;
+    lastObservationActors = Array.isArray(observation?.actors) ? observation.actors.slice() : [];
     if (typeof onObservation === "function") {
       onObservation({
         observation,
@@ -395,7 +435,37 @@ export function wireSimulationView({
       });
     }
     const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : null;
-    if (!baseTiles || baseTiles.length === 0) return;
+    if (!baseTiles || baseTiles.length === 0) {
+      if (renderCanvasEl && frameEl) {
+        renderCanvasEl.hidden = true;
+        frameEl.hidden = false;
+      }
+      return;
+    }
+    const canRenderGeneratedBundle = hasGeneratedResourceBundleAssets(latestRuntimeArtifacts?.resourceBundle);
+    if (renderCanvasEl && frameEl && canRenderGeneratedBundle) {
+      const bundle = latestRuntimeArtifacts?.resourceBundle
+        ? { spec: latestRuntimeArtifacts?.spec || null, artifacts: [latestRuntimeArtifacts.resourceBundle] }
+        : null;
+      void renderBundleBoardToCanvas({
+        canvas: renderCanvasEl,
+        tiles: baseTiles,
+        actors: lastObservationActors,
+        bundle,
+      }).then((result) => {
+        if (!renderCanvasEl || !frameEl) return;
+        const rendered = result?.ok === true;
+        renderCanvasEl.hidden = !rendered;
+        frameEl.hidden = rendered;
+      }).catch(() => {
+        if (!renderCanvasEl || !frameEl) return;
+        renderCanvasEl.hidden = true;
+        frameEl.hidden = false;
+      });
+    } else if (renderCanvasEl && frameEl) {
+      renderCanvasEl.hidden = true;
+      frameEl.hidden = false;
+    }
     const nextHash = hashTiles(baseTiles);
     if (nextHash === lastBaseTilesHash) return;
     lastBaseTilesHash = nextHash;
@@ -449,6 +519,8 @@ export function wireSimulationView({
     try {
       lastBaseTilesHash = "";
       latestLevelArtifacts = null;
+      latestRuntimeArtifacts = null;
+      lastObservationActors = [];
       actorInspector?.setScenario?.({});
       const movement = runMvpMovement({
         core,
@@ -460,7 +532,7 @@ export function wireSimulationView({
         actorId: config.actorId,
         actions: movement.actions,
       });
-      setStatus("Select a room, attacker, or defender to inspect and control it here.");
+      setStatus("Select a room, delver, or warden to inspect and control it here.");
     } catch (err) {
       setStatus(err.message || "Failed to start run", "error");
       console.error(err);
@@ -471,6 +543,7 @@ export function wireSimulationView({
     simConfig,
     initialState,
     affinityEffects,
+    resourceBundle,
     spec,
   } = {}) {
     if (!ready || !core) {
@@ -478,6 +551,7 @@ export function wireSimulationView({
         simConfig,
         initialState,
         affinityEffects,
+        resourceBundle,
         spec,
       };
       return;
@@ -485,6 +559,8 @@ export function wireSimulationView({
     try {
       lastBaseTilesHash = "";
       latestLevelArtifacts = null;
+      latestRuntimeArtifacts = { simConfig, initialState, affinityEffects, spec, resourceBundle };
+      lastObservationActors = [];
       actorInspector?.setScenario?.({ simConfig, initialState, spec });
       const sortedActors = sortActorsById(initialState);
       const actorIds = sortedActors
@@ -518,7 +594,7 @@ export function wireSimulationView({
           },
         },
       );
-      setStatus("Select a room, attacker, or defender to inspect and control it here.");
+      setStatus("Select a room, delver, or warden to inspect and control it here.");
     } catch (err) {
       setStatus(err.message || "Failed to start bundle run", "error");
       console.error(err);
@@ -535,6 +611,22 @@ export function wireSimulationView({
         visibilityPreferences.viewerActorId = actorId;
         controller?.setViewerActor?.(actorId);
       }
+    });
+  }
+
+  if (renderCanvasEl?.addEventListener) {
+    renderCanvasEl.addEventListener("click", (event) => {
+      const position = positionFromCanvasEvent(event, renderCanvasEl);
+      const boardPosition = resolveCanvasBoardPosition(position, lastVisibilitySummary);
+      if (!boardPosition) return;
+      const actor = lastObservationActors.find(
+        (entry) => entry?.position?.x === boardPosition.x && entry?.position?.y === boardPosition.y,
+      );
+      const actorId = typeof actor?.id === "string" ? actor.id.trim() : "";
+      if (!actorId) return;
+      actorInspector?.selectActorById?.(actorId);
+      visibilityPreferences.viewerActorId = actorId;
+      controller?.setViewerActor?.(actorId);
     });
   }
 
@@ -672,7 +764,7 @@ export function wireSimulationView({
       } else if (result.reason === "actor_not_found") {
         setStatus(`Actor ${result.actorId || "unknown"} is unavailable.`, "error");
       } else if (result.reason === "missing_actor") {
-        setStatus("Select an attacker or defender first.", "error");
+        setStatus("Select an delver or warden first.", "error");
       } else if (result.reason === "unsupported_action") {
         setStatus("Unsupported game action.", "error");
       }

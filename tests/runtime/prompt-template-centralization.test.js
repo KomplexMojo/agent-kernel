@@ -13,7 +13,7 @@ const SEARCH_DIRS = [
 
 const MARKERS = [
   "You are a dungeon level planner.",
-  "You are a dungeon defender strategist.",
+  "You are a dungeon warden strategist.",
   "You are a JSON repair assistant.",
   "You are an agent that returns a single JSON object that conforms to the BuildSpec contract.",
 ];

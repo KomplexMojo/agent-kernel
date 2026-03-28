@@ -49,7 +49,7 @@ const VITAL_ICON_MAP = Object.freeze({
   durability: "🛡️",
 });
 
-const ATTACKER_KEYWORDS = Object.freeze(["attack", "attacker", "assault", "intruder", "raider", "player"]);
+const ATTACKER_KEYWORDS = Object.freeze(["attack", "attacker", "delver", "assault", "intruder", "raider", "player"]);
 
 function readPositiveInt(value, fallback = 0) {
   const parsed = Number(value);
@@ -59,7 +59,16 @@ function readPositiveInt(value, fallback = 0) {
 
 function normalizeCardType(type) {
   const normalized = typeof type === "string" ? type.trim().toLowerCase() : "";
+  if (normalized === "delver") return "attacker";
+  if (normalized === "warden") return "defender";
   return TYPE_ORDER.includes(normalized) ? normalized : "";
+}
+
+function displayCardType(type) {
+  const normalized = normalizeCardType(type);
+  if (normalized === "attacker") return "delver";
+  if (normalized === "defender") return "warden";
+  return normalized || "unknown";
 }
 
 function normalizeName(value, fallback = "") {
@@ -790,7 +799,7 @@ export function createActorInspector({
         const chips = [
           createIconChip(preview, {
             icon: iconForType(entity.type),
-            title: `Type: ${entity.type}`,
+            title: `Type: ${displayCardType(entity.type)}`,
             className: "is-type",
           }),
         ];
@@ -875,7 +884,7 @@ export function createActorInspector({
         heading.className = "design-card-heading";
         const typeChip = createIconChip(heading, {
           icon: iconForType(entity.type),
-          title: `Type: ${entity.type}`,
+          title: `Type: ${displayCardType(entity.type)}`,
           className: "is-type",
         });
         if (typeChip) heading.append(typeChip);

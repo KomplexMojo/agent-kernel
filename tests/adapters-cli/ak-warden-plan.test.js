@@ -28,20 +28,20 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
-function listDefenderCards(spec) {
+function listWardenCards(spec) {
   const cardSet = spec?.plan?.hints?.cardSet;
   if (!Array.isArray(cardSet)) return [];
-  return cardSet.filter((entry) => entry?.type === "defender");
+  return cardSet.filter((entry) => entry?.type === "warden");
 }
 
-test("cli defender-plan authors defender cards directly from defender flags", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-defender-plan-basic-"));
+test("cli warden-plan authors warden cards directly from warden flags", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-basic-"));
   runCliOk([
-    "defender-plan",
-    "--defender",
+    "warden-plan",
+    "--warden",
     "affinity=dark;motivation=defending;count=2",
     "--run-id",
-    "run_defender_plan_basic",
+    "run_warden_plan_basic",
     "--created-at",
     "2026-03-07T00:00:00.000Z",
     "--out-dir",
@@ -53,26 +53,26 @@ test("cli defender-plan authors defender cards directly from defender flags", ()
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
 
   const spec = readJson(join(outDir, "spec.json"));
-  assert.equal(spec.meta.runId, "run_defender_plan_basic");
+  assert.equal(spec.meta.runId, "run_warden_plan_basic");
 
-  const cards = listDefenderCards(spec);
+  const cards = listWardenCards(spec);
   assert.equal(cards.length, 1);
-  const defender = cards[0];
-  assert.equal(defender.count, 2);
-  assert.equal(defender.affinity, "dark");
-  assert.deepEqual(defender.motivations, ["defending"]);
+  const warden = cards[0];
+  assert.equal(warden.count, 2);
+  assert.equal(warden.affinity, "dark");
+  assert.deepEqual(warden.motivations, ["defending"]);
 });
 
-test("cli defender-plan applies default defender motivation and affinity fallback", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-defender-plan-defaults-"));
+test("cli warden-plan applies default warden motivation and affinity fallback", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-defaults-"));
   runCliOk([
-    "defender-plan",
-    "--defender",
+    "warden-plan",
+    "--warden",
     "count=1",
     "--dungeon-affinity",
     "water",
     "--run-id",
-    "run_defender_plan_defaults",
+    "run_warden_plan_defaults",
     "--created-at",
     "2026-03-07T00:00:00.000Z",
     "--out-dir",
@@ -80,24 +80,24 @@ test("cli defender-plan applies default defender motivation and affinity fallbac
   ]);
 
   const spec = readJson(join(outDir, "spec.json"));
-  const cards = listDefenderCards(spec);
+  const cards = listWardenCards(spec);
   assert.equal(cards.length, 1);
-  const defender = cards[0];
-  assert.equal(defender.count, 1);
-  assert.equal(defender.affinity, "water");
-  assert.deepEqual(defender.motivations, ["defending"]);
+  const warden = cards[0];
+  assert.equal(warden.count, 1);
+  assert.equal(warden.affinity, "water");
+  assert.deepEqual(warden.motivations, ["defending"]);
 });
 
-test("cli defender-plan supports multiple defender configurations in one command", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-defender-plan-multi-"));
+test("cli warden-plan supports multiple warden configurations in one command", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-multi-"));
   runCliOk([
-    "defender-plan",
-    "--defender",
+    "warden-plan",
+    "--warden",
     "affinity=dark;motivation=defending;count=2",
-    "--defender",
+    "--warden",
     "affinity=earth;motivation=stationary;count=1",
     "--run-id",
-    "run_defender_plan_multi",
+    "run_warden_plan_multi",
     "--created-at",
     "2026-03-07T00:00:00.000Z",
     "--out-dir",
@@ -105,7 +105,7 @@ test("cli defender-plan supports multiple defender configurations in one command
   ]);
 
   const spec = readJson(join(outDir, "spec.json"));
-  const cards = listDefenderCards(spec);
+  const cards = listWardenCards(spec);
   assert.equal(cards.length, 2);
 
   const byAffinity = new Map(cards.map((card) => [card.affinity, card]));
@@ -114,18 +114,18 @@ test("cli defender-plan supports multiple defender configurations in one command
   assert.deepEqual(byAffinity.get("earth")?.motivations, ["stationary"]);
 });
 
-test("cli defender-plan supports advanced affinities, vitals, and receipt accounting", () => {
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-defender-plan-advanced-"));
+test("cli warden-plan supports advanced affinities, vitals, and receipt accounting", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-advanced-"));
   runCliOk([
-    "defender-plan",
-    "--defender",
+    "warden-plan",
+    "--warden",
     "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0",
     "--budget",
     "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
     "--price-list",
     "tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
     "--run-id",
-    "run_defender_plan_advanced",
+    "run_warden_plan_advanced",
     "--created-at",
     "2026-03-07T00:00:00.000Z",
     "--out-dir",
@@ -133,15 +133,15 @@ test("cli defender-plan supports advanced affinities, vitals, and receipt accoun
   ]);
 
   const spec = readJson(join(outDir, "spec.json"));
-  const cards = listDefenderCards(spec);
+  const cards = listWardenCards(spec);
   assert.equal(cards.length, 1);
-  const defender = cards[0];
-  assert.deepEqual(defender.affinities, [
+  const warden = cards[0];
+  assert.deepEqual(warden.affinities, [
     { kind: "dark", expression: "emit", stacks: 4 },
     { kind: "earth", expression: "pull", stacks: 1 },
   ]);
-  assert.equal(defender.vitals.health.max, 15);
-  assert.equal(defender.vitals.stamina.regen, 1);
+  assert.equal(warden.vitals.health.max, 15);
+  assert.equal(warden.vitals.stamina.regen, 1);
 
   const initialState = readJson(join(outDir, "initial-state.json"));
   assert.equal(initialState.actors.length, 1);
@@ -160,40 +160,40 @@ test("cli defender-plan supports advanced affinities, vitals, and receipt accoun
   assert.equal(byId.get("vital_stamina_regen_tick")?.quantity, 1);
 });
 
-test("cli defender-plan rejects invalid motivation", () => {
+test("cli warden-plan rejects invalid motivation", () => {
   const result = runCli([
-    "defender-plan",
-    "--defender",
+    "warden-plan",
+    "--warden",
     "affinity=dark;motivation=berserk;count=1",
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /motivation must be one of/i);
 });
 
-test("cli defender-plan rejects duplicate motivation declarations", () => {
+test("cli warden-plan rejects duplicate motivation declarations", () => {
   const result = runCli([
-    "defender-plan",
-    "--defender",
+    "warden-plan",
+    "--warden",
     "affinity=dark;defending;motivation=attacking;count=1",
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /motivation may only be specified once/i);
 });
 
-test("cli defender-plan rejects invalid vital tuple", () => {
+test("cli warden-plan rejects invalid vital tuple", () => {
   const result = runCli([
-    "defender-plan",
-    "--defender",
+    "warden-plan",
+    "--warden",
     "affinity=dark;vitals=health:notanumber:1",
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /non-negative integer/i);
 });
 
-test("cli defender-plan requires --budget and --price-list together", () => {
+test("cli warden-plan requires --budget and --price-list together", () => {
   const result = runCli([
-    "defender-plan",
-    "--defender",
+    "warden-plan",
+    "--warden",
     "affinity=dark;count=1",
     "--budget",
     "tests/fixtures/artifacts/budget-artifact-v1-basic.json",

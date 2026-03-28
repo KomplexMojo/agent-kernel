@@ -9,6 +9,7 @@ import { wireDiagnosticsView } from "./views/diagnostics-view.js";
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
 const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
+const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 
 const tabButtons = document.querySelectorAll("[data-tab]");
 const tabPanels = document.querySelectorAll("[data-tab-panel]");
@@ -63,8 +64,8 @@ const previewView = wirePreviewView({
 const actorInspector = createActorInspector({
   containerEl: actorInspectorRoot,
   roomListEl: document.querySelector("#actor-inspector-room-list"),
-  attackerListEl: document.querySelector("#actor-inspector-attacker-list"),
-  defenderListEl: document.querySelector("#actor-inspector-defender-list"),
+  attackerListEl: document.querySelector("#actor-inspector-delver-list"),
+  defenderListEl: document.querySelector("#actor-inspector-warden-list"),
   detailEl: document.querySelector("#actor-inspector-detail"),
   onSelectEntity: (entity) => {
     simulationView?.focusInspectorEntity?.(entity);
@@ -99,6 +100,7 @@ async function syncBundleViews({ bundle, source }) {
     simConfig,
     initialState,
     affinityEffects: findArtifact(bundle, AFFINITY_SUMMARY_SCHEMA),
+    resourceBundle: findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA),
     spec: bundle?.spec || null,
   });
 }

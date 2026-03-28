@@ -98,7 +98,7 @@ test("simulation view clear uses the shared Run help text by default", () => {
   assert.equal(root.elements["#frame-buffer"].textContent, "No game loaded.");
   assert.equal(
     root.elements["#status-message"].textContent,
-    "Build and load a game from Preview, then select a room, attacker, or defender to inspect and control it here.",
+    "Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here.",
   );
   assert.equal(root.elements["#status-message"].dataset.level, "info");
 });

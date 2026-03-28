@@ -133,7 +133,7 @@ test("cli llm-plan budget loop writes multiple captures", () => {
   assert.ok(allocation);
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
   assert.equal(poolsById.layout, 320);
-  assert.equal(poolsById.defenders, 320);
+  assert.equal(poolsById.wardens, 320);
   assert.equal(poolsById.player, 160);
 });
 
@@ -187,7 +187,7 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
       "--budget-pool",
       "layout=0.5",
       "--budget-pool",
-      "defenders=0.5",
+      "wardens=0.5",
       "--budget-pool",
       "loot=0",
       "--run-id",
@@ -204,7 +204,7 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
   const allocation = telemetry?.data?.llm?.budgetAllocation;
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
   assert.equal(poolsById.layout, 400);
-  assert.equal(poolsById.defenders, 400);
+  assert.equal(poolsById.wardens, 400);
   assert.equal(poolsById.player, 0);
 
   const trace = telemetry?.data?.llm?.trace || [];

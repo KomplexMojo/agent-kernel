@@ -144,7 +144,7 @@ assert.ok(blockchainResult.artifacts["blockchain.json"]);
 const blockchainMintResult = await adapter.blockchainMint({
   rpcUrl: "http://local",
   owner: "0xabc",
-  cardJson: loadJson("tests/fixtures/adapters/card-config-attacker.json"),
+  cardJson: loadJson("tests/fixtures/adapters/card-config-delver.json"),
   fixtureChainIdJson: loadJson("tests/fixtures/adapters/blockchain-chain-id.json"),
   fixtureMintJson: loadJson("tests/fixtures/adapters/blockchain-mint.json"),
   outDir: "/artifacts/browser/blockchain-mint",
@@ -162,7 +162,7 @@ const blockchainLoadResult = await adapter.blockchainLoad({
 });
 assert.equal(blockchainLoadResult.output.chainId, "0x1");
 assert.equal(blockchainLoadResult.output.tokenId, "token_fixture_1");
-assert.equal(blockchainLoadResult.output.card.type, "attacker");
+assert.equal(blockchainLoadResult.output.card.type, "delver");
 assert.ok(blockchainLoadResult.artifacts["blockchain-load.json"]);
 
 const llmResult = await adapter.llm({

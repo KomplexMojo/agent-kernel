@@ -8,7 +8,7 @@ test("buildSelectionsFromSummary creates deterministic actor and room selections
 
   const summary = {
     dungeonAffinity: "water",
-    attackerConfig: {
+    delverConfig: {
       setupMode: "user",
       vitalsMax: { health: 6, mana: 3 },
       vitalsRegen: { mana: 2 },
@@ -71,7 +71,7 @@ test("normalizeCardEntry removes contradictory motivations from shared exclusive
 
   const card = normalizeCardEntry({
     id: "card_conflict",
-    type: "attacker",
+    type: "delver",
     affinity: "fire",
     motivations: ["attacking", "defending", "stationary", "patrolling"],
   }, {
@@ -81,14 +81,14 @@ test("normalizeCardEntry removes contradictory motivations from shared exclusive
   assert.deepEqual(card.motivations, ["attacking", "stationary"]);
 });
 
-test("buildSelectionsFromSummary supports attackerConfigs array", async () => {
+test("buildSelectionsFromSummary supports delverConfigs array", async () => {
   const { buildSelectionsFromSummary } = await import(
     "../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const selections = buildSelectionsFromSummary({
     dungeonAffinity: "fire",
-    attackerConfigs: [
+    delverConfigs: [
       { setupMode: "user", vitalsMax: { mana: 3 } },
       { setupMode: "hybrid", vitalsMax: { mana: 5 } },
     ],
@@ -106,7 +106,7 @@ test("buildSelectionsFromSummary supports attackerConfigs array", async () => {
   assert.equal(actorSelections[1].instances[0].setupMode, "auto");
 });
 
-test("extractSummaryFromCardSet keeps attacker and defender cards as distinct actor picks", async () => {
+test("extractSummaryFromCardSet keeps delver and warden cards as distinct actor picks", async () => {
   const { extractSummaryFromCardSet } = await import(
     "../../packages/runtime/src/personas/director/summary-selections.js"
   );
@@ -116,7 +116,7 @@ test("extractSummaryFromCardSet keeps attacker and defender cards as distinct ac
     cardSet: [
       {
         id: "A-TEST01",
-        type: "attacker",
+        type: "delver",
         source: "actor",
         count: 2,
         affinity: "fire",
@@ -125,7 +125,7 @@ test("extractSummaryFromCardSet keeps attacker and defender cards as distinct ac
       },
       {
         id: "D-TEST01",
-        type: "defender",
+        type: "warden",
         source: "actor",
         count: 1,
         affinity: "earth",
@@ -143,12 +143,12 @@ test("extractSummaryFromCardSet keeps attacker and defender cards as distinct ac
   assert.ok(defending);
   assert.equal(attacking.count, 2);
   assert.equal(defending.count, 1);
-  assert.equal(summary.attackerCount, 2);
-  assert.ok(Array.isArray(summary.attackerConfigs));
-  assert.equal(summary.attackerConfigs.length, 2);
+  assert.equal(summary.delverCount, 2);
+  assert.ok(Array.isArray(summary.delverConfigs));
+  assert.equal(summary.delverConfigs.length, 2);
 });
 
-test("buildCardSetFromSummary maps attacking actors to attacker cards", async () => {
+test("buildCardSetFromSummary maps attacking actors to delver cards", async () => {
   const { buildCardSetFromSummary } = await import(
     "../../packages/runtime/src/personas/director/summary-selections.js"
   );
@@ -162,12 +162,12 @@ test("buildCardSetFromSummary maps attacking actors to attacker cards", async ()
   });
 
   assert.ok(Array.isArray(cardSet));
-  const attackerCard = cardSet.find((entry) => entry.type === "attacker");
-  const defenderCard = cardSet.find((entry) => entry.type === "defender");
-  assert.ok(attackerCard);
-  assert.ok(defenderCard);
-  assert.equal(attackerCard.count, 2);
-  assert.equal(defenderCard.count, 1);
+  const delverCard = cardSet.find((entry) => entry.type === "delver");
+  const wardenCard = cardSet.find((entry) => entry.type === "warden");
+  assert.ok(delverCard);
+  assert.ok(wardenCard);
+  assert.equal(delverCard.count, 2);
+  assert.equal(wardenCard.count, 1);
 });
 
 test("buildSelectionsFromSummary derives instance ids from card template ids", async () => {
@@ -180,7 +180,7 @@ test("buildSelectionsFromSummary derives instance ids from card template ids", a
     cardSet: [
       {
         id: "A-2RB89Z",
-        type: "attacker",
+        type: "delver",
         source: "actor",
         count: 2,
         affinity: "fire",
@@ -189,7 +189,7 @@ test("buildSelectionsFromSummary derives instance ids from card template ids", a
       },
       {
         id: "D-5JH2QW",
-        type: "defender",
+        type: "warden",
         source: "actor",
         count: 1,
         affinity: "water",

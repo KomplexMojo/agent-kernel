@@ -44,8 +44,8 @@ test("summary without catalog still produces actor configuration via shared sele
   const summary = {
     dungeonAffinity: "water",
     budgetTokens: 900,
-    attackerCount: 2,
-    attackerConfigs: [
+    delverCount: 2,
+    delverConfigs: [
       {
         setupMode: "user",
         vitalsRegen: { mana: 2 },
@@ -55,7 +55,7 @@ test("summary without catalog still produces actor configuration via shared sele
         vitalsRegen: { mana: 1 },
       },
     ],
-    attackerConfig: {
+    delverConfig: {
       setupMode: "user",
       vitalsRegen: { mana: 2 },
     },
@@ -85,11 +85,11 @@ test("summary without catalog still produces actor configuration via shared sele
   assert.equal(result.spec.configurator.inputs.actors[0].vitals.health.current, 5);
   assert.equal(result.spec.configurator.inputs.actors[0].setupMode, "auto");
   assert.equal(result.spec.configurator.inputs.actors[0].traits.affinities.water, 2);
-  assert.equal(result.spec.intent.hints.attackerCount, 2);
-  assert.equal(result.spec.plan.hints.attackerCount, 2);
-  assert.equal(result.spec.configurator.inputs.attackerCount, 2);
-  assert.equal(result.spec.configurator.inputs.attackerConfigs.length, 2);
-  assert.equal(result.spec.configurator.inputs.attackerConfig.setupMode, "user");
+  assert.equal(result.spec.intent.hints.delverCount, 2);
+  assert.equal(result.spec.plan.hints.delverCount, 2);
+  assert.equal(result.spec.configurator.inputs.delverCount, 2);
+  assert.equal(result.spec.configurator.inputs.delverConfigs.length, 2);
+  assert.equal(result.spec.configurator.inputs.delverConfig.setupMode, "user");
 });
 
 test("summary roomDesign drives connected-room level shape in BuildSpec", async () => {

@@ -4,7 +4,7 @@ import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
-const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "attacker", "defender"]);
+const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "delver", "warden"]);
 const DEFAULT_PREVIEW_HELP_TEXT = "Inspect the current design bundle here. When ready, use Build And Load Game to open Run.";
 
 function setText(el, value) {
@@ -32,7 +32,10 @@ function findArtifact(bundle, schema) {
 }
 
 function normalizeCardTypeName(type) {
-  return typeof type === "string" ? type.trim().toLowerCase() : "";
+  const normalized = typeof type === "string" ? type.trim().toLowerCase() : "";
+  if (normalized === "attacker") return "delver";
+  if (normalized === "defender") return "warden";
+  return normalized;
 }
 
 function readConfiguredCount(count) {
@@ -44,8 +47,8 @@ function readConfiguredCount(count) {
 function formatMissingCardTypes(types = []) {
   return types.map((type) => {
     if (type === "room") return "room";
-    if (type === "attacker") return "attacker";
-    if (type === "defender") return "defender";
+    if (type === "delver") return "delver";
+    if (type === "warden") return "warden";
     return type;
   }).join(", ");
 }
@@ -80,7 +83,7 @@ export function validatePreviewLaunchBundle(bundle) {
       reason: "missing_required_types",
       missing,
       counts,
-      message: `Build blocked: configure at least 1 room, 1 attacker, and 1 defender before loading the run. Missing: ${formatMissingCardTypes(missing)}.`,
+      message: `Build blocked: configure at least 1 room, 1 delver, and 1 warden before loading the run. Missing: ${formatMissingCardTypes(missing)}.`,
     };
   }
 

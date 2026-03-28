@@ -61,7 +61,7 @@ when a price list is supplied to the budget loop, `tile_wall`, `tile_floor`, and
 `tile_hallway` items (kind `tile`) override the defaults.
 Budget pools can be customized with `--budget-pool id=weight` (repeatable) and
 `--budget-reserve N` to reserve tokens before pooling. Defaults are
-player=0.2, layout=0.4, defenders=0.4, loot=0.0.
+player=0.2, layout=0.4, wardens=0.4, loot=0.0.
 Multi-phase fixtures can be provided as a JSON array or as `{ "responses": [...] }`
 to feed sequential LLM responses.
 
@@ -90,39 +90,39 @@ Inputs/outputs:
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
   `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
-### `attacker-plan`
-Builds a `BuildSpec` directly from Attacker authoring flags (no hand-edited JSON required) and
-runs the standard build pipeline. This is the direct attacker parity command for CLI card authoring.
+### `delver-plan`
+Builds a `BuildSpec` directly from Delver authoring flags (no hand-edited JSON required) and
+runs the standard build pipeline. This is the direct delver parity command for CLI card authoring.
 
 Inputs/outputs:
-- Input: one or more `--attacker` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
+- Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--attacker` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `attacking`.
-- `motivation` is singular for direct CLI authoring; repeating it in the same `--attacker` spec is rejected.
+- `motivation` is singular for direct CLI authoring; repeating it in the same `--delver` spec is rejected.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
-  from attacker-plan runs.
-- Output dir: `artifacts/runs/<runId>/attacker-plan` by default, or `--out-dir`.
+  from delver-plan runs.
+- Output dir: `artifacts/runs/<runId>/delver-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
   `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
-### `defender-plan`
-Builds a `BuildSpec` directly from Defender authoring flags (no hand-edited JSON required) and
-runs the standard build pipeline. This is the direct defender parity command for CLI card authoring.
+### `warden-plan`
+Builds a `BuildSpec` directly from Warden authoring flags (no hand-edited JSON required) and
+runs the standard build pipeline. This is the direct warden parity command for CLI card authoring.
 
 Inputs/outputs:
-- Input: one or more `--defender` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
+- Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--defender` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `defending`.
-- `motivation` is singular for direct CLI authoring; repeating it in the same `--defender` spec is rejected.
+- `motivation` is singular for direct CLI authoring; repeating it in the same `--warden` spec is rejected.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
-  from defender-plan runs.
-- Output dir: `artifacts/runs/<runId>/defender-plan` by default, or `--out-dir`.
+  from warden-plan runs.
+- Output dir: `artifacts/runs/<runId>/warden-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
   `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
@@ -181,12 +181,12 @@ node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1" --run-id run_room_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1;affinities=fire:emit:2" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=2;affinity=fire;motivation=attacking" --attacker "count=1;affinity=earth;motivation=patrolling" --run-id run_attacker_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_plan_demo
-node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=1;affinity=fire" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_attacker_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_attacker_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/attacker_plan_advanced_demo
-node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=2;affinity=dark;motivation=defending" --defender "count=1;affinity=earth;motivation=stationary" --run-id run_defender_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/defender_plan_demo
-node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=1;affinity=dark" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_defender_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/defender_plan_budget_demo
-node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_defender_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/defender_plan_advanced_demo
+node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=2;affinity=fire;motivation=attacking" --delver "count=1;affinity=earth;motivation=patrolling" --run-id run_delver_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_demo
+node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_budget_demo
+node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_advanced_demo
+node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=2;affinity=dark;motivation=defending" --warden "count=1;affinity=earth;motivation=stationary" --run-id run_warden_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_demo
+node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_budget_demo
+node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/warden_plan_advanced_demo
 node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
@@ -200,13 +200,13 @@ node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
 node packages/adapters-cli/src/cli/ak.mjs ipfs-publish --artifact-map tests/fixtures/adapters/ipfs-artifacts-map.json --fixture-cid bafyfixture
 node packages/adapters-cli/src/cli/ak.mjs ipfs-load --cid bafy... --out-dir artifacts/ipfs_load_demo
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url https://rpc.example --address 0xabc
-node packages/adapters-cli/src/cli/ak.mjs blockchain-mint --rpc-url http://local --card tests/fixtures/adapters/card-config-attacker.json --owner 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-mint tests/fixtures/adapters/blockchain-mint.json
+node packages/adapters-cli/src/cli/ak.mjs blockchain-mint --rpc-url http://local --card tests/fixtures/adapters/card-config-delver.json --owner 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-mint tests/fixtures/adapters/blockchain-mint.json
 node packages/adapters-cli/src/cli/ak.mjs blockchain-load --rpc-url http://local --token-id token_fixture_1 --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-load tests/fixtures/adapters/blockchain-load.json
 node packages/adapters-cli/src/cli/ak.mjs llm --model phi4 --prompt "Summarize plan"
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 ```
 
-UI-to-CLI parity recipes (Room/Attacker/Defender, AD1):
+UI-to-CLI parity recipes (Room/Delver/Warden, AD1):
 ```
 # Prereq: build/core-as.wasm exists (run: pnpm run build:wasm)
 
@@ -214,13 +214,13 @@ UI-to-CLI parity recipes (Room/Attacker/Defender, AD1):
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1;affinities=water:pull:1" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/room/sim-config.json --initial-state artifacts/parity-recipes/room/initial-state.json --actor room_probe,1,1,motivated --ticks 0 --run-id run_room_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room-run
 
-# 2) Attacker parity recipe (AP1/AP2): direct advanced attacker authoring + playback.
-node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_attacker_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/attacker
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/attacker/sim-config.json --initial-state artifacts/parity-recipes/attacker/initial-state.json --ticks 0 --run-id run_attacker_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/attacker-run
+# 2) Delver parity recipe (AP1/AP2): direct advanced delver authoring + playback.
+node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/delver
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/delver/sim-config.json --initial-state artifacts/parity-recipes/delver/initial-state.json --ticks 0 --run-id run_delver_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/delver-run
 
-# 3) Defender parity recipe (DP1/DP2): direct advanced defender authoring + playback.
-node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_defender_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/defender
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/defender/sim-config.json --initial-state artifacts/parity-recipes/defender/initial-state.json --ticks 0 --run-id run_defender_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/defender-run
+# 3) Warden parity recipe (DP1/DP2): direct advanced warden authoring + playback.
+node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/warden
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/warden/sim-config.json --initial-state artifacts/parity-recipes/warden/initial-state.json --ticks 0 --run-id run_warden_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/warden-run
 ```
 
 Fixture-driven usage (no network):
@@ -229,15 +229,15 @@ node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture te
 node packages/adapters-cli/src/cli/ak.mjs ipfs-publish --artifact-map tests/fixtures/adapters/ipfs-artifacts-map.json --fixture-cid bafyfixture --out-dir artifacts/ipfs_publish_fixture
 node packages/adapters-cli/src/cli/ak.mjs ipfs-load --cid bafyfixture --fixture-map tests/fixtures/adapters/ipfs-artifacts-map.json --out-dir artifacts/ipfs_load_fixture
 node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
-node packages/adapters-cli/src/cli/ak.mjs blockchain-mint --rpc-url http://local --card tests/fixtures/adapters/card-config-attacker.json --owner 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-mint tests/fixtures/adapters/blockchain-mint.json
+node packages/adapters-cli/src/cli/ak.mjs blockchain-mint --rpc-url http://local --card tests/fixtures/adapters/card-config-delver.json --owner 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-mint tests/fixtures/adapters/blockchain-mint.json
 node packages/adapters-cli/src/cli/ak.mjs blockchain-load --rpc-url http://local --token-id token_fixture_1 --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-load tests/fixtures/adapters/blockchain-load.json
 node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1" --run-id run_room_plan_fixture --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs attacker-plan --attacker "count=1;affinity=fire" --run-id run_attacker_plan_fixture --created-at 2025-01-01T00:00:00Z
-node packages/adapters-cli/src/cli/ak.mjs defender-plan --defender "count=1;affinity=dark" --run-id run_defender_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire" --run-id run_delver_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark" --run-id run_warden_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
 ```
@@ -271,19 +271,19 @@ Expected outputs (defaults when `--out-dir` is set):
 - Room authoring (`room-plan`): repeat `--room` with `size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...`.
   If `affinities` is omitted, the command applies `dark:emit:2`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
-- Attacker authoring (`attacker-plan`): repeat `--attacker` with `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>]`.
+- Delver authoring (`delver-plan`): repeat `--delver` with `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>]`.
   If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
   If `motivation` is omitted, default is `attacking`.
-  Repeating `motivation` inside the same `--attacker` spec is rejected.
-  Optional advanced fields in `--attacker`: `affinities=<kind>[:<expression>[:<stacks>]],...`,
+  Repeating `motivation` inside the same `--delver` spec is rejected.
+  Optional advanced fields in `--delver`: `affinities=<kind>[:<expression>[:<stacks>]],...`,
   `vitals=<vital>:<max>:<regen>,...` or `<vital>:<current>:<max>:<regen>,...`,
   and `setup-mode=<auto|user|hybrid>`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
-- Defender authoring (`defender-plan`): repeat `--defender` with `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>]`.
+- Warden authoring (`warden-plan`): repeat `--warden` with `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>]`.
   If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
   If `motivation` is omitted, default is `defending`.
-  Repeating `motivation` inside the same `--defender` spec is rejected.
-  Optional advanced fields in `--defender`: `affinities=<kind>[:<expression>[:<stacks>]],...`,
+  Repeating `motivation` inside the same `--warden` spec is rejected.
+  Optional advanced fields in `--warden`: `affinities=<kind>[:<expression>[:<stacks>]],...`,
   `vitals=<vital>:<max>:<regen>,...` or `<vital>:<current>:<max>:<regen>,...`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
 - Actor overrides (run):
