@@ -199,7 +199,7 @@ test("browser host build artifacts are equivalent to Node CLI output", async () 
   runCli([
     "build",
     "--spec",
-    "tests/fixtures/artifacts/build-spec-v1-basic.json",
+    "tests/fixtures/artifacts/build-spec-v1-configurator.json",
     "--out-dir",
     outDir,
   ]);
@@ -207,7 +207,7 @@ test("browser host build artifacts are equivalent to Node CLI output", async () 
   const cliArtifacts = collectJsonArtifacts(outDir);
   const adapter = await createBrowserAdapter();
   const browserResult = await adapter.build({
-    specPath: "/tests/fixtures/artifacts/build-spec-v1-basic.json",
+    specPath: "/tests/fixtures/artifacts/build-spec-v1-configurator.json",
     outDir: "/artifacts/equivalence/build",
   });
 

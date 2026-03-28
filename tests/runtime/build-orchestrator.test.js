@@ -41,6 +41,11 @@ const resultConfigurator = await orchestrateBuild({
 
 assert.equal(resultConfigurator.simConfig.schema, "agent-kernel/SimConfigArtifact");
 assert.equal(resultConfigurator.initialState.schema, "agent-kernel/InitialStateArtifact");
+assert.equal(resultConfigurator.resourceBundle.schema, "agent-kernel/ResourceBundleArtifact");
+assert.equal(resultConfigurator.resourceBundle.schemaVersion, 2);
+assert.ok(Array.isArray(resultConfigurator.resourceBundle.assets));
+assert.ok(resultConfigurator.resourceBundle.assets.length > 0);
+assert.match(resultConfigurator.resourceBundle.assets[0].dataUri, /^data:image\\/png;base64,/);
 `;
 
 const actorPlacementScript = `

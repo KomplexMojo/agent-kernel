@@ -495,6 +495,7 @@ function buildBuildArtifacts(buildResult, { includeBudgetAllocation = null, capt
   if (buildResult.solverResult) artifacts.push(buildResult.solverResult);
   if (buildResult.simConfig) artifacts.push(buildResult.simConfig);
   if (buildResult.initialState) artifacts.push(buildResult.initialState);
+  if (buildResult.resourceBundle) artifacts.push(buildResult.resourceBundle);
   capturedInputs.forEach((entry) => {
     artifacts.push(entry.artifact || entry);
   });
@@ -521,6 +522,7 @@ function buildBuildManifestEntries(buildResult, { includeBudgetAllocation = null
   addManifestEntry(entries, buildResult.solverResult, "solver-result.json");
   addManifestEntry(entries, buildResult.simConfig, "sim-config.json");
   addManifestEntry(entries, buildResult.initialState, "initial-state.json");
+  addManifestEntry(entries, buildResult.resourceBundle, "resource-bundle.json");
   capturedInputs.forEach((entry, index) => {
     const artifact = entry.artifact || entry;
     const capturePath = entry.path || buildCapturedInputPath("llm", index, artifact?.meta?.id);
@@ -708,6 +710,9 @@ export function createCommandKernel(host = {}) {
       }
       if (result.initialState) {
         await writeJson(join(outDir, "initial-state.json"), result.initialState);
+      }
+      if (result.resourceBundle) {
+        await writeJson(join(outDir, "resource-bundle.json"), result.resourceBundle);
       }
 
       const captures = Array.isArray(spec.adapters?.capture) ? spec.adapters.capture : [];
@@ -1940,6 +1945,9 @@ export function createCommandKernel(host = {}) {
     }
     if (buildResult.initialState) {
       await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
+    }
+    if (buildResult.resourceBundle) {
+      await writeJson(join(outDir, "resource-bundle.json"), buildResult.resourceBundle);
     }
 
     const capturedInputs = Array.isArray(buildResult.capturedInputs) ? buildResult.capturedInputs : [];

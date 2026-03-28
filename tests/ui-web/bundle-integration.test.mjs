@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { wireBuildOrchestrator } from "../../packages/ui-web/src/build-orchestrator.js";
 import { wireBundleReview } from "../../packages/ui-web/src/bundle-review.js";
+import { createDefaultResourceBundleArtifact } from "../../packages/runtime/src/render/resource-bundle.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +81,29 @@ function createStorage() {
 test("build response snapshot loads into bundle review panel", async () => {
   const bundle = JSON.parse(readFileSync(path.join(root, "tests/fixtures/ui/build-spec-bundle/bundle.json"), "utf8"));
   const manifest = JSON.parse(readFileSync(path.join(root, "tests/fixtures/ui/build-spec-bundle/manifest.json"), "utf8"));
+  const resourceBundle = createDefaultResourceBundleArtifact({
+    createMeta: ({ producedBy, runId }) => ({
+      id: "resource_bundle_basic",
+      runId,
+      createdAt: "2025-01-01T00:00:00.000Z",
+      producedBy,
+    }),
+    runId: bundle.spec.meta.runId,
+    producedBy: "fixture",
+    emitVisualAssets: true,
+  });
+  bundle.artifacts.push(resourceBundle);
+  manifest.artifacts.push({
+    id: resourceBundle.meta.id,
+    schema: resourceBundle.schema,
+    schemaVersion: resourceBundle.schemaVersion,
+    path: "resource-bundle.json",
+  });
+  manifest.schemas.push({
+    schema: resourceBundle.schema,
+    schemaVersion: resourceBundle.schemaVersion,
+    description: "Visual resource bundle with generated imagery data.",
+  });
   const specText = JSON.stringify(bundle.spec, null, 2);
 
   const originalDocument = globalThis.document;
@@ -158,11 +182,13 @@ test("build response snapshot loads into bundle review panel", async () => {
     assert.equal(schemaList.children.length > 0, true);
     assert.equal(schemaList.children.some((entry) => entry.textContent.includes("agent-kernel/BuildSpec")), true);
     assert.match(manifestOutput.textContent, /specPath/);
+    assert.match(manifestOutput.textContent, /resource-bundle\.json/);
     assert.match(specTextarea.value, /agent-kernel\/BuildSpec/);
 
     const intent = JSON.parse(intentOutput.textContent);
     assert.equal(intent.goal, bundle.spec.intent.goal);
     assert.equal(artifactsContainer.children.length, bundle.artifacts.length);
+    assert.equal(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"), true);
   } finally {
     globalThis.document = originalDocument;
     globalThis.localStorage = originalLocalStorage;
