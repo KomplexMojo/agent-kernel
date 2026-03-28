@@ -23,7 +23,13 @@ importers:
 
   packages/adapters-cli: {}
 
+  packages/adapters-test: {}
+
   packages/adapters-web: {}
+
+  packages/bindings-ts: {}
+
+  packages/runtime: {}
 
   packages/ui-web: {}
 
