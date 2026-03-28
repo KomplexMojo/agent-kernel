@@ -7,6 +7,7 @@ import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../persona
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
+import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
 import {
   DEFAULT_ROOM_CARD_AFFINITY,
   ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
@@ -970,6 +971,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
   let affinitySummary = null;
   let affinityRules = null;
   let motivationRules = null;
+  let resourceBundle = null;
 
   if (hasLevelGen) {
     if (!hasActors) {
@@ -1103,6 +1105,13 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         ambientPressure,
       };
     }
+
+    resourceBundle = createDefaultResourceBundleArtifact({
+      createMeta: (metaOverrides) => createBuildMeta(spec, metaOverrides.producedBy, "resource_bundle"),
+      runId: spec.meta.runId,
+      producedBy: "cli-build",
+      emitVisualAssets: true,
+    });
   }
 
   return {
@@ -1119,6 +1128,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
     affinitySummary,
     simConfig,
     initialState,
+    resourceBundle,
     capturedInputs: Array.isArray(capturedInputs) ? capturedInputs : undefined,
   };
 }
