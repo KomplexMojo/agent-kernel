@@ -4,7 +4,7 @@ import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
-const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "attacker", "defender"]);
+const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "delver", "warden"]);
 const DEFAULT_PREVIEW_HELP_TEXT = "Inspect the current design bundle here. When ready, use Build And Load Game to open Run.";
 
 function setText(el, value) {
@@ -33,8 +33,8 @@ function findArtifact(bundle, schema) {
 
 function normalizeCardTypeName(type) {
   const normalized = typeof type === "string" ? type.trim().toLowerCase() : "";
-  if (normalized === "delver") return "attacker";
-  if (normalized === "warden") return "defender";
+  if (normalized === "attacker") return "delver";
+  if (normalized === "defender") return "warden";
   return normalized;
 }
 
@@ -47,8 +47,8 @@ function readConfiguredCount(count) {
 function formatMissingCardTypes(types = []) {
   return types.map((type) => {
     if (type === "room") return "room";
-    if (type === "attacker") return "delver";
-    if (type === "defender") return "warden";
+    if (type === "delver") return "delver";
+    if (type === "warden") return "warden";
     return type;
   }).join(", ");
 }
