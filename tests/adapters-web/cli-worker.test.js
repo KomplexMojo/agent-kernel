@@ -57,7 +57,7 @@ const fetchFn = async (resource) => {
   return fixtureResponse(readFileSync(filePath, "utf8"));
 };
 
-const specPath = "/tests/fixtures/artifacts/build-spec-v1-basic.json";
+const specPath = "/tests/fixtures/artifacts/build-spec-v1-configurator.json";
 const adapter = createCliWorkerAdapter({ forceInProcess: true, fetchFn, env: { AK_LLM_LIVE: "1" } });
 const buildResult = await adapter.build({ specPath });
 
@@ -67,6 +67,9 @@ assert.equal(buildResult.bundle.spec.schema, "agent-kernel/BuildSpec");
 assert.equal(buildResult.telemetry.data.status, "success");
 assert.ok(Array.isArray(buildResult.logs));
 assert.ok(buildResult.artifacts["manifest.json"]);
+assert.ok(buildResult.artifacts["resource-bundle.json"]);
+assert.ok(buildResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"));
+assert.ok(buildResult.manifest.artifacts.some((entry) => entry.path === "resource-bundle.json"));
 
 const configuratorResult = await adapter.configurator({
   levelGenPath: "/tests/fixtures/configurator/level-gen-input-v1-trap.json",

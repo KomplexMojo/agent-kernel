@@ -179,6 +179,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
   addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
   addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
+  addManifestEntry(manifestEntries, buildResult.resourceBundle, "resource-bundle.json");
   addManifestEntry(manifestEntries, captureArtifact, "captured-input-llm-1.json");
 
   manifestEntries.sort((a, b) => {
@@ -217,6 +218,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
     buildResult.solverResult,
     buildResult.simConfig,
     buildResult.initialState,
+    buildResult.resourceBundle,
     captureArtifact,
   ].filter(Boolean);
 
@@ -253,6 +255,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   const manifestSchemas = new Set(manifest.artifacts.map((entry) => entry.schema));
   requiredSchemas.forEach((schema) => assert.ok(manifestSchemas.has(schema)));
   assert.ok(manifestSchemas.has("agent-kernel/CapturedInputArtifact"));
+  assert.ok(manifestSchemas.has("agent-kernel/ResourceBundleArtifact"));
 
   const sortedManifest = [...manifest.artifacts].sort((a, b) => {
     if (a.schema === b.schema) {
