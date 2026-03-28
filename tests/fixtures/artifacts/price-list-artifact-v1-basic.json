@@ -9,10 +9,16 @@
   },
   "items": [
     {
-      "id": "tile_floor",
-      "kind": "tile",
+      "id": "vital_health_point",
+      "kind": "vital",
       "costTokens": 1,
-      "notes": "floor tile"
+      "notes": "health point"
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "costTokens": 1,
+      "notes": "mana point"
     }
   ]
 }

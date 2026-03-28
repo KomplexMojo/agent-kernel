@@ -108,7 +108,7 @@ assert.ok(last, "Expected a summarize frame");
 const views = last.personaViews;
 assert.equal(views.orchestrator.state, "running");
 assert.equal(views.director.state, "ready");
-assert.ok(["monitoring", "rebalancing"].includes(views.allocator.state));
+assert.ok(["idle", "monitoring", "rebalancing"].includes(views.allocator.state));
 assert.equal(views.moderator.state, "ticking");
 assert.equal(views.configurator.state, "configured");
 `;

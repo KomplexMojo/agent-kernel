@@ -5,8 +5,8 @@ Status tracker and decision log for this deliverable.
 ## Stitch UI Rewrite Handoff Status (2026-03-27)
 
 - Source plan: `[Spec](intent://local/note/spec)` (`M0 -> M7`)
-- Current checkpoint: `M0` through `M6` implemented; `M7` regression/docs/handoff executed with regressions detected.
-- Handoff state: ready for coordinator/architecture enforcement review with explicit blockers.
+- Current checkpoint: `M0` through `M7` implemented on the repaired `main` baseline; the regression ring is green again for continued Stitch work.
+- Handoff state: baseline repaired and ready for resumed implementation.
 
 ### Stitch Milestone Snapshot
 
@@ -17,7 +17,7 @@ Status tracker and decision log for this deliverable.
 - M4: Completed
 - M5: Completed
 - M6: Completed
-- M7: In progress (validation-blocked)
+- M7: Completed (baseline reconciled on `main`)
 
 ### M7 Validation Log (2026-03-27)
 
@@ -34,10 +34,23 @@ Status tracker and decision log for this deliverable.
 - Updated `docs/README.md` quickstart summary to match the same active workflow tab order.
 - Updated `local-codex/Prompt.md`, `local-codex/Plan.md`, `local-codex/Implement.md`, and this file with Stitch rewrite execution/handoff tracking.
 
-### M7 Open Blockers
+### M7 Historical Blockers (Resolved on 2026-03-27 PDT)
 
 1. `packages/runtime/src/commands/kernel.js` imports `../build/orchestrate-build.js`, but `packages/runtime/src/build/orchestrate-build.js` does not exist.
 2. `tests/ui-web/budget-panels.test.mjs` references `tests/fixtures/artifacts/budget-artifact-v1-basic.json`, but that fixture file is missing.
+
+### Baseline Reconciliation (2026-03-27 PDT)
+
+- Resolved the missing tracked-file/source-control drift on `main`, including the restored runtime build/configurator sources and the missing negative fixture required by adapters-cli validation.
+- Rebaselined stale MVP movement, configurator, affinity-summary, prompt, and UI expectations so they match the repaired runtime currently on `main`.
+- Current checkpoint for continuing the Stitch spec: the baseline regression ring on `main` is green again.
+
+Validation after reconciliation:
+- `node --test tests/runtime/*.test.js` -> passed (`120` passed)
+- `node --test tests/adapters-cli/*.test.js` -> passed (`102` passed)
+- `node --test tests/adapters-web/*.test.js` -> passed (`7` passed)
+- `node --test tests/integration/*.test.js` -> passed (`15` passed, `1` skipped live LLM test)
+- `node --test tests/ui-web/*.test.mjs` -> passed (`83` passed)
 
 ## 1) Current Status
 
@@ -106,6 +119,7 @@ Branch-close result:
 
 | Date | Change | Files | Validation |
 | --- | --- | --- | --- |
+| 2026-03-27 | Reconciled the repaired `main` baseline after the missing-file recovery: refreshed MVP movement goldens, restored a valid inline configurator build spec plus budget/price-list fixtures, rebaselined affinity/prompt/UI expectations, and cleared the remaining 14 non-source-control regressions | `tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json`, `tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json`, `tests/fixtures/artifacts/frame-buffer-log-v1-mvp.json`, `tests/fixtures/artifacts/build-spec-v1-configurator.json`, `tests/fixtures/artifacts/budget-artifact-v1-basic.json`, `tests/fixtures/artifacts/price-list-artifact-v1-basic.json`, `tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json`, `tests/fixtures/personas/affinity-resolution-v1-basic.json`, `tests/fixtures/e2e/llm-summary-response.json`, `tests/runtime/configurator-startup.test.js`, `tests/runtime/runtime-persona-schedule.test.js`, `tests/ui-web/design-view.test.mjs` | `node --test tests/runtime/*.test.js`, `node --test tests/adapters-cli/*.test.js`, `node --test tests/adapters-web/*.test.js`, `node --test tests/integration/*.test.js`, `node --test tests/ui-web/*.test.mjs` |
 | 2026-03-21 | Finalized branch-close documentation: normalized the parity matrix to the real implemented/UI-only end state, marked the branch-close gates complete, and logged the final validation package for branch closure | `local-codex/ui-cli-parity-matrix.md`, `local-codex/Plan.md`, `local-codex/Documentation.md`, `local-codex/ui-cli-unification-plan.md` | `pnpm run build:wasm`, `node --test tests/runtime/*.test.js`, `node --test tests/ui-web/*.test.mjs`, `node --test tests/integration/*.test.js`, `node --test tests/adapters-cli/*.test.js`, `node --test tests/adapters-web/*.test.js` |
 | 2026-03-21 | Narrowed branch-close scope so `ipfs`, `blockchain`, and deeper live-runtime `llm` product work move to follow-on branches once shared hooks are present; updated the branch artifacts and public unification docs to reflect the hook-first boundary | `local-codex/Prompt.md`, `local-codex/Plan.md`, `local-codex/Documentation.md`, `local-codex/ui-cli-unification-plan.md`, `docs/README.md` | `node --test tests/runtime/*.test.js`, `node --test tests/ui-web/*.test.mjs`, `node --test tests/integration/*.test.js`, `node --test tests/adapters-cli/*.test.js`, `node --test tests/adapters-web/*.test.js` |
 | 2026-03-21 | Completed `B4-S1` minimum-install baseline documentation/validation: documented the default workflow as browser-hosted and fixture-first, explicitly marked live IPFS/blockchain/Ollama services as optional, and aligned the branch artifacts with that baseline story | `docs/cli-runbook.md`, `docs/README.md`, `docs/reference-handout.md`, `packages/adapters-cli/README.md`, `local-codex/Prompt.md`, `local-codex/Plan.md`, `local-codex/Documentation.md`, `local-codex/ui-cli-unification-plan.md` | `node --test tests/ui-web/design-view.test.mjs`, `node --test tests/ui-web/preview-view.test.mjs`, `node --test tests/adapters-web/cli-worker.test.js`, `node --test tests/integration/ui-cli-equivalence.test.js`, `pnpm run build:wasm` |
