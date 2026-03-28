@@ -469,7 +469,12 @@ export function wireSimulationView({
     const nextHash = hashTiles(baseTiles);
     if (nextHash === lastBaseTilesHash) return;
     lastBaseTilesHash = nextHash;
-    void regenerateLevelArtifacts({ tiles: baseTiles });
+    void regenerateLevelArtifacts({
+      tiles: baseTiles,
+      renderOptions: {
+        floorAffinityTraps: Array.isArray(observation?.traps) ? observation.traps : [],
+      },
+    });
   }
 
   function mountPlayback(config, { initCore } = {}) {

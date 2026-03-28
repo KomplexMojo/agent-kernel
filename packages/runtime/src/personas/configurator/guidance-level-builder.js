@@ -1,6 +1,7 @@
 import { buildBuildSpecFromSummary } from "../director/buildspec-assembler.js";
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import { deriveLevelGenFromRoomCards } from "./card-model.js";
+import { AFFINITY_COLOR_HEX, resolveStackIntensity } from "../../render/affinity-palette.js";
 
 const WALKABLE_DENSITY_TARGET = 0.5;
 export const DEFAULT_LEVEL_RENDER_PALETTE = Object.freeze({
@@ -10,6 +11,19 @@ export const DEFAULT_LEVEL_RENDER_PALETTE = Object.freeze({
   E: "#f4a261",
   B: "#9ca3af",
 });
+const AFFINITY_ASCII_GLYPHS = Object.freeze({
+  fire: "f",
+  water: "w",
+  earth: "e",
+  wind: "n",
+  life: "l",
+  decay: "d",
+  corrode: "c",
+  fortify: "t",
+  light: "i",
+  dark: "k",
+});
+const AFFINITY_RENDER_ORDER = Object.freeze(Object.keys(AFFINITY_COLOR_HEX));
 
 function isPositiveInt(value) {
   return Number.isInteger(value) && value > 0;
@@ -45,6 +59,170 @@ function normalizeHexColor(value, fallback = "#000000") {
   return fallback;
 }
 
+function normalizeAffinityKind(value) {
+  const kind = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return kind && AFFINITY_COLOR_HEX[kind] ? kind : "";
+}
+
+function normalizeAffinityStacks(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+  return Math.max(1, Math.round(parsed));
+}
+
+function affinityOrder(kind) {
+  const index = AFFINITY_RENDER_ORDER.indexOf(kind);
+  return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
+}
+
+function resolveTrapAffinityEntry(trap = null) {
+  if (!trap || typeof trap !== "object") return null;
+  const candidates = Array.isArray(trap.affinities)
+    ? trap.affinities
+    : trap.affinity && typeof trap.affinity === "object"
+      ? [trap.affinity]
+      : [];
+  const valid = candidates
+    .map((entry) => {
+      const kind = normalizeAffinityKind(entry?.kind);
+      if (!kind) return null;
+      const targetType = typeof entry?.targetType === "string" ? entry.targetType.trim().toLowerCase() : "";
+      const stacks = normalizeAffinityStacks(entry?.roomStacks ?? entry?.stacks);
+      return { kind, stacks, targetType };
+    })
+    .filter(Boolean);
+  if (valid.length === 0) return null;
+  const floorFirst = valid.filter((entry) => entry.targetType === "floor");
+  const pool = floorFirst.length > 0 ? floorFirst : valid;
+  pool.sort((left, right) => {
+    if (right.stacks !== left.stacks) return right.stacks - left.stacks;
+    return affinityOrder(left.kind) - affinityOrder(right.kind);
+  });
+  return pool[0];
+}
+
+function resolveTrapPosition(trap) {
+  if (!trap || typeof trap !== "object") return null;
+  const x = Number(trap?.position?.x ?? trap?.x);
+  const y = Number(trap?.position?.y ?? trap?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x: Math.floor(x), y: Math.floor(y) };
+}
+
+function upsertAffinityCell(index, x, y, affinity, { width, height }) {
+  if (x < 0 || x >= width || y < 0 || y >= height) return;
+  const key = `${x},${y}`;
+  const prior = index.get(key);
+  if (!prior) {
+    index.set(key, { kind: affinity.kind, stacks: affinity.stacks });
+    return;
+  }
+  if (affinity.stacks > prior.stacks) {
+    index.set(key, { kind: affinity.kind, stacks: affinity.stacks });
+    return;
+  }
+  if (affinity.stacks === prior.stacks && affinityOrder(affinity.kind) < affinityOrder(prior.kind)) {
+    index.set(key, { kind: affinity.kind, stacks: affinity.stacks });
+  }
+}
+
+function buildFloorAffinityByCell({ width, height, floorAffinityCells = null, floorAffinityTraps = null } = {}) {
+  const index = new Map();
+  if (Array.isArray(floorAffinityCells)) {
+    floorAffinityCells.forEach((entry) => {
+      const x = Number(entry?.x);
+      const y = Number(entry?.y);
+      const kind = normalizeAffinityKind(entry?.kind);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !kind) return;
+      const stacks = normalizeAffinityStacks(entry?.stacks);
+      upsertAffinityCell(index, Math.floor(x), Math.floor(y), { kind, stacks }, { width, height });
+    });
+  }
+  if (Array.isArray(floorAffinityTraps)) {
+    floorAffinityTraps.forEach((trap) => {
+      const position = resolveTrapPosition(trap);
+      const affinity = resolveTrapAffinityEntry(trap);
+      if (!position || !affinity) return;
+      upsertAffinityCell(index, position.x, position.y, affinity, { width, height });
+    });
+  }
+  return index;
+}
+
+function rgbToHsl(r, g, b) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  let h = 0;
+  if (delta > 0) {
+    if (max === rn) h = ((gn - bn) / delta) % 6;
+    else if (max === gn) h = ((bn - rn) / delta) + 2;
+    else h = ((rn - gn) / delta) + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  const l = (max + min) / 2;
+  const s = delta === 0 ? 0 : delta / (1 - Math.abs((2 * l) - 1));
+  return { h, s, l };
+}
+
+function hslToRgb(h, s, l) {
+  const c = (1 - Math.abs((2 * l) - 1)) * s;
+  const hPrime = (h % 360) / 60;
+  const x = c * (1 - Math.abs((hPrime % 2) - 1));
+  let r1 = 0;
+  let g1 = 0;
+  let b1 = 0;
+  if (hPrime >= 0 && hPrime < 1) {
+    r1 = c;
+    g1 = x;
+  } else if (hPrime < 2) {
+    r1 = x;
+    g1 = c;
+  } else if (hPrime < 3) {
+    g1 = c;
+    b1 = x;
+  } else if (hPrime < 4) {
+    g1 = x;
+    b1 = c;
+  } else if (hPrime < 5) {
+    r1 = x;
+    b1 = c;
+  } else {
+    r1 = c;
+    b1 = x;
+  }
+  const m = l - (c / 2);
+  return [
+    Math.round((r1 + m) * 255),
+    Math.round((g1 + m) * 255),
+    Math.round((b1 + m) * 255),
+  ];
+}
+
+function resolveAffinityFloorRgba(affinity) {
+  const baseHex = AFFINITY_COLOR_HEX[affinity?.kind];
+  if (!baseHex) return null;
+  const [baseR, baseG, baseB] = colorHexToRgba(baseHex);
+  const { h } = rgbToHsl(baseR, baseG, baseB);
+  const style = resolveStackIntensity(affinity?.stacks);
+  const sat = Math.max(0, Math.min(1, style.sat / 100));
+  const light = Math.max(0, Math.min(1, style.light / 100));
+  const [r, g, b] = hslToRgb(h, sat, light);
+  return [r, g, b, 255];
+}
+
+function resolveAffinityFloorGlyph(affinity) {
+  const kind = normalizeAffinityKind(affinity?.kind);
+  if (!kind) return ".";
+  const base = AFFINITY_ASCII_GLYPHS[kind] || ".";
+  const style = resolveStackIntensity(affinity?.stacks);
+  return style.stacks >= 2 ? base.toUpperCase() : base;
+}
+
 function resolveRenderPalette(palette = null) {
   const resolved = { ...DEFAULT_LEVEL_RENDER_PALETTE };
   if (palette && typeof palette === "object" && !Array.isArray(palette)) {
@@ -65,14 +243,31 @@ function colorHexToRgba(hex) {
   return [r, g, b, 255];
 }
 
-function buildAsciiArtifact(lines = []) {
+function buildAsciiArtifact(lines = [], { floorAffinityByCell = null } = {}) {
+  if (!(floorAffinityByCell instanceof Map) || floorAffinityByCell.size === 0) {
+    return {
+      lines: lines.slice(),
+      text: lines.join("\n"),
+    };
+  }
+  const styledLines = lines.map((rawRow, y) => {
+    const row = String(rawRow || "");
+    const chars = row.split("");
+    for (let x = 0; x < chars.length; x += 1) {
+      if (chars[x] !== ".") continue;
+      const affinity = floorAffinityByCell.get(`${x},${y}`);
+      if (!affinity) continue;
+      chars[x] = resolveAffinityFloorGlyph(affinity);
+    }
+    return chars.join("");
+  });
   return {
-    lines: lines.slice(),
-    text: lines.join("\n"),
+    lines: styledLines,
+    text: styledLines.join("\n"),
   };
 }
 
-function buildImageArtifact(lines = [], { palette = null } = {}) {
+function buildImageArtifact(lines = [], { palette = null, floorAffinityByCell = null } = {}) {
   const normalized = normalizeTiles(lines);
   if (!normalized) return null;
   const resolvedPalette = resolveRenderPalette(palette);
@@ -83,12 +278,22 @@ function buildImageArtifact(lines = [], { palette = null } = {}) {
     const row = normalized.lines[y];
     for (let x = 0; x < normalized.width; x += 1) {
       const char = row[x] || "#";
+      const floorAffinity = char === "." && floorAffinityByCell instanceof Map
+        ? floorAffinityByCell.get(`${x},${y}`)
+        : null;
       const colorHex = resolvedPalette[char]
         || (char === "#" ? resolvedPalette["#"] : resolvedPalette["."]);
-      const cacheKey = `${char}|${colorHex}`;
+      const cacheKey = floorAffinity
+        ? `affinity|${floorAffinity.kind}|${floorAffinity.stacks}`
+        : `${char}|${colorHex}`;
       let rgba = colorCache.get(cacheKey);
       if (!rgba) {
-        rgba = colorHexToRgba(colorHex);
+        rgba = floorAffinity
+          ? resolveAffinityFloorRgba(floorAffinity)
+          : colorHexToRgba(colorHex);
+        if (!rgba) {
+          rgba = colorHexToRgba(colorHex);
+        }
         colorCache.set(cacheKey, rgba);
       }
       pixels[idx] = rgba[0];
@@ -108,12 +313,24 @@ function buildImageArtifact(lines = [], { palette = null } = {}) {
 
 export function buildLevelRenderArtifactsFromTiles(
   tiles = [],
-  { includeAscii = true, includeImage = true, palette = null } = {},
+  {
+    includeAscii = true,
+    includeImage = true,
+    palette = null,
+    floorAffinityCells = null,
+    floorAffinityTraps = null,
+  } = {},
 ) {
   const normalized = normalizeTiles(tiles);
   if (!normalized) {
     return { ok: false, reason: "missing_tiles" };
   }
+  const floorAffinityByCell = buildFloorAffinityByCell({
+    width: normalized.width,
+    height: normalized.height,
+    floorAffinityCells,
+    floorAffinityTraps,
+  });
   const result = {
     ok: true,
     tiles: normalized.lines,
@@ -122,10 +339,10 @@ export function buildLevelRenderArtifactsFromTiles(
     walkableTiles: countWalkableTiles(normalized.lines),
   };
   if (includeAscii) {
-    result.ascii = buildAsciiArtifact(normalized.lines);
+    result.ascii = buildAsciiArtifact(normalized.lines, { floorAffinityByCell });
   }
   if (includeImage) {
-    result.image = buildImageArtifact(normalized.lines, { palette });
+    result.image = buildImageArtifact(normalized.lines, { palette, floorAffinityByCell });
   }
   return result;
 }
@@ -173,7 +390,13 @@ export function deriveLevelGenFromGuidanceSummary(summary) {
 
 export function buildLevelPreviewFromLevelGen(
   levelGen,
-  { includeAscii = true, includeImage = true, palette = null } = {},
+  {
+    includeAscii = true,
+    includeImage = true,
+    palette = null,
+    floorAffinityCells = null,
+    floorAffinityTraps = null,
+  } = {},
 ) {
   if (!levelGen || typeof levelGen !== "object") {
     return { ok: false, reason: "missing_level_gen" };
@@ -204,6 +427,8 @@ export function buildLevelPreviewFromLevelGen(
     includeAscii,
     includeImage,
     palette,
+    floorAffinityCells,
+    floorAffinityTraps: Array.isArray(floorAffinityTraps) ? floorAffinityTraps : generated.value?.traps,
   });
   if (!rendered.ok) {
     return rendered;
@@ -216,7 +441,13 @@ export function buildLevelPreviewFromLevelGen(
 
 export function buildLevelPreviewFromGuidanceSummary(
   summary,
-  { includeAscii = true, includeImage = true, palette = null } = {},
+  {
+    includeAscii = true,
+    includeImage = true,
+    palette = null,
+    floorAffinityCells = null,
+    floorAffinityTraps = null,
+  } = {},
 ) {
   if (!summary || typeof summary !== "object") {
     return { ok: false, reason: "missing_summary" };
@@ -225,5 +456,11 @@ export function buildLevelPreviewFromGuidanceSummary(
   if (!levelGen) {
     return { ok: false, reason: "missing_level_gen" };
   }
-  return buildLevelPreviewFromLevelGen(levelGen, { includeAscii, includeImage, palette });
+  return buildLevelPreviewFromLevelGen(levelGen, {
+    includeAscii,
+    includeImage,
+    palette,
+    floorAffinityCells,
+    floorAffinityTraps,
+  });
 }

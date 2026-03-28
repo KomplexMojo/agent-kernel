@@ -198,7 +198,7 @@ function resolveTrapAffinityEntry(trap = null) {
   const valid = candidates
     .map((entry) => {
       const kind = normalizeAffinityKind(entry?.kind);
-      const stacks = normalizeStacks(entry?.stacks);
+      const stacks = normalizeStacks(entry?.roomStacks ?? entry?.stacks);
       const targetType = typeof entry?.targetType === "string" ? entry.targetType.trim().toLowerCase() : "";
       if (!kind || !AFFINITY_HUES[kind]) return null;
       return { kind, stacks, targetType };
@@ -215,8 +215,8 @@ function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
   if (!Array.isArray(traps) || traps.length === 0) return new Map();
   const index = new Map();
   traps.forEach((trap) => {
-    const x = Number(trap?.position?.x);
-    const y = Number(trap?.position?.y);
+    const x = Number(trap?.position?.x ?? trap?.x);
+    const y = Number(trap?.position?.y ?? trap?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     if (viewport) {
       if (x < viewport.startX || x >= viewport.endX) return;

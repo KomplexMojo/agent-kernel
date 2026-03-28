@@ -76,3 +76,12 @@ test("simulation canvas hit-testing translates viewport-local tile positions bac
   assert.deepEqual(resolveCanvasBoardPosition({ x: 1, y: 1 }, null), { x: 1, y: 1 });
   assert.equal(resolveCanvasBoardPosition(null, { viewport: { startX: 4, startY: 7 } }), null);
 });
+
+test("simulation view forwards observation traps into level regeneration render options", () => {
+  const viewPath = path.resolve(root, "packages", "ui-web", "src", "views", "simulation-view.js");
+  const source = fs.readFileSync(viewPath, "utf8");
+  assert.match(
+    source,
+    /regenerateLevelArtifacts\(\{\s*tiles:\s*baseTiles,\s*renderOptions:\s*\{\s*floorAffinityTraps:/s,
+  );
+});

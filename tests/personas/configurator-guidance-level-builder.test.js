@@ -53,6 +53,21 @@ assert.equal(fromTiles.height, 2);
 assert.equal(fromTiles.walkableTiles, 5);
 assert.ok(fromTiles.image && fromTiles.image.pixels instanceof Uint8ClampedArray);
 
+const fromAffinityTiles = buildLevelRenderArtifactsFromTiles(["..."], {
+  includeAscii: true,
+  includeImage: true,
+  floorAffinityTraps: [
+    { x: 0, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 1 } },
+    { x: 1, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 1, roomStacks: 3 } },
+  ],
+});
+assert.equal(fromAffinityTiles.ok, true);
+assert.equal(fromAffinityTiles.ascii.lines[0][0], "f");
+assert.equal(fromAffinityTiles.ascii.lines[0][1], "F");
+const lowStackPixel = Array.from(fromAffinityTiles.image.pixels.slice(0, 4));
+const highStackPixel = Array.from(fromAffinityTiles.image.pixels.slice(4, 8));
+assert.notDeepEqual(lowStackPixel, highStackPixel);
+
 const invalidPreview = buildLevelPreviewFromGuidanceSummary(null);
 assert.equal(invalidPreview.ok, false);
 assert.equal(invalidPreview.reason, "missing_summary");
