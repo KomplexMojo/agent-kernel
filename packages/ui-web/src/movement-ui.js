@@ -8,6 +8,7 @@ import {
   TRAP_VITAL_KEYS,
   VITAL_KEYS,
 } from "../../runtime/src/contracts/domain-constants.js";
+import { STACK_INTENSITY_TIERS, resolveStackIntensity } from "../../runtime/src/render/affinity-palette.js";
 
 const EVENT_STREAM_LIMIT = 6;
 const DEFAULT_VIEWPORT_SIZE = 50;
@@ -104,12 +105,8 @@ const REALTIME_MOVE_BY_ACTION = Object.freeze({
   left: { direction: "west", dx: -1, dy: 0 },
   right: { direction: "east", dx: 1, dy: 0 },
 });
-const STACK_STYLES = [
-  { sat: 55, light: 55, glow: 0 },
-  { sat: 65, light: 50, glow: 4 },
-  { sat: 75, light: 45, glow: 6 },
-  { sat: 85, light: 40, glow: 8 },
-];
+// Stack intensity rules now sourced from shared affinity-palette module
+const STACK_STYLES = STACK_INTENSITY_TIERS;
 
 function escapeHtmlChar(char) {
   if (char === "&") return "&amp;";
@@ -175,10 +172,9 @@ function resolveAffinityInfo(actor) {
   return null;
 }
 
+// Use shared stack intensity resolver
 function resolveStackStyle(stacks) {
-  const normalized = normalizeStacks(stacks);
-  const index = Math.min(STACK_STYLES.length - 1, normalized - 1);
-  return { ...STACK_STYLES[index], stacks: normalized };
+  return resolveStackIntensity(stacks);
 }
 
 function buildActorSymbolMap(actors = [], symbols, fallbackSymbols) {

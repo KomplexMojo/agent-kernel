@@ -3,6 +3,7 @@ import {
   ALLOWED_AFFINITY_EXPRESSIONS,
   ALLOWED_MOTIVATIONS,
 } from "../personas/orchestrator/prompt-contract.js";
+import { AFFINITY_COLOR_HEX, hexToRgba as sharedHexToRgba, normalizeHex as sharedNormalizeHex } from "./affinity-palette.js";
 
 export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 export const RESOURCE_BUNDLE_VERSION = 2;
@@ -93,20 +94,9 @@ function createVisualMappings() {
   };
 }
 
-function normalizeHex(value, fallback) {
-  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return /^#[0-9a-f]{6}$/i.test(raw) ? raw : fallback;
-}
-
-function hexToRgba(hex, alpha = 255) {
-  const normalized = normalizeHex(hex, "#000000");
-  return [
-    Number.parseInt(normalized.slice(1, 3), 16),
-    Number.parseInt(normalized.slice(3, 5), 16),
-    Number.parseInt(normalized.slice(5, 7), 16),
-    alpha,
-  ];
-}
+// Use shared palette functions for consistency
+const normalizeHex = sharedNormalizeHex;
+const hexToRgba = sharedHexToRgba;
 
 function createAssetEntry(
   id,
@@ -405,18 +395,12 @@ const PALETTE = Object.freeze({
   border: hexToRgba("#0d1110"),
   white: hexToRgba("#ffffff"),
   black: hexToRgba("#000000"),
-  affinity: {
-    fire: hexToRgba("#f05a28"),
-    water: hexToRgba("#2b7fff"),
-    earth: hexToRgba("#7a5c33"),
-    wind: hexToRgba("#8fd3ff"),
-    life: hexToRgba("#49b96b"),
-    decay: hexToRgba("#6f7b46"),
-    corrode: hexToRgba("#7fbf42"),
-    fortify: hexToRgba("#8c6dd7"),
-    light: hexToRgba("#f5d14d"),
-    dark: hexToRgba("#3a2a57"),
-  },
+  // Affinity colors now sourced from shared palette
+  affinity: Object.freeze(
+    Object.fromEntries(
+      Object.entries(AFFINITY_COLOR_HEX).map(([kind, hex]) => [kind, hexToRgba(hex)]),
+    ),
+  ),
 });
 
 function inferTileSemantic(char) {
