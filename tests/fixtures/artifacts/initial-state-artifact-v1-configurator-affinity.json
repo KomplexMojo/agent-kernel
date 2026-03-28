@@ -67,22 +67,18 @@
             "kind": "attack",
             "affinityKind": "fire",
             "expression": "push",
-            "expressionAlias": "flame_surge",
             "targetType": "enemy",
             "potency": 4,
-            "manaCost": 6,
-            "complexityClass": "tactical"
+            "manaCost": 6
           },
           {
             "id": "life_surge",
             "kind": "buff",
             "affinityKind": "life",
             "expression": "pull",
-            "expressionAlias": "vital_draw",
             "targetType": "self",
             "potency": 1,
-            "manaCost": 0,
-            "complexityClass": "instinctual"
+            "manaCost": 0
           }
         ],
         "resolvedEffects": [
@@ -97,10 +93,7 @@
             "stacks": 2,
             "targetType": "enemy",
             "targetVital": "health",
-            "potency": 2,
-            "manaCost": 6,
-            "expressionAlias": "flame_surge",
-            "complexityClass": "tactical"
+            "potency": 2
           },
           {
             "id": "life:pull:self:vital",
@@ -113,10 +106,7 @@
             "stacks": 1,
             "targetType": "self",
             "targetVital": "health",
-            "potency": 1,
-            "manaCost": 0,
-            "expressionAlias": "vital_draw",
-            "complexityClass": "instinctual"
+            "potency": 1
           }
         ]
       }
@@ -163,11 +153,9 @@
             "kind": "area",
             "affinityKind": "decay",
             "expression": "emit",
-            "expressionAlias": "blight_mist",
             "targetType": "area",
             "potency": 1,
-            "manaCost": 2,
-            "complexityClass": "instinctual"
+            "manaCost": 2
           }
         ],
         "resolvedEffects": [
@@ -182,10 +170,7 @@
             "stacks": 1,
             "targetType": "area",
             "targetVital": "health",
-            "potency": 1,
-            "manaCost": 2,
-            "expressionAlias": "blight_mist",
-            "complexityClass": "instinctual"
+            "potency": 1
           }
         ]
       }

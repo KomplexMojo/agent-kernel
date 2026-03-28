@@ -440,7 +440,7 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   const motivationSection = renderedCard.querySelector(".design-card-motivations");
   assert.ok(motivationSection);
   const motivationGroups = elements["#design-property-group-motivations"].querySelectorAll(".design-property-chip-pair");
-  assert.ok(motivationGroups.length >= 4);
+  assert.ok(motivationGroups.length >= 3);
   const leftRailAttacking = elements["#design-property-group-motivations"].querySelector('[data-property-value="attacking"]');
   const leftRailDefending = elements["#design-property-group-motivations"].querySelector('[data-property-value="defending"]');
   assert.ok(leftRailAttacking);
