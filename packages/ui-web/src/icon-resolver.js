@@ -62,6 +62,15 @@ const TEXT_LABELS = Object.freeze({
 });
 
 /**
+ * Check if a dataUri string is valid (non-empty and starts with data:)
+ * @param {string} dataUri - The data URI to validate
+ * @returns {boolean} - True if valid, false otherwise
+ */
+function isValidDataUri(dataUri) {
+  return typeof dataUri === "string" && dataUri.trim().length > 0 && dataUri.trim().startsWith("data:");
+}
+
+/**
  * Resolve an icon from the resource bundle or return a text fallback.
  * @param {Object|null} bundle - ResourceBundleArtifact or null
  * @param {string} category - Icon category: "types", "affinities", "expressions", "motivations", "vitals", "ui"
@@ -74,7 +83,7 @@ export function resolveIcon(bundle, category, key) {
     const assetId = bundle.mappings.icons[category][key];
     const asset = (bundle.assets || []).find((a) => a.id === assetId);
 
-    if (asset?.dataUri) {
+    if (asset?.dataUri && isValidDataUri(asset.dataUri)) {
       const img = document.createElement("img");
       img.src = asset.dataUri;
       img.alt = key;
@@ -108,7 +117,7 @@ export function resolveIconHTML(bundle, category, key) {
     const assetId = bundle.mappings.icons[category][key];
     const asset = (bundle.assets || []).find((a) => a.id === assetId);
 
-    if (asset?.dataUri) {
+    if (asset?.dataUri && isValidDataUri(asset.dataUri)) {
       // Return img tag as HTML for data URIs
       return `<img src="${asset.dataUri}" alt="${key}" class="icon-from-bundle" style="width:1em;height:1em;vertical-align:middle;display:inline-block">`;
     }
