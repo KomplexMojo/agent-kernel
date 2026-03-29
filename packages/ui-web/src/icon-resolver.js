@@ -7,14 +7,16 @@
  * Unicode icon fallbacks for each category and key.
  * Used when no bundle is loaded or icon asset is missing.
  */
+const DEFAULT_UI_ICON = "◈";
+
 const TEXT_LABELS = Object.freeze({
   types: {
-    room: "▢",
-    delver: "◆",
-    attacker: "◆",
-    warden: "●",
-    defender: "●",
-    untyped: "○",
+    room: "🏛️",
+    delver: "⚔️",
+    attacker: "⚔️",
+    warden: "🛡️",
+    defender: "🛡️",
+    untyped: "◻️",
   },
   affinities: {
     fire: "🔥",
@@ -52,7 +54,7 @@ const TEXT_LABELS = Object.freeze({
   },
   ui: {
     "playing-surface": "◈",
-    "card-builder": "◈",
+    "card-builder": DEFAULT_UI_ICON,
     "game-preview": "◈",
     "system-console": "◈",
     "game-inspector": "◈",
@@ -88,7 +90,9 @@ export function resolveIcon(bundle, category, key) {
   // Fallback to text label
   const span = document.createElement("span");
   span.className = "icon-fallback-text";
-  span.textContent = TEXT_LABELS[category]?.[key] || key;
+  const fallbackLabel =
+    TEXT_LABELS[category]?.[key] || (category === "ui" ? DEFAULT_UI_ICON : key);
+  span.textContent = fallbackLabel;
   return span;
 }
 
@@ -112,7 +116,7 @@ export function resolveIconHTML(bundle, category, key) {
   }
 
   // Fallback to Unicode icon
-  return TEXT_LABELS[category]?.[key] || "◈";
+  return TEXT_LABELS[category]?.[key] || DEFAULT_UI_ICON;
 }
 
 /**
