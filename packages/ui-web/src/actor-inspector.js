@@ -45,12 +45,12 @@ function iconForAffinity(kind, bundle = null) {
 
 function iconForExpression(expression, bundle = null) {
   const normalized = typeof expression === "string" ? expression.trim().toLowerCase() : "";
-  return normalized ? resolveIconHTML(bundle, "expressions", normalized) : "✦";
+  return normalized ? resolveIconHTML(bundle, "expressions", normalized) : "◈";
 }
 
 function iconForMotivation(motivation, bundle = null) {
   const normalized = typeof motivation === "string" ? motivation.trim().toLowerCase() : "";
-  return normalized ? resolveIconHTML(bundle, "motivations", normalized) : "❖";
+  return normalized ? resolveIconHTML(bundle, "motivations", normalized) : "◈";
 }
 
 function iconForVital(vital, bundle = null) {
