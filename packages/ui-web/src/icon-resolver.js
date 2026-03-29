@@ -4,58 +4,58 @@
  */
 
 /**
- * Text label fallbacks for each category and key.
+ * Unicode icon fallbacks for each category and key.
  * Used when no bundle is loaded or icon asset is missing.
  */
 const TEXT_LABELS = Object.freeze({
   types: {
-    room: "Room",
-    delver: "Delver",
-    attacker: "Attacker",
-    warden: "Warden",
-    defender: "Defender",
-    untyped: "Untyped",
+    room: "▢",
+    delver: "◆",
+    attacker: "◆",
+    warden: "●",
+    defender: "●",
+    untyped: "○",
   },
   affinities: {
-    fire: "Fire",
-    water: "Water",
-    earth: "Earth",
-    wind: "Wind",
-    life: "Life",
-    decay: "Decay",
-    corrode: "Corrode",
-    fortify: "Fortify",
-    light: "Light",
-    dark: "Dark",
+    fire: "◈",
+    water: "◈",
+    earth: "◈",
+    wind: "◈",
+    life: "◈",
+    decay: "◈",
+    corrode: "◈",
+    fortify: "◈",
+    light: "◈",
+    dark: "◈",
   },
   expressions: {
-    push: "Push",
-    pull: "Pull",
-    emit: "Emit",
+    push: "✦",
+    pull: "✦",
+    emit: "✦",
   },
   motivations: {
-    random: "Random",
-    stationary: "Stationary",
-    exploring: "Exploring",
-    attacking: "Attacking",
-    defending: "Defending",
-    patrolling: "Patrolling",
-    reflexive: "Reflexive",
-    goal_oriented: "Goal",
-    strategy_focused: "Strategy",
+    random: "❖",
+    stationary: "❖",
+    exploring: "❖",
+    attacking: "❖",
+    defending: "❖",
+    patrolling: "❖",
+    reflexive: "❖",
+    goal_oriented: "❖",
+    strategy_focused: "❖",
   },
   vitals: {
-    health: "Health",
-    mana: "Mana",
-    stamina: "Stamina",
-    durability: "Durability",
+    health: "◦",
+    mana: "◦",
+    stamina: "◦",
+    durability: "◦",
   },
   ui: {
-    "playing-surface": "Playing Surface",
-    "card-builder": "Card Builder",
-    "game-preview": "Game Preview",
-    "system-console": "System Console",
-    "game-inspector": "Game Inspector",
+    "playing-surface": "◈",
+    "card-builder": "◈",
+    "game-preview": "◈",
+    "system-console": "◈",
+    "game-inspector": "◈",
   },
 });
 
@@ -93,15 +93,26 @@ export function resolveIcon(bundle, category, key) {
 }
 
 /**
- * Resolve an icon and return it as a string (for innerHTML use).
+ * Resolve an icon and return it as a string (for textContent use).
  * @param {Object|null} bundle - ResourceBundleArtifact or null
  * @param {string} category - Icon category
  * @param {string} key - Icon key within the category
- * @returns {string} - HTML string
+ * @returns {string} - Unicode icon or data URI
  */
 export function resolveIconHTML(bundle, category, key) {
-  const element = resolveIcon(bundle, category, key);
-  return element.outerHTML;
+  // Try to find icon in bundle
+  if (bundle?.mappings?.icons?.[category]?.[key]) {
+    const assetId = bundle.mappings.icons[category][key];
+    const asset = (bundle.assets || []).find((a) => a.id === assetId);
+
+    if (asset?.dataUri) {
+      // Return img tag as HTML for data URIs
+      return `<img src="${asset.dataUri}" alt="${TEXT_LABELS[category]?.[key] || key}" class="icon-from-bundle" style="width:1em;height:1em;vertical-align:middle;display:inline-block">`;
+    }
+  }
+
+  // Fallback to Unicode icon
+  return TEXT_LABELS[category]?.[key] || "◈";
 }
 
 /**
