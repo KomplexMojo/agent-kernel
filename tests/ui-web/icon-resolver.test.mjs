@@ -54,6 +54,24 @@ const EXPECTED_TYPE_GLYPHS = Object.freeze({
   untyped: "◻️",
 });
 
+const EXPECTED_EXPRESSION_GLYPHS = Object.freeze({
+  push: "✦",
+  pull: "✦",
+  emit: "✦",
+});
+
+const EXPECTED_MOTIVATION_GLYPHS = Object.freeze({
+  random: "❖",
+  stationary: "❖",
+  exploring: "❖",
+  attacking: "❖",
+  defending: "❖",
+  patrolling: "❖",
+  reflexive: "❖",
+  goal_oriented: "❖",
+  strategy_focused: "❖",
+});
+
 test("resolveIconHTML returns intended affinity glyph fallbacks", () => {
   Object.entries(EXPECTED_AFFINITY_GLYPHS).forEach(([key, glyph]) => {
     assert.equal(resolveIconHTML(null, "affinities", key), glyph, `affinity ${key} should map to ${glyph}`);
@@ -104,3 +122,39 @@ test("resolveIcon falls back to default UI glyph element for card-builder when b
     assert.equal(iconEl?.className, "icon-fallback-text");
     assert.equal(iconEl?.textContent, "◈");
   }));
+
+test("resolveIconHTML returns intended expression glyph fallbacks", () => {
+  Object.entries(EXPECTED_EXPRESSION_GLYPHS).forEach(([key, glyph]) => {
+    assert.equal(resolveIconHTML(null, "expressions", key), glyph, `expression ${key} should map to ${glyph}`);
+  });
+});
+
+test("resolveIconHTML returns intended motivation glyph fallbacks", () => {
+  Object.entries(EXPECTED_MOTIVATION_GLYPHS).forEach(([key, glyph]) => {
+    assert.equal(resolveIconHTML(null, "motivations", key), glyph, `motivation ${key} should map to ${glyph}`);
+  });
+});
+
+test("resolveIconHTML prefers bundle icons for expressions before fallbacks", () => {
+  const bundle = {
+    mappings: { icons: { expressions: { push: "asset-push" } } },
+    assets: [{ id: "asset-push", dataUri: "data:image/png;base64,CCCC" }],
+  };
+
+  const html = resolveIconHTML(bundle, "expressions", "push");
+  assert.match(html, /<img /);
+  assert.match(html, /src="data:image\/png;base64,CCCC"/);
+  assert.match(html, /alt="push"/);
+});
+
+test("resolveIconHTML prefers bundle icons for motivations before fallbacks", () => {
+  const bundle = {
+    mappings: { icons: { motivations: { attacking: "asset-attacking" } } },
+    assets: [{ id: "asset-attacking", dataUri: "data:image/png;base64,DDDD" }],
+  };
+
+  const html = resolveIconHTML(bundle, "motivations", "attacking");
+  assert.match(html, /<img /);
+  assert.match(html, /src="data:image\/png;base64,DDDD"/);
+  assert.match(html, /alt="attacking"/);
+});
