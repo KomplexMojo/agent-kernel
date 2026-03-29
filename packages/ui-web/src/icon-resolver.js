@@ -90,8 +90,7 @@ export function resolveIcon(bundle, category, key) {
   // Fallback to text label
   const span = document.createElement("span");
   span.className = "icon-fallback-text";
-  const fallbackLabel =
-    TEXT_LABELS[category]?.[key] || (category === "ui" ? DEFAULT_UI_ICON : key);
+  const fallbackLabel = TEXT_LABELS[category]?.[key] || DEFAULT_UI_ICON;
   span.textContent = fallbackLabel;
   return span;
 }
@@ -115,7 +114,7 @@ export function resolveIconHTML(bundle, category, key) {
     }
   }
 
-  // Fallback to Unicode icon
+  // Fallback to Unicode icon - never return raw key text
   return TEXT_LABELS[category]?.[key] || DEFAULT_UI_ICON;
 }
 
