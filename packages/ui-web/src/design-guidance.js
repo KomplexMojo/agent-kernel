@@ -19,6 +19,7 @@ import {
   VITAL_KEYS,
   normalizeVitals as normalizeDomainVitals,
 } from "../../runtime/src/contracts/domain-constants.js";
+import { resolveIconHTML } from "./icon-resolver.js";
 import { evaluateRoomCardLayoutSpend } from "../../runtime/src/personas/allocator/layout-spend.js";
 import {
   calculateActorConfigurationUnitCost,
@@ -67,42 +68,11 @@ const DEFAULT_BUDGET_SPLIT = Object.freeze({
   delver: 20,
   warden: 25,
 });
-const TYPE_ICON_MAP = Object.freeze({
-  room: "🏛️",
-  delver: "⚔️",
-  warden: "🛡️",
-  untyped: "◻️",
-});
-const AFFINITY_ICON_MAP = Object.freeze({
-  fire: "🔥",
-  water: "💧",
-  earth: "🪨",
-  wind: "🌪️",
-  life: "🌿",
-  decay: "🧪",
-  corrode: "🧫",
-  fortify: "🧱",
-  light: "🌟",
-  dark: "🌑",
-});
-const EXPRESSION_ICON_MAP = Object.freeze({
-  push: "⬆️",
-  pull: "⬇️",
-  emit: "📡",
-});
-const MOTIVATION_ICON_MAP = Object.freeze({
-  random: "🎲",
-  stationary: "🧱",
-  exploring: "🧭",
-  attacking: "⚔️",
-  defending: "🛡️",
-  patrolling: "👣",
-  reflexive: "⚡",
-  goal_oriented: "🎯",
-  strategy_focused: "♟️",
-});
 const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.";
 const EXCLUSIVE_PAIR_NOTE = "Choose 1";
+
+// Module-level resource bundle for icon resolution
+let moduleResourceBundle = null;
 
 const AFFINITY_DISPLAY_GROUPS = Object.freeze(
   (() => {
@@ -135,26 +105,27 @@ function formatDisplayLabel(value, fallback = "") {
 
 function iconForType(type) {
   const normalized = normalizeCardType(type);
-  if (!normalized) return TYPE_ICON_MAP.untyped;
-  return TYPE_ICON_MAP[normalized] || TYPE_ICON_MAP.untyped;
+  const key = normalized || "untyped";
+  return resolveIconHTML(moduleResourceBundle, "types", key);
 }
 
 function iconForAffinity(affinity) {
   const normalized = normalizeAffinity(affinity, "");
-  if (!normalized) return "◈";
-  return AFFINITY_ICON_MAP[normalized] || "◈";
+  return normalized ? resolveIconHTML(moduleResourceBundle, "affinities", normalized) : "◈";
 }
 
 function iconForExpression(expression) {
   const normalized = normalizeExpression(expression, "");
-  if (!normalized) return "✦";
-  return EXPRESSION_ICON_MAP[normalized] || "✦";
+  return normalized ? resolveIconHTML(moduleResourceBundle, "expressions", normalized) : "✦";
 }
 
 function iconForMotivation(motivation) {
   const normalized = typeof motivation === "string" ? motivation.trim().toLowerCase() : "";
-  if (!normalized) return "❖";
-  return MOTIVATION_ICON_MAP[normalized] || "❖";
+  return normalized ? resolveIconHTML(moduleResourceBundle, "motivations", normalized) : "❖";
+}
+
+export function setResourceBundle(bundle) {
+  moduleResourceBundle = bundle || null;
 }
 
 function readPositiveInt(value, fallback = 0) {
@@ -2168,7 +2139,7 @@ export function wireDesignGuidance({
     const chip = createDomElement(container, "span");
     if (!chip) return null;
     chip.className = `design-card-icon-chip ${className}`.trim();
-    chip.textContent = icon || "◈";
+    chip.innerHTML = icon || "◈";
     if (title) chip.title = title;
     container.append(chip);
     return chip;
@@ -2383,7 +2354,7 @@ export function wireDesignGuidance({
           if (affinityButton) {
             affinityButton.type = "button";
             affinityButton.className = "design-card-affinity-kind";
-            affinityButton.textContent = iconForAffinity(entry.kind);
+            affinityButton.innerHTML = iconForAffinity(entry.kind);
             affinityButton.title = `Affinity: ${entry.kind}`;
             affinityButton.addEventListener?.("click", (event) => {
               event.stopPropagation?.();
@@ -2396,7 +2367,7 @@ export function wireDesignGuidance({
           if (expressionButton) {
             expressionButton.type = "button";
             expressionButton.className = "design-card-affinity-expression";
-            expressionButton.textContent = iconForExpression(entry.expression);
+            expressionButton.innerHTML = iconForExpression(entry.expression);
             expressionButton.title = `Expression: ${entry.expression}`;
             expressionButton.addEventListener?.("click", (event) => {
               event.stopPropagation?.();
@@ -2482,7 +2453,7 @@ export function wireDesignGuidance({
             const icon = createDomElement(row, "span");
             if (icon) {
               icon.className = "design-card-motivation-icon";
-              icon.textContent = iconForMotivation(motivation);
+              icon.innerHTML = iconForMotivation(motivation);
               row.append(icon);
             }
             const remove = createDomElement(row, "button");

@@ -81,7 +81,24 @@ async function handleStatic(req, res) {
   stream.pipe(res);
 }
 
+let serverReady = false;
+
 const server = createServer((req, res) => {
+  // Health check endpoint
+  if (req.url === "/health" || req.url === "/health/") {
+    setCors(res);
+    if (serverReady) {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ status: "ready" }));
+    } else {
+      res.statusCode = 503;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ status: "starting" }));
+    }
+    return;
+  }
+
   if (req.method === "OPTIONS") {
     setCors(res);
     res.statusCode = 204;
@@ -91,7 +108,31 @@ const server = createServer((req, res) => {
   handleStatic(req, res);
 });
 
-server.listen(port, () => {
-  console.log(`Serving UI on http://localhost:${port}`);
-  console.log("Open /packages/ui-web/index.html");
-});
+function tryListen(portToTry, maxAttempts = 10) {
+  server.listen(portToTry, () => {
+    serverReady = true;
+    const url = `http://localhost:${portToTry}/packages/ui-web/index.html`;
+    console.log(`\nServing UI at: ${url}\n`);
+  });
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      const nextPort = portToTry + 1;
+      const remainingAttempts = maxAttempts - 1;
+
+      if (remainingAttempts > 0) {
+        console.warn(`Port ${portToTry} is in use, trying ${nextPort}...`);
+        server.close();
+        tryListen(nextPort, remainingAttempts);
+      } else {
+        console.error(`Could not find an available port after ${maxAttempts} attempts.`);
+        process.exit(1);
+      }
+    } else {
+      console.error("Server error:", err);
+      process.exit(1);
+    }
+  });
+}
+
+tryListen(port);

@@ -1,7 +1,6 @@
 import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { runMvpMovement } from "../../../runtime/src/mvp/movement.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
-import { hasGeneratedResourceBundleAssets } from "../../../runtime/src/render/resource-bundle.js";
 import {
   AFFINITY_TARGET_TYPES,
   DEFAULT_AFFINITY_EXPRESSION,
@@ -316,6 +315,7 @@ export function wireSimulationView({
     lastBaseTilesHash = "";
     lastVisibilitySummary = null;
     lastObservationActors = [];
+    lastObservationTraps = [];
     clearBundleCanvas(renderCanvasEl);
     if (renderCanvasEl) renderCanvasEl.hidden = true;
     if (frameEl) frameEl.hidden = false;
@@ -420,11 +420,14 @@ export function wireSimulationView({
     controller?.setVisibilityMode?.(VISIBILITY_MODE_SIMULATION_FULL);
   }
 
+  let lastObservationTraps = [];
+
   function handleObservation({ observation, frame, playing, visibility, actorIdLabel }) {
     actorInspector?.setActors?.(observation?.actors || [], { tick: observation?.tick });
     actorInspector?.setRunning?.(playing);
     lastVisibilitySummary = visibility || null;
     lastObservationActors = Array.isArray(observation?.actors) ? observation.actors.slice() : [];
+    lastObservationTraps = Array.isArray(observation?.traps) ? observation.traps.slice() : [];
     if (typeof onObservation === "function") {
       onObservation({
         observation,
@@ -442,15 +445,15 @@ export function wireSimulationView({
       }
       return;
     }
-    const canRenderGeneratedBundle = hasGeneratedResourceBundleAssets(latestRuntimeArtifacts?.resourceBundle);
-    if (renderCanvasEl && frameEl && canRenderGeneratedBundle) {
-      const bundle = latestRuntimeArtifacts?.resourceBundle
-        ? { spec: latestRuntimeArtifacts?.spec || null, artifacts: [latestRuntimeArtifacts.resourceBundle] }
-        : null;
+    const bundle = latestRuntimeArtifacts?.resourceBundle
+      ? { spec: latestRuntimeArtifacts?.spec || null, artifacts: [latestRuntimeArtifacts.resourceBundle] }
+      : null;
+    if (renderCanvasEl && frameEl) {
       void renderBundleBoardToCanvas({
         canvas: renderCanvasEl,
         tiles: baseTiles,
         actors: lastObservationActors,
+        floorAffinityTraps: lastObservationTraps,
         bundle,
       }).then((result) => {
         if (!renderCanvasEl || !frameEl) return;
@@ -462,9 +465,6 @@ export function wireSimulationView({
         renderCanvasEl.hidden = true;
         frameEl.hidden = false;
       });
-    } else if (renderCanvasEl && frameEl) {
-      renderCanvasEl.hidden = true;
-      frameEl.hidden = false;
     }
     const nextHash = hashTiles(baseTiles);
     if (nextHash === lastBaseTilesHash) return;
@@ -526,6 +526,7 @@ export function wireSimulationView({
       latestLevelArtifacts = null;
       latestRuntimeArtifacts = null;
       lastObservationActors = [];
+      lastObservationTraps = [];
       actorInspector?.setScenario?.({});
       const movement = runMvpMovement({
         core,
@@ -566,6 +567,7 @@ export function wireSimulationView({
       latestLevelArtifacts = null;
       latestRuntimeArtifacts = { simConfig, initialState, affinityEffects, spec, resourceBundle };
       lastObservationActors = [];
+      lastObservationTraps = [];
       actorInspector?.setScenario?.({ simConfig, initialState, spec });
       const sortedActors = sortActorsById(initialState);
       const actorIds = sortedActors

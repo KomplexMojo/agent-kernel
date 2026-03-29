@@ -5,6 +5,8 @@ import { wireDesignView } from "./views/design-view.js";
 import { wirePreviewView, validatePreviewLaunchBundle } from "./views/preview-view.js";
 import { wireSimulationView } from "./views/simulation-view.js";
 import { wireDiagnosticsView } from "./views/diagnostics-view.js";
+import { resolveIcon } from "./icon-resolver.js";
+import { setResourceBundle as setDesignResourceBundle } from "./design-guidance.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -30,6 +32,27 @@ function openTab(tabId) {
 function findArtifact(bundle, schema) {
   const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
   return artifacts.find((artifact) => artifact?.schema === schema) || null;
+}
+
+function populateUIIcons(resourceBundle) {
+  const iconElements = document.querySelectorAll("[data-icon-category][data-icon-key]");
+  iconElements.forEach((el) => {
+    const category = el.dataset.iconCategory;
+    const key = el.dataset.iconKey;
+    if (!category || !key) return;
+
+    // Clear existing content
+    el.textContent = "";
+    while (el.firstChild) {
+      el.removeChild(el.firstChild);
+    }
+
+    // Resolve and append icon
+    const iconEl = resolveIcon(resourceBundle, category, key);
+    if (iconEl) {
+      el.appendChild(iconEl);
+    }
+  });
 }
 
 wireTabs({
@@ -79,6 +102,14 @@ simulationView.setInspectorVisibility?.(true, actorInspector?.getSelectedEntity?
 
 async function syncBundleViews({ bundle, source }) {
   await previewView.loadBundle(bundle, { source });
+
+  const resourceBundle = bundle ? findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA) : null;
+
+  // Update icon displays across all views
+  populateUIIcons(resourceBundle);
+  actorInspector?.setResourceBundle?.(resourceBundle);
+  setDesignResourceBundle(resourceBundle);
+
   if (!bundle) {
     simulationView?.clear?.("Run cleared.");
     return;
@@ -100,7 +131,7 @@ async function syncBundleViews({ bundle, source }) {
     simConfig,
     initialState,
     affinityEffects: findArtifact(bundle, AFFINITY_SUMMARY_SCHEMA),
-    resourceBundle: findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA),
+    resourceBundle,
     spec: bundle?.spec || null,
   });
 }
@@ -169,3 +200,6 @@ globalThis.addEventListener?.("beforeunload", () => {
   simulationView?.dispose?.();
   commandHost.dispose?.();
 });
+
+// Initialize UI icons with text labels on startup
+populateUIIcons(null);
