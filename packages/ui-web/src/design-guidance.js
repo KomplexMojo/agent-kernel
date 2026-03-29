@@ -2139,7 +2139,7 @@ export function wireDesignGuidance({
     const chip = createDomElement(container, "span");
     if (!chip) return null;
     chip.className = `design-card-icon-chip ${className}`.trim();
-    chip.textContent = icon || "◈";
+    chip.innerHTML = icon || "◈";
     if (title) chip.title = title;
     container.append(chip);
     return chip;
@@ -2354,7 +2354,7 @@ export function wireDesignGuidance({
           if (affinityButton) {
             affinityButton.type = "button";
             affinityButton.className = "design-card-affinity-kind";
-            affinityButton.textContent = iconForAffinity(entry.kind);
+            affinityButton.innerHTML = iconForAffinity(entry.kind);
             affinityButton.title = `Affinity: ${entry.kind}`;
             affinityButton.addEventListener?.("click", (event) => {
               event.stopPropagation?.();
@@ -2367,7 +2367,7 @@ export function wireDesignGuidance({
           if (expressionButton) {
             expressionButton.type = "button";
             expressionButton.className = "design-card-affinity-expression";
-            expressionButton.textContent = iconForExpression(entry.expression);
+            expressionButton.innerHTML = iconForExpression(entry.expression);
             expressionButton.title = `Expression: ${entry.expression}`;
             expressionButton.addEventListener?.("click", (event) => {
               event.stopPropagation?.();
@@ -2453,7 +2453,7 @@ export function wireDesignGuidance({
             const icon = createDomElement(row, "span");
             if (icon) {
               icon.className = "design-card-motivation-icon";
-              icon.textContent = iconForMotivation(motivation);
+              icon.innerHTML = iconForMotivation(motivation);
               row.append(icon);
             }
             const remove = createDomElement(row, "button");

@@ -535,7 +535,7 @@ function createIconChip(root, {
   if (!chip) return null;
   chip.className = className ? `design-card-icon-chip ${className}` : "design-card-icon-chip";
   if (title) chip.title = title;
-  chip.textContent = icon || "◈";
+  chip.innerHTML = icon || "◈";
   return chip;
 }
 
