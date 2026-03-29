@@ -19,6 +19,7 @@ import {
   VITAL_KEYS,
   normalizeVitals as normalizeDomainVitals,
 } from "../../runtime/src/contracts/domain-constants.js";
+import { resolveIconHTML } from "./icon-resolver.js";
 import { evaluateRoomCardLayoutSpend } from "../../runtime/src/personas/allocator/layout-spend.js";
 import {
   calculateActorConfigurationUnitCost,
@@ -67,42 +68,11 @@ const DEFAULT_BUDGET_SPLIT = Object.freeze({
   delver: 20,
   warden: 25,
 });
-const TYPE_ICON_MAP = Object.freeze({
-  room: "🏛️",
-  delver: "⚔️",
-  warden: "🛡️",
-  untyped: "◻️",
-});
-const AFFINITY_ICON_MAP = Object.freeze({
-  fire: "🔥",
-  water: "💧",
-  earth: "🪨",
-  wind: "🌪️",
-  life: "🌿",
-  decay: "🧪",
-  corrode: "🧫",
-  fortify: "🧱",
-  light: "🌟",
-  dark: "🌑",
-});
-const EXPRESSION_ICON_MAP = Object.freeze({
-  push: "⬆️",
-  pull: "⬇️",
-  emit: "📡",
-});
-const MOTIVATION_ICON_MAP = Object.freeze({
-  random: "🎲",
-  stationary: "🧱",
-  exploring: "🧭",
-  attacking: "⚔️",
-  defending: "🛡️",
-  patrolling: "👣",
-  reflexive: "⚡",
-  goal_oriented: "🎯",
-  strategy_focused: "♟️",
-});
 const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.";
 const EXCLUSIVE_PAIR_NOTE = "Choose 1";
+
+// Module-level resource bundle for icon resolution
+let moduleResourceBundle = null;
 
 const AFFINITY_DISPLAY_GROUPS = Object.freeze(
   (() => {
@@ -135,26 +105,27 @@ function formatDisplayLabel(value, fallback = "") {
 
 function iconForType(type) {
   const normalized = normalizeCardType(type);
-  if (!normalized) return TYPE_ICON_MAP.untyped;
-  return TYPE_ICON_MAP[normalized] || TYPE_ICON_MAP.untyped;
+  const key = normalized || "untyped";
+  return resolveIconHTML(moduleResourceBundle, "types", key);
 }
 
 function iconForAffinity(affinity) {
   const normalized = normalizeAffinity(affinity, "");
-  if (!normalized) return "◈";
-  return AFFINITY_ICON_MAP[normalized] || "◈";
+  return normalized ? resolveIconHTML(moduleResourceBundle, "affinities", normalized) : "◈";
 }
 
 function iconForExpression(expression) {
   const normalized = normalizeExpression(expression, "");
-  if (!normalized) return "✦";
-  return EXPRESSION_ICON_MAP[normalized] || "✦";
+  return normalized ? resolveIconHTML(moduleResourceBundle, "expressions", normalized) : "✦";
 }
 
 function iconForMotivation(motivation) {
   const normalized = typeof motivation === "string" ? motivation.trim().toLowerCase() : "";
-  if (!normalized) return "❖";
-  return MOTIVATION_ICON_MAP[normalized] || "❖";
+  return normalized ? resolveIconHTML(moduleResourceBundle, "motivations", normalized) : "❖";
+}
+
+export function setResourceBundle(bundle) {
+  moduleResourceBundle = bundle || null;
 }
 
 function readPositiveInt(value, fallback = 0) {

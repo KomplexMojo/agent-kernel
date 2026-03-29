@@ -1,53 +1,9 @@
 import { VITAL_KEYS } from "../../runtime/src/contracts/domain-constants.js";
 import { normalizeMotivationKindList } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
 import { calculateCardValue } from "./design-guidance.js";
+import { resolveIconHTML } from "./icon-resolver.js";
 
 const TYPE_ORDER = Object.freeze(["room", "attacker", "defender"]);
-
-const TYPE_ICON_MAP = Object.freeze({
-  room: "🏛️",
-  attacker: "⚔️",
-  defender: "🛡️",
-  untyped: "◻️",
-});
-
-const AFFINITY_ICON_MAP = Object.freeze({
-  fire: "🔥",
-  water: "💧",
-  earth: "🪨",
-  wind: "🌪️",
-  life: "🌿",
-  decay: "🧪",
-  corrode: "🧫",
-  fortify: "🧱",
-  light: "🌟",
-  dark: "🌑",
-});
-
-const EXPRESSION_ICON_MAP = Object.freeze({
-  push: "⬆️",
-  pull: "⬇️",
-  emit: "📡",
-});
-
-const MOTIVATION_ICON_MAP = Object.freeze({
-  random: "🎲",
-  stationary: "🧱",
-  exploring: "🧭",
-  attacking: "⚔️",
-  defending: "🛡️",
-  patrolling: "👣",
-  reflexive: "⚡",
-  goal_oriented: "🎯",
-  strategy_focused: "♟️",
-});
-
-const VITAL_ICON_MAP = Object.freeze({
-  health: "❤️",
-  mana: "🔷",
-  stamina: "👟",
-  durability: "🛡️",
-});
 
 const ATTACKER_KEYWORDS = Object.freeze(["attack", "attacker", "delver", "assault", "intruder", "raider", "player"]);
 
@@ -76,29 +32,30 @@ function normalizeName(value, fallback = "") {
   return normalized || fallback;
 }
 
-function iconForType(type) {
+function iconForType(type, bundle = null) {
   const normalized = normalizeCardType(type);
-  return TYPE_ICON_MAP[normalized] || TYPE_ICON_MAP.untyped;
+  const key = normalized || "untyped";
+  return resolveIconHTML(bundle, "types", key);
 }
 
-function iconForAffinity(kind) {
+function iconForAffinity(kind, bundle = null) {
   const normalized = typeof kind === "string" ? kind.trim().toLowerCase() : "";
-  return AFFINITY_ICON_MAP[normalized] || "◈";
+  return normalized ? resolveIconHTML(bundle, "affinities", normalized) : "◈";
 }
 
-function iconForExpression(expression) {
+function iconForExpression(expression, bundle = null) {
   const normalized = typeof expression === "string" ? expression.trim().toLowerCase() : "";
-  return EXPRESSION_ICON_MAP[normalized] || "✦";
+  return normalized ? resolveIconHTML(bundle, "expressions", normalized) : "✦";
 }
 
-function iconForMotivation(motivation) {
+function iconForMotivation(motivation, bundle = null) {
   const normalized = typeof motivation === "string" ? motivation.trim().toLowerCase() : "";
-  return MOTIVATION_ICON_MAP[normalized] || "❖";
+  return normalized ? resolveIconHTML(bundle, "motivations", normalized) : "❖";
 }
 
-function iconForVital(vital) {
+function iconForVital(vital, bundle = null) {
   const normalized = typeof vital === "string" ? vital.trim().toLowerCase() : "";
-  return VITAL_ICON_MAP[normalized] || "◦";
+  return normalized ? resolveIconHTML(bundle, "vitals", normalized) : "◦";
 }
 
 function deriveTemplateInstanceId(templateId, index) {
@@ -705,6 +662,7 @@ export function createActorInspector({
   let tick = null;
   let visible = true;
   let hasInteractedWithSelection = false;
+  let resourceBundle = null;
 
   function fallbackModelFromLiveActors() {
     if (!Array.isArray(liveActors) || liveActors.length === 0) {
@@ -798,7 +756,7 @@ export function createActorInspector({
 
         const chips = [
           createIconChip(preview, {
-            icon: iconForType(entity.type),
+            icon: iconForType(entity.type, resourceBundle),
             title: `Type: ${displayCardType(entity.type)}`,
             className: "is-type",
           }),
@@ -806,7 +764,7 @@ export function createActorInspector({
 
         if (affinities[0]?.kind) {
           chips.push(createIconChip(preview, {
-            icon: iconForAffinity(affinities[0].kind),
+            icon: iconForAffinity(affinities[0].kind, resourceBundle),
             title: `Affinity: ${affinities[0].kind}`,
             className: "is-affinity",
           }));
@@ -814,7 +772,7 @@ export function createActorInspector({
 
         if (motivations[0]) {
           chips.push(createIconChip(preview, {
-            icon: iconForMotivation(motivations[0]),
+            icon: iconForMotivation(motivations[0], resourceBundle),
             title: `Motivation: ${motivations[0]}`,
             className: "is-motivation",
           }));
@@ -883,7 +841,7 @@ export function createActorInspector({
       if (heading) {
         heading.className = "design-card-heading";
         const typeChip = createIconChip(heading, {
-          icon: iconForType(entity.type),
+          icon: iconForType(entity.type, resourceBundle),
           title: `Type: ${displayCardType(entity.type)}`,
           className: "is-type",
         });
@@ -913,7 +871,7 @@ export function createActorInspector({
       traits.className = "design-card-traits";
       affinities.slice(0, 4).forEach((entry) => {
         const affinityChip = createIconChip(traits, {
-          icon: iconForAffinity(entry.kind),
+          icon: iconForAffinity(entry.kind, resourceBundle),
           title: `Affinity: ${entry.kind}`,
           className: "is-affinity",
         });
@@ -921,7 +879,7 @@ export function createActorInspector({
       });
       motivations.slice(0, 4).forEach((motivation) => {
         const motivationChip = createIconChip(traits, {
-          icon: iconForMotivation(motivation),
+          icon: iconForMotivation(motivation, resourceBundle),
           title: `Motivation: ${motivation}`,
           className: "is-motivation",
         });
@@ -947,14 +905,14 @@ export function createActorInspector({
           row.className = "simulation-inspector-affinity-row";
 
           const affinityIcon = createIconChip(row, {
-            icon: iconForAffinity(entry.kind),
+            icon: iconForAffinity(entry.kind, resourceBundle),
             title: `Affinity: ${entry.kind}`,
             className: "is-affinity",
           });
           if (affinityIcon) row.append(affinityIcon);
 
           const expressionIcon = createIconChip(row, {
-            icon: iconForExpression(entry.expression),
+            icon: iconForExpression(entry.expression, resourceBundle),
             title: `Expression: ${entry.expression}`,
             className: "is-expression",
           });
@@ -997,7 +955,7 @@ export function createActorInspector({
           row.className = "simulation-inspector-vital-row";
 
           const iconChip = createIconChip(row, {
-            icon: iconForVital(vitalKey),
+            icon: iconForVital(vitalKey, resourceBundle),
             title: vitalKey,
             className: "is-vital",
           });
@@ -1158,10 +1116,16 @@ export function createActorInspector({
 
   render();
 
+  function setResourceBundle(bundle) {
+    resourceBundle = bundle || null;
+    render();
+  }
+
   return {
     setScenario,
     setActors,
     setRunning,
+    setResourceBundle,
     selectEntityById,
     selectActorById,
     clearSelection,
