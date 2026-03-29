@@ -58,12 +58,14 @@ export async function renderBundleBoardToCanvas({
   canvas,
   tiles = [],
   actors = [],
+  floorAffinityTraps = [],
   bundle = null,
 } = {}) {
   const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA) || null;
   const rendered = await renderBoardWithResourceBundle({
     tiles,
     actors,
+    floorAffinityTraps,
     resourceBundle,
     loadAssetPixels: loadAssetPixelsFromDataUri,
   });

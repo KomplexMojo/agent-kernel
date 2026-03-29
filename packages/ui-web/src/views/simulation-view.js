@@ -316,6 +316,7 @@ export function wireSimulationView({
     lastBaseTilesHash = "";
     lastVisibilitySummary = null;
     lastObservationActors = [];
+    lastObservationTraps = [];
     clearBundleCanvas(renderCanvasEl);
     if (renderCanvasEl) renderCanvasEl.hidden = true;
     if (frameEl) frameEl.hidden = false;
@@ -420,11 +421,14 @@ export function wireSimulationView({
     controller?.setVisibilityMode?.(VISIBILITY_MODE_SIMULATION_FULL);
   }
 
+  let lastObservationTraps = [];
+
   function handleObservation({ observation, frame, playing, visibility, actorIdLabel }) {
     actorInspector?.setActors?.(observation?.actors || [], { tick: observation?.tick });
     actorInspector?.setRunning?.(playing);
     lastVisibilitySummary = visibility || null;
     lastObservationActors = Array.isArray(observation?.actors) ? observation.actors.slice() : [];
+    lastObservationTraps = Array.isArray(observation?.traps) ? observation.traps.slice() : [];
     if (typeof onObservation === "function") {
       onObservation({
         observation,
@@ -451,6 +455,7 @@ export function wireSimulationView({
         canvas: renderCanvasEl,
         tiles: baseTiles,
         actors: lastObservationActors,
+        floorAffinityTraps: lastObservationTraps,
         bundle,
       }).then((result) => {
         if (!renderCanvasEl || !frameEl) return;
@@ -526,6 +531,7 @@ export function wireSimulationView({
       latestLevelArtifacts = null;
       latestRuntimeArtifacts = null;
       lastObservationActors = [];
+      lastObservationTraps = [];
       actorInspector?.setScenario?.({});
       const movement = runMvpMovement({
         core,
@@ -566,6 +572,7 @@ export function wireSimulationView({
       latestLevelArtifacts = null;
       latestRuntimeArtifacts = { simConfig, initialState, affinityEffects, spec, resourceBundle };
       lastObservationActors = [];
+      lastObservationTraps = [];
       actorInspector?.setScenario?.({ simConfig, initialState, spec });
       const sortedActors = sortActorsById(initialState);
       const actorIds = sortedActors

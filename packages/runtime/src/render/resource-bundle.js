@@ -3,7 +3,12 @@ import {
   ALLOWED_AFFINITY_EXPRESSIONS,
   ALLOWED_MOTIVATIONS,
 } from "../personas/orchestrator/prompt-contract.js";
-import { AFFINITY_COLOR_HEX, hexToRgba as sharedHexToRgba, normalizeHex as sharedNormalizeHex } from "./affinity-palette.js";
+import {
+  AFFINITY_COLOR_HEX,
+  hexToRgba as sharedHexToRgba,
+  normalizeHex as sharedNormalizeHex,
+  resolveStackIntensity,
+} from "./affinity-palette.js";
 
 export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 export const RESOURCE_BUNDLE_VERSION = 2;
@@ -91,6 +96,42 @@ function createVisualMappings() {
     affinities: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `overlay.affinity.${kind}`])),
     motivations: Object.fromEntries(ALLOWED_MOTIVATIONS.map((kind) => [kind, `overlay.motivation.${kind}`])),
     expressions: Object.fromEntries(ALLOWED_AFFINITY_EXPRESSIONS.map((kind) => [kind, `overlay.expression.${kind}`])),
+    icons: {
+      types: {
+        room: "icon.type.room",
+        delver: "icon.type.delver",
+        attacker: "icon.type.attacker",
+        warden: "icon.type.warden",
+        defender: "icon.type.defender",
+        untyped: "icon.type.untyped",
+      },
+      affinities: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `icon.affinity.${kind}`])),
+      expressions: Object.fromEntries(ALLOWED_AFFINITY_EXPRESSIONS.map((kind) => [kind, `icon.expression.${kind}`])),
+      motivations: {
+        random: "icon.motivation.random",
+        stationary: "icon.motivation.stationary",
+        exploring: "icon.motivation.exploring",
+        attacking: "icon.motivation.attacking",
+        defending: "icon.motivation.defending",
+        patrolling: "icon.motivation.patrolling",
+        reflexive: "icon.motivation.reflexive",
+        goal_oriented: "icon.motivation.goal_oriented",
+        strategy_focused: "icon.motivation.strategy_focused",
+      },
+      vitals: {
+        health: "icon.vital.health",
+        mana: "icon.vital.mana",
+        stamina: "icon.vital.stamina",
+        durability: "icon.vital.durability",
+      },
+      ui: {
+        "playing-surface": "icon.ui.playing-surface",
+        "card-builder": "icon.ui.card-builder",
+        "game-preview": "icon.ui.game-preview",
+        "system-console": "icon.ui.system-console",
+        "game-inspector": "icon.ui.game-inspector",
+      },
+    },
   };
 }
 
@@ -225,6 +266,39 @@ function createDefaultAssets({ emitVisualAssets = false } = {}) {
       assets.push(makeEntry(`overlay.motivation.${kind}`, "overlay", `${kind} Motivation Overlay`, `ipfs://ak-resource-bundle-v2/overlay-motivation-${kind}.png`));
     });
     assets.push(makeEntry("overlay.darkness-mask", "overlay", "Darkness Mask", "ipfs://ak-resource-bundle-v2/overlay-darkness-mask.png"));
+
+    // Icon assets
+    assets.push(makeEntry("icon.type.room", "icon", "Room Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-room.png"));
+    assets.push(makeEntry("icon.type.delver", "icon", "Delver Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-delver.png"));
+    assets.push(makeEntry("icon.type.attacker", "icon", "Attacker Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-attacker.png"));
+    assets.push(makeEntry("icon.type.warden", "icon", "Warden Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-warden.png"));
+    assets.push(makeEntry("icon.type.defender", "icon", "Defender Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-defender.png"));
+    assets.push(makeEntry("icon.type.untyped", "icon", "Untyped Icon", "ipfs://ak-resource-bundle-v2/icon-type-untyped.png"));
+
+    ALLOWED_AFFINITIES.forEach((kind) => {
+      assets.push(makeEntry(`icon.affinity.${kind}`, "icon", `${kind} Affinity Icon`, `ipfs://ak-resource-bundle-v2/icon-affinity-${kind}.png`));
+    });
+
+    ALLOWED_AFFINITY_EXPRESSIONS.forEach((kind) => {
+      assets.push(makeEntry(`icon.expression.${kind}`, "icon", `${kind} Expression Icon`, `ipfs://ak-resource-bundle-v2/icon-expression-${kind}.png`));
+    });
+
+    const motivationKeys = ["random", "stationary", "exploring", "attacking", "defending", "patrolling", "reflexive", "goal_oriented", "strategy_focused"];
+    motivationKeys.forEach((kind) => {
+      assets.push(makeEntry(`icon.motivation.${kind}`, "icon", `${kind} Motivation Icon`, `ipfs://ak-resource-bundle-v2/icon-motivation-${kind}.png`));
+    });
+
+    assets.push(makeEntry("icon.vital.health", "icon", "Health Icon", "ipfs://ak-resource-bundle-v2/icon-vital-health.png"));
+    assets.push(makeEntry("icon.vital.mana", "icon", "Mana Icon", "ipfs://ak-resource-bundle-v2/icon-vital-mana.png"));
+    assets.push(makeEntry("icon.vital.stamina", "icon", "Stamina Icon", "ipfs://ak-resource-bundle-v2/icon-vital-stamina.png"));
+    assets.push(makeEntry("icon.vital.durability", "icon", "Durability Icon", "ipfs://ak-resource-bundle-v2/icon-vital-durability.png"));
+
+    assets.push(makeEntry("icon.ui.playing-surface", "icon", "Playing Surface Icon", "ipfs://ak-resource-bundle-v2/icon-ui-playing-surface.png"));
+    assets.push(makeEntry("icon.ui.card-builder", "icon", "Card Builder Icon", "ipfs://ak-resource-bundle-v2/icon-ui-card-builder.png"));
+    assets.push(makeEntry("icon.ui.game-preview", "icon", "Game Preview Icon", "ipfs://ak-resource-bundle-v2/icon-ui-game-preview.png"));
+    assets.push(makeEntry("icon.ui.system-console", "icon", "System Console Icon", "ipfs://ak-resource-bundle-v2/icon-ui-system-console.png"));
+    assets.push(makeEntry("icon.ui.game-inspector", "icon", "Game Inspector Icon", "ipfs://ak-resource-bundle-v2/icon-ui-game-inspector.png"));
+
     return assets;
   }
 
@@ -729,6 +803,107 @@ function resolveBadgeAssetId(bundle, category, key) {
   return bundle?.mappings?.[category]?.[normalized] || `${category.slice(0, -1)}.${normalized}`;
 }
 
+function rgbToHsl(r, g, b) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  let h = 0;
+  if (delta > 0) {
+    if (max === rn) h = ((gn - bn) / delta) % 6;
+    else if (max === gn) h = ((bn - rn) / delta) + 2;
+    else h = ((rn - gn) / delta) + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  const l = (max + min) / 2;
+  const s = delta === 0 ? 0 : delta / (1 - Math.abs((2 * l) - 1));
+  return { h, s, l };
+}
+
+function hslToRgb(h, s, l) {
+  const c = (1 - Math.abs((2 * l) - 1)) * s;
+  const hPrime = (h % 360) / 60;
+  const x = c * (1 - Math.abs((hPrime % 2) - 1));
+  let r1 = 0;
+  let g1 = 0;
+  let b1 = 0;
+  if (hPrime >= 0 && hPrime < 1) {
+    r1 = c;
+    g1 = x;
+  } else if (hPrime < 2) {
+    r1 = x;
+    g1 = c;
+  } else if (hPrime < 3) {
+    g1 = c;
+    b1 = x;
+  } else if (hPrime < 4) {
+    g1 = x;
+    b1 = c;
+  } else if (hPrime < 5) {
+    r1 = x;
+    b1 = c;
+  } else {
+    r1 = c;
+    b1 = x;
+  }
+  const m = l - c / 2;
+  return [
+    Math.round((r1 + m) * 255),
+    Math.round((g1 + m) * 255),
+    Math.round((b1 + m) * 255),
+  ];
+}
+
+function resolveAffinityFloorRgba(affinity) {
+  const baseHex = AFFINITY_COLOR_HEX[affinity?.kind];
+  if (!baseHex) return null;
+  const baseRgba = hexToRgba(baseHex);
+  const { h } = rgbToHsl(baseRgba[0], baseRgba[1], baseRgba[2]);
+  const style = resolveStackIntensity(affinity?.stacks || 1);
+  const sat = Math.max(0, Math.min(1, style.sat / 100));
+  const light = Math.max(0, Math.min(1, style.light / 100));
+  const [r, g, b] = hslToRgb(h, sat, light);
+  return [r, g, b, 255];
+}
+
+function buildFloorAffinityMap(floorAffinityTraps = []) {
+  const map = new Map();
+  if (!Array.isArray(floorAffinityTraps)) return map;
+  floorAffinityTraps.forEach((trap) => {
+    const x = Number(trap?.x);
+    const y = Number(trap?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const affinity = trap?.affinity;
+    if (!affinity || typeof affinity !== "object") return;
+    const kind = typeof affinity.kind === "string" ? affinity.kind.trim().toLowerCase() : "";
+    if (!kind || !AFFINITY_COLOR_HEX[kind]) return;
+    const stacks = Math.max(1, Math.round(Number(affinity.stacks) || 1));
+    map.set(`${x},${y}`, { kind, stacks });
+  });
+  return map;
+}
+
+function applyAffinityTint(basePixels, width, tileX, tileY, tileWidth, tileHeight, affinityRgba) {
+  if (!affinityRgba) return;
+  const tintAlpha = 0.4; // Blend factor for affinity tint
+  for (let y = 0; y < tileHeight; y += 1) {
+    for (let x = 0; x < tileWidth; x += 1) {
+      const px = tileX * tileWidth + x;
+      const py = tileY * tileHeight + y;
+      if (px < 0 || py < 0 || px >= width || py >= basePixels.length / 4 / width * width) continue;
+      const index = (py * width + px) * 4;
+      if (index < 0 || index + 3 >= basePixels.length) continue;
+      // Alpha blend the affinity color over the base floor tile
+      basePixels[index] = Math.round(basePixels[index] * (1 - tintAlpha) + affinityRgba[0] * tintAlpha);
+      basePixels[index + 1] = Math.round(basePixels[index + 1] * (1 - tintAlpha) + affinityRgba[1] * tintAlpha);
+      basePixels[index + 2] = Math.round(basePixels[index + 2] * (1 - tintAlpha) + affinityRgba[2] * tintAlpha);
+    }
+  }
+}
+
 function resolveOverlayAssetIds(bundle, actor) {
   if (Number(bundle?.schemaVersion) < RESOURCE_BUNDLE_VERSION_V2) {
     const affinitySpriteId = resolveBadgeAssetId(bundle, "affinities", inferAffinity(actor));
@@ -748,6 +923,7 @@ function resolveOverlayAssetIds(bundle, actor) {
 export async function renderBoardWithResourceBundle({
   tiles = [],
   actors = [],
+  floorAffinityTraps = [],
   resourceBundle,
   loadAssetPixels,
 } = {}) {
@@ -772,6 +948,7 @@ export async function renderBoardWithResourceBundle({
   const height = heightTiles * tileHeight;
   const pixels = createPixelBuffer(width, height);
   const spriteCache = new Map();
+  const floorAffinityMap = buildFloorAffinityMap(floorAffinityTraps);
 
   async function getSprite(assetId) {
     if (spriteCache.has(assetId)) return spriteCache.get(assetId);
@@ -797,6 +974,17 @@ export async function renderBoardWithResourceBundle({
       const assetId = resolveTileAssetId(bundle, row[x] || "#");
       const sprite = await getSprite(assetId);
       blitSprite(pixels, width, height, sprite, tileWidth, x * tileWidth, y * tileHeight);
+
+      // Apply affinity color tint to floor tiles
+      const char = row[x] || "#";
+      const semantic = inferTileSemantic(char);
+      if (semantic === "floor") {
+        const affinity = floorAffinityMap.get(`${x},${y}`);
+        if (affinity) {
+          const affinityRgba = resolveAffinityFloorRgba(affinity);
+          applyAffinityTint(pixels, width, x, y, tileWidth, tileHeight, affinityRgba);
+        }
+      }
     }
   }
 

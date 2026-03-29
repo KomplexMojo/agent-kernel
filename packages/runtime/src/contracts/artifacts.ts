@@ -1267,7 +1267,7 @@ export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
  */
 export interface ResourceBundleAssetV1 {
   id: string;
-  kind: "tile" | "actor" | "card" | "overlay" | "affinity" | "motivation" | "expression";
+  kind: "tile" | "actor" | "card" | "overlay" | "affinity" | "motivation" | "expression" | "icon";
   label: string;
   ipfsUri: string;
   mimeType: string;
@@ -1294,6 +1294,14 @@ export interface ResourceBundleMappingsV1 {
     stackTiers?: Record<string, string>;
     motivations?: Record<string, string>;
     darknessMask?: string;
+  };
+  icons?: {
+    types?: Record<string, string>;
+    affinities?: Record<string, string>;
+    expressions?: Record<string, string>;
+    motivations?: Record<string, string>;
+    vitals?: Record<string, string>;
+    ui?: Record<string, string>;
   };
 }
 
