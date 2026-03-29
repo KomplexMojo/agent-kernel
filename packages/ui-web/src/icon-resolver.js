@@ -17,16 +17,16 @@ const TEXT_LABELS = Object.freeze({
     untyped: "○",
   },
   affinities: {
-    fire: "◈",
-    water: "◈",
-    earth: "◈",
-    wind: "◈",
-    life: "◈",
-    decay: "◈",
-    corrode: "◈",
-    fortify: "◈",
-    light: "◈",
-    dark: "◈",
+    fire: "🔥",
+    water: "💧",
+    earth: "🪨",
+    wind: "🌪️",
+    life: "🌿",
+    decay: "🧪",
+    corrode: "🧫",
+    fortify: "🧱",
+    light: "🌟",
+    dark: "🌑",
   },
   expressions: {
     push: "✦",
@@ -75,7 +75,7 @@ export function resolveIcon(bundle, category, key) {
     if (asset?.dataUri) {
       const img = document.createElement("img");
       img.src = asset.dataUri;
-      img.alt = TEXT_LABELS[category]?.[key] || key;
+      img.alt = key;
       img.className = "icon-from-bundle";
       img.style.width = "1em";
       img.style.height = "1em";
@@ -107,7 +107,7 @@ export function resolveIconHTML(bundle, category, key) {
 
     if (asset?.dataUri) {
       // Return img tag as HTML for data URIs
-      return `<img src="${asset.dataUri}" alt="${TEXT_LABELS[category]?.[key] || key}" class="icon-from-bundle" style="width:1em;height:1em;vertical-align:middle;display:inline-block">`;
+      return `<img src="${asset.dataUri}" alt="${key}" class="icon-from-bundle" style="width:1em;height:1em;vertical-align:middle;display:inline-block">`;
     }
   }
 
