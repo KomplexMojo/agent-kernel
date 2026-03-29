@@ -55,21 +55,21 @@ const EXPECTED_TYPE_GLYPHS = Object.freeze({
 });
 
 const EXPECTED_EXPRESSION_GLYPHS = Object.freeze({
-  push: "✦",
-  pull: "✦",
-  emit: "✦",
+  push: "⬆️",
+  pull: "⬇️",
+  emit: "📡",
 });
 
 const EXPECTED_MOTIVATION_GLYPHS = Object.freeze({
-  random: "❖",
-  stationary: "❖",
-  exploring: "❖",
-  attacking: "❖",
-  defending: "❖",
-  patrolling: "❖",
-  reflexive: "❖",
-  goal_oriented: "❖",
-  strategy_focused: "❖",
+  random: "🎲",
+  stationary: "🧱",
+  exploring: "🧭",
+  attacking: "⚔️",
+  defending: "🛡️",
+  patrolling: "👣",
+  reflexive: "⚡",
+  goal_oriented: "🎯",
+  strategy_focused: "♟️",
 });
 
 test("resolveIconHTML returns intended affinity glyph fallbacks", () => {
