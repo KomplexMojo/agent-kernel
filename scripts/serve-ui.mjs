@@ -81,7 +81,24 @@ async function handleStatic(req, res) {
   stream.pipe(res);
 }
 
+let serverReady = false;
+
 const server = createServer((req, res) => {
+  // Health check endpoint
+  if (req.url === "/health" || req.url === "/health/") {
+    setCors(res);
+    if (serverReady) {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ status: "ready" }));
+    } else {
+      res.statusCode = 503;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ status: "starting" }));
+    }
+    return;
+  }
+
   if (req.method === "OPTIONS") {
     setCors(res);
     res.statusCode = 204;
@@ -93,6 +110,7 @@ const server = createServer((req, res) => {
 
 function tryListen(portToTry, maxAttempts = 10) {
   server.listen(portToTry, () => {
+    serverReady = true;
     const url = `http://localhost:${portToTry}/packages/ui-web/index.html`;
     console.log(`\nServing UI at: ${url}\n`);
   });
