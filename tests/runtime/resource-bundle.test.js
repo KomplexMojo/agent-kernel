@@ -128,3 +128,52 @@ test("renderBoardWithResourceBundle tints floor tiles when affinities are presen
     );
   `);
 });
+
+test("renderBoardWithResourceBundle tints floor tiles for observation-style traps", () => {
+  runEsm(`
+    import assert from "node:assert/strict";
+    import {
+      createDefaultResourceBundleArtifact,
+      renderBoardWithResourceBundle,
+    } from ${JSON.stringify(modulePath)};
+
+    const bundle = createDefaultResourceBundleArtifact({
+      createMeta: ({ producedBy = "test", runId = "run_resource_bundle_obs_affinity" } = {}) => ({
+        id: producedBy + "_" + runId,
+        runId,
+        createdAt: "2000-01-01T00:00:00.000Z",
+        producedBy,
+      }),
+      runId: "run_resource_bundle_obs_affinity",
+      producedBy: "test",
+    });
+
+    const tiles = ["..", ".."]; // 2x2 board
+
+    const base = await renderBoardWithResourceBundle({ tiles, resourceBundle: bundle });
+    assert.equal(base.ok, true);
+
+    const tinted = await renderBoardWithResourceBundle({
+      tiles,
+      resourceBundle: bundle,
+      floorAffinityTraps: [
+        {
+          position: { x: 1, y: 0 },
+          affinities: [{ kind: "water", stacks: 3, targetType: "floor" }],
+        },
+      ],
+    });
+    assert.equal(tinted.ok, true);
+
+    const tileWidth = tinted.width / 2; // 2 tiles wide -> tileWidth pixels each
+    const offset = tileWidth * 4; // start of tile (1,0)
+    const baseRgba = Array.from(base.pixels.slice(offset, offset + 4));
+    const tintedRgba = Array.from(tinted.pixels.slice(offset, offset + 4));
+
+    assert.notDeepEqual(
+      tintedRgba,
+      baseRgba,
+      "observation-style trap should tint pixel RGBA for its tile",
+    );
+  `);
+});

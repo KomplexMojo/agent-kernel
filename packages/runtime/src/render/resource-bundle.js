@@ -869,19 +869,85 @@ function resolveAffinityFloorRgba(affinity) {
   return [r, g, b, 255];
 }
 
+function affinityPriority(kind) {
+  const index = ALLOWED_AFFINITIES.indexOf(kind);
+  return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
+}
+
+function normalizeTrapPosition(trap) {
+  const x = Number(trap?.position?.x ?? trap?.x);
+  const y = Number(trap?.position?.y ?? trap?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x: Math.floor(x), y: Math.floor(y) };
+}
+
+function normalizeTrapAffinityEntry(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const kind = typeof entry.kind === "string" ? entry.kind.trim().toLowerCase() : "";
+  if (!kind || !AFFINITY_COLOR_HEX[kind]) return null;
+  const stacks = Math.max(1, Math.round(Number(entry.roomStacks ?? entry.stacks ?? entry.value) || 1));
+  const targetType = typeof entry.targetType === "string" ? entry.targetType.trim().toLowerCase() : "";
+  return { kind, stacks, targetType };
+}
+
+function collectTrapAffinities(trap) {
+  const candidates = [];
+  if (trap?.affinity && typeof trap.affinity === "object") {
+    candidates.push(trap.affinity);
+  }
+  if (Array.isArray(trap?.affinities)) {
+    candidates.push(...trap.affinities);
+  }
+  if (trap?.affinityTargets && typeof trap.affinityTargets === "object") {
+    Object.entries(trap.affinityTargets).forEach(([key, stacks]) => {
+      const parts = String(key).split(":");
+      const kind = parts[0];
+      const targetType = parts[2] || "";
+      candidates.push({ kind, stacks, targetType });
+    });
+  }
+  if (trap?.affinityStacks && typeof trap.affinityStacks === "object") {
+    Object.entries(trap.affinityStacks).forEach(([key, stacks]) => {
+      const parts = String(key).split(":");
+      const kind = parts[0];
+      candidates.push({ kind, stacks });
+    });
+  }
+  return candidates
+    .map(normalizeTrapAffinityEntry)
+    .filter(Boolean)
+    .sort((a, b) => {
+      // Prefer floor target, then higher stacks, then defined render order.
+      const targetScore = (entry) => (entry.targetType === "floor" ? 0 : 1);
+      const targetDelta = targetScore(a) - targetScore(b);
+      if (targetDelta !== 0) return targetDelta;
+      if (b.stacks !== a.stacks) return b.stacks - a.stacks;
+      return affinityPriority(a.kind) - affinityPriority(b.kind);
+    });
+}
+
 function buildFloorAffinityMap(floorAffinityTraps = []) {
   const map = new Map();
   if (!Array.isArray(floorAffinityTraps)) return map;
   floorAffinityTraps.forEach((trap) => {
-    const x = Number(trap?.x);
-    const y = Number(trap?.y);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    const affinity = trap?.affinity;
-    if (!affinity || typeof affinity !== "object") return;
-    const kind = typeof affinity.kind === "string" ? affinity.kind.trim().toLowerCase() : "";
-    if (!kind || !AFFINITY_COLOR_HEX[kind]) return;
-    const stacks = Math.max(1, Math.round(Number(affinity.stacks) || 1));
-    map.set(`${x},${y}`, { kind, stacks });
+    const position = normalizeTrapPosition(trap);
+    if (!position) return;
+    const affinities = collectTrapAffinities(trap);
+    const affinity = affinities.length > 0 ? affinities[0] : null;
+    if (!affinity) return;
+    const key = `${position.x},${position.y}`;
+    const prior = map.get(key);
+    if (!prior) {
+      map.set(key, affinity);
+      return;
+    }
+    if (affinity.stacks > prior.stacks) {
+      map.set(key, affinity);
+      return;
+    }
+    if (affinity.stacks === prior.stacks && affinityPriority(affinity.kind) < affinityPriority(prior.kind)) {
+      map.set(key, affinity);
+    }
   });
   return map;
 }
