@@ -395,6 +395,9 @@
       .simulation-board-card {
         display: grid;
         gap: 8px;
+        max-width: 100%;
+        max-height: min(70vh, 760px);
+        overflow: auto;
       }
 
       .simulation-control-deck {
@@ -1976,7 +1979,6 @@
         image-rendering: crisp-edges;
         display: block;
         background: #010101;
-        max-width: none;
         height: auto;
       }
 
@@ -2614,6 +2616,50 @@
         </div>
       </section>
     </main>
-    <script type="module" src="./src/main.js"></script>
+    <script>
+      // Server readiness check: if page loaded before server was ready, retry loading
+      (function checkServerReady() {
+        let retryCount = 0;
+        const maxRetries = 30;
+        const retryDelay = 500; // ms
+
+        function checkHealth() {
+          fetch('/health')
+            .then(res => res.json())
+            .then(data => {
+              if (data.status === 'ready') {
+                // Server is ready, proceed with loading main.js
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = './src/main.js';
+                document.body.appendChild(script);
+              } else {
+                retryLoad();
+              }
+            })
+            .catch(err => {
+              // Server not reachable yet, retry
+              retryLoad();
+            });
+        }
+
+        function retryLoad() {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            setTimeout(checkHealth, retryDelay);
+          } else {
+            // Max retries reached, try loading anyway
+            console.warn('Server readiness check timed out, attempting to load');
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.src = './src/main.js';
+            document.body.appendChild(script);
+          }
+        }
+
+        // Start the check
+        checkHealth();
+      })();
+    </script>
   </body>
 </html>
