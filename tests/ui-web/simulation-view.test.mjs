@@ -85,3 +85,10 @@ test("simulation view forwards observation traps into level regeneration render 
     /regenerateLevelArtifacts\(\{\s*tiles:\s*baseTiles,\s*renderOptions:\s*\{\s*floorAffinityTraps:/s,
   );
 });
+
+test("simulation view renders bundle without requiring inline asset gating", () => {
+  const viewPath = path.resolve(root, "packages", "ui-web", "src", "views", "simulation-view.js");
+  const source = fs.readFileSync(viewPath, "utf8");
+  assert.doesNotMatch(source, /canRenderGeneratedBundle/);
+  assert.match(source, /renderBundleBoardToCanvas\(\{/);
+});

@@ -84,3 +84,47 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     assert.equal(fogTile?.relativePath, "visual-assets/tiles/fog.png");
   `);
 });
+
+test("renderBoardWithResourceBundle tints floor tiles when affinities are present", () => {
+  runEsm(`
+    import assert from "node:assert/strict";
+    import {
+      createDefaultResourceBundleArtifact,
+      renderBoardWithResourceBundle,
+    } from ${JSON.stringify(modulePath)};
+
+    const bundle = createDefaultResourceBundleArtifact({
+      createMeta: ({ producedBy = "test", runId = "run_resource_bundle_affinity" } = {}) => ({
+        id: producedBy + "_" + runId,
+        runId,
+        createdAt: "2000-01-01T00:00:00.000Z",
+        producedBy,
+      }),
+      runId: "run_resource_bundle_affinity",
+      producedBy: "test",
+    });
+
+    const tiles = ["..", ".."]; // 2x2 board
+
+    const base = await renderBoardWithResourceBundle({ tiles, resourceBundle: bundle });
+    assert.equal(base.ok, true);
+
+    const tinted = await renderBoardWithResourceBundle({
+      tiles,
+      resourceBundle: bundle,
+      floorAffinityTraps: [
+        { x: 0, y: 0, affinity: { kind: "fire", stacks: 2 } },
+      ],
+    });
+    assert.equal(tinted.ok, true);
+
+    const baseRgba = Array.from(base.pixels.slice(0, 4));
+    const tintedRgba = Array.from(tinted.pixels.slice(0, 4));
+
+    assert.notDeepEqual(
+      tintedRgba,
+      baseRgba,
+      "affinity tint should change top-left floor tile pixel RGBA",
+    );
+  `);
+});

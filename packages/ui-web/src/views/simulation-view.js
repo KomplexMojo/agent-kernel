@@ -1,7 +1,6 @@
 import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { runMvpMovement } from "../../../runtime/src/mvp/movement.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
-import { hasGeneratedResourceBundleAssets } from "../../../runtime/src/render/resource-bundle.js";
 import {
   AFFINITY_TARGET_TYPES,
   DEFAULT_AFFINITY_EXPRESSION,
@@ -446,11 +445,10 @@ export function wireSimulationView({
       }
       return;
     }
-    const canRenderGeneratedBundle = hasGeneratedResourceBundleAssets(latestRuntimeArtifacts?.resourceBundle);
-    if (renderCanvasEl && frameEl && canRenderGeneratedBundle) {
-      const bundle = latestRuntimeArtifacts?.resourceBundle
-        ? { spec: latestRuntimeArtifacts?.spec || null, artifacts: [latestRuntimeArtifacts.resourceBundle] }
-        : null;
+    const bundle = latestRuntimeArtifacts?.resourceBundle
+      ? { spec: latestRuntimeArtifacts?.spec || null, artifacts: [latestRuntimeArtifacts.resourceBundle] }
+      : null;
+    if (renderCanvasEl && frameEl) {
       void renderBundleBoardToCanvas({
         canvas: renderCanvasEl,
         tiles: baseTiles,
@@ -467,9 +465,6 @@ export function wireSimulationView({
         renderCanvasEl.hidden = true;
         frameEl.hidden = false;
       });
-    } else if (renderCanvasEl && frameEl) {
-      renderCanvasEl.hidden = true;
-      frameEl.hidden = false;
     }
     const nextHash = hashTiles(baseTiles);
     if (nextHash === lastBaseTilesHash) return;
