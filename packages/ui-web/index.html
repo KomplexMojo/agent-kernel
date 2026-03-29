@@ -2631,7 +2631,7 @@
                 // Server is ready, proceed with loading main.js
                 const script = document.createElement('script');
                 script.type = 'module';
-                script.src = './src/main.js';
+                script.src = './src/main.js?v=' + Date.now();
                 document.body.appendChild(script);
               } else {
                 retryLoad();
@@ -2652,7 +2652,7 @@
             console.warn('Server readiness check timed out, attempting to load');
             const script = document.createElement('script');
             script.type = 'module';
-            script.src = './src/main.js';
+            script.src = './src/main.js?v=' + Date.now();
             document.body.appendChild(script);
           }
         }

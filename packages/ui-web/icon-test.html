@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Icon Resolver Test</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #2a2a2a;
+      border-radius: 8px;
+    }
+    .test-row {
+      margin: 10px 0;
+      padding: 10px;
+      background: #333;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .icon-preview {
+      font-size: 24px;
+      min-width: 30px;
+      text-align: center;
+    }
+    .broken-image {
+      border: 2px solid red;
+    }
+    code {
+      background: #000;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Icon Resolver Test Page</h1>
+
+  <div class="test-section">
+    <h2>No Bundle (Should show glyphs)</h2>
+    <div class="test-row">
+      <span class="icon-preview" id="no-bundle-type"></span>
+      <span>Type: delver → Should show ⚔️</span>
+    </div>
+    <div class="test-row">
+      <span class="icon-preview" id="no-bundle-affinity"></span>
+      <span>Affinity: fire → Should show 🔥</span>
+    </div>
+    <div class="test-row">
+      <span class="icon-preview" id="no-bundle-expression"></span>
+      <span>Expression: push → Should show ⬆️</span>
+    </div>
+    <div class="test-row">
+      <span class="icon-preview" id="no-bundle-motivation"></span>
+      <span>Motivation: attacking → Should show ⚔️</span>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>Invalid Data URI (Should show glyphs)</h2>
+    <div class="test-row">
+      <span class="icon-preview" id="invalid-uri-type"></span>
+      <span>Type: delver with invalid dataUri → Should show ⚔️</span>
+    </div>
+    <div class="test-row">
+      <span class="icon-preview" id="invalid-uri-affinity"></span>
+      <span>Affinity: fire with empty dataUri → Should show 🔥</span>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>Valid Data URI (Should show image)</h2>
+    <div class="test-row">
+      <span class="icon-preview" id="valid-uri-type"></span>
+      <span>Type: room with valid SVG dataUri → Should show tiny colored square</span>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>Debug Info</h2>
+    <pre id="debug-output" style="background: #000; padding: 10px; border-radius: 4px; overflow-x: auto;"></pre>
+  </div>
+
+  <script type="module">
+    import { resolveIcon } from './src/icon-resolver.js';
+
+    const debugLines = [];
+    function log(msg) {
+      console.log(msg);
+      debugLines.push(msg);
+      document.getElementById('debug-output').textContent = debugLines.join('\n');
+    }
+
+    // Test 1: No bundle
+    log('Test 1: No bundle (should show glyphs)');
+    const noBundleType = resolveIcon(null, 'types', 'delver');
+    document.getElementById('no-bundle-type').appendChild(noBundleType);
+    log(`  delver: tagName=${noBundleType.tagName}, className=${noBundleType.className}, content=${noBundleType.textContent || noBundleType.src}`);
+
+    const noBundleAffinity = resolveIcon(null, 'affinities', 'fire');
+    document.getElementById('no-bundle-affinity').appendChild(noBundleAffinity);
+    log(`  fire: tagName=${noBundleAffinity.tagName}, content=${noBundleAffinity.textContent}`);
+
+    const noBundleExpression = resolveIcon(null, 'expressions', 'push');
+    document.getElementById('no-bundle-expression').appendChild(noBundleExpression);
+    log(`  push: tagName=${noBundleExpression.tagName}, content=${noBundleExpression.textContent}`);
+
+    const noBundleMotivation = resolveIcon(null, 'motivations', 'attacking');
+    document.getElementById('no-bundle-motivation').appendChild(noBundleMotivation);
+    log(`  attacking: tagName=${noBundleMotivation.tagName}, content=${noBundleMotivation.textContent}`);
+
+    // Test 2: Invalid data URI
+    log('\nTest 2: Invalid dataUri (should show glyphs)');
+    const invalidBundle = {
+      mappings: {
+        icons: {
+          types: { delver: 'asset-delver' },
+          affinities: { fire: 'asset-fire' }
+        }
+      },
+      assets: [
+        { id: 'asset-delver', dataUri: 'INVALID' },
+        { id: 'asset-fire', dataUri: '' }
+      ]
+    };
+
+    const invalidType = resolveIcon(invalidBundle, 'types', 'delver');
+    document.getElementById('invalid-uri-type').appendChild(invalidType);
+    log(`  delver (invalid URI): tagName=${invalidType.tagName}, content=${invalidType.textContent || 'IMG'}`);
+    if (invalidType.tagName === 'IMG') {
+      invalidType.classList.add('broken-image');
+      log(`    ERROR: Created IMG tag for invalid dataUri!`);
+    }
+
+    const invalidAffinity = resolveIcon(invalidBundle, 'affinities', 'fire');
+    document.getElementById('invalid-uri-affinity').appendChild(invalidAffinity);
+    log(`  fire (empty URI): tagName=${invalidAffinity.tagName}, content=${invalidAffinity.textContent}`);
+
+    // Test 3: Valid data URI (tiny red square)
+    log('\nTest 3: Valid dataUri (should show image)');
+    const validBundle = {
+      mappings: {
+        icons: {
+          types: { room: 'asset-room' }
+        }
+      },
+      assets: [
+        { id: 'asset-room', dataUri: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16"%3E%3Crect width="16" height="16" fill="red"/%3E%3C/svg%3E' }
+      ]
+    };
+
+    const validType = resolveIcon(validBundle, 'types', 'room');
+    document.getElementById('valid-uri-type').appendChild(validType);
+    log(`  room (valid URI): tagName=${validType.tagName}`);
+
+    log('\n✅ Test complete. Check results above.');
+  </script>
+</body>
+</html>
