@@ -72,6 +72,13 @@ const EXPECTED_MOTIVATION_GLYPHS = Object.freeze({
   strategy_focused: "♟️",
 });
 
+const EXPECTED_VITAL_GLYPHS = Object.freeze({
+  health: "❤",
+  mana: "💧",
+  stamina: "⚡",
+  durability: "🛡️",
+});
+
 test("resolveIconHTML returns intended affinity glyph fallbacks", () => {
   Object.entries(EXPECTED_AFFINITY_GLYPHS).forEach(([key, glyph]) => {
     assert.equal(resolveIconHTML(null, "affinities", key), glyph, `affinity ${key} should map to ${glyph}`);
@@ -332,10 +339,9 @@ test("resolveIcon falls back to glyph when bundle asset has no dataUri", () =>
   }));
 
 test("resolveIconHTML returns fallback for vitals category with defined keys", () => {
-  assert.equal(resolveIconHTML(null, "vitals", "health"), "◦");
-  assert.equal(resolveIconHTML(null, "vitals", "mana"), "◦");
-  assert.equal(resolveIconHTML(null, "vitals", "stamina"), "◦");
-  assert.equal(resolveIconHTML(null, "vitals", "durability"), "◦");
+  Object.entries(EXPECTED_VITAL_GLYPHS).forEach(([key, glyph]) => {
+    assert.equal(resolveIconHTML(null, "vitals", key), glyph, `vital ${key} should map to ${glyph}`);
+  });
 });
 
 test("resolveIconHTML returns default glyph for unknown vitals key", () => {
@@ -354,6 +360,18 @@ test("resolveIconHTML prefers bundle icons for vitals before fallbacks", () => {
   assert.match(html, /src="data:image\/png;base64,EEEE"/);
   assert.match(html, /alt="health"/);
 });
+
+test("resolveIcon falls back to glyph when bundle mapping exists but asset is missing for vitals", () =>
+  withFakeDocument(() => {
+    const bundle = {
+      mappings: { icons: { vitals: { stamina: "missing-asset" } } },
+      assets: [],
+    };
+    const iconEl = resolveIcon(bundle, "vitals", "stamina");
+    assert.equal(iconEl?.tagName, "SPAN");
+    assert.equal(iconEl?.className, "icon-fallback-text");
+    assert.equal(iconEl?.textContent, EXPECTED_VITAL_GLYPHS.stamina);
+  }));
 
 test("resolveIconHTML rejects grey placeholder images and uses glyph fallback", () => {
   // This is the actual grey placeholder from the user's example
