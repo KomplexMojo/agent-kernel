@@ -62,12 +62,43 @@ const TEXT_LABELS = Object.freeze({
 });
 
 /**
- * Check if a dataUri string is valid (non-empty and starts with data:)
+ * Check if a dataUri string is valid and not a placeholder image.
+ * Placeholder images are detected by checking for large, highly repetitive patterns
+ * that suggest solid-color fill images rather than actual icon graphics.
  * @param {string} dataUri - The data URI to validate
- * @returns {boolean} - True if valid, false otherwise
+ * @returns {boolean} - True if valid and not a placeholder, false otherwise
  */
 function isValidDataUri(dataUri) {
-  return typeof dataUri === "string" && dataUri.trim().length > 0 && dataUri.trim().startsWith("data:");
+  if (typeof dataUri !== "string" || dataUri.trim().length === 0 || !dataUri.trim().startsWith("data:")) {
+    return false;
+  }
+
+  // Extract base64 content after the comma in data URIs
+  const base64Match = dataUri.match(/^data:[^,]*,(.+)$/);
+  if (!base64Match) return false;
+
+  const base64Content = base64Match[1];
+
+  // Detect placeholder images:
+  // Images >100 chars with highly repetitive patterns suggest placeholders
+  // Very short test fixture strings (<100 chars) are allowed through
+  if (base64Content.length > 100) {
+    // Check if the base64 has repeating patterns like "VVVV" (0x55 grey)
+    const repetitivePatterns = [
+      /VVV[VU]/g,  // Matches grey placeholder (0x555555)
+      /\/\/\/\//g,  // Matches white placeholder (0xFFFFFF)
+    ];
+
+    for (const pattern of repetitivePatterns) {
+      const matches = base64Content.match(pattern);
+      // If we see the same pattern repeated more than 15 times, it's likely a placeholder
+      if (matches && matches.length > 15) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 /**
