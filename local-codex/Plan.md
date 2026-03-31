@@ -2,7 +2,7 @@
 
 Use this file to define the remaining milestones, validations, and branch-completion criteria.
 
-## Stitch UI Rewrite Plan Overlay (2026-03-27)
+## Stitch UI Rewrite Plan Overlay (2026-03-28)
 
 Source plan: `[Spec](intent://local/note/spec)` sections `M0` through `M7`.
 
@@ -15,15 +15,17 @@ Source plan: `[Spec](intent://local/note/spec)` sections `M0` through `M7`.
 | M4 | Completed | Design surface rewrite landed on approved rails. |
 | M5 | Completed | Preview/Run surface rewrite landed on approved rails. |
 | M6 | Completed | Diagnostics surface rewrite landed on approved rails. |
-| M7 | In progress (regression-blocked) | Validation ring executed; failures recorded for handoff. |
+| M7 | Completed | Regression ring and docs sync completed after repaired-`main` baseline reconciliation. |
 
-M7 validation ring executed on 2026-03-27:
-- `pnpm run build:wasm` -> pass
-- `node --test tests/ui-web/*.test.mjs` -> fail
-- `node --test tests/integration/*.test.js` -> fail
-- `pnpm run serve:ui` smoke -> pass (`http://localhost:8001/packages/ui-web/index.html` returned `200`)
+M7 validation status:
+- Initial ring on 2026-03-27 recorded missing tracked-file blockers during handoff.
+- Final ring after baseline reconciliation:
+  - `pnpm run build:wasm` -> pass
+  - `node --test tests/ui-web/*.test.mjs` -> pass (`83` passed)
+  - `node --test tests/integration/*.test.js` -> pass (`15` passed, `1` skipped live LLM test)
+  - `pnpm run serve:ui` smoke -> previously confirmed pass on 2026-03-27 (`http://localhost:8001/packages/ui-web/index.html` returned `200`)
 
-Current blockers from M7 regression ring:
+Resolved blockers from the initial M7 regression ring:
 - Missing runtime module import target: `packages/runtime/src/build/orchestrate-build.js` (imported by `packages/runtime/src/commands/kernel.js`).
 - Missing fixture file referenced by UI test: `tests/fixtures/artifacts/budget-artifact-v1-basic.json`.
 
@@ -71,7 +73,9 @@ Reference: [ui-cli-unification-plan.md](/Users/darren/Documents/GitHub/agent-ker
 | U7 | Completed | Finish docs and architecture cleanup so the branch closes with an explicit single-rails story. | `docs/**`, `packages/adapters-cli/README.md`, `local-codex/**` | Docs match implemented architecture and intentional exclusions |
 | U8 | Completed | Validate and document the minimum-install baseline for the default workflow. | Docs + any small dependency/isolation follow-ups | Core workflow runs without optional external adapters/services |
 
-## 4) Remaining Work Packages
+## 4) Work Package Index
+
+All work-package IDs below are historical tracking anchors. Their in-scope branch-close work is completed in this branch, and any deeper product work is explicitly deferred to follow-on branches.
 
 | ID | Requirement | Target Milestone | Planned Validation |
 | --- | --- | --- | --- |
@@ -447,10 +451,8 @@ Status update:
 
 ### Recommended Next Slice
 
-- `B5` Remaining baseline cleanup
-  - Next goal:
-    - resolve any still-tracked baseline failures before branch close,
-    - and record the final branch-close validation package.
+- None inside the completed Stitch / branch-close overlay.
+- If work continues, define a new follow-on milestone from the backlog items below instead of reopening `M4` through `M7`.
 
 ### Next Implementation Slices: B2
 

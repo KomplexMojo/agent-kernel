@@ -2,11 +2,11 @@
 
 Status tracker and decision log for this deliverable.
 
-## Stitch UI Rewrite Handoff Status (2026-03-27)
+## Stitch UI Rewrite Handoff Status (2026-03-28)
 
 - Source plan: `[Spec](intent://local/note/spec)` (`M0 -> M7`)
 - Current checkpoint: `M0` through `M7` implemented on the repaired `main` baseline; the regression ring is green again for continued Stitch work.
-- Handoff state: baseline repaired and ready for resumed implementation.
+- Handoff state: original Stitch rewrite milestones are complete on `main`; additional work should start from a new follow-on milestone instead of reopening `M4` through `M7`.
 
 ### Stitch Milestone Snapshot
 
@@ -19,7 +19,7 @@ Status tracker and decision log for this deliverable.
 - M6: Completed
 - M7: Completed (baseline reconciled on `main`)
 
-### M7 Validation Log (2026-03-27)
+### M7 Initial Validation Log (2026-03-27, pre-repair)
 
 | Command | Result | Notes |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ Status tracker and decision log for this deliverable.
 
 - Resolved the missing tracked-file/source-control drift on `main`, including the restored runtime build/configurator sources and the missing negative fixture required by adapters-cli validation.
 - Rebaselined stale MVP movement, configurator, affinity-summary, prompt, and UI expectations so they match the repaired runtime currently on `main`.
-- Current checkpoint for continuing the Stitch spec: the baseline regression ring on `main` is green again.
+- Current checkpoint for continuing the Stitch spec: the baseline regression ring on `main` is green again, which closes the original M7 handoff blockers.
 
 Validation after reconciliation:
 - `node --test tests/runtime/*.test.js` -> passed (`120` passed)
@@ -51,6 +51,13 @@ Validation after reconciliation:
 - `node --test tests/adapters-web/*.test.js` -> passed (`7` passed)
 - `node --test tests/integration/*.test.js` -> passed (`15` passed, `1` skipped live LLM test)
 - `node --test tests/ui-web/*.test.mjs` -> passed (`83` passed)
+
+### M7 Final Validation Status (2026-03-28)
+
+- `pnpm run build:wasm` -> passed
+- `node --test tests/ui-web/*.test.mjs` -> passed (`83` passed)
+- `node --test tests/integration/*.test.js` -> passed (`15` passed, `1` skipped live LLM test)
+- `pnpm run serve:ui` smoke -> last confirmed during the original M7 ring on 2026-03-27 (`/packages/ui-web/index.html` returned HTTP `200`)
 
 ## 1) Current Status
 
@@ -383,9 +390,9 @@ Branch-close result:
 
 ## 7) Merge Readiness
 
-- [ ] Branch-close gate items 1-5 explicitly complete and logged.
-- [ ] Prompt scope and acceptance criteria satisfied.
-- [ ] Plan milestones complete.
-- [ ] Implement runbook validations complete.
-- [ ] Decision log up to date.
-- [ ] Required docs updated.
+- [x] Branch-close gate items 1-5 explicitly complete and logged.
+- [x] Prompt scope and acceptance criteria satisfied.
+- [x] Plan milestones complete.
+- [x] Implement runbook validations complete.
+- [x] Decision log up to date.
+- [x] Required docs updated.
