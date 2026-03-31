@@ -73,10 +73,11 @@ const EXPECTED_MOTIVATION_GLYPHS = Object.freeze({
 });
 
 const EXPECTED_VITAL_GLYPHS = Object.freeze({
-  health: "❤",
-  mana: "💧",
-  stamina: "⚡",
-  durability: "🛡️",
+  health: "❤️",
+  mana: "🔷",
+  stamina: "🏃",
+  defence: "🛡️",
+  durability: "⛓️",
 });
 
 test("resolveIconHTML returns intended affinity glyph fallbacks", () => {

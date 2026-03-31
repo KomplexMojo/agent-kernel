@@ -47,10 +47,11 @@ const TEXT_LABELS = Object.freeze({
     strategy_focused: "♟️",
   },
   vitals: {
-    health: "❤",
-    mana: "💧",
-    stamina: "⚡",
-    durability: "🛡️",
+    health: "❤️",
+    mana: "🔷",
+    stamina: "🏃",
+    defence: "🛡️",
+    durability: "⛓️",
   },
   ui: {
     "playing-surface": "◈",
