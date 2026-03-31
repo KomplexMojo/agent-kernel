@@ -124,6 +124,11 @@ function iconForMotivation(motivation) {
   return normalized ? resolveIconHTML(moduleResourceBundle, "motivations", normalized) : "❖";
 }
 
+function iconForVital(vital) {
+  const normalized = typeof vital === "string" ? vital.trim().toLowerCase() : "";
+  return normalized ? resolveIconHTML(moduleResourceBundle, "vitals", normalized) : "◈";
+}
+
 export function setResourceBundle(bundle) {
   moduleResourceBundle = bundle || null;
 }
@@ -2494,7 +2499,8 @@ export function wireDesignGuidance({
             const label = createDomElement(row, "span");
             if (label) {
               label.className = "design-card-vital-label";
-              label.textContent = formatDisplayLabel(key, key);
+              const iconHtml = iconForVital(key);
+              label.innerHTML = `<span class="design-card-vital-icon" aria-hidden="true">${iconHtml}</span><span class="design-card-vital-label-text">${formatDisplayLabel(key, key)}</span>`;
               row.append(label);
             }
 

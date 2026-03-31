@@ -79,34 +79,6 @@
           linear-gradient(135deg, rgba(255, 185, 168, 0.08), rgba(255, 185, 168, 0));
       }
 
-      .shell-meta {
-        display: grid;
-        gap: 8px;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      }
-
-      .shell-meta-item {
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 10px 12px;
-        background: rgba(23, 18, 18, 0.86);
-      }
-
-      .shell-meta-item dt {
-        margin: 0;
-        color: var(--muted);
-        font-family: "Space Grotesk", "Work Sans", sans-serif;
-        font-size: 0.72rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-      }
-
-      .shell-meta-item dd {
-        margin: 6px 0 0;
-        font-size: 0.95rem;
-        font-weight: 600;
-      }
-
       .card {
         background: linear-gradient(162deg, rgba(30, 24, 24, 0.96), rgba(21, 16, 16, 0.98));
         border: 1px solid var(--border);
@@ -226,12 +198,17 @@
         font-size: clamp(1.5rem, 2.2vw, 2rem);
         font-weight: 700;
         letter-spacing: 0.02em;
+        flex-wrap: wrap;
+        row-gap: 6px;
       }
 
-      .design-panel-title p {
-        margin: 0;
-        color: color-mix(in srgb, var(--muted) 90%, var(--text));
-        max-width: 64ch;
+      .design-panel-subtitle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: color-mix(in srgb, var(--muted) 82%, var(--text));
       }
 
       .design-panel-header .controls {
@@ -834,10 +811,6 @@
       @media (max-width: 960px) {
         .tab-bar {
           grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .shell-meta {
-          grid-template-columns: 1fr;
         }
 
         .workspace {
@@ -1661,6 +1634,25 @@
 
       .design-card-vital-label {
         font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .design-card-vital-icon {
+        display: inline-flex;
+        width: 1em;
+        height: 1em;
+      }
+
+      .design-card-vital-icon img {
+        width: 1em;
+        height: 1em;
+        vertical-align: middle;
+      }
+
+      .design-card-vital-label-text {
+        display: inline-block;
       }
 
       .design-card-vital-controls {
@@ -2089,26 +2081,11 @@
     <main>
       <header>
         <p class="shell-kicker">Stitch Shell Rewrite</p>
-        <h1>Iron Crypt Control</h1>
-        <p class="subtitle">Drive Design, Preview, Run, and Diagnostics through one artifact-backed tactical console.</p>
+        <h1>Echoes of Intent</h1>
       </header>
 
       <section class="stack">
         <div class="card shell-navigation">
-          <dl class="shell-meta" aria-label="Workflow summary">
-            <div class="shell-meta-item">
-              <dt>Default Surface</dt>
-              <dd>Design</dd>
-            </div>
-            <div class="shell-meta-item">
-              <dt>Launch Flow</dt>
-              <dd>Preview to Run</dd>
-            </div>
-            <div class="shell-meta-item">
-              <dt>Live Rail</dt>
-              <dd>Diagnostics</dd>
-            </div>
-          </dl>
           <div class="tab-bar" role="tablist" aria-label="Primary workflow tabs">
             <button class="tab-button active" type="button" data-tab="design" role="tab" aria-selected="true">Design</button>
             <button class="tab-button" type="button" data-tab="preview" role="tab" aria-selected="false">Preview</button>
@@ -2168,9 +2145,11 @@
           <div class="card design-surface">
             <div class="design-panel-header">
               <div class="design-panel-title">
-                <p class="shell-kicker">Design Surface</p>
-                <h2><span class="ui-icon" data-icon-category="ui" data-icon-key="card-builder" aria-hidden="true"></span>Card Builder</h2>
-                <p>Tune the draft deck, lock split budgets, and publish canonical BuildSpec output to the shared rails.</p>
+                <h2>
+                  <span class="ui-icon" data-icon-category="ui" data-icon-key="card-builder" aria-hidden="true"></span>
+                  <span>Card Builder</span>
+                  <span class="design-panel-subtitle">Configure the dungeon.</span>
+                </h2>
               </div>
               <div class="controls">
                 <button class="secondary" id="design-load-minted" type="button">Load Minted</button>
