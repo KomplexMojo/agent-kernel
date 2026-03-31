@@ -198,12 +198,17 @@
         font-size: clamp(1.5rem, 2.2vw, 2rem);
         font-weight: 700;
         letter-spacing: 0.02em;
+        flex-wrap: wrap;
+        row-gap: 6px;
       }
 
-      .design-panel-title p {
-        margin: 0;
-        color: color-mix(in srgb, var(--muted) 90%, var(--text));
-        max-width: 64ch;
+      .design-panel-subtitle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: color-mix(in srgb, var(--muted) 82%, var(--text));
       }
 
       .design-panel-header .controls {
@@ -2140,9 +2145,11 @@
           <div class="card design-surface">
             <div class="design-panel-header">
               <div class="design-panel-title">
-                <p class="shell-kicker">Design Surface</p>
-                <h2><span class="ui-icon" data-icon-category="ui" data-icon-key="card-builder" aria-hidden="true"></span>Card Builder</h2>
-                <p>Configure the dungeon.</p>
+                <h2>
+                  <span class="ui-icon" data-icon-category="ui" data-icon-key="card-builder" aria-hidden="true"></span>
+                  <span>Card Builder</span>
+                  <span class="design-panel-subtitle">Configure the dungeon.</span>
+                </h2>
               </div>
               <div class="controls">
                 <button class="secondary" id="design-load-minted" type="button">Load Minted</button>
