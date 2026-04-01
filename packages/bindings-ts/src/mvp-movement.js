@@ -38,6 +38,7 @@ const AFFINITY_EXPRESSION_BY_CODE = Object.freeze({
   1: "push",
   2: "pull",
   3: "emit",
+  4: "draw",
 });
 
 function cloneResolvedEffects(effects) {

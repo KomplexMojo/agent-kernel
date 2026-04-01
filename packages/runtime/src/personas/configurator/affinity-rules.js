@@ -7,6 +7,10 @@ import {
   VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
 import { BEHAVIOR_COMPLEXITY_CLASSES } from "./motivation-rules.js";
+import {
+  normalizeFixedPositionWorldActorCostProfile,
+  normalizeTrapArchetypeRules,
+} from "./cost-model.js";
 
 const OUTCOME_TYPES = Object.freeze([
   "cancel",
@@ -25,6 +29,124 @@ const DEFAULT_AFFINITY_COMPLEXITY_BY_TIER = Object.freeze({
   3: "tactical",
   4: "strategic",
   5: "strategic",
+});
+const INTERACTION_CHANNELS = Object.freeze(["field", "projected"]);
+const INTERACTION_POLARITIES = Object.freeze(["outward", "inward"]);
+const RANGE_SHAPES = Object.freeze(["self", "adjacent", "line", "radius"]);
+const ROOM_AFFINITY_MODES = Object.freeze(["optional", "canonical"]);
+const INTERACTION_EXAMPLE_KINDS = Object.freeze(["ambient", "projected"]);
+const DEFAULT_EXPRESSION_SEMANTICS = Object.freeze({
+  push: Object.freeze({
+    channel: "projected",
+    polarity: "outward",
+    rangeBehavior: Object.freeze({ shape: "line", minTiles: 1, maxTiles: 4 }),
+    oppositeAffinityOutcome: "suppress",
+    vitalPressure: Object.freeze({ health: 1 }),
+  }),
+  pull: Object.freeze({
+    channel: "projected",
+    polarity: "inward",
+    rangeBehavior: Object.freeze({ shape: "line", minTiles: 1, maxTiles: 3 }),
+    oppositeAffinityOutcome: "suppress",
+    vitalPressure: Object.freeze({ health: 1 }),
+  }),
+  emit: Object.freeze({
+    channel: "field",
+    polarity: "outward",
+    rangeBehavior: Object.freeze({ shape: "radius", minTiles: 0, maxTiles: 2 }),
+    oppositeAffinityOutcome: "cancel",
+    vitalPressure: Object.freeze({ health: 1 }),
+  }),
+  draw: Object.freeze({
+    channel: "field",
+    polarity: "inward",
+    rangeBehavior: Object.freeze({ shape: "radius", minTiles: 0, maxTiles: 2 }),
+    oppositeAffinityOutcome: "cancel",
+    vitalPressure: Object.freeze({ mana: 1 }),
+  }),
+});
+const DEFAULT_CLOSE_PROXIMITY_NEGATION = Object.freeze({
+  enabled: true,
+  radiusTiles: 1,
+  appliesToChannels: Object.freeze(["field"]),
+});
+const DEFAULT_INTERACTION_CONTRACT = Object.freeze({
+  expressionSemantics: Object.freeze(cloneJson(DEFAULT_EXPRESSION_SEMANTICS)),
+  closeProximityNegation: Object.freeze(cloneJson(DEFAULT_CLOSE_PROXIMITY_NEGATION)),
+  interactionExamples: Object.freeze([
+    Object.freeze({
+      id: "ambient_fire_vs_water",
+      kind: "ambient",
+      sourceKind: "fire",
+      sourceExpression: "emit",
+      targetKind: "water",
+      targetExpression: "emit",
+      expectedOutcome: "cancel",
+    }),
+    Object.freeze({
+      id: "ambient_light_vs_dark",
+      kind: "ambient",
+      sourceKind: "light",
+      sourceExpression: "emit",
+      targetKind: "dark",
+      targetExpression: "emit",
+      expectedOutcome: "cancel",
+    }),
+    Object.freeze({
+      id: "projected_fire_push_vs_water_pull",
+      kind: "projected",
+      sourceKind: "fire",
+      sourceExpression: "push",
+      targetKind: "water",
+      targetExpression: "pull",
+      expectedOutcome: "suppress",
+    }),
+  ]),
+});
+const DEFAULT_WORLD_ACTOR_COST_MODEL = Object.freeze({
+  roomWideAffinityMode: "optional",
+  fixedPositionNeutralProfile: Object.freeze({
+    id: "neutral_floor_or_barrier_atom",
+    kind: "floor",
+    stationary: true,
+    neutralBaseline: true,
+    tokenCost: 1,
+    vitals: Object.freeze({
+      health: 0,
+      mana: 0,
+      stamina: 0,
+      durability: 0,
+    }),
+    regen: Object.freeze({
+      health: 0,
+      mana: 0,
+      stamina: 0,
+    }),
+  }),
+  stationaryManaPolicy: Object.freeze({
+    poweredEffectRequiresPositiveReserve: true,
+    allowZeroReserveAffinityState: true,
+    regenOptional: true,
+  }),
+  trapArchetype: Object.freeze({
+    roomBounded: true,
+    attackingOnly: true,
+    maxAffinityCount: 1,
+    maxExpressionCount: 1,
+    stacksAllowed: true,
+    manaReserveRequired: true,
+    manaRegenOptional: true,
+    allowedExpressions: Object.freeze([...AFFINITY_EXPRESSIONS]),
+    highInvestmentProfile: Object.freeze({
+      label: "central_decay_focus",
+      tokenCost: 125,
+      kind: "decay",
+      expression: "emit",
+      stacks: 5,
+      manaReserve: 30,
+      manaRegen: 0,
+    }),
+  }),
 });
 
 function isPlainObject(value) {
@@ -319,6 +441,284 @@ function normalizeDrawConversion(input = {}, fieldBase, errors) {
   return Object.keys(output).length > 0 ? output : undefined;
 }
 
+function normalizeRangeBehavior(input = {}, fieldBase, errors, defaults = {}) {
+  if (input === undefined) {
+    return cloneJson(defaults);
+  }
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_range_behavior");
+    return cloneJson(defaults);
+  }
+  const shape = RANGE_SHAPES.includes(input.shape) ? input.shape : defaults.shape;
+  if (input.shape !== undefined && !RANGE_SHAPES.includes(input.shape)) {
+    addError(errors, `${fieldBase}.shape`, "invalid_range_shape");
+  }
+  const minTiles = Number.isInteger(input.minTiles) && input.minTiles >= 0 ? input.minTiles : defaults.minTiles;
+  if (input.minTiles !== undefined && (!Number.isInteger(input.minTiles) || input.minTiles < 0)) {
+    addError(errors, `${fieldBase}.minTiles`, "invalid_non_negative_int");
+  }
+  const maxTiles = Number.isInteger(input.maxTiles) && input.maxTiles >= 0 ? input.maxTiles : defaults.maxTiles;
+  if (input.maxTiles !== undefined && (!Number.isInteger(input.maxTiles) || input.maxTiles < 0)) {
+    addError(errors, `${fieldBase}.maxTiles`, "invalid_non_negative_int");
+  }
+  if (Number.isInteger(minTiles) && Number.isInteger(maxTiles) && maxTiles < minTiles) {
+    addError(errors, `${fieldBase}.maxTiles`, "range_max_below_min");
+  }
+  return {
+    shape,
+    minTiles,
+    maxTiles,
+  };
+}
+
+function normalizeVitalPressure(input = {}, fieldBase, errors, defaults = {}) {
+  if (input === undefined) return cloneJson(defaults);
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_vital_pressure");
+    return cloneJson(defaults);
+  }
+  const vitalPressure = {};
+  VITAL_KEYS.forEach((key) => {
+    const value = input[key];
+    if (value === undefined) {
+      if (defaults[key] !== undefined) {
+        vitalPressure[key] = defaults[key];
+      }
+      return;
+    }
+    if (!isNonNegativeNumber(value)) {
+      addError(errors, `${fieldBase}.${key}`, "invalid_non_negative_number");
+      return;
+    }
+    vitalPressure[key] = value;
+  });
+  return vitalPressure;
+}
+
+function normalizeExpressionSemanticsEntry(input, expression, fieldBase, errors) {
+  const defaults = DEFAULT_EXPRESSION_SEMANTICS[expression] || {};
+  if (input === undefined) {
+    return cloneJson(defaults);
+  }
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_expression_semantics");
+    return cloneJson(defaults);
+  }
+  const channel = INTERACTION_CHANNELS.includes(input.channel)
+    ? input.channel
+    : (input.channel === "spatial" ? "projected" : defaults.channel);
+  if (input.channel !== undefined && !INTERACTION_CHANNELS.includes(input.channel) && input.channel !== "spatial") {
+    addError(errors, `${fieldBase}.channel`, "invalid_channel");
+  }
+  const polarity = INTERACTION_POLARITIES.includes(input.polarity) ? input.polarity : defaults.polarity;
+  if (input.polarity !== undefined && !INTERACTION_POLARITIES.includes(input.polarity)) {
+    addError(errors, `${fieldBase}.polarity`, "invalid_polarity");
+  }
+  const rangeBehavior = normalizeRangeBehavior(
+    input.rangeBehavior,
+    `${fieldBase}.rangeBehavior`,
+    errors,
+    defaults.rangeBehavior || {},
+  );
+  const oppositeAffinityOutcome = OUTCOME_TYPES.includes(input.oppositeAffinityOutcome)
+    ? input.oppositeAffinityOutcome
+    : defaults.oppositeAffinityOutcome;
+  if (input.oppositeAffinityOutcome !== undefined && !OUTCOME_TYPES.includes(input.oppositeAffinityOutcome)) {
+    addError(errors, `${fieldBase}.oppositeAffinityOutcome`, "invalid_outcome");
+  }
+  const vitalPressure = normalizeVitalPressure(
+    input.vitalPressure,
+    `${fieldBase}.vitalPressure`,
+    errors,
+    defaults.vitalPressure || {},
+  );
+  return {
+    channel,
+    polarity,
+    rangeBehavior,
+    oppositeAffinityOutcome,
+    vitalPressure,
+  };
+}
+
+function normalizeExpressionSemanticsMap(input, fieldBase, errors) {
+  const source = input === undefined ? DEFAULT_EXPRESSION_SEMANTICS : input;
+  if (!isPlainObject(source)) {
+    addError(errors, fieldBase, "invalid_expression_semantics_map");
+    return cloneJson(DEFAULT_EXPRESSION_SEMANTICS);
+  }
+  const semantics = {};
+  AFFINITY_EXPRESSIONS.forEach((expression) => {
+    semantics[expression] = normalizeExpressionSemanticsEntry(
+      source[expression],
+      expression,
+      `${fieldBase}.${expression}`,
+      errors,
+    );
+  });
+  return semantics;
+}
+
+function normalizeCloseProximityNegation(input = {}, fieldBase, errors) {
+  if (input === undefined) {
+    return cloneJson(DEFAULT_CLOSE_PROXIMITY_NEGATION);
+  }
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_close_proximity_negation");
+    return cloneJson(DEFAULT_CLOSE_PROXIMITY_NEGATION);
+  }
+  const enabled = input.enabled === undefined ? true : input.enabled === true;
+  const radiusTiles = Number.isInteger(input.radiusTiles) && input.radiusTiles >= 0
+    ? input.radiusTiles
+    : DEFAULT_CLOSE_PROXIMITY_NEGATION.radiusTiles;
+  if (input.radiusTiles !== undefined && (!Number.isInteger(input.radiusTiles) || input.radiusTiles < 0)) {
+    addError(errors, `${fieldBase}.radiusTiles`, "invalid_non_negative_int");
+  }
+  const channelInput = Array.isArray(input.appliesToChannels)
+    ? input.appliesToChannels
+    : DEFAULT_CLOSE_PROXIMITY_NEGATION.appliesToChannels;
+  const appliesToChannels = channelInput
+    .map((entry) => String(entry || "").trim())
+    .filter((entry) => INTERACTION_CHANNELS.includes(entry));
+  if (appliesToChannels.length === 0) {
+    addError(errors, `${fieldBase}.appliesToChannels`, "invalid_channel_list");
+  }
+  return {
+    enabled,
+    radiusTiles,
+    appliesToChannels,
+  };
+}
+
+function normalizeInteractionExample(input = {}, fieldBase, errors) {
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_interaction_example");
+    return null;
+  }
+  const id = isNonEmptyString(input.id) ? input.id.trim() : "";
+  if (!id) {
+    addError(errors, `${fieldBase}.id`, "invalid_id");
+  }
+  const kind = INTERACTION_EXAMPLE_KINDS.includes(input.kind) ? input.kind : "ambient";
+  if (input.kind !== undefined && !INTERACTION_EXAMPLE_KINDS.includes(input.kind)) {
+    addError(errors, `${fieldBase}.kind`, "invalid_example_kind");
+  }
+  if (!AFFINITY_KINDS.includes(input.sourceKind)) {
+    addError(errors, `${fieldBase}.sourceKind`, "invalid_kind");
+  }
+  if (!AFFINITY_KINDS.includes(input.targetKind)) {
+    addError(errors, `${fieldBase}.targetKind`, "invalid_kind");
+  }
+  if (!AFFINITY_EXPRESSIONS.includes(input.sourceExpression)) {
+    addError(errors, `${fieldBase}.sourceExpression`, "invalid_expression");
+  }
+  if (!AFFINITY_EXPRESSIONS.includes(input.targetExpression)) {
+    addError(errors, `${fieldBase}.targetExpression`, "invalid_expression");
+  }
+  if (input.expectedOutcome !== undefined && !OUTCOME_TYPES.includes(input.expectedOutcome)) {
+    addError(errors, `${fieldBase}.expectedOutcome`, "invalid_outcome");
+  }
+  return {
+    id,
+    kind,
+    sourceKind: input.sourceKind,
+    sourceExpression: input.sourceExpression,
+    targetKind: input.targetKind,
+    targetExpression: input.targetExpression,
+    expectedOutcome: input.expectedOutcome,
+  };
+}
+
+function normalizeInteractionContract(input = {}, fieldBase, errors) {
+  if (input === undefined) {
+    return cloneJson(DEFAULT_INTERACTION_CONTRACT);
+  }
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_interaction_contract");
+    return cloneJson(DEFAULT_INTERACTION_CONTRACT);
+  }
+  const expressionSemantics = normalizeExpressionSemanticsMap(
+    input.expressionSemantics,
+    `${fieldBase}.expressionSemantics`,
+    errors,
+  );
+  const closeProximityNegation = normalizeCloseProximityNegation(
+    input.closeProximityNegation,
+    `${fieldBase}.closeProximityNegation`,
+    errors,
+  );
+  const examplesInput = Array.isArray(input.interactionExamples)
+    ? input.interactionExamples
+    : DEFAULT_INTERACTION_CONTRACT.interactionExamples;
+  const interactionExamples = examplesInput
+    .map((entry, index) => normalizeInteractionExample(entry, `${fieldBase}.interactionExamples[${index}]`, errors))
+    .filter(Boolean);
+  return {
+    expressionSemantics,
+    closeProximityNegation,
+    interactionExamples,
+  };
+}
+
+function normalizeStationaryManaPolicy(input = {}, fieldBase, errors) {
+  if (input === undefined) {
+    return cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.stationaryManaPolicy);
+  }
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_stationary_mana_policy");
+    return cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.stationaryManaPolicy);
+  }
+  const poweredEffectRequiresPositiveReserve = input.poweredEffectRequiresPositiveReserve === undefined
+    ? true
+    : input.poweredEffectRequiresPositiveReserve === true;
+  const allowZeroReserveAffinityState = input.allowZeroReserveAffinityState === undefined
+    ? true
+    : input.allowZeroReserveAffinityState === true;
+  const regenOptional = input.regenOptional === undefined ? true : input.regenOptional === true;
+  return {
+    poweredEffectRequiresPositiveReserve,
+    allowZeroReserveAffinityState,
+    regenOptional,
+  };
+}
+
+function normalizeWorldActorCostModel(input = {}, fieldBase, errors) {
+  if (input === undefined) {
+    return cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL);
+  }
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_world_actor_cost_model");
+    return cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL);
+  }
+  const roomWideAffinityMode = ROOM_AFFINITY_MODES.includes(input.roomWideAffinityMode)
+    ? input.roomWideAffinityMode
+    : "optional";
+  if (input.roomWideAffinityMode !== undefined && !ROOM_AFFINITY_MODES.includes(input.roomWideAffinityMode)) {
+    addError(errors, `${fieldBase}.roomWideAffinityMode`, "invalid_room_affinity_mode");
+  }
+  const fixedPositionNeutralProfile = normalizeFixedPositionWorldActorCostProfile(
+    input.fixedPositionNeutralProfile || DEFAULT_WORLD_ACTOR_COST_MODEL.fixedPositionNeutralProfile,
+    errors,
+    `${fieldBase}.fixedPositionNeutralProfile`,
+  );
+  const stationaryManaPolicy = normalizeStationaryManaPolicy(
+    input.stationaryManaPolicy,
+    `${fieldBase}.stationaryManaPolicy`,
+    errors,
+  );
+  const trapArchetype = normalizeTrapArchetypeRules(
+    input.trapArchetype || DEFAULT_WORLD_ACTOR_COST_MODEL.trapArchetype,
+    errors,
+    `${fieldBase}.trapArchetype`,
+  );
+  return {
+    roomWideAffinityMode,
+    fixedPositionNeutralProfile,
+    stationaryManaPolicy,
+    trapArchetype,
+  };
+}
+
 export function normalizeAffinityRulesArtifact(input = {}) {
   const errors = [];
   const warnings = [];
@@ -386,6 +786,16 @@ export function normalizeAffinityRulesArtifact(input = {}) {
       defaultMana: undefined,
       drawConversion: undefined,
     };
+  const interactionContract = normalizeInteractionContract(
+    input.interactionContract,
+    "interactionContract",
+    errors,
+  );
+  const worldActorCostModel = normalizeWorldActorCostModel(
+    input.worldActorCostModel,
+    "worldActorCostModel",
+    errors,
+  );
 
   const ok = errors.length === 0;
   return {
@@ -400,6 +810,8 @@ export function normalizeAffinityRulesArtifact(input = {}) {
       contentHash: input.contentHash,
       rulesetName: input.rulesetName,
       globals,
+      interactionContract,
+      worldActorCostModel,
       affinities,
       interactions,
     } : null,
@@ -429,6 +841,17 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
       overpowerBonusCost: 1,
       drainOnFail: 0,
     }),
+  }),
+  interactionContract: Object.freeze({
+    expressionSemantics: Object.freeze(cloneJson(DEFAULT_EXPRESSION_SEMANTICS)),
+    closeProximityNegation: Object.freeze(cloneJson(DEFAULT_CLOSE_PROXIMITY_NEGATION)),
+    interactionExamples: Object.freeze(cloneJson(DEFAULT_INTERACTION_CONTRACT.interactionExamples)),
+  }),
+  worldActorCostModel: Object.freeze({
+    roomWideAffinityMode: "optional",
+    fixedPositionNeutralProfile: Object.freeze(cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.fixedPositionNeutralProfile)),
+    stationaryManaPolicy: Object.freeze(cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.stationaryManaPolicy)),
+    trapArchetype: Object.freeze(cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.trapArchetype)),
   }),
   affinities: Object.freeze([
     Object.freeze({
@@ -745,6 +1168,10 @@ export function resolveAffinityCastProfile({
   if (context.persistentArea) manaCost += scaling.persistentAreaSurcharge || 0;
   if (context.environmentMutation) manaCost += scaling.environmentMutationSurcharge || 0;
   if (context.overrideAffinity) manaCost += scaling.overrideAffinitySurcharge || 0;
+  const expressionSemantics = resolvedRules?.interactionContract?.expressionSemantics?.[expressionRule.verb] || null;
+  const closeProximityNegation = expressionSemantics?.closeProximityNegation
+    || resolvedRules?.interactionContract?.closeProximityNegation
+    || null;
   return {
     tier,
     expressionId: expressionRule.id,
@@ -755,6 +1182,12 @@ export function resolveAffinityCastProfile({
     complexityClass: tierRule.complexityClass || DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[tier],
     unlockedEffects: tierRule.unlockedEffects || [],
     manaCost: Math.max(0, Math.round(manaCost)),
+    channel: expressionSemantics?.channel,
+    polarity: expressionSemantics?.polarity,
+    rangeBehavior: expressionSemantics?.rangeBehavior ? cloneJson(expressionSemantics.rangeBehavior) : undefined,
+    oppositeAffinityOutcome: expressionSemantics?.oppositeAffinityOutcome,
+    vitalPressure: expressionSemantics?.vitalPressure ? cloneJson(expressionSemantics.vitalPressure) : undefined,
+    closeProximityNegation: closeProximityNegation ? cloneJson(closeProximityNegation) : undefined,
   };
 }
 

@@ -21,7 +21,7 @@ const core = {
   getCurrentTick() { return 0; },
   getTileActorCount() { return 0; },
   getStaticTrapAffinityAt(x, y) { return x === 1 && y === 1 ? 1 : 0; },
-  getStaticTrapExpressionAt() { return 3; },
+  getStaticTrapExpressionAt() { return 4; },
   getStaticTrapStacksAt() { return 2; },
   getStaticTrapManaReserveAt() { return 5; },
 };
@@ -32,7 +32,7 @@ assert.equal(obs.traps.length, 1);
 assert.deepEqual(obs.traps[0].position, { x: 1, y: 1 });
 assert.equal(obs.traps[0].manaReserve, 5);
 assert.deepEqual(obs.traps[0].affinities, [
-  { kind: "fire", expression: "emit", stacks: 2, targetType: "floor" },
+  { kind: "fire", expression: "draw", stacks: 2, targetType: "floor" },
 ]);
 `;
   runEsm(script);
