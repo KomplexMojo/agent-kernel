@@ -15,9 +15,12 @@ export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
   Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
 ]);
 export const MOTIVATION_DISPLAY_GROUPS = Object.freeze([
-  Object.freeze({ id: "mobility", kinds: MOTIVATION_FAMILIES.mobility }),
-  Object.freeze({ id: "posture", kinds: MOTIVATION_FAMILIES.posture }),
-  Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
+  Object.freeze({ id: "mobility_random_stationary", kinds: Object.freeze(["random", "stationary"]) }),
+  Object.freeze({ id: "mobility_exploring_patrolling", kinds: Object.freeze(["exploring", "patrolling"]) }),
+  Object.freeze({ id: "posture_attacking_defending", kinds: Object.freeze(["attacking", "defending"]) }),
+  Object.freeze({ id: "posture_stealthy_friendly", kinds: Object.freeze(["stealthy", "friendly"]) }),
+  Object.freeze({ id: "cognition_reflexive_goal_oriented", kinds: Object.freeze(["reflexive", "goal_oriented"]) }),
+  Object.freeze({ id: "cognition_strategy_focused", kinds: Object.freeze(["strategy_focused"]) }),
 ]);
 export const MOTIVATION_PATTERNS = Object.freeze({
   patrolling: Object.freeze(["loop", "ping_pong", "random_walk"]),

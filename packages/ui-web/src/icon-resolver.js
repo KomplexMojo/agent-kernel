@@ -34,6 +34,7 @@ const TEXT_LABELS = Object.freeze({
     push: "⬆️",
     pull: "⬇️",
     emit: "📡",
+    draw: "🧲",
   },
   motivations: {
     random: "🎲",
@@ -41,6 +42,8 @@ const TEXT_LABELS = Object.freeze({
     exploring: "🧭",
     attacking: "⚔️",
     defending: "🛡️",
+    stealthy: "🥷",
+    friendly: "🤝",
     patrolling: "👣",
     reflexive: "⚡",
     goal_oriented: "🎯",

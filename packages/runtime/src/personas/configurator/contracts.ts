@@ -33,7 +33,7 @@ export interface LevelGenConnectivityInput {
 }
 
 export type TrapAffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
-export type TrapAffinityExpression = "push" | "pull" | "emit";
+export type TrapAffinityExpression = "push" | "pull" | "emit" | "draw";
 export type TrapAffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 
 export interface LevelGenTrapAffinityInput {

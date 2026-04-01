@@ -38,7 +38,7 @@ assert.deepEqual(allocation.policy, { reserveTokens: 100, maxActorSpend: 300 });
 const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
 assert.equal(poolsById.player, 180);
 assert.equal(poolsById.layout, 360);
-assert.equal(poolsById.defenders, 360);
+assert.equal(poolsById.wardens, 360);
 assert.equal(poolsById.loot, 0);
 
 const custom = buildBudgetAllocation({
@@ -49,14 +49,14 @@ const custom = buildBudgetAllocation({
   poolWeights: [
     { id: "player", weight: 0.1 },
     { id: "layout", weight: 0.2 },
-    { id: "defenders", weight: 0.7 },
+    { id: "wardens", weight: 0.7 },
   ],
 });
 assert.equal(custom.ok, true);
 const customPools = Object.fromEntries(custom.allocation.pools.map((pool) => [pool.id, pool.tokens]));
 assert.equal(customPools.player, 95);
 assert.equal(customPools.layout, 190);
-assert.equal(customPools.defenders, 665);
+assert.equal(customPools.wardens, 665);
 `;
 
 test("director budget allocation splits pools deterministically", () => {

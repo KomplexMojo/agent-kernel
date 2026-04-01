@@ -127,6 +127,38 @@
             "persistentAreaSurcharge": 2,
             "environmentMutationSurcharge": 1
           }
+        },
+        {
+          "id": "ember_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "potency": 5
+            }
+          ]
         }
       ]
     },
@@ -233,6 +265,38 @@
           "manaScaling": {
             "persistentAreaSurcharge": 1
           }
+        },
+        {
+          "id": "tide_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "potency": 5
+            }
+          ]
         }
       ]
     },
@@ -321,6 +385,33 @@
               "manaCost": 10
             }
           ]
+        },
+        {
+          "id": "bedrock_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
         }
       ]
     },
@@ -407,6 +498,33 @@
             {
               "tier": 5,
               "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "breeze_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
             }
           ]
         }
@@ -502,6 +620,38 @@
               "manaCost": 10
             }
           ]
+        },
+        {
+          "id": "vitality_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 0,
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 1,
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 2,
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 3,
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 4,
+              "potency": 5
+            }
+          ]
         }
       ]
     },
@@ -588,6 +738,33 @@
             {
               "tier": 5,
               "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "wither_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
             }
           ]
         }
@@ -678,6 +855,33 @@
               "manaCost": 10
             }
           ]
+        },
+        {
+          "id": "rust_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
         }
       ]
     },
@@ -764,6 +968,33 @@
             {
               "tier": 5,
               "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "bulwark_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
             }
           ]
         }
@@ -854,6 +1085,33 @@
               "manaCost": 10
             }
           ]
+        },
+        {
+          "id": "radiance_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
+            }
+          ]
         }
       ]
     },
@@ -940,6 +1198,33 @@
             {
               "tier": 5,
               "manaCost": 10
+            }
+          ]
+        },
+        {
+          "id": "shadow_siphon",
+          "verb": "draw",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 5
             }
           ]
         }

@@ -654,7 +654,7 @@ export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
 export const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
 
 export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
-export type AffinityExpression = "push" | "pull" | "emit";
+export type AffinityExpression = "push" | "pull" | "emit" | "draw";
 export type AffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 export type AffinityStackScaling = "linear" | "multiplier";
 export type AffinityAbilityKind = "attack" | "buff" | "area";

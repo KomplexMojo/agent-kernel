@@ -8,7 +8,7 @@
     "producedBy": "allocator"
   },
   "budgetRef": {
-    "id": "budget_artifact_basic",
+    "id": "budget_basic",
     "schema": "agent-kernel/BudgetArtifact",
     "schemaVersion": 1
   },

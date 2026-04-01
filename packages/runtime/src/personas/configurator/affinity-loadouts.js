@@ -230,6 +230,11 @@ export function normalizeAffinityPresetCatalog(input = {}) {
         addError(errors, `${base}.effects.area`, "missing_area_effect");
       }
     }
+    if (preset.expression === "draw") {
+      if (!preset.vitalsModifiers?.mana) {
+        addError(errors, `${base}.vitalsModifiers.mana`, "missing_mana_modifier");
+      }
+    }
 
     presets.push({
       id: preset.id,

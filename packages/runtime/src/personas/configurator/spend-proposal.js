@@ -28,6 +28,7 @@ const AFFINITY_EXPRESSION_IDS = Object.freeze({
   push: "affinity_expression_externalize",
   pull: "affinity_expression_internalize",
   emit: "affinity_expression_localized",
+  draw: "affinity_expression_sustain",
 });
 const VITAL_POINT_IDS = Object.freeze({
   health: "vital_health_point",

@@ -32,13 +32,13 @@
       },
       "vitals": {
         "health": {
-          "current": 10,
+          "current": 11,
           "max": 12,
           "regen": 0
         },
         "mana": {
           "current": 0,
-          "max": 0,
+          "max": 2,
           "regen": 0
         },
         "stamina": {
@@ -120,7 +120,7 @@
       },
       "vitals": {
         "health": {
-          "current": 6,
+          "current": 5,
           "max": 6,
           "regen": 0
         },

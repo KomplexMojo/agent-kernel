@@ -409,8 +409,8 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   });
   assert.ok(fireWaterGroup);
   const motivationExclusiveGroups = elements["#design-property-group-motivations"].querySelectorAll('[data-exclusive="true"]');
-  assert.ok(motivationExclusiveGroups.length >= 3);
-  const postureGroup = elements["#design-property-group-motivations"].querySelector('[data-property-group-id="posture"]');
+  assert.ok(motivationExclusiveGroups.length >= 5);
+  const postureGroup = elements["#design-property-group-motivations"].querySelector('[data-property-group-id="posture_attacking_defending"]');
   assert.ok(postureGroup);
   const postureNote = postureGroup.querySelector(".design-property-chip-group-note");
   assert.ok(postureNote);

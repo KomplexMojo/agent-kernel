@@ -78,7 +78,7 @@ function usage() {
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | --prompt text --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
 
@@ -113,8 +113,11 @@ Options:
   --dungeon-affinity Dungeon affinity for room/delver/warden summary defaults
   --budget-tokens Budget token hint (llm-plan prompt-only, optional for room-plan/delver-plan/warden-plan)
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...
+                    where <expression> is push|pull (spatial) or emit|draw (field)
   --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]
+                    where <expression> is push|pull (spatial) or emit|draw (field)
   --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]
+                    where <expression> is push|pull (spatial) or emit|draw (field)
   --prompt        Prompt override (llm-plan)
   --budget-loop   Enable budget loop (layout then actors)
   --budget-pool   Budget pool weight entry (repeatable): id=weight (e.g., player=0.2)

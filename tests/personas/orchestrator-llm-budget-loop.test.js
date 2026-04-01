@@ -45,6 +45,7 @@ const responses = [
       remainingBudgetTokens: 100,
       actors: [{ motivation: "patrolling", affinity: "wind", count: 1, vitals: ambulatoryVitals }],
       missing: [],
+      stop: "done",
     }),
     done: true,
   },
@@ -65,11 +66,12 @@ const result = await runLlmBudgetLoop({
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 0.7 },
-    { id: "defenders", weight: 0.3 },
+    { id: "wardens", weight: 0.3 },
     { id: "loot", weight: 0 },
   ],
   runId: "run_budget_loop",
   clock: () => "2025-01-01T00:00:00Z",
+  maxActorRounds: 1,
 });
 
 assert.equal(result.ok, true);
@@ -79,8 +81,8 @@ assert.equal(result.summary.roomDesign.rooms.length, 2);
 assert.equal(result.summary.roomDesign.connections.length, 1);
 assert.equal(result.summary.roomDesign.hallways, "Single spine hallway.");
 assert.equal(result.summary.actors.length, 1);
-assert.equal(result.remainingBudgetTokens, 68);
-assert.equal(result.stopReason, "no_viable_spend");
+assert.equal(result.remainingBudgetTokens, 118);
+assert.equal(result.stopReason, null);
 assert.ok(result.trace[0].startedAt);
 assert.ok(result.trace[0].endedAt);
 assert.equal(typeof result.trace[0].durationMs, "number");
@@ -138,7 +140,7 @@ const result = await runLlmBudgetLoop({
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 0.5 },
-    { id: "defenders", weight: 0.5 },
+    { id: "wardens", weight: 0.5 },
     { id: "loot", weight: 0 },
   ],
   runId: "run_budget_loop_tiles",
@@ -146,9 +148,9 @@ const result = await runLlmBudgetLoop({
 });
 
 assert.equal(result.ok, true);
-assert.equal(result.trace[0].spentTokens, 6);
-assert.equal(result.trace[0].remainingBudgetTokens, 94);
-assert.equal(result.remainingBudgetTokens, 94);
+assert.equal(result.trace[0].spentTokens, 3);
+assert.equal(result.trace[0].remainingBudgetTokens, 97);
+assert.equal(result.remainingBudgetTokens, 97);
 `;
 
 test("orchestrator budget loop applies tile price list costs", () => {
@@ -204,7 +206,7 @@ const result = await runLlmBudgetLoop({
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 0.7 },
-    { id: "defenders", weight: 0.3 },
+    { id: "wardens", weight: 0.3 },
     { id: "loot", weight: 0 },
   ],
   runId: "run_budget_loop_phi4_options",
@@ -272,7 +274,7 @@ const result = await runLlmBudgetLoop({
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 0.3 },
-    { id: "defenders", weight: 0.7 },
+    { id: "wardens", weight: 0.7 },
     { id: "loot", weight: 0 },
   ],
   runId: "run_budget_loop_autofit",
@@ -340,7 +342,7 @@ const result = await runLlmBudgetLoop({
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 0.7 },
-    { id: "defenders", weight: 0.3 },
+    { id: "wardens", weight: 0.3 },
     { id: "loot", weight: 0 },
   ],
   runId: "run_budget_loop_unmatched_actor_pair",
@@ -395,7 +397,7 @@ const result = await runLlmBudgetLoop({
   poolWeights: [
     { id: "player", weight: 0 },
     { id: "layout", weight: 1 },
-    { id: "defenders", weight: 0 },
+    { id: "wardens", weight: 0 },
     { id: "loot", weight: 0 },
   ],
   runId: "run_budget_loop_layout_feasibility_autofit",

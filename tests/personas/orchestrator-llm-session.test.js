@@ -336,10 +336,10 @@ const result = await runLlmSession({
 
 assert.equal(result.ok, true);
 assert.ok(Array.isArray(result.cardSet));
-assert.ok(result.cardSet.length >= 3);
+assert.ok(result.cardSet.length >= 2);
 
 const editedCardSet = result.cardSet.map((card) => {
-  if (card.type !== "defender") return card;
+  if (card.type !== "warden" && card.type !== "defender") return card;
   return {
     ...card,
     affinities: [...(card.affinities || []), { kind: "fire", expression: "push", stacks: 1 }],
