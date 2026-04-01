@@ -9,6 +9,7 @@ const EXPRESSION_PROFILES = Object.freeze({
   push: Object.freeze({ channel: "spatial", polarity: "outward" }),
   pull: Object.freeze({ channel: "spatial", polarity: "inward" }),
   emit: Object.freeze({ channel: "field", polarity: "outward" }),
+  draw: Object.freeze({ channel: "field", polarity: "inward" }),
 });
 
 function normalizeAffinityExpression(rawExpression, fallback = DEFAULT_AFFINITY_EXPRESSION) {

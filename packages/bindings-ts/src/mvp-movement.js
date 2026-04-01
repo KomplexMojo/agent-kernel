@@ -189,6 +189,31 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
   function readActorVitals({ current, max, regen }) {
     return { current, max, regen };
   }
+  function readPrimaryActorVital(kindIndex) {
+    return readActorVitals({
+      current: core.getActorVitalCurrent(kindIndex),
+      max: core.getActorVitalMax(kindIndex),
+      regen: core.getActorVitalRegen(kindIndex),
+    });
+  }
+  function readMotivatedActorVital(index, kindIndex) {
+    const vital = readActorVitals({
+      current: core.getMotivatedActorVitalCurrentByIndex(index, kindIndex),
+      max: core.getMotivatedActorVitalMaxByIndex(index, kindIndex),
+      regen: core.getMotivatedActorVitalRegenByIndex(index, kindIndex),
+    });
+    if (
+      index === 0
+      && vital.current === 0
+      && vital.max === 0
+      && typeof core.getActorVitalCurrent === "function"
+      && typeof core.getActorVitalMax === "function"
+      && typeof core.getActorVitalRegen === "function"
+    ) {
+      return readPrimaryActorVital(kindIndex);
+    }
+    return vital;
+  }
   function readActorCapabilities(index) {
     if (typeof index === "number" && typeof core.getMotivatedActorMovementCostByIndex === "function") {
       return {
@@ -257,26 +282,10 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
           y: core.getMotivatedActorYByIndex(index),
         },
         vitals: {
-          health: readActorVitals({
-            current: core.getMotivatedActorVitalCurrentByIndex(index, 0),
-            max: core.getMotivatedActorVitalMaxByIndex(index, 0),
-            regen: core.getMotivatedActorVitalRegenByIndex(index, 0),
-          }),
-          mana: readActorVitals({
-            current: core.getMotivatedActorVitalCurrentByIndex(index, 1),
-            max: core.getMotivatedActorVitalMaxByIndex(index, 1),
-            regen: core.getMotivatedActorVitalRegenByIndex(index, 1),
-          }),
-          stamina: readActorVitals({
-            current: core.getMotivatedActorVitalCurrentByIndex(index, 2),
-            max: core.getMotivatedActorVitalMaxByIndex(index, 2),
-            regen: core.getMotivatedActorVitalRegenByIndex(index, 2),
-          }),
-          durability: readActorVitals({
-            current: core.getMotivatedActorVitalCurrentByIndex(index, 3),
-            max: core.getMotivatedActorVitalMaxByIndex(index, 3),
-            regen: core.getMotivatedActorVitalRegenByIndex(index, 3),
-          }),
+          health: readMotivatedActorVital(index, 0),
+          mana: readMotivatedActorVital(index, 1),
+          stamina: readMotivatedActorVital(index, 2),
+          durability: readMotivatedActorVital(index, 3),
         },
         affinities,
         abilities,
@@ -298,26 +307,10 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
         kind: core.getActorKind(),
         position: { x: core.getActorX(), y: core.getActorY() },
         vitals: {
-          health: readActorVitals({
-            current: core.getActorVitalCurrent(0),
-            max: core.getActorVitalMax(0),
-            regen: core.getActorVitalRegen(0),
-          }),
-          mana: readActorVitals({
-            current: core.getActorVitalCurrent(1),
-            max: core.getActorVitalMax(1),
-            regen: core.getActorVitalRegen(1),
-          }),
-          stamina: readActorVitals({
-            current: core.getActorVitalCurrent(2),
-            max: core.getActorVitalMax(2),
-            regen: core.getActorVitalRegen(2),
-          }),
-          durability: readActorVitals({
-            current: core.getActorVitalCurrent(3),
-            max: core.getActorVitalMax(3),
-            regen: core.getActorVitalRegen(3),
-          }),
+          health: readPrimaryActorVital(0),
+          mana: readPrimaryActorVital(1),
+          stamina: readPrimaryActorVital(2),
+          durability: readPrimaryActorVital(3),
         },
         affinities,
         abilities,

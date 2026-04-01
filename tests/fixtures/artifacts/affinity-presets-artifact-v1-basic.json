@@ -23,6 +23,13 @@
           "potency": 2
         }
       },
+      "vitalsModifiers": {
+        "mana": {
+          "current": 0,
+          "max": 1,
+          "regen": 0
+        }
+      },
       "abilities": [
         {
           "id": "fire_bolt",
@@ -52,7 +59,7 @@
       },
       "vitalsModifiers": {
         "health": {
-          "current": 0,
+          "current": 1,
           "max": 2,
           "regen": 0
         }
@@ -84,6 +91,13 @@
           "potency": 1
         }
       },
+      "vitalsModifiers": {
+        "mana": {
+          "current": 0,
+          "max": 1,
+          "regen": 0
+        }
+      },
       "abilities": [
         {
           "id": "water_draw",
@@ -109,6 +123,13 @@
         "area": {
           "id": "decay_field",
           "potency": 1
+        }
+      },
+      "vitalsModifiers": {
+        "health": {
+          "current": -1,
+          "max": 0,
+          "regen": 0
         }
       },
       "abilities": [

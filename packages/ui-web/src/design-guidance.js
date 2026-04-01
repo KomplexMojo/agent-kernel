@@ -94,6 +94,11 @@ const AFFINITY_DISPLAY_GROUPS = Object.freeze(
   })(),
 );
 
+const EXPRESSION_DISPLAY_GROUPS = Object.freeze([
+  Object.freeze({ id: "spatial", kinds: Object.freeze(["push", "pull"]) }),
+  Object.freeze({ id: "field", kinds: Object.freeze(["emit", "draw"]) }),
+]);
+
 function formatDisplayLabel(value, fallback = "") {
   if (typeof value !== "string" || !value.trim()) return fallback;
   return value
@@ -1479,10 +1484,14 @@ function buildPropertyCatalog() {
         .map((value) => affinityOptionMap.get(value))
         .filter(Boolean),
     })),
-    expressions: AFFINITY_EXPRESSIONS.map((value) => ({
-      value,
-      label: formatDisplayLabel(value, value),
-      icon: iconForExpression(value),
+    expressions: EXPRESSION_DISPLAY_GROUPS.map((group) => ({
+      id: group.id,
+      kinds: group.kinds.slice(),
+      options: group.kinds.map((value) => ({
+        value,
+        label: formatDisplayLabel(value, value),
+        icon: iconForExpression(value),
+      })),
     })),
     motivations: MOTIVATION_DISPLAY_GROUPS.map((group) => ({
       id: group.id,
@@ -2868,7 +2877,7 @@ export function wireDesignGuidance({
     const catalog = buildPropertyCatalog();
     renderPropertyChips(leftRailType, "type", catalog.type);
     renderPropertyChipPairs(leftRailAffinities, "affinities", catalog.affinities);
-    renderPropertyChips(leftRailExpressions, "expressions", catalog.expressions);
+    renderPropertyChipPairs(leftRailExpressions, "expressions", catalog.expressions);
     renderMotivationPairChips(leftRailMotivations, catalog.motivations);
   }
 

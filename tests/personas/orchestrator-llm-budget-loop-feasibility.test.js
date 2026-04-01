@@ -152,7 +152,7 @@ for (const totalBudgetTokens of totalBudgets) {
     poolWeights: [
       { id: "player", weight: 20 },
       { id: "layout", weight: 55 },
-      { id: "defenders", weight: 25 },
+      { id: "wardens", weight: 25 },
       { id: "loot", weight: 0 },
     ],
     runId: "run_budget_loop_walkability_sweep_" + totalBudgetTokens,
@@ -214,7 +214,7 @@ const result = await runLlmBudgetLoop({
   poolWeights: [
     { id: "player", weight: 20 },
     { id: "layout", weight: 55 },
-    { id: "defenders", weight: 25 },
+    { id: "wardens", weight: 25 },
     { id: "loot", weight: 0 },
   ],
   runId: "run_budget_loop_billion_budget",
@@ -224,7 +224,7 @@ const result = await runLlmBudgetLoop({
 
 assert.equal(result.ok, true);
 assert.equal(result.poolBudgets.layout, 550000000);
-assert.equal(result.poolBudgets.defenders, 250000000);
+assert.equal(result.poolBudgets.wardens, 250000000);
 assert.equal(result.poolBudgets.player, 200000000);
 assert.equal((result.summary?.layout?.floorTiles || 0) + (result.summary?.layout?.hallwayTiles || 0), 1500);
 `;
@@ -272,7 +272,7 @@ const result = await runLlmBudgetLoop({
   poolWeights: [
     { id: "player", weight: 20 },
     { id: "layout", weight: 55 },
-    { id: "defenders", weight: 25 },
+    { id: "wardens", weight: 25 },
     { id: "loot", weight: 0 },
   ],
   runId: "run_budget_loop_large_layout_fast_path",

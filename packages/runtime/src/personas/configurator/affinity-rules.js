@@ -476,6 +476,18 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
             environmentMutationSurcharge: 1,
           }),
         }),
+        Object.freeze({
+          id: "ember_siphon",
+          verb: "draw",
+          defaultTargetType: "self",
+          stackTiers: Object.freeze([
+            Object.freeze({ tier: 1, manaCost: 1, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 2, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 3, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 4, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 5, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+          ]),
+        }),
       ]),
     }),
     Object.freeze({
@@ -522,6 +534,18 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
             persistentAreaSurcharge: 1,
           }),
         }),
+        Object.freeze({
+          id: "tide_siphon",
+          verb: "draw",
+          defaultTargetType: "self",
+          stackTiers: Object.freeze([
+            Object.freeze({ tier: 1, manaCost: 1, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 2, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 3, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 4, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 5, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+          ]),
+        }),
       ]),
     }),
     ...["earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark"].map((kind) => {
@@ -556,9 +580,20 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
         light: "radiant_field",
         dark: "umbral_field",
       }[kind];
+      const drawId = {
+        earth: "bedrock_siphon",
+        wind: "breeze_siphon",
+        life: "vitality_siphon",
+        decay: "wither_siphon",
+        corrode: "rust_siphon",
+        fortify: "bulwark_siphon",
+        light: "radiance_siphon",
+        dark: "shadow_siphon",
+      }[kind];
       const pushCosts = kind === "earth" ? [3, 5, 7, 9, 11] : [2, 4, 6, 8, 10];
       const pullCosts = kind === "life" ? [0, 1, 2, 3, 4] : [1, 2, 3, 4, 5];
       const emitCosts = [2, 4, 6, 8, 10];
+      const drawCosts = kind === "life" ? [0, 1, 2, 3, 4] : [1, 2, 3, 4, 5];
       const potencyByTier = kind === "life" ? [1, 2, 3, 4, 5] : null;
       return Object.freeze({
         kind,
@@ -604,6 +639,24 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
               defaultDesignCostTokens: 4 * Math.pow(index + 1, 2),
               complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[index + 1],
             }))),
+          }),
+          Object.freeze({
+            id: drawId,
+            verb: "draw",
+            defaultTargetType: "self",
+            stackTiers: Object.freeze(drawCosts.map((manaCost, index) => {
+              const tier = index + 1;
+              const base = {
+                tier,
+                manaCost,
+                defaultDesignCostTokens: 4 * Math.pow(tier, 2),
+                complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[tier],
+              };
+              if (Array.isArray(potencyByTier)) {
+                base.potency = potencyByTier[index];
+              }
+              return Object.freeze(base);
+            })),
           }),
         ]),
       });

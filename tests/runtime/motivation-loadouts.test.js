@@ -51,7 +51,7 @@ test("normalizeMotivations rejects contradictory motivations from the same exclu
     normalizeMotivations,
   } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
 
-  const postureGroup = MOTIVATION_DISPLAY_GROUPS.find((group) => group.id === "posture");
+  const postureGroup = MOTIVATION_DISPLAY_GROUPS.find((group) => group.id === "posture_attacking_defending");
   assert.ok(postureGroup);
   assert.ok(postureGroup.kinds.includes("attacking"));
   assert.ok(postureGroup.kinds.includes("defending"));

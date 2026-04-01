@@ -58,6 +58,7 @@ const EXPECTED_EXPRESSION_GLYPHS = Object.freeze({
   push: "⬆️",
   pull: "⬇️",
   emit: "📡",
+  draw: "🧲",
 });
 
 const EXPECTED_MOTIVATION_GLYPHS = Object.freeze({
@@ -66,6 +67,8 @@ const EXPECTED_MOTIVATION_GLYPHS = Object.freeze({
   exploring: "🧭",
   attacking: "⚔️",
   defending: "🛡️",
+  stealthy: "🥷",
+  friendly: "🤝",
   patrolling: "👣",
   reflexive: "⚡",
   goal_oriented: "🎯",

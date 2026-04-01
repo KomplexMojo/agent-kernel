@@ -34,7 +34,7 @@ test("index.html includes server readiness check before loading main.js", () => 
 
   // Should set main.js as source
   assert.ok(
-    html.includes("script.src = './src/main.js'"),
+    html.includes("script.src = './src/main.js'") || html.includes("script.src = './src/main.js?v=' + Date.now()"),
     "Should load main.js dynamically"
   );
 

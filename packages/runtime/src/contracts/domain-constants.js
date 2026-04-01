@@ -11,7 +11,7 @@ export const AFFINITY_KINDS = Object.freeze([
   "dark",
 ]);
 
-export const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit"]);
+export const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit", "draw"]);
 export const AFFINITY_TARGET_TYPES = Object.freeze(["self", "ally", "enemy", "area", "barrier", "floor"]);
 export const DEFAULT_DUNGEON_AFFINITY = AFFINITY_KINDS[0];
 export const DEFAULT_AFFINITY_EXPRESSION = AFFINITY_EXPRESSIONS[0];
@@ -25,8 +25,47 @@ export const DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION = Object.freeze({
   push: "enemy",
   pull: "self",
   emit: "area",
+  draw: "self",
 });
 export const DEFAULT_AFFINITY_TARGET_TYPE = DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION[DEFAULT_AFFINITY_EXPRESSION];
+export const AFFINITY_EXPRESSION_PROFILES = Object.freeze({
+  push: Object.freeze({
+    id: "push",
+    tacticalRole: "burst",
+    channel: "spatial",
+    polarity: "outward",
+    vitalOperation: "apply_vital_affinity",
+    allowsEnvironmentMutation: true,
+    allowsTrapArming: true,
+  }),
+  pull: Object.freeze({
+    id: "pull",
+    tacticalRole: "control",
+    channel: "spatial",
+    polarity: "inward",
+    vitalOperation: "apply_vital_affinity",
+    allowsEnvironmentMutation: true,
+    allowsTrapArming: true,
+  }),
+  emit: Object.freeze({
+    id: "emit",
+    tacticalRole: "presence",
+    channel: "field",
+    polarity: "outward",
+    vitalOperation: "apply_vital_affinity",
+    allowsEnvironmentMutation: true,
+    allowsTrapArming: true,
+  }),
+  draw: Object.freeze({
+    id: "draw",
+    tacticalRole: "sustain",
+    channel: "field",
+    polarity: "inward",
+    vitalOperation: "draw_vital_affinity",
+    allowsEnvironmentMutation: false,
+    allowsTrapArming: false,
+  }),
+});
 export const AFFINITY_OPPOSITES = Object.freeze({
   fire: "water",
   water: "fire",
@@ -87,6 +126,18 @@ export const AFFINITY_KIND_SET = new Set(AFFINITY_KINDS);
 export const AFFINITY_EXPRESSION_SET = new Set(AFFINITY_EXPRESSIONS);
 export const AFFINITY_TARGET_TYPE_SET = new Set(AFFINITY_TARGET_TYPES);
 export const DELVER_SETUP_MODE_SET = new Set(DELVER_SETUP_MODES);
+
+export function normalizeAffinityExpression(rawExpression, fallback = DEFAULT_AFFINITY_EXPRESSION) {
+  if (AFFINITY_EXPRESSION_SET.has(rawExpression)) {
+    return rawExpression;
+  }
+  return fallback;
+}
+
+export function resolveAffinityExpressionProfile(rawExpression, fallback = DEFAULT_AFFINITY_EXPRESSION) {
+  const expression = normalizeAffinityExpression(rawExpression, fallback);
+  return AFFINITY_EXPRESSION_PROFILES[expression] || AFFINITY_EXPRESSION_PROFILES[fallback];
+}
 export const DOMAIN_CONSTRAINTS = Object.freeze({
   llm: Object.freeze({
     model: DEFAULT_LLM_MODEL,

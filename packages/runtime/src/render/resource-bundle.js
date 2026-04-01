@@ -676,6 +676,11 @@ function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
       drawLine(pixels, size, 26, 24, 18, 24, PALETTE.white);
       drawLine(pixels, size, 18, 24, 22, 20, PALETTE.white);
       drawLine(pixels, size, 18, 24, 22, 28, PALETTE.white);
+    } else if (expression === "draw") {
+      drawLine(pixels, size, 24, 30, 24, 18, PALETTE.white);
+      drawLine(pixels, size, 24, 18, 20, 22, PALETTE.white);
+      drawLine(pixels, size, 24, 18, 28, 22, PALETTE.white);
+      drawCircle(pixels, size, 24, 30, 3, PALETTE.white);
     } else {
       drawLine(pixels, size, 18, 24, 26, 24, PALETTE.white);
       drawLine(pixels, size, 26, 24, 22, 20, PALETTE.white);

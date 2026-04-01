@@ -98,6 +98,22 @@ test("same affinity supports multiple expression combos", () => {
   assert.ok(fireCombos.some((entry) => entry.expression === "emit" && entry.stacks === 1));
 });
 
+test("draw expression is valid for delver and warden affinities", () => {
+  const delver = createDesignCard({
+    type: "delver",
+    affinity: "water",
+    affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
+    motivations: ["attacking"],
+  });
+
+  const withDraw = dropPropertyOnCard(delver, { group: "expressions", value: "draw" });
+  assert.equal(withDraw.ok, true);
+  assert.equal(withDraw.reason, "expression_added");
+  const waterCombos = withDraw.card.affinities.filter((entry) => entry.kind === "water");
+  assert.ok(waterCombos.some((entry) => entry.expression === "emit" && entry.stacks === 1));
+  assert.ok(waterCombos.some((entry) => entry.expression === "draw" && entry.stacks === 1));
+});
+
 test("motivation toggles support removing and re-adding motivations", () => {
   const delver = createDesignCard({
     type: "delver",

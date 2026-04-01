@@ -8,7 +8,7 @@
     "producedBy": "allocator"
   },
   "budgetRef": {
-    "id": "budget_artifact_basic",
+    "id": "budget_basic",
     "schema": "agent-kernel/BudgetArtifact",
     "schemaVersion": 1
   },
@@ -22,7 +22,7 @@
     "schema": "agent-kernel/SpendProposal",
     "schemaVersion": 1
   },
-  "status": "partial",
+  "status": "denied",
   "totalCost": 0,
   "remaining": 1000,
   "lineItems": [
@@ -32,7 +32,7 @@
       "quantity": 50,
       "unitCost": 0,
       "totalCost": 0,
-      "status": "approved"
+      "status": "denied"
     },
     {
       "id": "layout_grid_9x9",

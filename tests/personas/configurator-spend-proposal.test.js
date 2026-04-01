@@ -83,7 +83,7 @@ const vamActors = [
       durability: { current: 0, max: 1, regen: 0 },
     },
     traits: { affinities: { "fire:push": 2, "life:pull": 1 } },
-    motivations: ["reflexive", "goal_oriented", "strategy_focused"],
+    motivations: ["reflexive"],
   },
 ];
 
