@@ -24,6 +24,12 @@ const core = {
   getStaticTrapExpressionAt() { return 4; },
   getStaticTrapStacksAt() { return 2; },
   getStaticTrapManaReserveAt() { return 5; },
+  getAmbientOutcomeCode() { return 3; },
+  getAmbientOutcomeAffinityKind() { return 2; },
+  getAmbientOutcomeExpression() { return 4; },
+  getAmbientOutcomePower() { return 2; },
+  getAmbientOutcomeTargetVital() { return 1; },
+  getAmbientOutcomeDelta() { return 2; },
 };
 
 const obs = readObservation(core, { actorIdLabel: "actor_mvp" });
@@ -34,6 +40,14 @@ assert.equal(obs.traps[0].manaReserve, 5);
 assert.deepEqual(obs.traps[0].affinities, [
   { kind: "fire", expression: "draw", stacks: 2, targetType: "floor" },
 ]);
+assert.deepEqual(obs.ambientField, {
+  outcome: "draw",
+  affinityKind: "water",
+  expression: "draw",
+  targetVital: "mana",
+  power: 2,
+  delta: 2,
+});
 `;
   runEsm(script);
 });

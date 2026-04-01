@@ -15,6 +15,7 @@ import {
   pushActorMoved,
   pushActorBlocked,
   pushDurabilityChanged,
+  pushAmbientResolved,
 } from "./ports/effects";
 import { chargeBudget, getBudgetCap, resetBudgets, setBudgetCap, getBudgetSpent } from "./state/budget";
 import { getCounterValue, incrementCounter, resetCounter } from "./state/counter";
@@ -66,6 +67,12 @@ import {
   getStaticTrapExpressionAt as getStaticTrapExpressionAtState,
   getStaticTrapStacksAt as getStaticTrapStacksAtState,
   getStaticTrapManaReserveAt as getStaticTrapManaReserveAtState,
+  getAmbientOutcomeCode as getAmbientOutcomeCodeState,
+  getAmbientOutcomeAffinityKind as getAmbientOutcomeAffinityKindState,
+  getAmbientOutcomeExpression as getAmbientOutcomeExpressionState,
+  getAmbientOutcomePower as getAmbientOutcomePowerState,
+  getAmbientOutcomeTargetVital as getAmbientOutcomeTargetVitalState,
+  getAmbientOutcomeDelta as getAmbientOutcomeDeltaState,
   setSpawnPosition as setSpawnPositionState,
   clearActorPlacements as clearActorPlacementsState,
   addActorPlacement as addActorPlacementState,
@@ -102,6 +109,10 @@ const DEFAULT_BUDGET_CATEGORY: i32 = 0;
 const EFFECT_BUDGET_CATEGORY: i32 = 1;
 const REQUEST_DETAIL_MASK: i32 = 0xff;
 const DURABILITY_DAMAGE: i32 = 1;
+
+function encodeAmbientResolutionValue(outcomeCode: i32, affinityKind: i32, expression: i32, power: i32): i32 {
+  return (outcomeCode << 24) | (power << 16) | (affinityKind << 8) | expression;
+}
 
 function encodeRequestPayload(seq: i32, detail: i32): i32 {
   return (seq << 8) | (detail & REQUEST_DETAIL_MASK);
@@ -155,6 +166,23 @@ export function applyAction(kind: i32, value: i32): void {
       return;
     }
     pushActorMoved(move.actorId, move.toX, move.toY);
+    const ambientOutcomeCode = getAmbientOutcomeCodeState();
+    if (ambientOutcomeCode > 0) {
+      const ambientValue = encodeAmbientResolutionValue(
+        ambientOutcomeCode,
+        getAmbientOutcomeAffinityKindState(),
+        getAmbientOutcomeExpressionState(),
+        getAmbientOutcomePowerState(),
+      );
+      pushAmbientResolved(
+        move.actorId,
+        move.toX,
+        move.toY,
+        ambientValue,
+        getAmbientOutcomeTargetVitalState(),
+        getAmbientOutcomeDeltaState(),
+      );
+    }
     if (reachedExitAfterMove()) {
       pushEffect(EffectKind.LimitReached, move.tick);
     }
@@ -448,6 +476,30 @@ export function getStaticTrapStacksAt(x: i32, y: i32): i32 {
 
 export function getStaticTrapManaReserveAt(x: i32, y: i32): i32 {
   return getStaticTrapManaReserveAtState(x, y);
+}
+
+export function getAmbientOutcomeCode(): i32 {
+  return getAmbientOutcomeCodeState();
+}
+
+export function getAmbientOutcomeAffinityKind(): i32 {
+  return getAmbientOutcomeAffinityKindState();
+}
+
+export function getAmbientOutcomeExpression(): i32 {
+  return getAmbientOutcomeExpressionState();
+}
+
+export function getAmbientOutcomePower(): i32 {
+  return getAmbientOutcomePowerState();
+}
+
+export function getAmbientOutcomeTargetVital(): i32 {
+  return getAmbientOutcomeTargetVitalState();
+}
+
+export function getAmbientOutcomeDelta(): i32 {
+  return getAmbientOutcomeDeltaState();
 }
 
 export function getCurrentTick(): i32 {
