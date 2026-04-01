@@ -53,9 +53,42 @@ test("cli build runs configurator inputs without executing core", () => {
   const result = runCli(["build", "--spec", CONFIG_SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(join(outDir, "affinity-rules.json")), true);
+  assert.equal(existsSync(join(outDir, "motivation-rules.json")), true);
+  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
+  assert.equal(existsSync(join(outDir, "affinity-summary.json")), false);
   assert.equal(existsSync(join(outDir, "tick-frames.json")), false);
+});
+
+test("cli build surfaces Wave 3 affinity framework artifacts for inspection", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-affinity-framework-"));
+  const result = runCli(["build", "--spec", CONFIG_SPEC, "--out-dir", outDir]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const affinityRules = JSON.parse(readFileSync(join(outDir, "affinity-rules.json"), "utf8"));
+
+  assert.equal(affinityRules.schema, "agent-kernel/AffinityRulesArtifact");
+  assert.equal(affinityRules.schemaVersion, 1);
+  assert.equal(affinityRules.interactionContract.expressionSemantics.push.channel, "projected");
+  assert.equal(affinityRules.interactionContract.expressionSemantics.pull.channel, "projected");
+  assert.equal(affinityRules.interactionContract.expressionSemantics.emit.channel, "field");
+  assert.equal(affinityRules.interactionContract.expressionSemantics.draw.channel, "field");
+  assert.equal(affinityRules.interactionContract.closeProximityNegation.enabled, true);
+  assert.equal(affinityRules.worldActorCostModel.roomWideAffinityMode, "optional");
+  assert.equal(affinityRules.worldActorCostModel.fixedPositionNeutralProfile.tokenCost, 1);
+  assert.equal(affinityRules.worldActorCostModel.trapArchetype.attackingOnly, true);
+  assert.equal(affinityRules.worldActorCostModel.trapArchetype.maxAffinityCount, 1);
+  assert.equal(affinityRules.worldActorCostModel.trapArchetype.maxExpressionCount, 1);
+  assert.equal(affinityRules.worldActorCostModel.stationaryManaPolicy.allowZeroReserveAffinityState, true);
+  assert.equal(affinityRules.worldActorCostModel.stationaryManaPolicy.regenOptional, true);
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const artifactPaths = new Set(manifest.artifacts.map((entry) => entry.path));
+  assert.equal(artifactPaths.has("affinity-rules.json"), true);
+  assert.equal(artifactPaths.has("motivation-rules.json"), true);
+  assert.equal(artifactPaths.has("resource-bundle.json"), true);
 });
 
 test("cli build writes a sorted manifest for emitted artifacts", () => {

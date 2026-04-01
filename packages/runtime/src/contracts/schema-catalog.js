@@ -91,6 +91,16 @@ const CATALOG = [
     description: "Actor affinity loadouts.",
   },
   {
+    schema: "agent-kernel/AffinityRulesArtifact",
+    schemaVersion: 1,
+    description: "Affinity framework interaction and world-actor cost rules.",
+  },
+  {
+    schema: "agent-kernel/MotivationRulesArtifact",
+    schemaVersion: 1,
+    description: "Motivation framework policy and behavior constraints.",
+  },
+  {
     schema: "agent-kernel/AffinitySummary",
     schemaVersion: 1,
     description: "Resolved affinity/trap summary.",
