@@ -1010,6 +1010,66 @@ export interface AffinitySummaryTrapV1 {
   resolvedEffects?: AffinityResolvedEffectV1[];
 }
 
+export interface AmbientAffinityPressureSourceV1 {
+  source: {
+    kind: "room" | "trap";
+    id: string;
+  };
+  sourceId: string;
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  stacks: number;
+  channel?: AffinityInteractionChannel;
+  polarity?: AffinityInteractionPolarity;
+}
+
+export interface AmbientAffinityCancellationV1 {
+  kind: AffinityKind;
+  opposite: AffinityKind;
+  sourceStacks: number;
+  oppositeStacks: number;
+  canceled: number;
+}
+
+export interface AmbientAffinityPressureV1 {
+  sources: AmbientAffinityPressureSourceV1[];
+  baseByKind: Record<AffinityKind, number>;
+  netByKind: Record<AffinityKind, number>;
+  cancellations: AmbientAffinityCancellationV1[];
+}
+
+export type MixedRoomCompositionProfileV1 =
+  | "neutral_with_localized_traps"
+  | "room_overlay_dominant"
+  | "room_overlay_dominant_with_localized_variation"
+  | "mixed_composition";
+
+export type MixedRoomDominantInvestmentV1 =
+  | "room_wide_overlay"
+  | "localized_traps"
+  | "localized_tiles"
+  | "default_tiles"
+  | "none";
+
+export interface MixedRoomAssemblySummaryV1 {
+  roomId: string;
+  templateId: string;
+  templateInstanceId: string;
+  compositionProfile: MixedRoomCompositionProfileV1;
+  dominantInvestment: MixedRoomDominantInvestmentV1;
+  localizedTileCount: number;
+  localizedTrapCount: number;
+  roomWideOverlay?: MixedRoomAffinityOverlayV1;
+  affinityKinds: AffinityKind[];
+  tokenSpend: {
+    defaultTiles: number;
+    localizedTiles: number;
+    roomWideOverlay: number;
+    localizedTraps: number;
+    total: number;
+  };
+}
+
 export interface AffinitySummaryV1 {
   schema: typeof AFFINITY_SUMMARY_SCHEMA;
   schemaVersion: 1;
@@ -1020,6 +1080,8 @@ export interface AffinitySummaryV1 {
   initialStateRef?: ArtifactRef;
   actors: AffinitySummaryActorV1[];
   traps: AffinitySummaryTrapV1[];
+  ambientPressure?: AmbientAffinityPressureV1;
+  mixedRoomAssemblies?: MixedRoomAssemblySummaryV1[];
 }
 
 export type AffinitySummary = AffinitySummaryV1;

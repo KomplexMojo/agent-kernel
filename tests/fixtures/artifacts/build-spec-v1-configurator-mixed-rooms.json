@@ -1,0 +1,187 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_configurator_mixed_rooms",
+    "runId": "run_configurator_mixed_rooms",
+    "createdAt": "2026-04-02T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Build mixed room composition artifacts and summaries from fixtures.",
+    "hints": {
+      "levelSize": "medium",
+      "roomCount": 2
+    }
+  },
+  "plan": {
+    "hints": {
+      "directives": [
+        "fixture",
+        "mixed-room-wave3"
+      ]
+    }
+  },
+  "configurator": {
+    "inputs": {
+      "levelGen": {
+        "width": 16,
+        "height": 16,
+        "seed": 21,
+        "shape": {
+          "roomCount": 2,
+          "roomMinSize": 6,
+          "roomMaxSize": 6,
+          "corridorWidth": 1
+        },
+        "spawn": {
+          "edgeBias": true,
+          "minDistance": 1
+        },
+        "exit": {
+          "edgeBias": true,
+          "minDistance": 1
+        },
+        "connectivity": {
+          "requirePath": true
+        }
+      },
+      "cardSet": [
+        {
+          "id": "neutral_room_with_localized_traps",
+          "type": "room",
+          "source": "room",
+          "count": 1,
+          "roomSize": "medium"
+        },
+        {
+          "id": "mixed_overlay_and_traps",
+          "type": "room",
+          "source": "room",
+          "count": 1,
+          "roomSize": "medium"
+        }
+      ],
+      "actors": [
+        {
+          "id": "actor_mvp",
+          "kind": "ambulatory",
+          "position": {
+            "x": 1,
+            "y": 1
+          },
+          "motivations": [
+            "attacking"
+          ],
+          "affinity": "fire",
+          "affinities": [
+            {
+              "kind": "fire",
+              "expression": "emit",
+              "stacks": 1
+            }
+          ]
+        },
+        {
+          "id": "actor_rival",
+          "kind": "ambulatory",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "motivations": [
+            "defending"
+          ],
+          "affinity": "water",
+          "affinities": [
+            {
+              "kind": "water",
+              "expression": "draw",
+              "stacks": 1
+            }
+          ]
+        }
+      ],
+      "affinityPresets": {
+        "schema": "agent-kernel/AffinityPresetArtifact",
+        "schemaVersion": 1,
+        "meta": {
+          "id": "affinity_presets_mixed_room_summary",
+          "runId": "run_configurator_mixed_rooms",
+          "createdAt": "2026-04-02T00:00:00.000Z",
+          "producedBy": "fixture"
+        },
+        "presets": [
+          {
+            "id": "affinity_fire_emit",
+            "kind": "fire",
+            "expression": "emit",
+            "manaCost": 1,
+            "effects": {
+              "area": {
+                "id": "fire_field",
+                "potency": 1
+              }
+            },
+            "stack": {
+              "max": 3,
+              "scaling": "linear"
+            }
+          },
+          {
+            "id": "affinity_water_draw",
+            "kind": "water",
+            "expression": "draw",
+            "manaCost": 1,
+            "effects": {
+              "buff": {
+                "id": "water_draw",
+                "potency": 1
+              }
+            },
+            "stack": {
+              "max": 3,
+              "scaling": "linear"
+            }
+          }
+        ]
+      },
+      "affinityLoadouts": {
+        "schema": "agent-kernel/ActorLoadoutArtifact",
+        "schemaVersion": 1,
+        "meta": {
+          "id": "actor_loadouts_mixed_room_summary",
+          "runId": "run_configurator_mixed_rooms",
+          "createdAt": "2026-04-02T00:00:00.000Z",
+          "producedBy": "fixture"
+        },
+        "loadouts": [
+          {
+            "actorId": "actor_mvp",
+            "affinities": [
+              {
+                "presetId": "affinity_fire_emit",
+                "kind": "fire",
+                "expression": "emit",
+                "stacks": 2,
+                "targetType": "area"
+              }
+            ]
+          },
+          {
+            "actorId": "actor_rival",
+            "affinities": [
+              {
+                "presetId": "affinity_water_draw",
+                "kind": "water",
+                "expression": "draw",
+                "stacks": 1,
+                "targetType": "self"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -15,6 +15,7 @@ const ADAPTER_REMOTE_SPEC = resolve(
 );
 const BUDGET_INLINE_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-budget-inline-only.json");
 const CONFIG_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-configurator.json");
+const MIXED_ROOM_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-configurator-mixed-rooms.json");
 const SOLVER_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-solver.json");
 const INVALID_SPEC = resolve(ROOT, "tests/fixtures/artifacts/invalid/build-spec-v1-missing-goal.json");
 
@@ -89,6 +90,61 @@ test("cli build surfaces Wave 3 affinity framework artifacts for inspection", ()
   assert.equal(artifactPaths.has("affinity-rules.json"), true);
   assert.equal(artifactPaths.has("motivation-rules.json"), true);
   assert.equal(artifactPaths.has("resource-bundle.json"), true);
+});
+
+test("cli build surfaces mixed-room composition summaries in artifacts and stdout", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-mixed-room-summary-"));
+  const result = runCli(["build", "--spec", MIXED_ROOM_SPEC, "--out-dir", outDir]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /mixed-room summary: 2 rooms\./);
+
+  const simConfig = JSON.parse(readFileSync(join(outDir, "sim-config.json"), "utf8"));
+  const rooms = Array.isArray(simConfig?.layout?.data?.rooms) ? simConfig.layout.data.rooms : [];
+  const mixedRooms = rooms.filter((room) => room?.mixedRoomComposition);
+  assert.equal(mixedRooms.length, 2);
+
+  const byTemplate = new Map(
+    mixedRooms.map((room) => [room.mixedRoomComposition.templateId, room.mixedRoomComposition]),
+  );
+  const neutralComposition = byTemplate.get("neutral_room_with_localized_traps");
+  assert.ok(neutralComposition);
+  assert.equal(neutralComposition.compositionProfile, "neutral_with_localized_traps");
+  assert.equal(neutralComposition.dominantInvestment, "localized_traps");
+  assert.equal(neutralComposition.roomWideOverlay, undefined);
+  assert.ok(Array.isArray(neutralComposition.localizedTraps));
+  assert.ok(neutralComposition.localizedTraps.length > 0);
+  assert.equal(neutralComposition.localizedTraps.every((trap) => trap?.affinity?.kind !== "dark"), true);
+  assert.equal(neutralComposition.localizedTraps.some((trap) => (
+    trap?.affinity?.kind === "fire" || trap?.affinity?.kind === "water"
+  )), true);
+
+  const overlayComposition = byTemplate.get("mixed_overlay_and_traps");
+  assert.ok(overlayComposition);
+  assert.equal(overlayComposition.compositionProfile, "room_overlay_dominant_with_localized_variation");
+  assert.equal(overlayComposition.dominantInvestment, "room_wide_overlay");
+  assert.equal(overlayComposition.roomWideOverlay?.kind, "light");
+  assert.ok(Array.isArray(overlayComposition.localizedTraps));
+  assert.ok(overlayComposition.localizedTraps.length > 0);
+  assert.equal(overlayComposition.localizedTraps.every((trap) => trap?.affinity?.kind !== "dark"), true);
+
+  const affinitySummary = JSON.parse(readFileSync(join(outDir, "affinity-summary.json"), "utf8"));
+  assert.equal(Array.isArray(affinitySummary.mixedRoomAssemblies), true);
+  assert.equal(affinitySummary.mixedRoomAssemblies.length, 2);
+
+  const summaryByTemplate = new Map(
+    affinitySummary.mixedRoomAssemblies.map((entry) => [entry.templateId, entry]),
+  );
+  const neutralSummary = summaryByTemplate.get("neutral_room_with_localized_traps");
+  assert.ok(neutralSummary);
+  assert.equal(neutralSummary.compositionProfile, "neutral_with_localized_traps");
+  assert.ok(neutralSummary.affinityKinds.length > 0);
+  assert.equal(neutralSummary.affinityKinds.every((kind) => kind !== "dark"), true);
+
+  const overlaySummary = summaryByTemplate.get("mixed_overlay_and_traps");
+  assert.ok(overlaySummary);
+  assert.equal(overlaySummary.compositionProfile, "room_overlay_dominant_with_localized_variation");
+  assert.equal(overlaySummary.roomWideOverlay?.kind, "light");
 });
 
 test("cli build writes a sorted manifest for emitted artifacts", () => {

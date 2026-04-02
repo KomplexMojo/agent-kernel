@@ -103,7 +103,8 @@ const CATALOG = [
   {
     schema: "agent-kernel/AffinitySummary",
     schemaVersion: 1,
-    description: "Resolved affinity/trap summary.",
+    description: "Resolved affinity/trap summary with ambient and mixed-room composition rollups.",
+    fields: ["meta", "presetsRef", "loadoutsRef", "simConfigRef", "initialStateRef", "actors", "traps", "ambientPressure", "mixedRoomAssemblies"],
   },
   {
     schema: "agent-kernel/ActorState",

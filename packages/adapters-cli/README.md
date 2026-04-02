@@ -42,6 +42,10 @@ when preset/loadout resolution is configured. Writes `manifest.json`, `bundle.js
 in the output directory. Manifest/bundle include a filtered `schemas` list for emitted artifacts.
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
+When mixed-room templates are present, build emits deterministic mixed-room composition summaries:
+- `sim-config.json` room entries include `mixedRoomComposition.compositionProfile` and `dominantInvestment`.
+- `affinity-summary.json` includes `mixedRoomAssemblies` (when affinity summary generation is enabled).
+- CLI stdout includes a per-room `mixed-room summary` block describing neutral/localized vs room-overlay-dominant composition.
 
 ### `llm-plan`
 Runs the Orchestrator LLM session against a scenario fixture and emits build outputs
@@ -93,6 +97,8 @@ Inputs/outputs:
   `spend-proposal.json`, `budget-receipt.json`, `affinity-rules.json`, `motivation-rules.json`,
   optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
   plus `bundle.json`, `manifest.json`, `telemetry.json`.
+- When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
+  `mixed-room summary` block for quick CLI inspection.
 
 ### `delver-plan`
 Builds a `BuildSpec` directly from Delver authoring flags (no hand-edited JSON required) and
@@ -113,6 +119,8 @@ Inputs/outputs:
   `spend-proposal.json`, `budget-receipt.json`, `affinity-rules.json`, `motivation-rules.json`,
   optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
   plus `bundle.json`, `manifest.json`, `telemetry.json`.
+- When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
+  `mixed-room summary` block for quick CLI inspection.
 
 ### `warden-plan`
 Builds a `BuildSpec` directly from Warden authoring flags (no hand-edited JSON required) and
@@ -133,6 +141,8 @@ Inputs/outputs:
   `spend-proposal.json`, `budget-receipt.json`, `affinity-rules.json`, `motivation-rules.json`,
   optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
   plus `bundle.json`, `manifest.json`, `telemetry.json`.
+- When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
+  `mixed-room summary` block for quick CLI inspection.
 
 Build inputs/outputs:
 - Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).

@@ -9,6 +9,10 @@ import { createCommandKernel } from "../../../runtime/src/commands/kernel.js";
 import { instantiateCommandRuntimeCoreFromBuffer } from "../../../runtime/src/commands/wasm-core.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
+import {
+  formatMixedRoomAssembliesCliLines,
+  summarizeMixedRoomAssemblies,
+} from "../../../runtime/src/build/mixed-room-summary.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
@@ -912,6 +916,13 @@ function buildArtifactRefs(entries) {
   }));
 }
 
+function logMixedRoomAssembliesFromBuildResult(buildResult) {
+  const assemblies = summarizeMixedRoomAssemblies(buildResult?.simConfig?.layout?.data?.rooms);
+  formatMixedRoomAssembliesCliLines(assemblies).forEach((line) => {
+    console.log(line);
+  });
+}
+
 async function loadCoreFromWasm(wasmPath) {
   const buffer = await readFile(wasmPath);
   return instantiateCommandRuntimeCoreFromBuffer(buffer);
@@ -1386,6 +1397,7 @@ async function roomPlanCommand(argv) {
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   console.log(`room-plan: wrote ${outDir}`);
+  logMixedRoomAssembliesFromBuildResult(buildResult);
 }
 
 async function delverPlanCommand(argv) {
@@ -1586,6 +1598,7 @@ async function delverPlanCommand(argv) {
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   console.log(`delver-plan: wrote ${outDir}`);
+  logMixedRoomAssembliesFromBuildResult(buildResult);
 }
 
 async function wardenPlanCommand(argv) {
@@ -1786,6 +1799,7 @@ async function wardenPlanCommand(argv) {
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   console.log(`warden-plan: wrote ${outDir}`);
+  logMixedRoomAssembliesFromBuildResult(buildResult);
 }
 
 async function llmPlanCommand(argv) {
