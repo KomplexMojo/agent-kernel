@@ -504,6 +504,121 @@ const secondTrapKeys = (second.simConfig.layout.data.traps || [])
 assert.deepEqual(secondTrapKeys, firstTrapKeys);
 `;
 
+const mixedRoomCompositionScript = `
+import assert from "node:assert/strict";
+import { orchestrateBuild } from ${JSON.stringify(orchestratorModule)};
+
+function inRoom(pos, room) {
+  return (
+    pos.x >= room.x
+    && pos.x < room.x + room.width
+    && pos.y >= room.y
+    && pos.y < room.y + room.height
+  );
+}
+
+function buildSpec({ id, runId, roomTemplateId, seed }) {
+  return {
+    schema: "agent-kernel/BuildSpec",
+    schemaVersion: 1,
+    meta: {
+      id,
+      runId,
+      createdAt: "2025-01-01T00:00:00Z",
+      source: "runtime-test",
+    },
+    intent: {
+      goal: "mixed room composition",
+      tags: ["affinity", "mixed-room"],
+    },
+    plan: {},
+    configurator: {
+      inputs: {
+        levelGen: {
+          width: 14,
+          height: 14,
+          seed,
+          shape: { roomCount: 1, roomMinSize: 6, roomMaxSize: 6, corridorWidth: 1 },
+          connectivity: { requirePath: true },
+        },
+        cardSet: [
+          {
+            id: roomTemplateId,
+            type: "room",
+            source: "room",
+            count: 1,
+            roomSize: "medium",
+          },
+        ],
+        actors: [
+          {
+            id: "delver_1",
+            kind: "ambulatory",
+            motivations: ["attacking"],
+            affinity: "earth",
+            affinities: [{ kind: "earth", expression: "push", stacks: 1 }],
+            position: { x: 0, y: 0 },
+          },
+        ],
+      },
+    },
+  };
+}
+
+const neutral = await orchestrateBuild({
+  spec: buildSpec({
+    id: "spec_mixed_room_neutral",
+    runId: "run_mixed_room_neutral",
+    roomTemplateId: "neutral_room_with_localized_traps",
+    seed: 41,
+  }),
+  producedBy: "runtime-test",
+});
+
+const neutralLayout = neutral.simConfig.layout.data;
+const neutralRoom = Array.isArray(neutralLayout.rooms) ? neutralLayout.rooms[0] : null;
+assert.ok(neutralRoom);
+assert.equal(neutralRoom?.mixedRoomComposition?.templateId, "neutral_room_with_localized_traps");
+assert.equal(neutralRoom?.mixedRoomComposition?.roomWideOverlay, undefined);
+const neutralTraps = (neutralLayout.traps || []).filter((entry) => entry?.source === "mixed_room_template");
+assert.ok(neutralTraps.length > 0);
+assert.equal((neutralLayout.traps || []).some((entry) => entry?.source === "room_affinity_tile"), false);
+neutralTraps.forEach((trap) => {
+  assert.equal(inRoom({ x: trap.x, y: trap.y }, neutralRoom), true);
+});
+
+const mixed = await orchestrateBuild({
+  spec: buildSpec({
+    id: "spec_mixed_room_overlay",
+    runId: "run_mixed_room_overlay",
+    roomTemplateId: "mixed_overlay_and_traps",
+    seed: 43,
+  }),
+  producedBy: "runtime-test",
+});
+
+const mixedLayout = mixed.simConfig.layout.data;
+const mixedRoom = Array.isArray(mixedLayout.rooms) ? mixedLayout.rooms[0] : null;
+assert.ok(mixedRoom);
+assert.equal(mixedRoom?.mixedRoomComposition?.templateId, "mixed_overlay_and_traps");
+assert.equal(mixedRoom?.mixedRoomComposition?.roomWideOverlay?.kind, "light");
+assert.equal(Array.isArray(mixedRoom?.affinities), true);
+assert.equal(mixedRoom.affinities.some((entry) => entry?.kind === "light"), true);
+const mixedTraps = (mixedLayout.traps || []).filter((entry) => entry?.source === "mixed_room_template");
+assert.ok(mixedTraps.length > 0);
+assert.equal((mixedLayout.traps || []).some((entry) => entry?.source === "room_affinity_tile"), false);
+mixedTraps.forEach((trap) => {
+  assert.equal(inRoom({ x: trap.x, y: trap.y }, mixedRoom), true);
+});
+
+const spend = mixedRoom?.mixedRoomComposition?.tokenSpend;
+assert.ok(spend);
+assert.equal(
+  spend.total,
+  spend.defaultTiles + spend.localizedTiles + spend.roomWideOverlay + spend.localizedTraps,
+);
+`;
+
 test("orchestrateBuild uses runtime modules for solver and configurator", () => {
   runEsm(script);
 });
@@ -526,4 +641,8 @@ test("orchestrateBuild keeps the inferred delver on spawn", () => {
 
 test("orchestrateBuild maps room affinities to warden placement and tile emit traps", () => {
   runEsm(roomAffinityPlacementScript);
+});
+
+test("orchestrateBuild supports mixed-room templates with localized traps and optional overlays", () => {
+  runEsm(mixedRoomCompositionScript);
 });
