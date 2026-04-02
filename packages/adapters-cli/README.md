@@ -45,7 +45,9 @@ for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
 When mixed-room templates are present, build emits deterministic mixed-room composition summaries:
 - `sim-config.json` room entries include `mixedRoomComposition.compositionProfile` and `dominantInvestment`.
 - `affinity-summary.json` includes `mixedRoomAssemblies` (when affinity summary generation is enabled).
-- CLI stdout includes a per-room `mixed-room summary` block describing neutral/localized vs room-overlay-dominant composition.
+- CLI stdout includes a per-room `mixed-room summary` block describing neutral/localized vs room-overlay-dominant composition,
+  explicit `surfaceAffinities`, and `tokenSpend` buckets (`defaultTiles`, `localizedTiles`, `roomWideOverlay`, `localizedTraps`, `total`).
+  Room-card affinity metadata is not treated as a room-wide surface unless explicit overlay/trap spend exists.
 
 ### `llm-plan`
 Runs the Orchestrator LLM session against a scenario fixture and emits build outputs
@@ -98,7 +100,7 @@ Inputs/outputs:
   optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
   plus `bundle.json`, `manifest.json`, `telemetry.json`.
 - When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
-  `mixed-room summary` block for quick CLI inspection.
+  `mixed-room summary` block for quick CLI inspection, including `surfaceAffinities` and per-category `tokenSpend`.
 
 ### `delver-plan`
 Builds a `BuildSpec` directly from Delver authoring flags (no hand-edited JSON required) and
@@ -120,7 +122,7 @@ Inputs/outputs:
   optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
   plus `bundle.json`, `manifest.json`, `telemetry.json`.
 - When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
-  `mixed-room summary` block for quick CLI inspection.
+  `mixed-room summary` block for quick CLI inspection, including `surfaceAffinities` and per-category `tokenSpend`.
 
 ### `warden-plan`
 Builds a `BuildSpec` directly from Warden authoring flags (no hand-edited JSON required) and
@@ -142,7 +144,7 @@ Inputs/outputs:
   optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
   plus `bundle.json`, `manifest.json`, `telemetry.json`.
 - When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
-  `mixed-room summary` block for quick CLI inspection.
+  `mixed-room summary` block for quick CLI inspection, including `surfaceAffinities` and per-category `tokenSpend`.
 
 Build inputs/outputs:
 - Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
