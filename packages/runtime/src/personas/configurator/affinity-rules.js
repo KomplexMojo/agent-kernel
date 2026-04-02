@@ -35,6 +35,11 @@ const INTERACTION_POLARITIES = Object.freeze(["outward", "inward"]);
 const RANGE_SHAPES = Object.freeze(["self", "adjacent", "line", "radius"]);
 const ROOM_AFFINITY_MODES = Object.freeze(["optional", "canonical"]);
 const INTERACTION_EXAMPLE_KINDS = Object.freeze(["ambient", "projected"]);
+const FIXED_POSITION_TILE_KINDS = Object.freeze(["floor", "barrier", "tile"]);
+const MIXED_ROOM_COORDINATE_SPACES = Object.freeze(["room_local"]);
+const MIXED_ROOM_OVERLAP_POLICIES = Object.freeze(["reject_any_overlap"]);
+const MIXED_ROOM_OUT_OF_BOUNDS_POLICIES = Object.freeze(["reject"]);
+const MIXED_ROOM_BUDGET_POLICIES = Object.freeze(["fixed_position_tokens"]);
 const DEFAULT_EXPRESSION_SEMANTICS = Object.freeze({
   push: Object.freeze({
     channel: "projected",
@@ -103,6 +108,124 @@ const DEFAULT_INTERACTION_CONTRACT = Object.freeze({
     }),
   ]),
 });
+const DEFAULT_MIXED_ROOM_ASSEMBLY_RULES = Object.freeze({
+  placementCoordinateSpace: "room_local",
+  requireRectangularFootprint: true,
+  allowRoomWideAffinityOverlay: true,
+  allowMixedTrapAffinities: true,
+  overlapPolicy: "reject_any_overlap",
+  outOfBoundsPolicy: "reject",
+  budgetPolicy: "fixed_position_tokens",
+  templates: Object.freeze([
+    Object.freeze({
+      id: "neutral_room_with_localized_traps",
+      width: 5,
+      height: 5,
+      budgetTokens: 43,
+      defaultTileKind: "floor",
+      defaultTileTokenCost: 1,
+      localizedTiles: Object.freeze([]),
+      localizedTraps: Object.freeze([
+        Object.freeze({
+          id: "fire_focus",
+          x: 2,
+          y: 2,
+          blocking: false,
+          tokenCost: 8,
+          affinity: Object.freeze({
+            kind: "fire",
+            expression: "emit",
+            stacks: 2,
+          }),
+          manaReserve: 12,
+          manaRegen: 0,
+        }),
+        Object.freeze({
+          id: "water_flank",
+          x: 1,
+          y: 3,
+          blocking: false,
+          tokenCost: 10,
+          affinity: Object.freeze({
+            kind: "water",
+            expression: "pull",
+            stacks: 2,
+          }),
+          manaReserve: 10,
+          manaRegen: 0,
+        }),
+      ]),
+    }),
+    Object.freeze({
+      id: "room_overlay_with_neutral_tiles",
+      width: 4,
+      height: 4,
+      budgetTokens: 28,
+      defaultTileKind: "floor",
+      defaultTileTokenCost: 1,
+      roomWideOverlay: Object.freeze({
+        kind: "decay",
+        expression: "emit",
+        stacks: 2,
+        tokenCost: 12,
+      }),
+      localizedTiles: Object.freeze([]),
+      localizedTraps: Object.freeze([]),
+    }),
+    Object.freeze({
+      id: "mixed_overlay_and_traps",
+      width: 6,
+      height: 6,
+      budgetTokens: 70,
+      defaultTileKind: "floor",
+      defaultTileTokenCost: 1,
+      roomWideOverlay: Object.freeze({
+        kind: "light",
+        expression: "emit",
+        stacks: 1,
+        tokenCost: 10,
+      }),
+      localizedTiles: Object.freeze([
+        Object.freeze({
+          x: 0,
+          y: 0,
+          kind: "barrier",
+          tokenCost: 1,
+        }),
+      ]),
+      localizedTraps: Object.freeze([
+        Object.freeze({
+          id: "north_fire",
+          x: 2,
+          y: 1,
+          blocking: false,
+          tokenCost: 8,
+          affinity: Object.freeze({
+            kind: "fire",
+            expression: "emit",
+            stacks: 2,
+          }),
+          manaReserve: 10,
+          manaRegen: 1,
+        }),
+        Object.freeze({
+          id: "south_decay",
+          x: 4,
+          y: 4,
+          blocking: false,
+          tokenCost: 10,
+          affinity: Object.freeze({
+            kind: "decay",
+            expression: "draw",
+            stacks: 3,
+          }),
+          manaReserve: 16,
+          manaRegen: 0,
+        }),
+      ]),
+    }),
+  ]),
+});
 const DEFAULT_WORLD_ACTOR_COST_MODEL = Object.freeze({
   roomWideAffinityMode: "optional",
   fixedPositionNeutralProfile: Object.freeze({
@@ -147,6 +270,7 @@ const DEFAULT_WORLD_ACTOR_COST_MODEL = Object.freeze({
       manaRegen: 0,
     }),
   }),
+  mixedRoomAssembly: Object.freeze(cloneJson(DEFAULT_MIXED_ROOM_ASSEMBLY_RULES)),
 });
 
 function isPlainObject(value) {
@@ -682,6 +806,386 @@ function normalizeStationaryManaPolicy(input = {}, fieldBase, errors) {
   };
 }
 
+function comparePlacement(a, b) {
+  const ay = Number.isInteger(a?.y) ? a.y : 0;
+  const by = Number.isInteger(b?.y) ? b.y : 0;
+  if (ay !== by) return ay - by;
+  const ax = Number.isInteger(a?.x) ? a.x : 0;
+  const bx = Number.isInteger(b?.x) ? b.x : 0;
+  if (ax !== bx) return ax - bx;
+  const aid = isNonEmptyString(a?.id) ? a.id.trim() : "";
+  const bid = isNonEmptyString(b?.id) ? b.id.trim() : "";
+  return aid.localeCompare(bid);
+}
+
+function readRequiredPositiveInt(value, fieldBase, errors) {
+  if (!Number.isInteger(value) || value <= 0) {
+    addError(errors, fieldBase, "invalid_positive_int");
+    return 1;
+  }
+  return value;
+}
+
+function readOptionalNonNegativeInt(value, fieldBase, errors) {
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || value < 0) {
+    addError(errors, fieldBase, "invalid_non_negative_int");
+    return undefined;
+  }
+  return value;
+}
+
+function normalizeMixedRoomOverlay(input, fieldBase, errors) {
+  if (input === undefined) return undefined;
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_room_overlay");
+    return undefined;
+  }
+  if (!AFFINITY_KINDS.includes(input.kind)) {
+    addError(errors, `${fieldBase}.kind`, "invalid_kind");
+  }
+  if (!AFFINITY_EXPRESSIONS.includes(input.expression)) {
+    addError(errors, `${fieldBase}.expression`, "invalid_expression");
+  }
+  const stacks = readRequiredPositiveInt(input.stacks, `${fieldBase}.stacks`, errors);
+  const tokenCost = readRequiredPositiveInt(input.tokenCost, `${fieldBase}.tokenCost`, errors);
+  return {
+    kind: input.kind,
+    expression: input.expression,
+    stacks,
+    tokenCost,
+  };
+}
+
+function normalizeLocalizedTiles(input, fieldBase, errors, { width, height, neutralBaselineTokenCost } = {}) {
+  if (input === undefined) return [];
+  if (!Array.isArray(input)) {
+    addError(errors, fieldBase, "invalid_list");
+    return [];
+  }
+  const seen = new Set();
+  const entries = [];
+  input.forEach((entry, index) => {
+    const base = `${fieldBase}[${index}]`;
+    if (!isPlainObject(entry)) {
+      addError(errors, base, "invalid_localized_tile");
+      return;
+    }
+    const x = Number.isInteger(entry.x) ? entry.x : null;
+    const y = Number.isInteger(entry.y) ? entry.y : null;
+    if (x === null || x < 0) {
+      addError(errors, `${base}.x`, "invalid_non_negative_int");
+    }
+    if (y === null || y < 0) {
+      addError(errors, `${base}.y`, "invalid_non_negative_int");
+    }
+    if (x === null || y === null) {
+      return;
+    }
+    if (x >= width || y >= height) {
+      addError(errors, `${base}.position`, "out_of_bounds");
+      return;
+    }
+    if (!FIXED_POSITION_TILE_KINDS.includes(entry.kind)) {
+      addError(errors, `${base}.kind`, "invalid_fixed_position_kind");
+    }
+    const key = `${x},${y}`;
+    if (seen.has(key)) {
+      addError(errors, `${base}.position`, "overlap");
+      return;
+    }
+    seen.add(key);
+    const tokenCost = entry.tokenCost === undefined
+      ? undefined
+      : readRequiredPositiveInt(entry.tokenCost, `${base}.tokenCost`, errors);
+    if (Number.isInteger(tokenCost) && tokenCost < neutralBaselineTokenCost) {
+      addError(errors, `${base}.tokenCost`, "tile_token_cost_below_neutral_baseline");
+    }
+    entries.push({
+      x,
+      y,
+      kind: FIXED_POSITION_TILE_KINDS.includes(entry.kind) ? entry.kind : "floor",
+      tokenCost,
+    });
+  });
+  return entries.sort(comparePlacement);
+}
+
+function normalizeLocalizedTraps(input, fieldBase, errors, { width, height, trapArchetype } = {}) {
+  if (input === undefined) return [];
+  if (!Array.isArray(input)) {
+    addError(errors, fieldBase, "invalid_list");
+    return [];
+  }
+  const seen = new Set();
+  const entries = [];
+  input.forEach((entry, index) => {
+    const base = `${fieldBase}[${index}]`;
+    if (!isPlainObject(entry)) {
+      addError(errors, base, "invalid_localized_trap");
+      return;
+    }
+    const x = Number.isInteger(entry.x) ? entry.x : null;
+    const y = Number.isInteger(entry.y) ? entry.y : null;
+    if (x === null || x < 0) {
+      addError(errors, `${base}.x`, "invalid_non_negative_int");
+    }
+    if (y === null || y < 0) {
+      addError(errors, `${base}.y`, "invalid_non_negative_int");
+    }
+    if (x === null || y === null) {
+      return;
+    }
+    if (x >= width || y >= height) {
+      addError(errors, `${base}.position`, "out_of_bounds");
+      return;
+    }
+    const key = `${x},${y}`;
+    if (seen.has(key)) {
+      addError(errors, `${base}.position`, "overlap");
+      return;
+    }
+    seen.add(key);
+    if (!isPlainObject(entry.affinity)) {
+      addError(errors, `${base}.affinity`, "invalid_affinity");
+      return;
+    }
+    if (!AFFINITY_KINDS.includes(entry.affinity.kind)) {
+      addError(errors, `${base}.affinity.kind`, "invalid_kind");
+    }
+    if (!AFFINITY_EXPRESSIONS.includes(entry.affinity.expression)) {
+      addError(errors, `${base}.affinity.expression`, "invalid_expression");
+    }
+    if (
+      trapArchetype
+      && Array.isArray(trapArchetype.allowedExpressions)
+      && AFFINITY_EXPRESSIONS.includes(entry.affinity.expression)
+      && !trapArchetype.allowedExpressions.includes(entry.affinity.expression)
+    ) {
+      addError(errors, `${base}.affinity.expression`, "trap_expression_not_allowed");
+    }
+    const stacks = readRequiredPositiveInt(entry.affinity.stacks, `${base}.affinity.stacks`, errors);
+    if (trapArchetype && !trapArchetype.stacksAllowed && stacks !== 1) {
+      addError(errors, `${base}.affinity.stacks`, "trap_archetype_disallows_stacks");
+    }
+    const tokenCost = readRequiredPositiveInt(entry.tokenCost, `${base}.tokenCost`, errors);
+    const manaReserve = readOptionalNonNegativeInt(entry.manaReserve, `${base}.manaReserve`, errors) ?? 0;
+    const manaRegen = readOptionalNonNegativeInt(entry.manaRegen, `${base}.manaRegen`, errors) ?? 0;
+    if (trapArchetype && trapArchetype.manaReserveRequired && manaReserve <= 0) {
+      addError(errors, `${base}.manaReserve`, "trap_requires_positive_mana_reserve");
+    }
+    if (trapArchetype && !trapArchetype.manaRegenOptional && manaRegen <= 0) {
+      addError(errors, `${base}.manaRegen`, "trap_requires_positive_mana_regen");
+    }
+    const blocking = entry.blocking === true;
+    if (entry.blocking !== undefined && typeof entry.blocking !== "boolean") {
+      addError(errors, `${base}.blocking`, "invalid_boolean");
+    }
+    entries.push({
+      id: isNonEmptyString(entry.id) ? entry.id.trim() : undefined,
+      x,
+      y,
+      blocking,
+      tokenCost,
+      affinity: {
+        kind: entry.affinity.kind,
+        expression: entry.affinity.expression,
+        stacks,
+      },
+      manaReserve,
+      manaRegen,
+    });
+  });
+  return entries.sort(comparePlacement);
+}
+
+function normalizeMixedRoomAssemblyTemplate(input, fieldBase, errors, options = {}) {
+  const {
+    trapArchetype,
+    roomWideAffinityMode = "optional",
+    allowRoomWideAffinityOverlay = true,
+    allowMixedTrapAffinities = true,
+    neutralBaselineTokenCost = 1,
+  } = options;
+
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_mixed_room_template");
+    return null;
+  }
+
+  if (!isNonEmptyString(input.id)) {
+    addError(errors, `${fieldBase}.id`, "invalid_id");
+  }
+  const id = isNonEmptyString(input.id) ? input.id.trim() : `template_${fieldBase.replace(/[^a-z0-9]/gi, "_")}`;
+  const width = readRequiredPositiveInt(input.width, `${fieldBase}.width`, errors);
+  const height = readRequiredPositiveInt(input.height, `${fieldBase}.height`, errors);
+  const budgetTokens = readOptionalNonNegativeInt(input.budgetTokens, `${fieldBase}.budgetTokens`, errors);
+  const defaultTileKind = FIXED_POSITION_TILE_KINDS.includes(input.defaultTileKind) ? input.defaultTileKind : "floor";
+  if (input.defaultTileKind !== undefined && !FIXED_POSITION_TILE_KINDS.includes(input.defaultTileKind)) {
+    addError(errors, `${fieldBase}.defaultTileKind`, "invalid_fixed_position_kind");
+  }
+  const defaultTileTokenCost = readRequiredPositiveInt(
+    input.defaultTileTokenCost,
+    `${fieldBase}.defaultTileTokenCost`,
+    errors,
+  );
+  if (defaultTileTokenCost < neutralBaselineTokenCost) {
+    addError(errors, `${fieldBase}.defaultTileTokenCost`, "tile_token_cost_below_neutral_baseline");
+  }
+
+  const roomWideOverlay = normalizeMixedRoomOverlay(input.roomWideOverlay, `${fieldBase}.roomWideOverlay`, errors);
+  if (roomWideOverlay && !allowRoomWideAffinityOverlay) {
+    addError(errors, `${fieldBase}.roomWideOverlay`, "room_overlay_not_allowed");
+  }
+  if (roomWideAffinityMode === "canonical" && !roomWideOverlay) {
+    addError(errors, `${fieldBase}.roomWideOverlay`, "canonical_room_requires_overlay");
+  }
+
+  const localizedTiles = normalizeLocalizedTiles(
+    input.localizedTiles,
+    `${fieldBase}.localizedTiles`,
+    errors,
+    { width, height, neutralBaselineTokenCost },
+  );
+  const localizedTraps = normalizeLocalizedTraps(
+    input.localizedTraps,
+    `${fieldBase}.localizedTraps`,
+    errors,
+    { width, height, trapArchetype },
+  );
+
+  const tileOccupancy = new Set(localizedTiles.map((entry) => `${entry.x},${entry.y}`));
+  localizedTraps.forEach((trap, index) => {
+    if (tileOccupancy.has(`${trap.x},${trap.y}`)) {
+      addError(errors, `${fieldBase}.localizedTraps[${index}].position`, "overlap");
+    }
+  });
+
+  if (!allowMixedTrapAffinities) {
+    const trapKinds = new Set(localizedTraps.map((entry) => entry.affinity.kind));
+    if (trapKinds.size > 1) {
+      addError(errors, `${fieldBase}.localizedTraps`, "mixed_trap_affinity_not_allowed");
+    }
+  }
+
+  const baseTileCost = width * height * defaultTileTokenCost;
+  const localizedTileCost = localizedTiles.reduce(
+    (sum, entry) => sum + (Number.isInteger(entry.tokenCost) ? entry.tokenCost : defaultTileTokenCost),
+    0,
+  );
+  const roomWideOverlayCost = roomWideOverlay ? roomWideOverlay.tokenCost : 0;
+  const localizedTrapCost = localizedTraps.reduce((sum, entry) => sum + entry.tokenCost, 0);
+  const totalCost = baseTileCost + localizedTileCost + roomWideOverlayCost + localizedTrapCost;
+  const affinityCost = roomWideOverlayCost + localizedTrapCost;
+  if (Number.isInteger(budgetTokens)) {
+    if (totalCost > budgetTokens) {
+      addError(errors, `${fieldBase}.budgetTokens`, "budget_exceeded");
+    }
+    if (affinityCost > 0 && budgetTokens <= (baseTileCost + localizedTileCost)) {
+      addError(errors, `${fieldBase}.budgetTokens`, "incompatible_budget_affinity");
+    }
+  }
+
+  return {
+    id,
+    width,
+    height,
+    budgetTokens,
+    defaultTileKind,
+    defaultTileTokenCost,
+    roomWideOverlay,
+    localizedTiles,
+    localizedTraps,
+  };
+}
+
+function normalizeMixedRoomAssemblyRules(input = {}, fieldBase, errors, options = {}) {
+  if (input === undefined) {
+    return cloneJson(DEFAULT_MIXED_ROOM_ASSEMBLY_RULES);
+  }
+  if (!isPlainObject(input)) {
+    addError(errors, fieldBase, "invalid_mixed_room_assembly");
+    return cloneJson(DEFAULT_MIXED_ROOM_ASSEMBLY_RULES);
+  }
+
+  const placementCoordinateSpace = MIXED_ROOM_COORDINATE_SPACES.includes(input.placementCoordinateSpace)
+    ? input.placementCoordinateSpace
+    : "room_local";
+  if (input.placementCoordinateSpace !== undefined && !MIXED_ROOM_COORDINATE_SPACES.includes(input.placementCoordinateSpace)) {
+    addError(errors, `${fieldBase}.placementCoordinateSpace`, "invalid_coordinate_space");
+  }
+  const requireRectangularFootprint = input.requireRectangularFootprint === undefined
+    ? true
+    : input.requireRectangularFootprint === true;
+  if (!requireRectangularFootprint) {
+    addError(errors, `${fieldBase}.requireRectangularFootprint`, "mixed_room_requires_rectangular_footprint");
+  }
+  const allowRoomWideAffinityOverlay = input.allowRoomWideAffinityOverlay === undefined
+    ? true
+    : input.allowRoomWideAffinityOverlay === true;
+  const allowMixedTrapAffinities = input.allowMixedTrapAffinities === undefined
+    ? true
+    : input.allowMixedTrapAffinities === true;
+  const overlapPolicy = MIXED_ROOM_OVERLAP_POLICIES.includes(input.overlapPolicy)
+    ? input.overlapPolicy
+    : "reject_any_overlap";
+  if (input.overlapPolicy !== undefined && !MIXED_ROOM_OVERLAP_POLICIES.includes(input.overlapPolicy)) {
+    addError(errors, `${fieldBase}.overlapPolicy`, "invalid_overlap_policy");
+  }
+  const outOfBoundsPolicy = MIXED_ROOM_OUT_OF_BOUNDS_POLICIES.includes(input.outOfBoundsPolicy)
+    ? input.outOfBoundsPolicy
+    : "reject";
+  if (input.outOfBoundsPolicy !== undefined && !MIXED_ROOM_OUT_OF_BOUNDS_POLICIES.includes(input.outOfBoundsPolicy)) {
+    addError(errors, `${fieldBase}.outOfBoundsPolicy`, "invalid_out_of_bounds_policy");
+  }
+  const budgetPolicy = MIXED_ROOM_BUDGET_POLICIES.includes(input.budgetPolicy)
+    ? input.budgetPolicy
+    : "fixed_position_tokens";
+  if (input.budgetPolicy !== undefined && !MIXED_ROOM_BUDGET_POLICIES.includes(input.budgetPolicy)) {
+    addError(errors, `${fieldBase}.budgetPolicy`, "invalid_budget_policy");
+  }
+
+  const templateSource = Array.isArray(input.templates)
+    ? input.templates
+    : DEFAULT_MIXED_ROOM_ASSEMBLY_RULES.templates;
+  if (input.templates !== undefined && !Array.isArray(input.templates)) {
+    addError(errors, `${fieldBase}.templates`, "invalid_list");
+  }
+  const templates = templateSource
+    .map((template, index) => normalizeMixedRoomAssemblyTemplate(
+      template,
+      `${fieldBase}.templates[${index}]`,
+      errors,
+      {
+        trapArchetype: options.trapArchetype,
+        roomWideAffinityMode: options.roomWideAffinityMode,
+        allowRoomWideAffinityOverlay,
+        allowMixedTrapAffinities,
+        neutralBaselineTokenCost: options.neutralBaselineTokenCost,
+      },
+    ))
+    .filter(Boolean)
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const seenTemplateIds = new Set();
+  templates.forEach((template, index) => {
+    if (seenTemplateIds.has(template.id)) {
+      addError(errors, `${fieldBase}.templates[${index}].id`, "duplicate_template_id");
+    }
+    seenTemplateIds.add(template.id);
+  });
+
+  return {
+    placementCoordinateSpace,
+    requireRectangularFootprint,
+    allowRoomWideAffinityOverlay,
+    allowMixedTrapAffinities,
+    overlapPolicy,
+    outOfBoundsPolicy,
+    budgetPolicy,
+    templates,
+  };
+}
+
 function normalizeWorldActorCostModel(input = {}, fieldBase, errors) {
   if (input === undefined) {
     return cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL);
@@ -711,11 +1215,22 @@ function normalizeWorldActorCostModel(input = {}, fieldBase, errors) {
     errors,
     `${fieldBase}.trapArchetype`,
   );
+  const mixedRoomAssembly = normalizeMixedRoomAssemblyRules(
+    input.mixedRoomAssembly || DEFAULT_WORLD_ACTOR_COST_MODEL.mixedRoomAssembly,
+    `${fieldBase}.mixedRoomAssembly`,
+    errors,
+    {
+      trapArchetype,
+      roomWideAffinityMode,
+      neutralBaselineTokenCost: fixedPositionNeutralProfile?.tokenCost || 1,
+    },
+  );
   return {
     roomWideAffinityMode,
     fixedPositionNeutralProfile,
     stationaryManaPolicy,
     trapArchetype,
+    mixedRoomAssembly,
   };
 }
 
@@ -852,6 +1367,7 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
     fixedPositionNeutralProfile: Object.freeze(cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.fixedPositionNeutralProfile)),
     stationaryManaPolicy: Object.freeze(cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.stationaryManaPolicy)),
     trapArchetype: Object.freeze(cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.trapArchetype)),
+    mixedRoomAssembly: Object.freeze(cloneJson(DEFAULT_WORLD_ACTOR_COST_MODEL.mixedRoomAssembly)),
   }),
   affinities: Object.freeze([
     Object.freeze({

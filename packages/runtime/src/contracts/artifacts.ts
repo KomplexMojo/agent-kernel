@@ -794,6 +794,58 @@ export interface TrapInvestmentProfileV1 {
   manaRegen: number;
 }
 
+export interface MixedRoomAffinityOverlayV1 {
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  stacks: number;
+  tokenCost: number;
+}
+
+export interface MixedRoomTilePlacementV1 {
+  x: number;
+  y: number;
+  kind: "floor" | "barrier" | "tile";
+  tokenCost?: number;
+}
+
+export interface MixedRoomTrapPlacementV1 {
+  id?: string;
+  x: number;
+  y: number;
+  blocking?: boolean;
+  tokenCost: number;
+  affinity: {
+    kind: AffinityKind;
+    expression: AffinityExpression;
+    stacks: number;
+  };
+  manaReserve: number;
+  manaRegen?: number;
+}
+
+export interface MixedRoomAssemblyTemplateV1 {
+  id: string;
+  width: number;
+  height: number;
+  budgetTokens?: number;
+  defaultTileKind: "floor" | "barrier" | "tile";
+  defaultTileTokenCost: number;
+  roomWideOverlay?: MixedRoomAffinityOverlayV1;
+  localizedTiles?: MixedRoomTilePlacementV1[];
+  localizedTraps?: MixedRoomTrapPlacementV1[];
+}
+
+export interface MixedRoomAssemblyRulesV1 {
+  placementCoordinateSpace: "room_local";
+  requireRectangularFootprint: true;
+  allowRoomWideAffinityOverlay: boolean;
+  allowMixedTrapAffinities: boolean;
+  overlapPolicy: "reject_any_overlap";
+  outOfBoundsPolicy: "reject";
+  budgetPolicy: "fixed_position_tokens";
+  templates: MixedRoomAssemblyTemplateV1[];
+}
+
 export interface TrapArchetypeRulesV1 {
   roomBounded: true;
   attackingOnly: true;
@@ -815,6 +867,7 @@ export interface WorldActorCostModelV1 {
     regenOptional: boolean;
   };
   trapArchetype: TrapArchetypeRulesV1;
+  mixedRoomAssembly: MixedRoomAssemblyRulesV1;
 }
 
 export interface AffinityRulesArtifactV1 {
