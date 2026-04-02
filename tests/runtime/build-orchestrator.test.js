@@ -368,63 +368,40 @@ const roomAffinityPlacementScript = `
 import assert from "node:assert/strict";
 import { orchestrateBuild } from ${JSON.stringify(orchestratorModule)};
 
-function inRoom(pos, room) {
-  return (
-    pos.x >= room.x
-    && pos.x < room.x + room.width
-    && pos.y >= room.y
-    && pos.y < room.y + room.height
-  );
-}
-
-function roomHasAffinity(room, kind) {
-  const affinities = Array.isArray(room?.affinities) ? room.affinities : [];
-  return affinities.some((entry) => entry?.kind === kind);
-}
-
 const spec = {
   schema: "agent-kernel/BuildSpec",
   schemaVersion: 1,
   meta: {
-    id: "spec_room_affinity",
-    runId: "run_room_affinity",
+    id: "spec_room_affinity_small_water_emit_2",
+    runId: "run_room_affinity_small_water_emit_2",
     createdAt: "2025-01-01T00:00:00Z",
     source: "runtime-test",
   },
   intent: {
-    goal: "room affinity placement and trap emission",
+    goal: "legacy room affinity fallback regression",
     tags: ["affinity", "rooms"],
   },
   plan: {},
   configurator: {
     inputs: {
-      levelAffinity: "fire",
+      levelAffinity: "water",
       levelGen: {
-        width: 18,
-        height: 18,
-        seed: 11,
-        shape: { roomCount: 2, roomMinSize: 4, roomMaxSize: 6, corridorWidth: 1 },
+        width: 12,
+        height: 12,
+        seed: 29,
+        shape: { roomCount: 1, roomMinSize: 4, roomMaxSize: 4, corridorWidth: 1 },
         connectivity: { requirePath: true },
       },
       delverCount: 1,
       cardSet: [
         {
-          id: "R-FIRE",
-          type: "room",
-          source: "room",
-          count: 1,
-          affinity: "fire",
-          affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
-          roomSize: "medium",
-        },
-        {
-          id: "R-WATER",
+          id: "R-WATER-SMALL",
           type: "room",
           source: "room",
           count: 1,
           affinity: "water",
-          affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
-          roomSize: "medium",
+          affinities: [{ kind: "water", expression: "emit", stacks: 2 }],
+          roomSize: "small",
         },
       ],
       actors: [
@@ -437,23 +414,15 @@ const spec = {
           position: { x: 0, y: 0 },
         },
         {
-          id: "def_fire",
-          kind: "ambulatory",
-          motivations: ["defending"],
-          affinity: "fire",
-          affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
-          position: { x: 1, y: 0 },
-        },
-        {
           id: "def_water",
           kind: "ambulatory",
           motivations: ["defending"],
           affinity: "water",
           affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
-          position: { x: 2, y: 0 },
+          position: { x: 1, y: 0 },
         },
       ],
-      actorGroups: [{ role: "attacking", count: 1 }, { role: "defending", count: 2 }],
+      actorGroups: [{ role: "attacking", count: 1 }, { role: "defending", count: 1 }],
     },
   },
 };
@@ -461,47 +430,25 @@ const spec = {
 const first = await orchestrateBuild({ spec: JSON.parse(JSON.stringify(spec)), producedBy: "runtime-test" });
 const second = await orchestrateBuild({ spec: JSON.parse(JSON.stringify(spec)), producedBy: "runtime-test" });
 
-const layout = first.simConfig.layout.data;
-const rooms = Array.isArray(layout.rooms) ? layout.rooms : [];
-assert.ok(rooms.length >= 2);
-assert.ok(rooms.some((room) => roomHasAffinity(room, "fire")));
-assert.ok(rooms.some((room) => roomHasAffinity(room, "water")));
+const firstLayout = first.simConfig.layout.data;
+const secondLayout = second.simConfig.layout.data;
+const firstRooms = Array.isArray(firstLayout.rooms) ? firstLayout.rooms : [];
+assert.ok(firstRooms.length >= 1);
 
-const fireRoom = rooms.find((room) => roomHasAffinity(room, "fire"));
-const waterRoom = rooms.find((room) => roomHasAffinity(room, "water"));
-assert.ok(fireRoom);
-assert.ok(waterRoom);
+const firstRoom = firstRooms[0];
+assert.equal(firstRoom?.affinity, undefined);
+assert.equal(Array.isArray(firstRoom?.affinities), false);
+assert.equal(firstRoom?.mixedRoomComposition, undefined);
 
-const actors = first.initialState.actors;
-const fireWarden = actors.find((actor) => actor.id === "def_fire");
-const waterWarden = actors.find((actor) => actor.id === "def_water");
-assert.ok(fireWarden);
-assert.ok(waterWarden);
-assert.equal(inRoom(fireWarden.position, fireRoom), true);
-assert.equal(inRoom(waterWarden.position, waterRoom), true);
+const firstLegacyTraps = (firstLayout.traps || []).filter((trap) => trap?.source === "room_affinity_tile");
+assert.equal(firstLegacyTraps.length, 0);
+assert.equal((firstLayout.traps || []).some((trap) => trap?.source === "mixed_room_template"), false);
 
-const generatedTraps = (layout.traps || []).filter((trap) => trap?.source === "room_affinity_tile");
-assert.ok(generatedTraps.length > 0);
-assert.equal(generatedTraps.every((trap) => trap?.affinity?.expression === "emit"), true);
-assert.equal(generatedTraps.every((trap) => trap?.affinity?.stacks === 1), true);
-
-const fireTraps = generatedTraps.filter((trap) => trap?.affinity?.kind === "fire");
-assert.ok(fireTraps.length > 0);
-assert.equal(fireTraps.every((trap) => trap?.vitals?.mana?.current === 20), true);
-
-const trapKey = (trap) => [
-  trap.x,
-  trap.y,
-  trap.affinity?.kind,
-  trap.affinity?.expression,
-  trap.vitals?.mana?.current,
-].join(":");
-const firstTrapKeys = generatedTraps.map(trapKey).sort();
-const secondTrapKeys = (second.simConfig.layout.data.traps || [])
+const secondLegacyTrapKeys = (secondLayout.traps || [])
   .filter((trap) => trap?.source === "room_affinity_tile")
-  .map(trapKey)
+  .map((trap) => [trap.x, trap.y, trap.affinity?.kind, trap.affinity?.stacks].join(":"))
   .sort();
-assert.deepEqual(secondTrapKeys, firstTrapKeys);
+assert.deepEqual(secondLegacyTrapKeys, []);
 `;
 
 const mixedRoomCompositionScript = `
@@ -639,7 +586,7 @@ test("orchestrateBuild keeps the inferred delver on spawn", () => {
   runEsm(spawnOrderingScript);
 });
 
-test("orchestrateBuild maps room affinities to warden placement and tile emit traps", () => {
+test("orchestrateBuild keeps default room cards neutral and skips legacy room-affinity tile fallback", () => {
   runEsm(roomAffinityPlacementScript);
 });
 
