@@ -38,6 +38,20 @@ const AFFINITY_EXPRESSION_BY_CODE = Object.freeze({
   1: "push",
   2: "pull",
   3: "emit",
+  4: "draw",
+});
+
+const AMBIENT_OUTCOME_BY_CODE = Object.freeze({
+  1: "cancelled",
+  2: "emit",
+  3: "draw",
+});
+
+const VITAL_BY_CODE = Object.freeze({
+  0: "health",
+  1: "mana",
+  2: "stamina",
+  3: "durability",
 });
 
 function cloneResolvedEffects(effects) {
@@ -390,6 +404,28 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
     : [];
   const coreTrapList = collectCoreStaticTraps(core, width, height);
   const mergedTraps = mergeTrapLists(affinityTrapList, coreTrapList);
+  const hasAmbientOutcome = typeof core.getAmbientOutcomeCode === "function";
+  const ambientField = hasAmbientOutcome
+    ? (() => {
+        const outcomeCode = Number(core.getAmbientOutcomeCode?.() ?? 0);
+        const affinityKindCode = Number(core.getAmbientOutcomeAffinityKind?.() ?? 0);
+        const expressionCode = Number(core.getAmbientOutcomeExpression?.() ?? 0);
+        const targetVitalCode = Number(core.getAmbientOutcomeTargetVital?.() ?? -1);
+        const power = Number(core.getAmbientOutcomePower?.() ?? 0);
+        const delta = Number(core.getAmbientOutcomeDelta?.() ?? 0);
+        if (!Number.isFinite(outcomeCode) || outcomeCode <= 0) {
+          return undefined;
+        }
+        return {
+          outcome: AMBIENT_OUTCOME_BY_CODE[outcomeCode] || "unknown",
+          affinityKind: AFFINITY_KIND_BY_CODE[affinityKindCode] || null,
+          expression: AFFINITY_EXPRESSION_BY_CODE[expressionCode] || null,
+          targetVital: VITAL_BY_CODE[targetVitalCode] || null,
+          power: Number.isFinite(power) ? power : 0,
+          delta: Number.isFinite(delta) ? delta : 0,
+        };
+      })()
+    : undefined;
 
   return {
     tick: core.getCurrentTick(),
@@ -408,5 +444,6 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
       kinds,
     },
     traps: mergedTraps.length > 0 ? mergedTraps : undefined,
+    ambientField,
   };
 }

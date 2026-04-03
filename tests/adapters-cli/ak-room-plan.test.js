@@ -57,6 +57,9 @@ test("cli room-plan authors room cards directly from room flags", () => {
   ]);
 
   assert.equal(existsSync(join(outDir, "spec.json")), true);
+  assert.equal(existsSync(join(outDir, "affinity-rules.json")), true);
+  assert.equal(existsSync(join(outDir, "motivation-rules.json")), true);
+  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
 
@@ -128,7 +131,7 @@ test("cli room-plan supports multiple room configurations in one command", () =>
   ]);
 });
 
-test("cli room-plan writes budget receipt with room layout and room-affinity spend", () => {
+test("cli room-plan keeps default room cards neutral in budget receipts", () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budget-"));
   const outDir = join(workDir, "out");
   const budgetPath = join(workDir, "budget.json");
@@ -195,12 +198,9 @@ test("cli room-plan writes budget receipt with room layout and room-affinity spe
   assert.equal(layoutLine.totalCost, 11);
 
   const trapLine = receipt.lineItems.find((item) => item.id === "trap_basic" && item.kind === "trap");
-  assert.ok(trapLine);
-  assert.equal(trapLine.status, "approved");
-  assert.ok(trapLine.quantity > 0);
-  assert.ok(trapLine.totalCost > 0);
+  assert.equal(trapLine, undefined);
 
-  assert.equal(receipt.totalCost, layoutLine.totalCost + trapLine.totalCost);
+  assert.equal(receipt.totalCost, layoutLine.totalCost);
   assert.equal(receipt.remaining, budgetTokens - receipt.totalCost);
   assert.equal(simConfig.budgetReceiptRef.id, receipt.meta.id);
 });

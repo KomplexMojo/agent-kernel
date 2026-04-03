@@ -1,4 +1,8 @@
 import { orchestrateBuild } from "../build/orchestrate-build.js";
+import {
+  formatMixedRoomAssembliesCliLines,
+  summarizeMixedRoomAssemblies,
+} from "../build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
@@ -46,6 +50,7 @@ import {
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
   plan: "agent-kernel/PlanArtifact",
+  spendProposal: "agent-kernel/SpendProposal",
   budgetReceipt: "agent-kernel/BudgetReceipt",
   budgetArtifact: "agent-kernel/BudgetArtifact",
   budgetReceiptArtifact: "agent-kernel/BudgetReceiptArtifact",
@@ -61,6 +66,8 @@ const SCHEMAS = Object.freeze({
   runSummary: "agent-kernel/RunSummary",
   affinityPreset: "agent-kernel/AffinityPresetArtifact",
   actorLoadout: "agent-kernel/ActorLoadoutArtifact",
+  affinityRules: "agent-kernel/AffinityRulesArtifact",
+  motivationRules: "agent-kernel/MotivationRulesArtifact",
   affinitySummary: "agent-kernel/AffinitySummary",
   capturedInput: "agent-kernel/CapturedInputArtifact",
 });
@@ -489,7 +496,11 @@ function buildBuildArtifacts(buildResult, { includeBudgetAllocation = null, capt
   if (buildResult.plan) artifacts.push(buildResult.plan);
   if (buildResult.budget?.budget) artifacts.push(buildResult.budget.budget);
   if (buildResult.budget?.priceList) artifacts.push(buildResult.budget.priceList);
+  if (buildResult.spendProposal) artifacts.push(buildResult.spendProposal);
   if (buildResult.budgetReceipt) artifacts.push(buildResult.budgetReceipt);
+  if (buildResult.affinityRules) artifacts.push(buildResult.affinityRules);
+  if (buildResult.motivationRules) artifacts.push(buildResult.motivationRules);
+  if (buildResult.affinitySummary) artifacts.push(buildResult.affinitySummary);
   if (includeBudgetAllocation) artifacts.push(includeBudgetAllocation);
   if (buildResult.solverRequest) artifacts.push(buildResult.solverRequest);
   if (buildResult.solverResult) artifacts.push(buildResult.solverResult);
@@ -516,7 +527,11 @@ function buildBuildManifestEntries(buildResult, { includeBudgetAllocation = null
   addManifestEntry(entries, buildResult.plan, "plan.json");
   addManifestEntry(entries, buildResult.budget?.budget, "budget.json");
   addManifestEntry(entries, buildResult.budget?.priceList, "price-list.json");
+  addManifestEntry(entries, buildResult.spendProposal, "spend-proposal.json");
   addManifestEntry(entries, buildResult.budgetReceipt, "budget-receipt.json");
+  addManifestEntry(entries, buildResult.affinityRules, "affinity-rules.json");
+  addManifestEntry(entries, buildResult.motivationRules, "motivation-rules.json");
+  addManifestEntry(entries, buildResult.affinitySummary, "affinity-summary.json");
   addManifestEntry(entries, includeBudgetAllocation, "budget-allocation.json");
   addManifestEntry(entries, buildResult.solverRequest, "solver-request.json");
   addManifestEntry(entries, buildResult.solverResult, "solver-result.json");
@@ -696,8 +711,20 @@ export function createCommandKernel(host = {}) {
       if (result.budget?.priceList) {
         await writeJson(join(outDir, "price-list.json"), result.budget.priceList);
       }
+      if (result.spendProposal) {
+        await writeJson(join(outDir, "spend-proposal.json"), result.spendProposal);
+      }
       if (result.budgetReceipt) {
         await writeJson(join(outDir, "budget-receipt.json"), result.budgetReceipt);
+      }
+      if (result.affinityRules) {
+        await writeJson(join(outDir, "affinity-rules.json"), result.affinityRules);
+      }
+      if (result.motivationRules) {
+        await writeJson(join(outDir, "motivation-rules.json"), result.motivationRules);
+      }
+      if (result.affinitySummary) {
+        await writeJson(join(outDir, "affinity-summary.json"), result.affinitySummary);
       }
       if (result.solverRequest) {
         await writeJson(join(outDir, "solver-request.json"), result.solverRequest);
@@ -779,6 +806,10 @@ export function createCommandKernel(host = {}) {
       await writeJson(join(outDir, "telemetry.json"), telemetry);
 
       log(`build: wrote ${outDir}`);
+      const mixedRoomAssemblies = summarizeMixedRoomAssemblies(result?.simConfig?.layout?.data?.rooms);
+      formatMixedRoomAssembliesCliLines(mixedRoomAssemblies).forEach((line) => {
+        log(line);
+      });
       return { outDir };
     } catch (error) {
       const message = error?.message || String(error);
@@ -1057,6 +1088,13 @@ export function createCommandKernel(host = {}) {
     let fulfilled = 0;
     let deferred = 0;
     let maxTick = 0;
+    let ambientResolvedTotal = 0;
+    let ambientEmitTotal = 0;
+    let ambientDrawTotal = 0;
+    let ambientCancelledTotal = 0;
+    const ambientByAffinity = {};
+    const ambientByVital = {};
+    let ambientDeltaTotal = 0;
 
     for (const frame of frames) {
       maxTick = Math.max(maxTick, frame.tick || 0);
@@ -1064,6 +1102,26 @@ export function createCommandKernel(host = {}) {
       phaseCounts[phaseKey] = (phaseCounts[phaseKey] || 0) + 1;
       if (Array.isArray(frame.emittedEffects)) {
         totalEmitted += frame.emittedEffects.length;
+        for (const emitted of frame.emittedEffects) {
+          if (!emitted || emitted.kind !== "ambient_resolved") continue;
+          ambientResolvedTotal += 1;
+          const outcome = typeof emitted.data?.outcome === "string" ? emitted.data.outcome : "";
+          if (outcome === "emit") ambientEmitTotal += 1;
+          if (outcome === "draw") ambientDrawTotal += 1;
+          if (outcome === "cancelled") ambientCancelledTotal += 1;
+          const affinityKind = typeof emitted.data?.affinityKind === "string" ? emitted.data.affinityKind : "";
+          if (affinityKind) {
+            ambientByAffinity[affinityKind] = (ambientByAffinity[affinityKind] || 0) + 1;
+          }
+          const targetVital = typeof emitted.data?.targetVital === "string" ? emitted.data.targetVital : "";
+          if (targetVital) {
+            ambientByVital[targetVital] = (ambientByVital[targetVital] || 0) + 1;
+          }
+          const delta = Number(emitted.data?.delta);
+          if (Number.isFinite(delta)) {
+            ambientDeltaTotal += delta;
+          }
+        }
       }
       if (Array.isArray(frame.fulfilledEffects)) {
         for (const record of frame.fulfilledEffects) {
@@ -1096,6 +1154,17 @@ export function createCommandKernel(host = {}) {
         },
         runtimeDecisions: summarizeRuntimeDecisions(frames),
         runtimeDecisionCaptures: summarizeRuntimeDecisionCaptures(frames),
+        ambientEffects: {
+          total: ambientResolvedTotal,
+          outcomes: {
+            emit: ambientEmitTotal,
+            draw: ambientDrawTotal,
+            cancelled: ambientCancelledTotal,
+          },
+          byAffinity: ambientByAffinity,
+          byTargetVital: ambientByVital,
+          deltaTotal: ambientDeltaTotal,
+        },
         warnings,
       },
     };

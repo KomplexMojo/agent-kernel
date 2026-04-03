@@ -39,6 +39,7 @@ const DEFAULT_MOVEMENT_COST: i32 = 1;
 const DEFAULT_ACTION_COST_MANA: i32 = 0;
 const DEFAULT_ACTION_COST_STAMINA: i32 = 0;
 const STATIC_TRAP_NONE: i32 = 0;
+const AMBIENT_OUTCOME_NONE: i32 = 0;
 
 let width: i32 = 0;
 let height: i32 = 0;
@@ -61,6 +62,12 @@ let staticTrapExpressionByCell = new StaticArray<i32>(0);
 let staticTrapStacksByCell = new StaticArray<i32>(0);
 let staticTrapManaReserveByCell = new StaticArray<i32>(0);
 let staticTrapCount: i32 = 0;
+let ambientOutcomeCode: i32 = AMBIENT_OUTCOME_NONE;
+let ambientOutcomeAffinityKind: i32 = STATIC_TRAP_NONE;
+let ambientOutcomeExpression: i32 = 0;
+let ambientOutcomePower: i32 = 0;
+let ambientOutcomeTargetVital: i32 = -1;
+let ambientOutcomeDelta: i32 = 0;
 let placementActorCount: i32 = 0;
 let placementActorOverflow: bool = false;
 let placementActorId = new StaticArray<i32>(0);
@@ -202,6 +209,15 @@ function clearStaticTraps(): void {
     unchecked(staticTrapStacksByCell[i] = 0);
     unchecked(staticTrapManaReserveByCell[i] = 0);
   }
+}
+
+function resetAmbientOutcome(): void {
+  ambientOutcomeCode = AMBIENT_OUTCOME_NONE;
+  ambientOutcomeAffinityKind = STATIC_TRAP_NONE;
+  ambientOutcomeExpression = 0;
+  ambientOutcomePower = 0;
+  ambientOutcomeTargetVital = -1;
+  ambientOutcomeDelta = 0;
 }
 
 function clearMotivatedOccupancy(): void {
@@ -413,6 +429,7 @@ function resetWorldState(): void {
   fillTiles(Tile.Wall);
   clearTileActorState();
   clearStaticTraps();
+  resetAmbientOutcome();
   resetActorPlacementsState();
 }
 
@@ -864,6 +881,23 @@ export function disarmStaticTrapAt(x: i32, y: i32): i32 {
   return 1;
 }
 
+export function consumeStaticTrapManaReserveAt(x: i32, y: i32, cost: i32): i32 {
+  if (!withinBounds(x, y) || cost <= 0) {
+    return 0;
+  }
+  const index = indexFor(x, y);
+  if (!hasStaticTrapAtIndex(index)) {
+    return 0;
+  }
+  const reserve = unchecked(staticTrapManaReserveByCell[index]);
+  if (reserve <= 0) {
+    return 0;
+  }
+  const spend = reserve > cost ? cost : reserve;
+  unchecked(staticTrapManaReserveByCell[index] = reserve - spend);
+  return spend;
+}
+
 export function getStaticTrapCount(): i32 {
   return staticTrapCount;
 }
@@ -894,6 +928,50 @@ export function getStaticTrapManaReserveAt(x: i32, y: i32): i32 {
     return 0;
   }
   return unchecked(staticTrapManaReserveByCell[indexFor(x, y)]);
+}
+
+export function clearAmbientOutcome(): void {
+  resetAmbientOutcome();
+}
+
+export function setAmbientOutcome(
+  code: i32,
+  affinityKind: i32,
+  expression: i32,
+  power: i32,
+  targetVital: i32,
+  delta: i32,
+): void {
+  ambientOutcomeCode = code;
+  ambientOutcomeAffinityKind = affinityKind;
+  ambientOutcomeExpression = expression;
+  ambientOutcomePower = power;
+  ambientOutcomeTargetVital = targetVital;
+  ambientOutcomeDelta = delta;
+}
+
+export function getAmbientOutcomeCode(): i32 {
+  return ambientOutcomeCode;
+}
+
+export function getAmbientOutcomeAffinityKind(): i32 {
+  return ambientOutcomeAffinityKind;
+}
+
+export function getAmbientOutcomeExpression(): i32 {
+  return ambientOutcomeExpression;
+}
+
+export function getAmbientOutcomePower(): i32 {
+  return ambientOutcomePower;
+}
+
+export function getAmbientOutcomeTargetVital(): i32 {
+  return ambientOutcomeTargetVital;
+}
+
+export function getAmbientOutcomeDelta(): i32 {
+  return ambientOutcomeDelta;
 }
 
 export function isWalkableActorKind(kind: ActorKind): bool {

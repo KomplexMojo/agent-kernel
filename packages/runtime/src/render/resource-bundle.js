@@ -7,8 +7,8 @@ import {
   AFFINITY_COLOR_HEX,
   hexToRgba as sharedHexToRgba,
   normalizeHex as sharedNormalizeHex,
-  resolveStackIntensity,
 } from "./affinity-palette.js";
+import { resolveTrapGlyphMarker } from "./trap-glyphs.js";
 
 export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 export const RESOURCE_BUNDLE_VERSION = 2;
@@ -477,6 +477,66 @@ const PALETTE = Object.freeze({
   ),
 });
 
+const TRAP_GLYPH_BITMAPS = Object.freeze({
+  C: ["01110", "10001", "10000", "10000", "10000", "10001", "01110"],
+  D: ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+  E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+  F: ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+  I: ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
+  K: ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+  L: ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+  N: ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+  T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+  W: ["10001", "10001", "10001", "10101", "10101", "11011", "10001"],
+  "?": ["11110", "00001", "00010", "00100", "00100", "00000", "00100"],
+});
+
+function drawBitmapGlyph(pixels, width, glyph, rgba, { x = 0, y = 0, scale = 1 } = {}) {
+  const rows = TRAP_GLYPH_BITMAPS[glyph] || TRAP_GLYPH_BITMAPS["?"];
+  rows.forEach((row, rowIndex) => {
+    for (let colIndex = 0; colIndex < row.length; colIndex += 1) {
+      if (row[colIndex] !== "1") continue;
+      fillRect(
+        pixels,
+        width,
+        x + (colIndex * scale),
+        y + (rowIndex * scale),
+        scale,
+        scale,
+        rgba,
+      );
+    }
+  });
+}
+
+function buildTrapMarkerSprite(kind, stacks, size = DEFAULT_RESOURCE_TILE_SIZE) {
+  const pixels = createPixelBuffer(size, size);
+  const marker = resolveTrapGlyphMarker({ kind, stacks });
+  if (!marker) return pixels;
+  const center = Math.floor(size / 2);
+  const outerRadius = Math.max(4, Math.floor(size * 0.28));
+  const innerRadius = Math.max(2, outerRadius - 2);
+  const affinityColor = PALETTE.affinity[marker.kind] || PALETTE.white;
+  const borderColor = [affinityColor[0], affinityColor[1], affinityColor[2], 232];
+  const plateColor = [8, 12, 14, 218];
+  drawCircle(pixels, size, center, center, outerRadius, borderColor);
+  drawCircle(pixels, size, center, center, innerRadius, plateColor);
+  if (marker.stacks >= 3) {
+    drawCircle(pixels, size, center + outerRadius - 1, center - outerRadius + 1, 2, borderColor);
+  }
+  if (marker.stacks >= 2) {
+    drawCircle(pixels, size, center - outerRadius + 1, center + outerRadius - 1, 2, borderColor);
+  }
+  const glyph = String(marker.glyph || "?").toUpperCase();
+  const glyphScale = size >= 24 ? 2 : 1;
+  const glyphWidth = 5 * glyphScale;
+  const glyphHeight = 7 * glyphScale;
+  const glyphX = Math.floor((size - glyphWidth) / 2);
+  const glyphY = Math.floor((size - glyphHeight) / 2);
+  drawBitmapGlyph(pixels, size, glyph, PALETTE.white, { x: glyphX, y: glyphY, scale: glyphScale });
+  return pixels;
+}
+
 function inferTileSemantic(char) {
   if (char === "?") return "fog";
   if (char === "#") return "wall";
@@ -571,6 +631,10 @@ function inferMotivation(actor = {}) {
 }
 
 function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
+  if (assetId.startsWith("trap-marker.")) {
+    const [, rawKind = "", rawStacks = "1"] = assetId.split(".");
+    return buildTrapMarkerSprite(rawKind, Number(rawStacks) || 1, size);
+  }
   const pixels = createPixelBuffer(size, size);
   if (assetId.startsWith("tile.floor")) {
     checker(pixels, size, size, PALETTE.floorA, PALETTE.floorB, 4);
@@ -808,72 +872,6 @@ function resolveBadgeAssetId(bundle, category, key) {
   return bundle?.mappings?.[category]?.[normalized] || `${category.slice(0, -1)}.${normalized}`;
 }
 
-function rgbToHsl(r, g, b) {
-  const rn = r / 255;
-  const gn = g / 255;
-  const bn = b / 255;
-  const max = Math.max(rn, gn, bn);
-  const min = Math.min(rn, gn, bn);
-  const delta = max - min;
-  let h = 0;
-  if (delta > 0) {
-    if (max === rn) h = ((gn - bn) / delta) % 6;
-    else if (max === gn) h = ((bn - rn) / delta) + 2;
-    else h = ((rn - gn) / delta) + 4;
-    h *= 60;
-    if (h < 0) h += 360;
-  }
-  const l = (max + min) / 2;
-  const s = delta === 0 ? 0 : delta / (1 - Math.abs((2 * l) - 1));
-  return { h, s, l };
-}
-
-function hslToRgb(h, s, l) {
-  const c = (1 - Math.abs((2 * l) - 1)) * s;
-  const hPrime = (h % 360) / 60;
-  const x = c * (1 - Math.abs((hPrime % 2) - 1));
-  let r1 = 0;
-  let g1 = 0;
-  let b1 = 0;
-  if (hPrime >= 0 && hPrime < 1) {
-    r1 = c;
-    g1 = x;
-  } else if (hPrime < 2) {
-    r1 = x;
-    g1 = c;
-  } else if (hPrime < 3) {
-    g1 = c;
-    b1 = x;
-  } else if (hPrime < 4) {
-    g1 = x;
-    b1 = c;
-  } else if (hPrime < 5) {
-    r1 = x;
-    b1 = c;
-  } else {
-    r1 = c;
-    b1 = x;
-  }
-  const m = l - c / 2;
-  return [
-    Math.round((r1 + m) * 255),
-    Math.round((g1 + m) * 255),
-    Math.round((b1 + m) * 255),
-  ];
-}
-
-function resolveAffinityFloorRgba(affinity) {
-  const baseHex = AFFINITY_COLOR_HEX[affinity?.kind];
-  if (!baseHex) return null;
-  const baseRgba = hexToRgba(baseHex);
-  const { h } = rgbToHsl(baseRgba[0], baseRgba[1], baseRgba[2]);
-  const style = resolveStackIntensity(affinity?.stacks || 1);
-  const sat = Math.max(0, Math.min(1, style.sat / 100));
-  const light = Math.max(0, Math.min(1, style.light / 100));
-  const [r, g, b] = hslToRgb(h, sat, light);
-  return [r, g, b, 255];
-}
-
 function affinityPriority(kind) {
   const index = ALLOWED_AFFINITIES.indexOf(kind);
   return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
@@ -931,48 +929,30 @@ function collectTrapAffinities(trap) {
     });
 }
 
-function buildFloorAffinityMap(floorAffinityTraps = []) {
+function buildTrapMarkerMap(floorAffinityTraps = []) {
   const map = new Map();
   if (!Array.isArray(floorAffinityTraps)) return map;
   floorAffinityTraps.forEach((trap) => {
     const position = normalizeTrapPosition(trap);
     if (!position) return;
     const affinities = collectTrapAffinities(trap);
-    const affinity = affinities.length > 0 ? affinities[0] : null;
-    if (!affinity) return;
+    const marker = affinities.length > 0 ? resolveTrapGlyphMarker(affinities[0]) : null;
+    if (!marker) return;
     const key = `${position.x},${position.y}`;
     const prior = map.get(key);
     if (!prior) {
-      map.set(key, affinity);
+      map.set(key, marker);
       return;
     }
-    if (affinity.stacks > prior.stacks) {
-      map.set(key, affinity);
+    if (marker.stacks > prior.stacks) {
+      map.set(key, marker);
       return;
     }
-    if (affinity.stacks === prior.stacks && affinityPriority(affinity.kind) < affinityPriority(prior.kind)) {
-      map.set(key, affinity);
+    if (marker.stacks === prior.stacks && affinityPriority(marker.kind) < affinityPriority(prior.kind)) {
+      map.set(key, marker);
     }
   });
   return map;
-}
-
-function applyAffinityTint(basePixels, width, tileX, tileY, tileWidth, tileHeight, affinityRgba) {
-  if (!affinityRgba) return;
-  const tintAlpha = 0.4; // Blend factor for affinity tint
-  for (let y = 0; y < tileHeight; y += 1) {
-    for (let x = 0; x < tileWidth; x += 1) {
-      const px = tileX * tileWidth + x;
-      const py = tileY * tileHeight + y;
-      if (px < 0 || py < 0 || px >= width || py >= basePixels.length / 4 / width * width) continue;
-      const index = (py * width + px) * 4;
-      if (index < 0 || index + 3 >= basePixels.length) continue;
-      // Alpha blend the affinity color over the base floor tile
-      basePixels[index] = Math.round(basePixels[index] * (1 - tintAlpha) + affinityRgba[0] * tintAlpha);
-      basePixels[index + 1] = Math.round(basePixels[index + 1] * (1 - tintAlpha) + affinityRgba[1] * tintAlpha);
-      basePixels[index + 2] = Math.round(basePixels[index + 2] * (1 - tintAlpha) + affinityRgba[2] * tintAlpha);
-    }
-  }
 }
 
 function resolveOverlayAssetIds(bundle, actor) {
@@ -1019,7 +999,7 @@ export async function renderBoardWithResourceBundle({
   const height = heightTiles * tileHeight;
   const pixels = createPixelBuffer(width, height);
   const spriteCache = new Map();
-  const floorAffinityMap = buildFloorAffinityMap(floorAffinityTraps);
+  const trapMarkerMap = buildTrapMarkerMap(floorAffinityTraps);
 
   async function getSprite(assetId) {
     if (spriteCache.has(assetId)) return spriteCache.get(assetId);
@@ -1045,18 +1025,19 @@ export async function renderBoardWithResourceBundle({
       const assetId = resolveTileAssetId(bundle, row[x] || "#");
       const sprite = await getSprite(assetId);
       blitSprite(pixels, width, height, sprite, tileWidth, x * tileWidth, y * tileHeight);
-
-      // Apply affinity color tint to floor tiles
-      const char = row[x] || "#";
-      const semantic = inferTileSemantic(char);
-      if (semantic === "floor") {
-        const affinity = floorAffinityMap.get(`${x},${y}`);
-        if (affinity) {
-          const affinityRgba = resolveAffinityFloorRgba(affinity);
-          applyAffinityTint(pixels, width, x, y, tileWidth, tileHeight, affinityRgba);
-        }
-      }
     }
+  }
+
+  for (const [key, marker] of trapMarkerMap.entries()) {
+    const [rawX, rawY] = String(key).split(",");
+    const x = Number(rawX);
+    const y = Number(rawY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    if (x < 0 || x >= widthTiles || y < 0 || y >= heightTiles) continue;
+    const row = String(tiles[y] || "").padEnd(widthTiles, "#");
+    if (inferTileSemantic(row[x] || "#") !== "floor") continue;
+    const markerSprite = await getSprite(`trap-marker.${marker.kind}.${marker.stacks}`);
+    blitSprite(pixels, width, height, markerSprite, tileWidth, x * tileWidth, y * tileHeight);
   }
 
   const sortedActors = Array.isArray(actors)
