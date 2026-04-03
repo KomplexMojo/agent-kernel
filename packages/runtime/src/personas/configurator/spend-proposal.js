@@ -1,7 +1,7 @@
 import { validateSpendProposal } from "../allocator/validate-spend.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
-import { VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { ROOM_AFFINITY_STACK_COST_FACTOR, VITAL_KEYS } from "../../contracts/domain-constants.js";
 import { COST_DEFAULTS } from "./cost-model.js";
 import { extractSummaryFromCardSet } from "../director/summary-selections.js";
 import { normalizeCardType } from "./card-model.js";
@@ -496,13 +496,13 @@ export function buildDesignSpendLedger({
     const tokenHint = normalizePositiveInt(entry?.tokenHint, 0);
     const entryId = entry.id || `${entry.source}_${entry.motivation}_${entry.affinity}`;
     if (entry.source !== "actor") {
-      const levelConfigEntry = entry.source === "room"
-        ? { ...entry, affinities: [] }
-        : entry;
+      const roomPricing = entry.source === "room"
+        ? { ...pricing, affinityCostScale: ROOM_AFFINITY_STACK_COST_FACTOR }
+        : pricing;
       const levelConfig = calculateActorConfigurationUnitCost({
-        entry: levelConfigEntry,
+        entry,
         priceMap,
-        pricing,
+        pricing: roomPricing,
       });
       const baseSpend = tokenHint * count;
       if (baseSpend > 0) {

@@ -55,30 +55,6 @@ assert.ok(factEffect.id.includes("2"));
 const repeatA = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, value: 0 });
 const repeatB = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, value: 0 });
 assert.equal(repeatA.id, repeatB.id);
-
-const ambientValue = (2 << 24) | (5 << 16) | (10 << 8) | 3;
-const ambient = buildEffectFromCore({
-  tick: 6,
-  index: 2,
-  kind: EffectKind.AmbientResolved,
-  value: ambientValue,
-  actorId: 7,
-  x: 2,
-  y: 1,
-  reason: 1,
-  delta: -5,
-});
-assert.equal(ambient.kind, "ambient_resolved");
-assert.deepEqual(ambient.data, {
-  actorId: 7,
-  position: { x: 2, y: 1 },
-  outcome: "emit",
-  affinityKind: "dark",
-  expression: "emit",
-  power: 5,
-  targetVital: "mana",
-  delta: -5,
-});
 `;
 
 const solverScript = `

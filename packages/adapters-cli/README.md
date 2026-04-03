@@ -36,18 +36,10 @@ by passing `--out-dir`.
 ### `build`
 Agent-only builder that consumes a single JSON build spec and emits mapped artifacts
 for downstream personas (intent/plan, optional solver artifacts, configurator outputs,
-and optional budget artifacts). Configurator-enabled builds also surface framework artifacts
-(`spend-proposal.json`, `affinity-rules.json`, `motivation-rules.json`) plus `affinity-summary.json`
-when preset/loadout resolution is configured. Writes `manifest.json`, `bundle.json`, and `telemetry.json`
+and optional budget artifacts). Writes `manifest.json`, `bundle.json`, and `telemetry.json`
 in the output directory. Manifest/bundle include a filtered `schemas` list for emitted artifacts.
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
-When mixed-room templates are present, build emits deterministic mixed-room composition summaries:
-- `sim-config.json` room entries include `mixedRoomComposition.compositionProfile` and `dominantInvestment`.
-- `affinity-summary.json` includes `mixedRoomAssemblies` (when affinity summary generation is enabled).
-- CLI stdout includes a per-room `mixed-room summary` block describing neutral/localized vs room-overlay-dominant composition,
-  explicit `surfaceAffinities`, and `tokenSpend` buckets (`defaultTiles`, `localizedTiles`, `roomWideOverlay`, `localizedTraps`, `total`).
-  Room-card affinity metadata is not treated as a room-wide surface unless explicit overlay/trap spend exists.
 
 ### `llm-plan`
 Runs the Orchestrator LLM session against a scenario fixture and emits build outputs
@@ -96,11 +88,7 @@ Inputs/outputs:
   from room-plan runs.
 - Output dir: `artifacts/runs/<runId>/room-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
-  `spend-proposal.json`, `budget-receipt.json`, `affinity-rules.json`, `motivation-rules.json`,
-  optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
-  plus `bundle.json`, `manifest.json`, `telemetry.json`.
-- When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
-  `mixed-room summary` block for quick CLI inspection, including `surfaceAffinities` and per-category `tokenSpend`.
+  `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
 ### `delver-plan`
 Builds a `BuildSpec` directly from Delver authoring flags (no hand-edited JSON required) and
@@ -118,11 +106,7 @@ Inputs/outputs:
   from delver-plan runs.
 - Output dir: `artifacts/runs/<runId>/delver-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
-  `spend-proposal.json`, `budget-receipt.json`, `affinity-rules.json`, `motivation-rules.json`,
-  optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
-  plus `bundle.json`, `manifest.json`, `telemetry.json`.
-- When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
-  `mixed-room summary` block for quick CLI inspection, including `surfaceAffinities` and per-category `tokenSpend`.
+  `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
 ### `warden-plan`
 Builds a `BuildSpec` directly from Warden authoring flags (no hand-edited JSON required) and
@@ -140,19 +124,14 @@ Inputs/outputs:
   from warden-plan runs.
 - Output dir: `artifacts/runs/<runId>/warden-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
-  `spend-proposal.json`, `budget-receipt.json`, `affinity-rules.json`, `motivation-rules.json`,
-  optional `affinity-summary.json`, `sim-config.json`, `initial-state.json`, `resource-bundle.json`,
-  plus `bundle.json`, `manifest.json`, `telemetry.json`.
-- When mixed-room assemblies are present in generated layout rooms, stdout includes a deterministic
-  `mixed-room summary` block for quick CLI inspection, including `surfaceAffinities` and per-category `tokenSpend`.
+  `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
 Build inputs/outputs:
 - Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
 - Output dir: `artifacts/runs/<runId>/build` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
-  `spend-proposal.json`, `budget-receipt.json`, `affinity-rules.json`, `motivation-rules.json`,
-  optional `affinity-summary.json`, `solver-request.json`, `solver-result.json`, `sim-config.json`,
-  `initial-state.json`, `resource-bundle.json`, plus captured inputs as `captured-input-<adapter>-<index>.json`.
+  `budget-receipt.json`, `solver-request.json`, `solver-result.json`, `sim-config.json`,
+  `initial-state.json`, plus captured inputs as `captured-input-<adapter>-<index>.json`.
 - Bundle/manifest: `bundle.json` (inlined artifacts + schemas), `manifest.json` (paths + schemas),
   `telemetry.json` (run-scope record).
 
@@ -176,8 +155,7 @@ Replay a run deterministically from captured inputs and TickFrames without exter
 producing a replay summary and regenerated TickFrames.
 
 ### `inspect`
-Summarize or extract telemetry snapshots for debugging and analysis, including
-ambient core-as effect rollups (`ambient_resolved` counts/outcomes/affinity/vital pressure).
+Summarize or extract telemetry snapshots for debugging and analysis.
 
 ### Adapter demo commands
 These commands exercise the external adapters directly.

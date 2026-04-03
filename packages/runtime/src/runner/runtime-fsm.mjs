@@ -208,20 +208,20 @@ function resolveObservation(core, actorIdLabel) {
 function buildEffectRecordFactory({ core, effectFactory, tick }) {
   const buildEffectFromCore = typeof effects.buildEffectFromCore === "function"
     ? effects.buildEffectFromCore
-    : ({ tick: t, index: i, kind: k, value: v, actorId, x, y, reason, delta }) => ({
+    : ({ tick: t, index: i, kind: k, value: v }) => ({
         schema: "agent-kernel/Effect",
         schemaVersion: 1,
         id: `eff_${t}_${i}_${k}_${v}`,
         tick: t,
         fulfillment: "deterministic",
         kind: "custom",
-        data: { kind: k, value: v, actorId, x, y, reason, delta },
+        data: { kind: k, value: v },
       });
 
-  return ({ kind, value, index, actorId, x, y, reason, delta }) => {
-    const fallback = buildEffectFromCore({ tick, index, kind, value, actorId, x, y, reason, delta });
+  return ({ kind, value, index }) => {
+    const fallback = buildEffectFromCore({ tick, index, kind, value });
     if (typeof effectFactory === "function") {
-      const customEffect = effectFactory({ tick, kind, value, index, actorId, x, y, reason, delta });
+      const customEffect = effectFactory({ tick, kind, value, index });
       if (customEffect) {
         return { ...fallback, ...customEffect, id: customEffect.id || fallback.id };
       }
@@ -252,12 +252,7 @@ function flushEffects({ core, adapters, effectFactory, tick, effectLog }) {
   for (let i = 0; i < count; i += 1) {
     const kind = core.getEffectKind(i);
     const value = core.getEffectValue(i);
-    const actorId = typeof core.getEffectActorId === "function" ? core.getEffectActorId(i) : 0;
-    const x = typeof core.getEffectX === "function" ? core.getEffectX(i) : 0;
-    const y = typeof core.getEffectY === "function" ? core.getEffectY(i) : 0;
-    const reason = typeof core.getEffectReason === "function" ? core.getEffectReason(i) : 0;
-    const delta = typeof core.getEffectDelta === "function" ? core.getEffectDelta(i) : 0;
-    const effect = buildEffectRecord({ kind, value, index: i, actorId, x, y, reason, delta });
+    const effect = buildEffectRecord({ kind, value, index: i });
     normalizeEffectKind(effect);
     let outcome;
     if (effect?.kind === "need_external_fact") {

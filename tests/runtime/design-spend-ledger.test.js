@@ -205,47 +205,32 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
   assert.equal(high.overBudget, high.totalSpentTokens > high.budgetTokens);
 });
 
-test("buildDesignSpendLedger skips implicit room-card affinity configuration spend by default", async () => {
-  const { buildDesignSpendLedger } = await import(
+test("buildDesignSpendLedger discounts room affinity configuration to 10% of base cost", async () => {
+  const { buildDesignSpendLedger, calculateActorConfigurationUnitCost } = await import(
     "../../packages/runtime/src/personas/configurator/spend-proposal.js"
   );
 
-  const baseline = buildDesignSpendLedger({
-    summary: {
-      budgetTokens: 1000,
-      cardSet: [
-        {
-          id: "room_water",
-          type: "room",
-          source: "room",
-          count: 1,
-          affinity: "water",
-          roomSize: "small",
-        },
-      ],
-    },
-    priceList: {
-      schema: "agent-kernel/PriceList",
-      schemaVersion: 1,
-      items: [
-        { id: "tile_floor", kind: "tile", costTokens: 1 },
-        { id: "affinity_stack", kind: "affinity", costTokens: 10 },
-        { id: "affinity_expression_localized", kind: "affinity", costTokens: 10 },
-      ],
-    },
-  });
+  const roomAffinity = [{ kind: "fire", expression: "push", stacks: 2 }];
+  const priceMap = new Map([
+    ["affinity:affinity_stack", 10],
+    ["affinity:affinity_expression_externalize", 10],
+  ]);
+  const fullAffinityCost = calculateActorConfigurationUnitCost({
+    entry: { affinities: roomAffinity },
+    priceMap,
+  }).cost;
 
   const ledger = buildDesignSpendLedger({
     summary: {
       budgetTokens: 1000,
       cardSet: [
         {
-          id: "room_water",
+          id: "room_fire",
           type: "room",
           source: "room",
           count: 1,
-          affinity: "water",
-          affinities: [{ kind: "water", expression: "emit", stacks: 2 }],
+          affinity: "fire",
+          affinities: roomAffinity,
           roomSize: "small",
         },
       ],
@@ -256,14 +241,16 @@ test("buildDesignSpendLedger skips implicit room-card affinity configuration spe
       items: [
         { id: "tile_floor", kind: "tile", costTokens: 1 },
         { id: "affinity_stack", kind: "affinity", costTokens: 10 },
-        { id: "affinity_expression_localized", kind: "affinity", costTokens: 10 },
+        { id: "affinity_expression_externalize", kind: "affinity", costTokens: 10 },
       ],
     },
   });
 
-  assert.equal(ledger.categories.levelConfig.spentTokens, baseline.categories.levelConfig.spentTokens);
   const roomConfigLine = ledger.lineItems.find(
-    (entry) => entry.category === "levelConfig" && String(entry.id).includes("room_water") && entry.id.endsWith("_config"),
+    (entry) => entry.category === "levelConfig" && String(entry.id).includes("room_fire") && entry.id.endsWith("_config"),
   );
-  assert.equal(roomConfigLine, undefined);
+
+  assert.ok(roomConfigLine);
+  assert.equal(roomConfigLine.unitCostTokens, Math.round(fullAffinityCost * 0.1));
+  assert.equal(roomConfigLine.detail.affinityCostScale, 0.1);
 });

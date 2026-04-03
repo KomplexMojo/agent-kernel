@@ -49,9 +49,6 @@ test("cli warden-plan authors warden cards directly from warden flags", () => {
   ]);
 
   assert.equal(existsSync(join(outDir, "spec.json")), true);
-  assert.equal(existsSync(join(outDir, "affinity-rules.json")), true);
-  assert.equal(existsSync(join(outDir, "motivation-rules.json")), true);
-  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
 

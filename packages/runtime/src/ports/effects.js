@@ -13,44 +13,6 @@ export const EffectKind = Object.freeze({
   SolverRequest: 8,
   EffectFulfilled: 9,
   EffectDeferred: 10,
-  ActorMoved: 11,
-  ConfigInvalid: 12,
-  DurabilityChanged: 13,
-  ActorBlocked: 14,
-  AmbientResolved: 15,
-});
-
-const AFFINITY_KIND_BY_CODE = Object.freeze({
-  1: "fire",
-  2: "water",
-  3: "earth",
-  4: "wind",
-  5: "life",
-  6: "decay",
-  7: "corrode",
-  8: "fortify",
-  9: "light",
-  10: "dark",
-});
-
-const AFFINITY_EXPRESSION_BY_CODE = Object.freeze({
-  1: "push",
-  2: "pull",
-  3: "emit",
-  4: "draw",
-});
-
-const VITAL_BY_CODE = Object.freeze({
-  0: "health",
-  1: "mana",
-  2: "stamina",
-  3: "durability",
-});
-
-const AMBIENT_OUTCOME_BY_CODE = Object.freeze({
-  1: "cancelled",
-  2: "emit",
-  3: "draw",
 });
 
 function buildEffectId(tick, index, kind, value) {
@@ -68,16 +30,7 @@ function buildRequestId(prefix, seq) {
   return `${prefix}-${seq}`;
 }
 
-function decodeAmbientResolutionValue(value) {
-  return {
-    outcomeCode: (value >> 24) & 0xff,
-    power: (value >> 16) & 0xff,
-    affinityKindCode: (value >> 8) & 0xff,
-    expressionCode: value & 0xff,
-  };
-}
-
-export function buildEffectFromCore({ tick, index, kind, value, actorId = 0, x = 0, y = 0, reason = 0, delta = 0 }) {
+export function buildEffectFromCore({ tick, index, kind, value }) {
   const base = {
     schema: EFFECT_SCHEMA,
     schemaVersion: 1,
@@ -176,52 +129,6 @@ export function buildEffectFromCore({ tick, index, kind, value, actorId = 0, x =
         data: { status: "deferred" },
         fulfillment: "deferred",
       };
-    case EffectKind.ActorMoved:
-      return {
-        ...base,
-        kind: "actor_moved",
-        data: { actorId, position: { x, y } },
-      };
-    case EffectKind.ConfigInvalid:
-      return {
-        ...base,
-        kind: "log",
-        severity: "warn",
-        data: { reason: "config_invalid", code: value },
-      };
-    case EffectKind.DurabilityChanged:
-      return {
-        ...base,
-        kind: "durability_changed",
-        data: { actorId, delta },
-      };
-    case EffectKind.ActorBlocked:
-      return {
-        ...base,
-        kind: "actor_blocked",
-        data: { actorId, position: { x, y }, reasonCode: reason },
-      };
-    case EffectKind.AmbientResolved: {
-      const decoded = decodeAmbientResolutionValue(value);
-      const affinityKind = AFFINITY_KIND_BY_CODE[decoded.affinityKindCode] || null;
-      const expression = AFFINITY_EXPRESSION_BY_CODE[decoded.expressionCode] || null;
-      const targetVital = VITAL_BY_CODE[reason] || null;
-      const outcome = AMBIENT_OUTCOME_BY_CODE[decoded.outcomeCode] || "unknown";
-      return {
-        ...base,
-        kind: "ambient_resolved",
-        data: {
-          actorId,
-          position: { x, y },
-          outcome,
-          affinityKind,
-          expression,
-          power: decoded.power,
-          targetVital,
-          delta,
-        },
-      };
-    }
     default:
       return {
         ...base,
@@ -293,11 +200,6 @@ export function dispatchEffect(adapters, effect) {
       return { status: "fulfilled", result: adapters.logger.warn("Budget limit", effect.data) };
     case "effect_fulfilled":
     case "effect_deferred":
-      return { status: "fulfilled", result: effect.data };
-    case "actor_moved":
-    case "actor_blocked":
-    case "durability_changed":
-    case "ambient_resolved":
       return { status: "fulfilled", result: effect.data };
     default:
       if (!adapters?.logger?.warn) {

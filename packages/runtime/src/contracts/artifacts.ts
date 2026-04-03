@@ -652,242 +652,12 @@ export type InitialStateArtifact = InitialStateArtifactV1;
 export const AFFINITY_PRESET_SCHEMA = "agent-kernel/AffinityPresetArtifact";
 export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
 export const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
-export const AFFINITY_RULES_SCHEMA = "agent-kernel/AffinityRulesArtifact";
 
 export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
 export type AffinityExpression = "push" | "pull" | "emit" | "draw";
 export type AffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 export type AffinityStackScaling = "linear" | "multiplier";
 export type AffinityAbilityKind = "attack" | "buff" | "area";
-export type AffinityInteractionOutcome =
-  "cancel"
-  | "suppress"
-  | "convert"
-  | "amplify"
-  | "mutate_environment"
-  | "apply_status"
-  | "reflect";
-export type AffinitySpendPolicy = "full" | "none" | "half";
-export type AffinityInteractionChannel = "field" | "projected";
-export type AffinityInteractionPolarity = "outward" | "inward";
-export type AffinityRangeShape = "self" | "adjacent" | "line" | "radius";
-export type RoomWideAffinityMode = "optional" | "canonical";
-export type AffinityInteractionExampleKind = "ambient" | "projected";
-
-export interface AffinityRulesDrawConversionRuleV1 {
-  targetVital?: "health" | "mana" | "stamina" | "durability";
-  efficiency?: number;
-}
-
-export interface AffinityRulesDrawConversionV1 {
-  defaultRule?: AffinityRulesDrawConversionRuleV1;
-  byAffinity?: Partial<Record<AffinityKind, AffinityRulesDrawConversionRuleV1>>;
-}
-
-export interface AffinityRulesManaPolicyV1 {
-  winnerSpend?: AffinitySpendPolicy;
-  loserSpend?: AffinitySpendPolicy;
-  tieSpend?: AffinitySpendPolicy;
-  refundPercent?: number;
-  clashCost?: number;
-  overpowerBonusCost?: number;
-  drainOnFail?: number;
-}
-
-export interface AffinityRuleStackTierV1 {
-  tier: 1 | 2 | 3 | 4 | 5;
-  manaCost: number;
-  potency?: number;
-  defaultDesignCostTokens?: number;
-  complexityClass?: string;
-  unlockedEffects?: string[];
-}
-
-export interface AffinityRuleExpressionV1 {
-  id: string;
-  label?: string;
-  verb: AffinityExpression;
-  defaultTargetType: AffinityTargetType;
-  stackTiers: AffinityRuleStackTierV1[];
-  manaScaling?: {
-    areaSizeMultiplier?: number;
-    targetCountMultiplier?: number;
-    durationMultiplier?: number;
-    persistentAreaSurcharge?: number;
-    environmentMutationSurcharge?: number;
-    overrideAffinitySurcharge?: number;
-  };
-}
-
-export interface AffinityRuleAffinityV1 {
-  kind: AffinityKind;
-  opposite: AffinityKind;
-  basePriority: number;
-  expressions: AffinityRuleExpressionV1[];
-}
-
-export interface AffinityRuleInteractionV1 {
-  sourceKind: AffinityKind;
-  targetKind: AffinityKind;
-  outcomeOnSourceWin?: AffinityInteractionOutcome;
-  outcomeOnTargetWin?: AffinityInteractionOutcome;
-  outcomeOnTie?: AffinityInteractionOutcome;
-  mana?: AffinityRulesManaPolicyV1;
-}
-
-export interface AffinityInteractionRangeV1 {
-  shape: AffinityRangeShape;
-  minTiles: number;
-  maxTiles: number;
-}
-
-export interface AffinityExpressionSemanticsV1 {
-  channel: AffinityInteractionChannel;
-  polarity: AffinityInteractionPolarity;
-  rangeBehavior: AffinityInteractionRangeV1;
-  oppositeAffinityOutcome: AffinityInteractionOutcome;
-  vitalPressure: Partial<Record<"health" | "mana" | "stamina" | "durability", number>>;
-}
-
-export interface AffinityInteractionExampleV1 {
-  id: string;
-  kind: AffinityInteractionExampleKind;
-  sourceKind: AffinityKind;
-  sourceExpression: AffinityExpression;
-  targetKind: AffinityKind;
-  targetExpression: AffinityExpression;
-  expectedOutcome?: AffinityInteractionOutcome;
-}
-
-export interface AffinityInteractionContractV1 {
-  expressionSemantics: Record<AffinityExpression, AffinityExpressionSemanticsV1>;
-  closeProximityNegation: {
-    enabled: boolean;
-    radiusTiles: number;
-    appliesToChannels: AffinityInteractionChannel[];
-  };
-  interactionExamples: AffinityInteractionExampleV1[];
-}
-
-export interface FixedPositionWorldActorProfileV1 {
-  id?: string;
-  kind: "floor" | "barrier" | "trap" | "tile";
-  stationary: true;
-  neutralBaseline?: boolean;
-  tokenCost: number;
-  vitals?: Partial<Record<"health" | "mana" | "stamina" | "durability", number>>;
-  regen?: Partial<Record<"health" | "mana" | "stamina", number>>;
-  affinity?: {
-    kind: AffinityKind;
-    expression: AffinityExpression;
-    stacks: number;
-  };
-}
-
-export interface TrapInvestmentProfileV1 {
-  label?: string;
-  tokenCost: number;
-  kind: AffinityKind;
-  expression: AffinityExpression;
-  stacks: number;
-  manaReserve: number;
-  manaRegen: number;
-}
-
-export interface MixedRoomAffinityOverlayV1 {
-  kind: AffinityKind;
-  expression: AffinityExpression;
-  stacks: number;
-  tokenCost: number;
-}
-
-export interface MixedRoomTilePlacementV1 {
-  x: number;
-  y: number;
-  kind: "floor" | "barrier" | "tile";
-  tokenCost?: number;
-}
-
-export interface MixedRoomTrapPlacementV1 {
-  id?: string;
-  x: number;
-  y: number;
-  blocking?: boolean;
-  tokenCost: number;
-  affinity: {
-    kind: AffinityKind;
-    expression: AffinityExpression;
-    stacks: number;
-  };
-  manaReserve: number;
-  manaRegen?: number;
-}
-
-export interface MixedRoomAssemblyTemplateV1 {
-  id: string;
-  width: number;
-  height: number;
-  budgetTokens?: number;
-  defaultTileKind: "floor" | "barrier" | "tile";
-  defaultTileTokenCost: number;
-  roomWideOverlay?: MixedRoomAffinityOverlayV1;
-  localizedTiles?: MixedRoomTilePlacementV1[];
-  localizedTraps?: MixedRoomTrapPlacementV1[];
-}
-
-export interface MixedRoomAssemblyRulesV1 {
-  placementCoordinateSpace: "room_local";
-  requireRectangularFootprint: true;
-  allowRoomWideAffinityOverlay: boolean;
-  allowMixedTrapAffinities: boolean;
-  overlapPolicy: "reject_any_overlap";
-  outOfBoundsPolicy: "reject";
-  budgetPolicy: "fixed_position_tokens";
-  templates: MixedRoomAssemblyTemplateV1[];
-}
-
-export interface TrapArchetypeRulesV1 {
-  roomBounded: true;
-  attackingOnly: true;
-  maxAffinityCount: 1;
-  maxExpressionCount: 1;
-  stacksAllowed: true;
-  manaReserveRequired: true;
-  manaRegenOptional: boolean;
-  allowedExpressions: AffinityExpression[];
-  highInvestmentProfile?: TrapInvestmentProfileV1;
-}
-
-export interface WorldActorCostModelV1 {
-  roomWideAffinityMode: RoomWideAffinityMode;
-  fixedPositionNeutralProfile: FixedPositionWorldActorProfileV1;
-  stationaryManaPolicy: {
-    poweredEffectRequiresPositiveReserve: boolean;
-    allowZeroReserveAffinityState: boolean;
-    regenOptional: boolean;
-  };
-  trapArchetype: TrapArchetypeRulesV1;
-  mixedRoomAssembly: MixedRoomAssemblyRulesV1;
-}
-
-export interface AffinityRulesArtifactV1 {
-  schema: typeof AFFINITY_RULES_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-  balanceVersion: string;
-  contentHash: string;
-  rulesetName: string;
-  globals: {
-    defaultOutcomeOnWin: AffinityInteractionOutcome;
-    defaultOutcomeOnTie: AffinityInteractionOutcome;
-    defaultMana?: AffinityRulesManaPolicyV1;
-    drawConversion?: AffinityRulesDrawConversionV1;
-  };
-  interactionContract: AffinityInteractionContractV1;
-  worldActorCostModel: WorldActorCostModelV1;
-  affinities: AffinityRuleAffinityV1[];
-  interactions: AffinityRuleInteractionV1[];
-}
 
 export interface AffinityEffectV1 {
   id: string;
@@ -980,7 +750,6 @@ export interface ActorLoadoutArtifactV1 {
 
 export type AffinityPresetArtifact = AffinityPresetArtifactV1;
 export type ActorLoadoutArtifact = ActorLoadoutArtifactV1;
-export type AffinityRulesArtifact = AffinityRulesArtifactV1;
 
 export interface AffinitySummaryActorV1 {
   actorId: string;
@@ -1010,66 +779,6 @@ export interface AffinitySummaryTrapV1 {
   resolvedEffects?: AffinityResolvedEffectV1[];
 }
 
-export interface AmbientAffinityPressureSourceV1 {
-  source: {
-    kind: "room" | "trap";
-    id: string;
-  };
-  sourceId: string;
-  kind: AffinityKind;
-  expression: AffinityExpression;
-  stacks: number;
-  channel?: AffinityInteractionChannel;
-  polarity?: AffinityInteractionPolarity;
-}
-
-export interface AmbientAffinityCancellationV1 {
-  kind: AffinityKind;
-  opposite: AffinityKind;
-  sourceStacks: number;
-  oppositeStacks: number;
-  canceled: number;
-}
-
-export interface AmbientAffinityPressureV1 {
-  sources: AmbientAffinityPressureSourceV1[];
-  baseByKind: Record<AffinityKind, number>;
-  netByKind: Record<AffinityKind, number>;
-  cancellations: AmbientAffinityCancellationV1[];
-}
-
-export type MixedRoomCompositionProfileV1 =
-  | "neutral_with_localized_traps"
-  | "room_overlay_dominant"
-  | "room_overlay_dominant_with_localized_variation"
-  | "mixed_composition";
-
-export type MixedRoomDominantInvestmentV1 =
-  | "room_wide_overlay"
-  | "localized_traps"
-  | "localized_tiles"
-  | "default_tiles"
-  | "none";
-
-export interface MixedRoomAssemblySummaryV1 {
-  roomId: string;
-  templateId: string;
-  templateInstanceId: string;
-  compositionProfile: MixedRoomCompositionProfileV1;
-  dominantInvestment: MixedRoomDominantInvestmentV1;
-  localizedTileCount: number;
-  localizedTrapCount: number;
-  roomWideOverlay?: MixedRoomAffinityOverlayV1;
-  affinityKinds: AffinityKind[];
-  tokenSpend: {
-    defaultTiles: number;
-    localizedTiles: number;
-    roomWideOverlay: number;
-    localizedTraps: number;
-    total: number;
-  };
-}
-
 export interface AffinitySummaryV1 {
   schema: typeof AFFINITY_SUMMARY_SCHEMA;
   schemaVersion: 1;
@@ -1080,8 +789,6 @@ export interface AffinitySummaryV1 {
   initialStateRef?: ArtifactRef;
   actors: AffinitySummaryActorV1[];
   traps: AffinitySummaryTrapV1[];
-  ambientPressure?: AmbientAffinityPressureV1;
-  mixedRoomAssemblies?: MixedRoomAssemblySummaryV1[];
 }
 
 export type AffinitySummary = AffinitySummaryV1;

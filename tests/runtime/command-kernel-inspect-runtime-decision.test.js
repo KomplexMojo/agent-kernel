@@ -84,18 +84,7 @@ test("command kernel inspect surfaces runtime decisions and decision-driven acti
       tick: 4,
       phase: "decide",
       phaseDetail: "decide",
-      emittedEffects: [
-        { kind: "solver_request" },
-        {
-          kind: "ambient_resolved",
-          data: {
-            outcome: "emit",
-            affinityKind: "dark",
-            targetVital: "mana",
-            delta: -3,
-          },
-        },
-      ],
+      emittedEffects: [{ kind: "solver_request" }],
       fulfilledEffects: [{ status: "fulfilled" }],
       solverResults: [
         {
@@ -162,9 +151,4 @@ test("command kernel inspect surfaces runtime decisions and decision-driven acti
   assert.equal(summary.data.runtimeDecisionCaptures.byAdapter.llm, 1);
   assert.equal(summary.data.runtimeDecisionCaptures.byActor.boss_1, 1);
   assert.equal(summary.data.runtimeDecisionCaptures.captures[0].selectedActionId, "move_east");
-  assert.equal(summary.data.ambientEffects.total, 1);
-  assert.equal(summary.data.ambientEffects.outcomes.emit, 1);
-  assert.equal(summary.data.ambientEffects.byAffinity.dark, 1);
-  assert.equal(summary.data.ambientEffects.byTargetVital.mana, 1);
-  assert.equal(summary.data.ambientEffects.deltaTotal, -3);
 });
