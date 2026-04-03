@@ -339,7 +339,6 @@ function normalizePositiveInt(value, fallback = 0) {
 }
 
 const ROOM_AFFINITY_ASSIGNMENT_SEED_XOR = 0x9e3779b9;
-const ROOM_AFFINITY_TILE_SEED_XOR = 0x85ebca6b;
 
 function createRng(seed = 0) {
   let state = seed >>> 0;
@@ -363,6 +362,12 @@ function shuffleWithRng(list, rng) {
 function normalizeAffinityKind(rawValue) {
   if (typeof rawValue !== "string") return "";
   return rawValue.trim().toLowerCase();
+}
+
+function normalizeNonNegativeInt(value, fallback = 0) {
+  if (!Number.isFinite(value)) return fallback;
+  const normalized = Math.floor(value);
+  return normalized >= 0 ? normalized : fallback;
 }
 
 function normalizeRoomAffinityEntries(entry, { fallbackAffinity = "" } = {}) {
@@ -397,51 +402,227 @@ function normalizeRoomAffinityEntries(entry, { fallbackAffinity = "" } = {}) {
     .sort((a, b) => a.kind.localeCompare(b.kind));
 }
 
-function buildRoomAffinityProfilesFromCardSet(cardSet, { fallbackAffinity = "" } = {}) {
-  if (!Array.isArray(cardSet) || cardSet.length === 0) return [];
+function buildMixedRoomTemplateMap(affinityRules) {
+  const templates = affinityRules?.worldActorCostModel?.mixedRoomAssembly?.templates;
+  if (!Array.isArray(templates) || templates.length === 0) {
+    return new Map();
+  }
+  const map = new Map();
+  templates.forEach((template) => {
+    const id = typeof template?.id === "string" ? template.id.trim() : "";
+    if (!id) return;
+    map.set(id, template);
+  });
+  return map;
+}
+
+function buildMixedRoomProfilesFromCardSet(cardSet, templateMap) {
+  if (!Array.isArray(cardSet) || cardSet.length === 0 || !(templateMap instanceof Map) || templateMap.size === 0) {
+    return [];
+  }
   const profiles = [];
-  cardSet.forEach((card, index) => {
+  cardSet.forEach((card) => {
     const type = typeof card?.type === "string" ? card.type.trim().toLowerCase() : "";
     const source = typeof card?.source === "string" ? card.source.trim().toLowerCase() : "";
     if (type !== "room" && source !== "room") return;
+    const templateId = typeof card?.id === "string" ? card.id.trim() : "";
+    if (!templateId) return;
+    const template = templateMap.get(templateId);
+    if (!template) return;
     const count = Math.max(1, normalizePositiveInt(card?.count, 1));
-    const affinities = normalizeRoomAffinityEntries(card, { fallbackAffinity });
-    if (affinities.length === 0) return;
-    const templateId = typeof card?.id === "string" && card.id.trim() ? card.id.trim() : `room_card_${index + 1}`;
     for (let i = 0; i < count; i += 1) {
-      const templateInstanceId = `${templateId}-${i + 1}`;
       profiles.push({
-        id: templateInstanceId,
         templateId,
-        templateInstanceId,
-        affinities: affinities.map((entry) => ({ ...entry })),
+        templateInstanceId: `${templateId}-${i + 1}`,
+        template,
       });
     }
   });
   return profiles;
 }
 
-function collectRoomWalkableTilesFromLayout(layout, room) {
-  if (!Array.isArray(layout?.tiles) || !room) return [];
-  const width = layout.tiles.reduce((max, row) => Math.max(max, String(row || "").length), 0);
-  const startY = Math.max(0, room.y);
-  const endY = Math.min(layout.tiles.length - 1, room.y + room.height - 1);
-  const startX = Math.max(0, room.x);
-  const endX = Math.max(startX - 1, Math.min(width - 1, room.x + room.width - 1));
-  const cells = [];
+function normalizeMixedRoomOverlay(overlay) {
+  if (!overlay || typeof overlay !== "object") return undefined;
+  const kind = normalizeAffinityKind(overlay.kind);
+  if (!kind) return undefined;
+  return {
+    kind,
+    expression: typeof overlay.expression === "string" && overlay.expression.trim()
+      ? overlay.expression.trim().toLowerCase()
+      : "emit",
+    stacks: Math.max(1, normalizePositiveInt(overlay.stacks, 1)),
+    tokenCost: normalizeNonNegativeInt(overlay.tokenCost, 0),
+  };
+}
 
-  for (let y = startY; y <= endY; y += 1) {
-    const row = String(layout.tiles[y] || "");
-    for (let x = startX; x <= endX; x += 1) {
-      const char = row[x];
-      if (!char || char === "#" || char === "B") continue;
-      const tileKind = Array.isArray(layout.kinds?.[y]) ? layout.kinds[y][x] : null;
-      if (tileKind === 1) continue;
-      cells.push({ x, y });
-    }
+function normalizeMixedRoomLocalizedTiles(localizedTiles, defaultTileTokenCost) {
+  if (!Array.isArray(localizedTiles)) return [];
+  return localizedTiles
+    .filter((entry) => entry && typeof entry === "object")
+    .map((entry) => ({
+      x: normalizeNonNegativeInt(entry.x, 0),
+      y: normalizeNonNegativeInt(entry.y, 0),
+      kind: typeof entry.kind === "string" && entry.kind.trim()
+        ? entry.kind.trim().toLowerCase()
+        : "floor",
+      tokenCost: normalizeNonNegativeInt(entry.tokenCost, defaultTileTokenCost),
+    }));
+}
+
+function normalizeMixedRoomLocalizedTraps(localizedTraps) {
+  if (!Array.isArray(localizedTraps)) return [];
+  return localizedTraps
+    .map((entry, index) => {
+      if (!entry || typeof entry !== "object") return null;
+      const affinityKind = normalizeAffinityKind(entry?.affinity?.kind);
+      if (!affinityKind) return null;
+      const stacks = Math.max(1, normalizePositiveInt(entry?.affinity?.stacks, 1));
+      return {
+        id: typeof entry.id === "string" && entry.id.trim() ? entry.id.trim() : `trap_${index + 1}`,
+        x: normalizeNonNegativeInt(entry.x, 0),
+        y: normalizeNonNegativeInt(entry.y, 0),
+        blocking: entry.blocking === true,
+        tokenCost: normalizeNonNegativeInt(entry.tokenCost, 0),
+        affinity: {
+          kind: affinityKind,
+          expression: typeof entry?.affinity?.expression === "string" && entry.affinity.expression.trim()
+            ? entry.affinity.expression.trim().toLowerCase()
+            : "emit",
+          stacks,
+        },
+        manaReserve: normalizeNonNegativeInt(entry.manaReserve, ROOM_AFFINITY_EMIT_PERCENT_PER_STACK * stacks),
+        manaRegen: normalizeNonNegativeInt(entry.manaRegen, 0),
+      };
+    })
+    .filter(Boolean);
+}
+
+function deriveMixedRoomCompositionProfile({ roomWideOverlay, localizedTiles, localizedTraps }) {
+  if (roomWideOverlay && localizedTraps.length > 0) {
+    return "room_overlay_dominant_with_localized_variation";
   }
+  if (roomWideOverlay) {
+    return "room_overlay_dominant";
+  }
+  if (localizedTraps.length > 0) {
+    return "neutral_with_localized_traps";
+  }
+  if (localizedTiles.length > 0) {
+    return "mixed_composition";
+  }
+  return "mixed_composition";
+}
 
-  return cells;
+function deriveMixedRoomDominantInvestment({ roomWideOverlay, localizedTiles, localizedTraps, tokenSpend }) {
+  if (roomWideOverlay && localizedTraps.length > 0) {
+    return "room_wide_overlay";
+  }
+  if (roomWideOverlay) {
+    return "room_wide_overlay";
+  }
+  if (localizedTraps.length > 0) {
+    return "localized_traps";
+  }
+  if (localizedTiles.length > 0) {
+    return "localized_tiles";
+  }
+  if (tokenSpend.defaultTiles > 0) {
+    return "default_tiles";
+  }
+  return "none";
+}
+
+function buildMixedRoomComposition({ room, templateId, templateInstanceId, template }) {
+  const roomWidth = Math.max(1, normalizePositiveInt(room?.width, normalizePositiveInt(template?.width, 1)));
+  const roomHeight = Math.max(1, normalizePositiveInt(room?.height, normalizePositiveInt(template?.height, 1)));
+  const defaultTileTokenCost = Math.max(1, normalizePositiveInt(template?.defaultTileTokenCost, 1));
+  const roomWideOverlay = normalizeMixedRoomOverlay(template?.roomWideOverlay);
+  const localizedTiles = normalizeMixedRoomLocalizedTiles(template?.localizedTiles, defaultTileTokenCost);
+  const localizedTraps = normalizeMixedRoomLocalizedTraps(template?.localizedTraps);
+  const tokenSpend = {
+    defaultTiles: roomWidth * roomHeight * defaultTileTokenCost,
+    localizedTiles: localizedTiles.reduce((sum, tile) => sum + normalizeNonNegativeInt(tile?.tokenCost, 0), 0),
+    roomWideOverlay: roomWideOverlay ? normalizeNonNegativeInt(roomWideOverlay.tokenCost, 0) : 0,
+    localizedTraps: localizedTraps.reduce((sum, trap) => sum + normalizeNonNegativeInt(trap?.tokenCost, 0), 0),
+    total: 0,
+  };
+  tokenSpend.total = (
+    tokenSpend.defaultTiles
+    + tokenSpend.localizedTiles
+    + tokenSpend.roomWideOverlay
+    + tokenSpend.localizedTraps
+  );
+  const compositionProfile = deriveMixedRoomCompositionProfile({
+    roomWideOverlay,
+    localizedTiles,
+    localizedTraps,
+  });
+  const dominantInvestment = deriveMixedRoomDominantInvestment({
+    roomWideOverlay,
+    localizedTiles,
+    localizedTraps,
+    tokenSpend,
+  });
+  return {
+    templateId,
+    templateInstanceId,
+    compositionProfile,
+    dominantInvestment,
+    defaultTileTokenCost,
+    localizedTiles,
+    roomWideOverlay,
+    localizedTraps,
+    tokenSpend,
+  };
+}
+
+function collectMixedRoomTemplateTraps({
+  room,
+  roomIndex,
+  templateId,
+  templateInstanceId,
+  composition,
+  occupied,
+  spawnKey,
+  exitKey,
+}) {
+  const localizedTraps = Array.isArray(composition?.localizedTraps) ? composition.localizedTraps : [];
+  const roomId = resolveRoomId(room, roomIndex);
+  const generated = [];
+  localizedTraps.forEach((trap) => {
+    const x = room.x + trap.x;
+    const y = room.y + trap.y;
+    const point = { x, y };
+    if (!roomContainsPoint(room, point)) return;
+    const key = `${x},${y}`;
+    if (key === spawnKey || key === exitKey || occupied.has(key)) return;
+    const reserve = normalizeNonNegativeInt(trap.manaReserve, 0);
+    generated.push({
+      id: trap.id,
+      x,
+      y,
+      blocking: trap.blocking === true,
+      source: "mixed_room_template",
+      roomId,
+      templateId,
+      templateInstanceId,
+      affinity: {
+        kind: trap.affinity.kind,
+        expression: trap.affinity.expression,
+        stacks: trap.affinity.stacks,
+        targetType: "floor",
+      },
+      vitals: {
+        mana: {
+          current: reserve,
+          max: reserve,
+          regen: normalizeNonNegativeInt(trap.manaRegen, 0),
+        },
+      },
+    });
+    occupied.add(key);
+  });
+  return generated;
 }
 
 function augmentLayoutWithRoomAffinityEffects(
@@ -450,15 +631,20 @@ function augmentLayoutWithRoomAffinityEffects(
     cardSet,
     fallbackAffinity = "",
     seed = 0,
+    affinityRules = null,
   } = {},
 ) {
   if (!layout || !Array.isArray(layout.rooms) || layout.rooms.length === 0) {
     return { layout, generatedTrapCount: 0 };
   }
 
-  const profiles = buildRoomAffinityProfilesFromCardSet(cardSet, { fallbackAffinity });
-  const hasRoomAffinityMetadata = layout.rooms.some((room) => normalizeRoomAffinityEntries(room).length > 0);
-  if (profiles.length === 0 && !hasRoomAffinityMetadata) {
+  const templateMap = buildMixedRoomTemplateMap(affinityRules || resolveAffinityRules());
+  if (templateMap.size === 0) {
+    return { layout, generatedTrapCount: 0 };
+  }
+
+  const profiles = buildMixedRoomProfilesFromCardSet(cardSet, templateMap);
+  if (profiles.length === 0) {
     return { layout, generatedTrapCount: 0 };
   }
 
@@ -499,42 +685,52 @@ function augmentLayoutWithRoomAffinityEffects(
   const exitKey = Number.isFinite(layout?.exit?.x) && Number.isFinite(layout?.exit?.y)
     ? `${layout.exit.x},${layout.exit.y}`
     : "";
-  const trapRng = createRng((normalizedSeed ^ ROOM_AFFINITY_TILE_SEED_XOR) >>> 0);
   const generatedTraps = [];
 
-  nextRooms.forEach((room, roomIndex) => {
-    const roomAffinities = normalizeRoomAffinityEntries(room);
-    if (roomAffinities.length === 0) return;
-    const roomTiles = collectRoomWalkableTilesFromLayout(layout, room)
-      .filter((tile) => {
-        const key = `${tile.x},${tile.y}`;
-        return key !== spawnKey && key !== exitKey && !occupied.has(key);
-      });
-    if (roomTiles.length === 0) return;
-    const randomizedTiles = shuffleWithRng(roomTiles, trapRng);
-    randomizedTiles.forEach((tile, tileIndex) => {
-      const affinity = roomAffinities[tileIndex % roomAffinities.length];
-      const roomStacks = Math.max(1, normalizePositiveInt(affinity?.stacks, 1));
-      const manaReserve = ROOM_AFFINITY_EMIT_PERCENT_PER_STACK * roomStacks;
-      generatedTraps.push({
-        x: tile.x,
-        y: tile.y,
-        blocking: false,
-        source: "room_affinity_tile",
-        roomId: resolveRoomId(room, roomIndex),
-        affinity: {
-          kind: affinity.kind,
-          expression: "emit",
-          stacks: 1,
-          roomStacks,
-          targetType: "floor",
-        },
-        vitals: {
-          mana: { current: manaReserve, max: manaReserve, regen: 0 },
-        },
-      });
-      occupied.add(`${tile.x},${tile.y}`);
+  const fallbackAffinityKind = normalizeAffinityKind(fallbackAffinity);
+
+  roomOrder.forEach((roomIndex, orderIndex) => {
+    const profile = profiles[orderIndex % profiles.length];
+    if (!profile) return;
+    const room = nextRooms[roomIndex];
+    const composition = buildMixedRoomComposition({
+      room,
+      templateId: profile.templateId,
+      templateInstanceId: profile.templateInstanceId,
+      template: profile.template,
     });
+    const nextRoom = {
+      ...room,
+      templateId: profile.templateId,
+      templateInstanceId: profile.templateInstanceId,
+      mixedRoomComposition: composition,
+    };
+
+    if (composition.roomWideOverlay) {
+      nextRoom.affinity = composition.roomWideOverlay.kind;
+      nextRoom.affinities = [{
+        kind: composition.roomWideOverlay.kind,
+        expression: composition.roomWideOverlay.expression,
+        stacks: composition.roomWideOverlay.stacks,
+      }];
+    } else {
+      if (fallbackAffinityKind) {
+        nextRoom.affinity = fallbackAffinityKind;
+      }
+      delete nextRoom.affinities;
+    }
+
+    nextRooms[roomIndex] = nextRoom;
+    generatedTraps.push(...collectMixedRoomTemplateTraps({
+      room: nextRoom,
+      roomIndex,
+      templateId: profile.templateId,
+      templateInstanceId: profile.templateInstanceId,
+      composition,
+      occupied,
+      spawnKey,
+      exitKey,
+    }));
   });
 
   layout.rooms = nextRooms;

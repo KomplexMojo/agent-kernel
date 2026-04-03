@@ -1,0 +1,134 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_configurator_mixed_rooms_small",
+    "runId": "run_configurator_mixed_rooms_small",
+    "createdAt": "2026-04-03T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Build a single small mixed-room composition fixture.",
+    "hints": {
+      "levelSize": "small",
+      "roomCount": 1
+    }
+  },
+  "plan": {
+    "hints": {
+      "directives": [
+        "fixture",
+        "mixed-room-small"
+      ]
+    }
+  },
+  "configurator": {
+    "inputs": {
+      "levelAffinity": "dark",
+      "levelGen": {
+        "width": 12,
+        "height": 12,
+        "seed": 17,
+        "shape": {
+          "roomCount": 1,
+          "roomMinSize": 4,
+          "roomMaxSize": 4,
+          "corridorWidth": 1
+        },
+        "spawn": {
+          "edgeBias": true,
+          "minDistance": 1
+        },
+        "exit": {
+          "edgeBias": true,
+          "minDistance": 1
+        },
+        "connectivity": {
+          "requirePath": true
+        }
+      },
+      "cardSet": [
+        {
+          "id": "neutral_room_with_localized_traps",
+          "type": "room",
+          "source": "room",
+          "count": 1,
+          "roomSize": "small"
+        }
+      ],
+      "actors": [
+        {
+          "id": "actor_mvp",
+          "kind": "ambulatory",
+          "position": {
+            "x": 1,
+            "y": 1
+          },
+          "motivations": [
+            "attacking"
+          ],
+          "affinity": "fire",
+          "affinities": [
+            {
+              "kind": "fire",
+              "expression": "emit",
+              "stacks": 1
+            }
+          ]
+        }
+      ],
+      "affinityPresets": {
+        "schema": "agent-kernel/AffinityPresetArtifact",
+        "schemaVersion": 1,
+        "meta": {
+          "id": "affinity_presets_mixed_room_small",
+          "runId": "run_configurator_mixed_rooms_small",
+          "createdAt": "2026-04-03T00:00:00.000Z",
+          "producedBy": "fixture"
+        },
+        "presets": [
+          {
+            "id": "affinity_fire_emit",
+            "kind": "fire",
+            "expression": "emit",
+            "manaCost": 1,
+            "effects": {
+              "area": {
+                "id": "fire_field",
+                "potency": 1
+              }
+            },
+            "stack": {
+              "max": 3,
+              "scaling": "linear"
+            }
+          }
+        ]
+      },
+      "affinityLoadouts": {
+        "schema": "agent-kernel/ActorLoadoutArtifact",
+        "schemaVersion": 1,
+        "meta": {
+          "id": "actor_loadouts_mixed_room_small",
+          "runId": "run_configurator_mixed_rooms_small",
+          "createdAt": "2026-04-03T00:00:00.000Z",
+          "producedBy": "fixture"
+        },
+        "loadouts": [
+          {
+            "actorId": "actor_mvp",
+            "affinities": [
+              {
+                "presetId": "affinity_fire_emit",
+                "kind": "fire",
+                "expression": "emit",
+                "stacks": 2,
+                "targetType": "area"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
