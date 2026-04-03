@@ -700,6 +700,13 @@ export function createCommandKernel(host = {}) {
       }
 
       result = await orchestrateBuild({ spec, producedBy, solver });
+      const mixedRoomAssemblies = summarizeMixedRoomAssemblies(result?.simConfig?.layout?.data?.rooms);
+      if (result?.affinitySummary && typeof result.affinitySummary === "object") {
+        result.affinitySummary = {
+          ...result.affinitySummary,
+          mixedRoomAssemblies,
+        };
+      }
 
       await writeJson(join(outDir, "spec.json"), result.spec);
       await writeJson(join(outDir, "intent.json"), result.intent);
@@ -806,7 +813,6 @@ export function createCommandKernel(host = {}) {
       await writeJson(join(outDir, "telemetry.json"), telemetry);
 
       log(`build: wrote ${outDir}`);
-      const mixedRoomAssemblies = summarizeMixedRoomAssemblies(result?.simConfig?.layout?.data?.rooms);
       formatMixedRoomAssembliesCliLines(mixedRoomAssemblies).forEach((line) => {
         log(line);
       });

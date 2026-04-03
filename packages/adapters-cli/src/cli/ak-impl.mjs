@@ -916,8 +916,19 @@ function buildArtifactRefs(entries) {
   }));
 }
 
-function logMixedRoomAssembliesFromBuildResult(buildResult) {
+function attachMixedRoomAssembliesToBuildResult(buildResult) {
   const assemblies = summarizeMixedRoomAssemblies(buildResult?.simConfig?.layout?.data?.rooms);
+  if (buildResult?.affinitySummary && typeof buildResult.affinitySummary === "object") {
+    buildResult.affinitySummary = {
+      ...buildResult.affinitySummary,
+      mixedRoomAssemblies: assemblies,
+    };
+  }
+  return assemblies;
+}
+
+function logMixedRoomAssembliesFromBuildResult(buildResult) {
+  const assemblies = attachMixedRoomAssembliesToBuildResult(buildResult);
   formatMixedRoomAssembliesCliLines(assemblies).forEach((line) => {
     console.log(line);
   });
@@ -1270,6 +1281,7 @@ async function roomPlanCommand(argv) {
     spec: built.spec,
     producedBy: "cli-room-plan",
   });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
   await writeJson(join(outDir, "intent.json"), buildResult.intent);
@@ -1471,6 +1483,7 @@ async function delverPlanCommand(argv) {
     spec: built.spec,
     producedBy: "cli-delver-plan",
   });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
   await writeJson(join(outDir, "intent.json"), buildResult.intent);
@@ -1672,6 +1685,7 @@ async function wardenPlanCommand(argv) {
     spec: built.spec,
     producedBy: "cli-warden-plan",
   });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
   await writeJson(join(outDir, "intent.json"), buildResult.intent);
