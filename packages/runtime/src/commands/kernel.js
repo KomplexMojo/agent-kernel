@@ -1,4 +1,5 @@
 import { orchestrateBuild } from "../build/orchestrate-build.js";
+import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
@@ -786,12 +787,9 @@ export function createCommandKernel(host = {}) {
       await writeJson(join(outDir, "telemetry.json"), telemetry);
 
       log(`build: wrote ${outDir}`);
-<<<<<<< HEAD
       formatMixedRoomAssembliesCliLines(mixedRoomAssemblies).forEach((line) => {
         log(line);
       });
-=======
->>>>>>> dc4cca0 (.)
       return { outDir };
     } catch (error) {
       const message = error?.message || String(error);

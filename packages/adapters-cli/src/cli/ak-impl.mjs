@@ -8,6 +8,7 @@ import { createLlmAdapter } from "../adapters/llm/index.js";
 import { createCommandKernel } from "../../../runtime/src/commands/kernel.js";
 import { instantiateCommandRuntimeCoreFromBuffer } from "../../../runtime/src/commands/wasm-core.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
+import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
@@ -912,7 +913,6 @@ function buildArtifactRefs(entries) {
   }));
 }
 
-<<<<<<< HEAD
 function attachMixedRoomAssembliesToBuildResult(buildResult) {
   const assemblies = summarizeMixedRoomAssemblies(buildResult?.simConfig?.layout?.data?.rooms);
   if (buildResult?.affinitySummary && typeof buildResult.affinitySummary === "object") {
@@ -931,8 +931,6 @@ function logMixedRoomAssembliesFromBuildResult(buildResult) {
   });
 }
 
-=======
->>>>>>> dc4cca0 (.)
 async function loadCoreFromWasm(wasmPath) {
   const buffer = await readFile(wasmPath);
   return instantiateCommandRuntimeCoreFromBuffer(buffer);

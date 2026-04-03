@@ -625,6 +625,33 @@ function collectMixedRoomTemplateTraps({
   return generated;
 }
 
+function buildCardAffinityProfiles(cardSet) {
+  if (!Array.isArray(cardSet) || cardSet.length === 0) return [];
+  const profiles = [];
+  cardSet.forEach((card) => {
+    const type = typeof card?.type === "string" ? card.type.trim().toLowerCase() : "";
+    const source = typeof card?.source === "string" ? card.source.trim().toLowerCase() : "";
+    if (type !== "room" && source !== "room") return;
+    const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
+    const emitAffinities = affinities
+      .map((a) => {
+        const kind = normalizeAffinityKind(a?.kind);
+        if (!kind) return null;
+        const expression = typeof a?.expression === "string" ? a.expression.trim().toLowerCase() : "";
+        if (expression !== "emit") return null;
+        return { kind, stacks: Math.max(1, normalizePositiveInt(a.stacks, 1)) };
+      })
+      .filter(Boolean);
+    if (emitAffinities.length === 0) return;
+    const count = Math.max(1, normalizePositiveInt(card?.count, 1));
+    const templateId = typeof card?.id === "string" && card.id.trim() ? card.id.trim() : `card_room_${profiles.length + 1}`;
+    for (let i = 0; i < count; i += 1) {
+      profiles.push({ templateId, templateInstanceId: `${templateId}-${i + 1}`, emitAffinities });
+    }
+  });
+  return profiles;
+}
+
 function augmentLayoutWithRoomAffinityEffects(
   layout,
   {
@@ -639,11 +666,11 @@ function augmentLayoutWithRoomAffinityEffects(
   }
 
   const templateMap = buildMixedRoomTemplateMap(affinityRules || resolveAffinityRules());
-  if (templateMap.size === 0) {
-    return { layout, generatedTrapCount: 0 };
+  let profiles = templateMap.size > 0 ? buildMixedRoomProfilesFromCardSet(cardSet, templateMap) : [];
+  const useCardAffinityFallback = profiles.length === 0;
+  if (useCardAffinityFallback) {
+    profiles = buildCardAffinityProfiles(cardSet);
   }
-
-  const profiles = buildMixedRoomProfilesFromCardSet(cardSet, templateMap);
   if (profiles.length === 0) {
     return { layout, generatedTrapCount: 0 };
   }
@@ -693,6 +720,48 @@ function augmentLayoutWithRoomAffinityEffects(
     const profile = profiles[orderIndex % profiles.length];
     if (!profile) return;
     const room = nextRooms[roomIndex];
+
+    if (useCardAffinityFallback) {
+      const emitAffinities = Array.isArray(profile.emitAffinities) ? profile.emitAffinities : [];
+      const primaryKind = emitAffinities[0]?.kind;
+      const nextRoom = {
+        ...room,
+        templateId: profile.templateId,
+        templateInstanceId: profile.templateInstanceId,
+        affinity: primaryKind || (fallbackAffinityKind || room.affinity),
+        affinities: emitAffinities.map(({ kind, stacks }) => ({ kind, expression: "emit", stacks })),
+      };
+      nextRooms[roomIndex] = nextRoom;
+      const roomId = resolveRoomId(room, roomIndex);
+      emitAffinities.forEach(({ kind, stacks }) => {
+        for (let dy = 0; dy < nextRoom.height; dy += 1) {
+          let placed = false;
+          for (let dx = 0; dx < nextRoom.width; dx += 1) {
+            const tx = nextRoom.x + dx;
+            const ty = nextRoom.y + dy;
+            const key = `${tx},${ty}`;
+            if (key === spawnKey || key === exitKey || occupied.has(key)) continue;
+            const manaReserve = ROOM_AFFINITY_EMIT_PERCENT_PER_STACK * stacks;
+            generatedTraps.push({
+              id: `${kind}_emit_${roomIndex}`,
+              x: tx,
+              y: ty,
+              blocking: false,
+              source: "room_affinity_tile",
+              roomId,
+              affinity: { kind, expression: "emit", stacks: 1, targetType: "floor" },
+              vitals: { mana: { current: manaReserve, max: manaReserve, regen: 0 } },
+            });
+            occupied.add(key);
+            placed = true;
+            break;
+          }
+          if (placed) break;
+        }
+      });
+      return;
+    }
+
     const composition = buildMixedRoomComposition({
       room,
       templateId: profile.templateId,
