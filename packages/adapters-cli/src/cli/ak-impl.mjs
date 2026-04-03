@@ -9,6 +9,10 @@ import { createCommandKernel } from "../../../runtime/src/commands/kernel.js";
 import { instantiateCommandRuntimeCoreFromBuffer } from "../../../runtime/src/commands/wasm-core.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
+import {
+  formatMixedRoomAssembliesCliLines,
+  summarizeMixedRoomAssemblies,
+} from "../../../runtime/src/build/mixed-room-summary.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
@@ -912,6 +916,24 @@ function buildArtifactRefs(entries) {
   }));
 }
 
+function attachMixedRoomAssembliesToBuildResult(buildResult) {
+  const assemblies = summarizeMixedRoomAssemblies(buildResult?.simConfig?.layout?.data?.rooms);
+  if (buildResult?.affinitySummary && typeof buildResult.affinitySummary === "object") {
+    buildResult.affinitySummary = {
+      ...buildResult.affinitySummary,
+      mixedRoomAssemblies: assemblies,
+    };
+  }
+  return assemblies;
+}
+
+function logMixedRoomAssembliesFromBuildResult(buildResult) {
+  const assemblies = attachMixedRoomAssembliesToBuildResult(buildResult);
+  formatMixedRoomAssembliesCliLines(assemblies).forEach((line) => {
+    console.log(line);
+  });
+}
+
 async function loadCoreFromWasm(wasmPath) {
   const buffer = await readFile(wasmPath);
   return instantiateCommandRuntimeCoreFromBuffer(buffer);
@@ -1259,6 +1281,7 @@ async function roomPlanCommand(argv) {
     spec: built.spec,
     producedBy: "cli-room-plan",
   });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
   await writeJson(join(outDir, "intent.json"), buildResult.intent);
@@ -1270,8 +1293,20 @@ async function roomPlanCommand(argv) {
   if (buildResult.budget?.priceList) {
     await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
   }
+  if (buildResult.spendProposal) {
+    await writeJson(join(outDir, "spend-proposal.json"), buildResult.spendProposal);
+  }
   if (buildResult.budgetReceipt) {
     await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
+  }
+  if (buildResult.affinityRules) {
+    await writeJson(join(outDir, "affinity-rules.json"), buildResult.affinityRules);
+  }
+  if (buildResult.motivationRules) {
+    await writeJson(join(outDir, "motivation-rules.json"), buildResult.motivationRules);
+  }
+  if (buildResult.affinitySummary) {
+    await writeJson(join(outDir, "affinity-summary.json"), buildResult.affinitySummary);
   }
   if (buildResult.solverRequest) {
     await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
@@ -1285,17 +1320,25 @@ async function roomPlanCommand(argv) {
   if (buildResult.initialState) {
     await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
   }
+  if (buildResult.resourceBundle) {
+    await writeJson(join(outDir, "resource-bundle.json"), buildResult.resourceBundle);
+  }
 
   const bundleArtifacts = [];
   if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
   if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
   if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
   if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
+  if (buildResult.spendProposal) bundleArtifacts.push(buildResult.spendProposal);
   if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
+  if (buildResult.affinityRules) bundleArtifacts.push(buildResult.affinityRules);
+  if (buildResult.motivationRules) bundleArtifacts.push(buildResult.motivationRules);
+  if (buildResult.affinitySummary) bundleArtifacts.push(buildResult.affinitySummary);
   if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
   if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
   if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
   if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
+  if (buildResult.resourceBundle) bundleArtifacts.push(buildResult.resourceBundle);
 
   bundleArtifacts.sort((a, b) => {
     if (a.schema === b.schema) {
@@ -1309,11 +1352,16 @@ async function roomPlanCommand(argv) {
   addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
   addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
   addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
+  addManifestEntry(manifestEntries, buildResult.spendProposal, "spend-proposal.json");
   addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
+  addManifestEntry(manifestEntries, buildResult.affinityRules, "affinity-rules.json");
+  addManifestEntry(manifestEntries, buildResult.motivationRules, "motivation-rules.json");
+  addManifestEntry(manifestEntries, buildResult.affinitySummary, "affinity-summary.json");
   addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
   addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
   addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
   addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
+  addManifestEntry(manifestEntries, buildResult.resourceBundle, "resource-bundle.json");
 
   manifestEntries.sort((a, b) => {
     if (a.schema === b.schema) {
@@ -1361,6 +1409,7 @@ async function roomPlanCommand(argv) {
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   console.log(`room-plan: wrote ${outDir}`);
+  logMixedRoomAssembliesFromBuildResult(buildResult);
 }
 
 async function delverPlanCommand(argv) {
@@ -1434,6 +1483,7 @@ async function delverPlanCommand(argv) {
     spec: built.spec,
     producedBy: "cli-delver-plan",
   });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
   await writeJson(join(outDir, "intent.json"), buildResult.intent);
@@ -1445,8 +1495,20 @@ async function delverPlanCommand(argv) {
   if (buildResult.budget?.priceList) {
     await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
   }
+  if (buildResult.spendProposal) {
+    await writeJson(join(outDir, "spend-proposal.json"), buildResult.spendProposal);
+  }
   if (buildResult.budgetReceipt) {
     await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
+  }
+  if (buildResult.affinityRules) {
+    await writeJson(join(outDir, "affinity-rules.json"), buildResult.affinityRules);
+  }
+  if (buildResult.motivationRules) {
+    await writeJson(join(outDir, "motivation-rules.json"), buildResult.motivationRules);
+  }
+  if (buildResult.affinitySummary) {
+    await writeJson(join(outDir, "affinity-summary.json"), buildResult.affinitySummary);
   }
   if (buildResult.solverRequest) {
     await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
@@ -1460,17 +1522,25 @@ async function delverPlanCommand(argv) {
   if (buildResult.initialState) {
     await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
   }
+  if (buildResult.resourceBundle) {
+    await writeJson(join(outDir, "resource-bundle.json"), buildResult.resourceBundle);
+  }
 
   const bundleArtifacts = [];
   if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
   if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
   if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
   if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
+  if (buildResult.spendProposal) bundleArtifacts.push(buildResult.spendProposal);
   if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
+  if (buildResult.affinityRules) bundleArtifacts.push(buildResult.affinityRules);
+  if (buildResult.motivationRules) bundleArtifacts.push(buildResult.motivationRules);
+  if (buildResult.affinitySummary) bundleArtifacts.push(buildResult.affinitySummary);
   if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
   if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
   if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
   if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
+  if (buildResult.resourceBundle) bundleArtifacts.push(buildResult.resourceBundle);
 
   bundleArtifacts.sort((a, b) => {
     if (a.schema === b.schema) {
@@ -1484,11 +1554,16 @@ async function delverPlanCommand(argv) {
   addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
   addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
   addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
+  addManifestEntry(manifestEntries, buildResult.spendProposal, "spend-proposal.json");
   addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
+  addManifestEntry(manifestEntries, buildResult.affinityRules, "affinity-rules.json");
+  addManifestEntry(manifestEntries, buildResult.motivationRules, "motivation-rules.json");
+  addManifestEntry(manifestEntries, buildResult.affinitySummary, "affinity-summary.json");
   addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
   addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
   addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
   addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
+  addManifestEntry(manifestEntries, buildResult.resourceBundle, "resource-bundle.json");
 
   manifestEntries.sort((a, b) => {
     if (a.schema === b.schema) {
@@ -1536,6 +1611,7 @@ async function delverPlanCommand(argv) {
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   console.log(`delver-plan: wrote ${outDir}`);
+  logMixedRoomAssembliesFromBuildResult(buildResult);
 }
 
 async function wardenPlanCommand(argv) {
@@ -1609,6 +1685,7 @@ async function wardenPlanCommand(argv) {
     spec: built.spec,
     producedBy: "cli-warden-plan",
   });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
 
   await writeJson(join(outDir, "spec.json"), buildResult.spec);
   await writeJson(join(outDir, "intent.json"), buildResult.intent);
@@ -1620,8 +1697,20 @@ async function wardenPlanCommand(argv) {
   if (buildResult.budget?.priceList) {
     await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
   }
+  if (buildResult.spendProposal) {
+    await writeJson(join(outDir, "spend-proposal.json"), buildResult.spendProposal);
+  }
   if (buildResult.budgetReceipt) {
     await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
+  }
+  if (buildResult.affinityRules) {
+    await writeJson(join(outDir, "affinity-rules.json"), buildResult.affinityRules);
+  }
+  if (buildResult.motivationRules) {
+    await writeJson(join(outDir, "motivation-rules.json"), buildResult.motivationRules);
+  }
+  if (buildResult.affinitySummary) {
+    await writeJson(join(outDir, "affinity-summary.json"), buildResult.affinitySummary);
   }
   if (buildResult.solverRequest) {
     await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
@@ -1635,17 +1724,25 @@ async function wardenPlanCommand(argv) {
   if (buildResult.initialState) {
     await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
   }
+  if (buildResult.resourceBundle) {
+    await writeJson(join(outDir, "resource-bundle.json"), buildResult.resourceBundle);
+  }
 
   const bundleArtifacts = [];
   if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
   if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
   if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
   if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
+  if (buildResult.spendProposal) bundleArtifacts.push(buildResult.spendProposal);
   if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
+  if (buildResult.affinityRules) bundleArtifacts.push(buildResult.affinityRules);
+  if (buildResult.motivationRules) bundleArtifacts.push(buildResult.motivationRules);
+  if (buildResult.affinitySummary) bundleArtifacts.push(buildResult.affinitySummary);
   if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
   if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
   if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
   if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
+  if (buildResult.resourceBundle) bundleArtifacts.push(buildResult.resourceBundle);
 
   bundleArtifacts.sort((a, b) => {
     if (a.schema === b.schema) {
@@ -1659,11 +1756,16 @@ async function wardenPlanCommand(argv) {
   addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
   addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
   addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
+  addManifestEntry(manifestEntries, buildResult.spendProposal, "spend-proposal.json");
   addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
+  addManifestEntry(manifestEntries, buildResult.affinityRules, "affinity-rules.json");
+  addManifestEntry(manifestEntries, buildResult.motivationRules, "motivation-rules.json");
+  addManifestEntry(manifestEntries, buildResult.affinitySummary, "affinity-summary.json");
   addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
   addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
   addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
   addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
+  addManifestEntry(manifestEntries, buildResult.resourceBundle, "resource-bundle.json");
 
   manifestEntries.sort((a, b) => {
     if (a.schema === b.schema) {
@@ -1711,6 +1813,7 @@ async function wardenPlanCommand(argv) {
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   console.log(`warden-plan: wrote ${outDir}`);
+  logMixedRoomAssembliesFromBuildResult(buildResult);
 }
 
 async function llmPlanCommand(argv) {

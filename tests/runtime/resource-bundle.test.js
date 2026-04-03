@@ -85,7 +85,7 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   `);
 });
 
-test("renderBoardWithResourceBundle tints floor tiles when affinities are present", () => {
+test("renderBoardWithResourceBundle keeps floor neutral and marks localized traps", () => {
   runEsm(`
     import assert from "node:assert/strict";
     import {
@@ -118,18 +118,28 @@ test("renderBoardWithResourceBundle tints floor tiles when affinities are presen
     });
     assert.equal(tinted.ok, true);
 
-    const baseRgba = Array.from(base.pixels.slice(0, 4));
-    const tintedRgba = Array.from(tinted.pixels.slice(0, 4));
+    const floorCornerOffset = 0;
+    const baseCornerRgba = Array.from(base.pixels.slice(floorCornerOffset, floorCornerOffset + 4));
+    const markedCornerRgba = Array.from(tinted.pixels.slice(floorCornerOffset, floorCornerOffset + 4));
+    assert.deepEqual(
+      markedCornerRgba,
+      baseCornerRgba,
+      "neutral floor corner pixel should remain unchanged without room-wide tint",
+    );
+
+    const centerOffset = ((16 * tinted.width) + 16) * 4;
+    const baseCenterRgba = Array.from(base.pixels.slice(centerOffset, centerOffset + 4));
+    const markedCenterRgba = Array.from(tinted.pixels.slice(centerOffset, centerOffset + 4));
 
     assert.notDeepEqual(
-      tintedRgba,
-      baseRgba,
-      "affinity tint should change top-left floor tile pixel RGBA",
+      markedCenterRgba,
+      baseCenterRgba,
+      "localized trap marker should change center pixel RGBA for trap tile",
     );
   `);
 });
 
-test("renderBoardWithResourceBundle tints floor tiles for observation-style traps", () => {
+test("renderBoardWithResourceBundle marks observation-style traps as localized hazards", () => {
   runEsm(`
     import assert from "node:assert/strict";
     import {
@@ -165,15 +175,26 @@ test("renderBoardWithResourceBundle tints floor tiles for observation-style trap
     });
     assert.equal(tinted.ok, true);
 
-    const tileWidth = tinted.width / 2; // 2 tiles wide -> tileWidth pixels each
-    const offset = tileWidth * 4; // start of tile (1,0)
-    const baseRgba = Array.from(base.pixels.slice(offset, offset + 4));
-    const tintedRgba = Array.from(tinted.pixels.slice(offset, offset + 4));
+    const tileWidth = tinted.width / 2;
+    const cornerOffset = tileWidth * 4; // top-left pixel of tile (1,0)
+    const baseCornerRgba = Array.from(base.pixels.slice(cornerOffset, cornerOffset + 4));
+    const markedCornerRgba = Array.from(tinted.pixels.slice(cornerOffset, cornerOffset + 4));
+    assert.deepEqual(
+      markedCornerRgba,
+      baseCornerRgba,
+      "observation trap should not tint the whole floor tile corner",
+    );
+
+    const centerX = tileWidth + Math.floor(tileWidth / 2);
+    const centerY = Math.floor(tileWidth / 2);
+    const centerOffset = ((centerY * tinted.width) + centerX) * 4;
+    const baseCenterRgba = Array.from(base.pixels.slice(centerOffset, centerOffset + 4));
+    const markedCenterRgba = Array.from(tinted.pixels.slice(centerOffset, centerOffset + 4));
 
     assert.notDeepEqual(
-      tintedRgba,
-      baseRgba,
-      "observation-style trap should tint pixel RGBA for its tile",
+      markedCenterRgba,
+      baseCenterRgba,
+      "observation-style trap should render a localized marker at its tile center",
     );
   `);
 });

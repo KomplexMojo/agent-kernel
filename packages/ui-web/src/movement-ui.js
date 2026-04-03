@@ -9,6 +9,7 @@ import {
   VITAL_KEYS,
 } from "../../runtime/src/contracts/domain-constants.js";
 import { AFFINITY_COLOR_HEX, STACK_INTENSITY_TIERS, resolveStackIntensity } from "../../runtime/src/render/affinity-palette.js";
+import { resolveTrapGlyphMarker } from "../../runtime/src/render/trap-glyphs.js";
 
 const EVENT_STREAM_LIMIT = 6;
 const DEFAULT_VIEWPORT_SIZE = 50;
@@ -221,7 +222,7 @@ function resolveTrapAffinityEntry(trap = null) {
   return pool[0];
 }
 
-function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
+function buildTrapMarkerIndex(traps = [], { viewport = null } = {}) {
   if (!Array.isArray(traps) || traps.length === 0) return new Map();
   const index = new Map();
   traps.forEach((trap) => {
@@ -233,27 +234,28 @@ function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
       if (y < viewport.startY || y >= viewport.endY) return;
     }
     const affinity = resolveTrapAffinityEntry(trap);
-    if (!affinity) return;
+    const marker = resolveTrapGlyphMarker(affinity);
+    if (!marker) return;
     const localX = viewport ? x - viewport.startX : x;
     const localY = viewport ? y - viewport.startY : y;
     const key = keyForCell(localX, localY);
     const prior = index.get(key);
     if (!prior) {
-      index.set(key, affinity);
+      index.set(key, marker);
       return;
     }
-    if (affinity.stacks > prior.stacks) {
-      index.set(key, affinity);
+    if (marker.stacks > prior.stacks) {
+      index.set(key, marker);
       return;
     }
-    if (affinity.stacks === prior.stacks && affinityOrder(affinity.kind) < affinityOrder(prior.kind)) {
-      index.set(key, affinity);
+    if (marker.stacks === prior.stacks && affinityOrder(marker.kind) < affinityOrder(prior.kind)) {
+      index.set(key, marker);
     }
   });
   return index;
 }
 
-function buildActorOverlay(baseTiles, actors = [], { floorAffinityByCell = null } = {}) {
+function buildActorOverlay(baseTiles, actors = [], { trapMarkersByCell = null } = {}) {
   if (!Array.isArray(baseTiles) || baseTiles.length === 0) {
     return { text: "", html: "" };
   }
@@ -261,20 +263,21 @@ function buildActorOverlay(baseTiles, actors = [], { floorAffinityByCell = null 
   const textGrid = baseTiles.map((row) => String(row).split(""));
   const htmlGrid = baseTiles.map((row) => String(row).split("").map(escapeHtmlChar));
   const asciiSymbols = buildActorSymbolMap(sortedActors, ASCII_ACTOR_SYMBOLS, ASCII_ACTOR_SYMBOLS);
-  if (floorAffinityByCell && typeof floorAffinityByCell.get === "function") {
+  if (trapMarkersByCell && typeof trapMarkersByCell.get === "function") {
     for (let y = 0; y < textGrid.length; y += 1) {
       const rowText = textGrid[y];
       const rowHtml = htmlGrid[y];
       if (!Array.isArray(rowText) || !Array.isArray(rowHtml)) continue;
       for (let x = 0; x < rowText.length; x += 1) {
         if (rowText[x] !== ".") continue;
-        const affinity = floorAffinityByCell.get(keyForCell(x, y));
-        if (!affinity?.kind) continue;
-        const hue = AFFINITY_HUES[affinity.kind];
+        const marker = trapMarkersByCell.get(keyForCell(x, y));
+        if (!marker?.kind || !marker?.glyph) continue;
+        const hue = AFFINITY_HUES[marker.kind];
         if (!Number.isFinite(hue)) continue;
-        const style = resolveStackStyle(affinity.stacks);
-        const tileStyle = `--tile-hue:${hue};--tile-sat:${Math.max(35, style.sat - 18)}%;--tile-light:${Math.min(75, style.light + 22)}%;--tile-glow:${Math.max(1, style.glow - 1)}px;`;
-        rowHtml[x] = `<span class="affinity-floor-cell" data-affinity="${escapeHtml(affinity.kind)}" data-stacks="${style.stacks}" style="${tileStyle}">${escapeHtmlChar(".")}</span>`;
+        const style = resolveStackStyle(marker.stacks);
+        const trapStyle = `--trap-hue:${hue};--trap-sat:${Math.max(42, style.sat)}%;--trap-light:${Math.min(88, style.light + 8)}%;--trap-glow:${Math.max(1, style.glow)}px;`;
+        rowText[x] = marker.glyph;
+        rowHtml[x] = `<span class="trap-cell" data-affinity="${escapeHtml(marker.kind)}" data-stacks="${style.stacks}" style="${trapStyle}">${escapeHtmlChar(marker.glyph)}</span>`;
       }
     }
   }
@@ -976,8 +979,8 @@ export function setupPlayback({
       }
     }
 
-    const floorAffinityByCell = buildFloorAffinityIndex(obs?.traps || [], { viewport });
-    const overlay = buildActorOverlay(renderTiles, renderActors, { floorAffinityByCell });
+    const trapMarkersByCell = buildTrapMarkerIndex(obs?.traps || [], { viewport });
+    const overlay = buildActorOverlay(renderTiles, renderActors, { trapMarkersByCell });
     if (elements.frame) {
       if ("innerHTML" in elements.frame) {
         elements.frame.innerHTML = overlay.html || overlay.text;

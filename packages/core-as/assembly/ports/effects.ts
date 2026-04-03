@@ -13,6 +13,7 @@ export const enum EffectKind {
   ConfigInvalid = 12,
   DurabilityChanged = 13,
   ActorBlocked = 14,
+  AmbientResolved = 15,
 }
 
 const MAX_EFFECTS: i32 = 32;
@@ -80,6 +81,28 @@ export function pushDurabilityChanged(actorId: i32, delta: i32): void {
   unchecked(effectX[index] = 0);
   unchecked(effectY[index] = 0);
   unchecked(effectReason[index] = 0);
+  unchecked(effectDelta[index] = delta);
+  effectCount += 1;
+}
+
+export function pushAmbientResolved(
+  actorId: i32,
+  x: i32,
+  y: i32,
+  value: i32,
+  targetVital: i32,
+  delta: i32,
+): void {
+  if (effectCount >= MAX_EFFECTS) {
+    return;
+  }
+  const index = effectCount;
+  effectKinds[index] = EffectKind.AmbientResolved;
+  effectValues[index] = value;
+  unchecked(effectActorId[index] = actorId);
+  unchecked(effectX[index] = x);
+  unchecked(effectY[index] = y);
+  unchecked(effectReason[index] = targetVital);
   unchecked(effectDelta[index] = delta);
   effectCount += 1;
 }
