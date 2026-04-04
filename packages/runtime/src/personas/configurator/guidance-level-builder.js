@@ -126,11 +126,15 @@ function upsertAffinityCell(index, x, y, affinity, { width, height }) {
   }
 }
 
-const CARDINAL_DELTAS = Object.freeze([
-  { dx: 0, dy: -1 },
-  { dx: 1, dy: 0 },
-  { dx: 0, dy: 1 },
-  { dx: -1, dy: 0 },
+const NEIGHBOR_DELTAS = Object.freeze([
+  { dx: 0, dy: -1 },   // N
+  { dx: 1, dy: -1 },   // NE
+  { dx: 1, dy: 0 },    // E
+  { dx: 1, dy: 1 },    // SE
+  { dx: 0, dy: 1 },    // S
+  { dx: -1, dy: 1 },   // SW
+  { dx: -1, dy: 0 },   // W
+  { dx: -1, dy: -1 },  // NW
 ]);
 
 function spreadAffinityToNeighbors(index, originX, originY, affinity, bounds) {
@@ -141,7 +145,7 @@ function spreadAffinityToNeighbors(index, originX, originY, affinity, bounds) {
     const current = queue[head];
     head += 1;
     if (current.remainingStacks <= 0) continue;
-    for (const delta of CARDINAL_DELTAS) {
+    for (const delta of NEIGHBOR_DELTAS) {
       const nx = current.x + delta.dx;
       const ny = current.y + delta.dy;
       const key = `${nx},${ny}`;
