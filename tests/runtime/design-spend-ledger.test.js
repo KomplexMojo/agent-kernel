@@ -38,12 +38,13 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
     },
   });
 
-  assert.equal(ledger.totalSpentTokens, 358);
-  assert.equal(ledger.remainingTokens, 642);
+  // Design-aligned costs: vitals 2×4+2×2+1×1+2×1=15, regen 12×1²+5×1²=17, affinity 30+28+35=93 → 125/unit × 2 = 250
+  assert.equal(ledger.totalSpentTokens, 520);
+  assert.equal(ledger.remainingTokens, 480);
   assert.equal(ledger.overBudget, false);
   assert.equal(ledger.categories.levelConfig.spentTokens, 110);
   assert.equal(ledger.categories.actorBase.spentTokens, 160);
-  assert.equal(ledger.categories.actorConfiguration.spentTokens, 88);
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 250);
   assert.ok(ledger.lineItems.some((entry) => entry.category === "levelConfig"));
   assert.ok(ledger.lineItems.some((entry) => entry.category === "actorBase"));
   assert.ok(ledger.lineItems.some((entry) => entry.category === "actorConfiguration"));
@@ -107,8 +108,9 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
 
   const configLine = ledger.lineItems.find((entry) => entry.category === "actorConfiguration");
   assert.ok(configLine);
-  assert.equal(configLine.unitCostTokens, 94);
-  assert.equal(configLine.spendTokens, 282);
+  // vitals 30×1=30, regen 3×4=12, affinity 30+28+7=65 → 107/unit × 3 = 321
+  assert.equal(configLine.unitCostTokens, 107);
+  assert.equal(configLine.spendTokens, 321);
   assert.equal(configLine.detail.vitalPoints, 30);
   assert.equal(configLine.detail.regenPoints, 3);
   assert.equal(configLine.detail.affinityStacks, 2);
@@ -169,9 +171,10 @@ test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by coun
   });
 
   assert.equal(ledger.categories.actorBase.spentTokens, 69300);
-  assert.equal(ledger.categories.actorConfiguration.spentTokens, 621);
-  assert.equal(ledger.totalSpentTokens, 69921);
-  assert.equal(ledger.remainingTokens, 7079);
+  // Design-aligned: vitals 2×10+2×5+1×8+2×6=50, regen 12+5+16=33, affinity 30+28+35=93 → 176/unit × 9 = 1584
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 1584);
+  assert.equal(ledger.totalSpentTokens, 70884);
+  assert.equal(ledger.remainingTokens, 6116);
   assert.equal(ledger.overBudget, false);
 });
 

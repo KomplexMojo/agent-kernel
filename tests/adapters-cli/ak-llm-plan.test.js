@@ -165,7 +165,7 @@ test("cli llm-plan budget loop writes feasibility warnings into telemetry", () =
   assert.ok(
     trace.some((entry) =>
       Array.isArray(entry.validationWarnings)
-        && entry.validationWarnings.some((warn) => warn.code === "insufficient_walkable_tiles")
+        && entry.validationWarnings.some((warn) => warn.code === "insufficient_floor_tiles")
     )
   );
 });

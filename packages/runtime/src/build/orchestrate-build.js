@@ -8,6 +8,7 @@ import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/c
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
+import { buildScenarioSpendReport } from "../personas/allocator/incentive-model.js";
 import {
   DEFAULT_ROOM_CARD_AFFINITY,
   ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
@@ -1321,6 +1322,50 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       });
       spendProposal = spendResult.proposal;
       budgetReceipt = spendResult.receipt;
+
+      // Compute scenario spend report using existing spend categorization
+      const { delvers, wardens } = partitionActorsByRole(actorsInput.actors, {
+        delverCountHint: configuratorInputs?.delverCount,
+      });
+
+      // Layout spend (rooms, traps, tiles)
+      const roomsSpend = budgetReceipt.lineItems
+        .filter((item) => item.kind === "layout" || item.kind === "trap")
+        .reduce((sum, item) => sum + item.totalCost, 0);
+
+      // Actor spend - partition by delver/warden lists
+      const delverIds = new Set(delvers.map((a) => a.id));
+      let delverSpend = 0;
+      let wardenSpend = 0;
+
+      // SpendProposal items have format "{kind}:{id}" but receipt lineItems have separate fields
+      // We need to match actors based on whether their vitals/affinities belong to delvers or wardens
+      budgetReceipt.lineItems.forEach((item) => {
+        if (item.kind === "actor") {
+          // Actor spawn cost
+          const actorId = item.id?.replace(/^actor_spawn_/, "");
+          if (actorId && delverIds.has(actorId)) {
+            delverSpend += item.totalCost;
+          } else if (actorId) {
+            wardenSpend += item.totalCost;
+          }
+        } else if (item.kind === "vital" || item.kind === "affinity" || item.kind === "motivation") {
+          // These aggregate across all actors - split proportionally
+          // This is a limitation acknowledged in the task note
+          const totalActors = actorsInput.actors.length;
+          if (totalActors > 0) {
+            delverSpend += item.totalCost * (delvers.length / totalActors);
+            wardenSpend += item.totalCost * (wardens.length / totalActors);
+          }
+        }
+      });
+
+      budgetReceipt.scenarioSpendReport = buildScenarioSpendReport({
+        roomsSpend,
+        delverSpend,
+        wardenSpend,
+        budgetTokens: mapped.budget.budget?.budget?.tokens,
+      });
     }
 
     const normalizedActors = normalizeActorPositions(actorsInput.actors, layout, {

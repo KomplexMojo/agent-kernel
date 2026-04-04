@@ -100,12 +100,12 @@ const result = await runLlmBudgetLoop({
 assert.equal(result.ok, true);
 assert.ok(result.captures.length >= 3);
 assert.ok(result.summary.actors.length >= 1);
-assert.ok(prompts.some((prompt) => prompt.includes("insufficient_walkable_tiles")));
+assert.ok(prompts.some((prompt) => prompt.includes("insufficient_floor_tiles")));
 assert.ok(prompts.length >= 3);
 assert.ok(
   result.trace.some((entry) =>
     Array.isArray(entry.validationWarnings)
-      && entry.validationWarnings.some((warn) => warn.code === "insufficient_walkable_tiles")
+      && entry.validationWarnings.some((warn) => warn.code === "insufficient_floor_tiles")
   )
 );
 `;

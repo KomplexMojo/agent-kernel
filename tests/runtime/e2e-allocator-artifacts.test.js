@@ -96,4 +96,14 @@ test("allocator receipts and ledger link to buildspec budget refs", async () => 
   assert.equal(ledgerResult.ledger.meta.runId, buildSpecResult.spec.meta.runId);
   assert.deepEqual(ledgerResult.ledger.budgetRef, budgetRef);
   assert.equal(ledgerResult.ledger.receiptRef.id, receipt.meta.id);
+
+  // Verify scenario spend report is attached to budget receipt
+  assert.ok(receipt.scenarioSpendReport, "scenarioSpendReport should be present on budget receipt");
+  assert.ok(Number.isFinite(receipt.scenarioSpendReport.budget));
+  assert.ok(Number.isFinite(receipt.scenarioSpendReport.totalSpend));
+  assert.ok(receipt.scenarioSpendReport.categories);
+  assert.ok(receipt.scenarioSpendReport.categories.rooms);
+  assert.ok(receipt.scenarioSpendReport.categories.delvers);
+  assert.ok(receipt.scenarioSpendReport.categories.wardens);
+  assert.ok(receipt.scenarioSpendReport.incentive);
 });

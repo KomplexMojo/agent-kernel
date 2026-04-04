@@ -22,8 +22,8 @@ import { calculateActorConfigurationUnitCost } from ${JSON.stringify(spendModule
   const result = calculateActorConfigurationUnitCost({ entry, priceMap: new Map() });
   assert.ok(result.cost > 0, "cost should be positive");
   assert.ok(result.detail.motivationCost > 0, "motivationCost should be reported");
-  // reflexive = 1 token
-  assert.equal(result.detail.motivationCost, 1);
+  // reflexive = simple tier = 25 tokens (design §6.6)
+  assert.equal(result.detail.motivationCost, 25);
   const motivationLineItems = result.detail.lineItems.filter((li) => li.category === "motivation");
   assert.equal(motivationLineItems.length, 1);
   assert.equal(motivationLineItems[0].id, "motivation_reflexive");
@@ -47,8 +47,8 @@ import { calculateActorConfigurationUnitCost } from ${JSON.stringify(spendModule
     motivations: ["random", "attacking", "goal_oriented"],
   };
   const result = calculateActorConfigurationUnitCost({ entry, priceMap: new Map() });
-  // random(1) + attacking(3) + goal_oriented(5) = 9
-  assert.equal(result.detail.motivationCost, 9);
+  // random(25) + attacking(25) + goal_oriented(50) = 100
+  assert.equal(result.detail.motivationCost, 100);
 }
 
 // ── motivation cost uses priceMap when available ──
@@ -72,8 +72,8 @@ import { calculateActorConfigurationUnitCost } from ${JSON.stringify(spendModule
     motivations: [{ kind: "strategy_focused", intensity: 2 }],
   };
   const result = calculateActorConfigurationUnitCost({ entry, priceMap: new Map() });
-  // strategy_focused(10) * intensity(2) = 20
-  assert.equal(result.detail.motivationCost, 20);
+  // strategy_focused(50) * intensity(2) = 100
+  assert.equal(result.detail.motivationCost, 100);
 }
 
 // ── motivation cost preserves legacy cognition ordering ──
@@ -86,7 +86,8 @@ import { calculateActorConfigurationUnitCost } from ${JSON.stringify(spendModule
   const r2 = calculateActorConfigurationUnitCost({ entry: goalEntry, priceMap: pm });
   const r3 = calculateActorConfigurationUnitCost({ entry: strategyEntry, priceMap: pm });
   assert.ok(r1.detail.motivationCost < r2.detail.motivationCost, "reflexive < goal_oriented");
-  assert.ok(r2.detail.motivationCost < r3.detail.motivationCost, "goal_oriented < strategy_focused");
+  // goal_oriented and strategy_focused are both advanced tier (50 tokens each)
+  assert.ok(r2.detail.motivationCost <= r3.detail.motivationCost, "goal_oriented <= strategy_focused");
 }
 `;
 

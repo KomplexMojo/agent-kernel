@@ -88,7 +88,7 @@ test("llm prompt benchmark script ranks cleaner runs above repaired runs", () =>
       {
         phase: "actors_only",
         durationMs: 200,
-        validationWarnings: [{ field: "actors", code: "insufficient_walkable_tiles" }],
+        validationWarnings: [{ field: "actors", code: "insufficient_floor_tiles" }],
       },
     ],
     captures: [

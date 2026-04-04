@@ -314,6 +314,7 @@ export function buildBuildSpecFromSummary({
       hints: {
         levelAffinity: resolvedSummary?.dungeonAffinity,
         budgetTokens: resolvedSummary?.budgetTokens,
+        poolWeights: resolvedSummary?.poolWeights,
         delverCount,
         delverSetupMode: delverConfig?.setupMode,
       },

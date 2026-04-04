@@ -2,12 +2,26 @@ const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
 const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 
+/** Reference balancing budget (design §2.1). */
+export const REFERENCE_BUDGET_TOKENS = 1000;
+
+/** Target allocation split: 55% rooms, 20% delvers, 25% wardens (design §2.2). */
 const DEFAULT_POOLS = Object.freeze([
-  { id: "player", weight: 0.2, notes: "Player actor configuration" },
-  { id: "layout", weight: 0.4, notes: "Level layout + tiles" },
-  { id: "wardens", weight: 0.4, notes: "Defending actors + configuration" },
+  { id: "layout", weight: 0.55, notes: "Rooms / layout / traps (55%)" },
+  { id: "player", weight: 0.20, notes: "Delver actors (20%)" },
+  { id: "wardens", weight: 0.25, notes: "Warden actors + configuration (25%)" },
   { id: "loot", weight: 0.0, notes: "Optional drops/loot reserve" },
 ]);
+
+/** Target spend values for the reference 1000-token budget (design §2.2). */
+export const REFERENCE_TARGETS = Object.freeze({
+  rooms: 550,
+  delvers: 200,
+  wardens: 250,
+});
+
+/** Target delver/warden spend ratio (design §3.2): 200/250 = 0.8. */
+export const TARGET_DELVER_WARDEN_RATIO = 0.8;
 
 function buildRef(artifact, fallbackSchema) {
   const meta = artifact?.meta;
