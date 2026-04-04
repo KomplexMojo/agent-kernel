@@ -126,6 +126,36 @@ function upsertAffinityCell(index, x, y, affinity, { width, height }) {
   }
 }
 
+const CARDINAL_DELTAS = Object.freeze([
+  { dx: 0, dy: -1 },
+  { dx: 1, dy: 0 },
+  { dx: 0, dy: 1 },
+  { dx: -1, dy: 0 },
+]);
+
+function spreadAffinityToNeighbors(index, originX, originY, affinity, bounds) {
+  const queue = [{ x: originX, y: originY, remainingStacks: affinity.stacks - 1 }];
+  const visited = new Set([`${originX},${originY}`]);
+  let head = 0;
+  while (head < queue.length) {
+    const current = queue[head];
+    head += 1;
+    if (current.remainingStacks <= 0) continue;
+    for (const delta of CARDINAL_DELTAS) {
+      const nx = current.x + delta.dx;
+      const ny = current.y + delta.dy;
+      const key = `${nx},${ny}`;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      if (nx < 0 || nx >= bounds.width || ny < 0 || ny >= bounds.height) continue;
+      upsertAffinityCell(index, nx, ny, { kind: affinity.kind, stacks: current.remainingStacks }, bounds);
+      if (current.remainingStacks > 1) {
+        queue.push({ x: nx, y: ny, remainingStacks: current.remainingStacks - 1 });
+      }
+    }
+  }
+}
+
 function buildFloorAffinityByCell({ width, height, floorAffinityCells = null, floorAffinityTraps = null } = {}) {
   const index = new Map();
   if (Array.isArray(floorAffinityCells)) {
@@ -144,6 +174,9 @@ function buildFloorAffinityByCell({ width, height, floorAffinityCells = null, fl
       const affinity = resolveTrapAffinityEntry(trap);
       if (!position || !affinity) return;
       upsertAffinityCell(index, position.x, position.y, affinity, { width, height });
+      if (affinity.stacks > 1) {
+        spreadAffinityToNeighbors(index, position.x, position.y, affinity, { width, height });
+      }
     });
   }
   return index;

@@ -735,30 +735,30 @@ function augmentLayoutWithRoomAffinityEffects(
       nextRooms[roomIndex] = nextRoom;
       const roomId = resolveRoomId(room, roomIndex);
       emitAffinities.forEach(({ kind, stacks }) => {
+        const candidates = [];
         for (let dy = 0; dy < nextRoom.height; dy += 1) {
-          let placed = false;
           for (let dx = 0; dx < nextRoom.width; dx += 1) {
             const tx = nextRoom.x + dx;
             const ty = nextRoom.y + dy;
             const key = `${tx},${ty}`;
             if (key === spawnKey || key === exitKey || occupied.has(key)) continue;
-            const manaReserve = ROOM_AFFINITY_EMIT_PERCENT_PER_STACK * stacks;
-            generatedTraps.push({
-              id: `${kind}_emit_${roomIndex}`,
-              x: tx,
-              y: ty,
-              blocking: false,
-              source: "room_affinity_tile",
-              roomId,
-              affinity: { kind, expression: "emit", stacks: 1, targetType: "floor" },
-              vitals: { mana: { current: manaReserve, max: manaReserve, regen: 0 } },
-            });
-            occupied.add(key);
-            placed = true;
-            break;
+            candidates.push({ x: tx, y: ty });
           }
-          if (placed) break;
         }
+        if (candidates.length === 0) return;
+        const chosen = candidates[Math.floor(assignmentRng() * candidates.length)];
+        const manaReserve = ROOM_AFFINITY_EMIT_PERCENT_PER_STACK * stacks;
+        generatedTraps.push({
+          id: `${kind}_emit_${roomIndex}`,
+          x: chosen.x,
+          y: chosen.y,
+          blocking: false,
+          source: "room_affinity_tile",
+          roomId,
+          affinity: { kind, expression: "emit", stacks, targetType: "floor" },
+          vitals: { mana: { current: manaReserve, max: manaReserve, regen: 0 } },
+        });
+        occupied.add(`${chosen.x},${chosen.y}`);
       });
       return;
     }
