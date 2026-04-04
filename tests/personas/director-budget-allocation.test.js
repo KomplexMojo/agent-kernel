@@ -36,9 +36,11 @@ assert.equal(allocation.priceListRef.schema, "agent-kernel/PriceList");
 assert.deepEqual(allocation.policy, { reserveTokens: 100, maxActorSpend: 300 });
 
 const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
+// Updated for design-aligned split: 55% rooms, 20% delvers, 25% wardens
+// Available = 1000 - 100 reserve = 900
+assert.equal(poolsById.layout, 495);
 assert.equal(poolsById.player, 180);
-assert.equal(poolsById.layout, 360);
-assert.equal(poolsById.wardens, 360);
+assert.equal(poolsById.wardens, 225);
 assert.equal(poolsById.loot, 0);
 
 const custom = buildBudgetAllocation({

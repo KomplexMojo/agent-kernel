@@ -354,15 +354,18 @@ function validateFeasibility({ roomCount, actorCount, layout }) {
       if (walkableTiles <= 0) {
         errors.push({ field: "layout", code: "empty_layout" });
       }
-      if (Number.isInteger(actorCount) && actorCount > 0 && walkableTiles < actorCount) {
-        errors.push({
-          field: "actors",
-          code: "insufficient_walkable_tiles",
-          detail: {
-            actorCount,
-            walkableTiles,
-          },
-        });
+      if (Number.isInteger(actorCount) && actorCount > 0) {
+        const floorTiles = normalizedLayout.floorTiles || 0;
+        if (floorTiles < actorCount) {
+          errors.push({
+            field: "actors",
+            code: "insufficient_floor_tiles",
+            detail: {
+              actorCount,
+              floorTiles,
+            },
+          });
+        }
       }
       return { ok: errors.length === 0, errors };
     }

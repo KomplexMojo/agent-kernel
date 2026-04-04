@@ -100,6 +100,49 @@ function deriveLevelGenFromCounts(counts, minSide) {
   return levelGen;
 }
 
+function collectFloorPositions(layout) {
+  const data = layout?.data || layout;
+  if (!data) return [];
+
+  const floors = [];
+  const traps = Array.isArray(data.traps) ? data.traps : [];
+  const blockingTraps = new Set(
+    traps
+      .filter((trap) => trap && trap.blocking === true)
+      .map((trap) => `${trap.x},${trap.y}`),
+  );
+
+  if (Array.isArray(data.kinds)) {
+    for (let y = 0; y < data.kinds.length; y += 1) {
+      const row = data.kinds[y] || [];
+      for (let x = 0; x < row.length; x += 1) {
+        const kind = row[x];
+        if (kind !== 0) continue;
+        if (blockingTraps.has(`${x},${y}`)) continue;
+        floors.push({ x, y });
+      }
+    }
+    return floors;
+  }
+
+  if (Array.isArray(data.tiles)) {
+    const legend = data.legend || {};
+    for (let y = 0; y < data.tiles.length; y += 1) {
+      const row = String(data.tiles[y] ?? "");
+      for (let x = 0; x < row.length; x += 1) {
+        const char = row[x];
+        const entry = legend[char];
+        const tileType = entry?.tile;
+        if (tileType === "floor") {
+          floors.push({ x, y });
+        }
+      }
+    }
+  }
+
+  return floors;
+}
+
 export function validateLayoutAndActors({ levelGen, actorCount = 0 } = {}) {
   const errors = [];
   if (!levelGen || typeof levelGen !== "object" || Array.isArray(levelGen)) {
@@ -140,10 +183,11 @@ export function validateLayoutAndActors({ levelGen, actorCount = 0 } = {}) {
   }
 
   if (Number.isInteger(actorCount) && actorCount > 0) {
-    if (walkable.length < actorCount) {
-      pushError(errors, "actors", "insufficient_walkable_tiles", {
+    const floors = collectFloorPositions(layout);
+    if (floors.length < actorCount) {
+      pushError(errors, "actors", "insufficient_floor_tiles", {
         actorCount,
-        walkableTiles: walkable.length,
+        floorTiles: floors.length,
       });
     }
   }
@@ -160,6 +204,15 @@ export function validateLayoutCountsAndActors({ layout, actorCount = 0, minSide 
   const totalTiles = (counts.floorTiles || 0) + (counts.hallwayTiles || 0);
   if (totalTiles <= 0) {
     pushError(errors, "layout", "empty_layout");
+  }
+  if (Number.isInteger(actorCount) && actorCount > 0) {
+    const floorTiles = counts.floorTiles || 0;
+    if (floorTiles < actorCount) {
+      pushError(errors, "actors", "insufficient_floor_tiles", {
+        actorCount,
+        floorTiles,
+      });
+    }
   }
   const levelGen = deriveLevelGenFromCounts(counts, minSide);
   const result = validateLayoutAndActors({ levelGen, actorCount });

@@ -15,8 +15,11 @@ import { calculateActorCost, buildActorCatalogFromConfig } from ${JSON.stringify
     affinityStacks: 2,
   });
   assert.equal(result.ok, true);
-  assert.equal(result.cost, 157);
-  assert.deepEqual(result.detail, { vitalPoints: 135, regenPoints: 3, affinityStacks: 2 });
+  // Design-aligned costs: vitals 2×100+2×20+1×10+2×5=260, regen 12×1²+5×2²=32, affinity 30+28=58 → 350
+  assert.equal(result.cost, 350);
+  assert.equal(result.detail.vitalPoints, 135);
+  assert.equal(result.detail.regenPoints, 3);
+  assert.equal(result.detail.affinityStacks, 2);
 }
 
 {
@@ -34,10 +37,12 @@ import { calculateActorCost, buildActorCatalogFromConfig } from ${JSON.stringify
   });
   assert.equal(catalog.ok, true);
   assert.equal(catalog.entries.length, 2);
-  assert.equal(catalog.entries[0].cost, 140);
-  assert.equal(catalog.entries[0].id, "actor_attacking_fire_140");
-  assert.equal(catalog.entries[1].cost, 128);
-  assert.equal(catalog.entries[1].id, "actor_attacking_wind_128");
+  // Legacy tokensPerVital=1, tokensPerRegen=2: vitals 120, regen 4, fire stacks=2 affinity 30+28=58 → 182
+  assert.equal(catalog.entries[0].cost, 182);
+  assert.equal(catalog.entries[0].id, "actor_attacking_fire_182");
+  // wind stacks=1 affinity 30+10=40 → 164
+  assert.equal(catalog.entries[1].cost, 164);
+  assert.equal(catalog.entries[1].id, "actor_attacking_wind_164");
 }
 
 {
@@ -53,7 +58,8 @@ import { calculateActorCost, buildActorCatalogFromConfig } from ${JSON.stringify
     affinities: ["earth"],
   });
   assert.equal(catalog.ok, false);
-  assert.ok(catalog.errors.some((err) => err.code === "affinity_requires_mana"));
+  // Bare string affinity rejected per design §5.1: needs kind + stacks + expression
+  assert.ok(catalog.errors.some((err) => err.code === "affinity_missing_stack_and_expression"));
 }
 `;
 

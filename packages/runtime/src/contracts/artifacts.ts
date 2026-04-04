@@ -406,6 +406,36 @@ export interface BudgetReceiptArtifactV1 {
   totalCost: number;
   remaining: number;
   lineItems: BudgetReceiptLineItemV1[];
+  scenarioSpendReport?: {
+    budget: number;
+    totalSpend: number;
+    remainingBudget: number;
+    overBudget: boolean;
+    categories: {
+      rooms: {
+        actual: number;
+        target: number;
+        usagePercent: number;
+      };
+      delvers: {
+        actual: number;
+        target: number;
+        usagePercent: number;
+      };
+      wardens: {
+        actual: number;
+        target: number;
+        usagePercent: number;
+      };
+    };
+    totalBudgetUsagePercent: number;
+    incentive: {
+      actualRatio: number;
+      targetRatio: number;
+      mismatch: number;
+      multiplier: number;
+    };
+  };
 }
 
 export type BudgetArtifact = BudgetArtifactV1;

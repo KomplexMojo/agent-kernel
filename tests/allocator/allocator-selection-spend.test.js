@@ -86,8 +86,12 @@ assert.equal(result.rejectedSelections.length, 1);
 assert.equal(result.spentTokens, 0);
 assert.equal(result.remainingBudgetTokens, 100);
 assert.equal(result.decisions[0].baseUnitCost, 80);
-assert.equal(result.decisions[0].configUnitCost, 22);
-assert.equal(result.decisions[0].unitCost, 102);
+// Updated for design-aligned cost model:
+// vitals: 2×8 + 2×4 + 1×4 + 2×2 = 32
+// regen: 5×1² + 4×1² = 9 (mana regen 1, stamina regen 1)
+// total config: 41
+assert.equal(result.decisions[0].configUnitCost, 41);
+assert.equal(result.decisions[0].unitCost, 121);
 `;
 
 test("allocator selection spend includes actor configuration costs", () => {

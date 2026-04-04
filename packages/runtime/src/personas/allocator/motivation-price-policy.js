@@ -25,27 +25,53 @@ export const MOTIVATION_FAMILIES = Object.freeze({
 });
 
 /**
- * Default per-kind cost in tokens.
- * These are the fallback costs used when a PriceList artifact
- * does not contain an override for a given motivation kind.
+ * Motivation tier classification (design §6.6).
+ * Simple motivations cost 25 tokens; advanced motivations cost 50 tokens.
+ */
+export const MOTIVATION_TIER = Object.freeze({
+  // Simple motivations (25 tokens)
+  random: "simple",
+  stationary: "simple",
+  exploring: "simple",
+  patrolling: "simple",
+  attacking: "simple",
+  defending: "simple",
+  friendly: "simple",
+  reflexive: "simple",
+
+  // Advanced motivations (50 tokens)
+  stealthy: "advanced",
+  goal_oriented: "advanced",
+  strategy_focused: "advanced",
+});
+
+/** Simple motivation flat cost (design §6.6). */
+export const SIMPLE_MOTIVATION_COST = 25;
+
+/** Advanced motivation flat cost (design §6.6). */
+export const ADVANCED_MOTIVATION_COST = 50;
+
+/**
+ * Default per-kind cost in tokens (design §6.6).
+ * Simple motivations = 25, advanced motivations = 50.
  */
 export const DEFAULT_MOTIVATION_COSTS = Object.freeze({
-  // Mobility
-  random: 1,
-  stationary: 0,
-  exploring: 2,
-  patrolling: 3,
+  // Mobility — simple
+  random: SIMPLE_MOTIVATION_COST,
+  stationary: SIMPLE_MOTIVATION_COST,
+  exploring: SIMPLE_MOTIVATION_COST,
+  patrolling: SIMPLE_MOTIVATION_COST,
 
-  // Posture
-  attacking: 3,
-  defending: 2,
-  stealthy: 4,
-  friendly: 1,
+  // Posture — simple except stealthy
+  attacking: SIMPLE_MOTIVATION_COST,
+  defending: SIMPLE_MOTIVATION_COST,
+  stealthy: ADVANCED_MOTIVATION_COST,
+  friendly: SIMPLE_MOTIVATION_COST,
 
-  // Cognition — preserves legacy ordering: reflexive < goal_oriented < strategy_focused
-  reflexive: 1,
-  goal_oriented: 5,
-  strategy_focused: 10,
+  // Cognition — reflexive is simple; goal_oriented and strategy_focused are advanced
+  reflexive: SIMPLE_MOTIVATION_COST,
+  goal_oriented: ADVANCED_MOTIVATION_COST,
+  strategy_focused: ADVANCED_MOTIVATION_COST,
 });
 
 /**

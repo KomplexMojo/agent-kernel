@@ -57,6 +57,19 @@ function validateBudgetReceiptArtifact(artifact) {
   if (artifact.status === "approved") {
     assert.equal(artifact.remaining >= 0, true);
   }
+  // scenarioSpendReport is optional
+  if (artifact.scenarioSpendReport) {
+    assert.ok(isObject(artifact.scenarioSpendReport));
+    assert.equal(Number.isFinite(artifact.scenarioSpendReport.budget), true);
+    assert.equal(Number.isFinite(artifact.scenarioSpendReport.totalSpend), true);
+    assert.equal(Number.isFinite(artifact.scenarioSpendReport.remainingBudget), true);
+    assert.equal(typeof artifact.scenarioSpendReport.overBudget, "boolean");
+    assert.ok(isObject(artifact.scenarioSpendReport.categories));
+    assert.ok(isObject(artifact.scenarioSpendReport.categories.rooms));
+    assert.ok(isObject(artifact.scenarioSpendReport.categories.delvers));
+    assert.ok(isObject(artifact.scenarioSpendReport.categories.wardens));
+    assert.ok(isObject(artifact.scenarioSpendReport.incentive));
+  }
 }
 
 function validateBudgetLedgerArtifact(artifact) {

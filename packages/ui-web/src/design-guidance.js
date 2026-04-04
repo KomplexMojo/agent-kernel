@@ -1147,6 +1147,7 @@ export function buildSummaryFromCardSet({
   cards,
   dungeonAffinity = DEFAULT_DUNGEON_AFFINITY,
   budgetTokens = DEFAULT_LEVEL_BUDGET_TOKENS,
+  budgetSplitPercent,
   priceList,
   tileCosts,
 } = {}) {
@@ -1157,6 +1158,13 @@ export function buildSummaryFromCardSet({
     budgetTokens: readPositiveInt(budgetTokens, DEFAULT_LEVEL_BUDGET_TOKENS),
     cardSet: typedCards,
   };
+  if (budgetSplitPercent) {
+    summaryInput.poolWeights = [
+      { id: "layout", weight: readBoundedPercent(budgetSplitPercent.room, DEFAULT_BUDGET_SPLIT.room) / 100 },
+      { id: "player", weight: readBoundedPercent(budgetSplitPercent.delver, DEFAULT_BUDGET_SPLIT.delver) / 100 },
+      { id: "wardens", weight: readBoundedPercent(budgetSplitPercent.warden, DEFAULT_BUDGET_SPLIT.warden) / 100 },
+    ];
+  }
   const summary = extractSummaryFromCardSet(summaryInput);
   const cardsWithBudget = enrichCardsWithBudget(normalizedCards, {
     budgetTokens: summaryInput.budgetTokens,
@@ -1751,6 +1759,7 @@ export function wireDesignGuidance({
       cards,
       dungeonAffinity,
       budgetTokens,
+      budgetSplitPercent,
       priceList: state.priceList,
       tileCosts: state.tileCosts,
     });

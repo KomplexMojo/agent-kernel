@@ -2,7 +2,12 @@ import { validateSpendProposal } from "../allocator/validate-spend.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
 import { ROOM_AFFINITY_STACK_COST_FACTOR, VITAL_KEYS } from "../../contracts/domain-constants.js";
-import { COST_DEFAULTS } from "./cost-model.js";
+import {
+  COST_DEFAULTS,
+  VITAL_MAX_COST_MULTIPLIER,
+  REGEN_COST_COEFFICIENT,
+  computeCumulativeStackCost,
+} from "./cost-model.js";
 import { extractSummaryFromCardSet } from "../director/summary-selections.js";
 import { normalizeCardType } from "./card-model.js";
 import { calculateMotivationStackCost } from "../allocator/motivation-price-policy.js";
@@ -267,6 +272,8 @@ export function calculateActorConfigurationUnitCost({
   const affinityCostScale = normalizeCostScale(pricing?.affinityCostScale, 1);
   const lineItems = [];
 
+  // Vital max costs: per-vital multiplier (design §7)
+  // health: 2H, mana: 2M, stamina: S, durability: 2D
   let vitalPoints = 0;
   let vitalCost = 0;
   VITAL_KEYS.forEach((key) => {
@@ -274,12 +281,16 @@ export function calculateActorConfigurationUnitCost({
     if (quantity <= 0) return;
     vitalPoints += quantity;
     const id = VITAL_POINT_IDS[key];
-    const unit = resolveUnitCost({
+    const priceListUnit = resolveUnitCost({
       priceMap,
       kind: "vital",
       id,
-      fallback: pricing.tokensPerVital ?? COST_DEFAULTS.tokensPerVital,
+      fallback: null,
     });
+    // Use price list override if available, otherwise per-vital design multiplier
+    const unit = Number.isFinite(priceListUnit) && priceListUnit > 0
+      ? priceListUnit
+      : VITAL_MAX_COST_MULTIPLIER[key];
     const spendTokens = quantity * unit;
     vitalCost += spendTokens;
     lineItems.push({
@@ -292,6 +303,8 @@ export function calculateActorConfigurationUnitCost({
     });
   });
 
+  // Regen costs: quadratic per-vital (design §8)
+  // health: 12·R², mana: 5·R², stamina: 4·R², durability: 10·R²
   let regenPoints = 0;
   let regenCost = 0;
   VITAL_KEYS.forEach((key) => {
@@ -299,57 +312,69 @@ export function calculateActorConfigurationUnitCost({
     if (quantity <= 0) return;
     regenPoints += quantity;
     const id = VITAL_REGEN_IDS[key];
-    const unit = resolveUnitCost({
+    const priceListUnit = resolveUnitCost({
       priceMap,
       kind: "vital",
       id,
-      fallback: pricing.tokensPerRegen ?? COST_DEFAULTS.tokensPerRegen,
+      fallback: null,
     });
-    const spendTokens = quantity * unit;
+    let spendTokens;
+    if (Number.isFinite(priceListUnit) && priceListUnit > 0) {
+      // Price list override: linear
+      spendTokens = quantity * priceListUnit;
+    } else {
+      // Design formula: coefficient × R² (quadratic)
+      const coeff = REGEN_COST_COEFFICIENT[key];
+      spendTokens = coeff * quantity * quantity;
+    }
     regenCost += spendTokens;
     lineItems.push({
       category: "vital",
       id,
       label: `${key} regen`,
       quantity,
-      unitCostTokens: unit,
+      unitCostTokens: spendTokens,
       spendTokens,
     });
   });
 
+  // Affinity costs: base (30) + cumulative stack cost + expression cost (design §6)
   let affinityStacks = 0;
   let affinityCost = 0;
-  const affinityStackUnit = resolveUnitCost({
-    priceMap,
-    kind: "affinity",
-    id: "affinity_stack",
-    fallback: pricing.affinityBaseCost ?? COST_DEFAULTS.affinityBaseCost,
-  });
+  const affinityBaseCost = pricing.affinityBaseCost ?? COST_DEFAULTS.affinityBaseCost;
   affinities.forEach((affinity) => {
     const stacks = affinity.stacks;
     affinityStacks += stacks;
-    const stackWeight = stacks * stacks;
-    const stackCost = scaleTokenCost(affinityStackUnit * stackWeight, affinityCostScale);
-    affinityCost += stackCost;
 
+    // Affinity base (30) + cumulative stack cost Σ(10 + 8·(n-1)²)
+    const basePlusStack = affinityBaseCost + computeCumulativeStackCost(stacks);
+    let scaledBasePlusStack = scaleTokenCost(basePlusStack, affinityCostScale);
+
+    // Expression cost: external (push/pull) = 35, internal (emit/draw) = 25
     const expressionId = AFFINITY_EXPRESSION_IDS[affinity.expression];
     let expressionCost = 0;
-    if (!expressionId) return;
-    const expressionUnit = resolveUnitCost({
-      priceMap,
-      kind: "affinity",
-      id: expressionId,
-      fallback: pricing.affinityBaseCost ?? COST_DEFAULTS.affinityBaseCost,
-    });
-    expressionCost = scaleTokenCost(expressionUnit * stackWeight, affinityCostScale);
-    affinityCost += expressionCost;
+    if (expressionId) {
+      const isExternal = affinity.expression === "push" || affinity.expression === "pull";
+      const exprFallback = isExternal
+        ? COST_DEFAULTS.externalExpressionCost
+        : COST_DEFAULTS.internalExpressionCost;
+      const exprUnit = resolveUnitCost({
+        priceMap,
+        kind: "affinity",
+        id: expressionId,
+        fallback: exprFallback,
+      });
+      expressionCost = scaleTokenCost(exprUnit, affinityCostScale);
+    }
+
+    affinityCost += scaledBasePlusStack + expressionCost;
     lineItems.push({
       category: "affinity",
       id: `${affinity.kind || "affinity"}:${affinity.expression}`,
       label: `${affinity.kind || "affinity"}+${stacks}+${affinity.expression}`,
       quantity: 1,
-      unitCostTokens: stackCost + expressionCost,
-      spendTokens: stackCost + expressionCost,
+      unitCostTokens: scaledBasePlusStack + expressionCost,
+      spendTokens: scaledBasePlusStack + expressionCost,
     });
   });
 

@@ -13,7 +13,7 @@ assert.equal(ok.ok, true);
 
 const insufficient = validateLayoutAndActors({ levelGen, actorCount: 999 });
 assert.equal(insufficient.ok, false);
-assert.ok(insufficient.errors.find((err) => err.code === "insufficient_walkable_tiles"));
+assert.ok(insufficient.errors.find((err) => err.code === "insufficient_floor_tiles"));
 
 const invalid = validateLayoutAndActors({ levelGen: { width: 0, height: 0 }, actorCount: 1 });
 assert.equal(invalid.ok, false);
@@ -31,6 +31,16 @@ const countsInvalid = validateLayoutCountsAndActors({
 });
 assert.equal(countsInvalid.ok, false);
 assert.ok(countsInvalid.errors.find((err) => err.code === "invalid_tile_count"));
+
+const hallwayHeavy = validateLayoutCountsAndActors({
+  layout: { floorTiles: 5, hallwayTiles: 20 },
+  actorCount: 10,
+});
+assert.equal(hallwayHeavy.ok, false);
+assert.ok(hallwayHeavy.errors.find((err) => err.code === "insufficient_floor_tiles"));
+const error = hallwayHeavy.errors.find((err) => err.code === "insufficient_floor_tiles");
+assert.equal(error.detail.actorCount, 10);
+assert.equal(error.detail.floorTiles, 5);
 `;
 
 test("configurator feasibility validation checks layout and actor placement", () => {
