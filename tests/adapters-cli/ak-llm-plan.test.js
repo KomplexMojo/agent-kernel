@@ -132,8 +132,8 @@ test("cli llm-plan budget loop writes multiple captures", () => {
   const allocation = telemetry?.data?.llm?.budgetAllocation;
   assert.ok(allocation);
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
-  assert.equal(poolsById.layout, 320);
-  assert.equal(poolsById.wardens, 320);
+  assert.equal(poolsById.layout, 440);
+  assert.equal(poolsById.wardens, 200);
   assert.equal(poolsById.player, 160);
 });
 

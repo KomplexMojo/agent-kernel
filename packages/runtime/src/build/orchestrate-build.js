@@ -755,7 +755,7 @@ function augmentLayoutWithRoomAffinityEffects(
           blocking: false,
           source: "room_affinity_tile",
           roomId,
-          affinity: { kind, expression: "emit", stacks, targetType: "floor" },
+          affinity: { kind, expression: "emit", stacks: 1, targetType: "floor" },
           vitals: { mana: { current: manaReserve, max: manaReserve, regen: 0 } },
         });
         occupied.add(`${chosen.x},${chosen.y}`);

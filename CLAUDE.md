@@ -1,7 +1,81 @@
 # CLAUDE.md
 
-This file defines Claude's role, responsibilities, and operating rules in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 Claude works in collaboration with ChatGPT Codex: **Codex generates code; Claude enforces correctness.**
+
+---
+
+## Commands
+
+```bash
+# Install dependencies
+pnpm install
+
+# Compile AssemblyScript → WASM (required before tests that use WASM)
+pnpm run build:wasm
+
+# Run all tests (Node built-in test runner, no Jest/Vitest)
+pnpm run test
+
+# Run a single test file
+node --test tests/<path>/<name>.test.js
+
+# Check WASM binary is present
+pnpm run test:wasm-check
+
+# Start UI dev server (http://localhost:8001/packages/ui-web/index.html)
+pnpm run serve:ui
+
+# Run CLI demo
+pnpm run demo:cli
+```
+
+**WASM note:** Tests that require the WASM binary skip gracefully when `build/core-as.wasm` is absent. Run `pnpm run build:wasm` first to enable them.
+
+---
+
+## Architecture Overview
+
+This is a WASM-first simulation kernel using **Ports & Adapters** with deterministic persona state machines. It is a `pnpm` monorepo (`packages/*`).
+
+### Package Dependency Direction (non-negotiable)
+
+```
+adapters-* / ui-web
+      ↓
+   runtime          ← personas live here
+      ↓
+ bindings-ts        ← WASM boundary only
+      ↓
+  core-as           ← AssemblyScript WASM, pure logic, no IO
+```
+
+### Package Roles
+
+| Package | Language | Role |
+|---|---|---|
+| `core-as` | AssemblyScript | Deterministic simulation: state transitions, validation, effect emission as data |
+| `bindings-ts` | TypeScript | Thin WASM wrapper — loads `build/core-as.wasm`, re-exports its surface |
+| `runtime` | TypeScript (ESM) | Persona FSMs, tick orchestration, artifact contracts, effect routing |
+| `adapters-web` | TypeScript | Browser IO (fetch, IndexedDB) |
+| `adapters-cli` | TypeScript | CLI commands (`packages/adapters-cli/src/cli/ak.mjs`) |
+| `adapters-test` | TypeScript | Fixture-based deterministic test doubles |
+| `ui-web` | HTML/JS | Browser UI; receives a copy of the WASM binary at build time |
+
+### Test Layout
+
+```
+tests/
+  integration/   # end-to-end (UI↔CLI equivalence, LLM)
+  contracts/     # artifact schema validation
+  runtime/       # persona replay, orchestration, budget
+  fixtures/      # shared test data; invalid/ holds negative cases
+```
+
+---
+
+## Claude's Role
 
 ---
 
@@ -196,3 +270,4 @@ Claude does not silently pass ambiguous code.
 | `packages/runtime/src/ports/effects.js` | Effect dispatch — the adapter boundary |
 | `packages/runtime/src/runner/runtime-fsm.mjs` | Six-phase tick orchestration |
 | `packages/core-as/assembly/index.ts` | WASM export surface |
+| `docs/readme-index.md` | Index of all README files with one-line summaries of what code belongs in each package/directory |
