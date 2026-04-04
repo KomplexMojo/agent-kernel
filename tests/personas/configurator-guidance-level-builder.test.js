@@ -62,8 +62,13 @@ const fromAffinityTiles = buildLevelRenderArtifactsFromTiles(["..."], {
   ],
 });
 assert.equal(fromAffinityTiles.ok, true);
-assert.equal(fromAffinityTiles.ascii.lines[0][0], "f");
+// With spreading: trap at [1,0] has roomStacks:3 which spreads to neighbors [0,0] and [2,0] with stacks:2
+// [0,0]: direct stacks 1 is overridden by spread stacks 2 → 'F'
+// [1,0]: direct stacks 3 (from roomStacks) → 'F'
+// [2,0]: spread stacks 2 → 'F'
+assert.equal(fromAffinityTiles.ascii.lines[0][0], "F");
 assert.equal(fromAffinityTiles.ascii.lines[0][1], "F");
+assert.equal(fromAffinityTiles.ascii.lines[0][2], "F");
 const lowStackPixel = Array.from(fromAffinityTiles.image.pixels.slice(0, 4));
 const highStackPixel = Array.from(fromAffinityTiles.image.pixels.slice(4, 8));
 assert.notDeepEqual(lowStackPixel, highStackPixel);
