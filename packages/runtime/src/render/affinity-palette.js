@@ -48,7 +48,8 @@ export const STACK_INTENSITY_TIERS = Object.freeze([
   { sat: 55, light: 55, glow: 0 }, // tier1
   { sat: 65, light: 50, glow: 4 }, // tier2
   { sat: 75, light: 45, glow: 6 }, // tier3
-  { sat: 85, light: 40, glow: 8 }, // tier4+ (extended for future use)
+  { sat: 85, light: 40, glow: 8 }, // tier4
+  { sat: 95, light: 35, glow: 10 }, // tier5 (max saturation, deep glow)
 ]);
 
 /**
@@ -101,6 +102,23 @@ export function getAffinityRgba(kind, alpha = 255) {
     return [255, 255, 255, alpha]; // fallback white
   }
   return hexToRgba(hex, alpha);
+}
+
+/**
+ * Resolve RGBA from an aura cell with intensity-based alpha.
+ *
+ * @param {{ kind: string, stacks: number }} resolvedAuraCell - aura data
+ * @param {number} [baseAlpha=1.0] - base alpha multiplier in [0, 1]
+ * @returns {[number, number, number, number]} RGBA with intensity-scaled alpha
+ */
+export function resolveAuraRgba(resolvedAuraCell, baseAlpha = 1.0) {
+  const kind = resolvedAuraCell?.kind;
+  const stacks = Math.max(1, Math.round(Number(resolvedAuraCell?.stacks) || 1));
+  const tier = resolveStackIntensity(stacks);
+  // Scale alpha by tier glow + base (tier glow 0-10 maps to 0.6-1.0 range)
+  const glowAlpha = 0.6 + (tier.glow / 10) * 0.4;
+  const alpha = Math.min(255, Math.round(baseAlpha * glowAlpha * 255));
+  return getAffinityRgba(kind, alpha);
 }
 
 /**

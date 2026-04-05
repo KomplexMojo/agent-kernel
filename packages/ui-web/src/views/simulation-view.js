@@ -267,6 +267,9 @@ export function wireSimulationView({
   const moveLeftButton = root.querySelector("#runtime-move-left");
   const moveRightButton = root.querySelector("#runtime-move-right");
   const castButton = root.querySelector("#runtime-cast");
+  const tooltipEl = root.querySelector("#canvas-tooltip");
+  const tooltipTitleEl = root.querySelector("#tooltip-title");
+  const tooltipContentEl = root.querySelector("#tooltip-content");
 
   let core = null;
   let controller = null;
@@ -281,6 +284,7 @@ export function wireSimulationView({
   let levelRenderRequestId = 0;
   let lastVisibilitySummary = null;
   let lastObservationActors = [];
+  let lastObservationAuras = [];
   let inspectorVisible = actorInspector?.isVisible?.() === true;
   let inspectorSelectedEntity = null;
   const visibilityPreferences = {
@@ -316,6 +320,7 @@ export function wireSimulationView({
     lastVisibilitySummary = null;
     lastObservationActors = [];
     lastObservationTraps = [];
+    lastObservationAuras = [];
     clearBundleCanvas(renderCanvasEl);
     if (renderCanvasEl) renderCanvasEl.hidden = true;
     if (frameEl) frameEl.hidden = false;
@@ -428,6 +433,7 @@ export function wireSimulationView({
     lastVisibilitySummary = visibility || null;
     lastObservationActors = Array.isArray(observation?.actors) ? observation.actors.slice() : [];
     lastObservationTraps = Array.isArray(observation?.traps) ? observation.traps.slice() : [];
+    lastObservationAuras = Array.isArray(observation?.auras) ? observation.auras.slice() : [];
     if (typeof onObservation === "function") {
       onObservation({
         observation,
@@ -455,6 +461,7 @@ export function wireSimulationView({
         actors: lastObservationActors,
         floorAffinityTraps: lastObservationTraps,
         bundle,
+        observation,
       }).then((result) => {
         if (!renderCanvasEl || !frameEl) return;
         const rendered = result?.ok === true;
@@ -527,6 +534,7 @@ export function wireSimulationView({
       latestRuntimeArtifacts = null;
       lastObservationActors = [];
       lastObservationTraps = [];
+      lastObservationAuras = [];
       actorInspector?.setScenario?.({});
       const movement = runMvpMovement({
         core,
@@ -568,6 +576,7 @@ export function wireSimulationView({
       latestRuntimeArtifacts = { simConfig, initialState, affinityEffects, spec, resourceBundle };
       lastObservationActors = [];
       lastObservationTraps = [];
+      lastObservationAuras = [];
       actorInspector?.setScenario?.({ simConfig, initialState, spec });
       const sortedActors = sortActorsById(initialState);
       const actorIds = sortedActors
@@ -634,6 +643,53 @@ export function wireSimulationView({
       actorInspector?.selectActorById?.(actorId);
       visibilityPreferences.viewerActorId = actorId;
       controller?.setViewerActor?.(actorId);
+    });
+
+    renderCanvasEl.addEventListener("mousemove", (event) => {
+      if (!tooltipEl || !tooltipTitleEl || !tooltipContentEl) return;
+      const position = positionFromCanvasEvent(event, renderCanvasEl);
+      const boardPosition = resolveCanvasBoardPosition(position, lastVisibilitySummary);
+      if (!boardPosition) {
+        tooltipEl.classList.remove("visible");
+        return;
+      }
+
+      const aura = lastObservationAuras.find(
+        (entry) => entry?.x === boardPosition.x && entry?.y === boardPosition.y,
+      );
+
+      if (!aura || !aura.visualState) {
+        tooltipEl.classList.remove("visible");
+        return;
+      }
+
+      tooltipTitleEl.textContent = "Aura Effect";
+      const rows = [];
+      rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Position:</span><span class="canvas-tooltip-value">(${boardPosition.x}, ${boardPosition.y})</span></div>`);
+      rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Visual:</span><span class="canvas-tooltip-value">${aura.visualState || "none"}</span></div>`);
+      if (aura.sourceActorId) {
+        rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Source:</span><span class="canvas-tooltip-value">${aura.sourceActorId}</span></div>`);
+      }
+      if (aura.kind) {
+        rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Affinity:</span><span class="canvas-tooltip-value">${aura.kind}</span></div>`);
+      }
+      if (aura.expression) {
+        rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Expression:</span><span class="canvas-tooltip-value">${aura.expression}</span></div>`);
+      }
+      if (typeof aura.intensity === "number") {
+        rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Intensity:</span><span class="canvas-tooltip-value">${aura.intensity.toFixed(2)}</span></div>`);
+      }
+
+      tooltipContentEl.innerHTML = rows.join("");
+      tooltipEl.style.left = `${event.clientX + 12}px`;
+      tooltipEl.style.top = `${event.clientY + 12}px`;
+      tooltipEl.classList.add("visible");
+    });
+
+    renderCanvasEl.addEventListener("mouseleave", () => {
+      if (tooltipEl) {
+        tooltipEl.classList.remove("visible");
+      }
     });
   }
 

@@ -614,3 +614,10 @@ export function normalizeVitals(vitals, defaults = DEFAULT_VITALS) {
     return acc;
   }, {});
 }
+
+export const EXPRESSION_SPATIAL_DEFAULTS = Object.freeze({
+  push: { buffer: 0, baseRadius: 0.5 },
+  pull: { buffer: 0, baseRadius: 0.5 },
+  emit: { buffer: 1, baseRadius: 1.0 },
+  draw: { buffer: 0, baseRadius: 1.0 },
+});

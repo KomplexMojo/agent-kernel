@@ -60,6 +60,7 @@ export async function renderBundleBoardToCanvas({
   actors = [],
   floorAffinityTraps = [],
   bundle = null,
+  observation = null,
 } = {}) {
   const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA) || null;
   const rendered = await renderBoardWithResourceBundle({
@@ -68,6 +69,7 @@ export async function renderBundleBoardToCanvas({
     floorAffinityTraps,
     resourceBundle,
     loadAssetPixels: loadAssetPixelsFromDataUri,
+    observation,
   });
   if (!rendered?.ok) {
     return rendered;
