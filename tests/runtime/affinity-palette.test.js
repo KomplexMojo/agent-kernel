@@ -128,11 +128,11 @@ describe("affinity-palette", () => {
       assert.equal(result.stacks, 3);
     });
 
-    it("should cap at highest tier for stack count >= 4", () => {
+    it("should cap at highest tier for stack count >= 5", () => {
       const result = resolveStackIntensity(10);
-      assert.equal(result.sat, 85);
-      assert.equal(result.light, 40);
-      assert.equal(result.glow, 8);
+      assert.equal(result.sat, 95);
+      assert.equal(result.light, 35);
+      assert.equal(result.glow, 10);
       assert.equal(result.stacks, 10);
     });
 

@@ -9,6 +9,15 @@ import {
   normalizeHex as sharedNormalizeHex,
   resolveStackIntensity,
 } from "./affinity-palette.js";
+import {
+  applyAuraMask,
+  emitMask,
+  pushMask,
+  pullMask,
+  drawMask,
+  stackAlphaMultiplier,
+} from "./affinity-tile-mask.js";
+import { SPATIAL_WEIGHTS } from "../contracts/affinity-spatial-rules.js";
 
 export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 export const RESOURCE_BUNDLE_VERSION = 2;
@@ -957,9 +966,8 @@ function buildFloorAffinityMap(floorAffinityTraps = []) {
   return map;
 }
 
-function applyAffinityTint(basePixels, width, tileX, tileY, tileWidth, tileHeight, affinityRgba) {
+function applyAffinityTint(basePixels, width, tileX, tileY, tileWidth, tileHeight, affinityRgba, tintAlpha = 0.4) {
   if (!affinityRgba) return;
-  const tintAlpha = 0.4; // Blend factor for affinity tint
   for (let y = 0; y < tileHeight; y += 1) {
     for (let x = 0; x < tileWidth; x += 1) {
       const px = tileX * tileWidth + x;
@@ -997,6 +1005,7 @@ export async function renderBoardWithResourceBundle({
   floorAffinityTraps = [],
   resourceBundle,
   loadAssetPixels,
+  observation,
 } = {}) {
   const widthTiles = Array.isArray(tiles) && tiles.length > 0
     ? tiles.reduce((max, row) => Math.max(max, String(row || "").length), 0)
@@ -1046,7 +1055,7 @@ export async function renderBoardWithResourceBundle({
       const sprite = await getSprite(assetId);
       blitSprite(pixels, width, height, sprite, tileWidth, x * tileWidth, y * tileHeight);
 
-      // Apply affinity color tint to floor tiles
+      // Apply affinity color tint to floor tiles (trap priority)
       const char = row[x] || "#";
       const semantic = inferTileSemantic(char);
       if (semantic === "floor") {
@@ -1055,6 +1064,65 @@ export async function renderBoardWithResourceBundle({
           const affinityRgba = resolveAffinityFloorRgba(affinity);
           applyAffinityTint(pixels, width, x, y, tileWidth, tileHeight, affinityRgba);
         }
+      }
+    }
+  }
+
+  // Aura rendering pass (after trap tinting, before actors)
+  if (observation?.auras && Array.isArray(observation.auras)) {
+    const auraIndex = new Map();
+    observation.auras.forEach((auraData) => {
+      const key = `${auraData.x},${auraData.y}`;
+      auraIndex.set(key, auraData);
+    });
+
+    for (let y = 0; y < heightTiles; y += 1) {
+      const row = String(tiles[y] || "").padEnd(widthTiles, "#");
+      for (let x = 0; x < widthTiles; x += 1) {
+        const char = row[x] || "#";
+        const semantic = inferTileSemantic(char);
+
+        // Only render auras on floor tiles without traps
+        if (semantic !== "floor") continue;
+        const hasTrap = floorAffinityMap.has(`${x},${y}`);
+        if (hasTrap) continue;
+
+        const auraData = auraIndex.get(`${x},${y}`);
+        if (!auraData) continue;
+
+        // Select mask function based on visualState
+        const visualState = auraData.visualState || "emit";
+        let maskFn = emitMask;
+        if (visualState.includes("push")) maskFn = pushMask;
+        else if (visualState.includes("pull")) maskFn = pullMask;
+        else if (visualState.includes("draw")) maskFn = drawMask;
+
+        // Resolve affinity color
+        const affinityKind = auraData.affinityKind || auraData.kind;
+        const affinityHex = AFFINITY_COLOR_HEX[affinityKind];
+        if (!affinityHex) continue;
+        const affinityRgba = hexToRgba(affinityHex);
+
+        // Compute mask alpha from intensity and stacks
+        const intensity = auraData.intensity ?? 1.0;
+        const stacks = auraData.stacks ?? 1;
+        const stackAlpha = stackAlphaMultiplier(stacks, SPATIAL_WEIGHTS);
+        const maskAlpha = intensity * stackAlpha;
+
+        // Apply aura mask
+        const tilePixelX = x * tileWidth;
+        const tilePixelY = y * tileHeight;
+        const maskFnWithWeights = (u, v) => maskFn(u, v, SPATIAL_WEIGHTS);
+        applyAuraMask(
+          pixels,
+          width,
+          tilePixelX,
+          tilePixelY,
+          tileWidth,
+          affinityRgba,
+          maskFnWithWeights,
+          maskAlpha
+        );
       }
     }
   }
