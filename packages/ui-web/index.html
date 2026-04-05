@@ -2075,6 +2075,46 @@
         padding: 0;
         font-size: 1rem;
       }
+
+      .canvas-tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        color: var(--text);
+        pointer-events: none;
+        z-index: 1000;
+        max-width: 280px;
+        display: none;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .canvas-tooltip.visible {
+        display: block;
+      }
+
+      .canvas-tooltip-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: var(--accent);
+      }
+
+      .canvas-tooltip-row {
+        display: flex;
+        gap: 6px;
+        margin: 2px 0;
+      }
+
+      .canvas-tooltip-label {
+        color: var(--muted);
+        min-width: 70px;
+      }
+
+      .canvas-tooltip-value {
+        color: var(--text);
+      }
     </style>
   </head>
   <body>
@@ -2115,6 +2155,10 @@
               <section class="simulation-board-card">
                 <span class="stat-label">Board State</span>
                 <pre class="frame-display" id="frame-buffer">Loading...</pre>
+                <div class="canvas-tooltip" id="canvas-tooltip">
+                  <div class="canvas-tooltip-title" id="tooltip-title"></div>
+                  <div id="tooltip-content"></div>
+                </div>
               </section>
               <div class="simulation-control-deck">
                 <section class="simulation-control-card" aria-label="Playback controls">
