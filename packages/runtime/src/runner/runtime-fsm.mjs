@@ -12,7 +12,9 @@ import { createModeratorPersona } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona } from "../personas/orchestrator/persona.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
 import { applyMoveAction, packMoveAction, readObservation, renderBaseTiles } from "../../../bindings-ts/src/index.js";
-import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS } from "../contracts/domain-constants.js";
+import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../contracts/domain-constants.js";
+import { computeAuraMap, serializeAuraMap } from "../render/affinity-aura.js";
+import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../contracts/affinity-spatial-rules.js";
 
 const ACTION_KIND = Object.freeze({
   IncrementCounter: 1,
@@ -196,10 +198,21 @@ function resolveBaseTiles(simConfig, core) {
   return null;
 }
 
-function resolveObservation(core, actorIdLabel) {
+function resolveObservation(core, actorIdLabel, baseTiles) {
   if (!core || !canReadObservation(core)) return null;
   try {
-    return readObservation(core, { actorIdLabel });
+    const observation = readObservation(core, { actorIdLabel });
+
+    // Attach aura map to observation
+    if (observation && baseTiles && Array.isArray(observation.actors)) {
+      const auraMap = computeAuraMap(observation.actors, baseTiles, {
+        affinityOpposites: AFFINITY_OPPOSITES,
+        weights: SPATIAL_WEIGHTS,
+      });
+      observation.auras = serializeAuraMap(auraMap, INTERACTION_MATRIX, SPATIAL_WEIGHTS);
+    }
+
+    return observation;
   } catch {
     return null;
   }
@@ -999,7 +1012,7 @@ export function createFsmRuntime({
       }
 
       const currentPhase = orchestrator.view().phase;
-      const observation = resolveObservation(core, primaryActorId);
+      const observation = resolveObservation(core, primaryActorId, baseTiles);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,

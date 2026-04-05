@@ -397,7 +397,7 @@ describe("computeTileAlpha", () => {
 // INTERACTION_MATRIX completeness
 // ---------------------------------------------------------------------------
 
-describe("INTERACTION_MATRIX", () => {
+describe("INTERACTION_MATRIX", async () => {
   const { INTERACTION_MATRIX, SPATIAL_EXPRESSIONS } = await import(
     "../../packages/runtime/src/contracts/affinity-spatial-rules.js"
   );
