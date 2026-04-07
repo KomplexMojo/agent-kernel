@@ -4,6 +4,9 @@ import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/
 import { LEVEL_PREVIEW_IMAGE_PIXEL_FORMAT } from "../../../runtime/src/personas/configurator/guidance-level-builder.js";
 import { createLevelBuilderAdapter } from "../../../adapters-web/src/adapters/level-builder/index.js";
 import { collectBuildSpecCardSet } from "../build-spec-ui.js";
+import { computeAuraMap, serializeAuraMap } from "../../../runtime/src/render/affinity-aura.js";
+import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../../../runtime/src/contracts/affinity-spatial-rules.js";
+import { AFFINITY_OPPOSITES } from "../../../runtime/src/contracts/domain-constants.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -336,6 +339,28 @@ export function wirePreviewView({
       const previewTiles = Array.isArray(frame?.baseTiles) && frame.baseTiles.length > 0
         ? frame.baseTiles
         : baseTiles;
+
+      // Compute and attach aura map to observation (same as runtime-fsm.mjs lines 206-213)
+      // Include traps as pseudo-actors for aura computation
+      if (observation && frame?.baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.traps))) {
+        const actors = Array.isArray(observation.actors) ? observation.actors : [];
+        const traps = Array.isArray(observation.traps) ? observation.traps : [];
+
+        // Convert traps to pseudo-actors for aura computation
+        const trapActors = traps.map((trap, index) => ({
+          id: `trap_${index}`,
+          x: trap.position?.x ?? 0,
+          y: trap.position?.y ?? 0,
+          affinities: trap.affinities || [],
+        }));
+
+        const allActors = [...actors, ...trapActors];
+        const auraMap = computeAuraMap(allActors, frame.baseTiles, {
+          affinityOpposites: AFFINITY_OPPOSITES,
+          weights: SPATIAL_WEIGHTS,
+        });
+        observation.auras = serializeAuraMap(auraMap, INTERACTION_MATRIX, SPATIAL_WEIGHTS);
+      }
 
       setText(frameEl, Array.isArray(frame?.buffer) ? frame.buffer.join("\n") : "No preview frame available.");
       await renderPreviewImage({

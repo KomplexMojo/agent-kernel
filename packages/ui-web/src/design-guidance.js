@@ -42,7 +42,7 @@ import {
   normalizeRoomCardSize,
 } from "../../runtime/src/personas/configurator/card-model.js";
 
-const DEFAULT_LEVEL_BUDGET_TOKENS = 1000;
+const DEFAULT_LEVEL_BUDGET_TOKENS = 1500;
 const DEFAULT_AI_PROMPT = "Generate a balanced room, delver, and warden card set for a stealth dungeon run.";
 const FIXTURE_DEFAULT_RESPONSE = {
   response: JSON.stringify({
@@ -64,8 +64,8 @@ export const CARD_PROPERTY_GROUP_ORDER = Object.freeze(["type", "affinities", "e
 export const ROOM_SIZE_ORDER = Object.freeze(["small", "medium", "large"]);
 const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden"]);
 const DEFAULT_BUDGET_SPLIT = Object.freeze({
-  room: 55,
-  delver: 20,
+  room: 50,
+  delver: 25,
   warden: 25,
 });
 const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.";
@@ -426,7 +426,7 @@ function stableSortAffinities(entries = []) {
         existing.stacks += stacks;
         return;
       }
-      merged.set(key, { kind, expression, stacks });
+      merged.set(key, { kind, expression, stacks, trapVitals: entry?.trapVitals });
     });
   return Array.from(merged.values())
     .sort((a, b) => a.kind.localeCompare(b.kind) || a.expression.localeCompare(b.expression) || a.stacks - b.stacks);
@@ -931,6 +931,34 @@ export function adjustCardVital(card, vitalKey, field, delta = 0) {
     ...working,
     vitals,
   });
+}
+
+export function adjustTrapManaVital(card, affinityKind, field, delta = 0) {
+  const working = createDesignCard(card || {});
+  if (working.type !== "room") return working;
+  if (field !== "max" && field !== "regen") return working;
+  const amount = Math.trunc(delta);
+  if (amount === 0) return createDesignCard(working);
+  const affinities = Array.isArray(working.affinities) ? working.affinities : [];
+  const index = affinities.findIndex((e) => e.kind === affinityKind);
+  if (index < 0) return createDesignCard(working);
+  const entry = { ...affinities[index] };
+  const tv = entry.trapVitals && typeof entry.trapVitals === "object"
+    ? { ...entry.trapVitals }
+    : {};
+  const mana = tv.mana && typeof tv.mana === "object"
+    ? { ...tv.mana }
+    : { current: 0, max: 0, regen: 0 };
+  const current = Number.isFinite(mana[field]) ? Math.floor(mana[field]) : 0;
+  mana[field] = Math.max(0, current + amount);
+  if (field === "max") {
+    mana.current = Math.min(mana.current, mana.max);
+  }
+  tv.mana = mana;
+  entry.trapVitals = tv;
+  const nextAffinities = affinities.slice();
+  nextAffinities[index] = entry;
+  return createDesignCard({ ...working, affinities: nextAffinities });
 }
 
 export function cycleRoomCardSize(card, direction = 1) {
@@ -2162,6 +2190,13 @@ export function wireDesignGuidance({
     return true;
   }
 
+  function adjustTrapManaValue(cardId, affinityKind, field, delta = 0) {
+    const updated = updateCard(cardId, (card) => adjustTrapManaVital(card, affinityKind, field, delta));
+    if (!updated) return false;
+    recompute();
+    return true;
+  }
+
   function renderCardIconChip(container, { icon, title, className = "" } = {}) {
     const chip = createDomElement(container, "span");
     if (!chip) return null;
@@ -2435,6 +2470,83 @@ export function wireDesignGuidance({
               stackControls.append(stackPlus);
             }
             row.append(stackControls);
+          }
+
+          if (card.type === "room") {
+            const manaMax = readNonNegativeInt(entry.trapVitals?.mana?.max, 0);
+            const manaRegen = readNonNegativeInt(entry.trapVitals?.mana?.regen, 0);
+
+            const manaControls = createDomElement(row, "div");
+            if (manaControls) {
+              manaControls.className = "design-card-trap-mana-controls";
+
+              const manaIcon = createDomElement(manaControls, "span");
+              if (manaIcon) {
+                manaIcon.className = "design-card-icon-chip is-vital";
+                manaIcon.innerHTML = iconForVital("mana");
+                manaControls.append(manaIcon);
+              }
+
+              const maxMinus = createDomElement(manaControls, "button");
+              if (maxMinus) {
+                maxMinus.type = "button";
+                maxMinus.className = "design-card-vital-minus";
+                maxMinus.textContent = "-";
+                maxMinus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustTrapManaValue(card.id, entry.kind, "max", -5);
+                });
+                manaControls.append(maxMinus);
+              }
+              const maxValue = createDomElement(manaControls, "span");
+              if (maxValue) {
+                maxValue.className = "design-card-vital-value";
+                maxValue.textContent = `M${manaMax}`;
+                manaControls.append(maxValue);
+              }
+              const maxPlus = createDomElement(manaControls, "button");
+              if (maxPlus) {
+                maxPlus.type = "button";
+                maxPlus.className = "design-card-vital-plus";
+                maxPlus.textContent = "+";
+                maxPlus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustTrapManaValue(card.id, entry.kind, "max", 5);
+                });
+                manaControls.append(maxPlus);
+              }
+
+              const regenMinus = createDomElement(manaControls, "button");
+              if (regenMinus) {
+                regenMinus.type = "button";
+                regenMinus.className = "design-card-vital-minus";
+                regenMinus.textContent = "-";
+                regenMinus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustTrapManaValue(card.id, entry.kind, "regen", -1);
+                });
+                manaControls.append(regenMinus);
+              }
+              const regenValue = createDomElement(manaControls, "span");
+              if (regenValue) {
+                regenValue.className = "design-card-vital-value";
+                regenValue.textContent = `R${manaRegen}`;
+                manaControls.append(regenValue);
+              }
+              const regenPlus = createDomElement(manaControls, "button");
+              if (regenPlus) {
+                regenPlus.type = "button";
+                regenPlus.className = "design-card-vital-plus";
+                regenPlus.textContent = "+";
+                regenPlus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustTrapManaValue(card.id, entry.kind, "regen", 1);
+                });
+                manaControls.append(regenPlus);
+              }
+
+              row.append(manaControls);
+            }
           }
 
           affinityList.append(row);
@@ -3211,6 +3323,7 @@ export function wireDesignGuidance({
     adjustCardCount: adjustCount,
     adjustAffinityStack: adjustCardAffinityStack,
     adjustVital: adjustVitalValue,
+    adjustTrapMana: adjustTrapManaValue,
     setPrimaryAffinity,
     cycleAffinityExpression: cycleCardAffinityExpression,
     flipCard,

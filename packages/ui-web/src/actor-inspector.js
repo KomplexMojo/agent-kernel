@@ -599,7 +599,35 @@ function buildRowMeta(entity, liveActor) {
   return "";
 }
 
-function resolveEntityAffinities(entity, liveActor) {
+function resolveEntityAffinities(entity, liveActor, traps = []) {
+  if (entity?.type === "room" && Array.isArray(traps) && traps.length > 0) {
+    const roomBounds = normalizeRoomBounds(entity?.runtimeRoom);
+    if (roomBounds) {
+      const roomTraps = traps.filter((trap) => {
+        const tx = Number(trap?.x);
+        const ty = Number(trap?.y);
+        return Number.isFinite(tx) && Number.isFinite(ty)
+          && tx >= roomBounds.x && tx < roomBounds.x + roomBounds.width
+          && ty >= roomBounds.y && ty < roomBounds.y + roomBounds.height;
+      });
+      if (roomTraps.length > 0) {
+        return roomTraps
+          .map((trap) => {
+            const aff = trap?.affinity;
+            if (!aff || typeof aff !== "object") return null;
+            return {
+              kind: normalizeName(aff?.kind).toLowerCase(),
+              expression: normalizeName(aff?.expression, "emit").toLowerCase(),
+              stacks: Math.max(1, readPositiveInt(aff?.stacks, 1)),
+              targetType: normalizeName(aff?.targetType).toLowerCase(),
+              trapVitals: normalizeVitals(trap?.vitals),
+            };
+          })
+          .filter(Boolean);
+      }
+    }
+  }
+
   const fromCard = Array.isArray(entity?.card?.affinities) ? entity.card.affinities : [];
   if (fromCard.length > 0) {
     return fromCard.map((entry) => ({
@@ -657,6 +685,7 @@ export function createActorInspector({
   let visible = true;
   let hasInteractedWithSelection = false;
   let resourceBundle = null;
+  let simConfig = null;
 
   function fallbackModelFromLiveActors() {
     if (!Array.isArray(liveActors) || liveActors.length === 0) {
@@ -745,7 +774,8 @@ export function createActorInspector({
       if (preview) {
         preview.className = "design-card-group-preview";
         const liveActor = getLiveActor(entity);
-        const affinities = resolveEntityAffinities(entity, liveActor);
+        const traps = simConfig?.layout?.data?.traps || [];
+        const affinities = resolveEntityAffinities(entity, liveActor, traps);
         const motivations = Array.isArray(entity?.card?.motivations) ? entity.card.motivations : [];
 
         const chips = [
@@ -816,7 +846,8 @@ export function createActorInspector({
     }
 
     const liveActor = getLiveActor(entity);
-    const affinities = resolveEntityAffinities(entity, liveActor);
+    const traps = simConfig?.layout?.data?.traps || [];
+    const affinities = resolveEntityAffinities(entity, liveActor, traps);
     const vitals = resolveEntityVitals(entity, liveActor);
     const totalValue = resolveEntityValue(entity, liveActor);
     const motivations = Array.isArray(entity?.card?.motivations) ? entity.card.motivations : [];
@@ -926,6 +957,21 @@ export function createActorInspector({
             row.append(stack);
           }
 
+          if (entry.trapVitals?.mana) {
+            const manaChip = createDomElement(row, "span");
+            if (manaChip) {
+              manaChip.className = "simulation-inspector-affinity-mana";
+              const mana = entry.trapVitals.mana;
+              const manaIcon = iconForVital("mana", resourceBundle);
+              let manaText = `${mana.current}/${mana.max}`;
+              if (mana.regen > 0) {
+                manaText += `+${mana.regen}`;
+              }
+              manaChip.innerHTML = `<span class="design-card-icon-chip is-vital">${manaIcon}</span>${manaText}`;
+              row.append(manaChip);
+            }
+          }
+
           affinityList.append(row);
         });
       }
@@ -1027,7 +1073,8 @@ export function createActorInspector({
     setVisible(true);
   }
 
-  function setScenario({ simConfig, initialState, spec } = {}) {
+  function setScenario({ simConfig: nextSimConfig, initialState, spec } = {}) {
+    simConfig = nextSimConfig;
     model = buildInspectorModel({ simConfig, initialState, spec });
     hasInteractedWithSelection = false;
     const first = model.all[0]?.instanceId || "";

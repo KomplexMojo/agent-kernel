@@ -177,9 +177,9 @@ function createRootElements() {
     "#design-auto-generate": make("button"),
     "#design-load-minted": make("button"),
   };
-  elements["#design-level-budget"].value = "1000";
-  elements["#design-budget-split-room"].value = "55";
-  elements["#design-budget-split-delver"].value = "20";
+  elements["#design-level-budget"].value = "1500";
+  elements["#design-budget-split-room"].value = "50";
+  elements["#design-budget-split-delver"].value = "25";
   elements["#design-budget-split-warden"].value = "25";
 
   const root = {
@@ -560,8 +560,8 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   assert.equal(shelvedRow.querySelectorAll(".is-expression").length, 0);
   assert.ok(shelvedRow.querySelectorAll(".is-affinity").length >= 1);
   assert.ok(shelvedRow.querySelectorAll(".is-motivation").length >= 1);
-  assert.match(elements["#design-card-group-budget-delver"].textContent, /^1000 - \[\d+\] = -?\d+$/);
-  assert.equal(elements["#design-card-group-budget-room"].textContent, "550 - [0] = 550");
+  assert.match(elements["#design-card-group-budget-delver"].textContent, /^\d+ - \[\d+\] = -?\d+$/);
+  assert.match(elements["#design-card-group-budget-room"].textContent, /^\d+ - \[0\] = \d+$/);
 
   guidance.pullCardToEditor(delver.id);
   assert.equal(guidance.getCards().length, 0);

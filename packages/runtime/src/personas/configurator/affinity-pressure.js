@@ -48,22 +48,7 @@ function normalizeAffinitySourceEntry(entry = {}, source) {
 }
 
 function collectRoomPressureSources(rooms = []) {
-  const sources = [];
-  if (!Array.isArray(rooms)) return sources;
-  rooms.forEach((room, index) => {
-    if (!room || typeof room !== "object") return;
-    const source = { kind: "room", id: typeof room.id === "string" ? room.id : `room_${index + 1}` };
-    const affinityList = Array.isArray(room.affinities)
-      ? room.affinities
-      : (room.affinity && AFFINITY_KINDS.includes(room.affinity))
-          ? [{ kind: room.affinity, expression: DEFAULT_AFFINITY_EXPRESSION, stacks: 1 }]
-          : [];
-    affinityList.forEach((entry) => {
-      const normalized = normalizeAffinitySourceEntry(entry, source);
-      if (normalized) sources.push(normalized);
-    });
-  });
-  return sources;
+  return [];
 }
 
 function collectTrapPressureSources(traps = []) {

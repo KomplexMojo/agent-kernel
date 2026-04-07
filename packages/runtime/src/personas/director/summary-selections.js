@@ -45,11 +45,15 @@ function normalizeAffinityEntries(
           ? entry.expression.trim()
           : undefined;
         if (!kind || !expression) return null;
-        return {
+        const normalized = {
           kind,
           expression,
           stacks: normalizePositiveInt(entry?.stacks, 1),
         };
+        if (entry?.trapVitals && typeof entry.trapVitals === "object") {
+          normalized.trapVitals = entry.trapVitals;
+        }
+        return normalized;
       })
       .filter(Boolean)
     : [];
