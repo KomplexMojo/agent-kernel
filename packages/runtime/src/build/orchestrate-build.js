@@ -9,6 +9,7 @@ import { evaluateConfiguratorSpend } from "../personas/configurator/spend-propos
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
 import { buildScenarioSpendReport } from "../personas/allocator/incentive-model.js";
+import { computeInternalManaUpkeep } from "../personas/configurator/cost-model.js";
 import {
   DEFAULT_ROOM_CARD_AFFINITY,
   ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
@@ -371,15 +372,20 @@ function normalizeNonNegativeInt(value, fallback = 0) {
   return normalized >= 0 ? normalized : fallback;
 }
 
-function normalizeRoomAffinityEntries(entry, { fallbackAffinity = "" } = {}) {
+function normalizeRoomAffinityEntries(room, traps, { fallbackAffinity = "" } = {}) {
   const byKind = new Map();
-  const affinityList = Array.isArray(entry?.affinities) ? entry.affinities : [];
-  affinityList.forEach((affinity) => {
-    const kind = normalizeAffinityKind(affinity?.kind);
+  const roomTraps = Array.isArray(traps)
+    ? traps.filter((trap) => trap && roomContainsPoint(room, { x: trap.x, y: trap.y }))
+    : [];
+
+  roomTraps.forEach((trap) => {
+    const affinity = trap?.affinity;
+    if (!affinity) return;
+    const kind = normalizeAffinityKind(affinity.kind);
     if (!kind) return;
-    const stacks = normalizePositiveInt(affinity?.stacks, 0);
+    const stacks = normalizePositiveInt(affinity.stacks, 0);
     if (stacks <= 0) return;
-    const expression = typeof affinity?.expression === "string" ? affinity.expression.trim().toLowerCase() : "";
+    const expression = typeof affinity.expression === "string" ? affinity.expression.trim().toLowerCase() : "";
     const current = byKind.get(kind) || { kind, emitStacks: 0, maxStacks: 0 };
     if (expression === "emit") {
       current.emitStacks = Math.max(current.emitStacks, stacks);
@@ -388,8 +394,8 @@ function normalizeRoomAffinityEntries(entry, { fallbackAffinity = "" } = {}) {
     byKind.set(kind, current);
   });
 
-  if (byKind.size === 0) {
-    const fallbackKind = normalizeAffinityKind(entry?.affinity || fallbackAffinity);
+  if (byKind.size === 0 && fallbackAffinity) {
+    const fallbackKind = normalizeAffinityKind(fallbackAffinity);
     if (fallbackKind) {
       byKind.set(fallbackKind, { kind: fallbackKind, emitStacks: 0, maxStacks: 1 });
     }
@@ -681,25 +687,7 @@ function augmentLayoutWithRoomAffinityEffects(
   const roomOrder = shuffleWithRng(layout.rooms.map((_, index) => index), assignmentRng);
   const nextRooms = layout.rooms.map((room) => ({ ...room }));
 
-  if (profiles.length > 0) {
-    roomOrder.forEach((roomIndex, orderIndex) => {
-      const profile = profiles[orderIndex % profiles.length];
-      if (!profile || !Array.isArray(profile.affinities) || profile.affinities.length === 0) return;
-      const affinities = profile.affinities.map((entry) => ({
-        kind: entry.kind,
-        expression: "emit",
-        stacks: Math.max(1, normalizePositiveInt(entry.stacks, 1)),
-      }));
-      const primaryAffinity = affinities[0]?.kind;
-      nextRooms[roomIndex] = {
-        ...nextRooms[roomIndex],
-        affinity: primaryAffinity || nextRooms[roomIndex]?.affinity,
-        affinities,
-        templateId: profile.templateId,
-        templateInstanceId: profile.templateInstanceId,
-      };
-    });
-  }
+  // Room affinity metadata removed - traps carry affinity configuration
 
   const existingTraps = Array.isArray(layout.traps) ? layout.traps.map((trap) => ({ ...trap })) : [];
   const occupied = new Set(
@@ -724,13 +712,10 @@ function augmentLayoutWithRoomAffinityEffects(
 
     if (useCardAffinityFallback) {
       const emitAffinities = Array.isArray(profile.emitAffinities) ? profile.emitAffinities : [];
-      const primaryKind = emitAffinities[0]?.kind;
       const nextRoom = {
         ...room,
         templateId: profile.templateId,
         templateInstanceId: profile.templateInstanceId,
-        affinity: primaryKind || (fallbackAffinityKind || room.affinity),
-        affinities: emitAffinities.map(({ kind, stacks }) => ({ kind, expression: "emit", stacks })),
       };
       nextRooms[roomIndex] = nextRoom;
       const roomId = resolveRoomId(room, roomIndex);
@@ -747,7 +732,14 @@ function augmentLayoutWithRoomAffinityEffects(
         }
         if (candidates.length === 0) return;
         const chosen = candidates[Math.floor(assignmentRng() * candidates.length)];
-        const manaReserve = ROOM_AFFINITY_EMIT_PERCENT_PER_STACK * stacks;
+
+        // Compute trap vitals using cost model formulas
+        // emit upkeep = 2 + stacks
+        const upkeep = computeInternalManaUpkeep(stacks);
+        const manaPool = upkeep * 3; // 3 ticks worth
+        const manaRegen = upkeep; // Sustain indefinitely
+        const durability = stacks * 5; // Structural integrity
+
         generatedTraps.push({
           id: `${kind}_emit_${roomIndex}`,
           x: chosen.x,
@@ -755,8 +747,11 @@ function augmentLayoutWithRoomAffinityEffects(
           blocking: false,
           source: "room_affinity_tile",
           roomId,
-          affinity: { kind, expression: "emit", stacks: 1, targetType: "floor" },
-          vitals: { mana: { current: manaReserve, max: manaReserve, regen: 0 } },
+          affinity: { kind, expression: "emit", stacks, targetType: "floor" },
+          vitals: {
+            mana: { current: manaPool, max: manaPool, regen: manaRegen },
+            durability: { current: durability, max: durability, regen: 0 },
+          },
         });
         occupied.add(`${chosen.x},${chosen.y}`);
       });
@@ -775,20 +770,6 @@ function augmentLayoutWithRoomAffinityEffects(
       templateInstanceId: profile.templateInstanceId,
       mixedRoomComposition: composition,
     };
-
-    if (composition.roomWideOverlay) {
-      nextRoom.affinity = composition.roomWideOverlay.kind;
-      nextRoom.affinities = [{
-        kind: composition.roomWideOverlay.kind,
-        expression: composition.roomWideOverlay.expression,
-        stacks: composition.roomWideOverlay.stacks,
-      }];
-    } else {
-      if (fallbackAffinityKind) {
-        nextRoom.affinity = fallbackAffinityKind;
-      }
-      delete nextRoom.affinities;
-    }
 
     nextRooms[roomIndex] = nextRoom;
     generatedTraps.push(...collectMixedRoomTemplateTraps({
@@ -987,11 +968,12 @@ function deriveRoomPlacementContext({ data, walkable } = {}) {
   if (entryRoomWalkable.length === 0 || exitRoomWalkable.length === 0) return null;
 
   const allRoomsWalkable = uniquePositions(roomWalkableByIndex.flatMap((roomWalkable) => roomWalkable || []));
+  const traps = Array.isArray(data?.traps) ? data.traps : [];
   const roomAffinityWalkableByKind = {};
   rooms.forEach((room, index) => {
     const roomWalkable = uniquePositions(roomWalkableByIndex[index] || []);
     if (roomWalkable.length === 0) return;
-    const affinities = normalizeRoomAffinityEntries(room);
+    const affinities = normalizeRoomAffinityEntries(room, traps);
     if (affinities.length === 0) return;
     affinities.forEach((entry) => {
       const key = entry.kind;

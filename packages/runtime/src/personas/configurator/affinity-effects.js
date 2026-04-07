@@ -6,6 +6,10 @@ import {
   normalizeAffinityTargetType,
   resolveAffinityTargetEffectsForEntry,
 } from "../moderator/affinity-target-effects.js";
+import {
+  computeInternalManaUpkeep,
+  computeExternalManaUse,
+} from "./cost-model.js";
 
 function isNumber(value) {
   return typeof value === "number" && !Number.isNaN(value);
@@ -157,6 +161,66 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
   return { vitals, abilities, affinityStacks, affinityTargets, resolvedEffects };
 }
 
+/**
+ * Compute default trap vitals based on affinity expression and stacks.
+ *
+ * For persistent expressions (emit/draw):
+ *   - Mana pool: 3x per-tick upkeep (allows running 3 ticks without regen)
+ *   - Mana regen: equals per-tick upkeep (sustains indefinitely)
+ *   - Durability: 5 per stack (structural integrity)
+ *
+ * For instantaneous expressions (push/pull):
+ *   - Mana pool: 2x mana use (allows 2 activations)
+ *   - Mana regen: 0 (one-shot or limited use)
+ *   - Durability: 3 per stack
+ *
+ * @param {string} expression - "push"|"pull"|"emit"|"draw"
+ * @param {number} stacks - stack count >= 1
+ * @returns {{ mana: { current: number, max: number, regen: number }, durability: { current: number, max: number, regen: number } }}
+ */
+function computeTrapVitals(expression, stacks) {
+  const s = Number.isInteger(stacks) && stacks >= 1 ? stacks : 1;
+
+  if (expression === "emit" || expression === "draw") {
+    // Persistent expressions: use internal upkeep formula (2 + s)
+    const upkeep = computeInternalManaUpkeep(s);
+    const manaPool = upkeep * 3; // 3 ticks worth
+    const manaRegen = upkeep; // Sustain indefinitely
+    const durability = s * 5; // Structural integrity
+
+    return {
+      mana: {
+        current: manaPool,
+        max: manaPool,
+        regen: manaRegen,
+      },
+      durability: {
+        current: durability,
+        max: durability,
+        regen: 0,
+      },
+    };
+  }
+
+  // Instantaneous expressions (push/pull): use external mana formula (5 + 4·(s-1)²)
+  const manaUse = computeExternalManaUse(s);
+  const manaPool = manaUse * 2; // 2 activations worth
+  const durability = s * 3;
+
+  return {
+    mana: {
+      current: manaPool,
+      max: manaPool,
+      regen: 0, // No regen for instantaneous
+    },
+    durability: {
+      current: durability,
+      max: durability,
+      regen: 0,
+    },
+  };
+}
+
 function selectPresetForTrap(trap, presets) {
   const matches = presets.filter((preset) => preset.kind === trap.affinity.kind && preset.expression === trap.affinity.expression);
   if (matches.length === 0) return null;
@@ -164,7 +228,16 @@ function selectPresetForTrap(trap, presets) {
 }
 
 function resolveTrapEffects(trap, presets) {
-  const baseVitals = ensureVitals(trap.vitals || {});
+  // Start with provided vitals, or compute defaults based on expression + stacks
+  let baseVitals;
+  if (trap.vitals && (trap.vitals.mana || trap.vitals.durability || trap.vitals.health || trap.vitals.stamina)) {
+    baseVitals = ensureVitals(trap.vitals);
+  } else {
+    // No vitals provided: compute defaults from expression and stacks
+    const computed = computeTrapVitals(trap.affinity.expression, trap.affinity.stacks);
+    baseVitals = ensureVitals(computed);
+  }
+
   const abilities = [];
   const affinityStacks = {};
   const affinityTargets = {};

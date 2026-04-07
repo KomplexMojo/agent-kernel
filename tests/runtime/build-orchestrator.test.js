@@ -302,10 +302,10 @@ const inRoom = (pos, room) => (
   && pos.y >= room.y
   && pos.y < room.y + room.height
 );
-const roomHasAffinity = (room, kind) => (
-  Array.isArray(room?.affinities)
-  && room.affinities.some((entry) => entry?.kind === kind)
-);
+const roomHasAffinity = (room, kind, traps) => {
+  const roomTraps = (traps || []).filter((trap) => inRoom({ x: trap.x, y: trap.y }, room));
+  return roomTraps.some((trap) => trap?.affinity?.kind === kind);
+};
 
 const delver = actors.find((actor) => byRole.delvers.includes(actor.id));
 const warden = actors.find((actor) => byRole.wardens.includes(actor.id));
@@ -313,7 +313,8 @@ assert.ok(delver);
 assert.ok(warden);
 assert.equal(inRoom(delver.position, entryRoom), true);
 
-const affinityRoom = (data.rooms || []).find((room) => roomHasAffinity(room, "water"));
+const traps = data.traps || [];
+const affinityRoom = (data.rooms || []).find((room) => roomHasAffinity(room, "water", traps));
 const wardenInAffinityRoom = affinityRoom ? inRoom(warden.position, affinityRoom) : false;
 const wardenInExitRoom = inRoom(warden.position, exitRoom);
 assert.equal(wardenInAffinityRoom || wardenInExitRoom, true);
@@ -377,9 +378,9 @@ function inRoom(pos, room) {
   );
 }
 
-function roomHasAffinity(room, kind) {
-  const affinities = Array.isArray(room?.affinities) ? room.affinities : [];
-  return affinities.some((entry) => entry?.kind === kind);
+function roomHasAffinity(room, kind, traps) {
+  const roomTraps = (traps || []).filter((trap) => inRoom({ x: trap.x, y: trap.y }, room));
+  return roomTraps.some((trap) => trap?.affinity?.kind === kind);
 }
 
 const spec = {
@@ -463,12 +464,13 @@ const second = await orchestrateBuild({ spec: JSON.parse(JSON.stringify(spec)), 
 
 const layout = first.simConfig.layout.data;
 const rooms = Array.isArray(layout.rooms) ? layout.rooms : [];
+const traps = Array.isArray(layout.traps) ? layout.traps : [];
 assert.ok(rooms.length >= 2);
-assert.ok(rooms.some((room) => roomHasAffinity(room, "fire")));
-assert.ok(rooms.some((room) => roomHasAffinity(room, "water")));
+assert.ok(rooms.some((room) => roomHasAffinity(room, "fire", traps)));
+assert.ok(rooms.some((room) => roomHasAffinity(room, "water", traps)));
 
-const fireRoom = rooms.find((room) => roomHasAffinity(room, "fire"));
-const waterRoom = rooms.find((room) => roomHasAffinity(room, "water"));
+const fireRoom = rooms.find((room) => roomHasAffinity(room, "fire", traps));
+const waterRoom = rooms.find((room) => roomHasAffinity(room, "water", traps));
 assert.ok(fireRoom);
 assert.ok(waterRoom);
 
@@ -483,18 +485,34 @@ assert.equal(inRoom(waterWarden.position, waterRoom), true);
 const generatedTraps = (layout.traps || []).filter((trap) => trap?.source === "room_affinity_tile");
 assert.ok(generatedTraps.length > 0);
 assert.equal(generatedTraps.every((trap) => trap?.affinity?.expression === "emit"), true);
-assert.equal(generatedTraps.every((trap) => trap?.affinity?.stacks === 1), true);
 
+// Traps now preserve their stacks from the room affinity
 const fireTraps = generatedTraps.filter((trap) => trap?.affinity?.kind === "fire");
+const waterTraps = generatedTraps.filter((trap) => trap?.affinity?.kind === "water");
 assert.ok(fireTraps.length > 0);
-assert.equal(fireTraps.every((trap) => trap?.vitals?.mana?.current === 20), true);
+assert.ok(waterTraps.length > 0);
+
+// Fire room has stacks=2: upkeep = 2+2=4, manaPool = 4*3 = 12, regen = 4
+assert.equal(fireTraps.every((trap) => trap?.affinity?.stacks === 2), true);
+assert.equal(fireTraps.every((trap) => trap?.vitals?.mana?.current === 12), true);
+assert.equal(fireTraps.every((trap) => trap?.vitals?.mana?.max === 12), true);
+assert.equal(fireTraps.every((trap) => trap?.vitals?.mana?.regen === 4), true);
+
+// Water room has stacks=1: upkeep = 2+1=3, manaPool = 3*3 = 9, regen = 3
+assert.equal(waterTraps.every((trap) => trap?.affinity?.stacks === 1), true);
+assert.equal(waterTraps.every((trap) => trap?.vitals?.mana?.current === 9), true);
+assert.equal(waterTraps.every((trap) => trap?.vitals?.mana?.max === 9), true);
+assert.equal(waterTraps.every((trap) => trap?.vitals?.mana?.regen === 3), true);
 
 const trapKey = (trap) => [
   trap.x,
   trap.y,
   trap.affinity?.kind,
   trap.affinity?.expression,
+  trap.affinity?.stacks,
   trap.vitals?.mana?.current,
+  trap.vitals?.mana?.max,
+  trap.vitals?.mana?.regen,
 ].join(":");
 const firstTrapKeys = generatedTraps.map(trapKey).sort();
 const secondTrapKeys = (second.simConfig.layout.data.traps || [])

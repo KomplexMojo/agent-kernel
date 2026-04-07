@@ -198,14 +198,47 @@ function resolveBaseTiles(simConfig, core) {
   return null;
 }
 
-function resolveObservation(core, actorIdLabel, baseTiles) {
+function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutTraps = []) {
   if (!core || !canReadObservation(core)) return null;
   try {
-    const observation = readObservation(core, { actorIdLabel });
+    const observation = readObservation(core, { actorIdLabel, affinityEffects });
+
+    // Enrich observation traps with full vitals from layout
+    if (observation && Array.isArray(observation.traps) && Array.isArray(layoutTraps)) {
+      const trapVitalsByPosition = new Map();
+      layoutTraps.forEach((layoutTrap) => {
+        if (layoutTrap?.position?.x != null && layoutTrap?.position?.y != null) {
+          const key = `${layoutTrap.position.x},${layoutTrap.position.y}`;
+          trapVitalsByPosition.set(key, layoutTrap.vitals);
+        } else if (layoutTrap?.x != null && layoutTrap?.y != null) {
+          const key = `${layoutTrap.x},${layoutTrap.y}`;
+          trapVitalsByPosition.set(key, layoutTrap.vitals);
+        }
+      });
+
+      observation.traps = observation.traps.map((trap) => {
+        const key = `${trap.position?.x ?? 0},${trap.position?.y ?? 0}`;
+        const vitals = trapVitalsByPosition.get(key);
+        return vitals ? { ...trap, vitals } : trap;
+      });
+    }
 
     // Attach aura map to observation
-    if (observation && baseTiles && Array.isArray(observation.actors)) {
-      const auraMap = computeAuraMap(observation.actors, baseTiles, {
+    // Include traps as pseudo-actors for aura computation
+    if (observation && baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.traps))) {
+      const actors = Array.isArray(observation.actors) ? observation.actors : [];
+      const traps = Array.isArray(observation.traps) ? observation.traps : [];
+
+      // Convert traps to pseudo-actors for aura computation
+      const trapActors = traps.map((trap, index) => ({
+        id: `trap_${index}`,
+        x: trap.position?.x ?? 0,
+        y: trap.position?.y ?? 0,
+        affinities: trap.affinities || [],
+      }));
+
+      const allActors = [...actors, ...trapActors];
+      const auraMap = computeAuraMap(allActors, baseTiles, {
         affinityOpposites: AFFINITY_OPPOSITES,
         weights: SPATIAL_WEIGHTS,
       });
@@ -1012,7 +1045,8 @@ export function createFsmRuntime({
       }
 
       const currentPhase = orchestrator.view().phase;
-      const observation = resolveObservation(core, primaryActorId, baseTiles);
+      const layoutTraps = simConfig?.layout?.data?.traps || [];
+      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutTraps);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,
