@@ -180,6 +180,9 @@ async function refreshPreviewBundle({ resetBuildOutput = false } = {}) {
 diagnosticsView = wireDiagnosticsView({
   commandHost,
   onBundleLoaded: ({ bundle, source }) => {
+    if (bundle && (source === "file" || source === "ipfs")) {
+      designView?.loadBuildSpec?.(bundle.spec, { source: `Diagnostics ${source}` });
+    }
     void syncBundleViews({ bundle, source });
   },
   onBundleStateReset: () => {

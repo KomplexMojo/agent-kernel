@@ -1,5 +1,6 @@
 import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
 import { validateBuildSpec } from "../../runtime/src/contracts/build-spec.js";
+import { normalizeBuildSpecForEditor } from "./build-spec-ui.js";
 
 const EMPTY_OUTPUT = "No build output yet.";
 const STORAGE_KEYS = Object.freeze({
@@ -194,6 +195,7 @@ export function wireBuildOrchestrator({
     const specPath = valueOf(specPathInput);
     const errors = [];
     let spec = null;
+    let normalizedSpecText = specText;
 
     if (specText && specPath) {
       errors.push("Provide either Spec Path or Spec JSON, not both.");
@@ -207,7 +209,9 @@ export function wireBuildOrchestrator({
           : "Parse error";
         errors.push(`${detail}: ${parsed.error?.message || "Invalid JSON"}`);
       } else {
-        spec = parsed.value;
+        const normalized = normalizeBuildSpecForEditor(parsed.value);
+        spec = normalized.spec;
+        normalizedSpecText = normalized.specText;
         const validation = validateBuildSpec(spec);
         if (!validation.ok) {
           errors.push(...validation.errors);
@@ -216,7 +220,7 @@ export function wireBuildOrchestrator({
     }
 
     const ok = errors.length === 0;
-    state.validation = { ok, errors, spec, specText };
+    state.validation = { ok, errors, spec, specText: normalizedSpecText };
     renderValidation(errors);
     if (notifyStatus && specText && !ok) {
       setStatus(statusEl, "BuildSpec invalid. Fix errors before building.");
@@ -329,8 +333,11 @@ export function wireBuildOrchestrator({
     let specJson = null;
     let outDir = requestedOutDir;
     if (!specPath && specText) {
-      updateSpecState(specText, { ok: validation.ok });
+      updateSpecState(validation.specText, { ok: validation.ok });
       specJson = validation.spec;
+      if (specJson && specJsonInput && validation.specText && specJsonInput.value !== validation.specText) {
+        specJsonInput.value = validation.specText;
+      }
       if (!outDir) {
         outDir = deriveOutDir(specJson);
       }

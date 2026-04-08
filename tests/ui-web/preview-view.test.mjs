@@ -89,6 +89,31 @@ test("preview launch validation requires at least one room, delver, and warden i
   assert.match(invalid.message, /configure at least 1 room, 1 delver, and 1 warden/i);
 });
 
+test("preview launch validation merges authored card templates across plan and configurator sources", () => {
+  const bundle = createBundle({
+    cardSet: [
+      { id: "attacker_alpha", type: "delver", count: 1 },
+    ],
+  });
+  bundle.spec.configurator = {
+    inputs: {
+      cardSet: [
+        { id: "room_alpha", type: "room", count: 1 },
+      ],
+    },
+  };
+  bundle.spec.plan.hints.cardSet = [
+    { id: "attacker_alpha", type: "delver", count: 1 },
+    { id: "defender_alpha", type: "warden", count: 1 },
+  ];
+
+  const valid = validatePreviewLaunchBundle(bundle);
+  assert.equal(valid.ok, true);
+  assert.equal(valid.counts.room, 1);
+  assert.equal(valid.counts.delver, 1);
+  assert.equal(valid.counts.warden, 1);
+});
+
 test("preview view renders bundle-backed frame and actor summaries", async () => {
   const { root, elements } = createRoot();
   const view = wirePreviewView({

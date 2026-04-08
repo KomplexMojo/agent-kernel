@@ -1,4 +1,5 @@
 import { validateBuildSpec } from "../../runtime/src/contracts/build-spec.js";
+import { normalizeBuildSpecForEditor } from "./build-spec-ui.js";
 
 const EMPTY_TEXT = "No JSON output yet.";
 const STORAGE_KEYS = Object.freeze({
@@ -209,7 +210,8 @@ export function wireBundleReview({
       if (notify) setStatus(statusEl, "Spec JSON invalid.");
       return state.validation;
     }
-    const validation = validateBuildSpec(parsed.value);
+    const normalized = normalizeBuildSpecForEditor(parsed.value);
+    const validation = validateBuildSpec(normalized.spec);
     if (!validation.ok) {
       state.validation = { ok: false, errors: validation.errors };
       renderSpecErrors(validation.errors);
@@ -218,7 +220,7 @@ export function wireBundleReview({
     }
     state.validation = { ok: true, errors: [] };
     renderSpecErrors([]);
-    return { ok: true, errors: [], spec: parsed.value };
+    return { ok: true, errors: [], spec: normalized.spec, specText: normalized.specText, changed: normalized.changed };
   }
 
   function updateSpecText(text, { notify = false } = {}) {
@@ -235,10 +237,13 @@ export function wireBundleReview({
     }
     const result = validateSpecText(text, { notify: true });
     if (!result.ok) return;
-    const parsed = JSON.parse(text);
+    const parsed = result.spec;
     state.spec = parsed;
     if (state.bundle) {
       state.bundle.spec = parsed;
+    }
+    if (result.changed) {
+      updateSpecText(result.specText);
     }
     setStatus(statusEl, "Spec updated.");
     renderSpecSections();
@@ -254,7 +259,10 @@ export function wireBundleReview({
     const result = validateSpecText(text, { notify: true });
     if (!result.ok) return;
     if (typeof onSpec === "function") {
-      onSpec({ specText: text, spec: JSON.parse(text) });
+      onSpec({ specText: result.specText || text, spec: result.spec });
+    }
+    if (result.changed) {
+      updateSpecText(result.specText);
     }
     setStatus(statusEl, "Spec sent to build panel.");
   }
@@ -301,8 +309,12 @@ export function wireBundleReview({
       return;
     }
     state.bundle = parsed.value;
-    state.spec = parsed.value?.spec || null;
-    const specText = state.spec ? JSON.stringify(state.spec, null, 2) : "";
+    const normalized = normalizeBuildSpecForEditor(parsed.value?.spec || null);
+    state.spec = normalized.spec || null;
+    if (state.bundle) {
+      state.bundle.spec = state.spec;
+    }
+    const specText = normalized.specText;
     updateSpecText(specText);
     renderBundle();
     setStatus(statusEl, "Bundle loaded.");
@@ -334,8 +346,12 @@ export function wireBundleReview({
     }
     if (response.bundle) {
       state.bundle = response.bundle;
-      state.spec = response.bundle?.spec || null;
-      const specText = state.spec ? JSON.stringify(state.spec, null, 2) : "";
+      const normalized = normalizeBuildSpecForEditor(response.bundle?.spec || null);
+      state.spec = normalized.spec || null;
+      if (state.bundle) {
+        state.bundle.spec = state.spec;
+      }
+      const specText = normalized.specText;
       updateSpecText(specText);
     }
     if (response.manifest) {
@@ -363,8 +379,12 @@ export function wireBundleReview({
       return false;
     }
     state.bundle = bundle;
-    state.spec = bundle?.spec || null;
-    const specText = state.spec ? JSON.stringify(state.spec, null, 2) : "";
+    const normalized = normalizeBuildSpecForEditor(bundle?.spec || null);
+    state.spec = normalized.spec || null;
+    if (state.bundle) {
+      state.bundle.spec = state.spec;
+    }
+    const specText = normalized.specText;
     updateSpecText(specText);
     renderBundle();
     setStatus(statusEl, `Bundle loaded (${source}).`);

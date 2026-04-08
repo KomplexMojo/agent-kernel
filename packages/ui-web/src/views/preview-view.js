@@ -1,6 +1,7 @@
 import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { readObservation, renderBaseTiles, renderFrameBuffer } from "../../../bindings-ts/src/mvp-movement.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
+import { collectBuildSpecCardSet } from "../build-spec-ui.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -54,10 +55,8 @@ function formatMissingCardTypes(types = []) {
 }
 
 export function validatePreviewLaunchBundle(bundle) {
-  const cardSet = Array.isArray(bundle?.spec?.plan?.hints?.cardSet)
-    ? bundle.spec.plan.hints.cardSet
-    : null;
-  if (!cardSet) {
+  const cardSet = collectBuildSpecCardSet(bundle?.spec);
+  if (cardSet.length === 0) {
     return {
       ok: false,
       reason: "missing_card_set",
