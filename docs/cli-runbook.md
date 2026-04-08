@@ -14,11 +14,12 @@ or read `packages/adapters-cli/README.md`.
 ## Prerequisites
 
 - Node-based CLI runs directly from the repo.
-- Build WASM only when you need `run` or `replay`:
+- Run `pnpm run build:wasm` before browser `Preview`/`Run` or CLI `run`/`replay`:
 ```
 pnpm run build:wasm
 ```
-This produces `build/core-as.wasm` (default `--wasm` path).
+This produces `build/core-as.wasm` (default `--wasm` path) and copies
+`packages/ui-web/assets/core-as.wasm` for the browser UI.
 
 ## Minimum-install baseline
 
