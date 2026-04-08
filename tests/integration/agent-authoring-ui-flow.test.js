@@ -1,13 +1,14 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, readFileSync } = require("node:fs");
+const { existsSync, mkdtempSync, readFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const { pathToFileURL } = require("node:url");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const UI_WASM_PATH = resolve(ROOT, "packages/ui-web/assets/core-as.wasm");
 const BUNDLE_REVIEW_URL = pathToFileURL(resolve(ROOT, "packages/ui-web/src/bundle-review.js")).href;
 const PREVIEW_VIEW_URL = pathToFileURL(resolve(ROOT, "packages/ui-web/src/views/preview-view.js")).href;
 
@@ -185,7 +186,7 @@ function withUiGlobals(run) {
     });
 }
 
-function createPreviewOptions() {
+function createInjectedPreviewOptions() {
   return {
     levelBuilderAdapter: {
       async buildFromTiles() {
@@ -237,7 +238,61 @@ function createPreviewOptions() {
   };
 }
 
-test("mixed-object create bundle survives the CLI -> Diagnostics -> Preview -> Run flow", async () => withUiGlobals(async () => {
+test("preview load reflects the real ui-web core-as.wasm prerequisite", async () => withUiGlobals(async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-agent-flow-real-preview-"));
+  runCliOk([
+    "create",
+    "--text",
+    "Create a small fire room for preview.",
+    "--room",
+    "size=small;count=1;affinities=fire:emit:2",
+    "--run-id",
+    "run_agent_flow_real_preview",
+    "--created-at",
+    "2026-04-08T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const bundle = readJson(join(outDir, "bundle.json"));
+  const { wirePreviewView } = await loadUiModules();
+  const { elements, root } = createPreviewRoot();
+  const preview = wirePreviewView({
+    root,
+    levelBuilderAdapter: {
+      async buildFromTiles() {
+        return {
+          ok: true,
+          image: {
+            width: 5,
+            height: 4,
+            pixelFormat: "rgba8",
+            pixels: new Uint8ClampedArray(5 * 4 * 4).fill(120),
+          },
+        };
+      },
+    },
+    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
+    renderBase: () => ["#####", "#...#", "#...#", "#####"],
+  });
+
+  const hasUiWasmAsset = existsSync(UI_WASM_PATH);
+  const loaded = await preview.loadBundle(bundle, { source: "file" });
+
+  assert.equal(loaded, hasUiWasmAsset);
+  if (hasUiWasmAsset) {
+    assert.equal(elements["#preview-render-canvas"].hidden, false);
+    assert.equal(elements["#preview-frame-buffer"].hidden, true);
+    assert.equal(elements["#preview-status"].textContent, "Layout preview loaded from file.");
+  } else {
+    assert.equal(elements["#preview-render-canvas"].hidden, true);
+    assert.equal(elements["#preview-frame-buffer"].hidden, false);
+    assert.match(elements["#preview-status"].textContent, /^Preview failed:/);
+    assert.match(elements["#preview-status"].textContent, /core-as\.wasm|ENOENT|no such file/i);
+  }
+}));
+
+test("mixed-object create bundle survives the CLI -> Diagnostics -> injected Preview -> run-gating flow", async () => withUiGlobals(async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-agent-flow-mixed-"));
   runCliOk([
     "create",
@@ -270,7 +325,7 @@ test("mixed-object create bundle survives the CLI -> Diagnostics -> Preview -> R
 
   preview = wirePreviewView({
     root,
-    ...createPreviewOptions(),
+    ...createInjectedPreviewOptions(),
     onBuildAndLoadGame: async () => validatePreviewLaunchBundle(preview.getLastBundle()),
   });
 
@@ -310,7 +365,7 @@ test("mixed-object create bundle survives the CLI -> Diagnostics -> Preview -> R
   assert.equal(elements["#preview-status"].textContent, "Run loaded from Preview.");
 }));
 
-test("room-only create bundle still previews the generated room image but remains run-blocked", async () => withUiGlobals(async () => {
+test("room-only create bundle still previews the generated room image and remains run-blocked with injected Preview helpers", async () => withUiGlobals(async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-agent-flow-room-"));
   runCliOk([
     "create",
@@ -335,7 +390,7 @@ test("room-only create bundle still previews the generated room image but remain
 
   preview = wirePreviewView({
     root,
-    ...createPreviewOptions(),
+    ...createInjectedPreviewOptions(),
     onBuildAndLoadGame: async () => validatePreviewLaunchBundle(preview.getLastBundle()),
   });
 

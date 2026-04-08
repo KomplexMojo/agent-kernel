@@ -29,7 +29,7 @@ Ollama services.
 Required for the baseline:
 - repository dependencies
 - a browser to open `packages/ui-web/index.html`
-- `pnpm run build:wasm` only when you want `Run` or `Replay`
+- `pnpm run build:wasm` before browser `Preview`/`Run` or CLI `run`/`replay`
 
 Optional and not required for the baseline:
 - `AK_ALLOW_NETWORK`
@@ -110,7 +110,8 @@ for the UI.
 
 UI handoff:
 - Load `bundle.json` and `manifest.json` in `Diagnostics`.
-- `Preview` renders the generated room image when the bundle has a valid renderable layout.
+- `Preview` renders the generated room image only after `pnpm run build:wasm` has copied
+  `packages/ui-web/assets/core-as.wasm`; with that asset missing, the real Preview load fails before rendering.
 - `Build And Load Game` is stricter than preview-only inspection: it requires at least 1 room,
   1 delver, and 1 warden in the authored card set before opening `Run`.
 
@@ -169,7 +170,8 @@ node packages/adapters-cli/src/cli/ak.mjs replay \
   --out-dir artifacts/runs/run_demo/replay
 ```
 
-`run` and `replay` require `build/core-as.wasm`. If the WASM binary is absent, document the block and stop at bundle review / Preview instead of trying to force a non-deterministic workaround.
+Browser `Preview`/`Run` and CLI `run`/`replay` require the built WASM outputs from `pnpm run build:wasm`.
+If `packages/ui-web/assets/core-as.wasm` or `build/core-as.wasm` is absent, document the block and stop at bundle review instead of claiming Preview or Run succeeded.
 
 ### 5) Agent validation and inspection
 ```

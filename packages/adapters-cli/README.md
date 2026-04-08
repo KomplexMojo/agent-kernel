@@ -9,7 +9,8 @@ This package exists to enable automation, debugging, and batch execution outside
 Minimum-install baseline:
 - the default author/build/preview/run workflow is expected to work without live IPFS,
   blockchain, or Ollama services;
-- `pnpm run build:wasm` is only required for `run` and `replay`;
+- `pnpm run build:wasm` is required before browser `Preview`/`Run` and CLI `run`/`replay`
+  because it produces `build/core-as.wasm` and copies `packages/ui-web/assets/core-as.wasm`;
 - adapter demos remain fixture-first so they can be exercised offline.
 
 ---
@@ -97,9 +98,11 @@ Inputs/outputs:
 Agent workflow notes:
 - `request.json` is the canonical normalized copy of the freeform request plus parsed object flags.
 - `bundle.json` and `manifest.json` are the handoff point into the UI `Diagnostics -> Preview -> Run` flow.
-- `Preview` can render the generated room image as soon as the bundle contains a renderable `SimConfigArtifact`, even for room-only requests.
+- `Preview` can render the generated room image for room-only requests, but only after
+  `pnpm run build:wasm` has produced the browser asset at `packages/ui-web/assets/core-as.wasm`.
 - `Build And Load Game` in the UI remains stricter than plain preview: the authored card set still needs at least 1 room, 1 delver, and 1 warden before `Run` is considered playable.
-- `build/core-as.wasm` is only required for `run`/`replay`; authoring, bundle review, and room-image preview stay available without it.
+- Authoring and bundle review stay available without WASM, but the real browser Preview path loads
+  `packages/ui-web/assets/core-as.wasm`, so `pnpm run build:wasm` is also a Preview prerequisite.
 
 ### `room-plan`
 Builds a `BuildSpec` directly from Room authoring flags (no hand-edited JSON required) and
@@ -326,7 +329,8 @@ node packages/adapters-cli/src/cli/ak.mjs create \
 
 What to do next:
 - Load `artifacts/room_preview/bundle.json` and `artifacts/room_preview/manifest.json` into the UI `Diagnostics` surface.
-- `Preview` will render the generated room image on the canvas when the layout is valid.
+- Run `pnpm run build:wasm`, then load the bundle in `Preview`; the generated room image renders on
+  the canvas when the layout is valid and `packages/ui-web/assets/core-as.wasm` is present.
 - `Run` is still blocked until the authored bundle includes at least 1 room, 1 delver, and 1 warden.
 
 ### 2) Mixed-object request -> playable bundle -> Preview/Run
