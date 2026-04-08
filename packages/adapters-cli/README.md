@@ -94,6 +94,13 @@ Inputs/outputs:
   `price-list.json`, `budget-receipt.json`, `sim-config.json`, `initial-state.json`,
   plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
+Agent workflow notes:
+- `request.json` is the canonical normalized copy of the freeform request plus parsed object flags.
+- `bundle.json` and `manifest.json` are the handoff point into the UI `Diagnostics -> Preview -> Run` flow.
+- `Preview` can render the generated room image as soon as the bundle contains a renderable `SimConfigArtifact`, even for room-only requests.
+- `Build And Load Game` in the UI remains stricter than plain preview: the authored card set still needs at least 1 room, 1 delver, and 1 warden before `Run` is considered playable.
+- `build/core-as.wasm` is only required for `run`/`replay`; authoring, bundle review, and room-image preview stay available without it.
+
 ### `room-plan`
 Builds a `BuildSpec` directly from Room authoring flags (no hand-edited JSON required) and
 runs the standard build pipeline. This is the Room-first parity command for UI card authoring.
@@ -301,6 +308,50 @@ node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
 ```
+
+## Agent workflow recipes
+
+### 1) Freeform room request -> previewable bundle
+
+Use this when an agent only needs to author or adjust room/layout intent and hand the result to the UI for inspection.
+
+```
+node packages/adapters-cli/src/cli/ak.mjs create \
+  --text "Create a small fire room for preview." \
+  --room "size=small;count=1;affinities=fire:emit:2" \
+  --run-id run_room_preview \
+  --created-at 2026-04-08T00:00:00Z \
+  --out-dir artifacts/room_preview
+```
+
+What to do next:
+- Load `artifacts/room_preview/bundle.json` and `artifacts/room_preview/manifest.json` into the UI `Diagnostics` surface.
+- `Preview` will render the generated room image on the canvas when the layout is valid.
+- `Run` is still blocked until the authored bundle includes at least 1 room, 1 delver, and 1 warden.
+
+### 2) Mixed-object request -> playable bundle -> Preview/Run
+
+Use this when an agent wants one additive command that emits a playable bundle without hand-editing JSON.
+
+```
+node packages/adapters-cli/src/cli/ak.mjs create \
+  --text "Create a fire room with a trap, one delver, and one warden." \
+  --room "size=large;count=1;affinities=fire:emit:3" \
+  --floor-tile "count=18" \
+  --trap "x=2;y=2;affinity=fire;expression=push;stacks=2" \
+  --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" \
+  --warden "count=1;affinity=fire;motivation=defending" \
+  --run-id run_create_demo \
+  --created-at 2026-04-08T00:00:00Z \
+  --out-dir artifacts/create_demo
+```
+
+Expected handoff artifacts:
+- `request.json`: normalized `AgentCommandRequestArtifact`
+- `spec.json`: compiled `BuildSpec`
+- `sim-config.json` + `initial-state.json`: playable runtime inputs
+- `bundle.json` + `manifest.json`: UI load target for `Diagnostics`, `Preview`, and `Run`
+
 Expected outputs (defaults when `--out-dir` is set):
 - ipfs: `ipfs.json`
 - ipfs-publish: `ipfs-publish.json`

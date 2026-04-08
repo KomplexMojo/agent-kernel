@@ -60,9 +60,11 @@ Key artifacts and fixtures:
 ## Builder workflow + schema catalog
 
 - Agent/CLI/UI share the same BuildSpec (`agent-kernel/BuildSpec`). The agent writes a spec, the CLI builds artifacts, and the UI can load/edit the emitted bundle without translation.
+- `create` and `configure` are the additive agent-facing entry points for freeform authoring. They emit `request.json`, `spec.json`, and the same bundle/manifest pair the UI already understands.
 - CLI build emits `manifest.json`, `bundle.json`, and `telemetry.json` alongside artifacts. Manifest/bundle include a filtered `schemas` list so the UI can load only referenced contracts.
 - Schema catalog: `node packages/adapters-cli/src/cli/ak.mjs schemas` prints the full catalog (or writes `schemas.json` with `--out-dir`).
 - Fixtures: `tests/fixtures/ui/build-spec-bundle/` shows a round-trip build bundle, and `tests/fixtures/artifacts/build-spec-v1-basic.json` shows the build spec shape.
+- Preview behavior: the UI `Preview` tab renders a generated room image on the canvas whenever the bundle carries a renderable layout, while `Build And Load Game` still requires at least 1 room, 1 delver, and 1 warden in the authored card set before the Run surface is considered playable.
 
 ## Shared command execution
 
