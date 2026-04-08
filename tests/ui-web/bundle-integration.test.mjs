@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { wireBuildOrchestrator } from "../../packages/ui-web/src/build-orchestrator.js";
 import { wireBundleReview } from "../../packages/ui-web/src/bundle-review.js";
+import { shouldHydrateDesignFromBundleSource } from "../../packages/ui-web/src/build-spec-ui.js";
 import { createDefaultResourceBundleArtifact } from "../../packages/runtime/src/render/resource-bundle.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -285,4 +286,12 @@ test("bundle review normalizes agent-authored build specs on load", async () => 
   } finally {
     globalThis.document = originalDocument;
   }
+});
+
+test("load-last snapshot source is eligible for design hydration", async () => {
+  assert.equal(shouldHydrateDesignFromBundleSource("snapshot"), true);
+  assert.equal(shouldHydrateDesignFromBundleSource("file"), true);
+  assert.equal(shouldHydrateDesignFromBundleSource("ipfs"), true);
+  assert.equal(shouldHydrateDesignFromBundleSource("build"), false);
+  assert.equal(shouldHydrateDesignFromBundleSource("clear"), false);
 });

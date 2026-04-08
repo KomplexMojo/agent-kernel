@@ -6,6 +6,7 @@ import { wirePreviewView, validatePreviewLaunchBundle } from "./views/preview-vi
 import { wireSimulationView } from "./views/simulation-view.js";
 import { wireDiagnosticsView } from "./views/diagnostics-view.js";
 import { resolveIcon } from "./icon-resolver.js";
+import { shouldHydrateDesignFromBundleSource } from "./build-spec-ui.js";
 import { setResourceBundle as setDesignResourceBundle } from "./design-guidance.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
@@ -180,7 +181,7 @@ async function refreshPreviewBundle({ resetBuildOutput = false } = {}) {
 diagnosticsView = wireDiagnosticsView({
   commandHost,
   onBundleLoaded: ({ bundle, source }) => {
-    if (bundle && (source === "file" || source === "ipfs")) {
+    if (bundle && shouldHydrateDesignFromBundleSource(source)) {
       designView?.loadBuildSpec?.(bundle.spec, { source: `Diagnostics ${source}` });
     }
     void syncBundleViews({ bundle, source });

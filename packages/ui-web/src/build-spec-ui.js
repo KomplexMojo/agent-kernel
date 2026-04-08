@@ -1,5 +1,7 @@
 import { normalizeBuildSpecForUi } from "../../runtime/src/commands/ui-flow.js";
 
+export const DESIGN_HYDRATION_BUNDLE_SOURCES = Object.freeze(["file", "ipfs", "snapshot"]);
+
 function stableCardKey(card, index) {
   const id = typeof card?.id === "string" ? card.id.trim() : "";
   if (id) return `id:${id}`;
@@ -74,4 +76,8 @@ export function extractDesignStateFromBuildSpec(specInput) {
       : null,
     budgetSplitPercent,
   };
+}
+
+export function shouldHydrateDesignFromBundleSource(source) {
+  return DESIGN_HYDRATION_BUNDLE_SOURCES.includes(source);
 }
