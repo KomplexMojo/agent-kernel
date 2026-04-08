@@ -74,6 +74,26 @@ Inputs/outputs:
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `sim-config.json`, `initial-state.json`,
   `budget-allocation.json` (budget loop), `captured-input-llm-*.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
 
+### `create` / `configure`
+Generic additive agent-facing authoring commands that normalize freeform text plus
+structured object flags into an inline `AgentCommandRequestArtifact`, compile that
+request into `BuildSpec`, and run the existing deterministic build/configurator flow.
+These commands do not replace `room-plan`, `delver-plan`, `warden-plan`, `build`, or
+`configurator`; they provide a single multi-object entrypoint for automation callers.
+
+Inputs/outputs:
+- Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--trap`, `--delver`,
+  and `--warden`, optional `--goal`, `--dungeon-affinity`, optional `--budget-tokens`,
+  optional `--budget` + `--price-list`, plus standard `--run-id`, `--created-at`, `--out-dir`.
+- `--floor-tile` format: `count=<n>[;id=<id>]`
+- `--trap` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
+- `create` records `command.action = "author"` in `request.json`; `configure` records
+  `command.action = "configure"` while preserving the same deterministic parsing rules.
+- Output dir: `artifacts/runs/<runId>/create` or `artifacts/runs/<runId>/configure` by default.
+- Outputs: `request.json`, `spec.json`, `intent.json`, `plan.json`, optional `budget.json`,
+  `price-list.json`, `budget-receipt.json`, `sim-config.json`, `initial-state.json`,
+  plus `bundle.json`, `manifest.json`, `telemetry.json`.
+
 ### `room-plan`
 Builds a `BuildSpec` directly from Room authoring flags (no hand-edited JSON required) and
 runs the standard build pipeline. This is the Room-first parity command for UI card authoring.
@@ -125,6 +145,44 @@ Inputs/outputs:
 - Output dir: `artifacts/runs/<runId>/warden-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
   `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+
+## Agent authoring contract
+
+The canonical additive contract for agent-friendly CLI authoring is
+`agent-kernel/AgentCommandRequestArtifact` (schema version `1`). This milestone
+defines the contract and taxonomy only; it does not replace existing commands.
+Current `room-plan`, `delver-plan`, `warden-plan`, `build`, and `configurator`
+flows remain valid and are the backward-compatible execution paths.
+
+Top-level shape:
+- `meta`: standard artifact metadata (`id`, `runId`, `createdAt`, `producedBy`).
+- `command`: normalized agent command envelope with `action`, source text, source id, and `taxonomyVersion`.
+- `objects`: normalized authored objects extracted from the command.
+- `sharedConfig`: cross-object settings such as `dungeonAffinity`, `budgetTokens`, `levelSize`, and `roomCount`.
+- `compilation.rules`: explicit mapping from each object kind to downstream build/configurator targets.
+- `compatibility`: rollout notes and explicit legacy-flow preservation requirements.
+
+Canonical object taxonomy:
+- `room`: authored room cards and room-level composition hints. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
+- `floor_tile`: authored floor/wall/barrier tile intent. Default compile target is `build_spec_configurator`.
+- `trap`: authored trap placement or trap-affinity intent. Default compile target is `build_spec_configurator`.
+- `delver`: authored player-facing actor cards. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
+- `warden`: authored opposing actor cards. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
+- `shared_config`: authored cross-cutting dungeon or run settings. Default compile targets are `build_spec_intent`, `build_spec_plan`, and `build_spec_configurator`.
+
+Compilation target semantics:
+- `build_spec_intent`: maps to top-level goal/tags/hints in `BuildSpec.intent`.
+- `build_spec_plan`: maps to plan-time hints in `BuildSpec.plan.hints`.
+- `build_spec_configurator`: maps to deterministic configurator inputs in `BuildSpec.configurator.inputs`.
+- `artifact_extension`: reserved for additive artifacts that do not fit the current `BuildSpec` or configurator boundary yet. For this target, `artifactSchema` is required.
+
+Current compatibility rules:
+- `room-plan` remains the direct additive authoring path for `room` requests and any `shared_config` budget/affinity hints it already supports.
+- `delver-plan` remains the direct additive authoring path for `delver` requests and compatible `shared_config` hints.
+- `warden-plan` remains the direct additive authoring path for `warden` requests and compatible `shared_config` hints.
+- `build --spec` remains the generic entry point once an agent command has been compiled to `BuildSpec`.
+- `configurator` remains the direct entry point for deterministic `levelGen`, `actors`, trap placement, and tile-shape payloads.
+- `floor_tile` and richer `trap` requests are intentionally mapped as `build_spec_configurator` work first; when an authored request cannot be represented by current configurator inputs, it must declare `artifact_extension` instead of inventing an unversioned side channel.
 
 Build inputs/outputs:
 - Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
@@ -179,6 +237,8 @@ node packages/adapters-cli/src/cli/ak.mjs build --spec tests/fixtures/artifacts/
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_loop_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
+node packages/adapters-cli/src/cli/ak.mjs create --text "Create a fire room with a trap, one delver, and one warden." --room "size=large;count=1;affinities=fire:emit:3" --floor-tile "count=18" --trap "x=2;y=2;affinity=fire;expression=push;stacks=2" --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" --warden "count=1;affinity=fire;motivation=defending" --run-id run_create_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/create_demo
+node packages/adapters-cli/src/cli/ak.mjs configure --text "Configure the trap layout for the room." --room "size=small;count=1" --trap "id=trap_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1" --run-id run_configure_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/configure_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1" --run-id run_room_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1;affinities=fire:emit:2" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_budget_demo
 node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=2;affinity=fire;motivation=attacking" --delver "count=1;affinity=earth;motivation=patrolling" --run-id run_delver_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_demo
@@ -268,6 +328,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - Fixture mode: `--fixture`, `--fixture-chain-id`, `--fixture-balance` (no network).
 - Run action log: `--actions` path to an ActionSequence artifact (emitted to `action-log.json`).
 - Configurator budget inputs: `--budget`, `--price-list`, optional `--receipt-out` to write the receipt elsewhere.
+- Agent authoring contract discovery: run `schemas` and inspect the `agent-kernel/AgentCommandRequestArtifact` entry for the canonical taxonomy and field list.
 - Room authoring (`room-plan`): repeat `--room` with `size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...`.
   If `affinities` is omitted, the command applies `dark:emit:2`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
