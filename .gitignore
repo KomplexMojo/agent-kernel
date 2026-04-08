@@ -20,6 +20,9 @@ coverage/
 # CLI-generated artifacts
 packages/adapters-cli/artifacts/solve_cli_test/*.json
 
+# Playwright test artifacts
+playwright/
+
 # Environment/OS
 .DS_Store
 .env

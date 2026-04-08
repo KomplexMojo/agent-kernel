@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "UI Web Dev Server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "serve:ui"],
+      "port": 8001
+    },
+    {
+      "name": "CLI Demo",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["scripts/demo-cli.sh"],
+      "port": null
+    }
+  ]
+}
