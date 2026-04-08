@@ -60,9 +60,11 @@ Key artifacts and fixtures:
 ## Builder workflow + schema catalog
 
 - Agent/CLI/UI share the same BuildSpec (`agent-kernel/BuildSpec`). The agent writes a spec, the CLI builds artifacts, and the UI can load/edit the emitted bundle without translation.
+- `create` and `configure` are the additive agent-facing entry points for freeform authoring. They emit `request.json`, `spec.json`, and the same bundle/manifest pair the UI already understands.
 - CLI build emits `manifest.json`, `bundle.json`, and `telemetry.json` alongside artifacts. Manifest/bundle include a filtered `schemas` list so the UI can load only referenced contracts.
 - Schema catalog: `node packages/adapters-cli/src/cli/ak.mjs schemas` prints the full catalog (or writes `schemas.json` with `--out-dir`).
 - Fixtures: `tests/fixtures/ui/build-spec-bundle/` shows a round-trip build bundle, and `tests/fixtures/artifacts/build-spec-v1-basic.json` shows the build spec shape.
+- Preview behavior: the UI `Preview` tab renders a generated room image on the canvas whenever the bundle carries a renderable layout and `pnpm run build:wasm` has populated `packages/ui-web/assets/core-as.wasm`. `Build And Load Game` still requires at least 1 room, 1 delver, and 1 warden in the authored card set before the Run surface is considered playable.
 
 ## Shared command execution
 
@@ -71,7 +73,7 @@ Key artifacts and fixtures:
 - `packages/adapters-web/src/adapters/cli-worker/` is the browser host for the same kernel: it uses a fetch-backed virtual filesystem, worker or in-process execution, and browser-side WASM loading from `/assets/core-as.wasm`.
 - `tests/integration/ui-cli-equivalence.test.js` enforces canonical Node-vs-browser artifact equivalence for the shared kernel commands.
 - Runtime reasoning also reuses the existing effect rail: actors emit `solver_request` entries carrying `runtime-decision-v1`, solver/captured-LLM responses normalize to `Action`, and explicit live local-Ollama fulfillment is allowed only in manual non-deterministic mode.
-- The default Design -> Preview -> Run workflow is browser-hosted and fixture-first; live IPFS, blockchain, and Ollama services are optional capabilities, not baseline requirements.
+- The default Design -> Preview -> Run workflow is browser-hosted and fixture-first; live IPFS, blockchain, and Ollama services are optional capabilities, but the browser Preview/Run surfaces still require the built UI WASM asset from `pnpm run build:wasm`.
 - `ipfs`, `blockchain`, and standalone `llm` now have browser-hosted shared-rail hook points through the command kernel; deeper product workflows for those capabilities can continue on dedicated follow-on branches without changing the baseline Design -> Preview -> Run path.
 
 ## LLM pipeline + runtime reasoning

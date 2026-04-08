@@ -241,6 +241,14 @@
         max-height: min(64vh, 720px);
       }
 
+      #preview-render-canvas {
+        width: 100%;
+        min-height: 420px;
+        max-height: min(64vh, 720px);
+        border: 1px dashed var(--muted);
+        border-radius: 2px;
+      }
+
       #frame-buffer {
         min-height: 520px;
         max-height: min(70vh, 760px);
@@ -884,6 +892,11 @@
         }
 
         #preview-frame-buffer {
+          min-height: 320px;
+          max-height: min(56vh, 560px);
+        }
+
+        #preview-render-canvas {
           min-height: 320px;
           max-height: min(56vh, 560px);
         }
@@ -2301,6 +2314,7 @@
             <div class="preview-stage">
               <section class="preview-frame-card">
                 <span class="stat-label">Rendered Board</span>
+                <canvas class="level-preview-canvas" id="preview-render-canvas" hidden aria-label="Generated room image"></canvas>
                 <pre class="frame-display" id="preview-frame-buffer">No preview loaded.</pre>
               </section>
               <div class="preview-sidebar">

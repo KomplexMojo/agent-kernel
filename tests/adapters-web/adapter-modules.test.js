@@ -117,6 +117,7 @@ assert.equal(inProcessResult.ok, true);
 assert.equal(inProcessResult.walkableTiles, 120);
 assert.ok(inProcessResult.ascii && typeof inProcessResult.ascii.text === "string");
 assert.ok(inProcessResult.image && inProcessResult.image.pixels instanceof Uint8ClampedArray);
+assert.equal(inProcessResult.image.pixelFormat, "rgba8");
 
 const fromTiles = await inProcess.buildFromTiles({ tiles: ["S.E", ".#."], renderOptions: { includeImage: true } });
 assert.equal(fromTiles.ok, true);
@@ -169,7 +170,7 @@ const workerAdapter = createLevelBuilderAdapter({
               ok: true,
               tiles: ["SE"],
               ascii: { lines: ["SE"], text: "SE" },
-              image: { width: 2, height: 1, pixels },
+              image: { width: 2, height: 1, pixelFormat: "rgba8", pixels },
               width: 2,
               height: 1,
               walkableTiles: 2,
@@ -192,6 +193,7 @@ assert.equal(workerResult.height, 1);
 assert.equal(workerResult.walkableTiles, 2);
 assert.ok(workerResult.ascii && typeof workerResult.ascii.text === "string");
 assert.ok(workerResult.image && workerResult.image.pixels instanceof Uint8ClampedArray);
+assert.equal(workerResult.image.pixelFormat, "rgba8");
 const workerRegen = await workerAdapter.regenerateLevel({ tiles: ["SE"] });
 assert.equal(workerRegen.ok, true);
 assert.equal(workerRegen.walkableTiles, 2);

@@ -217,6 +217,64 @@ test("browser host build artifacts are equivalent to Node CLI output", async () 
   );
 });
 
+test("browser host normalizes agent-authored build specs for UI parity", async () => {
+  const adapter = await createBrowserAdapter();
+  const normalized = await adapter.normalizeBuildSpec({
+    spec: {
+      schema: "agent-kernel/BuildSpec",
+      schemaVersion: 1,
+      meta: {
+        id: "build_spec_ui_equivalence",
+        runId: "run_ui_equivalence",
+        createdAt: "2026-04-08T00:00:00.000Z",
+        source: "ui-test",
+      },
+      intent: {
+        goal: "Normalize agent authoring",
+      },
+      authoring: {
+        objectKinds: "room",
+        request: {
+          schema: "agent-kernel/AgentCommandRequestArtifact",
+          schemaVersion: 1,
+          meta: {
+            id: "agent_command_ui_equivalence",
+            runId: "run_ui_equivalence",
+            createdAt: "2026-04-08T00:00:00.000Z",
+            producedBy: "test",
+          },
+          command: {
+            action: "author",
+            text: "author one room",
+            source: "ui-test",
+            taxonomyVersion: 1,
+          },
+          objects: {
+            kind: "room",
+            prompt: "one room",
+            count: 1,
+          },
+          compilation: {
+            rules: {
+              kind: "room",
+              compileTo: {
+                target: "build_spec_plan",
+                path: "plan.hints.cardSet",
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  assert.equal(normalized.changed, true);
+  assert.deepEqual(normalized.spec.authoring.objectKinds, ["room"]);
+  assert.equal(Array.isArray(normalized.spec.authoring.request.objects), true);
+  assert.equal(Array.isArray(normalized.spec.authoring.request.compilation.rules), true);
+  assert.equal(Array.isArray(normalized.spec.authoring.request.compilation.rules[0].compileTo), true);
+});
+
 test("browser host solve artifacts are equivalent to Node CLI output", async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-solve-"));
   runCli([

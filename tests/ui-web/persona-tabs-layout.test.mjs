@@ -117,6 +117,7 @@ test("preview panel contains the active preview surface", () => {
   [
     "preview-build-and-load",
     "preview-status",
+    "preview-render-canvas",
     "preview-frame-buffer",
     "preview-summary",
     "preview-actor-list",

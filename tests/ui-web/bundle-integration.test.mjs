@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { wireBuildOrchestrator } from "../../packages/ui-web/src/build-orchestrator.js";
 import { wireBundleReview } from "../../packages/ui-web/src/bundle-review.js";
+import { shouldHydrateDesignFromBundleSource } from "../../packages/ui-web/src/build-spec-ui.js";
 import { createDefaultResourceBundleArtifact } from "../../packages/runtime/src/render/resource-bundle.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -194,4 +195,103 @@ test("build response snapshot loads into bundle review panel", async () => {
     globalThis.localStorage = originalLocalStorage;
     globalThis.sessionStorage = originalSessionStorage;
   }
+});
+
+test("bundle review normalizes agent-authored build specs on load", async () => {
+  const originalDocument = globalThis.document;
+
+  globalThis.document = {
+    createElement: (tag) => makeElement(tag),
+  };
+
+  try {
+    const specTextarea = makeInput("");
+    const bundleReview = wireBundleReview({
+      elements: {
+        bundleInput: makeInput(""),
+        manifestInput: makeInput(""),
+        loadLastButton: makeButton(),
+        clearButton: makeButton(),
+        statusEl: { textContent: "" },
+        schemaList: makeElement("ul"),
+        manifestOutput: { textContent: "" },
+        specTextarea,
+        specErrors: makeElement("ul"),
+        applySpecButton: makeButton(),
+        sendSpecButton: makeButton(),
+        downloadSpecButton: makeButton(),
+        intentOutput: { textContent: "" },
+        planOutput: { textContent: "" },
+        configuratorOutput: { textContent: "" },
+        artifactsContainer: makeElement("div"),
+      },
+    });
+
+    const loaded = bundleReview.loadBundlePayload({
+      spec: {
+        schema: "agent-kernel/BuildSpec",
+        schemaVersion: 1,
+        meta: {
+          id: "build_spec_bundle_review",
+          runId: "run_bundle_review",
+          createdAt: "2026-04-08T00:00:00.000Z",
+          source: "ui-test",
+        },
+        intent: {
+          goal: "Normalize loaded authoring spec",
+        },
+        authoring: {
+          objectKinds: "room",
+          request: {
+            schema: "agent-kernel/AgentCommandRequestArtifact",
+            schemaVersion: 1,
+            meta: {
+              id: "agent_command_bundle_review",
+              runId: "run_bundle_review",
+              createdAt: "2026-04-08T00:00:00.000Z",
+              producedBy: "test",
+            },
+            command: {
+              action: "author",
+              text: "author one room",
+              source: "ui-test",
+              taxonomyVersion: 1,
+            },
+            objects: {
+              kind: "room",
+              prompt: "one room",
+              count: 1,
+            },
+            compilation: {
+              rules: {
+                kind: "room",
+                compileTo: {
+                  target: "build_spec_plan",
+                  path: "plan.hints.cardSet",
+                },
+              },
+            },
+          },
+        },
+      },
+      artifacts: [],
+    }, { source: "file" });
+
+    assert.equal(loaded, true);
+    const normalizedSpec = JSON.parse(specTextarea.value);
+    assert.deepEqual(normalizedSpec.authoring.objectKinds, ["room"]);
+    assert.equal(Array.isArray(normalizedSpec.authoring.request.objects), true);
+    assert.equal(Array.isArray(normalizedSpec.authoring.request.compilation.rules), true);
+    assert.equal(Array.isArray(normalizedSpec.authoring.request.compilation.rules[0].compileTo), true);
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test("load-last snapshot source is eligible for design hydration", async () => {
+  assert.equal(shouldHydrateDesignFromBundleSource("snapshot"), true);
+  assert.equal(shouldHydrateDesignFromBundleSource("file"), true);
+  assert.equal(shouldHydrateDesignFromBundleSource("ipfs"), true);
+  assert.equal(shouldHydrateDesignFromBundleSource("build"), false);
+  assert.equal(shouldHydrateDesignFromBundleSource("clear"), false);
 });

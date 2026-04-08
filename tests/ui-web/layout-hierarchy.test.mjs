@@ -30,6 +30,7 @@ test("layout hierarchy keeps the simulation workspace and preview workspace acti
   assert.match(html, /@media\s*\(min-width:\s*1680px\)\s*and\s*\(min-height:\s*900px\)[\s\S]*?\.design-card-grid\s*\{[^}]*grid-template-columns:\s*minmax\(520px,\s*1fr\)/);
   assert.match(html, /@media\s*\(min-width:\s*1680px\)\s*and\s*\(min-height:\s*900px\)[\s\S]*?#frame-buffer\s*\{[^}]*min-height:\s*620px/);
   assert.match(html, /#preview-frame-buffer\s*\{[^}]*min-height:\s*420px/);
+  assert.match(html, /#preview-render-canvas\s*\{[^}]*min-height:\s*420px/);
   assert.match(html, /id="actor-inspector"[^>]*hidden/);
   assert.doesNotMatch(html, /\.runtime-shell\s*\{/);
   assert.doesNotMatch(html, /\.runtime-viewport\s*\{/);

@@ -40,6 +40,7 @@ assert.ok(preview.height > 0);
 assert.ok(preview.ascii && typeof preview.ascii.text === "string");
 assert.ok(Array.isArray(preview.ascii.lines));
 assert.ok(preview.image && preview.image.pixels instanceof Uint8ClampedArray);
+assert.equal(preview.image.pixelFormat, "rgba8");
 assert.equal(preview.image.pixels.length, preview.width * preview.height * 4);
 
 const fromLevelGen = buildLevelPreviewFromLevelGen(levelGen);
@@ -52,6 +53,7 @@ assert.equal(fromTiles.width, 3);
 assert.equal(fromTiles.height, 2);
 assert.equal(fromTiles.walkableTiles, 5);
 assert.ok(fromTiles.image && fromTiles.image.pixels instanceof Uint8ClampedArray);
+assert.equal(fromTiles.image.pixelFormat, "rgba8");
 
 const fromAffinityTiles = buildLevelRenderArtifactsFromTiles(["..."], {
   includeAscii: true,

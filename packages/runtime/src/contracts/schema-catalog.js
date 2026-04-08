@@ -1,5 +1,11 @@
 const CATALOG = [
   {
+    schema: "agent-kernel/AgentCommandRequestArtifact",
+    schemaVersion: 1,
+    description: "Canonical agent-authored command contract and object taxonomy.",
+    fields: ["meta", "command", "objects", "sharedConfig", "compilation", "compatibility"],
+  },
+  {
     schema: "agent-kernel/CapturedInputArtifact",
     schemaVersion: 1,
     description: "Captured external adapter payload inputs.",
@@ -9,7 +15,7 @@ const CATALOG = [
     schema: "agent-kernel/BuildSpec",
     schemaVersion: 1,
     description: "Agent-facing build specification.",
-    fields: ["meta", "intent", "plan", "configurator", "budget", "adapters"],
+    fields: ["meta", "intent", "plan", "configurator", "authoring", "budget", "adapters"],
   },
   {
     schema: "agent-kernel/IntentEnvelope",

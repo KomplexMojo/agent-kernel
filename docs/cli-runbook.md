@@ -14,11 +14,12 @@ or read `packages/adapters-cli/README.md`.
 ## Prerequisites
 
 - Node-based CLI runs directly from the repo.
-- Build WASM only when you need `run` or `replay`:
+- Run `pnpm run build:wasm` before browser `Preview`/`Run` or CLI `run`/`replay`:
 ```
 pnpm run build:wasm
 ```
-This produces `build/core-as.wasm` (default `--wasm` path).
+This produces `build/core-as.wasm` (default `--wasm` path) and copies
+`packages/ui-web/assets/core-as.wasm` for the browser UI.
 
 ## Minimum-install baseline
 
@@ -29,7 +30,7 @@ Ollama services.
 Required for the baseline:
 - repository dependencies
 - a browser to open `packages/ui-web/index.html`
-- `pnpm run build:wasm` only when you want `Run` or `Replay`
+- `pnpm run build:wasm` before browser `Preview`/`Run` or CLI `run`/`replay`
 
 Optional and not required for the baseline:
 - `AK_ALLOW_NETWORK`
@@ -88,7 +89,34 @@ Adapter demos (direct IO, fixture-first):
 
 ## Typical agent workflows
 
-### 1) Agent-authored BuildSpec -> build outputs
+### 1) Freeform create/configure request -> bundle -> UI preview
+Use this when an agent starts from natural-language intent plus additive object flags.
+```
+node packages/adapters-cli/src/cli/ak.mjs create \
+  --text "Create a fire room with one trap, one delver, and one warden." \
+  --room "size=large;count=1;affinities=fire:emit:3" \
+  --floor-tile "count=18" \
+  --trap "x=2;y=2;affinity=fire;expression=push;stacks=2" \
+  --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" \
+  --warden "count=1;affinity=fire;motivation=defending" \
+  --run-id run_agent_create \
+  --created-at 2026-04-08T00:00:00Z \
+  --out-dir artifacts/runs/run_agent_create/create
+```
+
+For room-only preview authoring, keep the same flow but only pass `--text` plus `--room`.
+Outputs include `request.json` (normalized `AgentCommandRequestArtifact`), `spec.json`,
+playable runtime artifacts when enough data is present, and `bundle.json`/`manifest.json`
+for the UI.
+
+UI handoff:
+- Load `bundle.json` and `manifest.json` in `Diagnostics`.
+- `Preview` renders the generated room image only after `pnpm run build:wasm` has copied
+  `packages/ui-web/assets/core-as.wasm`; with that asset missing, the real Preview load fails before rendering.
+- `Build And Load Game` is stricter than preview-only inspection: it requires at least 1 room,
+  1 delver, and 1 warden in the authored card set before opening `Run`.
+
+### 2) Agent-authored BuildSpec -> build outputs
 Use this when the agent already knows the structure.
 ```
 node packages/adapters-cli/src/cli/ak.mjs build \
@@ -98,7 +126,7 @@ node packages/adapters-cli/src/cli/ak.mjs build \
 Outputs include `spec.json`, `intent.json`, `plan.json`, optional budget artifacts,
 `sim-config.json`, `initial-state.json`, plus `bundle.json`/`manifest.json`.
 
-### 2) LLM-guided plan -> build outputs (fixture or live)
+### 3) LLM-guided plan -> build outputs (fixture or live)
 Scenario-driven (uses catalog + summary fixtures):
 ```
 node packages/adapters-cli/src/cli/ak.mjs llm-plan \
@@ -124,7 +152,7 @@ node packages/adapters-cli/src/cli/ak.mjs llm-plan \
 ```
 Outputs include `captured-input-llm-1.json` plus the normal build bundle.
 
-### 3) Build outputs -> run/replay
+### 4) Build outputs -> run/replay
 Use `run` to produce TickFrames/effects; use `replay` to re-run deterministically.
 ```
 node packages/adapters-cli/src/cli/ak.mjs run \
@@ -143,7 +171,10 @@ node packages/adapters-cli/src/cli/ak.mjs replay \
   --out-dir artifacts/runs/run_demo/replay
 ```
 
-### 4) Agent validation and inspection
+Browser `Preview`/`Run` and CLI `run`/`replay` require the built WASM outputs from `pnpm run build:wasm`.
+If `packages/ui-web/assets/core-as.wasm` or `build/core-as.wasm` is absent, document the block and stop at bundle review instead of claiming Preview or Run succeeded.
+
+### 5) Agent validation and inspection
 ```
 node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
 node packages/adapters-cli/src/cli/ak.mjs inspect \

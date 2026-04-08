@@ -19,6 +19,7 @@ import {
   ALLOWED_DELVER_SETUP_MODES,
   ALLOWED_MOTIVATIONS,
 } from "../../../runtime/src/personas/orchestrator/prompt-contract.js";
+import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
 import {
   DEFAULT_LLM_BASE_URL,
   DEFAULT_LLM_MODEL,
@@ -26,6 +27,7 @@ import {
   DEFAULT_ROOM_AFFINITY_EXPRESSION,
   DEFAULT_ROOM_AFFINITY_STACKS,
   DEFAULT_ROOM_CARD_AFFINITY,
+  TRAP_VITAL_KEYS,
   VITAL_KEYS,
 } from "../../../runtime/src/contracts/domain-constants.js";
 
@@ -45,6 +47,7 @@ const SCHEMAS = Object.freeze({
   effect: "agent-kernel/Effect",
   telemetry: "agent-kernel/TelemetryRecord",
   runSummary: "agent-kernel/RunSummary",
+  agentCommandRequest: "agent-kernel/AgentCommandRequestArtifact",
   affinityPreset: "agent-kernel/AffinityPresetArtifact",
   actorLoadout: "agent-kernel/ActorLoadoutArtifact",
   affinitySummary: "agent-kernel/AffinitySummary",
@@ -79,6 +82,8 @@ function usage() {
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | --prompt text --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
@@ -108,11 +113,14 @@ Options:
   --receipt       Budget receipt artifact path (BudgetReceiptArtifact)
   --receipt-out   Output path for budget receipt JSON
   --spec          Build spec JSON path (build command only)
+  --text          Freeform agent authoring text captured in AgentCommandRequestArtifact
   --scenario      Scenario fixture path for llm-plan
   --catalog       Catalog path for prompt-only llm-plan runs
   --goal          Goal text override (llm-plan prompt-only)
   --dungeon-affinity Dungeon affinity for room/delver/warden summary defaults
   --budget-tokens Budget token hint (llm-plan prompt-only, optional for room-plan/delver-plan/warden-plan)
+  --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
+  --trap          Trap spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...
                     where <expression> is push|pull (spatial) or emit|draw (field)
   --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]
@@ -136,6 +144,10 @@ Options:
   --run-id        Override run id for output artifacts
   --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/delver-plan/warden-plan
   --help          Show this help
+
+Schema discovery:
+  schemas output includes ${SCHEMAS.agentCommandRequest} for the canonical
+  agent-friendly authoring taxonomy and compilation contract.
 `;
 }
 
@@ -152,6 +164,8 @@ function parseArgs(argv) {
     "tile-floor",
     "budget-pool",
     "room",
+    "floor-tile",
+    "trap",
     "file",
   ]);
   function pushArg(key, value) {
@@ -436,6 +450,178 @@ function parseRoomSpecs(rawRooms) {
     throw new Error("room-plan requires at least one --room entry.");
   }
   return values.map((value, index) => parseRoomSpec(value, index + 1));
+}
+
+function parseFloorTileSpec(value, floorTileIndex) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    throw new Error(`floor-tile[${floorTileIndex}] requires a non-empty spec.`);
+  }
+
+  const allowedFields = new Set(["id", "count", "tiles", "walkable-target"]);
+  const fields = new Map();
+  const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
+  if (segments.length === 0) {
+    throw new Error(`floor-tile[${floorTileIndex}] requires at least one field.`);
+  }
+
+  segments.forEach((segment) => {
+    if (!segment.includes("=")) {
+      throw new Error(`floor-tile[${floorTileIndex}] segment "${segment}" is invalid; expected key=value.`);
+    }
+    const separator = segment.indexOf("=");
+    const key = segment.slice(0, separator).trim().toLowerCase();
+    const fieldValue = segment.slice(separator + 1).trim();
+    if (!allowedFields.has(key)) {
+      throw new Error(`floor-tile[${floorTileIndex}] field "${key}" is not supported.`);
+    }
+    if (!fieldValue) {
+      throw new Error(`floor-tile[${floorTileIndex}] field "${key}" requires a value.`);
+    }
+    fields.set(key, fieldValue);
+  });
+
+  const countValue = fields.get("count") || fields.get("tiles") || fields.get("walkable-target");
+  if (!countValue) {
+    throw new Error(`floor-tile[${floorTileIndex}] requires count=<n>.`);
+  }
+
+  return {
+    id: isNonEmptyString(fields.get("id"))
+      ? String(fields.get("id")).trim()
+      : `floor_tile_${floorTileIndex}`,
+    count: parsePositiveIntStrict(countValue, `floor-tile[${floorTileIndex}] count`),
+  };
+}
+
+function parseFloorTileSpecs(rawFloorTiles) {
+  const values = normalizeList(rawFloorTiles)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean);
+  if (values.length === 0) {
+    return [];
+  }
+  return values.map((value, index) => parseFloorTileSpec(value, index + 1));
+}
+
+function parseTrapVitals(value, trapIndex) {
+  if (!isNonEmptyString(value)) {
+    return undefined;
+  }
+  const entries = String(value)
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  const vitals = {};
+  entries.forEach((entry, index) => {
+    const parts = entry.split(":").map((part) => part.trim());
+    if (parts.length !== 3 && parts.length !== 4) {
+      throw new Error(`trap[${trapIndex}] vital[${index + 1}] must be vital:max:regen or vital:current:max:regen.`);
+    }
+    const vital = String(parts[0] || "").toLowerCase();
+    if (!TRAP_VITAL_KEYS.includes(vital)) {
+      throw new Error(`trap[${trapIndex}] vital[${index + 1}] has invalid vital kind "${parts[0]}".`);
+    }
+
+    let current;
+    let max;
+    let regen;
+    if (parts.length === 3) {
+      max = parseNonNegativeIntStrict(parts[1], `trap[${trapIndex}] vital[${index + 1}] max`);
+      regen = parseNonNegativeIntStrict(parts[2], `trap[${trapIndex}] vital[${index + 1}] regen`);
+      current = max;
+    } else {
+      current = parseNonNegativeIntStrict(parts[1], `trap[${trapIndex}] vital[${index + 1}] current`);
+      max = parseNonNegativeIntStrict(parts[2], `trap[${trapIndex}] vital[${index + 1}] max`);
+      regen = parseNonNegativeIntStrict(parts[3], `trap[${trapIndex}] vital[${index + 1}] regen`);
+    }
+    if (current > max) {
+      throw new Error(`trap[${trapIndex}] vital[${index + 1}] current cannot exceed max.`);
+    }
+    vitals[vital] = { current, max, regen };
+  });
+
+  return vitals;
+}
+
+function parseBooleanStrict(value, label) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  throw new Error(`${label} must be true or false.`);
+}
+
+function parseTrapSpec(value, trapIndex) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    throw new Error(`trap[${trapIndex}] requires a non-empty spec.`);
+  }
+
+  const allowedFields = new Set(["id", "x", "y", "affinity", "expression", "stacks", "blocking", "vitals"]);
+  const fields = new Map();
+  const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
+  if (segments.length === 0) {
+    throw new Error(`trap[${trapIndex}] requires at least one field.`);
+  }
+
+  segments.forEach((segment) => {
+    if (!segment.includes("=")) {
+      throw new Error(`trap[${trapIndex}] segment "${segment}" is invalid; expected key=value.`);
+    }
+    const separator = segment.indexOf("=");
+    const key = segment.slice(0, separator).trim().toLowerCase();
+    const fieldValue = segment.slice(separator + 1).trim();
+    if (!allowedFields.has(key)) {
+      throw new Error(`trap[${trapIndex}] field "${key}" is not supported.`);
+    }
+    if (!fieldValue) {
+      throw new Error(`trap[${trapIndex}] field "${key}" requires a value.`);
+    }
+    fields.set(key, fieldValue);
+  });
+
+  const affinity = String(fields.get("affinity") || "").trim().toLowerCase();
+  if (!ALLOWED_AFFINITIES.includes(affinity)) {
+    throw new Error(`trap[${trapIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+  }
+  const expression = String(fields.get("expression") || "emit").trim().toLowerCase();
+  if (!ALLOWED_AFFINITY_EXPRESSIONS.includes(expression)) {
+    throw new Error(`trap[${trapIndex}] expression must be one of: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}.`);
+  }
+
+  return {
+    id: isNonEmptyString(fields.get("id"))
+      ? String(fields.get("id")).trim()
+      : `trap_${trapIndex}`,
+    x: parseNonNegativeIntStrict(fields.get("x"), `trap[${trapIndex}] x`),
+    y: parseNonNegativeIntStrict(fields.get("y"), `trap[${trapIndex}] y`),
+    blocking: fields.has("blocking")
+      ? parseBooleanStrict(fields.get("blocking"), `trap[${trapIndex}] blocking`)
+      : false,
+    affinity: {
+      kind: affinity,
+      expression,
+      stacks: fields.has("stacks")
+        ? parsePositiveIntStrict(fields.get("stacks"), `trap[${trapIndex}] stacks`)
+        : 1,
+      targetType: "floor",
+    },
+    vitals: parseTrapVitals(fields.get("vitals"), trapIndex),
+  };
+}
+
+function parseTrapSpecs(rawTraps) {
+  const values = normalizeList(rawTraps)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean);
+  if (values.length === 0) {
+    return [];
+  }
+  return values.map((value, index) => parseTrapSpec(value, index + 1));
 }
 
 function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
@@ -889,6 +1075,294 @@ function assertAllowedWardenPlanArgs(args) {
   }
 }
 
+function assertAllowedAgentAuthoringArgs(command, args) {
+  const allowed = new Set([
+    "text",
+    "room",
+    "floor-tile",
+    "trap",
+    "delver",
+    "warden",
+    "goal",
+    "dungeon-affinity",
+    "budget-tokens",
+    "budget",
+    "price-list",
+    "out-dir",
+    "run-id",
+    "created-at",
+  ]);
+  const unknown = [];
+  for (const key of Object.keys(args)) {
+    if (key === "_" || key === "help") {
+      continue;
+    }
+    if (!allowed.has(key)) {
+      unknown.push(`--${key}`);
+    }
+  }
+  if (Array.isArray(args._) && args._.length > 0) {
+    unknown.push(...args._);
+  }
+  if (unknown.length > 0) {
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+  }
+}
+
+function makeAgentCommandRoutes(kind) {
+  switch (kind) {
+    case "room":
+      return [
+        { target: "build_spec_plan", path: "plan.hints.rooms", legacyFlow: "room-plan" },
+        { target: "build_spec_configurator", path: "configurator.inputs.cardSet", legacyFlow: "room-plan" },
+      ];
+    case "floor_tile":
+      return [
+        { target: "build_spec_configurator", path: "configurator.inputs.levelGen.walkableTilesTarget", legacyFlow: "configurator" },
+      ];
+    case "trap":
+      return [
+        { target: "build_spec_configurator", path: "configurator.inputs.levelGen.traps", legacyFlow: "configurator" },
+      ];
+    case "delver":
+      return [
+        { target: "build_spec_plan", path: "plan.hints.cardSet", legacyFlow: "delver-plan" },
+        { target: "build_spec_configurator", path: "configurator.inputs.actors", legacyFlow: "delver-plan" },
+      ];
+    case "warden":
+      return [
+        { target: "build_spec_plan", path: "plan.hints.cardSet", legacyFlow: "warden-plan" },
+        { target: "build_spec_configurator", path: "configurator.inputs.actors", legacyFlow: "warden-plan" },
+      ];
+    case "shared_config":
+      return [
+        { target: "build_spec_intent", path: "intent.hints" },
+        { target: "build_spec_configurator", path: "configurator.inputs" },
+      ];
+    default:
+      return [];
+  }
+}
+
+function buildAgentCommandRequestArtifact({
+  action,
+  commandText,
+  runId,
+  createdAt,
+  objectRequests,
+  sharedConfig,
+} = {}) {
+  const kinds = Array.from(new Set(objectRequests.map((entry) => entry.kind)));
+  return {
+    schema: SCHEMAS.agentCommandRequest,
+    schemaVersion: 1,
+    meta: {
+      id: `agent_command_${action}_${runId}`,
+      runId,
+      createdAt,
+      producedBy: `cli-${action}`,
+    },
+    command: {
+      action,
+      text: commandText,
+      source: `cli-${action}`,
+      taxonomyVersion: 1,
+    },
+    objects: objectRequests,
+    sharedConfig: sharedConfig && Object.keys(sharedConfig).length > 0 ? sharedConfig : undefined,
+    compilation: {
+      rules: kinds.map((kind) => ({
+        kind,
+        compileTo: makeAgentCommandRoutes(kind),
+      })),
+    },
+    compatibility: {
+      preserveExistingCommands: true,
+      supportedLegacyFlows: Array.from(new Set(
+        kinds.flatMap((kind) => makeAgentCommandRoutes(kind).map((route) => route.legacyFlow).filter(Boolean)).concat(["build", "configurator"]),
+      )),
+    },
+  };
+}
+
+function describeAgentCommandText({ action, text, objects }) {
+  if (isNonEmptyString(text)) {
+    return text.trim();
+  }
+  const counts = {};
+  objects.forEach((entry) => {
+    counts[entry.kind] = (counts[entry.kind] || 0) + (Number.isInteger(entry.count) && entry.count > 0 ? entry.count : 1);
+  });
+  const summary = Object.entries(counts)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([kind, count]) => `${count} ${kind.replaceAll("_", "-")}${count === 1 ? "" : "s"}`)
+    .join(", ");
+  return `${action === "configure" ? "Configure" : "Create"} ${summary}.`;
+}
+
+function deriveGoalForAgentCommand({ action, goal, objects }) {
+  if (isNonEmptyString(goal)) {
+    return goal.trim();
+  }
+  const labels = Array.from(new Set(objects.map((entry) => entry.kind.replaceAll("_", "-"))));
+  return `${action === "configure" ? "Configure" : "Author"} ${labels.join(", ")} into a playable dungeon bundle.`;
+}
+
+function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps }) {
+  const blockingTrapCount = traps.reduce((sum, trap) => sum + (trap.blocking === true ? 1 : 0), 0);
+  const walkableTarget = Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0 ? walkableTilesTarget : 0;
+  const trapWidth = traps.reduce((max, trap) => Math.max(max, trap.x + 3), 5);
+  const trapHeight = traps.reduce((max, trap) => Math.max(max, trap.y + 3), 5);
+  const requestedWalkable = walkableTarget + blockingTrapCount;
+  const walkableSide = requestedWalkable > 0
+    ? Math.max(5, Math.ceil(Math.sqrt(Math.ceil(requestedWalkable / 0.5))) + 2)
+    : 5;
+  const width = Math.max(
+    Number.isInteger(levelGen?.width) ? levelGen.width : 0,
+    walkableSide,
+    trapWidth,
+  );
+  const height = Math.max(
+    Number.isInteger(levelGen?.height) ? levelGen.height : 0,
+    walkableSide,
+    trapHeight,
+  );
+  const shape = levelGen?.shape && typeof levelGen.shape === "object" && !Array.isArray(levelGen.shape)
+    ? { ...levelGen.shape }
+    : {};
+  if (!Number.isInteger(shape.roomCount) || shape.roomCount <= 0) {
+    shape.roomCount = 1;
+  }
+  if (!Number.isInteger(shape.roomMinSize) || shape.roomMinSize <= 0) {
+    shape.roomMinSize = 3;
+  }
+  if (!Number.isInteger(shape.roomMaxSize) || shape.roomMaxSize <= 0) {
+    shape.roomMaxSize = Math.max(shape.roomMinSize, 3);
+  }
+  if (!Number.isInteger(shape.corridorWidth) || shape.corridorWidth <= 0) {
+    shape.corridorWidth = 1;
+  }
+  return {
+    ...levelGen,
+    width,
+    height,
+    shape,
+  };
+}
+
+async function writeBuildOutputs({
+  outDir,
+  spec,
+  buildResult,
+  requestArtifact,
+  commandName,
+  producedBy,
+} = {}) {
+  await writeJson(join(outDir, "request.json"), requestArtifact);
+  await writeJson(join(outDir, "spec.json"), spec);
+  await writeJson(join(outDir, "intent.json"), buildResult.intent);
+  await writeJson(join(outDir, "plan.json"), buildResult.plan);
+
+  if (buildResult.budget?.budget) {
+    await writeJson(join(outDir, "budget.json"), buildResult.budget.budget);
+  }
+  if (buildResult.budget?.priceList) {
+    await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
+  }
+  if (buildResult.budgetReceipt) {
+    await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
+  }
+  if (buildResult.solverRequest) {
+    await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
+  }
+  if (buildResult.solverResult) {
+    await writeJson(join(outDir, "solver-result.json"), buildResult.solverResult);
+  }
+  if (buildResult.simConfig) {
+    await writeJson(join(outDir, "sim-config.json"), buildResult.simConfig);
+  }
+  if (buildResult.initialState) {
+    await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
+  }
+
+  const bundleArtifacts = [requestArtifact];
+  if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
+  if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
+  if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
+  if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
+  if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
+  if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
+  if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
+  if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
+  if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
+
+  bundleArtifacts.sort((a, b) => {
+    if (a.schema === b.schema) {
+      return a.meta.id.localeCompare(b.meta.id);
+    }
+    return a.schema.localeCompare(b.schema);
+  });
+
+  const manifestEntries = [];
+  addManifestEntry(manifestEntries, requestArtifact, "request.json");
+  addManifestEntry(manifestEntries, buildResult.intent, "intent.json");
+  addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
+  addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
+  addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
+  addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
+  addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
+  addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
+  addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
+  addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
+
+  manifestEntries.sort((a, b) => {
+    if (a.schema === b.schema) {
+      return a.id.localeCompare(b.id);
+    }
+    return a.schema.localeCompare(b.schema);
+  });
+
+  const schemaEntries = filterSchemaCatalogEntries({
+    schemaRefs: [
+      { schema: spec.schema, schemaVersion: spec.schemaVersion },
+      ...manifestEntries,
+    ],
+  });
+
+  const bundle = {
+    spec,
+    schemas: schemaEntries,
+    artifacts: bundleArtifacts,
+  };
+  await writeJson(join(outDir, "bundle.json"), bundle);
+
+  const manifest = {
+    specPath: "spec.json",
+    correlation: {
+      runId: spec.meta.runId,
+      source: spec.meta.source,
+      correlationId: spec.meta.correlationId,
+    },
+    schemas: schemaEntries,
+    artifacts: manifestEntries,
+  };
+  if (!manifest.correlation.correlationId) {
+    delete manifest.correlation.correlationId;
+  }
+  await writeJson(join(outDir, "manifest.json"), manifest);
+
+  const telemetry = buildBuildTelemetryRecord({
+    spec,
+    status: "success",
+    artifactRefs: buildArtifactRefs(manifestEntries),
+    producedBy,
+    clock: () => spec.meta.createdAt,
+  });
+  await writeJson(join(outDir, "telemetry.json"), telemetry);
+
+  console.log(`${commandName}: wrote ${outDir}`);
+}
+
 function addManifestEntry(entries, artifact, path) {
   if (!artifact || typeof artifact !== "object") {
     return;
@@ -1205,6 +1679,248 @@ async function llmCommand(argv) {
   const result = await commandKernel.llm(args);
   await writeJson(outPath, result.output);
   console.log(`llm: wrote ${outPath}`);
+}
+
+async function agentAuthoringCommand(argv, { commandName, action } = {}) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  assertAllowedAgentAuthoringArgs(commandName, args);
+
+  const runId = args["run-id"] || makeId("run");
+  const createdAt = args["created-at"] || new Date().toISOString();
+  const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir(commandName, runId);
+  const budgetPath = resolvePath(args.budget);
+  const priceListPath = resolvePath(args["price-list"]);
+
+  const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
+    ? args["dungeon-affinity"].trim().toLowerCase()
+    : DEFAULT_DUNGEON_AFFINITY;
+  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    throw new Error(`${commandName} --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+  }
+
+  let budgetTokens;
+  if (args["budget-tokens"] !== undefined) {
+    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], `${commandName} --budget-tokens`);
+  }
+  if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
+    throw new Error(`${commandName} requires both --budget and --price-list.`);
+  }
+
+  let budgetArtifact = null;
+  let priceListArtifact = null;
+  if (budgetPath) {
+    budgetArtifact = await readJson(budgetPath);
+    assertSchema(budgetArtifact, SCHEMAS.budgetArtifact);
+  }
+  if (priceListPath) {
+    priceListArtifact = await readJson(priceListPath);
+    assertSchema(priceListArtifact, SCHEMAS.priceList);
+  }
+
+  const parsedRooms = normalizeList(args.room)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => ({ prompt: value, value: parseRoomSpec(value, index + 1) }));
+  const parsedFloorTiles = normalizeList(args["floor-tile"])
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => ({ prompt: value, value: parseFloorTileSpec(value, index + 1) }));
+  const parsedTraps = normalizeList(args.trap)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => ({ prompt: value, value: parseTrapSpec(value, index + 1) }));
+  const parsedDelvers = normalizeList(args.delver)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => ({ prompt: value, value: parseDelverSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
+  const parsedWardens = normalizeList(args.warden)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
+
+  if (
+    parsedRooms.length === 0
+    && parsedFloorTiles.length === 0
+    && parsedTraps.length === 0
+    && parsedDelvers.length === 0
+    && parsedWardens.length === 0
+  ) {
+    throw new Error(`${commandName} requires at least one authored object via --room, --floor-tile, --trap, --delver, or --warden.`);
+  }
+
+  const summary = {
+    goal: deriveGoalForAgentCommand({
+      action,
+      goal: args.goal,
+      objects: [
+        ...parsedRooms.map((entry) => ({ kind: "room" })),
+        ...parsedFloorTiles.map((entry) => ({ kind: "floor_tile" })),
+        ...parsedTraps.map((entry) => ({ kind: "trap" })),
+        ...parsedDelvers.map((entry) => ({ kind: "delver" })),
+        ...parsedWardens.map((entry) => ({ kind: "warden" })),
+      ],
+    }),
+    dungeonAffinity,
+    rooms: parsedRooms.map((entry) => entry.value),
+    actors: [...parsedDelvers.map((entry) => entry.value), ...parsedWardens.map((entry) => entry.value)],
+  };
+  if (budgetTokens !== undefined) {
+    summary.budgetTokens = budgetTokens;
+  }
+
+  const built = buildBuildSpecFromSummary({
+    summary,
+    runId,
+    createdAt,
+    source: `cli-${commandName}`,
+    budgetArtifact: budgetArtifact || undefined,
+    priceListArtifact: priceListArtifact || undefined,
+  });
+  if (!built.ok || !built.spec) {
+    throw new Error(`${commandName} build spec failed: ${built.errors.join("; ")}`);
+  }
+
+  const walkableTilesTarget = parsedFloorTiles.reduce((sum, entry) => sum + entry.value.count, 0);
+  const traps = parsedTraps.map((entry) => entry.value);
+  const levelGen = ensureAuthoringLevelGenCapacity(
+    built.spec.configurator?.inputs?.levelGen || {},
+    { walkableTilesTarget, traps },
+  );
+  if (walkableTilesTarget > 0) {
+    levelGen.walkableTilesTarget = walkableTilesTarget;
+  }
+  if (traps.length > 0) {
+    levelGen.traps = traps.map((entry) => ({
+      id: entry.id,
+      x: entry.x,
+      y: entry.y,
+      blocking: entry.blocking,
+      affinity: { ...entry.affinity },
+      vitals: entry.vitals ? { ...entry.vitals } : undefined,
+    }));
+  }
+  built.spec.configurator.inputs.levelGen = levelGen;
+
+  const sharedConfig = {
+    dungeonAffinity,
+    budgetTokens,
+    roomCount: parsedRooms.reduce((sum, entry) => sum + entry.value.count, 0) || undefined,
+  };
+  Object.keys(sharedConfig).forEach((key) => {
+    if (sharedConfig[key] === undefined) delete sharedConfig[key];
+  });
+
+  const objectRequests = [
+    ...parsedRooms.map((entry) => ({
+      kind: "room",
+      prompt: entry.prompt,
+      count: entry.value.count,
+      attributes: {
+        size: entry.value.size,
+        affinity: entry.value.affinity,
+        affinities: entry.value.affinities,
+      },
+    })),
+    ...parsedFloorTiles.map((entry) => ({
+      kind: "floor_tile",
+      prompt: entry.prompt,
+      count: entry.value.count,
+      id: entry.value.id,
+      attributes: {
+        count: entry.value.count,
+      },
+    })),
+    ...parsedTraps.map((entry) => ({
+      kind: "trap",
+      prompt: entry.prompt,
+      id: entry.value.id,
+      attributes: {
+        x: entry.value.x,
+        y: entry.value.y,
+        blocking: entry.value.blocking,
+        affinity: entry.value.affinity,
+        vitals: entry.value.vitals,
+      },
+    })),
+    ...parsedDelvers.map((entry) => ({
+      kind: "delver",
+      prompt: entry.prompt,
+      id: entry.value.id,
+      count: entry.value.count,
+      attributes: {
+        affinity: entry.value.affinity,
+        motivations: entry.value.motivations,
+        affinities: entry.value.affinities,
+        vitals: entry.value.vitals,
+        setupMode: entry.value.setupMode,
+      },
+    })),
+    ...parsedWardens.map((entry) => ({
+      kind: "warden",
+      prompt: entry.prompt,
+      id: entry.value.id,
+      count: entry.value.count,
+      attributes: {
+        affinity: entry.value.affinity,
+        motivations: entry.value.motivations,
+        affinities: entry.value.affinities,
+        vitals: entry.value.vitals,
+      },
+    })),
+  ];
+  if (Object.keys(sharedConfig).length > 0) {
+    objectRequests.push({
+      kind: "shared_config",
+      prompt: isNonEmptyString(args.text) ? args.text.trim() : `shared config for ${commandName}`,
+      attributes: { ...sharedConfig },
+    });
+  }
+
+  const requestArtifact = buildAgentCommandRequestArtifact({
+    action,
+    commandText: describeAgentCommandText({ action, text: args.text, objects: objectRequests }),
+    runId,
+    createdAt,
+    objectRequests,
+    sharedConfig,
+  });
+  built.spec.authoring = {
+    objectKinds: Array.from(new Set(objectRequests.map((entry) => entry.kind))),
+    request: requestArtifact,
+  };
+
+  const validation = validateBuildSpec(built.spec);
+  if (!validation.ok) {
+    throw new Error(`${commandName} build spec failed: ${validation.errors.join("; ")}`);
+  }
+
+  const buildResult = await orchestrateBuild({
+    spec: built.spec,
+    producedBy: `cli-${commandName}`,
+  });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
+
+  await writeBuildOutputs({
+    outDir,
+    spec: buildResult.spec,
+    buildResult,
+    requestArtifact,
+    commandName,
+    producedBy: `cli-${commandName}`,
+  });
+}
+
+async function createCommand(argv) {
+  await agentAuthoringCommand(argv, { commandName: "create", action: "author" });
+}
+
+async function configureAuthoringCommand(argv) {
+  await agentAuthoringCommand(argv, { commandName: "configure", action: "configure" });
 }
 
 async function roomPlanCommand(argv) {
@@ -1749,6 +2465,8 @@ const COMMANDS = {
   schemas: schemasCommand,
   solve: solveCommand,
   run: runCommand,
+  create: createCommand,
+  configure: configureAuthoringCommand,
   configurator: configuratorCommand,
   budget: budgetCommand,
   replay: replayCommand,

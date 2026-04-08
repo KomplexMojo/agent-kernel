@@ -1,6 +1,7 @@
 import { VITAL_KEYS } from "../../runtime/src/contracts/domain-constants.js";
 import { normalizeMotivationKindList } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
 import { calculateCardValue } from "./design-guidance.js";
+import { collectBuildSpecCardSet } from "./build-spec-ui.js";
 import { resolveIconHTML } from "./icon-resolver.js";
 
 const TYPE_ORDER = Object.freeze(["room", "attacker", "defender"]);
@@ -266,14 +267,7 @@ function normalizeCardTemplate(card, index, options = {}) {
 }
 
 function collectTemplateCards(spec) {
-  const fromConfigurator = Array.isArray(spec?.configurator?.inputs?.cardSet)
-    ? spec.configurator.inputs.cardSet
-    : null;
-  const fromPlanHints = Array.isArray(spec?.plan?.hints?.cardSet)
-    ? spec.plan.hints.cardSet
-    : null;
-  const source = fromConfigurator || fromPlanHints || [];
-  return source
+  return collectBuildSpecCardSet(spec)
     .map((card, index) => normalizeCardTemplate(card, index, {
       priceList: spec?.budget?.priceList,
       tileCosts: null,

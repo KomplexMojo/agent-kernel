@@ -1,0 +1,58 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_agent_authoring_missing_rule",
+    "runId": "run_build_agent_authoring_missing_rule",
+    "createdAt": "2026-04-08T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Incomplete authored request."
+  },
+  "authoring": {
+    "objectKinds": [
+      "room",
+      "trap"
+    ],
+    "request": {
+      "schema": "agent-kernel/AgentCommandRequestArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "agent_command_request_missing_rule",
+        "runId": "run_build_agent_authoring_missing_rule",
+        "createdAt": "2026-04-08T00:00:00.000Z",
+        "producedBy": "test"
+      },
+      "command": {
+        "action": "author",
+        "text": "Create a trapped room.",
+        "source": "cli-agent",
+        "taxonomyVersion": 1
+      },
+      "objects": [
+        {
+          "kind": "room",
+          "prompt": "one room"
+        },
+        {
+          "kind": "trap",
+          "prompt": "one fire trap"
+        }
+      ],
+      "compilation": {
+        "rules": [
+          {
+            "kind": "room",
+            "compileTo": [
+              {
+                "target": "build_spec_plan",
+                "path": "plan.hints.rooms"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

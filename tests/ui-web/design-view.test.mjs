@@ -1277,6 +1277,89 @@ test("wireDesignView can publish a preview spec from the blank editor state", as
   assert.equal(typeof published?.specText, "string");
 });
 
+test("wireDesignView hydrates editor cards from an agent-authored build spec", async () => {
+  const { root } = createRootElements();
+  const view = wireDesignView({
+    root,
+    commandHost: {
+      async buildSpecFromSummary(payload) {
+        return buildSpecFromSummaryViaCommandHost(payload);
+      },
+    },
+  });
+
+  const result = view.loadBuildSpec({
+    schema: "agent-kernel/BuildSpec",
+    schemaVersion: 1,
+    meta: {
+      id: "build_spec_agent_ui",
+      runId: "run_agent_ui",
+      createdAt: "2026-04-08T00:00:00.000Z",
+      source: "cli-agent",
+    },
+    intent: {
+      goal: "Load authored cards",
+      hints: {
+        budgetTokens: 5000,
+      },
+    },
+    plan: {
+      hints: {
+        cardSet: [
+          { id: "warden_alpha", type: "warden", count: 1, affinity: "earth", motivations: ["defending"] },
+        ],
+      },
+    },
+    configurator: {
+      inputs: {
+        cardSet: [
+          { id: "room_alpha", type: "room", count: 1, affinity: "fire", roomSize: "medium" },
+        ],
+      },
+    },
+    authoring: {
+      objectKinds: "room",
+      request: {
+        schema: "agent-kernel/AgentCommandRequestArtifact",
+        schemaVersion: 1,
+        meta: {
+          id: "agent_command_agent_ui",
+          runId: "run_agent_ui",
+          createdAt: "2026-04-08T00:00:00.000Z",
+          producedBy: "test",
+        },
+        command: {
+          action: "author",
+          text: "author a room and warden",
+          source: "ui-test",
+          taxonomyVersion: 1,
+        },
+        objects: {
+          kind: "room",
+          prompt: "one room",
+          count: 1,
+        },
+        compilation: {
+          rules: {
+            kind: "room",
+            compileTo: {
+              target: "build_spec_plan",
+              path: "plan.hints.cardSet",
+            },
+          },
+        },
+      },
+    },
+  }, { source: "agent bundle" });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.normalized, true);
+  const cards = view.getCards();
+  assert.equal(cards.length, 2);
+  assert.equal(cards.some((card) => card.type === "room"), true);
+  assert.equal(cards.some((card) => card.type === "warden"), true);
+});
+
 test("wireDesignView mints active card via blockchain rails and can load it back by token id", async () => {
   const { root, elements } = createRootElements();
   elements["#design-budget-split-room"].value = "0";

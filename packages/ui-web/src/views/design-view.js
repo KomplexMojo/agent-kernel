@@ -1,4 +1,5 @@
 import { createDesignCard, wireDesignGuidance } from "../design-guidance.js";
+import { extractDesignStateFromBuildSpec } from "../build-spec-ui.js";
 import { createCliWorkerAdapter } from "../../../adapters-web/src/adapters/cli-worker/index.js";
 
 export function wireDesignView({
@@ -194,6 +195,9 @@ export function wireDesignView({
     if (!summary) {
       return { ok: false, reason: "missing_summary", errors: ["Create at least one configured card first."] };
     }
+    if (typeof commandHost?.buildSpecFromSummary !== "function") {
+      return { ok: false, reason: "missing_command_host", errors: ["Build spec command is unavailable."] };
+    }
 
     const effectiveRunId = typeof runId === "string" && runId.trim()
       ? runId.trim()
@@ -266,6 +270,47 @@ export function wireDesignView({
     });
   }
 
+  function loadBuildSpec(specInput, { source = "bundle" } = {}) {
+    const {
+      spec,
+      changed,
+      cards,
+      budgetTokens,
+      budgetSplitPercent,
+    } = extractDesignStateFromBuildSpec(specInput);
+    if (!spec || typeof spec !== "object") {
+      setGuidanceMessage("Loaded build spec is invalid.", "error");
+      return { ok: false, reason: "invalid_spec" };
+    }
+    if (cards.length === 0) {
+      setGuidanceMessage("Loaded build spec has no editable card set.", "error");
+      return { ok: false, reason: "missing_card_set" };
+    }
+
+    if (Number.isFinite(budgetTokens)) {
+      guidance.setBudget?.(budgetTokens);
+    }
+    if (budgetSplitPercent) {
+      guidance.setBudgetSplit?.("room", budgetSplitPercent.room);
+      guidance.setBudgetSplit?.("delver", budgetSplitPercent.delver);
+      guidance.setBudgetSplit?.("warden", budgetSplitPercent.warden);
+    }
+
+    const applied = guidance.setCards(cards);
+    if (!applied) {
+      setGuidanceMessage("Loaded build spec could not be applied to the editor.", "error");
+      return { ok: false, reason: "apply_failed" };
+    }
+
+    refreshPreviewIdentity();
+    lastPublishedSpecText = "";
+    setGuidanceMessage(
+      `Loaded ${cards.length} authored card${cards.length === 1 ? "" : "s"} from ${source}${changed ? " (normalized for UI)." : "."}`,
+      "info",
+    );
+    return { ok: true, spec, cards, normalized: changed };
+  }
+
   void publishPreviewSpec();
 
   return {
@@ -284,6 +329,7 @@ export function wireDesignView({
     setBudgetSplit: guidance.setBudgetSplit,
     autoGenerateCards: guidance.autoGenerateCards,
     generateAiConfiguration: guidance.generateAiConfiguration,
+    loadBuildSpec,
     publishPreviewSpec,
     getActiveCard: guidance.getActiveCard,
     getSummary: guidance.getSummary,
