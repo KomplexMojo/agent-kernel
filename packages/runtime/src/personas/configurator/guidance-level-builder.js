@@ -24,6 +24,7 @@ const AFFINITY_ASCII_GLYPHS = Object.freeze({
   dark: "k",
 });
 const AFFINITY_RENDER_ORDER = Object.freeze(Object.keys(AFFINITY_COLOR_HEX));
+export const LEVEL_PREVIEW_IMAGE_PIXEL_FORMAT = "rgba8";
 
 function isPositiveInt(value) {
   return Number.isInteger(value) && value > 0;
@@ -344,6 +345,7 @@ function buildImageArtifact(lines = [], { palette = null, floorAffinityByCell = 
     width: normalized.width,
     height: normalized.height,
     palette: resolvedPalette,
+    pixelFormat: LEVEL_PREVIEW_IMAGE_PIXEL_FORMAT,
     pixels,
   };
 }

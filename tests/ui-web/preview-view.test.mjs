@@ -7,6 +7,7 @@ function makeElement() {
   return {
     textContent: "",
     dataset: {},
+    hidden: false,
     addEventListener(type, handler) {
       handlers.set(type, handler);
     },
@@ -16,9 +17,38 @@ function makeElement() {
   };
 }
 
+function makeCanvas() {
+  const context = {
+    imageData: null,
+    createImageData(width, height) {
+      return {
+        width,
+        height,
+        data: new Uint8ClampedArray(width * height * 4),
+      };
+    },
+    putImageData(imageData) {
+      this.imageData = imageData;
+    },
+    clearRect() {
+      this.imageData = null;
+    },
+  };
+  return {
+    hidden: true,
+    width: 0,
+    height: 0,
+    getContext() {
+      return context;
+    },
+    _context: context,
+  };
+}
+
 function createRoot() {
   const elements = {
     "#preview-build-and-load": makeElement(),
+    "#preview-render-canvas": makeCanvas(),
     "#preview-frame-buffer": makeElement(),
     "#preview-status": makeElement(),
     "#preview-summary": makeElement(),
@@ -118,6 +148,19 @@ test("preview view renders bundle-backed frame and actor summaries", async () =>
   const { root, elements } = createRoot();
   const view = wirePreviewView({
     root,
+    levelBuilderAdapter: {
+      async buildFromTiles() {
+        return {
+          ok: true,
+          image: {
+            width: 5,
+            height: 4,
+            pixelFormat: "rgba8",
+            pixels: new Uint8ClampedArray(5 * 4 * 4).fill(120),
+          },
+        };
+      },
+    },
     loadCoreFn: async () => ({
       init(seed) {
         this.seed = seed;
@@ -145,6 +188,10 @@ test("preview view renders bundle-backed frame and actor summaries", async () =>
 
   const loaded = await view.loadBundle(createBundle(), { source: "design-build" });
   assert.equal(loaded, true);
+  assert.equal(elements["#preview-render-canvas"].hidden, false);
+  assert.equal(elements["#preview-frame-buffer"].hidden, true);
+  assert.equal(elements["#preview-render-canvas"].width, 5);
+  assert.equal(elements["#preview-render-canvas"].height, 4);
   assert.match(elements["#preview-frame-buffer"].textContent, /#@\.\.#/);
   assert.match(elements["#preview-summary"].textContent, /Map 5x4/);
   assert.match(elements["#preview-summary"].textContent, /Rooms 1/);
@@ -200,6 +247,11 @@ test("preview view falls back to layout-only rendering when the bundle has no ac
   const { root, elements } = createRoot();
   const view = wirePreviewView({
     root,
+    levelBuilderAdapter: {
+      async buildFromTiles() {
+        return { ok: true, image: null };
+      },
+    },
     loadCoreFn: async () => ({ init() {} }),
     applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
     renderBase: () => ["#####", "#...#", "#...#", "#####"],
@@ -207,6 +259,8 @@ test("preview view falls back to layout-only rendering when the bundle has no ac
 
   const loaded = await view.loadBundle(createBundle({ actors: [] }), { source: "snapshot" });
   assert.equal(loaded, true);
+  assert.equal(elements["#preview-render-canvas"].hidden, true);
+  assert.equal(elements["#preview-frame-buffer"].hidden, false);
   assert.match(elements["#preview-frame-buffer"].textContent, /#\.\.\.#/);
   assert.equal(elements["#preview-actor-list"].textContent, "Layout-only preview (no actors in initial state).");
   assert.equal(elements["#preview-status"].textContent, "Layout preview loaded from snapshot.");
@@ -218,6 +272,8 @@ test("preview view clears when bundle data is removed", async () => {
 
   const cleared = await view.loadBundle(null);
   assert.equal(cleared, false);
+  assert.equal(elements["#preview-render-canvas"].hidden, true);
+  assert.equal(elements["#preview-frame-buffer"].hidden, false);
   assert.equal(elements["#preview-frame-buffer"].textContent, "No preview loaded.");
   assert.equal(elements["#preview-summary"].textContent, "No preview bundle loaded.");
   assert.equal(

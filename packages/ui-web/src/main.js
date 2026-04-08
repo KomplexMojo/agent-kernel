@@ -201,6 +201,7 @@ designView = wireDesignView({
 });
 
 globalThis.addEventListener?.("beforeunload", () => {
+  previewView?.dispose?.();
   simulationView?.dispose?.();
   commandHost.dispose?.();
 });
