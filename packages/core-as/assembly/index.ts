@@ -95,7 +95,7 @@ import {
   setMotivatedActorActionCostMana as setMotivatedActorActionCostManaState,
   setMotivatedActorActionCostStamina as setMotivatedActorActionCostStaminaState,
 } from "./state/world";
-import { applyMove, decodeMove, reachedExitAfterMove, setMoveAction as setMoveActionState } from "./rules/move";
+import { applyMove, decodeMove, MoveAction, reachedExitAfterMove, setMoveAction as setMoveActionState } from "./rules/move";
 import { ActionKind, ValidationError, validateAction, validateSeed } from "./validate/inputs";
 
 const DEFAULT_BUDGET_CATEGORY: i32 = 0;
@@ -137,55 +137,51 @@ function emitBudgetEffects(category: i32, spent: i32): void {
   }
 }
 
-export function applyAction(kind: i32, value: i32): void {
-  if (kind == ActionKind.Move) {
-    const move = decodeMove(value);
-    const moveError = applyMove(move);
-    if (moveError != ValidationError.None) {
-      if (moveError == ValidationError.BlockedByWall || moveError == ValidationError.ActorCollision) {
-        pushActorBlocked(move.actorId, move.toX, move.toY, moveError);
-        if (moveError == ValidationError.BlockedByWall && isBarrierTileState(move.toX, move.toY)) {
-          const delta = applyBarrierDurabilityDamageState(move.toX, move.toY, DURABILITY_DAMAGE);
-          const tileActorId = getTileActorIdState(move.toX, move.toY);
-          pushDurabilityChanged(tileActorId, delta);
-        }
-        return;
+function handleMoveAction(move: MoveAction): void {
+  const moveError = applyMove(move);
+  if (moveError != ValidationError.None) {
+    if (moveError == ValidationError.BlockedByWall || moveError == ValidationError.ActorCollision) {
+      pushActorBlocked(move.actorId, move.toX, move.toY, moveError);
+      if (moveError == ValidationError.BlockedByWall && isBarrierTileState(move.toX, move.toY)) {
+        const delta = applyBarrierDurabilityDamageState(move.toX, move.toY, DURABILITY_DAMAGE);
+        const tileActorId = getTileActorIdState(move.toX, move.toY);
+        pushDurabilityChanged(tileActorId, delta);
       }
-      pushEffect(EffectKind.ActionRejected, moveError);
       return;
     }
-    pushActorMoved(move.actorId, move.toX, move.toY);
-    if (reachedExitAfterMove()) {
-      pushEffect(EffectKind.LimitReached, move.tick);
-    }
+    pushEffect(EffectKind.ActionRejected, moveError);
     return;
   }
-
-  const actionError = validateAction(kind, value);
-  if (actionError != ValidationError.None) {
-    pushEffect(EffectKind.ActionRejected, actionError);
-    return;
+  pushActorMoved(move.actorId, move.toX, move.toY);
+  if (reachedExitAfterMove()) {
+    pushEffect(EffectKind.LimitReached, move.tick);
   }
+}
 
-  if (kind == ActionKind.FulfillRequest || kind == ActionKind.DeferRequest) {
-    const pending = getPendingRequest();
-    if (pending == 0) {
-      pushEffect(EffectKind.ActionRejected, ValidationError.MissingPendingRequest);
-      return;
-    }
-    if (pending != value) {
-      pushEffect(EffectKind.ActionRejected, ValidationError.InvalidActionValue);
-      return;
-    }
+function validatePendingRequestAction(kind: i32, value: i32): ValidationError {
+  if (kind != ActionKind.FulfillRequest && kind != ActionKind.DeferRequest) {
+    return ValidationError.None;
   }
+  const pending = getPendingRequest();
+  if (pending == 0) {
+    return ValidationError.MissingPendingRequest;
+  }
+  if (pending != value) {
+    return ValidationError.InvalidActionValue;
+  }
+  return ValidationError.None;
+}
 
+function chargeBudgetForAction(kind: i32): void {
   const budgetCategory = kind == ActionKind.RequestExternalFact || kind == ActionKind.RequestSolver
     ? EFFECT_BUDGET_CATEGORY
     : DEFAULT_BUDGET_CATEGORY;
   const budgetCost = kind == ActionKind.RequestSolver ? 2 : 1;
   const nextSpent = chargeBudget(budgetCategory, budgetCost);
   emitBudgetEffects(budgetCategory, nextSpent);
+}
 
+function dispatchNonMoveAction(kind: i32, value: i32): void {
   if (kind == ActionKind.IncrementCounter) {
     const nextValue = incrementCounter(value);
     pushEffect(EffectKind.Log, nextValue);
@@ -227,6 +223,29 @@ export function applyAction(kind: i32, value: i32): void {
     clearPendingRequest();
     pushEffect(EffectKind.EffectDeferred, value);
   }
+}
+
+export function applyAction(kind: i32, value: i32): void {
+  if (kind == ActionKind.Move) {
+    const move = decodeMove(value);
+    handleMoveAction(move);
+    return;
+  }
+
+  const actionError = validateAction(kind, value);
+  if (actionError != ValidationError.None) {
+    pushEffect(EffectKind.ActionRejected, actionError);
+    return;
+  }
+
+  const pendingRequestError = validatePendingRequestAction(kind, value);
+  if (pendingRequestError != ValidationError.None) {
+    pushEffect(EffectKind.ActionRejected, pendingRequestError);
+    return;
+  }
+
+  chargeBudgetForAction(kind);
+  dispatchNonMoveAction(kind, value);
 }
 
 export function getCounter(): i32 {
