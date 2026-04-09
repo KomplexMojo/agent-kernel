@@ -1,0 +1,54 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_agent_authoring_invalid",
+    "runId": "run_build_agent_authoring_invalid",
+    "createdAt": "2026-04-08T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Invalid authored object kind."
+  },
+  "authoring": {
+    "objectKinds": [
+      "room",
+      "boss"
+    ],
+    "request": {
+      "schema": "agent-kernel/AgentCommandRequestArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "agent_command_request_invalid_kind",
+        "runId": "run_build_agent_authoring_invalid",
+        "createdAt": "2026-04-08T00:00:00.000Z",
+        "producedBy": "test"
+      },
+      "command": {
+        "action": "author",
+        "text": "Create one boss room.",
+        "source": "cli-agent",
+        "taxonomyVersion": 1
+      },
+      "objects": [
+        {
+          "kind": "boss",
+          "prompt": "one boss room"
+        }
+      ],
+      "compilation": {
+        "rules": [
+          {
+            "kind": "boss",
+            "compileTo": [
+              {
+                "target": "build_spec_plan",
+                "path": "plan.hints.cardSet"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

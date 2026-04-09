@@ -7,6 +7,8 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const BUDGET = resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json");
+const PRICE_LIST = resolve(ROOT, "tests/fixtures/artifacts/price-list-artifact-v1-basic.json");
 
 function runCli(args) {
   return spawnSync(process.execPath, [CLI, ...args], {
@@ -37,7 +39,7 @@ test("cli help documents generic create and configure authoring commands", () =>
   assert.match(result.stdout, /--trap/);
 });
 
-test("cli create authors a multi-object scene and writes an agent request artifact", () => {
+test("cli create emits a complete playable artifact bundle for agent requests", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-authoring-"));
   runCliOk([
     "create",
@@ -57,19 +59,35 @@ test("cli create authors a multi-object scene and writes an agent request artifa
     "run_create_authoring",
     "--created-at",
     "2026-04-08T00:00:00.000Z",
+    "--budget",
+    BUDGET,
+    "--price-list",
+    PRICE_LIST,
     "--out-dir",
     outDir,
   ]);
 
   assert.equal(existsSync(join(outDir, "request.json")), true);
   assert.equal(existsSync(join(outDir, "spec.json")), true);
+  assert.equal(existsSync(join(outDir, "intent.json")), true);
+  assert.equal(existsSync(join(outDir, "plan.json")), true);
+  assert.equal(existsSync(join(outDir, "budget.json")), true);
+  assert.equal(existsSync(join(outDir, "price-list.json")), true);
+  assert.equal(existsSync(join(outDir, "budget-receipt.json")), true);
+  assert.equal(existsSync(join(outDir, "spend-proposal.json")), true);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
+  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
+  assert.equal(existsSync(join(outDir, "bundle.json")), true);
+  assert.equal(existsSync(join(outDir, "manifest.json")), true);
+  assert.equal(existsSync(join(outDir, "telemetry.json")), true);
 
   const request = readJson(join(outDir, "request.json"));
   const spec = readJson(join(outDir, "spec.json"));
   const simConfig = readJson(join(outDir, "sim-config.json"));
+  const bundle = readJson(join(outDir, "bundle.json"));
   const manifest = readJson(join(outDir, "manifest.json"));
+  const telemetry = readJson(join(outDir, "telemetry.json"));
 
   assert.equal(request.schema, "agent-kernel/AgentCommandRequestArtifact");
   assert.equal(request.command.action, "author");
@@ -93,6 +111,18 @@ test("cli create authors a multi-object scene and writes an agent request artifa
     && entry.affinity?.stacks === 2
   )));
   assert.ok(manifest.artifacts.some((entry) => entry.path === "request.json" && entry.schema === "agent-kernel/AgentCommandRequestArtifact"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "spend-proposal.json" && entry.schema === "agent-kernel/SpendProposal"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
+  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/SpendProposal"));
+  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"));
+  assert.deepEqual(
+    telemetry.data.artifactRefs,
+    manifest.artifacts.map((entry) => ({
+      id: entry.id,
+      schema: entry.schema,
+      schemaVersion: entry.schemaVersion,
+    })),
+  );
 });
 
 test("cli configure preserves generic parsing but records configure action", () => {

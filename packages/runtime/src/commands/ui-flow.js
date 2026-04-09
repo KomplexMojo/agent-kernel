@@ -20,6 +20,14 @@ function normalizeArrayField(container, key) {
   return { changed: false };
 }
 
+function normalizeRepeatableField(container, key) {
+  if (!container || typeof container !== "object") return { changed: false };
+  const value = container[key];
+  if (value === undefined || Array.isArray(value)) return { changed: false };
+  container[key] = [value];
+  return { changed: true };
+}
+
 function normalizeAgentHints(hints) {
   if (!hints || typeof hints !== "object" || Array.isArray(hints)) return { changed: false };
   let changed = false;
@@ -62,6 +70,20 @@ export function normalizeBuildSpecForUi(specInput) {
   }
   if (spec.configurator?.inputs) {
     if (normalizeAgentHints(spec.configurator.inputs).changed) changed = true;
+  }
+  if (spec.authoring && typeof spec.authoring === "object" && !Array.isArray(spec.authoring)) {
+    if (normalizeRepeatableField(spec.authoring, "objectKinds").changed) changed = true;
+    const request = spec.authoring.request;
+    if (request && typeof request === "object" && !Array.isArray(request)) {
+      if (normalizeArrayField(request, "objects").changed) changed = true;
+      if (request.compilation && typeof request.compilation === "object" && !Array.isArray(request.compilation)) {
+        if (normalizeArrayField(request.compilation, "rules").changed) changed = true;
+        const rules = Array.isArray(request.compilation.rules) ? request.compilation.rules : [];
+        rules.forEach((rule) => {
+          if (normalizeArrayField(rule, "compileTo").changed) changed = true;
+        });
+      }
+    }
   }
 
   if (spec.budget && typeof spec.budget === "object" && !Array.isArray(spec.budget)) {

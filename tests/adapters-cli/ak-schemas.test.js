@@ -32,6 +32,7 @@ test("cli schemas prints catalog to stdout", () => {
   assertSortedSchemas(catalog);
 
   const names = catalog.schemas.map((entry) => entry.schema);
+  assert.ok(names.includes("agent-kernel/AgentCommandRequestArtifact"));
   assert.ok(names.includes("agent-kernel/BuildSpec"));
   assert.ok(names.includes("agent-kernel/IntentEnvelope"));
   assert.ok(names.includes("agent-kernel/SimConfigArtifact"));

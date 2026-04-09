@@ -92,6 +92,105 @@ export interface CapturedInputArtifactV1 {
 export type CapturedInputArtifact = CapturedInputArtifactV1;
 
 // -------------------------
+// Agent authoring contract
+// -------------------------
+
+export const AGENT_COMMAND_REQUEST_SCHEMA = "agent-kernel/AgentCommandRequestArtifact";
+
+export type AgentCommandAction = "author" | "configure";
+export type AgentCommandObjectKind =
+  | "room"
+  | "floor_tile"
+  | "trap"
+  | "delver"
+  | "warden"
+  | "shared_config";
+export type AgentCommandCompileTarget =
+  | "build_spec_intent"
+  | "build_spec_plan"
+  | "build_spec_configurator"
+  | "artifact_extension";
+
+export interface AgentCommandObjectRequestV1 {
+  /** Canonical authored object kind. */
+  kind: AgentCommandObjectKind;
+  /** Original text span or normalized object prompt for this authored object. */
+  prompt: string;
+  /** Optional stable id for updates/reconfiguration flows. */
+  id?: string;
+  /** Optional object multiplicity for additive authoring. */
+  count?: number;
+  /** Optional object-specific structured attributes. */
+  attributes?: Record<string, unknown>;
+}
+
+export interface AgentCommandCompilationRouteV1 {
+  /** Downstream compilation target for this object kind. */
+  target: AgentCommandCompileTarget;
+  /** Dot path in BuildSpec/configurator payloads when target is build_spec_* . */
+  path?: string;
+  /** Schema name for additive artifacts when target is artifact_extension. */
+  artifactSchema?: string;
+  /** Existing additive flow that already satisfies this route. */
+  legacyFlow?: string;
+}
+
+export interface AgentCommandCompilationRuleV1 {
+  /** Authored object kind governed by this rule. */
+  kind: AgentCommandObjectKind;
+  /** Ordered compilation routes for this kind. */
+  compileTo: AgentCommandCompilationRouteV1[];
+  /** Optional implementor notes for later parser/mapper work. */
+  notes?: string[];
+}
+
+export interface AgentCommandSharedConfigV1 extends Record<string, unknown> {
+  dungeonAffinity?: string;
+  budgetTokens?: number;
+  levelSize?: string;
+  roomCount?: number;
+}
+
+export interface AgentCommandCompatibilityV1 {
+  /** Contract is additive and must preserve existing direct commands. */
+  preserveExistingCommands?: boolean;
+  /** Existing commands/flows that remain supported during rollout. */
+  supportedLegacyFlows?: string[];
+  /** Optional notes for migration/backward compatibility. */
+  notes?: string[];
+}
+
+export interface AgentCommandRequestArtifactV1 {
+  schema: typeof AGENT_COMMAND_REQUEST_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  /** Canonical agent-originated authoring command. */
+  command: {
+    action: AgentCommandAction;
+    text: string;
+    source: string;
+    taxonomyVersion: 1;
+  };
+
+  /** Normalized authored objects extracted from the command text. */
+  objects: AgentCommandObjectRequestV1[];
+
+  /** Optional shared configuration that applies across authored objects. */
+  sharedConfig?: AgentCommandSharedConfigV1;
+
+  /** Explicit compilation mapping for each authored object kind. */
+  compilation: {
+    rules: AgentCommandCompilationRuleV1[];
+  };
+
+  /** Explicit backward compatibility expectations for current flows. */
+  compatibility?: AgentCommandCompatibilityV1;
+}
+
+export type AgentCommandRequestArtifact = AgentCommandRequestArtifactV1;
+
+// -------------------------
 // Build spec intake (CLI/UI)
 // -------------------------
 
@@ -155,6 +254,15 @@ export interface BuildSpecAgentHintsV1 extends Record<string, unknown> {
   actorGroups?: BuildSpecActorGroupHintV1[];
 }
 
+export interface BuildSpecAuthoringV1 {
+  /** Optional reference to the canonical agent command request. */
+  requestRef?: ArtifactRef;
+  /** Optional inline request for self-contained build specs. */
+  request?: AgentCommandRequestArtifact;
+  /** Canonical object kinds represented by this spec. */
+  objectKinds?: AgentCommandObjectKind[];
+}
+
 /**
  * Agent-facing build spec that feeds the CLI/UI.
  * The agent translates informal prompts into this structured format.
@@ -180,6 +288,9 @@ export interface BuildSpecV1 {
   configurator?: {
     inputs?: BuildSpecAgentHintsV1;
   };
+
+  /** Optional normalized authoring provenance for agent-authored requests. */
+  authoring?: BuildSpecAuthoringV1;
 
   /** Optional budget inputs (refs or inline artifacts). */
   budget?: {

@@ -47,3 +47,27 @@ test("build spec validation rejects non-object configurator inputs", async () =>
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /configurator\.inputs/);
 });
+
+test("build spec validation accepts agent authoring contract metadata", async () => {
+  const { validateBuildSpec } = await loadValidator();
+  const spec = readFixture("build-spec-v1-agent-authoring.json");
+  const result = validateBuildSpec(spec);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+});
+
+test("build spec validation rejects invalid agent authoring object kind", async () => {
+  const { validateBuildSpec } = await loadValidator();
+  const spec = readFixture("invalid/build-spec-v1-agent-authoring-invalid-kind.json");
+  const result = validateBuildSpec(spec);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /authoring\.request\.objects\[0\]\.kind/);
+});
+
+test("build spec validation rejects incomplete agent authoring compilation rules", async () => {
+  const { validateBuildSpec } = await loadValidator();
+  const spec = readFixture("invalid/build-spec-v1-agent-authoring-missing-compilation-rule.json");
+  const result = validateBuildSpec(spec);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /missing compilation rule for trap/);
+});

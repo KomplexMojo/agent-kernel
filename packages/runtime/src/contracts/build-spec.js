@@ -1,9 +1,25 @@
 export const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
 export const BUILD_SPEC_SCHEMA_VERSION = 1;
+export const AGENT_COMMAND_REQUEST_SCHEMA = "agent-kernel/AgentCommandRequestArtifact";
 
 const BUDGET_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 const BUDGET_RECEIPT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
+const AGENT_COMMAND_ACTIONS = new Set(["author", "configure"]);
+const AGENT_COMMAND_OBJECT_KINDS = new Set([
+  "room",
+  "floor_tile",
+  "trap",
+  "delver",
+  "warden",
+  "shared_config",
+]);
+const AGENT_COMMAND_COMPILE_TARGETS = new Set([
+  "build_spec_intent",
+  "build_spec_plan",
+  "build_spec_configurator",
+  "artifact_extension",
+]);
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -61,6 +77,15 @@ function validateOptionalNumber(value, path, errors) {
   }
   if (!Number.isFinite(value)) {
     addError(errors, path, "expected number");
+  }
+}
+
+function validateOptionalBoolean(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value !== "boolean") {
+    addError(errors, path, "expected boolean");
   }
 }
 
@@ -152,6 +177,218 @@ function validateAgentHints(value, path, errors) {
   validateActorGroupHints(value.actorGroups, `${path}.actorGroups`, errors);
 }
 
+function validateArtifactMeta(value, path, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (!isNonEmptyString(value.id)) {
+    addError(errors, `${path}.id`, "expected non-empty string");
+  }
+  if (!isNonEmptyString(value.runId)) {
+    addError(errors, `${path}.runId`, "expected non-empty string");
+  }
+  if (!isNonEmptyString(value.createdAt)) {
+    addError(errors, `${path}.createdAt`, "expected non-empty string");
+  }
+  if (!isNonEmptyString(value.producedBy)) {
+    addError(errors, `${path}.producedBy`, "expected non-empty string");
+  }
+}
+
+function validateAgentCommandObjectKind(value, path, errors) {
+  if (!isNonEmptyString(value) || !AGENT_COMMAND_OBJECT_KINDS.has(value)) {
+    addError(
+      errors,
+      path,
+      `expected one of ${Array.from(AGENT_COMMAND_OBJECT_KINDS).join(", ")}`,
+    );
+  }
+}
+
+function validateAgentCommandObject(value, path, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  validateAgentCommandObjectKind(value.kind, `${path}.kind`, errors);
+  if (!isNonEmptyString(value.prompt)) {
+    addError(errors, `${path}.prompt`, "expected non-empty string");
+  }
+  validateOptionalString(value.id, `${path}.id`, errors);
+  validateOptionalNumber(value.count, `${path}.count`, errors);
+  if (value.attributes !== undefined && !isObject(value.attributes)) {
+    addError(errors, `${path}.attributes`, "expected object");
+  }
+}
+
+function validateAgentCommandRoute(value, path, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (!isNonEmptyString(value.target) || !AGENT_COMMAND_COMPILE_TARGETS.has(value.target)) {
+    addError(
+      errors,
+      `${path}.target`,
+      `expected one of ${Array.from(AGENT_COMMAND_COMPILE_TARGETS).join(", ")}`,
+    );
+  }
+  validateOptionalString(value.path, `${path}.path`, errors);
+  validateOptionalString(value.artifactSchema, `${path}.artifactSchema`, errors);
+  validateOptionalString(value.legacyFlow, `${path}.legacyFlow`, errors);
+  if (value.target === "artifact_extension" && !isNonEmptyString(value.artifactSchema)) {
+    addError(errors, `${path}.artifactSchema`, "expected non-empty string for artifact_extension");
+  }
+  if (value.target !== "artifact_extension" && value.path !== undefined && !isNonEmptyString(value.path)) {
+    addError(errors, `${path}.path`, "expected non-empty string");
+  }
+}
+
+function validateAgentCommandCompilation(value, path, errors, expectedKinds = []) {
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (!Array.isArray(value.rules) || value.rules.length === 0) {
+    addError(errors, `${path}.rules`, "expected non-empty array");
+    return;
+  }
+  const seenKinds = new Set();
+  value.rules.forEach((rule, index) => {
+    const basePath = `${path}.rules[${index}]`;
+    if (!isObject(rule)) {
+      addError(errors, basePath, "expected object");
+      return;
+    }
+    validateAgentCommandObjectKind(rule.kind, `${basePath}.kind`, errors);
+    if (!Array.isArray(rule.compileTo) || rule.compileTo.length === 0) {
+      addError(errors, `${basePath}.compileTo`, "expected non-empty array");
+    } else {
+      rule.compileTo.forEach((route, routeIndex) => {
+        validateAgentCommandRoute(route, `${basePath}.compileTo[${routeIndex}]`, errors);
+      });
+    }
+    validateStringArray(rule.notes, `${basePath}.notes`, errors);
+    if (isNonEmptyString(rule.kind)) {
+      seenKinds.add(rule.kind);
+    }
+  });
+  expectedKinds.forEach((kind) => {
+    if (!seenKinds.has(kind)) {
+      addError(errors, `${path}.rules`, `missing compilation rule for ${kind}`);
+    }
+  });
+}
+
+function validateAgentCommandSharedConfig(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  validateOptionalString(value.dungeonAffinity, `${path}.dungeonAffinity`, errors);
+  validateOptionalNumber(value.budgetTokens, `${path}.budgetTokens`, errors);
+  validateOptionalString(value.levelSize, `${path}.levelSize`, errors);
+  validateOptionalNumber(value.roomCount, `${path}.roomCount`, errors);
+}
+
+function validateAgentCommandCompatibility(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  validateOptionalBoolean(value.preserveExistingCommands, `${path}.preserveExistingCommands`, errors);
+  validateStringArray(value.supportedLegacyFlows, `${path}.supportedLegacyFlows`, errors);
+  validateStringArray(value.notes, `${path}.notes`, errors);
+}
+
+export function validateAgentCommandRequest(request, path = "agentCommandRequest") {
+  const errors = [];
+  if (!isObject(request)) {
+    return { ok: false, errors: [`${path}: expected object`] };
+  }
+  if (request.schema !== AGENT_COMMAND_REQUEST_SCHEMA) {
+    addError(errors, `${path}.schema`, `expected ${AGENT_COMMAND_REQUEST_SCHEMA}`);
+  }
+  if (request.schemaVersion !== 1) {
+    addError(errors, `${path}.schemaVersion`, "expected 1");
+  }
+  validateArtifactMeta(request.meta, `${path}.meta`, errors);
+
+  if (!isObject(request.command)) {
+    addError(errors, `${path}.command`, "expected object");
+  } else {
+    if (!isNonEmptyString(request.command.action) || !AGENT_COMMAND_ACTIONS.has(request.command.action)) {
+      addError(errors, `${path}.command.action`, `expected one of ${Array.from(AGENT_COMMAND_ACTIONS).join(", ")}`);
+    }
+    if (!isNonEmptyString(request.command.text)) {
+      addError(errors, `${path}.command.text`, "expected non-empty string");
+    }
+    if (!isNonEmptyString(request.command.source)) {
+      addError(errors, `${path}.command.source`, "expected non-empty string");
+    }
+    if (request.command.taxonomyVersion !== 1) {
+      addError(errors, `${path}.command.taxonomyVersion`, "expected 1");
+    }
+  }
+
+  if (!Array.isArray(request.objects) || request.objects.length === 0) {
+    addError(errors, `${path}.objects`, "expected non-empty array");
+  } else {
+    request.objects.forEach((entry, index) => {
+      validateAgentCommandObject(entry, `${path}.objects[${index}]`, errors);
+    });
+  }
+
+  validateAgentCommandSharedConfig(request.sharedConfig, `${path}.sharedConfig`, errors);
+  validateAgentCommandCompatibility(request.compatibility, `${path}.compatibility`, errors);
+
+  const expectedKinds = Array.isArray(request.objects)
+    ? Array.from(
+      new Set(
+        request.objects
+          .map((entry) => entry?.kind)
+          .filter((kind) => isNonEmptyString(kind)),
+      ),
+    )
+    : [];
+  validateAgentCommandCompilation(request.compilation, `${path}.compilation`, errors, expectedKinds);
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateBuildSpecAuthoring(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (value.requestRef !== undefined) {
+    validateArtifactRef(value.requestRef, `${path}.requestRef`, errors);
+  }
+  if (value.request !== undefined) {
+    const result = validateAgentCommandRequest(value.request, `${path}.request`);
+    errors.push(...result.errors);
+  }
+  if (value.objectKinds !== undefined) {
+    if (!Array.isArray(value.objectKinds) || value.objectKinds.length === 0) {
+      addError(errors, `${path}.objectKinds`, "expected non-empty array");
+    } else {
+      value.objectKinds.forEach((kind, index) => {
+        validateAgentCommandObjectKind(kind, `${path}.objectKinds[${index}]`, errors);
+      });
+    }
+  }
+}
+
 export function validateBuildSpec(spec) {
   const errors = [];
 
@@ -215,6 +452,8 @@ export function validateBuildSpec(spec) {
       validateAgentHints(spec.configurator.inputs, "configurator.inputs", errors);
     }
   }
+
+  validateBuildSpecAuthoring(spec.authoring, "authoring", errors);
 
   if (spec.budget !== undefined) {
     if (!isObject(spec.budget)) {
