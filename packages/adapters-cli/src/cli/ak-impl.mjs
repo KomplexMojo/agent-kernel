@@ -828,6 +828,28 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function sanitizeFileSegment(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "capture";
+}
+
+function sanitizeFileName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "capture";
+}
+
+function buildCapturedInputPath(adapter, index, outputRefId) {
+  if (isNonEmptyString(outputRefId)) {
+    return `${sanitizeFileName(outputRefId)}.json`;
+  }
+  return `captured-input-${sanitizeFileSegment(adapter)}-${index + 1}.json`;
+}
+
 function makeId(prefix) {
   const rand = Math.random().toString(36).slice(2, 8);
   return `${prefix}_${Date.now().toString(36)}_${rand}`;
@@ -1272,6 +1294,9 @@ async function writeBuildOutputs({
   if (buildResult.budgetReceipt) {
     await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
   }
+  if (buildResult.spendProposal) {
+    await writeJson(join(outDir, "spend-proposal.json"), buildResult.spendProposal);
+  }
   if (buildResult.solverRequest) {
     await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
   }
@@ -1284,6 +1309,24 @@ async function writeBuildOutputs({
   if (buildResult.initialState) {
     await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
   }
+  if (buildResult.affinitySummary) {
+    await writeJson(join(outDir, "affinity-summary.json"), buildResult.affinitySummary);
+  }
+  if (buildResult.resourceBundle) {
+    await writeJson(join(outDir, "resource-bundle.json"), buildResult.resourceBundle);
+  }
+
+  const capturedInputs = Array.isArray(buildResult.capturedInputs) ? buildResult.capturedInputs : [];
+  const capturedArtifacts = capturedInputs.map((entry, index) => {
+    const artifact = entry?.artifact || entry;
+    return {
+      artifact,
+      path: entry?.path || buildCapturedInputPath(artifact?.source?.adapter || "llm", index, artifact?.meta?.id),
+    };
+  });
+  for (const capture of capturedArtifacts) {
+    await writeJson(join(outDir, capture.path), capture.artifact);
+  }
 
   const bundleArtifacts = [requestArtifact];
   if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
@@ -1291,10 +1334,14 @@ async function writeBuildOutputs({
   if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
   if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
   if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
+  if (buildResult.spendProposal) bundleArtifacts.push(buildResult.spendProposal);
   if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
   if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
   if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
   if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
+  if (buildResult.affinitySummary) bundleArtifacts.push(buildResult.affinitySummary);
+  if (buildResult.resourceBundle) bundleArtifacts.push(buildResult.resourceBundle);
+  capturedArtifacts.forEach((capture) => bundleArtifacts.push(capture.artifact));
 
   bundleArtifacts.sort((a, b) => {
     if (a.schema === b.schema) {
@@ -1310,10 +1357,14 @@ async function writeBuildOutputs({
   addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
   addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
   addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
+  addManifestEntry(manifestEntries, buildResult.spendProposal, "spend-proposal.json");
   addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
   addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
   addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
   addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
+  addManifestEntry(manifestEntries, buildResult.affinitySummary, "affinity-summary.json");
+  addManifestEntry(manifestEntries, buildResult.resourceBundle, "resource-bundle.json");
+  capturedArtifacts.forEach((capture) => addManifestEntry(manifestEntries, capture.artifact, capture.path));
 
   manifestEntries.sort((a, b) => {
     if (a.schema === b.schema) {

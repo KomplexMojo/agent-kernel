@@ -1,0 +1,147 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_agent_authoring",
+    "runId": "run_build_agent_authoring",
+    "createdAt": "2026-04-08T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Author a playable fire room with one defending warden.",
+    "hints": {
+      "budgetTokens": 120,
+      "levelAffinity": "fire",
+      "roomCount": 1
+    }
+  },
+  "plan": {
+    "hints": {
+      "rooms": [
+        {
+          "affinity": "fire",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "configurator": {
+    "inputs": {
+      "levelAffinity": "fire",
+      "rooms": [
+        {
+          "affinity": "fire",
+          "trapAffinity": "fire"
+        }
+      ],
+      "actors": [
+        {
+          "role": "warden",
+          "count": 1,
+          "affinity": "fire",
+          "motivation": "defending"
+        }
+      ]
+    }
+  },
+  "authoring": {
+    "objectKinds": [
+      "room",
+      "warden",
+      "shared_config"
+    ],
+    "request": {
+      "schema": "agent-kernel/AgentCommandRequestArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "agent_command_request_basic",
+        "runId": "run_build_agent_authoring",
+        "createdAt": "2026-04-08T00:00:00.000Z",
+        "producedBy": "test"
+      },
+      "command": {
+        "action": "author",
+        "text": "Create a fire room with one defending warden and a small budget.",
+        "source": "cli-agent",
+        "taxonomyVersion": 1
+      },
+      "objects": [
+        {
+          "kind": "room",
+          "prompt": "one fire room",
+          "count": 1
+        },
+        {
+          "kind": "warden",
+          "prompt": "one defending warden",
+          "count": 1
+        },
+        {
+          "kind": "shared_config",
+          "prompt": "small affordable dungeon setup"
+        }
+      ],
+      "sharedConfig": {
+        "dungeonAffinity": "fire",
+        "budgetTokens": 120,
+        "roomCount": 1
+      },
+      "compilation": {
+        "rules": [
+          {
+            "kind": "room",
+            "compileTo": [
+              {
+                "target": "build_spec_plan",
+                "path": "plan.hints.rooms",
+                "legacyFlow": "room-plan"
+              },
+              {
+                "target": "build_spec_configurator",
+                "path": "configurator.inputs.cardSet",
+                "legacyFlow": "room-plan"
+              }
+            ]
+          },
+          {
+            "kind": "warden",
+            "compileTo": [
+              {
+                "target": "build_spec_plan",
+                "path": "plan.hints.cardSet",
+                "legacyFlow": "warden-plan"
+              },
+              {
+                "target": "build_spec_configurator",
+                "path": "configurator.inputs.actors",
+                "legacyFlow": "warden-plan"
+              }
+            ]
+          },
+          {
+            "kind": "shared_config",
+            "compileTo": [
+              {
+                "target": "build_spec_intent",
+                "path": "intent.hints"
+              },
+              {
+                "target": "build_spec_configurator",
+                "path": "configurator.inputs"
+              }
+            ]
+          }
+        ]
+      },
+      "compatibility": {
+        "preserveExistingCommands": true,
+        "supportedLegacyFlows": [
+          "room-plan",
+          "warden-plan",
+          "build",
+          "configurator"
+        ]
+      }
+    }
+  }
+}
