@@ -26,21 +26,26 @@ import { ValidationError } from "../validate/inputs";
 
 const STATIC_TRAP_EMIT_EXPRESSION: i32 = 3;
 const STACK_ONE_EMIT_POWER: i32 = 10;
+const INVALID_TRAP_TARGET_VITAL: i32 = -1;
+const TRAP_TARGET_VITAL_BY_AFFINITY: i32[] = [
+  INVALID_TRAP_TARGET_VITAL,
+  VitalKind.Health,
+  VitalKind.Health,
+  VitalKind.Stamina,
+  VitalKind.Stamina,
+  VitalKind.Health,
+  VitalKind.Health,
+  VitalKind.Durability,
+  VitalKind.Durability,
+  VitalKind.Mana,
+  VitalKind.Mana,
+];
 
 function resolveTrapTargetVital(affinityKind: i32): i32 {
-  if (affinityKind == 1 || affinityKind == 2 || affinityKind == 5 || affinityKind == 6) {
-    return VitalKind.Health;
+  if (affinityKind < 0 || affinityKind >= TRAP_TARGET_VITAL_BY_AFFINITY.length) {
+    return INVALID_TRAP_TARGET_VITAL;
   }
-  if (affinityKind == 3 || affinityKind == 4) {
-    return VitalKind.Stamina;
-  }
-  if (affinityKind == 9 || affinityKind == 10) {
-    return VitalKind.Mana;
-  }
-  if (affinityKind == 7 || affinityKind == 8) {
-    return VitalKind.Durability;
-  }
-  return -1;
+  return unchecked(TRAP_TARGET_VITAL_BY_AFFINITY[affinityKind]);
 }
 
 function computeTrapDamage(stacks: i32, manaReserve: i32): i32 {
@@ -123,7 +128,7 @@ function validateDirection(action: MoveAction): bool {
   return action.fromX + dx == action.toX && action.fromY + dy == action.toY;
 }
 
-export function applyMove(action: MoveAction): ValidationError {
+function validateMoveIdentityAndTiming(action: MoveAction): ValidationError {
   if (!hasActor()) {
     return ValidationError.WrongActor;
   }
@@ -136,6 +141,10 @@ export function applyMove(action: MoveAction): ValidationError {
   if (action.fromX != getActorX() || action.fromY != getActorY()) {
     return ValidationError.WrongPosition;
   }
+  return ValidationError.None;
+}
+
+function validateMoveGeometryAndDestination(action: MoveAction): ValidationError {
   const dx = action.toX - action.fromX;
   const dy = action.toY - action.fromY;
   const manhattan = abs(dx) + abs(dy);
@@ -154,10 +163,10 @@ export function applyMove(action: MoveAction): ValidationError {
   if (isMotivatedOccupied(action.toX, action.toY)) {
     return ValidationError.ActorCollision;
   }
-  const movementCost = getActorMovementCost();
-  if (movementCost < 0) {
-    return ValidationError.InvalidCapability;
-  }
+  return ValidationError.None;
+}
+
+function computeNextStaminaAfterRegen(_movementCost: i32): i32 {
   const staminaCurrent = getActorVitalCurrent(VitalKind.Stamina);
   const staminaMax = getActorVitalMax(VitalKind.Stamina);
   const staminaRegen = getActorVitalRegen(VitalKind.Stamina);
@@ -165,14 +174,41 @@ export function applyMove(action: MoveAction): ValidationError {
   if (staminaNext > staminaMax) {
     staminaNext = staminaMax;
   }
+  return staminaNext;
+}
+
+function applyTileEntryEffects(x: i32, y: i32): void {
+  applyStaticTrapDamageAt(x, y);
+}
+
+function commitMove(action: MoveAction, staminaRemaining: i32, staminaMax: i32, staminaRegen: i32): void {
+  advanceTick();
+  setActorVital(VitalKind.Stamina, staminaRemaining, staminaMax, staminaRegen);
+  setActorPosition(action.toX, action.toY);
+  applyTileEntryEffects(action.toX, action.toY);
+}
+
+export function applyMove(action: MoveAction): ValidationError {
+  let validation = validateMoveIdentityAndTiming(action);
+  if (validation != ValidationError.None) {
+    return validation;
+  }
+  validation = validateMoveGeometryAndDestination(action);
+  if (validation != ValidationError.None) {
+    return validation;
+  }
+  const movementCost = getActorMovementCost();
+  if (movementCost < 0) {
+    return ValidationError.InvalidCapability;
+  }
+  const staminaNext = computeNextStaminaAfterRegen(movementCost);
+  const staminaMax = getActorVitalMax(VitalKind.Stamina);
+  const staminaRegen = getActorVitalRegen(VitalKind.Stamina);
   if (staminaNext < movementCost) {
     return ValidationError.InsufficientStamina;
   }
-  advanceTick();
   const staminaRemaining = staminaNext - movementCost;
-  setActorVital(VitalKind.Stamina, staminaRemaining, staminaMax, staminaRegen);
-  setActorPosition(action.toX, action.toY);
-  applyStaticTrapDamageAt(action.toX, action.toY);
+  commitMove(action, staminaRemaining, staminaMax, staminaRegen);
   return ValidationError.None;
 }
 
