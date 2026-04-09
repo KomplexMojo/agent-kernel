@@ -615,15 +615,14 @@ function getPlacementY(index: i32): i32 {
   return actorY;
 }
 
-export function validateActorPlacement(): ValidationError {
-  const count = getPlacementCount();
-  if (count <= 0) {
-    return ValidationError.None;
-  }
+function validatePlacementCount(count: i32): ValidationError {
   if (placementActorOverflow || count > maxMotivatedActors) {
     return ValidationError.TooManyActors;
   }
+  return ValidationError.None;
+}
 
+function validatePlacementBounds(count: i32): ValidationError {
   for (let i = 0; i < count; i += 1) {
     const x = getPlacementX(i);
     const y = getPlacementY(i);
@@ -631,13 +630,19 @@ export function validateActorPlacement(): ValidationError {
       return ValidationError.ActorOutOfBounds;
     }
   }
+  return ValidationError.None;
+}
 
-  if (spawnX >= 0 && spawnY >= 0) {
+function validatePlacementSpawnMatch(count: i32): ValidationError {
+  if (count > 0 && spawnX >= 0 && spawnY >= 0) {
     if (getPlacementX(0) != spawnX || getPlacementY(0) != spawnY) {
       return ValidationError.ActorSpawnMismatch;
     }
   }
+  return ValidationError.None;
+}
 
+function validateAndPopulateMotivatedOccupancy(count: i32): ValidationError {
   clearMotivatedOccupancy();
   for (let i = 0; i < count; i += 1) {
     const x = getPlacementX(i);
@@ -651,8 +656,27 @@ export function validateActorPlacement(): ValidationError {
     }
     unchecked(motivatedOccupancyByCell[cellIndex] = i + 1);
   }
-
   return ValidationError.None;
+}
+
+export function validateActorPlacement(): ValidationError {
+  const count = getPlacementCount();
+  if (count <= 0) {
+    return ValidationError.None;
+  }
+  let error = validatePlacementCount(count);
+  if (error != ValidationError.None) {
+    return error;
+  }
+  error = validatePlacementBounds(count);
+  if (error != ValidationError.None) {
+    return error;
+  }
+  error = validatePlacementSpawnMatch(count);
+  if (error != ValidationError.None) {
+    return error;
+  }
+  return validateAndPopulateMotivatedOccupancy(count);
 }
 
 export function applyActorPlacements(): ValidationError {
