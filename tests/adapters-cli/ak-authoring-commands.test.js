@@ -30,6 +30,18 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function listCardSet(spec) {
+  return Array.isArray(spec?.plan?.hints?.cardSet) ? spec.plan.hints.cardSet : [];
+}
+
+function listRoomCards(spec) {
+  return listCardSet(spec).filter((entry) => entry?.type === "room");
+}
+
+function listDelverCards(spec) {
+  return listCardSet(spec).filter((entry) => entry?.type === "delver");
+}
+
 test("cli help documents generic create and configure authoring commands", () => {
   const result = runCli(["--help"]);
   assert.equal(result.status, 0);
@@ -37,6 +49,7 @@ test("cli help documents generic create and configure authoring commands", () =>
   assert.match(result.stdout, /\bconfigure\b/);
   assert.match(result.stdout, /--floor-tile/);
   assert.match(result.stdout, /--trap/);
+  assert.match(result.stdout, /goals=max_mana/);
 });
 
 test("cli create emits a complete playable artifact bundle for agent requests", () => {
@@ -44,7 +57,7 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   runCliOk([
     "create",
     "--text",
-    "Create a fire room with a trap, one delver, and one warden.",
+    "Create a fire room with a trap, one delver, and one warden. Total budget 1000 tokens.",
     "--room",
     "size=large;count=1;affinities=fire:emit:3",
     "--floor-tile",
@@ -52,9 +65,11 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
     "--trap",
     "id=trap_fire;x=2;y=2;affinity=fire;expression=push;stacks=2;blocking=false;vitals=mana:3:1,durability:4:0",
     "--delver",
-    "id=ember_delver;count=1;affinity=fire;motivation=attacking;setup-mode=user",
+    "id=ember_delver;count=1;affinity=fire;motivation=attacking;setup-mode=user;goals=max_mana:high,mana_regen:high",
     "--warden",
     "id=ember_warden;count=1;affinity=fire;motivation=defending",
+    "--budget-tokens",
+    "1000",
     "--run-id",
     "run_create_authoring",
     "--created-at",
@@ -91,13 +106,22 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
 
   assert.equal(request.schema, "agent-kernel/AgentCommandRequestArtifact");
   assert.equal(request.command.action, "author");
-  assert.equal(request.command.text, "Create a fire room with a trap, one delver, and one warden.");
+  assert.equal(request.command.text, "Create a fire room with a trap, one delver, and one warden. Total budget 1000 tokens.");
   assert.deepEqual(
     request.objects.map((entry) => entry.kind),
     ["room", "floor_tile", "trap", "delver", "warden", "shared_config"],
   );
 
   assert.deepEqual(spec.authoring.objectKinds, ["room", "floor_tile", "trap", "delver", "warden", "shared_config"]);
+  assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 1000);
+  assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag", "budget_artifact"]);
+  assert.equal(request.sharedConfig.optimizationGoals, undefined);
+  assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 1000);
+  assert.ok(spec.authoring.optimizationGoals.every((entry) => entry.kind !== "maximize_budget_spend"));
+  const delverRequest = request.objects.find((entry) => entry.kind === "delver");
+  assert.equal(delverRequest.optimizationGoals.length, 2);
+  assert.ok(delverRequest.optimizationGoals.some((entry) => entry.kind === "maximize_vital_max" && entry.vital === "mana"));
+  assert.ok(delverRequest.optimizationGoals.some((entry) => entry.kind === "maximize_vital_regen" && entry.vital === "mana"));
   assert.equal(spec.configurator.inputs.levelGen.walkableTilesTarget, 18);
   assert.equal(spec.configurator.inputs.levelGen.traps.length, 1);
   assert.equal(spec.configurator.inputs.levelGen.traps[0].id, "trap_fire");
@@ -158,4 +182,147 @@ test("cli create rejects invalid trap expressions deterministically", () => {
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /trap\[1\] expression must be one of/i);
+});
+
+test("cli create rejects conflicting hard budget inputs", () => {
+  const result = runCli([
+    "create",
+    "--text",
+    "Create one delver with budget 120 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens",
+    "100",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /hard budget inputs disagree/i);
+});
+
+test("cli create keeps budget-only input as a hard constraint without maximize-spend goal", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-budget-only-"));
+  runCliOk([
+    "create",
+    "--text",
+    "Create one delver with budget 100 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens",
+    "100",
+    "--run-id",
+    "run_create_budget_only",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const request = readJson(join(outDir, "request.json"));
+  const spec = readJson(join(outDir, "spec.json"));
+  assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 100);
+  assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag"]);
+  assert.equal(request.sharedConfig.optimizationGoals, undefined);
+  assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 100);
+  assert.equal(spec.authoring.optimizationGoals, undefined);
+});
+
+test("cli create maximizes delver spend deterministically when explicitly asked to maximize spend", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-delver-max-spend-"));
+  runCliOk([
+    "create",
+    "--text",
+    "Create one fire delver and maximize valid spend within a total budget of 200 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2;goals=max_mana,mana_regen",
+    "--budget-tokens",
+    "200",
+    "--run-id",
+    "run_create_delver_max_spend",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const delver = listDelverCards(spec)[0];
+  assert.ok(delver);
+  assert.ok(spec.authoring.optimizationGoals.some((entry) => entry.kind === "maximize_budget_spend"));
+  assert.ok(delver.vitals.mana.max >= 30);
+  assert.ok(delver.vitals.mana.regen >= 1);
+  assert.ok(delver.vitals.stamina.regen >= 1);
+});
+
+test("cli create preserves mixed room affinities while maximizing valid spend", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-room-max-spend-"));
+  runCliOk([
+    "create",
+    "--text",
+    "Create one room and maximize valid spend within a total budget of 400 tokens.",
+    "--room",
+    "affinities=dark:emit:2,water:emit:2",
+    "--budget-tokens",
+    "400",
+    "--run-id",
+    "run_create_room_max_spend",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const room = listRoomCards(spec)[0];
+  assert.ok(room);
+  assert.equal(room.roomSize, "large");
+  assert.deepEqual(room.affinities, [
+    { kind: "dark", expression: "emit", stacks: 2 },
+    { kind: "water", expression: "emit", stacks: 2 },
+  ]);
+});
+
+test("cli room-plan rejects insufficient hard budgets instead of silently degrading the request", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-insufficient-"));
+  const result = runCli([
+    "room-plan",
+    "--room",
+    "affinities=dark:emit:2,water:emit:2",
+    "--budget-tokens",
+    "40",
+    "--run-id",
+    "run_room_plan_insufficient",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /insufficient_budget/);
+  assert.match(result.stderr, /hard budget is 40 tokens but minimum required spend is 42 tokens/i);
+  assert.match(result.stderr, /room\[1\] requires at least 42 tokens/i);
+  assert.equal(existsSync(join(outDir, "bundle.json")), false);
+});
+
+test("cli delver-plan rejects conflicting hard requirements with deterministic explanations", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-conflict-"));
+  const result = runCli([
+    "delver-plan",
+    "--goal",
+    "Author one fire delver within a total budget of 200 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2;vitals=health:1:0,mana:0:0,stamina:0:0,durability:1:0",
+    "--budget-tokens",
+    "200",
+    "--run-id",
+    "run_delver_plan_conflict",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /conflicting_requirements/);
+  assert.match(result.stderr, /delver\[1\] affinities require mana\.max >= 1/i);
+  assert.match(result.stderr, /delver\[1\] affinities require mana\.regen >= 1/i);
+  assert.match(result.stderr, /delver\[1\] movement requires stamina\.regen >= 1/i);
+  assert.equal(existsSync(join(outDir, "bundle.json")), false);
 });

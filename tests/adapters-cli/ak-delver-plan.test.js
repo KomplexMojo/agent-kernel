@@ -4,9 +4,11 @@ const { spawnSync } = require("node:child_process");
 const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
+const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const spendProposalUrl = moduleUrl("packages/runtime/src/personas/configurator/spend-proposal.js");
 
 function runCli(args) {
   return spawnSync(process.execPath, [CLI, ...args], {
@@ -211,4 +213,81 @@ test("cli delver-plan requires --budget and --price-list together", () => {
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /requires both --budget and --price-list/i);
+});
+
+test("cli delver-plan maximizes mana-focused spend within a 200-token budget", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-budgeted-"));
+  const outDir = join(workDir, "out");
+  const budgetPath = join(workDir, "budget.json");
+  const priceListPath = join(workDir, "price-list.json");
+
+  require("node:fs").writeFileSync(budgetPath, JSON.stringify({
+    schema: "agent-kernel/BudgetArtifact",
+    schemaVersion: 1,
+    meta: {
+      id: "budget_delver_200",
+      runId: "run_delver_plan_budgeted",
+      createdAt: "2026-04-09T00:00:00.000Z",
+      producedBy: "test",
+    },
+    budget: {
+      tokens: 200,
+    },
+  }, null, 2));
+  require("node:fs").writeFileSync(priceListPath, JSON.stringify({
+    schema: "agent-kernel/PriceList",
+    schemaVersion: 1,
+    meta: {
+      id: "price_list_delver_200",
+      runId: "run_delver_plan_budgeted",
+      createdAt: "2026-04-09T00:00:00.000Z",
+      producedBy: "test",
+    },
+    items: [],
+  }, null, 2));
+
+  runCliOk([
+    "delver-plan",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2;goals=max_mana,mana_regen",
+    "--budget",
+    budgetPath,
+    "--price-list",
+    priceListPath,
+    "--run-id",
+    "run_delver_plan_budgeted",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const delver = listDelverCards(spec)[0];
+  assert.ok(delver);
+  assert.deepEqual(delver.affinities, [
+    { kind: "fire", expression: "push", stacks: 2 },
+  ]);
+  assert.ok(delver.vitals.mana.max > 0);
+  assert.ok(delver.vitals.mana.regen > 0);
+  assert.ok(delver.vitals.stamina.regen > 0);
+
+  runEsm(`
+import assert from "node:assert/strict";
+import { calculateActorConfigurationUnitCost } from ${JSON.stringify(spendProposalUrl)};
+
+const card = ${JSON.stringify(delver)};
+const unitCost = calculateActorConfigurationUnitCost({
+  entry: {
+    motivations: card.motivations,
+    affinities: card.affinities,
+    vitals: card.vitals,
+  },
+  priceMap: new Map(),
+}).cost;
+
+assert.equal(unitCost, 200);
+assert.ok(card.vitals.mana.max >= 30, "mana max should be driven up by the budgeted fulfillment");
+assert.ok(card.vitals.mana.regen >= 1);
+`);
 });

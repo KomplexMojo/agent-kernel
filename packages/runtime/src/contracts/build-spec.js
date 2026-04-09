@@ -20,6 +20,24 @@ const AGENT_COMMAND_COMPILE_TARGETS = new Set([
   "build_spec_configurator",
   "artifact_extension",
 ]);
+const AGENT_COMMAND_DIRECTIVE_SOURCES = new Set(["text", "flag", "object_flag", "budget_artifact"]);
+const AGENT_COMMAND_OPTIMIZATION_PRIORITIES = new Set(["low", "medium", "high"]);
+const AGENT_COMMAND_OPTIMIZATION_SCOPES = new Set([
+  ...Array.from(AGENT_COMMAND_OBJECT_KINDS),
+  "shared_config",
+]);
+const AGENT_COMMAND_OPTIMIZATION_GOAL_KINDS = new Set([
+  "maximize_budget_spend",
+  "maximize_vital_max",
+  "maximize_vital_regen",
+]);
+const AGENT_COMMAND_VALIDATION_OUTCOMES = new Set([
+  "valid",
+  "invalid_requirements",
+  "conflicting_requirements",
+  "insufficient_budget",
+]);
+const VITAL_KEYS = new Set(["health", "mana", "stamina", "durability"]);
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -77,6 +95,12 @@ function validateOptionalNumber(value, path, errors) {
   }
   if (!Number.isFinite(value)) {
     addError(errors, path, "expected number");
+  }
+}
+
+function validatePositiveInteger(value, path, errors) {
+  if (!Number.isInteger(value) || value <= 0) {
+    addError(errors, path, "expected positive integer");
   }
 }
 
@@ -220,6 +244,7 @@ function validateAgentCommandObject(value, path, errors) {
   if (value.attributes !== undefined && !isObject(value.attributes)) {
     addError(errors, `${path}.attributes`, "expected object");
   }
+  validateOptimizationGoals(value.optimizationGoals, `${path}.optimizationGoals`, errors);
 }
 
 function validateAgentCommandRoute(value, path, errors) {
@@ -281,6 +306,149 @@ function validateAgentCommandCompilation(value, path, errors, expectedKinds = []
   });
 }
 
+function validateDirectiveSources(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value) || value.length === 0) {
+    addError(errors, path, "expected non-empty array");
+    return;
+  }
+  value.forEach((entry, index) => {
+    if (!isNonEmptyString(entry) || !AGENT_COMMAND_DIRECTIVE_SOURCES.has(entry)) {
+      addError(
+        errors,
+        `${path}[${index}]`,
+        `expected one of ${Array.from(AGENT_COMMAND_DIRECTIVE_SOURCES).join(", ")}`,
+      );
+    }
+  });
+}
+
+function validateOptimizationGoal(value, path, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (!isNonEmptyString(value.kind) || !AGENT_COMMAND_OPTIMIZATION_GOAL_KINDS.has(value.kind)) {
+    addError(
+      errors,
+      `${path}.kind`,
+      `expected one of ${Array.from(AGENT_COMMAND_OPTIMIZATION_GOAL_KINDS).join(", ")}`,
+    );
+  }
+  if (!isNonEmptyString(value.scope) || !AGENT_COMMAND_OPTIMIZATION_SCOPES.has(value.scope)) {
+    addError(
+      errors,
+      `${path}.scope`,
+      `expected one of ${Array.from(AGENT_COMMAND_OPTIMIZATION_SCOPES).join(", ")}`,
+    );
+  }
+  if (value.priority !== undefined
+    && (!isNonEmptyString(value.priority) || !AGENT_COMMAND_OPTIMIZATION_PRIORITIES.has(value.priority))) {
+    addError(
+      errors,
+      `${path}.priority`,
+      `expected one of ${Array.from(AGENT_COMMAND_OPTIMIZATION_PRIORITIES).join(", ")}`,
+    );
+  }
+  if (value.source !== undefined
+    && (!isNonEmptyString(value.source) || !AGENT_COMMAND_DIRECTIVE_SOURCES.has(value.source))) {
+    addError(
+      errors,
+      `${path}.source`,
+      `expected one of ${Array.from(AGENT_COMMAND_DIRECTIVE_SOURCES).join(", ")}`,
+    );
+  }
+
+  const requiresVital = value.kind === "maximize_vital_max" || value.kind === "maximize_vital_regen";
+  if (requiresVital) {
+    if (!isNonEmptyString(value.vital) || !VITAL_KEYS.has(value.vital)) {
+      addError(errors, `${path}.vital`, `expected one of ${Array.from(VITAL_KEYS).join(", ")}`);
+    }
+    if (value.scope === "shared_config") {
+      addError(errors, `${path}.scope`, "expected authored object scope for vital optimization");
+    }
+  } else if (value.scope !== undefined && value.scope !== "shared_config") {
+    addError(errors, `${path}.scope`, "maximize_budget_spend must target shared_config");
+  }
+}
+
+function validateOptimizationGoals(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value)) {
+    addError(errors, path, "expected array");
+    return;
+  }
+  value.forEach((entry, index) => {
+    validateOptimizationGoal(entry, `${path}[${index}]`, errors);
+  });
+}
+
+function validateAuthoringValidationIssue(value, path, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (!isNonEmptyString(value.code)) {
+    addError(errors, `${path}.code`, "expected non-empty string");
+  }
+  if (!isNonEmptyString(value.message)) {
+    addError(errors, `${path}.message`, "expected non-empty string");
+  }
+  validateOptionalString(value.path, `${path}.path`, errors);
+}
+
+function validateAuthoringValidation(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (!isNonEmptyString(value.outcome) || !AGENT_COMMAND_VALIDATION_OUTCOMES.has(value.outcome)) {
+    addError(
+      errors,
+      `${path}.outcome`,
+      `expected one of ${Array.from(AGENT_COMMAND_VALIDATION_OUTCOMES).join(", ")}`,
+    );
+  }
+  if (!isNonEmptyString(value.summary)) {
+    addError(errors, `${path}.summary`, "expected non-empty string");
+  }
+  if (!Array.isArray(value.issues)) {
+    addError(errors, `${path}.issues`, "expected array");
+    return;
+  }
+  value.issues.forEach((entry, index) => {
+    validateAuthoringValidationIssue(entry, `${path}.issues[${index}]`, errors);
+  });
+  if (value.outcome !== "valid" && value.issues.length === 0) {
+    addError(errors, `${path}.issues`, "expected blocking issues for non-valid outcome");
+  }
+}
+
+function validateHardConstraints(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (value.hardBudget !== undefined) {
+    if (!isObject(value.hardBudget)) {
+      addError(errors, `${path}.hardBudget`, "expected object");
+    } else {
+      validatePositiveInteger(value.hardBudget.totalTokens, `${path}.hardBudget.totalTokens`, errors);
+      validateDirectiveSources(value.hardBudget.sources, `${path}.hardBudget.sources`, errors);
+    }
+  }
+}
+
 function validateAgentCommandSharedConfig(value, path, errors) {
   if (value === undefined) {
     return;
@@ -293,6 +461,8 @@ function validateAgentCommandSharedConfig(value, path, errors) {
   validateOptionalNumber(value.budgetTokens, `${path}.budgetTokens`, errors);
   validateOptionalString(value.levelSize, `${path}.levelSize`, errors);
   validateOptionalNumber(value.roomCount, `${path}.roomCount`, errors);
+  validateHardConstraints(value.constraints, `${path}.constraints`, errors);
+  validateOptimizationGoals(value.optimizationGoals, `${path}.optimizationGoals`, errors);
 }
 
 function validateAgentCommandCompatibility(value, path, errors) {
@@ -347,6 +517,7 @@ export function validateAgentCommandRequest(request, path = "agentCommandRequest
   }
 
   validateAgentCommandSharedConfig(request.sharedConfig, `${path}.sharedConfig`, errors);
+  validateAuthoringValidation(request.validation, `${path}.validation`, errors);
   validateAgentCommandCompatibility(request.compatibility, `${path}.compatibility`, errors);
 
   const expectedKinds = Array.isArray(request.objects)
@@ -387,6 +558,9 @@ function validateBuildSpecAuthoring(value, path, errors) {
       });
     }
   }
+  validateHardConstraints(value.constraints, `${path}.constraints`, errors);
+  validateOptimizationGoals(value.optimizationGoals, `${path}.optimizationGoals`, errors);
+  validateAuthoringValidation(value.validation, `${path}.validation`, errors);
 }
 
 export function validateBuildSpec(spec) {

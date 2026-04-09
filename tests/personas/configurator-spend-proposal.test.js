@@ -98,3 +98,47 @@ assert.deepEqual(builtVam, proposalVam);
 test("configurator builds spend proposals and validates receipts", () => {
   runEsm(script);
 });
+
+test("configurator prices room cards with shared layout spend plus discounted affinity spend", () => {
+  runEsm(`
+import assert from "node:assert/strict";
+import { calculateRoomCardUnitCost } from ${JSON.stringify(configuratorModule)};
+
+const medium = calculateRoomCardUnitCost({
+  card: {
+    id: "room_medium",
+    type: "room",
+    source: "room",
+    roomSize: "medium",
+    count: 1,
+    affinity: "dark",
+    affinities: [
+      { kind: "dark", expression: "emit", stacks: 2 },
+      { kind: "water", expression: "emit", stacks: 2 },
+    ],
+  },
+  priceList: { items: [] },
+});
+
+const large = calculateRoomCardUnitCost({
+  card: {
+    id: "room_large",
+    type: "room",
+    source: "room",
+    roomSize: "large",
+    count: 1,
+    affinity: "dark",
+    affinities: [
+      { kind: "dark", expression: "emit", stacks: 2 },
+      { kind: "water", expression: "emit", stacks: 2 },
+    ],
+  },
+  priceList: { items: [] },
+});
+
+assert.ok(medium.cost > 0);
+assert.ok(large.cost > medium.cost);
+assert.ok(large.detail.affinityDetail);
+assert.equal(large.detail.affinityDetail.affinityCostScale, 0.1);
+`);
+});

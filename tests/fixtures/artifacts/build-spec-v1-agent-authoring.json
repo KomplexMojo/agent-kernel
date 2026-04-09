@@ -50,6 +50,23 @@
       "warden",
       "shared_config"
     ],
+    "constraints": {
+      "hardBudget": {
+        "totalTokens": 120,
+        "sources": [
+          "text",
+          "flag"
+        ]
+      }
+    },
+    "optimizationGoals": [
+      {
+        "kind": "maximize_budget_spend",
+        "scope": "shared_config",
+        "priority": "high",
+        "source": "text"
+      }
+    ],
     "request": {
       "schema": "agent-kernel/AgentCommandRequestArtifact",
       "schemaVersion": 1,
@@ -84,7 +101,24 @@
       "sharedConfig": {
         "dungeonAffinity": "fire",
         "budgetTokens": 120,
-        "roomCount": 1
+        "roomCount": 1,
+        "constraints": {
+          "hardBudget": {
+            "totalTokens": 120,
+            "sources": [
+              "text",
+              "flag"
+            ]
+          }
+        },
+        "optimizationGoals": [
+          {
+            "kind": "maximize_budget_spend",
+            "scope": "shared_config",
+            "priority": "high",
+            "source": "text"
+          }
+        ]
       },
       "compilation": {
         "rules": [

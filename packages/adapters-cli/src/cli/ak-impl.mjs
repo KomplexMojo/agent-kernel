@@ -14,6 +14,11 @@ import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtim
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
 import {
+  calculateActorConfigurationUnitCost,
+  calculateRoomCardUnitCost,
+} from "../../../runtime/src/personas/configurator/spend-proposal.js";
+import { validateAffinityPrereqs } from "../../../runtime/src/personas/configurator/cost-model.js";
+import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
   ALLOWED_DELVER_SETUP_MODES,
@@ -27,6 +32,7 @@ import {
   DEFAULT_ROOM_AFFINITY_EXPRESSION,
   DEFAULT_ROOM_AFFINITY_STACKS,
   DEFAULT_ROOM_CARD_AFFINITY,
+  DEFAULT_VITALS,
   TRAP_VITAL_KEYS,
   VITAL_KEYS,
 } from "../../../runtime/src/contracts/domain-constants.js";
@@ -58,6 +64,13 @@ const DEFAULT_WASM_PATH = "build/core-as.wasm";
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 const DEFAULT_RUNS_DIR = "runs";
 const DEFAULT_TICKS = 1;
+const AUTHORING_GOAL_PRIORITIES = new Set(["low", "medium", "high"]);
+const AUTHORING_VALIDATION_OUTCOMES = Object.freeze({
+  valid: "valid",
+  invalidRequirements: "invalid_requirements",
+  conflictingRequirements: "conflicting_requirements",
+  insufficientBudget: "insufficient_budget",
+});
 
 function usage() {
   const filename = fileURLToPath(new URL("./ak.mjs", import.meta.url));
@@ -85,7 +98,7 @@ function usage() {
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
 
 Options:
@@ -118,12 +131,12 @@ Options:
   --catalog       Catalog path for prompt-only llm-plan runs
   --goal          Goal text override (llm-plan prompt-only)
   --dungeon-affinity Dungeon affinity for room/delver/warden summary defaults
-  --budget-tokens Budget token hint (llm-plan prompt-only, optional for room-plan/delver-plan/warden-plan)
+  --budget-tokens Hard budget cap in tokens. If freeform text also states a budget, they must match.
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --trap          Trap spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]
+  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]]
                     where <expression> is push|pull (spatial) or emit|draw (field)
   --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]
                     where <expression> is push|pull (spatial) or emit|draw (field)
@@ -217,6 +230,289 @@ function normalizeList(value) {
     return [];
   }
   return Array.isArray(value) ? value : [value];
+}
+
+function normalizeAuthoringToken(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function buildOptimizationGoal({ kind, scope, priority = "high", vital, source } = {}) {
+  const goal = { kind, scope, priority };
+  if (vital) goal.vital = vital;
+  if (source) goal.source = source;
+  return goal;
+}
+
+function parseOptimizationPriority(value, label) {
+  const normalized = normalizeAuthoringToken(value);
+  if (AUTHORING_GOAL_PRIORITIES.has(normalized)) {
+    return normalized;
+  }
+  throw new Error(`${label} priority must be one of: ${Array.from(AUTHORING_GOAL_PRIORITIES).join(", ")}.`);
+}
+
+function parseOptimizationGoalEntry(value, { label, defaultScope, source = "object_flag" } = {}) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    throw new Error(`${label} goal must be non-empty.`);
+  }
+
+  let goalId = raw;
+  let priority = "high";
+  const segments = raw.split(":").map((part) => part.trim()).filter(Boolean);
+  if (segments.length === 2 && AUTHORING_GOAL_PRIORITIES.has(normalizeAuthoringToken(segments[1]))) {
+    [goalId] = segments;
+    priority = parseOptimizationPriority(segments[1], `${label} goal "${raw}"`);
+  } else if (segments.length > 2) {
+    throw new Error(`${label} goal "${raw}" is invalid.`);
+  }
+
+  const normalized = normalizeAuthoringToken(goalId);
+  switch (normalized) {
+    case "maximize_budget_spend":
+    case "maximize_spend":
+    case "max_spend":
+    case "full_budget":
+      return buildOptimizationGoal({
+        kind: "maximize_budget_spend",
+        scope: "shared_config",
+        priority,
+        source,
+      });
+    case "maximize_vital_max":
+    case "max_mana":
+    case "mana_max":
+    case "high_max_mana":
+    case "high_mana_max":
+      return buildOptimizationGoal({
+        kind: "maximize_vital_max",
+        scope: defaultScope,
+        priority,
+        vital: "mana",
+        source,
+      });
+    case "maximize_vital_regen":
+    case "mana_regen":
+    case "high_mana_regen":
+    case "max_mana_regen":
+      return buildOptimizationGoal({
+        kind: "maximize_vital_regen",
+        scope: defaultScope,
+        priority,
+        vital: "mana",
+        source,
+      });
+    default:
+      throw new Error(`${label} goal "${raw}" is not supported. Use max_mana[:priority], mana_regen[:priority], or maximize_spend[:priority].`);
+  }
+}
+
+function parseOptimizationGoalList(value, { label, defaultScope, source = "object_flag" } = {}) {
+  if (!isNonEmptyString(value)) {
+    return [];
+  }
+  return String(value)
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry, index) => parseOptimizationGoalEntry(entry, {
+      label: `${label}[${index + 1}]`,
+      defaultScope,
+      source,
+    }));
+}
+
+function dedupeOptimizationGoals(goals) {
+  const deduped = new Map();
+  normalizeList(goals)
+    .flat()
+    .filter(Boolean)
+    .forEach((goal) => {
+      const key = [goal.kind, goal.scope, goal.vital || "", goal.priority || "high"].join(":");
+      const existing = deduped.get(key);
+      if (!existing || (!existing.source && goal.source)) {
+        deduped.set(key, goal);
+      }
+    });
+  return Array.from(deduped.values());
+}
+
+function extractBudgetTokensFromText(text, label = "freeform text") {
+  if (!isNonEmptyString(text)) {
+    return undefined;
+  }
+  const matches = [];
+  const patterns = [
+    /\b(?:total\s+)?budget\s+(?:of\s+)?(\d+)\s+tokens?\b/gi,
+    /\b(\d+)\s+tokens?\s+budget\b/gi,
+    /\bcap(?:ped)?\s+(?:at|to)\s+(\d+)\s+tokens?\b/gi,
+  ];
+  patterns.forEach((pattern) => {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      matches.push(Number.parseInt(match[1], 10));
+    }
+  });
+  const unique = Array.from(new Set(matches));
+  if (unique.length > 1) {
+    throw new Error(`${label} contains conflicting budget directives: ${unique.join(", ")}.`);
+  }
+  return unique[0];
+}
+
+function textIncludesMaximizeSpend(text) {
+  if (!isNonEmptyString(text)) {
+    return false;
+  }
+  const normalized = text.toLowerCase();
+  return /\bmaximize\s+(?:valid\s+)?spend\b/.test(normalized)
+    || /\bspend as much as possible\b/.test(normalized)
+    || /\buse the full budget\b/.test(normalized)
+    || /\bmaximize\s+budget\b/.test(normalized);
+}
+
+function textMentionsVitalGoals(text) {
+  if (!isNonEmptyString(text)) {
+    return false;
+  }
+  const normalized = text.toLowerCase().replace(/[_-]+/g, " ");
+  return /\b(?:high|higher|maximi[sz]e)\s+(?:max\s+mana|mana\s+max)\b/.test(normalized)
+    || /\b(?:high|higher|maximi[sz]e)\s+mana\s+regen\b/.test(normalized);
+}
+
+function extractVitalOptimizationGoalsFromText(text, { scope } = {}) {
+  if (!isNonEmptyString(text) || !scope) {
+    return [];
+  }
+  const normalized = text.toLowerCase().replace(/[_-]+/g, " ");
+  const goals = [];
+  if (/\b(?:high|higher|maximi[sz]e)\s+(?:max\s+mana|mana\s+max)\b/.test(normalized)) {
+    goals.push(buildOptimizationGoal({
+      kind: "maximize_vital_max",
+      scope,
+      priority: "high",
+      vital: "mana",
+      source: "text",
+    }));
+  }
+  if (/\b(?:high|higher|maximi[sz]e)\s+mana\s+regen\b/.test(normalized)) {
+    goals.push(buildOptimizationGoal({
+      kind: "maximize_vital_regen",
+      scope,
+      priority: "high",
+      vital: "mana",
+      source: "text",
+    }));
+  }
+  return dedupeOptimizationGoals(goals);
+}
+
+function resolveTextVitalOptimizationGoals({ commandName, text, scope } = {}) {
+  if (!textMentionsVitalGoals(text)) {
+    return [];
+  }
+  if (!scope) {
+    throw new Error(`${commandName} freeform text mentions vitals goals, but they must target exactly one authored actor kind. Use delver goals=... or keep the request to a single actor kind.`);
+  }
+  return extractVitalOptimizationGoalsFromText(text, { scope });
+}
+
+function resolveAuthoringBudget({
+  commandName,
+  textBudgetTokens,
+  flagBudgetTokens,
+  budgetArtifact,
+} = {}) {
+  const budgetArtifactTokens = Number.isInteger(budgetArtifact?.budget?.tokens)
+    ? budgetArtifact.budget.tokens
+    : undefined;
+  const inputs = [];
+  if (Number.isInteger(textBudgetTokens)) inputs.push({ source: "text", totalTokens: textBudgetTokens });
+  if (Number.isInteger(flagBudgetTokens)) inputs.push({ source: "flag", totalTokens: flagBudgetTokens });
+  if (Number.isInteger(budgetArtifactTokens)) inputs.push({ source: "budget_artifact", totalTokens: budgetArtifactTokens });
+
+  const distinct = Array.from(new Set(inputs.map((entry) => entry.totalTokens)));
+  if (distinct.length > 1) {
+    const detail = inputs.map((entry) => `${entry.source}=${entry.totalTokens}`).join(", ");
+    throw new Error(`${commandName} hard budget inputs disagree: ${detail}. Freeform text, --budget-tokens, and budget artifact tokens must agree.`);
+  }
+
+  if (inputs.length === 0) {
+    return { resolvedBudgetTokens: undefined, constraints: undefined };
+  }
+
+  return {
+    resolvedBudgetTokens: inputs[0].totalTokens,
+    constraints: {
+      hardBudget: {
+        totalTokens: inputs[0].totalTokens,
+        sources: Array.from(new Set(inputs.map((entry) => entry.source))),
+      },
+    },
+  };
+}
+
+function buildSharedOptimizationGoals({ text, hardBudgetConstraint } = {}) {
+  if (!textIncludesMaximizeSpend(text)) {
+    return [];
+  }
+  return dedupeOptimizationGoals([
+    buildOptimizationGoal({
+      kind: "maximize_budget_spend",
+      scope: "shared_config",
+      priority: "high",
+      source: "text",
+    }),
+  ]);
+}
+
+function buildAuthoringSection({
+  objectKinds,
+  request,
+  constraints,
+  sharedOptimizationGoals = [],
+  objectOptimizationGoals = [],
+} = {}) {
+  const normalizedKinds = Array.from(new Set(normalizeList(objectKinds).filter(Boolean)));
+  const aggregatedGoals = dedupeOptimizationGoals([
+    ...sharedOptimizationGoals,
+    ...objectOptimizationGoals,
+  ]);
+  if ((constraints || sharedOptimizationGoals.length > 0) && !normalizedKinds.includes("shared_config")) {
+    normalizedKinds.push("shared_config");
+  }
+
+  if (!request && !constraints && aggregatedGoals.length === 0) {
+    return undefined;
+  }
+
+  const authoring = {
+    objectKinds: normalizedKinds,
+  };
+  if (request) {
+    authoring.request = request;
+  }
+  if (constraints) {
+    authoring.constraints = constraints;
+  }
+  if (aggregatedGoals.length > 0) {
+    authoring.optimizationGoals = aggregatedGoals;
+  }
+  return authoring;
+}
+
+function applyAuthoringSection(spec, authoring, commandName) {
+  if (!authoring) {
+    return;
+  }
+  spec.authoring = authoring;
+  const validation = validateBuildSpec(spec);
+  if (!validation.ok) {
+    throw new Error(`${commandName} build spec failed: ${validation.errors.join("; ")}`);
+  }
 }
 
 function parsePositiveIntStrict(value, label) {
@@ -435,10 +731,13 @@ function parseRoomSpec(value, roomIndex) {
 
   const affinities = parseRoomAffinities(fields.get("affinities") || fields.get("affinity"), roomIndex);
   return {
-    size,
-    count,
-    affinity: affinities[0]?.kind || DEFAULT_ROOM_CARD_AFFINITY,
-    affinities,
+    value: {
+      size,
+      count,
+      affinity: affinities[0]?.kind || DEFAULT_ROOM_CARD_AFFINITY,
+      affinities,
+    },
+    sizeFlexible: !fields.has("size"),
   };
 }
 
@@ -630,7 +929,7 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -687,6 +986,11 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     : `card_delver_${delverIndex}`;
   const affinities = parseActorAffinities(fields.get("affinities"), "delver", delverIndex);
   const vitals = parseActorVitals(fields.get("vitals"), "delver", delverIndex);
+  const optimizationGoals = parseOptimizationGoalList(fields.get("goals"), {
+    label: `delver[${delverIndex}].goals`,
+    defaultScope: "delver",
+    source: "object_flag",
+  });
   const setupModeRaw = fields.get("setup-mode") || fields.get("setupmode");
   let setupMode;
   if (isNonEmptyString(setupModeRaw)) {
@@ -713,7 +1017,11 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
   if (setupMode) {
     delver.setupMode = setupMode;
   }
-  return delver;
+  return {
+    value: delver,
+    optimizationGoals,
+    vitalsFlexible: !fields.has("vitals"),
+  };
 }
 
 function parseDelverSpecs(rawDelvers, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
@@ -815,6 +1123,554 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
     throw new Error("warden-plan requires at least one --warden entry.");
   }
   return values.map((value, index) => parseWardenSpec(value, index + 1, { defaultAffinity }));
+}
+
+function buildPriceMap(priceListArtifact) {
+  const items = Array.isArray(priceListArtifact?.items) ? priceListArtifact.items : [];
+  return new Map(
+    items
+      .filter((item) => typeof item?.id === "string" && typeof item?.kind === "string" && Number.isFinite(item?.costTokens))
+      .map((item) => [`${item.kind}:${item.id}`, item.costTokens]),
+  );
+}
+
+function cloneVitals(vitals = DEFAULT_VITALS) {
+  return VITAL_KEYS.reduce((acc, key) => {
+    const source = vitals?.[key] && typeof vitals[key] === "object"
+      ? vitals[key]
+      : DEFAULT_VITALS[key];
+    const max = Number.isInteger(source?.max) ? source.max : DEFAULT_VITALS[key].max;
+    const current = Number.isInteger(source?.current) ? source.current : max;
+    const regen = Number.isInteger(source?.regen) ? source.regen : DEFAULT_VITALS[key].regen;
+    acc[key] = {
+      current: Math.max(0, current),
+      max: Math.max(0, max),
+      regen: Math.max(0, regen),
+    };
+    return acc;
+  }, {});
+}
+
+function calculateDelverCardUnitCost(card, priceMap) {
+  return calculateActorConfigurationUnitCost({
+    entry: {
+      motivations: Array.isArray(card?.motivations) ? card.motivations : [],
+      affinities: Array.isArray(card?.affinities) ? card.affinities : [],
+      vitals: cloneVitals(card?.vitals),
+    },
+    priceMap,
+  }).cost;
+}
+
+function createAuthoringValidationIssue({ code, message, path } = {}) {
+  const issue = {
+    code,
+    message,
+  };
+  if (path) {
+    issue.path = path;
+  }
+  return issue;
+}
+
+function createAuthoringValidation({ outcome, summary, issues = [] } = {}) {
+  return {
+    outcome,
+    summary,
+    issues: issues
+      .filter((issue) => issue && typeof issue === "object")
+      .map((issue) => createAuthoringValidationIssue(issue))
+      .sort((left, right) => {
+        const leftPath = left.path || "";
+        const rightPath = right.path || "";
+        if (leftPath !== rightPath) {
+          return leftPath.localeCompare(rightPath);
+        }
+        return left.code.localeCompare(right.code);
+      }),
+  };
+}
+
+function formatAffinityList(affinities = []) {
+  return normalizeList(affinities)
+    .map((entry) => {
+      const kind = String(entry?.kind || "affinity").trim().toLowerCase();
+      const expression = String(entry?.expression || DEFAULT_ROOM_AFFINITY_EXPRESSION).trim().toLowerCase();
+      const stacks = Number.isInteger(entry?.stacks) && entry.stacks > 0 ? entry.stacks : 1;
+      return `${kind}:${expression}:${stacks}`;
+    })
+    .join(", ");
+}
+
+function joinConstraintClauses(clauses = []) {
+  const filtered = clauses.filter((entry) => isNonEmptyString(entry));
+  if (filtered.length === 0) {
+    return "";
+  }
+  if (filtered.length === 1) {
+    return filtered[0];
+  }
+  if (filtered.length === 2) {
+    return `${filtered[0]} and ${filtered[1]}`;
+  }
+  return `${filtered.slice(0, -1).join(", ")}, and ${filtered.at(-1)}`;
+}
+
+function formatAuthoringValidationMessage(commandName, validation) {
+  const issues = Array.isArray(validation?.issues) ? validation.issues : [];
+  const details = issues.map((issue) => issue.message).join("; ");
+  return `${commandName} infeasible (${validation.outcome}): ${validation.summary}${details ? ` Blocking constraints: ${details}` : ""}`;
+}
+
+function toRequirementVitals(vitals = DEFAULT_VITALS) {
+  return VITAL_KEYS.reduce((acc, key) => {
+    const source = vitals?.[key] && typeof vitals[key] === "object"
+      ? vitals[key]
+      : DEFAULT_VITALS[key];
+    acc[key] = Number.isInteger(source?.max) ? source.max : 0;
+    return acc;
+  }, {});
+}
+
+function toRequirementRegen(vitals = DEFAULT_VITALS) {
+  return VITAL_KEYS.reduce((acc, key) => {
+    const source = vitals?.[key] && typeof vitals[key] === "object"
+      ? vitals[key]
+      : DEFAULT_VITALS[key];
+    acc[key] = Number.isInteger(source?.regen) ? source.regen : 0;
+    return acc;
+  }, {});
+}
+
+function buildMinimumRequiredDelverCard(card) {
+  const next = {
+    ...card,
+    vitals: cloneVitals(card?.vitals),
+  };
+  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
+  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
+  const stationary = motivations.includes("stationary");
+
+  if (affinities.length > 0) {
+    next.vitals.mana.max = Math.max(next.vitals.mana.max, 1);
+    next.vitals.mana.current = next.vitals.mana.max;
+    next.vitals.mana.regen = Math.max(next.vitals.mana.regen, 1);
+  }
+  if (!stationary) {
+    next.vitals.stamina.regen = Math.max(next.vitals.stamina.regen, 1);
+  }
+
+  return next;
+}
+
+function collectBudgetedDelverConflictIssues(entry, delverIndex) {
+  const issues = [];
+  if (entry?.vitalsFlexible === true) {
+    return issues;
+  }
+
+  const card = entry?.value;
+  const path = `delver[${delverIndex}]`;
+  const vitals = cloneVitals(card?.vitals);
+  const prereqResult = validateAffinityPrereqs({
+    vitals: toRequirementVitals(vitals),
+    regen: toRequirementRegen(vitals),
+    affinities: Array.isArray(card?.affinities) ? card.affinities : [],
+    fieldBase: `${path}.affinities`,
+  });
+
+  prereqResult.errors.forEach((error) => {
+    if (error.code === "affinity_requires_mana") {
+      issues.push(createAuthoringValidationIssue({
+        code: error.code,
+        path: `${path}.vitals.mana.max`,
+        message: `${path} affinities require mana.max >= 1.`,
+      }));
+      return;
+    }
+    if (error.code === "affinity_requires_mana_regen") {
+      issues.push(createAuthoringValidationIssue({
+        code: error.code,
+        path: `${path}.vitals.mana.regen`,
+        message: `${path} affinities require mana.regen >= 1.`,
+      }));
+    }
+  });
+
+  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
+  if (!motivations.includes("stationary") && vitals?.stamina?.regen <= 0) {
+    issues.push(createAuthoringValidationIssue({
+      code: "movement_requires_stamina_regen",
+      path: `${path}.vitals.stamina.regen`,
+      message: `${path} movement requires stamina.regen >= 1.`,
+    }));
+  }
+
+  return issues;
+}
+
+function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact) {
+  const candidateSizes = entry?.sizeFlexible === true
+    ? ROOM_CARD_SIZE_IDS
+    : [String(entry?.value?.roomSize || entry?.value?.size || "medium").trim().toLowerCase()];
+  let minimum = null;
+
+  candidateSizes.forEach((roomSize, sizeIndex) => {
+    if (!ROOM_CARD_SIZE_IDS.includes(roomSize)) {
+      return;
+    }
+    const candidateCard = {
+      ...entry.value,
+      size: roomSize,
+      roomSize,
+    };
+    const count = Number.isInteger(candidateCard?.count) && candidateCard.count > 0 ? candidateCard.count : 1;
+    const totalCost = calculateRoomCardUnitCost({
+      card: candidateCard,
+      priceList: priceListArtifact,
+    }).cost * count;
+    const requirementSummary = entry?.sizeFlexible === true
+      ? `requested affinities ${formatAffinityList(candidateCard.affinities)} at the smallest supported room size`
+      : `requested room size ${roomSize} with affinities ${formatAffinityList(candidateCard.affinities)}`;
+    const assessment = {
+      path: `room[${roomIndex}]`,
+      totalCost,
+      requirementSummary,
+      sizeIndex,
+    };
+    if (!minimum || assessment.totalCost < minimum.totalCost || (
+      assessment.totalCost === minimum.totalCost && assessment.sizeIndex < minimum.sizeIndex
+    )) {
+      minimum = assessment;
+    }
+  });
+
+  return minimum;
+}
+
+function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) {
+  const candidateCard = buildMinimumRequiredDelverCard(entry.value);
+  const count = Number.isInteger(candidateCard?.count) && candidateCard.count > 0 ? candidateCard.count : 1;
+  const priceMap = buildPriceMap(priceListArtifact);
+  const totalCost = calculateDelverCardUnitCost(candidateCard, priceMap) * count;
+  const requirementParts = [];
+  if (Array.isArray(candidateCard?.affinities) && candidateCard.affinities.length > 0) {
+    requirementParts.push(`affinities ${formatAffinityList(candidateCard.affinities)}`);
+    requirementParts.push("mana.max >= 1");
+    requirementParts.push("mana.regen >= 1");
+  }
+  if (!(Array.isArray(candidateCard?.motivations) ? candidateCard.motivations : []).includes("stationary")) {
+    requirementParts.push("stamina.regen >= 1");
+  }
+  return {
+    path: `delver[${delverIndex}]`,
+    totalCost,
+    requirementSummary: requirementParts.length > 0
+      ? `requested ${joinConstraintClauses(requirementParts)}`
+      : "requested delver configuration",
+  };
+}
+
+function ensureBudgetedFulfillmentFeasible({
+  commandName,
+  budgetTokens,
+  rooms = [],
+  delvers = [],
+  priceListArtifact,
+} = {}) {
+  if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
+    return;
+  }
+
+  const conflictIssues = delvers.flatMap((entry, index) => collectBudgetedDelverConflictIssues(entry, index + 1));
+  if (conflictIssues.length > 0) {
+    const validation = createAuthoringValidation({
+      outcome: AUTHORING_VALIDATION_OUTCOMES.conflictingRequirements,
+      summary: "explicit hard requirements conflict with the minimum support needed for the requested configuration.",
+      issues: conflictIssues,
+    });
+    const error = new Error(formatAuthoringValidationMessage(commandName, validation));
+    error.validation = validation;
+    throw error;
+  }
+
+  const roomRequirements = rooms.map((entry, index) => assessBudgetedRoomRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
+  const delverRequirements = delvers.map((entry, index) => assessBudgetedDelverRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
+  const requirements = [...roomRequirements, ...delverRequirements];
+  const minimumRequiredTokens = requirements.reduce((sum, entry) => sum + entry.totalCost, 0);
+
+  if (minimumRequiredTokens > budgetTokens) {
+    const validation = createAuthoringValidation({
+      outcome: AUTHORING_VALIDATION_OUTCOMES.insufficientBudget,
+      summary: `hard budget is ${budgetTokens} tokens but minimum required spend is ${minimumRequiredTokens} tokens.`,
+      issues: requirements.map((entry) => createAuthoringValidationIssue({
+        code: `${entry.path.startsWith("room[") ? "room" : "delver"}_minimum_cost_exceeds_budget`,
+        path: entry.path,
+        message: `${entry.path} requires at least ${entry.totalCost} tokens to preserve ${entry.requirementSummary}.`,
+      })),
+    });
+    const error = new Error(formatAuthoringValidationMessage(commandName, validation));
+    error.validation = validation;
+    throw error;
+  }
+}
+
+function compareNumericTuple(left = [], right = []) {
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftValue = Number(left[index] || 0);
+    const rightValue = Number(right[index] || 0);
+    if (leftValue !== rightValue) {
+      return leftValue - rightValue;
+    }
+  }
+  return 0;
+}
+
+function resolveDelverGoalOrder(goals = []) {
+  const ordered = [];
+  normalizeList(goals).forEach((goal) => {
+    if (goal?.kind === "maximize_vital_max" && goal?.vital === "mana") {
+      ordered.push("mana_max");
+      return;
+    }
+    if (goal?.kind === "maximize_vital_regen" && goal?.vital === "mana") {
+      ordered.push("mana_regen");
+    }
+  });
+  if (ordered.length > 0) return ordered;
+  return ["mana_max", "mana_regen"];
+}
+
+function fillFlexibleDelverVitals(vitals, remainingTokens) {
+  const next = cloneVitals(vitals);
+  let remaining = Number.isInteger(remainingTokens) ? remainingTokens : 0;
+  if (remaining <= 0) {
+    return next;
+  }
+  if (remaining % 2 === 1) {
+    next.stamina.max += 1;
+    next.stamina.current = next.stamina.max;
+    remaining -= 1;
+  }
+  if (remaining <= 0) {
+    return next;
+  }
+  const manaIncrease = Math.floor(remaining / 2);
+  if (manaIncrease > 0) {
+    next.mana.max += manaIncrease;
+    next.mana.current = next.mana.max;
+  }
+  return next;
+}
+
+function maximizeBudgetCappedDelverCard(card, {
+  availableTokens,
+  priceListArtifact,
+  optimizationGoals = [],
+  allowVitalTuning = false,
+} = {}) {
+  if (!allowVitalTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
+    return card;
+  }
+
+  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
+  const perUnitBudget = Math.floor(availableTokens / count);
+  if (perUnitBudget <= 0) {
+    return card;
+  }
+
+  const priceMap = buildPriceMap(priceListArtifact);
+  const goals = resolveDelverGoalOrder(optimizationGoals);
+  const baseVitals = cloneVitals(card?.vitals);
+  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
+  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
+  const stationary = motivations.includes("stationary");
+
+  if (affinities.length > 0) {
+    baseVitals.mana.max = Math.max(baseVitals.mana.max, 1);
+    baseVitals.mana.current = baseVitals.mana.max;
+    baseVitals.mana.regen = Math.max(baseVitals.mana.regen, 1);
+  }
+  if (!stationary) {
+    baseVitals.stamina.regen = Math.max(baseVitals.stamina.regen, 1);
+  }
+
+  const maximumManaRegen = Math.max(
+    baseVitals.mana.regen,
+    Math.floor(Math.sqrt(Math.max(0, perUnitBudget) / 5)) + 2,
+  );
+  const maximumMana = Math.max(
+    baseVitals.mana.max,
+    Math.floor(Math.max(0, perUnitBudget) / 2) + baseVitals.mana.max,
+  );
+
+  let best = null;
+  for (let manaRegen = baseVitals.mana.regen; manaRegen <= maximumManaRegen; manaRegen += 1) {
+    for (let manaMax = baseVitals.mana.max; manaMax <= maximumMana; manaMax += 1) {
+      const candidateVitals = cloneVitals(baseVitals);
+      candidateVitals.mana.max = manaMax;
+      candidateVitals.mana.current = manaMax;
+      candidateVitals.mana.regen = manaRegen;
+
+      const candidateCost = calculateActorConfigurationUnitCost({
+        entry: {
+          motivations,
+          affinities,
+          vitals: candidateVitals,
+        },
+        priceMap,
+      }).cost;
+      if (!Number.isInteger(candidateCost) || candidateCost <= 0 || candidateCost > perUnitBudget) {
+        continue;
+      }
+
+      const filledVitals = fillFlexibleDelverVitals(candidateVitals, perUnitBudget - candidateCost);
+      const filledCost = calculateActorConfigurationUnitCost({
+        entry: {
+          motivations,
+          affinities,
+          vitals: filledVitals,
+        },
+        priceMap,
+      }).cost;
+      if (!Number.isInteger(filledCost) || filledCost <= 0 || filledCost > perUnitBudget) {
+        continue;
+      }
+
+      const goalTuple = goals.map((goal) => (
+        goal === "mana_regen"
+          ? filledVitals.mana.regen
+          : filledVitals.mana.max
+      ));
+      const candidate = {
+        card: {
+          ...card,
+          vitals: filledVitals,
+        },
+        totalCost: filledCost * count,
+        goalTuple,
+      };
+      if (!best) {
+        best = candidate;
+        continue;
+      }
+      if (candidate.totalCost !== best.totalCost) {
+        if (candidate.totalCost > best.totalCost) best = candidate;
+        continue;
+      }
+      if (compareNumericTuple(candidate.goalTuple, best.goalTuple) > 0) {
+        best = candidate;
+      }
+    }
+  }
+
+  return best?.card || card;
+}
+
+function maximizeBudgetCappedRoomCard(card, {
+  availableTokens,
+  priceListArtifact,
+  allowSizeTuning = false,
+} = {}) {
+  if (!allowSizeTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
+    return card;
+  }
+  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
+  let best = null;
+
+  ROOM_CARD_SIZE_IDS.forEach((roomSize, sizeIndex) => {
+    const candidateCard = {
+      ...card,
+      size: roomSize,
+      roomSize,
+    };
+    const unitCost = calculateRoomCardUnitCost({
+      card: candidateCard,
+      priceList: priceListArtifact,
+    }).cost;
+    const totalCost = unitCost * count;
+    if (!Number.isInteger(totalCost) || totalCost <= 0 || totalCost > availableTokens) {
+      return;
+    }
+    const candidate = {
+      card: candidateCard,
+      totalCost,
+      sizeIndex,
+    };
+    if (!best || candidate.totalCost > best.totalCost || (
+      candidate.totalCost === best.totalCost && candidate.sizeIndex > best.sizeIndex
+    )) {
+      best = candidate;
+    }
+  });
+
+  return best?.card || card;
+}
+
+function applyBudgetCappedFulfillment({
+  rooms = [],
+  delvers = [],
+  priceListArtifact,
+  budgetTokens,
+} = {}) {
+  if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
+    return {
+      rooms: rooms.map((entry) => ({ ...entry })),
+      delvers: delvers.map((entry) => ({ ...entry })),
+    };
+  }
+
+  const nextRooms = rooms.map((entry) => ({
+    ...entry,
+    value: entry?.value && typeof entry.value === "object" ? { ...entry.value } : entry?.value,
+  }));
+  const nextDelvers = delvers.map((entry) => ({
+    ...entry,
+    value: entry?.value && typeof entry.value === "object" ? { ...entry.value } : entry?.value,
+    optimizationGoals: Array.isArray(entry?.optimizationGoals) ? entry.optimizationGoals.slice() : [],
+  }));
+  const priceMap = buildPriceMap(priceListArtifact);
+
+  const calculateCurrentTotal = () => {
+    const roomTotal = nextRooms.reduce((sum, entry) => sum + calculateRoomCardUnitCost({
+      card: entry.value,
+      priceList: priceListArtifact,
+    }).cost * (entry?.value?.count || 1), 0);
+    const delverTotal = nextDelvers.reduce((sum, entry) => sum + calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1), 0);
+    return roomTotal + delverTotal;
+  };
+
+  nextRooms.forEach((entry, roomIndex) => {
+    const currentCardCost = calculateRoomCardUnitCost({
+      card: entry.value,
+      priceList: priceListArtifact,
+    }).cost * (entry?.value?.count || 1);
+    const otherCost = calculateCurrentTotal() - currentCardCost;
+    const availableTokens = Math.max(0, budgetTokens - otherCost);
+    nextRooms[roomIndex].value = maximizeBudgetCappedRoomCard(entry.value, {
+      availableTokens,
+      priceListArtifact,
+      allowSizeTuning: entry?.sizeFlexible === true,
+    });
+  });
+
+  nextDelvers.forEach((entry, delverIndex) => {
+    const currentCardCost = calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1);
+    const otherCost = calculateCurrentTotal() - currentCardCost;
+    const availableTokens = Math.max(0, budgetTokens - otherCost);
+    nextDelvers[delverIndex].value = maximizeBudgetCappedDelverCard(entry.value, {
+      availableTokens,
+      priceListArtifact,
+      optimizationGoals: entry.optimizationGoals,
+      allowVitalTuning: entry?.vitalsFlexible === true,
+    });
+  });
+
+  return {
+    rooms: nextRooms,
+    delvers: nextDelvers,
+  };
 }
 
 function resolvePath(input, cwd = process.cwd()) {
@@ -1754,9 +2610,9 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
     throw new Error(`${commandName} --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
-  let budgetTokens;
+  let budgetTokensFlag;
   if (args["budget-tokens"] !== undefined) {
-    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], `${commandName} --budget-tokens`);
+    budgetTokensFlag = parsePositiveIntStrict(args["budget-tokens"], `${commandName} --budget-tokens`);
   }
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
     throw new Error(`${commandName} requires both --budget and --price-list.`);
@@ -1773,10 +2629,22 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
     assertSchema(priceListArtifact, SCHEMAS.priceList);
   }
 
+  const authoringText = [args.text, args.goal].filter(isNonEmptyString).join("\n");
+  const textBudgetTokens = extractBudgetTokensFromText(authoringText, `${commandName} freeform text`);
+  const {
+    resolvedBudgetTokens,
+    constraints: authoringConstraints,
+  } = resolveAuthoringBudget({
+    commandName,
+    textBudgetTokens,
+    flagBudgetTokens: budgetTokensFlag,
+    budgetArtifact,
+  });
+
   const parsedRooms = normalizeList(args.room)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
-    .map((value, index) => ({ prompt: value, value: parseRoomSpec(value, index + 1) }));
+    .map((value, index) => ({ prompt: value, ...parseRoomSpec(value, index + 1) }));
   const parsedFloorTiles = normalizeList(args["floor-tile"])
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
@@ -1788,7 +2656,7 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
   const parsedDelvers = normalizeList(args.delver)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
-    .map((value, index) => ({ prompt: value, value: parseDelverSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
+    .map((value, index) => ({ prompt: value, ...parseDelverSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
   const parsedWardens = normalizeList(args.warden)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
@@ -1804,6 +2672,61 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
     throw new Error(`${commandName} requires at least one authored object via --room, --floor-tile, --trap, --delver, or --warden.`);
   }
 
+  const textVitalScope = parsedDelvers.length > 0 && parsedWardens.length === 0
+    ? "delver"
+    : parsedWardens.length > 0 && parsedDelvers.length === 0
+      ? "warden"
+      : null;
+  const textVitalGoals = resolveTextVitalOptimizationGoals({
+    commandName,
+    text: authoringText,
+    scope: textVitalScope,
+  });
+  const sharedOptimizationGoals = buildSharedOptimizationGoals({
+    text: authoringText,
+    hardBudgetConstraint: authoringConstraints,
+  });
+  const textDelverGoals = textVitalScope === "delver" ? textVitalGoals : [];
+  const textWardenGoals = textVitalScope === "warden" ? textVitalGoals : [];
+  if (
+    Number.isInteger(resolvedBudgetTokens)
+    && parsedFloorTiles.length === 0
+    && parsedTraps.length === 0
+    && parsedWardens.length === 0
+  ) {
+    ensureBudgetedFulfillmentFeasible({
+      commandName,
+      budgetTokens: resolvedBudgetTokens,
+      rooms: parsedRooms,
+      delvers: parsedDelvers.map((entry) => ({
+        ...entry,
+        optimizationGoals: dedupeOptimizationGoals([
+          ...(entry.optimizationGoals || []),
+          ...textDelverGoals,
+        ]),
+      })),
+      priceListArtifact,
+    });
+  }
+  const fulfilled = (
+    parsedFloorTiles.length === 0
+    && parsedTraps.length === 0
+    && parsedWardens.length === 0
+  )
+    ? applyBudgetCappedFulfillment({
+      rooms: parsedRooms,
+      delvers: parsedDelvers.map((entry) => ({
+        ...entry,
+        optimizationGoals: dedupeOptimizationGoals([
+          ...(entry.optimizationGoals || []),
+          ...textDelverGoals,
+        ]),
+      })),
+      priceListArtifact,
+      budgetTokens: resolvedBudgetTokens,
+    })
+    : { rooms: parsedRooms, delvers: parsedDelvers };
+
   const summary = {
     goal: deriveGoalForAgentCommand({
       action,
@@ -1817,11 +2740,11 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
       ],
     }),
     dungeonAffinity,
-    rooms: parsedRooms.map((entry) => entry.value),
-    actors: [...parsedDelvers.map((entry) => entry.value), ...parsedWardens.map((entry) => entry.value)],
+    rooms: fulfilled.rooms.map((entry) => entry.value),
+    actors: [...fulfilled.delvers.map((entry) => entry.value), ...parsedWardens.map((entry) => entry.value)],
   };
-  if (budgetTokens !== undefined) {
-    summary.budgetTokens = budgetTokens;
+  if (resolvedBudgetTokens !== undefined) {
+    summary.budgetTokens = resolvedBudgetTokens;
   }
 
   const built = buildBuildSpecFromSummary({
@@ -1859,15 +2782,17 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
 
   const sharedConfig = {
     dungeonAffinity,
-    budgetTokens,
-    roomCount: parsedRooms.reduce((sum, entry) => sum + entry.value.count, 0) || undefined,
+    budgetTokens: resolvedBudgetTokens,
+    roomCount: fulfilled.rooms.reduce((sum, entry) => sum + entry.value.count, 0) || undefined,
+    constraints: authoringConstraints,
+    optimizationGoals: sharedOptimizationGoals.length > 0 ? sharedOptimizationGoals : undefined,
   };
   Object.keys(sharedConfig).forEach((key) => {
     if (sharedConfig[key] === undefined) delete sharedConfig[key];
   });
 
   const objectRequests = [
-    ...parsedRooms.map((entry) => ({
+    ...fulfilled.rooms.map((entry) => ({
       kind: "room",
       prompt: entry.prompt,
       count: entry.value.count,
@@ -1898,7 +2823,7 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
         vitals: entry.value.vitals,
       },
     })),
-    ...parsedDelvers.map((entry) => ({
+    ...fulfilled.delvers.map((entry) => ({
       kind: "delver",
       prompt: entry.prompt,
       id: entry.value.id,
@@ -1910,6 +2835,10 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
         vitals: entry.value.vitals,
         setupMode: entry.value.setupMode,
       },
+      optimizationGoals: dedupeOptimizationGoals([
+        ...(entry.optimizationGoals || []),
+        ...textDelverGoals,
+      ]),
     })),
     ...parsedWardens.map((entry) => ({
       kind: "warden",
@@ -1922,8 +2851,14 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
         affinities: entry.value.affinities,
         vitals: entry.value.vitals,
       },
+      optimizationGoals: dedupeOptimizationGoals(textWardenGoals),
     })),
   ];
+  objectRequests.forEach((entry) => {
+    if (!entry.optimizationGoals || entry.optimizationGoals.length === 0) {
+      delete entry.optimizationGoals;
+    }
+  });
   if (Object.keys(sharedConfig).length > 0) {
     objectRequests.push({
       kind: "shared_config",
@@ -1940,15 +2875,13 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
     objectRequests,
     sharedConfig,
   });
-  built.spec.authoring = {
+  applyAuthoringSection(built.spec, buildAuthoringSection({
     objectKinds: Array.from(new Set(objectRequests.map((entry) => entry.kind))),
     request: requestArtifact,
-  };
-
-  const validation = validateBuildSpec(built.spec);
-  if (!validation.ok) {
-    throw new Error(`${commandName} build spec failed: ${validation.errors.join("; ")}`);
-  }
+    constraints: authoringConstraints,
+    sharedOptimizationGoals,
+    objectOptimizationGoals: objectRequests.flatMap((entry) => entry.optimizationGoals || []),
+  }), commandName);
 
   const buildResult = await orchestrateBuild({
     spec: built.spec,
@@ -1983,7 +2916,7 @@ async function roomPlanCommand(argv) {
 
   assertAllowedRoomPlanArgs(args);
 
-  const rooms = parseRoomSpecs(args.room);
+  const parsedRooms = parseRoomSpecs(args.room);
   const runId = args["run-id"] || makeId("run");
   const createdAt = args["created-at"] || new Date().toISOString();
   const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("room-plan", runId);
@@ -1997,9 +2930,9 @@ async function roomPlanCommand(argv) {
     throw new Error(`room-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
-  let budgetTokens;
+  let budgetTokensFlag;
   if (args["budget-tokens"] !== undefined) {
-    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], "room-plan --budget-tokens");
+    budgetTokensFlag = parsePositiveIntStrict(args["budget-tokens"], "room-plan --budget-tokens");
   }
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
     throw new Error("room-plan requires both --budget and --price-list.");
@@ -2018,15 +2951,47 @@ async function roomPlanCommand(argv) {
 
   const goal = isNonEmptyString(args.goal)
     ? args.goal.trim()
-    : `Author dungeon rooms (${rooms.length} configuration${rooms.length === 1 ? "" : "s"}).`;
+    : `Author dungeon rooms (${parsedRooms.length} configuration${parsedRooms.length === 1 ? "" : "s"}).`;
+  const textBudgetTokens = extractBudgetTokensFromText(goal, "room-plan --goal");
+  const {
+    resolvedBudgetTokens,
+    constraints: authoringConstraints,
+  } = resolveAuthoringBudget({
+    commandName: "room-plan",
+    textBudgetTokens,
+    flagBudgetTokens: budgetTokensFlag,
+    budgetArtifact,
+  });
+  resolveTextVitalOptimizationGoals({
+    commandName: "room-plan",
+    text: goal,
+    scope: null,
+  });
+  const sharedOptimizationGoals = buildSharedOptimizationGoals({
+    text: goal,
+    hardBudgetConstraint: authoringConstraints,
+  });
+  ensureBudgetedFulfillmentFeasible({
+    commandName: "room-plan",
+    budgetTokens: resolvedBudgetTokens,
+    rooms: parsedRooms,
+    delvers: [],
+    priceListArtifact,
+  });
+  const fulfilledRooms = applyBudgetCappedFulfillment({
+    rooms: parsedRooms,
+    delvers: [],
+    priceListArtifact,
+    budgetTokens: resolvedBudgetTokens,
+  }).rooms;
   const summary = {
     goal,
     dungeonAffinity,
-    rooms,
+    rooms: fulfilledRooms.map((entry) => entry.value),
     actors: [],
   };
-  if (budgetTokens !== undefined) {
-    summary.budgetTokens = budgetTokens;
+  if (resolvedBudgetTokens !== undefined) {
+    summary.budgetTokens = resolvedBudgetTokens;
   }
 
   const built = buildBuildSpecFromSummary({
@@ -2040,6 +3005,11 @@ async function roomPlanCommand(argv) {
   if (!built.ok) {
     throw new Error(`room-plan build spec failed: ${built.errors.join("; ")}`);
   }
+  applyAuthoringSection(built.spec, buildAuthoringSection({
+    objectKinds: ["room"],
+    constraints: authoringConstraints,
+    sharedOptimizationGoals,
+  }), "room-plan");
 
   const buildResult = await orchestrateBuild({
     spec: built.spec,
@@ -2172,11 +3142,11 @@ async function delverPlanCommand(argv) {
     throw new Error(`delver-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
-  const delvers = parseDelverSpecs(args.delver, { defaultAffinity: dungeonAffinity });
+  const parsedDelvers = parseDelverSpecs(args.delver, { defaultAffinity: dungeonAffinity });
 
-  let budgetTokens;
+  let budgetTokensFlag;
   if (args["budget-tokens"] !== undefined) {
-    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], "delver-plan --budget-tokens");
+    budgetTokensFlag = parsePositiveIntStrict(args["budget-tokens"], "delver-plan --budget-tokens");
   }
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
     throw new Error("delver-plan requires both --budget and --price-list.");
@@ -2195,14 +3165,62 @@ async function delverPlanCommand(argv) {
 
   const goal = isNonEmptyString(args.goal)
     ? args.goal.trim()
-    : `Author delvers (${delvers.length} configuration${delvers.length === 1 ? "" : "s"}).`;
+    : `Author delvers (${parsedDelvers.length} configuration${parsedDelvers.length === 1 ? "" : "s"}).`;
+  const textBudgetTokens = extractBudgetTokensFromText(goal, "delver-plan --goal");
+  const {
+    resolvedBudgetTokens,
+    constraints: authoringConstraints,
+  } = resolveAuthoringBudget({
+    commandName: "delver-plan",
+    textBudgetTokens,
+    flagBudgetTokens: budgetTokensFlag,
+    budgetArtifact,
+  });
+  const textVitalGoals = resolveTextVitalOptimizationGoals({
+    commandName: "delver-plan",
+    text: goal,
+    scope: "delver",
+  });
+  const sharedOptimizationGoals = buildSharedOptimizationGoals({
+    text: goal,
+    hardBudgetConstraint: authoringConstraints,
+  });
+  const delverOptimizationGoals = dedupeOptimizationGoals([
+    ...parsedDelvers.flatMap((entry) => entry.optimizationGoals || []),
+    ...textVitalGoals,
+  ]);
+  ensureBudgetedFulfillmentFeasible({
+    commandName: "delver-plan",
+    budgetTokens: resolvedBudgetTokens,
+    rooms: [],
+    delvers: parsedDelvers.map((entry) => ({
+      ...entry,
+      optimizationGoals: dedupeOptimizationGoals([
+        ...(entry.optimizationGoals || []),
+        ...textVitalGoals,
+      ]),
+    })),
+    priceListArtifact,
+  });
+  const fulfilledDelvers = applyBudgetCappedFulfillment({
+    rooms: [],
+    delvers: parsedDelvers.map((entry) => ({
+      ...entry,
+      optimizationGoals: dedupeOptimizationGoals([
+        ...(entry.optimizationGoals || []),
+        ...textVitalGoals,
+      ]),
+    })),
+    priceListArtifact,
+    budgetTokens: resolvedBudgetTokens,
+  }).delvers;
   const summary = {
     goal,
     dungeonAffinity,
-    cardSet: delvers,
+    cardSet: fulfilledDelvers.map((entry) => entry.value),
   };
-  if (budgetTokens !== undefined) {
-    summary.budgetTokens = budgetTokens;
+  if (resolvedBudgetTokens !== undefined) {
+    summary.budgetTokens = resolvedBudgetTokens;
   }
 
   const built = buildBuildSpecFromSummary({
@@ -2216,6 +3234,12 @@ async function delverPlanCommand(argv) {
   if (!built.ok) {
     throw new Error(`delver-plan build spec failed: ${built.errors.join("; ")}`);
   }
+  applyAuthoringSection(built.spec, buildAuthoringSection({
+    objectKinds: ["delver"],
+    constraints: authoringConstraints,
+    sharedOptimizationGoals,
+    objectOptimizationGoals: delverOptimizationGoals,
+  }), "delver-plan");
 
   const buildResult = await orchestrateBuild({
     spec: built.spec,
@@ -2350,9 +3374,9 @@ async function wardenPlanCommand(argv) {
 
   const wardens = parseWardenSpecs(args.warden, { defaultAffinity: dungeonAffinity });
 
-  let budgetTokens;
+  let budgetTokensFlag;
   if (args["budget-tokens"] !== undefined) {
-    budgetTokens = parsePositiveIntStrict(args["budget-tokens"], "warden-plan --budget-tokens");
+    budgetTokensFlag = parsePositiveIntStrict(args["budget-tokens"], "warden-plan --budget-tokens");
   }
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
     throw new Error("warden-plan requires both --budget and --price-list.");
@@ -2372,13 +3396,32 @@ async function wardenPlanCommand(argv) {
   const goal = isNonEmptyString(args.goal)
     ? args.goal.trim()
     : `Author wardens (${wardens.length} configuration${wardens.length === 1 ? "" : "s"}).`;
+  const textBudgetTokens = extractBudgetTokensFromText(goal, "warden-plan --goal");
+  const {
+    resolvedBudgetTokens,
+    constraints: authoringConstraints,
+  } = resolveAuthoringBudget({
+    commandName: "warden-plan",
+    textBudgetTokens,
+    flagBudgetTokens: budgetTokensFlag,
+    budgetArtifact,
+  });
+  const textVitalGoals = resolveTextVitalOptimizationGoals({
+    commandName: "warden-plan",
+    text: goal,
+    scope: "warden",
+  });
+  const sharedOptimizationGoals = buildSharedOptimizationGoals({
+    text: goal,
+    hardBudgetConstraint: authoringConstraints,
+  });
   const summary = {
     goal,
     dungeonAffinity,
     cardSet: wardens,
   };
-  if (budgetTokens !== undefined) {
-    summary.budgetTokens = budgetTokens;
+  if (resolvedBudgetTokens !== undefined) {
+    summary.budgetTokens = resolvedBudgetTokens;
   }
 
   const built = buildBuildSpecFromSummary({
@@ -2392,6 +3435,12 @@ async function wardenPlanCommand(argv) {
   if (!built.ok) {
     throw new Error(`warden-plan build spec failed: ${built.errors.join("; ")}`);
   }
+  applyAuthoringSection(built.spec, buildAuthoringSection({
+    objectKinds: ["warden"],
+    constraints: authoringConstraints,
+    sharedOptimizationGoals,
+    objectOptimizationGoals: textVitalGoals,
+  }), "warden-plan");
 
   const buildResult = await orchestrateBuild({
     spec: built.spec,
