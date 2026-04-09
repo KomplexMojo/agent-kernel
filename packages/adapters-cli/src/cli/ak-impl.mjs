@@ -444,7 +444,7 @@ function resolveAuthoringBudget({
 }
 
 function buildSharedOptimizationGoals({ text, hardBudgetConstraint } = {}) {
-  if (!textIncludesMaximizeSpend(text) && !hardBudgetConstraint?.hardBudget) {
+  if (!textIncludesMaximizeSpend(text)) {
     return [];
   }
   return dedupeOptimizationGoals([
@@ -452,9 +452,7 @@ function buildSharedOptimizationGoals({ text, hardBudgetConstraint } = {}) {
       kind: "maximize_budget_spend",
       scope: "shared_config",
       priority: "high",
-      source: textIncludesMaximizeSpend(text)
-        ? "text"
-        : hardBudgetConstraint?.hardBudget?.sources?.[0],
+      source: "text",
     }),
   ]);
 }

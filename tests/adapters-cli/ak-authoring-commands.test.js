@@ -103,9 +103,9 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   assert.deepEqual(spec.authoring.objectKinds, ["room", "floor_tile", "trap", "delver", "warden", "shared_config"]);
   assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 1000);
   assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag", "budget_artifact"]);
-  assert.equal(request.sharedConfig.optimizationGoals[0].kind, "maximize_budget_spend");
+  assert.equal(request.sharedConfig.optimizationGoals, undefined);
   assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 1000);
-  assert.ok(spec.authoring.optimizationGoals.some((entry) => entry.kind === "maximize_budget_spend"));
+  assert.ok(spec.authoring.optimizationGoals.every((entry) => entry.kind !== "maximize_budget_spend"));
   const delverRequest = request.objects.find((entry) => entry.kind === "delver");
   assert.equal(delverRequest.optimizationGoals.length, 2);
   assert.ok(delverRequest.optimizationGoals.some((entry) => entry.kind === "maximize_vital_max" && entry.vital === "mana"));
@@ -184,4 +184,31 @@ test("cli create rejects conflicting hard budget inputs", () => {
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /hard budget inputs disagree/i);
+});
+
+test("cli create keeps budget-only input as a hard constraint without maximize-spend goal", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-budget-only-"));
+  runCliOk([
+    "create",
+    "--text",
+    "Create one delver with budget 100 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens",
+    "100",
+    "--run-id",
+    "run_create_budget_only",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const request = readJson(join(outDir, "request.json"));
+  const spec = readJson(join(outDir, "spec.json"));
+  assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 100);
+  assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag"]);
+  assert.equal(request.sharedConfig.optimizationGoals, undefined);
+  assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 100);
+  assert.equal(spec.authoring.optimizationGoals, undefined);
 });
