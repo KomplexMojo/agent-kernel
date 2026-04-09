@@ -37,6 +37,7 @@ test("cli help documents generic create and configure authoring commands", () =>
   assert.match(result.stdout, /\bconfigure\b/);
   assert.match(result.stdout, /--floor-tile/);
   assert.match(result.stdout, /--trap/);
+  assert.match(result.stdout, /goals=max_mana/);
 });
 
 test("cli create emits a complete playable artifact bundle for agent requests", () => {
@@ -44,7 +45,7 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   runCliOk([
     "create",
     "--text",
-    "Create a fire room with a trap, one delver, and one warden.",
+    "Create a fire room with a trap, one delver, and one warden. Total budget 1000 tokens.",
     "--room",
     "size=large;count=1;affinities=fire:emit:3",
     "--floor-tile",
@@ -52,9 +53,11 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
     "--trap",
     "id=trap_fire;x=2;y=2;affinity=fire;expression=push;stacks=2;blocking=false;vitals=mana:3:1,durability:4:0",
     "--delver",
-    "id=ember_delver;count=1;affinity=fire;motivation=attacking;setup-mode=user",
+    "id=ember_delver;count=1;affinity=fire;motivation=attacking;setup-mode=user;goals=max_mana:high,mana_regen:high",
     "--warden",
     "id=ember_warden;count=1;affinity=fire;motivation=defending",
+    "--budget-tokens",
+    "1000",
     "--run-id",
     "run_create_authoring",
     "--created-at",
@@ -91,13 +94,22 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
 
   assert.equal(request.schema, "agent-kernel/AgentCommandRequestArtifact");
   assert.equal(request.command.action, "author");
-  assert.equal(request.command.text, "Create a fire room with a trap, one delver, and one warden.");
+  assert.equal(request.command.text, "Create a fire room with a trap, one delver, and one warden. Total budget 1000 tokens.");
   assert.deepEqual(
     request.objects.map((entry) => entry.kind),
     ["room", "floor_tile", "trap", "delver", "warden", "shared_config"],
   );
 
   assert.deepEqual(spec.authoring.objectKinds, ["room", "floor_tile", "trap", "delver", "warden", "shared_config"]);
+  assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 1000);
+  assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag", "budget_artifact"]);
+  assert.equal(request.sharedConfig.optimizationGoals[0].kind, "maximize_budget_spend");
+  assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 1000);
+  assert.ok(spec.authoring.optimizationGoals.some((entry) => entry.kind === "maximize_budget_spend"));
+  const delverRequest = request.objects.find((entry) => entry.kind === "delver");
+  assert.equal(delverRequest.optimizationGoals.length, 2);
+  assert.ok(delverRequest.optimizationGoals.some((entry) => entry.kind === "maximize_vital_max" && entry.vital === "mana"));
+  assert.ok(delverRequest.optimizationGoals.some((entry) => entry.kind === "maximize_vital_regen" && entry.vital === "mana"));
   assert.equal(spec.configurator.inputs.levelGen.walkableTilesTarget, 18);
   assert.equal(spec.configurator.inputs.levelGen.traps.length, 1);
   assert.equal(spec.configurator.inputs.levelGen.traps[0].id, "trap_fire");
@@ -158,4 +170,18 @@ test("cli create rejects invalid trap expressions deterministically", () => {
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /trap\[1\] expression must be one of/i);
+});
+
+test("cli create rejects conflicting hard budget inputs", () => {
+  const result = runCli([
+    "create",
+    "--text",
+    "Create one delver with budget 120 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens",
+    "100",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /hard budget inputs disagree/i);
 });

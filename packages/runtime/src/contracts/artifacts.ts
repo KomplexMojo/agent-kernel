@@ -110,6 +110,34 @@ export type AgentCommandCompileTarget =
   | "build_spec_plan"
   | "build_spec_configurator"
   | "artifact_extension";
+export type AgentCommandDirectiveSource = "text" | "flag" | "object_flag" | "budget_artifact";
+export type AgentCommandOptimizationPriority = "low" | "medium" | "high";
+export type AgentCommandOptimizationScope = AgentCommandObjectKind | "shared_config";
+export type AgentCommandOptimizationGoalKind =
+  | "maximize_budget_spend"
+  | "maximize_vital_max"
+  | "maximize_vital_regen";
+
+export interface AgentCommandHardConstraintSetV1 {
+  /** Total token budget is a hard cap; later fulfillment must not exceed it. */
+  hardBudget?: {
+    totalTokens: number;
+    sources?: AgentCommandDirectiveSource[];
+  };
+}
+
+export interface AgentCommandOptimizationGoalV1 {
+  /** Canonical optimization direction for later deterministic fulfillment. */
+  kind: AgentCommandOptimizationGoalKind;
+  /** Target authored object scope for this optimization direction. */
+  scope: AgentCommandOptimizationScope;
+  /** Optional qualitative priority for later tie-breaking. */
+  priority?: AgentCommandOptimizationPriority;
+  /** Optional vital target when optimizing actor vitals or regen. */
+  vital?: "health" | "mana" | "stamina" | "durability";
+  /** Where the optimization direction came from. */
+  source?: AgentCommandDirectiveSource;
+}
 
 export interface AgentCommandObjectRequestV1 {
   /** Canonical authored object kind. */
@@ -122,6 +150,8 @@ export interface AgentCommandObjectRequestV1 {
   count?: number;
   /** Optional object-specific structured attributes. */
   attributes?: Record<string, unknown>;
+  /** Optional optimization directions for this authored object. */
+  optimizationGoals?: AgentCommandOptimizationGoalV1[];
 }
 
 export interface AgentCommandCompilationRouteV1 {
@@ -149,6 +179,8 @@ export interface AgentCommandSharedConfigV1 extends Record<string, unknown> {
   budgetTokens?: number;
   levelSize?: string;
   roomCount?: number;
+  constraints?: AgentCommandHardConstraintSetV1;
+  optimizationGoals?: AgentCommandOptimizationGoalV1[];
 }
 
 export interface AgentCommandCompatibilityV1 {
@@ -261,6 +293,10 @@ export interface BuildSpecAuthoringV1 {
   request?: AgentCommandRequestArtifact;
   /** Canonical object kinds represented by this spec. */
   objectKinds?: AgentCommandObjectKind[];
+  /** Explicit hard constraints extracted from authoring inputs. */
+  constraints?: AgentCommandHardConstraintSetV1;
+  /** Explicit optimization directions extracted from authoring inputs. */
+  optimizationGoals?: AgentCommandOptimizationGoalV1[];
 }
 
 /**

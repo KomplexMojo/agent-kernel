@@ -86,8 +86,16 @@ Inputs/outputs:
 - Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--trap`, `--delver`,
   and `--warden`, optional `--goal`, `--dungeon-affinity`, optional `--budget-tokens`,
   optional `--budget` + `--price-list`, plus standard `--run-id`, `--created-at`, `--out-dir`.
+- `--budget-tokens` is a hard cap for agent-authored spend. If `--text` or `--goal` also says
+  `budget <N> tokens`, and/or `--budget` supplies `budget.tokens`, all values must agree or
+  the command fails validation.
 - `--floor-tile` format: `count=<n>[;id=<id>]`
 - `--trap` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
+- `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
+  vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
+- Hard constraints are recorded separately from optimization goals in `request.json` / `spec.json`.
+  The current contract treats total budget as a hard constraint and maximize-spend / mana goals as
+  optimization directions for later fulfillment waves.
 - `create` records `command.action = "author"` in `request.json`; `configure` records
   `command.action = "configure"` while preserving the same deterministic parsing rules.
 - Output dir: `artifacts/runs/<runId>/create` or `artifacts/runs/<runId>/configure` by default.
@@ -116,6 +124,8 @@ Inputs/outputs:
 - If `affinities` are omitted, defaults are applied: `dark:emit:2`.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from room-plan runs.
+- If `--goal` includes a budget phrase such as `budget 400 tokens`, it must agree with
+  `--budget-tokens` and any provided `BudgetArtifact`.
 - Output dir: `artifacts/runs/<runId>/room-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
   `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
@@ -128,12 +138,14 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` is singular for direct CLI authoring; repeating it in the same `--delver` spec is rejected.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from delver-plan runs.
+- Delver `goals=` values are optimization directions only; they do not bypass the existing
+  deterministic cost model or introduce a parallel config system.
 - Output dir: `artifacts/runs/<runId>/delver-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
   `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
@@ -169,6 +181,11 @@ Top-level shape:
 - `command`: normalized agent command envelope with `action`, source text, source id, and `taxonomyVersion`.
 - `objects`: normalized authored objects extracted from the command.
 - `sharedConfig`: cross-object settings such as `dungeonAffinity`, `budgetTokens`, `levelSize`, and `roomCount`.
+- `sharedConfig.constraints.hardBudget`: canonical hard-cap budget input. If text, `--budget-tokens`,
+  and `BudgetArtifact.budget.tokens` disagree, the CLI rejects the request instead of guessing precedence.
+- `sharedConfig.optimizationGoals`: shared optimization directions such as `maximize_budget_spend`.
+- `objects[].optimizationGoals`: per-object optimization directions such as `maximize_vital_max` and
+  `maximize_vital_regen` for delver authoring.
 - `compilation.rules`: explicit mapping from each object kind to downstream build/configurator targets.
 - `compatibility`: rollout notes and explicit legacy-flow preservation requirements.
 
