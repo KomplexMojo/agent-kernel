@@ -1,4 +1,5 @@
 import { applyMoveAction, packMoveAction, renderBaseTiles, renderFrameBuffer } from "../../../bindings-ts/src/mvp-movement.js";
+import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 
 function assertCoreSupportsGrid(core) {
   const required = [
@@ -53,20 +54,13 @@ function shortestPath(grid, start, goal) {
   const cameFrom = { [startKey]: null };
   const seen = new Set([startKey]);
 
-  const deltas = [
-    { dx: 0, dy: -1 },
-    { dx: 1, dy: 0 },
-    { dx: 0, dy: 1 },
-    { dx: -1, dy: 0 },
-  ];
-
   while (queue.length > 0) {
     const current = queue.shift();
     const currentKey = `${current.x},${current.y}`;
     if (currentKey === goalKey) {
       return reconstructPath(cameFrom, goalKey);
     }
-    for (const delta of deltas) {
+    for (const delta of EIGHT_WAY_DELTAS) {
       const next = { x: current.x + delta.dx, y: current.y + delta.dy };
       const nextKey = `${next.x},${next.y}`;
       if (seen.has(nextKey) || !isWalkable(grid, next)) {
@@ -81,10 +75,14 @@ function shortestPath(grid, start, goal) {
 }
 
 function directionFromDelta(delta) {
-  if (delta.dx === 1 && delta.dy === 0) return "east";
-  if (delta.dx === -1 && delta.dy === 0) return "west";
   if (delta.dx === 0 && delta.dy === -1) return "north";
+  if (delta.dx === 1 && delta.dy === -1) return "northeast";
+  if (delta.dx === 1 && delta.dy === 0) return "east";
+  if (delta.dx === 1 && delta.dy === 1) return "southeast";
   if (delta.dx === 0 && delta.dy === 1) return "south";
+  if (delta.dx === -1 && delta.dy === 1) return "southwest";
+  if (delta.dx === -1 && delta.dy === 0) return "west";
+  if (delta.dx === -1 && delta.dy === -1) return "northwest";
   return "custom";
 }
 

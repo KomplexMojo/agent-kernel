@@ -251,6 +251,31 @@ if (existsSync(path.resolve(root, "build/core-as.wasm"))) {
   assert.ok(inspectResult.artifacts["inspect-summary.json"]);
 }
 
+const manualMoveResult = await adapter.manualMove({
+  action: "up-right",
+  actorId: "actor_1",
+  observation: {
+    tick: 4,
+    actors: [{ id: "actor_1", position: { x: 3, y: 4 } }],
+  },
+  controllableActorIds: ["actor_1"],
+});
+assert.equal(manualMoveResult.ok, true);
+assert.equal(manualMoveResult.action.params.direction, "northeast");
+assert.deepEqual(manualMoveResult.action.params.to, { x: 4, y: 3 });
+
+const blockedManualMove = await adapter.manualMove({
+  action: "right",
+  actorId: "actor_2",
+  observation: {
+    tick: 1,
+    actors: [{ id: "actor_2", position: { x: 0, y: 0 } }],
+  },
+  controllableActorIds: ["actor_1"],
+});
+assert.equal(blockedManualMove.ok, false);
+assert.equal(blockedManualMove.reason, "actor_not_controllable");
+
 let workerMessageHandler = null;
 let workerErrorHandler = null;
 let workerTerminated = false;
@@ -278,6 +303,21 @@ const workerAdapter = createCliWorkerAdapter({
             },
           });
         });
+        return;
+      }
+      if (payload.action === "manual_move") {
+        queueMicrotask(() => {
+          workerMessageHandler?.({
+            data: {
+              id: payload.id,
+              ok: true,
+              result: {
+                ok: true,
+                action: "manual_move",
+              },
+            },
+          });
+        });
       }
     },
     terminate() {
@@ -293,6 +333,13 @@ const workerResult = await workerAdapter.buildSpecFromSummary({
 });
 assert.equal(workerResult.ok, true);
 assert.equal(workerResult.spec.meta.runId, "run_worker");
+
+const workerManualMove = workerAdapter.manualMove({
+  action: "down-left",
+  actorId: "actor_1",
+});
+assert.equal((await workerManualMove).action, "manual_move");
+
 workerAdapter.dispose();
 assert.equal(workerTerminated, true);
 

@@ -62,7 +62,7 @@ test("cli delver-plan authors delver cards directly from delver flags", () => {
   const delver = cards[0];
   assert.equal(delver.count, 2);
   assert.equal(delver.affinity, "fire");
-  assert.deepEqual(delver.motivations, ["attacking"]);
+  assert.deepEqual(delver.motivations, ["attacking", "user_controlled"]);
 });
 
 test("cli delver-plan applies default delver motivation and affinity fallback", () => {
@@ -87,7 +87,7 @@ test("cli delver-plan applies default delver motivation and affinity fallback", 
   const delver = cards[0];
   assert.equal(delver.count, 1);
   assert.equal(delver.affinity, "water");
-  assert.deepEqual(delver.motivations, ["attacking"]);
+  assert.deepEqual(delver.motivations, ["attacking", "user_controlled"]);
 });
 
 test("cli delver-plan supports multiple delver configurations in one command", () => {
@@ -113,7 +113,7 @@ test("cli delver-plan supports multiple delver configurations in one command", (
   const byAffinity = new Map(cards.map((card) => [card.affinity, card]));
   assert.equal(byAffinity.get("fire")?.count, 2);
   assert.equal(byAffinity.get("earth")?.count, 1);
-  assert.deepEqual(byAffinity.get("earth")?.motivations, ["patrolling"]);
+  assert.deepEqual(byAffinity.get("earth")?.motivations, ["patrolling", "user_controlled"]);
 });
 
 test("cli delver-plan supports advanced affinities, vitals, setup mode, and receipt accounting", () => {
@@ -287,7 +287,7 @@ const unitCost = calculateActorConfigurationUnitCost({
 }).cost;
 
 assert.equal(unitCost, 200);
-assert.ok(card.vitals.mana.max >= 30, "mana max should be driven up by the budgeted fulfillment");
+assert.ok(card.vitals.mana.max >= 29, "mana max should still be driven up by the budgeted fulfillment after manual-control pricing");
 assert.ok(card.vitals.mana.regen >= 1);
 `);
 });

@@ -31,16 +31,12 @@
       "start": { "x": 1, "y": 1 },
       "expectedDirections": [
         "east",
-        "east",
-        "south",
-        "south",
-        "east",
-        "east",
-        "south",
-        "south",
-        "south",
-        "south",
-        "east",
+        "southeast",
+        "southeast",
+        "southeast",
+        "southeast",
+        "southwest",
+        "southeast",
         "east"
       ]
     },
@@ -71,17 +67,13 @@
       ],
       "start": { "x": 1, "y": 1 },
       "expectedDirections": [
-        "south",
+        "southeast",
         "east",
-        "east",
-        "south",
-        "east",
-        "east",
-        "south",
-        "south",
-        "south",
-        "south",
-        "east",
+        "southeast",
+        "southeast",
+        "southeast",
+        "southwest",
+        "southeast",
         "east"
       ]
     }
