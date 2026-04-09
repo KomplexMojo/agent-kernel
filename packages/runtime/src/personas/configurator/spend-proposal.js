@@ -398,6 +398,53 @@ export function calculateActorConfigurationUnitCost({
   };
 }
 
+export function calculateRoomCardUnitCost({
+  card,
+  priceList,
+  tileCosts,
+  pricing = {},
+} = {}) {
+  const roomCard = card && typeof card === "object"
+    ? {
+      ...card,
+      type: "room",
+      source: "room",
+      count: 1,
+    }
+    : {
+      type: "room",
+      source: "room",
+      count: 1,
+    };
+  const layoutSpend = evaluateRoomCardLayoutSpend({
+    cardSet: [roomCard],
+    budgetTokens: undefined,
+    priceList,
+    tileCosts,
+  });
+  const priceMap = buildPriceMap(priceList);
+  const affinitySpend = calculateActorConfigurationUnitCost({
+    entry: {
+      affinities: Array.isArray(roomCard?.affinities) ? roomCard.affinities : [],
+    },
+    priceMap,
+    pricing: {
+      ...pricing,
+      affinityCostScale: ROOM_AFFINITY_STACK_COST_FACTOR,
+    },
+  });
+
+  return {
+    cost: normalizePositiveInt(layoutSpend?.spentTokens, 0) + normalizePositiveInt(affinitySpend?.cost, 0),
+    detail: {
+      layoutSpend: normalizePositiveInt(layoutSpend?.spentTokens, 0),
+      affinitySpend: normalizePositiveInt(affinitySpend?.cost, 0),
+      layoutLineItems: Array.isArray(layoutSpend?.lineItems) ? layoutSpend.lineItems : [],
+      affinityDetail: affinitySpend?.detail,
+    },
+  };
+}
+
 function asActorEntries({ actorSet, summary } = {}) {
   if (Array.isArray(actorSet) && actorSet.length > 0) {
     return actorSet.map((entry) => ({

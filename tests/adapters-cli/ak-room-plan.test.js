@@ -4,9 +4,11 @@ const { spawnSync } = require("node:child_process");
 const { mkdtempSync, readFileSync, existsSync, writeFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
+const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const spendProposalUrl = moduleUrl("packages/runtime/src/personas/configurator/spend-proposal.js");
 
 function runCli(args) {
   return spawnSync(process.execPath, [CLI, ...args], {
@@ -235,4 +237,79 @@ test("cli room-plan requires --budget and --price-list together", () => {
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /requires both --budget and --price-list/i);
+});
+
+test("cli room-plan maximizes a flexible room within a 400-token budget while preserving requested trap affinities", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budgeted-"));
+  const outDir = join(workDir, "out");
+  const budgetPath = join(workDir, "budget.json");
+  const priceListPath = join(workDir, "price-list.json");
+
+  writeFileSync(budgetPath, JSON.stringify({
+    schema: "agent-kernel/BudgetArtifact",
+    schemaVersion: 1,
+    meta: {
+      id: "budget_room_400",
+      runId: "run_room_plan_budgeted",
+      createdAt: "2026-04-09T00:00:00.000Z",
+      producedBy: "test",
+    },
+    budget: {
+      tokens: 400,
+    },
+  }, null, 2));
+  writeFileSync(priceListPath, JSON.stringify({
+    schema: "agent-kernel/PriceList",
+    schemaVersion: 1,
+    meta: {
+      id: "price_list_room_400",
+      runId: "run_room_plan_budgeted",
+      createdAt: "2026-04-09T00:00:00.000Z",
+      producedBy: "test",
+    },
+    items: [],
+  }, null, 2));
+
+  runCliOk([
+    "room-plan",
+    "--room",
+    "affinities=dark:emit:2,water:emit:2",
+    "--budget",
+    budgetPath,
+    "--price-list",
+    priceListPath,
+    "--run-id",
+    "run_room_plan_budgeted",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const room = listRoomCards(spec)[0];
+  assert.ok(room);
+  assert.equal(room.roomSize, "large");
+  assert.deepEqual(listAffinityTuples(room), [
+    { kind: "dark", expression: "emit", stacks: 2 },
+    { kind: "water", expression: "emit", stacks: 2 },
+  ]);
+
+  runEsm(`
+import assert from "node:assert/strict";
+import { calculateRoomCardUnitCost } from ${JSON.stringify(spendProposalUrl)};
+
+const room = ${JSON.stringify(room)};
+const mediumCost = calculateRoomCardUnitCost({
+  card: { ...room, roomSize: "medium" },
+  priceList: { items: [] },
+}).cost;
+const largeCost = calculateRoomCardUnitCost({
+  card: room,
+  priceList: { items: [] },
+}).cost;
+
+assert.ok(largeCost <= 400);
+assert.ok(largeCost > mediumCost);
+`);
 });

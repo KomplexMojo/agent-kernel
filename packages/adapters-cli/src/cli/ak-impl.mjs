@@ -14,6 +14,10 @@ import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtim
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
 import {
+  calculateActorConfigurationUnitCost,
+  calculateRoomCardUnitCost,
+} from "../../../runtime/src/personas/configurator/spend-proposal.js";
+import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
   ALLOWED_DELVER_SETUP_MODES,
@@ -27,6 +31,7 @@ import {
   DEFAULT_ROOM_AFFINITY_EXPRESSION,
   DEFAULT_ROOM_AFFINITY_STACKS,
   DEFAULT_ROOM_CARD_AFFINITY,
+  DEFAULT_VITALS,
   TRAP_VITAL_KEYS,
   VITAL_KEYS,
 } from "../../../runtime/src/contracts/domain-constants.js";
@@ -719,10 +724,13 @@ function parseRoomSpec(value, roomIndex) {
 
   const affinities = parseRoomAffinities(fields.get("affinities") || fields.get("affinity"), roomIndex);
   return {
-    size,
-    count,
-    affinity: affinities[0]?.kind || DEFAULT_ROOM_CARD_AFFINITY,
-    affinities,
+    value: {
+      size,
+      count,
+      affinity: affinities[0]?.kind || DEFAULT_ROOM_CARD_AFFINITY,
+      affinities,
+    },
+    sizeFlexible: !fields.has("size"),
   };
 }
 
@@ -1005,6 +1013,7 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
   return {
     value: delver,
     optimizationGoals,
+    vitalsFlexible: !fields.has("vitals"),
   };
 }
 
@@ -1107,6 +1116,301 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
     throw new Error("warden-plan requires at least one --warden entry.");
   }
   return values.map((value, index) => parseWardenSpec(value, index + 1, { defaultAffinity }));
+}
+
+function buildPriceMap(priceListArtifact) {
+  const items = Array.isArray(priceListArtifact?.items) ? priceListArtifact.items : [];
+  return new Map(
+    items
+      .filter((item) => typeof item?.id === "string" && typeof item?.kind === "string" && Number.isFinite(item?.costTokens))
+      .map((item) => [`${item.kind}:${item.id}`, item.costTokens]),
+  );
+}
+
+function cloneVitals(vitals = DEFAULT_VITALS) {
+  return VITAL_KEYS.reduce((acc, key) => {
+    const source = vitals?.[key] && typeof vitals[key] === "object"
+      ? vitals[key]
+      : DEFAULT_VITALS[key];
+    const max = Number.isInteger(source?.max) ? source.max : DEFAULT_VITALS[key].max;
+    const current = Number.isInteger(source?.current) ? source.current : max;
+    const regen = Number.isInteger(source?.regen) ? source.regen : DEFAULT_VITALS[key].regen;
+    acc[key] = {
+      current: Math.max(0, current),
+      max: Math.max(0, max),
+      regen: Math.max(0, regen),
+    };
+    return acc;
+  }, {});
+}
+
+function calculateDelverCardUnitCost(card, priceMap) {
+  return calculateActorConfigurationUnitCost({
+    entry: {
+      motivations: Array.isArray(card?.motivations) ? card.motivations : [],
+      affinities: Array.isArray(card?.affinities) ? card.affinities : [],
+      vitals: cloneVitals(card?.vitals),
+    },
+    priceMap,
+  }).cost;
+}
+
+function compareNumericTuple(left = [], right = []) {
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftValue = Number(left[index] || 0);
+    const rightValue = Number(right[index] || 0);
+    if (leftValue !== rightValue) {
+      return leftValue - rightValue;
+    }
+  }
+  return 0;
+}
+
+function resolveDelverGoalOrder(goals = []) {
+  const ordered = [];
+  normalizeList(goals).forEach((goal) => {
+    if (goal?.kind === "maximize_vital_max" && goal?.vital === "mana") {
+      ordered.push("mana_max");
+      return;
+    }
+    if (goal?.kind === "maximize_vital_regen" && goal?.vital === "mana") {
+      ordered.push("mana_regen");
+    }
+  });
+  if (ordered.length > 0) return ordered;
+  return ["mana_max", "mana_regen"];
+}
+
+function fillFlexibleDelverVitals(vitals, remainingTokens) {
+  const next = cloneVitals(vitals);
+  let remaining = Number.isInteger(remainingTokens) ? remainingTokens : 0;
+  if (remaining <= 0) {
+    return next;
+  }
+  if (remaining % 2 === 1) {
+    next.stamina.max += 1;
+    next.stamina.current = next.stamina.max;
+    remaining -= 1;
+  }
+  if (remaining <= 0) {
+    return next;
+  }
+  const manaIncrease = Math.floor(remaining / 2);
+  if (manaIncrease > 0) {
+    next.mana.max += manaIncrease;
+    next.mana.current = next.mana.max;
+  }
+  return next;
+}
+
+function maximizeBudgetCappedDelverCard(card, {
+  availableTokens,
+  priceListArtifact,
+  optimizationGoals = [],
+  allowVitalTuning = false,
+} = {}) {
+  if (!allowVitalTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
+    return card;
+  }
+
+  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
+  const perUnitBudget = Math.floor(availableTokens / count);
+  if (perUnitBudget <= 0) {
+    return card;
+  }
+
+  const priceMap = buildPriceMap(priceListArtifact);
+  const goals = resolveDelverGoalOrder(optimizationGoals);
+  const baseVitals = cloneVitals(card?.vitals);
+  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
+  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
+  const stationary = motivations.includes("stationary");
+
+  if (affinities.length > 0) {
+    baseVitals.mana.max = Math.max(baseVitals.mana.max, 1);
+    baseVitals.mana.current = baseVitals.mana.max;
+    baseVitals.mana.regen = Math.max(baseVitals.mana.regen, 1);
+  }
+  if (!stationary) {
+    baseVitals.stamina.regen = Math.max(baseVitals.stamina.regen, 1);
+  }
+
+  const maximumManaRegen = Math.max(
+    baseVitals.mana.regen,
+    Math.floor(Math.sqrt(Math.max(0, perUnitBudget) / 5)) + 2,
+  );
+  const maximumMana = Math.max(
+    baseVitals.mana.max,
+    Math.floor(Math.max(0, perUnitBudget) / 2) + baseVitals.mana.max,
+  );
+
+  let best = null;
+  for (let manaRegen = baseVitals.mana.regen; manaRegen <= maximumManaRegen; manaRegen += 1) {
+    for (let manaMax = baseVitals.mana.max; manaMax <= maximumMana; manaMax += 1) {
+      const candidateVitals = cloneVitals(baseVitals);
+      candidateVitals.mana.max = manaMax;
+      candidateVitals.mana.current = manaMax;
+      candidateVitals.mana.regen = manaRegen;
+
+      const candidateCost = calculateActorConfigurationUnitCost({
+        entry: {
+          motivations,
+          affinities,
+          vitals: candidateVitals,
+        },
+        priceMap,
+      }).cost;
+      if (!Number.isInteger(candidateCost) || candidateCost <= 0 || candidateCost > perUnitBudget) {
+        continue;
+      }
+
+      const filledVitals = fillFlexibleDelverVitals(candidateVitals, perUnitBudget - candidateCost);
+      const filledCost = calculateActorConfigurationUnitCost({
+        entry: {
+          motivations,
+          affinities,
+          vitals: filledVitals,
+        },
+        priceMap,
+      }).cost;
+      if (!Number.isInteger(filledCost) || filledCost <= 0 || filledCost > perUnitBudget) {
+        continue;
+      }
+
+      const goalTuple = goals.map((goal) => (
+        goal === "mana_regen"
+          ? filledVitals.mana.regen
+          : filledVitals.mana.max
+      ));
+      const candidate = {
+        card: {
+          ...card,
+          vitals: filledVitals,
+        },
+        totalCost: filledCost * count,
+        goalTuple,
+      };
+      if (!best) {
+        best = candidate;
+        continue;
+      }
+      if (candidate.totalCost !== best.totalCost) {
+        if (candidate.totalCost > best.totalCost) best = candidate;
+        continue;
+      }
+      if (compareNumericTuple(candidate.goalTuple, best.goalTuple) > 0) {
+        best = candidate;
+      }
+    }
+  }
+
+  return best?.card || card;
+}
+
+function maximizeBudgetCappedRoomCard(card, {
+  availableTokens,
+  priceListArtifact,
+  allowSizeTuning = false,
+} = {}) {
+  if (!allowSizeTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
+    return card;
+  }
+  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
+  let best = null;
+
+  ROOM_CARD_SIZE_IDS.forEach((roomSize, sizeIndex) => {
+    const candidateCard = {
+      ...card,
+      size: roomSize,
+      roomSize,
+    };
+    const unitCost = calculateRoomCardUnitCost({
+      card: candidateCard,
+      priceList: priceListArtifact,
+    }).cost;
+    const totalCost = unitCost * count;
+    if (!Number.isInteger(totalCost) || totalCost <= 0 || totalCost > availableTokens) {
+      return;
+    }
+    const candidate = {
+      card: candidateCard,
+      totalCost,
+      sizeIndex,
+    };
+    if (!best || candidate.totalCost > best.totalCost || (
+      candidate.totalCost === best.totalCost && candidate.sizeIndex > best.sizeIndex
+    )) {
+      best = candidate;
+    }
+  });
+
+  return best?.card || card;
+}
+
+function applyBudgetCappedFulfillment({
+  rooms = [],
+  delvers = [],
+  priceListArtifact,
+  budgetTokens,
+} = {}) {
+  if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
+    return {
+      rooms: rooms.map((entry) => ({ ...entry })),
+      delvers: delvers.map((entry) => ({ ...entry })),
+    };
+  }
+
+  const nextRooms = rooms.map((entry) => ({
+    ...entry,
+    value: entry?.value && typeof entry.value === "object" ? { ...entry.value } : entry?.value,
+  }));
+  const nextDelvers = delvers.map((entry) => ({
+    ...entry,
+    value: entry?.value && typeof entry.value === "object" ? { ...entry.value } : entry?.value,
+    optimizationGoals: Array.isArray(entry?.optimizationGoals) ? entry.optimizationGoals.slice() : [],
+  }));
+  const priceMap = buildPriceMap(priceListArtifact);
+
+  const calculateCurrentTotal = () => {
+    const roomTotal = nextRooms.reduce((sum, entry) => sum + calculateRoomCardUnitCost({
+      card: entry.value,
+      priceList: priceListArtifact,
+    }).cost * (entry?.value?.count || 1), 0);
+    const delverTotal = nextDelvers.reduce((sum, entry) => sum + calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1), 0);
+    return roomTotal + delverTotal;
+  };
+
+  nextRooms.forEach((entry, roomIndex) => {
+    const currentCardCost = calculateRoomCardUnitCost({
+      card: entry.value,
+      priceList: priceListArtifact,
+    }).cost * (entry?.value?.count || 1);
+    const otherCost = calculateCurrentTotal() - currentCardCost;
+    const availableTokens = Math.max(0, budgetTokens - otherCost);
+    nextRooms[roomIndex].value = maximizeBudgetCappedRoomCard(entry.value, {
+      availableTokens,
+      priceListArtifact,
+      allowSizeTuning: entry?.sizeFlexible === true,
+    });
+  });
+
+  nextDelvers.forEach((entry, delverIndex) => {
+    const currentCardCost = calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1);
+    const otherCost = calculateCurrentTotal() - currentCardCost;
+    const availableTokens = Math.max(0, budgetTokens - otherCost);
+    nextDelvers[delverIndex].value = maximizeBudgetCappedDelverCard(entry.value, {
+      availableTokens,
+      priceListArtifact,
+      optimizationGoals: entry.optimizationGoals,
+      allowVitalTuning: entry?.vitalsFlexible === true,
+    });
+  });
+
+  return {
+    rooms: nextRooms,
+    delvers: nextDelvers,
+  };
 }
 
 function resolvePath(input, cwd = process.cwd()) {
@@ -2080,7 +2384,7 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
   const parsedRooms = normalizeList(args.room)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
-    .map((value, index) => ({ prompt: value, value: parseRoomSpec(value, index + 1) }));
+    .map((value, index) => ({ prompt: value, ...parseRoomSpec(value, index + 1) }));
   const parsedFloorTiles = normalizeList(args["floor-tile"])
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
@@ -2124,6 +2428,24 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
   });
   const textDelverGoals = textVitalScope === "delver" ? textVitalGoals : [];
   const textWardenGoals = textVitalScope === "warden" ? textVitalGoals : [];
+  const fulfilled = (
+    parsedFloorTiles.length === 0
+    && parsedTraps.length === 0
+    && parsedWardens.length === 0
+  )
+    ? applyBudgetCappedFulfillment({
+      rooms: parsedRooms,
+      delvers: parsedDelvers.map((entry) => ({
+        ...entry,
+        optimizationGoals: dedupeOptimizationGoals([
+          ...(entry.optimizationGoals || []),
+          ...textDelverGoals,
+        ]),
+      })),
+      priceListArtifact,
+      budgetTokens: resolvedBudgetTokens,
+    })
+    : { rooms: parsedRooms, delvers: parsedDelvers };
 
   const summary = {
     goal: deriveGoalForAgentCommand({
@@ -2138,8 +2460,8 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
       ],
     }),
     dungeonAffinity,
-    rooms: parsedRooms.map((entry) => entry.value),
-    actors: [...parsedDelvers.map((entry) => entry.value), ...parsedWardens.map((entry) => entry.value)],
+    rooms: fulfilled.rooms.map((entry) => entry.value),
+    actors: [...fulfilled.delvers.map((entry) => entry.value), ...parsedWardens.map((entry) => entry.value)],
   };
   if (resolvedBudgetTokens !== undefined) {
     summary.budgetTokens = resolvedBudgetTokens;
@@ -2181,7 +2503,7 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
   const sharedConfig = {
     dungeonAffinity,
     budgetTokens: resolvedBudgetTokens,
-    roomCount: parsedRooms.reduce((sum, entry) => sum + entry.value.count, 0) || undefined,
+    roomCount: fulfilled.rooms.reduce((sum, entry) => sum + entry.value.count, 0) || undefined,
     constraints: authoringConstraints,
     optimizationGoals: sharedOptimizationGoals.length > 0 ? sharedOptimizationGoals : undefined,
   };
@@ -2190,7 +2512,7 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
   });
 
   const objectRequests = [
-    ...parsedRooms.map((entry) => ({
+    ...fulfilled.rooms.map((entry) => ({
       kind: "room",
       prompt: entry.prompt,
       count: entry.value.count,
@@ -2221,7 +2543,7 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
         vitals: entry.value.vitals,
       },
     })),
-    ...parsedDelvers.map((entry) => ({
+    ...fulfilled.delvers.map((entry) => ({
       kind: "delver",
       prompt: entry.prompt,
       id: entry.value.id,
@@ -2314,7 +2636,7 @@ async function roomPlanCommand(argv) {
 
   assertAllowedRoomPlanArgs(args);
 
-  const rooms = parseRoomSpecs(args.room);
+  const parsedRooms = parseRoomSpecs(args.room);
   const runId = args["run-id"] || makeId("run");
   const createdAt = args["created-at"] || new Date().toISOString();
   const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("room-plan", runId);
@@ -2349,7 +2671,7 @@ async function roomPlanCommand(argv) {
 
   const goal = isNonEmptyString(args.goal)
     ? args.goal.trim()
-    : `Author dungeon rooms (${rooms.length} configuration${rooms.length === 1 ? "" : "s"}).`;
+    : `Author dungeon rooms (${parsedRooms.length} configuration${parsedRooms.length === 1 ? "" : "s"}).`;
   const textBudgetTokens = extractBudgetTokensFromText(goal, "room-plan --goal");
   const {
     resolvedBudgetTokens,
@@ -2369,10 +2691,16 @@ async function roomPlanCommand(argv) {
     text: goal,
     hardBudgetConstraint: authoringConstraints,
   });
+  const fulfilledRooms = applyBudgetCappedFulfillment({
+    rooms: parsedRooms,
+    delvers: [],
+    priceListArtifact,
+    budgetTokens: resolvedBudgetTokens,
+  }).rooms;
   const summary = {
     goal,
     dungeonAffinity,
-    rooms,
+    rooms: fulfilledRooms.map((entry) => entry.value),
     actors: [],
   };
   if (resolvedBudgetTokens !== undefined) {
@@ -2528,7 +2856,6 @@ async function delverPlanCommand(argv) {
   }
 
   const parsedDelvers = parseDelverSpecs(args.delver, { defaultAffinity: dungeonAffinity });
-  const delvers = parsedDelvers.map((entry) => entry.value);
 
   let budgetTokensFlag;
   if (args["budget-tokens"] !== undefined) {
@@ -2551,7 +2878,7 @@ async function delverPlanCommand(argv) {
 
   const goal = isNonEmptyString(args.goal)
     ? args.goal.trim()
-    : `Author delvers (${delvers.length} configuration${delvers.length === 1 ? "" : "s"}).`;
+    : `Author delvers (${parsedDelvers.length} configuration${parsedDelvers.length === 1 ? "" : "s"}).`;
   const textBudgetTokens = extractBudgetTokensFromText(goal, "delver-plan --goal");
   const {
     resolvedBudgetTokens,
@@ -2575,10 +2902,22 @@ async function delverPlanCommand(argv) {
     ...parsedDelvers.flatMap((entry) => entry.optimizationGoals || []),
     ...textVitalGoals,
   ]);
+  const fulfilledDelvers = applyBudgetCappedFulfillment({
+    rooms: [],
+    delvers: parsedDelvers.map((entry) => ({
+      ...entry,
+      optimizationGoals: dedupeOptimizationGoals([
+        ...(entry.optimizationGoals || []),
+        ...textVitalGoals,
+      ]),
+    })),
+    priceListArtifact,
+    budgetTokens: resolvedBudgetTokens,
+  }).delvers;
   const summary = {
     goal,
     dungeonAffinity,
-    cardSet: delvers,
+    cardSet: fulfilledDelvers.map((entry) => entry.value),
   };
   if (resolvedBudgetTokens !== undefined) {
     summary.budgetTokens = resolvedBudgetTokens;
