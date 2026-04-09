@@ -30,6 +30,18 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function listCardSet(spec) {
+  return Array.isArray(spec?.plan?.hints?.cardSet) ? spec.plan.hints.cardSet : [];
+}
+
+function listRoomCards(spec) {
+  return listCardSet(spec).filter((entry) => entry?.type === "room");
+}
+
+function listDelverCards(spec) {
+  return listCardSet(spec).filter((entry) => entry?.type === "delver");
+}
+
 test("cli help documents generic create and configure authoring commands", () => {
   const result = runCli(["--help"]);
   assert.equal(result.status, 0);
@@ -211,4 +223,106 @@ test("cli create keeps budget-only input as a hard constraint without maximize-s
   assert.equal(request.sharedConfig.optimizationGoals, undefined);
   assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 100);
   assert.equal(spec.authoring.optimizationGoals, undefined);
+});
+
+test("cli create maximizes delver spend deterministically when explicitly asked to maximize spend", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-delver-max-spend-"));
+  runCliOk([
+    "create",
+    "--text",
+    "Create one fire delver and maximize valid spend within a total budget of 200 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2;goals=max_mana,mana_regen",
+    "--budget-tokens",
+    "200",
+    "--run-id",
+    "run_create_delver_max_spend",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const delver = listDelverCards(spec)[0];
+  assert.ok(delver);
+  assert.ok(spec.authoring.optimizationGoals.some((entry) => entry.kind === "maximize_budget_spend"));
+  assert.ok(delver.vitals.mana.max >= 30);
+  assert.ok(delver.vitals.mana.regen >= 1);
+  assert.ok(delver.vitals.stamina.regen >= 1);
+});
+
+test("cli create preserves mixed room affinities while maximizing valid spend", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-room-max-spend-"));
+  runCliOk([
+    "create",
+    "--text",
+    "Create one room and maximize valid spend within a total budget of 400 tokens.",
+    "--room",
+    "affinities=dark:emit:2,water:emit:2",
+    "--budget-tokens",
+    "400",
+    "--run-id",
+    "run_create_room_max_spend",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const room = listRoomCards(spec)[0];
+  assert.ok(room);
+  assert.equal(room.roomSize, "large");
+  assert.deepEqual(room.affinities, [
+    { kind: "dark", expression: "emit", stacks: 2 },
+    { kind: "water", expression: "emit", stacks: 2 },
+  ]);
+});
+
+test("cli room-plan rejects insufficient hard budgets instead of silently degrading the request", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-insufficient-"));
+  const result = runCli([
+    "room-plan",
+    "--room",
+    "affinities=dark:emit:2,water:emit:2",
+    "--budget-tokens",
+    "40",
+    "--run-id",
+    "run_room_plan_insufficient",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /insufficient_budget/);
+  assert.match(result.stderr, /hard budget is 40 tokens but minimum required spend is 42 tokens/i);
+  assert.match(result.stderr, /room\[1\] requires at least 42 tokens/i);
+  assert.equal(existsSync(join(outDir, "bundle.json")), false);
+});
+
+test("cli delver-plan rejects conflicting hard requirements with deterministic explanations", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-conflict-"));
+  const result = runCli([
+    "delver-plan",
+    "--goal",
+    "Author one fire delver within a total budget of 200 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2;vitals=health:1:0,mana:0:0,stamina:0:0,durability:1:0",
+    "--budget-tokens",
+    "200",
+    "--run-id",
+    "run_delver_plan_conflict",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /conflicting_requirements/);
+  assert.match(result.stderr, /delver\[1\] affinities require mana\.max >= 1/i);
+  assert.match(result.stderr, /delver\[1\] affinities require mana\.regen >= 1/i);
+  assert.match(result.stderr, /delver\[1\] movement requires stamina\.regen >= 1/i);
+  assert.equal(existsSync(join(outDir, "bundle.json")), false);
 });

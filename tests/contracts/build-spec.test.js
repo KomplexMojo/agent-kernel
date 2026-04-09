@@ -56,6 +56,14 @@ test("build spec validation accepts agent authoring contract metadata", async ()
   assert.deepEqual(result.errors, []);
 });
 
+test("build spec validation accepts deterministic agent authoring validation details", async () => {
+  const { validateBuildSpec } = await loadValidator();
+  const spec = readFixture("build-spec-v1-agent-authoring-validation.json");
+  const result = validateBuildSpec(spec);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+});
+
 test("build spec validation rejects invalid agent authoring object kind", async () => {
   const { validateBuildSpec } = await loadValidator();
   const spec = readFixture("invalid/build-spec-v1-agent-authoring-invalid-kind.json");
@@ -78,4 +86,13 @@ test("build spec validation rejects invalid authoring optimization goals", async
   const result = validateBuildSpec(spec);
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /authoring\.optimizationGoals\[0\]\.vital/);
+});
+
+test("build spec validation rejects invalid agent authoring validation details", async () => {
+  const { validateBuildSpec } = await loadValidator();
+  const spec = readFixture("invalid/build-spec-v1-agent-authoring-invalid-validation.json");
+  const result = validateBuildSpec(spec);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /authoring\.validation\.outcome/);
+  assert.match(result.errors.join("\n"), /authoring\.validation\.summary/);
 });

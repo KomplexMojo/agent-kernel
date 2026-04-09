@@ -31,6 +31,12 @@ const AGENT_COMMAND_OPTIMIZATION_GOAL_KINDS = new Set([
   "maximize_vital_max",
   "maximize_vital_regen",
 ]);
+const AGENT_COMMAND_VALIDATION_OUTCOMES = new Set([
+  "valid",
+  "invalid_requirements",
+  "conflicting_requirements",
+  "insufficient_budget",
+]);
 const VITAL_KEYS = new Set(["health", "mana", "stamina", "durability"]);
 
 function isObject(value) {
@@ -381,6 +387,50 @@ function validateOptimizationGoals(value, path, errors) {
   });
 }
 
+function validateAuthoringValidationIssue(value, path, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (!isNonEmptyString(value.code)) {
+    addError(errors, `${path}.code`, "expected non-empty string");
+  }
+  if (!isNonEmptyString(value.message)) {
+    addError(errors, `${path}.message`, "expected non-empty string");
+  }
+  validateOptionalString(value.path, `${path}.path`, errors);
+}
+
+function validateAuthoringValidation(value, path, errors) {
+  if (value === undefined) {
+    return;
+  }
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (!isNonEmptyString(value.outcome) || !AGENT_COMMAND_VALIDATION_OUTCOMES.has(value.outcome)) {
+    addError(
+      errors,
+      `${path}.outcome`,
+      `expected one of ${Array.from(AGENT_COMMAND_VALIDATION_OUTCOMES).join(", ")}`,
+    );
+  }
+  if (!isNonEmptyString(value.summary)) {
+    addError(errors, `${path}.summary`, "expected non-empty string");
+  }
+  if (!Array.isArray(value.issues)) {
+    addError(errors, `${path}.issues`, "expected array");
+    return;
+  }
+  value.issues.forEach((entry, index) => {
+    validateAuthoringValidationIssue(entry, `${path}.issues[${index}]`, errors);
+  });
+  if (value.outcome !== "valid" && value.issues.length === 0) {
+    addError(errors, `${path}.issues`, "expected blocking issues for non-valid outcome");
+  }
+}
+
 function validateHardConstraints(value, path, errors) {
   if (value === undefined) {
     return;
@@ -467,6 +517,7 @@ export function validateAgentCommandRequest(request, path = "agentCommandRequest
   }
 
   validateAgentCommandSharedConfig(request.sharedConfig, `${path}.sharedConfig`, errors);
+  validateAuthoringValidation(request.validation, `${path}.validation`, errors);
   validateAgentCommandCompatibility(request.compatibility, `${path}.compatibility`, errors);
 
   const expectedKinds = Array.isArray(request.objects)
@@ -509,6 +560,7 @@ function validateBuildSpecAuthoring(value, path, errors) {
   }
   validateHardConstraints(value.constraints, `${path}.constraints`, errors);
   validateOptimizationGoals(value.optimizationGoals, `${path}.optimizationGoals`, errors);
+  validateAuthoringValidation(value.validation, `${path}.validation`, errors);
 }
 
 export function validateBuildSpec(spec) {
