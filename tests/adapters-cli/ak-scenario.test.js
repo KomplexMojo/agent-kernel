@@ -9,11 +9,12 @@ const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
-function runCli(args, env = {}) {
+function runCli(args, options = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
     cwd: ROOT,
     encoding: "utf8",
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...(options.env || {}) },
+    ...options,
   });
 }
 
@@ -48,7 +49,7 @@ test("cli scenario composes llm-plan, run, and inspect into one pipeline", (t) =
       "--out-dir",
       outDir,
     ],
-    { AK_LLM_LIVE: "1" },
+    { env: { AK_LLM_LIVE: "1" } },
   );
 
   if (result.status !== 0) {
@@ -155,11 +156,11 @@ test("cli scenario resumes run and inspect from --from-run", (t) => {
   assert.equal(summary.ok, true);
   assert.equal(summary.command, "scenario");
   assert.equal(summary.runId, sourceRunId);
-  assert.equal(summary.outDir, outDir);
-  assert.equal(summary.artifactPaths.source_sim_config, join(sourceDir, "sim-config.json"));
-  assert.equal(summary.artifactPaths.source_initial_state, join(sourceDir, "initial-state.json"));
-  assert.equal(summary.artifactPaths.tick_frames, join(outDir, "run", "tick-frames.json"));
-  assert.equal(summary.artifactPaths.inspect_summary, join(outDir, "inspect", "inspect-summary.json"));
+  assert.match(summary.outDir, new RegExp(`artifacts/runs/${sourceRunId.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}$`));
+  assert.match(summary.artifactPaths.source_sim_config, /artifacts\/runs\/run_llm_plan_resume\/llm-plan\/sim-config\.json$/);
+  assert.match(summary.artifactPaths.source_initial_state, /artifacts\/runs\/run_llm_plan_resume\/llm-plan\/initial-state\.json$/);
+  assert.match(summary.artifactPaths.tick_frames, /artifacts\/runs\/run_llm_plan_resume\/run\/tick-frames\.json$/);
+  assert.match(summary.artifactPaths.inspect_summary, /artifacts\/runs\/run_llm_plan_resume\/inspect\/inspect-summary\.json$/);
   assert.equal(existsSync(summary.artifactPaths.tick_frames), true);
   assert.equal(existsSync(summary.artifactPaths.inspect_summary), true);
 });

@@ -12,6 +12,7 @@ import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from 
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
+import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
 import {
   calculateActorConfigurationUnitCost,
@@ -23,7 +24,17 @@ import {
   ALLOWED_AFFINITY_EXPRESSIONS,
   ALLOWED_DELVER_SETUP_MODES,
   ALLOWED_MOTIVATIONS,
+  deriveAllowedOptionsFromCatalog,
+  normalizeSummary,
 } from "../../../runtime/src/personas/orchestrator/prompt-contract.js";
+import { runLlmSession } from "../../../runtime/src/personas/orchestrator/llm-session.js";
+import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/llm-budget-loop.js";
+import {
+  applyActorOverrides,
+  applyTileOverrides,
+  normalizeArgList,
+  resolveVitalDefaults,
+} from "../../../runtime/src/commands/run-helpers.js";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
 import {
   DEFAULT_LLM_BASE_URL,
@@ -33,8 +44,14 @@ import {
   DEFAULT_ROOM_AFFINITY_STACKS,
   DEFAULT_ROOM_CARD_AFFINITY,
   DEFAULT_VITALS,
+  LLM_REPAIR_TEXT,
   TRAP_VITAL_KEYS,
   VITAL_KEYS,
+  appendLlmPromptSuffix,
+  buildLlmActorConfigPromptTemplate,
+  buildLlmCatalogRepairPromptTemplate,
+  buildLlmConstraintSection,
+  buildLlmRepairPromptTemplate,
 } from "../../../runtime/src/contracts/domain-constants.js";
 
 const SCHEMAS = Object.freeze({
@@ -82,7 +99,7 @@ function usage() {
   node ${rel} build --spec path [--out-dir dir]
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
-  node ${rel} run --sim-config path --initial-state path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path]
+  node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--dry-run]
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
   node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir]
@@ -95,9 +112,9 @@ function usage() {
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} scenario --text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] | --from-run runId) [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--dry-run]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
@@ -118,6 +135,7 @@ Options:
   --tile-barrier  Tile barrier coordinate: x,y (repeatable)
   --tile-floor    Tile floor override: x,y (repeatable)
   --actions       Action log (ActionSequence) path for deterministic replay
+  --from-run      Resolve sim-config.json and initial-state.json from artifacts/runs/<runId>/*
   --affinity-presets  Affinity preset artifact path (AffinityPresetArtifact)
   --affinity-loadouts Actor loadout artifact path (ActorLoadoutArtifact)
   --affinity-summary  Write affinity summary JSON (default: <out-dir>/affinity-summary.json)
@@ -160,6 +178,7 @@ Options:
   --fixture-load  Fixture JSON-RPC response for blockchain-load
   --run-id        Override run id for output artifacts
   --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/delver-plan/warden-plan
+  --dry-run       Validate schema/budget inputs without executing run or writing artifacts
   --help          Show this help
 
 Schema discovery:
@@ -1781,6 +1800,101 @@ function defaultRunCommandOutDir(command, runId) {
   return resolve(defaultRunDir(runId), command);
 }
 
+const FROM_RUN_STAGE_PRIORITY = Object.freeze([
+  "llm-plan",
+  "build",
+  "configurator",
+  "create",
+  "configure",
+  "room-plan",
+  "delver-plan",
+  "warden-plan",
+  "run",
+]);
+
+function compareFromRunStagePriority(left, right) {
+  const leftIndex = FROM_RUN_STAGE_PRIORITY.indexOf(left);
+  const rightIndex = FROM_RUN_STAGE_PRIORITY.indexOf(right);
+  const normalizedLeft = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+  const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+  if (normalizedLeft !== normalizedRight) {
+    return normalizedLeft - normalizedRight;
+  }
+  return left.localeCompare(right);
+}
+
+async function resolveFromRunArtifactPaths(runId) {
+  if (!isNonEmptyString(runId)) {
+    throw new Error("--from-run requires a non-empty run id.");
+  }
+
+  const runDir = defaultRunDir(runId);
+  if (!existsSync(runDir)) {
+    throw new Error(`--from-run could not find artifacts for run ${runId} under ${runDir}.`);
+  }
+
+  const dirents = await readdir(runDir, { withFileTypes: true });
+  const candidateDirs = [
+    runDir,
+    ...dirents
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(runDir, entry.name))
+      .sort((left, right) => compareFromRunStagePriority(left.slice(runDir.length + 1), right.slice(runDir.length + 1))),
+  ];
+
+  for (const candidateDir of candidateDirs) {
+    const simConfigPath = join(candidateDir, "sim-config.json");
+    const initialStatePath = join(candidateDir, "initial-state.json");
+    if (existsSync(simConfigPath) && existsSync(initialStatePath)) {
+      return { runDir, sourceDir: candidateDir, simConfigPath, initialStatePath };
+    }
+  }
+
+  let simConfigPath = null;
+  let initialStatePath = null;
+  for (const candidateDir of candidateDirs) {
+    if (!simConfigPath) {
+      const candidate = join(candidateDir, "sim-config.json");
+      if (existsSync(candidate)) {
+        simConfigPath = candidate;
+      }
+    }
+    if (!initialStatePath) {
+      const candidate = join(candidateDir, "initial-state.json");
+      if (existsSync(candidate)) {
+        initialStatePath = candidate;
+      }
+    }
+  }
+
+  if (!simConfigPath || !initialStatePath) {
+    throw new Error(`--from-run requires sim-config.json and initial-state.json under ${runDir}.`);
+  }
+
+  return {
+    runDir,
+    sourceDir: dirname(simConfigPath) === dirname(initialStatePath) ? dirname(simConfigPath) : runDir,
+    simConfigPath,
+    initialStatePath,
+  };
+}
+
+async function resolveRunInputArgs(args, { commandName }) {
+  const fromRunId = args["from-run"];
+  if (!isNonEmptyString(fromRunId)) {
+    return { ...args };
+  }
+  if (args["sim-config"] || args["initial-state"]) {
+    throw new Error(`${commandName} does not allow --from-run together with --sim-config or --initial-state.`);
+  }
+  const resolved = await resolveFromRunArtifactPaths(fromRunId);
+  return {
+    ...args,
+    "sim-config": resolved.simConfigPath,
+    "initial-state": resolved.initialStatePath,
+  };
+}
+
 function defaultOutDir(command, runId) {
   const resolvedRunId = runId || makeId("run");
   return defaultRunCommandOutDir(command, resolvedRunId);
@@ -2009,6 +2123,7 @@ function buildScenarioSummary({
   runId,
   outDir,
   llmPlanSummary,
+  sourceArtifactPaths,
   runSummary,
   inspectSummary,
 } = {}) {
@@ -2021,6 +2136,7 @@ function buildScenarioSummary({
     roomIds: Array.isArray(runSummary?.roomIds) ? runSummary.roomIds : [],
     artifactPaths: {
       ...prefixArtifactPaths(llmPlanSummary?.artifactPaths, "llm_plan_"),
+      ...(sourceArtifactPaths || {}),
       ...prefixArtifactPaths(runSummary?.artifactPaths, ""),
       ...prefixArtifactPaths(inspectSummary?.artifactPaths, ""),
     },
@@ -2262,6 +2378,239 @@ function isLocalBaseUrl(raw) {
   }
 }
 
+function resolveDefaultLlmFixturePath({ resolvePath: resolveCliPath, exists, cwd }) {
+  const candidates = [
+    resolveCliPath("tests/fixtures/adapters/llm-generate-summary.json"),
+    resolveCliPath("tests/fixtures/adapters/llm-generate-summary.json", cwd()),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (exists(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function unwrapCodeFence(text) {
+  if (!text) return text;
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return match ? match[1].trim() : text;
+}
+
+function extractJsonObject(text) {
+  if (!text) return null;
+  const cleaned = unwrapCodeFence(text).trim();
+  if (cleaned.startsWith("{") && cleaned.endsWith("}")) {
+    return cleaned;
+  }
+  const start = cleaned.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < cleaned.length; i += 1) {
+    const ch = cleaned[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (ch === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === "\"") {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") {
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return cleaned.slice(start, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+function appendJsonOnlyInstruction(promptText) {
+  return appendLlmPromptSuffix(promptText);
+}
+
+function deriveAllowedPairs(catalog) {
+  const entries = Array.isArray(catalog?.entries)
+    ? catalog.entries
+    : Array.isArray(catalog)
+      ? catalog
+      : [];
+  const pairs = new Map();
+  entries.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return;
+    const { motivation, affinity } = entry;
+    if (typeof motivation !== "string" || typeof affinity !== "string") return;
+    const key = `${motivation}|${affinity}`;
+    if (!pairs.has(key)) {
+      pairs.set(key, { motivation, affinity });
+    }
+  });
+  return Array.from(pairs.values()).sort(
+    (a, b) => a.motivation.localeCompare(b.motivation) || a.affinity.localeCompare(b.affinity),
+  );
+}
+
+function formatAllowedPairs(pairs) {
+  return pairs.map((pair) => `(${pair.motivation}, ${pair.affinity})`).join(", ");
+}
+
+function countInstances(selections, kind) {
+  return selections
+    .filter((sel) => sel.kind === kind && Array.isArray(sel.instances))
+    .reduce((sum, sel) => sum + sel.instances.length, 0);
+}
+
+function summarizeMissingSelections(selections) {
+  return selections
+    .filter((sel) => !sel.applied)
+    .map((sel) => `${sel.kind}:${sel.requested?.motivation || "?"}/${sel.requested?.affinity || "?"}`)
+    .join(", ");
+}
+
+function injectBudgetTokens(prompt, budgetTokens) {
+  if (!isNonEmptyString(prompt)) {
+    return prompt;
+  }
+  if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
+    return prompt;
+  }
+  if (prompt.includes("Budget tokens:")) {
+    return prompt;
+  }
+  return `Budget tokens: ${budgetTokens}\n${prompt}`;
+}
+
+function resolveScenarioAssetPath(rawPath, baseDir) {
+  if (!rawPath) {
+    return null;
+  }
+  const primary = resolvePath(rawPath);
+  if (primary && existsSync(primary)) {
+    return primary;
+  }
+  if (!baseDir) {
+    return primary;
+  }
+  const fallback = resolvePath(rawPath, baseDir);
+  if (fallback && existsSync(fallback)) {
+    return fallback;
+  }
+  return primary || fallback;
+}
+
+function buildRepairPrompt({ basePrompt, errors, responseText, allowedOptions, allowedPairsText }) {
+  const extracted = extractJsonObject(responseText) || responseText;
+  const affinities = allowedOptions?.affinities?.length ? allowedOptions.affinities : ALLOWED_AFFINITIES;
+  const motivations = allowedOptions?.motivations?.length ? allowedOptions.motivations : ALLOWED_MOTIVATIONS;
+  return buildLlmRepairPromptTemplate({
+    basePrompt,
+    errors,
+    responseText: extracted,
+    affinities,
+    affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+    motivations,
+    allowedPairsText,
+    phaseRequirement: LLM_REPAIR_TEXT.phaseActorsRequirement,
+    extraLines: [
+      LLM_REPAIR_TEXT.tokenHintRule,
+      LLM_REPAIR_TEXT.exampleAffinityEntry,
+    ],
+  });
+}
+
+function buildDryRunBudgetEstimate({ budgetReceipt, spendProposal, budgetTokens } = {}) {
+  const total = Number.isInteger(budgetReceipt?.budget?.tokens)
+    ? budgetReceipt.budget.tokens
+    : Number.isInteger(budgetReceipt?.totalBudget)
+      ? budgetReceipt.totalBudget
+      : Number.isInteger(budgetTokens)
+        ? budgetTokens
+        : Number.isInteger(spendProposal?.summary?.budgetTokens)
+          ? spendProposal.summary.budgetTokens
+          : undefined;
+  const used = Number.isFinite(budgetReceipt?.totalCost)
+    ? budgetReceipt.totalCost
+    : Number.isFinite(spendProposal?.summary?.totalSpentTokens)
+      ? spendProposal.summary.totalSpentTokens
+      : undefined;
+  const remaining = Number.isFinite(budgetReceipt?.remaining)
+    ? budgetReceipt.remaining
+    : Number.isFinite(spendProposal?.summary?.remainingTokens)
+      ? spendProposal.summary.remainingTokens
+      : Number.isFinite(total) && Number.isFinite(used)
+        ? Math.max(0, total - used)
+        : undefined;
+  if (total === undefined && used === undefined && remaining === undefined) {
+    return undefined;
+  }
+  return { total, used, remaining };
+}
+
+function buildDryRunSuccess({
+  command,
+  runId,
+  outDir,
+  actorIds = [],
+  roomIds = [],
+  budgetEstimate,
+  warnings = [],
+  extra = {},
+} = {}) {
+  const summary = {
+    ok: true,
+    command,
+    runId,
+    valid: true,
+    dryRun: true,
+    actorIds,
+    roomIds,
+    warnings,
+  };
+  if (outDir) {
+    summary.outDir = outDir;
+  }
+  if (budgetEstimate) {
+    summary.budgetEstimate = budgetEstimate;
+  }
+  Object.entries(extra).forEach(([key, value]) => {
+    if (value !== undefined) {
+      summary[key] = value;
+    }
+  });
+  return summary;
+}
+
+function buildDryRunFailure({ command, runId, outDir, error } = {}) {
+  const summary = {
+    ok: true,
+    command,
+    runId,
+    valid: false,
+    dryRun: true,
+    errors: [error?.message || String(error)],
+    warnings: [],
+  };
+  if (outDir) {
+    summary.outDir = outDir;
+  }
+  return summary;
+}
+
 function assertAllowedBuildArgs(args) {
   const allowed = new Set(["spec", "out-dir"]);
   const unknown = [];
@@ -2387,7 +2736,7 @@ function assertAllowedWardenPlanArgs(args) {
   }
 }
 
-function assertAllowedAgentAuthoringArgs(command, args) {
+function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } = {}) {
   const allowed = new Set([
     "text",
     "room",
@@ -2404,6 +2753,9 @@ function assertAllowedAgentAuthoringArgs(command, args) {
     "run-id",
     "created-at",
   ]);
+  if (allowDryRun) {
+    allowed.add("dry-run");
+  }
   const unknown = [];
   for (const key of Object.keys(args)) {
     if (key === "_" || key === "help") {
@@ -2417,13 +2769,14 @@ function assertAllowedAgentAuthoringArgs(command, args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
 function assertAllowedScenarioArgs(args) {
   const allowed = new Set([
     "text",
+    "from-run",
     "catalog",
     "model",
     "goal",
@@ -2439,6 +2792,7 @@ function assertAllowedScenarioArgs(args) {
     "out-dir",
     "run-id",
     "created-at",
+    "dry-run",
   ]);
   const unknown = [];
   for (const key of Object.keys(args)) {
@@ -2453,7 +2807,7 @@ function assertAllowedScenarioArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`scenario only accepts --text, --catalog, --model, --goal, --budget-tokens, --base-url, --fixture, --budget-loop, --budget-pool, --budget-reserve, --ticks, --seed, --wasm, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`scenario only accepts --text, --from-run, --catalog, --model, --goal, --budget-tokens, --base-url, --fixture, --budget-loop, --budget-pool, --budget-reserve, --ticks, --seed, --wasm, --out-dir, --run-id, --created-at, and --dry-run. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -2748,6 +3102,437 @@ async function writeBuildOutputs({
   });
 }
 
+async function validateRunDryRun(args) {
+  const simConfigPath = resolvePath(args["sim-config"]);
+  const initialStatePath = resolvePath(args["initial-state"]);
+  const executionPolicyPath = resolvePath(args["execution-policy"]);
+  const actionsPath = resolvePath(args.actions);
+  const affinityPresetsPath = resolvePath(args["affinity-presets"]);
+  const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
+  const affinitySummaryArg = args["affinity-summary"];
+  const ticks = args.ticks !== undefined ? Number(args.ticks) : DEFAULT_TICKS;
+  const seed = args.seed !== undefined ? Number(args.seed) : 0;
+
+  if (!simConfigPath || !initialStatePath) {
+    throw new Error("run requires --sim-config and --initial-state.");
+  }
+  if (!Number.isFinite(ticks) || ticks < 0) {
+    throw new Error("run requires a valid --ticks value.");
+  }
+  if (!Number.isFinite(seed)) {
+    throw new Error("run requires a valid --seed value.");
+  }
+
+  const simConfig = await readJson(simConfigPath);
+  assertSchema(simConfig, SCHEMAS.simConfig);
+  const initialState = await readJson(initialStatePath);
+  assertSchema(initialState, SCHEMAS.initialState);
+  const runId = args["run-id"]
+    || simConfig?.meta?.runId
+    || initialState?.meta?.runId
+    || makeId("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("run", runId);
+
+  if (executionPolicyPath) {
+    const executionPolicy = await readJson(executionPolicyPath);
+    assertSchema(executionPolicy, SCHEMAS.executionPolicy);
+  }
+
+  const wantsAffinitySummary = affinitySummaryArg !== undefined || (affinityPresetsPath && affinityLoadoutsPath);
+  if (wantsAffinitySummary && (!affinityPresetsPath || !affinityLoadoutsPath)) {
+    throw new Error("Affinity summary requires --affinity-presets and --affinity-loadouts.");
+  }
+  if (affinityPresetsPath) {
+    const affinityPresets = await readJson(affinityPresetsPath);
+    assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+  }
+  if (affinityLoadoutsPath) {
+    const affinityLoadouts = await readJson(affinityLoadoutsPath);
+    assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
+  }
+
+  if (actionsPath) {
+    const actionLog = await readJson(actionsPath);
+    if (!Array.isArray(actionLog.actions)) {
+      throw new Error("actions file must include an actions array.");
+    }
+  }
+
+  const actorSpecs = normalizeArgList(args.actor);
+  const vitalSpecs = normalizeArgList(args.vital);
+  const vitalDefaultSpecs = normalizeArgList(args["vital-default"]);
+  const tileWalls = normalizeArgList(args["tile-wall"]);
+  const tileBarriers = normalizeArgList(args["tile-barrier"]);
+  const tileFloors = normalizeArgList(args["tile-floor"]);
+  const vitalDefaults = resolveVitalDefaults(vitalDefaultSpecs);
+
+  const resolvedSimConfig = JSON.parse(JSON.stringify(simConfig));
+  const resolvedInitialState = JSON.parse(JSON.stringify(initialState));
+  applyTileOverrides(resolvedSimConfig, {
+    walls: tileWalls,
+    barriers: tileBarriers,
+    floors: tileFloors,
+  });
+  applyActorOverrides(resolvedInitialState, resolvedSimConfig, {
+    actorSpecs,
+    vitalSpecs,
+    vitalDefaults,
+  });
+
+  return buildDryRunSuccess({
+    command: "run",
+    runId,
+    outDir,
+    actorIds: deriveActorIds(resolvedInitialState),
+    roomIds: deriveRoomIds(resolvedSimConfig),
+    extra: {
+      ticks,
+    },
+  });
+}
+
+async function validateScenarioDryRun(args) {
+  const fromRunId = args["from-run"];
+  if (isNonEmptyString(fromRunId)) {
+    if (isNonEmptyString(args.text)) {
+      throw new Error("scenario does not allow --text together with --from-run.");
+    }
+    const resolvedFromRun = await resolveFromRunArtifactPaths(fromRunId);
+    const runId = args["run-id"] || fromRunId;
+    const outDir = resolvePath(args["out-dir"]) || defaultRunDir(runId);
+    const runValidation = await validateRunDryRun({
+      "sim-config": resolvedFromRun.simConfigPath,
+      "initial-state": resolvedFromRun.initialStatePath,
+      ticks: args.ticks,
+      seed: args.seed,
+      "run-id": runId,
+      "out-dir": join(outDir, "run"),
+      wasm: args.wasm,
+      actor: args.actor,
+      vital: args.vital,
+      "vital-default": args["vital-default"],
+      "tile-wall": args["tile-wall"],
+      "tile-barrier": args["tile-barrier"],
+      "tile-floor": args["tile-floor"],
+      actions: args.actions,
+      "execution-policy": args["execution-policy"],
+      "affinity-presets": args["affinity-presets"],
+      "affinity-loadouts": args["affinity-loadouts"],
+      "affinity-summary": args["affinity-summary"],
+    });
+    return {
+      ...runValidation,
+      command: "scenario",
+      outDir,
+      artifactPaths: {
+        source_sim_config: resolvedFromRun.simConfigPath,
+        source_initial_state: resolvedFromRun.initialStatePath,
+      },
+    };
+  }
+
+  const scenarioPath = resolvePath(args.scenario);
+  const textRaw = args.text;
+  const promptRaw = args.prompt;
+  const catalogOverride = resolvePath(args.catalog);
+  const goalOverride = args.goal;
+  const budgetTokensRaw = args["budget-tokens"];
+  const model = args.model || process.env.AK_LLM_MODEL || DEFAULT_LLM_MODEL;
+  const baseUrl = args["base-url"] || process.env.AK_LLM_BASE_URL || DEFAULT_LLM_BASE_URL;
+  const promptInput = isNonEmptyString(promptRaw)
+    ? promptRaw
+    : isNonEmptyString(textRaw)
+      ? textRaw
+      : undefined;
+  const fixturePath = resolvePath(args.fixture)
+    || (!scenarioPath && isNonEmptyString(textRaw)
+      ? resolveDefaultLlmFixturePath({ resolvePath, exists: existsSync, cwd: () => process.cwd() })
+      : null);
+  const runId = args["run-id"] || makeId("run");
+  const createdAt = args["created-at"] || new Date().toISOString();
+  const outDir = resolvePath(args["out-dir"]) || defaultRunDir(runId);
+
+  if (!scenarioPath && !catalogOverride) {
+    throw new Error("llm-plan requires --scenario or --catalog.");
+  }
+  if (!scenarioPath && !isNonEmptyString(promptInput)) {
+    throw new Error("llm-plan requires --text or --prompt when --scenario is omitted.");
+  }
+
+  let budgetTokens;
+  if (budgetTokensRaw !== undefined) {
+    budgetTokens = Number(budgetTokensRaw);
+    if (!Number.isFinite(budgetTokens)) {
+      throw new Error("llm-plan requires --budget-tokens to be a number.");
+    }
+  }
+
+  const budgetReserveRaw = args["budget-reserve"];
+  let budgetReserveTokens;
+  if (budgetReserveRaw !== undefined) {
+    budgetReserveTokens = Number(budgetReserveRaw);
+    if (!Number.isFinite(budgetReserveTokens) || budgetReserveTokens < 0) {
+      throw new Error("llm-plan requires --budget-reserve to be a non-negative number.");
+    }
+  }
+
+  const budgetPoolRaw = args["budget-pool"];
+  const budgetPools = [];
+  if (budgetPoolRaw !== undefined) {
+    const entries = Array.isArray(budgetPoolRaw) ? budgetPoolRaw : [budgetPoolRaw];
+    entries.forEach((entry) => {
+      if (typeof entry !== "string" || !entry.includes("=")) {
+        throw new Error("llm-plan --budget-pool must be in id=weight form.");
+      }
+      const [idRaw, weightRaw] = entry.split("=");
+      const id = idRaw.trim();
+      const weight = Number(weightRaw);
+      if (!id) {
+        throw new Error("llm-plan --budget-pool requires a non-empty id.");
+      }
+      if (!Number.isFinite(weight) || weight < 0) {
+        throw new Error(`llm-plan --budget-pool weight must be >= 0 for ${id}.`);
+      }
+      budgetPools.push({ id, weight });
+    });
+  }
+
+  const scenario = scenarioPath ? await readJson(scenarioPath) : null;
+  const scenarioBaseDir = scenarioPath ? dirname(scenarioPath) : process.cwd();
+  const catalogPath = catalogOverride
+    || (scenario ? resolveScenarioAssetPath(scenario.catalogPath, scenarioBaseDir) : null);
+  if (!catalogPath) {
+    if (scenario) {
+      throw new Error("llm-plan requires scenario.catalogPath or --catalog.");
+    }
+    throw new Error("llm-plan requires --catalog when --scenario is omitted.");
+  }
+  const catalog = await readJson(catalogPath);
+  const allowedOptions = deriveAllowedOptionsFromCatalog(catalog);
+  const allowedPairs = deriveAllowedPairs(catalog);
+  const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
+  const budgetLoopEnabled = Boolean(args["budget-loop"]) || isLlmBudgetLoopEnabled();
+
+  const goal = isNonEmptyString(goalOverride)
+    ? goalOverride
+    : scenario?.goal || promptInput || "LLM planning request";
+  const resolvedBudgetTokens = budgetTokens !== undefined ? budgetTokens : scenario?.budgetTokens;
+  if (!Number.isFinite(resolvedBudgetTokens) || resolvedBudgetTokens <= 0) {
+    throw new Error("llm-plan requires --budget-tokens or scenario.budgetTokens > 0.");
+  }
+
+  const prompt = injectBudgetTokens(promptInput, resolvedBudgetTokens);
+  const notes = [
+    scenario?.notes,
+    "Include at least one actor; counts must be > 0.",
+    allowedPairsText ? `Allowed profiles (motivation, affinity): ${allowedPairsText}.` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const basePrompt = isNonEmptyString(prompt)
+    ? prompt
+    : buildLlmActorConfigPromptTemplate({
+      goal,
+      notes,
+      budgetTokens: resolvedBudgetTokens,
+      affinities: allowedOptions.affinities,
+      affinityExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+      motivations: allowedOptions.motivations,
+    });
+  const constraintLines = buildLlmConstraintSection({ allowedPairsText });
+  const finalPrompt = appendJsonOnlyInstruction(`${basePrompt}\n\n${constraintLines}`);
+  const llmFormat = process.env.AK_LLM_FORMAT;
+
+  let capture = null;
+  let captures = [];
+  let summary = null;
+  let mappedSelections;
+
+  if (isLlmLiveEnabled() || Boolean(fixturePath)) {
+    if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
+      throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
+    }
+
+    let fetchFn;
+    if (fixturePath) {
+      const fixtureJson = JSON.parse(await readText(fixturePath));
+      const responses = Array.isArray(fixtureJson)
+        ? fixtureJson
+        : Array.isArray(fixtureJson?.responses)
+          ? fixtureJson.responses
+          : [fixtureJson];
+      let fixtureIndex = 0;
+      fetchFn = async () => {
+        if (responses.length > 1 && fixtureIndex >= responses.length) {
+          return { ok: false, status: 500, statusText: "Missing fixture response" };
+        }
+        const payload = responses[Math.min(fixtureIndex, responses.length - 1)];
+        fixtureIndex += 1;
+        return { ok: true, json: async () => payload };
+      };
+    }
+
+    const adapter = createLlmAdapter({ baseUrl, fetchFn });
+    const repairPromptBuilder = ({ errors, responseText }) => buildRepairPrompt({
+      basePrompt: finalPrompt,
+      errors,
+      responseText,
+      allowedOptions,
+      allowedPairsText,
+    });
+
+    if (budgetLoopEnabled) {
+      const poolPolicy = Number.isFinite(budgetReserveTokens) ? { reserveTokens: budgetReserveTokens } : undefined;
+      const loopResult = await runLlmBudgetLoop({
+        adapter,
+        model,
+        baseUrl,
+        catalog,
+        goal,
+        notes,
+        budgetTokens: resolvedBudgetTokens,
+        poolWeights: budgetPools.length > 0 ? budgetPools : undefined,
+        poolPolicy,
+        strict: isLlmStrictEnabled(),
+        format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
+        runId,
+        clock: () => createdAt,
+        producedBy: "orchestrator",
+      });
+      if (!loopResult.ok) {
+        throw new Error(`llm-plan budget loop failed: ${JSON.stringify(loopResult.errors || [])}`);
+      }
+      captures = loopResult.captures || [];
+      summary = loopResult.summary;
+      mappedSelections = loopResult.selections;
+    } else {
+      let session = await runLlmSession({
+        adapter,
+        model,
+        baseUrl,
+        prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
+        goal,
+        budgetTokens: resolvedBudgetTokens,
+        strict: isLlmStrictEnabled(),
+        repairPromptBuilder,
+        requireSummary: { minRooms: 1, minActors: 1 },
+        runId,
+        clock: () => createdAt,
+        producedBy: "orchestrator",
+        format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
+      });
+      if (!session.ok) {
+        throw new Error(`llm-plan session failed: ${JSON.stringify(session.errors || [])}`);
+      }
+      summary = session.summary;
+      capture = session.capture;
+
+      let mapped = mapSummaryToPool({ summary, catalog });
+      let actorInstances = countInstances(mapped.selections, "actor");
+      if (actorInstances === 0) {
+        const missingSelections = summarizeMissingSelections(mapped.selections);
+        const catalogRepairPrompt = buildLlmCatalogRepairPromptTemplate({
+          basePrompt,
+          allowedPairsText,
+          missingSelections,
+        });
+        session = await runLlmSession({
+          adapter,
+          model,
+          baseUrl,
+          prompt: catalogRepairPrompt,
+          goal,
+          budgetTokens: resolvedBudgetTokens,
+          strict: isLlmStrictEnabled(),
+          repairPromptBuilder,
+          requireSummary: { minRooms: 1, minActors: 1 },
+          runId,
+          clock: () => createdAt,
+          producedBy: "orchestrator",
+          format: isNonEmptyString(llmFormat) ? llmFormat : undefined,
+        });
+        if (!session.ok) {
+          throw new Error(`llm-plan session failed: ${JSON.stringify(session.errors || [])}`);
+        }
+        summary = session.summary;
+        capture = session.capture;
+        mapped = mapSummaryToPool({ summary, catalog });
+        actorInstances = countInstances(mapped.selections, "actor");
+        if (actorInstances === 0) {
+          const finalMissing = summarizeMissingSelections(mapped.selections);
+          throw new Error(
+            `llm-plan summary did not match catalog entries (actors=${actorInstances}).`
+            + (finalMissing ? ` Unmatched picks: ${finalMissing}` : ""),
+          );
+        }
+      }
+      mappedSelections = mapped.selections;
+    }
+  } else {
+    if (isNonEmptyString(prompt)) {
+      throw new Error("llm-plan requires AK_LLM_LIVE=1 when using --prompt.");
+    }
+    if (!scenario) {
+      throw new Error("llm-plan requires AK_LLM_LIVE=1 when --scenario is omitted.");
+    }
+    const summaryPath = resolveScenarioAssetPath(scenario.summaryPath, scenarioBaseDir);
+    if (!summaryPath) {
+      throw new Error("llm-plan requires scenario.summaryPath when AK_LLM_LIVE is off.");
+    }
+    const summaryFixture = await readJson(summaryPath);
+    const normalized = normalizeSummary(summaryFixture);
+    if (!normalized.ok) {
+      throw new Error(`llm-plan summary fixture invalid: ${normalized.errors.map((entry) => entry.code).join(", ")}`);
+    }
+    summary = normalized.value;
+  }
+
+  let summaryForSpec = summary;
+  if (!scenario) {
+    summaryForSpec = { ...summary };
+    if (isNonEmptyString(goal)) {
+      summaryForSpec.goal = goal;
+    }
+    if (Number.isFinite(resolvedBudgetTokens)) {
+      summaryForSpec.budgetTokens = resolvedBudgetTokens;
+    }
+  }
+
+  const buildSpecResult = buildBuildSpecFromSummary({
+    summary: summaryForSpec,
+    catalog,
+    selections: mappedSelections || undefined,
+    runId,
+    createdAt,
+    source: "cli-llm-plan",
+  });
+  if (!buildSpecResult.ok) {
+    throw new Error(`llm-plan build spec failed: ${buildSpecResult.errors.join("\n")}`);
+  }
+  const capturedInputsForBuild = captures.length > 0 ? captures : capture ? [capture] : undefined;
+  const buildResult = await orchestrateBuild({
+    spec: buildSpecResult.spec,
+    producedBy: "cli-llm-plan",
+    capturedInputs: capturedInputsForBuild,
+  });
+
+  return buildDryRunSuccess({
+    command: "scenario",
+    runId,
+    outDir,
+    actorIds: deriveActorIds(buildResult.initialState),
+    roomIds: deriveRoomIds(buildResult.simConfig),
+    budgetEstimate: buildDryRunBudgetEstimate({
+      budgetReceipt: buildResult.budgetReceipt,
+      spendProposal: buildResult.spendProposal,
+      budgetTokens: resolvedBudgetTokens,
+    }),
+    extra: {
+      ticks: args.ticks !== undefined ? Number(args.ticks) : undefined,
+    },
+  });
+}
+
 function addManifestEntry(entries, artifact, path) {
   if (!artifact || typeof artifact !== "object") {
     return;
@@ -2895,8 +3680,22 @@ async function runCommand(argv) {
     console.log(usage());
     return;
   }
-  const result = await commandKernel.run(args);
-  emitJsonStdout(await summarizeRunOutput({ outDir: result.outDir, args }));
+  const resolvedArgs = await resolveRunInputArgs(args, { commandName: "run" });
+  if (args["dry-run"]) {
+    try {
+      emitJsonStdout(await validateRunDryRun(resolvedArgs));
+    } catch (error) {
+      emitJsonStdout(buildDryRunFailure({
+        command: "run",
+        runId: resolvedArgs["run-id"] || "",
+        outDir: resolvePath(resolvedArgs["out-dir"]),
+        error,
+      }));
+    }
+    return;
+  }
+  const result = await commandKernel.run(resolvedArgs);
+  emitJsonStdout(await summarizeRunOutput({ outDir: result.outDir, args: resolvedArgs }));
 }
 
 async function configuratorCommand(argv) {
@@ -3072,14 +3871,14 @@ async function llmCommand(argv) {
   console.log(`llm: wrote ${outPath}`);
 }
 
-async function agentAuthoringCommand(argv, { commandName, action } = {}) {
+async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = false } = {}) {
   const args = parseArgs(argv);
   if (args.help) {
     console.log(usage());
     return;
   }
 
-  assertAllowedAgentAuthoringArgs(commandName, args);
+  assertAllowedAgentAuthoringArgs(commandName, args, { allowDryRun });
 
   const runId = args["run-id"] || makeId("run");
   const createdAt = args["created-at"] || new Date().toISOString();
@@ -3373,6 +4172,22 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
 
+  if (args["dry-run"]) {
+    emitJsonStdout(buildDryRunSuccess({
+      command: commandName,
+      runId,
+      outDir,
+      actorIds: deriveActorIds(buildResult.initialState),
+      roomIds: deriveRoomIds(buildResult.simConfig),
+      budgetEstimate: buildDryRunBudgetEstimate({
+        budgetReceipt: buildResult.budgetReceipt,
+        spendProposal: buildResult.spendProposal,
+        budgetTokens: resolvedBudgetTokens,
+      }),
+    }));
+    return;
+  }
+
   const stdoutSummary = await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -3385,7 +4200,21 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
 }
 
 async function createCommand(argv) {
-  await agentAuthoringCommand(argv, { commandName: "create", action: "author" });
+  const args = parseArgs(argv);
+  if (args["dry-run"]) {
+    try {
+      await agentAuthoringCommand(argv, { commandName: "create", action: "author", allowDryRun: true });
+    } catch (error) {
+      emitJsonStdout(buildDryRunFailure({
+        command: "create",
+        runId: args["run-id"] || "",
+        outDir: resolvePath(args["out-dir"]),
+        error,
+      }));
+    }
+    return;
+  }
+  await agentAuthoringCommand(argv, { commandName: "create", action: "author", allowDryRun: true });
 }
 
 async function configureAuthoringCommand(argv) {
@@ -4074,48 +4903,87 @@ async function scenarioCommand(argv) {
     return;
   }
   assertAllowedScenarioArgs(args);
-  if (!isNonEmptyString(args.text)) {
-    throw new Error("scenario requires --text.");
+  const fromRunId = args["from-run"];
+  const hasFromRun = isNonEmptyString(fromRunId);
+  if (!hasFromRun && !isNonEmptyString(args.text)) {
+    throw new Error("scenario requires --text or --from-run.");
+  }
+  if (hasFromRun && isNonEmptyString(args.text)) {
+    throw new Error("scenario does not allow --text together with --from-run.");
+  }
+  if (args["dry-run"]) {
+    try {
+      emitJsonStdout(await validateScenarioDryRun(args));
+    } catch (error) {
+      emitJsonStdout(buildDryRunFailure({
+        command: "scenario",
+        runId: args["run-id"] || "",
+        outDir: resolvePath(args["out-dir"]),
+        error,
+      }));
+    }
+    return;
   }
 
-  const runId = args["run-id"] || makeId("run");
+  const runId = args["run-id"] || fromRunId || makeId("run");
   const outDir = resolvePath(args["out-dir"]) || defaultRunDir(runId);
-  const llmPlanOutDir = join(outDir, "llm-plan");
   const runOutDir = join(outDir, "run");
   const inspectOutDir = join(outDir, "inspect");
+  let llmPlanResult = null;
+  let llmPlanSummary = null;
+  let sourceArtifactPaths = null;
+  let runArgs;
 
-  const llmPlanArgs = {
-    text: args.text,
-    catalog: args.catalog,
-    model: args.model,
-    goal: args.goal,
-    "budget-tokens": args["budget-tokens"],
-    "base-url": args["base-url"],
-    fixture: args.fixture,
-    "budget-loop": args["budget-loop"],
-    "budget-pool": args["budget-pool"],
-    "budget-reserve": args["budget-reserve"],
-    "run-id": runId,
-    "created-at": args["created-at"],
-    "out-dir": llmPlanOutDir,
-  };
-  const llmPlanResult = await commandKernel.llmPlan(llmPlanArgs);
+  if (hasFromRun) {
+    const resolvedFromRun = await resolveFromRunArtifactPaths(fromRunId);
+    runArgs = {
+      "sim-config": resolvedFromRun.simConfigPath,
+      "initial-state": resolvedFromRun.initialStatePath,
+      ticks: args.ticks,
+      seed: args.seed,
+      wasm: args.wasm,
+      "run-id": runId,
+      "out-dir": runOutDir,
+    };
+    sourceArtifactPaths = {
+      source_sim_config: resolvedFromRun.simConfigPath,
+      source_initial_state: resolvedFromRun.initialStatePath,
+    };
+  } else {
+    const llmPlanOutDir = join(outDir, "llm-plan");
+    const llmPlanArgs = {
+      text: args.text,
+      catalog: args.catalog,
+      model: args.model,
+      goal: args.goal,
+      "budget-tokens": args["budget-tokens"],
+      "base-url": args["base-url"],
+      fixture: args.fixture,
+      "budget-loop": args["budget-loop"],
+      "budget-pool": args["budget-pool"],
+      "budget-reserve": args["budget-reserve"],
+      "run-id": runId,
+      "created-at": args["created-at"],
+      "out-dir": llmPlanOutDir,
+    };
+    llmPlanResult = await commandKernel.llmPlan(llmPlanArgs);
 
-  const simConfigPath = join(llmPlanResult.outDir, "sim-config.json");
-  const initialStatePath = join(llmPlanResult.outDir, "initial-state.json");
-  if (!existsSync(simConfigPath) || !existsSync(initialStatePath)) {
-    throw new Error("scenario requires llm-plan to produce sim-config.json and initial-state.json.");
+    const simConfigPath = join(llmPlanResult.outDir, "sim-config.json");
+    const initialStatePath = join(llmPlanResult.outDir, "initial-state.json");
+    if (!existsSync(simConfigPath) || !existsSync(initialStatePath)) {
+      throw new Error("scenario requires llm-plan to produce sim-config.json and initial-state.json.");
+    }
+
+    runArgs = {
+      "sim-config": simConfigPath,
+      "initial-state": initialStatePath,
+      ticks: args.ticks,
+      seed: args.seed,
+      wasm: args.wasm,
+      "run-id": runId,
+      "out-dir": runOutDir,
+    };
   }
-
-  const runArgs = {
-    "sim-config": simConfigPath,
-    "initial-state": initialStatePath,
-    ticks: args.ticks,
-    seed: args.seed,
-    wasm: args.wasm,
-    "run-id": runId,
-    "out-dir": runOutDir,
-  };
   const runResult = await commandKernel.run(runArgs);
 
   const inspectResult = await commandKernel.inspect({
@@ -4124,11 +4992,7 @@ async function scenarioCommand(argv) {
     "out-dir": inspectOutDir,
   });
 
-  const [llmPlanSummary, runSummary, inspectSummary] = await Promise.all([
-    summarizeBuildLikeOutput({
-      command: "llm-plan",
-      outDir: llmPlanResult.outDir,
-    }),
+  const [runSummary, inspectSummary] = await Promise.all([
     summarizeRunOutput({
       outDir: runResult.outDir,
       args: runArgs,
@@ -4137,11 +5001,18 @@ async function scenarioCommand(argv) {
       outDir: inspectResult.outDir,
     }),
   ]);
+  if (llmPlanResult) {
+    llmPlanSummary = await summarizeBuildLikeOutput({
+      command: "llm-plan",
+      outDir: llmPlanResult.outDir,
+    });
+  }
 
   emitJsonStdout(buildScenarioSummary({
     runId,
     outDir,
     llmPlanSummary,
+    sourceArtifactPaths,
     runSummary,
     inspectSummary,
   }));

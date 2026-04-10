@@ -99,17 +99,21 @@ Inputs/outputs:
 
 ### `scenario`
 Single natural-language entrypoint that composes `llm-plan --text`, `run`, and `inspect`
-into one deterministic pipeline for automation callers. It stays in the CLI adapter layer and
-reuses the existing command kernel implementations for each stage.
+into one deterministic pipeline for automation callers. It also supports `--from-run <runId>`
+to resume from a prior run's emitted `sim-config.json` and `initial-state.json` without manual
+path wiring. It stays in the CLI adapter layer and reuses the existing command kernel
+implementations for each stage.
 
 Inputs/outputs:
-- Input: `--text`, `--catalog`, optional `--model`, `--goal`, `--budget-tokens`, `--base-url`,
-  `--fixture`, optional budget-loop flags, plus `--ticks`, `--seed`, `--wasm`, `--run-id`,
-  `--created-at`, and `--out-dir`.
+- Input: either `--text` + `--catalog`, optional `--model`, `--goal`, `--budget-tokens`,
+  `--base-url`, `--fixture`, optional budget-loop flags, `--created-at`; or `--from-run <runId>`
+  to reuse prior stage outputs discovered under `artifacts/runs/<runId>/*`. Both modes accept
+  `--ticks`, `--seed`, `--wasm`, optional `--run-id`, and `--out-dir`.
 - Output dir: `artifacts/runs/<runId>` by default, or `--out-dir` as the pipeline root.
 - Outputs: `llm-plan/spec.json`, `llm-plan/sim-config.json`, `llm-plan/initial-state.json`,
   `run/tick-frames.json`, `run/effects-log.json`, `run/run-summary.json`, and
-  `inspect/inspect-summary.json`.
+  `inspect/inspect-summary.json`. In `--from-run` mode the scenario summary also includes
+  `source_sim_config` and `source_initial_state`.
 
 ### `show`
 Queries a prior run and prints a structured summary of the generated actors, rooms, artifacts,
