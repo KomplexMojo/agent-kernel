@@ -36,7 +36,7 @@ by passing `--out-dir`.
 
 ### Structured stdout contract
 The automation-facing authoring and execution commands emit exactly one JSON object line to stdout on success:
-`build`, `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan`, `run`, `inspect`, and `llm-plan`.
+`build`, `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan`, `run`, `inspect`, `llm-plan`, and `scenario`.
 
 Success shape:
 ```json
@@ -96,6 +96,20 @@ Inputs/outputs:
 - Output dir: `artifacts/runs/<runId>/llm-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `sim-config.json`, `initial-state.json`,
   `budget-allocation.json` (budget loop), `captured-input-llm-*.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+
+### `scenario`
+Single natural-language entrypoint that composes `llm-plan --text`, `run`, and `inspect`
+into one deterministic pipeline for automation callers. It stays in the CLI adapter layer and
+reuses the existing command kernel implementations for each stage.
+
+Inputs/outputs:
+- Input: `--text`, `--catalog`, optional `--model`, `--goal`, `--budget-tokens`, `--base-url`,
+  `--fixture`, optional budget-loop flags, plus `--ticks`, `--seed`, `--wasm`, `--run-id`,
+  `--created-at`, and `--out-dir`.
+- Output dir: `artifacts/runs/<runId>` by default, or `--out-dir` as the pipeline root.
+- Outputs: `llm-plan/spec.json`, `llm-plan/sim-config.json`, `llm-plan/initial-state.json`,
+  `run/tick-frames.json`, `run/effects-log.json`, `run/run-summary.json`, and
+  `inspect/inspect-summary.json`.
 
 ### `create` / `configure`
 Generic additive agent-facing authoring commands that normalize freeform text plus

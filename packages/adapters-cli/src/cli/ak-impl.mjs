@@ -96,6 +96,7 @@ function usage() {
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} scenario --text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} show --run-id id
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
@@ -1804,6 +1805,7 @@ const STRUCTURED_STDOUT_COMMANDS = new Set([
   "inspect",
   "llm-plan",
   "scenario",
+  "show",
   "runs",
 ]);
 
@@ -2082,6 +2084,21 @@ function deriveRunStatus(commands) {
   return "mixed";
 }
 
+function deriveBudgetSpend(budgetReceipt) {
+  if (!budgetReceipt || budgetReceipt.schema !== SCHEMAS.budgetReceiptArtifact) {
+    return undefined;
+  }
+  const summary = {
+    status: budgetReceipt.status,
+    totalCost: budgetReceipt.totalCost,
+    remaining: budgetReceipt.remaining,
+  };
+  if (budgetReceipt.scenarioSpendReport && typeof budgetReceipt.scenarioSpendReport === "object") {
+    summary.scenarioSpendReport = budgetReceipt.scenarioSpendReport;
+  }
+  return summary;
+}
+
 async function summarizeRunIndexCommand({ runId, command, outDir } = {}) {
   const request = await readJsonIfExists(join(outDir, "request.json"));
   const spec = await readJsonIfExists(join(outDir, "spec.json"));
@@ -2089,6 +2106,7 @@ async function summarizeRunIndexCommand({ runId, command, outDir } = {}) {
   const initialState = await readJsonIfExists(join(outDir, "initial-state.json"));
   const telemetry = await readJsonIfExists(join(outDir, "telemetry.json"));
   const runSummary = await readJsonIfExists(join(outDir, "run-summary.json"));
+  const budgetReceipt = await readJsonIfExists(join(outDir, "budget-receipt.json"));
   const inputs = await collectRunIndexArtifactRecords(outDir, RUN_INDEX_INPUT_FILES);
   const outputs = await collectRunIndexArtifactRecords(outDir, RUN_INDEX_OUTPUT_FILES);
   const createdAt = (
@@ -2114,8 +2132,56 @@ async function summarizeRunIndexCommand({ runId, command, outDir } = {}) {
     actorIds: deriveActorIds(initialState),
     roomIds: deriveRoomIds(simConfig),
     ticks: runSummary?.metrics?.ticks,
+    budgetSpend: deriveBudgetSpend(budgetReceipt),
     inputs,
     outputs,
+  };
+}
+
+async function summarizeRunShow({ runId } = {}) {
+  if (!isNonEmptyString(runId)) {
+    throw new Error("show requires --run-id <id>.");
+  }
+  const runDir = defaultRunDir(runId);
+  if (!existsSync(runDir)) {
+    throw new Error(`Run directory not found: ${runDir}`);
+  }
+
+  const commandNames = await listDirectoryNames(runDir);
+  const commands = [];
+  for (const command of commandNames) {
+    commands.push(await summarizeRunIndexCommand({
+      runId,
+      command,
+      outDir: join(runDir, command),
+    }));
+  }
+  commands.sort((a, b) => a.command.localeCompare(b.command));
+
+  const actorIds = Array.from(new Set(commands.flatMap((entry) => entry.actorIds || [])))
+    .sort((a, b) => a.localeCompare(b));
+  const roomIds = Array.from(new Set(commands.flatMap((entry) => entry.roomIds || [])))
+    .sort((a, b) => a.localeCompare(b));
+  const artifactPaths = Array.from(new Set(commands.flatMap((entry) => [
+    ...(entry.inputs || []).map((record) => record.path),
+    ...(entry.outputs || []).map((record) => record.path),
+  ]))).sort((a, b) => a.localeCompare(b));
+  const budgetSpend = commands.find((entry) => entry.budgetSpend)?.budgetSpend;
+
+  return {
+    ok: true,
+    command: "show",
+    runId,
+    runDir,
+    status: deriveRunStatus(commands),
+    commandCount: commands.length,
+    actorIds,
+    roomIds,
+    actorCount: actorIds.length,
+    roomCount: roomIds.length,
+    budgetSpend,
+    artifactPaths,
+    commands,
   };
 }
 
@@ -4081,6 +4147,31 @@ async function scenarioCommand(argv) {
   }));
 }
 
+async function showCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+  if (!isNonEmptyString(args["run-id"])) {
+    throw new Error("show requires --run-id <id>.");
+  }
+  const unknown = [];
+  for (const key of Object.keys(args)) {
+    if (key === "_" || key === "help" || key === "run-id") {
+      continue;
+    }
+    unknown.push(`--${key}`);
+  }
+  if (Array.isArray(args._) && args._.length > 0) {
+    unknown.push(...args._);
+  }
+  if (unknown.length > 0) {
+    throw new Error(`show only accepts --run-id. Unknown: ${unknown.join(", ")}`);
+  }
+  emitJsonStdout(await summarizeRunShow({ runId: args["run-id"] }));
+}
+
 async function runsCommand(argv) {
   const [subcommand, ...rest] = argv;
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
@@ -4127,6 +4218,7 @@ const COMMANDS = {
   "warden-plan": wardenPlanCommand,
   "llm-plan": llmPlanCommand,
   scenario: scenarioCommand,
+  show: showCommand,
   runs: runsCommand,
 };
 
