@@ -36,7 +36,7 @@ by passing `--out-dir`.
 
 ### Structured stdout contract
 The automation-facing authoring and execution commands emit exactly one JSON object line to stdout on success:
-`build`, `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan`, `run`, `inspect`, `llm-plan`, and `scenario`.
+`build`, `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan`, `run`, `inspect`, `narrate`, `llm-plan`, `scenario`, `show`, `diff`, and `runs list`.
 
 Success shape:
 ```json
@@ -121,13 +121,26 @@ and budget spend. This is the read-only follow-up command for automation callers
 inspect what a previous run created without rerunning the pipeline.
 
 Inputs/outputs:
-- Input: `--run-id <runId>`, optional `--actors`, `--rooms`, `--artifacts`, and `--out-dir`.
-- Behavior: without sub-flags, returns the full summary; `--actors` returns the actor list only;
-  `--rooms` returns the room list only; `--artifacts` returns artifact paths only.
+- Input: `--run-id <runId>`.
 - Stdout: structured JSON including `runId`, `actors[]`, `rooms[]`, `artifactPaths{}`, and
   `budgetSpend`.
 - Error: structured JSON error when the requested run directory does not exist under the selected
   output root.
+
+### `diff`
+Compares two previously recorded runs without rerunning the pipeline. It reuses the same
+artifact discovery rules as `run --from-run`: source `sim-config.json` / `initial-state.json`
+come from the resolved run source directory, while `tick-frames.json` and `run-summary.json`
+come from the highest-priority execution stage under each run (`run`, then `replay`, then
+other run-like stages).
+
+Inputs/outputs:
+- Input: `--run-a <runId>` and `--run-b <runId>`.
+- Stdout: structured JSON including per-run tick totals, effect totals, damage totals,
+  per-actor presence/vitals/damage, and `divergesAtTick` with the first mismatched normalized
+  frame summary when the runs stop matching.
+- Error: structured JSON error when either run directory is missing or no comparable run outputs
+  can be found.
 
 ### `runs list`
 Lists prior runs from the output root with their status, inputs, and key outputs in newest-first
@@ -353,6 +366,7 @@ node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity
 node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
+node packages/adapters-cli/src/cli/ak.mjs run --from-run run_fixture --ticks 5 --progress 2>&1 >/dev/null
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --out-dir path/to/out

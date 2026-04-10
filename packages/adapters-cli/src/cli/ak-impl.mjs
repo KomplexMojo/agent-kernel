@@ -34,6 +34,7 @@ import {
   applyTileOverrides,
   normalizeArgList,
   resolveVitalDefaults,
+  summarizeFrame,
 } from "../../../runtime/src/commands/run-helpers.js";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
 import {
@@ -70,6 +71,7 @@ const SCHEMAS = Object.freeze({
   effect: "agent-kernel/Effect",
   telemetry: "agent-kernel/TelemetryRecord",
   runSummary: "agent-kernel/RunSummary",
+  narrative: "agent-kernel/NarrativeArtifact",
   agentCommandRequest: "agent-kernel/AgentCommandRequestArtifact",
   affinityPreset: "agent-kernel/AffinityPresetArtifact",
   actorLoadout: "agent-kernel/ActorLoadoutArtifact",
@@ -99,11 +101,12 @@ function usage() {
   node ${rel} build --spec path [--out-dir dir]
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
-  node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--dry-run]
+  node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
   node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir]
   node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
+  node ${rel} narrate --tick-frames path --initial-state path [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} ipfs-publish --artifact-map path [--path root] [--gateway url] [--fixture-cid cid] [--out path] [--out-dir dir]
   node ${rel} ipfs-load --cid cid [--path root] [--file name --file name] [--gateway url] [--fixture-map path] [--out path] [--out-dir dir]
@@ -114,6 +117,7 @@ function usage() {
   node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] | --from-run runId) [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
+  node ${rel} diff --run-a id --run-b id
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--dry-run]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
@@ -1917,9 +1921,11 @@ const STRUCTURED_STDOUT_COMMANDS = new Set([
   "warden-plan",
   "run",
   "inspect",
+  "narrate",
   "llm-plan",
   "scenario",
   "show",
+  "diff",
   "runs",
 ]);
 
@@ -1951,11 +1957,16 @@ const RUN_INDEX_OUTPUT_FILES = Object.freeze([
   ["effects_log", "effects-log.json"],
   ["runtime_decision_captures", "runtime-decision-captures.json"],
   ["inspect_summary", "inspect-summary.json"],
+  ["narrative", "narrative.json"],
   ["affinity_summary", "affinity-summary.json"],
 ]);
 
 function emitJsonStdout(payload) {
   process.stdout.write(`${JSON.stringify(payload)}\n`);
+}
+
+function emitJsonStderr(payload) {
+  process.stderr.write(`${JSON.stringify(payload)}\n`);
 }
 
 async function listDirectoryNames(path) {
@@ -2113,6 +2124,207 @@ async function summarizeInspectOutput({ outDir } = {}) {
   };
 }
 
+async function summarizeNarrateOutput({ outDir } = {}) {
+  const narrative = await readJsonIfExists(join(outDir, "narrative.json"));
+  return {
+    ok: true,
+    command: "narrate",
+    runId: narrative?.meta?.runId || "",
+    outDir,
+    actorIds: Array.isArray(narrative?.cast) ? narrative.cast.map((entry) => entry.id) : [],
+    roomIds: [],
+    artifactPaths: {
+      narrative: join(outDir, "narrative.json"),
+    },
+    ticks: narrative?.source?.ticks ?? (Array.isArray(narrative?.turns) ? narrative.turns.length : undefined),
+  };
+}
+
+function humanizeToken(value) {
+  return String(value || "").replaceAll("_", " ").trim();
+}
+
+function formatNarrativeValue(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => formatNarrativeValue(entry)).join(", ");
+  }
+  if (value && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return "";
+}
+
+function formatNarrativeDetails(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return "";
+  }
+  const entries = Object.entries(data)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${humanizeToken(key)}=${formatNarrativeValue(value)}`);
+  return entries.length > 0 ? ` (${entries.join(", ")})` : "";
+}
+
+function buildNarrativeCast(initialState) {
+  return Array.isArray(initialState?.actors)
+    ? initialState.actors.map((actor) => ({
+      id: actor.id,
+      label: isNonEmptyString(actor?.archetype) ? `${actor.archetype} ${actor.id}` : actor.id,
+      kind: actor.kind,
+      archetype: actor.archetype,
+    }))
+    : [];
+}
+
+function buildNarrativeActorLabelLookup(cast) {
+  return new Map(cast.map((entry) => [entry.id, entry.label]));
+}
+
+function getNarrativeActorLabel(actorId, actorLabels) {
+  return actorLabels.get(actorId) || actorId || "system";
+}
+
+function describeNarrativeAction(action, actorLabels) {
+  const subject = getNarrativeActorLabel(action?.actorId, actorLabels);
+  return `${subject} chose ${humanizeToken(action?.kind || "action")}${formatNarrativeDetails(action?.params)}.`;
+}
+
+function describeNarrativePreCoreRejection(record, actorLabels) {
+  const action = record?.action || {};
+  const subject = getNarrativeActorLabel(action.actorId, actorLabels);
+  const reason = isNonEmptyString(record?.reason) ? record.reason.trim() : "rejected before core execution";
+  return `${subject} could not ${humanizeToken(action.kind || "act")}: ${reason}.`;
+}
+
+function describeNarrativeEvent(event, actorLabels) {
+  const subject = getNarrativeActorLabel(event?.actorId, actorLabels);
+  if (event?.kind === "action_applied" && isNonEmptyString(event?.data?.action)) {
+    return `${subject} completed ${humanizeToken(event.data.action)}.`;
+  }
+  if (event?.kind === "actor_moved") {
+    const destination = event?.data?.to || event?.data?.position;
+    if (destination && typeof destination === "object") {
+      return `${subject} moved to ${formatNarrativeValue(destination)}.`;
+    }
+  }
+  if (event?.kind === "actor_blocked") {
+    return `${subject} was blocked${formatNarrativeDetails(event?.data)}.`;
+  }
+  if (event?.kind === "state_changed" && isNonEmptyString(event?.data?.state)) {
+    return `${subject} changed state to ${event.data.state}.`;
+  }
+  return `${subject} triggered ${humanizeToken(event?.kind || "event")}${formatNarrativeDetails(event?.data)}.`;
+}
+
+function describeNarrativeEffect(effect) {
+  const source = isNonEmptyString(effect?.personaRef) ? effect.personaRef : "runtime";
+  return `${source} emitted ${humanizeToken(effect?.kind || "effect")}${formatNarrativeDetails(effect?.data)}.`;
+}
+
+function describeNarrativeFulfillment(record) {
+  const kind = humanizeToken(record?.effect?.kind || "effect");
+  const status = record?.status || "processed";
+  const reason = isNonEmptyString(record?.reason) ? `: ${record.reason.trim()}` : "";
+  const result = record?.result && typeof record.result === "object"
+    ? ` ${formatNarrativeDetails(record.result).trim()}`
+    : "";
+  return `${kind} was ${status}${reason}${result}.`;
+}
+
+function buildNarrativeTurns(frames, actorLabels) {
+  const grouped = new Map();
+  for (const frame of frames) {
+    const tick = Number.isFinite(frame?.tick) ? frame.tick : 0;
+    if (!grouped.has(tick)) {
+      grouped.set(tick, []);
+    }
+    grouped.get(tick).push(frame);
+  }
+
+  return Array.from(grouped.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map(([tick, tickFrames]) => {
+      const lines = [];
+      let actions = 0;
+      let events = 0;
+      let effects = 0;
+      const phases = new Set();
+
+      for (const frame of tickFrames) {
+        phases.add(frame?.phaseDetail || frame?.phase || "unknown");
+
+        for (const action of Array.isArray(frame?.acceptedActions) ? frame.acceptedActions : []) {
+          actions += 1;
+          lines.push(describeNarrativeAction(action, actorLabels));
+        }
+        for (const record of Array.isArray(frame?.preCoreRejections) ? frame.preCoreRejections : []) {
+          actions += 1;
+          lines.push(describeNarrativePreCoreRejection(record, actorLabels));
+        }
+        for (const event of Array.isArray(frame?.emittedEvents) ? frame.emittedEvents : []) {
+          events += 1;
+          lines.push(describeNarrativeEvent(event, actorLabels));
+        }
+        for (const effect of Array.isArray(frame?.emittedEffects) ? frame.emittedEffects : []) {
+          effects += 1;
+          lines.push(describeNarrativeEffect(effect));
+        }
+        for (const record of Array.isArray(frame?.fulfilledEffects) ? frame.fulfilledEffects : []) {
+          effects += 1;
+          lines.push(describeNarrativeFulfillment(record));
+        }
+      }
+
+      const phaseSummary = Array.from(phases).join(", ");
+      const summary = `Observed ${tickFrames.length} frame${tickFrames.length === 1 ? "" : "s"} during ${phaseSummary}; ${actions} action${actions === 1 ? "" : "s"}, ${events} event${events === 1 ? "" : "s"}, ${effects} effect${effects === 1 ? "" : "s"}.`;
+      return {
+        tick,
+        title: `Turn ${tick}`,
+        summary,
+        lines: lines.length > 0 ? lines : ["No notable actions were recorded."],
+        stats: {
+          frames: tickFrames.length,
+          actions,
+          events,
+          effects,
+        },
+      };
+    });
+}
+
+function buildNarrativeStory(turns) {
+  return turns.map((turn) => [
+    `${turn.title}: ${turn.summary}`,
+    ...turn.lines.map((line) => `- ${line}`),
+  ].join("\n")).join("\n\n");
+}
+
+function createNarrativeArtifact({ initialState, frames, runId } = {}) {
+  const cast = buildNarrativeCast(initialState);
+  const actorLabels = buildNarrativeActorLabelLookup(cast);
+  const turns = buildNarrativeTurns(frames, actorLabels);
+  const story = buildNarrativeStory(turns);
+  return {
+    schema: SCHEMAS.narrative,
+    schemaVersion: 1,
+    meta: createMeta({ producedBy: "cli-narrate", runId }),
+    source: {
+      initialStateRef: toRef(initialState) || undefined,
+      frames: frames.length,
+      ticks: turns.length,
+    },
+    cast,
+    summary: `Generated ${turns.length} turn${turns.length === 1 ? "" : "s"} from ${frames.length} tick frame${frames.length === 1 ? "" : "s"}.`,
+    story,
+    turns,
+  };
+}
+
 function prefixArtifactPaths(paths, prefix) {
   return Object.fromEntries(
     Object.entries(paths || {}).map(([key, value]) => [`${prefix}${key}`, value])
@@ -2213,6 +2425,302 @@ function deriveBudgetSpend(budgetReceipt) {
     summary.scenarioSpendReport = budgetReceipt.scenarioSpendReport;
   }
   return summary;
+}
+
+const DIFF_STAGE_PRIORITY = Object.freeze([
+  "run",
+  "replay",
+  "scenario",
+  "inspect",
+  "build",
+  "create",
+  "configure",
+  "llm-plan",
+]);
+
+function compareDiffStagePriority(left, right) {
+  const leftIndex = DIFF_STAGE_PRIORITY.indexOf(left);
+  const rightIndex = DIFF_STAGE_PRIORITY.indexOf(right);
+  const normalizedLeft = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+  const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+  if (normalizedLeft !== normalizedRight) {
+    return normalizedLeft - normalizedRight;
+  }
+  return left.localeCompare(right);
+}
+
+function deriveTickCount(runSummary, tickFrames) {
+  if (Number.isFinite(runSummary?.metrics?.ticks)) {
+    return runSummary.metrics.ticks;
+  }
+  return Array.isArray(tickFrames)
+    ? tickFrames.reduce((maxTick, frame) => Math.max(maxTick, Number.isFinite(frame?.tick) ? frame.tick : 0), 0)
+    : 0;
+}
+
+function deriveEffectCount(runSummary, tickFrames) {
+  if (Number.isFinite(runSummary?.metrics?.effects)) {
+    return runSummary.metrics.effects;
+  }
+  return Array.isArray(tickFrames)
+    ? tickFrames.reduce(
+      (total, frame) => total + (Array.isArray(frame?.emittedEffects) ? frame.emittedEffects.length : 0),
+      0,
+    )
+    : 0;
+}
+
+function buildActorRecordMap(initialState) {
+  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
+  return new Map(
+    actors
+      .filter((actor) => isNonEmptyString(actor?.id))
+      .map((actor) => [actor.id, actor]),
+  );
+}
+
+function addActorDamage(damageByActorId, actorId, amount) {
+  if (!isNonEmptyString(actorId) || !Number.isFinite(amount)) {
+    return;
+  }
+  damageByActorId.set(actorId, (damageByActorId.get(actorId) || 0) + amount);
+}
+
+function recordEventDamage(damageByActorId, event) {
+  if (!event || typeof event !== "object") {
+    return;
+  }
+  const data = event.data && typeof event.data === "object" ? event.data : {};
+  const targetActorId = data.targetActorId || data.targetId || event.targetActorId || event.targetId || event.actorId;
+  const damage = Number.isFinite(data.damage)
+    ? data.damage
+    : Number.isFinite(data.amount) && String(event.kind || "").toLowerCase().includes("damage")
+      ? data.amount
+      : null;
+  if (Number.isFinite(damage)) {
+    addActorDamage(damageByActorId, targetActorId, damage);
+  }
+}
+
+function recordEffectDamage(damageByActorId, effect, result) {
+  if ((!effect || typeof effect !== "object") && (!result || typeof result !== "object")) {
+    return;
+  }
+  const effectData = effect?.data && typeof effect.data === "object" ? effect.data : {};
+  const resultData = result && typeof result === "object" ? result : {};
+  const kind = String(effect?.kind || resultData.kind || "").toLowerCase();
+  const targetActorId = (
+    effectData.targetActorId
+    || effectData.targetId
+    || resultData.targetActorId
+    || resultData.targetId
+    || effect?.actorId
+    || resultData.actorId
+  );
+  const damage = Number.isFinite(effectData.damage)
+    ? effectData.damage
+    : Number.isFinite(effectData.amount) && kind.includes("damage")
+      ? effectData.amount
+      : Number.isFinite(resultData.damage)
+        ? resultData.damage
+        : Number.isFinite(resultData.amount) && kind.includes("damage")
+          ? resultData.amount
+          : null;
+  if (Number.isFinite(damage)) {
+    addActorDamage(damageByActorId, targetActorId, damage);
+  }
+}
+
+function deriveDamageSummary(tickFrames) {
+  const damageByActorId = new Map();
+  if (!Array.isArray(tickFrames)) {
+    return { total: 0, byActorId: damageByActorId };
+  }
+  tickFrames.forEach((frame) => {
+    (Array.isArray(frame?.emittedEvents) ? frame.emittedEvents : []).forEach((event) => {
+      recordEventDamage(damageByActorId, event);
+    });
+    (Array.isArray(frame?.emittedEffects) ? frame.emittedEffects : []).forEach((effect) => {
+      recordEffectDamage(damageByActorId, effect, effect?.data);
+    });
+    (Array.isArray(frame?.fulfilledEffects) ? frame.fulfilledEffects : []).forEach((record) => {
+      recordEffectDamage(damageByActorId, record?.effect, record?.result);
+      (Array.isArray(record?.result?.events) ? record.result.events : []).forEach((event) => {
+        recordEventDamage(damageByActorId, event);
+      });
+    });
+  });
+  const total = Array.from(damageByActorId.values()).reduce((sum, value) => sum + value, 0);
+  return { total, byActorId: damageByActorId };
+}
+
+function normalizeDiffFrameSummary(frame) {
+  if (!frame || typeof frame !== "object") {
+    return null;
+  }
+  return summarizeFrame(frame);
+}
+
+function findFirstFrameDivergence(tickFramesA, tickFramesB) {
+  const normalizedA = Array.isArray(tickFramesA) ? tickFramesA.map(normalizeDiffFrameSummary) : [];
+  const normalizedB = Array.isArray(tickFramesB) ? tickFramesB.map(normalizeDiffFrameSummary) : [];
+  const max = Math.max(normalizedA.length, normalizedB.length);
+  for (let index = 0; index < max; index += 1) {
+    const frameA = normalizedA[index] || null;
+    const frameB = normalizedB[index] || null;
+    if (!frameA || !frameB) {
+      return {
+        index,
+        reason: !frameA ? "missing_run_a_frame" : "missing_run_b_frame",
+        tick: frameA?.tick ?? frameB?.tick ?? null,
+        frameA,
+        frameB,
+      };
+    }
+    if (JSON.stringify(frameA) !== JSON.stringify(frameB)) {
+      return {
+        index,
+        reason: "frame_mismatch",
+        tick: frameA.tick ?? frameB.tick ?? null,
+        frameA,
+        frameB,
+      };
+    }
+  }
+  return null;
+}
+
+async function resolveDiffRunArtifacts(runId) {
+  if (!isNonEmptyString(runId)) {
+    throw new Error("diff requires non-empty run ids.");
+  }
+  const runDir = defaultRunDir(runId);
+  if (!existsSync(runDir)) {
+    throw new Error(`Run directory not found: ${runDir}`);
+  }
+
+  const sourcePaths = await resolveFromRunArtifactPaths(runId);
+  const commandNames = await listDirectoryNames(runDir);
+  const candidateCommands = [...commandNames].sort(compareDiffStagePriority);
+  let compareDir = null;
+  let compareCommand = "";
+
+  for (const command of candidateCommands) {
+    const candidateDir = join(runDir, command);
+    if (existsSync(join(candidateDir, "tick-frames.json")) || existsSync(join(candidateDir, "run-summary.json"))) {
+      compareDir = candidateDir;
+      compareCommand = command;
+      break;
+    }
+  }
+
+  if (!compareDir) {
+    throw new Error(`diff could not find tick-frames.json or run-summary.json for run ${runId} under ${runDir}.`);
+  }
+
+  const [simConfig, initialState, runSummary, tickFrames] = await Promise.all([
+    readJson(sourcePaths.simConfigPath),
+    readJson(sourcePaths.initialStatePath),
+    readJsonIfExists(join(compareDir, "run-summary.json")),
+    readJsonIfExists(join(compareDir, "tick-frames.json")),
+  ]);
+  assertSchema(simConfig, SCHEMAS.simConfig);
+  assertSchema(initialState, SCHEMAS.initialState);
+  if (runSummary) {
+    assertSchema(runSummary, SCHEMAS.runSummary);
+  }
+  if (tickFrames && !Array.isArray(tickFrames)) {
+    throw new Error(`diff expects tick-frames.json for run ${runId} to contain a JSON array.`);
+  }
+  (Array.isArray(tickFrames) ? tickFrames : []).forEach((frame) => assertSchema(frame, SCHEMAS.tickFrame));
+
+  return {
+    runId,
+    runDir,
+    sourceDir: sourcePaths.sourceDir,
+    compareDir,
+    compareCommand,
+    simConfig,
+    initialState,
+    runSummary,
+    tickFrames: Array.isArray(tickFrames) ? tickFrames : [],
+    ticks: deriveTickCount(runSummary, tickFrames),
+    effects: deriveEffectCount(runSummary, tickFrames),
+    damage: deriveDamageSummary(tickFrames),
+    actorRecords: buildActorRecordMap(initialState),
+  };
+}
+
+function buildActorDiffRecords(runA, runB) {
+  const actorIds = Array.from(new Set([
+    ...runA.actorRecords.keys(),
+    ...runB.actorRecords.keys(),
+    ...runA.damage.byActorId.keys(),
+    ...runB.damage.byActorId.keys(),
+  ])).sort((left, right) => left.localeCompare(right));
+
+  return actorIds.map((actorId) => {
+    const actorA = runA.actorRecords.get(actorId) || null;
+    const actorB = runB.actorRecords.get(actorId) || null;
+    const damageA = runA.damage.byActorId.get(actorId) || 0;
+    const damageB = runB.damage.byActorId.get(actorId) || 0;
+    return {
+      id: actorId,
+      presentInA: Boolean(actorA),
+      presentInB: Boolean(actorB),
+      kindA: actorA?.kind,
+      kindB: actorB?.kind,
+      vitalsA: actorA?.vitals || null,
+      vitalsB: actorB?.vitals || null,
+      damageReceivedA: damageA,
+      damageReceivedB: damageB,
+      damageDelta: damageB - damageA,
+    };
+  });
+}
+
+async function summarizeRunDiff({ runA, runB } = {}) {
+  const [resolvedA, resolvedB] = await Promise.all([
+    resolveDiffRunArtifacts(runA),
+    resolveDiffRunArtifacts(runB),
+  ]);
+  const divergence = findFirstFrameDivergence(resolvedA.tickFrames, resolvedB.tickFrames);
+  return {
+    ok: true,
+    command: "diff",
+    runA: resolvedA.runId,
+    runB: resolvedB.runId,
+    sourceA: {
+      runDir: resolvedA.runDir,
+      sourceDir: resolvedA.sourceDir,
+      compareDir: resolvedA.compareDir,
+      command: resolvedA.compareCommand,
+    },
+    sourceB: {
+      runDir: resolvedB.runDir,
+      sourceDir: resolvedB.sourceDir,
+      compareDir: resolvedB.compareDir,
+      command: resolvedB.compareCommand,
+    },
+    ticks: {
+      a: resolvedA.ticks,
+      b: resolvedB.ticks,
+      delta: resolvedB.ticks - resolvedA.ticks,
+    },
+    effects: {
+      a: resolvedA.effects,
+      b: resolvedB.effects,
+      delta: resolvedB.effects - resolvedA.effects,
+    },
+    damage: {
+      a: resolvedA.damage.total,
+      b: resolvedB.damage.total,
+      delta: resolvedB.damage.total - resolvedA.damage.total,
+    },
+    actors: buildActorDiffRecords(resolvedA, resolvedB),
+    divergesAtTick: divergence?.tick ?? null,
+    divergence,
+  };
 }
 
 async function summarizeRunIndexCommand({ runId, command, outDir } = {}) {
@@ -3694,7 +4202,15 @@ async function runCommand(argv) {
     }
     return;
   }
-  const result = await commandKernel.run(resolvedArgs);
+  const progressEnabled = args.progress === true;
+  const kernelArgs = progressEnabled
+    ? {
+        ...resolvedArgs,
+        log: () => {},
+        onTickProgress: (payload) => emitJsonStderr(payload),
+      }
+    : resolvedArgs;
+  const result = await commandKernel.run(kernelArgs);
   emitJsonStdout(await summarizeRunOutput({ outDir: result.outDir, args: resolvedArgs }));
 }
 
@@ -3733,6 +4249,36 @@ async function inspectCommand(argv) {
   }
   const result = await commandKernel.inspect(args);
   emitJsonStdout(await summarizeInspectOutput({ outDir: result.outDir }));
+}
+
+async function narrateCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  const tickFramesPath = resolvePath(args["tick-frames"]);
+  const initialStatePath = resolvePath(args["initial-state"]);
+  if (!tickFramesPath || !initialStatePath) {
+    throw new Error("narrate requires --tick-frames and --initial-state.");
+  }
+
+  const [frames, initialState] = await Promise.all([
+    readJson(tickFramesPath),
+    readJson(initialStatePath),
+  ]);
+  assertSchema(initialState, SCHEMAS.initialState);
+  if (!Array.isArray(frames)) {
+    throw new Error("narrate expects --tick-frames to contain a JSON array.");
+  }
+  frames.forEach((frame) => assertSchema(frame, SCHEMAS.tickFrame));
+
+  const runId = initialState?.meta?.runId || frames[0]?.meta?.runId || makeId("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultOutDir("narrate", runId);
+  const narrative = createNarrativeArtifact({ initialState, frames, runId });
+  await writeJson(join(outDir, "narrative.json"), narrative);
+  emitJsonStdout(await summarizeNarrateOutput({ outDir }));
 }
 
 async function ipfsCommand(argv) {
@@ -5043,6 +5589,31 @@ async function showCommand(argv) {
   emitJsonStdout(await summarizeRunShow({ runId: args["run-id"] }));
 }
 
+async function diffCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+  if (!isNonEmptyString(args["run-a"]) || !isNonEmptyString(args["run-b"])) {
+    throw new Error("diff requires --run-a <id> and --run-b <id>.");
+  }
+  const unknown = [];
+  for (const key of Object.keys(args)) {
+    if (key === "_" || key === "help" || key === "run-a" || key === "run-b") {
+      continue;
+    }
+    unknown.push(`--${key}`);
+  }
+  if (Array.isArray(args._) && args._.length > 0) {
+    unknown.push(...args._);
+  }
+  if (unknown.length > 0) {
+    throw new Error(`diff only accepts --run-a and --run-b. Unknown: ${unknown.join(", ")}`);
+  }
+  emitJsonStdout(await summarizeRunDiff({ runA: args["run-a"], runB: args["run-b"] }));
+}
+
 async function runsCommand(argv) {
   const [subcommand, ...rest] = argv;
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
@@ -5076,6 +5647,7 @@ const COMMANDS = {
   budget: budgetCommand,
   replay: replayCommand,
   inspect: inspectCommand,
+  narrate: narrateCommand,
   ipfs: ipfsCommand,
   "ipfs-publish": ipfsPublishCommand,
   "ipfs-load": ipfsLoadCommand,
@@ -5090,6 +5662,7 @@ const COMMANDS = {
   "llm-plan": llmPlanCommand,
   scenario: scenarioCommand,
   show: showCommand,
+  diff: diffCommand,
   runs: runsCommand,
 };
 
