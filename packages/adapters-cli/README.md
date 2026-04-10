@@ -111,6 +111,31 @@ Inputs/outputs:
   `run/tick-frames.json`, `run/effects-log.json`, `run/run-summary.json`, and
   `inspect/inspect-summary.json`.
 
+### `show`
+Queries a prior run and prints a structured summary of the generated actors, rooms, artifacts,
+and budget spend. This is the read-only follow-up command for automation callers that need to
+inspect what a previous run created without rerunning the pipeline.
+
+Inputs/outputs:
+- Input: `--run-id <runId>`, optional `--actors`, `--rooms`, `--artifacts`, and `--out-dir`.
+- Behavior: without sub-flags, returns the full summary; `--actors` returns the actor list only;
+  `--rooms` returns the room list only; `--artifacts` returns artifact paths only.
+- Stdout: structured JSON including `runId`, `actors[]`, `rooms[]`, `artifactPaths{}`, and
+  `budgetSpend`.
+- Error: structured JSON error when the requested run directory does not exist under the selected
+  output root.
+
+### `runs list`
+Lists prior runs from the output root with their status, inputs, and key outputs in newest-first
+order. This is the index command for automation callers that need to enumerate recent runs before
+drilling into a specific `runId` with `show`.
+
+Inputs/outputs:
+- Input: optional `--limit N`, `--since <ISO date>`, and `--out-dir`.
+- Stdout: JSON array of run summaries sorted newest-first:
+  `[{runId, createdAt, command, actorCount, roomCount, ticks, outDir}]`
+- `--limit N` caps the number of returned runs.
+
 ### `create` / `configure`
 Generic additive agent-facing authoring commands that normalize freeform text plus
 structured object flags into an inline `AgentCommandRequestArtifact`, compile that
