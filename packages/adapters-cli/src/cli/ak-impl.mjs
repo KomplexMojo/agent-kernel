@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -95,11 +95,13 @@ function usage() {
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} scenario --text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} runs list
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -1801,10 +1803,54 @@ const STRUCTURED_STDOUT_COMMANDS = new Set([
   "run",
   "inspect",
   "llm-plan",
+  "scenario",
+  "runs",
+]);
+
+const RUN_INDEX_INPUT_FILES = Object.freeze([
+  ["request", "request.json"],
+  ["spec", "spec.json"],
+  ["sim_config", "sim-config.json"],
+  ["initial_state", "initial-state.json"],
+  ["resolved_sim_config", "resolved-sim-config.json"],
+  ["resolved_initial_state", "resolved-initial-state.json"],
+  ["action_log", "action-log.json"],
+]);
+
+const RUN_INDEX_OUTPUT_FILES = Object.freeze([
+  ["intent", "intent.json"],
+  ["plan", "plan.json"],
+  ["budget", "budget.json"],
+  ["price_list", "price-list.json"],
+  ["budget_receipt", "budget-receipt.json"],
+  ["solver_request", "solver-request.json"],
+  ["solver_result", "solver-result.json"],
+  ["sim_config", "sim-config.json"],
+  ["initial_state", "initial-state.json"],
+  ["bundle", "bundle.json"],
+  ["manifest", "manifest.json"],
+  ["telemetry", "telemetry.json"],
+  ["run_summary", "run-summary.json"],
+  ["tick_frames", "tick-frames.json"],
+  ["effects_log", "effects-log.json"],
+  ["runtime_decision_captures", "runtime-decision-captures.json"],
+  ["inspect_summary", "inspect-summary.json"],
+  ["affinity_summary", "affinity-summary.json"],
 ]);
 
 function emitJsonStdout(payload) {
   process.stdout.write(`${JSON.stringify(payload)}\n`);
+}
+
+async function listDirectoryNames(path) {
+  if (!path || !existsSync(path)) {
+    return [];
+  }
+  const entries = await readdir(path, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 function buildArtifactPathMap({ outDir, manifestEntries = [], includeRequest = false } = {}) {
@@ -1948,6 +1994,167 @@ async function summarizeInspectOutput({ outDir } = {}) {
       inspect_summary: join(outDir, "inspect-summary.json"),
     },
     ticks: inspectSummary?.data?.ticks,
+  };
+}
+
+function prefixArtifactPaths(paths, prefix) {
+  return Object.fromEntries(
+    Object.entries(paths || {}).map(([key, value]) => [`${prefix}${key}`, value])
+  );
+}
+
+function buildScenarioSummary({
+  runId,
+  outDir,
+  llmPlanSummary,
+  runSummary,
+  inspectSummary,
+} = {}) {
+  return {
+    ok: true,
+    command: "scenario",
+    runId,
+    outDir,
+    actorIds: Array.isArray(runSummary?.actorIds) ? runSummary.actorIds : [],
+    roomIds: Array.isArray(runSummary?.roomIds) ? runSummary.roomIds : [],
+    artifactPaths: {
+      ...prefixArtifactPaths(llmPlanSummary?.artifactPaths, "llm_plan_"),
+      ...prefixArtifactPaths(runSummary?.artifactPaths, ""),
+      ...prefixArtifactPaths(inspectSummary?.artifactPaths, ""),
+    },
+    ticks: inspectSummary?.ticks ?? runSummary?.ticks,
+  };
+}
+
+function toRunIndexArtifactRecord({ key, outDir, fileName, payload } = {}) {
+  const record = {
+    key,
+    path: join(outDir, fileName),
+  };
+  if (payload?.schema) {
+    record.schema = payload.schema;
+  }
+  if (payload?.schemaVersion !== undefined) {
+    record.schemaVersion = payload.schemaVersion;
+  }
+  if (payload?.meta?.id) {
+    record.id = payload.meta.id;
+  }
+  if (payload?.meta?.createdAt) {
+    record.createdAt = payload.meta.createdAt;
+  }
+  return record;
+}
+
+async function collectRunIndexArtifactRecords(outDir, entries) {
+  const records = [];
+  for (const [key, fileName] of entries) {
+    const payload = await readJsonIfExists(join(outDir, fileName));
+    if (!payload) {
+      continue;
+    }
+    records.push(toRunIndexArtifactRecord({ key, outDir, fileName, payload }));
+  }
+  return records;
+}
+
+function deriveRunIndexStatus({ telemetry, runSummary, outputCount } = {}) {
+  if (isNonEmptyString(telemetry?.data?.status)) {
+    return telemetry.data.status;
+  }
+  if (isNonEmptyString(runSummary?.outcome) && runSummary.outcome !== "unknown") {
+    return runSummary.outcome;
+  }
+  if (outputCount > 0) {
+    return "success";
+  }
+  return "incomplete";
+}
+
+function deriveRunStatus(commands) {
+  const statuses = Array.from(new Set(commands.map((entry) => entry.status).filter(isNonEmptyString)));
+  if (statuses.length === 0) {
+    return "unknown";
+  }
+  if (statuses.length === 1) {
+    return statuses[0];
+  }
+  return "mixed";
+}
+
+async function summarizeRunIndexCommand({ runId, command, outDir } = {}) {
+  const request = await readJsonIfExists(join(outDir, "request.json"));
+  const spec = await readJsonIfExists(join(outDir, "spec.json"));
+  const simConfig = await readJsonIfExists(join(outDir, "sim-config.json"));
+  const initialState = await readJsonIfExists(join(outDir, "initial-state.json"));
+  const telemetry = await readJsonIfExists(join(outDir, "telemetry.json"));
+  const runSummary = await readJsonIfExists(join(outDir, "run-summary.json"));
+  const inputs = await collectRunIndexArtifactRecords(outDir, RUN_INDEX_INPUT_FILES);
+  const outputs = await collectRunIndexArtifactRecords(outDir, RUN_INDEX_OUTPUT_FILES);
+  const createdAt = (
+    spec?.meta?.createdAt
+    || request?.meta?.createdAt
+    || telemetry?.meta?.createdAt
+    || runSummary?.meta?.createdAt
+    || ""
+  );
+  return {
+    command,
+    runId,
+    status: deriveRunIndexStatus({ telemetry, runSummary, outputCount: outputs.length }),
+    outDir,
+    createdAt,
+    source: (
+      spec?.meta?.source
+      || telemetry?.data?.source
+      || request?.meta?.producedBy
+      || runSummary?.meta?.producedBy
+      || ""
+    ),
+    actorIds: deriveActorIds(initialState),
+    roomIds: deriveRoomIds(simConfig),
+    ticks: runSummary?.metrics?.ticks,
+    inputs,
+    outputs,
+  };
+}
+
+async function summarizeRunsIndex({ rootDir } = {}) {
+  const runIds = await listDirectoryNames(rootDir);
+  const runs = [];
+  for (const runId of runIds) {
+    const runDir = join(rootDir, runId);
+    const commandNames = await listDirectoryNames(runDir);
+    const commands = [];
+    for (const command of commandNames) {
+      commands.push(await summarizeRunIndexCommand({
+        runId,
+        command,
+        outDir: join(runDir, command),
+      }));
+    }
+    commands.sort((a, b) => {
+      const aTime = Date.parse(a.createdAt || "");
+      const bTime = Date.parse(b.createdAt || "");
+      if (Number.isFinite(aTime) && Number.isFinite(bTime) && aTime !== bTime) {
+        return bTime - aTime;
+      }
+      return a.command.localeCompare(b.command);
+    });
+    runs.push({
+      runId,
+      status: deriveRunStatus(commands),
+      commandCount: commands.length,
+      commands,
+    });
+  }
+  runs.sort((a, b) => a.runId.localeCompare(b.runId));
+  return {
+    ok: true,
+    command: "runs",
+    action: "list",
+    rootDir,
+    runs,
   };
 }
 
@@ -2145,6 +2352,42 @@ function assertAllowedAgentAuthoringArgs(command, args) {
   }
   if (unknown.length > 0) {
     throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+  }
+}
+
+function assertAllowedScenarioArgs(args) {
+  const allowed = new Set([
+    "text",
+    "catalog",
+    "model",
+    "goal",
+    "budget-tokens",
+    "base-url",
+    "fixture",
+    "budget-loop",
+    "budget-pool",
+    "budget-reserve",
+    "ticks",
+    "seed",
+    "wasm",
+    "out-dir",
+    "run-id",
+    "created-at",
+  ]);
+  const unknown = [];
+  for (const key of Object.keys(args)) {
+    if (key === "_" || key === "help") {
+      continue;
+    }
+    if (!allowed.has(key)) {
+      unknown.push(`--${key}`);
+    }
+  }
+  if (Array.isArray(args._) && args._.length > 0) {
+    unknown.push(...args._);
+  }
+  if (unknown.length > 0) {
+    throw new Error(`scenario only accepts --text, --catalog, --model, --goal, --budget-tokens, --base-url, --fixture, --budget-loop, --budget-pool, --budget-reserve, --ticks, --seed, --wasm, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3758,6 +4001,108 @@ async function llmPlanCommand(argv) {
   }));
 }
 
+async function scenarioCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+  assertAllowedScenarioArgs(args);
+  if (!isNonEmptyString(args.text)) {
+    throw new Error("scenario requires --text.");
+  }
+
+  const runId = args["run-id"] || makeId("run");
+  const outDir = resolvePath(args["out-dir"]) || defaultRunDir(runId);
+  const llmPlanOutDir = join(outDir, "llm-plan");
+  const runOutDir = join(outDir, "run");
+  const inspectOutDir = join(outDir, "inspect");
+
+  const llmPlanArgs = {
+    text: args.text,
+    catalog: args.catalog,
+    model: args.model,
+    goal: args.goal,
+    "budget-tokens": args["budget-tokens"],
+    "base-url": args["base-url"],
+    fixture: args.fixture,
+    "budget-loop": args["budget-loop"],
+    "budget-pool": args["budget-pool"],
+    "budget-reserve": args["budget-reserve"],
+    "run-id": runId,
+    "created-at": args["created-at"],
+    "out-dir": llmPlanOutDir,
+  };
+  const llmPlanResult = await commandKernel.llmPlan(llmPlanArgs);
+
+  const simConfigPath = join(llmPlanResult.outDir, "sim-config.json");
+  const initialStatePath = join(llmPlanResult.outDir, "initial-state.json");
+  if (!existsSync(simConfigPath) || !existsSync(initialStatePath)) {
+    throw new Error("scenario requires llm-plan to produce sim-config.json and initial-state.json.");
+  }
+
+  const runArgs = {
+    "sim-config": simConfigPath,
+    "initial-state": initialStatePath,
+    ticks: args.ticks,
+    seed: args.seed,
+    wasm: args.wasm,
+    "run-id": runId,
+    "out-dir": runOutDir,
+  };
+  const runResult = await commandKernel.run(runArgs);
+
+  const inspectResult = await commandKernel.inspect({
+    "tick-frames": join(runResult.outDir, "tick-frames.json"),
+    "effects-log": join(runResult.outDir, "effects-log.json"),
+    "out-dir": inspectOutDir,
+  });
+
+  const [llmPlanSummary, runSummary, inspectSummary] = await Promise.all([
+    summarizeBuildLikeOutput({
+      command: "llm-plan",
+      outDir: llmPlanResult.outDir,
+    }),
+    summarizeRunOutput({
+      outDir: runResult.outDir,
+      args: runArgs,
+    }),
+    summarizeInspectOutput({
+      outDir: inspectResult.outDir,
+    }),
+  ]);
+
+  emitJsonStdout(buildScenarioSummary({
+    runId,
+    outDir,
+    llmPlanSummary,
+    runSummary,
+    inspectSummary,
+  }));
+}
+
+async function runsCommand(argv) {
+  const [subcommand, ...rest] = argv;
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
+    console.log(usage());
+    return;
+  }
+  if (subcommand !== "list") {
+    throw new Error(`Unknown runs subcommand: ${subcommand}`);
+  }
+  if (rest.length > 0) {
+    const args = parseArgs(rest);
+    if (!args.help && args._.length > 0) {
+      throw new Error("runs list does not accept positional arguments.");
+    }
+    if (Object.keys(args).some((key) => key !== "_" && key !== "help")) {
+      throw new Error("runs list does not accept options.");
+    }
+  }
+  const rootDir = resolve(process.cwd(), DEFAULT_ARTIFACTS_DIR, DEFAULT_RUNS_DIR);
+  emitJsonStdout(await summarizeRunsIndex({ rootDir }));
+}
+
 const COMMANDS = {
   build: buildCommand,
   schemas: schemasCommand,
@@ -3781,6 +4126,8 @@ const COMMANDS = {
   "delver-plan": delverPlanCommand,
   "warden-plan": wardenPlanCommand,
   "llm-plan": llmPlanCommand,
+  scenario: scenarioCommand,
+  runs: runsCommand,
 };
 
 async function main() {
