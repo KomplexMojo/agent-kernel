@@ -118,12 +118,26 @@ function validateDirection(action: MoveAction): bool {
   let dy = 0;
   if (action.direction == Direction.North) {
     dy = -1;
+  } else if (action.direction == Direction.NorthEast) {
+    dx = 1;
+    dy = -1;
   } else if (action.direction == Direction.East) {
     dx = 1;
+  } else if (action.direction == Direction.SouthEast) {
+    dx = 1;
+    dy = 1;
   } else if (action.direction == Direction.South) {
+    dy = 1;
+  } else if (action.direction == Direction.SouthWest) {
+    dx = -1;
     dy = 1;
   } else if (action.direction == Direction.West) {
     dx = -1;
+  } else if (action.direction == Direction.NorthWest) {
+    dx = -1;
+    dy = -1;
+  } else {
+    return false;
   }
   return action.fromX + dx == action.toX && action.fromY + dy == action.toY;
 }
@@ -147,8 +161,9 @@ function validateMoveIdentityAndTiming(action: MoveAction): ValidationError {
 function validateMoveGeometryAndDestination(action: MoveAction): ValidationError {
   const dx = action.toX - action.fromX;
   const dy = action.toY - action.fromY;
-  const manhattan = abs(dx) + abs(dy);
-  if (manhattan != 1) {
+  const absDx = abs(dx);
+  const absDy = abs(dy);
+  if ((absDx == 0 && absDy == 0) || absDx > 1 || absDy > 1) {
     return ValidationError.NotAdjacent;
   }
   if (!validateDirection(action)) {
@@ -177,6 +192,21 @@ function computeNextStaminaAfterRegen(_movementCost: i32): i32 {
   return staminaNext;
 }
 
+function isDiagonalMove(action: MoveAction): bool {
+  return action.fromX != action.toX && action.fromY != action.toY;
+}
+
+function computeMovementCost(action: MoveAction, cardinalCost: i32): i32 {
+  if (!isDiagonalMove(action)) {
+    return cardinalCost;
+  }
+  if (cardinalCost <= 0) {
+    return cardinalCost;
+  }
+  const diagonalExtra = cardinalCost > 1 ? max(1, cardinalCost / 2) : 1;
+  return cardinalCost + diagonalExtra;
+}
+
 function applyTileEntryEffects(x: i32, y: i32): void {
   applyStaticTrapDamageAt(x, y);
 }
@@ -197,10 +227,11 @@ export function applyMove(action: MoveAction): ValidationError {
   if (validation != ValidationError.None) {
     return validation;
   }
-  const movementCost = getActorMovementCost();
-  if (movementCost < 0) {
+  const cardinalCost = getActorMovementCost();
+  if (cardinalCost < 0) {
     return ValidationError.InvalidCapability;
   }
+  const movementCost = computeMovementCost(action, cardinalCost);
   const staminaNext = computeNextStaminaAfterRegen(movementCost);
   const staminaMax = getActorVitalMax(VitalKind.Stamina);
   const staminaRegen = getActorVitalRegen(VitalKind.Stamina);

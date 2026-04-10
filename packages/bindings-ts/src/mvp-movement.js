@@ -1,15 +1,23 @@
 const DIR_MAP = Object.freeze({
   north: 0,
-  east: 1,
-  south: 2,
-  west: 3,
+  northeast: 1,
+  east: 2,
+  southeast: 3,
+  south: 4,
+  southwest: 5,
+  west: 6,
+  northwest: 7,
 });
 
 const DIR_BY_CODE = Object.freeze({
   0: "north",
-  1: "east",
-  2: "south",
-  3: "west",
+  1: "northeast",
+  2: "east",
+  3: "southeast",
+  4: "south",
+  5: "southwest",
+  6: "west",
+  7: "northwest",
 });
 
 const DEFAULT_LEGEND = Object.freeze({

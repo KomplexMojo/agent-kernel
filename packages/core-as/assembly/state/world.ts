@@ -10,9 +10,13 @@ export const enum Tile {
 
 export const enum Direction {
   North = 0,
-  East = 1,
-  South = 2,
-  West = 3,
+  NorthEast = 1,
+  East = 2,
+  SouthEast = 3,
+  South = 4,
+  SouthWest = 5,
+  West = 6,
+  NorthWest = 7,
 }
 
 export const enum ActorKind {

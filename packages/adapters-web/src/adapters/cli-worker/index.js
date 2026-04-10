@@ -139,6 +139,14 @@ function createInProcessCliWorkerAdapter({ fetchFn, env, nowIso } = {}) {
         signal: options?.signal,
       });
     },
+    manualMove(payload, options) {
+      return executeBrowserCommand({ action: "manual_move", payload }, {
+        fetchFn,
+        env,
+        nowIso,
+        signal: options?.signal,
+      });
+    },
     normalizeBuildSpec({ spec } = {}) {
       return executeBrowserCommand({ action: "normalize_build_spec", payload: { spec } }, { fetchFn, env, nowIso });
     },
@@ -297,6 +305,9 @@ export function createCliWorkerAdapter({
     },
     inspect(payload, options) {
       return runWorkerRequest("inspect", payload, options);
+    },
+    manualMove(payload, options) {
+      return runWorkerRequest("manual_move", payload, options);
     },
     normalizeBuildSpec({ spec } = {}, options) {
       return runWorkerRequest("normalize_build_spec", { spec }, options);

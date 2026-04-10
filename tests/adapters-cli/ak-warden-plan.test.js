@@ -88,6 +88,24 @@ test("cli warden-plan applies default warden motivation and affinity fallback", 
   assert.deepEqual(warden.motivations, ["defending"]);
 });
 
+test("cli warden-plan keeps defending wardens non-ambulatory by default", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-stationary-defaults-"));
+  runCliOk([
+    "warden-plan",
+    "--warden",
+    "count=1;motivation=defending",
+    "--run-id",
+    "run_warden_plan_stationary_defaults",
+    "--created-at",
+    "2026-03-07T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const initialState = readJson(join(outDir, "initial-state.json"));
+  assert.equal(initialState.actors[0].vitals.stamina.regen, 0);
+});
+
 test("cli warden-plan supports multiple warden configurations in one command", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-multi-"));
   runCliOk([

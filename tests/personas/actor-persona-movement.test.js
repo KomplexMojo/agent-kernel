@@ -16,9 +16,13 @@ const fixture = ${JSON.stringify(fixture)};
 
 function applyDirection(position, direction) {
   if (direction === "north") return { x: position.x, y: position.y - 1 };
+  if (direction === "northeast") return { x: position.x + 1, y: position.y - 1 };
   if (direction === "east") return { x: position.x + 1, y: position.y };
+  if (direction === "southeast") return { x: position.x + 1, y: position.y + 1 };
   if (direction === "south") return { x: position.x, y: position.y + 1 };
+  if (direction === "southwest") return { x: position.x - 1, y: position.y + 1 };
   if (direction === "west") return { x: position.x - 1, y: position.y };
+  if (direction === "northwest") return { x: position.x - 1, y: position.y - 1 };
   return { ...position };
 }
 

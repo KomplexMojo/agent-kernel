@@ -3,7 +3,7 @@ const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const motivationUrl = moduleUrl("packages/runtime/src/personas/allocator/motivation-price-policy.js");
 
-test("simple motivations cost 25, advanced cost 50 (design §6.6)", () => {
+test("motivation pricing preserves simple and advanced tiers while allowing cheaper manual control", () => {
   runEsm(`
 import assert from "node:assert/strict";
 import {
@@ -16,9 +16,9 @@ import {
 assert.equal(SIMPLE_MOTIVATION_COST, 25);
 assert.equal(ADVANCED_MOTIVATION_COST, 50);
 
-// Verify each motivation's cost matches its tier
+// Verify each motivation's cost matches its tier except the cheaper manual-control tag.
 for (const [kind, tier] of Object.entries(MOTIVATION_TIER)) {
-  const expectedCost = tier === "advanced" ? 50 : 25;
+  const expectedCost = tier === "advanced" ? 50 : tier === "control" ? 10 : 25;
   assert.equal(
     DEFAULT_MOTIVATION_COSTS[kind],
     expectedCost,
@@ -47,5 +47,8 @@ const mixed = calculateMotivationStackCost([
   { kind: "goal_oriented" },
 ]);
 assert.equal(mixed.cost, 75);
+
+const manualControl = calculateMotivationStackCost([{ kind: "user_controlled" }]);
+assert.equal(manualControl.cost, 10);
 `);
 });
