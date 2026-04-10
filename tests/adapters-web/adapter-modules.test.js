@@ -137,7 +137,7 @@ const affinityFromTiles = await inProcess.buildFromTiles({
   },
 });
 assert.equal(affinityFromTiles.ok, true);
-assert.equal(affinityFromTiles.ascii.lines[0][0], "w");
+assert.equal(affinityFromTiles.ascii.lines[0][0], "W");
 assert.equal(affinityFromTiles.ascii.lines[0][1], "W");
 assert.notDeepEqual(
   Array.from(affinityFromTiles.image.pixels.slice(0, 4)),

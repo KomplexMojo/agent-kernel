@@ -32,11 +32,14 @@
       "expectedDirections": [
         "east",
         "southeast",
-        "southeast",
-        "southeast",
-        "southeast",
-        "southwest",
-        "southeast",
+        "south",
+        "east",
+        "east",
+        "south",
+        "south",
+        "south",
+        "south",
+        "east",
         "east"
       ]
     },
@@ -67,13 +70,17 @@
       ],
       "start": { "x": 1, "y": 1 },
       "expectedDirections": [
-        "southeast",
+        "south",
         "east",
-        "southeast",
-        "southeast",
-        "southeast",
-        "southwest",
-        "southeast",
+        "east",
+        "south",
+        "east",
+        "east",
+        "south",
+        "south",
+        "south",
+        "south",
+        "east",
         "east"
       ]
     }

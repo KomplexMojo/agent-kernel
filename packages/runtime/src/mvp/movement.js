@@ -36,6 +36,16 @@ function isWalkable(grid, { x, y }) {
   return cell !== "#";
 }
 
+function isDiagonalStepAllowed(grid, current, next) {
+  const dx = next.x - current.x;
+  const dy = next.y - current.y;
+  if (Math.abs(dx) !== 1 || Math.abs(dy) !== 1) {
+    return true;
+  }
+  return isWalkable(grid, { x: current.x + dx, y: current.y })
+    && isWalkable(grid, { x: current.x, y: current.y + dy });
+}
+
 function reconstructPath(cameFrom, endKey) {
   const path = [];
   let current = endKey;
@@ -63,7 +73,7 @@ function shortestPath(grid, start, goal) {
     for (const delta of EIGHT_WAY_DELTAS) {
       const next = { x: current.x + delta.dx, y: current.y + delta.dy };
       const nextKey = `${next.x},${next.y}`;
-      if (seen.has(nextKey) || !isWalkable(grid, next)) {
+      if (seen.has(nextKey) || !isWalkable(grid, next) || !isDiagonalStepAllowed(grid, current, next)) {
         continue;
       }
       seen.add(nextKey);

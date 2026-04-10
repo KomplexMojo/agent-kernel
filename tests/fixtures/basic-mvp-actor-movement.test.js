@@ -36,14 +36,14 @@ test("initial actor defaults live on the spawn tile with vitals stub", () => {
 test("action sequence walks the MVP maze to the exit in deterministic ticks", () => {
   const actions = actionSequence.actions;
   assert.equal(actionSequence.schema, "agent-kernel/ActionSequence");
-  assert.equal(actions.length, 12);
+  assert.equal(actions.length, 11);
   actions.forEach((action, index) => {
     assert.equal(action.actorId, "actor_mvp");
     assert.equal(action.tick, index + 1);
   });
   assert.deepEqual(
     actions.map((a) => a.params.direction),
-    ["east", "east", "south", "south", "east", "east", "south", "south", "south", "south", "east", "east"]
+    ["east", "southeast", "south", "east", "east", "south", "south", "south", "south", "east", "east"]
   );
   coordsEqual(actions[0].params.from, simConfig.layout.data.spawn);
   coordsEqual(actions.at(-1).params.to, simConfig.layout.data.exit);
