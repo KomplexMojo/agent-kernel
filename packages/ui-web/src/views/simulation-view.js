@@ -265,9 +265,13 @@ export function wireSimulationView({
   const playPauseButton = root.querySelector("#play-pause");
   const resetRunButton = root.querySelector("#reset-run");
   const moveUpButton = root.querySelector("#runtime-move-up");
+  const moveUpRightButton = root.querySelector("#runtime-move-up-right");
   const moveDownButton = root.querySelector("#runtime-move-down");
+  const moveDownRightButton = root.querySelector("#runtime-move-down-right");
+  const moveDownLeftButton = root.querySelector("#runtime-move-down-left");
   const moveLeftButton = root.querySelector("#runtime-move-left");
   const moveRightButton = root.querySelector("#runtime-move-right");
+  const moveUpLeftButton = root.querySelector("#runtime-move-up-left");
   const castButton = root.querySelector("#runtime-cast");
   const tooltipEl = root.querySelector("#canvas-tooltip");
   const tooltipTitleEl = root.querySelector("#tooltip-title");
@@ -779,9 +783,13 @@ export function wireSimulationView({
   playPauseButton?.addEventListener("click", () => controller?.toggle?.());
   resetRunButton?.addEventListener("click", () => controller?.reset?.());
   moveUpButton?.addEventListener("click", () => performGameAction({ action: "up", actorId: getSelectedActorId() }));
+  moveUpRightButton?.addEventListener("click", () => performGameAction({ action: "up-right", actorId: getSelectedActorId() }));
   moveDownButton?.addEventListener("click", () => performGameAction({ action: "down", actorId: getSelectedActorId() }));
+  moveDownRightButton?.addEventListener("click", () => performGameAction({ action: "down-right", actorId: getSelectedActorId() }));
+  moveDownLeftButton?.addEventListener("click", () => performGameAction({ action: "down-left", actorId: getSelectedActorId() }));
   moveLeftButton?.addEventListener("click", () => performGameAction({ action: "left", actorId: getSelectedActorId() }));
   moveRightButton?.addEventListener("click", () => performGameAction({ action: "right", actorId: getSelectedActorId() }));
+  moveUpLeftButton?.addEventListener("click", () => performGameAction({ action: "up-left", actorId: getSelectedActorId() }));
   castButton?.addEventListener("click", () => performGameAction({ action: "cast", actorId: getSelectedActorId() }));
 
   async function boot() {
