@@ -142,6 +142,52 @@ test("cli run writes tick frames and logs", (t) => {
   assert.equal(frames[0].schema, "agent-kernel/TickFrame");
 });
 
+test("cli run --progress emits JSON lines to stderr without polluting stdout", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH}`);
+    return;
+  }
+  const workDir = makeTempDir("agent-kernel-run-progress-");
+  const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
+  const outDir = join(workDir, "out");
+
+  const result = runCli([
+    "run",
+    "--sim-config",
+    simConfigPath,
+    "--initial-state",
+    initialStatePath,
+    "--ticks",
+    "2",
+    "--progress",
+    "--wasm",
+    WASM_PATH,
+    "--out-dir",
+    outDir,
+  ]);
+
+  const stdoutSummary = JSON.parse(result.stdout.trim());
+  const stderrLines = result.stderr.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+
+  assert.equal(stdoutSummary.ok, true);
+  assert.equal(stdoutSummary.command, "run");
+  assert.equal(stderrLines.length, 3);
+  assert.deepEqual(
+    stderrLines.map((line) => ({
+      progress: line.progress,
+      tick: line.tick,
+      phase: line.phase,
+      done: line.done,
+    })),
+    [
+      { progress: true, tick: 1, phase: "emit", done: undefined },
+      { progress: true, tick: 2, phase: "emit", done: undefined },
+      { progress: true, tick: undefined, phase: undefined, done: true },
+    ],
+  );
+  assert.equal(stderrLines[2].totalTicks, 2);
+});
+
 test("cli run resolves sim artifacts from --from-run", (t) => {
   if (!existsSync(WASM_PATH)) {
     t.skip(`Missing WASM at ${WASM_PATH}`);
