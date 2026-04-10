@@ -22,6 +22,7 @@ export const MOTIVATION_FAMILIES = Object.freeze({
   mobility: Object.freeze(["random", "stationary", "exploring", "patrolling"]),
   posture: Object.freeze(["attacking", "defending", "stealthy", "friendly"]),
   cognition: Object.freeze(["reflexive", "goal_oriented", "strategy_focused"]),
+  control: Object.freeze(["user_controlled"]),
 });
 
 /**
@@ -38,6 +39,7 @@ export const MOTIVATION_TIER = Object.freeze({
   defending: "simple",
   friendly: "simple",
   reflexive: "simple",
+  user_controlled: "control",
 
   // Advanced motivations (50 tokens)
   stealthy: "advanced",
@@ -72,6 +74,7 @@ export const DEFAULT_MOTIVATION_COSTS = Object.freeze({
   reflexive: SIMPLE_MOTIVATION_COST,
   goal_oriented: ADVANCED_MOTIVATION_COST,
   strategy_focused: ADVANCED_MOTIVATION_COST,
+  user_controlled: 10,
 });
 
 /**
@@ -90,6 +93,7 @@ export const MOTIVATION_PRICE_IDS = Object.freeze({
   reflexive: "motivation_reflexive",
   goal_oriented: "motivation_goal_oriented",
   strategy_focused: "motivation_strategy_focused",
+  user_controlled: "motivation_user_controlled",
 });
 
 const MOTIVATION_PRICE_KIND = "motivation";

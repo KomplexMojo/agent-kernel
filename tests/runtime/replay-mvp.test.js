@@ -11,10 +11,14 @@ const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 const ACTION_KIND_MOVE = 8;
 
 const DIRECTION = Object.freeze({
-  east: 1,
-  south: 2,
-  west: 3,
   north: 0,
+  northeast: 1,
+  east: 2,
+  southeast: 3,
+  south: 4,
+  southwest: 5,
+  west: 6,
+  northwest: 7,
 });
 
 function applyMove(core, { actorId, from, to, direction, tick }) {

@@ -1000,5 +1000,9 @@ export async function executeBrowserCommand(
     return normalizeBuildSpecForUi(payload?.spec);
   }
 
+  if (action === "manual_move") {
+    return kernel.manualMove(payload || {});
+  }
+
   throw new Error(`Unsupported browser command: ${action || "unknown"}`);
 }

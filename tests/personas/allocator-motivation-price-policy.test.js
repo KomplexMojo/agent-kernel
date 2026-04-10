@@ -30,6 +30,7 @@ const allKinds = [
   ...MOTIVATION_FAMILIES.mobility,
   ...MOTIVATION_FAMILIES.posture,
   ...MOTIVATION_FAMILIES.cognition,
+  ...MOTIVATION_FAMILIES.control,
 ];
 allKinds.forEach((kind) => {
   assert.ok(MOTIVATION_PRICE_IDS[kind], kind + " should have a price ID");
@@ -42,6 +43,7 @@ assert.equal(resolveMotivationUnitCost("goal_oriented"), 50); // advanced
 assert.equal(resolveMotivationUnitCost("strategy_focused"), 50); // advanced
 assert.equal(resolveMotivationUnitCost("random"), 25);        // simple
 assert.equal(resolveMotivationUnitCost("stationary"), 25);     // simple
+assert.equal(resolveMotivationUnitCost("user_controlled"), 10);
 assert.equal(resolveMotivationUnitCost("unknown_kind"), 0);
 
 // ── resolveMotivationUnitCost respects priceMap overrides ──
@@ -54,6 +56,7 @@ assert.equal(resolveMotivationUnitCost("goal_oriented", priceMap), 50); // still
 assert.equal(resolveMotivationFamily("random"), "mobility");
 assert.equal(resolveMotivationFamily("attacking"), "posture");
 assert.equal(resolveMotivationFamily("reflexive"), "cognition");
+assert.equal(resolveMotivationFamily("user_controlled"), "control");
 assert.equal(resolveMotivationFamily("unknown"), null);
 
 // ── calculateMotivationStackCost: empty input ──
@@ -72,6 +75,12 @@ assert.equal(resolveMotivationFamily("unknown"), null);
   assert.equal(result.lineItems[0].family, "cognition");
   assert.equal(result.lineItems[0].unitCostTokens, 25);
   assert.equal(result.lineItems[0].spendTokens, 25);
+}
+
+{
+  const result = calculateMotivationStackCost([{ kind: "user_controlled", intensity: 1 }]);
+  assert.equal(result.cost, 10);
+  assert.equal(result.lineItems[0].id, "motivation_user_controlled");
 }
 
 // ── calculateMotivationStackCost: additive multi-family stack ──
@@ -111,7 +120,7 @@ assert.equal(resolveMotivationFamily("unknown"), null);
 // ── buildMotivationPriceListItems ──
 {
   const items = buildMotivationPriceListItems();
-  assert.ok(items.length >= 11, "should include all motivation kinds");
+  assert.ok(items.length >= 12, "should include all motivation kinds");
   const reflexiveItem = items.find((item) => item.id === "motivation_reflexive");
   assert.ok(reflexiveItem, "should have reflexive item");
   assert.equal(reflexiveItem.kind, "motivation");

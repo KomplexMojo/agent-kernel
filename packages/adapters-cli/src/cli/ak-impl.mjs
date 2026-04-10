@@ -1006,7 +1006,7 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     source: "actor",
     count,
     affinity,
-    motivations: [motivation],
+    motivations: Array.from(new Set([motivation, "user_controlled"])),
   };
   if (affinities && affinities.length > 0) {
     delver.affinities = affinities;
@@ -1123,6 +1123,15 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
     throw new Error("warden-plan requires at least one --warden entry.");
   }
   return values.map((value, index) => parseWardenSpec(value, index + 1, { defaultAffinity }));
+}
+
+function hasNonStationaryMobilityMotivation(motivations = []) {
+  return motivations.some((motivation) => motivation === "random" || motivation === "exploring" || motivation === "patrolling");
+}
+
+function requiresMovementStamina(card = null) {
+  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
+  return card?.type === "delver" || hasNonStationaryMobilityMotivation(motivations);
 }
 
 function buildPriceMap(priceListArtifact) {
@@ -1248,15 +1257,13 @@ function buildMinimumRequiredDelverCard(card) {
     vitals: cloneVitals(card?.vitals),
   };
   const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  const stationary = motivations.includes("stationary");
 
   if (affinities.length > 0) {
     next.vitals.mana.max = Math.max(next.vitals.mana.max, 1);
     next.vitals.mana.current = next.vitals.mana.max;
     next.vitals.mana.regen = Math.max(next.vitals.mana.regen, 1);
   }
-  if (!stationary) {
+  if (requiresMovementStamina(card)) {
     next.vitals.stamina.regen = Math.max(next.vitals.stamina.regen, 1);
   }
 
@@ -1297,8 +1304,7 @@ function collectBudgetedDelverConflictIssues(entry, delverIndex) {
     }
   });
 
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  if (!motivations.includes("stationary") && vitals?.stamina?.regen <= 0) {
+  if (requiresMovementStamina(card) && vitals?.stamina?.regen <= 0) {
     issues.push(createAuthoringValidationIssue({
       code: "movement_requires_stamina_regen",
       path: `${path}.vitals.stamina.regen`,
@@ -1485,14 +1491,13 @@ function maximizeBudgetCappedDelverCard(card, {
   const baseVitals = cloneVitals(card?.vitals);
   const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
   const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  const stationary = motivations.includes("stationary");
 
   if (affinities.length > 0) {
     baseVitals.mana.max = Math.max(baseVitals.mana.max, 1);
     baseVitals.mana.current = baseVitals.mana.max;
     baseVitals.mana.regen = Math.max(baseVitals.mana.regen, 1);
   }
-  if (!stationary) {
+  if (requiresMovementStamina(card)) {
     baseVitals.stamina.regen = Math.max(baseVitals.stamina.regen, 1);
   }
 

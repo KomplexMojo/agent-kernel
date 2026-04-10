@@ -29,6 +29,7 @@ export const MOTIVATION_KIND_IDS = Object.freeze({
   reflexive: "motivation_reflexive",
   goal_oriented: "motivation_goal_oriented",
   strategy_focused: "motivation_strategy_focused",
+  user_controlled: "motivation_user_controlled",
 });
 
 export const MOTIVATION_PROFILE_ITEM_IDS = Object.freeze({
@@ -436,6 +437,14 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       displayGroup: "planning",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
       defaultDesignCostTokens: 20,
+    }),
+    Object.freeze({
+      kind: "user_controlled",
+      profile: Object.freeze({ mobility: "stationary", combat: "none", cognition: "none" }),
+      exclusiveGroup: "control",
+      displayGroup: "control",
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+      defaultDesignCostTokens: 0,
     }),
   ]),
 });

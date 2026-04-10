@@ -33,9 +33,9 @@
         },
         "to": {
           "x": 3,
-          "y": 1
+          "y": 2
         },
-        "direction": "east"
+        "direction": "southeast"
       }
     },
     {
@@ -43,24 +43,6 @@
       "schemaVersion": 1,
       "actorId": "actor_mvp",
       "tick": 3,
-      "kind": "move",
-      "params": {
-        "from": {
-          "x": 3,
-          "y": 1
-        },
-        "to": {
-          "x": 3,
-          "y": 2
-        },
-        "direction": "south"
-      }
-    },
-    {
-      "schema": "agent-kernel/Action",
-      "schemaVersion": 1,
-      "actorId": "actor_mvp",
-      "tick": 4,
       "kind": "move",
       "params": {
         "from": {
@@ -78,7 +60,7 @@
       "schema": "agent-kernel/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
-      "tick": 5,
+      "tick": 4,
       "kind": "move",
       "params": {
         "from": {
@@ -96,7 +78,7 @@
       "schema": "agent-kernel/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
-      "tick": 6,
+      "tick": 5,
       "kind": "move",
       "params": {
         "from": {
@@ -114,7 +96,7 @@
       "schema": "agent-kernel/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
-      "tick": 7,
+      "tick": 6,
       "kind": "move",
       "params": {
         "from": {
@@ -132,7 +114,7 @@
       "schema": "agent-kernel/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
-      "tick": 8,
+      "tick": 7,
       "kind": "move",
       "params": {
         "from": {
@@ -150,7 +132,7 @@
       "schema": "agent-kernel/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
-      "tick": 9,
+      "tick": 8,
       "kind": "move",
       "params": {
         "from": {
@@ -168,7 +150,7 @@
       "schema": "agent-kernel/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
-      "tick": 10,
+      "tick": 9,
       "kind": "move",
       "params": {
         "from": {
@@ -186,7 +168,7 @@
       "schema": "agent-kernel/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
-      "tick": 11,
+      "tick": 10,
       "kind": "move",
       "params": {
         "from": {
@@ -204,7 +186,7 @@
       "schema": "agent-kernel/Action",
       "schemaVersion": 1,
       "actorId": "actor_mvp",
-      "tick": 12,
+      "tick": 11,
       "kind": "move",
       "params": {
         "from": {

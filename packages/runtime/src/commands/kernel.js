@@ -1,6 +1,7 @@
 import { orchestrateBuild } from "../build/orchestrate-build.js";
 import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../build/telemetry.js";
+import { buildManualMoveAction } from "./manual-movement.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
 import { mapSummaryToPool } from "../personas/director/pool-mapper.js";
@@ -2034,6 +2035,16 @@ export function createCommandKernel(host = {}) {
     return { outDir };
   }
 
+  async function manualMove(args = {}) {
+    return buildManualMoveAction({
+      action: args.action,
+      actorId: args.actorId,
+      viewerActorId: args.viewerActorId,
+      observation: args.observation,
+      controllableActorIds: args.controllableActorIds,
+    });
+  }
+
   return {
     solve,
     build,
@@ -2050,5 +2061,6 @@ export function createCommandKernel(host = {}) {
     blockchainLoad,
     llm,
     llmPlan,
+    manualMove,
   };
 }

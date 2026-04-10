@@ -33,7 +33,10 @@ import { calculateActorCost, buildActorCatalogFromConfig } from ${JSON.stringify
         tags: ["monster"],
       },
     ],
-    affinities: [{ kind: "fire", stacks: 2 }, { kind: "wind", stacks: 1 }],
+    affinities: [
+      { kind: "fire", stacks: 2, expression: "push" },
+      { kind: "wind", stacks: 1, expression: "push" },
+    ],
   });
   assert.equal(catalog.ok, true);
   assert.equal(catalog.entries.length, 2);

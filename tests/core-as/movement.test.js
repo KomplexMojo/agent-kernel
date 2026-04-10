@@ -36,9 +36,13 @@ const VALIDATION_ERROR = Object.freeze({
 
 const DIRECTION = Object.freeze({
   north: 0,
-  east: 1,
-  south: 2,
-  west: 3,
+  northeast: 1,
+  east: 2,
+  southeast: 3,
+  south: 4,
+  southwest: 5,
+  west: 6,
+  northwest: 7,
 });
 
 async function loadCoreOrSkip(t) {
@@ -191,6 +195,66 @@ test("core-as rejects blocked or mistimed moves without advancing state", async 
   assert.equal(core.getActorY(), 1);
 });
 
+test("core-as applies diagonal moves with deterministic stamina cost", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+
+  core.init(0);
+  core.configureGrid(4, 4);
+  for (let y = 0; y < 4; y += 1) {
+    for (let x = 0; x < 4; x += 1) {
+      core.setTileAt(x, y, 1);
+    }
+  }
+  core.spawnActorAt(1, 1);
+  core.setActorMovementCost(2);
+  core.setActorVital(2, 3, 3, 0);
+  core.clearEffects();
+
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 1, y: 1 },
+    to: { x: 2, y: 2 },
+    direction: DIRECTION.southeast,
+    tick: 1,
+  }));
+
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorMoved);
+  const moved = readActorMoved(core, 0);
+  assert.deepEqual({ x: moved.x, y: moved.y }, { x: 2, y: 2 });
+  assert.equal(core.getActorVitalCurrent(2), 0);
+});
+
+test("core-as rejects diagonal moves with mismatched direction codes", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+
+  core.init(0);
+  core.configureGrid(4, 4);
+  for (let y = 0; y < 4; y += 1) {
+    for (let x = 0; x < 4; x += 1) {
+      core.setTileAt(x, y, 1);
+    }
+  }
+  core.spawnActorAt(1, 1);
+  core.clearEffects();
+
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 1, y: 1 },
+    to: { x: 2, y: 2 },
+    direction: DIRECTION.east,
+    tick: 1,
+  }));
+
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActionRejected);
+  assert.equal(core.getEffectValue(0), VALIDATION_ERROR.InvalidDirection);
+});
+
 test("core-as rejects moves when stamina is insufficient", async (t) => {
   const core = await loadCoreOrSkip(t);
   if (!core) {
@@ -207,6 +271,39 @@ test("core-as rejects moves when stamina is insufficient", async (t) => {
     from: { x: 1, y: 1 },
     to: { x: 2, y: 1 },
     direction: DIRECTION.east,
+    tick: 1,
+  }));
+
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActionRejected);
+  assert.equal(core.getEffectValue(0), VALIDATION_ERROR.InsufficientStamina);
+  assert.equal(core.getActorX(), 1);
+  assert.equal(core.getActorY(), 1);
+  assert.equal(core.getCurrentTick(), 0);
+});
+
+test("core-as rejects diagonal moves when diagonal stamina cost is unaffordable", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+
+  core.init(0);
+  core.configureGrid(4, 4);
+  for (let y = 0; y < 4; y += 1) {
+    for (let x = 0; x < 4; x += 1) {
+      core.setTileAt(x, y, 1);
+    }
+  }
+  core.spawnActorAt(1, 1);
+  core.setActorMovementCost(2);
+  core.setActorVital(2, 2, 2, 0);
+  core.clearEffects();
+
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 1, y: 1 },
+    to: { x: 2, y: 2 },
+    direction: DIRECTION.southeast,
     tick: 1,
   }));
 

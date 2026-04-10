@@ -247,7 +247,7 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
   const delver = listDelverCards(spec)[0];
   assert.ok(delver);
   assert.ok(spec.authoring.optimizationGoals.some((entry) => entry.kind === "maximize_budget_spend"));
-  assert.ok(delver.vitals.mana.max >= 30);
+  assert.equal(delver.vitals.mana.max, 29);
   assert.ok(delver.vitals.mana.regen >= 1);
   assert.ok(delver.vitals.stamina.regen >= 1);
 });

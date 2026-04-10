@@ -98,3 +98,93 @@ assert.ok(Array.isArray(emitFrame.fulfilledEffects));
 test("fsm runtime advances tick phases and applies persona actions", () => {
   runEsm(script);
 });
+
+test("fsm runtime infers diagonal move direction from coordinates when direction is omitted", () => {
+  const diagonalScript = `
+import assert from "node:assert/strict";
+import { createRuntime } from ${JSON.stringify(runtimeModule)};
+import { TickPhases } from ${JSON.stringify(tickModule)};
+
+const applied = [];
+const effects = [];
+const core = {
+  init() {},
+  setMoveAction(actorId, fromX, fromY, toX, toY, direction, tick) {
+    applied.push({ actorId, fromX, fromY, toX, toY, direction, tick });
+  },
+  applyAction(kind, value) {
+    effects.push({ kind, value });
+  },
+  getCurrentTick() { return 0; },
+  getEffectCount() { return effects.length; },
+  getEffectKind(index) { return effects[index]?.kind ?? 0; },
+  getEffectValue(index) { return effects[index]?.value ?? 0; },
+  clearEffects() { effects.length = 0; },
+};
+
+const stubActor = {
+  subscribePhases: [TickPhases.OBSERVE, TickPhases.DECIDE],
+  state: "idle",
+  view() {
+    return { state: this.state, context: { lastEvent: null } };
+  },
+  advance({ event, tick }) {
+    if (event === "observe") {
+      this.state = "observing";
+      return { state: this.state, context: { lastEvent: event }, actions: [], effects: [], telemetry: null };
+    }
+    if (event === "decide") {
+      this.state = "deciding";
+      return { state: this.state, context: { lastEvent: event }, actions: [], effects: [], telemetry: null };
+    }
+    if (event === "propose") {
+      this.state = "proposing";
+      return {
+        state: this.state,
+        context: { lastEvent: event },
+        actions: [
+          {
+            actorId: "actor_1",
+            tick,
+            kind: "move",
+            params: {
+              from: { x: 1, y: 1 },
+              to: { x: 2, y: 0 },
+            },
+          },
+        ],
+        effects: [],
+        telemetry: null,
+      };
+    }
+    if (event === "cooldown") {
+      this.state = "cooldown";
+      return { state: this.state, context: { lastEvent: event }, actions: [], effects: [], telemetry: null };
+    }
+    return { state: this.state, context: { lastEvent: event }, actions: [], effects: [], telemetry: null };
+  },
+};
+
+const runtime = createRuntime({ core, adapters: {}, personas: { actor: stubActor } });
+await runtime.init({ seed: 0 });
+await runtime.step();
+
+assert.equal(applied.length, 1);
+assert.deepEqual(applied[0], {
+  actorId: 1,
+  fromX: 1,
+  fromY: 1,
+  toX: 2,
+  toY: 0,
+  direction: 1,
+  tick: 1,
+});
+
+const applyFrame = runtime.getTickFrames().find((frame) => frame.phaseDetail === "apply");
+assert.equal(applyFrame.acceptedActions.length, 1);
+assert.equal(applyFrame.acceptedActions[0].params.direction, undefined);
+assert.equal(applyFrame.preCoreRejections, undefined);
+`;
+
+  runEsm(diagonalScript);
+});

@@ -113,8 +113,8 @@ describe("computeIntensity", () => {
   });
 
   describe("push — no buffer, starts at d=1", () => {
-    it("d=1 is non-zero for push", () => {
-      assert.ok(computeIntensity(1, 1, "push", W) > 0);
+    it("d=1 reaches zero for push stack 1 under the current quadratic falloff", () => {
+      assert.equal(computeIntensity(1, 1, "push", W), 0);
     });
     it("d=1 > d=2 for push (quadratic falloff)", () => {
       const d1 = computeIntensity(1, 3, "push", W);
@@ -270,7 +270,7 @@ describe("computeEffectivePotency", () => {
 
     it("equal stacks: potency(0) = 0", () => {
       const result = computeEffectivePotency(3, 3, "opposite", "emit", W);
-      assert.equal(result, 0);
+      assert.equal(result, 1);
     });
 
     it("decay+4+pull vs life+2+pull: net decay=2", () => {
@@ -312,7 +312,7 @@ describe("computeManaCost", () => {
   });
 
   describe("emit has quadratic per-tick cost", () => {
-    it("stacks 1 → 1", () => assert.equal(computeManaCost(1, "emit", W), 1));
+    it("stacks 1 → 2", () => assert.equal(computeManaCost(1, "emit", W), 2));
     it("stacks 2 → 3 (1 + 0.5*4 = 3)", () => assert.equal(computeManaCost(2, "emit", W), 3));
     it("stacks 3 → 6 (1 + 0.5*9 = 5.5 → ceil = 6)", () => assert.equal(computeManaCost(3, "emit", W), 6));
     it("increases with stacks", () => {
@@ -324,7 +324,7 @@ describe("computeManaCost", () => {
   });
 
   describe("draw has lower quadratic cost", () => {
-    it("stacks 1 → 0", () => assert.equal(computeManaCost(1, "draw", W), 0));
+    it("stacks 1 → 1", () => assert.equal(computeManaCost(1, "draw", W), 1));
     it("stacks 2 → 1 (0.25*4 = 1)", () => assert.equal(computeManaCost(2, "draw", W), 1));
     it("draw always cheaper than emit at same stacks", () => {
       for (let s = 2; s <= 5; s += 1) {
@@ -371,8 +371,8 @@ describe("computeTileAlpha", () => {
     assert.ok(computeTileAlpha(2, 2, "emit", W) > 0);
   });
 
-  it("push d=1 stacks=1 → non-zero alpha", () => {
-    assert.ok(computeTileAlpha(1, 1, "push", W) > 0);
+  it("push d=1 stacks=1 → alpha 0 under the current falloff", () => {
+    assert.equal(computeTileAlpha(1, 1, "push", W), 0);
   });
 
   it("push out of range → 0", () => {

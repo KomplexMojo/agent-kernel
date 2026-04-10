@@ -1,6 +1,7 @@
 import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { runMvpMovement } from "../../../runtime/src/mvp/movement.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
+import { createCliWorkerAdapter } from "../../../adapters-web/src/adapters/cli-worker/index.js";
 import {
   AFFINITY_TARGET_TYPES,
   DEFAULT_AFFINITY_EXPRESSION,
@@ -243,6 +244,7 @@ export function resolveArtifactAffinityEffects({
 export function wireSimulationView({
   root = document,
   actorInspector,
+  commandHost = createCliWorkerAdapter({ forceInProcess: typeof Worker !== "function" }),
   getInitialConfig,
   autoBoot = true,
   levelBuilderOptions = {},
@@ -263,9 +265,13 @@ export function wireSimulationView({
   const playPauseButton = root.querySelector("#play-pause");
   const resetRunButton = root.querySelector("#reset-run");
   const moveUpButton = root.querySelector("#runtime-move-up");
+  const moveUpRightButton = root.querySelector("#runtime-move-up-right");
   const moveDownButton = root.querySelector("#runtime-move-down");
+  const moveDownRightButton = root.querySelector("#runtime-move-down-right");
+  const moveDownLeftButton = root.querySelector("#runtime-move-down-left");
   const moveLeftButton = root.querySelector("#runtime-move-left");
   const moveRightButton = root.querySelector("#runtime-move-right");
+  const moveUpLeftButton = root.querySelector("#runtime-move-up-left");
   const castButton = root.querySelector("#runtime-cast");
   const tooltipEl = root.querySelector("#canvas-tooltip");
   const tooltipTitleEl = root.querySelector("#tooltip-title");
@@ -283,10 +289,12 @@ export function wireSimulationView({
   let lastBaseTilesHash = "";
   let levelRenderRequestId = 0;
   let lastVisibilitySummary = null;
+  let lastObservation = null;
   let lastObservationActors = [];
   let lastObservationAuras = [];
   let inspectorVisible = actorInspector?.isVisible?.() === true;
   let inspectorSelectedEntity = null;
+  let controllableActorIds = null;
   const visibilityPreferences = {
     mode: VISIBILITY_MODE_SIMULATION_FULL,
     viewportSize: DEFAULT_VIEWPORT_SIZE,
@@ -428,6 +436,7 @@ export function wireSimulationView({
   let lastObservationTraps = [];
 
   function handleObservation({ observation, frame, playing, visibility, actorIdLabel }) {
+    lastObservation = observation || null;
     actorInspector?.setActors?.(observation?.actors || [], { tick: observation?.tick });
     actorInspector?.setRunning?.(playing);
     lastVisibilitySummary = visibility || null;
@@ -546,6 +555,7 @@ export function wireSimulationView({
         actorId: config.actorId,
         actions: movement.actions,
       });
+      controllableActorIds = [config.actorId || ACTOR_ID_LABEL];
       setStatus("Select a room, delver, or warden to inspect and control it here.");
     } catch (err) {
       setStatus(err.message || "Failed to start run", "error");
@@ -581,6 +591,10 @@ export function wireSimulationView({
       const sortedActors = sortActorsById(initialState);
       const actorIds = sortedActors
         .map((actor) => (typeof actor?.id === "string" ? actor.id.trim() : ""))
+        .filter(Boolean);
+      controllableActorIds = sortedActors
+        .filter((actor) => Array.isArray(actor?.motivations) && actor.motivations.includes("user_controlled"))
+        .map((actor) => actor.id)
         .filter(Boolean);
       const actorLabel = actorIds[0] || "actor_bundle";
       const resolvedAffinityEffects = resolveArtifactAffinityEffects({
@@ -769,9 +783,13 @@ export function wireSimulationView({
   playPauseButton?.addEventListener("click", () => controller?.toggle?.());
   resetRunButton?.addEventListener("click", () => controller?.reset?.());
   moveUpButton?.addEventListener("click", () => performGameAction({ action: "up", actorId: getSelectedActorId() }));
+  moveUpRightButton?.addEventListener("click", () => performGameAction({ action: "up-right", actorId: getSelectedActorId() }));
   moveDownButton?.addEventListener("click", () => performGameAction({ action: "down", actorId: getSelectedActorId() }));
+  moveDownRightButton?.addEventListener("click", () => performGameAction({ action: "down-right", actorId: getSelectedActorId() }));
+  moveDownLeftButton?.addEventListener("click", () => performGameAction({ action: "down-left", actorId: getSelectedActorId() }));
   moveLeftButton?.addEventListener("click", () => performGameAction({ action: "left", actorId: getSelectedActorId() }));
   moveRightButton?.addEventListener("click", () => performGameAction({ action: "right", actorId: getSelectedActorId() }));
+  moveUpLeftButton?.addEventListener("click", () => performGameAction({ action: "up-left", actorId: getSelectedActorId() }));
   castButton?.addEventListener("click", () => performGameAction({ action: "cast", actorId: getSelectedActorId() }));
 
   async function boot() {
@@ -816,21 +834,30 @@ export function wireSimulationView({
     controller?.setViewerActor?.(normalized);
   }
 
-  function performGameAction({ action, actorId } = {}) {
-    if (!controller || typeof controller.performRealtimeAction !== "function") {
+  async function performGameAction({ action, actorId } = {}) {
+    if (!controller || typeof controller.applyRealtimeAction !== "function") {
       return { ok: false, reason: "missing_controller" };
     }
-    const result = controller.performRealtimeAction({ action, actorId });
-    if (result?.ok === false) {
-      if (result.reason === "cast_unimplemented") {
-        setStatus("Cast not implemented yet.");
-      } else if (result.reason === "actor_not_found") {
-        setStatus(`Actor ${result.actorId || "unknown"} is unavailable.`, "error");
-      } else if (result.reason === "missing_actor") {
-        setStatus("Select an delver or warden first.", "error");
-      } else if (result.reason === "unsupported_action") {
-        setStatus("Unsupported game action.", "error");
-      }
+    const result = await commandHost.manualMove({
+      action,
+      actorId,
+      viewerActorId: visibilityPreferences.viewerActorId,
+      observation: lastObservation,
+      controllableActorIds,
+    });
+    if (result?.ok === true) {
+      return controller.applyRealtimeAction(result.action);
+    }
+    if (result.reason === "cast_unimplemented") {
+      setStatus("Cast not implemented yet.");
+    } else if (result.reason === "actor_not_found") {
+      setStatus(`Actor ${result.actorId || "unknown"} is unavailable.`, "error");
+    } else if (result.reason === "missing_actor") {
+      setStatus("Select an delver or warden first.", "error");
+    } else if (result.reason === "actor_not_controllable") {
+      setStatus("Only user-controlled actors can be moved manually.", "error");
+    } else if (result.reason === "unsupported_action") {
+      setStatus("Unsupported game action.", "error");
     }
     return result;
   }

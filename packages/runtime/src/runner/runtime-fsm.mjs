@@ -146,8 +146,12 @@ function resolveMoveDirection({ direction, from, to }) {
   if (!from || !to) return null;
   const dx = to.x - from.x;
   const dy = to.y - from.y;
+  if (dx === 1 && dy === -1) return "northeast";
   if (dx === 1 && dy === 0) return "east";
+  if (dx === 1 && dy === 1) return "southeast";
+  if (dx === -1 && dy === 1) return "southwest";
   if (dx === -1 && dy === 0) return "west";
+  if (dx === -1 && dy === -1) return "northwest";
   if (dx === 0 && dy === -1) return "north";
   if (dx === 0 && dy === 1) return "south";
   return null;

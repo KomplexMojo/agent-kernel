@@ -1,6 +1,7 @@
 import { createActorStateMachine, ActorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.js";
 import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.js";
+import { EIGHT_WAY_DELTAS } from "../_shared/movement-directions.js";
 import {
   RUNTIME_DECISION_CONTRACT,
   allowsLiveLlmRuntime,
@@ -13,12 +14,7 @@ export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhase
 const SOLVER_REQUEST_SCHEMA = "agent-kernel/SolverRequest";
 const SOLVER_ENGINE = "z3";
 
-const DEFAULT_DELTAS = Object.freeze([
-  { dx: 0, dy: -1, direction: "north" },
-  { dx: 1, dy: 0, direction: "east" },
-  { dx: 0, dy: 1, direction: "south" },
-  { dx: -1, dy: 0, direction: "west" },
-]);
+const DEFAULT_DELTAS = EIGHT_WAY_DELTAS;
 
 const MOTIVATED_KIND = 2;
 
@@ -26,6 +22,7 @@ const AFFINITY_EXPRESSION_IDS = Object.freeze({
   push: "affinity_expression_externalize",
   pull: "affinity_expression_internalize",
   emit: "affinity_expression_localized",
+  draw: "affinity_expression_sustain",
 });
 
 const MOTIVATION_IDS = Object.freeze({
@@ -680,6 +677,16 @@ function isPassable({ x, y }, tileKinds, baseTiles) {
   return false;
 }
 
+function isDiagonalStepAllowed(current, next, tileKinds, baseTiles) {
+  const dx = next.x - current.x;
+  const dy = next.y - current.y;
+  if (Math.abs(dx) !== 1 || Math.abs(dy) !== 1) {
+    return true;
+  }
+  return isPassable({ x: current.x + dx, y: current.y }, tileKinds, baseTiles)
+    && isPassable({ x: current.x, y: current.y + dy }, tileKinds, baseTiles);
+}
+
 function findPath(start, goal, tileKinds, baseTiles) {
   if (!start || !goal) return null;
   if (start.x === goal.x && start.y === goal.y) return [start];
@@ -715,7 +722,7 @@ function findPath(start, goal, tileKinds, baseTiles) {
       if (Object.prototype.hasOwnProperty.call(cameFrom, key)) {
         continue;
       }
-      if (!isPassable(next, tileKinds, baseTiles)) {
+      if (!isPassable(next, tileKinds, baseTiles) || !isDiagonalStepAllowed(current, next, tileKinds, baseTiles)) {
         continue;
       }
       cameFrom[key] = `${current.x},${current.y}`;

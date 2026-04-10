@@ -2,12 +2,14 @@ export const MOTIVATION_FAMILIES = Object.freeze({
   mobility: Object.freeze(["random", "stationary", "exploring", "patrolling"]),
   posture: Object.freeze(["attacking", "defending", "stealthy", "friendly"]),
   cognition: Object.freeze(["reflexive", "goal_oriented", "strategy_focused"]),
+  control: Object.freeze(["user_controlled"]),
 });
 
 export const MOTIVATION_KINDS = Object.freeze([
   ...MOTIVATION_FAMILIES.mobility,
   ...MOTIVATION_FAMILIES.posture,
   ...MOTIVATION_FAMILIES.cognition,
+  ...MOTIVATION_FAMILIES.control,
 ]);
 export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
   Object.freeze({ id: "mobility", kinds: MOTIVATION_FAMILIES.mobility }),
@@ -21,6 +23,7 @@ export const MOTIVATION_DISPLAY_GROUPS = Object.freeze([
   Object.freeze({ id: "posture_stealthy_friendly", kinds: Object.freeze(["stealthy", "friendly"]) }),
   Object.freeze({ id: "cognition_reflexive_goal_oriented", kinds: Object.freeze(["reflexive", "goal_oriented"]) }),
   Object.freeze({ id: "cognition_strategy_focused", kinds: Object.freeze(["strategy_focused"]) }),
+  Object.freeze({ id: "control_user_controlled", kinds: Object.freeze(["user_controlled"]) }),
 ]);
 export const MOTIVATION_PATTERNS = Object.freeze({
   patrolling: Object.freeze(["loop", "ping_pong", "random_walk"]),
@@ -58,6 +61,7 @@ export const MOTIVATION_KIND_IDS = Object.freeze({
   reflexive: "motivation_reflexive",
   goal_oriented: "motivation_goal_oriented",
   strategy_focused: "motivation_strategy_focused",
+  user_controlled: "motivation_user_controlled",
 });
 
 const MOTIVATION_FLAG_KEYS = Object.freeze(["canMove", "prefersStealth", "prefersCover", "aggroRangeBoost"]);

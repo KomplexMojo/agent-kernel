@@ -29,6 +29,30 @@ const core = await loadCore({ wasmUrl });
 core.init(1337);
 core.loadMvpScenario();
 
+const directionCases = [
+  ["north", 0],
+  ["northeast", 1],
+  ["east", 2],
+  ["southeast", 3],
+  ["south", 4],
+  ["southwest", 5],
+  ["west", 6],
+  ["northwest", 7],
+];
+
+for (const [direction, code] of directionCases) {
+  const packed = packMoveAction({
+    actorId: 7,
+    from: { x: 4, y: 4 },
+    to: { x: 5, y: 4 },
+    direction,
+    tick: 8,
+  });
+  assert.equal(packed[5], code);
+  const decoded = unpackMoveAction(packed);
+  assert.equal(decoded.direction, direction);
+}
+
 const largePacked = packMoveAction({
   actorId: 12345,
   from: { x: 512, y: 513 },

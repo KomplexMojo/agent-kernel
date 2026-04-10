@@ -48,6 +48,7 @@ const TEXT_LABELS = Object.freeze({
     reflexive: "⚡",
     goal_oriented: "🎯",
     strategy_focused: "♟️",
+    user_controlled: "🎮",
   },
   vitals: {
     health: "❤️",

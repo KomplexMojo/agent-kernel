@@ -26,10 +26,12 @@ const EFFECT_KIND = Object.freeze({
 
 const VALIDATION_ERROR = Object.freeze({
   BlockedByWall: 10,
+  ActorCollision: 17,
 });
 
 const DIRECTION = Object.freeze({
-  east: 1,
+  southeast: 3,
+  east: 2,
 });
 
 async function loadCoreOrSkip(t) {
@@ -166,4 +168,38 @@ test("core-as blocks movement into barrier tile actors and renders barriers", as
   const expectedDelta = durabilityBefore > 0 ? -1 : 0;
   assert.equal(durabilityChange.delta, expectedDelta);
   assert.equal(durabilityAfter, expectedAfter);
+});
+
+test("core-as blocks diagonal movement into occupied motivated tiles", async (t) => {
+  const core = await loadCoreOrSkip(t);
+  if (!core) {
+    return;
+  }
+
+  core.init(0);
+  core.configureGrid(4, 4);
+  for (let y = 0; y < 4; y += 1) {
+    for (let x = 0; x < 4; x += 1) {
+      core.setTileAt(x, y, 1);
+    }
+  }
+  core.clearActorPlacements();
+  core.addActorPlacement(1, 1, 1);
+  core.addActorPlacement(2, 2, 2);
+  assert.equal(core.applyActorPlacements(), 0);
+  core.clearEffects();
+
+  applyMove(core, packMove({
+    actorId: 1,
+    from: { x: 1, y: 1 },
+    to: { x: 2, y: 2 },
+    direction: DIRECTION.southeast,
+    tick: 1,
+  }));
+
+  assert.equal(core.getEffectKind(0), EFFECT_KIND.ActorBlocked);
+  const blocked = readActorBlocked(core, 0);
+  assert.equal(blocked.actorId, 1);
+  assert.equal(blocked.reason, VALIDATION_ERROR.ActorCollision);
+  assert.deepEqual({ x: blocked.x, y: blocked.y }, { x: 2, y: 2 });
 });

@@ -99,12 +99,6 @@ const AFFINITY_HUES = Object.freeze(
     return acc;
   }, {}),
 );
-const REALTIME_MOVE_BY_ACTION = Object.freeze({
-  up: { direction: "north", dx: 0, dy: -1 },
-  down: { direction: "south", dx: 0, dy: 1 },
-  left: { direction: "west", dx: -1, dy: 0 },
-  right: { direction: "east", dx: 1, dy: 0 },
-});
 // Stack intensity rules now sourced from shared affinity-palette module
 const STACK_STYLES = STACK_INTENSITY_TIERS;
 // Affinity render order for deterministic tie-breaks (matches guidance-level-builder.js)
@@ -1199,45 +1193,14 @@ export function setupPlayback({
     gotoIndex(currentIndex);
   }
 
-  function performRealtimeAction({ action, actorId } = {}) {
-    const normalizedAction = String(action || "").toLowerCase();
-    if (normalizedAction === "cast") {
-      return { ok: false, reason: "cast_unimplemented" };
+  function applyRealtimeAction(entry) {
+    if (!entry || entry.kind !== "move" || !entry.params) {
+      return { ok: false, reason: "invalid_action" };
     }
-    const move = REALTIME_MOVE_BY_ACTION[normalizedAction];
-    if (!move) {
-      return { ok: false, reason: "unsupported_action" };
-    }
-
-    const snapshot = readSnapshot();
-    const observedActors = Array.isArray(snapshot?.obs?.actors) ? snapshot.obs.actors : [];
-    const selectedActorId = String(actorId || viewerActorId || actorIdLabel || "").trim();
+    const selectedActorId = String(entry.actorId || viewerActorId || actorIdLabel || "").trim();
     if (!selectedActorId) {
       return { ok: false, reason: "missing_actor" };
     }
-    const actor = observedActors.find((entry) => String(entry?.id || "") === selectedActorId);
-    if (!actor || !actor.position) {
-      return { ok: false, reason: "actor_not_found", actorId: selectedActorId };
-    }
-    const fromX = Number(actor.position.x);
-    const fromY = Number(actor.position.y);
-    if (!Number.isFinite(fromX) || !Number.isFinite(fromY)) {
-      return { ok: false, reason: "invalid_position", actorId: selectedActorId };
-    }
-
-    const actorValue = resolveActorIdValueForLabel(selectedActorId, observedActors);
-    const entry = {
-      kind: "move",
-      actorId: selectedActorId,
-      actorIdValue: actorValue,
-      tick: Number(core?.getCurrentTick?.() ?? 0) + 1,
-      params: {
-        from: { x: fromX, y: fromY },
-        to: { x: fromX + move.dx, y: fromY + move.dy },
-        direction: move.direction,
-      },
-    };
-
     stop();
     viewerActorId = selectedActorId;
     try {
@@ -1249,7 +1212,7 @@ export function setupPlayback({
     actions.push(entry);
     currentIndex = actions.length;
     render();
-    return { ok: true, actorId: selectedActorId, action: normalizedAction };
+    return { ok: true, actorId: selectedActorId, action: entry.kind };
   }
 
   resetCore();
@@ -1270,7 +1233,7 @@ export function setupPlayback({
     setViewerActor,
     setViewportSize,
     setVisionRadius,
-    performRealtimeAction,
+    applyRealtimeAction,
     getVisibilitySummary: () => cloneVisibilitySummary(latestVisibilitySummary),
     getIndex: () => currentIndex,
     isPlaying: () => playing,

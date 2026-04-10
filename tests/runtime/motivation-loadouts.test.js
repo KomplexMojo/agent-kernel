@@ -73,7 +73,7 @@ test("normalizeMotivations rejects contradictory motivations from the same exclu
   );
 });
 
-test("MOTIVATION_FAMILIES defines three canonical families", async () => {
+test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
   const { MOTIVATION_FAMILIES, MOTIVATION_KINDS } = await import(
     "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
@@ -81,14 +81,26 @@ test("MOTIVATION_FAMILIES defines three canonical families", async () => {
   assert.deepEqual(MOTIVATION_FAMILIES.mobility, ["random", "stationary", "exploring", "patrolling"]);
   assert.deepEqual(MOTIVATION_FAMILIES.posture, ["attacking", "defending", "stealthy", "friendly"]);
   assert.deepEqual(MOTIVATION_FAMILIES.cognition, ["reflexive", "goal_oriented", "strategy_focused"]);
+  assert.deepEqual(MOTIVATION_FAMILIES.control, ["user_controlled"]);
 
   // All family members are in MOTIVATION_KINDS
   const allFamilyKinds = [
     ...MOTIVATION_FAMILIES.mobility,
     ...MOTIVATION_FAMILIES.posture,
     ...MOTIVATION_FAMILIES.cognition,
+    ...MOTIVATION_FAMILIES.control,
   ];
   assert.deepEqual(MOTIVATION_KINDS, allFamilyKinds);
+});
+
+test("user_controlled composes outside posture and mobility exclusivity", async () => {
+  const { normalizeMotivations } = await import(
+    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+  );
+
+  const result = normalizeMotivations(["user_controlled", "attacking", "exploring"]);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.value.map((entry) => entry.kind), ["user_controlled", "attacking", "exploring"]);
 });
 
 test("stealthy and friendly are valid motivation kinds", async () => {

@@ -65,26 +65,6 @@
       "actorPositions": {
         "actor_mvp": {
           "x": 3,
-          "y": 1
-        }
-      },
-      "buffer": [
-        "#########",
-        "#S.@#...#",
-        "#...#.#.#",
-        "#.#...#.#",
-        "#.###.#.#",
-        "#...#...#",
-        "#.#.#.###",
-        "#...#..E#",
-        "#########"
-      ]
-    },
-    {
-      "tick": 3,
-      "actorPositions": {
-        "actor_mvp": {
-          "x": 3,
           "y": 2
         }
       },
@@ -101,7 +81,7 @@
       ]
     },
     {
-      "tick": 4,
+      "tick": 3,
       "actorPositions": {
         "actor_mvp": {
           "x": 3,
@@ -121,7 +101,7 @@
       ]
     },
     {
-      "tick": 5,
+      "tick": 4,
       "actorPositions": {
         "actor_mvp": {
           "x": 4,
@@ -141,7 +121,7 @@
       ]
     },
     {
-      "tick": 6,
+      "tick": 5,
       "actorPositions": {
         "actor_mvp": {
           "x": 5,
@@ -161,7 +141,7 @@
       ]
     },
     {
-      "tick": 7,
+      "tick": 6,
       "actorPositions": {
         "actor_mvp": {
           "x": 5,
@@ -181,7 +161,7 @@
       ]
     },
     {
-      "tick": 8,
+      "tick": 7,
       "actorPositions": {
         "actor_mvp": {
           "x": 5,
@@ -201,7 +181,7 @@
       ]
     },
     {
-      "tick": 9,
+      "tick": 8,
       "actorPositions": {
         "actor_mvp": {
           "x": 5,
@@ -221,7 +201,7 @@
       ]
     },
     {
-      "tick": 10,
+      "tick": 9,
       "actorPositions": {
         "actor_mvp": {
           "x": 5,
@@ -241,7 +221,7 @@
       ]
     },
     {
-      "tick": 11,
+      "tick": 10,
       "actorPositions": {
         "actor_mvp": {
           "x": 6,
@@ -261,7 +241,7 @@
       ]
     },
     {
-      "tick": 12,
+      "tick": 11,
       "actorPositions": {
         "actor_mvp": {
           "x": 7,

@@ -95,6 +95,7 @@ assert.equal(envelope.providerPolicy.preferred, "solver");
 assert.equal(envelope.visibleActors.length, 2);
 assert.equal(envelope.hazards.length, 1);
 assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_east"));
+assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_northeast"));
 assert.ok(envelope.candidateActions.some((entry) => entry.id === "wait_here"));
 assert.equal(result.context.lastRuntimeDecisionEnvelope.candidateActions.length, envelope.candidateActions.length);
 `;

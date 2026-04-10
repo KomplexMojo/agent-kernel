@@ -198,10 +198,14 @@ function normalizeExpression(value, fallback = DEFAULT_AFFINITY_EXPRESSION) {
 }
 
 function normalizeMotivationList(values, fallback = "defending") {
-  return normalizeMotivationKindList(values, {
+  const normalized = normalizeMotivationKindList(values, {
     fallback,
     fieldBase: "motivations",
   }).value;
+  if (fallback === "attacking" && !normalized.includes("user_controlled")) {
+    return [...normalized, "user_controlled"];
+  }
+  return normalized;
 }
 
 function normalizeMotivationListAllowEmpty(values) {
@@ -1236,7 +1240,7 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
       card: {
         type: "delver",
         affinity: "light",
-        motivations: ["attacking"],
+        motivations: ["attacking", "user_controlled"],
         count: 1,
         source: "auto-generated",
       },
@@ -1247,7 +1251,7 @@ const AUTO_GENERATE_ACTOR_BLUEPRINTS = Object.freeze({
         type: "delver",
         affinity: "fire",
         expressions: ["push"],
-        motivations: ["attacking"],
+        motivations: ["attacking", "user_controlled"],
         count: 1,
         source: "auto-generated",
       },
