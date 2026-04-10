@@ -94,7 +94,7 @@ function usage() {
   node ${rel} blockchain-mint --rpc-url url --card path [--owner addr] [--contract addr] [--token-id id] [--fixture-chain-id path] [--fixture-mint path] [--out path] [--out-dir dir]
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
-  node ${rel} llm-plan [--scenario path | --prompt text --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
@@ -128,8 +128,9 @@ Options:
   --spec          Build spec JSON path (build command only)
   --text          Freeform agent authoring text captured in AgentCommandRequestArtifact
   --scenario      Scenario fixture path for llm-plan
-  --catalog       Catalog path for prompt-only llm-plan runs
+  --catalog       Catalog path for text/prompt-only llm-plan runs
   --goal          Goal text override (llm-plan prompt-only)
+  --text          Freeform text for llm-plan; when no fixture is provided, CLI falls back to the default stub summary fixture
   --dungeon-affinity Dungeon affinity for room/delver/warden summary defaults
   --budget-tokens Hard budget cap in tokens. If freeform text also states a budget, they must match.
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
@@ -1790,6 +1791,166 @@ function defaultLlmPlanOutDir(runId) {
   return defaultRunCommandOutDir("llm-plan", runId);
 }
 
+const STRUCTURED_STDOUT_COMMANDS = new Set([
+  "build",
+  "create",
+  "configure",
+  "room-plan",
+  "delver-plan",
+  "warden-plan",
+  "run",
+  "inspect",
+  "llm-plan",
+]);
+
+function emitJsonStdout(payload) {
+  process.stdout.write(`${JSON.stringify(payload)}\n`);
+}
+
+function buildArtifactPathMap({ outDir, manifestEntries = [], includeRequest = false } = {}) {
+  const artifactPaths = {};
+  if (includeRequest) {
+    artifactPaths.request = join(outDir, "request.json");
+  }
+  artifactPaths.spec = join(outDir, "spec.json");
+  artifactPaths.bundle = join(outDir, "bundle.json");
+  artifactPaths.manifest = join(outDir, "manifest.json");
+  artifactPaths.telemetry = join(outDir, "telemetry.json");
+  manifestEntries.forEach((entry) => {
+    if (!entry?.path) {
+      return;
+    }
+    const key = entry.path.replace(/\.json$/i, "").replaceAll(/[^A-Za-z0-9]+/g, "_");
+    artifactPaths[key] = join(outDir, entry.path);
+  });
+  return artifactPaths;
+}
+
+function deriveActorIds(initialState) {
+  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
+  return actors
+    .map((actor) => actor?.id)
+    .filter((id) => typeof id === "string" && id.length > 0);
+}
+
+function deriveRoomIds(simConfig) {
+  const rooms = Array.isArray(simConfig?.layout?.data?.rooms) ? simConfig.layout.data.rooms : [];
+  return rooms
+    .map((room) => room?.id)
+    .filter((id) => typeof id === "string" && id.length > 0);
+}
+
+function buildStructuredSuccessSummary({
+  command,
+  outDir,
+  runId,
+  manifestEntries = [],
+  includeRequest = false,
+  initialState = null,
+  simConfig = null,
+  extra = {},
+} = {}) {
+  const summary = {
+    ok: true,
+    command,
+    runId,
+    outDir,
+    actorIds: deriveActorIds(initialState),
+    roomIds: deriveRoomIds(simConfig),
+    artifactPaths: buildArtifactPathMap({ outDir, manifestEntries, includeRequest }),
+  };
+  Object.entries(extra).forEach(([key, value]) => {
+    if (value !== undefined) {
+      summary[key] = value;
+    }
+  });
+  return summary;
+}
+
+async function readJsonIfExists(path) {
+  if (!path || !existsSync(path)) {
+    return null;
+  }
+  return readJson(path);
+}
+
+async function summarizeBuildLikeOutput({
+  command,
+  outDir,
+  includeRequest = false,
+  extra = {},
+} = {}) {
+  const manifest = await readJsonIfExists(join(outDir, "manifest.json"));
+  const spec = await readJsonIfExists(join(outDir, "spec.json"));
+  const simConfig = await readJsonIfExists(join(outDir, "sim-config.json"));
+  const initialState = await readJsonIfExists(join(outDir, "initial-state.json"));
+  return buildStructuredSuccessSummary({
+    command,
+    outDir,
+    runId: spec?.meta?.runId || manifest?.correlation?.runId || "",
+    manifestEntries: Array.isArray(manifest?.artifacts) ? manifest.artifacts : [],
+    includeRequest,
+    initialState,
+    simConfig,
+    extra,
+  });
+}
+
+async function summarizeRunOutput({ outDir, args } = {}) {
+  const runSummary = await readJsonIfExists(join(outDir, "run-summary.json"));
+  const resolvedSimConfigPath = join(outDir, "resolved-sim-config.json");
+  const resolvedInitialStatePath = join(outDir, "resolved-initial-state.json");
+  const simConfig = await readJsonIfExists(
+    existsSync(resolvedSimConfigPath) ? resolvedSimConfigPath : resolvePath(args["sim-config"])
+  );
+  const initialState = await readJsonIfExists(
+    existsSync(resolvedInitialStatePath) ? resolvedInitialStatePath : resolvePath(args["initial-state"])
+  );
+  const artifactPaths = {
+    tick_frames: join(outDir, "tick-frames.json"),
+    effects_log: join(outDir, "effects-log.json"),
+    runtime_decision_captures: join(outDir, "runtime-decision-captures.json"),
+    run_summary: join(outDir, "run-summary.json"),
+    action_log: join(outDir, "action-log.json"),
+  };
+  const affinitySummaryPath = join(outDir, "affinity-summary.json");
+  if (existsSync(affinitySummaryPath)) {
+    artifactPaths.affinity_summary = affinitySummaryPath;
+  }
+  if (existsSync(resolvedSimConfigPath)) {
+    artifactPaths.resolved_sim_config = resolvedSimConfigPath;
+  }
+  if (existsSync(resolvedInitialStatePath)) {
+    artifactPaths.resolved_initial_state = resolvedInitialStatePath;
+  }
+  return {
+    ok: true,
+    command: "run",
+    runId: runSummary?.meta?.runId || simConfig?.meta?.runId || initialState?.meta?.runId || "",
+    outDir,
+    actorIds: deriveActorIds(initialState),
+    roomIds: deriveRoomIds(simConfig),
+    artifactPaths,
+    ticks: runSummary?.metrics?.ticks,
+  };
+}
+
+async function summarizeInspectOutput({ outDir } = {}) {
+  const inspectSummary = await readJsonIfExists(join(outDir, "inspect-summary.json"));
+  return {
+    ok: true,
+    command: "inspect",
+    runId: inspectSummary?.meta?.runId || "",
+    outDir,
+    actorIds: [],
+    roomIds: [],
+    artifactPaths: {
+      inspect_summary: join(outDir, "inspect-summary.json"),
+    },
+    ticks: inspectSummary?.data?.ticks,
+  };
+}
+
 function allowNetworkRequests() {
   const value = process.env.AK_ALLOW_NETWORK;
   return value === "1" || value === "true";
@@ -2267,7 +2428,15 @@ async function writeBuildOutputs({
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
-  console.log(`${commandName}: wrote ${outDir}`);
+  return buildStructuredSuccessSummary({
+    command: commandName,
+    outDir,
+    runId: spec.meta.runId,
+    manifestEntries,
+    includeRequest: true,
+    initialState: buildResult.initialState,
+    simConfig: buildResult.simConfig,
+  });
 }
 
 function addManifestEntry(entries, artifact, path) {
@@ -2308,7 +2477,7 @@ function attachMixedRoomAssembliesToBuildResult(buildResult) {
 function logMixedRoomAssembliesFromBuildResult(buildResult) {
   const assemblies = attachMixedRoomAssembliesToBuildResult(buildResult);
   formatMixedRoomAssembliesCliLines(assemblies).forEach((line) => {
-    console.log(line);
+    console.error(line);
   });
 }
 
@@ -2353,8 +2522,8 @@ const commandKernel = createCommandKernel({
   nowIso: () => new Date().toISOString(),
   env: process.env,
   cwd: () => process.cwd(),
-  log: (...parts) => console.log(...parts),
-  warn: (...parts) => console.warn(...parts),
+  log: (...parts) => console.error(...parts),
+  warn: (...parts) => console.error(...parts),
 });
 
 
@@ -2367,7 +2536,11 @@ async function buildCommand(argv) {
   }
 
   assertAllowedBuildArgs(args);
-  await commandKernel.build(args);
+  const result = await commandKernel.build(args);
+  emitJsonStdout(await summarizeBuildLikeOutput({
+    command: "build",
+    outDir: result.outDir,
+  }));
 }
 
 async function schemasCommand(argv) {
@@ -2413,7 +2586,8 @@ async function runCommand(argv) {
     console.log(usage());
     return;
   }
-  await commandKernel.run(args);
+  const result = await commandKernel.run(args);
+  emitJsonStdout(await summarizeRunOutput({ outDir: result.outDir, args }));
 }
 
 async function configuratorCommand(argv) {
@@ -2449,7 +2623,8 @@ async function inspectCommand(argv) {
     console.log(usage());
     return;
   }
-  await commandKernel.inspect(args);
+  const result = await commandKernel.inspect(args);
+  emitJsonStdout(await summarizeInspectOutput({ outDir: result.outDir }));
 }
 
 async function ipfsCommand(argv) {
@@ -2889,7 +3064,7 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
 
-  await writeBuildOutputs({
+  const stdoutSummary = await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
     buildResult,
@@ -2897,6 +3072,7 @@ async function agentAuthoringCommand(argv, { commandName, action } = {}) {
     commandName,
     producedBy: `cli-${commandName}`,
   });
+  emitJsonStdout(stdoutSummary);
 }
 
 async function createCommand(argv) {
@@ -3116,8 +3292,14 @@ async function roomPlanCommand(argv) {
     clock: () => buildResult.spec.meta.createdAt,
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
-
-  console.log(`room-plan: wrote ${outDir}`);
+  emitJsonStdout(buildStructuredSuccessSummary({
+    command: "room-plan",
+    outDir,
+    runId: buildResult.spec.meta.runId,
+    manifestEntries,
+    initialState: buildResult.initialState,
+    simConfig: buildResult.simConfig,
+  }));
 }
 
 async function delverPlanCommand(argv) {
@@ -3346,8 +3528,14 @@ async function delverPlanCommand(argv) {
     clock: () => buildResult.spec.meta.createdAt,
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
-
-  console.log(`delver-plan: wrote ${outDir}`);
+  emitJsonStdout(buildStructuredSuccessSummary({
+    command: "delver-plan",
+    outDir,
+    runId: buildResult.spec.meta.runId,
+    manifestEntries,
+    initialState: buildResult.initialState,
+    simConfig: buildResult.simConfig,
+  }));
 }
 
 async function wardenPlanCommand(argv) {
@@ -3547,8 +3735,14 @@ async function wardenPlanCommand(argv) {
     clock: () => buildResult.spec.meta.createdAt,
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
-
-  console.log(`warden-plan: wrote ${outDir}`);
+  emitJsonStdout(buildStructuredSuccessSummary({
+    command: "warden-plan",
+    outDir,
+    runId: buildResult.spec.meta.runId,
+    manifestEntries,
+    initialState: buildResult.initialState,
+    simConfig: buildResult.simConfig,
+  }));
 }
 
 async function llmPlanCommand(argv) {
@@ -3557,7 +3751,11 @@ async function llmPlanCommand(argv) {
     console.log(usage());
     return;
   }
-  await commandKernel.llmPlan(args);
+  const result = await commandKernel.llmPlan(args);
+  emitJsonStdout(await summarizeBuildLikeOutput({
+    command: "llm-plan",
+    outDir: result.outDir,
+  }));
 }
 
 const COMMANDS = {
@@ -3600,7 +3798,17 @@ async function main() {
   try {
     await handler(rest);
   } catch (error) {
-    console.error(error?.message || error);
+    const message = error?.message || String(error);
+    if (STRUCTURED_STDOUT_COMMANDS.has(command)) {
+      console.error(message);
+      emitJsonStdout({
+        ok: false,
+        command,
+        error: message,
+      });
+    } else {
+      console.error(message);
+    }
     process.exit(1);
   }
 }
