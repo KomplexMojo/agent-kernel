@@ -78,20 +78,41 @@ test("game board panel contains playback controls and action controls only", () 
   [
     "status-message",
     "frame-buffer",
+    "runtime-move-up-left",
     "play-pause",
     "step-back",
     "step-forward",
     "reset-run",
     "runtime-move-up",
+    "runtime-move-up-right",
     "runtime-move-down",
+    "runtime-move-down-right",
+    "runtime-move-down-left",
     "runtime-move-left",
     "runtime-move-right",
     "runtime-cast",
+    "runtime-affinity-choice-fire",
+    "runtime-affinity-choice-water",
+    "runtime-affinity-choice-earth",
+    "runtime-affinity-expression-expand",
+    "runtime-affinity-expression-focus",
+    "runtime-affinity-expression-shift",
   ].forEach((id) => {
     assert.match(simulationPanel, new RegExp(`id="${id}"`));
   });
 
   assert.match(simulationPanel, /Playing Surface/);
+  assert.match(simulationPanel, /Runtime Actions/);
+  assert.match(simulationPanel, /Movement/);
+  assert.match(simulationPanel, /Affinity Placeholders/);
+  assert.match(
+    simulationPanel,
+    /class="runtime-controls"[^>]*>[\s\S]*id="runtime-move-up-left"[\s\S]*id="runtime-cast"[\s\S]*id="runtime-move-down-right"/,
+  );
+  assert.match(
+    simulationPanel,
+    /class="runtime-affinity-placeholders"[^>]*aria-label="Runtime affinity choice placeholders"[\s\S]*id="runtime-affinity-choice-fire"[^>]*disabled[\s\S]*id="runtime-affinity-choice-earth"[^>]*disabled/s,
+  );
   assert.ok(simulationPanel.indexOf('id="status-message"') < simulationPanel.indexOf('id="frame-buffer"'));
   assert.doesNotMatch(simulationPanel, /<small class="status">/);
   assert.match(
