@@ -797,12 +797,12 @@
         }
 
         .design-card-workspace {
-          grid-template-columns: minmax(240px, 320px) minmax(0, 1.6fr) minmax(190px, 240px);
+          grid-template-columns: 320px minmax(0, 1.2fr) 320px;
           gap: 12px;
         }
 
         .design-card-grid {
-          grid-template-columns: minmax(520px, 1fr);
+          grid-template-columns: minmax(460px, 1fr);
         }
 
         .design-card {
@@ -1146,7 +1146,7 @@
 
       .design-card-workspace {
         display: grid;
-        grid-template-columns: minmax(220px, 280px) minmax(0, 1.35fr) minmax(180px, 220px);
+        grid-template-columns: 280px minmax(0, 1.05fr) 280px;
         gap: 12px;
         margin-top: 4px;
         align-items: start;
@@ -1378,7 +1378,7 @@
 
       .design-card-grid {
         display: grid;
-        grid-template-columns: minmax(420px, 1fr);
+        grid-template-columns: minmax(380px, 1fr);
         justify-content: stretch;
         align-content: start;
         align-items: start;
@@ -1687,6 +1687,25 @@
         font-size: 0.72rem;
         color: var(--muted);
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .design-card-trap-mana-controls {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 4px;
+        justify-self: end;
+        min-width: max-content;
+      }
+
+      .design-card-trap-mana-controls .design-card-vital-value {
+        min-width: 28px;
+      }
+
+      .design-card-trap-mana-controls button {
+        min-width: 24px;
+        height: 24px;
+        padding: 0;
       }
 
       .design-card-controls {
