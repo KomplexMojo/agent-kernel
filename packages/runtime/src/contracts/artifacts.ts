@@ -1407,6 +1407,7 @@ export type TickFrame = TickFrameV1;
 
 export const TELEMETRY_RECORD_SCHEMA = "agent-kernel/TelemetryRecord";
 export const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
+export const NARRATIVE_ARTIFACT_SCHEMA = "agent-kernel/NarrativeArtifact";
 
 /**
  * Canonical telemetry record emitted by Annotator. These can be streamed or stored.
@@ -1459,6 +1460,55 @@ export interface RunSummaryV1 {
 
 export type TelemetryRecord = TelemetryRecordV1;
 export type RunSummary = RunSummaryV1;
+
+export interface NarrativeCastEntryV1 {
+  id: string;
+  label: string;
+  kind: "stationary" | "ambulatory";
+  archetype?: string;
+}
+
+export interface NarrativeTurnV1 {
+  tick: number;
+  title: string;
+  summary: string;
+  lines: string[];
+  stats: {
+    frames: number;
+    actions: number;
+    events: number;
+    effects: number;
+  };
+}
+
+export interface NarrativeArtifactV1 {
+  schema: typeof NARRATIVE_ARTIFACT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  /** Source summary used to derive the narrative without re-running the simulation. */
+  source: {
+    initialStateRef?: ArtifactRef;
+    frames: number;
+    ticks: number;
+  };
+
+  /** Stable cast list for UI/CLI consumers to map ids to readable labels. */
+  cast: NarrativeCastEntryV1[];
+
+  /** High-level summary of the generated story. */
+  summary: string;
+
+  /** Human-readable multiline story string spanning all turns. */
+  story: string;
+
+  /** Deterministic per-turn breakdown used to render readable narratives. */
+  turns: NarrativeTurnV1[];
+}
+
+export type NarrativeCastEntry = NarrativeCastEntryV1;
+export type NarrativeTurn = NarrativeTurnV1;
+export type NarrativeArtifact = NarrativeArtifactV1;
 
 // -------------------------
 // Resource Bundle (rendering)

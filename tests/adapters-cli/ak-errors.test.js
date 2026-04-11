@@ -118,6 +118,11 @@ test("cli replay rejects missing tick frames", () => {
   assert.match(result.stderr, /replay requires --sim-config, --initial-state, and --tick-frames/);
 });
 
+test("cli narrate rejects missing args", () => {
+  const result = runCliExpectFailure(["narrate"]);
+  assert.match(result.stderr, /narrate requires --tick-frames and --initial-state/);
+});
+
 test("cli ipfs rejects missing cid", () => {
   const result = runCliExpectFailure(["ipfs"]);
   assert.match(result.stderr, /ipfs requires --cid/);

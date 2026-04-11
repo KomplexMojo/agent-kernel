@@ -19,6 +19,7 @@ test("schema catalog includes core runtime schemas", async () => {
     "agent-kernel/BuildSpec",
     "agent-kernel/SimConfigArtifact",
     "agent-kernel/InitialStateArtifact",
+    "agent-kernel/NarrativeArtifact",
     "agent-kernel/TelemetryRecord",
   ];
   required.forEach((schema) => assert.ok(names.includes(schema), "Missing " + schema));

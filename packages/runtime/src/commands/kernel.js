@@ -827,6 +827,8 @@ export function createCommandKernel(host = {}) {
   }
 
   async function run(args) {
+    const commandLog = typeof args?.log === "function" ? args.log : log;
+    const onTickProgress = typeof args?.onTickProgress === "function" ? args.onTickProgress : null;
     const loadCore = requireHostFunction(host, "loadCore");
     const defaultWasmPath = typeof host.defaultWasmPath === "function" ? host.defaultWasmPath() : "build/core-as.wasm";
     const simConfigPath = resolvePath(args["sim-config"]);
@@ -955,7 +957,17 @@ export function createCommandKernel(host = {}) {
     const runtime = createRuntime({ core, adapters: {}, runId, clock });
     await runtime.init({ seed, simConfig, initialState, clock });
     for (let i = 0; i < ticks; i += 1) {
+      const effectCountBeforeStep = runtime.getEffectLog().length;
       await runtime.step();
+      if (onTickProgress) {
+        const effectCountAfterStep = runtime.getEffectLog().length;
+        await onTickProgress({
+          progress: true,
+          tick: i + 1,
+          phase: "emit",
+          effectsEmitted: effectCountAfterStep - effectCountBeforeStep,
+        });
+      }
     }
 
     const tickFrames = runtime.getTickFrames();
@@ -987,7 +999,15 @@ export function createCommandKernel(host = {}) {
       await writeJson(join(outDir, "resolved-initial-state.json"), initialState);
     }
 
-    log(`run: wrote ${outDir}`);
+    if (onTickProgress) {
+      await onTickProgress({
+        progress: true,
+        done: true,
+        totalTicks: ticks,
+      });
+    }
+
+    commandLog(`run: wrote ${outDir}`);
     return { outDir };
   }
 
