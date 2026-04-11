@@ -1,8 +1,11 @@
 const test = require("node:test");
+const { existsSync } = require("node:fs");
+const { resolve } = require("node:path");
 const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const bindingsModule = moduleUrl("packages/bindings-ts/src/index.js");
 const wasmUrl = moduleUrl("build/core-as.wasm");
+const WASM_PATH = resolve(__dirname, "../../build/core-as.wasm");
 
 const script = `
 import assert from "node:assert/strict";
@@ -39,6 +42,10 @@ assert.deepEqual(obs.traps[0].abilities, fixture.expected.traps[0].abilities);
 assert.deepEqual(obs.traps[0].vitals, fixture.expected.traps[0].vitals);
 `;
 
-test("bindings observation includes affinity metadata when provided", () => {
+test("bindings observation includes affinity metadata when provided", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH}`);
+    return;
+  }
   runEsm(script);
 });

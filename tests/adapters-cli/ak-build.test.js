@@ -255,11 +255,12 @@ test("cli build defaults to artifacts/runs/<runId>/build under cwd", () => {
   const result = runCli(["build", "--spec", SPEC], { cwd: workDir });
 
   assert.equal(result.status, 0, result.stderr);
-  const match = result.stdout.match(/build: wrote (.+)\n?/);
-  assert.ok(match, "Expected build output path in stdout");
-  const outDir = realpathSync(match[1].trim());
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  const outDir = realpathSync(output.outDir);
   const expectedDir = realpathSync(join(workDir, "artifacts", "runs", spec.meta.runId, "build"));
   assert.equal(outDir, expectedDir);
+  assert.match(result.stderr, /build: wrote /);
   assert.equal(existsSync(join(outDir, "spec.json")), true);
   assert.equal(existsSync(join(outDir, "intent.json")), true);
   assert.equal(existsSync(join(outDir, "plan.json")), true);

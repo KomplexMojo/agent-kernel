@@ -4234,7 +4234,8 @@ async function budgetCommand(argv) {
     console.log(usage());
     return;
   }
-  await commandKernel.budget(args);
+  const result = await commandKernel.budget(args);
+  emitJsonStdout(result.output);
 }
 
 async function replayCommand(argv) {

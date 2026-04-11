@@ -1,8 +1,11 @@
 const test = require("node:test");
+const { existsSync } = require("node:fs");
+const { resolve } = require("node:path");
 const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const bindingsModule = moduleUrl("packages/bindings-ts/src/index.js");
 const wasmUrl = moduleUrl("build/core-as.wasm");
+const WASM_PATH = resolve(__dirname, "../../build/core-as.wasm");
 
 const script = `
 import assert from "node:assert/strict";
@@ -122,6 +125,10 @@ assert.equal(barrierFrame.tick, barrierFrameFixture.frames[0].tick);
 assert.deepEqual(barrierFrame.buffer, barrierFrameFixture.frames[0].buffer);
 `;
 
-test("bindings expose MVP movement helpers and stable shapes", () => {
+test("bindings expose MVP movement helpers and stable shapes", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH}`);
+    return;
+  }
   runEsm(script);
 });
