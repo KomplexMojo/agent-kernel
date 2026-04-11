@@ -1,0 +1,80 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - paragraph [ref=e4]: Stitch Shell Rewrite
+    - heading "Echoes of Intent" [level=1] [ref=e5]
+  - generic [ref=e6]:
+    - tablist "Primary workflow tabs" [ref=e8]:
+      - tab "Design" [ref=e9] [cursor=pointer]
+      - tab "Preview" [ref=e10] [cursor=pointer]
+      - tab "Run" [active] [selected] [ref=e11] [cursor=pointer]
+      - tab "Diagnostics" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]:
+      - tabpanel [ref=e450]:
+        - generic [ref=e451]:
+          - generic [ref=e452]:
+            - generic [ref=e453]:
+              - paragraph [ref=e454]: Run Surface
+              - generic [ref=e456]:
+                - generic [ref=e458]: ◈
+                - text: Playing Surface
+            - generic "Run flow context" [ref=e459]:
+              - generic [ref=e460]: Artifact rail
+              - generic [ref=e461]: Inspector synced
+          - generic [ref=e462]: Select a room, delver, or warden to inspect and control it here.
+          - generic [ref=e463]:
+            - generic [ref=e465]: Board State
+            - generic [ref=e467]:
+              - region "Playback controls" [ref=e468]:
+                - generic [ref=e469]: Playback Controls
+                - generic [ref=e470]:
+                  - button "Step -" [disabled] [ref=e471]
+                  - button "Play" [disabled] [ref=e472]
+                  - button "Step +" [disabled] [ref=e473]
+                  - button "Reset" [ref=e474] [cursor=pointer]
+              - region "Runtime controls" [ref=e475]:
+                - generic [ref=e476]: Runtime Actions
+                - group "Runtime controls" [ref=e477]:
+                  - button "Move up" [ref=e478] [cursor=pointer]: ↑
+                  - button "Move down" [ref=e479] [cursor=pointer]: ↓
+                  - button "Move left" [ref=e480] [cursor=pointer]: ←
+                  - button "Move right" [ref=e481] [cursor=pointer]: →
+                  - button "Cast ability" [ref=e482] [cursor=pointer]: ✦
+      - complementary [ref=e483]:
+        - generic [ref=e485]:
+          - paragraph [ref=e486]: Run Companion
+          - generic [ref=e488]:
+            - generic [ref=e490]: ◈
+            - text: Game Inspector
+          - paragraph [ref=e491]: Select a room, delver, or warden to steer visibility and runtime action focus.
+        - generic [ref=e493]:
+          - generic [ref=e494]:
+            - heading "Room" [level=3] [ref=e496]: 🏛️
+            - button "🏛️ R1-1 📍2,2" [ref=e498] [cursor=pointer]:
+              - 'generic "Type: room" [ref=e500]': 🏛️
+              - generic [ref=e501]: R1-1
+              - generic [ref=e502]: 📍2,2
+          - generic [ref=e503]:
+            - heading "Delver" [level=3] [ref=e505]: ⚔️
+            - button "⚔️ 🔥 ⚔️ card_delver_1-1 📍2,2" [ref=e507] [cursor=pointer]:
+              - generic [ref=e508]:
+                - 'generic "Type: delver" [ref=e509]': ⚔️
+                - 'generic "Affinity: fire" [ref=e510]': 🔥
+                - 'generic "Motivation: attacking" [ref=e511]': ⚔️
+              - generic [ref=e512]: card_delver_1-1
+              - generic [ref=e513]: 📍2,2
+          - generic [ref=e514]:
+            - heading "Warden" [level=3] [ref=e516]: 🛡️
+            - generic [ref=e518]: None
+        - generic [ref=e519]:
+          - generic [ref=e520]: Selected Card
+          - article [ref=e522]:
+            - generic [ref=e523]:
+              - generic [ref=e524]:
+                - 'generic "Type: room" [ref=e525]': 🏛️
+                - generic [ref=e526]: R1-1
+              - generic [ref=e527]: 📍2,2
+            - generic [ref=e529]: No affinities
+            - generic [ref=e531]: No vitals
+            - generic [ref=e533]:
+              - generic [ref=e534]: 🪙
+              - generic [ref=e535]: "0"

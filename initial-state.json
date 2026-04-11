@@ -1,0 +1,52 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "run_create_delver_max_spend_initial_state",
+    "runId": "run_create_delver_max_spend",
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "simConfigRef": {
+    "id": "run_create_delver_max_spend_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "card_delver_1-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 2,
+        "y": 2
+      },
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 29,
+          "max": 29,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 1,
+          "max": 1,
+          "regen": 1
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "traits": {
+        "affinities": {
+          "fire": 2
+        }
+      }
+    }
+  ]
+}

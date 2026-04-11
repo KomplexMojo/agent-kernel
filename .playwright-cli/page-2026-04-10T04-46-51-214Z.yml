@@ -1,0 +1,234 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - paragraph [ref=e4]: Stitch Shell Rewrite
+    - heading "Echoes of Intent" [level=1] [ref=e5]
+  - generic [ref=e6]:
+    - tablist "Primary workflow tabs" [ref=e8]:
+      - tab "Design" [selected] [ref=e9] [cursor=pointer]
+      - tab "Preview" [ref=e10] [cursor=pointer]
+      - tab "Run" [ref=e11] [cursor=pointer]
+      - tab "Diagnostics" [ref=e12] [cursor=pointer]
+    - tabpanel [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - heading "Card Builder Configure the dungeon." [level=2] [ref=e19]:
+            - generic [ref=e21]: ◈
+            - generic [ref=e22]: Card Builder
+            - generic [ref=e23]: Configure the dungeon.
+          - generic [ref=e24]:
+            - button "Load Minted" [ref=e25] [cursor=pointer]
+            - button "Auto-generate" [active] [ref=e26] [cursor=pointer]
+        - generic [ref=e27]:
+          - complementary "Card property rail" [ref=e28]:
+            - paragraph [ref=e29]: Property Rail
+            - generic [ref=e30]:
+              - heading "Type" [level=3] [ref=e31]
+              - generic [ref=e32]:
+                - button "🏛️ Room" [ref=e307] [cursor=pointer]:
+                  - generic [ref=e308]:
+                    - generic [ref=e309]: 🏛️
+                    - generic [ref=e310]: Room
+                - button "⚔️ Delver" [ref=e311] [cursor=pointer]:
+                  - generic [ref=e312]:
+                    - generic [ref=e313]: ⚔️
+                    - generic [ref=e314]: Delver
+                - button "🛡️ Warden" [ref=e315] [cursor=pointer]:
+                  - generic [ref=e316]:
+                    - generic [ref=e317]: 🛡️
+                    - generic [ref=e318]: Warden
+            - generic [ref=e45]:
+              - heading "Affinities" [level=3] [ref=e46]
+              - generic [ref=e47]:
+                - generic [ref=e320]:
+                  - button "🔥 Fire" [ref=e321] [cursor=pointer]:
+                    - generic [ref=e322]:
+                      - generic [ref=e323]: 🔥
+                      - generic [ref=e324]: Fire
+                  - button "💧 Water" [ref=e325] [cursor=pointer]:
+                    - generic [ref=e326]:
+                      - generic [ref=e327]: 💧
+                      - generic [ref=e328]: Water
+                - generic [ref=e330]:
+                  - button "🪨 Earth" [ref=e331] [cursor=pointer]:
+                    - generic [ref=e332]:
+                      - generic [ref=e333]: 🪨
+                      - generic [ref=e334]: Earth
+                  - button "🌪️ Wind" [ref=e335] [cursor=pointer]:
+                    - generic [ref=e336]:
+                      - generic [ref=e337]: 🌪️
+                      - generic [ref=e338]: Wind
+                - generic [ref=e340]:
+                  - button "🌿 Life" [ref=e341] [cursor=pointer]:
+                    - generic [ref=e342]:
+                      - generic [ref=e343]: 🌿
+                      - generic [ref=e344]: Life
+                  - button "🧪 Decay" [ref=e345] [cursor=pointer]:
+                    - generic [ref=e346]:
+                      - generic [ref=e347]: 🧪
+                      - generic [ref=e348]: Decay
+                - generic [ref=e350]:
+                  - button "🧫 Corrode" [ref=e351] [cursor=pointer]:
+                    - generic [ref=e352]:
+                      - generic [ref=e353]: 🧫
+                      - generic [ref=e354]: Corrode
+                  - button "🧱 Fortify" [ref=e355] [cursor=pointer]:
+                    - generic [ref=e356]:
+                      - generic [ref=e357]: 🧱
+                      - generic [ref=e358]: Fortify
+                - generic [ref=e360]:
+                  - button "🌟 Light" [ref=e361] [cursor=pointer]:
+                    - generic [ref=e362]:
+                      - generic [ref=e363]: 🌟
+                      - generic [ref=e364]: Light
+                  - button "🌑 Dark" [ref=e365] [cursor=pointer]:
+                    - generic [ref=e366]:
+                      - generic [ref=e367]: 🌑
+                      - generic [ref=e368]: Dark
+            - generic [ref=e98]:
+              - heading "Expressions" [level=3] [ref=e99]
+              - generic [ref=e100]:
+                - generic [ref=e370]:
+                  - button "⬆️ Push" [ref=e371] [cursor=pointer]:
+                    - generic [ref=e372]:
+                      - generic [ref=e373]: ⬆️
+                      - generic [ref=e374]: Push
+                  - button "⬇️ Pull" [ref=e375] [cursor=pointer]:
+                    - generic [ref=e376]:
+                      - generic [ref=e377]: ⬇️
+                      - generic [ref=e378]: Pull
+                - generic [ref=e380]:
+                  - button "📡 Emit" [ref=e381] [cursor=pointer]:
+                    - generic [ref=e382]:
+                      - generic [ref=e383]: 📡
+                      - generic [ref=e384]: Emit
+                  - button "🧲 Draw" [ref=e385] [cursor=pointer]:
+                    - generic [ref=e386]:
+                      - generic [ref=e387]: 🧲
+                      - generic [ref=e388]: Draw
+            - generic [ref=e121]:
+              - heading "Motivations" [level=3] [ref=e122]
+              - generic [ref=e123]:
+                - generic [ref=e389]:
+                  - generic [ref=e390]: Choose 1
+                  - generic [ref=e391]:
+                    - button "🎲 Random" [ref=e392] [cursor=pointer]:
+                      - generic [ref=e393]:
+                        - generic [ref=e394]: 🎲
+                        - generic [ref=e395]: Random
+                    - button "🧱 Stationary" [ref=e396] [cursor=pointer]:
+                      - generic [ref=e397]:
+                        - generic [ref=e398]: 🧱
+                        - generic [ref=e399]: Stationary
+                - generic [ref=e400]:
+                  - generic [ref=e401]: Choose 1
+                  - generic [ref=e402]:
+                    - button "🧭 Exploring" [ref=e403] [cursor=pointer]:
+                      - generic [ref=e404]:
+                        - generic [ref=e405]: 🧭
+                        - generic [ref=e406]: Exploring
+                    - button "👣 Patrolling" [ref=e407] [cursor=pointer]:
+                      - generic [ref=e408]:
+                        - generic [ref=e409]: 👣
+                        - generic [ref=e410]: Patrolling
+                - generic [ref=e411]:
+                  - generic [ref=e412]: Choose 1
+                  - generic [ref=e413]:
+                    - button "⚔️ Attacking" [ref=e414] [cursor=pointer]:
+                      - generic [ref=e415]:
+                        - generic [ref=e416]: ⚔️
+                        - generic [ref=e417]: Attacking
+                    - button "🛡️ Defending" [ref=e418] [cursor=pointer]:
+                      - generic [ref=e419]:
+                        - generic [ref=e420]: 🛡️
+                        - generic [ref=e421]: Defending
+                - generic [ref=e422]:
+                  - generic [ref=e423]: Choose 1
+                  - generic [ref=e424]:
+                    - button "🥷 Stealthy" [ref=e425] [cursor=pointer]:
+                      - generic [ref=e426]:
+                        - generic [ref=e427]: 🥷
+                        - generic [ref=e428]: Stealthy
+                    - button "🤝 Friendly" [ref=e429] [cursor=pointer]:
+                      - generic [ref=e430]:
+                        - generic [ref=e431]: 🤝
+                        - generic [ref=e432]: Friendly
+                - generic [ref=e433]:
+                  - generic [ref=e434]: Choose 1
+                  - generic [ref=e435]:
+                    - button "⚡ Reflexive" [ref=e436] [cursor=pointer]:
+                      - generic [ref=e437]:
+                        - generic [ref=e438]: ⚡
+                        - generic [ref=e439]: Reflexive
+                    - button "🎯 Goal Oriented" [ref=e440] [cursor=pointer]:
+                      - generic [ref=e441]:
+                        - generic [ref=e442]: 🎯
+                        - generic [ref=e443]: Goal Oriented
+                - button "♟️ Strategy Focused" [ref=e446] [cursor=pointer]:
+                  - generic [ref=e447]:
+                    - generic [ref=e448]: ♟️
+                    - generic [ref=e449]: Strategy Focused
+          - generic [ref=e185]:
+            - generic [ref=e186]:
+              - generic [ref=e187]:
+                - generic [ref=e188]: Level Budget
+                - spinbutton "Level Budget" [ref=e189]: "1000"
+              - generic [ref=e190]:
+                - generic [ref=e192]:
+                  - generic [ref=e193]: Room %
+                  - spinbutton "Room %" [ref=e194]: "55"
+                - generic [ref=e196]:
+                  - generic [ref=e197]: Delver %
+                  - spinbutton "Delver %" [ref=e198]: "20"
+                - generic [ref=e200]:
+                  - generic [ref=e201]: Warden %
+                  - spinbutton "Warden %" [ref=e202]: "25"
+            - generic [ref=e203]: Auto-generated 13 rooms using the remaining allocation.
+            - article [ref=e450]:
+              - generic [ref=e451]:
+                - generic [ref=e452]:
+                  - 'generic "Type: blank" [ref=e453]': ◻️
+                  - strong [ref=e454]: C-CA3UQ9
+                - generic [ref=e455]:
+                  - generic [ref=e456]: x1
+                  - button "-" [ref=e457] [cursor=pointer]
+                  - button "+" [ref=e458] [cursor=pointer]
+              - generic [ref=e459]:
+                - generic [ref=e461]: Drop an affinity chip
+                - generic [ref=e462]:
+                  - button "Set Type" [disabled] [ref=e463]
+                  - button "Flip" [ref=e464] [cursor=pointer]
+          - complementary "Card shelf groups" [ref=e220]:
+            - paragraph [ref=e221]: Shelf Groups
+            - generic [ref=e222]:
+              - generic [ref=e223]:
+                - heading "Room" [level=3] [ref=e224]: 🏛️
+                - generic [ref=e225]:
+                  - text: 550 - [549] =
+                  - strong [ref=e465]: "1"
+              - generic [ref=e227]:
+                - generic [ref=e466] [cursor=pointer]:
+                  - generic [ref=e467]:
+                    - 'generic "Type: room" [ref=e468]': 🏛️
+                    - 'generic "Affinity: fire" [ref=e469]': 🔥
+                  - generic [ref=e470]: R-S05AEB
+                  - generic [ref=e471]: x5
+                - generic [ref=e472] [cursor=pointer]:
+                  - generic [ref=e473]:
+                    - 'generic "Type: room" [ref=e474]': 🏛️
+                    - 'generic "Affinity: water" [ref=e475]': 💧
+                  - generic [ref=e476]: R-SL39EO
+                  - generic [ref=e477]: x8
+            - generic [ref=e229]:
+              - generic [ref=e230]:
+                - heading "Delver" [level=3] [ref=e231]: ⚔️
+                - generic [ref=e232]:
+                  - text: 200 - [0] =
+                  - strong [ref=e478]: "200"
+              - generic [ref=e479]: None
+            - generic [ref=e236]:
+              - generic [ref=e237]:
+                - heading "Warden" [level=3] [ref=e238]: 🛡️
+                - generic [ref=e239]:
+                  - text: 250 - [0] =
+                  - strong [ref=e480]: "250"
+              - generic [ref=e481]: None

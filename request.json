@@ -1,0 +1,162 @@
+{
+  "schema": "agent-kernel/AgentCommandRequestArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "agent_command_author_run_create_delver_max_spend",
+    "runId": "run_create_delver_max_spend",
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "producedBy": "cli-author"
+  },
+  "command": {
+    "action": "author",
+    "text": "Create one fire delver and maximize valid spend within a total budget of 200 tokens.",
+    "source": "cli-author",
+    "taxonomyVersion": 1
+  },
+  "objects": [
+    {
+      "kind": "delver",
+      "prompt": "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2;goals=max_mana,mana_regen",
+      "id": "card_delver_1",
+      "count": 1,
+      "attributes": {
+        "affinity": "fire",
+        "motivations": [
+          "attacking",
+          "user_controlled"
+        ],
+        "affinities": [
+          {
+            "kind": "fire",
+            "expression": "push",
+            "stacks": 2
+          }
+        ],
+        "vitals": {
+          "health": {
+            "current": 1,
+            "max": 1,
+            "regen": 0
+          },
+          "mana": {
+            "current": 29,
+            "max": 29,
+            "regen": 1
+          },
+          "stamina": {
+            "current": 1,
+            "max": 1,
+            "regen": 1
+          },
+          "durability": {
+            "current": 1,
+            "max": 1,
+            "regen": 0
+          }
+        }
+      },
+      "optimizationGoals": [
+        {
+          "kind": "maximize_vital_max",
+          "scope": "delver",
+          "priority": "high",
+          "vital": "mana",
+          "source": "object_flag"
+        },
+        {
+          "kind": "maximize_vital_regen",
+          "scope": "delver",
+          "priority": "high",
+          "vital": "mana",
+          "source": "object_flag"
+        }
+      ]
+    },
+    {
+      "kind": "shared_config",
+      "prompt": "Create one fire delver and maximize valid spend within a total budget of 200 tokens.",
+      "attributes": {
+        "dungeonAffinity": "fire",
+        "budgetTokens": 200,
+        "constraints": {
+          "hardBudget": {
+            "totalTokens": 200,
+            "sources": [
+              "text",
+              "flag"
+            ]
+          }
+        },
+        "optimizationGoals": [
+          {
+            "kind": "maximize_budget_spend",
+            "scope": "shared_config",
+            "priority": "high",
+            "source": "text"
+          }
+        ]
+      }
+    }
+  ],
+  "sharedConfig": {
+    "dungeonAffinity": "fire",
+    "budgetTokens": 200,
+    "constraints": {
+      "hardBudget": {
+        "totalTokens": 200,
+        "sources": [
+          "text",
+          "flag"
+        ]
+      }
+    },
+    "optimizationGoals": [
+      {
+        "kind": "maximize_budget_spend",
+        "scope": "shared_config",
+        "priority": "high",
+        "source": "text"
+      }
+    ]
+  },
+  "compilation": {
+    "rules": [
+      {
+        "kind": "delver",
+        "compileTo": [
+          {
+            "target": "build_spec_plan",
+            "path": "plan.hints.cardSet",
+            "legacyFlow": "delver-plan"
+          },
+          {
+            "target": "build_spec_configurator",
+            "path": "configurator.inputs.actors",
+            "legacyFlow": "delver-plan"
+          }
+        ]
+      },
+      {
+        "kind": "shared_config",
+        "compileTo": [
+          {
+            "target": "build_spec_intent",
+            "path": "intent.hints"
+          },
+          {
+            "target": "build_spec_configurator",
+            "path": "configurator.inputs"
+          }
+        ]
+      }
+    ]
+  },
+  "compatibility": {
+    "preserveExistingCommands": true,
+    "supportedLegacyFlows": [
+      "delver-plan",
+      "build",
+      "configurator"
+    ]
+  }
+}

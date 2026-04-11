@@ -1,0 +1,32 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - paragraph [ref=e4]: Stitch Shell Rewrite
+    - heading "Echoes of Intent" [level=1] [ref=e5]
+  - generic [ref=e6]:
+    - tablist "Primary workflow tabs" [ref=e8]:
+      - tab "Design" [ref=e9] [cursor=pointer]
+      - tab "Preview" [active] [selected] [ref=e10] [cursor=pointer]
+      - tab "Run" [ref=e11] [cursor=pointer]
+      - tab "Diagnostics" [ref=e12] [cursor=pointer]
+    - tabpanel [ref=e482]:
+      - generic [ref=e483]:
+        - generic [ref=e484]:
+          - generic [ref=e485]:
+            - paragraph [ref=e486]: Preview Surface
+            - generic [ref=e488]:
+              - generic [ref=e490]: ◈
+              - text: Game Preview
+            - paragraph [ref=e491]: Validate artifact output before launching Run.
+          - button "Build And Load Game" [ref=e493] [cursor=pointer]
+        - generic [ref=e494]: Layout preview loaded from snapshot.
+        - generic [ref=e495]:
+          - generic [ref=e496]:
+            - generic [ref=e497]: Rendered Board
+            - generic "Generated room image" [ref=e498]
+          - generic [ref=e499]:
+            - generic [ref=e500]:
+              - generic [ref=e501]: Preview Summary
+              - generic [ref=e502]: Map 36x36 · Rooms 13 · Actors 0
+            - generic [ref=e503]:
+              - generic [ref=e504]: Actors
+              - generic [ref=e505]: Layout-only preview (no actors in initial state).

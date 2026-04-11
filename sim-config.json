@@ -1,0 +1,118 @@
+{
+  "schema": "agent-kernel/SimConfigArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "run_create_delver_max_spend_sim_config",
+    "runId": "run_create_delver_max_spend",
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "planRef": {
+    "id": "run_create_delver_max_spend_plan",
+    "schema": "agent-kernel/PlanArtifact",
+    "schemaVersion": 1
+  },
+  "seed": 0,
+  "layout": {
+    "kind": "grid",
+    "data": {
+      "width": 5,
+      "height": 5,
+      "tiles": [
+        "#####",
+        "#E..#",
+        "#.S.#",
+        "#...#",
+        "#####"
+      ],
+      "kinds": [
+        [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      ],
+      "legend": {
+        "#": {
+          "tile": "wall"
+        },
+        ".": {
+          "tile": "floor"
+        },
+        "S": {
+          "tile": "spawn"
+        },
+        "E": {
+          "tile": "exit"
+        },
+        "B": {
+          "tile": "barrier"
+        }
+      },
+      "render": {
+        "wall": "#",
+        "floor": ".",
+        "spawn": "S",
+        "exit": "E",
+        "actor": "@",
+        "barrier": "B"
+      },
+      "spawn": {
+        "x": 2,
+        "y": 2
+      },
+      "exit": {
+        "x": 1,
+        "y": 1
+      },
+      "bounds": "walls_block_movement",
+      "entryRoomId": "R1",
+      "exitRoomId": "R1",
+      "rooms": [
+        {
+          "id": "R1",
+          "x": 1,
+          "y": 1,
+          "width": 3,
+          "height": 3
+        }
+      ],
+      "connectivity": {
+        "rooms": 1,
+        "connectedRooms": 1,
+        "spawnReachable": true,
+        "exitReachable": true
+      }
+    }
+  }
+}

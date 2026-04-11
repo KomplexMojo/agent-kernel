@@ -1,0 +1,214 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - paragraph [ref=e4]: Stitch Shell Rewrite
+    - heading "Echoes of Intent" [level=1] [ref=e5]
+  - generic [ref=e6]:
+    - tablist "Primary workflow tabs" [ref=e8]:
+      - tab "Design" [ref=e9] [cursor=pointer]
+      - tab "Preview" [ref=e10] [cursor=pointer]
+      - tab "Run" [ref=e11] [cursor=pointer]
+      - tab "Diagnostics" [active] [selected] [ref=e12] [cursor=pointer]
+    - generic [ref=e14]:
+      - tabpanel [ref=e243]:
+        - generic [ref=e244]:
+          - generic [ref=e245]:
+            - generic [ref=e246]:
+              - paragraph [ref=e247]: Diagnostics Surface
+              - generic [ref=e249]:
+                - generic [ref=e251]: ◈
+                - text: System Console
+              - paragraph [ref=e252]: Inspect build orchestration, bundle payloads, adapter calls, and LLM traces while preserving the existing command-host rails.
+            - generic [ref=e253]:
+              - generic [ref=e254]: Allocator
+              - generic [ref=e255]: LLM Trace
+              - generic [ref=e256]: Build + Bundle
+              - generic [ref=e257]: Adapters
+          - region "Diagnostics visibility controls" [ref=e258]:
+            - generic [ref=e259]:
+              - generic [ref=e260]: Diagnostics Visibility
+              - generic [ref=e261]: Toggle diagnostics sections on or off. Unchecked items stay hidden.
+            - list [ref=e262]:
+              - listitem [ref=e263]:
+                - checkbox "Allocator" [checked] [ref=e264]
+                - generic [ref=e265]: Allocator
+                - generic [ref=e266]: Budget, price list, and receipt output from allocator flows.
+              - listitem [ref=e267]:
+                - checkbox "LLM Trace" [checked] [ref=e268]
+                - generic [ref=e269]: LLM Trace
+                - generic [ref=e270]: Prompt/response capture, parsed trace, and annotator summaries.
+              - listitem [ref=e271]:
+                - checkbox "Build And Bundle" [checked] [ref=e272]
+                - generic [ref=e273]: Build And Bundle
+                - generic [ref=e274]: Build orchestration, bundle review, and budget inputs.
+              - listitem [ref=e275]:
+                - checkbox "Adapter Playground" [checked] [ref=e276]
+                - generic [ref=e277]: Adapter Playground
+                - generic [ref=e278]: Manual adapter calls for IPFS, blockchain, LLM, and solver.
+      - tabpanel [ref=e279]:
+        - generic [ref=e280]:
+          - generic [ref=e281]:
+            - generic [ref=e282]: Allocator
+            - paragraph [ref=e283]: Budgeting artifacts are surfaced here.
+          - generic [ref=e284]:
+            - generic [ref=e285]:
+              - generic [ref=e286]: Budget
+              - generic [ref=e287]: No JSON output yet.
+            - generic [ref=e288]:
+              - generic [ref=e289]: Price List
+              - generic [ref=e290]: No JSON output yet.
+            - generic [ref=e291]:
+              - generic [ref=e292]: Receipt
+              - generic [ref=e293]: No JSON output yet.
+      - tabpanel [ref=e294]:
+        - generic [ref=e295]:
+          - generic [ref=e296]:
+            - generic [ref=e297]: LLM Trace
+            - paragraph [ref=e298]: Prompt and response transcript captured by the Orchestrator, summarized by the Annotator.
+          - generic [ref=e299]:
+            - generic [ref=e300]:
+              - text: Turns
+              - strong [ref=e301]: "0"
+            - button "Clear Trace" [ref=e302] [cursor=pointer]
+          - generic [ref=e303]: No LLM captures yet.
+          - generic [ref=e304]:
+            - text: Turn
+            - combobox "Turn" [disabled] [ref=e305]
+          - generic [ref=e306]:
+            - generic [ref=e307]:
+              - generic [ref=e308]: Prompt
+              - generic [ref=e309]: No prompt captured.
+            - generic [ref=e310]:
+              - generic [ref=e311]: Response (Raw)
+              - generic [ref=e312]: No response captured.
+          - generic [ref=e313]:
+            - generic [ref=e314]:
+              - generic [ref=e315]: Response (Parsed)
+              - generic [ref=e316]: No parsed response.
+            - generic [ref=e317]:
+              - generic [ref=e318]: Errors
+              - generic [ref=e319]: No parse/contract errors.
+          - generic [ref=e320]:
+            - generic [ref=e321]:
+              - generic [ref=e322]: Annotator Summary
+              - generic [ref=e323]: No annotator summary yet.
+            - generic [ref=e324]:
+              - generic [ref=e325]: Annotator Telemetry Record
+              - generic [ref=e326]: No annotator telemetry yet.
+      - tabpanel [ref=e327]:
+        - generic [ref=e328]:
+          - generic [ref=e329]:
+            - generic [ref=e330]:
+              - generic [ref=e331]: Build Orchestration
+              - paragraph [ref=e332]: Run BuildSpec execution through the browser command host.
+            - generic [ref=e333]:
+              - generic [ref=e334]:
+                - text: Spec Path (optional)
+                - textbox "Spec Path (optional)" [ref=e335]:
+                  - /placeholder: tests/fixtures/artifacts/build-spec-v1-basic.json
+              - generic [ref=e336]:
+                - text: Out Dir (optional)
+                - textbox "Out Dir (optional)" [ref=e337]:
+                  - /placeholder: artifacts/runs/runId/build
+            - generic [ref=e338]:
+              - text: Spec JSON
+              - textbox "Spec JSON" [ref=e339]:
+                - /placeholder: "{...}"
+                - text: "{ \"schema\": \"agent-kernel/BuildSpec\", \"schemaVersion\": 1, \"meta\": { \"id\": \"design_ui_preview_1775841414437\", \"runId\": \"design_ui_preview_1775841414437\", \"createdAt\": \"2026-04-10T17:16:54.437Z\", \"source\": \"design-ui\" }, \"intent\": { \"goal\": \"Dungeon plan for fire\", \"tags\": [ \"fire\" ], \"hints\": { \"levelAffinity\": \"fire\", \"budgetTokens\": 1000, \"poolWeights\": [ { \"id\": \"layout\", \"weight\": 0.55 }, { \"id\": \"player\", \"weight\": 0.2 }, { \"id\": \"wardens\", \"weight\": 0.25 } ] } }, \"plan\": { \"hints\": { \"rooms\": [] } }, \"configurator\": { \"inputs\": { \"levelGen\": { \"width\": 5, \"height\": 5, \"shape\": { \"roomCount\": 1 } }, \"levelAffinity\": \"fire\", \"actors\": [], \"actorGroups\": [] } } }"
+            - generic [ref=e340]:
+              - button "Run Build" [ref=e341] [cursor=pointer]
+              - button "Load last build" [disabled] [ref=e342]
+              - button "Load last build in Bundle Review" [disabled] [ref=e343]
+              - button "Clear" [ref=e344] [cursor=pointer]
+            - generic [ref=e345]: Design brief spec loaded. Run Build to refresh output.
+            - generic [ref=e346]:
+              - generic [ref=e347]: Build Output
+              - generic [ref=e348]: No build output yet.
+          - generic [ref=e349]:
+            - generic [ref=e350]:
+              - generic [ref=e351]: Bundle Review
+              - paragraph [ref=e352]: Load a bundle.json/manifest.json set to inspect and edit the BuildSpec.
+            - generic [ref=e353]:
+              - generic [ref=e354]:
+                - text: Bundle JSON
+                - button "Bundle JSON" [ref=e355]
+              - generic [ref=e356]:
+                - text: Manifest JSON (optional)
+                - button "Manifest JSON (optional)" [ref=e357]
+            - generic [ref=e358]:
+              - button "Load last build" [ref=e359] [cursor=pointer]
+              - button "Clear" [ref=e360] [cursor=pointer]
+            - generic [ref=e361]: No bundle loaded.
+            - generic [ref=e362]:
+              - generic [ref=e364]: Schemas
+              - generic [ref=e365]:
+                - generic [ref=e366]: Manifest JSON
+                - generic [ref=e367]: No JSON output yet.
+              - generic [ref=e368]:
+                - generic [ref=e369]: BuildSpec (editable)
+                - 'textbox "{...}" [ref=e370]'
+                - generic [ref=e371]:
+                  - button "Apply spec edits" [ref=e372] [cursor=pointer]
+                  - button "Send to Build" [ref=e373] [cursor=pointer]
+                  - button "Download spec.json" [ref=e374] [cursor=pointer]
+              - generic [ref=e375]:
+                - generic [ref=e376]: Intent
+                - generic [ref=e377]: No JSON output yet.
+              - generic [ref=e378]:
+                - generic [ref=e379]: Plan
+                - generic [ref=e380]: No JSON output yet.
+              - generic [ref=e381]:
+                - generic [ref=e382]: Configurator
+                - generic [ref=e383]: No JSON output yet.
+              - generic [ref=e384]:
+                - generic [ref=e385]: Artifacts
+                - generic [ref=e386]: No artifacts loaded.
+          - generic [ref=e387]:
+            - generic [ref=e388]:
+              - generic [ref=e389]: Budget Inputs
+              - paragraph [ref=e390]: Configurator and allocator budget artifacts synced from build/bundle payloads.
+            - generic [ref=e391]:
+              - generic [ref=e392]:
+                - generic [ref=e393]: Budget
+                - generic [ref=e394]: No JSON output yet.
+              - generic [ref=e395]:
+                - generic [ref=e396]: Price List
+                - generic [ref=e397]: No JSON output yet.
+              - generic [ref=e398]:
+                - generic [ref=e399]: Receipt
+                - generic [ref=e400]: No JSON output yet.
+      - tabpanel [ref=e401]:
+        - generic [ref=e402]:
+          - generic [ref=e403]:
+            - generic [ref=e404]: Adapter Playground
+            - paragraph [ref=e405]: Live mode only. Development fixtures should be run from CLI workflows.
+          - generic [ref=e406]:
+            - generic [ref=e407]:
+              - text: IPFS Gateway
+              - textbox "IPFS Gateway" [ref=e408]: https://ipfs.io/ipfs
+            - generic [ref=e409]:
+              - text: IPFS CID
+              - textbox "IPFS CID" [ref=e410]:
+                - /placeholder: bafy...
+            - generic [ref=e411]:
+              - text: IPFS Path
+              - textbox "IPFS Path" [ref=e412]:
+                - /placeholder: optional/path.json
+            - generic [ref=e413]:
+              - text: RPC URL
+              - textbox "RPC URL" [ref=e414]: http://localhost:8545
+            - generic [ref=e415]:
+              - text: Address
+              - textbox "Address" [ref=e416]: "0xabc"
+            - generic [ref=e417]:
+              - text: Prompt
+              - textbox "Prompt" [ref=e418]: hello
+          - generic [ref=e419]:
+            - button "Run IPFS" [ref=e420] [cursor=pointer]
+            - button "Run Blockchain" [ref=e421] [cursor=pointer]
+            - button "Run LLM" [ref=e422] [cursor=pointer]
+            - button "Run Solver" [ref=e423] [cursor=pointer]
+            - button "Clear" [ref=e424] [cursor=pointer]
+          - generic [ref=e425]: Ready in live mode.
+          - generic [ref=e426]:
+            - generic [ref=e427]: Orchestrator JSON Output
+            - generic [ref=e428]: No JSON output yet.
