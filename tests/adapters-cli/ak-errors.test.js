@@ -29,10 +29,11 @@ const INVALID_PLAN = resolve(
   "tests/fixtures/artifacts/invalid/plan-artifact-v2.json",
 );
 
-function runCliExpectFailure(args) {
+function runCliExpectFailure(args, options = {}) {
   const result = spawnSync(process.execPath, [CLI, ...args], {
     cwd: ROOT,
     encoding: "utf8",
+    ...options,
   });
   assert.notEqual(result.status, 0, "Expected CLI to fail");
   return result;
@@ -106,9 +107,20 @@ test("cli run rejects missing args", () => {
   assert.match(result.stderr, /run requires --sim-config and --initial-state/);
 });
 
+test("cli run rejects missing --from-run artifacts", () => {
+  const tempDir = createTempDir("agent-kernel-cli-error-from-run-");
+  const result = runCliExpectFailure(["run", "--from-run", "run_missing"], { cwd: tempDir });
+  assert.match(result.stderr, /--from-run could not find artifacts for run run_missing/);
+});
+
 test("cli replay rejects missing tick frames", () => {
   const result = runCliExpectFailure(["replay", "--sim-config", "x", "--initial-state", "y"]);
   assert.match(result.stderr, /replay requires --sim-config, --initial-state, and --tick-frames/);
+});
+
+test("cli narrate rejects missing args", () => {
+  const result = runCliExpectFailure(["narrate"]);
+  assert.match(result.stderr, /narrate requires --tick-frames and --initial-state/);
 });
 
 test("cli ipfs rejects missing cid", () => {

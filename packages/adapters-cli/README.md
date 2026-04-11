@@ -34,6 +34,27 @@ Default output layout: `artifacts/runs/<runId>/<command>`. Older layouts
 (`artifacts/build_<runId>`, `artifacts/<command>_<timestamp>`) can be preserved
 by passing `--out-dir`.
 
+### Structured stdout contract
+The automation-facing authoring and execution commands emit exactly one JSON object line to stdout on success:
+`build`, `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan`, `run`, `inspect`, `narrate`, `llm-plan`, `scenario`, `show`, `diff`, and `runs list`.
+
+Success shape:
+```json
+{"ok":true,"command":"create","runId":"run_123","outDir":"/abs/path/artifacts/runs/run_123/create","actorIds":["delver_1"],"roomIds":["room_1"],"artifactPaths":{"request":"/abs/path/.../request.json","plan":"/abs/path/.../plan.json","bundle":"/abs/path/.../bundle.json"}}
+```
+
+Notes:
+- `artifactPaths` contains absolute paths for the emitted artifacts that exist for that command.
+- `actorIds` and `roomIds` are included when they can be derived from the emitted or input artifacts.
+- Incidental human-readable logs are written to stderr or suppressed so stdout remains machine-parseable.
+
+Error shape:
+```json
+{"ok":false,"command":"create","error":"create requires at least one authored object via --room, --floor-tile, --trap, --delver, or --warden."}
+```
+
+Errors still exit non-zero.
+
 ### `build`
 Agent-only builder that consumes a single JSON build spec and emits mapped artifacts
 for downstream personas (intent/plan, optional solver artifacts, configurator outputs,
@@ -43,9 +64,10 @@ Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; prov
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
 
 ### `llm-plan`
-Runs the Orchestrator LLM session against a scenario fixture and emits build outputs
+Runs the Orchestrator LLM session against a scenario fixture or freeform text and emits build outputs
 plus a captured LLM artifact for replay. Requires `AK_LLM_LIVE=1` to query the LLM.
-If `AK_LLM_LIVE` is off, the command falls back to the scenario's `summaryPath` fixture.
+If `AK_LLM_LIVE` is off, scenario mode falls back to the scenario's `summaryPath` fixture. Text mode can
+still run offline by using `--fixture` or the default stub summary fixture.
 Fixture responses are required unless `AK_ALLOW_NETWORK=1` or the base URL is local.
 Strict mode (`AK_LLM_STRICT=1`) disables repair/sanitization; contract errors fail the
 flow but still emit a capture artifact with `payload.errors`.
@@ -68,12 +90,68 @@ to feed sequential LLM responses.
 
 Inputs/outputs:
 - Input: `--scenario path` (E2E scenario JSON with catalog + summary paths) or
-  `--prompt` + `--catalog` for prompt-only mode, plus `--model`,
+  `--text`/`--prompt` + `--catalog` for direct freeform mode, plus `--model`,
   optional `--goal`/`--budget-tokens`, `--fixture` for deterministic responses,
   `--run-id`, `--created-at`, optional `--budget-pool`/`--budget-reserve`.
 - Output dir: `artifacts/runs/<runId>/llm-plan` by default, or `--out-dir`.
 - Outputs: `spec.json`, `intent.json`, `plan.json`, optional `sim-config.json`, `initial-state.json`,
   `budget-allocation.json` (budget loop), `captured-input-llm-*.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+
+### `scenario`
+Single natural-language entrypoint that composes `llm-plan --text`, `run`, and `inspect`
+into one deterministic pipeline for automation callers. It also supports `--from-run <runId>`
+to resume from a prior run's emitted `sim-config.json` and `initial-state.json` without manual
+path wiring. It stays in the CLI adapter layer and reuses the existing command kernel
+implementations for each stage.
+
+Inputs/outputs:
+- Input: either `--text` + `--catalog`, optional `--model`, `--goal`, `--budget-tokens`,
+  `--base-url`, `--fixture`, optional budget-loop flags, `--created-at`; or `--from-run <runId>`
+  to reuse prior stage outputs discovered under `artifacts/runs/<runId>/*`. Both modes accept
+  `--ticks`, `--seed`, `--wasm`, optional `--run-id`, and `--out-dir`.
+- Output dir: `artifacts/runs/<runId>` by default, or `--out-dir` as the pipeline root.
+- Outputs: `llm-plan/spec.json`, `llm-plan/sim-config.json`, `llm-plan/initial-state.json`,
+  `run/tick-frames.json`, `run/effects-log.json`, `run/run-summary.json`, and
+  `inspect/inspect-summary.json`. In `--from-run` mode the scenario summary also includes
+  `source_sim_config` and `source_initial_state`.
+
+### `show`
+Queries a prior run and prints a structured summary of the generated actors, rooms, artifacts,
+and budget spend. This is the read-only follow-up command for automation callers that need to
+inspect what a previous run created without rerunning the pipeline.
+
+Inputs/outputs:
+- Input: `--run-id <runId>`.
+- Stdout: structured JSON including `runId`, `actors[]`, `rooms[]`, `artifactPaths{}`, and
+  `budgetSpend`.
+- Error: structured JSON error when the requested run directory does not exist under the selected
+  output root.
+
+### `diff`
+Compares two previously recorded runs without rerunning the pipeline. It reuses the same
+artifact discovery rules as `run --from-run`: source `sim-config.json` / `initial-state.json`
+come from the resolved run source directory, while `tick-frames.json` and `run-summary.json`
+come from the highest-priority execution stage under each run (`run`, then `replay`, then
+other run-like stages).
+
+Inputs/outputs:
+- Input: `--run-a <runId>` and `--run-b <runId>`.
+- Stdout: structured JSON including per-run tick totals, effect totals, damage totals,
+  per-actor presence/vitals/damage, and `divergesAtTick` with the first mismatched normalized
+  frame summary when the runs stop matching.
+- Error: structured JSON error when either run directory is missing or no comparable run outputs
+  can be found.
+
+### `runs list`
+Lists prior runs from the output root with their status, inputs, and key outputs in newest-first
+order. This is the index command for automation callers that need to enumerate recent runs before
+drilling into a specific `runId` with `show`.
+
+Inputs/outputs:
+- Input: optional `--limit N`, `--since <ISO date>`, and `--out-dir`.
+- Stdout: JSON array of run summaries sorted newest-first:
+  `[{runId, createdAt, command, actorCount, roomCount, ticks, outDir}]`
+- `--limit N` caps the number of returned runs.
 
 ### `create` / `configure`
 Generic additive agent-facing authoring commands that normalize freeform text plus
@@ -273,6 +351,7 @@ Example usage:
 node packages/adapters-cli/src/cli/ak.mjs build --spec tests/fixtures/artifacts/build-spec-v1-basic.json --out-dir artifacts/build_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_loop_demo
+node packages/adapters-cli/src/cli/ak.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_text_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
 node packages/adapters-cli/src/cli/ak.mjs create --text "Create a fire room with a trap, one delver, and one warden." --room "size=large;count=1;affinities=fire:emit:3" --floor-tile "count=18" --trap "x=2;y=2;affinity=fire;expression=push;stacks=2" --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" --warden "count=1;affinity=fire;motivation=defending" --run-id run_create_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/create_demo
 node packages/adapters-cli/src/cli/ak.mjs configure --text "Configure the trap layout for the room." --room "size=small;count=1" --trap "id=trap_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1" --run-id run_configure_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/configure_demo
@@ -287,6 +366,7 @@ node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity
 node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
+node packages/adapters-cli/src/cli/ak.mjs run --from-run run_fixture --ticks 5 --progress 2>&1 >/dev/null
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --out-dir path/to/out
@@ -331,6 +411,7 @@ node packages/adapters-cli/src/cli/ak.mjs blockchain-load --rpc-url http://local
 node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/ak.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1" --run-id run_room_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire" --run-id run_delver_plan_fixture --created-at 2025-01-01T00:00:00Z

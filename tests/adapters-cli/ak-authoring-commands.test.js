@@ -149,6 +149,66 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   );
 });
 
+test("cli create dry-run validates authored requests without writing artifacts", () => {
+  const rootDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-dry-run-"));
+  const outDir = join(rootDir, "out");
+  const result = runCliOk([
+    "create",
+    "--dry-run",
+    "--text",
+    "Create one fire delver within a total budget of 200 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;goals=max_mana,mana_regen",
+    "--budget-tokens",
+    "200",
+    "--run-id",
+    "run_create_dry_run",
+    "--created-at",
+    "2026-04-10T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const summary = JSON.parse(result.stdout.trim());
+  assert.equal(summary.ok, true);
+  assert.equal(summary.command, "create");
+  assert.equal(summary.valid, true);
+  assert.equal(summary.dryRun, true);
+  assert.equal(summary.runId, "run_create_dry_run");
+  assert.equal(summary.outDir, outDir);
+  assert.equal(summary.budgetEstimate.total, 200);
+  assert.equal(existsSync(join(outDir, "spec.json")), false);
+  assert.equal(existsSync(join(outDir, "bundle.json")), false);
+});
+
+test("cli create dry-run returns valid false for infeasible budgets and still exits cleanly", () => {
+  const rootDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-dry-run-invalid-"));
+  const outDir = join(rootDir, "out");
+  const result = runCli([
+    "create",
+    "--dry-run",
+    "--room",
+    "affinities=dark:emit:2,water:emit:2",
+    "--budget-tokens",
+    "40",
+    "--run-id",
+    "run_create_dry_run_invalid",
+    "--created-at",
+    "2026-04-10T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  assert.equal(result.status, 0);
+  const summary = JSON.parse(result.stdout.trim());
+  assert.equal(summary.ok, true);
+  assert.equal(summary.command, "create");
+  assert.equal(summary.valid, false);
+  assert.equal(summary.dryRun, true);
+  assert.match(summary.errors[0], /insufficient_budget/i);
+  assert.equal(existsSync(join(outDir, "spec.json")), false);
+});
+
 test("cli configure preserves generic parsing but records configure action", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-configure-authoring-"));
   runCliOk([

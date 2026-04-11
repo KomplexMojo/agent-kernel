@@ -164,6 +164,12 @@ const CATALOG = [
     fields: ["meta", "intentRef", "planRef", "simConfigRef", "budgetReceiptRef", "outcome"],
   },
   {
+    schema: "agent-kernel/NarrativeArtifact",
+    schemaVersion: 1,
+    description: "Human-readable turn-by-turn story derived from tick frames.",
+    fields: ["meta", "source", "cast", "summary", "story", "turns"],
+  },
+  {
     schema: "agent-kernel/ResourceBundleArtifact",
     schemaVersion: 1,
     description: "Visual resource bundle for rendering.",

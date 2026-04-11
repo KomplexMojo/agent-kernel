@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, writeFileSync, readFileSync, existsSync } = require("node:fs");
+const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
 
@@ -140,6 +140,117 @@ test("cli run writes tick frames and logs", (t) => {
   assert.ok(frames.length > 0);
   assert.ok(Array.isArray(runtimeDecisionCaptures));
   assert.equal(frames[0].schema, "agent-kernel/TickFrame");
+});
+
+test("cli run --progress emits JSON lines to stderr without polluting stdout", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH}`);
+    return;
+  }
+  const workDir = makeTempDir("agent-kernel-run-progress-");
+  const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
+  const outDir = join(workDir, "out");
+
+  const result = runCli([
+    "run",
+    "--sim-config",
+    simConfigPath,
+    "--initial-state",
+    initialStatePath,
+    "--ticks",
+    "2",
+    "--progress",
+    "--wasm",
+    WASM_PATH,
+    "--out-dir",
+    outDir,
+  ]);
+
+  const stdoutSummary = JSON.parse(result.stdout.trim());
+  const stderrLines = result.stderr.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+
+  assert.equal(stdoutSummary.ok, true);
+  assert.equal(stdoutSummary.command, "run");
+  assert.equal(stderrLines.length, 3);
+  assert.deepEqual(
+    stderrLines.map((line) => ({
+      progress: line.progress,
+      tick: line.tick,
+      phase: line.phase,
+      done: line.done,
+    })),
+    [
+      { progress: true, tick: 1, phase: "emit", done: undefined },
+      { progress: true, tick: 2, phase: "emit", done: undefined },
+      { progress: true, tick: undefined, phase: undefined, done: true },
+    ],
+  );
+  assert.equal(stderrLines[2].totalTicks, 2);
+});
+
+test("cli run resolves sim artifacts from --from-run", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH}`);
+    return;
+  }
+  const workspaceDir = makeTempDir("agent-kernel-run-from-run-");
+  const sourceRunId = "run_source_fixture";
+  const sourceDir = join(workspaceDir, "artifacts", "runs", sourceRunId, "build");
+  const outDir = join(workspaceDir, "artifacts", "runs", "run_from_source", "run");
+
+  mkdirSync(sourceDir, { recursive: true });
+  createSimArtifacts(sourceDir);
+
+  runCli(
+    [
+      "run",
+      "--from-run",
+      sourceRunId,
+      "--ticks",
+      "1",
+      "--wasm",
+      WASM_PATH,
+      "--run-id",
+      "run_from_source",
+      "--out-dir",
+      outDir,
+    ],
+    { cwd: workspaceDir },
+  );
+
+  assert.ok(existsSync(join(outDir, "tick-frames.json")));
+  assert.ok(existsSync(join(outDir, "effects-log.json")));
+  assert.ok(existsSync(join(outDir, "run-summary.json")));
+});
+
+test("cli run dry-run validates sim artifacts without executing runtime outputs", () => {
+  const workDir = makeTempDir("agent-kernel-run-dry-run-");
+  const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
+  const outDir = join(workDir, "out");
+
+  const result = runCli([
+    "run",
+    "--dry-run",
+    "--sim-config",
+    simConfigPath,
+    "--initial-state",
+    initialStatePath,
+    "--ticks",
+    "1",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const summary = JSON.parse(result.stdout.trim());
+  assert.equal(summary.ok, true);
+  assert.equal(summary.command, "run");
+  assert.equal(summary.valid, true);
+  assert.equal(summary.dryRun, true);
+  assert.equal(summary.outDir, outDir);
+  assert.equal(summary.ticks, 1);
+  assert.deepEqual(summary.actorIds, ["actor_1"]);
+  assert.equal(existsSync(join(outDir, "tick-frames.json")), false);
+  assert.equal(existsSync(join(outDir, "run-summary.json")), false);
 });
 
 test("cli replay writes replay summary", (t) => {

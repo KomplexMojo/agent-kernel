@@ -150,6 +150,19 @@ function parsePositiveNumber(value, label) {
   return parsed;
 }
 
+function resolveDefaultLlmFixturePath({ resolvePath, exists, cwd }) {
+  const candidates = [
+    resolvePath("tests/fixtures/adapters/llm-generate-summary.json"),
+    resolvePath("tests/fixtures/adapters/llm-generate-summary.json", cwd()),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (exists(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 function unwrapCodeFence(text) {
   if (!text) return text;
   const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
@@ -815,6 +828,8 @@ export function createCommandKernel(host = {}) {
   }
 
   async function run(args) {
+    const commandLog = typeof args?.log === "function" ? args.log : log;
+    const onTickProgress = typeof args?.onTickProgress === "function" ? args.onTickProgress : null;
     const loadCore = requireHostFunction(host, "loadCore");
     const defaultWasmPath = typeof host.defaultWasmPath === "function" ? host.defaultWasmPath() : "build/core-as.wasm";
     const simConfigPath = resolvePath(args["sim-config"]);
@@ -943,7 +958,17 @@ export function createCommandKernel(host = {}) {
     const runtime = createRuntime({ core, adapters: {}, runId, clock });
     await runtime.init({ seed, simConfig, initialState, clock });
     for (let i = 0; i < ticks; i += 1) {
+      const effectCountBeforeStep = runtime.getEffectLog().length;
       await runtime.step();
+      if (onTickProgress) {
+        const effectCountAfterStep = runtime.getEffectLog().length;
+        await onTickProgress({
+          progress: true,
+          tick: i + 1,
+          phase: "emit",
+          effectsEmitted: effectCountAfterStep - effectCountBeforeStep,
+        });
+      }
     }
 
     const tickFrames = runtime.getTickFrames();
@@ -975,7 +1000,15 @@ export function createCommandKernel(host = {}) {
       await writeJson(join(outDir, "resolved-initial-state.json"), initialState);
     }
 
-    log(`run: wrote ${outDir}`);
+    if (onTickProgress) {
+      await onTickProgress({
+        progress: true,
+        done: true,
+        totalTicks: ticks,
+      });
+    }
+
+    commandLog(`run: wrote ${outDir}`);
     return { outDir };
   }
 
@@ -1623,13 +1656,22 @@ export function createCommandKernel(host = {}) {
 
   async function llmPlan(args) {
     const scenarioPath = resolvePath(args.scenario);
+    const textRaw = args.text;
     const promptRaw = args.prompt;
     const catalogOverride = resolvePath(args.catalog);
     const goalOverride = args.goal;
     const budgetTokensRaw = args["budget-tokens"];
     const model = args.model || readEnv(host.env, "AK_LLM_MODEL") || DEFAULT_LLM_MODEL;
     const baseUrl = args["base-url"] || readEnv(host.env, "AK_LLM_BASE_URL") || DEFAULT_LLM_BASE_URL;
-    const fixturePath = resolvePath(args.fixture);
+    const promptInput = isNonEmptyString(promptRaw)
+      ? promptRaw
+      : isNonEmptyString(textRaw)
+        ? textRaw
+        : undefined;
+    const fixturePath = resolvePath(args.fixture)
+      || (!scenarioPath && isNonEmptyString(textRaw)
+        ? resolveDefaultLlmFixturePath({ resolvePath, exists, cwd })
+        : null);
     const runId = args["run-id"] || makeId("run");
     const createdAt = args["created-at"] || nowIso();
     const outDir = resolvePath(args["out-dir"]) || defaultLlmPlanOutDir(runId);
@@ -1637,8 +1679,8 @@ export function createCommandKernel(host = {}) {
     if (!scenarioPath && !catalogOverride) {
       throw new Error("llm-plan requires --scenario or --catalog.");
     }
-    if (!scenarioPath && !isNonEmptyString(promptRaw)) {
-      throw new Error("llm-plan requires --prompt when --scenario is omitted.");
+    if (!scenarioPath && !isNonEmptyString(promptInput)) {
+      throw new Error("llm-plan requires --text or --prompt when --scenario is omitted.");
     }
 
     let budgetTokens;
@@ -1697,13 +1739,13 @@ export function createCommandKernel(host = {}) {
 
     const goal = isNonEmptyString(goalOverride)
       ? goalOverride
-      : scenario?.goal || "LLM planning request";
+      : scenario?.goal || promptInput || "LLM planning request";
     const resolvedBudgetTokens = budgetTokens !== undefined ? budgetTokens : scenario?.budgetTokens;
     if (!Number.isFinite(resolvedBudgetTokens) || resolvedBudgetTokens <= 0) {
       throw new Error("llm-plan requires --budget-tokens or scenario.budgetTokens > 0.");
     }
     const prompt = injectBudgetTokens(
-      isNonEmptyString(promptRaw) ? promptRaw : undefined,
+      promptInput,
       resolvedBudgetTokens,
     );
     const notes = [
@@ -1728,6 +1770,7 @@ export function createCommandKernel(host = {}) {
     const llmFormat = readEnv(host.env, "AK_LLM_FORMAT");
 
     const liveEnabled = isLlmLiveEnabled();
+    const adapterFlowEnabled = liveEnabled || Boolean(fixturePath);
     let capture = null;
     let captures = [];
     let summary = null;
@@ -1738,7 +1781,7 @@ export function createCommandKernel(host = {}) {
     let budgetPoolBudgets = null;
     let budgetPoolPolicy = null;
 
-    if (liveEnabled) {
+    if (adapterFlowEnabled) {
       if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
         throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
       }
@@ -1906,7 +1949,7 @@ export function createCommandKernel(host = {}) {
       if (isNonEmptyString(goal)) {
         summaryForSpec.goal = goal;
       }
-      if (Number.isFinite(resolvedBudgetTokens) && summaryForSpec.budgetTokens === undefined) {
+      if (Number.isFinite(resolvedBudgetTokens)) {
         summaryForSpec.budgetTokens = resolvedBudgetTokens;
       }
     }

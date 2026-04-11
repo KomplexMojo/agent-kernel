@@ -392,6 +392,41 @@ test("cli llm-plan supports prompt-only mode with catalog", () => {
   assert.ok(capture.payload.prompt.includes("Budget tokens: 800"));
 });
 
+test("cli llm-plan supports text mode without an explicit fixture", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-text-"));
+  runCli(
+    [
+      "llm-plan",
+      "--text",
+      "a dungeon with two fire delvers",
+      "--catalog",
+      "tests/fixtures/pool/catalog-basic.json",
+      "--budget-tokens",
+      "200",
+      "--run-id",
+      "run_llm_plan_text",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "0" },
+  );
+
+  const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
+  assert.equal(spec.intent.goal, "a dungeon with two fire delvers");
+  assert.equal(spec.intent.hints.budgetTokens, 200);
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntry = manifest.artifacts.find(
+    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+  );
+  assert.ok(captureEntry);
+  const capture = JSON.parse(readFileSync(join(outDir, captureEntry.path), "utf8"));
+  assert.ok(capture.payload.prompt.includes("a dungeon with two fire delvers"));
+  assert.ok(capture.payload.prompt.includes("Budget tokens: 200"));
+});
+
 test("cli llm-plan falls back to scenario summary when AK_LLM_LIVE is off", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-fallback-"));
   runCli(
