@@ -1,5 +1,11 @@
 {
   "name": "adapters-cli",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "bin": {
+    "ak-mcp": "src/mcp/server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
 }

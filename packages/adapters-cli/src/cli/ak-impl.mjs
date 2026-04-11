@@ -5642,7 +5642,7 @@ async function runsCommand(argv) {
   emitJsonStdout(await summarizeRunsIndex({ rootDir }));
 }
 
-const COMMANDS = {
+export const COMMANDS = {
   build: buildCommand,
   schemas: schemasCommand,
   solve: solveCommand,
@@ -5672,20 +5672,27 @@ const COMMANDS = {
   runs: runsCommand,
 };
 
-async function main() {
-  const [command, ...rest] = process.argv.slice(2);
+export async function executeCommand(command, rest = []) {
+  const handler = COMMANDS[command];
+  if (!handler) {
+    throw new Error(`Unknown command: ${command}`);
+  }
+  await handler(rest);
+}
+
+export async function main(argv = process.argv.slice(2)) {
+  const [command, ...rest] = argv;
   if (!command || command === "help" || command === "--help" || command === "-h") {
     console.log(usage());
     return;
   }
-  const handler = COMMANDS[command];
-  if (!handler) {
+  if (!COMMANDS[command]) {
     console.error(`Unknown command: ${command}`);
     console.log(usage());
     process.exit(1);
   }
   try {
-    await handler(rest);
+    await executeCommand(command, rest);
   } catch (error) {
     const message = error?.message || String(error);
     if (STRUCTURED_STDOUT_COMMANDS.has(command)) {
@@ -5702,4 +5709,14 @@ async function main() {
   }
 }
 
-await main();
+const isDirectExecution = (() => {
+  const scriptPath = process.argv[1];
+  if (!scriptPath) {
+    return false;
+  }
+  return resolve(scriptPath) === fileURLToPath(import.meta.url);
+})();
+
+if (isDirectExecution) {
+  await main();
+}
