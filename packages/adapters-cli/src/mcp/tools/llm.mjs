@@ -1,0 +1,89 @@
+import {
+  booleanSchema,
+  buildArgv,
+  createTool,
+  DEFAULT_LLM_BASE_URL,
+  DEFAULT_LLM_MODEL,
+  integerSchema,
+  pathSchema,
+  stringArraySchema,
+  stringSchema,
+  withCommonOutput,
+} from "./shared.mjs";
+
+const llmProperties = withCommonOutput({
+  model: stringSchema("LLM model name.", { default: DEFAULT_LLM_MODEL }),
+  prompt: stringSchema("Prompt text."),
+  text: stringSchema("Freeform text input."),
+  scenario: pathSchema("Scenario fixture path."),
+  catalog: pathSchema("Catalog path."),
+  goal: stringSchema("Goal override."),
+  budgetTokens: integerSchema("Hard budget cap in tokens.", { minimum: 1 }),
+  baseUrl: stringSchema("LLM base URL.", { default: DEFAULT_LLM_BASE_URL }),
+  fixture: pathSchema("Fixture response path."),
+  budgetLoop: booleanSchema("Enable budget loop."),
+  budgetPool: stringArraySchema("Budget pool entries in id=weight form."),
+  budgetReserve: integerSchema("Budget reserve before pooling.", { minimum: 0 }),
+});
+
+export const llmTools = [
+  createTool({
+    name: "ak_llm",
+    description: "Run a single LLM prompt against the configured adapter.",
+    command: "llm",
+    inputSchema: {
+      required: ["prompt"],
+      properties: llmProperties,
+    },
+    buildArgs: (args) => buildArgv(args, [
+      { key: "model", defaultValue: DEFAULT_LLM_MODEL },
+      { key: "prompt" },
+      { key: "baseUrl", flag: "base-url", defaultValue: DEFAULT_LLM_BASE_URL },
+      { key: "fixture" },
+      { key: "out" },
+      { key: "outDir", flag: "out-dir" },
+    ]),
+  }),
+  createTool({
+    name: "ak_ollama",
+    description: "Alias for ak_llm using the Ollama-backed CLI command.",
+    command: "ollama",
+    inputSchema: {
+      required: ["prompt"],
+      properties: llmProperties,
+    },
+    buildArgs: (args) => buildArgv(args, [
+      { key: "model", defaultValue: DEFAULT_LLM_MODEL },
+      { key: "prompt" },
+      { key: "baseUrl", flag: "base-url", defaultValue: DEFAULT_LLM_BASE_URL },
+      { key: "fixture" },
+      { key: "out" },
+      { key: "outDir", flag: "out-dir" },
+    ]),
+  }),
+  createTool({
+    name: "ak_llm_plan",
+    description: "Generate runnable artifacts from a scenario or freeform text via the LLM planner.",
+    command: "llm-plan",
+    inputSchema: {
+      properties: llmProperties,
+    },
+    buildArgs: (args) => buildArgv(args, [
+      { key: "scenario" },
+      { key: "text" },
+      { key: "prompt" },
+      { key: "catalog" },
+      { key: "model", defaultValue: DEFAULT_LLM_MODEL },
+      { key: "goal" },
+      { key: "budgetTokens", flag: "budget-tokens" },
+      { key: "baseUrl", flag: "base-url", defaultValue: DEFAULT_LLM_BASE_URL },
+      { key: "fixture" },
+      { key: "budgetLoop", flag: "budget-loop", boolean: true },
+      { key: "budgetPool", flag: "budget-pool", repeatable: true },
+      { key: "budgetReserve", flag: "budget-reserve" },
+      { key: "outDir", flag: "out-dir" },
+      { key: "runId", flag: "run-id" },
+      { key: "createdAt", flag: "created-at" },
+    ]),
+  }),
+];

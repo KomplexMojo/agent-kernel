@@ -1,1 +1,3 @@
-await import("./ak-impl.mjs");
+import { main } from "./ak-impl.mjs";
+
+await main();
