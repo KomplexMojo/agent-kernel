@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
-const port = Number(process.env.PORT) || 8001;
+const DEFAULT_PORT = Number(process.env.PORT) || 8001;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -81,13 +81,21 @@ async function handleStatic(req, res) {
   stream.pipe(res);
 }
 
-function tryListen(portToTry, maxAttempts = 10) {
-  let serverReady = false;
+function createUiServer() {
+  const state = { ready: false };
   const server = createServer((req, res) => {
+    // Redirect root to UI
+    if (req.url === "/" || req.url === "") {
+      res.statusCode = 302;
+      res.setHeader("Location", "/packages/ui-web/index.html");
+      res.end();
+      return;
+    }
+
     // Health check endpoint
     if (req.url === "/health" || req.url === "/health/") {
       setCors(res);
-      if (serverReady) {
+      if (state.ready) {
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ status: "ready" }));
@@ -108,31 +116,58 @@ function tryListen(portToTry, maxAttempts = 10) {
     handleStatic(req, res);
   });
 
-  server.once("error", (err) => {
-    if (err.code === "EADDRINUSE") {
-      const nextPort = portToTry + 1;
-      const remainingAttempts = maxAttempts - 1;
+  return { server, state };
+}
 
-      if (remainingAttempts > 0) {
-        console.warn(`Port ${portToTry} is in use, trying ${nextPort}...`);
-        tryListen(nextPort, remainingAttempts);
-      } else {
-        console.error(`Could not find an available port after ${maxAttempts} attempts.`);
-        process.exit(1);
-      }
-    } else {
-      console.error("Server error:", err);
-      process.exit(1);
+export function listenWithPortFallback({ startPort = DEFAULT_PORT, maxAttempts = 10, hostname = "127.0.0.1" } = {}) {
+  const initialAttempts = maxAttempts;
+
+  return new Promise((resolvePromise, rejectPromise) => {
+    function attempt(portToTry, remainingAttempts) {
+      const { server, state } = createUiServer();
+
+      const onError = (err) => {
+        if (err.code === "EADDRINUSE" && remainingAttempts > 1) {
+          const nextPort = portToTry + 1;
+          console.warn(`Port ${portToTry} is in use, trying ${nextPort}...`);
+          attempt(nextPort, remainingAttempts - 1);
+          return;
+        }
+
+        if (err.code === "EADDRINUSE") {
+          rejectPromise(new Error(`Could not find an available port after ${initialAttempts} attempts.`));
+          return;
+        }
+
+        rejectPromise(err);
+      };
+
+      server.once("error", onError);
+      server.listen(portToTry, hostname, () => {
+        server.off("error", onError);
+        state.ready = true;
+        resolvePromise({
+          port: portToTry,
+          server,
+          url: `http://localhost:${portToTry}/packages/ui-web/index.html`,
+        });
+      });
     }
-  });
 
-  server.listen(portToTry, () => {
-    serverReady = true;
-    const address = server.address();
-    const actualPort = typeof address === "object" && address ? address.port : portToTry;
-    const url = `http://localhost:${actualPort}/packages/ui-web/index.html`;
-    console.log(`\nServing UI at: ${url}\n`);
+    attempt(startPort, maxAttempts);
   });
 }
 
-tryListen(port);
+async function main() {
+  try {
+    const { url } = await listenWithPortFallback();
+    console.log(`\nServing UI at: ${url}\n`);
+  } catch (error) {
+    console.error(error.message || "Server error:", error);
+    process.exit(1);
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}
