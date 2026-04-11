@@ -1,0 +1,99 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - paragraph [ref=e4]: Stitch Shell Rewrite
+    - heading "Echoes of Intent" [level=1] [ref=e5]
+  - generic [ref=e6]:
+    - tablist "Primary workflow tabs" [ref=e8]:
+      - tab "Design" [ref=e9] [cursor=pointer]
+      - tab "Preview" [ref=e10] [cursor=pointer]
+      - tab "Run" [selected] [ref=e11] [cursor=pointer]
+      - tab "Diagnostics" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]:
+      - tabpanel [ref=e450]:
+        - generic [ref=e451]:
+          - generic [ref=e452]:
+            - generic [ref=e453]:
+              - paragraph [ref=e454]: Run Surface
+              - generic [ref=e456]:
+                - generic [ref=e458]: ◈
+                - text: Playing Surface
+            - generic "Run flow context" [ref=e459]:
+              - generic [ref=e460]: Artifact rail
+              - generic [ref=e461]: Inspector synced
+          - generic [ref=e462]: Out of actions
+          - generic [ref=e463]:
+            - generic [ref=e465]: Board State
+            - generic [ref=e467]:
+              - region "Playback controls" [ref=e468]:
+                - generic [ref=e469]: Playback Controls
+                - generic [ref=e470]:
+                  - button "Step -" [ref=e471] [cursor=pointer]
+                  - button "Play" [disabled] [ref=e472]
+                  - button "Step +" [disabled] [ref=e473]
+                  - button "Reset" [ref=e474] [cursor=pointer]
+              - region "Runtime controls" [ref=e475]:
+                - generic [ref=e476]: Runtime Actions
+                - group "Runtime controls" [ref=e477]:
+                  - button "Move up" [ref=e478] [cursor=pointer]: ↑
+                  - button "Move down" [ref=e479] [cursor=pointer]: ↓
+                  - button "Move left" [ref=e480] [cursor=pointer]: ←
+                  - button "Move right" [active] [ref=e481] [cursor=pointer]: →
+                  - button "Cast ability" [ref=e482] [cursor=pointer]: ✦
+      - complementary [ref=e483]:
+        - generic [ref=e485]:
+          - paragraph [ref=e486]: Run Companion
+          - generic [ref=e488]:
+            - generic [ref=e490]: ◈
+            - text: Game Inspector
+          - paragraph [ref=e491]: Select a room, delver, or warden to steer visibility and runtime action focus.
+        - generic [ref=e493]:
+          - generic [ref=e494]:
+            - heading "Room" [level=3] [ref=e496]: 🏛️
+            - button "🏛️ R1-1 📍2,2" [ref=e626] [cursor=pointer]:
+              - 'generic "Type: room" [ref=e628]': 🏛️
+              - generic [ref=e629]: R1-1
+              - generic [ref=e630]: 📍2,2
+          - generic [ref=e503]:
+            - heading "Delver" [level=3] [ref=e505]: ⚔️
+            - button "⚔️ 🔥 ⚔️ card_delver_1-1 📍3,2" [ref=e631] [cursor=pointer]:
+              - generic [ref=e632]:
+                - 'generic "Type: delver" [ref=e633]': ⚔️
+                - 'generic "Affinity: fire" [ref=e634]': 🔥
+                - 'generic "Motivation: attacking" [ref=e635]': ⚔️
+              - generic [ref=e636]: card_delver_1-1
+              - generic [ref=e637]: 📍3,2
+          - generic [ref=e514]:
+            - heading "Warden" [level=3] [ref=e516]: 🛡️
+            - generic [ref=e638]: None
+        - generic [ref=e519]:
+          - generic [ref=e520]: Selected Card
+          - article [ref=e639]:
+            - generic [ref=e640]:
+              - generic [ref=e641]:
+                - 'generic "Type: delver" [ref=e642]': ⚔️
+                - generic [ref=e643]: card_delver_1-1
+              - generic [ref=e644]: 📍3,2
+            - generic [ref=e645]:
+              - 'generic "Affinity: fire" [ref=e646]': 🔥
+              - 'generic "Motivation: attacking" [ref=e647]': ⚔️
+            - generic [ref=e649]:
+              - 'generic "Affinity: fire" [ref=e650]': 🔥
+              - 'generic "Expression: push" [ref=e651]': ⬆️
+              - generic [ref=e652]: fire
+              - generic [ref=e653]: "+2"
+            - generic [ref=e654]:
+              - generic [ref=e655]:
+                - generic "health" [ref=e656]: ❤️
+                - generic [ref=e657]: 1/1/+0
+              - generic [ref=e658]:
+                - generic "mana" [ref=e659]: 🔷
+                - generic [ref=e660]: 29/29/+1
+              - generic [ref=e661]:
+                - generic "stamina" [ref=e662]: 🏃
+                - generic [ref=e663]: 0/1/+1
+              - generic [ref=e664]:
+                - generic "durability" [ref=e665]: ⛓️
+                - generic [ref=e666]: 1/1/+0
+            - generic [ref=e668]:
+              - generic [ref=e669]: 🪙
+              - generic [ref=e670]: "165"
