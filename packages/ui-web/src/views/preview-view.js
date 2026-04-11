@@ -1,10 +1,12 @@
 import { loadCore } from "../../../bindings-ts/src/core-as.js";
 import { readObservation, renderBaseTiles, renderFrameBuffer } from "../../../bindings-ts/src/mvp-movement.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
+import { createLevelBuilderAdapter } from "../../../adapters-web/src/adapters/level-builder/index.js";
 import { computeAuraMap, serializeAuraMap } from "../../../runtime/src/render/affinity-aura.js";
 import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../../../runtime/src/contracts/affinity-spatial-rules.js";
 import { AFFINITY_OPPOSITES } from "../../../runtime/src/contracts/domain-constants.js";
 
+const LEVEL_PREVIEW_IMAGE_PIXEL_FORMAT = "rgba8";
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
 const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "delver", "warden"]);
@@ -56,11 +58,21 @@ function formatMissingCardTypes(types = []) {
   }).join(", ");
 }
 
+function collectPreviewCardSet(spec) {
+  const configuratorCards = Array.isArray(spec?.configurator?.inputs?.cardSet) ? spec.configurator.inputs.cardSet : [];
+  const planCards = Array.isArray(spec?.plan?.hints?.cardSet) ? spec.plan.hints.cardSet : [];
+  const merged = new Map();
+  [...configuratorCards, ...planCards].forEach((card, index) => {
+    if (!card || typeof card !== "object" || Array.isArray(card)) return;
+    const key = card.id ?? `__unnamed_${index}`;
+    merged.set(key, { ...(merged.get(key) || {}), ...card });
+  });
+  return Array.from(merged.values());
+}
+
 export function validatePreviewLaunchBundle(bundle) {
-  const cardSet = Array.isArray(bundle?.spec?.plan?.hints?.cardSet)
-    ? bundle.spec.plan.hints.cardSet
-    : null;
-  if (!cardSet) {
+  const cardSet = collectPreviewCardSet(bundle?.spec);
+  if (cardSet.length === 0) {
     return {
       ok: false,
       reason: "missing_card_set",
@@ -120,6 +132,35 @@ function summarizePreview(simConfig, initialState) {
   return parts.join(" · ");
 }
 
+function clearCanvas(canvas) {
+  const context = canvas?.getContext?.("2d");
+  if (!context || !canvas) return;
+  context.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
+}
+
+function isRenderablePreviewImage(image) {
+  if (!image || typeof image !== "object") return false;
+  if (image.pixelFormat !== LEVEL_PREVIEW_IMAGE_PIXEL_FORMAT) return false;
+  if (!Number.isFinite(image.width) || image.width <= 0) return false;
+  if (!Number.isFinite(image.height) || image.height <= 0) return false;
+  if (!(image.pixels instanceof Uint8ClampedArray)) return false;
+  return image.pixels.length === image.width * image.height * 4;
+}
+
+function renderPreviewImageToCanvas(canvas, image) {
+  if (!canvas || !isRenderablePreviewImage(image)) return false;
+  const context = canvas.getContext?.("2d");
+  if (!context || typeof context.createImageData !== "function" || typeof context.putImageData !== "function") {
+    return false;
+  }
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const imageData = context.createImageData(image.width, image.height);
+  imageData.data.set(image.pixels);
+  context.putImageData(imageData, 0, 0);
+  return true;
+}
+
 export function wirePreviewView({
   root = document,
   loadCoreFn = loadCore,
@@ -128,9 +169,11 @@ export function wirePreviewView({
   renderFrame = renderFrameBuffer,
   renderBase = renderBaseTiles,
   readObservationFn = readObservation,
+  levelBuilderAdapter = null,
   onBuildAndLoadGame,
 } = {}) {
   const buildButton = root.querySelector("#preview-build-and-load");
+  const canvasEl = root.querySelector("#preview-render-canvas");
   const frameEl = root.querySelector("#preview-frame-buffer");
   const statusEl = root.querySelector("#preview-status");
   const summaryEl = root.querySelector("#preview-summary");
@@ -141,6 +184,58 @@ export function wirePreviewView({
   let loadingCore = null;
   let lastBundle = null;
   let buildingGame = false;
+  let levelBuilder = levelBuilderAdapter;
+  let renderRequestId = 0;
+
+  function ensureLevelBuilder() {
+    if (levelBuilder) return levelBuilder;
+    levelBuilder = createLevelBuilderAdapter({ forceInProcess: typeof Worker !== "function" });
+    return levelBuilder;
+  }
+
+  function showAsciiFrame() {
+    if (canvasEl) {
+      clearCanvas(canvasEl);
+      canvasEl.hidden = true;
+    }
+    if (frameEl) {
+      frameEl.hidden = false;
+    }
+  }
+
+  async function renderPreviewImage({ tiles = [], floorAffinityTraps = [] } = {}) {
+    if (!canvasEl || !Array.isArray(tiles) || tiles.length === 0) {
+      showAsciiFrame();
+      return false;
+    }
+    try {
+      const requestId = ++renderRequestId;
+      const result = await ensureLevelBuilder().buildFromTiles({
+        tiles,
+        renderOptions: {
+          includeAscii: false,
+          includeImage: true,
+          floorAffinityTraps,
+        },
+      });
+      if (requestId !== renderRequestId) {
+        return false;
+      }
+      const rendered = renderPreviewImageToCanvas(canvasEl, result?.image);
+      if (!rendered) {
+        showAsciiFrame();
+        return false;
+      }
+      canvasEl.hidden = false;
+      if (frameEl) {
+        frameEl.hidden = true;
+      }
+      return true;
+    } catch (_error) {
+      showAsciiFrame();
+      return false;
+    }
+  }
 
   async function ensureCore() {
     if (core) return core;
@@ -163,6 +258,8 @@ export function wirePreviewView({
     level = "info",
   ) {
     lastBundle = null;
+    renderRequestId += 1;
+    showAsciiFrame();
     setText(frameEl, "No preview loaded.");
     setText(summaryEl, "No preview bundle loaded.");
     setText(actorsEl, "No actors loaded.");
@@ -239,24 +336,24 @@ export function wirePreviewView({
         }
       }
 
+      const baseTiles = renderBase(runtimeCore);
       const frame = hasActors
         ? renderFrame(runtimeCore, { actorIdLabel })
         : {
           tick: 0,
-          baseTiles: renderBase(runtimeCore),
-          buffer: renderBase(runtimeCore),
+          baseTiles,
+          buffer: baseTiles,
         };
       const observation = hasActors
         ? readObservationFn(runtimeCore, { actorIdLabel, actorIds })
         : { actors: [] };
 
-      // Compute and attach aura map to observation (same as runtime-fsm.mjs lines 206-213)
+      // Compute and attach aura map to observation (mirrors runtime-fsm.mjs)
       // Include traps as pseudo-actors for aura computation
       if (observation && frame?.baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.traps))) {
         const actors = Array.isArray(observation.actors) ? observation.actors : [];
         const traps = Array.isArray(observation.traps) ? observation.traps : [];
 
-        // Convert traps to pseudo-actors for aura computation
         const trapActors = traps.map((trap, index) => ({
           id: `trap_${index}`,
           x: trap.position?.x ?? 0,
@@ -272,7 +369,15 @@ export function wirePreviewView({
         observation.auras = serializeAuraMap(auraMap, INTERACTION_MATRIX, SPATIAL_WEIGHTS);
       }
 
+      const previewTiles = Array.isArray(frame?.baseTiles) && frame.baseTiles.length > 0
+        ? frame.baseTiles
+        : baseTiles;
+
       setText(frameEl, Array.isArray(frame?.buffer) ? frame.buffer.join("\n") : "No preview frame available.");
+      await renderPreviewImage({
+        tiles: previewTiles,
+        floorAffinityTraps: Array.isArray(simConfig?.layout?.data?.traps) ? simConfig.layout.data.traps : [],
+      });
       setText(summaryEl, summarizePreview(simConfig, initialState));
       setText(
         actorsEl,
@@ -304,5 +409,11 @@ export function wirePreviewView({
     loadBundle,
     clear: clearPreview,
     getLastBundle: () => lastBundle,
+    dispose() {
+      if (levelBuilder && typeof levelBuilder.dispose === "function" && levelBuilder !== levelBuilderAdapter) {
+        levelBuilder.dispose();
+      }
+      levelBuilder = levelBuilderAdapter;
+    },
   };
 }
