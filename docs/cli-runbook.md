@@ -114,8 +114,9 @@ emit the same preview-ready handoff set:
 - `telemetry.json`
 - `resource-bundle.json`
 
-`create`/`configure` also emit `request.json` (`AgentCommandRequestArtifact`) plus any budget,
-solver, and spend artifacts produced during the build.
+`create`/`configure` embed the canonical normalized request in `spec.authoring.request`.
+Use `--emit-intermediates` when you also want `request.json` plus any budget, solver, spend,
+or capture sidecars produced during the build.
 
 The CLI JSON success summary includes `artifactPaths` plus a `preview` block with:
 - `ready`
@@ -143,8 +144,10 @@ node packages/adapters-cli/src/cli/ak.mjs build \
   --spec tests/fixtures/artifacts/build-spec-v1-basic.json \
   --out-dir artifacts/runs/run_build_demo/build
 ```
-Outputs include `spec.json`, `intent.json`, `plan.json`, optional budget artifacts,
-`sim-config.json`, `initial-state.json`, plus `bundle.json`/`manifest.json`.
+Outputs include `spec.json`, optional budget artifacts, `sim-config.json`,
+`initial-state.json`, `resource-bundle.json`, plus `bundle.json`/`manifest.json`.
+Add `--emit-intermediates` if you also want `intent.json`, `plan.json`, solver traces,
+or captured-input sidecars.
 
 ### 3) LLM-guided plan -> build outputs (fixture or live)
 Scenario-driven (uses catalog + summary fixtures):
@@ -170,7 +173,9 @@ node packages/adapters-cli/src/cli/ak.mjs llm-plan \
   --created-at 2025-01-01T00:00:00Z \
   --out-dir artifacts/runs/run_llm_plan_prompt/llm-plan
 ```
-Outputs include `captured-input-llm-1.json` plus the normal build bundle.
+Outputs include the normal build bundle by default. Add `--emit-intermediates`
+if you also want `captured-input-llm-1.json`, `intent.json`, `plan.json`,
+or `budget-allocation.json`.
 
 ### 4) Build outputs -> run/replay
 Use `run` to produce TickFrames/effects; use `replay` to re-run deterministically.

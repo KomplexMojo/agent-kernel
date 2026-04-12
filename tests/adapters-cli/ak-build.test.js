@@ -38,14 +38,16 @@ test("cli build accepts --spec and writes mapped artifacts", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(existsSync(join(outDir, "spec.json")), true);
-  assert.equal(existsSync(join(outDir, "intent.json")), true);
-  assert.equal(existsSync(join(outDir, "plan.json")), true);
+  assert.equal(existsSync(join(outDir, "intent.json")), false);
+  assert.equal(existsSync(join(outDir, "plan.json")), false);
+  assert.equal(existsSync(join(outDir, "bundle.json")), true);
+  assert.equal(existsSync(join(outDir, "manifest.json")), true);
 });
 
 test("cli build rejects unknown flags", () => {
   const result = runCli(["build", "--spec", SPEC, "--plan", "x"]);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /build only accepts --spec and --out-dir/);
+  assert.match(result.stderr, /build only accepts --spec, --out-dir, and --emit-intermediates/);
 });
 
 test("cli build runs configurator inputs without executing core", () => {
@@ -157,9 +159,27 @@ test("cli build runs solver with fixture hints", () => {
   const result = runCli(["build", "--spec", SOLVER_SPEC, "--out-dir", outDir]);
 
   assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(join(outDir, "solver-request.json")), false);
+  assert.equal(existsSync(join(outDir, "solver-result.json")), false);
+  assert.equal(existsSync(join(outDir, "tick-frames.json")), false);
+});
+
+test("cli build emits intermediate sidecars only when explicitly requested", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-intermediates-"));
+  const result = runCli([
+    "build",
+    "--spec",
+    SOLVER_SPEC,
+    "--emit-intermediates",
+    "--out-dir",
+    outDir,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(join(outDir, "intent.json")), true);
+  assert.equal(existsSync(join(outDir, "plan.json")), true);
   assert.equal(existsSync(join(outDir, "solver-request.json")), true);
   assert.equal(existsSync(join(outDir, "solver-result.json")), true);
-  assert.equal(existsSync(join(outDir, "tick-frames.json")), false);
 });
 
 test("cli build writes inline budget artifacts when refs are absent", () => {
@@ -186,6 +206,33 @@ test("cli build writes inline budget artifacts when refs are absent", () => {
 test("cli build captures adapter outputs as captured input artifacts", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-capture-"));
   const result = runCli(["build", "--spec", ADAPTER_SPEC, "--out-dir", outDir]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
+
+  const capturedEntries = manifest.artifacts.filter(
+    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+  );
+  assert.equal(capturedEntries.length, 0);
+
+  const captureArtifacts = bundle.artifacts.filter(
+    (artifact) => artifact.schema === "agent-kernel/CapturedInputArtifact",
+  );
+  assert.equal(captureArtifacts.length, 0);
+  assert.ok(bundle.schemas.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
+});
+
+test("cli build emits captured input sidecars only when explicitly requested", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-build-capture-intermediates-"));
+  const result = runCli([
+    "build",
+    "--spec",
+    ADAPTER_SPEC,
+    "--emit-intermediates",
+    "--out-dir",
+    outDir,
+  ]);
 
   assert.equal(result.status, 0, result.stderr);
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
@@ -262,6 +309,6 @@ test("cli build defaults to artifacts/runs/<runId>/build under cwd", () => {
   assert.equal(outDir, expectedDir);
   assert.match(result.stderr, /build: wrote /);
   assert.equal(existsSync(join(outDir, "spec.json")), true);
-  assert.equal(existsSync(join(outDir, "intent.json")), true);
-  assert.equal(existsSync(join(outDir, "plan.json")), true);
+  assert.equal(existsSync(join(outDir, "intent.json")), false);
+  assert.equal(existsSync(join(outDir, "plan.json")), false);
 });

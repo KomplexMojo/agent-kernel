@@ -5,7 +5,12 @@ import { fileURLToPath } from "node:url";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
 import { createLlmAdapter } from "../adapters/llm/index.js";
-import { createCommandKernel } from "../../../runtime/src/commands/kernel.js";
+import {
+  buildBuildArtifacts,
+  buildBuildManifestEntries,
+  collectBuildOutputArtifactRecords,
+  createCommandKernel,
+} from "../../../runtime/src/commands/kernel.js";
 import { instantiateCommandRuntimeCoreFromBuffer } from "../../../runtime/src/commands/wasm-core.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
 import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
@@ -58,7 +63,7 @@ import {
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
   plan: "agent-kernel/PlanArtifact",
-  budgetReceipt: "agent-kernel/BudgetReceipt",
+  budgetReceipt: "agent-kernel/BudgetReceiptArtifact",
   budgetArtifact: "agent-kernel/BudgetArtifact",
   budgetReceiptArtifact: "agent-kernel/BudgetReceiptArtifact",
   priceList: "agent-kernel/PriceList",
@@ -98,7 +103,7 @@ function usage() {
     ? filename.slice(base.length + 1)
     : filename;
   return `Usage:
-  node ${rel} build --spec path [--out-dir dir]
+  node ${rel} build --spec path [--out-dir dir] [--emit-intermediates]
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
   node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
@@ -114,15 +119,15 @@ function usage() {
   node ${rel} blockchain-mint --rpc-url url --card path [--owner addr] [--contract addr] [--token-id id] [--fixture-chain-id path] [--fixture-mint path] [--out path] [--out-dir dir]
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
-  node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] | --from-run runId) [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--dry-run]
+  node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId) [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--dry-run]
-  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
-  node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
+  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
 
 Options:
@@ -145,7 +150,7 @@ Options:
   --affinity-summary  Write affinity summary JSON (default: <out-dir>/affinity-summary.json)
   --level-gen     Level generation input path (Configurator levelGen input)
   --actors        Actors input path (object with actors array)
-  --budget-receipt Budget receipt artifact path (BudgetReceipt)
+  --budget-receipt Budget receipt artifact path (BudgetReceiptArtifact)
   --budget        Budget artifact path (BudgetArtifact)
   --price-list    Price list artifact path (PriceList)
   --receipt       Budget receipt artifact path (BudgetReceiptArtifact)
@@ -158,6 +163,7 @@ Options:
   --text          Freeform text for llm-plan; when no fixture is provided, CLI falls back to the default stub summary fixture
   --dungeon-affinity Dungeon affinity for room/delver/warden summary defaults
   --budget-tokens Hard budget cap in tokens. If freeform text also states a budget, they must match.
+  --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --trap          Trap spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...
@@ -1986,11 +1992,8 @@ async function listDirectoryNames(path) {
     .sort((a, b) => a.localeCompare(b));
 }
 
-function buildArtifactPathMap({ outDir, manifestEntries = [], includeRequest = false } = {}) {
+function buildArtifactPathMap({ outDir, manifestEntries = [] } = {}) {
   const artifactPaths = {};
-  if (includeRequest) {
-    artifactPaths.request = join(outDir, "request.json");
-  }
   artifactPaths.spec = join(outDir, "spec.json");
   artifactPaths.bundle = join(outDir, "bundle.json");
   artifactPaths.manifest = join(outDir, "manifest.json");
@@ -2091,7 +2094,6 @@ function buildStructuredSuccessSummary({
   outDir,
   runId,
   manifestEntries = [],
-  includeRequest = false,
   initialState = null,
   simConfig = null,
   spec = null,
@@ -2104,7 +2106,7 @@ function buildStructuredSuccessSummary({
     outDir,
     actorIds: deriveActorIds(initialState),
     roomIds: deriveRoomIds(simConfig),
-    artifactPaths: buildArtifactPathMap({ outDir, manifestEntries, includeRequest }),
+    artifactPaths: buildArtifactPathMap({ outDir, manifestEntries }),
     preview: buildPreviewSummary({
       outDir,
       manifestEntries,
@@ -2131,7 +2133,6 @@ async function readJsonIfExists(path) {
 async function summarizeBuildLikeOutput({
   command,
   outDir,
-  includeRequest = false,
   extra = {},
 } = {}) {
   const manifest = await readJsonIfExists(join(outDir, "manifest.json"));
@@ -2143,7 +2144,6 @@ async function summarizeBuildLikeOutput({
     outDir,
     runId: spec?.meta?.runId || manifest?.correlation?.runId || "",
     manifestEntries: Array.isArray(manifest?.artifacts) ? manifest.artifacts : [],
-    includeRequest,
     initialState,
     simConfig,
     spec,
@@ -3202,7 +3202,7 @@ function buildDryRunFailure({ command, runId, outDir, error } = {}) {
 }
 
 function assertAllowedBuildArgs(args) {
-  const allowed = new Set(["spec", "out-dir"]);
+  const allowed = new Set(["spec", "out-dir", "emit-intermediates"]);
   const unknown = [];
   for (const key of Object.keys(args)) {
     if (key === "_" || key === "help") {
@@ -3216,7 +3216,7 @@ function assertAllowedBuildArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`build only accepts --spec and --out-dir. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`build only accepts --spec, --out-dir, and --emit-intermediates. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3250,6 +3250,7 @@ function assertAllowedRoomPlanArgs(args) {
     "out-dir",
     "run-id",
     "created-at",
+    "emit-intermediates",
   ]);
   const unknown = [];
   for (const key of Object.keys(args)) {
@@ -3264,7 +3265,7 @@ function assertAllowedRoomPlanArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`room-plan only accepts --room, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`room-plan only accepts --room, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, and --emit-intermediates. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3279,6 +3280,7 @@ function assertAllowedDelverPlanArgs(args) {
     "out-dir",
     "run-id",
     "created-at",
+    "emit-intermediates",
   ]);
   const unknown = [];
   for (const key of Object.keys(args)) {
@@ -3293,7 +3295,7 @@ function assertAllowedDelverPlanArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`delver-plan only accepts --delver, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`delver-plan only accepts --delver, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, and --emit-intermediates. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3308,6 +3310,7 @@ function assertAllowedWardenPlanArgs(args) {
     "out-dir",
     "run-id",
     "created-at",
+    "emit-intermediates",
   ]);
   const unknown = [];
   for (const key of Object.keys(args)) {
@@ -3322,7 +3325,7 @@ function assertAllowedWardenPlanArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`warden-plan only accepts --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, and --created-at. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`warden-plan only accepts --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, and --emit-intermediates. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3342,6 +3345,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     "out-dir",
     "run-id",
     "created-at",
+    "emit-intermediates",
   ]);
   if (allowDryRun) {
     allowed.add("dry-run");
@@ -3359,7 +3363,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3382,6 +3386,7 @@ function assertAllowedScenarioArgs(args) {
     "out-dir",
     "run-id",
     "created-at",
+    "emit-intermediates",
     "dry-run",
   ]);
   const unknown = [];
@@ -3397,7 +3402,7 @@ function assertAllowedScenarioArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`scenario only accepts --text, --from-run, --catalog, --model, --goal, --budget-tokens, --base-url, --fixture, --budget-loop, --budget-pool, --budget-reserve, --ticks, --seed, --wasm, --out-dir, --run-id, --created-at, and --dry-run. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`scenario only accepts --text, --from-run, --catalog, --model, --goal, --budget-tokens, --base-url, --fixture, --budget-loop, --budget-pool, --budget-reserve, --ticks, --seed, --wasm, --out-dir, --run-id, --created-at, --emit-intermediates, and --dry-run. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3547,46 +3552,11 @@ async function writeBuildOutputs({
   spec,
   buildResult,
   requestArtifact = null,
+  emitIntermediates = false,
   commandName,
   producedBy,
 } = {}) {
-  if (requestArtifact) {
-    await writeJson(join(outDir, "request.json"), requestArtifact);
-  }
   await writeJson(join(outDir, "spec.json"), spec);
-  await writeJson(join(outDir, "intent.json"), buildResult.intent);
-  await writeJson(join(outDir, "plan.json"), buildResult.plan);
-
-  if (buildResult.budget?.budget) {
-    await writeJson(join(outDir, "budget.json"), buildResult.budget.budget);
-  }
-  if (buildResult.budget?.priceList) {
-    await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
-  }
-  if (buildResult.budgetReceipt) {
-    await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
-  }
-  if (buildResult.spendProposal) {
-    await writeJson(join(outDir, "spend-proposal.json"), buildResult.spendProposal);
-  }
-  if (buildResult.solverRequest) {
-    await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
-  }
-  if (buildResult.solverResult) {
-    await writeJson(join(outDir, "solver-result.json"), buildResult.solverResult);
-  }
-  if (buildResult.simConfig) {
-    await writeJson(join(outDir, "sim-config.json"), buildResult.simConfig);
-  }
-  if (buildResult.initialState) {
-    await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
-  }
-  if (buildResult.affinitySummary) {
-    await writeJson(join(outDir, "affinity-summary.json"), buildResult.affinitySummary);
-  }
-  if (buildResult.resourceBundle) {
-    await writeJson(join(outDir, "resource-bundle.json"), buildResult.resourceBundle);
-  }
 
   const capturedInputs = Array.isArray(buildResult.capturedInputs) ? buildResult.capturedInputs : [];
   const capturedArtifacts = capturedInputs.map((entry, index) => {
@@ -3596,54 +3566,28 @@ async function writeBuildOutputs({
       path: entry?.path || buildCapturedInputPath(artifact?.source?.adapter || "llm", index, artifact?.meta?.id),
     };
   });
-  for (const capture of capturedArtifacts) {
-    await writeJson(join(outDir, capture.path), capture.artifact);
+  const persistedArtifacts = collectBuildOutputArtifactRecords(buildResult, {
+    requestArtifact,
+    capturedInputs: capturedArtifacts,
+    emitIntermediates,
+    includeAffinitySummary: true,
+  });
+  for (const entry of persistedArtifacts) {
+    await writeJson(join(outDir, entry.path), entry.artifact);
   }
 
-  const bundleArtifacts = [];
-  if (requestArtifact) bundleArtifacts.push(requestArtifact);
-  if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
-  if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
-  if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
-  if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
-  if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
-  if (buildResult.spendProposal) bundleArtifacts.push(buildResult.spendProposal);
-  if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
-  if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
-  if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
-  if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
-  if (buildResult.affinitySummary) bundleArtifacts.push(buildResult.affinitySummary);
-  if (buildResult.resourceBundle) bundleArtifacts.push(buildResult.resourceBundle);
-  capturedArtifacts.forEach((capture) => bundleArtifacts.push(capture.artifact));
-
-  bundleArtifacts.sort((a, b) => {
-    if (a.schema === b.schema) {
-      return a.meta.id.localeCompare(b.meta.id);
-    }
-    return a.schema.localeCompare(b.schema);
+  const bundleArtifacts = buildBuildArtifacts(buildResult, {
+    requestArtifact,
+    capturedInputs: capturedArtifacts,
+    emitIntermediates,
+    includeAffinitySummary: true,
   });
 
-  const manifestEntries = [];
-  addManifestEntry(manifestEntries, requestArtifact, "request.json");
-  addManifestEntry(manifestEntries, buildResult.intent, "intent.json");
-  addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
-  addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
-  addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
-  addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
-  addManifestEntry(manifestEntries, buildResult.spendProposal, "spend-proposal.json");
-  addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
-  addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
-  addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
-  addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
-  addManifestEntry(manifestEntries, buildResult.affinitySummary, "affinity-summary.json");
-  addManifestEntry(manifestEntries, buildResult.resourceBundle, "resource-bundle.json");
-  capturedArtifacts.forEach((capture) => addManifestEntry(manifestEntries, capture.artifact, capture.path));
-
-  manifestEntries.sort((a, b) => {
-    if (a.schema === b.schema) {
-      return a.id.localeCompare(b.id);
-    }
-    return a.schema.localeCompare(b.schema);
+  const manifestEntries = buildBuildManifestEntries(buildResult, {
+    requestArtifact,
+    capturedInputs: capturedArtifacts,
+    emitIntermediates,
+    includeAffinitySummary: true,
   });
 
   const schemaEntries = filterSchemaCatalogEntries({
@@ -3689,7 +3633,6 @@ async function writeBuildOutputs({
     outDir,
     runId: spec.meta.runId,
     manifestEntries,
-    includeRequest: Boolean(requestArtifact),
     initialState: buildResult.initialState,
     simConfig: buildResult.simConfig,
     spec,
@@ -4826,6 +4769,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     spec: buildResult.spec,
     buildResult,
     requestArtifact,
+    emitIntermediates: Boolean(args["emit-intermediates"]),
     commandName,
     producedBy: `cli-${commandName}`,
   });
@@ -4967,6 +4911,7 @@ async function roomPlanCommand(argv) {
     outDir,
     spec: buildResult.spec,
     buildResult,
+    emitIntermediates: Boolean(args["emit-intermediates"]),
     commandName: "room-plan",
     producedBy: "cli-room-plan",
   }));
@@ -5102,6 +5047,7 @@ async function delverPlanCommand(argv) {
     outDir,
     spec: buildResult.spec,
     buildResult,
+    emitIntermediates: Boolean(args["emit-intermediates"]),
     commandName: "delver-plan",
     producedBy: "cli-delver-plan",
   }));
@@ -5208,6 +5154,7 @@ async function wardenPlanCommand(argv) {
     outDir,
     spec: buildResult.spec,
     buildResult,
+    emitIntermediates: Boolean(args["emit-intermediates"]),
     commandName: "warden-plan",
     producedBy: "cli-warden-plan",
   }));
@@ -5294,6 +5241,7 @@ async function scenarioCommand(argv) {
       "budget-reserve": args["budget-reserve"],
       "run-id": runId,
       "created-at": args["created-at"],
+      "emit-intermediates": args["emit-intermediates"],
       "out-dir": llmPlanOutDir,
     };
     llmPlanResult = await commandKernel.llmPlan(llmPlanArgs);

@@ -252,7 +252,7 @@ Many tools accept these shared output controls:
 
 ### Authoring
 
-Purpose: turn freeform or structured dungeon/card requests into build-time artifacts such as `spec.json`, `plan.json`, `budget-receipt.json`, `sim-config.json`, and `initial-state.json`.
+Purpose: turn freeform or structured dungeon/card requests into the canonical persisted handoff: `spec.json`, the budget triplet when present, `sim-config.json`, `initial-state.json`, `resource-bundle.json`, `bundle.json`, `manifest.json`, and `telemetry.json`. Use `emitIntermediates=true` to also persist non-canonical sidecars such as `request.json`, `intent.json`, `plan.json`, and captured inputs.
 
 #### `ak_create`
 
@@ -273,6 +273,7 @@ Schema:
 | budgetTokens | integer | no | Minimum 1 |
 | budget | string | no | Budget artifact path |
 | priceList | string | no | Price list artifact path |
+| emitIntermediates | boolean | no | Persist non-canonical sidecar artifacts |
 | outDir | string | no | Output directory override |
 | runId | string | no | Run id override |
 | createdAt | string | no | ISO-8601 timestamp |
@@ -509,6 +510,7 @@ Schema:
 | --- | --- | --- |
 | spec | string | yes |
 | outDir | string | no |
+| emitIntermediates | boolean | no |
 
 Example call:
 
@@ -1125,6 +1127,7 @@ Schema:
 | budgetLoop | boolean | no | Enable layout/actor budget loop |
 | budgetPool | string[] | no | id=weight entries |
 | budgetReserve | integer | no | Minimum 0 |
+| emitIntermediates | boolean | no | Persist non-canonical sidecar artifacts |
 | outDir | string | no | Output directory override |
 | runId | string | no | Run id override |
 | createdAt | string | no | ISO-8601 timestamp |

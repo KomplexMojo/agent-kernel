@@ -21,6 +21,7 @@ const authoringProperties = withCommonOutput({
   budgetTokens: integerSchema("Hard budget cap in tokens.", { minimum: 1 }),
   budget: pathSchema("Budget artifact path."),
   priceList: pathSchema("Price list artifact path."),
+  emitIntermediates: booleanSchema("Persist non-canonical sidecar artifacts."),
   dryRun: booleanSchema("Validate inputs without writing artifacts when supported."),
 });
 
@@ -36,6 +37,7 @@ const authoringSpec = [
   { key: "budgetTokens", flag: "budget-tokens" },
   { key: "budget" },
   { key: "priceList", flag: "price-list" },
+  { key: "emitIntermediates", flag: "emit-intermediates", boolean: true },
   { key: "outDir", flag: "out-dir" },
   { key: "runId", flag: "run-id" },
   { key: "createdAt", flag: "created-at" },
@@ -74,6 +76,7 @@ export const authoringTools = [
         budgetTokens: integerSchema("Hard budget cap in tokens.", { minimum: 1 }),
         budget: pathSchema("Budget artifact path."),
         priceList: pathSchema("Price list artifact path."),
+        emitIntermediates: booleanSchema("Persist non-canonical sidecar artifacts."),
       }),
     },
     buildArgs: (args) => buildArgv(args, [
@@ -83,6 +86,7 @@ export const authoringTools = [
       { key: "budgetTokens", flag: "budget-tokens" },
       { key: "budget" },
       { key: "priceList", flag: "price-list" },
+      { key: "emitIntermediates", flag: "emit-intermediates", boolean: true },
       { key: "outDir", flag: "out-dir" },
       { key: "runId", flag: "run-id" },
       { key: "createdAt", flag: "created-at" },
@@ -101,6 +105,7 @@ export const authoringTools = [
         budgetTokens: integerSchema("Hard budget cap in tokens.", { minimum: 1 }),
         budget: pathSchema("Budget artifact path."),
         priceList: pathSchema("Price list artifact path."),
+        emitIntermediates: booleanSchema("Persist non-canonical sidecar artifacts."),
       }),
     },
     buildArgs: (args) => buildArgv(args, [
@@ -110,6 +115,7 @@ export const authoringTools = [
       { key: "budgetTokens", flag: "budget-tokens" },
       { key: "budget" },
       { key: "priceList", flag: "price-list" },
+      { key: "emitIntermediates", flag: "emit-intermediates", boolean: true },
       { key: "outDir", flag: "out-dir" },
       { key: "runId", flag: "run-id" },
       { key: "createdAt", flag: "created-at" },
@@ -128,6 +134,7 @@ export const authoringTools = [
         budgetTokens: integerSchema("Hard budget cap in tokens.", { minimum: 1 }),
         budget: pathSchema("Budget artifact path."),
         priceList: pathSchema("Price list artifact path."),
+        emitIntermediates: booleanSchema("Persist non-canonical sidecar artifacts."),
       }),
     },
     buildArgs: (args) => buildArgv(args, [
@@ -137,6 +144,7 @@ export const authoringTools = [
       { key: "budgetTokens", flag: "budget-tokens" },
       { key: "budget" },
       { key: "priceList", flag: "price-list" },
+      { key: "emitIntermediates", flag: "emit-intermediates", boolean: true },
       { key: "outDir", flag: "out-dir" },
       { key: "runId", flag: "run-id" },
       { key: "createdAt", flag: "created-at" },

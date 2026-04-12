@@ -40,11 +40,12 @@ The automation-facing authoring and execution commands emit exactly one JSON obj
 
 Success shape:
 ```json
-{"ok":true,"command":"create","runId":"run_123","outDir":"/abs/path/artifacts/runs/run_123/create","actorIds":["delver_1"],"roomIds":["room_1"],"artifactPaths":{"request":"/abs/path/.../request.json","plan":"/abs/path/.../plan.json","bundle":"/abs/path/.../bundle.json"}}
+{"ok":true,"command":"create","runId":"run_123","outDir":"/abs/path/artifacts/runs/run_123/create","actorIds":["delver_1"],"roomIds":["room_1"],"artifactPaths":{"spec":"/abs/path/.../spec.json","bundle":"/abs/path/.../bundle.json","manifest":"/abs/path/.../manifest.json","telemetry":"/abs/path/.../telemetry.json","sim_config":"/abs/path/.../sim-config.json","initial_state":"/abs/path/.../initial-state.json","resource_bundle":"/abs/path/.../resource-bundle.json"}}
 ```
 
 Notes:
 - `artifactPaths` contains absolute paths for the emitted artifacts that exist for that command.
+- Default build-like commands persist the canonical handoff plus transport files; use `--emit-intermediates` to also persist request/plan/solver/capture sidecars.
 - `actorIds` and `roomIds` are included when they can be derived from the emitted or input artifacts.
 - Incidental human-readable logs are written to stderr or suppressed so stdout remains machine-parseable.
 
@@ -56,10 +57,12 @@ Error shape:
 Errors still exit non-zero.
 
 ### `build`
-Agent-only builder that consumes a single JSON build spec and emits mapped artifacts
-for downstream personas (intent/plan, optional solver artifacts, configurator outputs,
-and optional budget artifacts). Writes `manifest.json`, `bundle.json`, and `telemetry.json`
-in the output directory. Manifest/bundle include a filtered `schemas` list for emitted artifacts.
+Agent-only builder that consumes a single JSON build spec and emits the canonical persisted
+handoff for downstream personas. By default it writes `spec.json`, the budget triplet when
+present, `sim-config.json`, `initial-state.json`, `resource-bundle.json`, `bundle.json`,
+`manifest.json`, and `telemetry.json`. `--emit-intermediates` additionally writes `intent.json`,
+`plan.json`, solver artifacts, and captured-input sidecars. Manifest/bundle include a filtered
+`schemas` list for emitted artifacts.
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
 
@@ -92,10 +95,14 @@ Inputs/outputs:
 - Input: `--scenario path` (E2E scenario JSON with catalog + summary paths) or
   `--text`/`--prompt` + `--catalog` for direct freeform mode, plus `--model`,
   optional `--goal`/`--budget-tokens`, `--fixture` for deterministic responses,
-  `--run-id`, `--created-at`, optional `--budget-pool`/`--budget-reserve`.
+  `--run-id`, `--created-at`, optional `--budget-pool`/`--budget-reserve`,
+  optional `--emit-intermediates`.
 - Output dir: `artifacts/runs/<runId>/llm-plan` by default, or `--out-dir`.
-- Outputs: `spec.json`, `intent.json`, `plan.json`, optional `sim-config.json`, `initial-state.json`,
-  `budget-allocation.json` (budget loop), `captured-input-llm-*.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+- Outputs: `spec.json`, optional `budget.json`, `price-list.json`, `budget-receipt.json`,
+  `sim-config.json`, `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
+  `manifest.json`, `telemetry.json`.
+- `--emit-intermediates` additionally persists `intent.json`, `plan.json`,
+  `budget-allocation.json` (budget loop), and `captured-input-llm-*.json`.
 
 ### `scenario`
 Single natural-language entrypoint that composes `llm-plan --text`, `run`, and `inspect`
@@ -171,22 +178,24 @@ Inputs/outputs:
 - `--trap` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
 - `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
   vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
-- Hard constraints are recorded separately from optimization goals in `request.json` / `spec.json`.
+- Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.
   The current contract treats total budget as a hard constraint and maximize-spend / mana goals as
   optimization directions for later fulfillment waves. A hard budget alone does not imply
   `maximize_budget_spend`; that goal is recorded only when the user explicitly asks for maximize/full-budget behavior.
 - Budgeted room/delver requests now fail deterministically when no valid configuration exists.
   Hard-budget failures report `insufficient_budget`; explicit hard-requirement clashes report
   `conflicting_requirements` and name the blocking constraints.
-- `create` records `command.action = "author"` in `request.json`; `configure` records
+- `create` records `command.action = "author"` in `spec.authoring.request`; `configure` records
   `command.action = "configure"` while preserving the same deterministic parsing rules.
 - Output dir: `artifacts/runs/<runId>/create` or `artifacts/runs/<runId>/configure` by default.
-- Outputs: `request.json`, `spec.json`, `intent.json`, `plan.json`, optional `budget.json`,
-  `price-list.json`, `budget-receipt.json`, `sim-config.json`, `initial-state.json`,
-  plus `bundle.json`, `manifest.json`, `telemetry.json`.
+- Outputs: `spec.json`, optional `budget.json`, `price-list.json`, `budget-receipt.json`,
+  `sim-config.json`, `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
+  `manifest.json`, `telemetry.json`.
+- `--emit-intermediates` additionally persists `request.json`, `intent.json`, `plan.json`,
+  and sidecars such as `spend-proposal.json`.
 
 Agent workflow notes:
-- `request.json` is the canonical normalized copy of the freeform request plus parsed object flags.
+- `spec.authoring.request` is the canonical normalized copy of the freeform request plus parsed object flags.
 - `bundle.json` and `manifest.json` are the handoff point into the UI `Diagnostics -> Preview -> Run` flow.
 - `Preview` can render the generated room image for room-only requests, but only after
   `pnpm run build:wasm` has produced the browser asset at `packages/ui-web/assets/core-as.wasm`.
@@ -211,8 +220,10 @@ Inputs/outputs:
 - If the hard budget cannot cover the minimum valid room that preserves the requested size/affinities,
   `room-plan` fails with a deterministic `insufficient_budget` explanation instead of silently degrading the room.
 - Output dir: `artifacts/runs/<runId>/room-plan` by default, or `--out-dir`.
-- Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
-  `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+- Outputs: `spec.json`, optional `budget.json`, `price-list.json`, `budget-receipt.json`,
+  `sim-config.json`, `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
+  `manifest.json`, `telemetry.json`.
+- `--emit-intermediates` additionally persists `intent.json` and `plan.json`.
 
 ### `delver-plan`
 Builds a `BuildSpec` directly from Delver authoring flags (no hand-edited JSON required) and
@@ -233,8 +244,10 @@ Inputs/outputs:
 - If explicit vitals conflict with requested affinities or movement support, `delver-plan` fails with
   `conflicting_requirements`; if the hard budget cannot cover the minimum valid delver, it fails with `insufficient_budget`.
 - Output dir: `artifacts/runs/<runId>/delver-plan` by default, or `--out-dir`.
-- Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
-  `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+- Outputs: `spec.json`, optional `budget.json`, `price-list.json`, `budget-receipt.json`,
+  `sim-config.json`, `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
+  `manifest.json`, `telemetry.json`.
+- `--emit-intermediates` additionally persists `intent.json` and `plan.json`.
 
 ### `warden-plan`
 Builds a `BuildSpec` directly from Warden authoring flags (no hand-edited JSON required) and
@@ -251,8 +264,10 @@ Inputs/outputs:
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from warden-plan runs.
 - Output dir: `artifacts/runs/<runId>/warden-plan` by default, or `--out-dir`.
-- Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
-  `budget-receipt.json`, `sim-config.json`, `initial-state.json`, plus `bundle.json`, `manifest.json`, `telemetry.json`.
+- Outputs: `spec.json`, optional `budget.json`, `price-list.json`, `budget-receipt.json`,
+  `sim-config.json`, `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
+  `manifest.json`, `telemetry.json`.
+- `--emit-intermediates` additionally persists `intent.json` and `plan.json`.
 
 ## Agent authoring contract
 
@@ -302,9 +317,11 @@ Current compatibility rules:
 Build inputs/outputs:
 - Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
 - Output dir: `artifacts/runs/<runId>/build` by default, or `--out-dir`.
-- Outputs: `spec.json`, `intent.json`, `plan.json`, optional `budget.json`, `price-list.json`,
-  `budget-receipt.json`, `solver-request.json`, `solver-result.json`, `sim-config.json`,
-  `initial-state.json`, plus captured inputs as `captured-input-<adapter>-<index>.json`.
+- Outputs: `spec.json`, optional `budget.json`, `price-list.json`, `budget-receipt.json`,
+  `sim-config.json`, `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
+  `manifest.json`, `telemetry.json`.
+- `--emit-intermediates` additionally persists `intent.json`, `plan.json`, `solver-request.json`,
+  `solver-result.json`, and captured inputs as `captured-input-<adapter>-<index>.json`.
 - Bundle/manifest: `bundle.json` (inlined artifacts + schemas), `manifest.json` (paths + schemas),
   `telemetry.json` (run-scope record).
 
@@ -459,7 +476,7 @@ node packages/adapters-cli/src/cli/ak.mjs create \
 ```
 
 Expected handoff artifacts:
-- `request.json`: normalized `AgentCommandRequestArtifact`
+- `spec.authoring.request`: normalized `AgentCommandRequestArtifact`
 - `spec.json`: compiled `BuildSpec`
 - `sim-config.json` + `initial-state.json`: playable runtime inputs
 - `bundle.json` + `manifest.json`: UI load target for `Diagnostics`, `Preview`, and `Run`

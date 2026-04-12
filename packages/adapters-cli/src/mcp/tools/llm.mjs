@@ -24,6 +24,7 @@ const llmProperties = withCommonOutput({
   budgetLoop: booleanSchema("Enable budget loop."),
   budgetPool: stringArraySchema("Budget pool entries in id=weight form."),
   budgetReserve: integerSchema("Budget reserve before pooling.", { minimum: 0 }),
+  emitIntermediates: booleanSchema("Persist non-canonical sidecar artifacts."),
 });
 
 export const llmTools = [
@@ -81,6 +82,7 @@ export const llmTools = [
       { key: "budgetLoop", flag: "budget-loop", boolean: true },
       { key: "budgetPool", flag: "budget-pool", repeatable: true },
       { key: "budgetReserve", flag: "budget-reserve" },
+      { key: "emitIntermediates", flag: "emit-intermediates", boolean: true },
       { key: "outDir", flag: "out-dir" },
       { key: "runId", flag: "run-id" },
       { key: "createdAt", flag: "created-at" },

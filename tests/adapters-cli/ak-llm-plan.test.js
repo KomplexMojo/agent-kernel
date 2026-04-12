@@ -29,7 +29,7 @@ function runCliExpectFailure(args, env = {}) {
   });
 }
 
-test("cli llm-plan writes build outputs with captured input artifact", () => {
+test("cli llm-plan defaults to the canonical persisted handoff", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-"));
   runCli(
     [
@@ -58,25 +58,16 @@ test("cli llm-plan writes build outputs with captured input artifact", () => {
   const captureEntry = manifest.artifacts.find(
     (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
   );
-  assert.ok(captureEntry);
-  assert.equal(existsSync(join(outDir, captureEntry.path)), true);
-  assert.ok(manifest.schemas.some((entry) => entry.schema === "agent-kernel/CapturedInputArtifact"));
-
-  const capture = JSON.parse(readFileSync(join(outDir, captureEntry.path), "utf8"));
-  assert.ok(capture.payload.prompt);
-  assert.ok(capture.payload.responseRaw);
-  assert.ok(capture.payload.responseParsed);
-  assert.ok(capture.payload.summary);
-  assert.equal(capture.payload.summary.dungeonAffinity, "fire");
-  assert.ok(capture.payload.phaseTiming?.startedAt);
-  assert.ok(capture.payload.phaseTiming?.endedAt);
-  assert.equal(typeof capture.payload.phaseTiming?.durationMs, "number");
+  assert.equal(captureEntry, undefined);
+  assert.ok(manifest.schemas.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
+  assert.equal(existsSync(join(outDir, "intent.json")), false);
+  assert.equal(existsSync(join(outDir, "plan.json")), false);
 
   const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
-  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/CapturedInputArtifact"));
+  assert.ok(bundle.artifacts.every((artifact) => artifact.schema !== "agent-kernel/CapturedInputArtifact"));
 });
 
-test("cli llm-plan budget loop writes multiple captures", () => {
+test("cli llm-plan budget loop writes intermediates only when explicitly requested", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-"));
   runCli(
     [
@@ -88,6 +79,7 @@ test("cli llm-plan budget loop writes multiple captures", () => {
       "--fixture",
       "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
       "--budget-loop",
+      "--emit-intermediates",
       "--run-id",
       "run_llm_plan_loop",
       "--created-at",
@@ -346,10 +338,7 @@ test("cli llm-plan resilient mode sanitizes invalid affinities", () => {
   const captureEntry = manifest.artifacts.find(
     (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
   );
-  assert.ok(captureEntry);
-  const capture = JSON.parse(readFileSync(join(outDir, captureEntry.path), "utf8"));
-  assert.equal(capture.payload.summary.rooms[0].affinities[0].kind, "fire");
-  assert.equal(capture.payload.summary.rooms[0].affinities[0].expression, "push");
+  assert.equal(captureEntry, undefined);
 });
 
 test("cli llm-plan supports prompt-only mode with catalog", () => {
@@ -387,9 +376,7 @@ test("cli llm-plan supports prompt-only mode with catalog", () => {
   const captureEntry = manifest.artifacts.find(
     (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
   );
-  assert.ok(captureEntry);
-  const capture = JSON.parse(readFileSync(join(outDir, captureEntry.path), "utf8"));
-  assert.ok(capture.payload.prompt.includes("Budget tokens: 800"));
+  assert.equal(captureEntry, undefined);
 });
 
 test("cli llm-plan supports text mode without an explicit fixture", () => {
@@ -421,10 +408,7 @@ test("cli llm-plan supports text mode without an explicit fixture", () => {
   const captureEntry = manifest.artifacts.find(
     (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
   );
-  assert.ok(captureEntry);
-  const capture = JSON.parse(readFileSync(join(outDir, captureEntry.path), "utf8"));
-  assert.ok(capture.payload.prompt.includes("a dungeon with two fire delvers"));
-  assert.ok(capture.payload.prompt.includes("Budget tokens: 200"));
+  assert.equal(captureEntry, undefined);
 });
 
 test("cli llm-plan falls back to scenario summary when AK_LLM_LIVE is off", () => {
@@ -445,17 +429,54 @@ test("cli llm-plan falls back to scenario summary when AK_LLM_LIVE is off", () =
   );
 
   const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
-  const intent = JSON.parse(readFileSync(join(outDir, "intent.json"), "utf8"));
-  const plan = JSON.parse(readFileSync(join(outDir, "plan.json"), "utf8"));
   assert.equal(spec.meta.runId, "run_llm_plan_fallback");
-  assert.equal(intent.schema, "agent-kernel/IntentEnvelope");
-  assert.equal(plan.schema, "agent-kernel/PlanArtifact");
+  assert.equal(existsSync(join(outDir, "intent.json")), false);
+  assert.equal(existsSync(join(outDir, "plan.json")), false);
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntry = manifest.artifacts.find(
     (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
   );
   assert.equal(captureEntry, undefined);
+});
+
+test("cli llm-plan emits planning sidecars when explicitly requested", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-intermediates-"));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      "tests/fixtures/adapters/llm-generate-summary.json",
+      "--emit-intermediates",
+      "--run-id",
+      "run_llm_plan_intermediates",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "1" },
+  );
+
+  assert.equal(existsSync(join(outDir, "intent.json")), true);
+  assert.equal(existsSync(join(outDir, "plan.json")), true);
+
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
+  const captureEntry = manifest.artifacts.find(
+    (entry) => entry.schema === "agent-kernel/CapturedInputArtifact",
+  );
+  assert.ok(captureEntry);
+  assert.equal(existsSync(join(outDir, captureEntry.path)), true);
+
+  const capture = JSON.parse(readFileSync(join(outDir, captureEntry.path), "utf8"));
+  assert.ok(capture.payload.prompt);
+  assert.ok(capture.payload.responseRaw);
+  assert.ok(capture.payload.responseParsed);
+  assert.ok(capture.payload.summary);
 });
 
 test("cli llm-plan rejects summaries that do not match catalog entries", () => {

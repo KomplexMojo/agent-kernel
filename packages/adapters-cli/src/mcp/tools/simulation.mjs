@@ -18,10 +18,12 @@ export const simulationTools = [
       required: ["spec"],
       properties: withCommonOutput({
         spec: pathSchema("Build spec JSON path."),
+        emitIntermediates: booleanSchema("Persist non-canonical sidecar artifacts."),
       }),
     },
     buildArgs: (args) => buildArgv(args, [
       { key: "spec" },
+      { key: "emitIntermediates", flag: "emit-intermediates", boolean: true },
       { key: "outDir", flag: "out-dir" },
     ]),
   }),
@@ -199,6 +201,7 @@ export const simulationTools = [
         ticks: integerSchema("Tick count.", { minimum: 1 }),
         seed: integerSchema("Initialization seed.", { minimum: 0 }),
         wasm: pathSchema("WASM binary path."),
+        emitIntermediates: booleanSchema("Persist non-canonical llm-plan sidecar artifacts."),
         dryRun: booleanSchema("Validate scenario inputs without executing."),
       }),
     },
@@ -214,6 +217,7 @@ export const simulationTools = [
       { key: "budgetLoop", flag: "budget-loop", boolean: true },
       { key: "budgetPool", flag: "budget-pool", repeatable: true },
       { key: "budgetReserve", flag: "budget-reserve" },
+      { key: "emitIntermediates", flag: "emit-intermediates", boolean: true },
       { key: "ticks" },
       { key: "seed" },
       { key: "wasm" },

@@ -60,7 +60,7 @@ Key artifacts and fixtures:
 ## Builder workflow + schema catalog
 
 - Agent/CLI/UI share the same BuildSpec (`agent-kernel/BuildSpec`). The agent writes a spec, the CLI builds artifacts, and the UI can load/edit the emitted bundle without translation.
-- `create`, `configure`, `room-plan`, `delver-plan`, and `warden-plan` now share one canonical preview handoff: `bundle.json`, `manifest.json`, `sim-config.json`, `initial-state.json`, `telemetry.json`, and `resource-bundle.json`. `create`/`configure` additionally emit `request.json` plus any budget/solver artifacts.
+- `create`, `configure`, `room-plan`, `delver-plan`, and `warden-plan` now share one canonical preview handoff: `bundle.json`, `manifest.json`, `sim-config.json`, `initial-state.json`, `telemetry.json`, and `resource-bundle.json`, with the budget triplet persisted when present. Use `--emit-intermediates` to also persist non-canonical sidecars such as `request.json`, `intent.json`, `plan.json`, and solver/capture traces.
 - CLI build emits `manifest.json`, `bundle.json`, and `telemetry.json` alongside artifacts. Manifest/bundle include a filtered `schemas` list so the UI can load only referenced contracts.
 - Schema catalog: `node packages/adapters-cli/src/cli/ak.mjs schemas` prints the full catalog (or writes `schemas.json` with `--out-dir`).
 - Fixtures: `tests/fixtures/ui/build-spec-bundle/` shows a round-trip build bundle, and `tests/fixtures/artifacts/build-spec-v1-basic.json` shows the build spec shape.

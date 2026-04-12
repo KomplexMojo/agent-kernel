@@ -48,7 +48,7 @@ import {
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
   plan: "agent-kernel/PlanArtifact",
-  budgetReceipt: "agent-kernel/BudgetReceipt",
+  budgetReceipt: "agent-kernel/BudgetReceiptArtifact",
   budgetArtifact: "agent-kernel/BudgetArtifact",
   budgetReceiptArtifact: "agent-kernel/BudgetReceiptArtifact",
   priceList: "agent-kernel/PriceList",
@@ -498,21 +498,71 @@ async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy
   };
 }
 
-function buildBuildArtifacts(buildResult, { includeBudgetAllocation = null, capturedInputs = [] } = {}) {
+export function collectBuildOutputArtifactRecords(
+  buildResult,
+  {
+    requestArtifact = null,
+    includeBudgetAllocation = null,
+    capturedInputs = [],
+    emitIntermediates = false,
+    includeAffinitySummary = false,
+  } = {},
+) {
+  const records = [
+    { artifact: requestArtifact, path: "request.json", persistedByDefault: false },
+    { artifact: buildResult.intent, path: "intent.json", persistedByDefault: false },
+    { artifact: buildResult.plan, path: "plan.json", persistedByDefault: false },
+    { artifact: buildResult.budget?.budget, path: "budget.json", persistedByDefault: true },
+    { artifact: buildResult.budget?.priceList, path: "price-list.json", persistedByDefault: true },
+    { artifact: buildResult.budgetReceipt, path: "budget-receipt.json", persistedByDefault: true },
+    { artifact: includeBudgetAllocation, path: "budget-allocation.json", persistedByDefault: false },
+    { artifact: buildResult.spendProposal, path: "spend-proposal.json", persistedByDefault: false },
+    { artifact: buildResult.solverRequest, path: "solver-request.json", persistedByDefault: false },
+    { artifact: buildResult.solverResult, path: "solver-result.json", persistedByDefault: false },
+    { artifact: buildResult.simConfig, path: "sim-config.json", persistedByDefault: true },
+    { artifact: buildResult.initialState, path: "initial-state.json", persistedByDefault: true },
+    {
+      artifact: includeAffinitySummary ? buildResult.affinitySummary : null,
+      path: "affinity-summary.json",
+      persistedByDefault: false,
+    },
+    { artifact: buildResult.resourceBundle, path: "resource-bundle.json", persistedByDefault: true },
+  ];
+
+  capturedInputs.forEach((entry, index) => {
+    const artifact = entry?.artifact || entry;
+    records.push({
+      artifact,
+      path: entry?.path || buildCapturedInputPath("llm", index, artifact?.meta?.id),
+      persistedByDefault: false,
+    });
+  });
+
+  return records.filter(({ artifact, persistedByDefault }) => (
+    artifact && (persistedByDefault || emitIntermediates)
+  ));
+}
+
+export function buildBuildArtifacts(
+  buildResult,
+  {
+    requestArtifact = null,
+    includeBudgetAllocation = null,
+    capturedInputs = [],
+    emitIntermediates = false,
+    includeAffinitySummary = false,
+  } = {},
+) {
+  const records = collectBuildOutputArtifactRecords(buildResult, {
+    requestArtifact,
+    includeBudgetAllocation,
+    capturedInputs,
+    emitIntermediates,
+    includeAffinitySummary,
+  });
   const artifacts = [];
-  if (buildResult.intent) artifacts.push(buildResult.intent);
-  if (buildResult.plan) artifacts.push(buildResult.plan);
-  if (buildResult.budget?.budget) artifacts.push(buildResult.budget.budget);
-  if (buildResult.budget?.priceList) artifacts.push(buildResult.budget.priceList);
-  if (buildResult.budgetReceipt) artifacts.push(buildResult.budgetReceipt);
-  if (includeBudgetAllocation) artifacts.push(includeBudgetAllocation);
-  if (buildResult.solverRequest) artifacts.push(buildResult.solverRequest);
-  if (buildResult.solverResult) artifacts.push(buildResult.solverResult);
-  if (buildResult.simConfig) artifacts.push(buildResult.simConfig);
-  if (buildResult.initialState) artifacts.push(buildResult.initialState);
-  if (buildResult.resourceBundle) artifacts.push(buildResult.resourceBundle);
-  capturedInputs.forEach((entry) => {
-    artifacts.push(entry.artifact || entry);
+  records.forEach((entry) => {
+    artifacts.push(entry.artifact);
   });
 
   artifacts.sort((a, b) => {
@@ -525,23 +575,26 @@ function buildBuildArtifacts(buildResult, { includeBudgetAllocation = null, capt
   return artifacts;
 }
 
-function buildBuildManifestEntries(buildResult, { includeBudgetAllocation = null, capturedInputs = [] } = {}) {
+export function buildBuildManifestEntries(
+  buildResult,
+  {
+    requestArtifact = null,
+    includeBudgetAllocation = null,
+    capturedInputs = [],
+    emitIntermediates = false,
+    includeAffinitySummary = false,
+  } = {},
+) {
+  const records = collectBuildOutputArtifactRecords(buildResult, {
+    requestArtifact,
+    includeBudgetAllocation,
+    capturedInputs,
+    emitIntermediates,
+    includeAffinitySummary,
+  });
   const entries = [];
-  addManifestEntry(entries, buildResult.intent, "intent.json");
-  addManifestEntry(entries, buildResult.plan, "plan.json");
-  addManifestEntry(entries, buildResult.budget?.budget, "budget.json");
-  addManifestEntry(entries, buildResult.budget?.priceList, "price-list.json");
-  addManifestEntry(entries, buildResult.budgetReceipt, "budget-receipt.json");
-  addManifestEntry(entries, includeBudgetAllocation, "budget-allocation.json");
-  addManifestEntry(entries, buildResult.solverRequest, "solver-request.json");
-  addManifestEntry(entries, buildResult.solverResult, "solver-result.json");
-  addManifestEntry(entries, buildResult.simConfig, "sim-config.json");
-  addManifestEntry(entries, buildResult.initialState, "initial-state.json");
-  addManifestEntry(entries, buildResult.resourceBundle, "resource-bundle.json");
-  capturedInputs.forEach((entry, index) => {
-    const artifact = entry.artifact || entry;
-    const capturePath = entry.path || buildCapturedInputPath("llm", index, artifact?.meta?.id);
-    addManifestEntry(entries, artifact, capturePath);
+  records.forEach((entry) => {
+    addManifestEntry(entries, entry.artifact, entry.path);
   });
 
   entries.sort((a, b) => {
@@ -664,6 +717,7 @@ export function createCommandKernel(host = {}) {
     let capturedInputs = [];
     const producedBy = "cli-build";
     const baseDir = dirname(specPath);
+    const emitIntermediates = Boolean(args["emit-intermediates"]);
 
     try {
       spec = await readJson(specPath);
@@ -709,33 +763,6 @@ export function createCommandKernel(host = {}) {
       }
 
       await writeJson(join(outDir, "spec.json"), result.spec);
-      await writeJson(join(outDir, "intent.json"), result.intent);
-      await writeJson(join(outDir, "plan.json"), result.plan);
-
-      if (result.budget?.budget) {
-        await writeJson(join(outDir, "budget.json"), result.budget.budget);
-      }
-      if (result.budget?.priceList) {
-        await writeJson(join(outDir, "price-list.json"), result.budget.priceList);
-      }
-      if (result.budgetReceipt) {
-        await writeJson(join(outDir, "budget-receipt.json"), result.budgetReceipt);
-      }
-      if (result.solverRequest) {
-        await writeJson(join(outDir, "solver-request.json"), result.solverRequest);
-      }
-      if (result.solverResult) {
-        await writeJson(join(outDir, "solver-result.json"), result.solverResult);
-      }
-      if (result.simConfig) {
-        await writeJson(join(outDir, "sim-config.json"), result.simConfig);
-      }
-      if (result.initialState) {
-        await writeJson(join(outDir, "initial-state.json"), result.initialState);
-      }
-      if (result.resourceBundle) {
-        await writeJson(join(outDir, "resource-bundle.json"), result.resourceBundle);
-      }
 
       const captures = Array.isArray(spec.adapters?.capture) ? spec.adapters.capture : [];
       if (captures.length > 0) {
@@ -750,13 +777,29 @@ export function createCommandKernel(host = {}) {
             allowNetwork,
             host,
           });
-          await writeJson(join(outDir, captured.path), captured.artifact);
           capturedInputs.push(captured);
         }
       }
 
-      const bundleArtifacts = buildBuildArtifacts(result, { capturedInputs });
-      manifestEntries = buildBuildManifestEntries(result, { capturedInputs });
+      const persistedArtifacts = collectBuildOutputArtifactRecords(result, {
+        capturedInputs,
+        emitIntermediates,
+        includeAffinitySummary: true,
+      });
+      for (const entry of persistedArtifacts) {
+        await writeJson(join(outDir, entry.path), entry.artifact);
+      }
+
+      const bundleArtifacts = buildBuildArtifacts(result, {
+        capturedInputs,
+        emitIntermediates,
+        includeAffinitySummary: true,
+      });
+      manifestEntries = buildBuildManifestEntries(result, {
+        capturedInputs,
+        emitIntermediates,
+        includeAffinitySummary: true,
+      });
 
       const schemaEntries = filterSchemaCatalogEntries({
         schemaRefs: [
@@ -1675,6 +1718,7 @@ export function createCommandKernel(host = {}) {
     const runId = args["run-id"] || makeId("run");
     const createdAt = args["created-at"] || nowIso();
     const outDir = resolvePath(args["out-dir"]) || defaultLlmPlanOutDir(runId);
+    const emitIntermediates = Boolean(args["emit-intermediates"]);
 
     if (!scenarioPath && !catalogOverride) {
       throw new Error("llm-plan requires --scenario or --catalog.");
@@ -1974,52 +2018,27 @@ export function createCommandKernel(host = {}) {
     });
 
     await writeJson(join(outDir, "spec.json"), buildResult.spec);
-    await writeJson(join(outDir, "intent.json"), buildResult.intent);
-    await writeJson(join(outDir, "plan.json"), buildResult.plan);
-
-    if (buildResult.budget?.budget) {
-      await writeJson(join(outDir, "budget.json"), buildResult.budget.budget);
-    }
-    if (buildResult.budget?.priceList) {
-      await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
-    }
-    if (buildResult.budgetReceipt) {
-      await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
-    }
-    if (budgetAllocation) {
-      await writeJson(join(outDir, "budget-allocation.json"), budgetAllocation);
-    }
-    if (buildResult.solverRequest) {
-      await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
-    }
-    if (buildResult.solverResult) {
-      await writeJson(join(outDir, "solver-result.json"), buildResult.solverResult);
-    }
-    if (buildResult.simConfig) {
-      await writeJson(join(outDir, "sim-config.json"), buildResult.simConfig);
-    }
-    if (buildResult.initialState) {
-      await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
-    }
-    if (buildResult.resourceBundle) {
-      await writeJson(join(outDir, "resource-bundle.json"), buildResult.resourceBundle);
-    }
 
     const capturedInputs = Array.isArray(buildResult.capturedInputs) ? buildResult.capturedInputs : [];
-    for (let i = 0; i < capturedInputs.length; i += 1) {
-      const artifact = capturedInputs[i];
-      const capturePath = buildCapturedInputPath("llm", i, artifact?.meta?.id);
-      await writeJson(join(outDir, capturePath), artifact);
+    const persistedArtifacts = collectBuildOutputArtifactRecords(buildResult, {
+      includeBudgetAllocation: budgetAllocation,
+      capturedInputs,
+      emitIntermediates,
+    });
+    for (const entry of persistedArtifacts) {
+      await writeJson(join(outDir, entry.path), entry.artifact);
     }
 
     const bundleArtifacts = buildBuildArtifacts(buildResult, {
       includeBudgetAllocation: budgetAllocation,
       capturedInputs,
+      emitIntermediates,
     });
 
     const manifestEntries = buildBuildManifestEntries(buildResult, {
       includeBudgetAllocation: budgetAllocation,
       capturedInputs,
+      emitIntermediates,
     });
 
     const schemaEntries = filterSchemaCatalogEntries({

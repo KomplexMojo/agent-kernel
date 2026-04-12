@@ -234,10 +234,14 @@ test("mcp server create and llm-plan tool calls round-trip with fixture inputs",
   assert.equal(llmPlanResult.runId, "run_mcp_llm_plan_fixture");
   assert.equal(existsSync(join(llmPlanOutDir, "spec.json")), true);
   assert.equal(existsSync(join(llmPlanOutDir, "manifest.json")), true);
+  assert.equal(existsSync(join(llmPlanOutDir, "intent.json")), false);
+  assert.equal(existsSync(join(llmPlanOutDir, "plan.json")), false);
 
   const spec = readJson(join(llmPlanOutDir, "spec.json"));
+  const manifest = readJson(join(llmPlanOutDir, "manifest.json"));
   assert.equal(spec.schema, "agent-kernel/BuildSpec");
   assert.equal(spec.meta.runId, "run_mcp_llm_plan_fixture");
+  assert.ok(manifest.artifacts.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
 });
 
 test("mcp authoring tools expose preview handoff metadata for persisted outputs", async (t) => {

@@ -87,14 +87,14 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   ]);
   const summary = readStdoutJson(result);
 
-  assert.equal(existsSync(join(outDir, "request.json")), true);
   assert.equal(existsSync(join(outDir, "spec.json")), true);
-  assert.equal(existsSync(join(outDir, "intent.json")), true);
-  assert.equal(existsSync(join(outDir, "plan.json")), true);
+  assert.equal(existsSync(join(outDir, "request.json")), false);
+  assert.equal(existsSync(join(outDir, "intent.json")), false);
+  assert.equal(existsSync(join(outDir, "plan.json")), false);
   assert.equal(existsSync(join(outDir, "budget.json")), true);
   assert.equal(existsSync(join(outDir, "price-list.json")), true);
   assert.equal(existsSync(join(outDir, "budget-receipt.json")), true);
-  assert.equal(existsSync(join(outDir, "spend-proposal.json")), true);
+  assert.equal(existsSync(join(outDir, "spend-proposal.json")), false);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
   assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
@@ -109,8 +109,8 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   assert.equal(summary.preview.runReady, true);
   assert.equal(summary.artifactPaths.resource_bundle, join(outDir, "resource-bundle.json"));
 
-  const request = readJson(join(outDir, "request.json"));
   const spec = readJson(join(outDir, "spec.json"));
+  const request = spec.authoring.request;
   const simConfig = readJson(join(outDir, "sim-config.json"));
   const bundle = readJson(join(outDir, "bundle.json"));
   const manifest = readJson(join(outDir, "manifest.json"));
@@ -146,10 +146,10 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
     && entry.affinity?.expression === "push"
     && entry.affinity?.stacks === 2
   )));
-  assert.ok(manifest.artifacts.some((entry) => entry.path === "request.json" && entry.schema === "agent-kernel/AgentCommandRequestArtifact"));
-  assert.ok(manifest.artifacts.some((entry) => entry.path === "spend-proposal.json" && entry.schema === "agent-kernel/SpendProposal"));
+  assert.ok(manifest.artifacts.every((entry) => entry.path !== "request.json"));
+  assert.ok(manifest.artifacts.every((entry) => entry.path !== "spend-proposal.json"));
   assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
-  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/SpendProposal"));
+  assert.ok(bundle.artifacts.every((artifact) => artifact.schema !== "agent-kernel/SpendProposal"));
   assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"));
   assert.deepEqual(
     telemetry.data.artifactRefs,
@@ -159,6 +159,42 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
       schemaVersion: entry.schemaVersion,
     })),
   );
+});
+
+test("cli create emits intermediate sidecars only when explicitly requested", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-authoring-intermediates-"));
+  const result = runCliOk([
+    "create",
+    "--text",
+    "Create one fire delver within a total budget of 1000 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking;goals=max_mana,mana_regen",
+    "--budget-tokens",
+    "1000",
+    "--emit-intermediates",
+    "--run-id",
+    "run_create_authoring_intermediates",
+    "--created-at",
+    "2026-04-08T00:00:00.000Z",
+    "--budget",
+    BUDGET,
+    "--price-list",
+    PRICE_LIST,
+    "--out-dir",
+    outDir,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(join(outDir, "request.json")), true);
+  assert.equal(existsSync(join(outDir, "intent.json")), true);
+  assert.equal(existsSync(join(outDir, "plan.json")), true);
+  assert.equal(existsSync(join(outDir, "spend-proposal.json")), true);
+
+  const manifest = readJson(join(outDir, "manifest.json"));
+  const bundle = readJson(join(outDir, "bundle.json"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "request.json"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "spend-proposal.json"));
+  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/SpendProposal"));
 });
 
 test("cli create dry-run validates authored requests without writing artifacts", () => {
@@ -240,8 +276,8 @@ test("cli configure preserves generic parsing but records configure action", () 
   ]);
   const summary = readStdoutJson(result);
 
-  const request = readJson(join(outDir, "request.json"));
   const spec = readJson(join(outDir, "spec.json"));
+  const request = spec.authoring.request;
   assert.equal(request.command.action, "configure");
   assert.equal(spec.authoring.request.command.action, "configure");
   assert.ok(spec.authoring.objectKinds.includes("trap"));
@@ -294,8 +330,8 @@ test("cli create keeps budget-only input as a hard constraint without maximize-s
     outDir,
   ]);
 
-  const request = readJson(join(outDir, "request.json"));
   const spec = readJson(join(outDir, "spec.json"));
+  const request = spec.authoring.request;
   assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 100);
   assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag"]);
   assert.equal(request.sharedConfig.optimizationGoals, undefined);
