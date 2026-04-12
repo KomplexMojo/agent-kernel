@@ -30,6 +30,10 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function readStdoutJson(result) {
+  return JSON.parse((result.stdout || "").trim());
+}
+
 function listCardSet(spec) {
   return Array.isArray(spec?.plan?.hints?.cardSet) ? spec.plan.hints.cardSet : [];
 }
@@ -54,7 +58,7 @@ test("cli help documents generic create and configure authoring commands", () =>
 
 test("cli create emits a complete playable artifact bundle for agent requests", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-authoring-"));
-  runCliOk([
+  const result = runCliOk([
     "create",
     "--text",
     "Create a fire room with a trap, one delver, and one warden. Total budget 1000 tokens.",
@@ -81,6 +85,7 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
     "--out-dir",
     outDir,
   ]);
+  const summary = readStdoutJson(result);
 
   assert.equal(existsSync(join(outDir, "request.json")), true);
   assert.equal(existsSync(join(outDir, "spec.json")), true);
@@ -96,6 +101,13 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   assert.equal(existsSync(join(outDir, "bundle.json")), true);
   assert.equal(existsSync(join(outDir, "manifest.json")), true);
   assert.equal(existsSync(join(outDir, "telemetry.json")), true);
+  assert.equal(summary.preview.ready, true);
+  assert.equal(summary.preview.bundlePath, join(outDir, "bundle.json"));
+  assert.equal(summary.preview.manifestPath, join(outDir, "manifest.json"));
+  assert.equal(summary.preview.resourceBundlePath, join(outDir, "resource-bundle.json"));
+  assert.equal(summary.preview.hasActors, true);
+  assert.equal(summary.preview.runReady, true);
+  assert.equal(summary.artifactPaths.resource_bundle, join(outDir, "resource-bundle.json"));
 
   const request = readJson(join(outDir, "request.json"));
   const spec = readJson(join(outDir, "spec.json"));
@@ -211,7 +223,7 @@ test("cli create dry-run returns valid false for infeasible budgets and still ex
 
 test("cli configure preserves generic parsing but records configure action", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-configure-authoring-"));
-  runCliOk([
+  const result = runCliOk([
     "configure",
     "--text",
     "Configure the existing trap layout for a fire room.",
@@ -226,12 +238,18 @@ test("cli configure preserves generic parsing but records configure action", () 
     "--out-dir",
     outDir,
   ]);
+  const summary = readStdoutJson(result);
 
   const request = readJson(join(outDir, "request.json"));
   const spec = readJson(join(outDir, "spec.json"));
   assert.equal(request.command.action, "configure");
   assert.equal(spec.authoring.request.command.action, "configure");
   assert.ok(spec.authoring.objectKinds.includes("trap"));
+  assert.equal(summary.preview.ready, true);
+  assert.equal(summary.preview.bundlePath, join(outDir, "bundle.json"));
+  assert.equal(summary.preview.resourceBundlePath, join(outDir, "resource-bundle.json"));
+  assert.equal(summary.preview.hasActors, false);
+  assert.equal(summary.preview.runReady, false);
 });
 
 test("cli create rejects invalid trap expressions deterministically", () => {

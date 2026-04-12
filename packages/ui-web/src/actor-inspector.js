@@ -686,6 +686,7 @@ export function createActorInspector({
   let hasInteractedWithSelection = false;
   let resourceBundle = null;
   let simConfig = null;
+  let mode = "simulation";
 
   function fallbackModelFromLiveActors() {
     if (!Array.isArray(liveActors) || liveActors.length === 0) {
@@ -738,6 +739,13 @@ export function createActorInspector({
       onVisibilityChange(normalized);
     }
     visible = normalized;
+  }
+
+  function setMode(nextMode = "simulation") {
+    mode = nextMode === "preview" ? "preview" : "simulation";
+    if (containerEl?.dataset) {
+      containerEl.dataset.mode = mode;
+    }
   }
 
   function renderGroup(container, instances = []) {
@@ -1135,6 +1143,46 @@ export function createActorInspector({
     selectEntityById(mappedInstanceId, { notify: false });
   }
 
+  function selectEntityAtPosition(position, { notify = true } = {}) {
+    const x = Number(position?.x);
+    const y = Number(position?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const resolved = activeModel();
+    const actorEntity = resolved.all.find((entity) => (
+      normalizeName(entity?.runtimeActorId)
+      && entity.type !== "room"
+      && entity.runtimeRoom == null
+      && entity.roomId === ""
+      && Number(entity?.position?.x) === Math.floor(x)
+      && Number(entity?.position?.y) === Math.floor(y)
+    ));
+    if (actorEntity) {
+      selectEntityById(actorEntity.instanceId, { notify, toggleIfSelected: false });
+      return buildSelectionPayload(resolved.byInstanceId.get(actorEntity.instanceId));
+    }
+    const positionedEntity = resolved.all.find((entity) => (
+      Number(entity?.position?.x) === Math.floor(x)
+      && Number(entity?.position?.y) === Math.floor(y)
+    ));
+    if (positionedEntity) {
+      selectEntityById(positionedEntity.instanceId, { notify, toggleIfSelected: false });
+      return buildSelectionPayload(resolved.byInstanceId.get(positionedEntity.instanceId));
+    }
+    const roomEntity = resolved.groups.room.find((entity) => {
+      const roomBounds = normalizeRoomBounds(entity?.runtimeRoom);
+      if (!roomBounds) return false;
+      return (
+        Math.floor(x) >= roomBounds.x
+        && Math.floor(x) < roomBounds.x + roomBounds.width
+        && Math.floor(y) >= roomBounds.y
+        && Math.floor(y) < roomBounds.y + roomBounds.height
+      );
+    });
+    if (!roomEntity) return null;
+    selectEntityById(roomEntity.instanceId, { notify, toggleIfSelected: false });
+    return buildSelectionPayload(resolved.byInstanceId.get(roomEntity.instanceId));
+  }
+
   function clearSelection() {
     selectedInstanceId = "";
     hasInteractedWithSelection = true;
@@ -1142,7 +1190,7 @@ export function createActorInspector({
   }
 
   function close() {
-    setVisible(true);
+    setVisible(false);
   }
 
   function open() {
@@ -1151,10 +1199,14 @@ export function createActorInspector({
   }
 
   function toggle() {
-    open();
+    setVisible(!visible);
+    if (visible) {
+      render();
+    }
     return visible;
   }
 
+  setMode(mode);
   render();
 
   function setResourceBundle(bundle) {
@@ -1167,8 +1219,10 @@ export function createActorInspector({
     setActors,
     setRunning,
     setResourceBundle,
+    setMode,
     selectEntityById,
     selectActorById,
+    selectEntityAtPosition,
     clearSelection,
     open,
     toggle,

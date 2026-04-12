@@ -240,6 +240,51 @@ test("mcp server create and llm-plan tool calls round-trip with fixture inputs",
   assert.equal(spec.meta.runId, "run_mcp_llm_plan_fixture");
 });
 
+test("mcp authoring tools expose preview handoff metadata for persisted outputs", async (t) => {
+  const harness = new McpServerHarness();
+  t.after(async () => {
+    await harness.close();
+  });
+
+  await harness.initialize();
+
+  const roomOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-room-plan-"));
+  const roomPlanResult = await harness.callTool("ak_room_plan", {
+    room: ["size=small;count=1;affinities=fire:emit:2"],
+    runId: "run_mcp_room_plan_preview",
+    createdAt: "2026-04-10T00:00:00.000Z",
+    outDir: roomOutDir,
+  });
+  assert.equal(roomPlanResult.preview.ready, true);
+  assert.equal(roomPlanResult.preview.bundlePath, join(roomOutDir, "bundle.json"));
+  assert.equal(roomPlanResult.preview.manifestPath, join(roomOutDir, "manifest.json"));
+  assert.equal(roomPlanResult.preview.resourceBundlePath, join(roomOutDir, "resource-bundle.json"));
+  assert.equal(roomPlanResult.preview.hasActors, false);
+  assert.equal(roomPlanResult.preview.runReady, false);
+
+  const delverOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-delver-plan-"));
+  const delverPlanResult = await harness.callTool("ak_delver_plan", {
+    delver: ["count=1;affinity=fire;motivation=attacking"],
+    runId: "run_mcp_delver_plan_preview",
+    createdAt: "2026-04-10T00:00:00.000Z",
+    outDir: delverOutDir,
+  });
+  assert.equal(delverPlanResult.preview.ready, true);
+  assert.equal(delverPlanResult.preview.hasActors, true);
+  assert.equal(delverPlanResult.preview.runReady, false);
+
+  const wardenOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-warden-plan-"));
+  const wardenPlanResult = await harness.callTool("ak_warden_plan", {
+    warden: ["count=1;affinity=dark;motivation=defending"],
+    runId: "run_mcp_warden_plan_preview",
+    createdAt: "2026-04-10T00:00:00.000Z",
+    outDir: wardenOutDir,
+  });
+  assert.equal(wardenPlanResult.preview.ready, true);
+  assert.equal(wardenPlanResult.preview.hasActors, true);
+  assert.equal(wardenPlanResult.preview.runReady, false);
+});
+
 test("mcp server run and inspect tool calls round-trip over stdio", async (t) => {
   if (!existsSync(WASM_PATH)) {
     t.skip(`Missing WASM at ${WASM_PATH}`);

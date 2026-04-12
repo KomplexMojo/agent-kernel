@@ -327,7 +327,7 @@ test("inspector detail shows affinities, vitals, and card value", () => {
   assert.match(elements.detailEl.textContent, /🪙/);
 });
 
-test("inspector remains visible and toggle/close keep it shown", () => {
+test("inspector visibility toggles open and closed explicitly", () => {
   const elements = makeInspectorElements();
   const inspector = createActorInspector({
     ...elements,
@@ -339,11 +339,46 @@ test("inspector remains visible and toggle/close keep it shown", () => {
   assert.equal(elements.containerEl.hidden, false);
 
   inspector.close();
-  assert.equal(elements.containerEl.hidden, false);
+  assert.equal(elements.containerEl.hidden, true);
 
   inspector.open();
   assert.equal(elements.containerEl.hidden, false);
 
   inspector.toggle();
+  assert.equal(elements.containerEl.hidden, true);
+
+  inspector.toggle();
   assert.equal(elements.containerEl.hidden, false);
+});
+
+test("inspector can select actors and rooms from preview board positions", () => {
+  const elements = makeInspectorElements();
+  const inspector = createActorInspector({
+    ...elements,
+  });
+
+  inspector.setScenario({ spec, simConfig, initialState });
+
+  const actorSelection = inspector.selectEntityAtPosition({ x: 14, y: 4 }, { notify: false });
+  assert.equal(actorSelection.instanceId, "D-5JH2QW-1");
+  assert.equal(inspector.getSelectedId(), "D-5JH2QW-1");
+
+  const roomSelection = inspector.selectEntityAtPosition({ x: 2, y: 2 }, { notify: false });
+  assert.equal(roomSelection.instanceId, "A-2RB89Z-1");
+
+  inspector.clearSelection();
+  const fallbackRoomSelection = inspector.selectEntityAtPosition({ x: 4, y: 3 }, { notify: false });
+  assert.equal(fallbackRoomSelection.instanceId, "R-Y7E71X-1");
+});
+
+test("inspector tracks preview mode on the container dataset", () => {
+  const elements = makeInspectorElements();
+  const inspector = createActorInspector({
+    ...elements,
+  });
+
+  inspector.setMode("preview");
+  assert.equal(elements.containerEl.dataset.mode, "preview");
+  inspector.setMode("simulation");
+  assert.equal(elements.containerEl.dataset.mode, "simulation");
 });

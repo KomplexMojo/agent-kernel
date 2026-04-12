@@ -30,6 +30,10 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function readStdoutJson(result) {
+  return JSON.parse((result.stdout || "").trim());
+}
+
 function listDelverCards(spec) {
   const cardSet = spec?.plan?.hints?.cardSet;
   if (!Array.isArray(cardSet)) return [];
@@ -38,7 +42,7 @@ function listDelverCards(spec) {
 
 test("cli delver-plan authors delver cards directly from delver flags", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-basic-"));
-  runCliOk([
+  const result = runCliOk([
     "delver-plan",
     "--delver",
     "affinity=fire;motivation=attacking;count=2",
@@ -49,13 +53,22 @@ test("cli delver-plan authors delver cards directly from delver flags", () => {
     "--out-dir",
     outDir,
   ]);
+  const summary = readStdoutJson(result);
 
   assert.equal(existsSync(join(outDir, "spec.json")), true);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
+  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
+  assert.equal(summary.preview.ready, true);
+  assert.equal(summary.preview.resourceBundlePath, join(outDir, "resource-bundle.json"));
+  assert.equal(summary.preview.hasActors, true);
+  assert.equal(summary.preview.runReady, false);
+  assert.equal(summary.artifactPaths.resource_bundle, join(outDir, "resource-bundle.json"));
 
   const spec = readJson(join(outDir, "spec.json"));
+  const manifest = readJson(join(outDir, "manifest.json"));
   assert.equal(spec.meta.runId, "run_delver_plan_basic");
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
 
   const cards = listDelverCards(spec);
   assert.equal(cards.length, 1);

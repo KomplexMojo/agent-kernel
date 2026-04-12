@@ -30,6 +30,10 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function readStdoutJson(result) {
+  return JSON.parse((result.stdout || "").trim());
+}
+
 function listRoomCards(spec) {
   const cardSet = spec?.plan?.hints?.cardSet;
   if (!Array.isArray(cardSet)) return [];
@@ -46,7 +50,7 @@ function listAffinityTuples(card) {
 
 test("cli room-plan authors room cards directly from room flags", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-basic-"));
-  runCliOk([
+  const result = runCliOk([
     "room-plan",
     "--room",
     "size=large;count=2;affinities=fire:emit:3,water:pull:1",
@@ -57,13 +61,22 @@ test("cli room-plan authors room cards directly from room flags", () => {
     "--out-dir",
     outDir,
   ]);
+  const summary = readStdoutJson(result);
 
   assert.equal(existsSync(join(outDir, "spec.json")), true);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
+  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
+  assert.equal(summary.preview.ready, true);
+  assert.equal(summary.preview.resourceBundlePath, join(outDir, "resource-bundle.json"));
+  assert.equal(summary.preview.hasActors, false);
+  assert.equal(summary.preview.runReady, false);
+  assert.equal(summary.artifactPaths.resource_bundle, join(outDir, "resource-bundle.json"));
 
   const spec = readJson(join(outDir, "spec.json"));
+  const manifest = readJson(join(outDir, "manifest.json"));
   assert.equal(spec.meta.runId, "run_room_plan_basic");
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
 
   const cards = listRoomCards(spec);
   assert.equal(cards.length, 1);

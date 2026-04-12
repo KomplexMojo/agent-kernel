@@ -24,6 +24,8 @@ let simulationView = null;
 let designView = null;
 let diagnosticsView = null;
 let previewRefreshPromise = null;
+let previewView = null;
+let actorInspector = null;
 
 function openTab(tabId) {
   const button = document.querySelector(`[data-tab="${tabId}"]`);
@@ -56,6 +58,10 @@ function populateUIIcons(resourceBundle) {
   });
 }
 
+function updateInspectorSurface(tabId) {
+  actorInspector?.setMode?.(tabId === "preview" ? "preview" : "simulation");
+}
+
 wireTabs({
   buttons: tabButtons,
   panels: tabPanels,
@@ -64,13 +70,30 @@ wireTabs({
     if (workspace) {
       workspace.dataset.activeTab = tabId;
     }
+    updateInspectorSurface(tabId);
     if (tabId === "preview") {
       void refreshPreviewBundle();
     }
   },
 });
 
-const previewView = wirePreviewView({
+actorInspector = createActorInspector({
+  containerEl: actorInspectorRoot,
+  roomListEl: document.querySelector("#actor-inspector-room-list"),
+  attackerListEl: document.querySelector("#actor-inspector-delver-list"),
+  defenderListEl: document.querySelector("#actor-inspector-warden-list"),
+  detailEl: document.querySelector("#actor-inspector-detail"),
+  onSelectEntity: (entity) => {
+    if (workspace?.dataset?.activeTab === "preview") {
+      previewView?.focusInspectorEntity?.(entity);
+      return;
+    }
+    simulationView?.focusInspectorEntity?.(entity);
+  },
+});
+
+previewView = wirePreviewView({
+  actorInspector,
   onBuildAndLoadGame: async () => {
     const refreshed = await refreshPreviewBundle({ resetBuildOutput: false });
     if (!refreshed?.ok) {
@@ -85,21 +108,11 @@ const previewView = wirePreviewView({
   },
 });
 
-const actorInspector = createActorInspector({
-  containerEl: actorInspectorRoot,
-  roomListEl: document.querySelector("#actor-inspector-room-list"),
-  attackerListEl: document.querySelector("#actor-inspector-delver-list"),
-  defenderListEl: document.querySelector("#actor-inspector-warden-list"),
-  detailEl: document.querySelector("#actor-inspector-detail"),
-  onSelectEntity: (entity) => {
-    simulationView?.focusInspectorEntity?.(entity);
-  },
-});
-
 simulationView = wireSimulationView({
   actorInspector,
 });
 simulationView.setInspectorVisibility?.(true, actorInspector?.getSelectedEntity?.() || null);
+updateInspectorSurface(workspace?.dataset?.activeTab || "design");
 
 async function syncBundleViews({ bundle, source }) {
   await previewView.loadBundle(bundle, { source });
@@ -168,8 +181,12 @@ async function refreshPreviewBundle({ resetBuildOutput = false } = {}) {
       previewView.clear(message);
       return { ok: false, message };
     }
-
-    diagnosticsView.loadLastBundle();
+    if (buildResult?.preview?.ready === true) {
+      diagnosticsView.loadLastBundle();
+      return { ok: true };
+    }
+    previewView.clear("Preview bundle is not ready yet.");
+    actorInspector?.setMode?.("preview");
     return { ok: true };
   })().finally(() => {
     previewRefreshPromise = null;

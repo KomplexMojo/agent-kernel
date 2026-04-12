@@ -60,11 +60,11 @@ Key artifacts and fixtures:
 ## Builder workflow + schema catalog
 
 - Agent/CLI/UI share the same BuildSpec (`agent-kernel/BuildSpec`). The agent writes a spec, the CLI builds artifacts, and the UI can load/edit the emitted bundle without translation.
-- `create` and `configure` are the additive agent-facing entry points for freeform authoring. They emit `request.json`, `spec.json`, and the same bundle/manifest pair the UI already understands.
+- `create`, `configure`, `room-plan`, `delver-plan`, and `warden-plan` now share one canonical preview handoff: `bundle.json`, `manifest.json`, `sim-config.json`, `initial-state.json`, `telemetry.json`, and `resource-bundle.json`. `create`/`configure` additionally emit `request.json` plus any budget/solver artifacts.
 - CLI build emits `manifest.json`, `bundle.json`, and `telemetry.json` alongside artifacts. Manifest/bundle include a filtered `schemas` list so the UI can load only referenced contracts.
 - Schema catalog: `node packages/adapters-cli/src/cli/ak.mjs schemas` prints the full catalog (or writes `schemas.json` with `--out-dir`).
 - Fixtures: `tests/fixtures/ui/build-spec-bundle/` shows a round-trip build bundle, and `tests/fixtures/artifacts/build-spec-v1-basic.json` shows the build spec shape.
-- Preview behavior: the UI `Preview` tab renders a generated room image on the canvas whenever the bundle carries a renderable layout and `pnpm run build:wasm` has populated `packages/ui-web/assets/core-as.wasm`. `Build And Load Game` still requires at least 1 room, 1 delver, and 1 warden in the authored card set before the Run surface is considered playable.
+- Preview behavior: the UI `Preview` tab now uses the shared bundle renderer over `SimConfigArtifact`, `InitialStateArtifact`, and `ResourceBundleArtifact`, so board tiles, actors, traps, aura overlays, and the shared room/delver/warden inspector all come from the same bundle contract. Room-only, delver-only, and warden-only bundles still preview successfully but remain run-blocked until the missing card types are added. If `pnpm run build:wasm` has not populated `packages/ui-web/assets/core-as.wasm`, Preview preserves the existing missing-WASM ASCII/error fallback. `Build And Load Game` still requires at least 1 room, 1 delver, and 1 warden in the authored card set before the Run surface is considered playable.
 
 ## Shared command execution
 

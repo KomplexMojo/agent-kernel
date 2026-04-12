@@ -28,6 +28,10 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function readStdoutJson(result) {
+  return JSON.parse((result.stdout || "").trim());
+}
+
 function listWardenCards(spec) {
   const cardSet = spec?.plan?.hints?.cardSet;
   if (!Array.isArray(cardSet)) return [];
@@ -36,7 +40,7 @@ function listWardenCards(spec) {
 
 test("cli warden-plan authors warden cards directly from warden flags", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-basic-"));
-  runCliOk([
+  const result = runCliOk([
     "warden-plan",
     "--warden",
     "affinity=dark;motivation=defending;count=2",
@@ -47,13 +51,22 @@ test("cli warden-plan authors warden cards directly from warden flags", () => {
     "--out-dir",
     outDir,
   ]);
+  const summary = readStdoutJson(result);
 
   assert.equal(existsSync(join(outDir, "spec.json")), true);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
+  assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
+  assert.equal(summary.preview.ready, true);
+  assert.equal(summary.preview.resourceBundlePath, join(outDir, "resource-bundle.json"));
+  assert.equal(summary.preview.hasActors, true);
+  assert.equal(summary.preview.runReady, false);
+  assert.equal(summary.artifactPaths.resource_bundle, join(outDir, "resource-bundle.json"));
 
   const spec = readJson(join(outDir, "spec.json"));
+  const manifest = readJson(join(outDir, "manifest.json"));
   assert.equal(spec.meta.runId, "run_warden_plan_basic");
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
 
   const cards = listWardenCards(spec);
   assert.equal(cards.length, 1);

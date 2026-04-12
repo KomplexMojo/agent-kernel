@@ -14,10 +14,14 @@ function makeElement() {
     click() {
       return handlers.get("click")?.();
     },
+    trigger(type, payload = {}) {
+      return handlers.get(type)?.(payload);
+    },
   };
 }
 
 function makeCanvas() {
+  const handlers = new Map();
   const context = {
     imageData: null,
     createImageData(width, height) {
@@ -38,8 +42,17 @@ function makeCanvas() {
     hidden: true,
     width: 0,
     height: 0,
+    addEventListener(type, handler) {
+      handlers.set(type, handler);
+    },
+    trigger(type, payload = {}) {
+      return handlers.get(type)?.(payload);
+    },
     getContext() {
       return context;
+    },
+    getBoundingClientRect() {
+      return { left: 0, top: 0, width: this.width || 1, height: this.height || 1 };
     },
     _context: context,
   };
@@ -96,6 +109,14 @@ function createBundle({
         schema: "agent-kernel/InitialStateArtifact",
         actors,
       },
+      {
+        schema: "agent-kernel/ResourceBundleArtifact",
+        schemaVersion: 2,
+        tileWidth: 1,
+        tileHeight: 1,
+        mappings: { icons: { ui: {} } },
+        assets: [],
+      },
     ],
   };
 }
@@ -148,18 +169,10 @@ test("preview view renders bundle-backed frame and actor summaries", async () =>
   const { root, elements } = createRoot();
   const view = wirePreviewView({
     root,
-    levelBuilderAdapter: {
-      async buildFromTiles() {
-        return {
-          ok: true,
-          image: {
-            width: 5,
-            height: 4,
-            pixelFormat: "rgba8",
-            pixels: new Uint8ClampedArray(5 * 4 * 4).fill(120),
-          },
-        };
-      },
+    renderBundleBoard: async ({ canvas }) => {
+      canvas.width = 5;
+      canvas.height = 4;
+      return { ok: true, width: 5, height: 4 };
     },
     loadCoreFn: async () => ({
       init(seed) {
@@ -247,11 +260,7 @@ test("preview view falls back to layout-only rendering when the bundle has no ac
   const { root, elements } = createRoot();
   const view = wirePreviewView({
     root,
-    levelBuilderAdapter: {
-      async buildFromTiles() {
-        return { ok: true, image: null };
-      },
-    },
+    renderBundleBoard: async () => ({ ok: false, reason: "missing_canvas_context" }),
     loadCoreFn: async () => ({ init() {} }),
     applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
     renderBase: () => ["#####", "#...#", "#...#", "#####"],
@@ -264,6 +273,47 @@ test("preview view falls back to layout-only rendering when the bundle has no ac
   assert.match(elements["#preview-frame-buffer"].textContent, /#\.\.\.#/);
   assert.equal(elements["#preview-actor-list"].textContent, "Layout-only preview (no actors in initial state).");
   assert.equal(elements["#preview-status"].textContent, "Layout preview loaded from snapshot.");
+});
+
+test("preview view syncs canvas selections into the shared actor inspector", async () => {
+  const { root, elements } = createRoot();
+  const selections = [];
+  const actorInspector = {
+    setMode() {},
+    setResourceBundle() {},
+    setScenario() {},
+    setActors() {},
+    setRunning() {},
+    selectEntityAtPosition(position) {
+      selections.push(position);
+      return {
+        instanceId: "attacker_alpha",
+        actorId: "attacker_alpha",
+        type: "attacker",
+      };
+    },
+  };
+  const view = wirePreviewView({
+    root,
+    actorInspector,
+    renderBundleBoard: async ({ canvas }) => {
+      canvas.width = 160;
+      canvas.height = 128;
+      return { ok: true, width: 160, height: 128 };
+    },
+    loadCoreFn: async () => ({ init() {} }),
+    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
+    applyInitialState: () => ({ ok: true }),
+    renderFrame: () => ({ baseTiles: ["#####", "#...#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),
+    renderBase: () => ["#####", "#...#", "#...#", "#####"],
+    readObservationFn: () => ({ actors: [{ id: "attacker_alpha", position: { x: 1, y: 1 }, vitals: createBundle().artifacts[1].actors[0].vitals }] }),
+  });
+
+  await view.loadBundle(createBundle(), { source: "design-build" });
+  elements["#preview-render-canvas"].trigger("click", { clientX: 40, clientY: 40 });
+
+  assert.deepEqual(selections, [{ x: 1, y: 1 }]);
+  assert.equal(elements["#preview-status"].textContent, "Preview selected: attacker_alpha.");
 });
 
 test("preview view clears when bundle data is removed", async () => {

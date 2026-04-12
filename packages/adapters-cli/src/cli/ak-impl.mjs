@@ -1954,6 +1954,7 @@ const RUN_INDEX_OUTPUT_FILES = Object.freeze([
   ["solver_result", "solver-result.json"],
   ["sim_config", "sim-config.json"],
   ["initial_state", "initial-state.json"],
+  ["resource_bundle", "resource-bundle.json"],
   ["bundle", "bundle.json"],
   ["manifest", "manifest.json"],
   ["telemetry", "telemetry.json"],
@@ -2018,6 +2019,73 @@ function deriveRoomIds(simConfig) {
     .filter((id) => typeof id === "string" && id.length > 0);
 }
 
+const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "delver", "warden"]);
+
+function stablePreviewCardKey(card, index) {
+  const id = typeof card?.id === "string" ? card.id.trim() : "";
+  if (id) return `id:${id}`;
+  return `index:${index}:${JSON.stringify(card || {})}`;
+}
+
+function mergePreviewCardArrays(...sources) {
+  const merged = new Map();
+  sources.forEach((cards) => {
+    if (!Array.isArray(cards)) return;
+    cards.forEach((card, index) => {
+      if (!card || typeof card !== "object" || Array.isArray(card)) return;
+      const key = stablePreviewCardKey(card, index);
+      const previous = merged.get(key);
+      merged.set(key, previous ? { ...previous, ...card } : { ...card });
+    });
+  });
+  return Array.from(merged.values());
+}
+
+function collectPreviewCardSet(spec) {
+  return mergePreviewCardArrays(
+    spec?.configurator?.inputs?.cardSet,
+    spec?.plan?.hints?.cardSet,
+  );
+}
+
+function normalizePreviewCardType(type) {
+  const normalized = typeof type === "string" ? type.trim().toLowerCase() : "";
+  if (normalized === "attacker") return "delver";
+  if (normalized === "defender") return "warden";
+  return normalized;
+}
+
+function readConfiguredPreviewCount(count) {
+  const parsed = Number(count);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.floor(parsed);
+}
+
+function buildPreviewSummary({
+  outDir,
+  manifestEntries = [],
+  initialState = null,
+  simConfig = null,
+  spec = null,
+} = {}) {
+  const resourceBundleEntry = manifestEntries.find((entry) => entry?.path === "resource-bundle.json");
+  const cardSet = collectPreviewCardSet(spec);
+  const counts = REQUIRED_PREVIEW_CARD_TYPES.reduce((acc, type) => ({ ...acc, [type]: 0 }), {});
+  cardSet.forEach((entry) => {
+    const type = normalizePreviewCardType(entry?.type);
+    if (!REQUIRED_PREVIEW_CARD_TYPES.includes(type)) return;
+    counts[type] += readConfiguredPreviewCount(entry?.count ?? 1);
+  });
+  return {
+    ready: Boolean(simConfig && resourceBundleEntry),
+    bundlePath: join(outDir, "bundle.json"),
+    manifestPath: join(outDir, "manifest.json"),
+    resourceBundlePath: join(outDir, "resource-bundle.json"),
+    hasActors: deriveActorIds(initialState).length > 0,
+    runReady: REQUIRED_PREVIEW_CARD_TYPES.every((type) => counts[type] > 0),
+  };
+}
+
 function buildStructuredSuccessSummary({
   command,
   outDir,
@@ -2026,6 +2094,7 @@ function buildStructuredSuccessSummary({
   includeRequest = false,
   initialState = null,
   simConfig = null,
+  spec = null,
   extra = {},
 } = {}) {
   const summary = {
@@ -2036,6 +2105,13 @@ function buildStructuredSuccessSummary({
     actorIds: deriveActorIds(initialState),
     roomIds: deriveRoomIds(simConfig),
     artifactPaths: buildArtifactPathMap({ outDir, manifestEntries, includeRequest }),
+    preview: buildPreviewSummary({
+      outDir,
+      manifestEntries,
+      initialState,
+      simConfig,
+      spec,
+    }),
   };
   Object.entries(extra).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -2070,6 +2146,7 @@ async function summarizeBuildLikeOutput({
     includeRequest,
     initialState,
     simConfig,
+    spec,
     extra,
   });
 }
@@ -3469,11 +3546,13 @@ async function writeBuildOutputs({
   outDir,
   spec,
   buildResult,
-  requestArtifact,
+  requestArtifact = null,
   commandName,
   producedBy,
 } = {}) {
-  await writeJson(join(outDir, "request.json"), requestArtifact);
+  if (requestArtifact) {
+    await writeJson(join(outDir, "request.json"), requestArtifact);
+  }
   await writeJson(join(outDir, "spec.json"), spec);
   await writeJson(join(outDir, "intent.json"), buildResult.intent);
   await writeJson(join(outDir, "plan.json"), buildResult.plan);
@@ -3521,7 +3600,8 @@ async function writeBuildOutputs({
     await writeJson(join(outDir, capture.path), capture.artifact);
   }
 
-  const bundleArtifacts = [requestArtifact];
+  const bundleArtifacts = [];
+  if (requestArtifact) bundleArtifacts.push(requestArtifact);
   if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
   if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
   if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
@@ -3609,9 +3689,10 @@ async function writeBuildOutputs({
     outDir,
     runId: spec.meta.runId,
     manifestEntries,
-    includeRequest: true,
+    includeRequest: Boolean(requestArtifact),
     initialState: buildResult.initialState,
     simConfig: buildResult.simConfig,
+    spec,
   });
 }
 
@@ -4882,113 +4963,12 @@ async function roomPlanCommand(argv) {
     producedBy: "cli-room-plan",
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
-
-  await writeJson(join(outDir, "spec.json"), buildResult.spec);
-  await writeJson(join(outDir, "intent.json"), buildResult.intent);
-  await writeJson(join(outDir, "plan.json"), buildResult.plan);
-
-  if (buildResult.budget?.budget) {
-    await writeJson(join(outDir, "budget.json"), buildResult.budget.budget);
-  }
-  if (buildResult.budget?.priceList) {
-    await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
-  }
-  if (buildResult.budgetReceipt) {
-    await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
-  }
-  if (buildResult.solverRequest) {
-    await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
-  }
-  if (buildResult.solverResult) {
-    await writeJson(join(outDir, "solver-result.json"), buildResult.solverResult);
-  }
-  if (buildResult.simConfig) {
-    await writeJson(join(outDir, "sim-config.json"), buildResult.simConfig);
-  }
-  if (buildResult.initialState) {
-    await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
-  }
-
-  const bundleArtifacts = [];
-  if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
-  if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
-  if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
-  if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
-  if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
-  if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
-  if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
-  if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
-  if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
-
-  bundleArtifacts.sort((a, b) => {
-    if (a.schema === b.schema) {
-      return a.meta.id.localeCompare(b.meta.id);
-    }
-    return a.schema.localeCompare(b.schema);
-  });
-
-  const manifestEntries = [];
-  addManifestEntry(manifestEntries, buildResult.intent, "intent.json");
-  addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
-  addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
-  addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
-  addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
-  addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
-  addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
-  addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
-  addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
-
-  manifestEntries.sort((a, b) => {
-    if (a.schema === b.schema) {
-      return a.id.localeCompare(b.id);
-    }
-    return a.schema.localeCompare(b.schema);
-  });
-
-  const schemaEntries = filterSchemaCatalogEntries({
-    schemaRefs: [
-      { schema: buildResult.spec.schema, schemaVersion: buildResult.spec.schemaVersion },
-      ...manifestEntries,
-    ],
-  });
-
-  const bundle = {
-    spec: buildResult.spec,
-    schemas: schemaEntries,
-    artifacts: bundleArtifacts,
-  };
-  await writeJson(join(outDir, "bundle.json"), bundle);
-
-  const manifest = {
-    specPath: "spec.json",
-    correlation: {
-      runId: buildResult.spec.meta.runId,
-      source: buildResult.spec.meta.source,
-      correlationId: buildResult.spec.meta.correlationId,
-    },
-    schemas: schemaEntries,
-    artifacts: manifestEntries,
-  };
-  if (!manifest.correlation.correlationId) {
-    delete manifest.correlation.correlationId;
-  }
-  await writeJson(join(outDir, "manifest.json"), manifest);
-
-  const telemetry = buildBuildTelemetryRecord({
-    spec: buildResult.spec,
-    status: "success",
-    artifactRefs: buildArtifactRefs(manifestEntries),
-    producedBy: "cli-room-plan",
-    clock: () => buildResult.spec.meta.createdAt,
-  });
-  await writeJson(join(outDir, "telemetry.json"), telemetry);
-  emitJsonStdout(buildStructuredSuccessSummary({
-    command: "room-plan",
+  emitJsonStdout(await writeBuildOutputs({
     outDir,
-    runId: buildResult.spec.meta.runId,
-    manifestEntries,
-    initialState: buildResult.initialState,
-    simConfig: buildResult.simConfig,
+    spec: buildResult.spec,
+    buildResult,
+    commandName: "room-plan",
+    producedBy: "cli-room-plan",
   }));
 }
 
@@ -5118,113 +5098,12 @@ async function delverPlanCommand(argv) {
     producedBy: "cli-delver-plan",
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
-
-  await writeJson(join(outDir, "spec.json"), buildResult.spec);
-  await writeJson(join(outDir, "intent.json"), buildResult.intent);
-  await writeJson(join(outDir, "plan.json"), buildResult.plan);
-
-  if (buildResult.budget?.budget) {
-    await writeJson(join(outDir, "budget.json"), buildResult.budget.budget);
-  }
-  if (buildResult.budget?.priceList) {
-    await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
-  }
-  if (buildResult.budgetReceipt) {
-    await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
-  }
-  if (buildResult.solverRequest) {
-    await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
-  }
-  if (buildResult.solverResult) {
-    await writeJson(join(outDir, "solver-result.json"), buildResult.solverResult);
-  }
-  if (buildResult.simConfig) {
-    await writeJson(join(outDir, "sim-config.json"), buildResult.simConfig);
-  }
-  if (buildResult.initialState) {
-    await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
-  }
-
-  const bundleArtifacts = [];
-  if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
-  if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
-  if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
-  if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
-  if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
-  if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
-  if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
-  if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
-  if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
-
-  bundleArtifacts.sort((a, b) => {
-    if (a.schema === b.schema) {
-      return a.meta.id.localeCompare(b.meta.id);
-    }
-    return a.schema.localeCompare(b.schema);
-  });
-
-  const manifestEntries = [];
-  addManifestEntry(manifestEntries, buildResult.intent, "intent.json");
-  addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
-  addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
-  addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
-  addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
-  addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
-  addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
-  addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
-  addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
-
-  manifestEntries.sort((a, b) => {
-    if (a.schema === b.schema) {
-      return a.id.localeCompare(b.id);
-    }
-    return a.schema.localeCompare(b.schema);
-  });
-
-  const schemaEntries = filterSchemaCatalogEntries({
-    schemaRefs: [
-      { schema: buildResult.spec.schema, schemaVersion: buildResult.spec.schemaVersion },
-      ...manifestEntries,
-    ],
-  });
-
-  const bundle = {
-    spec: buildResult.spec,
-    schemas: schemaEntries,
-    artifacts: bundleArtifacts,
-  };
-  await writeJson(join(outDir, "bundle.json"), bundle);
-
-  const manifest = {
-    specPath: "spec.json",
-    correlation: {
-      runId: buildResult.spec.meta.runId,
-      source: buildResult.spec.meta.source,
-      correlationId: buildResult.spec.meta.correlationId,
-    },
-    schemas: schemaEntries,
-    artifacts: manifestEntries,
-  };
-  if (!manifest.correlation.correlationId) {
-    delete manifest.correlation.correlationId;
-  }
-  await writeJson(join(outDir, "manifest.json"), manifest);
-
-  const telemetry = buildBuildTelemetryRecord({
-    spec: buildResult.spec,
-    status: "success",
-    artifactRefs: buildArtifactRefs(manifestEntries),
-    producedBy: "cli-delver-plan",
-    clock: () => buildResult.spec.meta.createdAt,
-  });
-  await writeJson(join(outDir, "telemetry.json"), telemetry);
-  emitJsonStdout(buildStructuredSuccessSummary({
-    command: "delver-plan",
+  emitJsonStdout(await writeBuildOutputs({
     outDir,
-    runId: buildResult.spec.meta.runId,
-    manifestEntries,
-    initialState: buildResult.initialState,
-    simConfig: buildResult.simConfig,
+    spec: buildResult.spec,
+    buildResult,
+    commandName: "delver-plan",
+    producedBy: "cli-delver-plan",
   }));
 }
 
@@ -5325,113 +5204,12 @@ async function wardenPlanCommand(argv) {
     producedBy: "cli-warden-plan",
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
-
-  await writeJson(join(outDir, "spec.json"), buildResult.spec);
-  await writeJson(join(outDir, "intent.json"), buildResult.intent);
-  await writeJson(join(outDir, "plan.json"), buildResult.plan);
-
-  if (buildResult.budget?.budget) {
-    await writeJson(join(outDir, "budget.json"), buildResult.budget.budget);
-  }
-  if (buildResult.budget?.priceList) {
-    await writeJson(join(outDir, "price-list.json"), buildResult.budget.priceList);
-  }
-  if (buildResult.budgetReceipt) {
-    await writeJson(join(outDir, "budget-receipt.json"), buildResult.budgetReceipt);
-  }
-  if (buildResult.solverRequest) {
-    await writeJson(join(outDir, "solver-request.json"), buildResult.solverRequest);
-  }
-  if (buildResult.solverResult) {
-    await writeJson(join(outDir, "solver-result.json"), buildResult.solverResult);
-  }
-  if (buildResult.simConfig) {
-    await writeJson(join(outDir, "sim-config.json"), buildResult.simConfig);
-  }
-  if (buildResult.initialState) {
-    await writeJson(join(outDir, "initial-state.json"), buildResult.initialState);
-  }
-
-  const bundleArtifacts = [];
-  if (buildResult.intent) bundleArtifacts.push(buildResult.intent);
-  if (buildResult.plan) bundleArtifacts.push(buildResult.plan);
-  if (buildResult.budget?.budget) bundleArtifacts.push(buildResult.budget.budget);
-  if (buildResult.budget?.priceList) bundleArtifacts.push(buildResult.budget.priceList);
-  if (buildResult.budgetReceipt) bundleArtifacts.push(buildResult.budgetReceipt);
-  if (buildResult.solverRequest) bundleArtifacts.push(buildResult.solverRequest);
-  if (buildResult.solverResult) bundleArtifacts.push(buildResult.solverResult);
-  if (buildResult.simConfig) bundleArtifacts.push(buildResult.simConfig);
-  if (buildResult.initialState) bundleArtifacts.push(buildResult.initialState);
-
-  bundleArtifacts.sort((a, b) => {
-    if (a.schema === b.schema) {
-      return a.meta.id.localeCompare(b.meta.id);
-    }
-    return a.schema.localeCompare(b.schema);
-  });
-
-  const manifestEntries = [];
-  addManifestEntry(manifestEntries, buildResult.intent, "intent.json");
-  addManifestEntry(manifestEntries, buildResult.plan, "plan.json");
-  addManifestEntry(manifestEntries, buildResult.budget?.budget, "budget.json");
-  addManifestEntry(manifestEntries, buildResult.budget?.priceList, "price-list.json");
-  addManifestEntry(manifestEntries, buildResult.budgetReceipt, "budget-receipt.json");
-  addManifestEntry(manifestEntries, buildResult.solverRequest, "solver-request.json");
-  addManifestEntry(manifestEntries, buildResult.solverResult, "solver-result.json");
-  addManifestEntry(manifestEntries, buildResult.simConfig, "sim-config.json");
-  addManifestEntry(manifestEntries, buildResult.initialState, "initial-state.json");
-
-  manifestEntries.sort((a, b) => {
-    if (a.schema === b.schema) {
-      return a.id.localeCompare(b.id);
-    }
-    return a.schema.localeCompare(b.schema);
-  });
-
-  const schemaEntries = filterSchemaCatalogEntries({
-    schemaRefs: [
-      { schema: buildResult.spec.schema, schemaVersion: buildResult.spec.schemaVersion },
-      ...manifestEntries,
-    ],
-  });
-
-  const bundle = {
-    spec: buildResult.spec,
-    schemas: schemaEntries,
-    artifacts: bundleArtifacts,
-  };
-  await writeJson(join(outDir, "bundle.json"), bundle);
-
-  const manifest = {
-    specPath: "spec.json",
-    correlation: {
-      runId: buildResult.spec.meta.runId,
-      source: buildResult.spec.meta.source,
-      correlationId: buildResult.spec.meta.correlationId,
-    },
-    schemas: schemaEntries,
-    artifacts: manifestEntries,
-  };
-  if (!manifest.correlation.correlationId) {
-    delete manifest.correlation.correlationId;
-  }
-  await writeJson(join(outDir, "manifest.json"), manifest);
-
-  const telemetry = buildBuildTelemetryRecord({
-    spec: buildResult.spec,
-    status: "success",
-    artifactRefs: buildArtifactRefs(manifestEntries),
-    producedBy: "cli-warden-plan",
-    clock: () => buildResult.spec.meta.createdAt,
-  });
-  await writeJson(join(outDir, "telemetry.json"), telemetry);
-  emitJsonStdout(buildStructuredSuccessSummary({
-    command: "warden-plan",
+  emitJsonStdout(await writeBuildOutputs({
     outDir,
-    runId: buildResult.spec.meta.runId,
-    manifestEntries,
-    initialState: buildResult.initialState,
-    simConfig: buildResult.simConfig,
+    spec: buildResult.spec,
+    buildResult,
+    commandName: "warden-plan",
+    producedBy: "cli-warden-plan",
   }));
 }
 

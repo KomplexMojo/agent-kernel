@@ -642,11 +642,12 @@
         align-items: start;
       }
 
+      .workspace[data-active-tab="preview"],
       .workspace[data-active-tab="simulation"] {
         grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
       }
 
-      .workspace:not([data-active-tab="simulation"]) #actor-inspector {
+      .workspace:not([data-active-tab="simulation"]):not([data-active-tab="preview"]) #actor-inspector {
         display: none;
       }
 
@@ -781,6 +782,7 @@
           gap: 16px;
         }
 
+        .workspace[data-active-tab="preview"],
         .workspace[data-active-tab="simulation"] {
           grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
         }
@@ -825,6 +827,7 @@
           grid-template-columns: 1fr;
         }
 
+        .workspace[data-active-tab="preview"],
         .workspace[data-active-tab="simulation"] {
           grid-template-columns: 1fr;
         }
@@ -2684,7 +2687,7 @@
                 <div class="stat">
                   <span class="stat-label icon-label"><span class="ui-icon" data-icon-category="ui" data-icon-key="game-inspector" aria-hidden="true"></span>Game Inspector</span>
                 </div>
-                <p class="inspector-copy">Select a room, delver, or warden to steer visibility and runtime action focus.</p>
+                <p class="inspector-copy">Select a room, delver, or warden to inspect the current bundle or steer runtime focus.</p>
               </div>
             </div>
             <div class="inspector-section">

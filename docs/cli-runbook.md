@@ -105,14 +105,34 @@ node packages/adapters-cli/src/cli/ak.mjs create \
 ```
 
 For room-only preview authoring, keep the same flow but only pass `--text` plus `--room`.
-Outputs include `request.json` (normalized `AgentCommandRequestArtifact`), `spec.json`,
-playable runtime artifacts when enough data is present, and `bundle.json`/`manifest.json`
-for the UI.
+All authoring commands (`create`, `configure`, `room-plan`, `delver-plan`, `warden-plan`) now
+emit the same preview-ready handoff set:
+- `bundle.json`
+- `manifest.json`
+- `sim-config.json`
+- `initial-state.json`
+- `telemetry.json`
+- `resource-bundle.json`
+
+`create`/`configure` also emit `request.json` (`AgentCommandRequestArtifact`) plus any budget,
+solver, and spend artifacts produced during the build.
+
+The CLI JSON success summary includes `artifactPaths` plus a `preview` block with:
+- `ready`
+- `bundlePath`
+- `manifestPath`
+- `resourceBundlePath`
+- `hasActors`
+- `runReady`
 
 UI handoff:
-- Load `bundle.json` and `manifest.json` in `Diagnostics`.
-- `Preview` renders the generated room image only after `pnpm run build:wasm` has copied
-  `packages/ui-web/assets/core-as.wasm`; with that asset missing, the real Preview load fails before rendering.
+- Load `bundle.json` and `manifest.json` in `Diagnostics`, or hand the same paths to any host that
+  watches the CLI/MCP summary. When `preview.ready=true`, that bundle is the canonical Preview handoff.
+- `Preview` renders the bundle-backed board from `SimConfigArtifact`, `InitialStateArtifact`, and
+  `ResourceBundleArtifact`, including actors, traps, aura overlays, and the shared room/delver/warden inspector rail.
+- With `pnpm run build:wasm` missing the copied `packages/ui-web/assets/core-as.wasm`, the real Preview load still
+  fails before rendering and falls back to the existing ASCII/error path.
+- Room-only, delver-only, and warden-only outputs still load in Preview; they remain run-blocked until the missing card types are added.
 - `Build And Load Game` is stricter than preview-only inspection: it requires at least 1 room,
   1 delver, and 1 warden in the authored card set before opening `Run`.
 
