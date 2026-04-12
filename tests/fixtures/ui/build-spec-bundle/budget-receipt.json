@@ -1,5 +1,5 @@
 {
-  "schema": "agent-kernel/BudgetReceipt",
+  "schema": "agent-kernel/BudgetReceiptArtifact",
   "schemaVersion": 1,
   "meta": {
     "id": "budget_receipt_basic",
@@ -7,18 +7,18 @@
     "createdAt": "2025-01-01T00:00:00.000Z",
     "producedBy": "fixture"
   },
-  "requestRef": {
-    "id": "budget_request_basic",
-    "schema": "agent-kernel/BudgetRequest",
+  "budgetRef": {
+    "id": "budget_basic",
+    "schema": "agent-kernel/BudgetArtifact",
     "schemaVersion": 1
   },
-  "decision": "approved",
-  "effectiveCaps": {
-    "caps": {
-      "movement": 10
-    }
+  "priceListRef": {
+    "id": "price_list_basic",
+    "schema": "agent-kernel/PriceList",
+    "schemaVersion": 1
   },
-  "limits": {
-    "maxTicks": 5
-  }
+  "status": "approved",
+  "totalCost": 0,
+  "remaining": 100,
+  "lineItems": []
 }
