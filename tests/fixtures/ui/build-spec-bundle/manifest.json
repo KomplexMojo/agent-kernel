@@ -6,7 +6,7 @@
   },
   "schemas": [
     {
-      "schema": "agent-kernel/BudgetReceipt",
+      "schema": "agent-kernel/BudgetReceiptArtifact",
       "schemaVersion": 1,
       "description": "Allocator decision on requested caps/limits."
     },
@@ -73,7 +73,7 @@
   "artifacts": [
     {
       "id": "budget_receipt_basic",
-      "schema": "agent-kernel/BudgetReceipt",
+      "schema": "agent-kernel/BudgetReceiptArtifact",
       "schemaVersion": 1,
       "path": "budget-receipt.json"
     },

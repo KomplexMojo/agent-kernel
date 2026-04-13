@@ -484,8 +484,9 @@ export interface BudgetCategoryCaps {
 }
 
 /**
- * Request for budget evaluation. The Allocator returns a receipt describing
- * caps/limits that downstream systems must respect.
+ * Legacy request contract for budget evaluation.
+ * Live build/runtime flows use BudgetArtifact + PriceList + BudgetReceiptArtifact,
+ * but this schema is retained for compatibility and fixture coverage.
  */
 export interface BudgetRequestV1 {
   schema: typeof BUDGET_REQUEST_SCHEMA;
@@ -541,6 +542,7 @@ export interface BudgetReceiptV1 {
 }
 
 export type BudgetRequest = BudgetRequestV1;
+/** Legacy receipt contract retained for compatibility with older fixtures and refs. */
 export type BudgetReceipt = BudgetReceiptV1;
 
 // -------------------------
@@ -781,7 +783,7 @@ export interface SimConfigArtifactV1 {
 
   /**
    * Externally supplied caps/limits for core enforcement.
-   * Typically copied from BudgetReceipt.effectiveCaps and limits.
+   * Typically copied from a prior budgeting stage before execution.
    * These values initialize the core budget ledger before execution.
    */
   constraints?: {

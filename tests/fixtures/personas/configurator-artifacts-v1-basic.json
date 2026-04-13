@@ -16,7 +16,7 @@
       },
       "budgetReceiptRef": {
         "id": "budget_receipt_basic",
-        "schema": "agent-kernel/BudgetReceipt",
+        "schema": "agent-kernel/BudgetReceiptArtifact",
         "schemaVersion": 1
       },
       "seed": 7,
@@ -137,7 +137,7 @@
       },
       "budgetReceiptRef": {
         "id": "budget_receipt_basic",
-        "schema": "agent-kernel/BudgetReceipt",
+        "schema": "agent-kernel/BudgetReceiptArtifact",
         "schemaVersion": 1
       },
       "seed": 7,
