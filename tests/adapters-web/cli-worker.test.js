@@ -188,8 +188,16 @@ const llmPlanResult = await adapter.llmPlan({
 });
 assert.equal(llmPlanResult.spec.schema, "agent-kernel/BuildSpec");
 assert.equal(llmPlanResult.spec.meta.runId, "run_browser_llm_plan");
-assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/CapturedInputArtifact"));
-assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agent-kernel/CapturedInputArtifact"));
+assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/SimConfigArtifact"));
+assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/InitialStateArtifact"));
+assert.ok(llmPlanResult.bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"));
+assert.ok(llmPlanResult.bundle.artifacts.every((artifact) => artifact.schema !== "agent-kernel/CapturedInputArtifact"));
+assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agent-kernel/SimConfigArtifact"));
+assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agent-kernel/InitialStateArtifact"));
+assert.ok(llmPlanResult.manifest.artifacts.some((entry) => entry.schema === "agent-kernel/ResourceBundleArtifact"));
+assert.ok(llmPlanResult.manifest.artifacts.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
+assert.ok(llmPlanResult.artifacts["bundle.json"]);
+assert.ok(llmPlanResult.artifacts["manifest.json"]);
 assert.ok(llmPlanResult.artifacts["telemetry.json"]);
 
 const solveResult = await adapter.solve({
