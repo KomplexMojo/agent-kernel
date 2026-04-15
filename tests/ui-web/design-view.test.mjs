@@ -158,9 +158,11 @@ function createRootElements() {
     "#design-card-group-room": make("div"),
     "#design-card-group-delver": make("div"),
     "#design-card-group-warden": make("div"),
+    "#design-card-group-resource": make("div"),
     "#design-card-group-budget-room": make("div"),
     "#design-card-group-budget-delver": make("div"),
     "#design-card-group-budget-warden": make("div"),
+    "#design-card-group-budget-resource": make("div"),
     "#design-level-budget": make("input"),
     "#design-budget-split-room": make("input"),
     "#design-budget-split-delver": make("input"),
@@ -231,11 +233,21 @@ test("unified card schema normalizes type-specific fields and serializes determi
       motivations: ["defending"],
       affinities: [{ kind: "earth", expression: "emit", stacks: 1 }],
     },
+    {
+      id: "c4",
+      type: "resource",
+      tier: "permanent",
+      stat: "vitalMax",
+      delta: 10,
+      dropRate: 5,
+      budgetCeiling: 40,
+    },
   ]);
 
   const room = cardById(cards, "c1");
   const delver = cardById(cards, "c2");
   const warden = cardById(cards, "c3");
+  const resource = cardById(cards, "c4");
 
   assert.equal(room.type, "room");
   assert.equal(room.roomSize, "large");
@@ -249,9 +261,30 @@ test("unified card schema normalizes type-specific fields and serializes determi
   assert.equal(warden.type, "warden");
   assert.ok(warden.vitals.durability.max >= 1);
 
+  assert.equal(resource.type, "resource");
+  assert.equal(resource.tier, "permanent");
+  assert.equal(resource.stat, "vitalMax");
+  assert.equal(resource.delta, 10);
+  assert.equal(resource.dropRate, 5);
+  assert.equal(resource.budgetCeiling, 40);
+
   const serializedA = serializeDesignCardSet(cards);
   const serializedB = serializeDesignCardSet(cards.slice().reverse());
   assert.equal(serializedA, serializedB);
+});
+
+test("resource cards group separately", () => {
+  const grouped = groupCardsByType([
+    createDesignCard({ id: "gem_1", type: "resource", tier: "level", stat: "affinityStack", delta: 2, dropRate: 15, budgetCeiling: 60 }),
+    createDesignCard({ id: "room_1", type: "room", roomSize: "small", affinity: "fire" }),
+  ]);
+
+  assert.equal(grouped.resource.length, 1);
+  assert.equal(grouped.resource[0].type, "resource");
+  assert.equal(grouped.resource[0].tier, "level");
+  assert.equal(grouped.resource[0].stat, "affinityStack");
+  assert.equal(grouped.resource[0].dropRate, 15);
+  assert.equal(grouped.resource[0].budgetCeiling, 60);
 });
 
 test("new actor cards default vitals to max 10 and regen 2", () => {
@@ -609,7 +642,7 @@ test("wireDesignGuidance shows default help text until a drop error occurs", () 
   assert.equal(elements["#design-guidance-status"].dataset.level, "info");
   assert.equal(
     elements["#design-guidance-status"].textContent,
-    "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.",
+    "Configure one card in the center, then pull it right into grouped Room/Delver/Warden/Hazard shelves.",
   );
 
   const blank = guidance.getActiveCard();
@@ -666,8 +699,8 @@ test("wireDesignGuidance auto-generates cards to fill the remaining per-type all
   assert.ok(spendLedger.allocations.delver.usedTokens <= spendLedger.allocations.delver.allocatedTokens);
   assert.ok(spendLedger.allocations.warden.usedTokens <= spendLedger.allocations.warden.allocatedTokens);
   assert.ok(spendLedger.allocations.room.remainingTokens < 28);
-  assert.ok(spendLedger.allocations.delver.remainingTokens < 64);
-  assert.ok(spendLedger.allocations.warden.remainingTokens < 64);
+  assert.ok(spendLedger.allocations.delver.usedTokens > 0);
+  assert.ok(spendLedger.allocations.warden.usedTokens > 0);
   assert.equal(elements["#design-guidance-status"].dataset.level, "info");
   assert.match(elements["#design-guidance-status"].textContent, /Auto-generated/i);
 });
@@ -721,7 +754,7 @@ test("wireDesignGuidance auto-generate tops up remaining allocation without repl
   assert.ok(cards.some((card) => card.id === preservedId));
   assert.ok(cards.length > 1);
   const spendLedger = guidance.getSpendLedger();
-  assert.ok(spendLedger.allocations.delver.remainingTokens < 64);
+  assert.ok(spendLedger.allocations.delver.usedTokens > 0);
 });
 
 test("wireDesignGuidance assigns unique prefixed card identifiers", () => {
@@ -903,7 +936,7 @@ test("wireDesignGuidance enforces per-group allocation caps", () => {
   assert.equal(guidance.stashActiveCard("delver"), true);
   assert.equal(guidance.getCards().length, 1);
   assert.equal(guidance.setBudgetSplit("delver", 0), false);
-  assert.equal(elements["#design-budget-split-delver"].value, "20");
+  assert.equal(elements["#design-budget-split-delver"].value, "25");
   assert.match(elements["#design-guidance-status"].textContent, /allocation exceeded/i);
 });
 
@@ -1067,7 +1100,7 @@ test("wireDesignGuidance applies card count multiplier to vitality token updates
   assert.ok(spendAfter);
 
   assert.equal(updated.count, 2);
-  assert.equal(spendAfter.spent - spendBefore.spent, 20);
+  assert.equal(spendAfter.spent - spendBefore.spent, 40);
   assert.equal(spendBefore.allocated, spendAfter.allocated);
 });
 

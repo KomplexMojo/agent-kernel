@@ -59,16 +59,18 @@ const FIXTURE_DEFAULT_RESPONSE = {
   }),
 };
 
-export const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden"]);
+export const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
 export const CARD_PROPERTY_GROUP_ORDER = Object.freeze(["type", "affinities", "expressions", "motivations"]);
 export const ROOM_SIZE_ORDER = Object.freeze(["small", "medium", "large"]);
 const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden"]);
+const RESOURCE_TIERS = Object.freeze(["level", "permanent"]);
+const RESOURCE_STATS = Object.freeze(["vitalMax", "vitalRegen", "affinity", "affinityStack", "pushExpression"]);
 const DEFAULT_BUDGET_SPLIT = Object.freeze({
   room: 50,
   delver: 25,
   warden: 25,
 });
-const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.";
+const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden/Hazard shelves.";
 const EXCLUSIVE_PAIR_NOTE = "Choose 1";
 
 // Module-level resource bundle for icon resolution
@@ -110,6 +112,12 @@ function formatDisplayLabel(value, fallback = "") {
 
 function iconForType(type) {
   const normalized = normalizeCardType(type);
+  if (normalized === "hazard") {
+    return resolveIconHTML(moduleResourceBundle, "items", "hazard");
+  }
+  if (normalized === "resource") {
+    return resolveIconHTML(moduleResourceBundle, "items", "resource");
+  }
   const key = normalized || "untyped";
   return resolveIconHTML(moduleResourceBundle, "types", key);
 }
@@ -261,6 +269,8 @@ const NEW_CARD_VITALS = Object.freeze(
 const DEFAULT_ATTACKER_CARD_AFFINITY = "light";
 const DEFAULT_DEFENDER_CARD_AFFINITY = "dark";
 const DEFAULT_ACTOR_CARD_AFFINITY_EXPRESSION = "emit";
+const DEFAULT_HAZARD_AFFINITY_EXPRESSION = "emit";
+const DEFAULT_HAZARD_PROXIMITY_RADIUS = 1;
 
 function defaultActorAffinityForType(type) {
   if (type === "delver") return DEFAULT_ATTACKER_CARD_AFFINITY;
@@ -279,6 +289,41 @@ function resolveActorCardVitals(vitals) {
   return cloneVitals(vitals);
 }
 
+function normalizeHazardVital(value, fallback) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ...fallback };
+  }
+  const kind = typeof value.kind === "string" ? value.kind.trim().toLowerCase() : "";
+  if (kind === "regen") {
+    const current = readNonNegativeInt(value.current, fallback.current);
+    const max = Math.max(1, readNonNegativeInt(value.max, fallback.max));
+    const regen = readNonNegativeInt(value.regen, fallback.regen);
+    return {
+      kind: "regen",
+      current: Math.min(current, max),
+      max,
+      regen,
+    };
+  }
+  return {
+    kind: "one-time",
+    amount: Math.max(1, readNonNegativeInt(value.amount, fallback.amount)),
+  };
+}
+
+function toggleHazardVital(value, fallback) {
+  const normalized = normalizeHazardVital(value, fallback);
+  if (normalized.kind === "regen") {
+    return { kind: "one-time", amount: Math.max(1, normalized.current || normalized.max || fallback.amount) };
+  }
+  return {
+    kind: "regen",
+    current: fallback.current,
+    max: fallback.max,
+    regen: fallback.regen,
+  };
+}
+
 const CARD_ID_SUFFIX_LENGTH = 6;
 const CARD_ID_PATTERN = /^([A-Z])-([A-Z0-9]{6})$/;
 const CARD_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -289,6 +334,8 @@ const CARD_ID_PREFIX_BY_TYPE = Object.freeze({
   room: "R",
   delver: "A",
   warden: "D",
+  hazard: "H",
+  resource: "G",
   untyped: "C",
 });
 
@@ -297,6 +344,8 @@ function cardPrefixForType(type) {
   if (normalized === "room") return CARD_ID_PREFIX_BY_TYPE.room;
   if (normalized === "delver") return CARD_ID_PREFIX_BY_TYPE.delver;
   if (normalized === "warden") return CARD_ID_PREFIX_BY_TYPE.warden;
+  if (normalized === "hazard") return CARD_ID_PREFIX_BY_TYPE.hazard;
+  if (normalized === "resource") return CARD_ID_PREFIX_BY_TYPE.resource;
   return CARD_ID_PREFIX_BY_TYPE.untyped;
 }
 
@@ -408,8 +457,27 @@ function createBlankCard({ id, affinity, count, flipped, tokenHint } = {}) {
     roomSize: undefined,
     tokenHint: readOptionalToken(tokenHint),
     vitals: undefined,
+    proximityRadius: undefined,
+    mana: undefined,
+    durability: undefined,
     flipped: flipped === true,
   };
+}
+
+function normalizeResourceTier(value) {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return RESOURCE_TIERS.includes(normalized) ? normalized : RESOURCE_TIERS[0];
+}
+
+function normalizeResourceStat(value) {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return RESOURCE_STATS.includes(normalized) ? normalized : RESOURCE_STATS[0];
+}
+
+function normalizeSignedInt(value, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.trunc(parsed);
 }
 
 function stableSortAffinities(entries = []) {
@@ -445,6 +513,14 @@ function stableCardForSerialize(card) {
     motivations: Array.isArray(card.motivations) ? card.motivations.slice().sort() : [],
     vitals: card.vitals ? cloneVitals(card.vitals) : undefined,
     tokenHint: readOptionalToken(card.tokenHint),
+    proximityRadius: readOptionalToken(card.proximityRadius),
+    mana: card.mana ? normalizeHazardVital(card.mana, { kind: "one-time", amount: 3 }) : undefined,
+    durability: card.durability ? normalizeHazardVital(card.durability, { kind: "one-time", amount: 1 }) : undefined,
+    tier: card.tier,
+    stat: card.stat,
+    delta: Number.isFinite(card.delta) ? Math.trunc(card.delta) : undefined,
+    dropRate: readOptionalToken(card.dropRate),
+    budgetCeiling: readOptionalToken(card.budgetCeiling),
     source: card.source,
     flipped: card.flipped === true,
   };
@@ -465,6 +541,14 @@ export function createDesignCard({
   setupMode = "hybrid",
   flipped = false,
   tokenHint,
+  proximityRadius = DEFAULT_HAZARD_PROXIMITY_RADIUS,
+  mana,
+  durability,
+  tier = RESOURCE_TIERS[0],
+  stat = RESOURCE_STATS[0],
+  delta = 0,
+  dropRate = 1,
+  budgetCeiling,
   preserveEmptyAffinities = false,
 } = {}) {
   const normalizedType = normalizeCardType(type);
@@ -475,6 +559,57 @@ export function createDesignCard({
   const normalizedAffinityInput = normalizeAffinity(affinity, affinityFallback);
   if (!normalizedType) {
     return createBlankCard({ id, affinity: normalizedAffinityInput, count, flipped, tokenHint });
+  }
+  if (normalizedType === "hazard") {
+    const hazardAffinity = normalizeAffinity(normalizedAffinityInput, DEFAULT_DUNGEON_AFFINITY);
+    const hazardExpression = normalizeExpression(
+      Array.isArray(affinities) && affinities.length > 0
+        ? affinities[0]?.expression
+        : Array.isArray(expressions)
+          ? expressions[0]
+          : expressions,
+      DEFAULT_HAZARD_AFFINITY_EXPRESSION,
+    );
+    return {
+      id: typeof id === "string" && id.trim() ? id.trim() : buildCardId("hazard"),
+      type: "hazard",
+      source: "hazard",
+      count: normalizeCardCount(count, 1),
+      affinity: hazardAffinity,
+      affinities: [{ kind: hazardAffinity, expression: hazardExpression, stacks: 1 }],
+      expressions: [hazardExpression],
+      motivations: [],
+      setupMode: "hybrid",
+      roomSize: undefined,
+      tokenHint: readOptionalToken(tokenHint),
+      vitals: undefined,
+      proximityRadius: Math.max(1, readPositiveInt(proximityRadius, DEFAULT_HAZARD_PROXIMITY_RADIUS)),
+      mana: normalizeHazardVital(mana, { kind: "one-time", amount: 3 }),
+      durability: normalizeHazardVital(durability, { kind: "one-time", amount: 1 }),
+      flipped: flipped === true,
+    };
+  }
+  if (normalizedType === "resource") {
+    return {
+      id: typeof id === "string" && id.trim() ? id.trim() : buildCardId("resource"),
+      type: "resource",
+      source: "resource",
+      count: normalizeCardCount(count, 1),
+      affinity: normalizedAffinityInput,
+      affinities: [],
+      expressions: [],
+      motivations: [],
+      setupMode: "hybrid",
+      roomSize: undefined,
+      tokenHint: readOptionalToken(tokenHint),
+      vitals: undefined,
+      tier: normalizeResourceTier(tier),
+      stat: normalizeResourceStat(stat),
+      delta: normalizeSignedInt(delta, 0),
+      dropRate: readPositiveInt(dropRate, 1),
+      budgetCeiling: readOptionalToken(budgetCeiling),
+      flipped: flipped === true,
+    };
   }
   const hasExplicitAffinitiesInput = Array.isArray(affinities);
   const hasExplicitExpressionsInput = Array.isArray(expressions) || typeof expressions === "string";
@@ -608,6 +743,14 @@ export function normalizeDesignCardSet(cards, { dungeonAffinity = DEFAULT_DUNGEO
         setupMode: entry?.setupMode,
         flipped: entry?.flipped,
         tokenHint: entry?.tokenHint,
+        proximityRadius: entry?.proximityRadius,
+        mana: entry?.mana,
+        durability: entry?.durability,
+        tier: entry?.tier,
+        stat: entry?.stat,
+        delta: entry?.delta,
+        dropRate: entry?.dropRate,
+        budgetCeiling: entry?.budgetCeiling,
         preserveEmptyAffinities: Array.isArray(entry?.affinities) && entry.affinities.length === 0,
       });
     })
@@ -637,6 +780,8 @@ export function groupCardsByType(cards = []) {
     room: [],
     delver: [],
     warden: [],
+    hazard: [],
+    resource: [],
     untyped: [],
   };
   normalizeDesignCardSet(cards).forEach((card) => {
@@ -657,11 +802,11 @@ function replaceCardType(card, typeValue) {
   }
   const priorType = normalizeCardType(card?.type);
   const applyRoomDefaults = type === "room" && priorType !== "room";
-  const applyActorDefaults = type !== "room" && (!priorType || priorType === "room");
+  const applyActorDefaults = (type === "delver" || type === "warden") && (!priorType || priorType === "room" || priorType === "hazard");
   const next = createDesignCard({
     ...card,
     type,
-    source: type === "room" ? "room" : "actor",
+    source: type === "room" ? "room" : type === "hazard" ? "hazard" : type === "resource" ? "resource" : "actor",
     affinity: applyRoomDefaults
       ? DEFAULT_ROOM_CARD_AFFINITY
       : applyActorDefaults
@@ -673,11 +818,14 @@ function replaceCardType(card, typeValue) {
       : applyActorDefaults
         ? undefined
         : card?.expressions,
-    motivations: type === "room"
+    motivations: type === "room" || type === "hazard" || type === "resource"
       ? []
       : normalizeMotivationList(card?.motivations, type === "delver" ? "attacking" : "defending"),
-    vitals: type === "room" ? undefined : card?.vitals,
+    vitals: type === "room" || type === "hazard" || type === "resource" ? undefined : card?.vitals,
     roomSize: type === "room" ? card?.roomSize || "medium" : undefined,
+    proximityRadius: type === "hazard" ? card?.proximityRadius || DEFAULT_HAZARD_PROXIMITY_RADIUS : undefined,
+    mana: type === "hazard" ? card?.mana : undefined,
+    durability: type === "hazard" ? card?.durability : undefined,
   });
   return { ok: true, card: next, reason: "type_updated" };
 }
@@ -1131,6 +1279,31 @@ export function calculateCardValue(card, { tileCosts, priceList } = {}) {
   const type = normalizeCardType(normalized.type);
   if (!type) {
     return { unitTokens: 0, totalTokens: 0, lineItems: [] };
+  }
+  if (type === "resource") {
+    const budgetCeiling = readPositiveInt(normalized.budgetCeiling, 0);
+    const deltaSpend = Math.abs(normalizeSignedInt(normalized.delta, 0));
+    const unitTokens = budgetCeiling > 0 ? budgetCeiling : deltaSpend;
+    const totalTokens = unitTokens * normalizeCardCount(normalized.count, 1);
+    const lineItems = [
+      {
+        id: "resource_delta",
+        label: `delta:${normalized.stat || RESOURCE_STATS[0]}`,
+        quantity: 1,
+        unitCostTokens: deltaSpend,
+        spendTokens: deltaSpend,
+      },
+    ];
+    if (budgetCeiling > 0) {
+      lineItems.push({
+        id: "resource_budget_ceiling",
+        label: "budget ceiling",
+        quantity: 1,
+        unitCostTokens: budgetCeiling,
+        spendTokens: budgetCeiling,
+      });
+    }
+    return { unitTokens, totalTokens, lineItems };
   }
   const unitValue = type === "room"
     ? calculateRoomCardUnitValue(normalized, { tileCosts, priceList })
@@ -1596,9 +1769,12 @@ export function wireDesignGuidance({
     roomGroup,
     attackerGroup,
     defenderGroup,
+    hazardGroup,
+    resourceGroup,
     roomGroupBudget,
     attackerGroupBudget,
     defenderGroupBudget,
+    resourceGroupBudget,
     levelBudgetInput,
     budgetSplitRoomInput,
     budgetSplitAttackerInput,
@@ -1727,6 +1903,7 @@ export function wireDesignGuidance({
       room: 0,
       delver: 0,
       warden: 0,
+      resource: 0,
     });
   }
 
@@ -1828,6 +2005,20 @@ export function wireDesignGuidance({
     const allocation = state.allocationLedger || resolveAllocationLedger(state.cards);
     const setGroupValue = (el, type) => {
       if (!el) return;
+      if (type === "resource") {
+        const cards = groupCardsByType(state.cards).resource;
+        const used = cards.reduce((sum, card) => sum + readNonNegativeInt(card?.cardValue?.totalTokens, 0), 0);
+        const allocated = cards.reduce((sum, card) => sum + readNonNegativeInt(card?.budgetCeiling, 0), 0);
+        const remaining = allocated - used;
+        renderRailBudgetEquation(el, {
+          totalTokens: allocated,
+          mintedTokens: used,
+          remainingTokens: remaining,
+        });
+        el.style.color = remaining < 0 ? "#cf3f5b" : "";
+        el.classList?.toggle?.("is-negative", remaining < 0);
+        return;
+      }
       const detail = allocation?.byType?.[type] || { usedTokens: 0, allocatedTokens: 0, overByTokens: 0 };
       const used = readNonNegativeInt(detail.usedTokens, 0);
       const allocated = readNonNegativeInt(detail.allocatedTokens, 0);
@@ -1843,6 +2034,7 @@ export function wireDesignGuidance({
     setGroupValue(roomGroupBudget, "room");
     setGroupValue(attackerGroupBudget, "delver");
     setGroupValue(defenderGroupBudget, "warden");
+    setGroupValue(resourceGroupBudget, "resource");
   }
 
   function updateBudgetOverviewIndicator() {
@@ -2085,6 +2277,7 @@ export function wireDesignGuidance({
     renderGroupList(roomGroup, grouped.room, "room");
     renderGroupList(attackerGroup, grouped.delver, "delver");
     renderGroupList(defenderGroup, grouped.warden, "warden");
+    renderGroupList(resourceGroup, grouped.resource, "resource");
   }
 
   function updateCard(cardId, updater) {
@@ -2138,6 +2331,44 @@ export function wireDesignGuidance({
       return createDesignCard({
         ...working,
         affinity: targetKind,
+      });
+    });
+    if (!updated) return false;
+    recompute({ notify: false });
+    return true;
+  }
+
+  function cycleResourceField(cardId, field, values, direction = 1) {
+    const updated = updateCard(cardId, (card) => {
+      const working = createDesignCard(card);
+      if (working.type !== "resource") return working;
+      const currentIndex = values.indexOf(String(working[field] || ""));
+      const nextIndex = currentIndex >= 0
+        ? (currentIndex + direction + values.length) % values.length
+        : 0;
+      return createDesignCard({
+        ...working,
+        [field]: values[nextIndex],
+      });
+    });
+    if (!updated) return false;
+    recompute({ notify: false });
+    return true;
+  }
+
+  function adjustResourceNumber(cardId, field, delta) {
+    const updated = updateCard(cardId, (card) => {
+      const working = createDesignCard(card);
+      if (working.type !== "resource") return working;
+      const current = field === "delta"
+        ? normalizeSignedInt(working[field], 0)
+        : readPositiveInt(working[field], 0);
+      const next = field === "delta"
+        ? current + delta
+        : Math.max(0, current + delta);
+      return createDesignCard({
+        ...working,
+        [field]: next,
       });
     });
     if (!updated) return false;
@@ -2362,7 +2593,9 @@ export function wireDesignGuidance({
           if (configurationSpend) {
             const allocation = state.allocationLedger?.byType?.[cardType];
             const spentTokens = readNonNegativeInt(card?.cardValue?.totalTokens, 0);
-            const allocatedTokens = readNonNegativeInt(allocation?.allocatedTokens, state.budgetTokens);
+            const allocatedTokens = cardType === "resource"
+              ? readNonNegativeInt(card?.budgetCeiling, state.budgetTokens)
+              : readNonNegativeInt(allocation?.allocatedTokens, state.budgetTokens);
             configurationSpend.className = "design-card-meta-chip is-configuration-spend";
             configurationSpend.textContent = `${spentTokens}/${allocatedTokens}`;
             meta.append(configurationSpend);
@@ -2371,7 +2604,7 @@ export function wireDesignGuidance({
         front.append(meta);
       }
 
-      const affinityList = createDomElement(front, "div");
+      const affinityList = card.type === "resource" ? null : createDomElement(front, "div");
       if (affinityList) {
         affinityList.className = "design-card-affinity-list";
         const affinityEntries = Array.isArray(card.affinities) ? card.affinities : [];
@@ -2554,7 +2787,103 @@ export function wireDesignGuidance({
         front.append(affinityList);
       }
 
-      if (card.type === "delver" || card.type === "warden") {
+      if (card.type === "resource") {
+        const resourceControls = createDomElement(front, "section");
+        if (resourceControls) {
+          resourceControls.className = "design-card-vitals";
+          const heading = createDomElement(resourceControls, "div");
+          if (heading) {
+            heading.className = "design-card-vitals-title";
+            heading.textContent = "Resource";
+            resourceControls.append(heading);
+          }
+          const rows = [
+            {
+              label: "Tier",
+              buttonText: normalizeResourceTier(card.tier),
+              onClick: () => cycleResourceField(card.id, "tier", RESOURCE_TIERS, 1),
+            },
+            {
+              label: "Stat",
+              buttonText: normalizeResourceStat(card.stat),
+              onClick: () => cycleResourceField(card.id, "stat", RESOURCE_STATS, 1),
+            },
+          ];
+          rows.forEach((entry) => {
+            const row = createDomElement(resourceControls, "div");
+            if (!row) return;
+            row.className = "design-card-vital-row";
+            const label = createDomElement(row, "span");
+            if (label) {
+              label.className = "design-card-vital-label";
+              label.textContent = entry.label;
+              row.append(label);
+            }
+            const button = createDomElement(row, "button");
+            if (button) {
+              button.type = "button";
+              button.className = "design-card-room-size";
+              button.textContent = entry.buttonText;
+              button.addEventListener?.("click", (event) => {
+                event.stopPropagation?.();
+                entry.onClick();
+              });
+              row.append(button);
+            }
+            resourceControls.append(row);
+          });
+          [
+            { field: "delta", label: "Delta", step: 1, value: normalizeSignedInt(card.delta, 0) },
+            { field: "dropRate", label: "Drop Rate", step: 1, value: readPositiveInt(card.dropRate, 1) },
+            { field: "budgetCeiling", label: "Budget", step: 5, value: readPositiveInt(card.budgetCeiling, 0) },
+          ].forEach((entry) => {
+            const row = createDomElement(resourceControls, "div");
+            if (!row) return;
+            row.className = "design-card-vital-row";
+            const label = createDomElement(row, "span");
+            if (label) {
+              label.className = "design-card-vital-label";
+              label.textContent = entry.label;
+              row.append(label);
+            }
+            const controls = createDomElement(row, "div");
+            if (controls) {
+              controls.className = "design-card-vital-controls";
+              const minus = createDomElement(controls, "button");
+              if (minus) {
+                minus.type = "button";
+                minus.className = "design-card-vital-minus";
+                minus.textContent = "-";
+                minus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustResourceNumber(card.id, entry.field, -entry.step);
+                });
+                controls.append(minus);
+              }
+              const value = createDomElement(controls, "span");
+              if (value) {
+                value.className = "design-card-vital-value";
+                value.textContent = String(entry.value);
+                controls.append(value);
+              }
+              const plus = createDomElement(controls, "button");
+              if (plus) {
+                plus.type = "button";
+                plus.className = "design-card-vital-plus";
+                plus.textContent = "+";
+                plus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustResourceNumber(card.id, entry.field, entry.step);
+                });
+                controls.append(plus);
+              }
+              row.append(controls);
+            }
+            resourceControls.append(row);
+          });
+          front.append(resourceControls);
+        }
+      } else if (card.type === "delver" || card.type === "warden") {
         const motivations = createDomElement(front, "section");
         if (motivations) {
           motivations.className = "design-card-motivations";

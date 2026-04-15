@@ -55,6 +55,7 @@ test("design panel contains the unified card workspace layout", () => {
   assert.match(designPanel, /id="design-card-group-room"/);
   assert.match(designPanel, /id="design-card-group-delver"/);
   assert.match(designPanel, /id="design-card-group-warden"/);
+  assert.match(designPanel, /id="design-card-group-resource"/);
   const budgetOverviewIdx = designPanel.indexOf('id="design-budget-overview"');
   const statusIdx = designPanel.indexOf('id="design-guidance-status"');
   const cardGridIdx = designPanel.indexOf('id="design-card-grid"');
@@ -67,7 +68,7 @@ test("design panel contains the unified card workspace layout", () => {
   assert.doesNotMatch(designPanel, /Drag chips onto this card\./);
   assert.match(
     designPanel,
-    /id="design-guidance-status"[^>]*>Configure one card in the center, then pull it right into grouped Room\/Delver\/Warden shelves\.<\/div>/,
+    /id="design-guidance-status"[^>]*>Configure one card in the center, then pull it right into grouped Room\/Delver\/Warden\/Hazard shelves\.<\/div>/,
   );
 });
 
