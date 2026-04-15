@@ -287,9 +287,24 @@ export function buildBuildSpecFromSummary({
   const roomDesign = resolvedSummary?.roomDesign && typeof resolvedSummary.roomDesign === "object"
     ? resolvedSummary.roomDesign
     : null;
+  const hazards = Array.isArray(resolvedSummary?.hazards)
+    ? resolvedSummary.hazards
+      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+      .map((entry) => ({
+        id: entry.id,
+        affinity: entry.affinity,
+        expression: entry.expression,
+        proximityRadius: entry.proximityRadius,
+        mana: entry.mana ? { ...entry.mana } : undefined,
+        durability: entry.durability ? { ...entry.durability } : undefined,
+      }))
+    : [];
   const levelGen = layout || roomDesign
     ? deriveLevelGenFromLayout(layout || {}, roomDesign)
     : deriveLevelGen({ roomCount });
+  if (hazards.length > 0) {
+    levelGen.hazards = hazards;
+  }
   const delverConfigs = Array.isArray(resolvedSummary?.delverConfigs)
     ? resolvedSummary.delverConfigs
       .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
@@ -314,6 +329,8 @@ export function buildBuildSpecFromSummary({
       hints: {
         levelAffinity: resolvedSummary?.dungeonAffinity,
         budgetTokens: resolvedSummary?.budgetTokens,
+        dungeonBudgetTokens: resolvedSummary?.dungeonBudgetTokens,
+        delverBudgetTokens: resolvedSummary?.delverBudgetTokens,
         poolWeights: resolvedSummary?.poolWeights,
         delverCount,
         delverSetupMode: delverConfig?.setupMode,
@@ -326,6 +343,7 @@ export function buildBuildSpecFromSummary({
           affinity: sel.requested.affinity,
           count: sel.requested.count,
         })),
+        hazards: hazards.length > 0 ? hazards : undefined,
         delverCount,
         delverConfigs: delverConfigs.length > 0 ? delverConfigs : undefined,
         delverConfig: delverConfig || undefined,

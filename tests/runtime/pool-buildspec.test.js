@@ -92,6 +92,60 @@ test("summary without catalog still produces actor configuration via shared sele
   assert.equal(result.spec.configurator.inputs.delverConfig.setupMode, "user");
 });
 
+test("hazard cards become configurator levelGen hazards in BuildSpec", async () => {
+  const { buildBuildSpecFromSummary } = await import(
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+  );
+  const summary = {
+    dungeonAffinity: "fire",
+    budgetTokens: 600,
+    rooms: [{ motivation: "stationary", affinity: "fire", count: 1 }],
+    actors: [{ motivation: "defending", affinity: "earth", count: 1 }],
+    cardSet: [
+      {
+        id: "R-TEST01",
+        type: "room",
+        source: "room",
+        count: 1,
+        affinity: "fire",
+        roomSize: "medium",
+        affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
+      },
+      {
+        id: "H-TEST01",
+        type: "hazard",
+        source: "hazard",
+        count: 1,
+        affinity: "fire",
+        affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+        proximityRadius: 2,
+        mana: { kind: "regen", current: 4, max: 4, regen: 1 },
+        durability: { kind: "one-time", amount: 3 },
+        tokenHint: 25,
+      },
+    ],
+  };
+
+  const result = buildBuildSpecFromSummary({
+    summary,
+    runId: "hazard_card_buildspec",
+    createdAt: "2026-04-15T00:00:00Z",
+    source: "runtime-test",
+  });
+
+  assert.equal(result.ok, true);
+  assert.ok(Array.isArray(result.spec.configurator.inputs.levelGen.hazards));
+  assert.equal(result.spec.configurator.inputs.levelGen.hazards.length, 1);
+  assert.deepEqual(result.spec.configurator.inputs.levelGen.hazards[0], {
+    id: "H-TEST01",
+    affinity: "fire",
+    expression: "emit",
+    proximityRadius: 2,
+    mana: { kind: "regen", current: 4, max: 4, regen: 1 },
+    durability: { kind: "one-time", amount: 3 },
+  });
+});
+
 test("summary roomDesign drives connected-room level shape in BuildSpec", async () => {
   const { buildBuildSpecFromSummary } = await import(
     "../../packages/runtime/src/personas/director/buildspec-assembler.js"

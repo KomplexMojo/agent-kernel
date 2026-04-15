@@ -78,6 +78,28 @@ function normalizeSetupMode(value) {
   return DELVER_SETUP_MODE_SET.has(normalized) ? normalized : DEFAULT_DELVER_SETUP_MODE;
 }
 
+function normalizeHazardVital(value, fallback) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ...fallback };
+  }
+  const kind = typeof value.kind === "string" ? value.kind.trim().toLowerCase() : "";
+  if (kind === "regen") {
+    const current = normalizePositiveInt(value.current, fallback.current);
+    const max = normalizePositiveInt(value.max, fallback.max);
+    const regen = Math.max(0, Number.isFinite(Number(value.regen)) ? Math.floor(Number(value.regen)) : fallback.regen);
+    return {
+      kind: "regen",
+      current: Math.min(current, max),
+      max,
+      regen,
+    };
+  }
+  return {
+    kind: "one-time",
+    amount: Math.max(0, Number.isFinite(Number(value.amount)) ? Math.floor(Number(value.amount)) : fallback.amount),
+  };
+}
+
 function normalizeVitalsConfigMap(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return VITAL_KEYS.reduce((acc, key) => {
@@ -287,7 +309,13 @@ export function normalizeSummaryPick(
 }
 
 export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AFFINITY, index = 0 } = {}) {
-  const fallbackType = entry?.source === "room" ? "room" : "warden";
+  const fallbackType = entry?.source === "room"
+    ? "room"
+    : entry?.source === "hazard"
+      ? "hazard"
+    : entry?.source === "resource"
+      ? "resource"
+      : "warden";
   const type = normalizeCardType(entry?.type) || fallbackType;
   const affinity = normalizeCardAffinity(
     entry?.affinity,
@@ -300,12 +328,19 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
       fallbackExpression: DEFAULT_ROOM_AFFINITY_EXPRESSION,
       fallbackStacks: DEFAULT_ROOM_AFFINITY_STACKS,
     })
-    : normalizeAffinityEntries(entry?.affinities, affinity);
+    : type === "hazard"
+      ? normalizeAffinityEntries(entry?.affinities, affinity).slice(0, 1).map((hazardAffinity) => ({
+        ...hazardAffinity,
+        stacks: 1,
+      }))
+    : type === "resource"
+      ? []
+      : normalizeAffinityEntries(entry?.affinities, affinity);
   const expressions = normalizeStringList(
     normalizedAffinities.map((affinityEntry) => affinityEntry.expression),
     DEFAULT_AFFINITY_EXPRESSION,
   );
-  const motivations = type === "room"
+  const motivations = type === "room" || type === "hazard" || type === "resource"
     ? []
     : normalizeMotivationKinds(
       entry?.motivations,
@@ -318,7 +353,13 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
   const card = {
     id,
     type,
-    source: entry?.source === "room" ? "room" : "actor",
+    source: entry?.source === "room"
+      ? "room"
+      : type === "hazard"
+        ? "hazard"
+        : type === "resource"
+          ? "resource"
+          : "actor",
     count,
     affinity,
     affinities: normalizedAffinities,
@@ -327,7 +368,17 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
     setupMode: normalizeSetupMode(entry?.setupMode),
     roomSize: type === "room" ? normalizeRoomCardSize(entry?.roomSize ?? entry?.size) : undefined,
     tokenHint,
-    vitals: type === "room" ? undefined : normalizeVitals(entry?.vitals),
+    vitals: type === "room" || type === "hazard" || type === "resource" ? undefined : normalizeVitals(entry?.vitals),
+    proximityRadius: type === "hazard" ? normalizePositiveInt(entry?.proximityRadius, 1) : undefined,
+    mana: type === "hazard" ? normalizeHazardVital(entry?.mana, { kind: "one-time", amount: 3 }) : undefined,
+    durability: type === "hazard" ? normalizeHazardVital(entry?.durability, { kind: "one-time", amount: 1 }) : undefined,
+    tier: type === "resource" ? entry?.tier : undefined,
+    stat: type === "resource" ? entry?.stat : undefined,
+    delta: type === "resource" && Number.isFinite(Number(entry?.delta)) ? Number(entry.delta) : undefined,
+    dropRate: type === "resource" && Number.isFinite(Number(entry?.dropRate)) ? Math.floor(Number(entry.dropRate)) : undefined,
+    budgetCeiling: type === "resource" && Number.isFinite(Number(entry?.budgetCeiling))
+      ? Math.max(0, Math.floor(Number(entry.budgetCeiling)))
+      : undefined,
     flipped: entry?.flipped === true,
   };
   return card;
@@ -457,6 +508,7 @@ export function buildCardSetFromSummary(summary) {
   }
 
   const rooms = Array.isArray(summary?.rooms) ? summary.rooms : [];
+  const hazards = Array.isArray(summary?.hazards) ? summary.hazards : [];
   const actors = Array.isArray(summary?.actors) ? summary.actors : [];
   const delverConfigs = Array.isArray(summary?.delverConfigs)
     ? summary.delverConfigs.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
@@ -476,6 +528,23 @@ export function buildCardSetFromSummary(summary) {
       tokenHint: entry?.tokenHint,
       affinities: entry?.affinities,
       motivations: [],
+    },
+    { dungeonAffinity, index },
+  ));
+
+  const hazardCards = hazards.map((entry, index) => normalizeCardEntry(
+    {
+      id: entry?.id || `card_hazard_${index + 1}`,
+      type: "hazard",
+      source: "hazard",
+      count: entry?.count,
+      affinity: entry?.affinity,
+      affinities: [{ kind: entry?.affinity, expression: entry?.expression, stacks: 1 }],
+      expressions: [entry?.expression],
+      proximityRadius: entry?.proximityRadius,
+      mana: entry?.mana,
+      durability: entry?.durability,
+      tokenHint: entry?.tokenHint,
     },
     { dungeonAffinity, index },
   ));
@@ -508,7 +577,7 @@ export function buildCardSetFromSummary(summary) {
   const delverCardsFromConfigs = hasDelverCardsFromActors
     ? []
     : reduceDelverConfigsToCards(delverConfigs, dungeonAffinity);
-  return normalizeCardSet([...roomCards, ...delverCardsFromConfigs, ...actorCards], { dungeonAffinity });
+  return normalizeCardSet([...roomCards, ...hazardCards, ...delverCardsFromConfigs, ...actorCards], { dungeonAffinity });
 }
 
 export function extractSummaryFromCardSet(summary) {
@@ -525,10 +594,20 @@ export function extractSummaryFromCardSet(summary) {
 
   const cardSet = normalizeCardSet(cardInput, { dungeonAffinity });
   const roomCards = cardSet.filter((card) => card.type === "room");
+  const hazardCards = cardSet.filter((card) => card.type === "hazard");
   const delverCards = cardSet.filter((card) => card.type === "delver");
   const actorCards = cardSet.filter((card) => card.type === "delver" || card.type === "warden");
 
   const rooms = roomCards.map((card) => cardEntryToRoomPick(card, dungeonAffinity));
+  const hazards = hazardCards.map((card) => ({
+    id: card.id,
+    affinity: card.affinity || dungeonAffinity,
+    expression: card.affinities?.[0]?.expression || card.expressions?.[0] || DEFAULT_AFFINITY_EXPRESSION,
+    proximityRadius: normalizePositiveInt(card.proximityRadius, 1),
+    mana: normalizeHazardVital(card.mana, { kind: "one-time", amount: 3 }),
+    durability: normalizeHazardVital(card.durability, { kind: "one-time", amount: 1 }),
+    tokenHint: normalizeTokenHint(card.tokenHint),
+  }));
   const actors = actorCards.map((card) => (
     card.type === "delver"
       ? cardEntryToDelverPick(card, dungeonAffinity)
@@ -543,6 +622,7 @@ export function extractSummaryFromCardSet(summary) {
     dungeonAffinity,
     cardSet,
     rooms,
+    hazards,
     actors,
   };
 

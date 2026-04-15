@@ -18,9 +18,12 @@ export function wireDesignView({
   const roomGroup = root.querySelector("#design-card-group-room");
   const attackerGroup = root.querySelector("#design-card-group-delver");
   const defenderGroup = root.querySelector("#design-card-group-warden");
+  const hazardGroup = root.querySelector("#design-card-group-hazard");
+  const resourceGroup = root.querySelector("#design-card-group-resource");
   const roomGroupBudget = root.querySelector("#design-card-group-budget-room");
   const attackerGroupBudget = root.querySelector("#design-card-group-budget-delver");
   const defenderGroupBudget = root.querySelector("#design-card-group-budget-warden");
+  const resourceGroupBudget = root.querySelector("#design-card-group-budget-resource");
   const levelBudgetInput = root.querySelector("#design-level-budget");
   const budgetSplitRoomInput = root.querySelector("#design-budget-split-room");
   const budgetSplitAttackerInput = root.querySelector("#design-budget-split-delver");
@@ -71,9 +74,12 @@ export function wireDesignView({
       roomGroup,
       attackerGroup,
       defenderGroup,
+      hazardGroup,
+      resourceGroup,
       roomGroupBudget,
       attackerGroupBudget,
       defenderGroupBudget,
+      resourceGroupBudget,
       levelBudgetInput,
       budgetSplitRoomInput,
       budgetSplitAttackerInput,
