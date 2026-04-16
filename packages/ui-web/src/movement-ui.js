@@ -9,6 +9,7 @@ import {
   VITAL_KEYS,
 } from "../../runtime/src/contracts/domain-constants.js";
 import { AFFINITY_COLOR_HEX, STACK_INTENSITY_TIERS, resolveStackIntensity } from "../../runtime/src/render/affinity-palette.js";
+import { resolveIconHTML } from "./icon-resolver.js";
 
 const EVENT_STREAM_LIMIT = 6;
 const DEFAULT_VIEWPORT_SIZE = 50;
@@ -189,7 +190,7 @@ function buildActorSymbolMap(actors = [], symbols, fallbackSymbols) {
   return map;
 }
 
-function resolveTrapAffinityEntry(trap = null) {
+function resolveHazardAffinityEntry(trap = null) {
   if (!trap || typeof trap !== "object") return null;
   const candidates = Array.isArray(trap.affinities)
     ? trap.affinities
@@ -215,10 +216,10 @@ function resolveTrapAffinityEntry(trap = null) {
   return pool[0];
 }
 
-function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
-  if (!Array.isArray(traps) || traps.length === 0) return new Map();
+function buildFloorAffinityIndex(hazards = [], { viewport = null } = {}) {
+  if (!Array.isArray(hazards) || hazards.length === 0) return new Map();
   const index = new Map();
-  traps.forEach((trap) => {
+  hazards.forEach((trap) => {
     const x = Number(trap?.position?.x ?? trap?.x);
     const y = Number(trap?.position?.y ?? trap?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
@@ -226,7 +227,7 @@ function buildFloorAffinityIndex(traps = [], { viewport = null } = {}) {
       if (x < viewport.startX || x >= viewport.endX) return;
       if (y < viewport.startY || y >= viewport.endY) return;
     }
-    const affinity = resolveTrapAffinityEntry(trap);
+    const affinity = resolveHazardAffinityEntry(trap);
     if (!affinity) return;
     const localX = viewport ? x - viewport.startX : x;
     const localY = viewport ? y - viewport.startY : y;
@@ -678,6 +679,22 @@ export function renderTrapSummary(trap) {
   return `trap @(${position.x},${position.y}) ${vitals}\n  affinities: ${affinities}\n  abilities: ${abilities}`;
 }
 
+export function renderHazardSummary(hazard, bundle = null) {
+  const position = hazard?.position || { x: 0, y: 0 };
+  const glyph = resolveIconHTML(bundle, "items", "hazard");
+  const vitals = formatTrapVitals(hazard?.vitals || {});
+  const affinities = formatAffinities(hazard?.affinities || []);
+  const abilities = formatAbilities(hazard?.abilities || []);
+  return `${glyph} hazard @(${position.x},${position.y}) ${vitals}\n  affinities: ${affinities}\n  abilities: ${abilities}`;
+}
+
+export function renderResourceSummary(resource, bundle = null) {
+  const position = resource?.position || { x: 0, y: 0 };
+  const glyph = resolveIconHTML(bundle, "items", "resource");
+  const affinities = formatAffinities(resource?.affinities || []);
+  return `${glyph} resource @(${position.x},${position.y})\n  affinities: ${affinities}`;
+}
+
 export function setupPlayback({
   core,
   actions,
@@ -751,7 +768,7 @@ export function setupPlayback({
   function recordVisibilitySnapshot(frame, obs) {
     const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : [];
     const actors = sortedActors(obs?.actors || []);
-    const traps = Array.isArray(obs?.traps) ? obs.traps : [];
+    const traps = Array.isArray(obs?.hazards) ? obs.hazards : Array.isArray(obs?.traps) ? obs.traps : [];
     const map = resolveBaseDimensions(baseTiles);
     const darkness = buildDarknessOcclusion({ baseTiles, actors, traps });
 
@@ -970,7 +987,7 @@ export function setupPlayback({
       }
     }
 
-    const floorAffinityByCell = buildFloorAffinityIndex(obs?.traps || [], { viewport });
+    const floorAffinityByCell = buildFloorAffinityIndex(obs?.hazards || obs?.traps || [], { viewport });
     const overlay = buildActorOverlay(renderTiles, renderActors, { floorAffinityByCell });
     if (elements.frame) {
       if ("innerHTML" in elements.frame) {
@@ -1017,7 +1034,7 @@ export function setupPlayback({
       if (elements.tileActorCount) elements.tileActorCount.textContent = String(tiles.length);
     }
     if (elements.trapList) {
-      const traps = obs.traps || [];
+      const traps = obs.hazards || obs.traps || [];
       elements.trapList.textContent = traps.length
         ? traps.map((trap) => renderTrapSummary(trap)).join("\n")
         : "No traps detected";

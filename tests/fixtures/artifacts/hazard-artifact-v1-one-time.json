@@ -1,0 +1,20 @@
+{
+  "schema": "agent-kernel/HazardArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "hazard_one_time",
+    "runId": "run_hazard_test",
+    "createdAt": "2026-04-13T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "affinity": "water",
+  "expression": "pull",
+  "mana": {
+    "kind": "one-time",
+    "amount": 3
+  },
+  "durability": {
+    "kind": "one-time",
+    "amount": 1
+  }
+}

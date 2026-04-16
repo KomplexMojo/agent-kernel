@@ -34,21 +34,21 @@ assert.equal(TARGET_DELVER_WARDEN_RATIO, 0.8);
 `);
 });
 
-test("reference budget is 1000 (design §2.1)", () => {
+test("reference budget is 2500 (design §2.1)", () => {
   runEsm(`
 import assert from "node:assert/strict";
 import { REFERENCE_BUDGET_TOKENS } from ${JSON.stringify(incentiveUrl)};
-assert.equal(REFERENCE_BUDGET_TOKENS, 1000);
+assert.equal(REFERENCE_BUDGET_TOKENS, 2500);
 `);
 });
 
-test("reference targets: rooms=550, delvers=200, wardens=250 (design §2.2)", () => {
+test("reference targets: rooms=1100, delvers=500, wardens=400 (design §2.2)", () => {
   runEsm(`
 import assert from "node:assert/strict";
 import { REFERENCE_TARGETS } from ${JSON.stringify(incentiveUrl)};
-assert.equal(REFERENCE_TARGETS.rooms, 550);
-assert.equal(REFERENCE_TARGETS.delvers, 200);
-assert.equal(REFERENCE_TARGETS.wardens, 250);
+assert.equal(REFERENCE_TARGETS.rooms, 1100);
+assert.equal(REFERENCE_TARGETS.delvers, 500);
+assert.equal(REFERENCE_TARGETS.wardens, 400);
 `);
 });
 
@@ -64,18 +64,18 @@ const report = buildScenarioSpendReport({
 });
 
 // Budget
-assert.equal(report.budget, 1000);
+assert.equal(report.budget, 2500);
 assert.equal(report.totalSpend, 910);
-assert.equal(report.remainingBudget, 90);
+assert.equal(report.remainingBudget, 1590);
 assert.equal(report.overBudget, false);
 
 // Categories
 assert.equal(report.categories.rooms.actual, 500);
-assert.equal(report.categories.rooms.target, 550);
+assert.equal(report.categories.rooms.target, 1100);
 assert.equal(report.categories.delvers.actual, 180);
-assert.equal(report.categories.delvers.target, 200);
+assert.equal(report.categories.delvers.target, 500);
 assert.equal(report.categories.wardens.actual, 230);
-assert.equal(report.categories.wardens.target, 250);
+assert.equal(report.categories.wardens.target, 400);
 
 // Incentive
 assert.equal(typeof report.incentive.actualRatio, "number");

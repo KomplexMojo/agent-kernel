@@ -15,10 +15,11 @@ const DEFAULT_SWEEP = Object.freeze([
 const DEFAULT_LAYOUT_PERCENT = 55;
 const DEFAULT_CATALOG_PATH = "tests/fixtures/pool/catalog-basic.json";
 const DEFAULT_POOL_WEIGHTS = Object.freeze([
-  { id: "player", weight: 20 },
-  { id: "layout", weight: 55 },
-  { id: "defenders", weight: 25 },
-  { id: "loot", weight: 0 },
+  { id: "delver", weight: 0.20 },
+  { id: "rooms", weight: 0.44 },
+  { id: "wardens", weight: 0.16 },
+  { id: "hazards", weight: 0.12 },
+  { id: "resources", weight: 0.08 },
 ]);
 
 function printUsage() {
@@ -164,7 +165,7 @@ async function runSingleBenchmark({ catalog, totalBudgetTokens, layoutPercent, r
     adapterCalls,
     walkableTiles,
     expectedWalkabilityBudget,
-    poolWalkabilityBudget: result.poolBudgets?.layout,
+    poolWalkabilityBudget: result.poolBudgets?.rooms,
     errorCodes: Array.isArray(result.errors) ? result.errors.map((entry) => entry?.code).filter(Boolean) : [],
   };
 }

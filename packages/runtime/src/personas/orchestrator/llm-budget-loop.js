@@ -1182,10 +1182,10 @@ export async function runLlmBudgetLoop({
   const budgetAllocation = allocationResult.allocation;
   const normalizedPoolWeights = allocationResult.poolWeights;
   const poolMap = new Map(budgetAllocation.pools.map((pool) => [pool.id, pool.tokens]));
-  const playerBudgetTokens = poolMap.get("player") || 0;
-  const layoutBudgetTokens = poolMap.get("layout") || 0;
+  const playerBudgetTokens = poolMap.get("delver") || 0;
+  const layoutBudgetTokens = poolMap.get("rooms") || 0;
   const wardensBudgetTokens = poolMap.get("wardens") || 0;
-  const lootBudgetTokens = poolMap.get("loot") || 0;
+  const resourceBudgetTokens = poolMap.get("resources") || 0;
 
   const captures = [];
   const trace = [];
@@ -1396,10 +1396,10 @@ export async function runLlmBudgetLoop({
     budgetAllocation,
     poolWeights: normalizedPoolWeights,
     poolBudgets: {
-      player: playerBudgetTokens,
-      layout: layoutBudgetTokens,
+      delver: playerBudgetTokens,
+      rooms: layoutBudgetTokens,
       wardens: wardensBudgetTokens,
-      loot: lootBudgetTokens,
+      resources: resourceBudgetTokens,
     },
     poolPolicy: budgetAllocation.policy,
   };

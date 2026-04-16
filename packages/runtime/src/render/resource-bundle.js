@@ -42,6 +42,11 @@ const DEFAULT_ACTOR_ASSET_IDS = Object.freeze({
   warden: "actor.warden",
 });
 
+const DEFAULT_ITEM_ASSET_IDS = Object.freeze({
+  hazard: "item.hazard",
+  resource: "item.resource",
+});
+
 const DEFAULT_CARD_ASSET_IDS = Object.freeze({
   room: "card.room",
   delver: "card.delver",
@@ -65,6 +70,7 @@ function createLegacyMappings() {
       inaccessible: DEFAULT_TILE_ASSET_IDS.inaccessible,
     },
     actors: { ...DEFAULT_ACTOR_ASSET_IDS },
+    items: { ...DEFAULT_ITEM_ASSET_IDS },
     cards: { ...DEFAULT_CARD_ASSET_IDS },
     affinities: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `affinity.${kind}`])),
     motivations: Object.fromEntries(ALLOWED_MOTIVATIONS.map((kind) => [kind, `motivation.${kind}`])),
@@ -90,6 +96,7 @@ function createVisualMappings() {
         warden: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `actor.warden.${kind}`])),
       },
     },
+    items: { ...DEFAULT_ITEM_ASSET_IDS },
     cards: { ...DEFAULT_CARD_ASSET_IDS },
     overlays: {
       affinities: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `overlay.affinity.${kind}`])),
@@ -253,6 +260,8 @@ function createDefaultAssets({ emitVisualAssets = false } = {}) {
     makeEntry(DEFAULT_TILE_ASSET_IDS.inaccessible, "tile", "Inaccessible Tile", "ipfs://ak-resource-bundle-v1/tile-inaccessible.png"),
     makeEntry(DEFAULT_ACTOR_ASSET_IDS.delver, "actor", "Generic Delver", "ipfs://ak-resource-bundle-v1/actor-delver.png"),
     makeEntry(DEFAULT_ACTOR_ASSET_IDS.warden, "actor", "Generic Warden", "ipfs://ak-resource-bundle-v1/actor-warden.png"),
+    makeEntry(DEFAULT_ITEM_ASSET_IDS.hazard, "item", "Generic Hazard", "ipfs://ak-resource-bundle-v1/item-hazard.png"),
+    makeEntry(DEFAULT_ITEM_ASSET_IDS.resource, "item", "Generic Resource", "ipfs://ak-resource-bundle-v1/item-resource.png"),
     makeEntry(DEFAULT_CARD_ASSET_IDS.room, "card", "Room Card", "ipfs://ak-resource-bundle-v1/card-room.png"),
     makeEntry(DEFAULT_CARD_ASSET_IDS.delver, "card", "Delver Card", "ipfs://ak-resource-bundle-v1/card-delver.png"),
     makeEntry(DEFAULT_CARD_ASSET_IDS.warden, "card", "Warden Card", "ipfs://ak-resource-bundle-v1/card-warden.png"),

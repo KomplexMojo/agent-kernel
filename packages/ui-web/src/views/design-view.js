@@ -28,6 +28,8 @@ export function wireDesignView({
   const budgetSplitRoomInput = root.querySelector("#design-budget-split-room");
   const budgetSplitAttackerInput = root.querySelector("#design-budget-split-delver");
   const budgetSplitDefenderInput = root.querySelector("#design-budget-split-warden");
+  const budgetSplitHazardInput = root.querySelector("#design-budget-split-hazard");
+  const budgetSplitResourceInput = root.querySelector("#design-budget-split-resource");
   const budgetSplitRoomTokens = root.querySelector("#design-budget-split-room-tokens");
   const budgetSplitAttackerTokens = root.querySelector("#design-budget-split-delver-tokens");
   const budgetSplitDefenderTokens = root.querySelector("#design-budget-split-warden-tokens");
@@ -84,6 +86,8 @@ export function wireDesignView({
       budgetSplitRoomInput,
       budgetSplitAttackerInput,
       budgetSplitDefenderInput,
+      budgetSplitHazardInput,
+      budgetSplitResourceInput,
       budgetSplitRoomTokens,
       budgetSplitAttackerTokens,
       budgetSplitDefenderTokens,

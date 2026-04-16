@@ -114,7 +114,7 @@ test("cli llm-plan budget loop writes intermediates only when explicitly request
   assert.ok(Array.isArray(trace));
   assert.equal(trace[0].phase, "layout_only");
   assert.equal(trace[0].spentTokens, 100);
-  assert.equal(trace[0].remainingBudgetTokens, 540);
+  assert.equal(trace[0].remainingBudgetTokens, 380);
   assert.ok(
     trace[0].warnings?.some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
   );
@@ -124,9 +124,9 @@ test("cli llm-plan budget loop writes intermediates only when explicitly request
   const allocation = telemetry?.data?.llm?.budgetAllocation;
   assert.ok(allocation);
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
-  assert.equal(poolsById.layout, 440);
-  assert.equal(poolsById.wardens, 200);
-  assert.equal(poolsById.player, 160);
+  assert.equal(poolsById.rooms, 352);
+  assert.equal(poolsById.wardens, 128);
+  assert.equal(poolsById.delver, 160);
 });
 
 test("cli llm-plan budget loop writes feasibility warnings into telemetry", () => {
@@ -175,13 +175,13 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
       "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
       "--budget-loop",
       "--budget-pool",
-      "player=0",
+      "delver=0",
       "--budget-pool",
-      "layout=0.5",
+      "rooms=0.5",
       "--budget-pool",
       "wardens=0.5",
       "--budget-pool",
-      "loot=0",
+      "resources=0",
       "--run-id",
       "run_llm_plan_loop_pools",
       "--created-at",
@@ -195,9 +195,9 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
   const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
   const allocation = telemetry?.data?.llm?.budgetAllocation;
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
-  assert.equal(poolsById.layout, 400);
+  assert.equal(poolsById.rooms, 400);
   assert.equal(poolsById.wardens, 400);
-  assert.equal(poolsById.player, 0);
+  assert.equal(poolsById.delver, 0);
 
   const trace = telemetry?.data?.llm?.trace || [];
   assert.equal(trace[0].remainingBudgetTokens, 700);

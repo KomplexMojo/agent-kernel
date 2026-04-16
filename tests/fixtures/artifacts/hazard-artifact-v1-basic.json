@@ -1,0 +1,24 @@
+{
+  "schema": "agent-kernel/HazardArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "hazard_basic",
+    "runId": "run_hazard_test",
+    "createdAt": "2026-04-13T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "affinity": "fire",
+  "expression": "emit",
+  "mana": {
+    "kind": "regen",
+    "current": 4,
+    "max": 4,
+    "regen": 1
+  },
+  "durability": {
+    "kind": "regen",
+    "current": 10,
+    "max": 10,
+    "regen": 0
+  }
+}

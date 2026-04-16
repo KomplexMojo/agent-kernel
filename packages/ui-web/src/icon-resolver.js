@@ -16,6 +16,7 @@ const TEXT_LABELS = Object.freeze({
     attacker: "⚔️",
     warden: "🛡️",
     defender: "🛡️",
+    hazard: "☠️",
     untyped: "◻️",
   },
   affinities: {
@@ -29,6 +30,10 @@ const TEXT_LABELS = Object.freeze({
     fortify: "🧱",
     light: "🌟",
     dark: "🌑",
+  },
+  items: {
+    hazard: "☠️",
+    resource: "💎",
   },
   expressions: {
     push: "⬆️",
