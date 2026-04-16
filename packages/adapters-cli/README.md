@@ -87,7 +87,7 @@ when a price list is supplied to the budget loop, `tile_wall`, `tile_floor`, and
 `tile_hallway` items (kind `tile`) override the defaults.
 Budget pools can be customized with `--budget-pool id=weight` (repeatable) and
 `--budget-reserve N` to reserve tokens before pooling. Defaults are
-player=0.2, layout=0.4, wardens=0.4, loot=0.0.
+player=0.2, layout=0.4, wardens=0.4, resource=0.0.
 Multi-phase fixtures can be provided as a JSON array or as `{ "responses": [...] }`
 to feed sequential LLM responses.
 
@@ -168,14 +168,19 @@ These commands do not replace `room-plan`, `delver-plan`, `warden-plan`, `build`
 `configurator`; they provide a single multi-object entrypoint for automation callers.
 
 Inputs/outputs:
-- Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--trap`, `--delver`,
-  and `--warden`, optional `--goal`, `--dungeon-affinity`, optional `--budget-tokens`,
-  optional `--budget` + `--price-list`, plus standard `--run-id`, `--created-at`, `--out-dir`.
+- Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--trap`, `--hazard`,
+  `--resource`, `--delver`, and `--warden`, optional `--goal`, `--dungeon-affinity`,
+  optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard
+  `--run-id`, `--created-at`, `--out-dir`.
 - `--budget-tokens` is a hard cap for agent-authored spend. If `--text` or `--goal` also says
   `budget <N> tokens`, and/or `--budget` supplies `budget.tokens`, all values must agree or
   the command fails validation.
 - `--floor-tile` format: `count=<n>[;id=<id>]`
 - `--trap` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
+- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
+  Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
+- `--resource` format: `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
+  Produces a `ResourceArtifact` written to `resource-artifact-<n>.json` in the output directory.
 - `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
   vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
 - Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.

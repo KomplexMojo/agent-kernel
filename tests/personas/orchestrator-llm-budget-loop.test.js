@@ -64,10 +64,10 @@ const result = await runLlmBudgetLoop({
   goal: "Budget loop test",
   budgetTokens: 320,
   poolWeights: [
-    { id: "player", weight: 0 },
-    { id: "layout", weight: 0.7 },
+    { id: "delver", weight: 0 },
+    { id: "rooms", weight: 0.7 },
     { id: "wardens", weight: 0.3 },
-    { id: "loot", weight: 0 },
+    { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop",
   clock: () => "2025-01-01T00:00:00Z",
@@ -138,10 +138,10 @@ const result = await runLlmBudgetLoop({
   goal: "Budget loop with tile costs",
   budgetTokens: 100,
   poolWeights: [
-    { id: "player", weight: 0 },
-    { id: "layout", weight: 0.5 },
+    { id: "delver", weight: 0 },
+    { id: "rooms", weight: 0.5 },
     { id: "wardens", weight: 0.5 },
-    { id: "loot", weight: 0 },
+    { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_tiles",
   clock: () => "2025-01-01T00:00:00Z",
@@ -204,10 +204,10 @@ const result = await runLlmBudgetLoop({
   goal: "Phi4 options",
   budgetTokens: 300,
   poolWeights: [
-    { id: "player", weight: 0 },
-    { id: "layout", weight: 0.7 },
+    { id: "delver", weight: 0 },
+    { id: "rooms", weight: 0.7 },
     { id: "wardens", weight: 0.3 },
-    { id: "loot", weight: 0 },
+    { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_phi4_options",
   clock: () => "2025-01-01T00:00:00Z",
@@ -272,10 +272,10 @@ const result = await runLlmBudgetLoop({
   goal: "Auto-fit over budget layout",
   budgetTokens: 1000,
   poolWeights: [
-    { id: "player", weight: 0 },
-    { id: "layout", weight: 0.3 },
+    { id: "delver", weight: 0 },
+    { id: "rooms", weight: 0.3 },
     { id: "wardens", weight: 0.7 },
-    { id: "loot", weight: 0 },
+    { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_autofit",
   clock: () => "2025-01-01T00:00:00Z",
@@ -284,7 +284,7 @@ const result = await runLlmBudgetLoop({
 
 assert.equal(result.ok, true);
 assert.equal(result.trace[0].phase, "layout_only");
-assert.ok(result.trace[0].spentTokens <= result.poolBudgets.layout);
+assert.ok(result.trace[0].spentTokens <= result.poolBudgets.rooms);
 assert.ok(result.summary.layout.floorTiles + result.summary.layout.hallwayTiles > 0);
 assert.equal(result.summary.actors.length, 1);
 assert.equal(result.captures.length, 2);
@@ -340,10 +340,10 @@ const result = await runLlmBudgetLoop({
   goal: "Fallback unmatched defender pair",
   budgetTokens: 500,
   poolWeights: [
-    { id: "player", weight: 0 },
-    { id: "layout", weight: 0.7 },
+    { id: "delver", weight: 0 },
+    { id: "rooms", weight: 0.7 },
     { id: "wardens", weight: 0.3 },
-    { id: "loot", weight: 0 },
+    { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_unmatched_actor_pair",
   clock: () => "2025-01-01T00:00:00Z",
@@ -395,10 +395,10 @@ const result = await runLlmBudgetLoop({
   goal: "Layout feasibility auto-fit without LLM repair",
   budgetTokens: 10000,
   poolWeights: [
-    { id: "player", weight: 0 },
-    { id: "layout", weight: 1 },
+    { id: "delver", weight: 0 },
+    { id: "rooms", weight: 1 },
     { id: "wardens", weight: 0 },
-    { id: "loot", weight: 0 },
+    { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_layout_feasibility_autofit",
   clock: () => "2025-01-01T00:00:00Z",

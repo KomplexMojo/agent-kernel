@@ -42,7 +42,7 @@ import {
   normalizeRoomCardSize,
 } from "../../runtime/src/personas/configurator/card-model.js";
 
-const DEFAULT_LEVEL_BUDGET_TOKENS = 1500;
+const DEFAULT_LEVEL_BUDGET_TOKENS = 2500;
 const DEFAULT_AI_PROMPT = "Generate a balanced room, delver, and warden card set for a stealth dungeon run.";
 const FIXTURE_DEFAULT_RESPONSE = {
   response: JSON.stringify({
@@ -59,16 +59,22 @@ const FIXTURE_DEFAULT_RESPONSE = {
   }),
 };
 
-export const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden"]);
+export const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
 export const CARD_PROPERTY_GROUP_ORDER = Object.freeze(["type", "affinities", "expressions", "motivations"]);
 export const ROOM_SIZE_ORDER = Object.freeze(["small", "medium", "large"]);
-const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden"]);
+const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
+const RESOURCE_VITAL_KEYS = Object.freeze(["health", "mana", "stamina"]);
+const RESOURCE_VITAL_COST_PER_DELTA = 1;
+const RESOURCE_VITAL_COST_PER_REGEN = 2;
+const RESOURCE_PERMANENT_MULTIPLIER = 10;
 const DEFAULT_BUDGET_SPLIT = Object.freeze({
-  room: 50,
-  delver: 25,
-  warden: 25,
+  room: 44,
+  delver: 20,
+  warden: 16,
+  hazard: 12,
+  resource: 8,
 });
-const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.";
+const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden/Hazard shelves.";
 const EXCLUSIVE_PAIR_NOTE = "Choose 1";
 
 // Module-level resource bundle for icon resolution
@@ -110,6 +116,12 @@ function formatDisplayLabel(value, fallback = "") {
 
 function iconForType(type) {
   const normalized = normalizeCardType(type);
+  if (normalized === "hazard") {
+    return resolveIconHTML(moduleResourceBundle, "items", "hazard");
+  }
+  if (normalized === "resource") {
+    return resolveIconHTML(moduleResourceBundle, "items", "resource");
+  }
   const key = normalized || "untyped";
   return resolveIconHTML(moduleResourceBundle, "types", key);
 }
@@ -167,6 +179,8 @@ function normalizeBudgetSplit(values = {}) {
     room: readBoundedPercent(values.room, DEFAULT_BUDGET_SPLIT.room),
     delver: readBoundedPercent(values.delver, DEFAULT_BUDGET_SPLIT.delver),
     warden: readBoundedPercent(values.warden, DEFAULT_BUDGET_SPLIT.warden),
+    hazard: readBoundedPercent(values.hazard, DEFAULT_BUDGET_SPLIT.hazard),
+    resource: readBoundedPercent(values.resource, DEFAULT_BUDGET_SPLIT.resource),
   };
 }
 
@@ -261,6 +275,8 @@ const NEW_CARD_VITALS = Object.freeze(
 const DEFAULT_ATTACKER_CARD_AFFINITY = "light";
 const DEFAULT_DEFENDER_CARD_AFFINITY = "dark";
 const DEFAULT_ACTOR_CARD_AFFINITY_EXPRESSION = "emit";
+const DEFAULT_HAZARD_AFFINITY_EXPRESSION = "emit";
+const DEFAULT_HAZARD_PROXIMITY_RADIUS = 1;
 
 function defaultActorAffinityForType(type) {
   if (type === "delver") return DEFAULT_ATTACKER_CARD_AFFINITY;
@@ -279,6 +295,41 @@ function resolveActorCardVitals(vitals) {
   return cloneVitals(vitals);
 }
 
+function normalizeHazardVital(value, fallback) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ...fallback };
+  }
+  const kind = typeof value.kind === "string" ? value.kind.trim().toLowerCase() : "";
+  if (kind === "regen") {
+    const current = readNonNegativeInt(value.current, fallback.current);
+    const max = Math.max(1, readNonNegativeInt(value.max, fallback.max));
+    const regen = readNonNegativeInt(value.regen, fallback.regen);
+    return {
+      kind: "regen",
+      current: Math.min(current, max),
+      max,
+      regen,
+    };
+  }
+  return {
+    kind: "one-time",
+    amount: Math.max(1, readNonNegativeInt(value.amount, fallback.amount)),
+  };
+}
+
+function toggleHazardVital(value, fallback) {
+  const normalized = normalizeHazardVital(value, fallback);
+  if (normalized.kind === "regen") {
+    return { kind: "one-time", amount: Math.max(1, normalized.current || normalized.max || fallback.amount) };
+  }
+  return {
+    kind: "regen",
+    current: fallback.current,
+    max: fallback.max,
+    regen: fallback.regen,
+  };
+}
+
 const CARD_ID_SUFFIX_LENGTH = 6;
 const CARD_ID_PATTERN = /^([A-Z])-([A-Z0-9]{6})$/;
 const CARD_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -289,6 +340,8 @@ const CARD_ID_PREFIX_BY_TYPE = Object.freeze({
   room: "R",
   delver: "A",
   warden: "D",
+  hazard: "H",
+  resource: "G",
   untyped: "C",
 });
 
@@ -297,6 +350,8 @@ function cardPrefixForType(type) {
   if (normalized === "room") return CARD_ID_PREFIX_BY_TYPE.room;
   if (normalized === "delver") return CARD_ID_PREFIX_BY_TYPE.delver;
   if (normalized === "warden") return CARD_ID_PREFIX_BY_TYPE.warden;
+  if (normalized === "hazard") return CARD_ID_PREFIX_BY_TYPE.hazard;
+  if (normalized === "resource") return CARD_ID_PREFIX_BY_TYPE.resource;
   return CARD_ID_PREFIX_BY_TYPE.untyped;
 }
 
@@ -408,8 +463,31 @@ function createBlankCard({ id, affinity, count, flipped, tokenHint } = {}) {
     roomSize: undefined,
     tokenHint: readOptionalToken(tokenHint),
     vitals: undefined,
+    mana: undefined,
+    durability: undefined,
     flipped: flipped === true,
   };
+}
+
+function normalizeResourceVital(value) {
+  if (!value || typeof value !== "object") return { delta: 0, regen: 0 };
+  const delta = Math.max(0, readNonNegativeInt(value.delta, 0));
+  const regen = Math.max(0, readNonNegativeInt(value.regen, 0));
+  return { delta, regen };
+}
+
+function normalizeResourceVitals(vitals) {
+  const result = {};
+  RESOURCE_VITAL_KEYS.forEach((key) => {
+    result[key] = normalizeResourceVital(vitals?.[key]);
+  });
+  return result;
+}
+
+function normalizeSignedInt(value, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.trunc(parsed);
 }
 
 function stableSortAffinities(entries = []) {
@@ -445,6 +523,13 @@ function stableCardForSerialize(card) {
     motivations: Array.isArray(card.motivations) ? card.motivations.slice().sort() : [],
     vitals: card.vitals ? cloneVitals(card.vitals) : undefined,
     tokenHint: readOptionalToken(card.tokenHint),
+    mana: card.mana ? normalizeHazardVital(card.mana, { kind: "one-time", amount: 3 }) : undefined,
+    durability: card.durability ? normalizeHazardVital(card.durability, { kind: "one-time", amount: 1 }) : undefined,
+    tier: card.tier,
+    stat: card.stat,
+    delta: Number.isFinite(card.delta) ? Math.trunc(card.delta) : undefined,
+    dropRate: readOptionalToken(card.dropRate),
+    budgetCeiling: readOptionalToken(card.budgetCeiling),
     source: card.source,
     flipped: card.flipped === true,
   };
@@ -465,6 +550,11 @@ export function createDesignCard({
   setupMode = "hybrid",
   flipped = false,
   tokenHint,
+  mana,
+  durability,
+  resourceVitals,
+  permanent = false,
+  budgetCeiling,
   preserveEmptyAffinities = false,
 } = {}) {
   const normalizedType = normalizeCardType(type);
@@ -475,6 +565,54 @@ export function createDesignCard({
   const normalizedAffinityInput = normalizeAffinity(affinity, affinityFallback);
   if (!normalizedType) {
     return createBlankCard({ id, affinity: normalizedAffinityInput, count, flipped, tokenHint });
+  }
+  if (normalizedType === "hazard") {
+    const hazardAffinity = normalizeAffinity(normalizedAffinityInput, DEFAULT_DUNGEON_AFFINITY);
+    const hazardExpression = normalizeExpression(
+      Array.isArray(affinities) && affinities.length > 0
+        ? affinities[0]?.expression
+        : Array.isArray(expressions)
+          ? expressions[0]
+          : expressions,
+      DEFAULT_HAZARD_AFFINITY_EXPRESSION,
+    );
+    return {
+      id: typeof id === "string" && id.trim() ? id.trim() : buildCardId("hazard"),
+      type: "hazard",
+      source: "hazard",
+      count: normalizeCardCount(count, 1),
+      affinity: hazardAffinity,
+      affinities: [{ kind: hazardAffinity, expression: hazardExpression, stacks: 1 }],
+      expressions: [hazardExpression],
+      motivations: [],
+      setupMode: "hybrid",
+      roomSize: undefined,
+      tokenHint: readOptionalToken(tokenHint),
+      vitals: undefined,
+      mana: normalizeHazardVital(mana, { kind: "one-time", amount: 3 }),
+      durability: normalizeHazardVital(durability, { kind: "one-time", amount: 1 }),
+      flipped: flipped === true,
+    };
+  }
+  if (normalizedType === "resource") {
+    return {
+      id: typeof id === "string" && id.trim() ? id.trim() : buildCardId("resource"),
+      type: "resource",
+      source: "resource",
+      count: normalizeCardCount(count, 1),
+      affinity: normalizedAffinityInput,
+      affinities: [],
+      expressions: [],
+      motivations: [],
+      setupMode: "hybrid",
+      roomSize: undefined,
+      tokenHint: readOptionalToken(tokenHint),
+      vitals: undefined,
+      resourceVitals: normalizeResourceVitals(resourceVitals),
+      permanent: permanent === true,
+      budgetCeiling: readOptionalToken(budgetCeiling),
+      flipped: flipped === true,
+    };
   }
   const hasExplicitAffinitiesInput = Array.isArray(affinities);
   const hasExplicitExpressionsInput = Array.isArray(expressions) || typeof expressions === "string";
@@ -608,6 +746,13 @@ export function normalizeDesignCardSet(cards, { dungeonAffinity = DEFAULT_DUNGEO
         setupMode: entry?.setupMode,
         flipped: entry?.flipped,
         tokenHint: entry?.tokenHint,
+        mana: entry?.mana,
+        durability: entry?.durability,
+        tier: entry?.tier,
+        stat: entry?.stat,
+        delta: entry?.delta,
+        dropRate: entry?.dropRate,
+        budgetCeiling: entry?.budgetCeiling,
         preserveEmptyAffinities: Array.isArray(entry?.affinities) && entry.affinities.length === 0,
       });
     })
@@ -637,6 +782,8 @@ export function groupCardsByType(cards = []) {
     room: [],
     delver: [],
     warden: [],
+    hazard: [],
+    resource: [],
     untyped: [],
   };
   normalizeDesignCardSet(cards).forEach((card) => {
@@ -657,11 +804,11 @@ function replaceCardType(card, typeValue) {
   }
   const priorType = normalizeCardType(card?.type);
   const applyRoomDefaults = type === "room" && priorType !== "room";
-  const applyActorDefaults = type !== "room" && (!priorType || priorType === "room");
+  const applyActorDefaults = (type === "delver" || type === "warden") && (!priorType || priorType === "room" || priorType === "hazard");
   const next = createDesignCard({
     ...card,
     type,
-    source: type === "room" ? "room" : "actor",
+    source: type === "room" ? "room" : type === "hazard" ? "hazard" : type === "resource" ? "resource" : "actor",
     affinity: applyRoomDefaults
       ? DEFAULT_ROOM_CARD_AFFINITY
       : applyActorDefaults
@@ -673,11 +820,13 @@ function replaceCardType(card, typeValue) {
       : applyActorDefaults
         ? undefined
         : card?.expressions,
-    motivations: type === "room"
+    motivations: type === "room" || type === "hazard" || type === "resource"
       ? []
       : normalizeMotivationList(card?.motivations, type === "delver" ? "attacking" : "defending"),
-    vitals: type === "room" ? undefined : card?.vitals,
+    vitals: type === "room" || type === "hazard" || type === "resource" ? undefined : card?.vitals,
     roomSize: type === "room" ? card?.roomSize || "medium" : undefined,
+    mana: type === "hazard" ? card?.mana : undefined,
+    durability: type === "hazard" ? card?.durability : undefined,
   });
   return { ok: true, card: next, reason: "type_updated" };
 }
@@ -693,6 +842,19 @@ function applyAffinityDrop(card, affinityValue) {
   }
 
   const working = createDesignCard(card);
+  if (type === "hazard") {
+    const expression = normalizeExpression(working.expressions?.[0], DEFAULT_HAZARD_AFFINITY_EXPRESSION);
+    return {
+      ok: true,
+      reason: "affinity_selected",
+      card: createDesignCard({
+        ...working,
+        affinity,
+        affinities: [{ kind: affinity, expression, stacks: 1 }],
+        expressions: [expression],
+      }),
+    };
+  }
   const matching = Array.isArray(working.affinities)
     ? working.affinities.filter((entry) => entry.kind === affinity)
     : [];
@@ -753,6 +915,16 @@ function applyExpressionDrop(card, expressionValue, { affinityKind, sourceExpres
     return { ok: false, reason: "missing_affinity", card: working };
   }
   const affinityEntries = Array.isArray(working.affinities) ? working.affinities : [];
+  if (type === "hazard") {
+    working.affinities = [{ kind: targetKind, expression, stacks: 1 }];
+    working.affinity = targetKind;
+    working.expressions = [expression];
+    return {
+      ok: true,
+      reason: "expression_updated",
+      card: createDesignCard(working),
+    };
+  }
 
   if (mode === "replace") {
     const source = normalizeExpression(sourceExpression, "");
@@ -1132,6 +1304,47 @@ export function calculateCardValue(card, { tileCosts, priceList } = {}) {
   if (!type) {
     return { unitTokens: 0, totalTokens: 0, lineItems: [] };
   }
+  if (type === "hazard") {
+    const budgetCeiling = readPositiveInt(normalized.tokenHint, 0);
+    const unitTokens = budgetCeiling;
+    const totalTokens = unitTokens * normalizeCardCount(normalized.count, 1);
+    const lineItems = budgetCeiling > 0
+      ? [{
+        id: "hazard_budget_ceiling",
+        label: "budget ceiling",
+        quantity: 1,
+        unitCostTokens: budgetCeiling,
+        spendTokens: budgetCeiling,
+      }]
+      : [];
+    return { unitTokens, totalTokens, lineItems };
+  }
+  if (type === "resource") {
+    const vitalsObj = normalized.resourceVitals || {};
+    const multiplier = normalized.permanent ? RESOURCE_PERMANENT_MULTIPLIER : 1;
+    const lineItems = [];
+    let baseCost = 0;
+    RESOURCE_VITAL_KEYS.forEach((k) => {
+      const vd = vitalsObj[k] || { delta: 0, regen: 0 };
+      if (vd.delta > 0) {
+        const cost = vd.delta * RESOURCE_VITAL_COST_PER_DELTA * multiplier;
+        baseCost += cost;
+        lineItems.push({ id: `resource_${k}_delta`, label: `${k}:max`, quantity: 1, unitCostTokens: cost, spendTokens: cost });
+      }
+      if (vd.regen > 0) {
+        const cost = vd.regen * RESOURCE_VITAL_COST_PER_REGEN * multiplier;
+        baseCost += cost;
+        lineItems.push({ id: `resource_${k}_regen`, label: `${k}:regen`, quantity: 1, unitCostTokens: cost, spendTokens: cost });
+      }
+    });
+    const budgetCeiling = readPositiveInt(normalized.budgetCeiling, 0);
+    if (budgetCeiling > 0) {
+      lineItems.push({ id: "resource_budget_ceiling", label: "budget ceiling", quantity: 1, unitCostTokens: budgetCeiling, spendTokens: budgetCeiling });
+    }
+    const unitTokens = budgetCeiling > 0 ? budgetCeiling : baseCost;
+    const totalTokens = unitTokens * normalizeCardCount(normalized.count, 1);
+    return { unitTokens, totalTokens, lineItems };
+  }
   const unitValue = type === "room"
     ? calculateRoomCardUnitValue(normalized, { tileCosts, priceList })
     : calculateActorCardUnitValue(normalized, { priceList });
@@ -1192,9 +1405,11 @@ export function buildSummaryFromCardSet({
   };
   if (budgetSplitPercent) {
     summaryInput.poolWeights = [
-      { id: "layout", weight: readBoundedPercent(budgetSplitPercent.room, DEFAULT_BUDGET_SPLIT.room) / 100 },
-      { id: "player", weight: readBoundedPercent(budgetSplitPercent.delver, DEFAULT_BUDGET_SPLIT.delver) / 100 },
+      { id: "rooms", weight: readBoundedPercent(budgetSplitPercent.room, DEFAULT_BUDGET_SPLIT.room) / 100 },
+      { id: "delver", weight: readBoundedPercent(budgetSplitPercent.delver, DEFAULT_BUDGET_SPLIT.delver) / 100 },
       { id: "wardens", weight: readBoundedPercent(budgetSplitPercent.warden, DEFAULT_BUDGET_SPLIT.warden) / 100 },
+      { id: "hazards", weight: readBoundedPercent(budgetSplitPercent.hazard, DEFAULT_BUDGET_SPLIT.hazard) / 100 },
+      { id: "resources", weight: readBoundedPercent(budgetSplitPercent.resource, DEFAULT_BUDGET_SPLIT.resource) / 100 },
     ];
   }
   const summary = extractSummaryFromCardSet(summaryInput);
@@ -1439,6 +1654,122 @@ function buildAutoGeneratedActorCards(type, availableTokens, costContext = {}) {
   ].filter(Boolean);
 }
 
+const AUTO_GENERATE_HAZARD_BLUEPRINTS = Object.freeze([
+  {
+    key: "hazard_fire",
+    card: {
+      type: "hazard",
+      affinity: "fire",
+      expression: "emit",
+      mana: "one-time",
+      durability: "one-time",
+      tokenHint: 50,
+      source: "auto-generated",
+    },
+  },
+  {
+    key: "hazard_dark",
+    card: {
+      type: "hazard",
+      affinity: "dark",
+      expression: "emit",
+      mana: "regen",
+      durability: "one-time",
+      tokenHint: 50,
+      source: "auto-generated",
+    },
+  },
+  {
+    key: "hazard_water",
+    card: {
+      type: "hazard",
+      affinity: "water",
+      expression: "pull",
+      mana: "one-time",
+      durability: "regen",
+      tokenHint: 50,
+      source: "auto-generated",
+    },
+  },
+  {
+    key: "hazard_earth",
+    card: {
+      type: "hazard",
+      affinity: "earth",
+      expression: "push",
+      mana: "one-time",
+      durability: "regen",
+      tokenHint: 50,
+      source: "auto-generated",
+    },
+  },
+]);
+
+const AUTO_GENERATE_RESOURCE_BLUEPRINTS = Object.freeze([
+  {
+    key: "resource_common_health",
+    card: {
+      type: "resource",
+      resourceVitals: { health: { delta: 5, regen: 0 } },
+      permanent: false,
+      budgetCeiling: 40,
+      source: "auto-generated",
+    },
+  },
+  {
+    key: "resource_rare_vitals",
+    card: {
+      type: "resource",
+      resourceVitals: { mana: { delta: 4, regen: 2 } },
+      permanent: true,
+      budgetCeiling: 100,
+      source: "auto-generated",
+    },
+  },
+]);
+
+function buildAutoGeneratedHazardCards(availableTokens, dungeonAffinity, costContext = {}) {
+  const budget = readNonNegativeInt(availableTokens, 0);
+  if (budget <= 0) return [];
+
+  // Prefer hazards matching the dungeon's affinity
+  const affinity = typeof dungeonAffinity === "string" && dungeonAffinity ? dungeonAffinity : null;
+  const ranked = AUTO_GENERATE_HAZARD_BLUEPRINTS.slice().sort((a, b) => {
+    const aMatch = affinity && a.card.affinity === affinity ? 1 : 0;
+    const bMatch = affinity && b.card.affinity === affinity ? 1 : 0;
+    return bMatch - aMatch;
+  });
+
+  const variants = resolveAutoGenerateVariants(ranked, costContext);
+  const preferredVariant = variants.length > 0 ? variants[0] : null;
+  if (!preferredVariant) return [];
+
+  const unitTokens = preferredVariant.unitTokens;
+  if (unitTokens <= 0) return [];
+
+  const totalCount = Math.floor(budget / unitTokens);
+  if (totalCount <= 0) return [];
+
+  return [createDesignCard({ ...preferredVariant.card, count: totalCount, source: "auto-generated" })];
+}
+
+function buildAutoGeneratedResourceCards(availableTokens, costContext = {}) {
+  const budget = readNonNegativeInt(availableTokens, 0);
+  if (budget <= 0) return [];
+
+  const variants = resolveAutoGenerateVariants(AUTO_GENERATE_RESOURCE_BLUEPRINTS, costContext);
+  if (variants.length === 0) return [];
+
+  const cheapestVariant = variants.reduce((best, v) => v.unitTokens < best.unitTokens ? v : best, variants[0]);
+  const minUnitTokens = cheapestVariant.unitTokens;
+  if (minUnitTokens <= 0) return [];
+
+  const totalCount = Math.floor(budget / minUnitTokens);
+  if (totalCount <= 0) return [];
+
+  return [createDesignCard({ ...cheapestVariant.card, count: totalCount, source: "auto-generated" })];
+}
+
 function formatAutoGenerateCount(type, count) {
   const normalizedType = normalizeCardType(type) || type;
   const safeCount = readNonNegativeInt(count, 0);
@@ -1447,6 +1778,12 @@ function formatAutoGenerateCount(type, count) {
   }
   if (normalizedType === "warden") {
     return `${safeCount} warden${safeCount === 1 ? "" : "s"}`;
+  }
+  if (normalizedType === "hazard") {
+    return `${safeCount} hazard${safeCount === 1 ? "" : "s"}`;
+  }
+  if (normalizedType === "resource") {
+    return `${safeCount} resource${safeCount === 1 ? "" : "s"}`;
   }
   return `${safeCount} room${safeCount === 1 ? "" : "s"}`;
 }
@@ -1596,13 +1933,18 @@ export function wireDesignGuidance({
     roomGroup,
     attackerGroup,
     defenderGroup,
+    hazardGroup,
+    resourceGroup,
     roomGroupBudget,
     attackerGroupBudget,
     defenderGroupBudget,
+    resourceGroupBudget,
     levelBudgetInput,
     budgetSplitRoomInput,
     budgetSplitAttackerInput,
     budgetSplitDefenderInput,
+    budgetSplitHazardInput,
+    budgetSplitResourceInput,
     budgetSplitRoomTokens,
     budgetSplitAttackerTokens,
     budgetSplitDefenderTokens,
@@ -1625,6 +1967,8 @@ export function wireDesignGuidance({
       room: budgetSplitRoomInput?.value,
       delver: budgetSplitAttackerInput?.value,
       warden: budgetSplitDefenderInput?.value,
+      hazard: budgetSplitHazardInput?.value,
+      resource: budgetSplitResourceInput?.value,
     }),
     dungeonAffinity: DEFAULT_DUNGEON_AFFINITY,
     runningAi: false,
@@ -1727,6 +2071,8 @@ export function wireDesignGuidance({
       room: 0,
       delver: 0,
       warden: 0,
+      hazard: 0,
+      resource: 0,
     });
   }
 
@@ -1828,6 +2174,20 @@ export function wireDesignGuidance({
     const allocation = state.allocationLedger || resolveAllocationLedger(state.cards);
     const setGroupValue = (el, type) => {
       if (!el) return;
+      if (type === "resource") {
+        const cards = groupCardsByType(state.cards).resource;
+        const used = cards.reduce((sum, card) => sum + readNonNegativeInt(card?.cardValue?.totalTokens, 0), 0);
+        const allocated = cards.reduce((sum, card) => sum + readNonNegativeInt(card?.budgetCeiling, 0), 0);
+        const remaining = allocated - used;
+        renderRailBudgetEquation(el, {
+          totalTokens: allocated,
+          mintedTokens: used,
+          remainingTokens: remaining,
+        });
+        el.style.color = remaining < 0 ? "#cf3f5b" : "";
+        el.classList?.toggle?.("is-negative", remaining < 0);
+        return;
+      }
       const detail = allocation?.byType?.[type] || { usedTokens: 0, allocatedTokens: 0, overByTokens: 0 };
       const used = readNonNegativeInt(detail.usedTokens, 0);
       const allocated = readNonNegativeInt(detail.allocatedTokens, 0);
@@ -1843,6 +2203,7 @@ export function wireDesignGuidance({
     setGroupValue(roomGroupBudget, "room");
     setGroupValue(attackerGroupBudget, "delver");
     setGroupValue(defenderGroupBudget, "warden");
+    setGroupValue(resourceGroupBudget, "resource");
   }
 
   function updateBudgetOverviewIndicator() {
@@ -1880,6 +2241,12 @@ export function wireDesignGuidance({
     }
     if (budgetSplitDefenderInput) {
       budgetSplitDefenderInput.value = String(allocatedByType.warden.percent);
+    }
+    if (budgetSplitHazardInput) {
+      budgetSplitHazardInput.value = String(allocatedByType.hazard?.percent ?? DEFAULT_BUDGET_SPLIT.hazard);
+    }
+    if (budgetSplitResourceInput) {
+      budgetSplitResourceInput.value = String(allocatedByType.resource?.percent ?? DEFAULT_BUDGET_SPLIT.resource);
     }
     if (budgetSplitRoomTokens) {
       budgetSplitRoomTokens.textContent = "";
@@ -2085,6 +2452,8 @@ export function wireDesignGuidance({
     renderGroupList(roomGroup, grouped.room, "room");
     renderGroupList(attackerGroup, grouped.delver, "delver");
     renderGroupList(defenderGroup, grouped.warden, "warden");
+    renderGroupList(hazardGroup, grouped.hazard, "hazard");
+    renderGroupList(resourceGroup, grouped.resource, "resource");
   }
 
   function updateCard(cardId, updater) {
@@ -2139,6 +2508,65 @@ export function wireDesignGuidance({
         ...working,
         affinity: targetKind,
       });
+    });
+    if (!updated) return false;
+    recompute({ notify: false });
+    return true;
+  }
+
+  function adjustResourceVital(cardId, vitalKey, field, delta) {
+    const updated = updateCard(cardId, (card) => {
+      const working = createDesignCard(card);
+      if (working.type !== "resource") return working;
+      const currentVitals = working.resourceVitals || {};
+      const currentVital = currentVitals[vitalKey] || { delta: 0, regen: 0 };
+      const currentValue = readNonNegativeInt(currentVital[field], 0);
+      const next = Math.max(0, currentValue + delta);
+      return createDesignCard({
+        ...working,
+        resourceVitals: { ...currentVitals, [vitalKey]: { ...currentVital, [field]: next } },
+      });
+    });
+    if (!updated) return false;
+    recompute({ notify: false });
+    return true;
+  }
+
+  function toggleResourcePermanent(cardId) {
+    const updated = updateCard(cardId, (card) => {
+      const working = createDesignCard(card);
+      if (working.type !== "resource") return working;
+      return createDesignCard({ ...working, permanent: !working.permanent });
+    });
+    if (!updated) return false;
+    recompute({ notify: false });
+    return true;
+  }
+
+  function cycleHazardVitalKind(cardId, field) {
+    const updated = updateCard(cardId, (card) => {
+      const working = createDesignCard(card);
+      if (working.type !== "hazard") return working;
+      const fallback = field === "mana"
+        ? { kind: "one-time", amount: 3, current: 3, max: 3, regen: 1 }
+        : { kind: "one-time", amount: 1, current: 1, max: 1, regen: 0 };
+      return createDesignCard({
+        ...working,
+        [field]: toggleHazardVital(working[field], fallback),
+      });
+    });
+    if (!updated) return false;
+    recompute({ notify: false });
+    return true;
+  }
+
+  function adjustHazardNumber(cardId, field, delta) {
+    const updated = updateCard(cardId, (card) => {
+      const working = createDesignCard(card);
+      if (working.type !== "hazard") return working;
+      const current = readPositiveInt(working.tokenHint, 0);
+      const next = Math.max(0, current + delta);
+      return createDesignCard({ ...working, tokenHint: next });
     });
     if (!updated) return false;
     recompute({ notify: false });
@@ -2362,7 +2790,11 @@ export function wireDesignGuidance({
           if (configurationSpend) {
             const allocation = state.allocationLedger?.byType?.[cardType];
             const spentTokens = readNonNegativeInt(card?.cardValue?.totalTokens, 0);
-            const allocatedTokens = readNonNegativeInt(allocation?.allocatedTokens, state.budgetTokens);
+            const allocatedTokens = cardType === "resource"
+              ? readNonNegativeInt(card?.budgetCeiling, state.budgetTokens)
+              : cardType === "hazard"
+                ? readNonNegativeInt(card?.tokenHint, state.budgetTokens)
+              : readNonNegativeInt(allocation?.allocatedTokens, state.budgetTokens);
             configurationSpend.className = "design-card-meta-chip is-configuration-spend";
             configurationSpend.textContent = `${spentTokens}/${allocatedTokens}`;
             meta.append(configurationSpend);
@@ -2371,7 +2803,7 @@ export function wireDesignGuidance({
         front.append(meta);
       }
 
-      const affinityList = createDomElement(front, "div");
+      const affinityList = card.type === "resource" ? null : createDomElement(front, "div");
       if (affinityList) {
         affinityList.className = "design-card-affinity-list";
         const affinityEntries = Array.isArray(card.affinities) ? card.affinities : [];
@@ -2554,7 +2986,174 @@ export function wireDesignGuidance({
         front.append(affinityList);
       }
 
-      if (card.type === "delver" || card.type === "warden") {
+      if (card.type === "hazard") {
+        const hazardControls = createDomElement(front, "section");
+        if (hazardControls) {
+          hazardControls.className = "design-card-vitals";
+          const heading = createDomElement(hazardControls, "div");
+          if (heading) {
+            heading.className = "design-card-vitals-title";
+            heading.textContent = "Hazard";
+            hazardControls.append(heading);
+          }
+          [
+            {
+              label: "Mana",
+              value: card.mana?.kind || "one-time",
+              onClick: () => cycleHazardVitalKind(card.id, "mana"),
+            },
+            {
+              label: "Durability",
+              value: card.durability?.kind || "one-time",
+              onClick: () => cycleHazardVitalKind(card.id, "durability"),
+            },
+          ].forEach((entry) => {
+            const row = createDomElement(hazardControls, "div");
+            if (!row) return;
+            row.className = "design-card-vital-row";
+            const label = createDomElement(row, "span");
+            if (label) {
+              label.className = "design-card-vital-label";
+              label.textContent = entry.label;
+              row.append(label);
+            }
+            const button = createDomElement(row, "button");
+            if (button) {
+              button.type = "button";
+              button.className = "design-card-room-size";
+              button.textContent = entry.value;
+              button.addEventListener?.("click", (event) => {
+                event.stopPropagation?.();
+                entry.onClick();
+              });
+              row.append(button);
+            }
+            hazardControls.append(row);
+          });
+          front.append(hazardControls);
+        }
+      } else if (card.type === "resource") {
+        const resourceControls = createDomElement(front, "section");
+        if (resourceControls) {
+          resourceControls.className = "design-card-vitals";
+          const heading = createDomElement(resourceControls, "div");
+          if (heading) {
+            heading.className = "design-card-vitals-title";
+            heading.textContent = "Resource Vitals";
+            resourceControls.append(heading);
+          }
+          RESOURCE_VITAL_KEYS.forEach((key) => {
+            const vitalData = card.resourceVitals?.[key] || { delta: 0, regen: 0 };
+            const row = createDomElement(resourceControls, "div");
+            if (!row) return;
+            row.className = "design-card-vital-row";
+
+            const label = createDomElement(row, "span");
+            if (label) {
+              label.className = "design-card-vital-label";
+              const iconHtml = iconForVital(key);
+              label.innerHTML = `<span class="design-card-vital-icon" aria-hidden="true">${iconHtml}</span><span class="design-card-vital-label-text">${formatDisplayLabel(key, key)}</span>`;
+              row.append(label);
+            }
+
+            const deltaControls = createDomElement(row, "div");
+            if (deltaControls) {
+              deltaControls.className = "design-card-vital-controls";
+              const minus = createDomElement(deltaControls, "button");
+              if (minus) {
+                minus.type = "button";
+                minus.className = "design-card-vital-minus";
+                minus.textContent = "-";
+                minus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustResourceVital(card.id, key, "delta", -10);
+                });
+                deltaControls.append(minus);
+              }
+              const value = createDomElement(deltaControls, "span");
+              if (value) {
+                value.className = "design-card-vital-value";
+                value.textContent = `+${readNonNegativeInt(vitalData.delta, 0)}`;
+                deltaControls.append(value);
+              }
+              const plus = createDomElement(deltaControls, "button");
+              if (plus) {
+                plus.type = "button";
+                plus.className = "design-card-vital-plus";
+                plus.textContent = "+";
+                plus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustResourceVital(card.id, key, "delta", 10);
+                });
+                deltaControls.append(plus);
+              }
+              row.append(deltaControls);
+            }
+
+            const regenControls = createDomElement(row, "div");
+            if (regenControls) {
+              regenControls.className = "design-card-vital-controls";
+              const minus = createDomElement(regenControls, "button");
+              if (minus) {
+                minus.type = "button";
+                minus.className = "design-card-vital-minus";
+                minus.textContent = "-";
+                minus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustResourceVital(card.id, key, "regen", -2);
+                });
+                regenControls.append(minus);
+              }
+              const value = createDomElement(regenControls, "span");
+              if (value) {
+                value.className = "design-card-vital-value";
+                value.textContent = `R${readNonNegativeInt(vitalData.regen, 0)}`;
+                regenControls.append(value);
+              }
+              const plus = createDomElement(regenControls, "button");
+              if (plus) {
+                plus.type = "button";
+                plus.className = "design-card-vital-plus";
+                plus.textContent = "+";
+                plus.addEventListener?.("click", (event) => {
+                  event.stopPropagation?.();
+                  adjustResourceVital(card.id, key, "regen", 2);
+                });
+                regenControls.append(plus);
+              }
+              row.append(regenControls);
+            }
+
+            resourceControls.append(row);
+          });
+
+          // Permanent toggle
+          const permanentRow = createDomElement(resourceControls, "div");
+          if (permanentRow) {
+            permanentRow.className = "design-card-vital-row";
+            const permanentLabel = createDomElement(permanentRow, "span");
+            if (permanentLabel) {
+              permanentLabel.className = "design-card-vital-label";
+              permanentLabel.textContent = "Permanent";
+              permanentRow.append(permanentLabel);
+            }
+            const permanentBtn = createDomElement(permanentRow, "button");
+            if (permanentBtn) {
+              permanentBtn.type = "button";
+              permanentBtn.className = "design-card-room-size";
+              permanentBtn.textContent = card.permanent ? `×${RESOURCE_PERMANENT_MULTIPLIER} cost` : "level-scoped";
+              permanentBtn.addEventListener?.("click", (event) => {
+                event.stopPropagation?.();
+                toggleResourcePermanent(card.id);
+              });
+              permanentRow.append(permanentBtn);
+            }
+            resourceControls.append(permanentRow);
+          }
+
+          front.append(resourceControls);
+        }
+      } else if (card.type === "delver" || card.type === "warden") {
         const motivations = createDomElement(front, "section");
         if (motivations) {
           motivations.className = "design-card-motivations";
@@ -3144,6 +3743,8 @@ export function wireDesignGuidance({
       ...buildAutoGeneratedRoomCards(allocation?.byType?.room?.remainingTokens, costContext),
       ...buildAutoGeneratedActorCards("delver", allocation?.byType?.delver?.remainingTokens, costContext),
       ...buildAutoGeneratedActorCards("warden", allocation?.byType?.warden?.remainingTokens, costContext),
+      ...buildAutoGeneratedHazardCards(allocation?.byType?.hazard?.remainingTokens, state.dungeonAffinity, costContext),
+      ...buildAutoGeneratedResourceCards(allocation?.byType?.resource?.remainingTokens, costContext),
     ];
 
     if (generatedCards.length === 0) {
@@ -3162,12 +3763,14 @@ export function wireDesignGuidance({
     const counts = generatedCards.reduce((acc, card) => {
       const type = normalizeCardType(card?.type);
       if (!type) return acc;
-      acc[type] += normalizeCardCount(card?.count, 1);
+      acc[type] = (acc[type] || 0) + normalizeCardCount(card?.count, 1);
       return acc;
     }, {
       room: 0,
       delver: 0,
       warden: 0,
+      hazard: 0,
+      resource: 0,
     });
 
     recompute();
@@ -3307,6 +3910,18 @@ export function wireDesignGuidance({
         setBudgetSplit("warden", budgetSplitDefenderInput.value);
       });
       budgetSplitDefenderInput.value = String(state.budgetSplitPercent.warden);
+    }
+    if (budgetSplitHazardInput?.addEventListener) {
+      budgetSplitHazardInput.addEventListener("input", () => {
+        setBudgetSplit("hazard", budgetSplitHazardInput.value);
+      });
+      budgetSplitHazardInput.value = String(state.budgetSplitPercent.hazard);
+    }
+    if (budgetSplitResourceInput?.addEventListener) {
+      budgetSplitResourceInput.addEventListener("input", () => {
+        setBudgetSplit("resource", budgetSplitResourceInput.value);
+      });
+      budgetSplitResourceInput.value = String(state.budgetSplitPercent.resource);
     }
     recompute();
   }

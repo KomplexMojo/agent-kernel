@@ -18,13 +18,18 @@ export function wireDesignView({
   const roomGroup = root.querySelector("#design-card-group-room");
   const attackerGroup = root.querySelector("#design-card-group-delver");
   const defenderGroup = root.querySelector("#design-card-group-warden");
+  const hazardGroup = root.querySelector("#design-card-group-hazard");
+  const resourceGroup = root.querySelector("#design-card-group-resource");
   const roomGroupBudget = root.querySelector("#design-card-group-budget-room");
   const attackerGroupBudget = root.querySelector("#design-card-group-budget-delver");
   const defenderGroupBudget = root.querySelector("#design-card-group-budget-warden");
+  const resourceGroupBudget = root.querySelector("#design-card-group-budget-resource");
   const levelBudgetInput = root.querySelector("#design-level-budget");
   const budgetSplitRoomInput = root.querySelector("#design-budget-split-room");
   const budgetSplitAttackerInput = root.querySelector("#design-budget-split-delver");
   const budgetSplitDefenderInput = root.querySelector("#design-budget-split-warden");
+  const budgetSplitHazardInput = root.querySelector("#design-budget-split-hazard");
+  const budgetSplitResourceInput = root.querySelector("#design-budget-split-resource");
   const budgetSplitRoomTokens = root.querySelector("#design-budget-split-room-tokens");
   const budgetSplitAttackerTokens = root.querySelector("#design-budget-split-delver-tokens");
   const budgetSplitDefenderTokens = root.querySelector("#design-budget-split-warden-tokens");
@@ -71,13 +76,18 @@ export function wireDesignView({
       roomGroup,
       attackerGroup,
       defenderGroup,
+      hazardGroup,
+      resourceGroup,
       roomGroupBudget,
       attackerGroupBudget,
       defenderGroupBudget,
+      resourceGroupBudget,
       levelBudgetInput,
       budgetSplitRoomInput,
       budgetSplitAttackerInput,
       budgetSplitDefenderInput,
+      budgetSplitHazardInput,
+      budgetSplitResourceInput,
       budgetSplitRoomTokens,
       budgetSplitAttackerTokens,
       budgetSplitDefenderTokens,

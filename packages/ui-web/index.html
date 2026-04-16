@@ -2304,13 +2304,13 @@
                 <div class="design-toolbar">
                   <label>
                     <span class="stat-label">Level Budget</span>
-                    <input id="design-level-budget" type="number" min="1" step="1" value="1500" />
+                    <input id="design-level-budget" type="number" min="1" step="1" value="2500" />
                   </label>
                   <div class="design-budget-split">
                     <div class="design-budget-split-item">
                       <label>
                         <span class="stat-label">Room %</span>
-                        <input id="design-budget-split-room" type="number" min="0" max="100" step="1" value="55" />
+                        <input id="design-budget-split-room" type="number" min="0" max="100" step="1" value="44" />
                       </label>
                       <span class="design-budget-split-tokens" id="design-budget-split-room-tokens"></span>
                     </div>
@@ -2324,14 +2324,26 @@
                     <div class="design-budget-split-item">
                       <label>
                         <span class="stat-label">Warden %</span>
-                        <input id="design-budget-split-warden" type="number" min="0" max="100" step="1" value="25" />
+                        <input id="design-budget-split-warden" type="number" min="0" max="100" step="1" value="16" />
                       </label>
                       <span class="design-budget-split-tokens" id="design-budget-split-warden-tokens"></span>
+                    </div>
+                    <div class="design-budget-split-item">
+                      <label>
+                        <span class="stat-label">Hazard %</span>
+                        <input id="design-budget-split-hazard" type="number" min="0" max="100" step="1" value="12" />
+                      </label>
+                    </div>
+                    <div class="design-budget-split-item">
+                      <label>
+                        <span class="stat-label">Resource %</span>
+                        <input id="design-budget-split-resource" type="number" min="0" max="100" step="1" value="8" />
+                      </label>
                     </div>
                   </div>
                   <div class="design-budget-overview" id="design-budget-overview"></div>
                 </div>
-                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Delver/Warden shelves.</div>
+                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Delver/Warden/Hazard shelves.</div>
                 <div class="design-card-grid" id="design-card-grid"></div>
               </section>
               <aside class="design-card-groups-window" aria-label="Card shelf groups">
@@ -2356,6 +2368,19 @@
                     <span class="design-card-group-budget" id="design-card-group-budget-warden">(0) : 0/0</span>
                   </div>
                   <div id="design-card-group-warden"></div>
+                </section>
+                <section class="design-card-group" data-card-group="hazard">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Hazard" data-icon-category="types" data-icon-key="hazard"></h3>
+                  </div>
+                  <div id="design-card-group-hazard"></div>
+                </section>
+                <section class="design-card-group" data-card-group="resource">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Resource" data-icon-category="items" data-icon-key="resource"></h3>
+                    <span class="design-card-group-budget" id="design-card-group-budget-resource">(0) : 0/0</span>
+                  </div>
+                  <div id="design-card-group-resource"></div>
                 </section>
               </aside>
             </div>

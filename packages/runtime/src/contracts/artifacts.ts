@@ -102,6 +102,7 @@ export type AgentCommandObjectKind =
   | "room"
   | "floor_tile"
   | "trap"
+  | "hazard"
   | "delver"
   | "warden"
   | "shared_config";
@@ -200,6 +201,8 @@ export interface AgentCommandCompilationRuleV1 {
 export interface AgentCommandSharedConfigV1 extends Record<string, unknown> {
   dungeonAffinity?: string;
   budgetTokens?: number;
+  dungeonBudgetTokens?: number;
+  delverBudgetTokens?: number;
   levelSize?: string;
   roomCount?: number;
   constraints?: AgentCommandHardConstraintSetV1;
@@ -304,6 +307,10 @@ export interface BuildSpecActorGroupHintV1 {
 
 export interface BuildSpecAgentHintsV1 extends Record<string, unknown> {
   budgetTokens?: number;
+  /** Optional separate budget cap for dungeon-side objects (rooms, tiles, traps, hazards). */
+  dungeonBudgetTokens?: number;
+  /** Optional separate budget cap for delver-side objects (delvers, wardens). */
+  delverBudgetTokens?: number;
   levelSize?: string;
   levelAffinity?: string;
   roomCount?: number;
@@ -461,6 +468,29 @@ export interface PlanArtifactV1 {
 }
 
 export type PlanArtifact = PlanArtifactV1;
+
+// -------------------------
+// Director → downstream (hazard seeding)
+// -------------------------
+
+/**
+ * Effect emitted by the Director for each affinity-tagged room in the intent.
+ * Downstream consumers (Configurator, Allocator) use this to auto-seed hazards.
+ * This is effect data only — not a boundary-crossing artifact.
+ */
+export interface HazardProposalEffect {
+  kind: "hazard_proposal";
+  /** Affinity that the hazard should carry (e.g. "fire", "frost", "poison"). */
+  affinity: string;
+  /** Index / stable reference for the originating room hint (0-based). */
+  roomIndex: number;
+  /** Token budget ceiling for this hazard, derived from the layout pool share. */
+  budgetCeiling: number;
+  /** Originating persona. */
+  personaRef: string;
+  /** Reference to the plan artifact this proposal belongs to. */
+  planRef?: ArtifactRef;
+}
 
 // -------------------------
 // Budgeting (Director/Configurator/Actor → Allocator)
@@ -1589,3 +1619,108 @@ export interface ResourceBundleArtifactV2 {
 }
 
 export type ResourceBundleArtifact = ResourceBundleArtifactV1 | ResourceBundleArtifactV2;
+
+// -------------------------
+// Resource artifacts
+// -------------------------
+
+export const RESOURCE_ARTIFACT_SCHEMA = "agent-kernel/ResourceArtifact";
+
+/** Stats that a resource artifact can affect. */
+export type ResourceStat =
+  | "vitalMax"
+  | "vitalRegen"
+  | "affinity"
+  | "affinityStack"
+  | "pushExpression";
+
+/** Tier of a resource artifact. */
+export type ResourceTier = "level" | "permanent";
+
+/**
+ * A single entry in a frequency table describing how often a resource artifact drops.
+ * `dropRate` is expressed as 1-in-N (e.g. 10 = 1-in-10 chance per eligible drop).
+ */
+export interface ArtifactFrequencyEntry {
+  artifactId: string;
+  dropRate: number; // positive integer: 1-in-N
+}
+
+export interface ResourceArtifactV1 {
+  schema: typeof RESOURCE_ARTIFACT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  /** Whether the artifact persists only for the current level or permanently. */
+  tier: ResourceTier;
+
+  /** The stat this artifact modifies. */
+  stat: ResourceStat;
+
+  /** Signed delta applied to the stat (may be negative for debuffs). */
+  delta: number;
+
+  /**
+   * Drop rate expressed as 1-in-N integer (e.g. 5 = drops once per 5 eligible encounters on average).
+   * Must be a positive integer.
+   */
+  dropRate: number;
+}
+
+/** Vital keys that a resource artifact can grant (subset of actor vitals). */
+export type ResourceVitalKey = "health" | "mana" | "stamina";
+
+/** A single vital grant within a ResourceArtifactV2. */
+export interface ResourceVitalGrant {
+  key: ResourceVitalKey;
+  /** Amount added to the vital's max. */
+  delta: number;
+  /** Amount added to the vital's regen rate (optional). */
+  regen?: number;
+}
+
+export interface ResourceArtifactV2 {
+  schema: typeof RESOURCE_ARTIFACT_SCHEMA;
+  schemaVersion: 2;
+  meta: ArtifactMeta;
+  /** One or more vital grants this artifact provides. */
+  vitals: ResourceVitalGrant[];
+  /** When true the artifact persists permanently (~10× token cost). */
+  permanent: boolean;
+}
+
+export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2;
+
+// -------------------------
+// Hazard artifacts
+// -------------------------
+
+export const HAZARD_ARTIFACT_SCHEMA = "agent-kernel/HazardArtifact";
+
+export type HazardVitalKind = "mana" | "durability";
+
+export interface HazardVitalOneTimeV1 {
+  kind: "one-time";
+  amount: number;
+}
+
+export interface HazardVitalRegenV1 {
+  kind: "regen";
+  current: number;
+  max: number;
+  regen: number;
+}
+
+export type HazardVitalV1 = HazardVitalOneTimeV1 | HazardVitalRegenV1;
+
+export interface HazardArtifactV1 {
+  schema: typeof HAZARD_ARTIFACT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  affinity: AffinityKind;
+  expression: AffinityExpression;
+  mana: HazardVitalV1;
+  durability: HazardVitalV1;
+}
+
+export type HazardArtifact = HazardArtifactV1;

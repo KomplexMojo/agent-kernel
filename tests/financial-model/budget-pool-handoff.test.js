@@ -15,8 +15,8 @@ const summary = {
   dungeonAffinity: "fire",
   budgetTokens: 800,
   poolWeights: [
-    { id: "layout", weight: 0.60 },
-    { id: "player", weight: 0.15 },
+    { id: "rooms", weight: 0.60 },
+    { id: "delver", weight: 0.15 },
     { id: "wardens", weight: 0.25 }
   ],
   rooms: [
@@ -50,9 +50,11 @@ const allocation = computeBudgetPools({
 assert.ok(allocation.ok);
 
 const poolMap = new Map(allocation.pools.map(p => [p.id, p.tokens]));
-assert.equal(poolMap.get("layout"), 480, "60% of 800 = 480");
-assert.equal(poolMap.get("player"), 120, "15% of 800 = 120");
+assert.equal(poolMap.get("rooms"), 480, "60% of 800 = 480");
+assert.equal(poolMap.get("delver"), 120, "15% of 800 = 120");
 assert.equal(poolMap.get("wardens"), 200, "25% of 800 = 200");
+assert.equal(poolMap.get("hazards"), 0, "not specified → 0");
+assert.equal(poolMap.get("resources"), 0, "not specified → 0");
 `);
 });
 
@@ -64,7 +66,7 @@ import { computeBudgetPools } from ${JSON.stringify(budgetAllocUrl)};
 
 const summary = {
   dungeonAffinity: "fire",
-  budgetTokens: 1000,
+  budgetTokens: 2500,
   rooms: [],
   actors: [],
   missing: []
@@ -73,7 +75,7 @@ const summary = {
 const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_default" });
 assert.ok(buildResult.ok);
 
-// When poolWeights not provided, should use defaults (55/20/25)
+// When poolWeights not provided, should use defaults (44/20/16/12/8)
 const allocation = computeBudgetPools({
   budgetTokens: buildResult.spec.intent.hints.budgetTokens,
   poolWeights: buildResult.spec.intent.hints.poolWeights
@@ -81,8 +83,10 @@ const allocation = computeBudgetPools({
 assert.ok(allocation.ok);
 
 const poolMap = new Map(allocation.pools.map(p => [p.id, p.tokens]));
-assert.equal(poolMap.get("layout"), 550, "55% of 1000 = 550");
-assert.equal(poolMap.get("player"), 200, "20% of 1000 = 200");
-assert.equal(poolMap.get("wardens"), 250, "25% of 1000 = 250");
+assert.equal(poolMap.get("rooms"), 1100, "44% of 2500 = 1100");
+assert.equal(poolMap.get("delver"), 500, "20% of 2500 = 500");
+assert.equal(poolMap.get("wardens"), 400, "16% of 2500 = 400");
+assert.equal(poolMap.get("hazards"), 300, "12% of 2500 = 300");
+assert.equal(poolMap.get("resources"), 200, "8% of 2500 = 200");
 `);
 });

@@ -1,6 +1,7 @@
 import { createDirectorStateMachine, DirectorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.js";
 import { buildSolverRequestEffect } from "../_shared/persona-helpers.js";
+import { computeBudgetPools } from "./budget-allocation.js";
 
 const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
 const INTENT_SCHEMA = "agent-kernel/IntentEnvelope";
@@ -104,6 +105,90 @@ function resolvePlanArtifact({ event, payload, tick, clock }) {
   return { planArtifact, planRef, intentRef };
 }
 
+const LAYOUT_POOL_ID = "rooms";
+const HAZARD_PROPOSAL_KIND = "hazard_proposal";
+const ARTIFACT_PROPOSAL_KIND = "artifact_proposal";
+const DEFAULT_ARTIFACT_VITAL_KEY = "health";
+const DEFAULT_ARTIFACT_DELTA = 10;
+
+/**
+ * For each room hint that carries an affinity, emit one hazard_proposal effect.
+ * The budgetCeiling is derived from the layout pool share of the total budget.
+ */
+function buildHazardProposalEffects({ intentEnvelope, planRef, personaRef = "director" }) {
+  const hints = intentEnvelope?.intent?.hints;
+  if (!hints || typeof hints !== "object") return [];
+  const rooms = Array.isArray(hints.rooms) ? hints.rooms : [];
+  const affinityRooms = rooms
+    .map((room, idx) => ({ room, idx }))
+    .filter(({ room }) => typeof room?.affinity === "string" && room.affinity.trim().length > 0);
+  if (affinityRooms.length === 0) return [];
+
+  const budgetTokens = Number.isInteger(hints.budgetTokens) && hints.budgetTokens > 0
+    ? hints.budgetTokens
+    : 0;
+  const pools = budgetTokens > 0
+    ? computeBudgetPools({ budgetTokens }).pools
+    : [];
+  const layoutPool = pools.find((p) => p.id === LAYOUT_POOL_ID);
+  const budgetCeiling = layoutPool ? layoutPool.tokens : 0;
+
+  return affinityRooms.map(({ room, idx }) => ({
+    kind: HAZARD_PROPOSAL_KIND,
+    affinity: room.affinity.trim(),
+    roomIndex: idx,
+    budgetCeiling,
+    personaRef,
+    ...(planRef ? { planRef } : {}),
+  }));
+}
+
+/**
+ * For each affinity-tagged room, emit one artifact_proposal effect.
+ * Higher-affinity rooms receive a proportionally higher budgetCeiling.
+ * Total artifact spend is capped by hints.dungeonBreakdown.artifacts.
+ */
+function buildArtifactProposalEffects({ intentEnvelope, planRef, personaRef = "director" }) {
+  const hints = intentEnvelope?.intent?.hints;
+  if (!hints || typeof hints !== "object") return [];
+  const rooms = Array.isArray(hints.rooms) ? hints.rooms : [];
+  const affinityRooms = rooms
+    .map((room, idx) => ({ room, idx }))
+    .filter(({ room }) => typeof room?.affinity === "string" && room.affinity.trim().length > 0);
+  if (affinityRooms.length === 0) return [];
+
+  const artifactBudget =
+    typeof hints.dungeonBreakdown === "object" &&
+    hints.dungeonBreakdown !== null &&
+    Number.isInteger(hints.dungeonBreakdown.artifacts) &&
+    hints.dungeonBreakdown.artifacts > 0
+      ? hints.dungeonBreakdown.artifacts
+      : 0;
+
+  const perRoomBudget =
+    artifactBudget > 0 ? Math.floor(artifactBudget / affinityRooms.length) : 0;
+
+  return affinityRooms.map(({ room, idx }) => {
+    const vitalKey = typeof room.artifactVitalKey === "string" && room.artifactVitalKey
+      ? room.artifactVitalKey
+      : DEFAULT_ARTIFACT_VITAL_KEY;
+    const delta = perRoomBudget > 0 ? perRoomBudget : DEFAULT_ARTIFACT_DELTA;
+    const vitals = Array.isArray(room.artifactVitals) && room.artifactVitals.length > 0
+      ? room.artifactVitals
+      : [{ key: vitalKey, delta }];
+    return {
+      kind: ARTIFACT_PROPOSAL_KIND,
+      affinity: room.affinity.trim(),
+      roomIndex: idx,
+      vitals,
+      permanent: room.artifactPermanent === true,
+      budgetCeiling: perRoomBudget,
+      personaRef,
+      ...(planRef ? { planRef } : {}),
+    };
+  });
+}
+
 // Phases this persona listens to (others are ignored).
 export const directorSubscribePhases = Object.freeze([TickPhases.DECIDE]);
 
@@ -144,6 +229,21 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     }
     if (resolved.planArtifact) {
       artifacts.push(resolved.planArtifact);
+    }
+    if (event === "ingest_intent") {
+      const resolvedEnvelope = resolveIntentEnvelope(payload);
+      const hazardEffects = buildHazardProposalEffects({
+        intentEnvelope: resolvedEnvelope,
+        planRef: payloadWithPlan.planRef,
+        personaRef: "director",
+      });
+      effects.push(...hazardEffects);
+      const artifactEffects = buildArtifactProposalEffects({
+        intentEnvelope: resolvedEnvelope,
+        planRef: payloadWithPlan.planRef,
+        personaRef: "director",
+      });
+      effects.push(...artifactEffects);
     }
     return {
       ...result,

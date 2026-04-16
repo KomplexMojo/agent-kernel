@@ -13,7 +13,10 @@ test("artifact fixtures round-trip serialize", () => {
     const copy = roundTrip(fixture);
     assert.deepEqual(copy, fixture, `Round-trip mismatch for ${name}`);
     if (fixture.schema) {
-      assert.equal(fixture.schemaVersion, 1, `Expected schemaVersion 1 for ${name}`);
+      assert.ok(
+        typeof fixture.schemaVersion === "number" && fixture.schemaVersion >= 1,
+        `Expected schemaVersion >= 1 for ${name}`
+      );
     }
   }
 });

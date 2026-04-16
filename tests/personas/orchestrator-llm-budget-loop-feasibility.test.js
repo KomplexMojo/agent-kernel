@@ -150,10 +150,10 @@ for (const totalBudgetTokens of totalBudgets) {
     goal: "Walkability token sweep feasibility at 55 percent allocation",
     budgetTokens: totalBudgetTokens,
     poolWeights: [
-      { id: "player", weight: 20 },
-      { id: "layout", weight: 55 },
+      { id: "delver", weight: 20 },
+      { id: "rooms", weight: 55 },
       { id: "wardens", weight: 25 },
-      { id: "loot", weight: 0 },
+      { id: "resources", weight: 0 },
     ],
     runId: "run_budget_loop_walkability_sweep_" + totalBudgetTokens,
     clock: () => "2025-01-01T00:00:00Z",
@@ -161,10 +161,10 @@ for (const totalBudgetTokens of totalBudgets) {
   });
 
   assert.equal(result.ok, true, "expected ok for total budget " + totalBudgetTokens);
-  assert.equal(result.poolBudgets.layout, expectedWalkabilityBudget, "unexpected layout budget for total budget " + totalBudgetTokens);
-  assert.ok(result.poolBudgets.layout <= 550000, "walkability budget exceeded 550000 at total budget " + totalBudgetTokens);
+  assert.equal(result.poolBudgets.rooms, expectedWalkabilityBudget, "unexpected layout budget for total budget " + totalBudgetTokens);
+  assert.ok(result.poolBudgets.rooms <= 550000, "walkability budget exceeded 550000 at total budget " + totalBudgetTokens);
   if (totalBudgetTokens === 1000000) {
-    assert.equal(result.poolBudgets.layout, 550000, "expected 550000 walkability budget at max total budget");
+    assert.equal(result.poolBudgets.rooms, 550000, "expected 550000 walkability budget at max total budget");
   }
   assert.equal(callCount, 1, "expected no repair retries for total budget " + totalBudgetTokens);
   assert.equal(result.captures.length, 1, "expected one capture for total budget " + totalBudgetTokens);
@@ -212,10 +212,10 @@ const result = await runLlmBudgetLoop({
   goal: "Billion token budget support",
   budgetTokens: totalBudgetTokens,
   poolWeights: [
-    { id: "player", weight: 20 },
-    { id: "layout", weight: 55 },
+    { id: "delver", weight: 20 },
+    { id: "rooms", weight: 55 },
     { id: "wardens", weight: 25 },
-    { id: "loot", weight: 0 },
+    { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_billion_budget",
   clock: () => "2025-01-01T00:00:00Z",
@@ -223,9 +223,9 @@ const result = await runLlmBudgetLoop({
 });
 
 assert.equal(result.ok, true);
-assert.equal(result.poolBudgets.layout, 550000000);
+assert.equal(result.poolBudgets.rooms, 550000000);
 assert.equal(result.poolBudgets.wardens, 250000000);
-assert.equal(result.poolBudgets.player, 200000000);
+assert.equal(result.poolBudgets.delver, 200000000);
 assert.equal((result.summary?.layout?.floorTiles || 0) + (result.summary?.layout?.hallwayTiles || 0), 1500);
 `;
 
@@ -270,10 +270,10 @@ const result = await runLlmBudgetLoop({
   goal: "Large layout feasibility fast path",
   budgetTokens: totalBudgetTokens,
   poolWeights: [
-    { id: "player", weight: 20 },
-    { id: "layout", weight: 55 },
+    { id: "delver", weight: 20 },
+    { id: "rooms", weight: 55 },
     { id: "wardens", weight: 25 },
-    { id: "loot", weight: 0 },
+    { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_large_layout_fast_path",
   clock: () => "2025-01-01T00:00:00Z",
@@ -282,7 +282,7 @@ const result = await runLlmBudgetLoop({
 const elapsedMs = performance.now() - started;
 
 assert.equal(result.ok, true);
-assert.equal(result.poolBudgets.layout, expectedWalkabilityBudget);
+assert.equal(result.poolBudgets.rooms, expectedWalkabilityBudget);
 assert.equal(callCount, 1);
 assert.ok(elapsedMs < 20000, "expected 20M benchmark run to complete in under 20s, got " + elapsedMs + "ms");
 `;

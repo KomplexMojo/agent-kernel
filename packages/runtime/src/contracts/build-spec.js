@@ -1,6 +1,10 @@
 export const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
 export const BUILD_SPEC_SCHEMA_VERSION = 1;
 export const AGENT_COMMAND_REQUEST_SCHEMA = "agent-kernel/AgentCommandRequestArtifact";
+export const HAZARD_ARTIFACT_SCHEMA = "agent-kernel/HazardArtifact";
+export const HAZARD_ARTIFACT_SCHEMA_VERSION = 1;
+export const RESOURCE_ARTIFACT_SCHEMA = "agent-kernel/ResourceArtifact";
+export const RESOURCE_ARTIFACT_SCHEMA_VERSION = 1;
 
 const BUDGET_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
@@ -10,6 +14,8 @@ const AGENT_COMMAND_OBJECT_KINDS = new Set([
   "room",
   "floor_tile",
   "trap",
+  "hazard",
+  "resource",
   "delver",
   "warden",
   "shared_config",
@@ -193,6 +199,8 @@ function validateAgentHints(value, path, errors) {
     return;
   }
   validateOptionalNumber(value.budgetTokens, `${path}.budgetTokens`, errors);
+  validateOptionalNumber(value.dungeonBudgetTokens, `${path}.dungeonBudgetTokens`, errors);
+  validateOptionalNumber(value.delverBudgetTokens, `${path}.delverBudgetTokens`, errors);
   validateOptionalString(value.levelSize, `${path}.levelSize`, errors);
   validateOptionalString(value.levelAffinity, `${path}.levelAffinity`, errors);
   validateOptionalNumber(value.roomCount, `${path}.roomCount`, errors);
@@ -459,6 +467,8 @@ function validateAgentCommandSharedConfig(value, path, errors) {
   }
   validateOptionalString(value.dungeonAffinity, `${path}.dungeonAffinity`, errors);
   validateOptionalNumber(value.budgetTokens, `${path}.budgetTokens`, errors);
+  validateOptionalNumber(value.dungeonBudgetTokens, `${path}.dungeonBudgetTokens`, errors);
+  validateOptionalNumber(value.delverBudgetTokens, `${path}.delverBudgetTokens`, errors);
   validateOptionalString(value.levelSize, `${path}.levelSize`, errors);
   validateOptionalNumber(value.roomCount, `${path}.roomCount`, errors);
   validateHardConstraints(value.constraints, `${path}.constraints`, errors);
@@ -531,6 +541,101 @@ export function validateAgentCommandRequest(request, path = "agentCommandRequest
     : [];
   validateAgentCommandCompilation(request.compilation, `${path}.compilation`, errors, expectedKinds);
 
+  return { ok: errors.length === 0, errors };
+}
+
+// -------------------------
+// HazardArtifact validator
+// -------------------------
+
+const HAZARD_ALLOWED_AFFINITIES = new Set([
+  "fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark",
+]);
+const HAZARD_ALLOWED_EXPRESSIONS = new Set(["push", "pull", "emit", "draw"]);
+
+function validateHazardVital(vital, path, errors) {
+  if (!isObject(vital)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  if (vital.kind === "one-time") {
+    if (typeof vital.amount !== "number" || vital.amount < 0) {
+      addError(errors, `${path}.amount`, "expected non-negative number");
+    }
+  } else if (vital.kind === "regen") {
+    if (typeof vital.current !== "number" || vital.current < 0) {
+      addError(errors, `${path}.current`, "expected non-negative number");
+    }
+    if (typeof vital.max !== "number" || vital.max < 0) {
+      addError(errors, `${path}.max`, "expected non-negative number");
+    }
+    if (typeof vital.regen !== "number" || vital.regen < 0) {
+      addError(errors, `${path}.regen`, "expected non-negative number");
+    }
+    if (vital.current > vital.max) {
+      addError(errors, `${path}.current`, "cannot exceed max");
+    }
+  } else {
+    addError(errors, `${path}.kind`, 'expected "one-time" or "regen"');
+  }
+}
+
+export function validateHazardArtifact(artifact) {
+  const errors = [];
+  if (!isObject(artifact)) {
+    return { ok: false, errors: ["artifact: expected object"] };
+  }
+  if (artifact.schema !== HAZARD_ARTIFACT_SCHEMA) {
+    addError(errors, "schema", `expected ${HAZARD_ARTIFACT_SCHEMA}`);
+  }
+  if (artifact.schemaVersion !== HAZARD_ARTIFACT_SCHEMA_VERSION) {
+    addError(errors, "schemaVersion", `expected ${HAZARD_ARTIFACT_SCHEMA_VERSION}`);
+  }
+  validateArtifactMeta(artifact.meta, "meta", errors);
+  if (!HAZARD_ALLOWED_AFFINITIES.has(artifact.affinity)) {
+    addError(errors, "affinity", `expected one of: ${[...HAZARD_ALLOWED_AFFINITIES].join(", ")}`);
+  }
+  if (!HAZARD_ALLOWED_EXPRESSIONS.has(artifact.expression)) {
+    addError(errors, "expression", `expected one of: ${[...HAZARD_ALLOWED_EXPRESSIONS].join(", ")}`);
+  }
+  validateHazardVital(artifact.mana, "mana", errors);
+  validateHazardVital(artifact.durability, "durability", errors);
+  return { ok: errors.length === 0, errors };
+}
+
+// -------------------------
+// ResourceArtifact validator
+// -------------------------
+
+const RESOURCE_ALLOWED_TIERS = new Set(["level", "permanent"]);
+const RESOURCE_ALLOWED_STATS = new Set([
+  "vitalMax", "vitalRegen", "affinity", "affinityStack", "pushExpression",
+]);
+
+export function validateResourceArtifact(artifact) {
+  const errors = [];
+  if (!isObject(artifact)) {
+    return { ok: false, errors: ["artifact: expected object"] };
+  }
+  if (artifact.schema !== RESOURCE_ARTIFACT_SCHEMA) {
+    addError(errors, "schema", `expected ${RESOURCE_ARTIFACT_SCHEMA}`);
+  }
+  if (artifact.schemaVersion !== RESOURCE_ARTIFACT_SCHEMA_VERSION) {
+    addError(errors, "schemaVersion", `expected ${RESOURCE_ARTIFACT_SCHEMA_VERSION}`);
+  }
+  validateArtifactMeta(artifact.meta, "meta", errors);
+  if (!RESOURCE_ALLOWED_TIERS.has(artifact.tier)) {
+    addError(errors, "tier", `expected one of: ${[...RESOURCE_ALLOWED_TIERS].join(", ")}`);
+  }
+  if (!RESOURCE_ALLOWED_STATS.has(artifact.stat)) {
+    addError(errors, "stat", `expected one of: ${[...RESOURCE_ALLOWED_STATS].join(", ")}`);
+  }
+  if (typeof artifact.delta !== "number") {
+    addError(errors, "delta", "expected number");
+  }
+  if (!Number.isInteger(artifact.dropRate) || artifact.dropRate <= 0) {
+    addError(errors, "dropRate", "expected positive integer");
+  }
   return { ok: errors.length === 0, errors };
 }
 
@@ -685,3 +790,4 @@ export function validateBuildSpec(spec) {
 
   return { ok: errors.length === 0, errors };
 }
+

@@ -123,8 +123,8 @@ function usage() {
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId) [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
-  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
+  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
@@ -163,8 +163,12 @@ Options:
   --text          Freeform text for llm-plan; when no fixture is provided, CLI falls back to the default stub summary fixture
   --dungeon-affinity Dungeon affinity for room/delver/warden summary defaults
   --budget-tokens Hard budget cap in tokens. If freeform text also states a budget, they must match.
+  --dungeon-budget-tokens Separate hard budget cap for dungeon-side objects (rooms, tiles, traps, hazards).
+  --delver-budget-tokens  Separate hard budget cap for delver-side objects (delvers, wardens).
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
+  --hazard        Hazard spec for create/configure (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>]
+  --resource      Resource artifact spec for create/configure (repeatable): tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
   --trap          Trap spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...
                     where <expression> is push|pull (spatial) or emit|draw (field)
@@ -212,6 +216,8 @@ function parseArgs(argv) {
     "room",
     "floor-tile",
     "trap",
+    "hazard",
+    "resource",
     "file",
   ]);
   function pushArg(key, value) {
@@ -954,6 +960,132 @@ function parseTrapSpecs(rawTraps) {
     return [];
   }
   return values.map((value, index) => parseTrapSpec(value, index + 1));
+}
+
+function parseHazardVitalSpec(value, field, hazardIndex) {
+  if (!value) {
+    return { kind: "one-time", amount: 0 };
+  }
+  const parts = value.split(":").map((s) => s.trim());
+  if (parts[0] === "one-time" && parts.length === 2) {
+    const amount = parseNonNegativeIntStrict(parts[1], `hazard[${hazardIndex}] ${field} amount`);
+    return { kind: "one-time", amount };
+  }
+  if (parts[0] === "regen" && parts.length === 4) {
+    const current = parseNonNegativeIntStrict(parts[1], `hazard[${hazardIndex}] ${field} current`);
+    const max = parseNonNegativeIntStrict(parts[2], `hazard[${hazardIndex}] ${field} max`);
+    const regen = parseNonNegativeIntStrict(parts[3], `hazard[${hazardIndex}] ${field} regen`);
+    if (current > max) {
+      throw new Error(`hazard[${hazardIndex}] ${field} current cannot exceed max.`);
+    }
+    return { kind: "regen", current, max, regen };
+  }
+  throw new Error(`hazard[${hazardIndex}] ${field} must be one-time:<amount> or regen:<current>:<max>:<regen>.`);
+}
+
+function parseHazardSpec(value, hazardIndex) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
+  }
+  const allowedFields = new Set(["id", "affinity", "expression", "proximityRadius", "mana", "durability"]);
+  const fields = new Map();
+  const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
+  if (segments.length === 0) {
+    throw new Error(`hazard[${hazardIndex}] requires at least one field.`);
+  }
+  segments.forEach((segment) => {
+    if (!segment.includes("=")) {
+      throw new Error(`hazard[${hazardIndex}] segment "${segment}" is invalid; expected key=value.`);
+    }
+    const eqIdx = segment.indexOf("=");
+    const key = segment.slice(0, eqIdx).trim();
+    const val = segment.slice(eqIdx + 1).trim();
+    if (!allowedFields.has(key)) {
+      throw new Error(`hazard[${hazardIndex}] field "${key}" is not supported.`);
+    }
+    if (!val) {
+      throw new Error(`hazard[${hazardIndex}] field "${key}" requires a value.`);
+    }
+    fields.set(key, val);
+  });
+  if (!fields.has("affinity") || !ALLOWED_AFFINITIES.includes(fields.get("affinity"))) {
+    throw new Error(`hazard[${hazardIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+  }
+  if (!fields.has("expression") || !ALLOWED_AFFINITY_EXPRESSIONS.includes(fields.get("expression"))) {
+    throw new Error(`hazard[${hazardIndex}] expression must be one of: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}.`);
+  }
+  if (!fields.has("proximityRadius")) {
+    throw new Error(`hazard[${hazardIndex}] proximityRadius is required.`);
+  }
+  return {
+    id: fields.has("id") ? fields.get("id") : `hazard_${hazardIndex}`,
+    affinity: fields.get("affinity"),
+    expression: fields.get("expression"),
+    proximityRadius: parseNonNegativeIntStrict(fields.get("proximityRadius"), `hazard[${hazardIndex}] proximityRadius`),
+    mana: parseHazardVitalSpec(fields.get("mana"), "mana", hazardIndex),
+    durability: parseHazardVitalSpec(fields.get("durability"), "durability", hazardIndex),
+  };
+}
+
+const RESOURCE_ALLOWED_TIERS = new Set(["level", "permanent"]);
+const RESOURCE_ALLOWED_STATS = new Set([
+  "vitalMax", "vitalRegen", "affinity", "affinityStack", "pushExpression",
+]);
+
+function parseResourceSpec(value, resourceIndex) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    throw new Error(`resource[${resourceIndex}] requires a non-empty spec.`);
+  }
+  const allowedFields = new Set(["id", "tier", "stat", "delta", "dropRate"]);
+  const fields = new Map();
+  const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
+  if (segments.length === 0) {
+    throw new Error(`resource[${resourceIndex}] requires at least one field.`);
+  }
+  segments.forEach((segment) => {
+    if (!segment.includes("=")) {
+      throw new Error(`resource[${resourceIndex}] segment "${segment}" is invalid; expected key=value.`);
+    }
+    const eqIdx = segment.indexOf("=");
+    const key = segment.slice(0, eqIdx).trim();
+    const val = segment.slice(eqIdx + 1).trim();
+    if (!allowedFields.has(key)) {
+      throw new Error(`resource[${resourceIndex}] field "${key}" is not supported.`);
+    }
+    if (!val) {
+      throw new Error(`resource[${resourceIndex}] field "${key}" requires a value.`);
+    }
+    fields.set(key, val);
+  });
+  if (!fields.has("tier") || !RESOURCE_ALLOWED_TIERS.has(fields.get("tier"))) {
+    throw new Error(`resource[${resourceIndex}] tier must be one of: ${[...RESOURCE_ALLOWED_TIERS].join(", ")}.`);
+  }
+  if (!fields.has("stat") || !RESOURCE_ALLOWED_STATS.has(fields.get("stat"))) {
+    throw new Error(`resource[${resourceIndex}] stat must be one of: ${[...RESOURCE_ALLOWED_STATS].join(", ")}.`);
+  }
+  if (!fields.has("delta")) {
+    throw new Error(`resource[${resourceIndex}] delta is required.`);
+  }
+  if (!fields.has("dropRate")) {
+    throw new Error(`resource[${resourceIndex}] dropRate is required.`);
+  }
+  const delta = Number(fields.get("delta"));
+  if (!Number.isFinite(delta)) {
+    throw new Error(`resource[${resourceIndex}] delta must be a number.`);
+  }
+  const dropRate = parseInt(fields.get("dropRate"), 10);
+  if (!Number.isInteger(dropRate) || dropRate <= 0) {
+    throw new Error(`resource[${resourceIndex}] dropRate must be a positive integer.`);
+  }
+  return {
+    id: fields.has("id") ? fields.get("id") : `resource_${resourceIndex}`,
+    tier: fields.get("tier"),
+    stat: fields.get("stat"),
+    delta,
+    dropRate,
+  };
 }
 
 function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
@@ -3335,11 +3467,15 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     "room",
     "floor-tile",
     "trap",
+    "hazard",
+    "resource",
     "delver",
     "warden",
     "goal",
     "dungeon-affinity",
     "budget-tokens",
+    "dungeon-budget-tokens",
+    "delver-budget-tokens",
     "budget",
     "price-list",
     "out-dir",
@@ -3363,7 +3499,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --hazard, --resource, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3420,6 +3556,14 @@ function makeAgentCommandRoutes(kind) {
     case "trap":
       return [
         { target: "build_spec_configurator", path: "configurator.inputs.levelGen.traps", legacyFlow: "configurator" },
+      ];
+    case "hazard":
+      return [
+        { target: "build_spec_configurator", path: "configurator.inputs.levelGen.hazards", legacyFlow: "configurator" },
+      ];
+    case "resource":
+      return [
+        { target: "build_spec_configurator", path: "configurator.inputs.resources", legacyFlow: "configurator" },
       ];
     case "delver":
       return [
@@ -4473,6 +4617,14 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   if (args["budget-tokens"] !== undefined) {
     budgetTokensFlag = parsePositiveIntStrict(args["budget-tokens"], `${commandName} --budget-tokens`);
   }
+  let dungeonBudgetTokensFlag;
+  if (args["dungeon-budget-tokens"] !== undefined) {
+    dungeonBudgetTokensFlag = parsePositiveIntStrict(args["dungeon-budget-tokens"], `${commandName} --dungeon-budget-tokens`);
+  }
+  let delverBudgetTokensFlag;
+  if (args["delver-budget-tokens"] !== undefined) {
+    delverBudgetTokensFlag = parsePositiveIntStrict(args["delver-budget-tokens"], `${commandName} --delver-budget-tokens`);
+  }
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
     throw new Error(`${commandName} requires both --budget and --price-list.`);
   }
@@ -4512,6 +4664,14 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
     .map((value, index) => ({ prompt: value, value: parseTrapSpec(value, index + 1) }));
+  const parsedHazards = normalizeList(args.hazard)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => ({ prompt: value, value: parseHazardSpec(value, index + 1) }));
+  const parsedResources = normalizeList(args.resource)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => ({ prompt: value, value: parseResourceSpec(value, index + 1) }));
   const parsedDelvers = normalizeList(args.delver)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
@@ -4525,10 +4685,12 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     parsedRooms.length === 0
     && parsedFloorTiles.length === 0
     && parsedTraps.length === 0
+    && parsedHazards.length === 0
+    && parsedResources.length === 0
     && parsedDelvers.length === 0
     && parsedWardens.length === 0
   ) {
-    throw new Error(`${commandName} requires at least one authored object via --room, --floor-tile, --trap, --delver, or --warden.`);
+    throw new Error(`${commandName} requires at least one authored object via --room, --floor-tile, --trap, --hazard, --resource, --delver, or --warden.`);
   }
 
   const textVitalScope = parsedDelvers.length > 0 && parsedWardens.length === 0
@@ -4547,10 +4709,47 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   });
   const textDelverGoals = textVitalScope === "delver" ? textVitalGoals : [];
   const textWardenGoals = textVitalScope === "warden" ? textVitalGoals : [];
-  if (
+  // Resolve split budgets: explicit split flags take priority over combined budget.
+  const resolvedDungeonBudgetTokens = dungeonBudgetTokensFlag !== undefined
+    ? dungeonBudgetTokensFlag
+    : (delverBudgetTokensFlag !== undefined ? undefined : resolvedBudgetTokens);
+  const resolvedDelverBudgetTokens = delverBudgetTokensFlag !== undefined
+    ? delverBudgetTokensFlag
+    : (dungeonBudgetTokensFlag !== undefined ? undefined : resolvedBudgetTokens);
+  const hasSplitBudget = dungeonBudgetTokensFlag !== undefined || delverBudgetTokensFlag !== undefined;
+
+  if (hasSplitBudget) {
+    // Split-budget feasibility: check dungeon and delver sides independently.
+    if (Number.isInteger(resolvedDungeonBudgetTokens) && parsedFloorTiles.length === 0 && parsedTraps.length === 0) {
+      ensureBudgetedFulfillmentFeasible({
+        commandName,
+        budgetTokens: resolvedDungeonBudgetTokens,
+        rooms: parsedRooms,
+        delvers: [],
+        priceListArtifact,
+      });
+    }
+    if (Number.isInteger(resolvedDelverBudgetTokens) && parsedWardens.length === 0) {
+      ensureBudgetedFulfillmentFeasible({
+        commandName,
+        budgetTokens: resolvedDelverBudgetTokens,
+        rooms: [],
+        delvers: parsedDelvers.map((entry) => ({
+          ...entry,
+          optimizationGoals: dedupeOptimizationGoals([
+            ...(entry.optimizationGoals || []),
+            ...textDelverGoals,
+          ]),
+        })),
+        priceListArtifact,
+      });
+    }
+  } else if (
     Number.isInteger(resolvedBudgetTokens)
     && parsedFloorTiles.length === 0
     && parsedTraps.length === 0
+    && parsedHazards.length === 0
+    && parsedResources.length === 0
     && parsedWardens.length === 0
   ) {
     ensureBudgetedFulfillmentFeasible({
@@ -4567,24 +4766,55 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
       priceListArtifact,
     });
   }
-  const fulfilled = (
-    parsedFloorTiles.length === 0
-    && parsedTraps.length === 0
-    && parsedWardens.length === 0
-  )
-    ? applyBudgetCappedFulfillment({
-      rooms: parsedRooms,
-      delvers: parsedDelvers.map((entry) => ({
-        ...entry,
-        optimizationGoals: dedupeOptimizationGoals([
-          ...(entry.optimizationGoals || []),
-          ...textDelverGoals,
-        ]),
-      })),
-      priceListArtifact,
-      budgetTokens: resolvedBudgetTokens,
-    })
-    : { rooms: parsedRooms, delvers: parsedDelvers };
+
+  let fulfilled;
+  if (hasSplitBudget) {
+    // Split-budget fulfillment: maximize each side against its own budget.
+    const dungeonFulfilled = (parsedFloorTiles.length === 0 && parsedTraps.length === 0)
+      ? applyBudgetCappedFulfillment({
+        rooms: parsedRooms,
+        delvers: [],
+        priceListArtifact,
+        budgetTokens: resolvedDungeonBudgetTokens,
+      })
+      : { rooms: parsedRooms, delvers: [] };
+    const delverFulfilled = parsedWardens.length === 0
+      ? applyBudgetCappedFulfillment({
+        rooms: [],
+        delvers: parsedDelvers.map((entry) => ({
+          ...entry,
+          optimizationGoals: dedupeOptimizationGoals([
+            ...(entry.optimizationGoals || []),
+            ...textDelverGoals,
+          ]),
+        })),
+        priceListArtifact,
+        budgetTokens: resolvedDelverBudgetTokens,
+      })
+      : { rooms: [], delvers: parsedDelvers };
+    fulfilled = { rooms: dungeonFulfilled.rooms, delvers: delverFulfilled.delvers };
+  } else {
+    fulfilled = (
+      parsedFloorTiles.length === 0
+      && parsedTraps.length === 0
+      && parsedHazards.length === 0
+      && parsedResources.length === 0
+      && parsedWardens.length === 0
+    )
+      ? applyBudgetCappedFulfillment({
+        rooms: parsedRooms,
+        delvers: parsedDelvers.map((entry) => ({
+          ...entry,
+          optimizationGoals: dedupeOptimizationGoals([
+            ...(entry.optimizationGoals || []),
+            ...textDelverGoals,
+          ]),
+        })),
+        priceListArtifact,
+        budgetTokens: resolvedBudgetTokens,
+      })
+      : { rooms: parsedRooms, delvers: parsedDelvers };
+  }
 
   const summary = {
     goal: deriveGoalForAgentCommand({
@@ -4594,6 +4824,8 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
         ...parsedRooms.map((entry) => ({ kind: "room" })),
         ...parsedFloorTiles.map((entry) => ({ kind: "floor_tile" })),
         ...parsedTraps.map((entry) => ({ kind: "trap" })),
+        ...parsedHazards.map((entry) => ({ kind: "hazard" })),
+        ...parsedResources.map((entry) => ({ kind: "resource" })),
         ...parsedDelvers.map((entry) => ({ kind: "delver" })),
         ...parsedWardens.map((entry) => ({ kind: "warden" })),
       ],
@@ -4604,6 +4836,12 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   };
   if (resolvedBudgetTokens !== undefined) {
     summary.budgetTokens = resolvedBudgetTokens;
+  }
+  if (dungeonBudgetTokensFlag !== undefined) {
+    summary.dungeonBudgetTokens = dungeonBudgetTokensFlag;
+  }
+  if (delverBudgetTokensFlag !== undefined) {
+    summary.delverBudgetTokens = delverBudgetTokensFlag;
   }
 
   const built = buildBuildSpecFromSummary({
@@ -4637,7 +4875,29 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
       vitals: entry.vitals ? { ...entry.vitals } : undefined,
     }));
   }
+  const hazards = parsedHazards.map((entry) => entry.value);
+  if (hazards.length > 0) {
+    levelGen.hazards = hazards.map((entry) => ({
+      id: entry.id,
+      affinity: entry.affinity,
+      expression: entry.expression,
+      proximityRadius: entry.proximityRadius,
+      mana: { ...entry.mana },
+      durability: { ...entry.durability },
+    }));
+  }
   built.spec.configurator.inputs.levelGen = levelGen;
+
+  const resources = parsedResources.map((entry) => entry.value);
+  if (resources.length > 0) {
+    built.spec.configurator.inputs.resources = resources.map((entry) => ({
+      id: entry.id,
+      tier: entry.tier,
+      stat: entry.stat,
+      delta: entry.delta,
+      dropRate: entry.dropRate,
+    }));
+  }
 
   const sharedConfig = {
     dungeonAffinity,
@@ -4680,6 +4940,29 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
         blocking: entry.value.blocking,
         affinity: entry.value.affinity,
         vitals: entry.value.vitals,
+      },
+    })),
+    ...parsedHazards.map((entry) => ({
+      kind: "hazard",
+      prompt: entry.prompt,
+      id: entry.value.id,
+      attributes: {
+        affinity: entry.value.affinity,
+        expression: entry.value.expression,
+        proximityRadius: entry.value.proximityRadius,
+        mana: entry.value.mana,
+        durability: entry.value.durability,
+      },
+    })),
+    ...parsedResources.map((entry) => ({
+      kind: "resource",
+      prompt: entry.prompt,
+      id: entry.value.id,
+      attributes: {
+        tier: entry.value.tier,
+        stat: entry.value.stat,
+        delta: entry.value.delta,
+        dropRate: entry.value.dropRate,
       },
     })),
     ...fulfilled.delvers.map((entry) => ({
@@ -4773,6 +5056,48 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     commandName,
     producedBy: `cli-${commandName}`,
   });
+
+  // Write HazardArtifact files for each --hazard flag
+  for (let i = 0; i < parsedHazards.length; i++) {
+    const h = parsedHazards[i].value;
+    const hazardArtifact = {
+      schema: "agent-kernel/HazardArtifact",
+      schemaVersion: 1,
+      meta: {
+        id: h.id,
+        runId,
+        createdAt,
+        producedBy: `cli-${commandName}`,
+      },
+      affinity: h.affinity,
+      expression: h.expression,
+      proximityRadius: h.proximityRadius,
+      mana: { ...h.mana },
+      durability: { ...h.durability },
+    };
+    await writeJson(join(outDir, `hazard-${i + 1}.json`), hazardArtifact);
+  }
+
+  // Write ResourceArtifact files for each --resource flag
+  for (let i = 0; i < parsedResources.length; i++) {
+    const r = parsedResources[i].value;
+    const resourceArtifact = {
+      schema: "agent-kernel/ResourceArtifact",
+      schemaVersion: 1,
+      meta: {
+        id: r.id,
+        runId,
+        createdAt,
+        producedBy: `cli-${commandName}`,
+      },
+      tier: r.tier,
+      stat: r.stat,
+      delta: r.delta,
+      dropRate: r.dropRate,
+    };
+    await writeJson(join(outDir, `resource-${i + 1}.json`), resourceArtifact);
+  }
+
   emitJsonStdout(stdoutSummary);
 }
 

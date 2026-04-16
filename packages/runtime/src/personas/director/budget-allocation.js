@@ -3,25 +3,53 @@ const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 
 /** Reference balancing budget (design §2.1). */
-export const REFERENCE_BUDGET_TOKENS = 1000;
+export const REFERENCE_BUDGET_TOKENS = 2500;
 
-/** Target allocation split: 55% rooms, 20% delvers, 25% wardens (design §2.2). */
-const DEFAULT_POOLS = Object.freeze([
-  { id: "layout", weight: 0.55, notes: "Rooms / layout / traps (55%)" },
-  { id: "player", weight: 0.20, notes: "Delver actors (20%)" },
-  { id: "wardens", weight: 0.25, notes: "Warden actors + configuration (25%)" },
-  { id: "loot", weight: 0.0, notes: "Optional drops/loot reserve" },
+/** Default share of the total budget allocated to dungeon content. */
+export const DEFAULT_DUNGEON_PCT = 0.80;
+
+/** Default share of the total budget allocated to delver actors. */
+export const DEFAULT_DELVER_PCT = 0.20;
+
+/**
+ * Default dungeon sub-pool split (applied to the dungeon share of the total budget).
+ * rooms=55%, hazards=15%, wardens=20%, resources=10%
+ */
+export const DEFAULT_DUNGEON_SUB_POOLS = Object.freeze([
+  { id: "rooms", weight: 0.55, notes: "Rooms / layout / traps (55% of dungeon)" },
+  { id: "hazards", weight: 0.15, notes: "Hazard elements (15% of dungeon)" },
+  { id: "wardens", weight: 0.20, notes: "Warden actors (20% of dungeon)" },
+  { id: "resources", weight: 0.10, notes: "Resource drops (10% of dungeon)" },
 ]);
 
-/** Target spend values for the reference 1000-token budget (design §2.2). */
+/**
+ * Target spend values for the reference 2500-token budget (design §2.2).
+ * rooms: 2500*0.44=1100, delvers: 2500*0.20=500, wardens: 2500*0.16=400
+ */
 export const REFERENCE_TARGETS = Object.freeze({
-  rooms: 550,
-  delvers: 200,
-  wardens: 250,
+  rooms: 1100,
+  delvers: 500,
+  wardens: 400,
 });
 
 /** Target delver/warden spend ratio (design §3.2): 200/250 = 0.8. */
 export const TARGET_DELVER_WARDEN_RATIO = 0.8;
+
+/**
+ * Flat default pool weights derived from the two-tier defaults.
+ * rooms: 0.55*0.80=0.44, hazards: 0.15*0.80=0.12, wardens: 0.20*0.80=0.16,
+ * resources: 0.10*0.80=0.08, delver: 0.20
+ */
+const DEFAULT_POOLS = Object.freeze([
+  { id: "rooms", weight: 0.44, notes: "Rooms / layout / traps" },
+  { id: "hazards", weight: 0.12, notes: "Hazard elements" },
+  { id: "wardens", weight: 0.16, notes: "Warden actors" },
+  { id: "resources", weight: 0.08, notes: "Resource drops" },
+  { id: "delver", weight: 0.20, notes: "Delver actors" },
+]);
+
+/** Backward-compatible alias. */
+export const DEFAULT_BUDGET_POOLS = DEFAULT_POOLS;
 
 function buildRef(artifact, fallbackSchema) {
   const meta = artifact?.meta;
@@ -78,9 +106,31 @@ function allocatePools({ tokens, pools }) {
   return withFloor.map((pool) => ({ id: pool.id, tokens: pool.tokens, notes: pool.notes }));
 }
 
+/**
+ * Apply resource cap: resources.tokens must not exceed hazards.tokens + wardens.tokens.
+ * Any excess is redistributed to rooms.
+ */
+function applyResourceCap(pools) {
+  const byId = new Map(pools.map((p) => [p.id, p]));
+  const resources = byId.get("resources");
+  const hazards = byId.get("hazards");
+  const wardens = byId.get("wardens");
+  const rooms = byId.get("rooms");
+  if (!resources || !hazards || !wardens || !rooms) return pools;
+
+  const cap = hazards.tokens + wardens.tokens;
+  if (resources.tokens > cap) {
+    const excess = resources.tokens - cap;
+    resources.tokens = cap;
+    rooms.tokens += excess;
+  }
+  return pools;
+}
+
 function normalizePoolWeights(poolWeights) {
   const errors = [];
   const overrides = new Map();
+  const callerProvidedExplicit = Array.isArray(poolWeights) && poolWeights.length > 0;
   if (Array.isArray(poolWeights)) {
     poolWeights.forEach((entry, index) => {
       if (!entry || typeof entry !== "object") {
@@ -107,7 +157,8 @@ function normalizePoolWeights(poolWeights) {
   const used = new Set();
   DEFAULT_POOLS.forEach((pool) => {
     const override = overrides.get(pool.id);
-    const weight = override ? override.weight : pool.weight;
+    // When caller provides explicit poolWeights, pools not listed default to weight 0
+    const weight = override ? override.weight : (callerProvidedExplicit ? 0 : pool.weight);
     normalized.push({ id: pool.id, weight, notes: pool.notes });
     used.add(pool.id);
   });
@@ -126,7 +177,7 @@ function normalizePoolWeights(poolWeights) {
   return { pools: normalized, errors };
 }
 
-export function computeBudgetPools({ budgetTokens, policy = {}, poolWeights } = {}) {
+export function computeBudgetPools({ budgetTokens, policy = {}, dungeonPct, delverPct, poolWeights } = {}) {
   const tokens = Number.isInteger(budgetTokens) ? budgetTokens : 0;
   const reserveTokens = normalizeReserveTokens(policy, tokens);
   const availableTokens = Math.max(0, tokens - reserveTokens);
@@ -134,7 +185,18 @@ export function computeBudgetPools({ budgetTokens, policy = {}, poolWeights } = 
   if (normalized.errors.length > 0) {
     return { ok: false, errors: normalized.errors };
   }
-  const pools = allocatePools({ tokens: availableTokens, pools: normalized.pools });
+
+  let pools = allocatePools({ tokens: availableTokens, pools: normalized.pools });
+
+  // Apply resource cap: resources must not exceed hazards + wardens (excess → rooms)
+  pools = applyResourceCap(pools);
+
+  // Compute convenience totals for two-tier reporting
+  const dungeonPoolIds = new Set(["rooms", "hazards", "wardens", "resources"]);
+  const dungeonTokens = pools.filter((p) => dungeonPoolIds.has(p.id)).reduce((s, p) => s + p.tokens, 0);
+  const delverPool = pools.find((p) => p.id === "delver");
+  const delverTokens = delverPool ? delverPool.tokens : 0;
+
   return {
     ok: true,
     pools,
@@ -142,6 +204,8 @@ export function computeBudgetPools({ budgetTokens, policy = {}, poolWeights } = 
     totalTokens: tokens,
     reserveTokens,
     availableTokens,
+    dungeonTokens,
+    delverTokens,
   };
 }
 
@@ -153,10 +217,12 @@ export function buildBudgetAllocation({
   meta,
   policy = {},
   poolWeights,
+  dungeonPct,
+  delverPct,
   budgetTokens,
 } = {}) {
   const tokens = Number.isInteger(budgetTokens) ? budgetTokens : budget?.budget?.tokens;
-  const result = computeBudgetPools({ budgetTokens: tokens, policy, poolWeights });
+  const result = computeBudgetPools({ budgetTokens: tokens, policy, poolWeights, dungeonPct, delverPct });
   if (!result.ok) {
     return { ok: false, errors: result.errors, allocation: null };
   }
@@ -183,7 +249,7 @@ export function buildBudgetAllocation({
     totalTokens: result.totalTokens,
     reserveTokens: result.reserveTokens,
     availableTokens: result.availableTokens,
+    dungeonTokens: result.dungeonTokens,
+    delverTokens: result.delverTokens,
   };
 }
-
-export const DEFAULT_BUDGET_POOLS = DEFAULT_POOLS;
