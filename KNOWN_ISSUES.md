@@ -1,5 +1,30 @@
 # Known Issues
 
+## Trap Projection/Draw Expression Policy
+
+**Status**: Open — design decision pending
+**Date Reported**: 2026-04-11
+**Severity**: Design / correctness
+
+### Question
+
+Should traps be permitted to use projection expressions (`push`, `pull`) or the `draw` expression?
+
+### Current Behaviour
+
+The CLI currently accepts `push`, `pull`, and `draw` as trap expression values without error. It is not yet decided whether this is intentional or an oversight.
+
+### Decision Needed
+
+- **Allow** — traps with push/pull/draw are valid; update documentation and skill accordingly.
+- **Disallow** — add validation to the CLI to reject these expression kinds for traps; they are emit-only.
+
+### Impact
+
+Until resolved, the agent-kernel skill will refuse to author traps with `push`, `pull`, or `draw` expressions and will ask for explicit confirmation of design intent if requested. See `skills/agent-kernel/authoring.md`.
+
+---
+
 ## Icon Rendering in RUN COMPANION Panel
 
 **Status**: Open
