@@ -12,7 +12,8 @@
     "build:wasm": "mkdir -p build && asc packages/core-as/assembly/index.ts -o build/core-as.wasm -t build/core-as.wat --sourceMap --optimize && mkdir -p packages/ui-web/assets && cp build/core-as.wasm packages/ui-web/assets/core-as.wasm",
     "serve:ui": "node scripts/serve-ui.mjs",
     "demo:cli": "bash scripts/demo-cli.sh",
-    "mcp:serve": "node packages/adapters-cli/src/mcp/server.mjs"
+    "mcp:serve": "node packages/adapters-cli/src/mcp/server.mjs",
+    "docs:pdf": "mmdc -i WORKFLOW.md -o WORKFLOW-print.md --outputFormat svg && md-to-pdf WORKFLOW-print.md && rm -f WORKFLOW-print.md mermaid-*.svg"
   },
   "keywords": [],
   "author": "",
@@ -22,8 +23,10 @@
     "packages/*"
   ],
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.12.0",
     "@types/node": "^25.0.3",
     "assemblyscript": "^0.27.0",
+    "md-to-pdf": "^5.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

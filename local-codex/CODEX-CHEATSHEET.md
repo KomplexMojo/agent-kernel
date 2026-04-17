@@ -34,7 +34,13 @@ For this UI-to-CLI initiative, treat `/plan` as milestone decomposer only; parit
 
 ```text
 Work in /Users/darren/Documents/GitHub/agent-kernel.
-Before coding, read AGENTS.md and local-codex/Prompt.md, Plan.md, Implement.md, Documentation.md.
+Before coding, read in this order:
+  1. local-codex/CodeContext.md  (startup orientation snapshot — do not skip)
+  2. AGENTS.md
+  3. local-codex/Prompt.md, Plan.md, Implement.md, Documentation.md
+You have live MCP access to CodeContextGraph (server: codegraphcontext). After reading CodeContext.md
+for the initial orientation, query the live graph for detail — finding functions, tracing imports,
+checking complexity, identifying dead code. Do not use grep or find for structural questions.
 Execute milestone-by-milestone: requirement -> tests -> code -> validation.
 After each milestone, update local-codex/Documentation.md with status, decisions, and validation results.
 ```
