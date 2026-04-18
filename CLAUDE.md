@@ -61,6 +61,8 @@ Before writing any code for a milestone, Claude must:
 
 **Test-first authoring (Sonnet / medium → high):** Claude writes failing tests *before* production code. Tests are the success criteria; code is written to make them pass. Every test file must end with a `## TODO: Test Permutations` section with plain-language stubs for edge cases. These stubs are the handoff signal to Ollama.
 
+For low-complexity delegated test work, Claude should point the local-model harness at `tests/README.md` first. That file defines the bounded MCP-first workflow for permutation expansion, CLI option-matrix exploration, and narrow test execution.
+
 The implementation order for every milestone is:
 1. State assumptions (pause if unclear)
 2. Write failing tests + TODO permutation stubs
@@ -69,7 +71,7 @@ The implementation order for every milestone is:
 
 ### Ollama — test permutation expansion
 
-Ollama (local model, launched via Claude Code harness) reads the `## TODO: Test Permutations` stubs and generates the concrete test cases in place. Trigger via the `/ollama-test-permutations` skill. Do **not** use Ollama for architecture decisions, enforcement reviews, or persona FSM design.
+Ollama (local model, launched via Claude Code harness) reads the `## TODO: Test Permutations` stubs and generates the concrete test cases in place. Trigger via the `/ollama-test-permutations` skill. Before doing permutation work, read `tests/README.md`. Use the test-harness MCP to discover patterns, scaffold or insert cases, run narrow scopes, and explain failures. Do **not** use Ollama for architecture decisions, enforcement reviews, or persona FSM design.
 
 ---
 

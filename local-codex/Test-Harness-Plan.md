@@ -9,6 +9,16 @@ This work restructures the repository test system around three fixed rules:
 
 The plan preserves the current logic of all existing tests. Refactoring should be pushed into repository scripts wherever possible so the migration is cheap in tokens, repeatable, and auditable. The agent-facing workflow should become recipe-first: discover an existing test pattern, scaffold through the MCP, run the narrowest relevant suite, and return structured failures.
 
+## Implementation Status
+- `W1` through `W8` are now implemented in the current branch.
+- `pnpm run test` is routed through `scripts/testing/run-vitest.mjs`.
+- `pnpm run test:playwright` is the canonical browser-native runner.
+- The test harness MCP ships inside the existing CLI MCP server via `packages/adapters-cli/src/mcp/tools/testing.mjs`.
+- The shared agent skills are present in `.claude/skills/structured-test-authoring/SKILL.md` and `.codex/skills/structured-test-authoring/SKILL.md`.
+- The repo-local low-complexity delegation playbook is `tests/README.md`.
+- All currently cataloged recipe families are scaffoldable through the MCP, including `ui_cli_equivalence` and `perf_harness_smoke`.
+- `test:legacy` is retained temporarily as a bounded compatibility/parity path, not as the default workflow.
+
 ## Goals
 - Preserve the behavioral intent and assertions of the existing test suite.
 - Fix test discovery gaps and normalize runner boundaries.
@@ -24,16 +34,17 @@ The plan preserves the current logic of all existing tests. Refactoring should b
 - Changing test semantics just to fit a new framework style.
 
 ## Current Baseline Findings
-- The default test script in `package.json` is `node --test "tests/**/*.test.js"`.
-- The repository currently contains a mixed suite: approximately `196` `*.test.js` files and `30` `*.test.mjs` files under `tests/`.
-- The current default runner misses a meaningful set of `*.test.mjs` files unless invoked separately.
+- The default test script in `package.json` is `node scripts/testing/run-vitest.mjs`.
+- Browser-native coverage runs through `pnpm run test:playwright`.
+- The repository inventory and classification are tracked in `local-codex/test-inventory.json` and `local-codex/test-classification.md`.
+- The suite is now classified by runner owner and recipe family, with recipe-adoption checks enforcing scaffold coverage.
 - Existing tests already cluster into a small number of recurring structures:
   - CLI artifact emission and error-path tests
   - runtime and contract validation tests
   - WASM/core determinism tests
   - UI/CLI equivalence tests
   - served UI and browser-interaction tests
-- The right migration is not "rewrite assertions", it is "formalize patterns and route them through the right runner".
+- The implemented migration followed the intended shape: formalize recurring patterns and route them through the correct runner rather than rewriting assertions.
 
 ## Target Architecture
 
@@ -347,6 +358,7 @@ The plan preserves the current logic of all existing tests. Refactoring should b
 - If helpers become too abstract, the suite could become harder to debug even if easier to generate.
 
 ## Open Items
-- Decide whether the MCP lives inside the existing CLI MCP server or as a dedicated test-harness MCP server.
-- Decide whether recipe templates should live under `tests/recipes/` or under `scripts/testing/templates/`.
-- Decide whether old `node:test` compatibility scripts should be retained temporarily for branch-by-branch migration.
+- No blocking plan items remain open for the current test-harness rollout.
+- Resolved: the MCP lives inside the existing CLI MCP server.
+- Resolved: recipe scaffolds currently live in the MCP tool implementation plus `scripts/testing/recipe-catalog.mjs`; an external template directory is not required for the current catalog.
+- Resolved: legacy compatibility remains available temporarily through `pnpm run test:legacy` while parity checks stay in place.

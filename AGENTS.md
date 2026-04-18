@@ -108,6 +108,7 @@ Before opening implementation files or proposing edits, Claude should cite the C
 
 - Writes the base test file for each coding milestone.
 - Every base test file **must** end with a `## TODO: Test Permutations` section listing edge cases and boundary conditions as plain-language stubs. This section is the handoff signal to Ollama.
+- For delegated low-complexity permutation work, point the harness at `tests/README.md` first. That file is the repo-local playbook for MCP-backed test expansion by Ollama/local models.
 - Example stub format:
   ```
   ## TODO: Test Permutations
@@ -120,6 +121,9 @@ Before opening implementation files or proposing edits, Claude should cite the C
 
 - Triggered by `/ollama-test-permutations` skill, launched via Claude Code harness.
 - Reads `## TODO: Test Permutations` stubs and generates concrete test cases in place.
+- Must read `tests/README.md` before expanding permutations or building bounded CLI-option matrices.
+- Should use the test-harness MCP to discover patterns, scaffold or insert cases, and run narrow scopes.
+- May run bounded CLI argument/option permutations around one command family at a time, then build tests from the distinct failure classes it finds.
 - Does not make architecture decisions or modify production code.
 
 ## GitHub Copilot — documentation and commits only

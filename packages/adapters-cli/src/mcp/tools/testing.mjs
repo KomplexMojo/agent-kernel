@@ -393,6 +393,267 @@ ${expectedChecks.map((entry) => {
   throw new Error(`Unsupported wasm_effect_contract variant: ${variant}`);
 }
 
+function scaffoldUiCliEquivalence(args) {
+  return `const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
+const { mkdtempSync, readFileSync, readdirSync } = require("node:fs");
+const { resolve, join } = require("node:path");
+const { pathToFileURL } = require("node:url");
+const os = require("node:os");
+
+const ROOT = resolve(__dirname, "..", "..");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CLI_WORKER_URL = pathToFileURL(
+  resolve(ROOT, "packages/adapters-web/src/adapters/cli-worker/index.js"),
+).href;
+
+function readJson(filePath) {
+  return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+function fixtureResponse(body, contentType = "application/json; charset=utf-8") {
+  const buffer = Buffer.isBuffer(body)
+    ? body
+    : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
+  const textBody = Buffer.isBuffer(body)
+    ? buffer.toString("utf8")
+    : typeof body === "string"
+      ? body
+      : JSON.stringify(body);
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    headers: {
+      get(name) {
+        return name.toLowerCase() === "content-type" ? contentType : null;
+      },
+    },
+    async text() {
+      return textBody;
+    },
+    async json() {
+      return JSON.parse(textBody);
+    },
+    async arrayBuffer() {
+      return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    },
+  };
+}
+
+function createFixtureFetch(rootDir) {
+  return async (resource) => {
+    const value = String(resource);
+    const normalized = value.startsWith("http://") || value.startsWith("https://")
+      ? new URL(value).pathname
+      : value;
+    const filePath = resolve(rootDir, normalized.replace(/^\\/+/, ""));
+    if (filePath.endsWith(".wasm")) {
+      return fixtureResponse(readFileSync(filePath), "application/wasm");
+    }
+    return fixtureResponse(readFileSync(filePath, "utf8"));
+  };
+}
+
+function collectJsonArtifacts(outDir) {
+  const artifacts = {};
+
+  function walk(currentDir, relativeDir = "") {
+    const entries = readdirSync(currentDir, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+    entries.forEach((entry) => {
+      const absolutePath = join(currentDir, entry.name);
+      const relativePath = relativeDir ? \`\${relativeDir}/\${entry.name}\` : entry.name;
+      if (entry.isDirectory()) {
+        walk(absolutePath, relativePath);
+        return;
+      }
+      if (entry.isFile() && entry.name.endsWith(".json")) {
+        artifacts[relativePath] = readJson(absolutePath);
+      }
+    });
+  }
+
+  walk(outDir);
+  return artifacts;
+}
+
+function collectArtifactIds(value, idMap, nextIdRef) {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectArtifactIds(entry, idMap, nextIdRef));
+    return;
+  }
+  if (!value || typeof value !== "object") {
+    return;
+  }
+  if (typeof value.schema === "string" && typeof value.meta?.id === "string" && !idMap.has(value.meta.id)) {
+    idMap.set(value.meta.id, \`artifact_\${nextIdRef.current}\`);
+    nextIdRef.current += 1;
+  }
+  Object.keys(value)
+    .sort((left, right) => left.localeCompare(right))
+    .forEach((key) => collectArtifactIds(value[key], idMap, nextIdRef));
+}
+
+function normalizeArtifactValue(value, idMap, refIdMap, nextRefRef, parentKey = "") {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeArtifactValue(entry, idMap, refIdMap, nextRefRef));
+  }
+  if (!value || typeof value !== "object") {
+    if (typeof value === "string") {
+      if (idMap.has(value)) {
+        return idMap.get(value);
+      }
+      if (["createdAt", "startedAt", "endedAt", "updatedAt"].includes(parentKey)) {
+        return \`<\${parentKey}>\`;
+      }
+    }
+    return value;
+  }
+
+  const isRefObject = typeof value.id === "string"
+    && typeof value.schema === "string"
+    && Number.isFinite(value.schemaVersion)
+    && !value.meta;
+  if (isRefObject) {
+    const normalizedRef = {};
+    Object.keys(value)
+      .sort((left, right) => left.localeCompare(right))
+      .forEach((key) => {
+        if (key === "id" && !idMap.has(value.id)) {
+          if (!refIdMap.has(value.id)) {
+            refIdMap.set(value.id, \`ref_\${nextRefRef.current}\`);
+            nextRefRef.current += 1;
+          }
+          normalizedRef.id = refIdMap.get(value.id);
+          return;
+        }
+        normalizedRef[key] = normalizeArtifactValue(value[key], idMap, refIdMap, nextRefRef, key);
+      });
+    return normalizedRef;
+  }
+
+  const normalized = {};
+  Object.keys(value)
+    .sort((left, right) => left.localeCompare(right))
+    .forEach((key) => {
+      normalized[key] = normalizeArtifactValue(value[key], idMap, refIdMap, nextRefRef, key);
+    });
+  return normalized;
+}
+
+function normalizeArtifacts(artifacts) {
+  const idMap = new Map();
+  const nextIdRef = { current: 1 };
+  const refIdMap = new Map();
+  const nextRefRef = { current: 1 };
+  Object.entries(artifacts)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .forEach(([, value]) => collectArtifactIds(value, idMap, nextIdRef));
+
+  return Object.fromEntries(
+    Object.entries(artifacts)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([path, value]) => [path, normalizeArtifactValue(value, idMap, refIdMap, nextRefRef)]),
+  );
+}
+
+function runCli(args, env = {}) {
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, ...env },
+  });
+  if (result.status !== 0) {
+    const output = [result.stdout, result.stderr].filter(Boolean).join("\\n");
+    throw new Error(\`CLI failed (\${result.status}): \${output}\`);
+  }
+}
+
+async function createBrowserAdapter() {
+  const { createCliWorkerAdapter } = await import(CLI_WORKER_URL);
+  return createCliWorkerAdapter({
+    forceInProcess: true,
+    fetchFn: createFixtureFetch(ROOT),
+    env: { AK_LLM_LIVE: "1" },
+    nowIso: () => "2026-03-11T00:00:00.000Z",
+  });
+}
+
+test(${JSON.stringify(args.title)}, async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-"));
+  const cliArgs = ${args.equivalenceCliArgs ?? "[]"}.slice();
+  if (!cliArgs.includes("--out-dir")) {
+    cliArgs.push("--out-dir", outDir);
+  }
+  runCli(cliArgs, ${args.equivalenceEnvJson ?? "{}"});
+
+  const cliArtifacts = collectJsonArtifacts(outDir);
+  const adapter = await createBrowserAdapter();
+  const browserResult = await adapter[${JSON.stringify(args.adapterMethod)}](${args.adapterCallJson ?? "{}"});
+
+  assert.deepEqual(
+    normalizeArtifacts(browserResult.artifacts),
+    normalizeArtifacts(cliArtifacts),
+  );
+});
+`;
+}
+
+function scaffoldPerfHarnessSmoke(args) {
+  const expectedChecks = args.expectedChecks ?? [];
+  return `const assert = require("node:assert/strict");
+const { existsSync } = require("node:fs");
+const { resolve } = require("node:path");
+const { performance } = require("node:perf_hooks");
+
+const ROOT = resolve(__dirname, "..", "..");
+const WASM_PATH = resolve(ROOT, ${JSON.stringify(args.wasmPath ?? "build/core-as.wasm")});
+const PERF_ENABLED = process.env[${JSON.stringify(args.perfEnvVar ?? "AK_PERF")}] === "1"
+  || process.env[${JSON.stringify(args.perfEnvVar ?? "AK_PERF")}] === "true";
+
+function getValueAtPath(root, path) {
+  return path.split(".").reduce((value, segment) => {
+    if (segment === "") return value;
+    const index = Number(segment);
+    if (Number.isInteger(index) && String(index) === segment) {
+      return value?.[index];
+    }
+    return value?.[segment];
+  }, root);
+}
+
+test(
+  ${JSON.stringify(args.title)},
+  { skip: !PERF_ENABLED && ${JSON.stringify(`Set ${args.perfEnvVar ?? "AK_PERF"}=1 to run perf harness`)} },
+  async () => {
+    if (!existsSync(WASM_PATH)) {
+      return;
+    }
+    const { ${args.loaderExportName ?? "loadCoreFromWasmPath"} } = require(${JSON.stringify(args.loaderRequirePath ?? "../helpers/core-loader")});
+    const core = await ${args.loaderExportName ?? "loadCoreFromWasmPath"}(WASM_PATH);
+${(args.setupCalls ?? ["core.init(0)"]).map((entry) => `    ${entry};`).join("\n")}
+    const ticks = ${Number(args.perfTicks ?? 25)};
+    const start = performance.now();
+    for (let i = 0; i < ticks; i += 1) {
+${(args.tickCalls ?? ["core.clearEffects()"]).map((entry) => `      ${entry};`).join("\n")}
+    }
+    const elapsed = performance.now() - start;
+    const metrics = {
+      ticks,
+      elapsed,
+      ticksPerSecond: elapsed > 0 ? ticks / (elapsed / 1000) : 0,
+    };
+${expectedChecks.map((entry) => {
+      const [path, rawExpected = "null"] = entry.split("=", 2);
+      return `    assert.deepEqual(getValueAtPath(metrics, ${JSON.stringify(path)}), ${rawExpected});`;
+    }).join("\n")}
+    assert.ok(metrics.ticksPerSecond >= 0);
+  },
+);
+`;
+}
+
 function scaffoldCliFailure(args) {
   return `const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -650,6 +911,13 @@ export const testingTools = [
         loaderExportName: stringSchema("Loader export name for wasm_effect_contract core_loader_smoke."),
         wasmPath: pathSchema("Repository-relative wasm path for wasm_effect_contract core_loader_smoke."),
         setupCalls: stringArraySchema("Method call expressions for core setup in wasm_effect_contract core_loader_smoke."),
+        equivalenceCliArgs: stringSchema("Serialized JS array literal of CLI args for ui_cli_equivalence."),
+        adapterMethod: stringSchema("Adapter method name for ui_cli_equivalence."),
+        adapterCallJson: stringSchema("Serialized JS object literal adapter call payload for ui_cli_equivalence."),
+        equivalenceEnvJson: stringSchema("Serialized JS object literal env overrides for ui_cli_equivalence."),
+        perfEnvVar: stringSchema("Environment variable gate for perf_harness_smoke."),
+        perfTicks: integerSchema("Tick count for perf_harness_smoke.", { minimum: 1 }),
+        tickCalls: stringArraySchema("Method call expressions executed inside each perf tick loop."),
         expectedOk: stringSchema("Optional boolean-like flag for artifact_schema_roundtrip."),
         startPort: integerSchema("Start port override for serve_ui_redirect_health.", { minimum: 1 }),
       },
@@ -694,6 +962,12 @@ export const testingTools = [
           break;
         case "wasm_effect_contract":
           content = scaffoldWasmEffectContract(args);
+          break;
+        case "ui_cli_equivalence":
+          content = scaffoldUiCliEquivalence(args);
+          break;
+        case "perf_harness_smoke":
+          content = scaffoldPerfHarnessSmoke(args);
           break;
         case "serve_ui_redirect_health":
           content = scaffoldServeUiRedirect(args);
@@ -753,6 +1027,13 @@ export const testingTools = [
         loaderExportName: stringSchema("Loader export name for wasm_effect_contract core_loader_smoke."),
         wasmPath: pathSchema("Repository-relative wasm path for wasm_effect_contract core_loader_smoke."),
         setupCalls: stringArraySchema("Method call expressions for core setup in wasm_effect_contract core_loader_smoke."),
+        equivalenceCliArgs: stringSchema("Serialized JS array literal of CLI args for ui_cli_equivalence."),
+        adapterMethod: stringSchema("Adapter method name for ui_cli_equivalence."),
+        adapterCallJson: stringSchema("Serialized JS object literal adapter call payload for ui_cli_equivalence."),
+        equivalenceEnvJson: stringSchema("Serialized JS object literal env overrides for ui_cli_equivalence."),
+        perfEnvVar: stringSchema("Environment variable gate for perf_harness_smoke."),
+        perfTicks: integerSchema("Tick count for perf_harness_smoke.", { minimum: 1 }),
+        tickCalls: stringArraySchema("Method call expressions executed inside each perf tick loop."),
         expectedOk: stringSchema("Optional boolean-like flag for artifact_schema_roundtrip."),
         startPort: integerSchema("Start port override for serve_ui_redirect_health.", { minimum: 1 }),
       },
@@ -797,6 +1078,12 @@ export const testingTools = [
           break;
         case "wasm_effect_contract":
           fragment = scaffoldWasmEffectContract(args).trim();
+          break;
+        case "ui_cli_equivalence":
+          fragment = scaffoldUiCliEquivalence(args).trim();
+          break;
+        case "perf_harness_smoke":
+          fragment = scaffoldPerfHarnessSmoke(args).trim();
           break;
         case "serve_ui_redirect_health":
           fragment = scaffoldServeUiRedirect(args).trim();

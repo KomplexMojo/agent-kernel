@@ -31,7 +31,7 @@ export const RECIPE_CATALOG = {
   },
   ui_cli_equivalence: {
     runner: "vitest",
-    scaffoldable: false,
+    scaffoldable: true,
     description: "Browser-host and CLI artifact flows remain equivalent.",
   },
   serve_ui_redirect_health: {
@@ -61,7 +61,7 @@ export const RECIPE_CATALOG = {
   },
   perf_harness_smoke: {
     runner: "vitest",
-    scaffoldable: false,
+    scaffoldable: true,
     description: "Perf harness still executes and returns a bounded smoke signal.",
   },
 };
