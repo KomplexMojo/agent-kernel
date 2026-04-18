@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 
 test("buildDesignSpendLedger computes level, actor base, and actor config categories", async () => {

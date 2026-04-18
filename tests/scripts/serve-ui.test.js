@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createServer } = require("node:http");
 const { once } = require("node:events");

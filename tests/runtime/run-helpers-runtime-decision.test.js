@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const helpersModule = moduleUrl("packages/runtime/src/commands/run-helpers.js");

@@ -2,6 +2,29 @@
 
 Status tracker and decision log for this deliverable.
 
+## Test Harness Migration Status (2026-04-18)
+
+- Scope completed in this branch:
+  - Vitest is now the default Node-side test runner via `pnpm run test`.
+  - Playwright is established as the canonical browser-native runner under `tests/playwright/`.
+  - The custom test-harness MCP now supports discovery, planning, execution, linting, failure explanation, and structured scaffolding across the major repo test families.
+  - Browser-native `playwright-cli` holdouts were removed from the migration backlog.
+  - Recipe classification covers the full `tests/` tree and current scaffold coverage is `225 / 227` files.
+- Current measured state:
+  - total inventoried tests: `227`
+  - targeted for Vitest: `200`
+  - targeted for Playwright: `27`
+  - scaffoldable recipe families: `11 / 12`
+  - remaining non-scaffoldable special cases: `ui_cli_equivalence`, `perf_harness_smoke`
+
+### Outstanding Test-Harness Tasks
+
+1. Continue browser-suite consolidation for remaining browser-native files still living under `tests/ui-web/*.test.mjs`, moving only the cases that are better expressed as first-class Playwright specs.
+2. Decide whether `ui_cli_equivalence` should stay a single bespoke parity suite or gain its own scaffold recipe.
+3. Decide whether `perf_harness_smoke` should remain intentionally bespoke or get a minimal scaffold wrapper.
+4. Run broader parity closure across the migrated suite and decide when `test:legacy` can be retired.
+5. Trim or retire any migration-era helper/report scripts that become redundant after parity closure is formally recorded.
+
 ## Stitch UI Rewrite Handoff Status (2026-03-28)
 
 - Source plan: `[Spec](intent://local/note/spec)` (`M0 -> M7`)

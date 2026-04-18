@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
 
@@ -55,3 +54,94 @@ test("resource artifacts reject empty vitals array", () => {
   const fixture = readFixture("invalid/resource-artifact-v1-missing-stat.json");
   assert.throws(() => validateResourceArtifact(fixture));
 });
+
+// --- V3 contract: three permanence modes ---
+
+const { moduleUrl } = require("../helpers/esm-runner");
+
+async function loadValidator() {
+  return import(moduleUrl("packages/runtime/src/contracts/build-spec.js"));
+}
+
+const BASE_META = {
+  id: "r1",
+  runId: "run1",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  producedBy: "test",
+};
+
+const BASE_VITALS = [{ key: "health", delta: 10 }];
+
+test("resource artifact V3 accepts permanenceMode 'consumable'", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const artifact = {
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: BASE_VITALS,
+    permanenceMode: "consumable",
+  };
+  const result = validate(artifact);
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+});
+
+test("resource artifact V3 accepts permanenceMode 'level'", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const artifact = {
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: BASE_VITALS,
+    permanenceMode: "level",
+  };
+  const result = validate(artifact);
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+});
+
+test("resource artifact V3 accepts permanenceMode 'permanent'", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const artifact = {
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: BASE_VITALS,
+    permanenceMode: "permanent",
+  };
+  const result = validate(artifact);
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+});
+
+test("resource artifact V3 rejects unknown permanenceMode", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const artifact = {
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: BASE_VITALS,
+    permanenceMode: "temporary",
+  };
+  const result = validate(artifact);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /permanenceMode/);
+});
+
+test("RESOURCE_PERMANENCE_MODES exports all three modes", async () => {
+  const { RESOURCE_PERMANENCE_MODES } = await import(
+    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
+  );
+  assert.ok(Array.isArray(RESOURCE_PERMANENCE_MODES), "must be an array");
+  assert.ok(RESOURCE_PERMANENCE_MODES.includes("consumable"));
+  assert.ok(RESOURCE_PERMANENCE_MODES.includes("level"));
+  assert.ok(RESOURCE_PERMANENCE_MODES.includes("permanent"));
+});
+
+/*
+## TODO: Test Permutations
+- resource V3 with empty vitals array should be invalid
+- resource V3 with invalid vital key (e.g. "durability") should be invalid
+- resource V3 with missing permanenceMode should be invalid
+- resource V3 with mana vital + permanenceMode="consumable" should apply only current stat delta
+- resource V3 with permanenceMode="permanent" should be distinguishable from V2 permanent:true
+- resource V2 backward-compat: existing permanent:true fixture still validates as V2
+- resource V1 backward-compat: existing tier/stat/delta/dropRate fixture still validates as V1
+*/

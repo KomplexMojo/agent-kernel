@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 
 test("buildSelectionsFromSummary creates deterministic actor and room selections", async () => {

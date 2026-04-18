@@ -1,4 +1,3 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { renderBoardWithResourceBundle } from "../../packages/runtime/src/render/resource-bundle.js";
 import { AFFINITY_COLOR_HEX } from "../../packages/runtime/src/render/affinity-palette.js";

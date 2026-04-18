@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 
 test("trap vitals enrichment preserves layout vitals in observations", () => {

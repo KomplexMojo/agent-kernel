@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm, ROOT } = require("../helpers/esm-runner");
 
 const bindingsModule = moduleUrl("packages/bindings-ts/src/index.js");

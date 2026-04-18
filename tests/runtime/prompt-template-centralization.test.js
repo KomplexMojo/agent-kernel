@@ -1,7 +1,6 @@
 const assert = require("node:assert/strict");
 const { readdir, readFile } = require("node:fs/promises");
 const { join, resolve } = require("node:path");
-const test = require("node:test");
 
 const ROOT = resolve(__dirname, "../..");
 const TARGET_FILE = resolve(ROOT, "packages/runtime/src/contracts/domain-constants.js");

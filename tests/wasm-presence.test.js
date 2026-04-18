@@ -1,5 +1,4 @@
 const assert = require("node:assert");
-const { test } = require("node:test");
 const { existsSync } = require("node:fs");
 const path = require("node:path");
 

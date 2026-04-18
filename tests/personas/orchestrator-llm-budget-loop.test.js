@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");

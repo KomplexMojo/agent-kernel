@@ -296,7 +296,19 @@ export function buildBuildSpecFromSummary({
         expression: entry.expression,
         proximityRadius: entry.proximityRadius,
         mana: entry.mana ? { ...entry.mana } : undefined,
-        durability: entry.durability ? { ...entry.durability } : undefined,
+      }))
+    : [];
+  const resources = Array.isArray(resolvedSummary?.resources)
+    ? resolvedSummary.resources
+      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+      .map((entry) => ({
+        id: entry.id,
+        permanenceMode: entry.permanenceMode,
+        vitals: Array.isArray(entry.vitals) ? entry.vitals.map((v) => ({ ...v })) : undefined,
+        tier: entry.tier,
+        stat: entry.stat,
+        delta: entry.delta,
+        dropRate: entry.dropRate,
       }))
     : [];
   const levelGen = layout || roomDesign
@@ -344,6 +356,7 @@ export function buildBuildSpecFromSummary({
           count: sel.requested.count,
         })),
         hazards: hazards.length > 0 ? hazards : undefined,
+        resources: resources.length > 0 ? resources : undefined,
         delverCount,
         delverConfigs: delverConfigs.length > 0 ? delverConfigs : undefined,
         delverConfig: delverConfig || undefined,
@@ -359,6 +372,7 @@ export function buildBuildSpecFromSummary({
         delverCount,
         delverConfigs: delverConfigs.length > 0 ? delverConfigs : undefined,
         delverConfig: delverConfig || undefined,
+        resources: resources.length > 0 ? resources : undefined,
         cardSet: cardSet.length > 0 ? cardSet : undefined,
       },
     },

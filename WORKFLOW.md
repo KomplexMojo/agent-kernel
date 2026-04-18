@@ -44,20 +44,21 @@ flowchart TD
 
     subgraph IMPL [Claude Sonnet — Implementation loop]
         K["🔵 State assumptions · pause if unclear\nWrite failing tests + TODO stubs"] --> L[Write code to\nmake tests pass]
-        L --> M[Ollama\nExpand TODO stubs]
-    end
-
-    M --> N
-
-    subgraph VERIFY [Codex — Adversarial Review]
-        N["/codex:adversarial-review\nCorrect? · 3× too complex?"]
+        L --> M[Test harness MCP\nDiscover pattern · scaffold · run]
+        M --> N[Ollama\nExpand TODO stubs]
     end
 
     N --> O
 
+    subgraph VERIFY [Codex — Adversarial Review]
+        O["/codex:adversarial-review\nCorrect? · 3× too complex?"]
+    end
+
+    O --> P
+
     subgraph SHIP [GitHub Copilot — Ship]
-        O[Commit message] --> P[Open PR]
-        P --> Q[Update docs]
+        P[Commit message] --> Q[Open PR]
+        Q --> R[Update docs]
     end
 
     style SKILL fill:#f0f4ff,stroke:#4a6cf7
@@ -143,6 +144,7 @@ flowchart LR
 | Command | When to use |
 |---|---|
 | `/dictate` | **Step 1 — Planning.** Full pipeline: clean dictated text → flag conflicts → generate `Plan.md` |
+| `structured-test-authoring` | **Step 2 — Tests.** Shared Claude/Codex skill: prefer MCP recipes and narrow runner scopes over raw test authoring |
 | `/ollama-test-permutations` | **Step 2 — Tests.** Expand `## TODO: Test Permutations` stubs in test files using the local model |
 | `/codex:adversarial-review` | **Step 3 — Verify.** Ask Codex to stress-test correctness and simplicity of a completed diff |
 | `/codex:rescue` | **Ad hoc.** Hand a bounded task or debugging problem to Codex when Claude is stuck |
@@ -161,6 +163,9 @@ flowchart LR
 | `local-codex/Plan.md` | Milestone plan with agent assignments | Codex gpt-5.4 (via `/dictate`) |
 | `local-codex/CodeContext.md` | Codebase snapshot for agent orientation | Claude (before each Codex handoff) |
 | `local-codex/Documentation.md` | Live status, decisions, validation log | Claude (updated after each milestone) |
+| `local-codex/Test-Harness-Plan.md` | Test runner and MCP migration plan | Codex |
+| `local-codex/test-inventory.json` | Generated inventory of tests, runner targets, and recipes | Scripted tooling |
+| `local-codex/test-classification.md` | Generated classification report for test migration | Scripted tooling |
 | `local-codex/Implement.md` | Execution runbook | Developer / Claude |
 | `CLAUDE.md` | Architecture rules & enforcement checklist | Developer |
 | `AGENTS.md` | Agent roster & collaboration contract | Developer |
@@ -184,6 +189,8 @@ Claude Opus is responsible for keeping milestones inside these bounds. Anything 
 
 **Use `/dictate` when** you have a new idea, feature request, or change you want to plan — especially useful straight from a voice dictation.
 
+**Use `structured-test-authoring` when** you are adding, migrating, or repairing tests. The skill tells Claude Code and Codex to discover an existing recipe first, scaffold through MCP where possible, and run the narrowest relevant suite.
+
 **Use `/codex:rescue` when** Claude is stuck, needs a second opinion, or you want Codex to implement a bounded task from a spec.
 
 **Use `/codex:adversarial-review` when** a design decision or completed diff needs stress-testing from a different model family. The review always asks two questions: (1) is this correct? and (2) is this 3× more complex than the simplest solution that meets the spec?
@@ -193,6 +200,13 @@ Claude Opus is responsible for keeping milestones inside these bounds. Anything 
 **Claude states assumptions before every milestone** — explicit list of what it's assuming about scope, interfaces, and behaviour. If anything is unclear, Claude stops and asks rather than guessing.
 
 **Claude writes failing tests first** — tests define success criteria before any production code is written. Code is written to make those tests pass, not the other way around.
+
+**Claude and Codex should not invent tests from raw prose by default** — they should prefer the test-harness MCP:
+- `ak_test_list_suites`
+- `ak_test_discover_patterns`
+- `ak_test_plan_from_change`
+- `ak_test_scaffold_case`
+- `ak_test_run`
 
 **Claude refactors immediately (no permission needed) when** code violates the Ports & Adapters pattern, a persona FSM contract, or artifact schema rules.
 
@@ -218,4 +232,49 @@ state-machine.mts   view() → PersonaState
 
 ---
 
-*Last updated: 2026-04-17 (Karpathy improvements: test-first, assumption gate, surgical changes, simplicity review) · agent-kernel · github.com/...*
+## Test Harness Workflow
+
+The test workflow now has three layers:
+
+1. **Vitest** is the main runner for Node, CLI, runtime, contract, WASM, and non-browser integration tests.
+2. **Playwright** is the browser-native runner for served UI and browser automation tests.
+3. **The test-harness MCP** fronts both so agents operate on test recipes and runner intents instead of shelling directly by default.
+
+### Canonical Commands
+
+| Command | Purpose |
+|---|---|
+| `pnpm run test:inventory` | Generate `local-codex/test-inventory.json` |
+| `pnpm run test:classify` | Generate `local-codex/test-classification.md` |
+| `pnpm run test:coverage` | Check runner ownership and recipe coverage |
+| `pnpm run test:recipe-adoption` | Report which recipe families are cataloged and scaffoldable |
+| `pnpm run test:parity -- <files>` | Compare legacy `node --test` vs Vitest on a targeted migrated subset |
+| `pnpm run test:vitest` | Run Vitest-managed suites |
+| `pnpm run test:playwright` | Run Playwright-managed suites |
+| `pnpm run test:matrix -- <mode>` | Dispatch `inventory`, `classify`, `coverage`, `vitest`, `playwright`, `legacy`, or `all` |
+| `pnpm run test:codemod:report` | Report files needing manual review before `node:test` migration |
+| `pnpm run test:codemod:imports` | Strip leftover `node:test` / Vitest imports and normalize lifecycle hooks |
+| `pnpm run test:codemod:assert` | Normalize `assert` imports to `node:assert/strict` |
+| `pnpm run test:codemod:playwright` | Report browser tests still using ad hoc `playwright-cli` session flows |
+| `pnpm run test:browser-candidates` | List browser-native test candidates |
+
+### Agent Test Flow
+
+1. Run `ak_test_list_suites` or `pnpm run test:inventory`.
+2. Run `ak_test_discover_patterns` to find the closest existing recipe.
+3. Use `ak_test_scaffold_case` when a supported recipe fits.
+4. Run `ak_test_plan_from_change` to choose Vitest vs Playwright scope.
+5. Run `ak_test_run` on the smallest useful scope.
+6. Use `/ollama-test-permutations` only after the base test shape exists.
+
+### Migration Policy
+
+- Preserve existing test logic and assertions.
+- Push repetitive migration work into scripts and codemods.
+- Keep backend and domain tests for invariants and contracts.
+- Move browser-native behavior into Playwright over time.
+- Do not treat Playwright as a replacement for contract, runtime, or WASM tests.
+
+---
+
+*Last updated: 2026-04-18 (testing workflow: Vitest + Playwright + MCP) · agent-kernel · github.com/...*

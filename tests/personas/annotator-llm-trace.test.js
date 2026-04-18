@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const llmTraceModulePath = moduleUrl("packages/runtime/src/personas/annotator/llm-trace.js");

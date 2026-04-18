@@ -4,6 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Claude is the **orchestration and implementation engine**. Codex drives ideation and adversarial verification. GitHub Copilot owns documentation and commits.
 
+## Session-Start Protocol (mandatory before first code change)
+
+Before writing any code in a new session, Claude must complete the checklist in `AGENTS.md → Session-Start Checklist`. The short form:
+
+1. `git pull --ff-only` — confirm on HEAD
+2. `pnpm install --frozen-lockfile` — confirm lockfile match
+3. `pnpm run test` — confirm no pre-existing failures
+4. Rebuild graphify: `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` 
+5. Start CodeContextGraph watch: `mcp__CodeGraphContext__watch_directory` on repo root
+6. Read `graphify-out/wiki/index.md` for community map
+7. Rewrite `local-codex/CodeContext.md` from the three MCP queries
+
+**This is not optional.** A stale graph or missing dependencies produces wrong structural answers that compound across milestones.
+
+---
+
 ## Multi-Agent Delegation
 
 | Task | Agent | Model / Effort | Mechanism |
@@ -17,7 +33,7 @@ Claude is the **orchestration and implementation engine**. Codex drives ideation
 | Summarize artifacts, classify schemas, extract structured data | **Ollama** (local model) | local / — | `local_summarize`, `local_classify`, `local_extract` via MCP |
 | Author commit messages, open PRs, update architecture / design / README docs | **GitHub Copilot** | — | Native `gh` CLI + Copilot agent |
 
-**Code navigation (all agents):** Claude, Ollama, and Codex all have live MCP access to CodeContextGraph. Query the graph before opening files or running text searches.
+**Code navigation (all agents):** Claude, Ollama, and Codex all have live MCP access to CodeContextGraph. Query the graph before opening files or running text searches, and name the query you used when handing off or justifying a target area.
 
 ### Codex — ideation, planning, adversarial verification
 
@@ -87,7 +103,7 @@ CodeContextGraph handles incremental updates automatically on every file save. R
 
 ### Mandatory rule: graph before grep
 
-**Claude and Ollama must query CodeContextGraph before using any filesystem search** (`grep`, `rg`, `find`, `Glob`). Text search is a fallback for content not captured in the graph, not the default.
+**Claude and Ollama must query CodeContextGraph before using any filesystem search** (`grep`, `rg`, `find`, `Glob`). Filesystem search is not an equal alternative to MCP; it is a narrow exception path only.
 
 | Need | Use instead of grep/find |
 |------|--------------------------|
@@ -97,6 +113,27 @@ CodeContextGraph handles incremental updates automatically on every file save. R
 | Count files, functions, modules | `mcp__CodeGraphContext__get_repository_stats` |
 | Arbitrary structural query | `mcp__CodeGraphContext__execute_cypher_query` |
 | Find unused code | `mcp__CodeGraphContext__find_dead_code` |
+
+### Failure policy: stop, then report
+
+If CodeContextGraph is unavailable, stale, misconfigured, or returns insufficient structural results, Claude must stop and report the MCP issue explicitly. Do **not** silently fall back to `grep`, `rg`, `find`, or `Glob` for code discovery or file selection.
+
+A valid report includes:
+- which MCP query was attempted
+- what was missing or broken in the result
+- what decision is blocked until MCP is working
+
+### Narrow exception: literal content search only
+
+Text search is allowed only for exact literal/content matching that CodeContextGraph does not model well, such as:
+- README prose or design-doc wording
+- fixture strings or expected error text
+- known schema names or literal command examples when the task is about the exact text itself
+
+Before using text search for one of those cases, Claude must:
+1. Name the MCP query it already tried.
+2. Explain why the graph is insufficient for this exact content lookup.
+3. Keep the text search scoped to the known content target rather than using it to discover code structure.
 
 ### CodeContext snapshot for Codex handoffs
 
@@ -117,6 +154,8 @@ mcp__CodeGraphContext__find_most_complex_functions → top 10 complexity hotspot
 ```
 
 Write the result to `local-codex/CodeContext.md`. Codex reads this file at startup for orientation, then queries the live graph for detail as needed during the task.
+
+Before opening implementation files or proposing edits, Claude should cite the CodeContextGraph query or queries it used to locate the target area. This makes MCP-first navigation auditable in the transcript.
 
 ### Keeping the graph current
 
@@ -146,11 +185,14 @@ pnpm install
 # Compile AssemblyScript → WASM (required before tests that use WASM)
 pnpm run build:wasm
 
-# Run all tests (Node built-in test runner, no Jest/Vitest)
+# Run the default Node-side suite (Vitest)
 pnpm run test
 
-# Run a single test file
-node --test tests/<path>/<name>.test.js
+# Run a single Vitest-managed test file
+pnpm run test:vitest -- tests/<path>/<name>.test.js
+
+# Run a browser-native Playwright spec
+pnpm run test:playwright -- tests/playwright/<name>.spec.mjs
 
 # Check WASM binary is present
 pnpm run test:wasm-check

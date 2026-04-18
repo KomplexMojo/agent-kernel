@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const incentiveUrl = moduleUrl("packages/runtime/src/personas/allocator/incentive-model.js");

@@ -111,6 +111,16 @@ export const PHI4_OLLAMA_OPTIONS = Object.freeze({
 export const VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
 export const TRAP_VITAL_KEYS = Object.freeze(["mana", "durability"]);
 
+// Per-actor-type vital constraints
+export const HAZARD_VITAL_KEYS = Object.freeze(["mana"]);
+export const ROOM_TILE_VITAL_KEYS = Object.freeze(["durability"]);
+export const DELVER_VITAL_KEYS = VITAL_KEYS;
+export const WARDEN_VITAL_KEYS = VITAL_KEYS;
+export const RESOURCE_VITAL_KEYS = Object.freeze(["health", "mana", "stamina"]);
+
+// Resource permanence modes
+export const RESOURCE_PERMANENCE_MODES = Object.freeze(["consumable", "level", "permanent"]);
+
 function buildLookup(list) {
   const out = Object.create(null);
   for (let i = 0; i < list.length; i += 1) {

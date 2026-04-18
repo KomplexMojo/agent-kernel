@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const policyModule = moduleUrl("packages/runtime/src/personas/allocator/motivation-price-policy.js");

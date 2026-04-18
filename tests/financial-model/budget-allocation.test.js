@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const budgetAllocUrl = moduleUrl("packages/runtime/src/personas/director/budget-allocation.js");

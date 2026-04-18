@@ -43,6 +43,14 @@ const DEFAULT_MOVEMENT_COST: i32 = 1;
 const DEFAULT_ACTION_COST_MANA: i32 = 0;
 const DEFAULT_ACTION_COST_STAMINA: i32 = 0;
 const STATIC_TRAP_NONE: i32 = 0;
+const RESOURCE_VITAL_NONE: i32 = -1;
+
+// Resource permanence modes: consumable=0 (current only), level=1 (current+max), permanent=2 (current+max)
+export const enum ResourceMode {
+  Consumable = 0,
+  Level = 1,
+  Permanent = 2,
+}
 
 let width: i32 = 0;
 let height: i32 = 0;
@@ -65,6 +73,10 @@ let staticTrapExpressionByCell = new StaticArray<i32>(0);
 let staticTrapStacksByCell = new StaticArray<i32>(0);
 let staticTrapManaReserveByCell = new StaticArray<i32>(0);
 let staticTrapCount: i32 = 0;
+let resourceVitalKindByCell = new StaticArray<i32>(0);
+let resourceDeltaByCell = new StaticArray<i32>(0);
+let resourceModeByCell = new StaticArray<i32>(0);
+let resourceCount: i32 = 0;
 let placementActorCount: i32 = 0;
 let placementActorOverflow: bool = false;
 let placementActorId = new StaticArray<i32>(0);
@@ -123,6 +135,9 @@ function resizeGrid(newWidth: i32, newHeight: i32): void {
   staticTrapExpressionByCell = new StaticArray<i32>(cellCount);
   staticTrapStacksByCell = new StaticArray<i32>(cellCount);
   staticTrapManaReserveByCell = new StaticArray<i32>(cellCount);
+  resourceVitalKindByCell = new StaticArray<i32>(cellCount);
+  resourceDeltaByCell = new StaticArray<i32>(cellCount);
+  resourceModeByCell = new StaticArray<i32>(cellCount);
   placementActorId = new StaticArray<i32>(maxMotivatedActors);
   placementActorX = new StaticArray<i32>(maxMotivatedActors);
   placementActorY = new StaticArray<i32>(maxMotivatedActors);
@@ -205,6 +220,15 @@ function clearStaticTraps(): void {
     unchecked(staticTrapExpressionByCell[i] = 0);
     unchecked(staticTrapStacksByCell[i] = 0);
     unchecked(staticTrapManaReserveByCell[i] = 0);
+  }
+}
+
+function clearResources(): void {
+  resourceCount = 0;
+  for (let i = 0; i < cellCount; i += 1) {
+    unchecked(resourceVitalKindByCell[i] = RESOURCE_VITAL_NONE);
+    unchecked(resourceDeltaByCell[i] = 0);
+    unchecked(resourceModeByCell[i] = 0);
   }
 }
 
@@ -417,6 +441,7 @@ function resetWorldState(): void {
   fillTiles(Tile.Wall);
   clearTileActorState();
   clearStaticTraps();
+  clearResources();
   resetActorPlacementsState();
 }
 

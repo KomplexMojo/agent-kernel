@@ -988,7 +988,8 @@ function parseHazardSpec(value, hazardIndex) {
   if (!raw) {
     throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
-  const allowedFields = new Set(["id", "affinity", "expression", "proximityRadius", "mana", "durability"]);
+  // durability is not in allowedFields — hazards have mana only (schemaVersion 2)
+  const allowedFields = new Set(["id", "affinity", "expression", "proximityRadius", "mana"]);
   const fields = new Map();
   const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1001,6 +1002,9 @@ function parseHazardSpec(value, hazardIndex) {
     const eqIdx = segment.indexOf("=");
     const key = segment.slice(0, eqIdx).trim();
     const val = segment.slice(eqIdx + 1).trim();
+    if (key === "durability") {
+      throw new Error(`hazard[${hazardIndex}] durability is not allowed — hazards have mana only.`);
+    }
     if (!allowedFields.has(key)) {
       throw new Error(`hazard[${hazardIndex}] field "${key}" is not supported.`);
     }
@@ -1024,7 +1028,7 @@ function parseHazardSpec(value, hazardIndex) {
     expression: fields.get("expression"),
     proximityRadius: parseNonNegativeIntStrict(fields.get("proximityRadius"), `hazard[${hazardIndex}] proximityRadius`),
     mana: parseHazardVitalSpec(fields.get("mana"), "mana", hazardIndex),
-    durability: parseHazardVitalSpec(fields.get("durability"), "durability", hazardIndex),
+    _schemaVersion: 2,
   };
 }
 
@@ -1032,18 +1036,69 @@ const RESOURCE_ALLOWED_TIERS = new Set(["level", "permanent"]);
 const RESOURCE_ALLOWED_STATS = new Set([
   "vitalMax", "vitalRegen", "affinity", "affinityStack", "pushExpression",
 ]);
+const RESOURCE_ALLOWED_PERMANENCE_MODES = new Set(["consumable", "level", "permanent"]);
+const RESOURCE_ALLOWED_VITAL_KEYS = new Set(["health", "mana", "stamina"]);
 
 function parseResourceSpec(value, resourceIndex) {
   const raw = String(value || "").trim();
   if (!raw) {
     throw new Error(`resource[${resourceIndex}] requires a non-empty spec.`);
   }
-  const allowedFields = new Set(["id", "tier", "stat", "delta", "dropRate"]);
   const fields = new Map();
   const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
   if (segments.length === 0) {
     throw new Error(`resource[${resourceIndex}] requires at least one field.`);
   }
+
+  // Detect schema version from first key seen
+  const isV3 = segments.some((seg) => {
+    const key = seg.split("=")[0].trim();
+    return key === "permanenceMode" || key === "vital";
+  });
+
+  if (isV3) {
+    // V3: permanenceMode + vital + delta
+    const allowedFields = new Set(["id", "permanenceMode", "vital", "delta"]);
+    segments.forEach((segment) => {
+      if (!segment.includes("=")) {
+        throw new Error(`resource[${resourceIndex}] segment "${segment}" is invalid; expected key=value.`);
+      }
+      const eqIdx = segment.indexOf("=");
+      const key = segment.slice(0, eqIdx).trim();
+      const val = segment.slice(eqIdx + 1).trim();
+      if (!allowedFields.has(key)) {
+        throw new Error(`resource[${resourceIndex}] field "${key}" is not supported in V3 spec.`);
+      }
+      if (!val) {
+        throw new Error(`resource[${resourceIndex}] field "${key}" requires a value.`);
+      }
+      fields.set(key, val);
+    });
+    const permanenceMode = fields.get("permanenceMode");
+    if (!RESOURCE_ALLOWED_PERMANENCE_MODES.has(permanenceMode)) {
+      throw new Error(`resource[${resourceIndex}] permanenceMode must be one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}.`);
+    }
+    const vitalKey = fields.get("vital");
+    if (!vitalKey || !RESOURCE_ALLOWED_VITAL_KEYS.has(vitalKey)) {
+      throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}.`);
+    }
+    if (!fields.has("delta")) {
+      throw new Error(`resource[${resourceIndex}] delta is required.`);
+    }
+    const delta = Number(fields.get("delta"));
+    if (!Number.isFinite(delta)) {
+      throw new Error(`resource[${resourceIndex}] delta must be a number.`);
+    }
+    return {
+      id: fields.has("id") ? fields.get("id") : `resource_${resourceIndex}`,
+      permanenceMode,
+      vitals: [{ key: vitalKey, delta }],
+      _schemaVersion: 3,
+    };
+  }
+
+  // V1 (backward compat): tier + stat + delta + dropRate
+  const allowedFields = new Set(["id", "tier", "stat", "delta", "dropRate"]);
   segments.forEach((segment) => {
     if (!segment.includes("=")) {
       throw new Error(`resource[${resourceIndex}] segment "${segment}" is invalid; expected key=value.`);
@@ -1085,6 +1140,7 @@ function parseResourceSpec(value, resourceIndex) {
     stat: fields.get("stat"),
     delta,
     dropRate,
+    _schemaVersion: 1,
   };
 }
 
@@ -4883,7 +4939,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
       expression: entry.expression,
       proximityRadius: entry.proximityRadius,
       mana: { ...entry.mana },
-      durability: { ...entry.durability },
+      ...(entry.durability ? { durability: { ...entry.durability } } : {}),
     }));
   }
   built.spec.configurator.inputs.levelGen = levelGen;
@@ -5060,9 +5116,10 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   // Write HazardArtifact files for each --hazard flag
   for (let i = 0; i < parsedHazards.length; i++) {
     const h = parsedHazards[i].value;
+    const hazardVersion = h._schemaVersion ?? 2;
     const hazardArtifact = {
       schema: "agent-kernel/HazardArtifact",
-      schemaVersion: 1,
+      schemaVersion: hazardVersion,
       meta: {
         id: h.id,
         runId,
@@ -5073,7 +5130,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
       expression: h.expression,
       proximityRadius: h.proximityRadius,
       mana: { ...h.mana },
-      durability: { ...h.durability },
+      ...(hazardVersion === 1 && h.durability ? { durability: { ...h.durability } } : {}),
     };
     await writeJson(join(outDir, `hazard-${i + 1}.json`), hazardArtifact);
   }
@@ -5081,20 +5138,28 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   // Write ResourceArtifact files for each --resource flag
   for (let i = 0; i < parsedResources.length; i++) {
     const r = parsedResources[i].value;
-    const resourceArtifact = {
-      schema: "agent-kernel/ResourceArtifact",
-      schemaVersion: 1,
-      meta: {
-        id: r.id,
-        runId,
-        createdAt,
-        producedBy: `cli-${commandName}`,
-      },
-      tier: r.tier,
-      stat: r.stat,
-      delta: r.delta,
-      dropRate: r.dropRate,
-    };
+    const resourceVersion = r._schemaVersion ?? 1;
+    const meta = { id: r.id, runId, createdAt, producedBy: `cli-${commandName}` };
+    let resourceArtifact;
+    if (resourceVersion === 3) {
+      resourceArtifact = {
+        schema: "agent-kernel/ResourceArtifact",
+        schemaVersion: 3,
+        meta,
+        vitals: r.vitals,
+        permanenceMode: r.permanenceMode,
+      };
+    } else {
+      resourceArtifact = {
+        schema: "agent-kernel/ResourceArtifact",
+        schemaVersion: 1,
+        meta,
+        tier: r.tier,
+        stat: r.stat,
+        delta: r.delta,
+        dropRate: r.dropRate,
+      };
+    }
     await writeJson(join(outDir, `resource-${i + 1}.json`), resourceArtifact);
   }
 

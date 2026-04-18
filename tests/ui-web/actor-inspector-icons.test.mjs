@@ -1,4 +1,3 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { createActorInspector } from "../../packages/ui-web/src/actor-inspector.js";

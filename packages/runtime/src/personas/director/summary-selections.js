@@ -368,14 +368,17 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
     setupMode: normalizeSetupMode(entry?.setupMode),
     roomSize: type === "room" ? normalizeRoomCardSize(entry?.roomSize ?? entry?.size) : undefined,
     tokenHint,
-    vitals: type === "room" || type === "hazard" || type === "resource" ? undefined : normalizeVitals(entry?.vitals),
+    vitals: type === "resource"
+      ? (Array.isArray(entry?.vitals) ? entry.vitals : undefined)
+      : (type === "room" || type === "hazard" ? undefined : normalizeVitals(entry?.vitals)),
     proximityRadius: type === "hazard" ? normalizePositiveInt(entry?.proximityRadius, 1) : undefined,
     mana: type === "hazard" ? normalizeHazardVital(entry?.mana, { kind: "one-time", amount: 3 }) : undefined,
-    durability: type === "hazard" ? normalizeHazardVital(entry?.durability, { kind: "one-time", amount: 1 }) : undefined,
+    durability: type === "room" && entry?.durability ? normalizeHazardVital(entry.durability, { kind: "one-time", amount: 1 }) : undefined,
     tier: type === "resource" ? entry?.tier : undefined,
     stat: type === "resource" ? entry?.stat : undefined,
     delta: type === "resource" && Number.isFinite(Number(entry?.delta)) ? Number(entry.delta) : undefined,
     dropRate: type === "resource" && Number.isFinite(Number(entry?.dropRate)) ? Math.floor(Number(entry.dropRate)) : undefined,
+    permanenceMode: type === "resource" ? entry?.permanenceMode : undefined,
     budgetCeiling: type === "resource" && Number.isFinite(Number(entry?.budgetCeiling))
       ? Math.max(0, Math.floor(Number(entry.budgetCeiling)))
       : undefined,
@@ -595,6 +598,7 @@ export function extractSummaryFromCardSet(summary) {
   const cardSet = normalizeCardSet(cardInput, { dungeonAffinity });
   const roomCards = cardSet.filter((card) => card.type === "room");
   const hazardCards = cardSet.filter((card) => card.type === "hazard");
+  const resourceCards = cardSet.filter((card) => card.type === "resource");
   const delverCards = cardSet.filter((card) => card.type === "delver");
   const actorCards = cardSet.filter((card) => card.type === "delver" || card.type === "warden");
 
@@ -605,8 +609,16 @@ export function extractSummaryFromCardSet(summary) {
     expression: card.affinities?.[0]?.expression || card.expressions?.[0] || DEFAULT_AFFINITY_EXPRESSION,
     proximityRadius: normalizePositiveInt(card.proximityRadius, 1),
     mana: normalizeHazardVital(card.mana, { kind: "one-time", amount: 3 }),
-    durability: normalizeHazardVital(card.durability, { kind: "one-time", amount: 1 }),
     tokenHint: normalizeTokenHint(card.tokenHint),
+  }));
+  const resources = resourceCards.map((card) => ({
+    id: card.id,
+    permanenceMode: card.permanenceMode,
+    vitals: card.vitals,
+    tier: card.tier,
+    stat: card.stat,
+    delta: card.delta,
+    dropRate: card.dropRate,
   }));
   const actors = actorCards.map((card) => (
     card.type === "delver"
@@ -623,6 +635,7 @@ export function extractSummaryFromCardSet(summary) {
     cardSet,
     rooms,
     hazards,
+    resources,
     actors,
   };
 

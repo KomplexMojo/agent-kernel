@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const builderModule = moduleUrl("packages/runtime/src/personas/configurator/guidance-level-builder.js");

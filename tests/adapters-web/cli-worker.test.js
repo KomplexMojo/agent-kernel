@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const cliWorkerModule = moduleUrl("packages/adapters-web/src/adapters/cli-worker/index.js");

@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 
 test("normalizeMotivations accepts allowed kinds and applies defaults", async () => {

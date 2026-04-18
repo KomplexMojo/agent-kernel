@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
@@ -120,7 +119,6 @@ test("hazard cards become configurator levelGen hazards in BuildSpec", async () 
         affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
         proximityRadius: 2,
         mana: { kind: "regen", current: 4, max: 4, regen: 1 },
-        durability: { kind: "one-time", amount: 3 },
         tokenHint: 25,
       },
     ],
@@ -142,7 +140,6 @@ test("hazard cards become configurator levelGen hazards in BuildSpec", async () 
     expression: "emit",
     proximityRadius: 2,
     mana: { kind: "regen", current: 4, max: 4, regen: 1 },
-    durability: { kind: "one-time", amount: 3 },
   });
 });
 

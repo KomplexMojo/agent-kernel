@@ -7,6 +7,7 @@ import { externalTools } from "./tools/external.mjs";
 import { inspectionTools } from "./tools/inspection.mjs";
 import { llmTools } from "./tools/llm.mjs";
 import { simulationTools } from "./tools/simulation.mjs";
+import { testingTools } from "./tools/testing.mjs";
 
 const SERVER_NAME = "agent-kernel-cli";
 const SERVER_VERSION = "1.0.0";
@@ -16,6 +17,7 @@ const TOOL_DEFINITIONS = [
   ...inspectionTools,
   ...llmTools,
   ...externalTools,
+  ...testingTools,
 ];
 
 const TOOL_MAP = new Map(TOOL_DEFINITIONS.map((tool) => [tool.name, tool]));
@@ -54,6 +56,10 @@ function extractJsonPayload(stdoutText) {
 }
 
 async function invokeCliTool(tool, args) {
+  if (typeof tool.handler === "function") {
+    return tool.handler(args);
+  }
+
   const stdoutChunks = [];
   const stderrChunks = [];
   const originalConsoleLog = console.log;

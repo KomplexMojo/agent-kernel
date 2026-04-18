@@ -7,7 +7,22 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "node --test \"tests/**/*.test.js\"",
+    "test": "node scripts/testing/run-vitest.mjs",
+    "test:legacy": "node --test \"tests/**/*.test.js\"",
+    "test:inventory": "node scripts/testing/inventory-tests.mjs",
+    "test:classify": "node scripts/testing/classify-tests.mjs",
+    "test:coverage": "node scripts/testing/check-runner-coverage.mjs",
+    "test:recipe-adoption": "node scripts/testing/check-test-recipe-adoption.mjs",
+    "test:parity": "node scripts/testing/compare-old-vs-new-results.mjs",
+    "test:browser-candidates": "node scripts/testing/find-browser-dependent-tests.mjs",
+    "test:codemod:report": "node scripts/testing/report-codemod-exceptions.mjs",
+    "test:codemod:node-test": "node scripts/testing/codemod-node-test-to-vitest.mjs",
+    "test:codemod:imports": "node scripts/testing/codemod-test-imports.mjs",
+    "test:codemod:assert": "node scripts/testing/codemod-assert-helpers.mjs",
+    "test:codemod:playwright": "node scripts/testing/codemod-playwright-cli-to-playwright-test.mjs",
+    "test:vitest": "node scripts/testing/run-vitest.mjs",
+    "test:playwright": "node scripts/testing/run-playwright.mjs",
+    "test:matrix": "node scripts/testing/test-matrix.mjs",
     "test:wasm-check": "node --test tests/wasm-presence.test.js",
     "build:wasm": "mkdir -p build && asc packages/core-as/assembly/index.ts -o build/core-as.wasm -t build/core-as.wat --sourceMap --optimize && mkdir -p packages/ui-web/assets && cp build/core-as.wasm packages/ui-web/assets/core-as.wasm",
     "serve:ui": "node scripts/serve-ui.mjs",
@@ -23,11 +38,13 @@
     "packages/*"
   ],
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@mermaid-js/mermaid-cli": "^11.12.0",
     "@types/node": "^25.0.3",
     "assemblyscript": "^0.27.0",
     "md-to-pdf": "^5.2.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

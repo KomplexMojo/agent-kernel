@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const ipfsModule = moduleUrl("packages/adapters-web/src/adapters/ipfs/index.js");

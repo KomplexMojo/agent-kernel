@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const modulePath = moduleUrl("packages/runtime/src/render/resource-bundle.js");

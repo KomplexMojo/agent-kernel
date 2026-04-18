@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFileSync, appendFileSync, mkdirSync } = require("node:fs");
 const { resolve, dirname } = require("node:path");

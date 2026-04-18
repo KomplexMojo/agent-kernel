@@ -3,6 +3,24 @@
 This file defines how the solo developer and the agent team work together on this repo.
 Keep it short, strict, and easy to follow.
 
+## Session-Start Checklist (run before any coding in a new session)
+
+Every agent that writes code must complete this checklist at the start of each session, before touching any source file. Do not skip steps or reorder them.
+
+| Step | Command / Action | Confirms |
+|------|-----------------|---------|
+| 1. Latest source | `git pull --ff-only` | Working from HEAD, no stale files |
+| 2. Dependencies | `pnpm install --frozen-lockfile` | All packages match lockfile |
+| 3. Tests baseline | `pnpm run test` | No pre-existing failures before changes begin |
+| 4. Graphify rebuild | `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` | Semantic knowledge graph current with latest source |
+| 5. CodeContextGraph watch | `mcp__CodeGraphContext__watch_directory` on repo root | Structural graph live-watching; picks up M1+ contract changes |
+| 6. Orient from graphify | Read `graphify-out/wiki/index.md` → navigate any relevant wiki pages | High-level semantic map loaded before structural queries |
+| 7. Refresh CodeContext snapshot | Run the three MCP queries and rewrite `local-codex/CodeContext.md` | Codex and Copilot get an up-to-date orientation document |
+
+Steps 4–7 are cheap (seconds). Never skip them to save time — a stale graph produces wrong answers that cost far more to untangle.
+
+---
+
 ## Agent roster and responsibilities
 
 | Agent | Model / Effort | Responsibility |
@@ -39,7 +57,11 @@ GitHub Copilot (commit, PR, update docs)
 CodeContextGraph (MCP) is the single source of truth for code structure and dependencies.
 The watch is active on `/Users/darren/Documents/GitHub/agent-kernel` — the graph updates automatically on every file save.
 
-**All agents with MCP access (Claude, Ollama, Codex):** query the graph directly. Do not use `grep`, `rg`, or `find` for structural questions. Codex has `codegraphcontext` registered in its own MCP config (`codex mcp list`) and can query the graph during tasks.
+**All agents with MCP access (Claude, Ollama, Codex):** query the graph directly. Do not use `grep`, `rg`, `find`, or `Glob` for codebase navigation or structural questions while CodeContextGraph is available. Codex has `codegraphcontext` registered in its own MCP config (`codex mcp list`) and can query the graph during tasks.
+
+**Failure policy:** if CodeContextGraph is unavailable, stale, or returns insufficient structural results, stop and report the MCP issue explicitly. Do not silently fall back to filesystem search for code discovery.
+
+**Narrow exception:** text search is allowed only for exact literal/content matching that the graph does not model well, such as README prose, fixture strings, or known error text. Before doing that, the agent must name the MCP query it already tried and why the graph was insufficient for that specific content lookup.
 
 **Copilot (no MCP access):** consumes `local-codex/CodeContext.md`, the snapshot Claude generates before each handoff.
 
@@ -52,6 +74,8 @@ mcp__CodeGraphContext__get_repository_stats        → file/function/module coun
 mcp__CodeGraphContext__analyze_code_relationships  → package-level import graph
 mcp__CodeGraphContext__find_most_complex_functions → top 10 complexity hotspots
 ```
+
+Before opening implementation files or proposing edits, Claude should cite the CodeContextGraph query or queries it used to locate the target area. This keeps MCP-first navigation auditable during handoffs.
 
 ---
 
@@ -147,7 +171,8 @@ mcp__CodeGraphContext__find_most_complex_functions → top 10 complexity hotspot
 
 ## Test strategy
 
-- Default runner: `node --test "tests/**/*.test.js"`.
+- Default runner: `pnpm run test` → Vitest for Node-side suites.
+- Browser-native runner: `pnpm run test:playwright`.
 - Use fixture-based tests for deterministic behavior.
 - Add negative fixtures under `tests/fixtures/artifacts/invalid` when adding validation.
 - Base tests are Claude Sonnet/medium's output. Permutations are Ollama's output.

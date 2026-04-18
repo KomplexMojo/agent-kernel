@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { readFixture } = require("../helpers/fixtures");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 

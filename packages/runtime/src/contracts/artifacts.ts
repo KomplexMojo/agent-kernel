@@ -1689,7 +1689,19 @@ export interface ResourceArtifactV2 {
   permanent: boolean;
 }
 
-export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2;
+/** Three permanence modes for resource artifacts. */
+export type ResourcePermanenceMode = "consumable" | "level" | "permanent";
+
+/** V3: replaces `permanent: boolean` with explicit three-way permanenceMode. */
+export interface ResourceArtifactV3 {
+  schema: typeof RESOURCE_ARTIFACT_SCHEMA;
+  schemaVersion: 3;
+  meta: ArtifactMeta;
+  vitals: ResourceVitalGrant[];
+  permanenceMode: ResourcePermanenceMode;
+}
+
+export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2 | ResourceArtifactV3;
 
 // -------------------------
 // Hazard artifacts
@@ -1697,7 +1709,7 @@ export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2;
 
 export const HAZARD_ARTIFACT_SCHEMA = "agent-kernel/HazardArtifact";
 
-export type HazardVitalKind = "mana" | "durability";
+export type HazardVitalKind = "mana" | "durability"; // V1 only; V2 restricts to "mana"
 
 export interface HazardVitalOneTimeV1 {
   kind: "one-time";
@@ -1723,4 +1735,37 @@ export interface HazardArtifactV1 {
   durability: HazardVitalV1;
 }
 
-export type HazardArtifact = HazardArtifactV1;
+/** V2: durability removed — hazards have mana + mana regen only. */
+export interface HazardArtifactV2 {
+  schema: typeof HAZARD_ARTIFACT_SCHEMA;
+  schemaVersion: 2;
+  meta: ArtifactMeta;
+  affinity: AffinityKind;
+  expression: AffinityExpression;
+  mana: HazardVitalV1;
+}
+
+export type HazardArtifact = HazardArtifactV1 | HazardArtifactV2;
+
+// -------------------------
+// RoomTileActorConfig
+// -------------------------
+
+export const ROOM_TILE_CONFIG_SCHEMA = "agent-kernel/RoomTileActorConfig";
+
+/**
+ * Authored configuration for a room tile actor.
+ * Room tiles are inanimate: no health, mana, stamina, or affinity expressions.
+ * Allowed: affinities, motivations, durability.
+ */
+export interface RoomTileActorConfigV1 {
+  schema: typeof ROOM_TILE_CONFIG_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  affinity?: AffinityKind;
+  affinityStacks?: number;
+  motivation?: string;
+  durability?: HazardVitalV1;
+}
+
+export type RoomTileActorConfig = RoomTileActorConfigV1;

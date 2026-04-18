@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
 const { existsSync, mkdtempSync, readFileSync } = require("node:fs");
@@ -163,169 +162,166 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
-test("mcp server lists required tools and schemas round-trips over stdio", async (t) => {
+test("mcp server lists required tools and schemas round-trips over stdio", async () => {
   const harness = new McpServerHarness({
     AK_SCHEMA_CATALOG_TIME: "2000-01-01T00:00:00.000Z",
   });
-  t.after(async () => {
+  try {
+    const initializeResult = await harness.initialize();
+    assert.equal(initializeResult.serverInfo.name, "agent-kernel-cli");
+
+    const listed = await harness.request("tools/list", {});
+    const toolNames = listed.tools.map((tool) => tool.name);
+    assert.ok(toolNames.includes("ak_create"));
+    assert.ok(toolNames.includes("ak_run"));
+    assert.ok(toolNames.includes("ak_llm_plan"));
+    assert.ok(toolNames.includes("ak_inspect"));
+    assert.ok(toolNames.includes("ak_schemas"));
+
+    const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-schemas-"));
+    const schemas = await harness.callTool("ak_schemas", { outDir });
+    assert.equal(schemas.command, "schemas");
+    assert.equal(schemas.stdout, `schemas: wrote ${outDir}`);
+
+    const catalog = readJson(join(outDir, "schemas.json"));
+    assert.equal(catalog.generatedAt, "2000-01-01T00:00:00.000Z");
+    const names = catalog.schemas.map((entry) => entry.schema);
+    assert.ok(names.includes("agent-kernel/BuildSpec"));
+    assert.ok(names.includes("agent-kernel/SimConfigArtifact"));
+    assert.ok(names.includes("agent-kernel/TelemetryRecord"));
+  } finally {
     await harness.close();
-  });
-
-  const initializeResult = await harness.initialize();
-  assert.equal(initializeResult.serverInfo.name, "agent-kernel-cli");
-
-  const listed = await harness.request("tools/list", {});
-  const toolNames = listed.tools.map((tool) => tool.name);
-  assert.ok(toolNames.includes("ak_create"));
-  assert.ok(toolNames.includes("ak_run"));
-  assert.ok(toolNames.includes("ak_llm_plan"));
-  assert.ok(toolNames.includes("ak_inspect"));
-  assert.ok(toolNames.includes("ak_schemas"));
-
-  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-schemas-"));
-  const schemas = await harness.callTool("ak_schemas", { outDir });
-  assert.equal(schemas.command, "schemas");
-  assert.equal(schemas.stdout, `schemas: wrote ${outDir}`);
-
-  const catalog = readJson(join(outDir, "schemas.json"));
-  assert.equal(catalog.generatedAt, "2000-01-01T00:00:00.000Z");
-  const names = catalog.schemas.map((entry) => entry.schema);
-  assert.ok(names.includes("agent-kernel/BuildSpec"));
-  assert.ok(names.includes("agent-kernel/SimConfigArtifact"));
-  assert.ok(names.includes("agent-kernel/TelemetryRecord"));
+  }
 });
 
-test("mcp server create and llm-plan tool calls round-trip with fixture inputs", async (t) => {
+test("mcp server create and llm-plan tool calls round-trip with fixture inputs", async () => {
   const harness = new McpServerHarness({
     AK_LLM_LIVE: "1",
   });
-  t.after(async () => {
+  try {
+    await harness.initialize();
+
+    const createOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-create-"));
+    const createResult = await harness.callTool("ak_create", {
+      dryRun: true,
+      text: "Create one fire delver within a total budget of 200 tokens.",
+      delver: ["count=1;affinity=fire;motivation=attacking;goals=max_mana,mana_regen"],
+      budgetTokens: 200,
+      runId: "run_mcp_create_dry_run",
+      createdAt: "2026-04-10T00:00:00.000Z",
+      outDir: createOutDir,
+    });
+    assert.equal(createResult.command, "create");
+    assert.equal(createResult.dryRun, true);
+    assert.equal(createResult.valid, true);
+    assert.equal(createResult.runId, "run_mcp_create_dry_run");
+    assert.equal(existsSync(join(createOutDir, "spec.json")), false);
+
+    const llmPlanOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-llm-plan-"));
+    const llmPlanResult = await harness.callTool("ak_llm_plan", {
+      scenario: E2E_SCENARIO,
+      model: "fixture",
+      fixture: LLM_FIXTURE,
+      runId: "run_mcp_llm_plan_fixture",
+      createdAt: "2025-01-01T00:00:00Z",
+      outDir: llmPlanOutDir,
+    });
+    assert.equal(llmPlanResult.command, "llm-plan");
+    assert.equal(llmPlanResult.runId, "run_mcp_llm_plan_fixture");
+    assert.equal(existsSync(join(llmPlanOutDir, "spec.json")), true);
+    assert.equal(existsSync(join(llmPlanOutDir, "manifest.json")), true);
+    assert.equal(existsSync(join(llmPlanOutDir, "intent.json")), false);
+    assert.equal(existsSync(join(llmPlanOutDir, "plan.json")), false);
+
+    const spec = readJson(join(llmPlanOutDir, "spec.json"));
+    const manifest = readJson(join(llmPlanOutDir, "manifest.json"));
+    assert.equal(spec.schema, "agent-kernel/BuildSpec");
+    assert.equal(spec.meta.runId, "run_mcp_llm_plan_fixture");
+    assert.ok(manifest.artifacts.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
+  } finally {
     await harness.close();
-  });
-
-  await harness.initialize();
-
-  const createOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-create-"));
-  const createResult = await harness.callTool("ak_create", {
-    dryRun: true,
-    text: "Create one fire delver within a total budget of 200 tokens.",
-    delver: ["count=1;affinity=fire;motivation=attacking;goals=max_mana,mana_regen"],
-    budgetTokens: 200,
-    runId: "run_mcp_create_dry_run",
-    createdAt: "2026-04-10T00:00:00.000Z",
-    outDir: createOutDir,
-  });
-  assert.equal(createResult.command, "create");
-  assert.equal(createResult.dryRun, true);
-  assert.equal(createResult.valid, true);
-  assert.equal(createResult.runId, "run_mcp_create_dry_run");
-  assert.equal(existsSync(join(createOutDir, "spec.json")), false);
-
-  const llmPlanOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-llm-plan-"));
-  const llmPlanResult = await harness.callTool("ak_llm_plan", {
-    scenario: E2E_SCENARIO,
-    model: "fixture",
-    fixture: LLM_FIXTURE,
-    runId: "run_mcp_llm_plan_fixture",
-    createdAt: "2025-01-01T00:00:00Z",
-    outDir: llmPlanOutDir,
-  });
-  assert.equal(llmPlanResult.command, "llm-plan");
-  assert.equal(llmPlanResult.runId, "run_mcp_llm_plan_fixture");
-  assert.equal(existsSync(join(llmPlanOutDir, "spec.json")), true);
-  assert.equal(existsSync(join(llmPlanOutDir, "manifest.json")), true);
-  assert.equal(existsSync(join(llmPlanOutDir, "intent.json")), false);
-  assert.equal(existsSync(join(llmPlanOutDir, "plan.json")), false);
-
-  const spec = readJson(join(llmPlanOutDir, "spec.json"));
-  const manifest = readJson(join(llmPlanOutDir, "manifest.json"));
-  assert.equal(spec.schema, "agent-kernel/BuildSpec");
-  assert.equal(spec.meta.runId, "run_mcp_llm_plan_fixture");
-  assert.ok(manifest.artifacts.every((entry) => entry.schema !== "agent-kernel/CapturedInputArtifact"));
-});
-
-test("mcp authoring tools expose preview handoff metadata for persisted outputs", async (t) => {
-  const harness = new McpServerHarness();
-  t.after(async () => {
-    await harness.close();
-  });
-
-  await harness.initialize();
-
-  const roomOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-room-plan-"));
-  const roomPlanResult = await harness.callTool("ak_room_plan", {
-    room: ["size=small;count=1;affinities=fire:emit:2"],
-    runId: "run_mcp_room_plan_preview",
-    createdAt: "2026-04-10T00:00:00.000Z",
-    outDir: roomOutDir,
-  });
-  assert.equal(roomPlanResult.preview.ready, true);
-  assert.equal(roomPlanResult.preview.bundlePath, join(roomOutDir, "bundle.json"));
-  assert.equal(roomPlanResult.preview.manifestPath, join(roomOutDir, "manifest.json"));
-  assert.equal(roomPlanResult.preview.resourceBundlePath, join(roomOutDir, "resource-bundle.json"));
-  assert.equal(roomPlanResult.preview.hasActors, false);
-  assert.equal(roomPlanResult.preview.runReady, false);
-
-  const delverOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-delver-plan-"));
-  const delverPlanResult = await harness.callTool("ak_delver_plan", {
-    delver: ["count=1;affinity=fire;motivation=attacking"],
-    runId: "run_mcp_delver_plan_preview",
-    createdAt: "2026-04-10T00:00:00.000Z",
-    outDir: delverOutDir,
-  });
-  assert.equal(delverPlanResult.preview.ready, true);
-  assert.equal(delverPlanResult.preview.hasActors, true);
-  assert.equal(delverPlanResult.preview.runReady, false);
-
-  const wardenOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-warden-plan-"));
-  const wardenPlanResult = await harness.callTool("ak_warden_plan", {
-    warden: ["count=1;affinity=dark;motivation=defending"],
-    runId: "run_mcp_warden_plan_preview",
-    createdAt: "2026-04-10T00:00:00.000Z",
-    outDir: wardenOutDir,
-  });
-  assert.equal(wardenPlanResult.preview.ready, true);
-  assert.equal(wardenPlanResult.preview.hasActors, true);
-  assert.equal(wardenPlanResult.preview.runReady, false);
-});
-
-test("mcp server run and inspect tool calls round-trip over stdio", async (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
   }
+});
 
+test("mcp authoring tools expose preview handoff metadata for persisted outputs", async () => {
   const harness = new McpServerHarness();
-  t.after(async () => {
+  try {
+    await harness.initialize();
+
+    const roomOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-room-plan-"));
+    const roomPlanResult = await harness.callTool("ak_room_plan", {
+      room: ["size=small;count=1;affinities=fire:emit:2"],
+      runId: "run_mcp_room_plan_preview",
+      createdAt: "2026-04-10T00:00:00.000Z",
+      outDir: roomOutDir,
+    });
+    assert.equal(roomPlanResult.preview.ready, true);
+    assert.equal(roomPlanResult.preview.bundlePath, join(roomOutDir, "bundle.json"));
+    assert.equal(roomPlanResult.preview.manifestPath, join(roomOutDir, "manifest.json"));
+    assert.equal(roomPlanResult.preview.resourceBundlePath, join(roomOutDir, "resource-bundle.json"));
+    assert.equal(roomPlanResult.preview.hasActors, false);
+    assert.equal(roomPlanResult.preview.runReady, false);
+
+    const delverOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-delver-plan-"));
+    const delverPlanResult = await harness.callTool("ak_delver_plan", {
+      delver: ["count=1;affinity=fire;motivation=attacking"],
+      runId: "run_mcp_delver_plan_preview",
+      createdAt: "2026-04-10T00:00:00.000Z",
+      outDir: delverOutDir,
+    });
+    assert.equal(delverPlanResult.preview.ready, true);
+    assert.equal(delverPlanResult.preview.hasActors, true);
+    assert.equal(delverPlanResult.preview.runReady, false);
+
+    const wardenOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-warden-plan-"));
+    const wardenPlanResult = await harness.callTool("ak_warden_plan", {
+      warden: ["count=1;affinity=dark;motivation=defending"],
+      runId: "run_mcp_warden_plan_preview",
+      createdAt: "2026-04-10T00:00:00.000Z",
+      outDir: wardenOutDir,
+    });
+    assert.equal(wardenPlanResult.preview.ready, true);
+    assert.equal(wardenPlanResult.preview.hasActors, true);
+    assert.equal(wardenPlanResult.preview.runReady, false);
+  } finally {
     await harness.close();
-  });
+  }
+});
 
-  await harness.initialize();
+const testIfWasm = existsSync(WASM_PATH) ? test : test.skip;
 
-  const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-run-"));
-  const runResult = await harness.callTool("ak_run", {
-    simConfig: SIM_CONFIG,
-    initialState: INITIAL_STATE,
-    ticks: 1,
-    wasm: WASM_PATH,
-    outDir: runOutDir,
-  });
-  assert.equal(runResult.command, "run");
-  assert.equal(runResult.outDir, runOutDir);
-  assert.equal(existsSync(join(runOutDir, "tick-frames.json")), true);
-  assert.equal(existsSync(join(runOutDir, "effects-log.json")), true);
+testIfWasm("mcp server run and inspect tool calls round-trip over stdio", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
 
-  const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-inspect-"));
-  const inspectResult = await harness.callTool("ak_inspect", {
-    tickFrames: join(runOutDir, "tick-frames.json"),
-    effectsLog: join(runOutDir, "effects-log.json"),
-    outDir: inspectOutDir,
-  });
-  assert.equal(inspectResult.command, "inspect");
-  assert.equal(inspectResult.outDir, inspectOutDir);
-  assert.equal(existsSync(join(inspectOutDir, "inspect-summary.json")), true);
+    const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-run-"));
+    const runResult = await harness.callTool("ak_run", {
+      simConfig: SIM_CONFIG,
+      initialState: INITIAL_STATE,
+      ticks: 1,
+      wasm: WASM_PATH,
+      outDir: runOutDir,
+    });
+    assert.equal(runResult.command, "run");
+    assert.equal(runResult.outDir, runOutDir);
+    assert.equal(existsSync(join(runOutDir, "tick-frames.json")), true);
+    assert.equal(existsSync(join(runOutDir, "effects-log.json")), true);
 
-  const inspectSummary = readJson(join(inspectOutDir, "inspect-summary.json"));
-  assert.equal(inspectSummary.schema, "agent-kernel/TelemetryRecord");
-  assert.equal(inspectSummary.schemaVersion, 1);
+    const inspectOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-inspect-"));
+    const inspectResult = await harness.callTool("ak_inspect", {
+      tickFrames: join(runOutDir, "tick-frames.json"),
+      effectsLog: join(runOutDir, "effects-log.json"),
+      outDir: inspectOutDir,
+    });
+    assert.equal(inspectResult.command, "inspect");
+    assert.equal(inspectResult.outDir, inspectOutDir);
+    assert.equal(existsSync(join(inspectOutDir, "inspect-summary.json")), true);
+
+    const inspectSummary = readJson(join(inspectOutDir, "inspect-summary.json"));
+    assert.equal(inspectSummary.schema, "agent-kernel/TelemetryRecord");
+    assert.equal(inspectSummary.schemaVersion, 1);
+  } finally {
+    await harness.close();
+  }
 });

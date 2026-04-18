@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { resolve } = require("node:path");
 const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 

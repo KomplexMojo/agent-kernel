@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const budgetModule = moduleUrl("packages/runtime/src/ports/budget.js");

@@ -588,8 +588,9 @@ export function validateHazardArtifact(artifact) {
   if (artifact.schema !== HAZARD_ARTIFACT_SCHEMA) {
     addError(errors, "schema", `expected ${HAZARD_ARTIFACT_SCHEMA}`);
   }
-  if (artifact.schemaVersion !== HAZARD_ARTIFACT_SCHEMA_VERSION) {
-    addError(errors, "schemaVersion", `expected ${HAZARD_ARTIFACT_SCHEMA_VERSION}`);
+  const version = artifact.schemaVersion;
+  if (version !== 1 && version !== 2) {
+    addError(errors, "schemaVersion", "expected 1 or 2");
   }
   validateArtifactMeta(artifact.meta, "meta", errors);
   if (!HAZARD_ALLOWED_AFFINITIES.has(artifact.affinity)) {
@@ -599,7 +600,11 @@ export function validateHazardArtifact(artifact) {
     addError(errors, "expression", `expected one of: ${[...HAZARD_ALLOWED_EXPRESSIONS].join(", ")}`);
   }
   validateHazardVital(artifact.mana, "mana", errors);
-  validateHazardVital(artifact.durability, "durability", errors);
+  if (version === 1) {
+    validateHazardVital(artifact.durability, "durability", errors);
+  } else if (version === 2 && artifact.durability !== undefined) {
+    addError(errors, "durability", "not allowed on hazard V2 — hazards have mana only");
+  }
   return { ok: errors.length === 0, errors };
 }
 
@@ -611,6 +616,26 @@ const RESOURCE_ALLOWED_TIERS = new Set(["level", "permanent"]);
 const RESOURCE_ALLOWED_STATS = new Set([
   "vitalMax", "vitalRegen", "affinity", "affinityStack", "pushExpression",
 ]);
+const RESOURCE_ALLOWED_VITAL_KEYS = new Set(["health", "mana", "stamina"]);
+const RESOURCE_ALLOWED_PERMANENCE_MODES = new Set(["consumable", "level", "permanent"]);
+
+function validateResourceVitalsArray(vitals, path, errors) {
+  if (!Array.isArray(vitals) || vitals.length === 0) {
+    addError(errors, path, "expected non-empty array");
+    return;
+  }
+  vitals.forEach((v, i) => {
+    if (!RESOURCE_ALLOWED_VITAL_KEYS.has(v.key)) {
+      addError(errors, `${path}[${i}].key`, `expected one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}`);
+    }
+    if (typeof v.delta !== "number") {
+      addError(errors, `${path}[${i}].delta`, "expected number");
+    }
+    if (v.regen !== undefined && typeof v.regen !== "number") {
+      addError(errors, `${path}[${i}].regen`, "expected number");
+    }
+  });
+}
 
 export function validateResourceArtifact(artifact) {
   const errors = [];
@@ -620,21 +645,69 @@ export function validateResourceArtifact(artifact) {
   if (artifact.schema !== RESOURCE_ARTIFACT_SCHEMA) {
     addError(errors, "schema", `expected ${RESOURCE_ARTIFACT_SCHEMA}`);
   }
-  if (artifact.schemaVersion !== RESOURCE_ARTIFACT_SCHEMA_VERSION) {
-    addError(errors, "schemaVersion", `expected ${RESOURCE_ARTIFACT_SCHEMA_VERSION}`);
+  const version = artifact.schemaVersion;
+  if (version === 1) {
+    validateArtifactMeta(artifact.meta, "meta", errors);
+    if (!RESOURCE_ALLOWED_TIERS.has(artifact.tier)) {
+      addError(errors, "tier", `expected one of: ${[...RESOURCE_ALLOWED_TIERS].join(", ")}`);
+    }
+    if (!RESOURCE_ALLOWED_STATS.has(artifact.stat)) {
+      addError(errors, "stat", `expected one of: ${[...RESOURCE_ALLOWED_STATS].join(", ")}`);
+    }
+    if (typeof artifact.delta !== "number") {
+      addError(errors, "delta", "expected number");
+    }
+    if (!Number.isInteger(artifact.dropRate) || artifact.dropRate <= 0) {
+      addError(errors, "dropRate", "expected positive integer");
+    }
+  } else if (version === 2) {
+    validateArtifactMeta(artifact.meta, "meta", errors);
+    validateResourceVitalsArray(artifact.vitals, "vitals", errors);
+    if (typeof artifact.permanent !== "boolean") {
+      addError(errors, "permanent", "expected boolean");
+    }
+  } else if (version === 3) {
+    validateArtifactMeta(artifact.meta, "meta", errors);
+    validateResourceVitalsArray(artifact.vitals, "vitals", errors);
+    if (!RESOURCE_ALLOWED_PERMANENCE_MODES.has(artifact.permanenceMode)) {
+      addError(errors, "permanenceMode", `expected one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}`);
+    }
+  } else {
+    addError(errors, "schemaVersion", "expected 1, 2, or 3");
   }
-  validateArtifactMeta(artifact.meta, "meta", errors);
-  if (!RESOURCE_ALLOWED_TIERS.has(artifact.tier)) {
-    addError(errors, "tier", `expected one of: ${[...RESOURCE_ALLOWED_TIERS].join(", ")}`);
+  return { ok: errors.length === 0, errors };
+}
+
+// -------------------------
+// RoomTileActorConfig validator
+// -------------------------
+
+export const ROOM_TILE_CONFIG_SCHEMA = "agent-kernel/RoomTileActorConfig";
+const ROOM_TILE_CONFIG_SCHEMA_VERSION = 1;
+const ROOM_TILE_FORBIDDEN_FIELDS = ["health", "mana", "stamina", "affinityExpression", "region"];
+
+export function validateRoomTileActorConfig(config) {
+  const errors = [];
+  if (!isObject(config)) {
+    return { ok: false, errors: ["config: expected object"] };
   }
-  if (!RESOURCE_ALLOWED_STATS.has(artifact.stat)) {
-    addError(errors, "stat", `expected one of: ${[...RESOURCE_ALLOWED_STATS].join(", ")}`);
+  if (config.schema !== ROOM_TILE_CONFIG_SCHEMA) {
+    addError(errors, "schema", `expected ${ROOM_TILE_CONFIG_SCHEMA}`);
   }
-  if (typeof artifact.delta !== "number") {
-    addError(errors, "delta", "expected number");
+  if (config.schemaVersion !== ROOM_TILE_CONFIG_SCHEMA_VERSION) {
+    addError(errors, "schemaVersion", `expected ${ROOM_TILE_CONFIG_SCHEMA_VERSION}`);
   }
-  if (!Number.isInteger(artifact.dropRate) || artifact.dropRate <= 0) {
-    addError(errors, "dropRate", "expected positive integer");
+  validateArtifactMeta(config.meta, "meta", errors);
+  for (const field of ROOM_TILE_FORBIDDEN_FIELDS) {
+    if (config[field] !== undefined) {
+      addError(errors, field, `not allowed on room tile actors`);
+    }
+  }
+  if (config.affinity !== undefined && !HAZARD_ALLOWED_AFFINITIES.has(config.affinity)) {
+    addError(errors, "affinity", `expected one of: ${[...HAZARD_ALLOWED_AFFINITIES].join(", ")}`);
+  }
+  if (config.affinityStacks !== undefined && (!Number.isInteger(config.affinityStacks) || config.affinityStacks < 0)) {
+    addError(errors, "affinityStacks", "expected non-negative integer");
   }
   return { ok: errors.length === 0, errors };
 }

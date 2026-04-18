@@ -1,4 +1,3 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import { wireDesignView } from "../../packages/ui-web/src/views/design-view.js";
 import { wirePreviewView } from "../../packages/ui-web/src/views/preview-view.js";

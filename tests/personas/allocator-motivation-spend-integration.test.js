@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const spendModule = moduleUrl("packages/runtime/src/personas/configurator/spend-proposal.js");

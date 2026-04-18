@@ -1,4 +1,3 @@
-const test = require("node:test");
 const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const modulePath = moduleUrl("packages/runtime/src/personas/moderator/affinity-target-effects.js");

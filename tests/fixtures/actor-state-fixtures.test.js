@@ -1,10 +1,9 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
 
 let REQUIRED_VITALS = [];
 
-test.before(async () => {
+beforeAll(async () => {
   const shared = await import("../../packages/runtime/src/contracts/domain-constants.js");
   REQUIRED_VITALS = Array.from(shared.VITAL_KEYS);
 });

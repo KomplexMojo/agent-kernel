@@ -1,4 +1,3 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
 const { mkdtempSync, writeFileSync, readFileSync, existsSync } = require("node:fs");
@@ -12,7 +11,7 @@ const ACTION_FIXTURE = resolve(ROOT, "tests/fixtures/artifacts/action-sequence-v
 
 let VITAL_KEYS = [];
 
-test.before(async () => {
+beforeAll(async () => {
   const shared = await import("../../packages/runtime/src/contracts/domain-constants.js");
   VITAL_KEYS = Array.from(shared.VITAL_KEYS);
 });

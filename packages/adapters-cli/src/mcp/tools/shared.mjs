@@ -46,6 +46,19 @@ export function createTool({ name, description, command, inputSchema, buildArgs 
   };
 }
 
+export function createHandlerTool({ name, description, inputSchema, handler }) {
+  return {
+    name,
+    description,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      ...inputSchema,
+    },
+    handler,
+  };
+}
+
 export function buildArgv(args = {}, spec = []) {
   const argv = [];
   for (const entry of spec) {
