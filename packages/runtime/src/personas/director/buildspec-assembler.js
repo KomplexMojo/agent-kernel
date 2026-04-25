@@ -385,11 +385,20 @@ export function buildBuildSpecFromSummary({
       billableFloorTiles: normalizedLayout.billableFloorTiles,
     };
   }
-  if (budgetRef || priceListRef || budgetArtifact || priceListArtifact || receiptArtifact) {
+  const syntheticBudgetArtifact = !budgetArtifact && Number.isInteger(resolvedSummary?.budgetTokens) && resolvedSummary.budgetTokens > 0
+    ? {
+        schema: "agent-kernel/BudgetArtifact",
+        schemaVersion: 1,
+        meta: { id: `budget_${spec.meta.runId}`, runId: spec.meta.runId, createdAt: spec.meta.createdAt, producedBy: source || "cli" },
+        budget: { tokens: resolvedSummary.budgetTokens },
+      }
+    : null;
+  const effectiveBudgetArtifact = budgetArtifact || syntheticBudgetArtifact;
+  if (budgetRef || priceListRef || effectiveBudgetArtifact || priceListArtifact || receiptArtifact) {
     spec.budget = {};
     if (budgetRef) spec.budget.budgetRef = budgetRef;
     if (priceListRef) spec.budget.priceListRef = priceListRef;
-    if (budgetArtifact) spec.budget.budget = budgetArtifact;
+    if (effectiveBudgetArtifact) spec.budget.budget = effectiveBudgetArtifact;
     if (priceListArtifact) spec.budget.priceList = priceListArtifact;
     if (receiptArtifact) spec.budget.receipt = receiptArtifact;
   }

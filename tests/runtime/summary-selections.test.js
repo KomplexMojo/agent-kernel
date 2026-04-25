@@ -30,7 +30,7 @@ test("buildSelectionsFromSummary creates deterministic actor and room selections
 
   const room = selections.find((entry) => entry.kind === "room");
   assert.equal(room.requested.affinity, "dark");
-  assert.deepEqual(room.requested.affinities, [{ kind: "dark", expression: "emit", stacks: 2 }]);
+  assert.equal(room.requested.affinities, undefined, "rooms are generic containers and carry no affinities");
 
   const actor = selections.find((entry) => entry.kind === "actor");
   assert.equal(actor.instances.length, 2);

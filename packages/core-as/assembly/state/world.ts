@@ -1327,3 +1327,73 @@ export function validateSpawnPlacement(): ValidationError {
   const tile = getTile(actorX, actorY);
   return tile == Tile.Spawn ? ValidationError.None : ValidationError.InvalidActionValue;
 }
+
+export function placeResourceAt(x: i32, y: i32, vitalKind: i32, delta: i32, mode: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  if (!isWalkableActorKind(getTileActorKind(x, y))) {
+    return 0;
+  }
+  if (!isValidVitalKind(vitalKind)) {
+    return 0;
+  }
+  const index = indexFor(x, y);
+  const wasEmpty = unchecked(resourceVitalKindByCell[index]) == RESOURCE_VITAL_NONE;
+  unchecked(resourceVitalKindByCell[index] = vitalKind);
+  unchecked(resourceDeltaByCell[index] = delta);
+  unchecked(resourceModeByCell[index] = mode);
+  if (wasEmpty) {
+    resourceCount += 1;
+  }
+  return 1;
+}
+
+export function removeResourceAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  const index = indexFor(x, y);
+  if (unchecked(resourceVitalKindByCell[index]) == RESOURCE_VITAL_NONE) {
+    return 0;
+  }
+  unchecked(resourceVitalKindByCell[index] = RESOURCE_VITAL_NONE);
+  unchecked(resourceDeltaByCell[index] = 0);
+  unchecked(resourceModeByCell[index] = 0);
+  if (resourceCount > 0) {
+    resourceCount -= 1;
+  }
+  return 1;
+}
+
+export function hasResourceAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  return unchecked(resourceVitalKindByCell[indexFor(x, y)]) != RESOURCE_VITAL_NONE ? 1 : 0;
+}
+
+export function getResourceVitalKindAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return RESOURCE_VITAL_NONE;
+  }
+  return unchecked(resourceVitalKindByCell[indexFor(x, y)]);
+}
+
+export function getResourceDeltaAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  return unchecked(resourceDeltaByCell[indexFor(x, y)]);
+}
+
+export function getResourceModeAt(x: i32, y: i32): i32 {
+  if (!withinBounds(x, y)) {
+    return 0;
+  }
+  return unchecked(resourceModeByCell[indexFor(x, y)]);
+}
+
+export function getResourceCount(): i32 {
+  return resourceCount;
+}

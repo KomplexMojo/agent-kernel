@@ -1,5 +1,6 @@
 import {
   Direction,
+  ResourceMode,
   VitalKind,
   advanceTick,
   getActorId,
@@ -15,6 +16,11 @@ import {
   getActorY,
   getCurrentTick,
   hasActor,
+  hasResourceAt,
+  getResourceVitalKindAt,
+  getResourceDeltaAt,
+  getResourceModeAt,
+  removeResourceAt,
   isActorAtExit,
   isMotivatedOccupied,
   isWalkablePosition,
@@ -207,8 +213,36 @@ function computeMovementCost(action: MoveAction, cardinalCost: i32): i32 {
   return cardinalCost + diagonalExtra;
 }
 
+function applyResourceCaptureAt(x: i32, y: i32): void {
+  if (hasResourceAt(x, y) == 0) {
+    return;
+  }
+  const vitalKind = getResourceVitalKindAt(x, y);
+  const delta = getResourceDeltaAt(x, y);
+  const mode = getResourceModeAt(x, y);
+  removeResourceAt(x, y);
+  if (vitalKind < 0) {
+    return;
+  }
+  const current = getActorVitalCurrent(vitalKind);
+  const max = getActorVitalMax(vitalKind);
+  const regen = getActorVitalRegen(vitalKind);
+  if (mode == ResourceMode.Consumable) {
+    let nextCurrent = current + delta;
+    if (nextCurrent > max) nextCurrent = max;
+    if (nextCurrent < 0) nextCurrent = 0;
+    setActorVital(vitalKind, nextCurrent, max, regen);
+  } else {
+    const nextMax = max + delta < 0 ? 0 : max + delta;
+    let nextCurrent = current + delta;
+    if (nextCurrent < 0) nextCurrent = 0;
+    setActorVital(vitalKind, nextCurrent, nextMax, regen);
+  }
+}
+
 function applyTileEntryEffects(x: i32, y: i32): void {
   applyStaticTrapDamageAt(x, y);
+  applyResourceCaptureAt(x, y);
 }
 
 function commitMove(action: MoveAction, staminaRemaining: i32, staminaMax: i32, staminaRegen: i32): void {

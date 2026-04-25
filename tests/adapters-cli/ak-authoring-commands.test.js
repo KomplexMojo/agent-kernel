@@ -62,7 +62,7 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
     "--text",
     "Create a fire room with a trap, one delver, and one warden. Total budget 1000 tokens.",
     "--room",
-    "size=large;count=1;affinities=fire:emit:3",
+    "size=large;count=1",
     "--floor-tile",
     "count=18",
     "--trap",
@@ -93,7 +93,7 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   assert.equal(existsSync(join(outDir, "budget.json")), true);
   assert.equal(existsSync(join(outDir, "price-list.json")), true);
   assert.equal(existsSync(join(outDir, "budget-receipt.json")), true);
-  assert.equal(existsSync(join(outDir, "spend-proposal.json")), false);
+  assert.equal(existsSync(join(outDir, "spend-proposal.json")), true);
   assert.equal(existsSync(join(outDir, "sim-config.json")), true);
   assert.equal(existsSync(join(outDir, "initial-state.json")), true);
   assert.equal(existsSync(join(outDir, "resource-bundle.json")), true);
@@ -146,9 +146,9 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
     && entry.affinity?.stacks === 2
   )));
   assert.ok(manifest.artifacts.every((entry) => entry.path !== "request.json"));
-  assert.ok(manifest.artifacts.every((entry) => entry.path !== "spend-proposal.json"));
+  assert.ok(manifest.artifacts.some((entry) => entry.path === "spend-proposal.json"));
   assert.ok(manifest.artifacts.some((entry) => entry.path === "resource-bundle.json" && entry.schema === "agent-kernel/ResourceBundleArtifact"));
-  assert.ok(bundle.artifacts.every((artifact) => artifact.schema !== "agent-kernel/SpendProposal"));
+  assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/SpendProposal"));
   assert.ok(bundle.artifacts.some((artifact) => artifact.schema === "agent-kernel/ResourceBundleArtifact"));
   assert.deepEqual(
     telemetry.data.artifactRefs,
@@ -235,7 +235,7 @@ test("cli create dry-run returns valid false for infeasible budgets and still ex
     "create",
     "--dry-run",
     "--room",
-    "affinities=dark:emit:2,water:emit:2",
+    "size=medium;count=1",
     "--budget-tokens",
     "40",
     "--run-id",
@@ -365,14 +365,14 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
   assert.ok(delver.vitals.stamina.regen >= 1);
 });
 
-test("cli create preserves mixed room affinities while maximizing valid spend", () => {
+test("cli create maximizes room size within valid spend — rooms carry no affinities", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-room-max-spend-"));
   runCliOk([
     "create",
     "--text",
     "Create one room and maximize valid spend within a total budget of 400 tokens.",
     "--room",
-    "affinities=dark:emit:2,water:emit:2",
+    "size=large",
     "--budget-tokens",
     "400",
     "--run-id",
@@ -387,10 +387,7 @@ test("cli create preserves mixed room affinities while maximizing valid spend", 
   const room = listRoomCards(spec)[0];
   assert.ok(room);
   assert.equal(room.roomSize, "large");
-  assert.deepEqual(room.affinities, [
-    { kind: "dark", expression: "emit", stacks: 2 },
-    { kind: "water", expression: "emit", stacks: 2 },
-  ]);
+  assert.deepEqual(room.affinities, [], "rooms carry no affinities");
 });
 
 test("cli room-plan rejects insufficient hard budgets instead of silently degrading the request", () => {
@@ -398,7 +395,7 @@ test("cli room-plan rejects insufficient hard budgets instead of silently degrad
   const result = runCli([
     "room-plan",
     "--room",
-    "affinities=dark:emit:2,water:emit:2",
+    "size=medium",
     "--budget-tokens",
     "40",
     "--run-id",
@@ -410,8 +407,8 @@ test("cli room-plan rejects insufficient hard budgets instead of silently degrad
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /insufficient_budget/);
-  assert.match(result.stderr, /hard budget is 40 tokens but minimum required spend is 42 tokens/i);
-  assert.match(result.stderr, /room\[1\] requires at least 42 tokens/i);
+  assert.match(result.stderr, /hard budget is 40 tokens but minimum required spend is 48 tokens/i);
+  assert.match(result.stderr, /room\[1\] requires at least 48 tokens/i);
   assert.equal(existsSync(join(outDir, "bundle.json")), false);
 });
 

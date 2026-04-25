@@ -100,6 +100,13 @@ async function loadCoreFromWasmPath(wasmPath) {
     advanceTick: exports.advanceTick,
     renderCellChar: exports.renderCellChar,
     renderBaseCellChar: exports.renderBaseCellChar,
+    placeResourceAt: exports.placeResourceAt,
+    removeResourceAt: exports.removeResourceAt,
+    hasResourceAt: exports.hasResourceAt,
+    getResourceVitalKindAt: exports.getResourceVitalKindAt,
+    getResourceDeltaAt: exports.getResourceDeltaAt,
+    getResourceModeAt: exports.getResourceModeAt,
+    getResourceCount: exports.getResourceCount,
   };
 }
 

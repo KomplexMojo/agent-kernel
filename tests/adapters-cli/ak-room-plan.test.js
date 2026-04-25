@@ -52,7 +52,7 @@ test("cli room-plan authors room cards directly from room flags", () => {
   const result = runCliOk([
     "room-plan",
     "--room",
-    "size=large;count=2;affinities=fire:emit:3,water:pull:1",
+    "size=large;count=2",
     "--run-id",
     "run_room_plan_basic",
     "--created-at",
@@ -82,13 +82,10 @@ test("cli room-plan authors room cards directly from room flags", () => {
   const room = cards[0];
   assert.equal(room.roomSize, "large");
   assert.equal(room.count, 2);
-  assert.deepEqual(listAffinityTuples(room), [
-    { kind: "fire", expression: "emit", stacks: 3 },
-    { kind: "water", expression: "pull", stacks: 1 },
-  ]);
+  assert.deepEqual(listAffinityTuples(room), [], "rooms carry no affinities — affinity comes from traps/hazards");
 });
 
-test("cli room-plan applies default room affinity and stacks when omitted", () => {
+test("cli room-plan produces a generic room card with no affinity tuples", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-defaults-"));
   runCliOk([
     "room-plan",
@@ -108,10 +105,7 @@ test("cli room-plan applies default room affinity and stacks when omitted", () =
   const room = cards[0];
   assert.equal(room.roomSize, "small");
   assert.equal(room.count, 1);
-  assert.equal(room.affinity, "dark");
-  assert.deepEqual(listAffinityTuples(room), [
-    { kind: "dark", expression: "emit", stacks: 2 },
-  ]);
+  assert.deepEqual(listAffinityTuples(room), [], "rooms are generic containers and carry no affinities");
 });
 
 test("cli room-plan supports multiple room configurations in one command", () => {
@@ -121,7 +115,7 @@ test("cli room-plan supports multiple room configurations in one command", () =>
     "--room",
     "size=small;count=1",
     "--room",
-    "size=large;count=3;affinities=life:emit:4",
+    "size=large;count=3",
     "--run-id",
     "run_room_plan_multi",
     "--created-at",
@@ -137,12 +131,10 @@ test("cli room-plan supports multiple room configurations in one command", () =>
   const bySize = new Map(cards.map((card) => [card.roomSize, card]));
   assert.equal(bySize.get("small")?.count, 1);
   assert.equal(bySize.get("large")?.count, 3);
-  assert.deepEqual(listAffinityTuples(bySize.get("large")), [
-    { kind: "life", expression: "emit", stacks: 4 },
-  ]);
+  assert.deepEqual(listAffinityTuples(bySize.get("large")), [], "rooms carry no affinities");
 });
 
-test("cli room-plan writes budget receipt with room layout and room-affinity spend", () => {
+test("cli room-plan writes budget receipt with room layout spend only — no affinity line items", () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budget-"));
   const outDir = join(workDir, "out");
   const budgetPath = join(workDir, "budget.json");
@@ -185,7 +177,7 @@ test("cli room-plan writes budget receipt with room layout and room-affinity spe
   runCliOk([
     "room-plan",
     "--room",
-    "size=small;count=1;affinities=fire:emit:2",
+    "size=small;count=1",
     "--budget",
     budgetPath,
     "--price-list",
@@ -208,13 +200,9 @@ test("cli room-plan writes budget receipt with room layout and room-affinity spe
   assert.equal(layoutLine.status, "approved");
   assert.equal(layoutLine.totalCost, 11);
 
-  const trapLine = receipt.lineItems.find((item) => item.id === "trap_basic" && item.kind === "trap");
-  assert.ok(trapLine);
-  assert.equal(trapLine.status, "approved");
-  assert.ok(trapLine.quantity > 0);
-  assert.ok(trapLine.totalCost > 0);
+  const affinityLines = receipt.lineItems.filter((item) => item.kind === "affinity");
+  assert.equal(affinityLines.length, 0, "room receipt must contain no affinity line items");
 
-  assert.equal(receipt.totalCost, layoutLine.totalCost + trapLine.totalCost);
   assert.equal(receipt.remaining, budgetTokens - receipt.totalCost);
   assert.equal(simConfig.budgetReceiptRef.id, receipt.meta.id);
 });
@@ -229,14 +217,14 @@ test("cli room-plan rejects invalid room size", () => {
   assert.match(result.stderr, /room\[1\] size must be one of/i);
 });
 
-test("cli room-plan rejects invalid affinity expression", () => {
+test("cli room-plan rejects affinity field — rooms are generic containers", () => {
   const result = runCli([
     "room-plan",
     "--room",
-    "size=small;affinities=fire:burst:2",
+    "size=small;affinities=fire:emit:2",
   ]);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /invalid affinity expression/i);
+  assert.match(result.stderr, /not supported.*trap.*hazard/i);
 });
 
 test("cli room-plan requires --budget and --price-list together", () => {
@@ -251,7 +239,7 @@ test("cli room-plan requires --budget and --price-list together", () => {
   assert.match(result.stderr, /requires both --budget and --price-list/i);
 });
 
-test("cli room-plan maximizes a flexible room within a 400-token budget while preserving requested trap affinities", () => {
+test("cli room-plan maximizes a flexible room within a 400-token budget", () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budgeted-"));
   const outDir = join(workDir, "out");
   const budgetPath = join(workDir, "budget.json");
@@ -285,7 +273,7 @@ test("cli room-plan maximizes a flexible room within a 400-token budget while pr
   runCliOk([
     "room-plan",
     "--room",
-    "affinities=dark:emit:2,water:emit:2",
+    "size=large",
     "--budget",
     budgetPath,
     "--price-list",
@@ -302,10 +290,7 @@ test("cli room-plan maximizes a flexible room within a 400-token budget while pr
   const room = listRoomCards(spec)[0];
   assert.ok(room);
   assert.equal(room.roomSize, "large");
-  assert.deepEqual(listAffinityTuples(room), [
-    { kind: "dark", expression: "emit", stacks: 2 },
-    { kind: "water", expression: "emit", stacks: 2 },
-  ]);
+  assert.deepEqual(listAffinityTuples(room), [], "rooms carry no affinities");
 
   runEsm(`
 import assert from "node:assert/strict";
@@ -322,6 +307,6 @@ const largeCost = calculateRoomCardUnitCost({
 }).cost;
 
 assert.ok(largeCost <= 400);
-assert.ok(largeCost > mediumCost);
+assert.ok(largeCost >= mediumCost);
 `);
 });

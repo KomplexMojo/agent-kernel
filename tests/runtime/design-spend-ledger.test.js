@@ -207,20 +207,10 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
   assert.equal(high.overBudget, high.totalSpentTokens > high.budgetTokens);
 });
 
-test("buildDesignSpendLedger discounts room affinity configuration to 10% of base cost", async () => {
-  const { buildDesignSpendLedger, calculateActorConfigurationUnitCost } = await import(
+test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost", async () => {
+  const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/configurator/spend-proposal.js"
   );
-
-  const roomAffinity = [{ kind: "fire", expression: "push", stacks: 2 }];
-  const priceMap = new Map([
-    ["affinity:affinity_stack", 10],
-    ["affinity:affinity_expression_externalize", 10],
-  ]);
-  const fullAffinityCost = calculateActorConfigurationUnitCost({
-    entry: { affinities: roomAffinity },
-    priceMap,
-  }).cost;
 
   const ledger = buildDesignSpendLedger({
     summary: {
@@ -232,7 +222,7 @@ test("buildDesignSpendLedger discounts room affinity configuration to 10% of bas
           source: "room",
           count: 1,
           affinity: "fire",
-          affinities: roomAffinity,
+          affinities: [{ kind: "fire", expression: "push", stacks: 2 }],
           roomSize: "small",
         },
       ],
@@ -248,11 +238,8 @@ test("buildDesignSpendLedger discounts room affinity configuration to 10% of bas
     },
   });
 
-  const roomConfigLine = ledger.lineItems.find(
-    (entry) => entry.category === "levelConfig" && String(entry.id).includes("room_fire") && entry.id.endsWith("_config"),
+  const affinityLines = ledger.lineItems.filter(
+    (entry) => entry.category === "levelConfig" && String(entry.id).includes("room_fire") && entry.detail?.affinityCostScale !== undefined,
   );
-
-  assert.ok(roomConfigLine);
-  assert.equal(roomConfigLine.unitCostTokens, Math.round(fullAffinityCost * 0.1));
-  assert.equal(roomConfigLine.detail.affinityCostScale, 0.1);
+  assert.equal(affinityLines.length, 0, "rooms must not generate affinity cost line items");
 });

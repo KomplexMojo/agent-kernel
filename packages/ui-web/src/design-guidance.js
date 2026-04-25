@@ -212,14 +212,10 @@ function normalizeExpression(value, fallback = DEFAULT_AFFINITY_EXPRESSION) {
 }
 
 function normalizeMotivationList(values, fallback = "defending") {
-  const normalized = normalizeMotivationKindList(values, {
+  return normalizeMotivationKindList(values, {
     fallback,
     fieldBase: "motivations",
   }).value;
-  if (fallback === "attacking" && !normalized.includes("user_controlled")) {
-    return [...normalized, "user_controlled"];
-  }
-  return normalized;
 }
 
 function normalizeMotivationListAllowEmpty(values) {
@@ -555,6 +551,10 @@ export function createDesignCard({
   resourceVitals,
   permanent = false,
   budgetCeiling,
+  tier,
+  stat,
+  delta,
+  dropRate,
   preserveEmptyAffinities = false,
 } = {}) {
   const normalizedType = normalizeCardType(type);
@@ -610,6 +610,10 @@ export function createDesignCard({
       vitals: undefined,
       resourceVitals: normalizeResourceVitals(resourceVitals),
       permanent: permanent === true,
+      tier: tier !== undefined ? tier : undefined,
+      stat: stat !== undefined ? stat : undefined,
+      delta: delta !== undefined ? Number(delta) : undefined,
+      dropRate: dropRate !== undefined ? Number(dropRate) : undefined,
       budgetCeiling: readOptionalToken(budgetCeiling),
       flipped: flipped === true,
     };
@@ -666,25 +670,8 @@ export function createDesignCard({
     normalizedCard.roomSize = normalizeRoomCardSize(roomSize);
     normalizedCard.motivations = [];
     normalizedCard.vitals = undefined;
-    if (hasExplicitEmptyAffinities) {
-      normalizedCard.affinities = [];
-      normalizedCard.expressions = [];
-      return normalizedCard;
-    }
-    if (!hasExplicitEmptyAffinities && (!Array.isArray(normalizedCard.affinities) || normalizedCard.affinities.length === 0)) {
-      const roomAffinity = normalizeAffinity(normalizedCard.affinity, DEFAULT_ROOM_CARD_AFFINITY);
-      normalizedCard.affinity = roomAffinity;
-      normalizedCard.affinities = buildAffinityEntries({
-        affinity: roomAffinity,
-        expressions: [DEFAULT_ROOM_AFFINITY_EXPRESSION],
-        stacksByAffinity: { [roomAffinity]: DEFAULT_ROOM_AFFINITY_STACKS },
-      });
-    }
-    normalizedCard.expressions = hasExplicitEmptyAffinities
-      ? []
-      : normalizeExpressionListAllowEmpty(
-      normalizedCard.affinities.map((entry) => entry.expression),
-      );
+    normalizedCard.affinities = [];
+    normalizedCard.expressions = [];
     return normalizedCard;
   }
 
@@ -803,23 +790,14 @@ function replaceCardType(card, typeValue) {
     return { ok: false, reason: "invalid_type", card };
   }
   const priorType = normalizeCardType(card?.type);
-  const applyRoomDefaults = type === "room" && priorType !== "room";
   const applyActorDefaults = (type === "delver" || type === "warden") && (!priorType || priorType === "room" || priorType === "hazard");
   const next = createDesignCard({
     ...card,
     type,
     source: type === "room" ? "room" : type === "hazard" ? "hazard" : type === "resource" ? "resource" : "actor",
-    affinity: applyRoomDefaults
-      ? DEFAULT_ROOM_CARD_AFFINITY
-      : applyActorDefaults
-        ? undefined
-        : card?.affinity,
-    affinities: applyRoomDefaults || applyActorDefaults ? undefined : card?.affinities,
-    expressions: applyRoomDefaults
-      ? [DEFAULT_ROOM_AFFINITY_EXPRESSION]
-      : applyActorDefaults
-        ? undefined
-        : card?.expressions,
+    affinity: applyActorDefaults ? undefined : card?.affinity,
+    affinities: type === "room" || applyActorDefaults ? undefined : card?.affinities,
+    expressions: type === "room" || applyActorDefaults ? undefined : card?.expressions,
     motivations: type === "room" || type === "hazard" || type === "resource"
       ? []
       : normalizeMotivationList(card?.motivations, type === "delver" ? "attacking" : "defending"),
@@ -3754,7 +3732,7 @@ export function wireDesignGuidance({
 
     const identified = normalizeCardIdentifiers([...state.cards, ...generatedCards], state.activeCard);
     const evaluation = evaluateShelvedCards(identified.cards);
-    if (evaluation.overBudget) {
+    if (evaluation.allocationLedger?.overBudget) {
       setStatus(statusEl, `Cannot auto-generate cards: ${describeBudgetViolation(evaluation)}`, true);
       return { ok: false, reason: "budget_overflow", cards: generatedCards };
     }

@@ -1,0 +1,56 @@
+{
+  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "budget-receipt-full-categories",
+    "runId": "run-001",
+    "createdAt": "2026-04-22T00:00:00.000Z",
+    "producedBy": "allocator"
+  },
+  "budgetRef": {
+    "id": "budget-001",
+    "schema": "agent-kernel/BudgetArtifact",
+    "schemaVersion": 1
+  },
+  "priceListRef": {
+    "id": "price-list-001",
+    "schema": "agent-kernel/PriceList",
+    "schemaVersion": 1
+  },
+  "status": "approved",
+  "totalCost": 164,
+  "remaining": 336,
+  "lineItems": [
+    { "id": "room-1", "kind": "layout", "quantity": 1, "unitCost": 50, "totalCost": 50, "status": "approved" },
+    { "id": "tile-1", "kind": "tile", "quantity": 4, "unitCost": 1, "totalCost": 4, "status": "approved" },
+    { "id": "trap-1", "kind": "trap", "quantity": 1, "unitCost": 10, "totalCost": 10, "status": "approved" },
+    { "id": "hazard-1", "kind": "hazard", "quantity": 1, "unitCost": 20, "totalCost": 20, "status": "approved" },
+    { "id": "resource-1", "kind": "resource", "quantity": 1, "unitCost": 15, "totalCost": 15, "status": "approved" },
+    { "id": "delver-1", "kind": "actor", "quantity": 1, "unitCost": 30, "totalCost": 30, "status": "approved" },
+    { "id": "warden-1", "kind": "actor", "quantity": 1, "unitCost": 30, "totalCost": 30, "status": "approved" },
+    { "id": "system-1", "kind": "system", "quantity": 1, "unitCost": 5, "totalCost": 5, "status": "approved" }
+  ],
+  "scenarioSpendReport": {
+    "budget": 500,
+    "totalSpend": 164,
+    "remainingBudget": 336,
+    "overBudget": false,
+    "categories": {
+      "rooms":       { "actual": 50, "target": 100, "usagePercent": 50 },
+      "floor_tiles": { "actual": 4,  "target": 20,  "usagePercent": 20 },
+      "traps":       { "actual": 10, "target": 30,  "usagePercent": 33.3 },
+      "hazards":     { "actual": 20, "target": 40,  "usagePercent": 50 },
+      "resources":   { "actual": 15, "target": 30,  "usagePercent": 50 },
+      "delvers":     { "actual": 30, "target": 100, "usagePercent": 30 },
+      "wardens":     { "actual": 30, "target": 100, "usagePercent": 30 },
+      "shared_system": { "actual": 5, "target": 10, "usagePercent": 50 }
+    },
+    "totalBudgetUsagePercent": 32.8,
+    "incentive": {
+      "actualRatio": 0.5,
+      "targetRatio": 0.5,
+      "mismatch": 0,
+      "multiplier": 1
+    }
+  }
+}

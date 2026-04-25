@@ -14,16 +14,27 @@ function buildRef(artifact, fallbackSchema) {
   return { id: meta?.id || "unknown", schema: fallbackSchema, schemaVersion: 1 };
 }
 
-function normalizePriceItems(priceList) {
+export function normalizePriceItems(priceList) {
   const items = Array.isArray(priceList?.items) ? priceList.items : [];
   const map = new Map();
   items.forEach((item) => {
-    if (typeof item?.id === "string" && typeof item?.kind === "string" && isFiniteNumber(item?.costTokens)) {
-      map.set(`${item.kind}:${item.id}`, { unitCost: item.costTokens, kind: item.kind, id: item.id });
-      return;
+    if (typeof item?.id === "string" && typeof item?.kind === "string") {
+      // Canonical shape: unitCost takes precedence over legacy costTokens field
+      const rawCost = isFiniteNumber(item?.unitCost) ? item.unitCost
+        : isFiniteNumber(item?.costTokens) ? item.costTokens
+        : null;
+      if (rawCost !== null && rawCost >= 0) {
+        map.set(`${item.kind}:${item.id}`, {
+          unitCost: rawCost,
+          kind: item.kind,
+          id: item.id,
+          formula: item.formula || "linear",
+        });
+        return;
+      }
     }
     if (typeof item?.key === "string" && isFiniteNumber(item?.unitCost)) {
-      map.set(`legacy:${item.key}`, { unitCost: item.unitCost, kind: "legacy", id: item.key });
+      map.set(`legacy:${item.key}`, { unitCost: item.unitCost, kind: "legacy", id: item.key, formula: "linear" });
     }
   });
   return map;
@@ -61,6 +72,7 @@ export function validateSpendProposal({
         unitCost: 0,
         totalCost: 0,
         status: "denied",
+        ...(typeof item?.category === "string" ? { category: item.category } : {}),
       };
     }
 
@@ -76,11 +88,12 @@ export function validateSpendProposal({
         unitCost: 0,
         totalCost: 0,
         status: "denied",
+        ...(typeof item?.category === "string" ? { category: item.category } : {}),
       };
     }
 
     const totalCost = price.unitCost * quantity;
-    return {
+    const lineItem = {
       id,
       kind,
       quantity,
@@ -88,6 +101,12 @@ export function validateSpendProposal({
       totalCost,
       status: "approved",
     };
+    // Pass through attribution fields from the proposal item if present
+    if (typeof item.category === "string") lineItem.category = item.category;
+    if (item.artifactRef != null) lineItem.artifactRef = item.artifactRef;
+    if (item.subjectRef != null) lineItem.subjectRef = item.subjectRef;
+    if (item.detail !== undefined) lineItem.detail = item.detail;
+    return lineItem;
   });
 
   const totalCost = lineItems.reduce((sum, item) => sum + item.totalCost, 0);

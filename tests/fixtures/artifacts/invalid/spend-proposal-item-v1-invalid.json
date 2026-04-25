@@ -1,0 +1,8 @@
+{
+  "kind": "rooms",
+  "quantity": 1,
+  "category": "rooms",
+  "unitCost": 50,
+  "totalCost": 50,
+  "status": "approved"
+}

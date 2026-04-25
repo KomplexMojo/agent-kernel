@@ -1,0 +1,85 @@
+{
+  "schema": "agent-kernel/SpendProposal",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "proposal-full-001",
+    "runId": "run-001",
+    "createdAt": "2026-04-22T00:00:00.000Z",
+    "producedBy": "configurator"
+  },
+  "items": [
+    {
+      "id": "room-1",
+      "kind": "layout",
+      "quantity": 1,
+      "category": "rooms",
+      "unitCost": 50,
+      "totalCost": 50,
+      "status": "approved",
+      "subjectRef": { "id": "room-artifact-1", "schema": "agent-kernel/RoomArtifact", "schemaVersion": 1 }
+    },
+    {
+      "id": "tile-1",
+      "kind": "tile",
+      "quantity": 4,
+      "category": "floor_tiles",
+      "unitCost": 1,
+      "totalCost": 4,
+      "status": "approved"
+    },
+    {
+      "id": "trap-1",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "unitCost": 10,
+      "totalCost": 10,
+      "status": "approved"
+    },
+    {
+      "id": "hazard-1",
+      "kind": "hazard",
+      "quantity": 1,
+      "category": "hazards",
+      "unitCost": 20,
+      "totalCost": 20,
+      "status": "approved"
+    },
+    {
+      "id": "resource-1",
+      "kind": "resource",
+      "quantity": 1,
+      "category": "resources",
+      "unitCost": 15,
+      "totalCost": 15,
+      "status": "approved"
+    },
+    {
+      "id": "delver-1",
+      "kind": "actor",
+      "quantity": 1,
+      "category": "delvers",
+      "unitCost": 30,
+      "totalCost": 30,
+      "status": "approved"
+    },
+    {
+      "id": "warden-1",
+      "kind": "actor",
+      "quantity": 1,
+      "category": "wardens",
+      "unitCost": 30,
+      "totalCost": 30,
+      "status": "approved"
+    },
+    {
+      "id": "system-overhead",
+      "kind": "system",
+      "quantity": 1,
+      "category": "shared_system",
+      "unitCost": 5,
+      "totalCost": 5,
+      "status": "approved"
+    }
+  ]
+}

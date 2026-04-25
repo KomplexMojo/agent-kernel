@@ -1,7 +1,7 @@
 import { validateSpendProposal } from "../allocator/validate-spend.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
-import { ROOM_AFFINITY_STACK_COST_FACTOR, VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { VITAL_KEYS } from "../../contracts/domain-constants.js";
 import {
   COST_DEFAULTS,
   VITAL_MAX_COST_MULTIPLIER,
@@ -402,45 +402,21 @@ export function calculateRoomCardUnitCost({
   card,
   priceList,
   tileCosts,
-  pricing = {},
 } = {}) {
   const roomCard = card && typeof card === "object"
-    ? {
-      ...card,
-      type: "room",
-      source: "room",
-      count: 1,
-    }
-    : {
-      type: "room",
-      source: "room",
-      count: 1,
-    };
+    ? { ...card, type: "room", source: "room", count: 1 }
+    : { type: "room", source: "room", count: 1 };
   const layoutSpend = evaluateRoomCardLayoutSpend({
     cardSet: [roomCard],
     budgetTokens: undefined,
     priceList,
     tileCosts,
   });
-  const priceMap = buildPriceMap(priceList);
-  const affinitySpend = calculateActorConfigurationUnitCost({
-    entry: {
-      affinities: Array.isArray(roomCard?.affinities) ? roomCard.affinities : [],
-    },
-    priceMap,
-    pricing: {
-      ...pricing,
-      affinityCostScale: ROOM_AFFINITY_STACK_COST_FACTOR,
-    },
-  });
-
   return {
-    cost: normalizePositiveInt(layoutSpend?.spentTokens, 0) + normalizePositiveInt(affinitySpend?.cost, 0),
+    cost: normalizePositiveInt(layoutSpend?.spentTokens, 0),
     detail: {
       layoutSpend: normalizePositiveInt(layoutSpend?.spentTokens, 0),
-      affinitySpend: normalizePositiveInt(affinitySpend?.cost, 0),
       layoutLineItems: Array.isArray(layoutSpend?.lineItems) ? layoutSpend.lineItems : [],
-      affinityDetail: affinitySpend?.detail,
     },
   };
 }
@@ -568,9 +544,7 @@ export function buildDesignSpendLedger({
     const tokenHint = normalizePositiveInt(entry?.tokenHint, 0);
     const entryId = entry.id || `${entry.source}_${entry.motivation}_${entry.affinity}`;
     if (entry.source !== "actor") {
-      const roomPricing = entry.source === "room"
-        ? { ...pricing, affinityCostScale: ROOM_AFFINITY_STACK_COST_FACTOR }
-        : pricing;
+      const roomPricing = pricing;
       const levelConfig = calculateActorConfigurationUnitCost({
         entry,
         priceMap,

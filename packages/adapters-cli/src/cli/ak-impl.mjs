@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { resolve, dirname, isAbsolute, join } from "node:path";
+import { resolve, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
@@ -47,7 +47,6 @@ import {
   DEFAULT_LLM_MODEL,
   DEFAULT_DUNGEON_AFFINITY,
   DEFAULT_ROOM_AFFINITY_EXPRESSION,
-  DEFAULT_ROOM_AFFINITY_STACKS,
   DEFAULT_ROOM_CARD_AFFINITY,
   DEFAULT_VITALS,
   LLM_REPAIR_TEXT,
@@ -125,7 +124,7 @@ function usage() {
   node ${rel} diff --run-a id --run-b id
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
-  node ${rel} room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1,water:draw:2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
@@ -170,7 +169,7 @@ Options:
   --hazard        Hazard spec for create/configure (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>]
   --resource      Resource artifact spec for create/configure (repeatable): tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
   --trap          Trap spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
-  --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...
+  --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --trap/--hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
   --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]]
                     where <expression> is push|pull (spatial) or emit|draw (field)
@@ -664,74 +663,13 @@ function parseActorVitals(value, actorType, actorIndex) {
   return vitals;
 }
 
-function parseRoomAffinityTuple(value, roomIndex, affinityIndex) {
-  const raw = String(value || "").trim();
-  if (!raw) {
-    throw new Error(`room[${roomIndex}] affinity[${affinityIndex}] is empty.`);
-  }
-  const parts = raw.split(":").map((part) => part.trim()).filter((part) => part.length > 0);
-  if (parts.length === 0 || parts.length > 3) {
-    throw new Error(`room[${roomIndex}] affinity[${affinityIndex}] must be kind[:expression[:stacks]].`);
-  }
-
-  const kind = parts[0].toLowerCase();
-  if (!ALLOWED_AFFINITIES.includes(kind)) {
-    throw new Error(`room[${roomIndex}] affinity[${affinityIndex}] has invalid affinity kind "${parts[0]}".`);
-  }
-
-  const expression = (parts[1] || DEFAULT_ROOM_AFFINITY_EXPRESSION).toLowerCase();
-  if (!ALLOWED_AFFINITY_EXPRESSIONS.includes(expression)) {
-    throw new Error(`room[${roomIndex}] affinity[${affinityIndex}] has invalid affinity expression "${parts[1]}".`);
-  }
-
-  const stacks = parts[2] === undefined
-    ? DEFAULT_ROOM_AFFINITY_STACKS
-    : parsePositiveIntStrict(parts[2], `room[${roomIndex}] affinity[${affinityIndex}] stacks`);
-
-  return { kind, expression, stacks };
-}
-
-function parseRoomAffinities(value, roomIndex) {
-  if (!isNonEmptyString(value)) {
-    return [{
-      kind: DEFAULT_ROOM_CARD_AFFINITY,
-      expression: DEFAULT_ROOM_AFFINITY_EXPRESSION,
-      stacks: DEFAULT_ROOM_AFFINITY_STACKS,
-    }];
-  }
-
-  const entries = String(value)
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  if (entries.length === 0) {
-    return [{
-      kind: DEFAULT_ROOM_CARD_AFFINITY,
-      expression: DEFAULT_ROOM_AFFINITY_EXPRESSION,
-      stacks: DEFAULT_ROOM_AFFINITY_STACKS,
-    }];
-  }
-
-  const merged = new Map();
-  entries.forEach((entry, index) => {
-    const tuple = parseRoomAffinityTuple(entry, roomIndex, index + 1);
-    const key = `${tuple.kind}:${tuple.expression}`;
-    const existing = merged.get(key);
-    if (!existing || tuple.stacks > existing.stacks) {
-      merged.set(key, tuple);
-    }
-  });
-
-  return Array.from(merged.values());
-}
-
 function parseRoomSpec(value, roomIndex) {
   const raw = String(value || "").trim();
   if (!raw) {
     throw new Error(`room[${roomIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["size", "count", "affinity", "affinities"]);
+  const allowedFields = new Set(["size", "count"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -751,6 +689,9 @@ function parseRoomSpec(value, roomIndex) {
     const separator = segment.indexOf("=");
     const key = segment.slice(0, separator).trim().toLowerCase();
     const fieldValue = segment.slice(separator + 1).trim();
+    if (key === "affinity" || key === "affinities") {
+      throw new Error(`room[${roomIndex}] field "${key}" is not supported — rooms are generic containers; use --trap or --hazard to place affinity in a room.`);
+    }
     if (!allowedFields.has(key)) {
       throw new Error(`room[${roomIndex}] field "${key}" is not supported.`);
     }
@@ -768,14 +709,8 @@ function parseRoomSpec(value, roomIndex) {
     ? parsePositiveIntStrict(fields.get("count"), `room[${roomIndex}] count`)
     : 1;
 
-  const affinities = parseRoomAffinities(fields.get("affinities") || fields.get("affinity"), roomIndex);
   return {
-    value: {
-      size,
-      count,
-      affinity: affinities[0]?.kind || DEFAULT_ROOM_CARD_AFFINITY,
-      affinities,
-    },
+    value: { size, count },
     sizeFlexible: !fields.has("size"),
   };
 }
@@ -2026,6 +1961,117 @@ function compareFromRunStagePriority(left, right) {
   return left.localeCompare(right);
 }
 
+function normalizeCommandOutDirEntries(commandOutDirs) {
+  if (commandOutDirs instanceof Map) {
+    return Array.from(commandOutDirs.entries()).map(([command, outDir]) => ({ command, outDir }));
+  }
+  if (Array.isArray(commandOutDirs)) {
+    return commandOutDirs
+      .map((entry) => ({
+        command: entry?.command,
+        outDir: entry?.outDir,
+      }));
+  }
+  if (commandOutDirs && typeof commandOutDirs === "object") {
+    return Object.entries(commandOutDirs).map(([command, outDir]) => ({ command, outDir }));
+  }
+  return [];
+}
+
+function deriveCommonAncestor(paths) {
+  const normalized = paths
+    .map((value) => (isNonEmptyString(value) ? resolve(value) : ""))
+    .filter(Boolean);
+  if (normalized.length === 0) {
+    return "";
+  }
+  const splitPaths = normalized.map((value) => value.split(sep).filter(Boolean));
+  const prefix = [];
+  const first = splitPaths[0];
+  for (let index = 0; index < first.length; index += 1) {
+    const segment = first[index];
+    if (!splitPaths.every((parts) => parts[index] === segment)) {
+      break;
+    }
+    prefix.push(segment);
+  }
+  if (prefix.length === 0) {
+    return dirname(normalized[0]);
+  }
+  const absolutePrefix = `${sep}${prefix.join(sep)}`;
+  return absolutePrefix || sep;
+}
+
+function deriveRememberedRunDir(entries) {
+  const outDirs = entries
+    .map((entry) => entry?.outDir)
+    .filter((value) => isNonEmptyString(value));
+  if (outDirs.length === 0) {
+    return "";
+  }
+  if (outDirs.length === 1) {
+    return outDirs[0];
+  }
+  return deriveCommonAncestor(outDirs);
+}
+
+export async function resolveFromRunArtifactPathsFromCommandOutDirs({
+  runId,
+  commandOutDirs,
+} = {}) {
+  if (!isNonEmptyString(runId)) {
+    throw new Error("--from-run requires a non-empty run id.");
+  }
+  const entries = normalizeCommandOutDirEntries(commandOutDirs)
+    .filter((entry) => isNonEmptyString(entry.command) && isNonEmptyString(entry.outDir))
+    .sort((left, right) => compareFromRunStagePriority(left.command, right.command));
+  if (entries.length === 0) {
+    throw new Error(`--from-run could not find remembered artifacts for run ${runId}.`);
+  }
+
+  const runDir = deriveRememberedRunDir(entries);
+  for (const entry of entries) {
+    const simConfigPath = join(entry.outDir, "sim-config.json");
+    const initialStatePath = join(entry.outDir, "initial-state.json");
+    if (existsSync(simConfigPath) && existsSync(initialStatePath)) {
+      return {
+        runDir,
+        sourceDir: entry.outDir,
+        simConfigPath,
+        initialStatePath,
+      };
+    }
+  }
+
+  let simConfigPath = null;
+  let initialStatePath = null;
+  for (const entry of entries) {
+    if (!simConfigPath) {
+      const candidate = join(entry.outDir, "sim-config.json");
+      if (existsSync(candidate)) {
+        simConfigPath = candidate;
+      }
+    }
+    if (!initialStatePath) {
+      const candidate = join(entry.outDir, "initial-state.json");
+      if (existsSync(candidate)) {
+        initialStatePath = candidate;
+      }
+    }
+  }
+
+  if (!simConfigPath || !initialStatePath) {
+    throw new Error(`--from-run requires sim-config.json and initial-state.json for remembered run ${runId}.`);
+  }
+
+  return {
+    runDir,
+    sourceDir: dirname(simConfigPath) === dirname(initialStatePath) ? dirname(simConfigPath) : runDir,
+    simConfigPath,
+    initialStatePath,
+  };
+}
+
 async function resolveFromRunArtifactPaths(runId) {
   if (!isNonEmptyString(runId)) {
     throw new Error("--from-run requires a non-empty run id.");
@@ -3079,6 +3125,56 @@ async function summarizeRunShow({ runId } = {}) {
   };
 }
 
+export async function summarizeRunShowFromCommandOutDirs({
+  runId,
+  commandOutDirs,
+} = {}) {
+  if (!isNonEmptyString(runId)) {
+    throw new Error("show requires --run-id <id>.");
+  }
+  const entries = normalizeCommandOutDirEntries(commandOutDirs)
+    .filter((entry) => isNonEmptyString(entry.command) && isNonEmptyString(entry.outDir));
+  if (entries.length === 0) {
+    throw new Error(`Run directory not found for remembered run: ${runId}`);
+  }
+
+  const commands = [];
+  for (const entry of entries) {
+    commands.push(await summarizeRunIndexCommand({
+      runId,
+      command: entry.command,
+      outDir: entry.outDir,
+    }));
+  }
+  commands.sort((a, b) => a.command.localeCompare(b.command));
+
+  const actorIds = Array.from(new Set(commands.flatMap((entry) => entry.actorIds || [])))
+    .sort((a, b) => a.localeCompare(b));
+  const roomIds = Array.from(new Set(commands.flatMap((entry) => entry.roomIds || [])))
+    .sort((a, b) => a.localeCompare(b));
+  const artifactPaths = Array.from(new Set(commands.flatMap((entry) => [
+    ...(entry.inputs || []).map((record) => record.path),
+    ...(entry.outputs || []).map((record) => record.path),
+  ]))).sort((a, b) => a.localeCompare(b));
+  const budgetSpend = commands.find((entry) => entry.budgetSpend)?.budgetSpend;
+
+  return {
+    ok: true,
+    command: "show",
+    runId,
+    runDir: deriveRememberedRunDir(entries),
+    status: deriveRunStatus(commands),
+    commandCount: commands.length,
+    actorIds,
+    roomIds,
+    actorCount: actorIds.length,
+    roomCount: roomIds.length,
+    budgetSpend,
+    artifactPaths,
+    commands,
+  };
+}
+
 async function summarizeRunsIndex({ rootDir } = {}) {
   const runIds = await listDirectoryNames(rootDir);
   const runs = [];
@@ -3828,6 +3924,8 @@ async function writeBuildOutputs({
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
+  const costSummary = buildCostSummary(buildResult.budgetReceipt, buildResult.spendProposal, outDir);
+
   return buildStructuredSuccessSummary({
     command: commandName,
     outDir,
@@ -3836,7 +3934,24 @@ async function writeBuildOutputs({
     initialState: buildResult.initialState,
     simConfig: buildResult.simConfig,
     spec,
+    extra: costSummary !== undefined ? { cost: costSummary } : {},
   });
+}
+
+function buildCostSummary(budgetReceipt, spendProposal, outDir) {
+  if (!budgetReceipt || budgetReceipt.schema !== SCHEMAS.budgetReceiptArtifact) {
+    return undefined;
+  }
+  const totalSpend = budgetReceipt.totalCost ?? 0;
+  const remaining = budgetReceipt.remaining ?? 0;
+  return {
+    totalSpend,
+    budgetTokens: totalSpend + remaining,
+    remaining,
+    status: budgetReceipt.status,
+    receiptPath: join(outDir, "budget-receipt.json"),
+    proposalPath: spendProposal ? join(outDir, "spend-proposal.json") : undefined,
+  };
 }
 
 async function validateRunDryRun(args) {

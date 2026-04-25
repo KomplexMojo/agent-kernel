@@ -194,6 +194,34 @@ test("mcp server lists required tools and schemas round-trips over stdio", async
   }
 });
 
+test("mcp authoring tools expose the current full scenario schema", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    const listed = await harness.request("tools/list", {});
+    const createTool = listed.tools.find((tool) => tool.name === "ak_create");
+    const configureTool = listed.tools.find((tool) => tool.name === "ak_configure");
+    for (const tool of [createTool, configureTool]) {
+      assert.ok(tool, "expected authoring tool to be listed");
+      const properties = tool.inputSchema?.properties || {};
+      assert.ok(properties.room);
+      assert.ok(properties.floorTile);
+      assert.ok(properties.trap);
+      assert.ok(properties.hazard);
+      assert.ok(properties.resource);
+      assert.ok(properties.delver);
+      assert.ok(properties.warden);
+      assert.ok(properties.budgetTokens);
+      assert.ok(properties.dungeonBudgetTokens);
+      assert.ok(properties.delverBudgetTokens);
+      assert.match(properties.outDir?.description || "", /temp/i);
+    }
+  } finally {
+    await harness.close();
+  }
+});
+
 test("mcp server create and llm-plan tool calls round-trip with fixture inputs", async () => {
   const harness = new McpServerHarness({
     AK_LLM_LIVE: "1",
@@ -250,7 +278,7 @@ test("mcp authoring tools expose preview handoff metadata for persisted outputs"
 
     const roomOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-room-plan-"));
     const roomPlanResult = await harness.callTool("ak_room_plan", {
-      room: ["size=small;count=1;affinities=fire:emit:2"],
+      room: ["size=small;count=1"],
       runId: "run_mcp_room_plan_preview",
       createdAt: "2026-04-10T00:00:00.000Z",
       outDir: roomOutDir,
@@ -283,6 +311,64 @@ test("mcp authoring tools expose preview handoff metadata for persisted outputs"
     assert.equal(wardenPlanResult.preview.ready, true);
     assert.equal(wardenPlanResult.preview.hasActors, true);
     assert.equal(wardenPlanResult.preview.runReady, false);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp create defaults full scenario outputs into a writable temp folder and remembers them for follow-up tools", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    const runId = "run_mcp_full_scenario";
+    const createResult = await harness.callTool("ak_create", {
+      runId,
+      createdAt: "2026-04-19T00:00:00.000Z",
+      text: "Create a full playable dungeon scenario with room layout, traps, hazards, resources, delvers, and a warden under a total budget of 2000 tokens.",
+      room: ["size=small;count=1"],
+      floorTile: ["count=12"],
+      trap: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
+      hazard: ["affinity=dark;expression=emit;proximityRadius=1;mana=one-time:1"],
+      resource: ["permanenceMode=consumable;vital=health;delta=2"],
+      delver: ["count=1;affinity=fire;motivation=attacking"],
+      warden: ["count=1;affinity=dark;motivation=defending"],
+      budgetTokens: 2000,
+    });
+    assert.equal(createResult.command, "create");
+    assert.equal(createResult.runId, runId);
+    assert.equal(existsSync(join(createResult.outDir, "spec.json")), true);
+    assert.equal(existsSync(join(createResult.outDir, "manifest.json")), true);
+    assert.equal(createResult.outDir.startsWith(os.tmpdir()), true);
+    assert.equal(createResult.preview.ready, true);
+    assert.equal(createResult.preview.runReady, true);
+    assert.equal(createResult.artifactLocation?.outDir, createResult.outDir);
+    assert.equal(createResult.artifactLocation?.defaultedToTemp, true);
+    assert.equal(createResult.artifactLocation?.remembered, true);
+
+    const showResult = await harness.callTool("ak_show", { runId });
+    assert.equal(showResult.command, "show");
+    assert.equal(showResult.runId, runId);
+    assert.equal(showResult.commands.some((entry) => entry.command === "create" && entry.outDir === createResult.outDir), true);
+
+    const runsListResult = await harness.callTool("ak_runs_list");
+    assert.equal(runsListResult.command, "runs");
+    assert.equal(runsListResult.action, "list");
+    assert.equal(runsListResult.runs.some((entry) => entry.runId === runId), true);
+
+    if (existsSync(WASM_PATH)) {
+      const runResult = await harness.callTool("ak_run", {
+        fromRun: runId,
+        ticks: 1,
+        wasm: WASM_PATH,
+      });
+      assert.equal(runResult.command, "run");
+      assert.equal(existsSync(join(runResult.outDir, "tick-frames.json")), true);
+      assert.equal(runResult.outDir.startsWith(os.tmpdir()), true);
+
+      const showWithRun = await harness.callTool("ak_show", { runId });
+      assert.equal(showWithRun.commands.some((entry) => entry.command === "run" && entry.outDir === runResult.outDir), true);
+    }
   } finally {
     await harness.close();
   }
