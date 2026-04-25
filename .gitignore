@@ -40,3 +40,17 @@ packages/graphify-out/
 # Environment/OS
 .DS_Store
 .env
+local-codex/
+VALIDATION_TEST_SUMMARY.txt
+test-output.log
+test-results.txt
+/bundle.json
+/resource-bundle.json
+/intent.json
+/plan.json
+/manifest.json
+/request.json
+/sim-config.json
+/spec.json
+/telemetry.json
+/initial-state.json

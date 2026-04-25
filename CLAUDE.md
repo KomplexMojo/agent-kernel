@@ -8,15 +8,17 @@ Claude is the **orchestration and implementation engine**. Codex drives ideation
 
 Before writing any code in a new session, Claude must complete the checklist in `AGENTS.md → Session-Start Checklist`. The short form:
 
-1. `git pull --ff-only` — confirm on HEAD
-2. `pnpm install --frozen-lockfile` — confirm lockfile match
-3. `pnpm run test` — confirm no pre-existing failures
-4. Rebuild graphify: `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` 
-5. Start CodeContextGraph watch: `mcp__CodeGraphContext__watch_directory` on repo root
-6. Read `graphify-out/wiki/index.md` for community map
-7. Rewrite `local-codex/CodeContext.md` from the three MCP queries
+1. Read `~/vault/hot.md` — last-session compounding context
+2. Read `~/vault/index.md` — vault catalog (only if `hot.md` is sparse)
+3. `git pull --ff-only` — confirm on HEAD
+4. `pnpm install --frozen-lockfile` — confirm lockfile match
+5. `pnpm run test` — confirm no pre-existing failures
+6. Rebuild graphify: `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` 
+7. Start CodeContextGraph watch: `mcp__CodeGraphContext__watch_directory` on repo root
+8. Read `graphify-out/wiki/index.md` for community map
+9. Rewrite `local-codex/CodeContext.md` from the three MCP queries (`local-codex/` symlinks resolve to `~/vault/sources/codex-snapshots/`)
 
-**This is not optional.** A stale graph or missing dependencies produces wrong structural answers that compound across milestones.
+**This is not optional.** A stale vault context or missing dependencies produces wrong structural answers that compound across milestones.
 
 ---
 
@@ -39,7 +41,7 @@ Before writing any code in a new session, Claude must complete the checklist in 
 
 Use the Codex plugin (`/codex:*`) for:
 - **Ideation**: exploring solution approaches before a plan is written.
-- **Plan authoring**: producing `local-codex/Plan.md` from a prompt or spec.
+- **Plan authoring**: producing `local-codex/Plan.md` (symlink → `~/vault/plans/active/Plan.md`) from a prompt or spec.
 - **Adversarial review**: stress-testing a design decision or a completed diff from a different model family to reduce sycophancy bias.
 
 Every adversarial review must explicitly answer two questions:
@@ -155,7 +157,7 @@ mcp__CodeGraphContext__analyze_code_relationships  → per-package dependencies
 mcp__CodeGraphContext__find_most_complex_functions → top 10 complexity hotspots
 ```
 
-Write the result to `local-codex/CodeContext.md`. Codex reads this file at startup for orientation, then queries the live graph for detail as needed during the task.
+Write the result to `local-codex/CodeContext.md` (symlink → `~/vault/sources/codex-snapshots/CodeContext.md`). Codex reads this file at startup for orientation, then queries the live graph for detail as needed during the task.
 
 Before opening implementation files or proposing edits, Claude should cite the CodeContextGraph query or queries it used to locate the target area. This makes MCP-first navigation auditable in the transcript.
 
@@ -451,3 +453,39 @@ Claude does not silently pass ambiguous code.
 | `packages/runtime/src/runner/runtime-fsm.mjs` | Six-phase tick orchestration |
 | `packages/core-as/assembly/index.ts` | WASM export surface |
 | `docs/readme-index.md` | Index of all README files with one-line summaries of what code belongs in each package/directory |
+
+---
+
+## Vault-Backed Knowledge Management
+
+Non-load-bearing knowledge — historical plans, design rationale, dictation, scratch notes — lives in
+an Obsidian vault outside this repo. Code-binding contracts (charter, vision, runbooks) stay here.
+See the Session-Start Protocol above for the canonical orientation order.
+
+### Vault paths
+
+- **Mac:**     `~/Documents/Obsidian/agent-kernel-vault/`
+- **Linux:**   `~/agent-kernel-vault/`
+- **Both:**    `~/vault` (symlink) — use this in any path you cite
+
+### Repo-vault interaction
+
+- `local-codex/Plan.md`, `Prompt.md`, `Implement.md`, `Documentation.md`, `Dictation.md`,
+  `CodeContext.md` are **symlinks** into the vault. Read/write them as before — they resolve to
+  `~/vault/plans/active/...` and `~/vault/sources/codex-snapshots/...`.
+- Decisions live in `~/vault/decisions/`. When you make a non-trivial design call, save it via
+  `/save` so it lands there.
+- When citing code from a vault note, use stable IDs: `[[ccg://<pkg>/<path>]]` or
+  `[[graphify://community/<name>]]`. `wiki-lint` validates these on demand.
+
+### What does NOT belong in the vault
+
+Code, tests, fixtures, build outputs, package READMEs, the architecture charter, vision contract,
+CLI runbook, reference handout, or anything else that would break a build/test/agent-workflow if
+moved. The test "would breaking this doc break a build, test, or agent workflow?" still applies.
+
+### Setup / sync
+
+- Initial setup: `bash scripts/setup/setup-km.sh`
+- Sync: Syncthing peer-to-peer between Mac and Ubuntu (manual pairing once)
+- Per-machine `hot.mac.md` / `hot.linux.md`; merged into `hot.md` by SessionStart hook

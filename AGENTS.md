@@ -200,3 +200,26 @@ Before opening implementation files or proposing edits, Claude should cite the C
 - Base test file present and includes `## TODO: Test Permutations` stubs (or Ollama has already expanded them).
 - Tests pass locally or documented reason for skipping.
 - Architecture / design / README docs queued for Copilot update if behavior or boundaries changed.
+
+---
+
+## Vault-Backed Knowledge Management
+
+This repo is paired with an Obsidian vault that holds non-load-bearing knowledge. The
+`local-codex/` directory in this repo is **symlinks** into the vault — all reads and writes
+to `local-codex/Plan.md`, `Prompt.md`, `Implement.md`, `Documentation.md`, `Dictation.md`,
+and `CodeContext.md` transparently target `~/vault/plans/active/...` and
+`~/vault/sources/codex-snapshots/...`.
+
+For Codex specifically:
+- Active plan: `local-codex/Plan.md` (= `~/vault/plans/active/Plan.md`)
+- Active prompt: `local-codex/Prompt.md` (= `~/vault/plans/active/Prompt.md`)
+- Orientation snapshot: `local-codex/CodeContext.md`
+- Cheatsheets: `~/vault/concepts/CODEX-CHEATSHEET.md`,
+  `~/vault/concepts/MODEL-SELECTION-CHEATSHEET.md`
+
+Decisions made during a session are saved via Claude's `/save` to `~/vault/decisions/`.
+Codex reads decisions but does not author them directly.
+
+Setup: `bash scripts/setup/setup-km.sh` on each machine. Migration runs once on the Mac
+(primary) and is propagated to the Ubuntu box via `git pull`.
