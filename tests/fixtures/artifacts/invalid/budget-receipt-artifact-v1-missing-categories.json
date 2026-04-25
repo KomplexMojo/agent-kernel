@@ -1,0 +1,36 @@
+{
+  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "budget-receipt-missing-cats",
+    "runId": "run-001",
+    "createdAt": "2026-04-22T00:00:00.000Z",
+    "producedBy": "allocator"
+  },
+  "budgetRef": {
+    "id": "budget-001",
+    "schema": "agent-kernel/BudgetArtifact",
+    "schemaVersion": 1
+  },
+  "priceListRef": {
+    "id": "price-list-001",
+    "schema": "agent-kernel/PriceList",
+    "schemaVersion": 1
+  },
+  "status": "approved",
+  "totalCost": 80,
+  "remaining": 20,
+  "lineItems": [],
+  "scenarioSpendReport": {
+    "budget": 100,
+    "totalSpend": 80,
+    "remainingBudget": 20,
+    "overBudget": false,
+    "categories": {
+      "rooms":   { "actual": 40, "target": 50, "usagePercent": 80 },
+      "delvers": { "actual": 20, "target": 25, "usagePercent": 80 },
+      "wardens": { "actual": 20, "target": 25, "usagePercent": 80 }
+    },
+    "totalBudgetUsagePercent": 80
+  }
+}

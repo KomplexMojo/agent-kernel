@@ -94,6 +94,13 @@ import {
   setMotivatedActorMovementCost as setMotivatedActorMovementCostState,
   setMotivatedActorActionCostMana as setMotivatedActorActionCostManaState,
   setMotivatedActorActionCostStamina as setMotivatedActorActionCostStaminaState,
+  placeResourceAt as placeResourceAtState,
+  removeResourceAt as removeResourceAtState,
+  hasResourceAt as hasResourceAtState,
+  getResourceVitalKindAt as getResourceVitalKindAtState,
+  getResourceDeltaAt as getResourceDeltaAtState,
+  getResourceModeAt as getResourceModeAtState,
+  getResourceCount as getResourceCountState,
 } from "./state/world";
 import { applyMove, decodeMove, MoveAction, reachedExitAfterMove, setMoveAction as setMoveActionState } from "./rules/move";
 import { ActionKind, ValidationError, validateAction, validateSeed } from "./validate/inputs";
@@ -591,4 +598,32 @@ export function getMotivatedActorActionCostStaminaByIndex(index: i32): i32 {
 
 export function setActiveMotivatedActor(actorId: i32): i32 {
   return setActiveMotivatedActorState(actorId);
+}
+
+export function placeResourceAt(x: i32, y: i32, vitalKind: i32, delta: i32, mode: i32): i32 {
+  return placeResourceAtState(x, y, vitalKind, delta, mode);
+}
+
+export function removeResourceAt(x: i32, y: i32): i32 {
+  return removeResourceAtState(x, y);
+}
+
+export function hasResourceAt(x: i32, y: i32): i32 {
+  return hasResourceAtState(x, y);
+}
+
+export function getResourceVitalKindAt(x: i32, y: i32): i32 {
+  return getResourceVitalKindAtState(x, y);
+}
+
+export function getResourceDeltaAt(x: i32, y: i32): i32 {
+  return getResourceDeltaAtState(x, y);
+}
+
+export function getResourceModeAt(x: i32, y: i32): i32 {
+  return getResourceModeAtState(x, y);
+}
+
+export function getResourceCount(): i32 {
+  return getResourceCountState();
 }

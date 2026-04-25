@@ -4,8 +4,6 @@ import {
   AFFINITY_EXPRESSION_SET,
   DEFAULT_AFFINITY_EXPRESSION,
   DEFAULT_DUNGEON_AFFINITY,
-  DEFAULT_ROOM_AFFINITY_EXPRESSION,
-  DEFAULT_ROOM_AFFINITY_STACKS,
   DEFAULT_ROOM_CARD_AFFINITY,
   DEFAULT_VITALS,
   VITAL_KEYS,
@@ -284,10 +282,7 @@ export function normalizeSummaryPick(
   const count = normalizePositiveInt(entry?.count, 1);
   const tokenHint = normalizeTokenHint(entry?.tokenHint);
   const affinities = source === "room"
-    ? normalizeAffinityEntries(entry?.affinities, affinity, {
-      fallbackExpression: DEFAULT_ROOM_AFFINITY_EXPRESSION,
-      fallbackStacks: DEFAULT_ROOM_AFFINITY_STACKS,
-    })
+    ? []
     : normalizeAffinityEntries(entry?.affinities, affinity);
   const setupMode = normalizeSetupMode(entry?.setupMode ?? entry?.mode ?? delverConfig?.setupMode);
   const pick = { motivation, affinity, count };
@@ -324,10 +319,7 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
   const count = normalizeCardCount(entry?.count, 1);
   const tokenHint = normalizeTokenHint(entry?.tokenHint);
   const normalizedAffinities = type === "room"
-    ? normalizeAffinityEntries(entry?.affinities, affinity, {
-      fallbackExpression: DEFAULT_ROOM_AFFINITY_EXPRESSION,
-      fallbackStacks: DEFAULT_ROOM_AFFINITY_STACKS,
-    })
+    ? []
     : type === "hazard"
       ? normalizeAffinityEntries(entry?.affinities, affinity).slice(0, 1).map((hazardAffinity) => ({
         ...hazardAffinity,

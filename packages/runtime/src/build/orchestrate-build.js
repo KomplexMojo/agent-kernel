@@ -6,6 +6,7 @@ import { buildAmbientAffinityPressure } from "../personas/configurator/affinity-
 import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../personas/configurator/affinity-rules.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
+import { buildDefaultPriceList } from "../personas/allocator/default-price-list.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
 import { buildScenarioSpendReport } from "../personas/allocator/incentive-model.js";
@@ -1220,6 +1221,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
   let affinityRules = null;
   let motivationRules = null;
   let resourceBundle = null;
+  let resolvedPriceList = null;
 
   if (hasLevelGen) {
     if (!hasActors) {
@@ -1291,10 +1293,15 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       });
     }
 
-    if (!budgetReceipt && mapped.budget?.budget && mapped.budget?.priceList) {
+    resolvedPriceList = mapped.budget?.priceList
+      || (mapped.budget?.budget
+        ? buildDefaultPriceList({ meta: createBuildMeta(spec, producedBy, "default_price_list") })
+        : null);
+
+    if (!budgetReceipt && mapped.budget?.budget && resolvedPriceList) {
       const spendResult = evaluateConfiguratorSpend({
         budget: mapped.budget.budget,
-        priceList: mapped.budget.priceList,
+        priceList: resolvedPriceList,
         layout,
         actors: actorsInput.actors,
         motivationRules,
@@ -1406,11 +1413,29 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
     });
   }
 
+  const resolvedBudget = mapped.budget && resolvedPriceList && !mapped.budget.priceList
+    ? { ...mapped.budget, priceList: resolvedPriceList }
+    : mapped.budget;
+
+  if (spendProposal && budgetReceipt) {
+    const runCostContext = {
+      runTotalTokens: budgetReceipt.totalCost,
+      budgetTokens: budgetReceipt.totalCost + (budgetReceipt.remaining ?? 0),
+      receiptRef: toRef(budgetReceipt),
+      proposalRef: toRef(spendProposal),
+    };
+    for (const artifact of [spec, mapped.intent, mapped.plan, simConfig, initialState, resourceBundle, affinitySummary]) {
+      if (artifact?.meta) {
+        artifact.meta.cost = runCostContext;
+      }
+    }
+  }
+
   return {
     spec,
     intent: mapped.intent,
     plan: mapped.plan,
-    budget: mapped.budget,
+    budget: resolvedBudget,
     solverRequest,
     solverResult,
     spendProposal,

@@ -23,22 +23,15 @@ test("card drop rules accept valid type + affinity + expression sequence", () =>
   assert.ok(withExpression.card.affinities.some((entry) => entry.kind === "fire" && entry.expression === "emit"));
 });
 
-test("card drop rules support expression binding for room card affinities", () => {
+test("room cards carry no affinities — they are generic containers", () => {
   const roomCard = createDesignCard({ type: "room", affinity: "earth", roomSize: "small" });
-  const result = dropPropertyOnCard(roomCard, { group: "expressions", value: "pull" });
-  assert.equal(result.ok, true);
-  assert.equal(result.reason, "expression_added");
-  const earthEntries = result.card.affinities.filter((entry) => entry.kind === "earth");
-  assert.ok(earthEntries.some((entry) => entry.expression === "emit"));
-  assert.ok(earthEntries.some((entry) => entry.expression === "pull"));
+  assert.deepEqual(roomCard.affinities, [], "rooms must have no affinities");
+  assert.deepEqual(roomCard.expressions, [], "rooms must have no expressions");
 });
 
-test("room cards default to dark emit with two stacks", () => {
+test("room cards have no default affinity stacks — affinity comes from traps/hazards", () => {
   const roomCard = createDesignCard({ type: "room", roomSize: "medium" });
-  assert.equal(roomCard.affinity, "dark");
-  const darkEmit = roomCard.affinities.find((entry) => entry.kind === "dark" && entry.expression === "emit");
-  assert.ok(darkEmit);
-  assert.equal(darkEmit.stacks, 2);
+  assert.deepEqual(roomCard.affinities, [], "rooms must not have default affinity stacks");
 });
 
 test("card drop rules toggle affinity removal when same affinity is dropped twice", () => {

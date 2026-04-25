@@ -32,9 +32,9 @@ export default defineConfig({
       "tests/**/*.test.mjs",
     ],
     exclude: [
-      "tests/ui-web/**",
       "tests/playwright/**",
       "tests/scripts/serve-ui.test.js",
+      "tests/ui-web/budget-input-validation.test.mjs",
       ...duplicateJsWrappers,
     ],
     environment: "node",

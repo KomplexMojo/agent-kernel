@@ -78,7 +78,6 @@ export const AFFINITY_OPPOSITES = Object.freeze({
   light: "dark",
   dark: "light",
 });
-export const ROOM_AFFINITY_STACK_COST_FACTOR = 0.1;
 export const ROOM_AFFINITY_EMIT_PERCENT_PER_STACK = 10;
 export const DELVER_SETUP_MODES = Object.freeze(["auto", "user", "hybrid"]);
 export const DEFAULT_DELVER_SETUP_MODE = DELVER_SETUP_MODES[0];

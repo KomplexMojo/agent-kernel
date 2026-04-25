@@ -178,7 +178,7 @@ function createRootElements() {
     "#design-auto-generate": make("button"),
     "#design-load-minted": make("button"),
   };
-  elements["#design-level-budget"].value = "1500";
+  elements["#design-level-budget"].value = "2500";
   elements["#design-budget-split-room"].value = "50";
   elements["#design-budget-split-delver"].value = "25";
   elements["#design-budget-split-warden"].value = "25";
@@ -373,7 +373,7 @@ test("card values update across room, delver, and warden cards", () => {
   assert.ok(attackerUpdatedValue > attackerInitialValue);
 });
 
-test("room affinity stack updates increase room card configuration value", () => {
+test("room affinity fields have no effect on room card cost — rooms are generic containers", () => {
   const room = createDesignCard({
     id: "room_aff",
     type: "room",
@@ -392,7 +392,7 @@ test("room affinity stack updates increase room card configuration value", () =>
   const baseValue = cardById(base.cards, "room_aff").cardValue.totalTokens;
   const updatedValue = cardById(updated.cards, "room_aff").cardValue.totalTokens;
 
-  assert.ok(updatedValue > baseValue);
+  assert.equal(updatedValue, baseValue, "adding affinity stacks to a room must not change its cost");
 });
 
 test("wireDesignGuidance uses single active card editor with vitals and stash/pull flow", () => {

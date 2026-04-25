@@ -98,7 +98,7 @@ test("configurator builds spend proposals and validates receipts", () => {
   runEsm(script);
 });
 
-test("configurator prices room cards with shared layout spend plus discounted affinity spend", () => {
+test("configurator prices room cards by layout only — affinities on room card have no cost", () => {
   runEsm(`
 import assert from "node:assert/strict";
 import { calculateRoomCardUnitCost } from ${JSON.stringify(configuratorModule)};
@@ -135,9 +135,8 @@ const large = calculateRoomCardUnitCost({
   priceList: { items: [] },
 });
 
-assert.ok(medium.cost > 0);
-assert.ok(large.cost > medium.cost);
-assert.ok(large.detail.affinityDetail);
-assert.equal(large.detail.affinityDetail.affinityCostScale, 0.1);
+assert.ok(medium.cost >= 0);
+assert.ok(large.cost >= medium.cost);
+assert.equal(large.detail.affinitySpend, undefined, "rooms must not include affinity spend in cost detail");
 `);
 });

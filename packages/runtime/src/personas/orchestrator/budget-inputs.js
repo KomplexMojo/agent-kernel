@@ -1,5 +1,6 @@
 const BUDGET_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
+import { buildDefaultPriceList } from "../allocator/default-price-list.js";
 
 function buildMeta(meta = {}, { producedBy = "orchestrator", runId = "run_orchestrator", clock = () => new Date().toISOString(), idPrefix = "artifact" } = {}) {
   if (meta.id && meta.runId && meta.createdAt && meta.producedBy) {
@@ -63,8 +64,17 @@ function normalizeBudgetInput({ budgetInput, ownerRef, meta, metaDefaults }) {
   };
 }
 
-function normalizePriceListInput({ priceListInput, meta, metaDefaults }) {
-  if (!priceListInput) return { priceList: null, errors: [] };
+function normalizePriceListInput({ priceListInput, meta, metaDefaults, useFallback = false }) {
+  if (!priceListInput) {
+    if (useFallback) {
+      return {
+        priceList: buildDefaultPriceList({ meta: buildMeta(meta, metaDefaults) }),
+        errors: [],
+        isDefault: true,
+      };
+    }
+    return { priceList: null, errors: [] };
+  }
   if (isPriceListArtifact(priceListInput)) {
     return { priceList: priceListInput, errors: [] };
   }
@@ -111,14 +121,13 @@ export function ingestBudgetInputs({
     priceListInput: sourcePriceList,
     meta: priceListMeta,
     metaDefaults,
+    useFallback: !!budgetResult.budget && !sourcePriceList,
   });
 
   if (!budgetResult.budget) {
     errors.push("Missing budget input.");
   }
-  if (!priceResult.priceList) {
-    errors.push("Missing price list input.");
-  }
+  // Price list is no longer required — the default is used when omitted alongside a budget.
   errors.push(...budgetResult.errors, ...priceResult.errors);
 
   return {

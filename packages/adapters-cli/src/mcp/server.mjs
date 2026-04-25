@@ -1,7 +1,14 @@
+import { mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import os from "node:os";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { executeCommand } from "../cli/ak-impl.mjs";
+import {
+  executeCommand,
+  resolveFromRunArtifactPathsFromCommandOutDirs,
+  summarizeRunShowFromCommandOutDirs,
+} from "../cli/ak-impl.mjs";
 import { authoringTools } from "./tools/authoring.mjs";
 import { externalTools } from "./tools/external.mjs";
 import { inspectionTools } from "./tools/inspection.mjs";
@@ -21,6 +28,8 @@ const TOOL_DEFINITIONS = [
 ];
 
 const TOOL_MAP = new Map(TOOL_DEFINITIONS.map((tool) => [tool.name, tool]));
+const SESSION_TEMP_ROOT = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-"));
+const REMEMBERED_RUNS = new Map();
 
 let commandQueue = Promise.resolve();
 
@@ -53,6 +62,115 @@ function extractJsonPayload(stdoutText) {
     } catch {}
   }
   return undefined;
+}
+
+function normalizeNonEmptyString(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+function getCommandOutDirEntries(runId) {
+  const record = REMEMBERED_RUNS.get(runId);
+  if (!record) {
+    return [];
+  }
+  return Array.from(record.commands.entries()).map(([command, outDir]) => ({ command, outDir }));
+}
+
+function rememberRunArtifacts({ tool, args, result }) {
+  if (result?.dryRun === true || args?.dryRun === true) {
+    return false;
+  }
+  const runId = normalizeNonEmptyString(result?.runId) || normalizeNonEmptyString(args?.runId);
+  const outDir = normalizeNonEmptyString(result?.outDir) || normalizeNonEmptyString(args?.outDir);
+  if (!runId || !outDir) {
+    return false;
+  }
+  const command = normalizeNonEmptyString(result?.command) || tool.command;
+  const existing = REMEMBERED_RUNS.get(runId) || {
+    runId,
+    commands: new Map(),
+  };
+  existing.commands.set(command, outDir);
+  REMEMBERED_RUNS.set(runId, existing);
+  return true;
+}
+
+function toolSupportsOutDir(tool) {
+  return Boolean(tool?.inputSchema?.properties?.outDir);
+}
+
+function resolveDefaultOutDir(tool, args) {
+  if (!toolSupportsOutDir(tool) || normalizeNonEmptyString(args?.outDir)) {
+    return null;
+  }
+  const runId = normalizeNonEmptyString(args?.runId);
+  if (tool.command === "scenario" && runId) {
+    return join(SESSION_TEMP_ROOT, runId);
+  }
+  if (runId) {
+    return join(SESSION_TEMP_ROOT, runId, tool.command);
+  }
+  return mkdtempSync(join(SESSION_TEMP_ROOT, `${tool.command}-`));
+}
+
+async function maybeResolveRememberedInputs(tool, rawArgs) {
+  const args = { ...rawArgs };
+  if (
+    tool.command === "run"
+    && normalizeNonEmptyString(args.fromRun)
+    && !normalizeNonEmptyString(args.simConfig)
+    && !normalizeNonEmptyString(args.initialState)
+  ) {
+    const commandOutDirs = getCommandOutDirEntries(args.fromRun);
+    if (commandOutDirs.length > 0) {
+      const resolved = await resolveFromRunArtifactPathsFromCommandOutDirs({
+        runId: args.fromRun,
+        commandOutDirs,
+      });
+      args.simConfig = resolved.simConfigPath;
+      args.initialState = resolved.initialStatePath;
+      delete args.fromRun;
+    }
+  }
+  return args;
+}
+
+async function maybeHandleRememberedTool(tool, args) {
+  if (tool.command === "show" && normalizeNonEmptyString(args.runId)) {
+    const commandOutDirs = getCommandOutDirEntries(args.runId);
+    if (commandOutDirs.length > 0) {
+      return summarizeRunShowFromCommandOutDirs({
+        runId: args.runId,
+        commandOutDirs,
+      });
+    }
+  }
+
+  if (tool.command === "runs" && REMEMBERED_RUNS.size > 0) {
+    const runs = [];
+    for (const runId of Array.from(REMEMBERED_RUNS.keys()).sort((left, right) => left.localeCompare(right))) {
+      const summary = await summarizeRunShowFromCommandOutDirs({
+        runId,
+        commandOutDirs: getCommandOutDirEntries(runId),
+      });
+      runs.push({
+        runId: summary.runId,
+        status: summary.status,
+        commandCount: summary.commandCount,
+        commands: summary.commands,
+      });
+    }
+    return {
+      ok: true,
+      command: "runs",
+      action: "list",
+      rootDir: SESSION_TEMP_ROOT,
+      runs,
+      remembered: true,
+    };
+  }
+
+  return null;
 }
 
 async function invokeCliTool(tool, args) {
@@ -123,6 +241,24 @@ async function invokeCliTool(tool, args) {
   };
 }
 
+function annotateArtifactLocation(result, { requestedArgs, preparedArgs, defaultedOutDir, remembered }) {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    return result;
+  }
+  const outDir = normalizeNonEmptyString(result.outDir) || normalizeNonEmptyString(preparedArgs?.outDir);
+  if (!outDir) {
+    return result;
+  }
+  result.artifactLocation = {
+    outDir,
+    requestedByCaller: normalizeNonEmptyString(requestedArgs?.outDir) !== "",
+    defaultedToTemp: normalizeNonEmptyString(defaultedOutDir) !== "",
+    remembered: Boolean(remembered),
+    ...(normalizeNonEmptyString(defaultedOutDir) ? { tempRoot: SESSION_TEMP_ROOT } : {}),
+  };
+  return result;
+}
+
 const server = new Server(
   {
     name: SERVER_NAME,
@@ -149,8 +285,34 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     throw new Error(`Unknown tool: ${request.params.name}`);
   }
 
-  const args = request.params.arguments ?? {};
-  const result = await enqueueCommand(() => invokeCliTool(tool, args));
+  const requestedArgs = request.params.arguments ?? {};
+  const rememberedResult = await enqueueCommand(() => maybeHandleRememberedTool(tool, requestedArgs));
+  if (rememberedResult) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(rememberedResult, null, 2),
+        },
+      ],
+      structuredContent: rememberedResult,
+    };
+  }
+
+  const preparedArgs = await enqueueCommand(() => maybeResolveRememberedInputs(tool, requestedArgs));
+  const defaultedOutDir = resolveDefaultOutDir(tool, preparedArgs);
+  if (defaultedOutDir) {
+    preparedArgs.outDir = defaultedOutDir;
+  }
+
+  const result = await enqueueCommand(() => invokeCliTool(tool, preparedArgs));
+  const remembered = rememberRunArtifacts({ tool, args: preparedArgs, result });
+  annotateArtifactLocation(result, {
+    requestedArgs,
+    preparedArgs,
+    defaultedOutDir,
+    remembered,
+  });
   return {
     content: [
       {

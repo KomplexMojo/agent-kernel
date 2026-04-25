@@ -43,6 +43,9 @@ export interface ArtifactMeta {
 
   /** Optional human/AI readable note for debugging. */
   note?: string;
+
+  /** Optional cost context linking this artifact to the run's canonical receipt/proposal. */
+  cost?: ArtifactCostContextV1;
 }
 
 /** A stable reference to another artifact. */
@@ -50,6 +53,29 @@ export interface ArtifactRef {
   id: string;
   schema: string;
   schemaVersion: number;
+}
+
+/**
+ * Lightweight cost traceability context attached to ArtifactMeta.
+ * Every generated artifact may carry this to link back to the canonical
+ * receipt/proposal for the run without duplicating full receipt payloads.
+ * All numeric fields are non-negative tokens (base unit: 1 health point = 1 token).
+ */
+export interface ArtifactCostContextV1 {
+  /** Tokens attributable to this artifact alone. */
+  selfTokens?: number;
+  /** Running total tokens spent across the full run at the time this artifact was emitted. */
+  runTotalTokens?: number;
+  /** Total token budget for the run. */
+  budgetTokens?: number;
+  /** Spend category this artifact belongs to (e.g. "rooms", "hazards", "delvers"). */
+  category?: string;
+  /** Reference to the canonical BudgetReceiptArtifact for this run. */
+  receiptRef?: ArtifactRef;
+  /** Reference to the SpendProposal for this run. */
+  proposalRef?: ArtifactRef;
+  /** Stable line-item IDs from the proposal/receipt that cover this artifact's cost. */
+  lineItemIds?: string[];
 }
 
 export type Phase = "intake" | "plan" | "allocate" | "configure" | "execute" | "annotate" | "publish";
@@ -103,6 +129,7 @@ export type AgentCommandObjectKind =
   | "floor_tile"
   | "trap"
   | "hazard"
+  | "resource"
   | "delver"
   | "warden"
   | "shared_config";
@@ -593,6 +620,12 @@ export interface BudgetArtifactV1 {
   };
 }
 
+export interface ScenarioCategorySpend {
+  actual: number;
+  target: number;
+  usagePercent: number;
+}
+
 export interface BudgetReceiptLineItemV1 {
   id: string;
   kind: string;
@@ -619,21 +652,14 @@ export interface BudgetReceiptArtifactV1 {
     remainingBudget: number;
     overBudget: boolean;
     categories: {
-      rooms: {
-        actual: number;
-        target: number;
-        usagePercent: number;
-      };
-      delvers: {
-        actual: number;
-        target: number;
-        usagePercent: number;
-      };
-      wardens: {
-        actual: number;
-        target: number;
-        usagePercent: number;
-      };
+      rooms: ScenarioCategorySpend;
+      floor_tiles: ScenarioCategorySpend;
+      traps: ScenarioCategorySpend;
+      hazards: ScenarioCategorySpend;
+      resources: ScenarioCategorySpend;
+      delvers: ScenarioCategorySpend;
+      wardens: ScenarioCategorySpend;
+      shared_system: ScenarioCategorySpend;
     };
     totalBudgetUsagePercent: number;
     incentive: {
@@ -691,10 +717,34 @@ export interface BudgetLedgerArtifactV1 {
 
 export type BudgetLedgerArtifact = BudgetLedgerArtifactV1;
 
+export type SpendProposalCategory =
+  | "rooms"
+  | "floor_tiles"
+  | "traps"
+  | "hazards"
+  | "resources"
+  | "delvers"
+  | "wardens"
+  | "shared_system";
+
 export interface SpendProposalItemV1 {
   id: string;
   kind: string;
   quantity?: number;
+  /** Canonical spend category for attribution and reporting. */
+  category?: SpendProposalCategory;
+  /** Per-unit token cost (base: 1 health point = 1 token). */
+  unitCost?: number;
+  /** Total token cost for this line item (unitCost × quantity). */
+  totalCost?: number;
+  /** Approval status from the Allocator. */
+  status?: "approved" | "denied" | "partial";
+  /** Reference to the generated artifact this line item funded. */
+  artifactRef?: ArtifactRef;
+  /** Reference to the subject entity (e.g. a specific actor or tile) this item covers. */
+  subjectRef?: ArtifactRef;
+  /** Optional free-form attribution detail for audit/trace. */
+  detail?: unknown;
 }
 
 export interface SpendProposalV1 {

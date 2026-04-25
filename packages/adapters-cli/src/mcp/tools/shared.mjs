@@ -94,7 +94,7 @@ export function buildArgv(args = {}, spec = []) {
 }
 
 export const commonOutputProperties = {
-  outDir: pathSchema("Output directory override."),
+  outDir: pathSchema("Output directory override. When omitted, the MCP server uses a writable temp folder and remembers it for follow-up tool calls."),
   out: pathSchema("Output file override when supported by the command."),
   runId: stringSchema("Run id override."),
   createdAt: stringSchema("Created-at timestamp override.", { format: "date-time" }),

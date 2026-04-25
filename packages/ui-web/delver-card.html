@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Kernel — Delver Card</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=JetBrains+Mono:wght@300;400;500&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:          #020c1a;
+      --surface:     #041322;
+      --card:        #071e35;
+      --card-hi:     #0a2945;
+      --border:      #0e3d5c;
+      --border-glow: rgba(6,182,212,0.25);
+      --water:       #06b6d4;
+      --water-dim:   #0284a8;
+      --water-glow:  rgba(6,182,212,0.18);
+      --fire:        #f97316;
+      --fire-dim:    #c2600e;
+      --fire-glow:   rgba(249,115,22,0.18);
+      --health:      #fb7185;
+      --mana:        #a78bfa;
+      --stamina:     #34d399;
+      --durability:  #94a3b8;
+      --text:        #e2e8f0;
+      --text-muted:  #7ea4c0;
+      --text-dim:    #3b6180;
+      --shadow:      0 24px 64px rgba(0,0,0,0.7);
+      --r:           8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      background-image:
+        radial-gradient(ellipse 700px 400px at 20% 10%, rgba(6,182,212,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 600px 300px at 80% 80%, rgba(249,115,22,0.04) 0%, transparent 55%);
+    }
+
+    /* ── top bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(4,19,34,0.9);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-brand {
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      color: var(--water);
+      text-transform: uppercase;
+    }
+    .topbar-meta {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+    }
+    .topbar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ── buttons ── */
+    .btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .btn:hover { border-color: var(--water); color: var(--water); }
+    .btn-primary {
+      border-color: var(--water);
+      color: var(--water);
+      background: rgba(6,182,212,0.08);
+    }
+    .btn-primary:hover {
+      background: rgba(6,182,212,0.18);
+      box-shadow: 0 0 12px rgba(6,182,212,0.2);
+    }
+    .btn-fire {
+      border-color: var(--fire-dim);
+      color: var(--fire);
+      background: rgba(249,115,22,0.08);
+    }
+    .btn-fire:hover { background: rgba(249,115,22,0.18); }
+
+    /* ── layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 53px);
+    }
+
+    /* ── left panel ── */
+    .left-panel {
+      border-right: 1px solid var(--border);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    /* ── right panel ── */
+    .right-panel {
+      padding: 28px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    /* ── section label ── */
+    .section-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    /* ── delver card ── */
+    .delver-card {
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: var(--card);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .card-header {
+      padding: 20px 20px 16px;
+      background: linear-gradient(135deg, #041e38 0%, #062c4e 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.025' numOctaves='4' seed='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .caustic {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 140px 80px at 65% 40%, rgba(6,182,212,0.1) 0%, transparent 70%);
+      animation: caustic-drift 6s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    @keyframes caustic-drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(-12px, 6px) scale(1.1); }
+    }
+
+    .card-id {
+      font-size: 0.58rem;
+      letter-spacing: 0.16em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .card-name {
+      font-family: 'Cinzel', serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #e8f4f8;
+      letter-spacing: 0.06em;
+      position: relative;
+    }
+
+    .card-badges {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+    .badge-water {
+      background: rgba(6,182,212,0.15);
+      border: 1px solid rgba(6,182,212,0.35);
+      color: var(--water);
+    }
+    .badge-fire {
+      background: rgba(249,115,22,0.12);
+      border: 1px solid rgba(249,115,22,0.3);
+      color: var(--fire);
+    }
+    .badge-neutral {
+      background: rgba(148,163,184,0.1);
+      border: 1px solid rgba(148,163,184,0.25);
+      color: var(--text-muted);
+    }
+
+    .card-body {
+      padding: 18px 20px;
+    }
+
+    /* ── vitals ── */
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .vital-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.18s;
+    }
+    .vital-item:hover { border-color: var(--border-glow); }
+
+    .vital-label {
+      font-size: 0.58rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .vital-label.health    { color: var(--health); }
+    .vital-label.mana      { color: var(--mana); }
+    .vital-label.stamina   { color: var(--stamina); }
+    .vital-label.durability{ color: var(--durability); }
+
+    .vital-values {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin-bottom: 7px;
+    }
+    .vital-current {
+      font-size: 1.3rem;
+      font-weight: 500;
+      line-height: 1;
+    }
+    .vital-sep { color: var(--text-dim); font-size: 0.7rem; }
+    .vital-max { font-size: 0.75rem; color: var(--text-muted); }
+
+    .vital-bar-track {
+      height: 4px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .vital-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .vital-bar-fill.health     { background: var(--health); box-shadow: 0 0 6px rgba(251,113,133,0.4); }
+    .vital-bar-fill.mana       { background: var(--mana);   box-shadow: 0 0 6px rgba(167,139,250,0.4); }
+    .vital-bar-fill.stamina    { background: var(--stamina); box-shadow: 0 0 6px rgba(52,211,153,0.4); }
+    .vital-bar-fill.durability { background: var(--durability); }
+
+    .vital-regen {
+      font-size: 0.58rem;
+      color: var(--text-dim);
+      margin-top: 5px;
+    }
+
+    .vital-slider {
+      width: 100%;
+      margin-top: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    .vital-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--water);
+      border: 2px solid var(--bg);
+      box-shadow: 0 0 6px rgba(6,182,212,0.5);
+    }
+
+    /* ── position grid ── */
+    .dungeon-grid {
+      display: grid;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      aspect-ratio: 1;
+    }
+
+    .grid-cell {
+      background: var(--surface);
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 0.55rem;
+      color: transparent;
+      position: relative;
+    }
+    .grid-cell:hover { background: var(--card-hi); }
+    .grid-cell.fire-dungeon {
+      background: rgba(12,6,2,0.9);
+    }
+    .grid-cell.fire-dungeon:hover { background: rgba(249,115,22,0.08); }
+    .grid-cell.delver-pos {
+      background: rgba(6,182,212,0.15) !important;
+    }
+    .grid-cell.delver-pos::after {
+      content: '◆';
+      font-size: 1rem;
+      color: var(--water);
+      text-shadow: 0 0 8px var(--water), 0 0 20px rgba(6,182,212,0.5);
+      animation: pulse-delver 2s ease-in-out infinite;
+    }
+    @keyframes pulse-delver {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.7; transform: scale(0.9); }
+    }
+    .grid-coords {
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    /* ── abilities section ── */
+    .abilities-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .ability-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      position: relative;
+    }
+    .ability-card:hover {
+      border-color: rgba(6,182,212,0.4);
+      box-shadow: 0 0 20px rgba(6,182,212,0.08);
+    }
+    .ability-card.active-ability {
+      border-color: var(--water);
+      background: rgba(6,182,212,0.07);
+      box-shadow: 0 0 20px rgba(6,182,212,0.12);
+    }
+
+    .ability-verb {
+      font-size: 0.58rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    .ability-verb.push   { color: #f97316; }
+    .ability-verb.pull   { color: #06b6d4; }
+    .ability-verb.emit   { color: #a78bfa; }
+    .ability-verb.draw   { color: #34d399; }
+
+    .ability-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .ability-target {
+      font-size: 0.58rem;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .tier-selector {
+      display: flex;
+      gap: 3px;
+    }
+    .tier-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tier-btn:hover { border-color: var(--water); color: var(--water); }
+    .tier-btn.active {
+      background: rgba(6,182,212,0.2);
+      border-color: var(--water);
+      color: var(--water);
+    }
+
+    .ability-stats {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+    }
+    .ability-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .ability-stat-label {
+      font-size: 0.55rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .ability-stat-value {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--mana);
+    }
+
+    /* ── motivations ── */
+    .motivation-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .motivation-tag {
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      padding: 5px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      background: transparent;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .motivation-tag:hover { border-color: var(--water); color: var(--water); }
+    .motivation-tag.active {
+      background: rgba(6,182,212,0.12);
+      border-color: var(--water);
+      color: var(--water);
+    }
+
+    /* ── affinity rule tiers ── */
+    .tier-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.65rem;
+    }
+    .tier-table th {
+      text-align: left;
+      color: var(--text-dim);
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-size: 0.58rem;
+      padding: 4px 8px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tier-table td {
+      padding: 6px 8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(14,61,92,0.4);
+    }
+    .tier-table tr:last-child td { border-bottom: none; }
+    .tier-table tr:hover td { background: rgba(6,182,212,0.04); }
+    .tier-label { color: var(--water); font-weight: 500; }
+    .complexity-instinctual { color: #34d399; }
+    .complexity-tactical    { color: #fbbf24; }
+    .complexity-strategic   { color: #f87171; }
+
+    /* ── json output ── */
+    .json-panel {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 300px;
+    }
+
+    .json-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(7,30,53,0.6);
+    }
+
+    .json-panel-title {
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .json-output {
+      flex: 1;
+      padding: 14px 16px;
+      font-size: 0.65rem;
+      line-height: 1.7;
+      color: #7ea4c0;
+      overflow-y: auto;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .json-output .key   { color: #38bdf8; }
+    .json-output .str   { color: #86efac; }
+    .json-output .num   { color: #fda4af; }
+    .json-output .bool  { color: #c084fc; }
+    .json-output .null  { color: #64748b; }
+
+    /* ── changed highlight ── */
+    .changed {
+      animation: flash-change 0.6s ease;
+    }
+    @keyframes flash-change {
+      0%   { box-shadow: 0 0 0 2px var(--water); }
+      100% { box-shadow: none; }
+    }
+
+    /* ── divider ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 0;
+    }
+
+    /* ── load banner ── */
+    .load-banner {
+      background: rgba(6,182,212,0.06);
+      border: 1px dashed rgba(6,182,212,0.25);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .load-banner-text {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .load-banner-text strong { color: var(--water); }
+
+    input[type="file"] { display: none; }
+
+    /* ── scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--water-dim); }
+
+    /* ── responsive ── */
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .left-panel { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="topbar">
+  <span class="topbar-brand">Agent Kernel</span>
+  <span class="topbar-meta" id="run-meta">run_mo60b2t9_qcyvij · delver-plan · 2026-04-19</span>
+  <div class="topbar-actions">
+    <button class="btn" onclick="document.getElementById('file-input').click()">Load spec.json</button>
+    <input type="file" id="file-input" accept=".json" onchange="loadFile(event)" />
+    <button class="btn btn-primary" onclick="copyJSON()">Copy JSON</button>
+    <button class="btn btn-fire" onclick="saveJSON()">Save Changes</button>
+  </div>
+</nav>
+
+<div class="layout">
+
+  <!-- ──────────── LEFT PANEL ──────────── -->
+  <div class="left-panel">
+
+    <div>
+      <div class="section-label">Delver Card</div>
+      <div class="delver-card">
+        <div class="card-header">
+          <div class="caustic"></div>
+          <div class="card-id" id="card-id">card_delver_1-1 · water · tier 1</div>
+          <div class="card-name" id="card-name">Aquatic Vanguard</div>
+          <div class="card-badges" id="card-badges">
+            <span class="badge badge-water">◆ Water</span>
+            <span class="badge badge-fire">⬥ Fire Dungeon</span>
+            <span class="badge badge-neutral" id="setup-mode-badge">⚙ Auto Setup</span>
+          </div>
+        </div>
+        <div class="card-body">
+
+          <div class="section-label">Vitals</div>
+          <div class="vitals-grid" id="vitals-grid">
+            <!-- populated by JS -->
+          </div>
+
+          <div style="margin-top: 16px;">
+            <div class="section-label">Motivations</div>
+            <div class="motivation-list" id="motivation-list">
+              <!-- populated by JS -->
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <div class="section-label">Card Flags</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="motivation-tag" id="flipped-btn" onclick="toggleFlipped()">
+                Flipped: <span id="flipped-val">false</span>
+              </button>
+              <span class="badge badge-neutral" id="token-cost-badge">1 token</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── dungeon grid ── -->
+    <div>
+      <div class="section-label">Dungeon Grid — click to reposition</div>
+      <div class="dungeon-grid" id="dungeon-grid" style="grid-template-columns: repeat(5, 1fr)">
+        <!-- populated by JS -->
+      </div>
+      <div class="grid-coords" id="grid-coords">Position: (2, 2) · Level: 5×5 · Affinity: fire</div>
+    </div>
+
+  </div>
+
+  <!-- ──────────── RIGHT PANEL ──────────── -->
+  <div class="right-panel">
+
+    <!-- load hint -->
+    <div class="load-banner">
+      <div class="load-banner-text">
+        <strong>Loaded:</strong> run_mo60b2t9_qcyvij / delver-plan / spec.json<br>
+        Interact with any element to modify the artifact. Click <strong>Save Changes</strong> to write back to disk.
+      </div>
+      <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Load Different</button>
+    </div>
+
+    <!-- ── abilities ── -->
+    <div>
+      <div class="section-label">Water Affinity — Expressions</div>
+      <div class="abilities-grid" id="abilities-grid">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- ── affinity tier reference ── -->
+    <div>
+      <div class="section-label">Selected Expression — Tier Breakdown</div>
+      <div class="json-panel" style="min-height: 180px;">
+        <div class="json-panel-header">
+          <span class="json-panel-title" id="tier-table-title">tidal_ram · push · enemy</span>
+        </div>
+        <div style="padding: 10px 4px; overflow-x: auto;">
+          <table class="tier-table" id="tier-breakdown-table">
+            <thead>
+              <tr>
+                <th>Tier</th><th>Mana Cost</th><th>Potency</th><th>Design Tokens</th><th>Complexity</th>
+              </tr>
+            </thead>
+            <tbody id="tier-breakdown-body">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── live JSON output ── -->
+    <div style="flex:1; display:flex; flex-direction:column; gap: 8px;">
+      <div class="section-label">Live Artifact — Modified Fields</div>
+      <div class="json-panel" style="flex:1;">
+        <div class="json-panel-header">
+          <span class="json-panel-title">actor delta</span>
+          <div style="display:flex; gap:6px;">
+            <span id="change-count" style="font-size:0.58rem; color:var(--water);">0 changes</span>
+          </div>
+        </div>
+        <div class="json-output" id="json-output">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ──────────────────────────────────────────────────
+   EMBEDDED SPEC DATA (from run_mo60b2t9_qcyvij)
+   ────────────────────────────────────────────────── */
+const INITIAL_SPEC = {"schema":"agent-kernel/BuildSpec","schemaVersion":1,"meta":{"id":"run_mo60b2t9_qcyvij","runId":"run_mo60b2t9_qcyvij","createdAt":"2026-04-19T16:55:00.093Z","source":"cli-delver-plan"},"plan":{"hints":{"cardSet":[{"id":"card_delver_1","type":"delver","source":"actor","count":1,"affinity":"water","affinities":[{"kind":"water","expression":"push","stacks":1}],"expressions":["push"],"motivations":["exploring","user_controlled"],"setupMode":"auto","vitals":{"health":{"current":1,"max":1,"regen":0},"mana":{"current":228,"max":228,"regen":0},"stamina":{"current":1,"max":1,"regen":1},"durability":{"current":1,"max":1,"regen":0}},"flipped":false}]}},"configurator":{"inputs":{"levelGen":{"width":5,"height":5,"shape":{"roomCount":1}},"levelAffinity":"fire","actors":[{"id":"card_delver_1-1","kind":"ambulatory","affinity":"water","motivations":["exploring"],"position":{"x":2,"y":2},"tokenCost":1,"vitals":{"health":{"current":1,"max":1,"regen":0},"mana":{"current":228,"max":228,"regen":0},"stamina":{"current":1,"max":1,"regen":1},"durability":{"current":1,"max":1,"regen":0}},"setupMode":"auto","affinities":[{"kind":"water","expression":"push","stacks":1}],"traits":{"affinities":{"water":1}}}],"affinityRules":{"affinities":[{"kind":"fire","opposite":"water","basePriority":1,"expressions":[{"id":"flame_surge","verb":"push","defaultTargetType":"enemy","stackTiers":[{"tier":1,"manaCost":3,"potency":1,"defaultDesignCostTokens":4,"complexityClass":"instinctual"},{"tier":2,"manaCost":6,"potency":2,"defaultDesignCostTokens":16,"complexityClass":"tactical"},{"tier":3,"manaCost":9,"potency":4,"defaultDesignCostTokens":36,"complexityClass":"tactical"},{"tier":4,"manaCost":12,"potency":8,"defaultDesignCostTokens":64,"complexityClass":"strategic"},{"tier":5,"manaCost":15,"potency":16,"defaultDesignCostTokens":100,"complexityClass":"strategic"}]},{"id":"ember_grasp","verb":"pull","defaultTargetType":"self","stackTiers":[{"tier":1,"manaCost":1,"potency":1,"defaultDesignCostTokens":4,"complexityClass":"instinctual"},{"tier":2,"manaCost":2,"potency":2,"defaultDesignCostTokens":16,"complexityClass":"tactical"},{"tier":3,"manaCost":3,"potency":3,"defaultDesignCostTokens":36,"complexityClass":"tactical"},{"tier":4,"manaCost":4,"potency":4,"defaultDesignCostTokens":64,"complexityClass":"strategic"},{"tier":5,"manaCost":5,"potency":5,"defaultDesignCostTokens":100,"complexityClass":"strategic"}]},{"id":"pyre_field","verb":"emit","defaultTargetType":"area","stackTiers":[{"tier":1,"manaCost":2,"potency":1,"defaultDesignCostTokens":4,"complexityClass":"instinctual"},{"tier":2,"manaCost":4,"potency":2,"defaultDesignCostTokens":16,"complexityClass":"tactical"},{"tier":3,"manaCost":6,"potency":3,"defaultDesignCostTokens":36,"complexityClass":"tactical"},{"tier":4,"manaCost":8,"potency":4,"defaultDesignCostTokens":64,"complexityClass":"strategic"},{"tier":5,"manaCost":10,"potency":5,"defaultDesignCostTokens":100,"complexityClass":"strategic"}]},{"id":"ember_siphon","verb":"draw","defaultTargetType":"self","stackTiers":[{"tier":1,"manaCost":1,"potency":1,"defaultDesignCostTokens":4,"complexityClass":"instinctual"},{"tier":2,"manaCost":2,"potency":2,"defaultDesignCostTokens":16,"complexityClass":"tactical"},{"tier":3,"manaCost":3,"potency":3,"defaultDesignCostTokens":36,"complexityClass":"tactical"},{"tier":4,"manaCost":4,"potency":4,"defaultDesignCostTokens":64,"complexityClass":"strategic"},{"tier":5,"manaCost":5,"potency":5,"defaultDesignCostTokens":100,"complexityClass":"strategic"}]}]},{"kind":"water","opposite":"fire","basePriority":1,"expressions":[{"id":"tidal_ram","verb":"push","defaultTargetType":"enemy","stackTiers":[{"tier":1,"manaCost":2,"potency":1,"defaultDesignCostTokens":4,"complexityClass":"instinctual"},{"tier":2,"manaCost":4,"potency":2,"defaultDesignCostTokens":16,"complexityClass":"tactical"},{"tier":3,"manaCost":6,"potency":3,"defaultDesignCostTokens":36,"complexityClass":"tactical"},{"tier":4,"manaCost":8,"potency":4,"defaultDesignCostTokens":64,"complexityClass":"strategic"},{"tier":5,"manaCost":10,"potency":5,"defaultDesignCostTokens":100,"complexityClass":"strategic"}]},{"id":"current_draw","verb":"pull","defaultTargetType":"self","stackTiers":[{"tier":1,"manaCost":1,"potency":1,"defaultDesignCostTokens":4,"complexityClass":"instinctual"},{"tier":2,"manaCost":2,"potency":2,"defaultDesignCostTokens":16,"complexityClass":"tactical"},{"tier":3,"manaCost":3,"potency":3,"defaultDesignCostTokens":36,"complexityClass":"tactical"},{"tier":4,"manaCost":4,"potency":4,"defaultDesignCostTokens":64,"complexityClass":"strategic"},{"tier":5,"manaCost":5,"potency":5,"defaultDesignCostTokens":100,"complexityClass":"strategic"}]},{"id":"tidal_veil","verb":"emit","defaultTargetType":"area","stackTiers":[{"tier":1,"manaCost":2,"potency":1,"defaultDesignCostTokens":4,"complexityClass":"instinctual"},{"tier":2,"manaCost":3,"potency":2,"defaultDesignCostTokens":16,"complexityClass":"tactical"},{"tier":3,"manaCost":5,"potency":3,"defaultDesignCostTokens":36,"complexityClass":"tactical"},{"tier":4,"manaCost":7,"potency":4,"defaultDesignCostTokens":64,"complexityClass":"strategic"},{"tier":5,"manaCost":9,"potency":5,"defaultDesignCostTokens":100,"complexityClass":"strategic"}]},{"id":"tide_siphon","verb":"draw","defaultTargetType":"self","stackTiers":[{"tier":1,"manaCost":1,"potency":1,"defaultDesignCostTokens":4,"complexityClass":"instinctual"},{"tier":2,"manaCost":2,"potency":2,"defaultDesignCostTokens":16,"complexityClass":"tactical"},{"tier":3,"manaCost":3,"potency":3,"defaultDesignCostTokens":36,"complexityClass":"tactical"},{"tier":4,"manaCost":4,"potency":4,"defaultDesignCostTokens":64,"complexityClass":"strategic"},{"tier":5,"manaCost":5,"potency":5,"defaultDesignCostTokens":100,"complexityClass":"strategic"}]}]}]}}},"authoring":{"objectKinds":["delver","shared_config"],"constraints":{"hardBudget":{"totalTokens":500,"sources":["flag"]}}}};
+
+/* ──────────────────────────────────────────────────
+   REACTIVE STATE
+   ────────────────────────────────────────────────── */
+let spec = JSON.parse(JSON.stringify(INITIAL_SPEC));
+let original = JSON.parse(JSON.stringify(INITIAL_SPEC));
+let selectedAbility = null;
+let selectedAbilityTiers = {};
+
+function getActor() { return spec.configurator.inputs.actors[0]; }
+function getCard()  { return spec.plan.hints.cardSet[0]; }
+function getWaterAffinityRules() {
+  return spec.configurator.inputs.affinityRules.affinities.find(a => a.kind === 'water');
+}
+
+/* ──────────────────────────────────────────────────
+   RENDER VITALS
+   ────────────────────────────────────────────────── */
+const VITALS = ['health','mana','stamina','durability'];
+
+function renderVitals() {
+  const container = document.getElementById('vitals-grid');
+  const card = getCard();
+  container.innerHTML = VITALS.map(v => {
+    const vital = card.vitals[v];
+    const pct = vital.max > 0 ? (vital.current / vital.max * 100) : 0;
+    return `
+      <div class="vital-item" id="vital-${v}">
+        <div class="vital-label ${v}">${v}</div>
+        <div class="vital-values">
+          <span class="vital-current" style="color:var(--${v})" id="vital-cur-${v}">${vital.current}</span>
+          <span class="vital-sep">/</span>
+          <span class="vital-max" id="vital-max-${v}">${vital.max}</span>
+        </div>
+        <div class="vital-bar-track">
+          <div class="vital-bar-fill ${v}" id="vital-bar-${v}" style="width:${pct}%"></div>
+        </div>
+        <input type="range" class="vital-slider" id="slider-${v}"
+          min="0" max="${vital.max}" value="${vital.current}"
+          oninput="updateVital('${v}', parseInt(this.value))" />
+        <div class="vital-regen" id="vital-regen-${v}">
+          regen ${vital.regen > 0 ? '+' : ''}${vital.regen}/tick
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function updateVital(name, value) {
+  const card = getCard();
+  const actor = getActor();
+  card.vitals[name].current = value;
+  actor.vitals[name].current = value;
+
+  document.getElementById(`vital-cur-${name}`).textContent = value;
+  const pct = card.vitals[name].max > 0 ? (value / card.vitals[name].max * 100) : 0;
+  document.getElementById(`vital-bar-${name}`).style.width = pct + '%';
+  flashChange(`vital-${name}`);
+  renderDiff();
+}
+
+/* ──────────────────────────────────────────────────
+   RENDER MOTIVATIONS
+   ────────────────────────────────────────────────── */
+const ALL_MOTIVATIONS = ['exploring','attacking','defending','patrolling','stationary','reflexive','user_controlled'];
+
+function renderMotivations() {
+  const card = getCard();
+  const active = new Set(card.motivations);
+  const container = document.getElementById('motivation-list');
+  container.innerHTML = ALL_MOTIVATIONS.map(m => `
+    <button class="motivation-tag ${active.has(m) ? 'active' : ''}"
+      onclick="toggleMotivation('${m}')">${m}</button>
+  `).join('');
+}
+
+function toggleMotivation(m) {
+  const card = getCard();
+  const actor = getActor();
+  const idx = card.motivations.indexOf(m);
+  if (idx === -1) {
+    card.motivations.push(m);
+    actor.motivations.push(m);
+  } else {
+    card.motivations.splice(idx, 1);
+    actor.motivations.splice(actor.motivations.indexOf(m), 1);
+  }
+  renderMotivations();
+  renderDiff();
+}
+
+/* ──────────────────────────────────────────────────
+   RENDER FLIPPED / TOKEN COST
+   ────────────────────────────────────────────────── */
+function toggleFlipped() {
+  const card = getCard();
+  card.flipped = !card.flipped;
+  document.getElementById('flipped-val').textContent = String(card.flipped);
+  const btn = document.getElementById('flipped-btn');
+  btn.classList.toggle('active', card.flipped);
+  flashChange('flipped-btn');
+  renderDiff();
+}
+
+/* ──────────────────────────────────────────────────
+   RENDER DUNGEON GRID
+   ────────────────────────────────────────────────── */
+function renderGrid() {
+  const actor = getActor();
+  const { width, height } = spec.configurator.inputs.levelGen;
+  const { x, y } = actor.position;
+  const dungeon = spec.configurator.inputs.levelAffinity;
+  const container = document.getElementById('dungeon-grid');
+  container.style.gridTemplateColumns = `repeat(${width}, 1fr)`;
+  let html = '';
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const isDelver = col === x && row === y;
+      html += `<div class="grid-cell ${dungeon === 'fire' ? 'fire-dungeon' : ''} ${isDelver ? 'delver-pos' : ''}"
+        onclick="moveDelver(${col},${row})"
+        title="${col},${row}"></div>`;
+    }
+  }
+  container.innerHTML = html;
+  document.getElementById('grid-coords').textContent =
+    `Position: (${x}, ${y}) · Level: ${width}×${height} · Affinity: ${dungeon}`;
+}
+
+function moveDelver(col, row) {
+  const actor = getActor();
+  actor.position = { x: col, y: row };
+  renderGrid();
+  flashChange('dungeon-grid');
+  renderDiff();
+}
+
+/* ──────────────────────────────────────────────────
+   RENDER ABILITIES
+   ────────────────────────────────────────────────── */
+function renderAbilities() {
+  const water = getWaterAffinityRules();
+  if (!water) return;
+  const container = document.getElementById('abilities-grid');
+
+  container.innerHTML = water.expressions.map(expr => {
+    const tier = selectedAbilityTiers[expr.id] || 1;
+    const tierData = expr.stackTiers.find(t => t.tier === tier) || expr.stackTiers[0];
+    const isActive = selectedAbility === expr.id;
+    return `
+      <div class="ability-card ${isActive ? 'active-ability' : ''}" onclick="selectAbility('${expr.id}')">
+        <div class="ability-verb ${expr.verb}">${expr.verb}</div>
+        <div class="ability-name">${formatAbilityName(expr.id)}</div>
+        <div class="ability-target">→ ${expr.defaultTargetType}</div>
+        <div class="tier-selector">
+          ${expr.stackTiers.map(t =>
+            `<button class="tier-btn ${t.tier === tier ? 'active' : ''}"
+              onclick="event.stopPropagation(); setAbilityTier('${expr.id}', ${t.tier})">${t.tier}</button>`
+          ).join('')}
+        </div>
+        <div class="ability-stats">
+          <div class="ability-stat">
+            <span class="ability-stat-label">Mana</span>
+            <span class="ability-stat-value" style="color:var(--mana)">${tierData.manaCost}</span>
+          </div>
+          ${tierData.potency !== undefined ? `<div class="ability-stat">
+            <span class="ability-stat-label">Potency</span>
+            <span class="ability-stat-value" style="color:var(--stamina)">${tierData.potency}</span>
+          </div>` : ''}
+          <div class="ability-stat">
+            <span class="ability-stat-label">Tokens</span>
+            <span class="ability-stat-value" style="color:var(--text-muted)">${tierData.defaultDesignCostTokens}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  if (!selectedAbility && water.expressions.length > 0) {
+    selectAbility(water.expressions[0].id);
+  }
+}
+
+function formatAbilityName(id) {
+  return id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function selectAbility(id) {
+  selectedAbility = id;
+  renderAbilities();
+  renderTierBreakdown(id);
+}
+
+function setAbilityTier(id, tier) {
+  selectedAbilityTiers[id] = tier;
+  renderAbilities();
+  if (selectedAbility === id) renderTierBreakdown(id);
+  renderDiff();
+}
+
+function renderTierBreakdown(id) {
+  const water = getWaterAffinityRules();
+  const expr = water.expressions.find(e => e.id === id);
+  if (!expr) return;
+  document.getElementById('tier-table-title').textContent =
+    `${expr.id} · ${expr.verb} · ${expr.defaultTargetType}`;
+  const tbody = document.getElementById('tier-breakdown-body');
+  tbody.innerHTML = expr.stackTiers.map(t => `
+    <tr>
+      <td class="tier-label">T${t.tier}</td>
+      <td>${t.manaCost}</td>
+      <td>${t.potency !== undefined ? t.potency : '—'}</td>
+      <td>${t.defaultDesignCostTokens}</td>
+      <td class="complexity-${t.complexityClass}">${t.complexityClass}</td>
+    </tr>
+  `).join('');
+}
+
+/* ──────────────────────────────────────────────────
+   DIFF / JSON OUTPUT
+   ────────────────────────────────────────────────── */
+function renderDiff() {
+  const card = getCard();
+  const actor = getActor();
+
+  const delta = {
+    actor_id: actor.id,
+    position: actor.position,
+    motivations: card.motivations,
+    flipped: card.flipped,
+    vitals: {},
+    selected_tiers: selectedAbilityTiers,
+  };
+
+  VITALS.forEach(v => {
+    delta.vitals[v] = {
+      current: card.vitals[v].current,
+      max: card.vitals[v].max,
+      regen: card.vitals[v].regen,
+    };
+  });
+
+  const changes = countChanges(delta);
+  document.getElementById('change-count').textContent = `${changes} change${changes !== 1 ? 's' : ''}`;
+  document.getElementById('json-output').innerHTML = syntaxHighlight(JSON.stringify(delta, null, 2));
+}
+
+function countChanges(delta) {
+  const orig = original.plan.hints.cardSet[0];
+  const origActor = original.configurator.inputs.actors[0];
+  let n = 0;
+  if (JSON.stringify(delta.position) !== JSON.stringify(origActor.position)) n++;
+  if (JSON.stringify(delta.motivations) !== JSON.stringify(orig.motivations)) n++;
+  if (delta.flipped !== orig.flipped) n++;
+  VITALS.forEach(v => { if (delta.vitals[v].current !== orig.vitals[v].current) n++; });
+  if (Object.keys(selectedAbilityTiers).length > 0) n += Object.keys(selectedAbilityTiers).length;
+  return n;
+}
+
+function syntaxHighlight(json) {
+  return json
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      let cls = 'num';
+      if (/^"/.test(match)) { cls = /:$/.test(match) ? 'key' : 'str'; }
+      else if (/true|false/.test(match)) cls = 'bool';
+      else if (/null/.test(match)) cls = 'null';
+      return `<span class="${cls}">${match}</span>`;
+    });
+}
+
+/* ──────────────────────────────────────────────────
+   SAVE / COPY
+   ────────────────────────────────────────────────── */
+function copyJSON() {
+  navigator.clipboard.writeText(JSON.stringify(spec, null, 2))
+    .then(() => {
+      const btn = document.querySelector('.btn-primary');
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+}
+
+async function saveJSON() {
+  if ('showSaveFilePicker' in window) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'spec.json',
+        types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(JSON.stringify(spec, null, 2));
+      await writable.close();
+      const btn = document.querySelector('.btn-fire');
+      const orig = btn.textContent;
+      btn.textContent = 'Saved!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    } catch {}
+  } else {
+    const blob = new Blob([JSON.stringify(spec, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'spec.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+}
+
+/* ──────────────────────────────────────────────────
+   LOAD FILE
+   ────────────────────────────────────────────────── */
+function loadFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const loaded = JSON.parse(e.target.result);
+      spec = loaded;
+      original = JSON.parse(JSON.stringify(loaded));
+      selectedAbility = null;
+      selectedAbilityTiers = {};
+      const meta = loaded.meta || {};
+      document.getElementById('run-meta').textContent =
+        `${meta.runId || 'unknown'} · ${meta.source || ''} · ${(meta.createdAt || '').slice(0,10)}`;
+      document.querySelector('.load-banner .load-banner-text').innerHTML =
+        `<strong>Loaded:</strong> ${file.name}<br>Interact with any element to modify the artifact.`;
+      renderAll();
+    } catch(err) {
+      alert('Failed to parse JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ──────────────────────────────────────────────────
+   FLASH ANIMATION
+   ────────────────────────────────────────────────── */
+function flashChange(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('changed');
+  void el.offsetWidth;
+  el.classList.add('changed');
+}
+
+/* ──────────────────────────────────────────────────
+   RENDER ALL
+   ────────────────────────────────────────────────── */
+function renderAll() {
+  renderVitals();
+  renderMotivations();
+  renderGrid();
+  renderAbilities();
+  renderDiff();
+}
+
+renderAll();
+</script>
+</body>
+</html>

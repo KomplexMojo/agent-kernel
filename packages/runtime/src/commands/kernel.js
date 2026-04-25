@@ -516,7 +516,7 @@ export function collectBuildOutputArtifactRecords(
     { artifact: buildResult.budget?.priceList, path: "price-list.json", persistedByDefault: true },
     { artifact: buildResult.budgetReceipt, path: "budget-receipt.json", persistedByDefault: true },
     { artifact: includeBudgetAllocation, path: "budget-allocation.json", persistedByDefault: false },
-    { artifact: buildResult.spendProposal, path: "spend-proposal.json", persistedByDefault: false },
+    { artifact: buildResult.spendProposal, path: "spend-proposal.json", persistedByDefault: true },
     { artifact: buildResult.solverRequest, path: "solver-request.json", persistedByDefault: false },
     { artifact: buildResult.solverResult, path: "solver-result.json", persistedByDefault: false },
     { artifact: buildResult.simConfig, path: "sim-config.json", persistedByDefault: true },
