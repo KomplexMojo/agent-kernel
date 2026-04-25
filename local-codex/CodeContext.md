@@ -1,121 +1,75 @@
 # CodeContext Snapshot
-Generated: 2026-04-18T00:00:00Z
+Generated: 2026-04-22T00:00:00.000Z
 
 ## Repository Stats
-- Files: 768 | Functions: 4,795 | Classes: 11 | Modules: 213
-- Monorepo root: /Users/darren/Documents/GitHub/agent-kernel
-- Package manager: pnpm
+- Files: 789
+- Functions: 4,980
+- Classes: 11
+- Modules: 221
 
-## Package Map
+## Package Dependency Map
+Derived from CLAUDE.md architecture charter (module_deps MCP queries returned empty — graph re-index needed):
+
 ```
 adapters-cli / adapters-web / adapters-test / ui-web
       ↓
-   runtime          ← personas, contracts, port effects
+   runtime          ← personas: orchestrator, director, configurator, actor, allocator, annotator, moderator
       ↓
- bindings-ts        ← WASM boundary
+ bindings-ts        ← WASM boundary only
       ↓
-  core-as           ← AssemblyScript WASM, pure logic
+  core-as           ← AssemblyScript WASM, pure logic, no IO
 ```
 
-Key packages for this task:
-| Package | Key files |
-|---|---|
-| `packages/runtime/src/contracts/` | `artifacts.ts`, `domain-constants.js`, `build-spec.js`, `schema-catalog.js` |
-| `packages/adapters-cli/src/cli/` | `ak.mjs` (CLI entry), `ak-impl.mjs` (command implementations) |
-| `packages/ui-web/` | card builder UI components |
-| `packages/core-as/assembly/` | `index.ts` (WASM export), `state/world.ts`, `rules/move.ts` |
+### Key files in scope for this plan
 
-## Graphify Community Map (relevant communities)
-From graphify-out/GRAPH_REPORT.md (163 communities):
-- **Actor Generator** — actor config generation logic
-- **Affinity Systems** — dominant cluster (10+ sub-communities); affinity kinds, expressions, targets, stacks
-- **Architecture Contracts** — artifact schemas and versioned boundaries
-- **Card Room** — room card configuration surface
-- **Build Spec UI** — UI card builder
-- **Budget Policies / Spend Policies** — token cost computation
-- **Feasibility Configurator** — config validation
-- **Pool Catalog** — resource/item pools
+**Contracts (artifacts / schemas):**
+- `packages/runtime/src/contracts/artifacts.ts` — all versioned artifact schemas (PriceList:474, BudgetReceipt:605, SpendProposal:694, Hazard:~1696, Resource:~1739, AgentCommandObjectKind:~101)
+- `packages/runtime/src/contracts/build-spec.js` — BuildSpec validation, budget section
 
-## Actor Type Taxonomy (current codebase)
+**Allocator persona (spend validation):**
+- `packages/runtime/src/personas/allocator/validate-spend.js:37` — `validateSpendProposal` (primary spend logic)
+- `packages/runtime/src/personas/allocator/schema/price-list.example.json` — canonical price list example
 
-### Actor kind values (from artifacts.ts line 105-107)
-```typescript
-type ActorKind = "hazard" | "delver" | "warden"
-```
-**Critical gap:** `room tile` and `resource` are NOT in the current ActorKind union. Rooms/tiles
-are treated as layout geometry (floorTiles, hallwayTiles), not as actors. Resources exist as
-a price catalog concept, not as a configured actor type.
+**Configurator persona (spend building):**
+- `packages/runtime/src/personas/configurator/spend-proposal.js:152` — `buildSpendProposal` (layout+actors+traps only; missing hazards/resources)
+- `packages/runtime/src/personas/configurator/spend-proposal.js:165` — `evaluateConfiguratorSpend`
 
-### Vital keys (from domain-constants.js line 111-112)
-```js
-VITAL_KEYS      = ["health", "mana", "stamina", "durability"]  // full actor vitals
-TRAP_VITAL_KEYS = ["mana", "durability"]                        // restricted set for traps/hazards
-```
-Note: the codebase uses "trap" as a synonym for "hazard" in many places.
+**Director persona (budget allocation):**
+- `packages/runtime/src/personas/director/budget-allocation.js:148` — `buildBudgetAllocation`
 
-### Affinity system (from domain-constants.js)
-```js
-AFFINITY_KINDS       = ["fire","water","earth","wind","life","decay","corrode","fortify","light","dark"]
-AFFINITY_EXPRESSIONS = ["push","pull","emit","draw"]
-AFFINITY_TARGET_TYPES = ["self","ally","enemy","area","barrier","floor"]
-```
-Affinity expressions have profiles: push (burst), pull (control), emit (presence), draw (sustain).
-`DEFAULT_ROOM_CARD_AFFINITY = "dark"`, `DEFAULT_ROOM_AFFINITY_EXPRESSION = "emit"`.
+**Orchestrator persona (budget inputs):**
+- `packages/runtime/src/personas/orchestrator/budget-inputs.js:23` — `isPriceListArtifact`, `normalizePriceListInput`
 
-Room tiles already carry an affinity (emit/dark by default) — this is the existing room-level
-affinity concept. What is NOT established: room tiles as first-class actor configs with the full
-actor base.
+**Build pipeline:**
+- `packages/runtime/src/build/orchestrate-build.js:1294` — `budgetReceipt`/`spendProposal` only built when `budget`+`priceList` both present
+- `packages/runtime/src/commands/kernel.js:1162` — `priceList = null` default
 
-### Tile cost model (from domain-constants.js line 88-96)
-```js
-LAYOUT_TILE_FIELDS      = ["floorTiles", "hallwayTiles"]
-DEFAULT_LAYOUT_TILE_COSTS = { floorTiles: 1, hallwayTiles: 1 }
-LAYOUT_TILE_PRICE_IDS   = { floorTiles: {id:"tile_floor", kind:"tile"}, hallwayTiles: {id:"tile_hallway", kind:"tile"} }
-```
-Tile costs are currently computed from layout geometry counts only — not from per-tile actor
-configuration. This will need to extend to include per-tile affinity/motivation/durability costs.
+**CLI adapter:**
+- `packages/adapters-cli/src/cli/ak-impl.mjs:3314` — `buildDryRunBudgetEstimate` (surface area)
+- `packages/adapters-cli/src/cli/ak-impl.mjs:3750` — build output writing (no cost enrichment)
 
-### Artifact schemas relevant to this task (from artifacts.ts)
-- `BuildSpecActorHintV1` (line 294) — actor hints in a build spec
-- `BuildSpecActorGroupHintV1` (line 303) — actor group hints
-- `ActorLoadoutArtifactV1` (line 981) — actor affinities at runtime
-- `ActorLoadoutAffinityV1` (line 952) — per-actor affinity record; sourceType: "actor"|"trap"|"static_trap"
-- `ActorStateV1` (line 1051) — runtime actor state (id, position, vitals)
-- `HazardProposalArtifact` (line 482) — hazard seeding by Director; carries affinity + budget ceiling
-- Resource artifact (line 1629+) — `ResourceArtifact` with vital grants and tier
+**Price list fixtures (current state — incomplete):**
+- `tests/fixtures/artifacts/price-list-artifact-v1-basic.json` — only `vital_health_point`, `vital_mana_point`
+- `tests/fixtures/artifacts/price-list-artifact-v1-tiles.json` — only `tile_floor`, `tile_hallway`
+- `packages/runtime/src/personas/allocator/schema/price-list.example.json` — has motivations, `health_point`, `health_regen_per_tick`, `actor_spawn`, `move_action`, `attack_action`; missing: affinities with quadratic formula, stamina, durability, mana regen, hazards, resources, traps, rooms
 
-### CLI commands relevant to this task
-- `packages/adapters-cli/src/cli/ak-impl.mjs` — contains `delverPlanCommand` (line 3205)
-  Uses `applyBudgetCappedFulfillment` for delver config with budget enforcement.
-- Budget enforcement happens at the Allocator persona level, not ad-hoc in CLI commands.
+**Known field naming inconsistency:** example.json uses `key`/`unitCost`/`unit`; fixtures use `id`/`kind`/`costTokens`. Must be normalized.
 
-## Complexity Hotspots (Top 5 unique files)
+**UI:**
+- `packages/ui-web/src/budget-panels.js:37` — `resolveBudgetTriplet` reads `price-list.json` by path pattern
+
+## Complexity Hotspots (Top 10)
 | Function | File | Complexity |
 |---|---|---|
-| `applyAction` | `core-as/assembly/index.ts:140` | 41 |
-| `applyMove` | `core-as/assembly/rules/move.ts:126` | 28 |
-| `validateActorPlacement` | `core-as/assembly/state/world.ts:618` | 23 |
-| `resolveTrapTargetVital` | `core-as/assembly/rules/move.ts:30` | 21 |
-| `validateActorCapabilities` | `core-as/assembly/state/world.ts:1084` | 15 |
+| applyAction | core-as/assembly/index.ts | 41 |
+| applyMove | core-as/assembly/rules/move.ts | 28 |
+| validateActorPlacement | core-as/assembly/state/world.ts | 23 |
+| validateDirection | core-as/assembly/rules/move.ts | 22 |
+| resolveTrapTargetVital | core-as/assembly/rules/move.ts | 21 |
+| applyResourceCaptureAt | core-as/assembly/rules/move.ts | 18 |
+| validateActorCapabilities | core-as/assembly/state/world.ts | 15 |
+| applyActorPlacements | core-as/assembly/state/world.ts | 15 |
+| setRowFromString | core-as/assembly/state/world.ts | 15 |
+| dispatchNonMoveAction | core-as/assembly/index.ts | 15 |
 
-## Key Assumptions for Codex Planning
-
-1. **Room tiles are not yet actors.** The codebase treats tiles as layout geometry. Making them
-   first-class actors with the actor base is new work.
-
-2. **Resources are not yet actors.** Resources exist in the price catalog and as artifact schemas
-   for vital grants, but are not configured as actor types via the CLI or card builder.
-
-3. **"Hazard" = "trap" in the codebase.** The user calls them hazards; the code calls them traps.
-   `TRAP_VITAL_KEYS` already encodes the correct restriction (mana + durability). The plan should
-   clarify whether "hazard" replaces or extends the "trap" terminology.
-   NOTE: User spec says hazards have mana + mana regen ONLY (not durability). TRAP_VITAL_KEYS
-   currently includes durability — this may need correction.
-
-4. **The card builder UI** community exists ("Build Spec UI", "Card Room") but the extent to
-   which it is one unified component vs. type-specific screens is unknown — Codex should audit
-   `packages/ui-web/` before assuming.
-
-5. **CLI is the enforcement layer.** Budget enforcement already flows through `applyBudgetCappedFulfillment`
-   + Allocator persona. Per-type config constraints (e.g. hazard affinity count = 1) may or may
-   not be enforced at the CLI level today — Codex should verify in `ak-impl.mjs`.
+Note: All top-10 hotspots are in `core-as` (WASM layer) — not directly touched by this plan. The highest-risk runtime files are `orchestrate-build.js`, `kernel.js`, and `artifacts.ts`.

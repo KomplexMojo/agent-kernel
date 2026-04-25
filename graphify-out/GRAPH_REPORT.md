@@ -1,11 +1,11 @@
-# Graph Report - .  (2026-04-18)
+# Graph Report - .  (2026-04-19)
 
 ## Corpus Check
-- 377 files · ~356,702 words
+- 377 files · ~358,629 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2116 nodes · 3247 edges · 364 communities detected
+- 2131 nodes · 3278 edges · 364 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 9 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
@@ -378,11 +378,11 @@
 ## God Nodes (most connected - your core abstractions)
 1. `addError()` - 33 edges
 2. `createDesignCard()` - 31 edges
-3. `generateGridLayout()` - 23 edges
-4. `isObject()` - 21 edges
-5. `withinBounds()` - 20 edges
-6. `isValidMotivatedActorIndex()` - 16 edges
-7. `indexFor()` - 16 edges
+3. `withinBounds()` - 26 edges
+4. `generateGridLayout()` - 23 edges
+5. `indexFor()` - 22 edges
+6. `isObject()` - 21 edges
+7. `isValidMotivatedActorIndex()` - 16 edges
 8. `asNonEmptyString()` - 14 edges
 9. `runPhase()` - 13 edges
 10. `setTile()` - 13 edges
@@ -407,8 +407,8 @@
 ## Communities
 
 ### Community 0 - "Community 0"
-Cohesion: 0.04
-Nodes (107): actorKindForTile(), advanceTick(), applyActorPlacements(), applyBarrierDurabilityDamage(), applyDefaultCapabilitiesToMotivatedActors(), applyRegenForActorIndex(), applyTickRegen(), armStaticTrapAt() (+99 more)
+Cohesion: 0.03
+Nodes (113): actorKindForTile(), advanceTick(), applyActorPlacements(), applyBarrierDurabilityDamage(), applyDefaultCapabilitiesToMotivatedActors(), applyRegenForActorIndex(), applyTickRegen(), armStaticTrapAt() (+105 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.02
@@ -515,12 +515,12 @@ Cohesion: 0.2
 Nodes (16): addAffinityStack(), addAffinityTargetStack(), applyPresetToVitals(), applyVitalModifier(), computeTrapVitals(), deriveAbilitiesFromEffects(), ensureVitalRecord(), ensureVitals() (+8 more)
 
 ### Community 27 - "Community 27"
-Cohesion: 0.15
-Nodes (7): extractJsonObject(), extractResponseText(), isNotFound(), normalizeBaseUrl(), postJson(), requestLlmResponse(), unwrapCodeFence()
+Cohesion: 0.19
+Nodes (14): applyMove(), applyResourceCaptureAt(), applyStaticTrapDamageAt(), applyTileEntryEffects(), commitMove(), computeMovementCost(), computeNextStaminaAfterRegen(), computeTrapDamage() (+6 more)
 
 ### Community 28 - "Community 28"
-Cohesion: 0.2
-Nodes (13): applyMove(), applyStaticTrapDamageAt(), applyTileEntryEffects(), commitMove(), computeMovementCost(), computeNextStaminaAfterRegen(), computeTrapDamage(), isDiagonalMove() (+5 more)
+Cohesion: 0.15
+Nodes (7): extractJsonObject(), extractResponseText(), isNotFound(), normalizeBaseUrl(), postJson(), requestLlmResponse(), unwrapCodeFence()
 
 ### Community 29 - "Community 29"
 Cohesion: 0.17
@@ -815,12 +815,12 @@ Cohesion: 0.6
 Nodes (3): calculateMotivationStackCost(), resolveMotivationFamily(), resolveMotivationUnitCost()
 
 ### Community 102 - "Community 102"
-Cohesion: 0.5
-Nodes (2): createSolverAdapter(), loadFixture()
-
-### Community 103 - "Community 103"
 Cohesion: 0.6
 Nodes (3): createIpfsAdapter(), joinPath(), normalizeCid()
+
+### Community 103 - "Community 103"
+Cohesion: 0.5
+Nodes (2): createSolverAdapter(), loadFixture()
 
 ### Community 104 - "Community 104"
 Cohesion: 0.67
@@ -2296,7 +2296,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `MoveAction`, `Solver-Z3 Adapter`, `Replay-First Kernel Design` to the rest of the system?**
   _6 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.04 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.03 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.02 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**

@@ -1,1 +1,42 @@
-I wanna create a plan to check some basic assumptions around how the concept of rooms delivers. Warden's hazards and resources are created. A room tile is an actor with the most basic functionality. It should have the basic configuration elements that all other items have it should have the concept of affinities. It should have the concept of expressions. It should have the concept of motivations it should have the concept of vitals so should all of the other elements listed above they are all actors. They have the same base class so if I'm configuring a delver, I can add affinities affinity expressions, motivations I should be able to add those things to all of the listed items, but there are certain constraints that a room tile has, that Del doesn't have a room tile doesn't have the concept of health. It doesn't have the concept of manor. It doesn't have the concept of stamina, but it could have the concept of durability. It wouldn't have the concepts of region. A Dover and a warden are similar. They just work on opposite sides of the game. They can have all of the same configurations, including vitals and affinities. A hazard has constraints around what affinities it can have the number of affinities I can have it has constraints, and that it doesn't have the concept of health or stamina or durability. It does however, have the concept of mana. It has the concept of mana regeneration. A hazard also has a base motivation which is stationary, so hazards currently cannot move in the game. Moving onto resources a resource can be configured very much like Del or a warden they can have affinity and affinity stacks. They can have expressions they can have vitals. The difference is a resource is a consumable item meaning that a delver or a warden can take the attributes attached to that resource so if there's a +10 Health resource lying around in the dungeon and Del sees that they can step over on top of that resource and consume it one constraint that resources have that none of the other items have is the concept of permanent a resource can be a resource in that it's only available to the user for the level it could be a pure consumab like a health potion that gives you current health, but doesn't give you maximum health it could be a level affinity meaning that it will last you for the level or it could be a permanent affinity meaning that it is attached to permanently what I want is to check these base assumptions across the entire code to ensure that there sconces at the architectural level meaning that all of these things drive from actors and that instead of having different screens and configurations for each of these types, the card builder looks very much similar for all of these types, but enforces the rules that apply to each type
+Short version: the missing piece is not just "more fields on artifacts." The repo currently computes some spend, but cost is not a first-class persisted contract across the build pipeline. To make every generated artifact cost-aware, I'd recommend a single canonical cost artifact plus a lightweight cost context on every artifact, instead of duplicating full receipts everywhere.
+
+**What's Missing**
+- Authoring with only `budgetTokens` does not reliably materialize cost artifacts. In orchestrate-build.js, `budgetReceipt` and `spendProposal` are only built when a mapped `budget` and `priceList` exist.
+- The runtime already knows how to persist cost artifacts, but `spend-proposal.json` is still optional/intermediate-only. See kernel.js.
+- `SpendProposal` is too thin to support attribution. In artifacts.ts, proposal items only carry `id`, `kind`, and `quantity`, not category, unit cost, total cost, or artifact linkage.
+- `BudgetReceiptArtifact` has an outdated scenario summary. In artifacts.ts, `scenarioSpendReport` only covers `rooms`, `delvers`, and `wardens`, not `floor tiles`, `traps`, `hazards`, or `resources`.
+- Artifact schemas for hazards/resources carry configuration but no cost context. See artifacts.ts (HazardArtifact ~line 1696 and ResourceArtifact ~line 1739).
+- The current spend ledger focuses on layout and actors; hazards/resources are not surfaced as first-class spend categories in the persisted build output. See spend-proposal.js.
+- Build outputs are written without enriching `spec`, `manifest`, `bundle`, `sim-config`, `initial-state`, or `telemetry` with cost pointers/summaries. See ak-impl.mjs.
+- Secondary contract drift: the authoring object-kind union still omits `resource`, which will make clean cost attribution harder if you key by authored object kind. See artifacts.ts (~line 101).
+
+**Recommended Code Changes**
+- Add a shared `ArtifactCostContextV1` and attach it to `ArtifactMeta` as an optional field. Keep it small:
+  `selfTokens`, `runTotalTokens`, `budgetTokens`, `category`, `receiptRef`, `proposalRef`, `lineItemIds`.
+- Expand `SpendProposalItemV1` into a real attribution record:
+  `category`, `unitCost`, `totalCost`, `status`, `artifactRef` or `subjectRef`, and optional `detail`.
+- Always synthesize a canonical budget context for build-like authoring when a hard budget is present, even if the caller only supplied `budgetTokens`.
+  Use the default price list/rules so `create`/`configure` always produce a receipt/proposal when budget is part of the request.
+- Promote `spend-proposal.json` to persisted-by-default for build/create/configure flows, not just an intermediate.
+- Extend the spend/category model so it explicitly covers:
+  `rooms`, `floor_tiles`, `traps`, `hazards`, `resources`, `delvers`, `wardens`, and `shared/system`.
+- Attach cost context to every emitted artifact:
+  `spec`, `intent`, `plan`, `sim-config`, `initial-state`, `hazard-*`, `resource-*`, `bundle`, `manifest`, `telemetry`, and any summary artifacts.
+- Update `BudgetReceiptArtifact.scenarioSpendReport` to the new category set and stop using proportional actor cost splits where exact attribution is possible.
+- Update CLI/MCP summaries (`create`, `configure`, `show`, `runs list`) to surface cost paths and top-level totals consistently.
+
+**Rough Plan**
+- Wave 1: Contract Foundation
+  Tasks: define `ArtifactCostContextV1`; expand `SpendProposal`; update `BudgetReceiptArtifact` category model; fix `AgentCommandObjectKind` drift for `resource`; add schema tests.
+- Wave 2: Cost Materialization
+  Tasks: synthesize default budget/price-list context for authoring with hard budgets; ensure `orchestrateBuild` always produces `budgetReceipt` + `spendProposal` when budgeted; persist both by default.
+- Wave 3: Attribution Coverage
+  Tasks: extend spend calculation to hazards/resources/floor tiles/traps; add exact line-item attribution IDs/refs; remove proportional fallback where deterministic attribution is available.
+- Wave 4: Artifact Enrichment
+  Tasks: write `meta.cost` onto every generated artifact; add `costRef`/`lineItemIds` to per-element sidecars like `hazard-*.json` and `resource-*.json`; include top-level cost summary in `manifest.json`, `bundle.json`, and `telemetry.json`.
+- Wave 5: Surface Area
+  Tasks: update CLI structured output and MCP responses to expose cost summaries; update `ak_show`/`runs list` to aggregate new categories; add fixture coverage proving every emitted artifact includes cost-related metadata.
+- Wave 6: Migration and Docs
+  Tasks: version schema changes carefully; backfill docs/README examples; add a migration note for older artifacts that only have receipt/proposal sidecars and no `meta.cost`.
+
+My recommendation is to make one canonical cost artifact plus per-artifact pointers/summaries the core design. That gives you universal coverage without bloating every artifact with duplicate line items.

@@ -1,52 +1,47 @@
 # Prompt
 
 ## Problem
-There is no clear, verified architectural foundation establishing that all game elements — room tiles, delvers, wardens, hazards, and resources — share a common actor base class with a unified configuration surface. The card builder likely has divergent screens or config models per type. This task verifies and enforces that all game elements derive from a single actor base, that each type's allowed configuration concepts are correctly constrained, and that the card builder presents one unified surface that enforces per-type rules.
+The repo computes some spend, but cost is not yet a first-class persisted contract across the build pipeline. Authoring with only `budgetTokens` does not reliably materialize cost artifacts, `spend-proposal.json` is still optional or intermediate-only, and current artifact schemas and build outputs do not consistently carry cost attribution, summaries, or pointers.
 
 ## Scope
-- Verify that room tiles, delvers, wardens, hazards, and resources all derive from a common actor base class.
-- Verify that the actor base provides affinities, affinity expressions, motivations, and vitals as shared configuration concepts.
-- Verify that room tiles (inanimate objects) expose only the subset of actor configuration that is appropriate: affinities, motivations, durability — but NOT affinity expressions, health, mana, stamina, or movement.
-- Verify that room tiles carry token costs when they are configured and assembled into a room.
-- Verify that delvers and wardens are fully configurable: all affinities, expressions, vitals (health, mana, stamina, mana regen), and motivations.
-- Verify that hazards have a restricted configuration: exactly 1 affinity (must match the room's affinity), motivation fixed to stationary, vitals restricted to mana and mana regeneration only — no health, stamina, or durability.
-- Verify that resources share the full configuration surface of delvers and wardens.
-- Verify that resources are consumable: a delver or warden can capture a resource and apply its attributes to themselves.
-- Verify that resources have a permanence concept with three modes: level-only, pure consumable (current stat only), and permanent (modifies the delver/warden's base configuration).
-- Verify that the CLI is the base enforcement layer: all actor configuration rules are validated at the CLI level.
-- Verify that the card builder UI is a unified "JSON builder" that mirrors CLI-available configuration per actor type, displays configuration and budget constraints visually, and notifies the user inline when an invalid configuration is attempted.
+- Add a single canonical cost artifact and a lightweight cost context on every artifact instead of duplicating full receipts everywhere.
+- Add `ArtifactCostContextV1` and attach it as an optional field on `ArtifactMeta`.
+- Expand `SpendProposalItemV1` into a real attribution record.
+- Make build-like authoring synthesize a canonical budget context when a hard budget is present, even if the caller only supplied `budgetTokens`.
+- Persist `spend-proposal.json` by default for build, create, and configure flows.
+- Extend the spend and category model to cover `rooms`, `floor_tiles`, `traps`, `hazards`, `resources`, `delvers`, `wardens`, and `shared/system`.
+- Attach cost context to emitted artifacts such as `spec`, `intent`, `plan`, `sim-config`, `initial-state`, `hazard-*`, `resource-*`, `bundle`, `manifest`, `telemetry`, and summary artifacts.
+- Update `BudgetReceiptArtifact.scenarioSpendReport`.
+- Update CLI and MCP summaries for `create`, `configure`, `show`, and `runs list` to surface cost paths and top-level totals consistently.
+- Add schema tests and fixture coverage for the new cost metadata.
 
 ## Constraints
-- All game elements must derive from the same actor base class.
-- Room tiles are inanimate: no movement, no health, no mana, no stamina.
-- Room tiles may have durability.
-- Token costs are a runtime computation — room tile configuration contributes to the room's computed token cost at runtime, not as a stored field.
-- Hazards: exactly 1 affinity, and it must match the containing room's affinity.
-- Hazards: motivation is always stationary (cannot move).
-- Hazards: vitals are mana and mana regeneration only — no health, no stamina, no durability.
-- Resources: same configuration surface as delvers and wardens.
-- Resources: are consumable (not permanent by default).
-- Resources: permanence modes are (1) level-only, (2) pure consumable (current stat delta, not max), (3) permanent (base config modification).
-- NFT/blockchain implementation of permanence is out of scope — do not design for it now.
-- The card builder must not use separate screens per actor type.
-- CLI validation is the source of truth; the UI card builder reflects and visually communicates those same constraints.
+- Keep the shared cost context small: `selfTokens`, `runTotalTokens`, `budgetTokens`, `category`, `receiptRef`, `proposalRef`, and `lineItemIds`.
+- Expand proposal items to include `category`, `unitCost`, `totalCost`, `status`, `artifactRef` or `subjectRef`, and optional `detail`.
+- Use the default price list and rules so `create` and `configure` always produce a receipt and proposal when budget is part of the request.
+- Update `BudgetReceiptArtifact.scenarioSpendReport` to the new category set and stop using proportional actor cost splits where exact attribution is possible.
+- Version schema changes carefully.
+- Backfill docs and README examples.
+- Add a migration note for older artifacts that only have receipt or proposal sidecars and no `meta.cost`.
 
 ## Acceptance Criteria
-1. Codebase audit confirms all five entity types (room tile, delver, warden, hazard, resource) share a common actor base.
-2. Room tile configuration is confirmed to include affinities, motivations, durability — and to exclude affinity expressions, health, mana, stamina.
-3. Room tile token cost is confirmed to be a runtime computation aggregated from the tile's configuration; no stored cost field exists on the artifact.
-4. Delver and warden configuration is confirmed to be fully open: all affinities, affinity expressions, all vitals, all motivations.
-5. Hazard configuration is confirmed to enforce: 1 affinity (room-matched), stationary motivation, mana + mana regen vitals only.
-6. Resource configuration is confirmed to match delver/warden surface plus consumable behavior and three permanence modes.
-7. CLI is confirmed as the base enforcement layer: invalid configurations are rejected at the CLI level.
-8. Card builder UI is confirmed to be a unified "JSON builder" reflecting CLI-available configuration per actor type, with visual indicators for configuration constraints and budget constraints, and inline notification when an invalid configuration is attempted.
+1. A shared `ArtifactCostContextV1` exists and is attached to `ArtifactMeta` as an optional field.
+2. `SpendProposalItemV1` includes the requested attribution fields.
+3. Build-like authoring with a hard budget produces canonical budget context even when only `budgetTokens` is supplied.
+4. `spend-proposal.json` is persisted by default for build, create, and configure flows.
+5. The spend and category model explicitly covers all requested categories.
+6. Emitted artifacts include cost context where requested, including sidecar artifacts and top-level summary artifacts.
+7. `BudgetReceiptArtifact.scenarioSpendReport` reflects the updated category set.
+8. CLI and MCP summaries expose cost paths and top-level totals consistently.
+9. Schema tests and fixture coverage prove the new cost metadata is present.
 
 ## Out of Scope
-- NFT or blockchain implementation of resource permanence.
-- Any net-new feature work beyond verifying and conforming the existing structure to these constraints.
+- None stated.
 
 ## Open Questions
-- None remaining. All three pre-planning questions resolved:
-  1. Token cost = runtime computation, not a stored field.
-  2. Affinity expressions are NOT available for room tiles; they are available for delvers, wardens, hazards, and resources.
-  3. CLI is the enforcement layer; the card builder UI is a unified visual JSON builder that mirrors CLI constraints, shows budget and configuration limits visually, and notifies on invalid input.
+- None stated. All three open questions have been resolved by the user (see Constraints below).
+
+## Resolved Questions (user answers, incorporated into Constraints)
+1. **Default price list**: The canonical default price list is a versioned JSON artifact (`agent-kernel/PriceList`) that must include formulas for every item category. Base unit: 1 health point = 1 token. Regeneration (health regen, mana regen) and affinity stack costs scale quadratically with quantity (formula: `unitCost * n^2`). The artifact must cover all categories: vitals (health, mana, stamina, durability), regen rates, motivations, affinity slots, affinity stacks (quadratic), traps, hazards, resources, floor tiles, rooms (summarized from component costs), actors (delver/warden spawn). The current price-list fixtures are missing: affinity items with the quadratic formula field, stamina, durability, mana regen, hazard/resource/trap items, and room aggregate pricing. These must be added. Field naming must also be normalized to a single canonical shape (`id`, `kind`, `unitCost`, optional `formula`).
+2. **Which artifacts carry `meta.cost`**: Every generated artifact must carry a token receipt. Complex/composite artifacts (rooms, bundles, manifests) carry a summary receipt derived from their component costs. Leaf artifacts (individual vitals, affinity stacks, traps, hazards, resources) carry their own direct receipts.
+3. **Migration / restructuring scope**: This is a comprehensive code review and restructuring that must include the Allocator persona. The Allocator is the correct owner of all spend validation, price evaluation, and receipt issuance logic. Any spend logic currently scattered outside the Allocator must be moved into it as part of this work.

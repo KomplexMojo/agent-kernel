@@ -1,143 +1,202 @@
 # Plan
 
 ## Summary
-This work verifies and enforces a single actor-configuration foundation across room tiles, delvers, wardens, hazards, and resources, with the CLI as the canonical validation layer and the UI reflecting those same rules. The implementation sequence starts by codifying shared contracts, then hardens CLI enforcement, propagates the unified model through runtime build-spec plumbing, adds deterministic resource capture/permanence behavior, and finally converges the card builder into one constrained JSON editing surface.
+This work makes cost a first-class, persisted contract across the runtime build pipeline instead of an optional sidecar. The implementation sequence starts with versioned schema changes, then centralizes pricing and receipt issuance in the Allocator, then makes build-like flows always synthesize and persist canonical budget artifacts, and finally propagates cost context into emitted artifacts and adapter summaries. Public docs and migration guidance close the branch only after the runtime and adapter outputs are stable.
 
 ## Milestones
 
-### M1 - Shared Actor Contract
+### M1 - Cost Contract Foundation
 - Size band: M
 - Assigned agent: Claude Sonnet/high
 - Target files:
   - `packages/runtime/src/contracts/artifacts.ts`
-  - `packages/runtime/src/contracts/build-spec.js`
-  - `packages/runtime/src/contracts/domain-constants.js`
-  - `tests/contracts/build-spec.test.js`
-  - `tests/contracts/hazard-artifact.test.js`
-  - `tests/contracts/resource-artifact.test.js`
+  - `tests/contracts/artifact-meta-cost-context.test.js`
+  - `tests/contracts/spend-proposal-item.test.js`
+  - `tests/contracts/budget-receipt-artifact.test.js`
+  - `tests/fixtures/artifacts/invalid/artifact-meta-v1-invalid-cost.json`
+  - `tests/fixtures/artifacts/invalid/spend-proposal-item-v1-invalid.json`
 - Tests:
-  - Update contract coverage so one shared actor surface is asserted for room tiles, delvers, wardens, hazards, and resources.
-  - Add assertions that room tiles allow affinities, motivations, and durability only; hazards allow exactly one room-matched affinity plus mana and mana regen only; resources expose the full delver/warden surface plus three permanence modes.
+  - Add contract coverage for `ArtifactCostContextV1` on `ArtifactMeta`, including the small-field constraint (`selfTokens`, `runTotalTokens`, `budgetTokens`, `category`, `receiptRef`, `proposalRef`, `lineItemIds`).
+  - Add schema coverage for expanded `SpendProposalItemV1` attribution fields: `category`, `unitCost`, `totalCost`, `status`, `artifactRef` or `subjectRef`, and optional `detail`.
+  - Add coverage that `BudgetReceiptArtifact.scenarioSpendReport` uses the new category set: `rooms`, `floor_tiles`, `traps`, `hazards`, `resources`, `delvers`, `wardens`, and `shared/system`.
 - Success criteria:
-  1. Write failing contract assertions for the shared actor surface and forbidden per-type fields -> verify: `node --test tests/contracts/build-spec.test.js tests/contracts/hazard-artifact.test.js tests/contracts/resource-artifact.test.js` exits non-zero before production edits.
-  2. Update schema/constants so the common actor base and per-type constraints are expressible through versioned runtime contracts -> verify: `node --test tests/contracts/build-spec.test.js tests/contracts/hazard-artifact.test.js tests/contracts/resource-artifact.test.js`.
-  3. Prove room tile token cost stays derived rather than stored on the authoring artifact surface -> verify: `node --test tests/contracts/build-spec.test.js`.
-- Validation command: `node --test tests/contracts/build-spec.test.js tests/contracts/hazard-artifact.test.js tests/contracts/resource-artifact.test.js`
-- Stop condition: Shared contract tests pass, room-tile cost remains computed input rather than stored artifact state, and no additional contract files are required to represent the prompt's five actor types.
+  1. Write failing contract tests and invalid fixtures for the new cost metadata shape -> verify: `node --test tests/contracts/artifact-meta-cost-context.test.js tests/contracts/spend-proposal-item.test.js tests/contracts/budget-receipt-artifact.test.js` exits non-zero before schema edits.
+  2. Update the versioned runtime contracts so `ArtifactMeta.cost` is optional, proposal items carry attribution fields, and receipt summaries use the new categories -> verify: `node --test tests/contracts/artifact-meta-cost-context.test.js tests/contracts/spend-proposal-item.test.js tests/contracts/budget-receipt-artifact.test.js`.
+  3. Prove malformed or oversized cost metadata is rejected by schema validation instead of leaking into emitted artifacts -> verify: `node --test tests/contracts/artifact-meta-cost-context.test.js tests/contracts/spend-proposal-item.test.js`.
+- Validation command: `node --test tests/contracts/artifact-meta-cost-context.test.js tests/contracts/spend-proposal-item.test.js tests/contracts/budget-receipt-artifact.test.js`
+- Stop condition: The versioned artifact contracts accept only the new canonical cost shape, and no unversioned top-level cost fields are required outside `ArtifactMeta.cost`.
 - Assumptions:
-  - "Common actor base class" means one shared contract and normalization model, not mandatory JavaScript or TypeScript class inheritance.
-  - Mana regeneration is represented through the existing vital regen shape, not a separate top-level field.
-  - Room tiles continue to be represented as authored tile or room-card inputs, but their allowed configuration surface must be defined alongside the other actor types.
+  - These are additive contract changes inside the existing artifact version family, not a parallel schema fork.
+  - `detail` remains optional and JSON-serializable.
+  - `shared/system` is represented as one report category label even if individual line items remain more specific.
 
-### M2 - CLI Enforcement Layer
+### M2 - Allocator-Owned Pricing And Default Price List
+- Size band: M
+- Assigned agent: Claude Sonnet/high
+- Target files:
+  - `packages/runtime/src/personas/allocator/validate-spend.js`
+  - `packages/runtime/src/personas/configurator/spend-proposal.js`
+  - `packages/runtime/src/personas/director/budget-allocation.js`
+  - `packages/runtime/src/personas/allocator/schema/price-list.example.json`
+  - `tests/runtime/allocator/validate-spend-proposal.test.js`
+  - `tests/contracts/price-list-artifact.test.js`
+  - `tests/fixtures/artifacts/price-list-artifact-v1-basic.json`
+  - `tests/fixtures/artifacts/price-list-artifact-v1-tiles.json`
+- Tests:
+  - Add failing coverage that the default `agent-kernel/PriceList` normalizes on `id`, `kind`, `unitCost`, and optional `formula`.
+  - Add failing coverage that pricing covers vitals, regen rates, motivations, affinity slots, affinity stacks with quadratic pricing, traps, hazards, resources, floor tiles, room aggregates, and actor spawn costs.
+  - Add failing coverage that spend validation, price evaluation, and receipt issuance are driven through the Allocator entry point rather than duplicated in Configurator or Director helpers.
+- Success criteria:
+  1. Add failing tests that expose missing categories, missing formulas, and field-name normalization gaps in the current price list fixtures -> verify: `node --test tests/contracts/price-list-artifact.test.js tests/runtime/allocator/validate-spend-proposal.test.js` exits non-zero before implementation.
+  2. Refactor spend validation and receipt issuance so Allocator owns canonical pricing decisions and downstream personas consume that result instead of recomputing cost -> verify: `node --test tests/contracts/price-list-artifact.test.js tests/runtime/allocator/validate-spend-proposal.test.js`.
+  3. Prove the default price list can price every requested category, including quadratic affinity stacks and regen items -> verify: `node --test tests/contracts/price-list-artifact.test.js`.
+- Validation command: `node --test tests/contracts/price-list-artifact.test.js tests/runtime/allocator/validate-spend-proposal.test.js`
+- Stop condition: The Allocator is the sole owner of spend validation, price evaluation, and receipt issuance, and the default price list artifact can price every prompt-defined category in canonical form.
+- Assumptions:
+  - Room pricing is stored as an aggregate derived from priced components, not a second disconnected room-cost system.
+  - Configurator and Director may still prepare inputs, but must not own canonical receipt math after this milestone.
+  - The default price list remains a versioned JSON artifact checked into the repo rather than generated at runtime.
+
+### M3 - Canonical Budget Context And Sidecar Persistence
+- Size band: M
+- Assigned agent: Claude Sonnet/high
+- Target files:
+  - `packages/runtime/src/personas/orchestrator/budget-inputs.js`
+  - `packages/runtime/src/build/orchestrate-build.js`
+  - `packages/runtime/src/commands/kernel.js`
+  - `tests/runtime/build/orchestrate-build-cost-context.test.js`
+  - `tests/integration/ak-budget-sidecars.test.js`
+- Tests:
+  - Add failing coverage that `build`, `create`, and `configure` synthesize canonical budget context when only `budgetTokens` is supplied.
+  - Add failing coverage that `spend-proposal.json` and the canonical receipt sidecar are written by default for build-like authoring flows when a hard budget is present.
+  - Add failing coverage that default price list fallback is used when the request includes `budgetTokens` but no explicit price list artifact.
+- Success criteria:
+  1. Write failing runtime and integration tests for `budgetTokens`-only authoring requests -> verify: `node --test tests/runtime/build/orchestrate-build-cost-context.test.js tests/integration/ak-budget-sidecars.test.js` exits non-zero before implementation.
+  2. Update budget-input normalization and build orchestration so a hard budget always resolves to canonical receipt/proposal context, even without an explicit price list input -> verify: `node --test tests/runtime/build/orchestrate-build-cost-context.test.js tests/integration/ak-budget-sidecars.test.js`.
+  3. Prove `build`, `create`, and `configure` persist `spend-proposal.json` by default whenever budgeted authoring is requested -> verify: `node --test tests/integration/ak-budget-sidecars.test.js`.
+- Validation command: `node --test tests/runtime/build/orchestrate-build-cost-context.test.js tests/integration/ak-budget-sidecars.test.js`
+- Stop condition: Budgeted authoring no longer depends on callers supplying both `budget` and `priceList` artifacts up front, and receipt/proposal sidecars are default outputs rather than optional intermediates.
+- Assumptions:
+  - Existing CLI flags stay stable; the behavior change is default artifact synthesis and persistence, not a new public flag family.
+  - The canonical default price list from M2 is the fallback source for `budgetTokens`-only flows.
+  - Dry-run behavior may report would-be artifact paths but must still exercise the same pricing path.
+
+### M4 - Artifact Cost Propagation And Exact Attribution
+- Size band: M
+- Assigned agent: Claude Sonnet/high
+- Target files:
+  - `packages/runtime/src/build/orchestrate-build.js`
+  - `packages/runtime/src/commands/kernel.js`
+  - `tests/runtime/build/artifact-cost-context.test.js`
+  - `tests/integration/ak-emitted-artifact-cost-links.test.js`
+- Tests:
+  - Add failing coverage that emitted artifacts carry `meta.cost` with `selfTokens`, `runTotalTokens`, `budgetTokens`, `category`, `receiptRef`, `proposalRef`, and `lineItemIds`.
+  - Add failing coverage that leaf artifacts (`hazard-*`, `resource-*`) receive direct receipts while composite artifacts (`spec`, `intent`, `plan`, `sim-config`, `initial-state`, `bundle`, `manifest`, `telemetry`, summary artifacts) receive summary cost context derived from components.
+  - Add failing coverage that scenario spend reporting uses exact attribution where possible and stops proportionally splitting actor cost when exact line-item linkage exists.
+- Success criteria:
+  1. Write failing artifact-emission tests for missing `meta.cost` and missing receipt/proposal references on emitted artifacts -> verify: `node --test tests/runtime/build/artifact-cost-context.test.js tests/integration/ak-emitted-artifact-cost-links.test.js` exits non-zero before implementation.
+  2. Update emitted artifact assembly so every requested artifact family carries canonical cost context without embedding full receipts everywhere -> verify: `node --test tests/runtime/build/artifact-cost-context.test.js tests/integration/ak-emitted-artifact-cost-links.test.js`.
+  3. Prove receipt summaries and scenario spend reporting use exact attribution when line-item linkage exists -> verify: `node --test tests/runtime/build/artifact-cost-context.test.js`.
+- Validation command: `node --test tests/runtime/build/artifact-cost-context.test.js tests/integration/ak-emitted-artifact-cost-links.test.js`
+- Stop condition: Requested emitted artifacts and summary artifacts all expose canonical `meta.cost` references, and receipt reporting prefers exact attribution over proportional actor splits whenever exact linkage is available.
+- Assumptions:
+  - Composite artifacts carry summarized cost context only; they do not inline full child receipts.
+  - `lineItemIds` are stable identifiers from the persisted proposal/receipt artifacts, not recomputed ephemeral labels.
+  - Telemetry and summary artifacts can reference the same persisted receipt/proposal pair as the run-level outputs.
+
+### M5 - CLI And MCP Cost Summary Surface
 - Size band: S
 - Assigned agent: Claude Sonnet/high
 - Target files:
   - `packages/adapters-cli/src/cli/ak-impl.mjs`
-  - `packages/adapters-cli/src/cli/ak.mjs`
-  - `tests/adapters-cli/ak-actor-flags.test.js`
-  - `tests/integration/ak-create-hazard-resource.test.js`
+  - `packages/adapters-cli/src/mcp/server.mjs`
+  - `tests/adapters-cli/ak-cost-summary.test.js`
+  - `tests/integration/ak-runs-list-cost-summary.test.js`
 - Tests:
-  - Extend CLI tests so invalid room-tile, hazard, and resource configurations fail in `create` and `configure` before artifact write.
-  - Add coverage that valid hazard/resource authoring emits only the canonical fields allowed by M1.
+  - Add failing coverage that `create`, `configure`, `show`, and `runs list` surface cost paths and top-level totals consistently.
+  - Add failing coverage that MCP summaries mirror the CLI summaries for receipt path, proposal path, run total, and budget total.
+  - Add failing coverage that summary output tolerates older runs that have sidecar receipts or proposals but no `meta.cost`, with an explicit migration note instead of silent omission.
 - Success criteria:
-  1. Add failing CLI and integration assertions for invalid hazard durability, missing room-match enforcement, and unsupported resource permanence/input combinations -> verify: `node --test tests/adapters-cli/ak-actor-flags.test.js tests/integration/ak-create-hazard-resource.test.js` exits non-zero before implementation.
-  2. Update CLI parsing and validation so `create`, `configure`, and dry-run paths reject invalid actor configurations and emit canonical valid artifacts -> verify: `node --test tests/adapters-cli/ak-actor-flags.test.js tests/integration/ak-create-hazard-resource.test.js`.
-  3. Confirm the CLI remains the source-of-truth validator for hazard vitality restrictions -> verify: `node packages/adapters-cli/src/cli/ak.mjs create --dry-run --hazard "affinity=fire;expression=emit;proximityRadius=1;durability=one-time:1"` exits non-zero.
-- Validation command: `node --test tests/adapters-cli/ak-actor-flags.test.js tests/integration/ak-create-hazard-resource.test.js`
-- Stop condition: The CLI rejects every prompt-defined invalid configuration before writing artifacts, and valid authoring commands serialize only the allowed actor fields.
+  1. Write failing adapter tests for inconsistent or missing cost summary fields in CLI and MCP output -> verify: `node --test tests/adapters-cli/ak-cost-summary.test.js tests/integration/ak-runs-list-cost-summary.test.js` exits non-zero before implementation.
+  2. Update CLI and MCP summary formatting so `create`, `configure`, `show`, and `runs list` expose the same top-level totals and artifact paths -> verify: `node --test tests/adapters-cli/ak-cost-summary.test.js tests/integration/ak-runs-list-cost-summary.test.js`.
+  3. Prove old runs without `meta.cost` still surface sidecar-based guidance rather than failing summary commands -> verify: `node --test tests/adapters-cli/ak-cost-summary.test.js`.
+- Validation command: `node --test tests/adapters-cli/ak-cost-summary.test.js tests/integration/ak-runs-list-cost-summary.test.js`
+- Stop condition: CLI and MCP summary surfaces are consistent for new runs and degrade explicitly for older runs with sidecar-only cost data.
 - Assumptions:
-  - `create` and `configure` share the same validation path and should not diverge semantically.
-  - Existing public flags remain the user-facing authoring surface unless M1 makes a field invalid.
-  - Room-affinity matching for hazards is enforced from authoring inputs already available to the CLI, not by a later UI-only check.
+  - Adapter output remains concise and top-level; detailed spend inspection still belongs in the persisted artifacts.
+  - `show` and `runs list` should not require a UI consumer to reconstruct totals from nested receipt payloads.
+  - Migration messaging can be textual in adapter output as long as the command shape remains machine-readable where already promised.
 
-### M3 - Runtime Build-Spec Propagation
-- Size band: M
-- Assigned agent: Claude Sonnet/high
+### M6 - Cost Test Permutations
+- Size band: S
+- Assigned agent: Ollama
 - Target files:
-  - `packages/runtime/src/personas/director/summary-selections.js`
-  - `packages/runtime/src/personas/director/buildspec-assembler.js`
-  - `packages/runtime/src/commands/ui-flow.js`
-  - `packages/runtime/src/personas/configurator/card-model.js`
-  - `tests/runtime/build-spec-card-set-roundtrip.test.js`
-  - `tests/runtime/e2e-build-artifacts.test.js`
+  - `tests/contracts/artifact-meta-cost-context.test.js`
+  - `tests/contracts/spend-proposal-item.test.js`
+  - `tests/contracts/budget-receipt-artifact.test.js`
+  - `tests/contracts/price-list-artifact.test.js`
+  - `tests/runtime/allocator/validate-spend-proposal.test.js`
+  - `tests/runtime/build/orchestrate-build-cost-context.test.js`
+  - `tests/runtime/build/artifact-cost-context.test.js`
+  - `tests/adapters-cli/ak-cost-summary.test.js`
 - Tests:
-  - Add a round-trip test proving room tiles, hazards, delvers, wardens, and resources survive card-set -> summary -> build-spec -> UI-normalization without losing required fields.
-  - Extend build-artifact coverage so resources are not dropped from `plan.hints` or `configurator.inputs`, and room-tile budget contribution stays computed at runtime.
+  - Expand every `## TODO: Test Permutations` block created in M1-M5 into concrete edge-case coverage.
+  - Add bounded permutations for malformed formulas, missing line-item references, budget-only flows, old-run migration paths, and category mismatches.
+  - Keep execution narrow and deterministic so failures map back to one cost boundary at a time.
 - Success criteria:
-  1. Add failing round-trip coverage for resource retention, room-tile config subset retention, and hazard normalization -> verify: `node --test tests/runtime/build-spec-card-set-roundtrip.test.js tests/runtime/e2e-build-artifacts.test.js` exits non-zero before implementation.
-  2. Update runtime summary/build-spec plumbing so canonical actor cards flow through `cardSet`, `plan.hints`, and `configurator.inputs` without UI-only shadow schema -> verify: `node --test tests/runtime/build-spec-card-set-roundtrip.test.js tests/runtime/e2e-build-artifacts.test.js`.
-  3. Confirm runtime build outputs still validate with the unified actor surface -> verify: `node --test tests/runtime/e2e-build-artifacts.test.js`.
-- Validation command: `node --test tests/runtime/build-spec-card-set-roundtrip.test.js tests/runtime/e2e-build-artifacts.test.js`
-- Stop condition: Runtime build-spec assembly preserves all five actor types with prompt-compliant fields, and resources are no longer silently dropped from summary or build-spec output.
+  1. Confirm the base test files from M1-M5 include `## TODO: Test Permutations` handoff sections -> verify: observable check in the listed test files before Ollama expansion begins.
+  2. Expand the TODO stubs into concrete tests without changing production code -> verify: `node --test tests/contracts/artifact-meta-cost-context.test.js tests/contracts/spend-proposal-item.test.js tests/contracts/budget-receipt-artifact.test.js tests/contracts/price-list-artifact.test.js tests/runtime/allocator/validate-spend-proposal.test.js tests/runtime/build/orchestrate-build-cost-context.test.js tests/runtime/build/artifact-cost-context.test.js tests/adapters-cli/ak-cost-summary.test.js`.
+  3. Prove the expanded permutations isolate failure classes instead of duplicating the same assertion shape -> verify: `node --test tests/runtime/build/orchestrate-build-cost-context.test.js tests/adapters-cli/ak-cost-summary.test.js`.
+- Validation command: `node --test tests/contracts/artifact-meta-cost-context.test.js tests/contracts/spend-proposal-item.test.js tests/contracts/budget-receipt-artifact.test.js tests/contracts/price-list-artifact.test.js tests/runtime/allocator/validate-spend-proposal.test.js tests/runtime/build/orchestrate-build-cost-context.test.js tests/runtime/build/artifact-cost-context.test.js tests/adapters-cli/ak-cost-summary.test.js`
+- Stop condition: All base test files have concrete permutation coverage in place, and no TODO stub section remains for the cost-contract slice.
 - Assumptions:
-  - `cardSet` remains the canonical interchange format shared by CLI and UI flows.
-  - Room-tile token cost remains a runtime spend-ledger computation derived from authored configuration plus tile counts.
-  - Resource authoring must be carried through the build-spec pipeline even if capture/permanence execution lands in a later milestone.
+  - `tests/README.md` is read before expansion and remains the bounded workflow source of truth.
+  - Ollama edits only test files and does not reopen production design decisions.
+  - Narrow targeted suites are sufficient; a full repo-wide run is not required for the permutation handoff milestone itself.
 
-### M4 - Resource Capture And Permanence
-- Size band: M
-- Assigned agent: Claude Sonnet/high
+### M7 - Docs, README Examples, And Migration Note
+- Size band: S
+- Assigned agent: GitHub Copilot
 - Target files:
-  - `packages/core-as/assembly/rules/move.ts`
-  - `packages/core-as/assembly/state/world.ts`
-  - `packages/core-as/assembly/index.ts`
-  - `packages/runtime/src/contracts/artifacts.ts`
-  - `tests/core-as/actor-state.test.js`
-  - `tests/core-as/actor-placement.test.js`
-  - `tests/runtime/resource-capture-permanence.test.js`
+  - `docs/architecture-charter.md`
+  - `docs/README.md`
+  - `packages/adapters-cli/README.md`
+  - `docs/migrations/artifact-cost-context-v1.md`
 - Tests:
-  - Add deterministic execution tests for a delver or warden capturing a resource and receiving the correct current-stat or base-config effect.
-  - Cover all three permanence modes: level-only, consumable/current-stat-only, and permanent/base-config mutation.
+  - Document the new `meta.cost` contract, persisted proposal/receipt defaults, and the updated CLI/MCP summary shape.
+  - Add a migration note for older artifacts that only have receipt or proposal sidecars and no `meta.cost`.
+  - Refresh README examples so budgeted `create`, `configure`, `show`, and `runs list` outputs align with the implemented summaries.
 - Success criteria:
-  1. Add failing simulation tests for resource pickup, current-stat application, and permanent/base-config mutation -> verify: `node --test tests/core-as/actor-state.test.js tests/core-as/actor-placement.test.js tests/runtime/resource-capture-permanence.test.js` exits non-zero before implementation.
-  2. Implement deterministic resource capture in the execution path without introducing IO or non-serializable state -> verify: `node --test tests/core-as/actor-state.test.js tests/core-as/actor-placement.test.js tests/runtime/resource-capture-permanence.test.js`.
-  3. Confirm permanence state is replay-safe and distinguishable by mode -> verify: `node --test tests/runtime/resource-capture-permanence.test.js`.
-- Validation command: `node --test tests/core-as/actor-state.test.js tests/core-as/actor-placement.test.js tests/runtime/resource-capture-permanence.test.js`
-- Stop condition: Actors can capture resources deterministically, each permanence mode applies the correct effect, and the resulting state remains valid for replay and serialization.
+  1. Update public docs and examples only after M1-M5 behavior is stable -> verify: observable check that each target file references the new cost contract and sidecar defaults.
+  2. Add a migration note that explains how old artifacts without `meta.cost` are interpreted by the new summaries -> verify: `node -e "const fs=require('fs'); const files=['docs/architecture-charter.md','docs/README.md','packages/adapters-cli/README.md','docs/migrations/artifact-cost-context-v1.md']; const text=files.map((f)=>fs.readFileSync(f,'utf8')).join('\\n'); for (const token of ['meta.cost','spend-proposal.json','budgetTokens']) { if (!text.includes(token)) throw new Error('missing '+token); }"`.
+  3. Confirm the documented commands and summary examples match the implemented adapter behavior -> verify: `node --test tests/adapters-cli/ak-cost-summary.test.js tests/integration/ak-runs-list-cost-summary.test.js`.
+- Validation command: `node -e "const fs=require('fs'); const files=['docs/architecture-charter.md','docs/README.md','packages/adapters-cli/README.md','docs/migrations/artifact-cost-context-v1.md']; const text=files.map((f)=>fs.readFileSync(f,'utf8')).join('\\n'); for (const token of ['meta.cost','spend-proposal.json','budgetTokens']) { if (!text.includes(token)) throw new Error('missing '+token); }"`
+- Stop condition: Public docs, README examples, and the migration note all describe the implemented cost contract and legacy-artifact behavior without contradicting the adapter outputs.
 - Assumptions:
-  - Capture is resolved inside the existing deterministic move or occupancy flow rather than via adapter-side logic.
-  - Permanent mode mutates actor base configuration in serializable state, not external persistence.
-  - NFT or blockchain persistence remains fully out of scope and must not leak into execution contracts.
-
-### M5 - Unified JSON Builder UI
-- Size band: M
-- Assigned agent: Claude Sonnet/high
-- Target files:
-  - `packages/ui-web/src/design-guidance.js`
-  - `packages/ui-web/src/views/design-view.js`
-  - `packages/ui-web/src/build-spec-ui.js`
-  - `packages/ui-web/src/actor-inspector.js`
-  - `packages/ui-web/src/budget-panels.js`
-  - `tests/ui-web/design-view.test.mjs`
-  - `tests/ui-web/actor-inspector.test.mjs`
-  - `tests/ui-web/budget-panels.test.mjs`
-- Tests:
-  - Add UI tests that assert one editor surface handles room tiles, delvers, wardens, hazards, and resources with per-type gated controls.
-  - Add coverage that invalid configurations raise inline notifications and budget panels reflect the same constraints enforced by the CLI.
-- Success criteria:
-  1. Add failing UI assertions for a single editor surface, inline invalid-state messaging, and visual budget/configuration constraints per actor type -> verify: `node --test tests/ui-web/design-view.test.mjs tests/ui-web/actor-inspector.test.mjs tests/ui-web/budget-panels.test.mjs` exits non-zero before implementation.
-  2. Refactor the card builder so resource, hazard, room-tile, delver, and warden editing all route through one JSON-builder surface backed by shared runtime constraints -> verify: `node --test tests/ui-web/design-view.test.mjs tests/ui-web/actor-inspector.test.mjs tests/ui-web/budget-panels.test.mjs`.
-  3. Confirm the served UI shows a single editor with type-specific gated controls instead of separate screens -> verify: observable check after `pnpm run serve:ui` at `/packages/ui-web/index.html`.
-- Validation command: `node --test tests/ui-web/design-view.test.mjs tests/ui-web/actor-inspector.test.mjs tests/ui-web/budget-panels.test.mjs`
-- Stop condition: The UI exposes one JSON-builder surface that mirrors CLI-available fields and constraints, shows budget/configuration feedback inline, and no longer relies on a separate resource or hazard-specific editing model.
-- Assumptions:
-  - A unified builder may still show type-specific controls, but all editing must happen inside one surface and one serialized card model.
-  - Inline notification can reuse existing status and inspector affordances rather than adding a second validation system.
-  - UI logic should consume shared runtime helpers for constraint shaping and must not reintroduce a shadow schema that diverges from the CLI.
+  - The migration note can live under `docs/migrations/` as a new file.
+  - README examples should show top-level totals and artifact paths, not full receipt payload dumps.
+  - Architecture charter updates are limited to boundary-contract wording; no new package diagram is required unless implementation changes package direction.
 
 ## Dependency Graph
 - `M1 -> M2`
 - `M2 -> M3`
+- `M1 -> M4`
+- `M2 -> M4`
 - `M3 -> M4`
-- `M2 -> M5`
 - `M3 -> M5`
 - `M4 -> M5`
+- `M1 -> M6`
+- `M2 -> M6`
+- `M3 -> M6`
+- `M4 -> M6`
+- `M5 -> M6`
+- `M5 -> M7`
 
 ## Architecture Flags
-- `M2` requires Claude escalation because it changes the `adapters-cli -> runtime` contract boundary and must preserve the charter rule `adapters-* -> runtime -> bindings-ts -> core-as`.
-- `M4` requires Claude escalation because it changes the `runtime -> core-as` execution boundary and must obey the charter rules `core-as` is pure logic and runtime personas own workflow or IO concerns.
-- `M5` requires Claude escalation because it changes the `ui-web -> runtime` boundary and must keep UI constraint logic derived from shared runtime contracts rather than UI-only policy drift.
+- `M2` requires Claude escalation before implementation because it restructures spend ownership across runtime personas. Charter rule touched: runtime personas own policy and workflow logic, while `core-as` remains pure logic with no IO.
+- `M3` requires Claude escalation before implementation because it changes the default artifact-emission contract for build-like authoring flows. Charter rule touched: all boundary-crossing data uses versioned artifact schemas from `packages/runtime/src/contracts/artifacts.ts`.
+- `M4` requires Claude escalation before implementation because it adds `meta.cost` to emitted artifacts across runtime outputs. Charter rule touched: all boundary-crossing data must remain versioned artifact contracts rather than adapter-only fields.
+- `M5` requires Claude escalation before implementation because it changes adapter-facing summary surfaces in CLI and MCP. Charter rules touched: external IO must stay in adapters via narrow ports, and dependency direction remains `adapters-* -> runtime -> bindings-ts -> core-as`.
 
 ## Open Items
-- None from `local-codex/Prompt.md`. All prompt-era open questions were resolved before planning, and remaining uncertainty is captured as milestone assumptions rather than blockers.
+- None from `local-codex/Prompt.md`. The prompt’s prior open questions were resolved and are captured here as milestone assumptions rather than start blockers.
