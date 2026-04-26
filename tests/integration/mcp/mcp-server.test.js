@@ -411,3 +411,61 @@ testIfWasm("mcp server run and inspect tool calls round-trip over stdio", async 
     await harness.close();
   }
 });
+
+// ## TODO: Test Permutations
+//
+// This file is the authoritative MCP verification surface for this session.
+// Tools verified working above (M5): ak_schemas, ak_create (dry-run + full), ak_configure,
+// ak_llm_plan, ak_room_plan, ak_delver_plan, ak_warden_plan, ak_show, ak_runs_list, ak_run, ak_inspect.
+//
+// The MCP tools below are uncovered at the MCP layer (CLI tests cover the underlying commands,
+// but MCP tool invocation is untested). Each TODO is a distinct failure class, not a duplicate
+// shape, and each names the tool family explicitly so the gap stays observable.
+//
+// Simulation tools:
+// - Permutation: ak_build with a fixture spec — confirm the MCP envelope returns a bundle ref and
+//   the same artifact set as `ak build` on the CLI.
+// - Permutation: ak_solve with --solver-fixture — confirm the MCP server returns the SolverResult
+//   envelope deterministically (no network).
+// - Permutation: ak_configurator with a level-gen + actors fixture — confirm the configurator
+//   FSM result schema matches the CLI's `configurator` command.
+// - Permutation: ak_budget against a fixed budget + price list — confirm the MCP receipt envelope
+//   matches the CLI receipt envelope byte-for-byte except for ids/timestamps.
+// - Permutation: ak_replay against a recorded tick-frames artifact — confirm parity with CLI
+//   `replay` (replay-summary + replay-tick-frames present).
+// - Permutation: ak_scenario with --from-run and a deterministic fixture — confirm scenario
+//   chaining works from MCP without leaking temp paths.
+//
+// LLM tools:
+// - Permutation: ak_llm with --fixture set — confirm fixture-backed text path returns the expected
+//   payload schema and never opens a network socket.
+// - Permutation: ak_ollama against a fixture path — confirm same envelope surface as ak_llm.
+//
+// Inspection tools:
+// - Permutation: ak_diff between two recorded runs — confirm diff envelope contains a stable
+//   shape (added/removed/changed) when both runs have run-step artifacts (covers GAP-3 boundary).
+// - Permutation: ak_narrate against tick-frames + initial-state — confirm the narrative artifact
+//   schema matches the CLI's `narrate` command.
+//
+// External adapters (must remain fixture-backed under test):
+// - Permutation: ak_ipfs with --fixture — confirm payload envelope and no network.
+// - Permutation: ak_ipfs_publish with --fixture-cid — confirm artifact map handling.
+// - Permutation: ak_ipfs_load with --fixture-map — confirm the per-file fetch loop.
+// - Permutation: ak_blockchain with --fixture-chain-id and --fixture-balance — confirm wallet
+//   shape envelope.
+// - Permutation: ak_blockchain_mint with --fixture-mint — confirm token id is echoed back.
+// - Permutation: ak_blockchain_load with --fixture-load — confirm card payload round-trips.
+//
+// Test-tooling MCP surface (lowest priority — verifying the verifier):
+// - Permutation: ak_test_list_suites — confirm the suite list matches the file system.
+// - Permutation: ak_test_discover_patterns — confirm pattern discovery produces a deterministic
+//   list for a fixed snapshot.
+// - Permutation: ak_test_plan_from_change — confirm the plan envelope shape against a known diff.
+// - Permutation: ak_test_run — confirm a single test invocation returns a stable status envelope.
+// - Permutation: ak_test_scaffold_case — confirm the scaffolded test file matches an in-tree
+//   golden.
+// - Permutation: ak_test_insert_case — confirm idempotent insertion (re-running does not duplicate).
+// - Permutation: ak_test_explain_failure — confirm the explanation envelope shape for a stub
+//   failing test.
+// - Permutation: ak_test_lint_structure — confirm the lint envelope shape against a known-good and
+//   a known-bad fixture.

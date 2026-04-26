@@ -202,3 +202,14 @@ test("cli runs list returns an empty index when artifacts/runs is missing", () =
   assert.equal(result.command, "runs");
   assert.deepEqual(result.runs, []);
 });
+
+// ## TODO: Test Permutations
+// - Permutation: runs list when artifacts/runs/ exists but is empty — confirm ok:true with runs:[].
+// - Permutation: runs list when one run directory has no command subfolders — confirm the run is
+//   surfaced with commandCount:0 and a stable status field instead of being hidden.
+// - Permutation: runs list when a command's spec/bundle is malformed JSON — confirm one run errors
+//   without aborting the whole listing.
+// - Permutation: runs list ordering — confirm runs are sorted by createdAt or runId in a stable,
+//   documented order.
+// - Permutation: runs list against a custom --out-dir created via `create --out-dir` outside the
+//   default path — encode GAP-1 boundary (these runs should not appear under artifacts/runs/).

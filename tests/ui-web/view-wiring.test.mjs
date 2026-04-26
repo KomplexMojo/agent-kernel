@@ -139,3 +139,29 @@ test("diagnostics llm capture extraction deduplicates and filters non-llm captur
   assert.equal(captures[0].meta.id, "capture_trace_1");
   assert.equal(captures[0].source.adapter, "llm");
 });
+
+test("design-view module imports cleanly so wireTabs is reachable from main.js", async () => {
+  // BUG-1 regression: design-view → design-guidance ESM link failure prevented
+  // wireTabs from running, leaving every tab inert. If any view module fails to
+  // load, main.js's tab wiring never executes. This guards the import graph.
+  const designView = await import("../../packages/ui-web/src/views/design-view.js");
+  const previewView = await import("../../packages/ui-web/src/views/preview-view.js");
+  const diagnosticsView = await import("../../packages/ui-web/src/views/diagnostics-view.js");
+  const simulationView = await import("../../packages/ui-web/src/views/simulation-view.js");
+  assert.equal(typeof designView.wireDesignView, "function");
+  assert.equal(typeof previewView.wirePreviewView, "function");
+  assert.equal(typeof diagnosticsView.wireDiagnosticsView, "function");
+  assert.equal(typeof simulationView.wireSimulationView, "function");
+});
+
+// ## TODO: Test Permutations
+// - Permutation: wireDesignView with a root that returns an array from querySelectorAll — confirm
+//   non-empty NodeList paths still tolerate missing per-element attributes without throwing.
+// - Permutation: wireDiagnosticsView called twice on the same root — confirm idempotent wiring
+//   (no double-bound listeners) so re-mounts don't double-fire on bundle load.
+// - Permutation: wireSimulationView with autoBoot=true and a stub clock — confirm boot completes
+//   deterministically and surfaces a status-message with dataset.level set.
+// - Permutation: extractLlmCaptures with an empty captures array but a populated bundle.artifacts —
+//   confirm dedup by meta.id still produces a stable order.
+// - Permutation: simulationView.regenerateLevelArtifacts with malformed tile rows (mixed widths) —
+//   confirm result.ok=false with a clear reason (no throw) so the UI can show the error inline.

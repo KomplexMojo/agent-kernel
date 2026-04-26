@@ -14,13 +14,16 @@ import {
   DEFAULT_ROOM_CARD_AFFINITY,
   DEFAULT_LLM_BASE_URL,
   DEFAULT_LLM_MODEL,
-  ROOM_AFFINITY_STACK_COST_FACTOR,
   DEFAULT_VITALS,
   VITAL_KEYS,
   normalizeVitals as normalizeDomainVitals,
 } from "../../runtime/src/contracts/domain-constants.js";
+
+// Removed from domain-constants in cost refactor (046f786); kept local to preserve display scale.
+const ROOM_AFFINITY_STACK_COST_FACTOR = 0.1;
 import { resolveIconHTML } from "./icon-resolver.js";
 import { evaluateRoomCardLayoutSpend } from "../../runtime/src/personas/allocator/layout-spend.js";
+import { normalizePriceItems } from "../../runtime/src/personas/allocator/validate-spend.js";
 import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
@@ -1194,10 +1197,12 @@ function buildCardReceipt(card, { unitTokens, totalTokens, lineItems: inputLineI
 }
 
 function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
+  // Accept both canonical PriceListItemLegacyV1 (`unitCost`) and legacy PriceListItemTokenV1
+  // (`costTokens`) shapes via normalizePriceItems (BUG-2 fix).
   const priceMap = new Map(
-    (Array.isArray(priceList?.items) ? priceList.items : [])
-      .filter((item) => typeof item?.id === "string" && typeof item?.kind === "string" && Number.isFinite(item?.costTokens))
-      .map((item) => [`${item.kind}:${item.id}`, item.costTokens]),
+    Array.from(normalizePriceItems(priceList))
+      .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
+      .map(([key, entry]) => [key, entry.unitCost]),
   );
   const spend = evaluateRoomCardLayoutSpend({
     cardSet: [{ ...card, count: 1, type: "room" }],
@@ -1239,10 +1244,12 @@ function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
 }
 
 function calculateActorCardUnitValue(card, { priceList } = {}) {
+  // Accept both canonical PriceListItemLegacyV1 (`unitCost`) and legacy PriceListItemTokenV1
+  // (`costTokens`) shapes via normalizePriceItems (BUG-2 fix).
   const priceMap = new Map(
-    (Array.isArray(priceList?.items) ? priceList.items : [])
-      .filter((item) => typeof item?.id === "string" && typeof item?.kind === "string" && Number.isFinite(item?.costTokens))
-      .map((item) => [`${item.kind}:${item.id}`, item.costTokens]),
+    Array.from(normalizePriceItems(priceList))
+      .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
+      .map(([key, entry]) => [key, entry.unitCost]),
   );
   const cost = calculateActorConfigurationUnitCost({
     entry: {
