@@ -50,3 +50,15 @@ test("cli schemas writes schemas.json when --out-dir is provided", () => {
   assert.equal(catalog.generatedAt, FIXED_TIME);
   assertSortedSchemas(catalog);
 });
+
+// ## TODO: Test Permutations
+// - Permutation: schemas with no --out-dir — confirm stdout-only mode emits a parseable JSON
+//   envelope and no file is written.
+// - Permutation: schemas run twice into the same --out-dir — confirm idempotent overwrite (no
+//   stale file left behind, generatedAt updates).
+// - Permutation: schemas catalog includes every artifact schema referenced from artifacts.ts —
+//   guard rail against silent schema drift between contracts and the catalog.
+// - Permutation: schemas with AK_FIXED_TIME unset — confirm a real ISO timestamp is produced
+//   instead of falling back to a placeholder.
+// - Permutation: schemas catalog ordering is stable across runs — confirm the sort is total and
+//   deterministic for diff-friendly output.

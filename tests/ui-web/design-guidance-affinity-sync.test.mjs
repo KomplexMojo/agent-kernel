@@ -158,3 +158,26 @@ test("changing card type replaces incompatible card payload", () => {
   assert.equal(switched.card.vitals, undefined);
   assert.ok(["small", "medium", "large"].includes(switched.card.roomSize));
 });
+
+test("design-guidance.js loads as an ES module without import-link errors (BUG-1 regression guard)", async () => {
+  // BUG-1 regression: importing a now-removed constant from domain-constants.js
+  // produced a hard ESM link error that prevented main.js from executing.
+  // The import block was repaired in M2 by defining ROOM_AFFINITY_STACK_COST_FACTOR
+  // locally. This test fails fast if anyone re-introduces a missing import binding.
+  const mod = await import("../../packages/ui-web/src/design-guidance.js");
+  assert.equal(typeof mod.createDesignCard, "function");
+  assert.equal(typeof mod.dropPropertyOnCard, "function");
+  assert.equal(typeof mod.adjustAffinityStack, "function");
+});
+
+// ## TODO: Test Permutations
+// - Permutation: an unrelated removed export added back to the import list — module-load failure
+//   surfaces a clear error and dropPropertyOnCard remains undefined.
+// - Permutation: createDesignCard with type:"room" + size:"small"/"medium"/"large" — verify all three
+//   produce the same empty affinities/expressions invariant the boot path relies on.
+// - Permutation: dropPropertyOnCard called with an unknown group key — ok=false with a stable reason
+//   (no thrown exception) so the design view can render a friendly inline error.
+// - Permutation: adjustAffinityStack with delta=0 — confirm idempotent (no entry added or removed),
+//   so repeated identical drops don't accumulate.
+// - Permutation: dropPropertyOnCard with affinity dropped on a "room" card — should remain a no-op
+//   (rooms carry no affinities) with a stable reason instead of mutating the room.

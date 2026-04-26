@@ -50,3 +50,16 @@ test("cli budget prints and writes budget artifacts", () => {
   assert.ok(existsSync(join(outDir, "price-list.json")));
   assert.ok(existsSync(join(outDir, "budget-receipt.json")));
 });
+
+// ## TODO: Test Permutations
+// - Permutation: budget without --price-list — confirm a clear error envelope (GAP-4 evidence:
+//   currently display-only, but the input contract should still validate inputs).
+// - Permutation: budget against a price list whose items use legacy `costTokens` only — confirm
+//   the receipt resolves real unitCost values (BUG-2 regression guard once normalizePriceItems is
+//   adopted by buildPriceMap).
+// - Permutation: budget against a price list whose items use canonical `unitCost` — confirm parity
+//   with the legacy-only case (no field-name divergence in the rendered receipt).
+// - Permutation: budget with a receipt path that is missing — confirm the CLI does not crash and
+//   instead returns ok:false with a stable reason.
+// - Permutation: budget --out-dir present but no write side effects expected (GAP-4) — assert that
+//   the documented limitation still holds and is reported, not silently bypassed.

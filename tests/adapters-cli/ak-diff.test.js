@@ -231,3 +231,15 @@ test("cli diff returns structured failure for missing runs", () => {
   assert.equal(output.command, "diff");
   assert.match(output.error, /Run directory not found:/);
 });
+
+// ## TODO: Test Permutations
+// - Permutation: diff between two create-only runs (no run step) — currently fails per GAP-3.
+//   Encode the expected ok:false envelope so the gap stays observable until repaired.
+// - Permutation: diff with --run-a == --run-b — confirm the command short-circuits to a "no diff"
+//   stable result instead of throwing.
+// - Permutation: diff against a run whose tick-frames artifact is missing but run-summary exists —
+//   confirm the error message names the missing artifact, not the run id.
+// - Permutation: diff with both runs containing identical tick-frames — confirm zero divergence
+//   reported in a stable, deterministic envelope.
+// - Permutation: diff where one run has more ticks than the other — confirm the longer run's
+//   tail frames are reported as additions, not as parity errors.

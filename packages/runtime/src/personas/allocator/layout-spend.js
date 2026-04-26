@@ -4,6 +4,7 @@ import {
   LAYOUT_TILE_PRICE_IDS as SHARED_LAYOUT_TILE_PRICE_IDS,
 } from "../../contracts/domain-constants.js";
 import { deriveLayoutFromRoomCards } from "../configurator/card-model.js";
+import { normalizePriceItems } from "./validate-spend.js";
 
 const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS;
 const DEFAULT_TILE_COSTS = SHARED_DEFAULT_LAYOUT_TILE_COSTS;
@@ -13,14 +14,17 @@ function isInteger(value) {
   return Number.isInteger(value);
 }
 
+// Build a `${kind}:${id}` -> unitCost map. Accepts both canonical PriceListItemLegacyV1
+// (`unitCost`) and legacy PriceListItemTokenV1 (`costTokens`) shapes via normalizePriceItems.
+// Without this, price maps were always empty for `unitCost` items (BUG-2).
 function buildPriceMap(priceList) {
-  const items = Array.isArray(priceList?.items) ? priceList.items : [];
+  const normalized = normalizePriceItems(priceList);
   const map = new Map();
-  items.forEach((item) => {
-    if (typeof item?.id === "string" && typeof item?.kind === "string" && Number.isFinite(item?.costTokens)) {
-      map.set(`${item.kind}:${item.id}`, item.costTokens);
+  for (const [key, entry] of normalized) {
+    if (typeof key === "string" && key.includes(":") && !key.startsWith("legacy:")) {
+      map.set(key, entry.unitCost);
     }
-  });
+  }
   return map;
 }
 

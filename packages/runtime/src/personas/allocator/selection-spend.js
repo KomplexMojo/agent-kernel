@@ -1,17 +1,21 @@
 import { calculateActorConfigurationUnitCost } from "../configurator/spend-proposal.js";
+import { normalizePriceItems } from "./validate-spend.js";
 
 function isInteger(value) {
   return Number.isInteger(value);
 }
 
+// Build a `${kind}:${id}` -> unitCost map. Accepts both canonical PriceListItemLegacyV1
+// (`unitCost`) and legacy PriceListItemTokenV1 (`costTokens`) shapes via normalizePriceItems.
+// Without this, price maps were always empty for `unitCost` items (BUG-2).
 function buildPriceMap(priceList) {
-  const items = Array.isArray(priceList?.items) ? priceList.items : [];
+  const normalized = normalizePriceItems(priceList);
   const map = new Map();
-  items.forEach((item) => {
-    if (typeof item?.id === "string" && typeof item?.kind === "string" && Number.isFinite(item?.costTokens)) {
-      map.set(`${item.kind}:${item.id}`, item.costTokens);
+  for (const [key, entry] of normalized) {
+    if (typeof key === "string" && key.includes(":") && !key.startsWith("legacy:")) {
+      map.set(key, entry.unitCost);
     }
-  });
+  }
   return map;
 }
 

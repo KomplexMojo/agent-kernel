@@ -1,4 +1,4 @@
-import { validateSpendProposal } from "../allocator/validate-spend.js";
+import { validateSpendProposal, normalizePriceItems } from "../allocator/validate-spend.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
@@ -231,14 +231,19 @@ function scaleTokenCost(value, scale = 1) {
   return scaled > 0 ? scaled : 1;
 }
 
+// Build a `${kind}:${id}` -> unitCost map. Accepts both canonical PriceListItemLegacyV1
+// (`unitCost`) and legacy PriceListItemTokenV1 (`costTokens`) shapes via normalizePriceItems.
+// Without this, price maps were always empty for `unitCost` items (BUG-2).
 function buildPriceMap(priceList) {
-  const items = Array.isArray(priceList?.items) ? priceList.items : [];
+  const normalized = normalizePriceItems(priceList);
   const map = new Map();
-  items.forEach((item) => {
-    if (typeof item?.id !== "string" || typeof item?.kind !== "string") return;
-    if (!Number.isFinite(item?.costTokens) || item.costTokens < 0) return;
-    map.set(`${item.kind}:${item.id}`, item.costTokens);
-  });
+  for (const [key, entry] of normalized) {
+    if (typeof key === "string" && key.includes(":") && !key.startsWith("legacy:")) {
+      if (entry.unitCost >= 0) {
+        map.set(key, entry.unitCost);
+      }
+    }
+  }
   return map;
 }
 

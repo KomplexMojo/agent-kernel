@@ -24,6 +24,7 @@ import {
   calculateRoomCardUnitCost,
 } from "../../../runtime/src/personas/configurator/spend-proposal.js";
 import { validateAffinityPrereqs } from "../../../runtime/src/personas/configurator/cost-model.js";
+import { normalizePriceItems } from "../../../runtime/src/personas/allocator/validate-spend.js";
 import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
@@ -1290,12 +1291,14 @@ function requiresMovementStamina(card = null) {
   return card?.type === "delver" || hasNonStationaryMobilityMotivation(motivations);
 }
 
+// Build a `${kind}:${id}` -> unitCost map. Accepts both canonical PriceListItemLegacyV1
+// (`unitCost`) and legacy PriceListItemTokenV1 (`costTokens`) shapes via normalizePriceItems.
+// Without this, price maps were always empty for `unitCost` items (BUG-2).
 function buildPriceMap(priceListArtifact) {
-  const items = Array.isArray(priceListArtifact?.items) ? priceListArtifact.items : [];
   return new Map(
-    items
-      .filter((item) => typeof item?.id === "string" && typeof item?.kind === "string" && Number.isFinite(item?.costTokens))
-      .map((item) => [`${item.kind}:${item.id}`, item.costTokens]),
+    Array.from(normalizePriceItems(priceListArtifact))
+      .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
+      .map(([key, entry]) => [key, entry.unitCost]),
   );
 }
 
