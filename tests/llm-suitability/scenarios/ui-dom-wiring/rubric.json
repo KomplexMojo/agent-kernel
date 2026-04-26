@@ -1,0 +1,35 @@
+{
+  "id": "ui-dom-wiring",
+  "title": "Browserless UI DOM Wiring",
+  "minimumTests": 2,
+  "requiredImports": [
+    "node:assert/strict",
+    "vitest"
+  ],
+  "requiredTerms": [
+    "wireCardListView",
+    "querySelector",
+    "querySelectorAll",
+    "addEventListener",
+    "trigger",
+    "dataset",
+    "textContent",
+    "missing_elements"
+  ],
+  "requiredTestNames": [
+    "renders cards",
+    "missing required elements"
+  ],
+  "forbiddenTerms": [
+    "jsdom",
+    "document.body",
+    "window."
+  ],
+  "oracleTerms": [
+    "onSelect",
+    "selected:",
+    "cards:",
+    "appendChild",
+    "ownerDocument"
+  ]
+}
