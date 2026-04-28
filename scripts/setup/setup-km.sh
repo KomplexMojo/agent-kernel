@@ -255,6 +255,24 @@ phase_3_skills() {
     install_fallback_skills "$skills_root"
   fi
 
+  # Link repo-local skills (project-specific, versioned alongside CLAUDE.md)
+  local repo_skills="$REPO_ROOT/.claude/skills"
+  if [[ -d "$repo_skills" ]]; then
+    local rlinked=0
+    for dir in "$repo_skills"/*/; do
+      [[ -d "$dir" ]] || continue
+      local name; name="$(basename "$dir")"
+      local target="$skills_root/$name"
+      if [[ -e "$target" && ! -L "$target" ]]; then
+        warn "skill exists (not a symlink): $name — leaving alone"
+        continue
+      fi
+      run ln -snf "$dir" "$target"
+      rlinked=$((rlinked+1))
+    done
+    ok "linked $rlinked repo-local skills from $repo_skills"
+  fi
+
   ok "Phase 3 done"
 }
 
