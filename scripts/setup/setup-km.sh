@@ -271,6 +271,26 @@ phase_3_skills() {
       rlinked=$((rlinked+1))
     done
     ok "linked $rlinked repo-local skills from $repo_skills"
+
+    # Register slash-command triggers for each repo skill in ~/.claude/CLAUDE.md
+    local global_claude="$HOME/.claude/CLAUDE.md"
+    run mkdir -p "$(dirname "$global_claude")"
+    [[ -f "$global_claude" ]] || run touch "$global_claude"
+    for dir in "$repo_skills"/*/; do
+      [[ -d "$dir" ]] || continue
+      local name; name="$(basename "$dir")"
+      if grep -qF "skill: \"$name\"" "$global_claude" 2>/dev/null; then
+        skip "trigger already registered: $name"
+      else
+        if [[ "$DRY_RUN" == "1" ]]; then
+          printf '%s[dry]%s would register trigger: %s\n' "$c_dim" "$c_reset" "$name"
+        else
+          printf '\n# %s\nWhen the user types `/%s`, invoke the Skill tool with `skill: "%s"` before doing anything else.\n' \
+            "$name" "$name" "$name" >> "$global_claude"
+          ok "registered trigger: $name"
+        fi
+      fi
+    done
   fi
 
   ok "Phase 3 done"
