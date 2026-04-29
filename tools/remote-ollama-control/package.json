@@ -1,0 +1,13 @@
+{
+  "name": "remote-ollama-control",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mac-to-Ubuntu Ollama profile control and benchmark package.",
+  "type": "commonjs",
+  "scripts": {
+    "check": "node --check scripts/remote-ollama-mac.js && node --check scripts/remote-ollama-profile.js && node --check scripts/benchmark-runner.js && node --check scripts/lib/config.js && node --check scripts/lib/ssh.js && node --check scripts/lib/ollama.js && node --check scripts/lib/telemetry.js && node --check scripts/lib/benchmark.js && node --check scripts/lib/markdown.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

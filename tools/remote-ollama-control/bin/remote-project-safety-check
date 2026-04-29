@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+PROJECT_DIR="${PROJECT_DIR:-/home/darren/Documents/GitHub/agent-kernel}"
+GIT_SNAPSHOT_DIR="${GIT_SNAPSHOT_DIR:-/home/darren/Documents/GitHub/.remote-ollama-safety-snapshots}"
+REQUIRE_GIT_REMOTE="${REQUIRE_GIT_REMOTE:-0}"
+GITHUB_HOST="${GITHUB_HOST:-github.com}"
+BRANCH="${BRANCH:-main}"
+PULL_REMOTE="${PULL_REMOTE:-0}"
+PUSH_REMOTE="${PUSH_REMOTE:-0}"
+ALLOW_DIRTY_PUSH="${ALLOW_DIRTY_PUSH:-0}"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  remote-project-safety-check [--repo PATH] [--snapshot-dir PATH] [--branch main]
+                              [--require-git-remote] [--no-git-remote]
+                              [--pull] [--push] [--allow-dirty-push]
+
+Checks a project directory, validates that it is a git checkout, records a
+dirty working-tree snapshot, and optionally pulls from or pushes to origin.
+USAGE
+}
+
+fail() {
+  printf 'ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+log() {
+  printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --repo|--project-dir)
+      PROJECT_DIR="${2:?--repo requires a value}"
+      shift 2
+      ;;
+    --snapshot-dir)
+      GIT_SNAPSHOT_DIR="${2:?--snapshot-dir requires a value}"
+      shift 2
+      ;;
+    --branch)
+      BRANCH="${2:?--branch requires a value}"
+      shift 2
+      ;;
+    --require-git-remote)
+      REQUIRE_GIT_REMOTE=1
+      shift
+      ;;
+    --no-git-remote)
+      REQUIRE_GIT_REMOTE=0
+      shift
+      ;;
+    --pull)
+      PULL_REMOTE=1
+      REQUIRE_GIT_REMOTE=1
+      shift
+      ;;
+    --push)
+      PUSH_REMOTE=1
+      REQUIRE_GIT_REMOTE=1
+      shift
+      ;;
+    --allow-dirty-push)
+      ALLOW_DIRTY_PUSH=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      fail "Unknown argument: $1"
+      ;;
+  esac
+done
+
+require_cmd git
+require_cmd tar
+
+[ -d "$PROJECT_DIR" ] || fail "Project directory does not exist: $PROJECT_DIR"
+[ -r "$PROJECT_DIR" ] && [ -w "$PROJECT_DIR" ] || fail "Project directory is not readable and writable: $PROJECT_DIR"
+
+cd "$PROJECT_DIR"
+git rev-parse --is-inside-work-tree >/dev/null || fail "Not inside a git work tree: $PROJECT_DIR"
+
+log "Git repository: $(git rev-parse --show-toplevel)"
+log "Branch: $(git branch --show-current || true)"
+log "HEAD: $(git rev-parse --short HEAD)"
+log "Origin: $(git remote get-url origin 2>/dev/null || printf '<missing origin>')"
+
+if [ "$REQUIRE_GIT_REMOTE" = "1" ]; then
+  git remote get-url origin >/dev/null || fail "Git remote 'origin' is not configured."
+  log "Checking origin access..."
+  git ls-remote --exit-code origin HEAD >/dev/null || fail "Cannot access git remote origin."
+  log "Fetching remote refs..."
+  git fetch --prune --quiet origin || fail "git fetch --prune origin failed."
+else
+  git ls-remote --exit-code origin HEAD >/dev/null 2>&1 || log "Origin check skipped or unavailable; continuing."
+fi
+
+dirty_count="$(git status --porcelain=v1 | wc -l | tr -d ' ')"
+if [ "$dirty_count" = "0" ]; then
+  log "Working tree is clean."
+else
+  mkdir -p "$GIT_SNAPSHOT_DIR"
+  snapshot_name="$(basename "$(git rev-parse --show-toplevel)")-$(date '+%Y%m%d-%H%M%S')"
+
+  git diff > "$GIT_SNAPSHOT_DIR/$snapshot_name.unstaged.diff"
+  git diff --cached > "$GIT_SNAPSHOT_DIR/$snapshot_name.staged.diff"
+  git status --porcelain=v1 > "$GIT_SNAPSHOT_DIR/$snapshot_name.status.txt"
+  git ls-files --others --exclude-standard -z \
+    | tar --null -czf "$GIT_SNAPSHOT_DIR/$snapshot_name.untracked.tar.gz" --files-from - 2>/dev/null || true
+
+  log "Working tree has $dirty_count changed/untracked item(s). Snapshot created:"
+  printf '  %s\n' "$GIT_SNAPSHOT_DIR/$snapshot_name.unstaged.diff"
+  printf '  %s\n' "$GIT_SNAPSHOT_DIR/$snapshot_name.staged.diff"
+  printf '  %s\n' "$GIT_SNAPSHOT_DIR/$snapshot_name.status.txt"
+  printf '  %s\n' "$GIT_SNAPSHOT_DIR/$snapshot_name.untracked.tar.gz"
+fi
+
+if [ "$PULL_REMOTE" = "1" ]; then
+  [ "$dirty_count" = "0" ] || fail "Refusing to pull with a dirty working tree. Snapshot was created; commit or stash first."
+  log "Pulling origin/$BRANCH with ff-only..."
+  git pull --ff-only origin "$BRANCH" || fail "git pull --ff-only origin $BRANCH failed."
+fi
+
+if [ "$PUSH_REMOTE" = "1" ]; then
+  if [ "$dirty_count" != "0" ] && [ "$ALLOW_DIRTY_PUSH" != "1" ]; then
+    fail "Refusing to push while working tree is dirty. Commit changes first or pass --allow-dirty-push intentionally."
+  fi
+  log "Pushing HEAD to origin/$BRANCH..."
+  git push origin "HEAD:$BRANCH" || fail "git push origin HEAD:$BRANCH failed."
+fi

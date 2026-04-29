@@ -1,0 +1,26 @@
+{
+  "notes": [
+    "Model availability is checked on the remote Ollama endpoint at runtime.",
+    "The old hard-coded GLM-only and qwen-only assumptions are intentionally removed."
+  ],
+  "models": {
+    "qwen2.5-coder:14b": {
+      "profiles": [
+        "primary"
+      ],
+      "use": "single 12GB GPU coding and test generation"
+    },
+    "GLM-4.7-Flash:latest": {
+      "profiles": [
+        "secondary"
+      ],
+      "use": "background tool-use or smaller coding tests"
+    },
+    "qwen3-coder:30b": {
+      "profiles": [
+        "dual"
+      ],
+      "use": "larger coding model across both GPUs"
+    }
+  }
+}

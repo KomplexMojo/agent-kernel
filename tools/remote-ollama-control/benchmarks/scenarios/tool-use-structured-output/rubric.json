@@ -1,0 +1,22 @@
+{
+  "title": "Tool-use structured output",
+  "expectCodeBlock": false,
+  "expectJsonObject": true,
+  "requiredJsonKeys": [
+    "commands",
+    "safety_checks",
+    "expected_endpoint",
+    "rollback"
+  ],
+  "requiredTerms": [
+    "remote-ollama-profile",
+    "telemetry",
+    "status",
+    "stop"
+  ],
+  "forbiddenTerms": [
+    "0.0.0.0 without firewall",
+    "public internet"
+  ],
+  "maxResponseChars": 2500
+}

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+if [ -n "${BASH_VERSION:-}" ]; then
+  _REMOTE_OLLAMA_SELF="${BASH_SOURCE[0]}"
+  _REMOTE_OLLAMA_SOURCED=0
+  [ "${BASH_SOURCE[0]}" != "$0" ] && _REMOTE_OLLAMA_SOURCED=1
+elif [ -n "${ZSH_VERSION:-}" ]; then
+  _REMOTE_OLLAMA_SELF="${(%):-%x}"
+  _REMOTE_OLLAMA_SOURCED=0
+  case "${ZSH_EVAL_CONTEXT:-}" in
+    *:file*) _REMOTE_OLLAMA_SOURCED=1 ;;
+  esac
+else
+  _REMOTE_OLLAMA_SELF="$0"
+  _REMOTE_OLLAMA_SOURCED=0
+fi
+
+_REMOTE_OLLAMA_ROOT="$(cd "$(dirname "$_REMOTE_OLLAMA_SELF")/.." && pwd)"
+_REMOTE_OLLAMA_PROFILE="${1:-primary}"
+_REMOTE_OLLAMA_ROUTE="${2:-${LLM_DEFAULT_ROUTE:-internal}}"
+
+if [ "$_REMOTE_OLLAMA_SOURCED" = "1" ]; then
+  eval "$(node "$_REMOTE_OLLAMA_ROOT/scripts/remote-ollama-mac.js" print-env --profile "$_REMOTE_OLLAMA_PROFILE" --route "$_REMOTE_OLLAMA_ROUTE")"
+  printf 'OLLAMA_HOST=%s\n' "$OLLAMA_HOST"
+else
+  node "$_REMOTE_OLLAMA_ROOT/scripts/remote-ollama-mac.js" print-env --profile "$_REMOTE_OLLAMA_PROFILE" --route "$_REMOTE_OLLAMA_ROUTE"
+fi
+
+unset _REMOTE_OLLAMA_SELF _REMOTE_OLLAMA_ROOT _REMOTE_OLLAMA_PROFILE _REMOTE_OLLAMA_ROUTE _REMOTE_OLLAMA_SOURCED
