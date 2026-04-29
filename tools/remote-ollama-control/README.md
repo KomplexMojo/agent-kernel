@@ -9,12 +9,12 @@ This package makes the MacBook the control/client machine and the Ubuntu box the
 
 ## Profiles
 
-Profiles live in `config/llm-profiles.json`.
+Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `agent-kernel` repo. From this tool directory, the relative path is `config/llm-profiles.json`.
 
 | Profile | GPU visibility | Intended GPU | Port | Default model |
 |---|---:|---|---:|---|
 | `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen2.5-coder:14b` |
-| `secondary` | `1` | GPU 1 / x4 secondary card | `11435` | `GLM-4.7-Flash:latest` |
+| `secondary` | `1` | GPU 1 / x4 secondary card | `11435` | `qwen2.5-coder:7b` |
 | `dual` | `0,1` | both GPUs for split/offloaded 30B models | `11436` | `qwen3-coder:30b` |
 
 The remote manager sets `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, and `OLLAMA_HOST` per profile.
@@ -54,7 +54,7 @@ Safe bind default is `127.0.0.1`. For direct LAN/VPN queries, set `LLM_OLLAMA_BI
 ```bash
 ./bin/remote-ollama-mac status --route internal
 ./bin/remote-ollama-mac start --profile primary --model qwen2.5-coder:14b
-./bin/remote-ollama-mac start --profile secondary --model GLM-4.7-Flash:latest
+./bin/remote-ollama-mac start --profile secondary --model qwen2.5-coder:7b
 ./bin/remote-ollama-mac start --profile dual --model qwen3-coder:30b
 ./bin/remote-ollama-mac stop --profile primary
 ./bin/remote-ollama-mac restart --profile dual --model qwen3-coder:30b
@@ -95,8 +95,15 @@ Results are written locally under `results/<timestamp>-<scenario>/` as `runs.jso
 
 ./bin/remote-ollama-mac benchmark-matrix \
   --profiles primary,secondary,dual \
-  --models qwen2.5-coder:14b,GLM-4.7-Flash:latest,qwen3-coder:30b \
+  --models qwen2.5-coder:14b,qwen2.5-coder:7b,qwen3-coder:30b \
   --contexts 4096,8192,16384,32768 \
+  --scenario vitest-generation
+
+./bin/remote-ollama-mac benchmark \
+  --profile dual \
+  --model GLM-4.7-Flash:latest \
+  --context 32768 \
+  --num-predict 4096 \
   --scenario vitest-generation
 ```
 

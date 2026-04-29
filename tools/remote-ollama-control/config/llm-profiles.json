@@ -19,9 +19,8 @@
       "rocrVisibleDevices": "1",
       "hipVisibleDevices": "1",
       "port": 11435,
-      "defaultModel": "GLM-4.7-Flash:latest",
+      "defaultModel": "qwen2.5-coder:7b",
       "benchmarkModels": [
-        "GLM-4.7-Flash:latest",
         "qwen2.5-coder:7b"
       ]
     },
@@ -34,7 +33,8 @@
       "port": 11436,
       "defaultModel": "qwen3-coder:30b",
       "benchmarkModels": [
-        "qwen3-coder:30b"
+        "qwen3-coder:30b",
+        "GLM-4.7-Flash:latest"
       ]
     }
   }

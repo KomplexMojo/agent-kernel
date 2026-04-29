@@ -12,9 +12,15 @@
     },
     "GLM-4.7-Flash:latest": {
       "profiles": [
+        "dual"
+      ],
+      "use": "larger model candidate; too large for a single 12GB card"
+    },
+    "qwen2.5-coder:7b": {
+      "profiles": [
         "secondary"
       ],
-      "use": "background tool-use or smaller coding tests"
+      "use": "single 12GB GPU background tool-use or smaller coding tests"
     },
     "qwen3-coder:30b": {
       "profiles": [
