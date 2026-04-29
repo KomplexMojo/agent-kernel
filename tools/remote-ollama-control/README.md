@@ -30,11 +30,18 @@ cp config/llm-host.env.example config/llm-host.env
 
 Edit `config/llm-host.env` for the Mac-side SSH settings. Keep `LLM_OLLAMA_BIND_HOST=127.0.0.1` for SSH-tunnel access. Use a LAN/VPN bind address only if the Ubuntu firewall limits access.
 
-Install the package onto Ubuntu:
+Install the package onto Ubuntu from the Mac:
 
 ```bash
 cd /Users/darren/Documents/GitHub/agent-kernel/tools/remote-ollama-control
 ./scripts/install-remote.sh internal
+```
+
+Do not run `install-remote.sh` on Ubuntu, and do not run it with `sudo`. It is a Mac-to-Ubuntu SSH deploy script. If you are already logged into Ubuntu and have this repo checkout there, use the local installer instead:
+
+```bash
+cd ~/Documents/GitHub/agent-kernel/tools/remote-ollama-control
+./scripts/install-local-ubuntu.sh
 ```
 
 The install script copies this tool to `/home/darren/remote-ollama-control` and creates these Ubuntu-side command links:
