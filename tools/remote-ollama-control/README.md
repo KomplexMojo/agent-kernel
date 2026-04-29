@@ -21,15 +21,44 @@ The remote manager sets `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, and `OLLA
 
 ## Setup
 
-1. Copy `config/llm-host.env.example` to `config/llm-host.env`.
-2. Edit route, SSH, remote directory, and bind settings.
-3. Install the remote package:
+Run these commands from the tool directory on the Mac:
 
 ```bash
+cd /Users/darren/Documents/GitHub/agent-kernel/tools/remote-ollama-control
+cp config/llm-host.env.example config/llm-host.env
+```
+
+Edit `config/llm-host.env` for the Mac-side SSH settings. Keep `LLM_OLLAMA_BIND_HOST=127.0.0.1` for SSH-tunnel access. Use a LAN/VPN bind address only if the Ubuntu firewall limits access.
+
+Install the package onto Ubuntu:
+
+```bash
+cd /Users/darren/Documents/GitHub/agent-kernel/tools/remote-ollama-control
 ./scripts/install-remote.sh internal
 ```
 
-4. Optional user-systemd install on Ubuntu:
+The install script copies this tool to `/home/darren/remote-ollama-control` and creates these Ubuntu-side command links:
+
+- `/home/darren/bin/remote-ollama-profile`
+- `/home/darren/bin/remote-project-safety-check`
+
+Create a remote runtime config on Ubuntu:
+
+```bash
+ssh -p 2222 -i ~/.ssh/ubuntu_llm_ed25519 darren@192.168.1.143
+cd /home/darren/remote-ollama-control
+cp config/llm-host.env.example config/llm-host.env
+```
+
+For safe SSH-tunnel mode, leave this in the Ubuntu config:
+
+```bash
+LLM_OLLAMA_BIND_HOST=127.0.0.1
+```
+
+For direct LAN/VPN mode, set `LLM_OLLAMA_BIND_HOST` to a LAN/VPN-reachable address and firewall the ports first.
+
+Optional user-systemd install on Ubuntu:
 
 ```bash
 mkdir -p ~/.config/systemd/user
@@ -43,15 +72,20 @@ Without the systemd unit, `remote-ollama-profile` uses managed pid files under `
 
 `--route internal` uses `192.168.1.143`. `--route external` uses `154.5.75.3`.
 
-Safe bind default is `127.0.0.1`. For direct LAN/VPN queries, set `LLM_OLLAMA_BIND_HOST` to a LAN/VPN-reachable address only after firewalling the host. Do not expose Ollama to the open internet. For loopback-only access, use:
+Safe bind default is `127.0.0.1`. In this mode, start an SSH tunnel before querying from the Mac:
 
 ```bash
 ./bin/remote-ollama-mac tunnel-command --profile primary --route internal
+# Run the printed ssh command in a separate terminal.
+export OLLAMA_HOST=http://127.0.0.1:11434
 ```
+
+For direct LAN/VPN queries without a tunnel, set `LLM_OLLAMA_BIND_HOST` on Ubuntu to a LAN/VPN-reachable address, open only the needed ports to trusted source IPs, restart the profile, and use the endpoint printed by `remote-ollama-mac`.
 
 ## Control Commands
 
 ```bash
+cd /Users/darren/Documents/GitHub/agent-kernel/tools/remote-ollama-control
 ./bin/remote-ollama-mac status --route internal
 ./bin/remote-ollama-mac start --profile primary --model qwen2.5-coder:14b
 ./bin/remote-ollama-mac start --profile secondary --model qwen2.5-coder:7b
