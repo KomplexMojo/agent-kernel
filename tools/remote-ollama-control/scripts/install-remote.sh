@@ -51,9 +51,12 @@ fi
 
 ssh "${SSH_OPTS[@]}" "$REMOTE" "\
   chmod +x '$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile' \
+           '$REMOTE_PACKAGE_DIR/bin/remote-ollama-diagnostics' \
            '$REMOTE_PACKAGE_DIR/bin/remote-project-safety-check' \
-           '$REMOTE_PACKAGE_DIR/scripts/remote-ollama-profile.js' && \
+           '$REMOTE_PACKAGE_DIR/scripts/remote-ollama-profile.js' \
+           '$REMOTE_PACKAGE_DIR/scripts/remote-ollama-diagnostics.sh' && \
   ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile' '$REMOTE_SCRIPTS_DIR/remote-ollama-profile' && \
+  ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-ollama-diagnostics' '$REMOTE_SCRIPTS_DIR/remote-ollama-diagnostics' && \
   ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-project-safety-check' '$REMOTE_SCRIPTS_DIR/remote-project-safety-check'"
 
 printf 'Installed remote package to %s:%s\n' "$REMOTE" "$REMOTE_PACKAGE_DIR"

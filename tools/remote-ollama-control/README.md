@@ -179,6 +179,16 @@ Results are written locally under `results/<timestamp>-<scenario>/` as `runs.jso
 
 Each run records endpoint, profile, model, context, `num_predict`, wall time, Ollama timing fields, prompt size, response size, early-stop detection, valid code block detection, rubric score, and telemetry before/after: `rocm-smi`, `ollama ps`, `ss -tulnp`, and `systemctl status` where available.
 
+## Diagnostics
+
+For troubleshooting, collect one uploadable text file instead of running individual checks:
+
+```bash
+remote-ollama-diagnostics primary > ~/remote-ollama-diagnostics-primary.txt 2>&1
+```
+
+The optional first argument is the profile name: `primary`, `secondary`, or `dual`. The report includes profile status, ports, Ollama processes and environment, ROCm device state, logs, API inventory, and a short telemetry sample during one request.
+
 ## Project Git Workflow
 
 Starting Ollama never requires a project checkout or GitHub auth. Project operations are explicit:
