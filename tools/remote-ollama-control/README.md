@@ -30,6 +30,14 @@ cp config/llm-host.env.example config/llm-host.env
 
 Edit `config/llm-host.env` for the Mac-side SSH settings. Keep `LLM_OLLAMA_BIND_HOST=127.0.0.1` for SSH-tunnel access. Use a LAN/VPN bind address only if the Ubuntu firewall limits access.
 
+If `LLM_SSH_KEY` is passphrase-protected, load it into the Mac SSH agent before running remote commands:
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/ubuntu_llm_ed25519
+ssh-add -l
+ssh -p 2222 -i ~/.ssh/ubuntu_llm_ed25519 darren@192.168.1.143 'echo ok'
+```
+
 Install the package onto Ubuntu from the Mac:
 
 ```bash
@@ -173,7 +181,7 @@ Keep `config/llm-host.env` uncommitted. Prefer SSH keys and normal git remotes o
 - Port already in use: stop the existing profile or the default `ollama.service`; the manager refuses to kill unrelated processes.
 - `STATE=unmanaged`: something is already listening on that profile's port, usually the default `ollama.service` on `11434`. Stop or disable it before starting the managed profile, or choose a different profile port.
 - Ollama not listening: run `logs --profile NAME` and `telemetry --profile NAME`.
-- SSH key failure: verify `LLM_SSH_KEY`, port `2222`, and `BatchMode` access.
+- SSH key failure: verify `LLM_SSH_KEY`, port `2222`, and `BatchMode` access. If the key has a passphrase, run `ssh-add --apple-use-keychain ~/.ssh/ubuntu_llm_ed25519` on the Mac first.
 - Model not installed: run `ollama pull MODEL` on Ubuntu or start with a model that exists.
 - Model does not fit in 12GB: use `dual` or a smaller quant/model.
 - Only one GPU appears active: compare `rocm-smi` before/after snapshots and confirm `ROCR_VISIBLE_DEVICES`/`HIP_VISIBLE_DEVICES`.

@@ -4,6 +4,19 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT_DIR/config/llm-host.env"
 
+if [ "$(uname -s)" != "Linux" ]; then
+  cat >&2 <<'MSG'
+install-local-ubuntu.sh must be run on the Ubuntu LLM machine.
+
+From the Mac, use:
+  ./scripts/install-remote.sh internal
+
+From Ubuntu, use:
+  ./scripts/install-local-ubuntu.sh
+MSG
+  exit 2
+fi
+
 if [ -f "$ENV_FILE" ]; then
   set -a
   # shellcheck disable=SC1090
