@@ -171,6 +171,7 @@ Keep `config/llm-host.env` uncommitted. Prefer SSH keys and normal git remotes o
 ## Troubleshooting
 
 - Port already in use: stop the existing profile or the default `ollama.service`; the manager refuses to kill unrelated processes.
+- `STATE=unmanaged`: something is already listening on that profile's port, usually the default `ollama.service` on `11434`. Stop or disable it before starting the managed profile, or choose a different profile port.
 - Ollama not listening: run `logs --profile NAME` and `telemetry --profile NAME`.
 - SSH key failure: verify `LLM_SSH_KEY`, port `2222`, and `BatchMode` access.
 - Model not installed: run `ollama pull MODEL` on Ubuntu or start with a model that exists.

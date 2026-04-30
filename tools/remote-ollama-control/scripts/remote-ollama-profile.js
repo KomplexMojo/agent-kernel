@@ -411,17 +411,20 @@ async function statusCommand(options) {
     const info = runningInfo(profile);
     const endpoint = localEndpointForProfile(profile);
     const status = await health(endpoint);
+    const occupied = portLines(profile.port);
+    const unmanaged = !info.running && (status.ok || occupied.length > 0);
     rows.push({
       profile: profile.name,
       port: profile.port,
       gpu: profile.gpuDevices,
       bind: profile.bindHost,
-      state: info.running ? 'running' : 'stopped',
+      state: info.running ? 'running' : (unmanaged ? 'unmanaged' : 'stopped'),
       mode: info.mode || '',
       model: info.model || profile.defaultModel || '',
       endpoint,
       healthy: status.ok,
       health: status.ok ? JSON.stringify(status.version) : status.error,
+      portOwner: occupied.join(' | '),
       log: logFile(profile)
     });
   }
@@ -430,9 +433,9 @@ async function statusCommand(options) {
     process.stdout.write(`${JSON.stringify(rows, null, 2)}\n`);
     return;
   }
-  process.stdout.write('PROFILE\tPORT\tGPU\tBIND\tSTATE\tMODE\tMODEL\tHEALTH\tENDPOINT\n');
+  process.stdout.write('PROFILE\tPORT\tGPU\tBIND\tSTATE\tMODE\tMODEL\tHEALTH\tENDPOINT\tPORT_OWNER\n');
   for (const row of rows) {
-    process.stdout.write(`${row.profile}\t${row.port}\t${row.gpu}\t${row.bind}\t${row.state}\t${row.mode}\t${row.model}\t${row.healthy ? 'ok' : 'fail'}\t${row.endpoint}\n`);
+    process.stdout.write(`${row.profile}\t${row.port}\t${row.gpu}\t${row.bind}\t${row.state}\t${row.mode}\t${row.model}\t${row.healthy ? 'ok' : 'fail'}\t${row.endpoint}\t${row.portOwner || ''}\n`);
   }
 }
 
