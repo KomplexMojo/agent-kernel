@@ -157,12 +157,16 @@ function localEndpointForProfile(profile) {
 }
 
 function serviceEnvironment(profile) {
-  return {
+  const env = {
     ROCR_VISIBLE_DEVICES: profile.rocrVisibleDevices,
     HIP_VISIBLE_DEVICES: profile.hipVisibleDevices,
     OLLAMA_HOST: `${profile.bindHost}:${profile.port}`,
     OLLAMA_PROFILE: profile.name
   };
+  if (profile.hsaOverrideGfxVersion) {
+    env.HSA_OVERRIDE_GFX_VERSION = profile.hsaOverrideGfxVersion;
+  }
+  return env;
 }
 
 function shellQuote(value) {

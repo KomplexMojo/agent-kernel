@@ -17,7 +17,7 @@ Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `
 | `secondary` | `1` | GPU 1 / x4 secondary card | `11435` | `qwen2.5-coder:7b` |
 | `dual` | `0,1` | both GPUs for split/offloaded 30B models | `11436` | `qwen3-coder:30b` |
 
-The remote manager sets `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, and `OLLAMA_HOST` per profile.
+The remote manager sets `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, `HSA_OVERRIDE_GFX_VERSION`, and `OLLAMA_HOST` per profile. The default `HSA_OVERRIDE_GFX_VERSION=10.3.0` is included because RX 6700/6750 class `gfx1031` cards commonly need that compatibility override for Ollama ROCm offload.
 
 ## Setup
 
@@ -215,5 +215,5 @@ Keep `config/llm-host.env` uncommitted. Prefer SSH keys and normal git remotes o
 - SSH key failure: verify `LLM_SSH_KEY`, port `2222`, and `BatchMode` access. If the key has a passphrase, run `ssh-add --apple-use-keychain ~/.ssh/ubuntu_llm_ed25519` on the Mac first.
 - Model not installed: run `ollama pull MODEL` on Ubuntu or start with a model that exists.
 - Model does not fit in 12GB: use `dual` or a smaller quant/model.
-- Only one GPU appears active: compare `rocm-smi` before/after snapshots and confirm `ROCR_VISIBLE_DEVICES`/`HIP_VISIBLE_DEVICES`.
+- Only one GPU appears active: compare `rocm-smi` before/after snapshots and confirm `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, and `HSA_OVERRIDE_GFX_VERSION`.
 - x4 GPU bottleneck: expect lower dual-profile throughput if the model moves data heavily across the secondary card.

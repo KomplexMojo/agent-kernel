@@ -6,6 +6,7 @@
       "gpuDevices": "0",
       "rocrVisibleDevices": "0",
       "hipVisibleDevices": "0",
+      "hsaOverrideGfxVersion": "10.3.0",
       "port": 11434,
       "defaultModel": "qwen2.5-coder:14b",
       "benchmarkModels": [
@@ -18,6 +19,7 @@
       "gpuDevices": "1",
       "rocrVisibleDevices": "1",
       "hipVisibleDevices": "1",
+      "hsaOverrideGfxVersion": "10.3.0",
       "port": 11435,
       "defaultModel": "qwen2.5-coder:7b",
       "benchmarkModels": [
@@ -30,6 +32,7 @@
       "gpuDevices": "0,1",
       "rocrVisibleDevices": "0,1",
       "hipVisibleDevices": "0,1",
+      "hsaOverrideGfxVersion": "10.3.0",
       "port": 11436,
       "defaultModel": "qwen3-coder:30b",
       "benchmarkModels": [

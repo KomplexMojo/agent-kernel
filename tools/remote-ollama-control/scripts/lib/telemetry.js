@@ -41,6 +41,7 @@ function collectLocalTelemetry(profile, config, label = 'snapshot') {
     expectedGpuVisibility: profile.gpuDevices,
     rocrVisibleDevices: profile.rocrVisibleDevices,
     hipVisibleDevices: profile.hipVisibleDevices,
+    hsaOverrideGfxVersion: profile.hsaOverrideGfxVersion || '',
     bindHost: profile.bindHost,
     port: profile.port,
     localEndpoint: baseUrl,
