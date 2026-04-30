@@ -179,6 +179,22 @@ Results are written locally under `results/<timestamp>-<scenario>/` as `runs.jso
 
 Each run records endpoint, profile, model, context, `num_predict`, wall time, Ollama timing fields, prompt size, response size, early-stop detection, valid code block detection, rubric score, and telemetry before/after: `rocm-smi`, `ollama ps`, `ss -tulnp`, and `systemctl status` where available.
 
+## Smoke Test
+
+From the Mac, run one prompt through an SSH tunnel and require GPU evidence:
+
+```bash
+./bin/remote-ollama-mac smoke-test \
+  --profile primary \
+  --model qwen2.5-coder:7b \
+  --route internal \
+  --local-port 21434 \
+  --prompt "Write a short Vitest for an add function." \
+  --require-gpu
+```
+
+The command opens a temporary SSH tunnel over port `2222`, sends the prompt to the selected remote Ollama profile, samples remote telemetry while the request is running, and writes a JSON report under `results/smoke-tests/`. Use `--direct` only when Ollama ports are intentionally reachable from the Mac without a tunnel.
+
 ## Diagnostics
 
 For troubleshooting, collect one uploadable text file instead of running individual checks:

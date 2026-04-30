@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-const { spawnSync } = require('child_process');
+const fs = require('fs');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const {
   endpointFor,
@@ -10,6 +11,7 @@ const {
   shellQuote
 } = require('./lib/config');
 const { runBenchmarkMatrix } = require('./lib/benchmark');
+const { health, requestJson } = require('./lib/ollama');
 const { displayCommand, runRemote, runRemoteScript, sshBaseArgs } = require('./lib/ssh');
 
 const config = loadConfig();
@@ -24,6 +26,7 @@ function usage() {
   remote-ollama-mac logs --profile NAME [--tail N]
   remote-ollama-mac telemetry [--profile NAME]
   remote-ollama-mac claude --profile NAME [--model MODEL] [-- CLAUDE_ARGS...]
+  remote-ollama-mac smoke-test --profile NAME --model MODEL [--prompt TEXT] [--require-gpu]
   remote-ollama-mac benchmark --profile NAME --model MODEL --context N --num-predict N --scenario NAME
   remote-ollama-mac benchmark-matrix --profiles a,b --models x,y --contexts 4096,8192 --scenario NAME
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
@@ -49,6 +52,8 @@ function parseArgs(argv) {
   const options = {
     dryRun: false,
     tunnel: false,
+    direct: false,
+    requireGpu: false,
     localPort: null,
     route: config.host.defaultRoute,
     profile: null,
@@ -56,6 +61,9 @@ function parseArgs(argv) {
     context: 8192,
     contexts: [],
     numPredict: 4096,
+    timeoutMs: 600000,
+    sampleMs: 2000,
+    prompt: 'Write one short sentence confirming the remote LLM smoke test is running.',
     scenario: 'vitest-generation',
     profiles: [],
     models: [],
@@ -80,6 +88,10 @@ function parseArgs(argv) {
       options.dryRun = true;
     } else if (arg === '--tunnel') {
       options.tunnel = true;
+    } else if (arg === '--direct') {
+      options.direct = true;
+    } else if (arg === '--require-gpu') {
+      options.requireGpu = true;
     } else if (arg === '--local-port') {
       options.localPort = Number(args[++index]);
     } else if (arg === '--route') {
@@ -98,6 +110,12 @@ function parseArgs(argv) {
       options.contexts = parseList(args[++index]).map(Number);
     } else if (arg === '--num-predict') {
       options.numPredict = Number(args[++index]);
+    } else if (arg === '--timeout-ms') {
+      options.timeoutMs = Number(args[++index]);
+    } else if (arg === '--sample-ms') {
+      options.sampleMs = Number(args[++index]);
+    } else if (arg === '--prompt') {
+      options.prompt = args[++index];
     } else if (arg === '--scenario') {
       options.scenario = args[++index];
     } else if (arg === '--tail') {
@@ -202,6 +220,227 @@ function printTunnelCommand(options) {
   process.stdout.write(`${displayCommand('ssh', args)}\n`);
 }
 
+function tunnelArgs(options, profile) {
+  const baseArgs = sshBaseArgs(config, options.route);
+  const destination = baseArgs.pop();
+  const localPort = options.localPort || profile.port;
+  return [
+    ...baseArgs,
+    '-o',
+    'ExitOnForwardFailure=yes',
+    '-N',
+    '-L',
+    `${localPort}:127.0.0.1:${profile.port}`,
+    destination
+  ];
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForLocalEndpoint(endpoint, timeoutMs) {
+  const started = Date.now();
+  let last = null;
+  while (Date.now() - started < timeoutMs) {
+    const result = await health(endpoint);
+    if (result.ok) {
+      return result;
+    }
+    last = result.error;
+    await sleep(250);
+  }
+  throw new Error(`Endpoint did not become healthy: ${endpoint}; last error: ${last || 'unknown'}`);
+}
+
+function parsePercentRows(text) {
+  const rows = [];
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const match = line.match(/^\s*(\d+)\s+\d+\s+0x[0-9a-f]+,\s*\d+.*?(\d+)%\s+(\d+)%\s*$/i);
+    if (match) {
+      rows.push({
+        device: Number(match[1]),
+        vramPercent: Number(match[2]),
+        gpuPercent: Number(match[3]),
+        line
+      });
+    }
+  }
+  return rows;
+}
+
+function gpuEvidenceFromTelemetry(samples, logsText) {
+  const evidence = [];
+  for (const sample of samples) {
+    const rocm = sample?.commands?.rocmSmi?.stdout || '';
+    for (const row of parsePercentRows(rocm)) {
+      if (row.vramPercent > 1 || row.gpuPercent > 0) {
+        evidence.push(`rocm-smi device ${row.device}: VRAM ${row.vramPercent}%, GPU ${row.gpuPercent}%`);
+      }
+    }
+  }
+
+  const logs = String(logsText || '');
+  for (const pattern of [
+    /loaded ROCm backend[^\n]*/gi,
+    /device=ROCm\d+[^\n]*/gi,
+    /offloaded \d+\/\d+ layers to GPU/gi,
+    /found \d+ ROCm devices/gi
+  ]) {
+    for (const match of logs.matchAll(pattern)) {
+      evidence.push(match[0]);
+    }
+  }
+
+  return [...new Set(evidence)];
+}
+
+function nowStamp() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+async function runSmokeTest(options) {
+  const profile = getProfile(config, options.profile || 'primary');
+  const model = options.model || profile.defaultModel;
+  const useTunnel = !options.direct;
+  const endpoint = useTunnel
+    ? `http://127.0.0.1:${options.localPort || profile.port}`
+    : endpointFor(config, profile, options.route);
+  const resultDir = path.join(config.host.resultsDir, 'smoke-tests');
+  const resultPath = path.join(resultDir, `${nowStamp()}-${profile.name}.json`);
+  const samples = [];
+  let tunnel = null;
+  let sampleTimer = null;
+  let requestResult = null;
+  let logsText = '';
+
+  if (options.dryRun) {
+    process.stdout.write(JSON.stringify({
+      command: 'smoke-test',
+      route: options.route,
+      profile: profile.name,
+      model,
+      endpoint,
+      useTunnel,
+      localPort: options.localPort || profile.port,
+      prompt: options.prompt,
+      requireGpu: options.requireGpu
+    }, null, 2));
+    process.stdout.write('\n');
+    return;
+  }
+
+  fs.mkdirSync(resultDir, { recursive: true });
+
+  try {
+    if (useTunnel) {
+      const args = tunnelArgs(options, profile);
+      process.stdout.write(`Opening SSH tunnel: ${displayCommand('ssh', args)}\n`);
+      tunnel = spawn('ssh', args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: process.env
+      });
+      tunnel.stdout.on('data', (chunk) => process.stdout.write(chunk));
+      tunnel.stderr.on('data', (chunk) => process.stderr.write(chunk));
+      tunnel.on('exit', (code, signal) => {
+        if (requestResult === null) {
+          process.stderr.write(`SSH tunnel exited before smoke test completed: code=${code} signal=${signal}\n`);
+        }
+      });
+    }
+
+    await waitForLocalEndpoint(endpoint, Math.min(15000, options.timeoutMs));
+    process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
+
+    const sample = async (label) => {
+      const telemetry = await collectRemoteTelemetry(options.route, profile.name, label);
+      telemetry.sampledAt = new Date().toISOString();
+      samples.push(telemetry);
+      process.stdout.write(`Telemetry sample ${samples.length}: ${telemetry.error ? 'error' : 'ok'}\n`);
+    };
+
+    await sample('before');
+    sampleTimer = setInterval(() => {
+      sample('during').catch((error) => {
+        samples.push({ label: 'during', sampledAt: new Date().toISOString(), error: error.message });
+      });
+    }, options.sampleMs);
+
+    const started = Date.now();
+    requestResult = await requestJson(endpoint, '/api/generate', {
+      model,
+      prompt: options.prompt,
+      stream: false,
+      options: {
+        num_ctx: options.context,
+        num_predict: options.numPredict,
+        temperature: 0.1
+      }
+    }, options.timeoutMs);
+    const wallMs = Date.now() - started;
+
+    if (sampleTimer) {
+      clearInterval(sampleTimer);
+      sampleTimer = null;
+    }
+    await sample('after');
+
+    const logs = runRemote(config, options.route, ['logs', '--profile', profile.name, '--tail', '260'], { capture: true });
+    logsText = logs.stdout || logs.stderr || '';
+    const gpuEvidence = gpuEvidenceFromTelemetry(samples, logsText);
+    const ok = !options.requireGpu || gpuEvidence.length > 0;
+    const output = {
+      ok,
+      generatedAt: new Date().toISOString(),
+      route: options.route,
+      profile: profile.name,
+      expectedGpuVisibility: profile.gpuDevices,
+      model,
+      endpoint,
+      useTunnel,
+      localPort: useTunnel ? (options.localPort || profile.port) : null,
+      remotePort: profile.port,
+      prompt: options.prompt,
+      requireGpu: options.requireGpu,
+      wallMs,
+      response: requestResult.response || '',
+      ollama: {
+        totalDuration: requestResult.total_duration || null,
+        loadDuration: requestResult.load_duration || null,
+        promptEvalCount: requestResult.prompt_eval_count || null,
+        promptEvalDuration: requestResult.prompt_eval_duration || null,
+        evalCount: requestResult.eval_count || null,
+        evalDuration: requestResult.eval_duration || null,
+        done: requestResult.done,
+        doneReason: requestResult.done_reason || null
+      },
+      gpuEvidence,
+      telemetrySamples: samples,
+      logsTail: logsText
+    };
+    fs.writeFileSync(resultPath, `${JSON.stringify(output, null, 2)}\n`);
+
+    process.stdout.write(`Smoke test ${ok ? 'passed' : 'failed'}\n`);
+    process.stdout.write(`Result: ${resultPath}\n`);
+    process.stdout.write(`Response: ${(requestResult.response || '').trim()}\n`);
+    if (gpuEvidence.length > 0) {
+      process.stdout.write(`GPU evidence:\n${gpuEvidence.map((item) => `- ${item}`).join('\n')}\n`);
+    } else {
+      process.stdout.write('GPU evidence: none observed\n');
+    }
+    if (!ok) {
+      process.exit(1);
+    }
+  } finally {
+    if (sampleTimer) {
+      clearInterval(sampleTimer);
+    }
+    if (tunnel && !tunnel.killed) {
+      tunnel.kill('SIGTERM');
+    }
+  }
+}
+
 async function collectRemoteTelemetry(route, profileName, label) {
   const result = runRemote(config, route, ['telemetry', '--profile', profileName, '--json'], {
     capture: true
@@ -291,7 +530,7 @@ async function main() {
     return;
   }
 
-  if (['start', 'stop', 'restart', 'logs', 'claude', 'tunnel-command'].includes(options.command) && !options.profile) {
+  if (['start', 'stop', 'restart', 'logs', 'claude', 'tunnel-command', 'smoke-test'].includes(options.command) && !options.profile) {
     options.profile = 'primary';
   }
 
@@ -303,6 +542,8 @@ async function main() {
     runClaude(options);
   } else if (options.command === 'tunnel-command') {
     printTunnelCommand(options);
+  } else if (options.command === 'smoke-test') {
+    await runSmokeTest(options);
   } else if (options.command === 'benchmark') {
     await runBenchmark(options, false);
   } else if (options.command === 'benchmark-matrix') {
