@@ -207,6 +207,19 @@ The old `remote-claude-start` contained an unreachable GitHub/Copilot `Authoriza
 
 Keep `config/llm-host.env` uncommitted. Prefer SSH keys and normal git remotes over tokens. Do not bind Ollama to `0.0.0.0` unless firewall rules limit access to the Mac/VPN.
 
+## Firewall Restore
+
+If UFW rules are reset, restore a conservative firewall from the Ubuntu host:
+
+```bash
+cd ~/remote-ollama-control
+cp config/ufw.env.example config/ufw.env
+nano config/ufw.env
+sudo ./scripts/ufw-remote-ollama.sh
+```
+
+The script resets UFW, denies inbound by default, allows outbound, keeps SSH on `2222`, and opens Ollama ports `11434-11436` only to `UFW_OLLAMA_SOURCES`. Do not set `UFW_OLLAMA_SOURCES` to `0.0.0.0/0`.
+
 ## Troubleshooting
 
 - Port already in use: stop the existing profile or the default `ollama.service`; the manager refuses to kill unrelated processes.
