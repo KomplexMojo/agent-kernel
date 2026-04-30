@@ -299,6 +299,47 @@ function nowStamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+function remoteProfileStatus(route, profileName) {
+  const result = runRemote(config, route, ['status', '--profile', profileName, '--json'], { capture: true });
+  if (result.status !== 0) {
+    throw new Error(`Could not read remote profile status: ${result.stderr || result.stdout || `exit ${result.status}`}`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new Error(`Could not parse remote profile status JSON: ${error.message}`);
+  }
+  const row = Array.isArray(parsed) ? parsed[0] : parsed;
+  if (!row) {
+    throw new Error(`Remote profile status did not include profile '${profileName}'.`);
+  }
+  return row;
+}
+
+function assertRemoteProfileHealthy(status, profile, model) {
+  const problems = [];
+  if (status.state !== 'running') {
+    problems.push(`state=${status.state || '<missing>'}`);
+  }
+  if (!status.healthy) {
+    problems.push(`health=${status.health || 'not ok'}`);
+  }
+  if (Number(status.port) !== Number(profile.port)) {
+    problems.push(`port=${status.port}, expected=${profile.port}`);
+  }
+  if (model && status.model && status.model !== model) {
+    problems.push(`reported model=${status.model}, requested=${model}`);
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Remote profile '${profile.name}' is not ready for smoke-test (${problems.join('; ')}).\n` +
+      `Start it first, for example:\n` +
+      `  ./bin/remote-ollama-mac start --profile ${profile.name} --model ${shellQuote(model || profile.defaultModel || '')}`
+    );
+  }
+}
+
 async function runSmokeTest(options) {
   const profile = getProfile(config, options.profile || 'primary');
   const model = options.model || profile.defaultModel;
@@ -333,6 +374,10 @@ async function runSmokeTest(options) {
   fs.mkdirSync(resultDir, { recursive: true });
 
   try {
+    const remoteStatus = remoteProfileStatus(options.route, profile.name);
+    assertRemoteProfileHealthy(remoteStatus, profile, model);
+    process.stdout.write(`Remote profile ready: ${profile.name} port=${remoteStatus.port} model=${remoteStatus.model || model}\n`);
+
     if (useTunnel) {
       const args = tunnelArgs(options, profile);
       process.stdout.write(`Opening SSH tunnel: ${displayCommand('ssh', args)}\n`);
