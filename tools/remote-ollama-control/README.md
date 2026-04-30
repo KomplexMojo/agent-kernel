@@ -95,6 +95,14 @@ Safe bind default is `127.0.0.1`. In this mode, start an SSH tunnel before query
 export OLLAMA_HOST=http://127.0.0.1:11434
 ```
 
+If the Mac already has local Ollama listening on `11434`, use a different local tunnel port:
+
+```bash
+./bin/remote-ollama-mac tunnel-command --profile primary --route internal --local-port 21434
+# Run the printed ssh command in a separate terminal.
+export OLLAMA_HOST=http://127.0.0.1:21434
+```
+
 For direct LAN/VPN queries without a tunnel, set `LLM_OLLAMA_BIND_HOST` on Ubuntu to a LAN/VPN-reachable address, open only the needed ports to trusted source IPs, restart the profile, and use the endpoint printed by `remote-ollama-mac`.
 
 ## Control Commands
@@ -126,6 +134,19 @@ Or source environment variables:
 ```bash
 source ./scripts/use-remote-ollama primary
 claude --model qwen2.5-coder:14b
+```
+
+`use-remote-ollama` defaults to SSH-tunnel endpoints. If you used a non-default local tunnel port:
+
+```bash
+REMOTE_OLLAMA_LOCAL_PORT=21434 source ./scripts/use-remote-ollama primary
+claude --model qwen2.5-coder:14b
+```
+
+For direct LAN/VPN access without a tunnel:
+
+```bash
+REMOTE_OLLAMA_TUNNEL=0 source ./scripts/use-remote-ollama primary
 ```
 
 The wrapper sets `OLLAMA_HOST`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN=ollama` unless already set, and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`. Claude CLI compatibility can vary by version, so this is isolated in one wrapper.

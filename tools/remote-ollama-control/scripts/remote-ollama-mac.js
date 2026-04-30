@@ -48,6 +48,8 @@ function parseArgs(argv) {
   const args = [...argv];
   const options = {
     dryRun: false,
+    tunnel: false,
+    localPort: null,
     route: config.host.defaultRoute,
     profile: null,
     model: null,
@@ -76,6 +78,10 @@ function parseArgs(argv) {
       break;
     } else if (arg === '--dry-run') {
       options.dryRun = true;
+    } else if (arg === '--tunnel') {
+      options.tunnel = true;
+    } else if (arg === '--local-port') {
+      options.localPort = Number(args[++index]);
     } else if (arg === '--route') {
       options.route = args[++index];
     } else if (arg === '--profile') {
@@ -111,6 +117,13 @@ function endpointLine(profileName, route) {
   return `Endpoint URL: ${endpointFor(config, profile, route)}`;
 }
 
+function clientEndpoint(profile, options) {
+  if (options.tunnel) {
+    return `http://127.0.0.1:${options.localPort || profile.port}`;
+  }
+  return endpointFor(config, profile, options.route);
+}
+
 function remoteProfileArgs(command, options) {
   const args = [command];
   if (options.profile) {
@@ -137,7 +150,7 @@ function runProfileCommand(command, options) {
 
 function printEnv(options) {
   const profile = getProfile(config, options.profile || 'primary');
-  const endpoint = endpointFor(config, profile, options.route);
+  const endpoint = clientEndpoint(profile, options);
   process.stdout.write(`export OLLAMA_HOST=${shellQuote(endpoint)}\n`);
   process.stdout.write(`export ANTHROPIC_BASE_URL=${shellQuote(endpoint)}\n`);
   process.stdout.write(`export ANTHROPIC_AUTH_TOKEN=${shellQuote(process.env.ANTHROPIC_AUTH_TOKEN || 'ollama')}\n`);
@@ -147,7 +160,7 @@ function printEnv(options) {
 function runClaude(options) {
   const profile = getProfile(config, options.profile || 'primary');
   const model = options.model || profile.defaultModel;
-  const endpoint = endpointFor(config, profile, options.route);
+  const endpoint = clientEndpoint(profile, options);
   const claudeCmd = process.env.CLAUDE_CMD || 'claude';
   const args = [];
   if (model) {
@@ -178,11 +191,12 @@ function printTunnelCommand(options) {
   const profile = getProfile(config, options.profile || 'primary');
   const baseArgs = sshBaseArgs(config, options.route);
   const destination = baseArgs.pop();
+  const localPort = options.localPort || profile.port;
   const args = [
     ...baseArgs,
     '-N',
     '-L',
-    `${profile.port}:127.0.0.1:${profile.port}`,
+    `${localPort}:127.0.0.1:${profile.port}`,
     destination
   ];
   process.stdout.write(`${displayCommand('ssh', args)}\n`);
