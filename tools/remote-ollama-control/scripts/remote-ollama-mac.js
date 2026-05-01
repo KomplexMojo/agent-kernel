@@ -25,7 +25,8 @@ function usage() {
   remote-ollama-mac ps [--profile NAME]
   remote-ollama-mac logs --profile NAME [--tail N]
   remote-ollama-mac telemetry [--profile NAME]
-  remote-ollama-mac claude --profile NAME [--model MODEL] [-- CLAUDE_ARGS...]
+  remote-ollama-mac claude --profile NAME [--model MODEL] [--direct] [-- CLAUDE_ARGS...]
+  remote-ollama-mac exec [--route internal|external] -- COMMAND [ARGS...]
   remote-ollama-mac smoke-test --profile NAME --model MODEL [--prompt TEXT] [--require-gpu]
   remote-ollama-mac benchmark --profile NAME --model MODEL --context N --num-predict N --scenario NAME
   remote-ollama-mac benchmark-matrix --profiles a,b --models x,y --contexts 4096,8192 --scenario NAME
@@ -135,9 +136,13 @@ function endpointLine(profileName, route) {
   return `Endpoint URL: ${endpointFor(config, profile, route)}`;
 }
 
+function defaultLocalPort(profile) {
+  return profile.port + 10000;
+}
+
 function clientEndpoint(profile, options) {
-  if (options.tunnel) {
-    return `http://127.0.0.1:${options.localPort || profile.port}`;
+  if (options.tunnel || !options.direct) {
+    return `http://127.0.0.1:${options.localPort || defaultLocalPort(profile)}`;
   }
   return endpointFor(config, profile, options.route);
 }
@@ -175,11 +180,12 @@ function printEnv(options) {
   process.stdout.write('export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1\n');
 }
 
-function runClaude(options) {
+async function runClaude(options) {
   const profile = getProfile(config, options.profile || 'primary');
   const model = options.model || profile.defaultModel;
   const endpoint = clientEndpoint(profile, options);
   const claudeCmd = process.env.CLAUDE_CMD || 'claude';
+  const useTunnel = !options.direct;
   const args = [];
   if (model) {
     args.push('--model', model);
@@ -188,28 +194,51 @@ function runClaude(options) {
 
   if (options.dryRun) {
     process.stdout.write(`OLLAMA_HOST=${shellQuote(endpoint)} ANTHROPIC_BASE_URL=${shellQuote(endpoint)} ANTHROPIC_AUTH_TOKEN=${shellQuote(process.env.ANTHROPIC_AUTH_TOKEN || 'ollama')} ${displayCommand(claudeCmd, args)}\n`);
+    if (useTunnel) {
+      process.stdout.write(`Tunnel: ${displayCommand('ssh', tunnelArgs(options, profile))}\n`);
+    }
     return;
   }
 
-  process.stdout.write(`${endpointLine(profile.name, options.route)}\n`);
-  const result = spawnSync(claudeCmd, args, {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      OLLAMA_HOST: endpoint,
-      ANTHROPIC_BASE_URL: endpoint,
-      ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_AUTH_TOKEN || 'ollama',
-      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+  const remoteStatus = remoteProfileStatus(options.route, profile.name);
+  assertRemoteProfileHealthy(remoteStatus, profile, model, 'claude');
+  process.stdout.write(`Remote profile ready: ${profile.name} port=${remoteStatus.port} model=${remoteStatus.model || model}\n`);
+
+  let tunnel = null;
+  let status = 0;
+  try {
+    if (useTunnel) {
+      tunnel = openTunnel(options, profile);
+      await waitForLocalEndpoint(endpoint, 15000);
+      process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
+    } else {
+      process.stdout.write(`${endpointLine(profile.name, options.route)}\n`);
     }
-  });
-  process.exit(result.status === null ? 1 : result.status);
+
+    const result = spawnSync(claudeCmd, args, {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        OLLAMA_HOST: endpoint,
+        ANTHROPIC_BASE_URL: endpoint,
+        ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_AUTH_TOKEN || 'ollama',
+        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+      }
+    });
+    status = result.status === null ? 1 : result.status;
+  } finally {
+    if (tunnel && !tunnel.killed) {
+      tunnel.kill('SIGTERM');
+    }
+  }
+  process.exit(status);
 }
 
 function printTunnelCommand(options) {
   const profile = getProfile(config, options.profile || 'primary');
   const baseArgs = sshBaseArgs(config, options.route);
   const destination = baseArgs.pop();
-  const localPort = options.localPort || profile.port;
+  const localPort = options.localPort || defaultLocalPort(profile);
   const args = [
     ...baseArgs,
     '-N',
@@ -223,7 +252,7 @@ function printTunnelCommand(options) {
 function tunnelArgs(options, profile) {
   const baseArgs = sshBaseArgs(config, options.route);
   const destination = baseArgs.pop();
-  const localPort = options.localPort || profile.port;
+  const localPort = options.localPort || defaultLocalPort(profile);
   return [
     ...baseArgs,
     '-o',
@@ -233,6 +262,18 @@ function tunnelArgs(options, profile) {
     `${localPort}:127.0.0.1:${profile.port}`,
     destination
   ];
+}
+
+function openTunnel(options, profile) {
+  const args = tunnelArgs(options, profile);
+  process.stdout.write(`Opening SSH tunnel: ${displayCommand('ssh', args)}\n`);
+  const tunnel = spawn('ssh', args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: process.env
+  });
+  tunnel.stdout.on('data', (chunk) => process.stdout.write(chunk));
+  tunnel.stderr.on('data', (chunk) => process.stderr.write(chunk));
+  return tunnel;
 }
 
 function sleep(ms) {
@@ -317,7 +358,7 @@ function remoteProfileStatus(route, profileName) {
   return row;
 }
 
-function assertRemoteProfileHealthy(status, profile, model) {
+function assertRemoteProfileHealthy(status, profile, model, commandName = 'smoke-test') {
   const problems = [];
   if (status.state !== 'running') {
     problems.push(`state=${status.state || '<missing>'}`);
@@ -333,7 +374,7 @@ function assertRemoteProfileHealthy(status, profile, model) {
   }
   if (problems.length > 0) {
     throw new Error(
-      `Remote profile '${profile.name}' is not ready for smoke-test (${problems.join('; ')}).\n` +
+      `Remote profile '${profile.name}' is not ready for ${commandName} (${problems.join('; ')}).\n` +
       `Start it first, for example:\n` +
       `  ./bin/remote-ollama-mac start --profile ${profile.name} --model ${shellQuote(model || profile.defaultModel || '')}`
     );
@@ -345,7 +386,7 @@ async function runSmokeTest(options) {
   const model = options.model || profile.defaultModel;
   const useTunnel = !options.direct;
   const endpoint = useTunnel
-    ? `http://127.0.0.1:${options.localPort || profile.port}`
+    ? `http://127.0.0.1:${options.localPort || defaultLocalPort(profile)}`
     : endpointFor(config, profile, options.route);
   const resultDir = path.join(config.host.resultsDir, 'smoke-tests');
   const resultPath = path.join(resultDir, `${nowStamp()}-${profile.name}.json`);
@@ -363,7 +404,7 @@ async function runSmokeTest(options) {
       model,
       endpoint,
       useTunnel,
-      localPort: options.localPort || profile.port,
+      localPort: options.localPort || defaultLocalPort(profile),
       prompt: options.prompt,
       requireGpu: options.requireGpu
     }, null, 2));
@@ -379,14 +420,7 @@ async function runSmokeTest(options) {
     process.stdout.write(`Remote profile ready: ${profile.name} port=${remoteStatus.port} model=${remoteStatus.model || model}\n`);
 
     if (useTunnel) {
-      const args = tunnelArgs(options, profile);
-      process.stdout.write(`Opening SSH tunnel: ${displayCommand('ssh', args)}\n`);
-      tunnel = spawn('ssh', args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: process.env
-      });
-      tunnel.stdout.on('data', (chunk) => process.stdout.write(chunk));
-      tunnel.stderr.on('data', (chunk) => process.stderr.write(chunk));
+      tunnel = openTunnel(options, profile);
       tunnel.on('exit', (code, signal) => {
         if (requestResult === null) {
           process.stderr.write(`SSH tunnel exited before smoke test completed: code=${code} signal=${signal}\n`);
@@ -443,7 +477,7 @@ async function runSmokeTest(options) {
       model,
       endpoint,
       useTunnel,
-      localPort: useTunnel ? (options.localPort || profile.port) : null,
+      localPort: useTunnel ? (options.localPort || defaultLocalPort(profile)) : null,
       remotePort: profile.port,
       prompt: options.prompt,
       requireGpu: options.requireGpu,
@@ -567,6 +601,40 @@ function runRemoteProjectTool(options, mode) {
   runRemoteScript(config, options.route, script, args, { dryRun: options.dryRun });
 }
 
+function runRemoteExec(options) {
+  if (options.extra.length === 0) {
+    fail('exec requires a command after --, for example: remote-ollama-mac exec -- pwd');
+  }
+
+  const pathPrefix = [
+    config.host.remoteScriptsDir,
+    '/home/darren/bin',
+    '/home/darren/.local/bin',
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin'
+  ].filter(Boolean).join(':');
+  const command = [
+    `export PATH=${shellQuote(pathPrefix)}:$PATH;`,
+    `[ -d ${shellQuote(config.host.remoteProjectDir)} ] && cd ${shellQuote(config.host.remoteProjectDir)};`,
+    'exec',
+    ...options.extra.map((arg) => shellQuote(arg))
+  ].join(' ');
+  const sshArgs = [...sshBaseArgs(config, options.route), command];
+  const printable = displayCommand('ssh', sshArgs);
+
+  if (options.dryRun) {
+    process.stdout.write(`${printable}\n`);
+    return;
+  }
+
+  const result = spawnSync('ssh', sshArgs, {
+    stdio: 'inherit',
+    env: process.env
+  });
+  process.exit(result.status === null ? 1 : result.status);
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
 
@@ -584,7 +652,9 @@ async function main() {
   } else if (options.command === 'print-env') {
     printEnv(options);
   } else if (options.command === 'claude') {
-    runClaude(options);
+    await runClaude(options);
+  } else if (options.command === 'exec') {
+    runRemoteExec(options);
   } else if (options.command === 'tunnel-command') {
     printTunnelCommand(options);
   } else if (options.command === 'smoke-test') {

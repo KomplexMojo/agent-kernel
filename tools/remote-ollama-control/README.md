@@ -129,6 +129,13 @@ Run Claude against a selected remote Ollama endpoint:
 ./bin/remote-ollama-mac claude --profile primary --model qwen2.5-coder:14b
 ```
 
+By default this opens a temporary SSH tunnel over port `2222`, points Claude at the tunnel endpoint, and closes the tunnel when Claude exits. Use `--direct` only when the Ollama profile ports are intentionally reachable from the Mac without a tunnel:
+
+```bash
+./bin/remote-ollama-mac claude --profile dual --model qwen3-coder:30b --route external
+./bin/remote-ollama-mac claude --profile primary --model qwen2.5-coder:7b --direct
+```
+
 Or source environment variables:
 
 ```bash
@@ -150,6 +157,18 @@ REMOTE_OLLAMA_TUNNEL=0 source ./scripts/use-remote-ollama primary
 ```
 
 The wrapper sets `OLLAMA_HOST`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN=ollama` unless already set, and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`. Claude CLI compatibility can vary by version, so this is isolated in one wrapper.
+
+## Remote Command Execution
+
+Use `exec` when a local harness workflow needs a command to run on the Ubuntu machine:
+
+```bash
+./bin/remote-ollama-mac exec -- pwd
+./bin/remote-ollama-mac exec -- git status --short
+./bin/remote-ollama-mac exec -- pnpm test
+```
+
+Commands run over SSH on port `2222`, with the working directory set to `LLM_REMOTE_PROJECT_DIR` when it exists.
 
 ## Benchmarks
 
