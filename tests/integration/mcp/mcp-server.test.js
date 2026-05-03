@@ -412,15 +412,16 @@ testIfWasm("mcp server run and inspect tool calls round-trip over stdio", async 
   }
 });
 
-// ## TODO: Test Permutations
+// ## Gap Registry — Uncovered MCP Tools (M7 scope boundary)
 //
-// This file is the authoritative MCP verification surface for this session.
-// Tools verified working above (M5): ak_schemas, ak_create (dry-run + full), ak_configure,
+// This file is the authoritative MCP verification surface for the session.
+// Tools verified working (M5): ak_schemas, ak_create (dry-run + full), ak_configure,
 // ak_llm_plan, ak_room_plan, ak_delver_plan, ak_warden_plan, ak_show, ak_runs_list, ak_run, ak_inspect.
 //
-// The MCP tools below are uncovered at the MCP layer (CLI tests cover the underlying commands,
-// but MCP tool invocation is untested). Each TODO is a distinct failure class, not a duplicate
-// shape, and each names the tool family explicitly so the gap stays observable.
+// The tool families below are uncovered at the MCP layer. Each requires fixture files or
+// WASM-backed runs that do not yet exist, placing them outside the local-model permutation
+// scope (complex async integration, multi-system coordination). They remain here as an
+// explicit gap registry so the uncovered surface stays observable rather than implied.
 //
 // Simulation tools:
 // - Permutation: ak_build with a fixture spec — confirm the MCP envelope returns a bundle ref and

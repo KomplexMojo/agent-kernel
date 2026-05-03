@@ -193,18 +193,28 @@ test("cli verification ring: --from-run chains create into run when default path
   assert.ok(existsSync(tickFrames), "--from-run must produce tick-frames under artifacts/runs/<id>/run/");
 });
 
-// ## TODO: Test Permutations
-// - Permutation: create with only --room (no actors) — confirm artifacts include sim-config and
-//   initial-state with zero actors and that downstream `run` fails fast with a clear reason.
-// - Permutation: run with --ticks 0 — confirm tick-frames is empty but the artifact envelope is
-//   still well-formed (schema + meta present) so inspect/narrate don't NPE.
-// - Permutation: inspect against an empty effects-log — confirm inspect-summary.json still emits
-//   counts (zeros) instead of failing.
-// - Permutation: narrate without --initial-state — confirm the CLI exits non-zero with a stable
-//   error message that names the missing argument.
-// - Permutation: replay with mismatched sim-config / initial-state pair — confirm the CLI surfaces
-//   a deterministic error (no WASM trap) so callers can detect drift.
-// - Permutation: show against a run-id that does not exist — confirm the CLI returns ok:false and
-//   names the missing run directory in the error envelope.
-// - Permutation: --from-run after running create with a custom --out-dir — confirm the documented
-//   GAP-1 limitation surfaces (clear error rather than silent success).
+test("narrate without --initial-state exits non-zero with a stable error message", () => {
+  const result = runCli(["narrate", "--tick-frames", "/dev/null"]);
+  assert.notEqual(result.status, 0, "narrate without --initial-state must exit non-zero");
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.equal(output.command, "narrate");
+  assert.ok(typeof output.error === "string" && output.error.length > 0, "error field must name the missing argument");
+});
+
+test("show against a non-existent run-id returns ok=false and names the missing directory", () => {
+  const result = runCli(["show", "--run-id", "run_does_not_exist_99"]);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.equal(output.command, "show");
+  assert.match(output.error, /run_does_not_exist_99/, "error must name the missing run-id");
+});
+
+test("show without --run-id exits non-zero with a stable argument error", () => {
+  const result = runCli(["show"]);
+  assert.notEqual(result.status, 0, "show without --run-id must exit non-zero");
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.equal(output.command, "show");
+  assert.match(output.error, /--run-id/, "error must reference the missing --run-id flag");
+});

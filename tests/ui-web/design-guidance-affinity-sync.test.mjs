@@ -170,14 +170,37 @@ test("design-guidance.js loads as an ES module without import-link errors (BUG-1
   assert.equal(typeof mod.adjustAffinityStack, "function");
 });
 
-// ## TODO: Test Permutations
-// - Permutation: an unrelated removed export added back to the import list — module-load failure
-//   surfaces a clear error and dropPropertyOnCard remains undefined.
-// - Permutation: createDesignCard with type:"room" + size:"small"/"medium"/"large" — verify all three
-//   produce the same empty affinities/expressions invariant the boot path relies on.
-// - Permutation: dropPropertyOnCard called with an unknown group key — ok=false with a stable reason
-//   (no thrown exception) so the design view can render a friendly inline error.
-// - Permutation: adjustAffinityStack with delta=0 — confirm idempotent (no entry added or removed),
-//   so repeated identical drops don't accumulate.
-// - Permutation: dropPropertyOnCard with affinity dropped on a "room" card — should remain a no-op
-//   (rooms carry no affinities) with a stable reason instead of mutating the room.
+test("room cards with all three sizes produce empty affinities and expressions", () => {
+  for (const size of ["small", "medium", "large"]) {
+    const roomCard = createDesignCard({ type: "room", roomSize: size });
+    assert.deepEqual(roomCard.affinities, [], `room size ${size} must have no affinities`);
+    assert.deepEqual(roomCard.expressions, [], `room size ${size} must have no expressions`);
+  }
+});
+
+test("dropPropertyOnCard with unknown group key returns ok=false without throwing", () => {
+  const card = createDesignCard({ type: "warden", affinity: "fire", motivations: ["defending"] });
+  const result = dropPropertyOnCard(card, { group: "colors", value: "red" });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "unsupported_group");
+});
+
+test("adjustAffinityStack with delta 0 leaves entry stacks unchanged", () => {
+  const card = createDesignCard({
+    type: "warden",
+    affinity: "fire",
+    affinities: [{ kind: "fire", expression: "push", stacks: 2 }],
+    motivations: ["defending"],
+  });
+  const adjusted = adjustAffinityStack(card, "fire", 0, "push");
+  const entry = adjusted.affinities.find((e) => e.kind === "fire" && e.expression === "push");
+  assert.equal(entry.stacks, 2);
+  assert.equal(adjusted.affinities.length, 1);
+});
+
+test("dropping an affinity on a room card leaves affinities empty (room invariant enforced)", () => {
+  const room = createDesignCard({ type: "room", roomSize: "medium" });
+  const result = dropPropertyOnCard(room, { group: "affinities", value: "fire" });
+  assert.deepEqual(result.card.affinities, [], "room affinities must stay empty after affinity drop");
+  assert.equal(typeof result.reason, "string");
+});

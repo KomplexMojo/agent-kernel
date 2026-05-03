@@ -154,14 +154,47 @@ test("design-view module imports cleanly so wireTabs is reachable from main.js",
   assert.equal(typeof simulationView.wireSimulationView, "function");
 });
 
-// ## TODO: Test Permutations
-// - Permutation: wireDesignView with a root that returns an array from querySelectorAll — confirm
-//   non-empty NodeList paths still tolerate missing per-element attributes without throwing.
-// - Permutation: wireDiagnosticsView called twice on the same root — confirm idempotent wiring
-//   (no double-bound listeners) so re-mounts don't double-fire on bundle load.
-// - Permutation: wireSimulationView with autoBoot=true and a stub clock — confirm boot completes
-//   deterministically and surfaces a status-message with dataset.level set.
-// - Permutation: extractLlmCaptures with an empty captures array but a populated bundle.artifacts —
-//   confirm dedup by meta.id still produces a stable order.
-// - Permutation: simulationView.regenerateLevelArtifacts with malformed tile rows (mixed widths) —
-//   confirm result.ok=false with a clear reason (no throw) so the UI can show the error inline.
+test("wireDesignView with querySelectorAll returning a non-empty array does not throw", () => {
+  const root = {
+    querySelector() { return null; },
+    querySelectorAll() { return [{ dataset: {} }, { dataset: {} }]; },
+  };
+  const dv = wireDesignView({ root });
+  assert.ok(dv);
+  assert.ok(typeof dv.publishPreviewSpec === "function");
+});
+
+test("wireDiagnosticsView wired twice on the same root returns valid views both times", () => {
+  const root = { querySelector() { return null; }, querySelectorAll() { return []; } };
+  const dv1 = wireDiagnosticsView({ root });
+  const dv2 = wireDiagnosticsView({ root });
+  assert.ok(typeof dv1.runBuild === "function");
+  assert.ok(typeof dv2.runBuild === "function");
+});
+
+test("extractLlmCaptures with empty captures array sources deduped results from bundle artifacts", () => {
+  const llmCapture = {
+    schema: "agent-kernel/CapturedInputArtifact",
+    schemaVersion: 1,
+    meta: { id: "cap_bundle_1", runId: "run_x", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "orchestrator" },
+    source: { adapter: "llm", request: { model: "phi4" } },
+    contentType: "application/json",
+    payload: { prompt: "p", responseRaw: "r" },
+  };
+  const captures = extractLlmCaptures({
+    captures: [],
+    snapshot: null,
+    bundle: { artifacts: [llmCapture, llmCapture] },
+  });
+  assert.equal(captures.length, 1, "dedup by meta.id must collapse duplicates from bundle.artifacts");
+  assert.equal(captures[0].meta.id, "cap_bundle_1");
+  assert.equal(captures[0].source.adapter, "llm");
+});
+
+test("regenerateLevelArtifacts with null tiles returns ok=false with a reason", async () => {
+  const root = { querySelector() { return null; }, querySelectorAll() { return []; } };
+  const sim = wireSimulationView({ root, autoBoot: false });
+  const result = await sim.regenerateLevelArtifacts({ tiles: null });
+  assert.equal(result.ok, false);
+  assert.equal(typeof result.reason, "string");
+});
