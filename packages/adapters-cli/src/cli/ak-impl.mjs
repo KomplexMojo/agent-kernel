@@ -2162,6 +2162,7 @@ function defaultLlmPlanOutDir(runId) {
 
 const STRUCTURED_STDOUT_COMMANDS = new Set([
   "build",
+  "budget",
   "create",
   "configure",
   "room-plan",
@@ -4577,7 +4578,7 @@ async function budgetCommand(argv) {
     return;
   }
   const result = await commandKernel.budget(args);
-  emitJsonStdout(result.output);
+  emitJsonStdout({ ok: true, command: "budget", ...result.output });
 }
 
 async function replayCommand(argv) {
