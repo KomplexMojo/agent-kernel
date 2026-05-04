@@ -41,6 +41,13 @@ packages/graphify-out/
 .DS_Store
 .env
 local-codex/
+
+# Runtime artifacts
+test-results/
+test-gen.log
+test-gen-report.md
+mcp.json
+*.out
 VALIDATION_TEST_SUMMARY.txt
 test-output.log
 test-results.txt
