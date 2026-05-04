@@ -82,6 +82,11 @@ function numberFrom(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function positiveIntegerFrom(value, fallback) {
+  const parsed = numberFrom(value, fallback);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 function loadConfig(rootDir = ROOT_DIR) {
   const envFile = path.join(rootDir, 'config', 'llm-host.env');
   const env = { ...parseEnvFile(envFile), ...process.env };
@@ -109,6 +114,7 @@ function loadConfig(rootDir = ROOT_DIR) {
     envFile,
     profiles,
     models: modelsJson.models || {},
+    benchmark: modelsJson.benchmark || {},
     host: {
       remoteUser: env.LLM_REMOTE_USER || 'darren',
       internalHost: env.LLM_INTERNAL_HOST || '192.168.1.143',
@@ -121,7 +127,8 @@ function loadConfig(rootDir = ROOT_DIR) {
       remotePackageDir: env.LLM_REMOTE_PACKAGE_DIR || '/home/darren/remote-ollama-control',
       remoteProfileCommand: env.LLM_REMOTE_PROFILE_CMD || `${remoteScriptsDir}/remote-ollama-profile`,
       resultsDir: resolveMaybeRelative(rootDir, env.LLM_RESULTS_DIR || './results'),
-      profileManager: env.LLM_PROFILE_MANAGER || 'auto'
+      profileManager: env.LLM_PROFILE_MANAGER || 'auto',
+      sshConnectTimeoutSec: positiveIntegerFrom(env.LLM_SSH_CONNECT_TIMEOUT, 10)
     }
   };
 }

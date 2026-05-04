@@ -1,7 +1,7 @@
 ---
 name: local-test-gen
 description: Generate test permutations using the currently loaded local Ollama model (auto-detected via /api/ps). Scans for ## TODO: Test Permutations sections, generates concrete test cases, runs them, and reports failures vs. application code issues. No MCP tools required — uses filesystem + Ollama API + shell only.
-compatibility: Requires Node.js 18+, Ollama running locally on localhost:11434 with at least one model loaded
+compatibility: Requires Node.js 18+, an Ollama-compatible endpoint reachable via OLLAMA_HOST or localhost:11434 with at least one model loaded
 trigger: /local-test-gen
 ---
 
@@ -12,7 +12,7 @@ Expand `## TODO: Test Permutations` stubs in test files into concrete, runnable 
 **Use this skill when:**
 - A test file ends with a `## TODO: Test Permutations` section containing plain-language stub descriptions
 - You want to expand permutations locally without spending cloud tokens
-- You are on a machine with Ollama running `qwen3-coder:30b`
+- You are on a machine with Ollama running `qwen3-coder:30b-a3b-q4_K_M`
 
 **Do NOT use this skill for:**
 - Architecture decisions
@@ -27,6 +27,7 @@ Expand `## TODO: Test Permutations` stubs in test files into concrete, runnable 
 1. Ollama is running: `ollama serve`
 2. At least one model is loaded in Ollama (the script picks the currently warm one automatically)
 3. You are in the repo root (where `tests/` exists and `pnpm` is available)
+4. For remote hardware through SSH, run through `remote-ollama-mac run-local` or set `OLLAMA_HOST` to the active tunnel endpoint
 
 ---
 
@@ -39,7 +40,19 @@ node ~/.claude/skills/local-test-gen/scripts/main.mjs
 Optional flags:
 - `--file tests/path/to/file.test.js` — process one specific file only
 - `--dry-run` — print what would be generated without writing or running anything
-- `--model qwen3-coder:7b` — override the model (default: qwen3-coder:30b)
+- `--model qwen3-coder:7b` — override the model (default: qwen3-coder:30b-a3b-q4_K_M)
+- `--ollama-host http://127.0.0.1:21436` — override `OLLAMA_HOST`
+- `--ollama-timeout-ms 1800000` — override the request timeout
+
+Remote dual-GPU example from the repo root:
+
+```bash
+./tools/remote-ollama-control/bin/remote-ollama-mac run-local \
+  --profile dual \
+  --model qwen3-coder:30b-a3b-q4_K_M \
+  --route external \
+  -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model qwen3-coder:30b-a3b-q4_K_M
+```
 
 ---
 
@@ -47,7 +60,7 @@ Optional flags:
 
 1. **Scan** — finds all `*.test.js` and `*.test.mjs` files under `tests/` that contain a `## TODO: Test Permutations` section
 2. **Plan** — extracts the stub bullet points from each file's TODO section
-3. **Generate** — sends each file's full content + stubs to `qwen3-coder:30b`, asking it to produce concrete test cases for every stub
+3. **Generate** — sends each file's full content + stubs to `qwen3-coder:30b-a3b-q4_K_M`, asking it to produce concrete test cases for every stub
 4. **Insert** — writes the generated tests into the file, replacing the TODO section
 5. **Run** — executes each modified file with the correct runner:
    - `.test.js` → `node --test <file>` (legacy Node test runner)

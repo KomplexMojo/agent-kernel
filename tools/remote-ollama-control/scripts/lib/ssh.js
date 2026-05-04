@@ -9,6 +9,8 @@ function sshBaseArgs(config, routeName) {
     '-p',
     String(config.host.sshPort),
     '-o',
+    `ConnectTimeout=${config.host.sshConnectTimeoutSec || 10}`,
+    '-o',
     'ServerAliveInterval=30',
     '-o',
     'ServerAliveCountMax=3',
@@ -75,16 +77,24 @@ function runRemoteScript(config, routeName, executable, remoteArgs, options = {}
   const result = spawnSync('ssh', sshArgs, {
     encoding: 'utf8',
     env: process.env,
-    stdio: options.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit'
+    stdio: options.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+    timeout: options.timeoutMs || undefined
   });
 
   if (options.capture) {
     return {
       status: result.status === null ? 1 : result.status,
       stdout: result.stdout || '',
-      stderr: result.stderr || '',
+      stderr: result.error
+        ? `${result.stderr || ''}${result.error.message}`.trim()
+        : (result.stderr || ''),
       command: printable
     };
+  }
+
+  if (result.error) {
+    process.stderr.write(`${result.error.message}\n`);
+    process.exit(1);
   }
 
   if (result.status !== 0) {

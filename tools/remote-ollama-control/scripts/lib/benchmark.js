@@ -14,6 +14,106 @@ function estimateTokens(text) {
   return Math.max(1, Math.ceil(String(text || '').length / 4));
 }
 
+function numberList(values, fallback) {
+  const source = Array.isArray(values) && values.length > 0 ? values : fallback;
+  return [...new Set(source.map(Number).filter((value) => Number.isFinite(value) && value > 0))];
+}
+
+function normalizeEffort(value) {
+  if (typeof value === 'number') {
+    return { name: `predict-${value}`, numPredict: value };
+  }
+  if (typeof value === 'string') {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0
+      ? { name: `predict-${numeric}`, numPredict: numeric }
+      : null;
+  }
+  if (value && typeof value === 'object') {
+    const numPredict = Number(value.numPredict ?? value.num_predict);
+    if (Number.isFinite(numPredict) && numPredict > 0) {
+      return {
+        ...value,
+        name: value.name || `predict-${numPredict}`,
+        numPredict
+      };
+    }
+  }
+  return null;
+}
+
+function effortList(values, fallback) {
+  const source = Array.isArray(values) && values.length > 0 ? values : fallback;
+  const fallbackByName = new Map((fallback || [])
+    .map((value) => normalizeEffort(value))
+    .filter(Boolean)
+    .map((value) => [value.name, value]));
+  const efforts = [];
+  const seen = new Set();
+  for (const value of source) {
+    const effort = typeof value === 'string' && fallbackByName.has(value)
+      ? fallbackByName.get(value)
+      : normalizeEffort(value);
+    if (!effort || seen.has(effort.name)) {
+      continue;
+    }
+    seen.add(effort.name);
+    efforts.push(effort);
+  }
+  return efforts.length > 0 ? efforts : [{ name: 'standard', numPredict: 4096 }];
+}
+
+function scenarioList(values, fallback) {
+  const source = Array.isArray(values) && values.length > 0 ? values : fallback;
+  return [...new Set(source.filter(Boolean).map(String))];
+}
+
+function modelProfiles(config, modelName) {
+  const model = config.models[modelName] || {};
+  return Array.isArray(model.profiles) ? model.profiles : [];
+}
+
+function buildHardwareBenchmarkSpecs(config, options = {}) {
+  const benchmark = config.benchmark || {};
+  const selectedModels = Array.isArray(options.models) && options.models.length > 0
+    ? options.models
+    : Object.keys(config.models || {});
+  const selectedProfiles = Array.isArray(options.profileNames) && options.profileNames.length > 0
+    ? new Set(options.profileNames)
+    : null;
+  const contexts = numberList(options.contexts, benchmark.defaultContexts || [4096, 8192, 16384, 32768]);
+  const efforts = effortList(options.efforts, benchmark.defaultEfforts || [{ name: 'standard', numPredict: 4096 }]);
+  const scenarios = scenarioList(options.scenarioNames, benchmark.defaultScenarios || ['vitest-generation']);
+  const specs = [];
+
+  for (const modelName of selectedModels) {
+    const allowedProfiles = modelProfiles(config, modelName);
+    if (allowedProfiles.length === 0) {
+      continue;
+    }
+    for (const profileName of allowedProfiles) {
+      if (selectedProfiles && !selectedProfiles.has(profileName)) {
+        continue;
+      }
+      getProfile(config, profileName);
+      for (const context of contexts) {
+        for (const effort of efforts) {
+          specs.push({
+            profileName,
+            model: modelName,
+            context,
+            effortName: effort.name,
+            numPredict: effort.numPredict,
+            effortOptions: { ...effort }
+          });
+        }
+      }
+    }
+  }
+
+  return { specs, scenarios, contexts, efforts };
+}
+
 function loadScenario(rootDir, scenarioName) {
   const dir = path.join(rootDir, 'benchmarks', 'scenarios', scenarioName);
   if (!fs.existsSync(dir)) {
@@ -40,6 +140,7 @@ Benchmark metadata:
 - Endpoint: ${run.endpoint}
 - Model: ${run.model}
 - Context window under test: ${run.context}
+- Effort under test: ${run.effortName || 'custom'}
 - num_predict under test: ${run.numPredict}
 
 Source/context material:
@@ -205,7 +306,11 @@ function detectEarlyStop(response, payload, numPredict) {
   };
 }
 
-async function generate(endpoint, model, prompt, context, numPredict) {
+async function generate(endpoint, model, prompt, context, numPredict, effortOptions = {}, timeoutMs = 3600000) {
+  const optionOverrides = { ...effortOptions };
+  delete optionOverrides.name;
+  delete optionOverrides.numPredict;
+  delete optionOverrides.num_predict;
   const body = {
     model,
     prompt,
@@ -214,11 +319,12 @@ async function generate(endpoint, model, prompt, context, numPredict) {
       temperature: 0.1,
       top_p: 0.9,
       num_ctx: context,
-      num_predict: numPredict
+      num_predict: numPredict,
+      ...optionOverrides
     }
   };
   const started = Date.now();
-  const payload = await requestJson(endpoint, '/api/generate', body, 3600000);
+  const payload = await requestJson(endpoint, '/api/generate', body, timeoutMs);
   const wallMs = Date.now() - started;
   return {
     payload,
@@ -229,12 +335,78 @@ async function generate(endpoint, model, prompt, context, numPredict) {
   };
 }
 
+function summarizeRecommendations(results) {
+  const groups = new Map();
+  for (const result of results.filter((item) => item.ok)) {
+    const key = [
+      result.profile,
+      result.model,
+      result.context,
+      result.effortName || 'custom',
+      result.numPredict
+    ].join('\t');
+    const existing = groups.get(key) || {
+      profile: result.profile,
+      model: result.model,
+      context: result.context,
+      effortName: result.effortName || 'custom',
+      numPredict: result.numPredict,
+      runs: 0,
+      totalScore: 0,
+      earlyStops: 0,
+      errors: 0,
+      tokensPerSecond: []
+    };
+    existing.runs += 1;
+    existing.totalScore += result.score?.score || 0;
+    if (result.earlyStop?.earlyStop) {
+      existing.earlyStops += 1;
+    }
+    if (result.error) {
+      existing.errors += 1;
+    }
+    if (result.timings?.tokensPerSecond) {
+      existing.tokensPerSecond.push(result.timings.tokensPerSecond);
+    }
+    groups.set(key, existing);
+  }
+
+  const rows = [...groups.values()].map((group) => ({
+    ...group,
+    averageScore: Math.round((group.totalScore / Math.max(1, group.runs)) * 10) / 10,
+    averageTokensPerSecond: group.tokensPerSecond.length > 0
+      ? Math.round((group.tokensPerSecond.reduce((sum, value) => sum + value, 0) / group.tokensPerSecond.length) * 100) / 100
+      : null
+  }));
+
+  rows.sort((a, b) => (
+    b.averageScore - a.averageScore ||
+    a.earlyStops - b.earlyStops ||
+    b.context - a.context ||
+    b.numPredict - a.numPredict ||
+    String(a.model).localeCompare(String(b.model))
+  ));
+
+  const byProfile = new Map();
+  for (const row of rows) {
+    if (!byProfile.has(row.profile)) {
+      byProfile.set(row.profile, row);
+    }
+  }
+
+  return {
+    ranked: rows,
+    byProfile: [...byProfile.values()]
+  };
+}
+
 function writeSummary(summaryPath, results, runConfig) {
   const rows = results.map((result) => [
     result.ok ? 'ok' : 'failed',
     result.profile,
     result.model,
     result.context,
+    result.effortName || 'custom',
     result.numPredict,
     result.scenario,
     result.score?.score ?? '',
@@ -254,19 +426,57 @@ function writeSummary(summaryPath, results, runConfig) {
     `Route: ${runConfig.route}`,
     `Result directory: ${runConfig.resultDir}`,
     '',
-    table(['Status', 'Profile', 'Model', 'Context', 'num_predict', 'Scenario', 'Score', 'Wall ms', 'tok/s', 'Early stop', 'Code block', 'Error'], rows)
+    table(['Status', 'Profile', 'Model', 'Context', 'Effort', 'num_predict', 'Scenario', 'Score', 'Wall ms', 'tok/s', 'Early stop', 'Code block', 'Error'], rows)
   ];
+
+  const recommendations = summarizeRecommendations(results);
+  if (recommendations.byProfile.length > 0) {
+    lines.push('## Recommended Standard Settings', '');
+    lines.push(table(
+      ['Profile', 'Model', 'Context', 'Effort', 'num_predict', 'Avg score', 'Runs', 'Early stops', 'Avg tok/s'],
+      recommendations.byProfile.map((result) => [
+        result.profile,
+        result.model,
+        result.context,
+        result.effortName,
+        result.numPredict,
+        result.averageScore,
+        result.runs,
+        result.earlyStops,
+        result.averageTokensPerSecond ?? ''
+      ])
+    ));
+  }
+
+  if (recommendations.ranked.length > 0) {
+    lines.push('## Ranked Settings', '');
+    lines.push(table(
+      ['Rank', 'Profile', 'Model', 'Context', 'Effort', 'num_predict', 'Avg score', 'Runs', 'Early stops'],
+      recommendations.ranked.slice(0, 25).map((result, index) => [
+        index + 1,
+        result.profile,
+        result.model,
+        result.context,
+        result.effortName,
+        result.numPredict,
+        result.averageScore,
+        result.runs,
+        result.earlyStops
+      ])
+    ));
+  }
 
   if (ranked.length > 0) {
     lines.push('## Best Runs', '');
     lines.push(table(
-      ['Rank', 'Score', 'Profile', 'Model', 'Context', 'Wall ms', 'Reasons'],
+      ['Rank', 'Score', 'Profile', 'Model', 'Context', 'Effort', 'Wall ms', 'Reasons'],
       ranked.slice(0, 10).map((result, index) => [
         index + 1,
         result.score.score,
         result.profile,
         result.model,
         result.context,
+        result.effortName || 'custom',
         result.timings.wallMs,
         result.score.reasons.join(', ')
       ])
@@ -289,111 +499,149 @@ async function runBenchmarkMatrix(options) {
     contexts,
     numPredict,
     scenarioName,
+    scenarioNames,
+    runSpecs,
+    endpointForRun,
+    beforeRun,
+    timeoutMs = 3600000,
     collectTelemetry = defaultTelemetry
   } = options;
 
-  const scenario = loadScenario(config.rootDir, scenarioName);
+  const scenarios = scenarioList(scenarioNames, [scenarioName || 'vitest-generation'])
+    .map((name) => loadScenario(config.rootDir, name));
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const resultDir = path.join(config.host.resultsDir, `${timestamp}-${sanitizeName(scenarioName)}`);
+  const resultDir = path.join(config.host.resultsDir, `${timestamp}-${sanitizeName(scenarios.map((item) => item.name).join('_'))}`);
   const rawDir = path.join(resultDir, 'raw');
   fs.mkdirSync(rawDir, { recursive: true });
   const jsonlPath = path.join(resultDir, 'runs.jsonl');
   const summaryPath = path.join(resultDir, 'summary.md');
   const results = [];
+  const specs = Array.isArray(runSpecs) && runSpecs.length > 0
+    ? runSpecs
+    : [];
+
+  if (specs.length === 0) {
+    const selectedProfiles = profileNames || ['primary'];
+    const selectedContexts = contexts || [8192];
+    const selectedModels = models || [];
+    for (const profileName of selectedProfiles) {
+      const profile = getProfile(config, profileName);
+      const modelList = selectedModels.length > 0 ? selectedModels : [profile.defaultModel].filter(Boolean);
+      for (const model of modelList) {
+        for (const context of selectedContexts) {
+          specs.push({
+            profileName,
+            model,
+            context,
+            effortName: 'custom',
+            numPredict,
+            effortOptions: {}
+          });
+        }
+      }
+    }
+  }
 
   let index = 0;
-  for (const profileName of profileNames) {
-    const profile = getProfile(config, profileName);
-    const endpoint = endpointFor(config, profile, route);
-    const modelList = models.length > 0 ? models : [profile.defaultModel].filter(Boolean);
-    for (const model of modelList) {
-      for (const context of contexts) {
-        index += 1;
-        const runId = `${String(index).padStart(3, '0')}-${sanitizeName(profile.name)}-${sanitizeName(model)}-ctx${context}`;
-        const run = { profile, endpoint, model, context, numPredict };
-        const prompt = renderPrompt(scenario, run);
-        const promptPath = path.join(rawDir, `${runId}.prompt.md`);
-        const responsePath = path.join(rawDir, `${runId}.response.txt`);
-        fs.writeFileSync(promptPath, prompt);
+  for (const spec of specs) {
+    const profile = getProfile(config, spec.profileName);
+    const endpoint = endpointForRun ? endpointForRun(profile, spec) : endpointFor(config, profile, route);
+    const model = spec.model;
+    const context = spec.context;
+    const effortName = spec.effortName || 'custom';
+    const runNumPredict = Number(spec.numPredict || numPredict || 4096);
+    const effortOptions = spec.effortOptions || {};
+    if (beforeRun) {
+      await beforeRun({ profile, endpoint, model, context, numPredict: runNumPredict, effortName, spec });
+    }
+    for (const scenario of scenarios) {
+      index += 1;
+      const runId = `${String(index).padStart(3, '0')}-${sanitizeName(profile.name)}-${sanitizeName(model)}-${sanitizeName(scenario.name)}-ctx${context}-${sanitizeName(effortName)}`;
+      const run = { profile, endpoint, model, context, numPredict: runNumPredict, effortName };
+      const prompt = renderPrompt(scenario, run);
+      const promptPath = path.join(rawDir, `${runId}.prompt.md`);
+      const responsePath = path.join(rawDir, `${runId}.response.txt`);
+      fs.writeFileSync(promptPath, prompt);
 
-        process.stdout.write(`Benchmark ${runId} -> ${endpoint}\n`);
-        const telemetryBefore = await collectTelemetry(profile.name, 'before');
-        let result;
-        try {
-          const generated = await generate(endpoint, model, prompt, context, numPredict);
-          fs.writeFileSync(responsePath, generated.response);
-          const extractedCode = extractCodeBlock(generated.response);
-          const score = scoreResponse(scenario, generated.response, extractedCode);
-          const telemetryAfter = await collectTelemetry(profile.name, 'after');
-          result = {
-            ok: true,
-            runId,
-            timestamp: new Date().toISOString(),
-            route,
-            endpoint,
-            profile: profile.name,
-            expectedGpuVisibility: profile.gpuDevices,
-            port: profile.port,
-            model,
-            context,
-            numPredict,
-            scenario: scenario.name,
-            prompt,
-            promptPath,
-            response: generated.response,
-            responsePath,
-            promptTokensApprox: estimateTokens(prompt),
-            responseChars: generated.response.length,
-            requestOptions: generated.request.options,
-            timings: generated.timings,
-            ollamaRaw: {
-              total_duration: generated.payload.total_duration,
-              load_duration: generated.payload.load_duration,
-              prompt_eval_duration: generated.payload.prompt_eval_duration,
-              eval_duration: generated.payload.eval_duration,
-              prompt_eval_count: generated.payload.prompt_eval_count,
-              eval_count: generated.payload.eval_count,
-              done: generated.payload.done,
-              done_reason: generated.payload.done_reason
-            },
-            earlyStop: generated.earlyStop,
-            validCodeBlock: extractedCode.valid,
-            codeBlockError: extractedCode.error,
-            score,
-            telemetryBefore,
-            telemetryAfter
-          };
-        } catch (error) {
-          const telemetryAfter = await collectTelemetry(profile.name, 'after-error');
-          result = {
-            ok: false,
-            runId,
-            timestamp: new Date().toISOString(),
-            route,
-            endpoint,
-            profile: profile.name,
-            expectedGpuVisibility: profile.gpuDevices,
-            port: profile.port,
-            model,
-            context,
-            numPredict,
-            scenario: scenario.name,
-            prompt,
-            promptPath,
-            response: '',
-            responsePath,
-            promptTokensApprox: estimateTokens(prompt),
-            responseChars: 0,
-            error: error.message,
-            telemetryBefore,
-            telemetryAfter
-          };
-        }
-
-        results.push(result);
-        fs.appendFileSync(jsonlPath, `${JSON.stringify(result)}\n`);
-        writeSummary(summaryPath, results, { route, resultDir });
+      process.stdout.write(`Benchmark ${runId} -> ${endpoint}\n`);
+      const telemetryBefore = await collectTelemetry(profile.name, 'before');
+      let result;
+      try {
+        const generated = await generate(endpoint, model, prompt, context, runNumPredict, effortOptions, timeoutMs);
+        fs.writeFileSync(responsePath, generated.response);
+        const extractedCode = extractCodeBlock(generated.response);
+        const score = scoreResponse(scenario, generated.response, extractedCode);
+        const telemetryAfter = await collectTelemetry(profile.name, 'after');
+        result = {
+          ok: true,
+          runId,
+          timestamp: new Date().toISOString(),
+          route,
+          endpoint,
+          profile: profile.name,
+          expectedGpuVisibility: profile.gpuDevices,
+          port: profile.port,
+          model,
+          context,
+          effortName,
+          numPredict: runNumPredict,
+          scenario: scenario.name,
+          prompt,
+          promptPath,
+          response: generated.response,
+          responsePath,
+          promptTokensApprox: estimateTokens(prompt),
+          responseChars: generated.response.length,
+          requestOptions: generated.request.options,
+          timings: generated.timings,
+          ollamaRaw: {
+            total_duration: generated.payload.total_duration,
+            load_duration: generated.payload.load_duration,
+            prompt_eval_duration: generated.payload.prompt_eval_duration,
+            eval_duration: generated.payload.eval_duration,
+            prompt_eval_count: generated.payload.prompt_eval_count,
+            eval_count: generated.payload.eval_count,
+            done: generated.payload.done,
+            done_reason: generated.payload.done_reason
+          },
+          earlyStop: generated.earlyStop,
+          validCodeBlock: extractedCode.valid,
+          codeBlockError: extractedCode.error,
+          score,
+          telemetryBefore,
+          telemetryAfter
+        };
+      } catch (error) {
+        const telemetryAfter = await collectTelemetry(profile.name, 'after-error');
+        result = {
+          ok: false,
+          runId,
+          timestamp: new Date().toISOString(),
+          route,
+          endpoint,
+          profile: profile.name,
+          expectedGpuVisibility: profile.gpuDevices,
+          port: profile.port,
+          model,
+          context,
+          effortName,
+          numPredict: runNumPredict,
+          scenario: scenario.name,
+          prompt,
+          promptPath,
+          response: '',
+          responsePath,
+          promptTokensApprox: estimateTokens(prompt),
+          responseChars: 0,
+          error: error.message,
+          telemetryBefore,
+          telemetryAfter
+        };
       }
+
+      results.push(result);
+      fs.appendFileSync(jsonlPath, `${JSON.stringify(result)}\n`);
+      writeSummary(summaryPath, results, { route, resultDir });
     }
   }
 
@@ -401,7 +649,9 @@ async function runBenchmarkMatrix(options) {
 }
 
 module.exports = {
+  buildHardwareBenchmarkSpecs,
   estimateTokens,
   loadScenario,
-  runBenchmarkMatrix
+  runBenchmarkMatrix,
+  summarizeRecommendations
 };

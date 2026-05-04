@@ -4,7 +4,7 @@
  * loaded Ollama model (auto-detected via /api/ps), or a specific model via --model.
  *
  * Usage:
- *   node main.mjs [--file <path>] [--dry-run] [--model <name>]
+ *   node main.mjs [--file <path>] [--dry-run] [--model <name>] [--ollama-host <url>]
  */
 
 import fs from "fs";
@@ -19,11 +19,56 @@ const LOG_FILE = path.join(CWD, "test-gen.log");
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
+function argValue(flag) {
+  const index = args.indexOf(flag);
+  if (index === -1) return null;
+  const value = args[index + 1];
+  if (!value || value === "--" || value.startsWith("--")) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return value;
+}
+
+function normalizeOllamaHost(value) {
+  let raw = String(value || "http://localhost:11434").trim().replace(/\/+$/, "");
+  if (!/^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(raw)) {
+    raw = `http://${raw}`;
+  }
+  const url = new URL(raw);
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error(`Unsupported OLLAMA_HOST protocol: ${url.protocol}`);
+  }
+  return url.toString().replace(/\/+$/, "");
+}
+
 const DRY_RUN = args.includes("--dry-run");
-const MODEL_OVERRIDE = args.includes("--model") ? args[args.indexOf("--model") + 1] : null;
-const TARGET_FILE = args.includes("--file") ? path.resolve(CWD, args[args.indexOf("--file") + 1]) : null;
+const MODEL_OVERRIDE = argValue("--model") || process.env.OLLAMA_MODEL || null;
+const TARGET_FILE = argValue("--file") ? path.resolve(CWD, argValue("--file")) : null;
 const MAX_ITERATIONS = 5;
-const OLLAMA_URL = "http://localhost:11434/api/generate";
+const OLLAMA_HOST = normalizeOllamaHost(argValue("--ollama-host") || process.env.OLLAMA_HOST || "http://localhost:11434");
+const OLLAMA_TIMEOUT_MS = Number(argValue("--ollama-timeout-ms") || process.env.OLLAMA_TIMEOUT_MS || 1_800_000);
+if (!Number.isFinite(OLLAMA_TIMEOUT_MS) || OLLAMA_TIMEOUT_MS <= 0) {
+  throw new Error("--ollama-timeout-ms / OLLAMA_TIMEOUT_MS must be a positive number");
+}
+
+function ollamaApiUrl(pathname) {
+  return new URL(pathname, OLLAMA_HOST).toString();
+}
+
+async function fetchOllama(pathname, init = {}, timeoutMs = OLLAMA_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(ollamaApiUrl(pathname), { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Timed out after ${timeoutMs}ms calling ${ollamaApiUrl(pathname)}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 // ── Model detection ───────────────────────────────────────────────────────────
 async function detectModel() {
@@ -31,7 +76,7 @@ async function detectModel() {
 
   // /api/ps lists models currently loaded in memory (warm)
   try {
-    const res = await fetch("http://localhost:11434/api/ps");
+    const res = await fetchOllama("/api/ps", {}, 5000);
     if (res.ok) {
       const data = await res.json();
       const running = data.models ?? [];
@@ -41,7 +86,7 @@ async function detectModel() {
 
   // Fall back to /api/tags (installed models) and pick the first
   try {
-    const res = await fetch("http://localhost:11434/api/tags");
+    const res = await fetchOllama("/api/tags", {}, 5000);
     if (res.ok) {
       const data = await res.json();
       const available = data.models ?? [];
@@ -156,10 +201,15 @@ function classifyFailure(output) {
 
 // ── Ollama call ───────────────────────────────────────────────────────────────
 async function callOllama(prompt, model) {
-  const res = await fetch(OLLAMA_URL, {
+  const res = await fetchOllama("/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, stream: false, temperature: 0.2 }),
+    body: JSON.stringify({
+      model,
+      prompt,
+      stream: false,
+      options: { temperature: 0.2 }
+    }),
   });
   if (!res.ok) throw new Error(`Ollama ${res.status}: ${res.statusText}`);
   const data = await res.json();
@@ -295,6 +345,7 @@ async function main() {
 
   log("=".repeat(70));
   log(`local-test-gen — model: ${MODEL}${DRY_RUN ? " [DRY RUN]" : ""}`);
+  log(`Ollama host: ${OLLAMA_HOST}`);
   log("=".repeat(70));
 
   // Collect target files
