@@ -37,7 +37,7 @@ function usage() {
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
   remote-ollama-mac project-sync [--branch main]
   remote-ollama-mac project-push-main [--branch main]
-  remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b
+  remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
 
 Profiles: ${Object.keys(config.profiles).join(', ')}
 `);
