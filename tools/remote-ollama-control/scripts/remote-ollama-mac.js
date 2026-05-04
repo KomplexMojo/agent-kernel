@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const { spawn, spawnSync } = require('child_process');
+const net = require('net');
 const path = require('path');
 const {
   endpointFor,
@@ -10,7 +11,7 @@ const {
   loadConfig,
   shellQuote
 } = require('./lib/config');
-const { runBenchmarkMatrix } = require('./lib/benchmark');
+const { buildHardwareBenchmarkSpecs, runBenchmarkMatrix } = require('./lib/benchmark');
 const { health, requestJson } = require('./lib/ollama');
 const { displayCommand, runRemote, runRemoteScript, sshBaseArgs } = require('./lib/ssh');
 
@@ -25,11 +26,14 @@ function usage() {
   remote-ollama-mac ps [--profile NAME]
   remote-ollama-mac logs --profile NAME [--tail N]
   remote-ollama-mac telemetry [--profile NAME]
+  remote-ollama-mac doctor --profile NAME [--model MODEL] [--route internal|external] [--direct] [--json]
   remote-ollama-mac claude --profile NAME [--model MODEL] [--direct] [-- CLAUDE_ARGS...]
+  remote-ollama-mac run-local --profile NAME [--model MODEL] [--direct] -- COMMAND [ARGS...]
   remote-ollama-mac exec [--route internal|external] -- COMMAND [ARGS...]
   remote-ollama-mac smoke-test --profile NAME --model MODEL [--prompt TEXT] [--require-gpu]
   remote-ollama-mac benchmark --profile NAME --model MODEL --context N --num-predict N --scenario NAME
   remote-ollama-mac benchmark-matrix --profiles a,b --models x,y --contexts 4096,8192 --scenario NAME
+  remote-ollama-mac benchmark-hardware [--route internal|external] [--models x,y] [--contexts 4096,8192] [--efforts standard,high,max,overnight] [--scenarios a,b] [--no-start] [--no-reset] [--no-isolate]
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
   remote-ollama-mac project-sync [--branch main]
   remote-ollama-mac project-push-main [--branch main]
@@ -48,6 +52,22 @@ function parseList(value) {
   return String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 }
 
+function readOptionValue(args, index, flag) {
+  const value = args[index + 1];
+  if (value === undefined || value === '--' || String(value).startsWith('--')) {
+    fail(`${flag} requires a value`);
+  }
+  return value;
+}
+
+function readPositiveNumber(args, index, flag) {
+  const value = Number(readOptionValue(args, index, flag));
+  if (!Number.isFinite(value) || value <= 0) {
+    fail(`${flag} must be a positive number`);
+  }
+  return value;
+}
+
 function parseArgs(argv) {
   const args = [...argv];
   const options = {
@@ -59,13 +79,20 @@ function parseArgs(argv) {
     route: config.host.defaultRoute,
     profile: null,
     model: null,
-    context: 8192,
+    context: null,
     contexts: [],
-    numPredict: 4096,
+    numPredict: null,
     timeoutMs: 600000,
     sampleMs: 2000,
+    json: false,
+    skipModelCheck: false,
+    startProfiles: true,
+    resetProfiles: true,
+    isolateProfiles: true,
     prompt: 'Write one short sentence confirming the remote LLM smoke test is running.',
     scenario: 'vitest-generation',
+    scenarios: [],
+    efforts: [],
     profiles: [],
     models: [],
     tail: 120,
@@ -93,34 +120,71 @@ function parseArgs(argv) {
       options.direct = true;
     } else if (arg === '--require-gpu') {
       options.requireGpu = true;
+    } else if (arg === '--json') {
+      options.json = true;
+    } else if (arg === '--skip-model-check') {
+      options.skipModelCheck = true;
+    } else if (arg === '--no-start') {
+      options.startProfiles = false;
+      options.resetProfiles = false;
+    } else if (arg === '--no-reset') {
+      options.resetProfiles = false;
+    } else if (arg === '--no-isolate') {
+      options.isolateProfiles = false;
     } else if (arg === '--local-port') {
-      options.localPort = Number(args[++index]);
+      options.localPort = readPositiveNumber(args, index, arg);
+      index += 1;
     } else if (arg === '--route') {
-      options.route = args[++index];
+      options.route = readOptionValue(args, index, arg);
+      index += 1;
     } else if (arg === '--profile') {
-      options.profile = args[++index];
+      options.profile = readOptionValue(args, index, arg);
+      index += 1;
     } else if (arg === '--profiles') {
-      options.profiles = parseList(args[++index]);
+      options.profiles = parseList(readOptionValue(args, index, arg));
+      index += 1;
     } else if (arg === '--model') {
-      options.model = args[++index];
+      options.model = readOptionValue(args, index, arg);
+      index += 1;
     } else if (arg === '--models') {
-      options.models = parseList(args[++index]);
+      options.models = parseList(readOptionValue(args, index, arg));
+      index += 1;
     } else if (arg === '--context') {
-      options.context = Number(args[++index]);
+      options.context = readPositiveNumber(args, index, arg);
+      index += 1;
     } else if (arg === '--contexts') {
-      options.contexts = parseList(args[++index]).map(Number);
+      options.contexts = parseList(readOptionValue(args, index, arg)).map(Number);
+      if (options.contexts.some((value) => !Number.isFinite(value) || value <= 0)) {
+        fail(`${arg} must be a comma-separated list of positive numbers`);
+      }
+      index += 1;
     } else if (arg === '--num-predict') {
-      options.numPredict = Number(args[++index]);
+      options.numPredict = readPositiveNumber(args, index, arg);
+      index += 1;
     } else if (arg === '--timeout-ms') {
-      options.timeoutMs = Number(args[++index]);
+      options.timeoutMs = readPositiveNumber(args, index, arg);
+      index += 1;
     } else if (arg === '--sample-ms') {
-      options.sampleMs = Number(args[++index]);
+      options.sampleMs = readPositiveNumber(args, index, arg);
+      index += 1;
     } else if (arg === '--prompt') {
-      options.prompt = args[++index];
+      options.prompt = readOptionValue(args, index, arg);
+      index += 1;
     } else if (arg === '--scenario') {
-      options.scenario = args[++index];
+      options.scenario = readOptionValue(args, index, arg);
+      index += 1;
+    } else if (arg === '--scenarios') {
+      options.scenarios = parseList(readOptionValue(args, index, arg));
+      index += 1;
+    } else if (arg === '--effort') {
+      options.efforts = [readOptionValue(args, index, arg)];
+      index += 1;
+    } else if (arg === '--efforts') {
+      options.efforts = parseList(readOptionValue(args, index, arg));
+      index += 1;
     } else if (arg === '--tail') {
-      options.tail = Number(args[++index]);
+      options.tail = readPositiveNumber(args, index, arg);
+      index += 1;
     } else if (arg === '-h' || arg === '--help') {
       options.command = 'help';
     } else {
@@ -145,6 +209,50 @@ function clientEndpoint(profile, options) {
     return `http://127.0.0.1:${options.localPort || defaultLocalPort(profile)}`;
   }
   return endpointFor(config, profile, options.route);
+}
+
+function localPortFromEndpoint(endpoint) {
+  const url = new URL(endpoint);
+  return {
+    host: url.hostname,
+    port: Number(url.port || (url.protocol === 'https:' ? 443 : 80))
+  };
+}
+
+function isLoopbackHost(host) {
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
+function canConnect(host, port, timeoutMs = 750) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    let settled = false;
+    const finish = (value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
+}
+
+async function assertTunnelPortAvailable(endpoint) {
+  const { host, port } = localPortFromEndpoint(endpoint);
+  if (!isLoopbackHost(host)) {
+    return;
+  }
+  if (await canConnect(host, port)) {
+    throw new Error(
+      `Local tunnel endpoint ${endpoint} is already accepting connections. ` +
+      `Use --local-port with a free port, or stop the existing local service/tunnel first.`
+    );
+  }
 }
 
 function remoteProfileArgs(command, options) {
@@ -173,11 +281,31 @@ function runProfileCommand(command, options) {
 
 function printEnv(options) {
   const profile = getProfile(config, options.profile || 'primary');
+  const model = options.model || profile.defaultModel || '';
   const endpoint = clientEndpoint(profile, options);
   process.stdout.write(`export OLLAMA_HOST=${shellQuote(endpoint)}\n`);
+  process.stdout.write(`export OLLAMA_MODEL=${shellQuote(model)}\n`);
   process.stdout.write(`export ANTHROPIC_BASE_URL=${shellQuote(endpoint)}\n`);
   process.stdout.write(`export ANTHROPIC_AUTH_TOKEN=${shellQuote(process.env.ANTHROPIC_AUTH_TOKEN || 'ollama')}\n`);
   process.stdout.write('export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1\n');
+  process.stdout.write(`export REMOTE_OLLAMA_PROFILE=${shellQuote(profile.name)}\n`);
+  process.stdout.write(`export REMOTE_OLLAMA_ROUTE=${shellQuote(options.route)}\n`);
+  process.stdout.write(`export REMOTE_OLLAMA_PORT=${shellQuote(String(profile.port))}\n`);
+}
+
+function localHardwareEnv(endpoint, profile, model, options) {
+  return {
+    ...process.env,
+    OLLAMA_HOST: endpoint,
+    OLLAMA_MODEL: model || '',
+    ANTHROPIC_BASE_URL: endpoint,
+    ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_AUTH_TOKEN || 'ollama',
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    REMOTE_OLLAMA_PROFILE: profile.name,
+    REMOTE_OLLAMA_ROUTE: options.route,
+    REMOTE_OLLAMA_PORT: String(profile.port),
+    REMOTE_OLLAMA_ENDPOINT: endpoint
+  };
 }
 
 async function runClaude(options) {
@@ -208,28 +336,24 @@ async function runClaude(options) {
   let status = 0;
   try {
     if (useTunnel) {
-      tunnel = openTunnel(options, profile);
-      await waitForLocalEndpoint(endpoint, 15000);
+      tunnel = await openCheckedTunnel(options, profile, endpoint);
+      await waitForLocalEndpoint(endpoint, 15000, tunnel);
       process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
     } else {
       process.stdout.write(`${endpointLine(profile.name, options.route)}\n`);
     }
+    await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
 
     const result = spawnSync(claudeCmd, args, {
       stdio: 'inherit',
-      env: {
-        ...process.env,
-        OLLAMA_HOST: endpoint,
-        ANTHROPIC_BASE_URL: endpoint,
-        ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_AUTH_TOKEN || 'ollama',
-        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
-      }
+      env: localHardwareEnv(endpoint, profile, model, options)
     });
+    if (result.error) {
+      throw result.error;
+    }
     status = result.status === null ? 1 : result.status;
   } finally {
-    if (tunnel && !tunnel.killed) {
-      tunnel.kill('SIGTERM');
-    }
+    stopTunnel(tunnel);
   }
   process.exit(status);
 }
@@ -271,19 +395,55 @@ function openTunnel(options, profile) {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env
   });
-  tunnel.stdout.on('data', (chunk) => process.stdout.write(chunk));
-  tunnel.stderr.on('data', (chunk) => process.stderr.write(chunk));
+  tunnel._remoteOllamaStderr = '';
+  tunnel._remoteOllamaStdout = '';
+  tunnel.stdout.on('data', (chunk) => {
+    tunnel._remoteOllamaStdout += String(chunk);
+    process.stdout.write(chunk);
+  });
+  tunnel.stderr.on('data', (chunk) => {
+    tunnel._remoteOllamaStderr += String(chunk);
+    process.stderr.write(chunk);
+  });
   return tunnel;
+}
+
+async function openCheckedTunnel(options, profile, endpoint) {
+  await assertTunnelPortAvailable(endpoint);
+  return openTunnel(options, profile);
+}
+
+async function openBenchmarkTunnel(options, profile, endpoint) {
+  const { host, port } = localPortFromEndpoint(endpoint);
+  if (isLoopbackHost(host) && await canConnect(host, port)) {
+    const status = await health(endpoint);
+    if (status.ok) {
+      process.stdout.write(`Reusing existing local Ollama endpoint: ${endpoint}\n`);
+      return null;
+    }
+    throw new Error(
+      `Local tunnel endpoint ${endpoint} is already accepting connections, ` +
+      `but it did not respond like Ollama: ${status.error || 'unknown health error'}`
+    );
+  }
+  return openTunnel(options, profile);
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForLocalEndpoint(endpoint, timeoutMs) {
+async function waitForLocalEndpoint(endpoint, timeoutMs, tunnel = null) {
   const started = Date.now();
   let last = null;
   while (Date.now() - started < timeoutMs) {
+    if (tunnel && tunnel.exitCode !== null) {
+      const detail = (tunnel._remoteOllamaStderr || tunnel._remoteOllamaStdout || '').trim();
+      throw new Error(
+        `SSH tunnel exited before endpoint became healthy: code=${tunnel.exitCode} signal=${tunnel.signalCode || ''}` +
+        `${detail ? `; ${detail}` : ''}`
+      );
+    }
     const result = await health(endpoint);
     if (result.ok) {
       return result;
@@ -340,8 +500,11 @@ function nowStamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
-function remoteProfileStatus(route, profileName) {
-  const result = runRemote(config, route, ['status', '--profile', profileName, '--json'], { capture: true });
+function remoteProfileStatus(route, profileName, timeoutMs = 45000) {
+  const result = runRemote(config, route, ['status', '--profile', profileName, '--json'], {
+    capture: true,
+    timeoutMs
+  });
   if (result.status !== 0) {
     throw new Error(`Could not read remote profile status: ${result.stderr || result.stdout || `exit ${result.status}`}`);
   }
@@ -356,6 +519,20 @@ function remoteProfileStatus(route, profileName) {
     throw new Error(`Remote profile status did not include profile '${profileName}'.`);
   }
   return row;
+}
+
+async function assertEndpointModelAvailable(endpoint, model, skipModelCheck = false) {
+  if (!model || skipModelCheck) {
+    return;
+  }
+  try {
+    await requestJson(endpoint, '/api/show', { model }, 30000);
+  } catch (error) {
+    throw new Error(
+      `Endpoint ${endpoint} cannot serve model '${model}': ${error.message}. ` +
+      `Start the matching profile/model first or pass --skip-model-check.`
+    );
+  }
 }
 
 function assertRemoteProfileHealthy(status, profile, model, commandName = 'smoke-test') {
@@ -420,7 +597,7 @@ async function runSmokeTest(options) {
     process.stdout.write(`Remote profile ready: ${profile.name} port=${remoteStatus.port} model=${remoteStatus.model || model}\n`);
 
     if (useTunnel) {
-      tunnel = openTunnel(options, profile);
+      tunnel = await openCheckedTunnel(options, profile, endpoint);
       tunnel.on('exit', (code, signal) => {
         if (requestResult === null) {
           process.stderr.write(`SSH tunnel exited before smoke test completed: code=${code} signal=${signal}\n`);
@@ -428,8 +605,9 @@ async function runSmokeTest(options) {
       });
     }
 
-    await waitForLocalEndpoint(endpoint, Math.min(15000, options.timeoutMs));
+    await waitForLocalEndpoint(endpoint, Math.min(15000, options.timeoutMs), tunnel);
     process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
+    await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
 
     const sample = async (label) => {
       const telemetry = await collectRemoteTelemetry(options.route, profile.name, label);
@@ -545,6 +723,163 @@ async function collectRemoteTelemetry(route, profileName, label) {
   }
 }
 
+function stopTunnel(tunnel) {
+  if (tunnel && !tunnel.killed) {
+    tunnel.kill('SIGTERM');
+  }
+}
+
+function printDoctor(checks, payload, asJson) {
+  const ok = checks.every((check) => check.ok);
+  const output = { ok, ...payload, checks };
+  if (asJson) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return ok;
+  }
+
+  process.stdout.write(`Remote Ollama doctor: ${ok ? 'ok' : 'failed'}\n`);
+  process.stdout.write(`Profile: ${payload.profile}  Route: ${payload.route}  Model: ${payload.model || '<none>'}\n`);
+  process.stdout.write(`Endpoint: ${payload.endpoint}\n`);
+  for (const check of checks) {
+    process.stdout.write(`${check.ok ? 'ok' : 'fail'}\t${check.name}\t${check.detail}\n`);
+  }
+  return ok;
+}
+
+async function runDoctor(options) {
+  const profile = getProfile(config, options.profile || 'primary');
+  const model = options.model || profile.defaultModel || '';
+  const endpoint = clientEndpoint(profile, options);
+  const useTunnel = !options.direct;
+  const checks = [];
+  let remoteStatus = null;
+  let tunnel = null;
+
+  const add = (name, ok, detail) => checks.push({ name, ok, detail });
+
+  add('profile-config', true, `${profile.name}: remote port ${profile.port}, gpu ${profile.gpuDevices || '<unset>'}`);
+  add('ssh-key', !config.host.sshKey || fs.existsSync(config.host.sshKey), config.host.sshKey || '<default ssh key handling>');
+
+  if (options.dryRun) {
+    add('dry-run', true, 'network checks skipped');
+    printDoctor(checks, {
+      route: options.route,
+      profile: profile.name,
+      model,
+      endpoint,
+      useTunnel,
+      remotePort: profile.port,
+      localPort: useTunnel ? (options.localPort || defaultLocalPort(profile)) : null,
+      tunnelCommand: useTunnel ? displayCommand('ssh', tunnelArgs(options, profile)) : null
+    }, options.json);
+    return;
+  }
+
+  if (useTunnel) {
+    const { host, port } = localPortFromEndpoint(endpoint);
+    const busy = isLoopbackHost(host) && await canConnect(host, port);
+    add('local-tunnel-port', !busy, busy ? `${endpoint} is already in use` : `${endpoint} is free`);
+  }
+
+  try {
+    remoteStatus = remoteProfileStatus(options.route, profile.name, Math.min(options.timeoutMs, 45000));
+    add('remote-status', true, `state=${remoteStatus.state} healthy=${remoteStatus.healthy} port=${remoteStatus.port}`);
+  } catch (error) {
+    add('remote-status', false, error.message);
+  }
+
+  if (remoteStatus) {
+    try {
+      assertRemoteProfileHealthy(remoteStatus, profile, model, 'doctor');
+      add('profile-health', true, `remote profile is ready for ${model || remoteStatus.model || '<default model>'}`);
+    } catch (error) {
+      add('profile-health', false, error.message);
+    }
+  }
+
+  if (checks.every((check) => check.ok)) {
+    try {
+      if (useTunnel) {
+        tunnel = await openCheckedTunnel(options, profile, endpoint);
+      }
+      const healthResult = await waitForLocalEndpoint(endpoint, Math.min(15000, options.timeoutMs), tunnel);
+      add('endpoint-health', true, JSON.stringify(healthResult.version || {}));
+    } catch (error) {
+      add('endpoint-health', false, error.message);
+    }
+
+    if (checks.every((check) => check.ok)) {
+      try {
+        await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+        add('model-available', true, options.skipModelCheck ? 'skipped by --skip-model-check' : (model || '<no model configured>'));
+      } catch (error) {
+        add('model-available', false, error.message);
+      }
+    }
+
+    stopTunnel(tunnel);
+  }
+
+  const ok = printDoctor(checks, {
+    route: options.route,
+    profile: profile.name,
+    model,
+    endpoint,
+    useTunnel,
+    remotePort: profile.port,
+    localPort: useTunnel ? (options.localPort || defaultLocalPort(profile)) : null
+  }, options.json);
+  if (!ok) {
+    process.exit(1);
+  }
+}
+
+async function runLocalCommand(options) {
+  if (options.extra.length === 0) {
+    fail('run-local requires a command after --, for example: remote-ollama-mac run-local --profile dual -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --dry-run');
+  }
+
+  const profile = getProfile(config, options.profile || 'primary');
+  const model = options.model || profile.defaultModel || '';
+  const endpoint = clientEndpoint(profile, options);
+  const useTunnel = !options.direct;
+
+  if (options.dryRun) {
+    process.stdout.write(`OLLAMA_HOST=${shellQuote(endpoint)} OLLAMA_MODEL=${shellQuote(model)} ${displayCommand(options.extra[0], options.extra.slice(1))}\n`);
+    if (useTunnel) {
+      process.stdout.write(`Tunnel: ${displayCommand('ssh', tunnelArgs(options, profile))}\n`);
+    }
+    return;
+  }
+
+  const remoteStatus = remoteProfileStatus(options.route, profile.name, Math.min(options.timeoutMs, 45000));
+  assertRemoteProfileHealthy(remoteStatus, profile, model, 'run-local');
+  process.stdout.write(`Remote profile ready: ${profile.name} port=${remoteStatus.port} model=${remoteStatus.model || model}\n`);
+
+  let tunnel = null;
+  let status = 0;
+  try {
+    if (useTunnel) {
+      tunnel = await openCheckedTunnel(options, profile, endpoint);
+    }
+    await waitForLocalEndpoint(endpoint, Math.min(15000, options.timeoutMs), tunnel);
+    process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
+    await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+
+    const result = spawnSync(options.extra[0], options.extra.slice(1), {
+      stdio: 'inherit',
+      env: localHardwareEnv(endpoint, profile, model, options)
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    status = result.status === null ? 1 : result.status;
+  } finally {
+    stopTunnel(tunnel);
+  }
+  process.exit(status);
+}
+
 async function runBenchmark(options, matrix) {
   const profileNames = matrix
     ? (options.profiles.length > 0 ? options.profiles : ['primary', 'secondary', 'dual'])
@@ -584,6 +919,112 @@ async function runBenchmark(options, matrix) {
   process.stdout.write(`Results directory: ${result.resultDir}\n`);
   process.stdout.write(`JSONL: ${result.jsonlPath}\n`);
   process.stdout.write(`Summary: ${result.summaryPath}\n`);
+}
+
+async function runHardwareBenchmark(options) {
+  const plan = buildHardwareBenchmarkSpecs(config, {
+    models: options.models,
+    profileNames: options.profiles,
+    contexts: options.contexts,
+    efforts: options.efforts,
+    scenarioNames: options.scenarios
+  });
+  const profileNames = [...new Set(plan.specs.map((spec) => spec.profileName))];
+  const useTunnel = !options.direct;
+
+  if (plan.specs.length === 0) {
+    fail('benchmark-hardware did not find any model/profile specs. Check config/models.json or pass --models/--profiles.');
+  }
+  if (useTunnel && options.localPort && profileNames.length > 1) {
+    fail('--local-port can only be used with benchmark-hardware when one profile is selected.');
+  }
+
+  if (options.dryRun) {
+    process.stdout.write(JSON.stringify({
+      command: 'benchmark-hardware',
+      route: options.route,
+      useTunnel,
+      startProfiles: options.startProfiles,
+      resetProfiles: options.resetProfiles,
+      isolateProfiles: options.isolateProfiles,
+      scenarios: plan.scenarios,
+      contexts: plan.contexts,
+      efforts: plan.efforts,
+      profiles: profileNames,
+      runs: plan.specs,
+      tunnels: useTunnel
+        ? profileNames.map((profileName) => {
+            const profile = getProfile(config, profileName);
+            return {
+              profile: profile.name,
+              endpoint: clientEndpoint(profile, options),
+              command: displayCommand('ssh', tunnelArgs(options, profile))
+            };
+          })
+        : []
+    }, null, 2));
+    process.stdout.write('\n');
+    return;
+  }
+
+  const tunnels = new Map();
+  const endpoints = new Map();
+  const currentModelByProfile = new Map();
+  try {
+    for (const profileName of profileNames) {
+      const profile = getProfile(config, profileName);
+      const endpoint = clientEndpoint(profile, options);
+      endpoints.set(profile.name, endpoint);
+      if (useTunnel) {
+        tunnels.set(profile.name, await openBenchmarkTunnel(options, profile, endpoint));
+      }
+    }
+
+    const result = await runBenchmarkMatrix({
+      config,
+      route: options.route,
+      runSpecs: plan.specs,
+      scenarioNames: plan.scenarios,
+      timeoutMs: options.timeoutMs,
+      endpointForRun: (profile) => endpoints.get(profile.name) || endpointFor(config, profile, options.route),
+      beforeRun: async ({ profile, endpoint, model }) => {
+        const key = `${profile.name}\t${model}`;
+        if (currentModelByProfile.get(profile.name) !== key) {
+          if (options.startProfiles) {
+            if (options.isolateProfiles) {
+              for (const otherProfileName of Object.keys(config.profiles)) {
+                if (otherProfileName === profile.name) {
+                  continue;
+                }
+                runRemote(config, options.route, ['stop', '--profile', otherProfileName], {
+                  capture: true,
+                  timeoutMs: options.timeoutMs
+                });
+                currentModelByProfile.delete(otherProfileName);
+              }
+            }
+            const command = options.resetProfiles ? 'restart' : 'start';
+            process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profile.name} with ${model}\n`);
+            runRemote(config, options.route, [command, '--profile', profile.name, '--model', model], {
+              timeoutMs: options.timeoutMs
+            });
+          }
+          await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnels.get(profile.name));
+          await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+          currentModelByProfile.set(profile.name, key);
+        }
+      },
+      collectTelemetry: (profileName, label) => collectRemoteTelemetry(options.route, profileName, label)
+    });
+
+    process.stdout.write(`Results directory: ${result.resultDir}\n`);
+    process.stdout.write(`JSONL: ${result.jsonlPath}\n`);
+    process.stdout.write(`Summary: ${result.summaryPath}\n`);
+  } finally {
+    for (const tunnel of tunnels.values()) {
+      stopTunnel(tunnel);
+    }
+  }
 }
 
 function runRemoteProjectTool(options, mode) {
@@ -643,16 +1084,30 @@ async function main() {
     return;
   }
 
-  if (['start', 'stop', 'restart', 'logs', 'claude', 'tunnel-command', 'smoke-test'].includes(options.command) && !options.profile) {
+  if (['start', 'stop', 'restart', 'logs', 'doctor', 'claude', 'run-local', 'tunnel-command', 'smoke-test'].includes(options.command) && !options.profile) {
     options.profile = 'primary';
+  }
+
+  if (options.context === null || options.numPredict === null) {
+    const profileDefaults = config.profiles[options.profile || 'primary'] || {};
+    if (options.context === null) {
+      options.context = profileDefaults.defaultContext || 8192;
+    }
+    if (options.numPredict === null) {
+      options.numPredict = profileDefaults.defaultNumPredict || 4096;
+    }
   }
 
   if (['start', 'stop', 'restart', 'status', 'ps', 'logs', 'telemetry'].includes(options.command)) {
     runProfileCommand(options.command, options);
   } else if (options.command === 'print-env') {
     printEnv(options);
+  } else if (options.command === 'doctor') {
+    await runDoctor(options);
   } else if (options.command === 'claude') {
     await runClaude(options);
+  } else if (options.command === 'run-local') {
+    await runLocalCommand(options);
   } else if (options.command === 'exec') {
     runRemoteExec(options);
   } else if (options.command === 'tunnel-command') {
@@ -663,6 +1118,8 @@ async function main() {
     await runBenchmark(options, false);
   } else if (options.command === 'benchmark-matrix') {
     await runBenchmark(options, true);
+  } else if (options.command === 'benchmark-hardware') {
+    await runHardwareBenchmark(options);
   } else if (options.command === 'project-safety-check') {
     runRemoteProjectTool(options, 'check');
   } else if (options.command === 'project-sync') {

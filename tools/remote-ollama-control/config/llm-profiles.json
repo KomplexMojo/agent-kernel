@@ -8,9 +8,11 @@
       "hipVisibleDevices": "0",
       "hsaOverrideGfxVersion": "10.3.0",
       "port": 11434,
-      "defaultModel": "qwen2.5-coder:14b",
+      "defaultModel": "qwen3:14b",
+      "defaultContext": 32768,
+      "defaultNumPredict": 4096,
       "benchmarkModels": [
-        "qwen2.5-coder:14b"
+        "qwen3:14b"
       ]
     },
     "secondary": {
@@ -21,9 +23,11 @@
       "hipVisibleDevices": "1",
       "hsaOverrideGfxVersion": "10.3.0",
       "port": 11435,
-      "defaultModel": "qwen2.5-coder:7b",
+      "defaultModel": "qwen3:14b",
+      "defaultContext": 8192,
+      "defaultNumPredict": 4096,
       "benchmarkModels": [
-        "qwen2.5-coder:7b"
+        "qwen3:14b"
       ]
     },
     "dual": {
@@ -34,10 +38,11 @@
       "hipVisibleDevices": "0,1",
       "hsaOverrideGfxVersion": "10.3.0",
       "port": 11436,
-      "defaultModel": "qwen3-coder:30b",
+      "defaultModel": "qwen3-coder:30b-a3b-q4_K_M",
+      "defaultContext": 65536,
+      "defaultNumPredict": 32768,
       "benchmarkModels": [
-        "qwen3-coder:30b",
-        "GLM-4.7-Flash:latest"
+        "qwen3-coder:30b-a3b-q4_K_M"
       ]
     }
   }

@@ -11,11 +11,11 @@ This package makes the MacBook the control/client machine and the Ubuntu box the
 
 Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `agent-kernel` repo. From this tool directory, the relative path is `config/llm-profiles.json`.
 
-| Profile | GPU visibility | Intended GPU | Port | Default model |
-|---|---:|---|---:|---|
-| `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen2.5-coder:14b` |
-| `secondary` | `1` | GPU 1 / x4 secondary card | `11435` | `qwen2.5-coder:7b` |
-| `dual` | `0,1` | both GPUs for split/offloaded 30B models | `11436` | `qwen3-coder:30b` |
+| Profile | GPU visibility | Intended GPU | Port | Default model | Default context | Default num_predict |
+|---|---:|---|---:|---|---:|---:|
+| `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen3:14b` | `32768` | `4096` |
+| `secondary` | `1` | GPU 1 / x4 secondary card | `11435` | `qwen3:14b` | `8192` | `4096` |
+| `dual` | `0,1` | both GPUs for split/offloaded 30B models | `11436` | `qwen3-coder:30b-a3b-q4_K_M` | `65536` | `32768` |
 
 The remote manager sets `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, `HSA_OVERRIDE_GFX_VERSION`, and `OLLAMA_HOST` per profile. The default `HSA_OVERRIDE_GFX_VERSION=10.3.0` is included because RX 6700/6750 class `gfx1031` cards commonly need that compatibility override for Ollama ROCm offload.
 
@@ -87,15 +87,23 @@ Without the systemd unit, `remote-ollama-profile` uses managed pid files under `
 
 `--route internal` uses `192.168.1.143`. `--route external` uses `154.5.75.3`.
 
-Safe bind default is `127.0.0.1`. In this mode, start an SSH tunnel before querying from the Mac:
+Safe bind default is `127.0.0.1`. In this mode, use an SSH tunnel before querying from the Mac. The Mac wrapper's default tunnel ports are offset by `+10000` so they do not collide with a Mac-local Ollama:
+
+| Profile | Remote Ubuntu port | Default Mac tunnel endpoint |
+|---|---:|---|
+| `primary` | `11434` | `http://127.0.0.1:21434` |
+| `secondary` | `11435` | `http://127.0.0.1:21435` |
+| `dual` | `11436` | `http://127.0.0.1:21436` |
+
+Print a manual tunnel command when you want to keep a tunnel open yourself:
 
 ```bash
 ./bin/remote-ollama-mac tunnel-command --profile primary --route internal
 # Run the printed ssh command in a separate terminal.
-export OLLAMA_HOST=http://127.0.0.1:11434
+export OLLAMA_HOST=http://127.0.0.1:21434
 ```
 
-If the Mac already has local Ollama listening on `11434`, use a different local tunnel port:
+Use a specific local tunnel port only when needed:
 
 ```bash
 ./bin/remote-ollama-mac tunnel-command --profile primary --route internal --local-port 21434
@@ -118,6 +126,7 @@ cd /Users/darren/Documents/GitHub/agent-kernel/tools/remote-ollama-control
 ./bin/remote-ollama-mac ps
 ./bin/remote-ollama-mac logs --profile primary
 ./bin/remote-ollama-mac telemetry --profile dual
+./bin/remote-ollama-mac doctor --profile dual --model qwen3-coder:30b --route external
 ./bin/remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b
 ```
 
@@ -158,6 +167,25 @@ REMOTE_OLLAMA_TUNNEL=0 source ./scripts/use-remote-ollama primary
 
 The wrapper sets `OLLAMA_HOST`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN=ollama` unless already set, and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`. Claude CLI compatibility can vary by version, so this is isolated in one wrapper.
 
+## Local Skill Execution
+
+Use `run-local` when Claude Code, Codex, or a repo skill should run on the Mac but spend tokens on the Ubuntu Ollama hardware. The wrapper opens a temporary tunnel, verifies the selected endpoint and model, sets `OLLAMA_HOST`/`OLLAMA_MODEL`, runs the command, and closes the tunnel:
+
+```bash
+./bin/remote-ollama-mac run-local \
+  --profile dual \
+  --model qwen3-coder:30b \
+  --route external \
+  -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model qwen3-coder:30b --dry-run
+```
+
+For a persistent shell environment, source `use-remote-ollama`, then run tools that honor `OLLAMA_HOST`:
+
+```bash
+source ./scripts/use-remote-ollama dual external qwen3-coder:30b
+node ~/.claude/skills/local-test-gen/scripts/main.mjs --model "$OLLAMA_MODEL"
+```
+
 ## Remote Command Execution
 
 Use `exec` when a local harness workflow needs a command to run on the Ubuntu machine:
@@ -187,6 +215,37 @@ Results are written locally under `results/<timestamp>-<scenario>/` as `runs.jso
   --models qwen2.5-coder:14b,qwen2.5-coder:7b,qwen3-coder:30b \
   --contexts 4096,8192,16384,32768 \
   --scenario vitest-generation
+
+Use the hardware benchmark when you want standard settings for the installed
+model catalog. It reads `config/models.json`, runs 30B models only on `dual`,
+runs smaller models on both single-card profiles, starts each profile/model in
+isolation, resets a running profile with `restart` before testing a model, and
+writes recommendation tables that prioritize rubric score over runtime:
+
+```bash
+./bin/remote-ollama-mac benchmark-hardware \
+  --route internal
+```
+
+Useful narrower overnight runs:
+
+```bash
+./bin/remote-ollama-mac benchmark-hardware \
+  --route internal \
+  --contexts 8192,16384,32768,65536 \
+  --efforts high,max,overnight
+
+./bin/remote-ollama-mac benchmark-hardware \
+  --route internal \
+  --models qwen3-coder:30b,qwen2.5-coder:14b \
+  --scenarios vitest-generation,tool-use-structured-output
+```
+
+Add future Ollama models by adding entries to `config/models.json` with their
+eligible `profiles`. The benchmark defaults live in the top-level `benchmark`
+section: `defaultScenarios`, `defaultContexts`, and `defaultEfforts`. Use
+`--no-reset` only when you intentionally want the command to fail instead of
+restarting an already-running profile.
 
 ./bin/remote-ollama-mac benchmark \
   --profile dual \
