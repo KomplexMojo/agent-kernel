@@ -257,6 +257,44 @@ restarting an already-running profile.
 
 Each run records endpoint, profile, model, context, `num_predict`, wall time, Ollama timing fields, prompt size, response size, early-stop detection, valid code block detection, rubric score, and telemetry before/after: `rocm-smi`, `ollama ps`, `ss -tulnp`, and `systemctl status` where available.
 
+## Content-Gen Benchmark
+
+Compare how well each Ubuntu GPU node (primary, secondary, dual) handles the 50 agent-kernel MCP scenarios. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference vault artifacts.
+
+Scenarios are loaded from the vault at `LLM_AK_VAULT_DIR` (default: `~/Documents/Obsidian/agent-kernel-vault`). Set this in `config/llm-host.env` if the vault is in a non-default location.
+
+```bash
+# Dry-run: show what would run without opening tunnels
+./bin/remote-ollama-mac dry-run run-content-gen
+
+# Run all 50 scenarios × 3 profiles (primary, secondary, dual)
+./bin/remote-ollama-mac run-content-gen --route internal
+
+# Run a subset of scenarios (e.g., simple tier only, IDs 1–9)
+./bin/remote-ollama-mac run-content-gen --scenario-ids 1,2,3,4,5,6,7,8,9 --route internal
+
+# Run 3 trials of each scenario on the dual profile only
+./bin/remote-ollama-mac run-content-gen --profiles dual --runs 3 --route internal
+
+# Use a specific model override (otherwise uses each profile's default)
+./bin/remote-ollama-mac run-content-gen --profiles dual --model qwen3-coder:30b-a3b-q4_K_M --runs 2
+```
+
+Results are written to `results/<timestamp>-content-gen/`:
+- `runs.jsonl` — one JSON line per run
+- `summary.md` — aggregate table by profile + per-run detail table
+- `raw/<runId>/create/` — generated artifacts for each run
+
+Scoring (100 pts per run):
+| Component | Points | How |
+|---|---:|---|
+| Tool call produced | 20 | LLM called `ak_create` |
+| Exec succeeded | 10 | `ak.mjs create` exited 0 |
+| Entity types match | 20 | Same entity types as reference |
+| Entity counts match | 20 | Same count-per-type as reference |
+| Affinity match | 20 | Same primary affinity per type |
+| Budget delta | 10 | Total spend within 80% of reference |
+
 ## Smoke Test
 
 From the Mac, run one prompt through an SSH tunnel and require GPU evidence:

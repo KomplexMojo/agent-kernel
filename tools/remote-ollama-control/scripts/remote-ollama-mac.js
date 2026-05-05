@@ -37,6 +37,7 @@ function usage() {
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
   remote-ollama-mac project-sync [--branch main]
   remote-ollama-mac project-push-main [--branch main]
+  remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route internal|external] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
 
 Profiles: ${Object.keys(config.profiles).join(', ')}
@@ -96,6 +97,8 @@ function parseArgs(argv) {
     profiles: [],
     models: [],
     tail: 120,
+    runs: 1,
+    scenarioIds: [],
     extra: []
   };
 
@@ -184,6 +187,12 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--tail') {
       options.tail = readPositiveNumber(args, index, arg);
+      index += 1;
+    } else if (arg === '--runs') {
+      options.runs = readPositiveNumber(args, index, arg);
+      index += 1;
+    } else if (arg === '--scenario-ids') {
+      options.scenarioIds = parseList(readOptionValue(args, index, arg)).map(Number).filter((v) => Number.isFinite(v) && v > 0);
       index += 1;
     } else if (arg === '-h' || arg === '--help') {
       options.command = 'help';
@@ -1076,6 +1085,159 @@ function runRemoteExec(options) {
   process.exit(result.status === null ? 1 : result.status);
 }
 
+async function runContentGen(options) {
+  const { loadScenarios, resolveVaultDir } = require('./lib/ak-scenarios');
+  const { runScenario } = require('./lib/ak-runner');
+  const { scoreRun, writeContentSummary } = require('./lib/ak-compare');
+
+  const vaultDir = resolveVaultDir(config.env);
+  let scenarios = loadScenarios(vaultDir);
+
+  if (options.scenarioIds.length > 0) {
+    const ids = new Set(options.scenarioIds);
+    scenarios = scenarios.filter((s) => ids.has(s.index));
+  }
+
+  if (scenarios.length === 0) {
+    fail('No scenarios found. Check LLM_AK_VAULT_DIR or --scenario-ids.');
+  }
+
+  const profileNames = options.profiles.length > 0
+    ? options.profiles
+    : ['primary', 'secondary', 'dual'];
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const resultDir = path.join(config.host.resultsDir, `${timestamp}-content-gen`);
+
+  if (options.dryRun) {
+    process.stdout.write(JSON.stringify({
+      command: 'run-content-gen',
+      route: options.route,
+      profiles: profileNames,
+      scenarios: scenarios.map((s) => `${s.index}. ${s.title}`),
+      runsPerScenario: options.runs,
+      vaultDir,
+      resultDir,
+      startProfiles: options.startProfiles,
+      resetProfiles: options.resetProfiles
+    }, null, 2));
+    process.stdout.write('\n');
+    return;
+  }
+
+  fs.mkdirSync(resultDir, { recursive: true });
+  const jsonlPath = path.join(resultDir, 'runs.jsonl');
+  const summaryPath = path.join(resultDir, 'summary.md');
+  const allResults = [];
+  const tunnels = new Map();
+  const endpoints = new Map();
+
+  try {
+    for (const profileName of profileNames) {
+      const profile = getProfile(config, profileName);
+      const model = options.model || profile.defaultModel;
+      const endpoint = clientEndpoint(profile, options);
+      endpoints.set(profile.name, endpoint);
+
+      if (!options.direct) {
+        tunnels.set(profile.name, await openBenchmarkTunnel(options, profile, endpoint));
+      }
+
+      if (options.startProfiles) {
+        const command = options.resetProfiles ? 'restart' : 'start';
+        process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profile.name} with ${model}\n`);
+        runRemote(config, options.route, [command, '--profile', profile.name, '--model', model], {
+          timeoutMs: options.timeoutMs
+        });
+      }
+
+      await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnels.get(profile.name));
+      process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
+      await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+
+      let runIndex = 0;
+      for (const scenario of scenarios) {
+        for (let repeat = 0; repeat < options.runs; repeat += 1) {
+          runIndex += 1;
+          const runId = [
+            'cg',
+            String(runIndex).padStart(4, '0'),
+            profile.name,
+            `s${String(scenario.index).padStart(2, '0')}`,
+            `r${repeat + 1}`
+          ].join('-');
+          const runOutDir = path.join(resultDir, 'raw', runId);
+          fs.mkdirSync(runOutDir, { recursive: true });
+
+          process.stdout.write(
+            `[${runIndex}] ${profile.name} | scenario ${String(scenario.index).padStart(2, '0')} ${scenario.title} | run ${repeat + 1}/${options.runs}\n`
+          );
+
+          let runResult;
+          try {
+            runResult = await runScenario(endpoint, model, scenario, runOutDir, runId, options.timeoutMs);
+          } catch (error) {
+            runResult = {
+              toolCallProduced: false,
+              toolArgs: null,
+              llmMs: 0,
+              llmError: error.message,
+              execResult: null,
+              outDir: null
+            };
+          }
+
+          const refSpecPath = path.join(scenario.artifactDir, 'spec.json');
+          const refReceiptPath = path.join(scenario.artifactDir, 'budget-receipt.json');
+          const scoreResult = scoreRun(runResult, scenario, refSpecPath, refReceiptPath);
+
+          const record = {
+            runId,
+            timestamp: new Date().toISOString(),
+            profile: profile.name,
+            model,
+            scenarioIndex: scenario.index,
+            scenarioTitle: scenario.title,
+            scenarioTier: scenario.tier,
+            repeat: repeat + 1,
+            toolCallProduced: runResult.toolCallProduced,
+            llmMs: runResult.llmMs,
+            llmError: runResult.llmError || null,
+            execSucceeded: runResult.execResult?.succeeded || false,
+            execMs: runResult.execResult?.execMs || null,
+            outDir: runResult.outDir || null,
+            score: scoreResult.points,
+            scoreMax: scoreResult.max,
+            scoreBreakdown: scoreResult.breakdown
+          };
+
+          allResults.push(record);
+          fs.appendFileSync(jsonlPath, `${JSON.stringify(record)}\n`);
+          writeContentSummary(summaryPath, allResults, {
+            profiles: profileNames,
+            scenarios: scenarios.length,
+            route: options.route,
+            resultDir
+          });
+
+          process.stdout.write(
+            `  Score: ${scoreResult.points}/100 | Tool: ${runResult.toolCallProduced ? 'yes' : 'no'} | ` +
+            `Exec: ${runResult.execResult?.succeeded ? 'ok' : 'fail'} | LLM: ${runResult.llmMs}ms\n`
+          );
+        }
+      }
+    }
+  } finally {
+    for (const tunnel of tunnels.values()) {
+      stopTunnel(tunnel);
+    }
+  }
+
+  process.stdout.write(`Result directory: ${resultDir}\n`);
+  process.stdout.write(`JSONL: ${jsonlPath}\n`);
+  process.stdout.write(`Summary: ${summaryPath}\n`);
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
 
@@ -1120,6 +1282,8 @@ async function main() {
     await runBenchmark(options, true);
   } else if (options.command === 'benchmark-hardware') {
     await runHardwareBenchmark(options);
+  } else if (options.command === 'run-content-gen') {
+    await runContentGen(options);
   } else if (options.command === 'project-safety-check') {
     runRemoteProjectTool(options, 'check');
   } else if (options.command === 'project-sync') {
