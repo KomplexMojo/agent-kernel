@@ -7,15 +7,23 @@ const AFFINITY_ENUM = [
 ];
 
 const EXPRESSION_ENUM = ['push', 'pull', 'emit', 'draw'];
-const MOTIVATION_ENUM = ['attacking', 'defending', 'exploring', 'patrolling', 'guarding'];
+
+const MOTIVATION_ENUM = [
+  'random', 'stationary', 'exploring', 'patrolling',
+  'attacking', 'defending', 'stealthy', 'friendly',
+  'reflexive', 'goal_oriented', 'strategy_focused', 'user_controlled'
+];
+
 const SIZE_ENUM = ['small', 'medium', 'large'];
 const PRIORITY_ENUM = ['high', 'medium', 'low'];
+const GOAL_KIND_ENUM = ['max_mana', 'mana_regen', 'maximize_spend'];
+const RESOURCE_STAT_ENUM = ['vitalMax', 'vitalRegen', 'affinity', 'affinityStack', 'pushExpression'];
 
 const VITAL_CONFIG = {
   type: 'object',
   properties: {
     max: { type: 'integer', minimum: 1, description: 'Maximum value' },
-    regen: { type: 'integer', minimum: 0, description: 'Regen per tick' }
+    regen: { type: 'integer', minimum: 0, description: 'Regen per tick (default 0)' }
   },
   required: ['max']
 };
@@ -30,32 +38,55 @@ const ACTOR_AFFINITY_ITEM = {
   required: ['kind', 'expression']
 };
 
-const ACTOR_SPEC = {
+const GOAL_ITEM = {
   type: 'object',
+  description: 'Optimization goal — only max_mana, mana_regen, and maximize_spend are supported',
   properties: {
-    count: { type: 'integer', minimum: 1 },
-    affinity: { type: 'string', enum: AFFINITY_ENUM },
-    motivation: { type: 'string', enum: MOTIVATION_ENUM },
-    vitals: {
-      type: 'object',
-      description: 'Vital stat settings',
-      properties: {
-        health: VITAL_CONFIG,
-        stamina: VITAL_CONFIG,
-        mana: VITAL_CONFIG
-      }
-    },
-    affinities: {
-      type: 'array',
-      items: ACTOR_AFFINITY_ITEM,
-      description: 'Additional affinity expressions beyond the primary'
-    },
-    goals: {
-      type: 'object',
-      description: 'Goal priorities keyed by goal name',
-      additionalProperties: { type: 'string', enum: PRIORITY_ENUM }
+    kind: { type: 'string', enum: GOAL_KIND_ENUM },
+    priority: { type: 'string', enum: PRIORITY_ENUM, default: 'high' }
+  },
+  required: ['kind']
+};
+
+const COMMON_ACTOR_PROPS = {
+  count: { type: 'integer', minimum: 1, default: 1 },
+  affinity: { type: 'string', enum: AFFINITY_ENUM },
+  motivation: { type: 'string', enum: MOTIVATION_ENUM },
+  vitals: {
+    type: 'object',
+    description: 'Vital stat settings. Keys: health, stamina, mana, durability.',
+    properties: {
+      health: VITAL_CONFIG,
+      stamina: VITAL_CONFIG,
+      mana: VITAL_CONFIG,
+      durability: VITAL_CONFIG
     }
   },
+  affinities: {
+    type: 'array',
+    items: ACTOR_AFFINITY_ITEM,
+    description: 'Additional affinity expressions beyond the primary'
+  }
+};
+
+// Delver includes goals; warden does not
+const DELVER_SPEC = {
+  type: 'object',
+  properties: {
+    ...COMMON_ACTOR_PROPS,
+    goals: {
+      type: 'array',
+      items: GOAL_ITEM,
+      description: 'Optimization goals. Valid kinds: max_mana, mana_regen, maximize_spend.'
+    }
+  },
+  required: ['count', 'affinity', 'motivation']
+};
+
+const WARDEN_SPEC = {
+  type: 'object',
+  description: 'Warden actor. Note: wardens do not support goals.',
+  properties: { ...COMMON_ACTOR_PROPS },
   required: ['count', 'affinity', 'motivation']
 };
 
@@ -158,9 +189,13 @@ const AK_CREATE_TOOL = {
             type: 'object',
             properties: {
               tier: { type: 'string', enum: ['level', 'permanent'] },
-              stat: { type: 'string', enum: ['health', 'stamina', 'mana'] },
-              delta: { type: 'number' },
-              dropRate: { type: 'number', minimum: 0, maximum: 1 }
+              stat: {
+                type: 'string',
+                enum: RESOURCE_STAT_ENUM,
+                description: 'vitalMax=raise a stat cap, vitalRegen=raise regen, affinity=grant affinity expression, affinityStack=add affinity stacks, pushExpression=grant push'
+              },
+              delta: { type: 'number', description: 'Amount to apply' },
+              dropRate: { type: 'number', minimum: 0, maximum: 100, description: 'Drop chance 0–100' }
             },
             required: ['tier', 'stat', 'delta']
           }
@@ -168,16 +203,16 @@ const AK_CREATE_TOOL = {
         delver: {
           type: 'array',
           description: 'Delver actors to create.',
-          items: ACTOR_SPEC
+          items: DELVER_SPEC
         },
         warden: {
           type: 'array',
-          description: 'Warden actors to create.',
-          items: ACTOR_SPEC
+          description: 'Warden actors to create. Wardens do not support goals.',
+          items: WARDEN_SPEC
         }
       }
     }
   }
 };
 
-module.exports = { AK_CREATE_TOOL, AFFINITY_ENUM, EXPRESSION_ENUM, MOTIVATION_ENUM };
+module.exports = { AK_CREATE_TOOL, AFFINITY_ENUM, EXPRESSION_ENUM, MOTIVATION_ENUM, GOAL_KIND_ENUM, RESOURCE_STAT_ENUM };

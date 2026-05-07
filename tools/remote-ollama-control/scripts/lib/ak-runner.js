@@ -9,6 +9,22 @@ const { AK_CREATE_TOOL } = require('./ak-tool-schema');
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const AK_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
 
+// Normalize a tool-arg array field that the model may output as a JSON string.
+// Models sometimes output array fields as a JSON-encoded string "[...]" instead
+// of an actual array — handle that and plain string items too.
+function toArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    const s = val.trim();
+    if (s.startsWith('[')) {
+      try { return JSON.parse(s); } catch {}
+    }
+    return s ? [s] : [];
+  }
+  return [val];
+}
+
 // Serialize an entity spec object (or already-formatted string) to the
 // semicolon-delimited key=value format expected by ak.mjs CLI flags.
 function specToString(spec) {
@@ -34,8 +50,13 @@ function specToString(spec) {
     } else if (k === 'affinities' && Array.isArray(v)) {
       const aparts = v.map(a => `${a.kind}:${a.expression}:${a.stacks ?? 1}`);
       if (aparts.length) parts.push(`affinities=${aparts.join(',')}`);
-    } else if (k === 'goals' && typeof v === 'object' && !Array.isArray(v)) {
-      const gparts = Object.entries(v).map(([gk, gv]) => `${gk}:${gv}`);
+    } else if (k === 'goals') {
+      // goals is an array of {kind, priority} objects
+      const gArr = Array.isArray(v) ? v : [];
+      const gparts = gArr.map(g => {
+        if (typeof g === 'string') return g;
+        return g.priority ? `${g.kind}:${g.priority}` : g.kind;
+      });
       if (gparts.length) parts.push(`goals=${gparts.join(',')}`);
     } else {
       parts.push(`${k}=${v}`);
@@ -52,13 +73,13 @@ function buildCliArgs(toolArgs) {
   if (toolArgs.outDir) args.push('--out-dir', toolArgs.outDir);
   if (toolArgs.emitIntermediates !== false) args.push('--emit-intermediates');
   if (toolArgs.dungeonAffinity) args.push('--dungeon-affinity', toolArgs.dungeonAffinity);
-  for (const spec of toolArgs.room || []) args.push('--room', specToString(spec));
-  for (const spec of toolArgs.floorTile || []) args.push('--floor-tile', specToString(spec));
-  for (const spec of toolArgs.trap || []) args.push('--trap', specToString(spec));
-  for (const spec of toolArgs.hazard || []) args.push('--hazard', specToString(spec));
-  for (const spec of toolArgs.resource || []) args.push('--resource', specToString(spec));
-  for (const spec of toolArgs.delver || []) args.push('--delver', specToString(spec));
-  for (const spec of toolArgs.warden || []) args.push('--warden', specToString(spec));
+  for (const spec of toArray(toolArgs.room)) args.push('--room', specToString(spec));
+  for (const spec of toArray(toolArgs.floorTile)) args.push('--floor-tile', specToString(spec));
+  for (const spec of toArray(toolArgs.trap)) args.push('--trap', specToString(spec));
+  for (const spec of toArray(toolArgs.hazard)) args.push('--hazard', specToString(spec));
+  for (const spec of toArray(toolArgs.resource)) args.push('--resource', specToString(spec));
+  for (const spec of toArray(toolArgs.delver)) args.push('--delver', specToString(spec));
+  for (const spec of toArray(toolArgs.warden)) args.push('--warden', specToString(spec));
   return args;
 }
 
@@ -67,7 +88,8 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     'You are an agent-kernel dungeon designer. When given a dungeon creation request, ' +
     'call the ak_create tool with appropriate parameters. Use the exact prompt text as ' +
     'the text parameter. The budget is typically 1500 tokens. Always set emitIntermediates ' +
-    'to true. Rooms are generic containers — affinity pressure belongs in traps or hazards.';
+    'to true. Rooms are generic containers — affinity pressure belongs in traps or hazards. ' +
+    'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.';
 
   const chatBody = {
     model,
@@ -137,4 +159,4 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   };
 }
 
-module.exports = { buildCliArgs, specToString, runScenario, AK_CLI, REPO_ROOT };
+module.exports = { buildCliArgs, specToString, toArray, runScenario, AK_CLI, REPO_ROOT };
