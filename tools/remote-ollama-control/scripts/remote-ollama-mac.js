@@ -1104,7 +1104,7 @@ async function runContentGen(options) {
 
   const profileNames = options.profiles.length > 0
     ? options.profiles
-    : ['primary', 'secondary', 'dual'];
+    : ['dual'];
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const resultDir = path.join(config.host.resultsDir, `${timestamp}-content-gen`);
