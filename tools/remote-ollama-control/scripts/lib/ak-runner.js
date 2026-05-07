@@ -9,6 +9,41 @@ const { AK_CREATE_TOOL } = require('./ak-tool-schema');
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const AK_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
 
+// Serialize an entity spec object (or already-formatted string) to the
+// semicolon-delimited key=value format expected by ak.mjs CLI flags.
+function specToString(spec) {
+  if (typeof spec === 'string') {
+    const s = spec.trim();
+    if (s.startsWith('{')) {
+      try { spec = JSON.parse(s); } catch { return spec; }
+    } else {
+      return spec;
+    }
+  }
+  if (!spec || typeof spec !== 'object') return String(spec);
+
+  const parts = [];
+  for (const [k, v] of Object.entries(spec)) {
+    if (v === undefined || v === null) continue;
+    if (k === 'vitals' && typeof v === 'object' && !Array.isArray(v)) {
+      const vparts = Object.entries(v).map(([vk, vv]) => {
+        if (typeof vv === 'object') return `${vk}:${vv.max ?? 1}:${vv.regen ?? 0}`;
+        return `${vk}:${vv}`;
+      });
+      if (vparts.length) parts.push(`vitals=${vparts.join(',')}`);
+    } else if (k === 'affinities' && Array.isArray(v)) {
+      const aparts = v.map(a => `${a.kind}:${a.expression}:${a.stacks ?? 1}`);
+      if (aparts.length) parts.push(`affinities=${aparts.join(',')}`);
+    } else if (k === 'goals' && typeof v === 'object' && !Array.isArray(v)) {
+      const gparts = Object.entries(v).map(([gk, gv]) => `${gk}:${gv}`);
+      if (gparts.length) parts.push(`goals=${gparts.join(',')}`);
+    } else {
+      parts.push(`${k}=${v}`);
+    }
+  }
+  return parts.join(';');
+}
+
 function buildCliArgs(toolArgs) {
   const args = ['create'];
   if (toolArgs.text) args.push('--text', toolArgs.text);
@@ -17,13 +52,13 @@ function buildCliArgs(toolArgs) {
   if (toolArgs.outDir) args.push('--out-dir', toolArgs.outDir);
   if (toolArgs.emitIntermediates !== false) args.push('--emit-intermediates');
   if (toolArgs.dungeonAffinity) args.push('--dungeon-affinity', toolArgs.dungeonAffinity);
-  for (const spec of toolArgs.room || []) args.push('--room', spec);
-  for (const spec of toolArgs.floorTile || []) args.push('--floor-tile', spec);
-  for (const spec of toolArgs.trap || []) args.push('--trap', spec);
-  for (const spec of toolArgs.hazard || []) args.push('--hazard', spec);
-  for (const spec of toolArgs.resource || []) args.push('--resource', spec);
-  for (const spec of toolArgs.delver || []) args.push('--delver', spec);
-  for (const spec of toolArgs.warden || []) args.push('--warden', spec);
+  for (const spec of toolArgs.room || []) args.push('--room', specToString(spec));
+  for (const spec of toolArgs.floorTile || []) args.push('--floor-tile', specToString(spec));
+  for (const spec of toolArgs.trap || []) args.push('--trap', specToString(spec));
+  for (const spec of toolArgs.hazard || []) args.push('--hazard', specToString(spec));
+  for (const spec of toolArgs.resource || []) args.push('--resource', specToString(spec));
+  for (const spec of toolArgs.delver || []) args.push('--delver', specToString(spec));
+  for (const spec of toolArgs.warden || []) args.push('--warden', specToString(spec));
   return args;
 }
 
@@ -102,4 +137,4 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   };
 }
 
-module.exports = { buildCliArgs, runScenario, AK_CLI, REPO_ROOT };
+module.exports = { buildCliArgs, specToString, runScenario, AK_CLI, REPO_ROOT };

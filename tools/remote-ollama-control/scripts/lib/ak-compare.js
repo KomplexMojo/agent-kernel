@@ -187,10 +187,10 @@ function writeContentSummary(summaryPath, results, runConfig) {
     result.repeat,
     result.score ?? '',
     result.toolCallProduced ? 'yes' : 'no',
-    result.execSucceeded ? 'ok' : 'fail',
+    result.execSucceeded ? 'ok' : `fail(${result.execExitCode ?? '?'})`,
     result.llmMs ?? '',
     result.execMs ?? '',
-    result.llmError ? result.llmError.slice(0, 60) : ''
+    result.execStderr ? result.execStderr.slice(0, 80).replace(/\n/g, ' ') : (result.llmError ? result.llmError.slice(0, 60) : '')
   ]);
 
   const lines = [

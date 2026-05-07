@@ -6,6 +6,59 @@ const AFFINITY_ENUM = [
   'light', 'dark'
 ];
 
+const EXPRESSION_ENUM = ['push', 'pull', 'emit', 'draw'];
+const MOTIVATION_ENUM = ['attacking', 'defending', 'exploring', 'patrolling', 'guarding'];
+const SIZE_ENUM = ['small', 'medium', 'large'];
+const PRIORITY_ENUM = ['high', 'medium', 'low'];
+
+const VITAL_CONFIG = {
+  type: 'object',
+  properties: {
+    max: { type: 'integer', minimum: 1, description: 'Maximum value' },
+    regen: { type: 'integer', minimum: 0, description: 'Regen per tick' }
+  },
+  required: ['max']
+};
+
+const ACTOR_AFFINITY_ITEM = {
+  type: 'object',
+  properties: {
+    kind: { type: 'string', enum: AFFINITY_ENUM },
+    expression: { type: 'string', enum: EXPRESSION_ENUM },
+    stacks: { type: 'integer', minimum: 1, default: 1 }
+  },
+  required: ['kind', 'expression']
+};
+
+const ACTOR_SPEC = {
+  type: 'object',
+  properties: {
+    count: { type: 'integer', minimum: 1 },
+    affinity: { type: 'string', enum: AFFINITY_ENUM },
+    motivation: { type: 'string', enum: MOTIVATION_ENUM },
+    vitals: {
+      type: 'object',
+      description: 'Vital stat settings',
+      properties: {
+        health: VITAL_CONFIG,
+        stamina: VITAL_CONFIG,
+        mana: VITAL_CONFIG
+      }
+    },
+    affinities: {
+      type: 'array',
+      items: ACTOR_AFFINITY_ITEM,
+      description: 'Additional affinity expressions beyond the primary'
+    },
+    goals: {
+      type: 'object',
+      description: 'Goal priorities keyed by goal name',
+      additionalProperties: { type: 'string', enum: PRIORITY_ENUM }
+    }
+  },
+  required: ['count', 'affinity', 'motivation']
+};
+
 const AK_CREATE_TOOL = {
   type: 'function',
   function: {
@@ -47,42 +100,84 @@ const AK_CREATE_TOOL = {
         },
         room: {
           type: 'array',
-          items: { type: 'string' },
-          description: 'Room specs (repeatable): size=<small|medium|large>;count=<n>'
+          description: 'Rooms to create.',
+          items: {
+            type: 'object',
+            properties: {
+              size: { type: 'string', enum: SIZE_ENUM },
+              count: { type: 'integer', minimum: 1, default: 1 }
+            },
+            required: ['size']
+          }
         },
         floorTile: {
           type: 'array',
-          items: { type: 'string' },
-          description: 'Floor tile specs (repeatable): count=<n>[;id=<id>]'
+          description: 'Floor tile groups.',
+          items: {
+            type: 'object',
+            properties: {
+              count: { type: 'integer', minimum: 1 },
+              id: { type: 'string' }
+            },
+            required: ['count']
+          }
         },
         trap: {
           type: 'array',
-          items: { type: 'string' },
-          description: 'Trap specs (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>]'
+          description: 'Traps to place.',
+          items: {
+            type: 'object',
+            properties: {
+              x: { type: 'integer', description: 'Grid x coordinate' },
+              y: { type: 'integer', description: 'Grid y coordinate' },
+              affinity: { type: 'string', enum: AFFINITY_ENUM },
+              expression: { type: 'string', enum: EXPRESSION_ENUM },
+              stacks: { type: 'integer', minimum: 1 },
+              blocking: { type: 'boolean', default: false }
+            },
+            required: ['x', 'y', 'affinity']
+          }
         },
         hazard: {
           type: 'array',
-          items: { type: 'string' },
-          description: 'Hazard specs (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<cur>:<max>:<regen>]'
+          description: 'Hazard zones.',
+          items: {
+            type: 'object',
+            properties: {
+              affinity: { type: 'string', enum: AFFINITY_ENUM },
+              expression: { type: 'string', enum: EXPRESSION_ENUM },
+              proximityRadius: { type: 'integer', minimum: 1 }
+            },
+            required: ['affinity', 'expression', 'proximityRadius']
+          }
         },
         resource: {
           type: 'array',
-          items: { type: 'string' },
-          description: 'Resource specs (repeatable): tier=<level|permanent>;stat=<kind>;delta=<n>;dropRate=<n>'
+          description: 'Resource drops.',
+          items: {
+            type: 'object',
+            properties: {
+              tier: { type: 'string', enum: ['level', 'permanent'] },
+              stat: { type: 'string', enum: ['health', 'stamina', 'mana'] },
+              delta: { type: 'number' },
+              dropRate: { type: 'number', minimum: 0, maximum: 1 }
+            },
+            required: ['tier', 'stat', 'delta']
+          }
         },
         delver: {
           type: 'array',
-          items: { type: 'string' },
-          description: 'Delver specs (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;affinities=<kind>:<expr>:<stacks>,...][;vitals=<vital>:<max>:<regen>,...]'
+          description: 'Delver actors to create.',
+          items: ACTOR_SPEC
         },
         warden: {
           type: 'array',
-          items: { type: 'string' },
-          description: 'Warden specs (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;affinities=<kind>:<expr>:<stacks>,...][;vitals=<vital>:<max>:<regen>,...]'
+          description: 'Warden actors to create.',
+          items: ACTOR_SPEC
         }
       }
     }
   }
 };
 
-module.exports = { AK_CREATE_TOOL, AFFINITY_ENUM };
+module.exports = { AK_CREATE_TOOL, AFFINITY_ENUM, EXPRESSION_ENUM, MOTIVATION_ENUM };
