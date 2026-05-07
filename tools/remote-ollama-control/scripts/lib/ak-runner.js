@@ -9,9 +9,18 @@ const { AK_CREATE_TOOL } = require('./ak-tool-schema');
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const AK_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
 
-// Normalize a tool-arg array field that the model may output as a JSON string.
-// Models sometimes output array fields as a JSON-encoded string "[...]" instead
-// of an actual array — handle that and plain string items too.
+// qwen3's thinking mode sometimes serializes arrays as Python repr strings
+// ([{'key': 'val'}]) using single quotes. Convert to valid JSON before parsing.
+function pythonReprToJson(s) {
+  return s
+    .replace(/'/g, '"')
+    .replace(/\bTrue\b/g, 'true')
+    .replace(/\bFalse\b/g, 'false')
+    .replace(/\bNone\b/g, 'null');
+}
+
+// Normalize a tool-arg array field that the model may output as a JSON string
+// or a Python repr string instead of an actual array.
 function toArray(val) {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -19,11 +28,29 @@ function toArray(val) {
     const s = val.trim();
     if (s.startsWith('[')) {
       try { return JSON.parse(s); } catch {}
+      try { return JSON.parse(pythonReprToJson(s)); } catch {}
     }
     return s ? [s] : [];
   }
   return [val];
 }
+
+// Map of model-invented motivation names to the nearest valid ak.mjs value.
+const MOTIVATION_ALIASES = {
+  supporting: 'friendly',
+  support:    'friendly',
+  healing:    'friendly',
+  healer:     'friendly',
+  offensive:  'attacking',
+  aggressive: 'attacking',
+  melee:      'attacking',
+  defensive:  'defending',
+  guard:      'defending',
+  guardian:   'defending',
+  stealth:    'stealthy',
+  patrol:     'patrolling',
+  mixed:      'exploring',
+};
 
 // Serialize an entity spec object (or already-formatted string) to the
 // semicolon-delimited key=value format expected by ak.mjs CLI flags.
@@ -38,10 +65,17 @@ function specToString(spec) {
   }
   if (!spec || typeof spec !== 'object') return String(spec);
 
+  // Apply defaults for fields the model commonly omits
+  if (spec.tier && spec.stat && spec.delta != null && spec.dropRate == null) {
+    spec = { ...spec, dropRate: 10 };
+  }
+
   const parts = [];
   for (const [k, v] of Object.entries(spec)) {
     if (v === undefined || v === null) continue;
-    if (k === 'vitals' && typeof v === 'object' && !Array.isArray(v)) {
+    if (k === 'motivation' && typeof v === 'string') {
+      parts.push(`motivation=${MOTIVATION_ALIASES[v.toLowerCase()] ?? v}`);
+    } else if (k === 'vitals' && typeof v === 'object' && !Array.isArray(v)) {
       const vparts = Object.entries(v).map(([vk, vv]) => {
         if (typeof vv === 'object') return `${vk}:${vv.max ?? 1}:${vv.regen ?? 0}`;
         return `${vk}:${vv}`;
@@ -51,7 +85,6 @@ function specToString(spec) {
       const aparts = v.map(a => `${a.kind}:${a.expression}:${a.stacks ?? 1}`);
       if (aparts.length) parts.push(`affinities=${aparts.join(',')}`);
     } else if (k === 'goals') {
-      // goals is an array of {kind, priority} objects
       const gArr = Array.isArray(v) ? v : [];
       const gparts = gArr.map(g => {
         if (typeof g === 'string') return g;
