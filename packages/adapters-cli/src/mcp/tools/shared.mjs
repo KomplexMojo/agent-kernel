@@ -32,6 +32,45 @@ export const stringArraySchema = (description) => ({
   description,
 });
 
+// Accepts both plain spec strings and structured objects so MCP clients
+// (Claude Code, benchmark harness) can produce either format.
+export const entitySpecSchema = (description) => ({
+  type: "array",
+  items: { oneOf: [{ type: "string" }, { type: "object", additionalProperties: true }] },
+  description,
+});
+
+// Canonical serializer: converts a structured entity spec object into the
+// semicolon-delimited key=value string that ak.mjs CLI flags expect.
+// Passes plain strings through unchanged so the function is idempotent.
+export function specObjectToString(spec) {
+  if (typeof spec === "string") return spec;
+  if (!spec || typeof spec !== "object") return String(spec);
+
+  const parts = [];
+  for (const [k, v] of Object.entries(spec)) {
+    if (v === undefined || v === null) continue;
+    if (k === "vitals" && typeof v === "object" && !Array.isArray(v)) {
+      const vparts = Object.entries(v).map(([vk, vv]) => {
+        if (typeof vv === "object") return `${vk}:${vv.max ?? 1}:${vv.regen ?? 0}`;
+        return `${vk}:${vv}`;
+      });
+      if (vparts.length) parts.push(`vitals=${vparts.join(",")}`);
+    } else if (k === "affinities" && Array.isArray(v)) {
+      const aparts = v.map((a) => `${a.kind}:${a.expression}:${a.stacks ?? 1}`);
+      if (aparts.length) parts.push(`affinities=${aparts.join(",")}`);
+    } else if (k === "goals" && Array.isArray(v)) {
+      const gparts = v.map((g) =>
+        typeof g === "string" ? g : g.priority ? `${g.kind}:${g.priority}` : g.kind
+      );
+      if (gparts.length) parts.push(`goals=${gparts.join(",")}`);
+    } else {
+      parts.push(`${k}=${v}`);
+    }
+  }
+  return parts.join(";");
+}
+
 export function createTool({ name, description, command, inputSchema, buildArgs }) {
   return {
     name,

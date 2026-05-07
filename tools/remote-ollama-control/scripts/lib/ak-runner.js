@@ -9,8 +9,26 @@ const { AK_CREATE_TOOL } = require('./ak-tool-schema');
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const AK_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
 
+// Lazy-loaded from the MCP package (ESM) so the benchmark uses the same
+// argv builder as the MCP server — no parallel translation layer.
+let _buildArgv, _authoringSpec;
+async function getMcpBuildTools() {
+  if (!_buildArgv) {
+    const shared = await import('../../../../packages/adapters-cli/src/mcp/tools/shared.mjs');
+    const authoring = await import('../../../../packages/adapters-cli/src/mcp/tools/authoring.mjs');
+    _buildArgv = shared.buildArgv;
+    _authoringSpec = authoring.authoringSpec;
+  }
+  return { buildArgv: _buildArgv, authoringSpec: _authoringSpec };
+}
+
+// ---------------------------------------------------------------------------
+// Ollama-specific normalization — compensates for qwen3 output quirks.
+// These functions run BEFORE the shared MCP translation layer.
+// ---------------------------------------------------------------------------
+
 // qwen3's thinking mode sometimes serializes arrays as Python repr strings
-// ([{'key': 'val'}]) using single quotes. Convert to valid JSON before parsing.
+// ([{'key': 'val'}]) using single quotes. Convert to valid JSON.
 function pythonReprToJson(s) {
   return s
     .replace(/'/g, '"')
@@ -19,8 +37,8 @@ function pythonReprToJson(s) {
     .replace(/\bNone\b/g, 'null');
 }
 
-// Normalize a tool-arg array field that the model may output as a JSON string
-// or a Python repr string instead of an actual array.
+// Normalize an entity array field: handles actual arrays, JSON-encoded strings,
+// and Python repr strings that qwen3 emits from its thinking mode.
 function toArray(val) {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -35,88 +53,48 @@ function toArray(val) {
   return [val];
 }
 
-// Map of model-invented motivation names to the nearest valid ak.mjs value.
+// Model-invented motivation names → nearest valid ak.mjs value.
 const MOTIVATION_ALIASES = {
-  supporting: 'friendly',
-  support:    'friendly',
-  healing:    'friendly',
-  healer:     'friendly',
-  offensive:  'attacking',
-  aggressive: 'attacking',
-  melee:      'attacking',
-  defensive:  'defending',
-  guard:      'defending',
-  guardian:   'defending',
-  stealth:    'stealthy',
-  patrol:     'patrolling',
-  mixed:      'exploring',
+  supporting: 'friendly', support: 'friendly', healing: 'friendly', healer: 'friendly',
+  offensive: 'attacking', aggressive: 'attacking', melee: 'attacking',
+  defensive: 'defending', guard: 'defending', guardian: 'defending',
+  stealth: 'stealthy', patrol: 'patrolling', mixed: 'exploring',
 };
 
-// Serialize an entity spec object (or already-formatted string) to the
-// semicolon-delimited key=value format expected by ak.mjs CLI flags.
-function specToString(spec) {
-  if (typeof spec === 'string') {
-    const s = spec.trim();
-    if (s.startsWith('{')) {
-      try { spec = JSON.parse(s); } catch { return spec; }
-    } else {
-      return spec;
-    }
-  }
-  if (!spec || typeof spec !== 'object') return String(spec);
+// Apply Ollama model compensations to a single entity spec object.
+function normalizeEntitySpec(key, spec) {
+  if (typeof spec === 'string') return spec; // pass strings through unchanged
 
-  // Apply defaults for fields the model commonly omits
-  if (spec.tier && spec.stat && spec.delta != null && spec.dropRate == null) {
-    spec = { ...spec, dropRate: 10 };
+  const out = { ...spec };
+
+  // Map non-standard motivation values
+  if (out.motivation && typeof out.motivation === 'string') {
+    out.motivation = MOTIVATION_ALIASES[out.motivation.toLowerCase()] ?? out.motivation;
   }
 
-  const parts = [];
-  for (const [k, v] of Object.entries(spec)) {
-    if (v === undefined || v === null) continue;
-    if (k === 'motivation' && typeof v === 'string') {
-      parts.push(`motivation=${MOTIVATION_ALIASES[v.toLowerCase()] ?? v}`);
-    } else if (k === 'vitals' && typeof v === 'object' && !Array.isArray(v)) {
-      const vparts = Object.entries(v).map(([vk, vv]) => {
-        if (typeof vv === 'object') return `${vk}:${vv.max ?? 1}:${vv.regen ?? 0}`;
-        return `${vk}:${vv}`;
-      });
-      if (vparts.length) parts.push(`vitals=${vparts.join(',')}`);
-    } else if (k === 'affinities' && Array.isArray(v)) {
-      const aparts = v.map(a => `${a.kind}:${a.expression}:${a.stacks ?? 1}`);
-      if (aparts.length) parts.push(`affinities=${aparts.join(',')}`);
-    } else if (k === 'goals') {
-      const gArr = Array.isArray(v) ? v : [];
-      const gparts = gArr.map(g => {
-        if (typeof g === 'string') return g;
-        return g.priority ? `${g.kind}:${g.priority}` : g.kind;
-      });
-      if (gparts.length) parts.push(`goals=${gparts.join(',')}`);
-    } else {
-      parts.push(`${k}=${v}`);
-    }
+  // Resource: inject dropRate default when model omits it
+  if (key === 'resource' && out.tier && out.stat && out.delta != null && out.dropRate == null) {
+    out.dropRate = 10;
   }
-  return parts.join(';');
+
+  return out;
 }
 
-function buildCliArgs(toolArgs) {
-  const args = ['create'];
-  if (toolArgs.text) args.push('--text', toolArgs.text);
-  if (toolArgs.budgetTokens != null) args.push('--budget-tokens', String(toolArgs.budgetTokens));
-  if (toolArgs.runId) args.push('--run-id', toolArgs.runId);
-  if (toolArgs.outDir) args.push('--out-dir', toolArgs.outDir);
-  if (toolArgs.emitIntermediates !== false) args.push('--emit-intermediates');
-  if (toolArgs.dungeonAffinity) args.push('--dungeon-affinity', toolArgs.dungeonAffinity);
-  for (const spec of toArray(toolArgs.room)) args.push('--room', specToString(spec));
-  for (const spec of toArray(toolArgs.floorTile)) args.push('--floor-tile', specToString(spec));
-  for (const spec of toArray(toolArgs.trap)) args.push('--trap', specToString(spec));
-  for (const spec of toArray(toolArgs.hazard)) args.push('--hazard', specToString(spec));
-  for (const spec of toArray(toolArgs.resource)) args.push('--resource', specToString(spec));
-  for (const spec of toArray(toolArgs.delver)) args.push('--delver', specToString(spec));
-  for (const spec of toArray(toolArgs.warden)) args.push('--warden', specToString(spec));
-  return args;
+// Normalize all entity array fields in toolArgs.
+function normalizeToolArgs(toolArgs) {
+  const ENTITY_KEYS = ['room', 'floorTile', 'trap', 'hazard', 'resource', 'delver', 'warden'];
+  const out = { ...toolArgs };
+  for (const key of ENTITY_KEYS) {
+    out[key] = toArray(out[key]).map((spec) => normalizeEntitySpec(key, spec));
+  }
+  return out;
 }
+
+// ---------------------------------------------------------------------------
 
 async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000) {
+  const { buildArgv, authoringSpec } = await getMcpBuildTools();
+
   const systemPrompt =
     'You are an agent-kernel dungeon designer. When given a dungeon creation request, ' +
     'call the ak_create tool with appropriate parameters. Use the exact prompt text as ' +
@@ -126,6 +104,7 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
 
   const chatBody = {
     model,
+    think: false,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: scenario.prompt }
@@ -162,13 +141,18 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
 
   const effectiveOutDir = path.join(runOutDir, 'create');
   fs.mkdirSync(effectiveOutDir, { recursive: true });
-  toolArgs.outDir = effectiveOutDir;
-  toolArgs.runId = runId;
-  toolArgs.emitIntermediates = true;
 
-  const cliArgs = buildCliArgs(toolArgs);
+  // Normalize Ollama quirks, then build argv via the shared MCP translation layer.
+  const normalizedArgs = normalizeToolArgs({
+    ...toolArgs,
+    outDir: effectiveOutDir,
+    runId,
+    emitIntermediates: true,
+  });
+  const cliArgs = buildArgv(normalizedArgs, authoringSpec);
+
   const execStarted = Date.now();
-  const result = spawnSync(process.execPath, [AK_CLI, ...cliArgs], {
+  const result = spawnSync(process.execPath, [AK_CLI, 'create', ...cliArgs], {
     encoding: 'utf8',
     timeout: timeoutMs,
     cwd: REPO_ROOT
@@ -192,4 +176,4 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   };
 }
 
-module.exports = { buildCliArgs, specToString, toArray, runScenario, AK_CLI, REPO_ROOT };
+module.exports = { normalizeToolArgs, runScenario, AK_CLI, REPO_ROOT };

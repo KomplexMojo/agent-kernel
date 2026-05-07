@@ -2,8 +2,10 @@ import {
   booleanSchema,
   buildArgv,
   createTool,
+  entitySpecSchema,
   integerSchema,
   pathSchema,
+  specObjectToString,
   stringArraySchema,
   stringSchema,
   withCommonOutput,
@@ -11,13 +13,13 @@ import {
 
 const authoringProperties = withCommonOutput({
   text: stringSchema("Freeform authoring text."),
-  room: stringArraySchema("Room authoring specs."),
-  floorTile: stringArraySchema("Floor tile specs."),
-  trap: stringArraySchema("Trap specs."),
-  hazard: stringArraySchema("Hazard specs."),
-  resource: stringArraySchema("Resource specs."),
-  delver: stringArraySchema("Delver specs."),
-  warden: stringArraySchema("Warden specs."),
+  room: entitySpecSchema("Room authoring specs. Accepts spec strings or structured objects."),
+  floorTile: entitySpecSchema("Floor tile specs. Accepts spec strings or structured objects."),
+  trap: entitySpecSchema("Trap specs. Accepts spec strings or structured objects."),
+  hazard: entitySpecSchema("Hazard specs. Accepts spec strings or structured objects."),
+  resource: entitySpecSchema("Resource specs. Accepts spec strings or structured objects."),
+  delver: entitySpecSchema("Delver specs. Accepts spec strings or structured objects."),
+  warden: entitySpecSchema("Warden specs. Accepts spec strings or structured objects."),
   goal: stringSchema("Goal text override."),
   dungeonAffinity: stringSchema("Dungeon affinity override."),
   budgetTokens: integerSchema("Hard budget cap in tokens.", { minimum: 1 }),
@@ -29,15 +31,17 @@ const authoringProperties = withCommonOutput({
   dryRun: booleanSchema("Validate inputs without writing artifacts when supported."),
 });
 
-const authoringSpec = [
+// Exported so the benchmark harness can import and reuse the same argv
+// builder rather than maintaining a parallel translation layer.
+export const authoringSpec = [
   { key: "text" },
-  { key: "room", repeatable: true },
-  { key: "floorTile", flag: "floor-tile", repeatable: true },
-  { key: "trap", repeatable: true },
-  { key: "hazard", repeatable: true },
-  { key: "resource", repeatable: true },
-  { key: "delver", repeatable: true },
-  { key: "warden", repeatable: true },
+  { key: "room", repeatable: true, format: specObjectToString },
+  { key: "floorTile", flag: "floor-tile", repeatable: true, format: specObjectToString },
+  { key: "trap", repeatable: true, format: specObjectToString },
+  { key: "hazard", repeatable: true, format: specObjectToString },
+  { key: "resource", repeatable: true, format: specObjectToString },
+  { key: "delver", repeatable: true, format: specObjectToString },
+  { key: "warden", repeatable: true, format: specObjectToString },
   { key: "goal" },
   { key: "dungeonAffinity", flag: "dungeon-affinity" },
   { key: "budgetTokens", flag: "budget-tokens" },
