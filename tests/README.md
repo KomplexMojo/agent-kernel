@@ -1,5 +1,7 @@
 # Tests README
 
+> **Scope:** this file covers the unit and integration test suite only (`pnpm run test`, Vitest + Playwright). Tests verify code correctness against deterministic fixtures. For LLM tool-call permutation and stress testing, see the benchmark harness at `tools/remote-ollama-control/` and the `run-content-gen` command documented in `CLAUDE.md → Benchmark commands`.
+
 This file is the entry point for **low-complexity test work** delegated to a local model, typically Ollama launched through the Claude Code harness.
 
 The goal is not to invent tests from raw prose. The goal is to:

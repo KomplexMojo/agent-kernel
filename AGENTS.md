@@ -30,6 +30,7 @@ Steps 4–7 are cheap (seconds). Never skip them to save time — a stale graph 
 | **Claude Sonnet** | claude-sonnet-4-6 / high | Implementation — all production code and architecture refactors |
 | **Claude Sonnet** | claude-sonnet-4-6 / medium | Base test authoring — writes test files with TODO permutation stubs |
 | **Ollama** (local model) | local / — | Test permutation expansion from TODO stubs, artifact summarization, schema classification |
+| **Remote Ollama** (GPU node) | qwen3-coder:30b-a3b-q4_K_M / — | Content-gen benchmark — permutation + stress testing of the LLM tool-call surface via `run-content-gen` |
 | **GitHub Copilot** | — | Commit messages, PR authoring, architecture / design / README updates |
 
 Claude's full enforcement rules are in `CLAUDE.md`. Read it to understand what will be changed and why.
@@ -47,10 +48,16 @@ Claude Sonnet/high (implement)  ← queries CodeContextGraph via MCP; no grep/fi
     ↓
 Claude Sonnet/medium (write base tests + TODO permutation stubs)
     ↓
-Ollama (expand permutations in place via /ollama-test-permutations)
+Ollama (expand permutations in place via /ollama-test-permutations)   ← unit/integration correctness
+    ↓
+Remote Ollama GPU (run-content-gen benchmark)  ← LLM tool-call permutation + stress; gated on ak_create changes
     ↓
 GitHub Copilot (commit, PR, update docs)
 ```
+
+**Tests vs. benchmarks:**
+- **Tests** (`pnpm run test`) — deterministic correctness: does the code behave as specified? Vitest + Playwright, fixture-backed, no external services.
+- **Benchmarks** (`run-content-gen`) — LLM tool-call surface under load: does the model produce valid tool calls for all 50 scenario permutations across tiers? Runs on the remote GPU node; measures exec success rate and scenario score. Not a substitute for tests and not run on every commit — only when the `ak_create` schema, CLI arg mapping, or entity normalization changes.
 
 ## CodeContextGraph — shared code understanding
 
@@ -181,6 +188,17 @@ Before opening implementation files or proposing edits, Claude should cite the C
 - Add negative fixtures under `tests/fixtures/artifacts/invalid` when adding validation.
 - Base tests are Claude Sonnet/medium's output. Permutations are Ollama's output.
 
+## Benchmark strategy
+
+Benchmarking is distinct from testing. Tests verify correctness; benchmarks verify that the LLM tool-call surface holds up under permutation load and budget stress.
+
+- **Harness:** `tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen`
+- **Model:** qwen3-coder:30b-a3b-q4_K_M on the remote GPU node (`--route external`)
+- **Coverage:** 50 scenarios across simple / affinity / complex tiers; 1500–10000 token budgets
+- **Pass bar:** ≥ 99 % exec ok, avg score ≥ 75; flag regressions in PR description
+- **Gate:** run before merging any change to the `ak_create` tool schema, `buildArgv`, entity normalization, or CLI arg mapping. No need to run for pure runtime/persona/WASM changes.
+- **Results:** saved in `tools/remote-ollama-control/results/<timestamp>-content-gen/summary.md` — not committed
+
 ## Large-change artifacts
 
 - For large deliverables, use `local-codex/Prompt.md`, `local-codex/Plan.md`, `local-codex/Implement.md`, and `local-codex/Documentation.md` as the execution source of truth.
@@ -199,6 +217,7 @@ Before opening implementation files or proposing edits, Claude should cite the C
 - New files placed in the correct package (see file placement rules above).
 - Base test file present and includes `## TODO: Test Permutations` stubs (or Ollama has already expanded them).
 - Tests pass locally or documented reason for skipping.
+- **If `ak_create` schema, CLI arg mapping, or entity normalization changed:** content-gen benchmark run (`run-content-gen --runs 3 --route external`); result summary linked or pasted in PR; exec ok ≥ 99 %, avg score ≥ 75.
 - Architecture / design / README docs queued for Copilot update if behavior or boundaries changed.
 
 ---

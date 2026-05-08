@@ -33,6 +33,7 @@ Before writing any code in a new session, complete the checklist in `AGENTS.md �
 | Author base-level tests (with TODO permutation stubs) | **Claude Sonnet** | claude-sonnet-4-6 / medium | Direct |
 | Expand test permutations from TODO stubs | **Ollama** (local model) | local / — | `/ollama-test-permutations` skill |
 | Summarize artifacts, classify schemas, extract structured data | **Ollama** (local model) | local / — | `local_summarize`, `local_classify`, `local_extract` via MCP |
+| **Content-gen benchmark** — permutation + stress testing of LLM tool-call surface | **Remote Ollama** (GPU node) | qwen3-coder:30b-a3b-q4_K_M / — | `run-content-gen` via `tools/remote-ollama-control/` |
 | Author commit messages, open PRs, update architecture / design / README docs | **GitHub Copilot** | — | Native `gh` CLI + Copilot agent |
 
 All agents have live MCP access to CodeContextGraph. Name the query used when handing off or justifying a target area.
@@ -97,6 +98,29 @@ pnpm run test:wasm-check                                         # Confirm WASM 
 pnpm run serve:ui                                                # UI dev server :8001
 pnpm run demo:cli                                                # CLI demo
 ```
+
+### Benchmark commands
+
+```bash
+# Content-gen benchmark — permutation + stress testing of the LLM tool-call surface.
+# Runs all 50 scenarios against the remote GPU node via the dual profile (qwen3-coder:30b).
+# Tests = correctness; benchmarks = does the model produce valid tool calls under load?
+
+node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
+  --profiles dual --runs 3 --route external          # stable 3-run baseline (≈10 min)
+
+node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
+  --profiles dual --runs 1 --route external          # quick single-run smoke check
+
+node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
+  --profiles dual --scenario-ids 27,29,30 --runs 3   # narrow re-run on specific scenarios
+
+node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
+  --profiles dual --dry-run                          # verify scenario loading without hitting the GPU
+```
+
+Results land in `tools/remote-ollama-control/results/<timestamp>-content-gen/summary.md`.
+Pass threshold: **≥ 99 % exec ok** and **avg score ≥ 75** across all scenarios.
 
 Tests requiring the WASM binary skip gracefully when `build/core-as.wasm` is absent — run `pnpm run build:wasm` first.
 
@@ -225,6 +249,13 @@ Run on every diff. Fix failures — don't just flag them.
 - [ ] Negative cases under `tests/fixtures/artifacts/invalid/`
 - [ ] No test reaches live external services
 - [ ] Base test file ends with `## TODO: Test Permutations` before Ollama handoff
+
+### Benchmarks
+Tests verify correctness of the runtime and CLI. Benchmarks verify that the LLM tool-call surface holds up under permutation and stress — they are a separate concern and a separate harness.
+
+- [ ] If `ak_create` tool schema, CLI arg mapping, or entity normalization changed: run `run-content-gen --runs 3 --route external` before merging
+- [ ] Pass bar: **≥ 99 % exec ok**, **avg score ≥ 75**; document any regression in the PR
+- [ ] Benchmark results are saved in `tools/remote-ollama-control/results/` — do not commit result directories
 
 ### Code Quality
 - [ ] Every changed line traces to the current milestone spec — no drive-by cleanup or refactoring
