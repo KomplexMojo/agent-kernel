@@ -42,6 +42,13 @@ import {
   resolveVitalDefaults,
   summarizeFrame,
 } from "../../../runtime/src/commands/run-helpers.js";
+import {
+  resolveRunDir as resolveTickRunDir,
+  readMaxTick,
+  readCursor,
+  writeCursor,
+  renderAscii,
+} from "../tick-session.mjs";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
 import {
   DEFAULT_LLM_BASE_URL,
@@ -2176,6 +2183,7 @@ const STRUCTURED_STDOUT_COMMANDS = new Set([
   "show",
   "diff",
   "runs",
+  "tick",
 ]);
 
 const RUN_INDEX_INPUT_FILES = Object.freeze([
@@ -5855,6 +5863,104 @@ async function diffCommand(argv) {
   emitJsonStdout(await summarizeRunDiff({ runA: args["run-a"], runB: args["run-b"] }));
 }
 
+async function tickCommand(argv) {
+  const [subcommand, ...rest] = argv;
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
+    console.log(usage());
+    return;
+  }
+
+  const validSubcommands = ["forward", "backward", "state"];
+  if (!validSubcommands.includes(subcommand)) {
+    throw new Error(`Unknown tick subcommand: ${subcommand}. Expected: forward, backward, state`);
+  }
+
+  const args = parseArgs(rest);
+  const runId = args["run-id"];
+  if (!runId) {
+    throw new Error("tick requires --run-id <id>");
+  }
+
+  const runDir = resolveTickRunDir(runId);
+  if (!existsSync(runDir)) {
+    throw new Error(`run directory not found: ${runDir}`);
+  }
+
+  const maxTick = await readMaxTick(runDir);
+  if (maxTick === null) {
+    throw new Error(`run directory not found or missing tick-frames.json for run: ${runId}`);
+  }
+
+  const stored = await readCursor(runDir);
+  const currentTick = stored !== null ? stored.tick : 0;
+
+  if (subcommand === "forward") {
+    if (currentTick >= maxTick) {
+      emitJsonStdout({
+        ok: false,
+        command: "tick",
+        action: "forward",
+        runId,
+        tick: currentTick,
+        maxTick,
+        error: `cannot advance past max tick ${maxTick}`,
+      });
+      process.exit(1);
+    }
+    const newTick = currentTick + 1;
+    await writeCursor(runDir, runId, newTick, maxTick);
+    emitJsonStdout({
+      ok: true,
+      command: "tick",
+      action: "forward",
+      runId,
+      previousTick: currentTick,
+      tick: newTick,
+      maxTick,
+    });
+    return;
+  }
+
+  if (subcommand === "backward") {
+    if (currentTick <= 0) {
+      emitJsonStdout({
+        ok: false,
+        command: "tick",
+        action: "backward",
+        runId,
+        tick: 0,
+        maxTick,
+        error: "cannot rewind past tick 0",
+      });
+      process.exit(1);
+    }
+    const newTick = currentTick - 1;
+    await writeCursor(runDir, runId, newTick, maxTick);
+    emitJsonStdout({
+      ok: true,
+      command: "tick",
+      action: "backward",
+      runId,
+      previousTick: currentTick,
+      tick: newTick,
+      maxTick,
+    });
+    return;
+  }
+
+  // subcommand === "state"
+  const ascii = await renderAscii(runDir);
+  emitJsonStdout({
+    ok: true,
+    command: "tick",
+    action: "state",
+    runId,
+    tick: currentTick,
+    maxTick,
+    ascii,
+  });
+}
+
 async function runsCommand(argv) {
   const [subcommand, ...rest] = argv;
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
@@ -5905,6 +6011,7 @@ export const COMMANDS = {
   show: showCommand,
   diff: diffCommand,
   runs: runsCommand,
+  tick: tickCommand,
 };
 
 export async function executeCommand(command, rest = []) {

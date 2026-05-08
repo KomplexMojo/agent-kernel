@@ -1819,3 +1819,24 @@ export interface RoomTileActorConfigV1 {
 }
 
 export type RoomTileActorConfig = RoomTileActorConfigV1;
+
+// -------------------------
+// TickCursorArtifact
+// -------------------------
+
+export const TICK_CURSOR_SCHEMA = "agent-kernel/TickCursor";
+
+/**
+ * Session artifact tracking the current interactive tick position for a run.
+ * Written to artifacts/runs/<runId>/session/cursor.json.
+ */
+export interface TickCursorArtifactV1 {
+  schema: typeof TICK_CURSOR_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  runId: string;
+  tick: number;
+  maxTick: number;
+}
+
+export type TickCursorArtifact = TickCursorArtifactV1;

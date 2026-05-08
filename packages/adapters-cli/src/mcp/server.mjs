@@ -15,6 +15,7 @@ import { inspectionTools } from "./tools/inspection.mjs";
 import { llmTools } from "./tools/llm.mjs";
 import { simulationTools } from "./tools/simulation.mjs";
 import { testingTools } from "./tools/testing.mjs";
+import { tickTools } from "./tools/tick.mjs";
 
 const SERVER_NAME = "agent-kernel-cli";
 const SERVER_VERSION = "1.0.0";
@@ -25,6 +26,7 @@ const TOOL_DEFINITIONS = [
   ...llmTools,
   ...externalTools,
   ...testingTools,
+  ...tickTools,
 ];
 
 const TOOL_MAP = new Map(TOOL_DEFINITIONS.map((tool) => [tool.name, tool]));
