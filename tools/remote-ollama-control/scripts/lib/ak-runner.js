@@ -66,7 +66,14 @@ const MOTIVATION_ALIASES = {
 
 // Apply Ollama model compensations to a single entity spec object.
 function normalizeEntitySpec(key, spec) {
-  if (typeof spec === 'string') return spec; // pass strings through unchanged
+  if (typeof spec === 'string') {
+    const s = spec.trim();
+    if (s.startsWith('{') || s.startsWith('[')) {
+      try { return normalizeEntitySpec(key, JSON.parse(s)); } catch {}
+      try { return normalizeEntitySpec(key, JSON.parse(pythonReprToJson(s))); } catch {}
+    }
+    return spec;
+  }
 
   const out = { ...spec };
 
