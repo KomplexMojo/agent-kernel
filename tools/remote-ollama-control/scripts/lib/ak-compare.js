@@ -184,6 +184,7 @@ function writeContentSummary(summaryPath, results, runConfig) {
     result.scenarioIndex,
     result.scenarioTitle,
     result.scenarioTier,
+    result.scenarioBudget ?? '',
     result.repeat,
     result.score ?? '',
     result.toolCallProduced ? 'yes' : 'no',
@@ -212,7 +213,7 @@ function writeContentSummary(summaryPath, results, runConfig) {
     '## All Runs',
     '',
     table(
-      ['Profile', '#', 'Scenario', 'Tier', 'Run', 'Score', 'Tool', 'Exec', 'LLM ms', 'Exec ms', 'Error'],
+      ['Profile', '#', 'Scenario', 'Tier', 'Budget', 'Run', 'Score', 'Tool', 'Exec', 'LLM ms', 'Exec ms', 'Error'],
       detailRows
     )
   ];

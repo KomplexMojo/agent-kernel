@@ -1199,6 +1199,7 @@ async function runContentGen(options) {
             scenarioIndex: scenario.index,
             scenarioTitle: scenario.title,
             scenarioTier: scenario.tier,
+            scenarioBudget: scenario.budget,
             repeat: repeat + 1,
             toolCallProduced: runResult.toolCallProduced,
             toolArgs: runResult.toolArgs || null,

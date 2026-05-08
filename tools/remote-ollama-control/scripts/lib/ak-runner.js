@@ -46,7 +46,10 @@ function toArray(val) {
     const s = val.trim();
     if (s.startsWith('[')) {
       try { return JSON.parse(s); } catch {}
-      try { return JSON.parse(pythonReprToJson(s)); } catch {}
+      const converted = pythonReprToJson(s);
+      try { return JSON.parse(converted); } catch {}
+      // Some models close the outer list with ) instead of ] — repair and retry.
+      try { return JSON.parse(converted.replace(/\)\s*$/, ']')); } catch {}
     }
     return s ? [s] : [];
   }
@@ -72,9 +75,34 @@ function normalizeEntitySpec(key, spec) {
     out.motivation = MOTIVATION_ALIASES[out.motivation.toLowerCase()] ?? out.motivation;
   }
 
-  // Resource: inject dropRate default when model omits it
-  if (key === 'resource' && out.tier && out.stat && out.delta != null && out.dropRate == null) {
-    out.dropRate = 10;
+  if (key === 'resource') {
+    // Inject dropRate default when model omits it
+    if (out.tier && out.stat && out.delta != null && out.dropRate == null) {
+      out.dropRate = 10;
+    }
+    // Map natural stat names to canonical internal names
+    const STAT_ALIASES = {
+      health: 'vitalMax', mana: 'vitalMax', stamina: 'vitalMax', durability: 'vitalMax',
+      max_health: 'vitalMax', max_mana: 'vitalMax', max_stamina: 'vitalMax', max_durability: 'vitalMax',
+      health_regen: 'vitalRegen', mana_regen: 'vitalRegen', stamina_regen: 'vitalRegen',
+      regen_health: 'vitalRegen', regen_mana: 'vitalRegen', regen_stamina: 'vitalRegen',
+      affinity_stack: 'affinityStack', affinitystack: 'affinityStack',
+      push_expression: 'pushExpression', pushexpression: 'pushExpression',
+    };
+    if (out.stat && typeof out.stat === 'string') {
+      out.stat = STAT_ALIASES[out.stat.toLowerCase()] ?? out.stat;
+    }
+    // Strip unsupported resource fields (vitals, affinities, goals, kind)
+    for (const f of ['vitals', 'affinities', 'goals', 'kind', 'affinity']) {
+      delete out[f];
+    }
+  }
+
+  // Strip model-invented fields that hazards don't support
+  if (key === 'hazard') {
+    for (const f of ['manaDrain', 'healthDrain', 'staminaDrain', 'damage', 'effect', 'duration']) {
+      delete out[f];
+    }
   }
 
   return out;
@@ -95,10 +123,11 @@ function normalizeToolArgs(toolArgs) {
 async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000) {
   const { buildArgv, authoringSpec } = await getMcpBuildTools();
 
+  const budget = scenario.budget ?? 1500;
   const systemPrompt =
     'You are an agent-kernel dungeon designer. When given a dungeon creation request, ' +
     'call the ak_create tool with appropriate parameters. Use the exact prompt text as ' +
-    'the text parameter. The budget is typically 1500 tokens. Always set emitIntermediates ' +
+    `the text parameter. Set budgetTokens to ${budget}. Always set emitIntermediates ` +
     'to true. Rooms are generic containers — affinity pressure belongs in traps or hazards. ' +
     'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.';
 
@@ -113,7 +142,7 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     tool_choice: 'required',
     stream: false,
     temperature: 0.1,
-    max_tokens: 2048
+    max_tokens: budget <= 2000 ? 2048 : budget <= 5000 ? 4096 : 8192
   };
 
   const llmStarted = Date.now();
@@ -124,11 +153,27 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
 
   try {
     chatResponse = await requestJson(endpoint, '/v1/chat/completions', chatBody, timeoutMs);
-    const toolCall = chatResponse?.choices?.[0]?.message?.tool_calls?.[0];
+    const msg = chatResponse?.choices?.[0]?.message;
+    const toolCall = msg?.tool_calls?.[0];
     if (toolCall?.function?.name === 'ak_create') {
       toolCallProduced = true;
       const rawArgs = toolCall.function.arguments;
       toolArgs = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
+    } else if (!toolCallProduced && msg?.content) {
+      // Fallback: some Ollama models (e.g. qwen2.5-coder) ignore tool_choice and
+      // serialize the tool call as JSON text in the content field.
+      const trimmed = msg.content.trim();
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed?.name === 'ak_create' && parsed?.arguments) {
+            toolCallProduced = true;
+            toolArgs = typeof parsed.arguments === 'string'
+              ? JSON.parse(parsed.arguments)
+              : parsed.arguments;
+          }
+        } catch {}
+      }
     }
   } catch (error) {
     llmError = error.message;
@@ -143,8 +188,10 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   fs.mkdirSync(effectiveOutDir, { recursive: true });
 
   // Normalize Ollama quirks, then build argv via the shared MCP translation layer.
+  // budgetTokens is always enforced from the scenario definition — the model's value is ignored.
   const normalizedArgs = normalizeToolArgs({
     ...toolArgs,
+    budgetTokens: budget,
     outDir: effectiveOutDir,
     runId,
     emitIntermediates: true,
