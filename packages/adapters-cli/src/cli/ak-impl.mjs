@@ -48,6 +48,7 @@ import {
   readCursor,
   writeCursor,
   renderAscii,
+  readTickFrame,
 } from "../tick-session.mjs";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
 import {
@@ -5949,7 +5950,7 @@ async function tickCommand(argv) {
   }
 
   // subcommand === "state"
-  const ascii = await renderAscii(runDir);
+  const [ascii, tickFrame] = await Promise.all([renderAscii(runDir), readTickFrame(runDir, currentTick)]);
   emitJsonStdout({
     ok: true,
     command: "tick",
@@ -5958,6 +5959,7 @@ async function tickCommand(argv) {
     tick: currentTick,
     maxTick,
     ascii,
+    tickFrame,
   });
 }
 

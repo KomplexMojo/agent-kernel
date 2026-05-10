@@ -78,3 +78,15 @@ test("trap vitals enrichment preserves layout vitals in observations", () => {
   assert.equal(trap2.vitals.durability.current, 5);
   assert.equal(trap2.vitals.durability.max, 5);
 });
+
+/*
+## TODO: Test Permutations
+- trap at position not in layoutTraps: enrichment leaves it un-enriched (no vitals, no error)
+- layoutTraps with null/undefined x or y: those entries are skipped during map build
+- two layoutTraps at same (x,y): last-write-wins; enrichment uses the surviving entry
+- observation trap with null position: enrichment skips it without throwing
+- enrichedTrap.vitals.mana.current updated after mana-drain: regen not yet applied on observe
+- enrichedTrap.vitals.durability reaches 0: trap is treated as destroyed in observation
+- trap with no affinities array: enrichment still attaches vitals without error
+- round-trip: serializing and re-parsing enrichedTraps produces identical vitals structure
+*/

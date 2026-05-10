@@ -184,4 +184,7 @@ test("resource is not captured if actor does not step on it", async (t) => {
 - resource on spawn tile: actor starts there, should not auto-capture on spawn
 - actor with health already at max: consumable health resource has no effect
 - resource with delta=0 is placed and captured but produces no vital change
+- resource_captured event appears in tick frame apply phase after actor steps on resource
+- vital delta recorded in tick frame matches resource delta and mode (consumable vs level)
+- trap trigger event appears in tick frame when actor enters affinity hazard tile
 */

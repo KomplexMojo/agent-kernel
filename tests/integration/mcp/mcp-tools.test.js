@@ -21,7 +21,7 @@
 //                 text+catalog+dry-run requires a full LLM session even for validation
 
 const assert = require("node:assert/strict");
-const { spawn } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
 const { existsSync, mkdtempSync, readFileSync, writeFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
@@ -686,3 +686,81 @@ testIfWasm("mcp ak_narrate produces a narrative artifact from tick-frames and in
     await harness.close();
   }
 });
+
+testIfWasm("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a full-dungeon run", async () => {
+  const workDir = makeTempDir("agent-kernel-mcp-tick-session-");
+  const artifactsDir = join(workDir, "artifacts");
+  const runId = "ring_mcp_tick_session";
+  const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+
+  // Set up create + run via CLI into workDir so tick tools can navigate on-disk state.
+  // No --out-dir: artifacts land under workDir/artifacts/runs/<runId>/ by convention.
+  const cliSpawn = (args) =>
+    spawnSync(process.execPath, [CLI, ...args], { cwd: workDir, encoding: "utf8", env: { ...process.env } });
+
+  const createOut = cliSpawn([
+    "create",
+    "--room", "size=small;count=1",
+    "--trap", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
+    "--resource", "tier=level;stat=vitalMax;delta=10;dropRate=50",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--warden", "count=1;affinity=dark;motivation=defending",
+    "--run-id", runId,
+    "--created-at", "2026-04-26T00:00:00.000Z",
+  ]);
+  assert.equal(createOut.status, 0, `CLI create failed:\n${createOut.stderr}`);
+
+  const runOut = cliSpawn([
+    "run",
+    "--from-run", runId,
+    "--wasm", WASM_PATH,
+    "--ticks", "3",
+  ]);
+  assert.equal(runOut.status, 0, `CLI run failed:\n${runOut.stderr}`);
+
+  const tickFramesPath = join(workDir, "artifacts", "runs", runId, "run", "tick-frames.json");
+  assert.equal(existsSync(tickFramesPath), true, "CLI run must produce tick-frames.json");
+
+  // MCP harness pointed at the same artifact dir so tick tools resolve the same run dir.
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  try {
+    await harness.initialize();
+
+    // Forward twice — cursor should advance 0→1→2.
+    const fwd1 = await harness.callTool("ak_tick_forward", { runId });
+    assert.equal(fwd1.action, "forward");
+    assert.equal(fwd1.tick, 1);
+    assert.equal(fwd1.previousTick, 0);
+    assert.ok(typeof fwd1.maxTick === "number" && fwd1.maxTick >= 1, "maxTick must be a positive number");
+
+    const fwd2 = await harness.callTool("ak_tick_forward", { runId });
+    assert.equal(fwd2.action, "forward");
+    assert.equal(fwd2.tick, 2);
+
+    // State at tick 2 — confirm tickFrame is present and consistent.
+    const state = await harness.callTool("ak_show_state", { runId });
+    assert.equal(state.action, "state");
+    assert.equal(state.tick, 2, "state must reflect cursor at tick 2");
+    assert.ok(state.tickFrame !== undefined, "state must include tickFrame at cursor tick");
+    assert.ok(Array.isArray(state.tickFrame.acceptedActions), "tickFrame must have acceptedActions array");
+    assert.equal(state.tickFrame.tick, 2, "tickFrame.tick must match cursor tick");
+
+    // Backward once — cursor rewinds 2→1.
+    const bwd = await harness.callTool("ak_tick_backward", { runId });
+    assert.equal(bwd.action, "backward");
+    assert.equal(bwd.tick, 1);
+    assert.equal(bwd.previousTick, 2);
+  } finally {
+    await harness.close();
+  }
+});
+
+// ## TODO: Test Permutations
+//
+// 1. mcp tick: ak_tick_forward at maxTick returns ok=false with a stable boundary error
+// 2. mcp tick: ak_tick_backward at tick 0 returns ok=false with a stable error
+// 3. mcp tick: ak_show_state without any prior forward returns tick=0 and null tickFrame
+// 4. mcp tick: ak_tick_forward with a non-existent runId returns ok=false with a path error
+// 5. mcp tick: ak_show_state with a non-existent runId returns ok=false
+// 6. mcp tick: interleaved forward/state calls on the same runId maintain cursor consistency
+// 7. mcp tick: ak_show_state ascii field is a non-empty string when WASM is present

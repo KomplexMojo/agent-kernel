@@ -73,3 +73,103 @@ fixture.cases.forEach((entry) => {
 test("actor persona proposes deterministic movement toward exit", () => {
   runEsm(script);
 });
+
+const exploringScript = `
+import assert from "node:assert/strict";
+import { createActorPersona } from ${JSON.stringify(personaModule)};
+import { TickPhases } from ${JSON.stringify(tickModule)};
+
+// 5×3 board: actor at (1,1), exit "E" at (4,1), floor in between.
+const baseTiles = ["#####", "#...E", "#####"];
+const actorId = "actor_delver";
+
+const persona = createActorPersona({ clock: () => "fixed" });
+
+persona.advance({
+  phase: TickPhases.OBSERVE,
+  event: "observe",
+  payload: {
+    actorId,
+    observation: {
+      tick: 0,
+      actors: [{ id: actorId, kind: 2, position: { x: 1, y: 1 }, motivation: { mobility: "exploring" } }],
+    },
+    baseTiles,
+  },
+  tick: 0,
+});
+
+persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: { actorId }, tick: 0 });
+
+const result = persona.advance({
+  phase: TickPhases.DECIDE,
+  event: "propose",
+  payload: { actorId },
+  tick: 0,
+});
+
+assert.ok(Array.isArray(result.actions));
+assert.equal(result.actions.length, 1, "exploring motivation must produce exactly one action");
+assert.equal(result.actions[0].kind, "move", "exploring motivation must advance toward exit");
+assert.equal(result.actions[0].actorId, actorId);
+`;
+
+test("actor persona with exploring motivation proposes move toward exit", () => {
+  runEsm(exploringScript);
+});
+
+// FAILING: buildMoveProposal ignores motivation.mobility (gap #5).
+// M4 will check actor.motivation.mobility and return [] for stationary actors.
+const stationaryScript = `
+import assert from "node:assert/strict";
+import { createActorPersona } from ${JSON.stringify(personaModule)};
+import { TickPhases } from ${JSON.stringify(tickModule)};
+
+const baseTiles = ["#####", "#...E", "#####"];
+const actorId = "actor_warden";
+
+const persona = createActorPersona({ clock: () => "fixed" });
+
+persona.advance({
+  phase: TickPhases.OBSERVE,
+  event: "observe",
+  payload: {
+    actorId,
+    observation: {
+      tick: 0,
+      actors: [{ id: actorId, kind: 2, position: { x: 1, y: 1 }, motivation: { mobility: "stationary" } }],
+    },
+    baseTiles,
+  },
+  tick: 0,
+});
+
+persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: { actorId }, tick: 0 });
+
+const result = persona.advance({
+  phase: TickPhases.DECIDE,
+  event: "propose",
+  payload: { actorId },
+  tick: 0,
+});
+
+// A stationary warden must hold position — it must not propose movement.
+assert.ok(Array.isArray(result.actions));
+assert.equal(result.actions.length, 1, "stationary motivation must produce exactly one action");
+assert.equal(result.actions[0].kind, "wait", "stationary motivation must produce wait, not move");
+`;
+
+test("actor persona with stationary motivation proposes wait not move", () => {
+  runEsm(stationaryScript);
+});
+
+/*
+## TODO: Test Permutations
+- Permutation: patrolling mobility with a patrol route — actor proposes move along route, not BFS to exit.
+- Permutation: attacking mobility with a visible opponent — actor proposes move toward opponent, not exit.
+- Permutation: defending mobility with a hold-point target — actor proposes wait at hold-point.
+- Permutation: user_controlled motivation — no autonomous proposal emitted; actions require explicit payload.
+- Permutation: stationary warden with no exit on map — still proposes wait (regression guard).
+- Permutation: motivation field absent on actor — defaults to exploring behavior (BFS to exit).
+- Permutation: motivation.mobility = "exploring" with no reachable exit — proposes wait as fallback.
+*/

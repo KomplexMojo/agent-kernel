@@ -218,3 +218,80 @@ test("show without --run-id exits non-zero with a stable argument error", () => 
   assert.equal(output.command, "show");
   assert.match(output.error, /--run-id/, "error must reference the missing --run-id flag");
 });
+
+test("cli verification ring: 10-tick full dungeon demo with tick session navigation", (t) => {
+  if (!existsSync(WASM_PATH)) {
+    t.skip(`Missing WASM at ${WASM_PATH} — run 'pnpm run build:wasm' first.`);
+    return;
+  }
+  const workDir = makeWorkDir("agent-kernel-10tick-demo-");
+
+  // Step 1: create — full dungeon with trap, resource, delver, and warden.
+  runCliOk([
+    "create",
+    "--room", "size=small;count=1",
+    "--trap", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
+    "--resource", "tier=level;stat=vitalMax;delta=10;dropRate=50",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--warden", "count=1;affinity=dark;motivation=defending",
+    "--run-id", "ring_10tick_demo",
+    "--created-at", "2026-04-26T00:00:00.000Z",
+  ], { cwd: workDir });
+
+  const runDir = join(workDir, "artifacts", "runs", "ring_10tick_demo");
+  assert.ok(
+    existsSync(join(runDir, "create", "sim-config.json")),
+    "create must produce sim-config.json under artifacts/runs/<id>/create/",
+  );
+
+  // Step 2: run — execute 10 ticks via --from-run.
+  runCliOk([
+    "run",
+    "--from-run", "ring_10tick_demo",
+    "--wasm", WASM_PATH,
+    "--ticks", "10",
+  ], { cwd: workDir });
+
+  const tickFramesPath = join(runDir, "run", "tick-frames.json");
+  assert.ok(existsSync(tickFramesPath), "run must produce tick-frames.json under artifacts/runs/<id>/run/");
+  const frames = readJson(tickFramesPath);
+  assert.ok(Array.isArray(frames) && frames.length >= 1, "tick-frames must contain at least one frame");
+
+  // Step 3: tick forward 3 times — confirm cursor advances on each call.
+  for (let i = 1; i <= 3; i++) {
+    const r = runCliOk(["tick", "forward", "--run-id", "ring_10tick_demo"], { cwd: workDir });
+    const output = JSON.parse(r.stdout);
+    assert.equal(output.ok, true, `tick forward ${i} must succeed`);
+    assert.equal(output.action, "forward");
+    assert.equal(output.tick, i, `cursor must be at tick ${i} after ${i} forward steps`);
+    assert.ok(typeof output.maxTick === "number" && output.maxTick >= 1, "maxTick must be a positive number");
+  }
+
+  // Step 4: tick state — confirm cursor position and tickFrame are present.
+  const stateResult = runCliOk(["tick", "state", "--run-id", "ring_10tick_demo"], { cwd: workDir });
+  const stateOutput = JSON.parse(stateResult.stdout);
+  assert.equal(stateOutput.ok, true);
+  assert.equal(stateOutput.action, "state");
+  assert.equal(stateOutput.tick, 3, "state must reflect cursor at tick 3");
+  assert.ok(stateOutput.tickFrame !== undefined, "state must include tickFrame at cursor tick");
+  assert.ok(Array.isArray(stateOutput.tickFrame.acceptedActions), "tickFrame must have acceptedActions array");
+  assert.equal(stateOutput.tickFrame.tick, 3, "tickFrame.tick must match cursor tick");
+
+  // Step 5: tick backward once — confirm cursor rewinds by one.
+  const bwResult = runCliOk(["tick", "backward", "--run-id", "ring_10tick_demo"], { cwd: workDir });
+  const bwOutput = JSON.parse(bwResult.stdout);
+  assert.equal(bwOutput.ok, true);
+  assert.equal(bwOutput.action, "backward");
+  assert.equal(bwOutput.tick, 2, "backward from tick 3 must land at tick 2");
+  assert.equal(bwOutput.previousTick, 3);
+});
+
+// ## TODO: Test Permutations
+//
+// 1. 10-tick ring: tick forward past maxTick returns ok=false with a stable boundary error
+// 2. 10-tick ring: tick backward at tick 0 returns ok=false with a stable error
+// 3. 10-tick ring: tick state without any prior forward returns tick=0 and null tickFrame
+// 4. 10-tick ring: create with hazard but no explicit trap still produces a valid sim-config
+// 5. 10-tick ring: run with ticks=1 followed by tick forward advances to the maxTick boundary
+// 6. 10-tick ring: create+run with resource tier=permanent surfaces resource events in tick frames
+// 7. 10-tick ring: replaying a 10-tick run produces an identical frame count to the original

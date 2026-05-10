@@ -718,6 +718,10 @@ function buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig 
   const tileKinds = resolveTileKinds(view, payload);
   const actor = resolveActor(view, payload?.actorId, observation);
   if (!actor || !actor.position || !exit) return [];
+  const actorRecord = resolveActorRecord(view, payload?.actorId, observation);
+  if (actorRecord?.motivation?.mobility === "stationary") {
+    return [{ kind: "wait", params: { reason: "stationary" } }];
+  }
   const path = findPath(actor.position, exit, tileKinds, baseTiles);
   if (!path || path.length < 2) return [];
   const from = path[0];

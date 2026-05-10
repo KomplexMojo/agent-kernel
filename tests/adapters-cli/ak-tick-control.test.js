@@ -308,11 +308,132 @@ test("cli tick state at tick 2 after rewind matches state reached by forward-onl
   assert.equal(afterRewind.ascii, directForward.ascii);
 });
 
-// ## TODO: Test Permutations
-// - Permutation: tick forward on a run with maxTick 1 — forward to tick 1 succeeds, second forward returns structured error.
-// - Permutation: tick backward from tick 1 back to tick 0 — cursor persisted at tick 0, subsequent backward returns structured error.
-// - Permutation: tick state at tick 0 (no forward yet) — returns ok:true with tick 0 and ascii of the initial dungeon layout.
-// - Permutation: tick state with missing cursor but existing run — should initialize cursor at tick 0 and return state without error.
-// - Permutation: tick forward when tick-frames.json is missing from the run dir — returns structured error, run not silently treated as 0 ticks.
-// - Permutation: tick forward when run-summary.json is missing but tick-frames.json has N entries — maxTick inferred from frames length.
-// - Permutation: concurrent cursor.json writes (two rapid forwards) — second write wins; no corruption.
+// ---------------------------------------------------------------------------
+// Permutation: maxTick boundary at 1
+// ---------------------------------------------------------------------------
+
+test("cli tick forward on a run with maxTick 1 — first forward succeeds, second returns structured error", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-tick-maxtick1-"));
+  const runId = "run_tick_maxtick1";
+  scaffoldRun(workDir, runId, { maxTick: 1 });
+
+  const first = runCli(["tick", "forward", "--run-id", runId], workDir);
+  assert.equal(first.status, 0, first.stderr);
+  const out1 = JSON.parse(first.stdout);
+  assert.equal(out1.ok, true);
+  assert.equal(out1.tick, 1);
+
+  const second = runCli(["tick", "forward", "--run-id", runId], workDir);
+  assert.notEqual(second.status, 0);
+  const out2 = JSON.parse(second.stdout);
+  assert.equal(out2.ok, false);
+  assert.match(out2.error, /max tick|cannot advance/i);
+});
+
+// ---------------------------------------------------------------------------
+// Permutation: backward to tick 0 then error on second backward
+// ---------------------------------------------------------------------------
+
+test("cli tick backward from tick 1 to tick 0 succeeds; subsequent backward returns structured error", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-tick-bwd-chain-"));
+  const runId = "run_tick_bwd_chain";
+  scaffoldRun(workDir, runId, { maxTick: 5 });
+
+  runCli(["tick", "forward", "--run-id", runId], workDir);
+
+  const bwd1 = runCli(["tick", "backward", "--run-id", runId], workDir);
+  assert.equal(bwd1.status, 0, bwd1.stderr);
+  const out1 = JSON.parse(bwd1.stdout);
+  assert.equal(out1.ok, true);
+  assert.equal(out1.tick, 0);
+
+  const bwd2 = runCli(["tick", "backward", "--run-id", runId], workDir);
+  assert.notEqual(bwd2.status, 0);
+  const out2 = JSON.parse(bwd2.stdout);
+  assert.equal(out2.ok, false);
+  assert.match(out2.error, /tick 0|cannot rewind/i);
+
+  // Cursor must remain at tick 0 after the failed rewind
+  const cursorPath = join(workDir, "artifacts", "runs", runId, "session", "cursor.json");
+  const cursor = JSON.parse(readFileSync(cursorPath, "utf8"));
+  assert.equal(cursor.tick, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Permutation: tick state at tick 0 (no forward yet)
+// ---------------------------------------------------------------------------
+
+test("cli tick state at tick 0 before any forward returns ok with tick:0 and null tickFrame", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-tick-state-zero-"));
+  const runId = "run_tick_state_zero";
+  scaffoldRun(workDir, runId, { maxTick: 5 });
+
+  const result = runCli(["tick", "state", "--run-id", runId], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.tick, 0);
+  assert.equal(output.maxTick, 5);
+  assert.equal(output.tickFrame, null, "tickFrame must be null at tick 0");
+  assert.ok("ascii" in output, "ascii field must be present");
+});
+
+// ---------------------------------------------------------------------------
+// Permutation: tick forward with no run data returns structured error
+// ---------------------------------------------------------------------------
+
+test("cli tick forward when tick-frames.json and run-summary.json are both absent returns structured error", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-tick-fwd-noframes-"));
+  const runId = "run_tick_fwd_noframes";
+
+  // Only write build/sim-config.json — no run dir at all
+  const buildDir = join(workDir, "artifacts", "runs", runId, "build");
+  writeJson(join(buildDir, "sim-config.json"), {
+    schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1,
+    meta: makeMeta("sim_config", runId),
+    layout: { kind: "grid", width: 5, height: 5,
+      data: { width: 5, height: 5, tiles: ["#####", "#...#", "#...#", "#...#", "#####"],
+        legend: { "#": { tile: "wall" }, ".": { tile: "floor" } } } },
+  });
+
+  const result = runCli(["tick", "forward", "--run-id", runId], workDir);
+  assert.notEqual(result.status, 0, "tick forward must fail when no tick data exists");
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.equal(output.command, "tick");
+  assert.match(output.error, /not found|missing/i);
+});
+
+// ---------------------------------------------------------------------------
+// Permutation: maxTick inferred from tick-frames.json length when run-summary absent
+// ---------------------------------------------------------------------------
+
+test("cli tick forward uses tick-frames.json length as maxTick when run-summary.json is absent", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-tick-fwd-nosummary-"));
+  const runId = "run_tick_fwd_nosummary";
+  const buildDir = join(workDir, "artifacts", "runs", runId, "build");
+  const runDir = join(workDir, "artifacts", "runs", runId, "run");
+
+  writeJson(join(buildDir, "sim-config.json"), {
+    schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1,
+    meta: makeMeta("sim_config", runId),
+    layout: { kind: "grid", width: 5, height: 5,
+      data: { width: 5, height: 5, tiles: ["#####", "#...#", "#...#", "#...#", "#####"],
+        legend: { "#": { tile: "wall" }, ".": { tile: "floor" } } } },
+  });
+  writeJson(join(buildDir, "initial-state.json"), {
+    schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1,
+    meta: makeMeta("initial_state", runId),
+    actors: [{ id: "actor_delver", kind: "motivated", position: { x: 1, y: 1 } }],
+  });
+  // 4 frames, no run-summary.json → readMaxTick falls back to frames.length
+  const frames = Array.from({ length: 4 }, (_, i) => makeTickFrame(i + 1, runId));
+  writeJson(join(runDir, "tick-frames.json"), frames);
+
+  const result = runCli(["tick", "forward", "--run-id", runId], workDir);
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.maxTick, 4, "maxTick must be inferred from tick-frames.json length");
+  assert.equal(output.tick, 1);
+});

@@ -6,6 +6,7 @@ import {
   readCursor,
   writeCursor,
   renderAscii,
+  readTickFrame,
 } from "../../tick-session.mjs";
 
 async function resolveTickState(runId) {
@@ -120,8 +121,8 @@ const showStateTool = createHandlerTool({
       return { ok: false, command: "tick", action: "state", runId, error: state.error };
     }
     const { runDir, tick, maxTick } = state;
-    const ascii = await renderAscii(runDir);
-    return { ok: true, command: "tick", action: "state", runId, tick, maxTick, ascii };
+    const [ascii, tickFrame] = await Promise.all([renderAscii(runDir), readTickFrame(runDir, tick)]);
+    return { ok: true, command: "tick", action: "state", runId, tick, maxTick, ascii, tickFrame };
   },
 });
 

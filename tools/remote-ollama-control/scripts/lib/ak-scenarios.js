@@ -97,6 +97,8 @@ const SCENARIO_BUDGETS = {
   43: 7500, 44: 7500, 45: 7500,
   46: 7500, 47: 7500,
   48: 10000, 49: 10000, 50: 10000,
+  // M3-M6 scenarios — stationary motivation, resources, tick session, mixed motivations
+  51: 3500, 52: 4000, 53: 3500, 54: 5000,
 };
 const DEFAULT_BUDGET = 1500;
 

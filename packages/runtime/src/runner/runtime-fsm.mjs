@@ -626,6 +626,7 @@ export function createFsmRuntime({
       acceptedActions,
       emittedEffects,
       fulfilledEffects,
+      events: [],
     };
     if (preCoreRejections.length) {
       frame.preCoreRejections = preCoreRejections;

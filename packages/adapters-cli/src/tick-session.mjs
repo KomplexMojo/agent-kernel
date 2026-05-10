@@ -73,6 +73,22 @@ export async function writeCursor(runDir, runId, tick, maxTick) {
   );
 }
 
+export async function readTickFrame(runDir, tick) {
+  if (!tick || tick <= 0) return null;
+  const framesPath = join(runDir, "run", "tick-frames.json");
+  if (!existsSync(framesPath)) return null;
+  try {
+    const frames = JSON.parse(await readFile(framesPath, "utf8"));
+    if (!Array.isArray(frames)) return null;
+    // Return the last phase frame for this simulation tick (typically 'summarize').
+    // Real runs emit multiple phase frames per tick; cursor represents simulation tick, not array index.
+    const forTick = frames.filter((f) => f.tick === tick);
+    return forTick[forTick.length - 1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function renderAscii(runDir) {
   // Prefer env override, then module-relative project path, then cwd-relative fallback.
   const wasmPath = process.env.AK_WASM_PATH
