@@ -99,10 +99,18 @@ export function validateVisualizationMode(mode) {
   return { ok: true };
 }
 
+function resolveBuildArtifact(runDir, filename) {
+  for (const subdir of ["build", "create", "configurator"]) {
+    const p = join(runDir, subdir, filename);
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
 export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame, mode) {
-  const simConfigPath = join(runDir, "build", "sim-config.json");
-  const initialStatePath = join(runDir, "build", "initial-state.json");
-  if (!existsSync(simConfigPath) || !existsSync(initialStatePath)) return null;
+  const simConfigPath = resolveBuildArtifact(runDir, "sim-config.json");
+  const initialStatePath = resolveBuildArtifact(runDir, "initial-state.json");
+  if (!simConfigPath || !initialStatePath) return null;
   try {
     const [simConfig, initialState] = await Promise.all([
       readFile(simConfigPath, "utf8").then(JSON.parse),
@@ -110,7 +118,7 @@ export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame,
     ]);
     const snap = await createVisualizationSnapshot({ mode, tick, runId, simConfig, initialState, tickFrame });
     if (mode === "image" && snap) {
-      snap.visualizationDataUri = await buildPngDataUri(simConfig, snap.actorDetails);
+      snap.visualizationDataUri = await buildPngDataUri(simConfig, initialState, tickFrame, runDir);
     }
     return snap;
   } catch {
@@ -118,13 +126,44 @@ export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame,
   }
 }
 
-async function buildPngDataUri(simConfig, actorDetails) {
+async function buildPngDataUri(simConfig, initialState, tickFrame, runDir) {
   const { renderBoardWithResourceBundle, encodeRgbaToPng } = await import(
     "../../runtime/src/render/resource-bundle.js"
   );
-  const tiles = simConfig.layout.data.tiles;
-  const actors = actorDetails.map((a) => ({ id: a.id, kind: a.kind, position: a.position }));
-  const result = await renderBoardWithResourceBundle({ tiles, actors });
+  const tiles = simConfig.layout?.data?.tiles;
+  if (!Array.isArray(tiles) || tiles.length === 0) return null;
+
+  // Load the saved resource bundle if one exists — assets with dataUri are used directly;
+  // missing assets fall back to generated sprites in renderBoardWithResourceBundle.
+  let resourceBundle = null;
+  const bundlePath = resolveBuildArtifact(runDir, "resource-bundle.json");
+  if (bundlePath) {
+    try {
+      resourceBundle = JSON.parse(await readFile(bundlePath, "utf8"));
+    } catch {
+      // fall through to generated default sprites
+    }
+  }
+
+  // Apply move actions from tickFrame to get positions at this tick.
+  const posOverrides = new Map();
+  for (const action of (tickFrame?.acceptedActions || [])) {
+    if (action.kind === "move" && action.params?.to) {
+      posOverrides.set(action.actorId, { x: action.params.to.x, y: action.params.to.y });
+    }
+  }
+  // Spread full actor data so renderBoardWithResourceBundle can resolve affinity/motivation sprites.
+  const renderActors = (initialState.actors || []).map((actor) => {
+    const pos = posOverrides.get(actor.id) || actor.position;
+    return { ...actor, position: { x: pos.x, y: pos.y } };
+  });
+
+  const result = await renderBoardWithResourceBundle({
+    tiles,
+    actors: renderActors,
+    floorAffinityTraps: simConfig.traps || simConfig.layout?.data?.traps || [],
+    resourceBundle,
+  });
   if (!result.ok) return null;
   const pngBytes = encodeRgbaToPng({ width: result.width, height: result.height, pixels: result.pixels });
   return `data:image/png;base64,${Buffer.from(pngBytes).toString("base64")}`;
@@ -137,9 +176,9 @@ export async function renderAscii(runDir) {
     || resolve(process.cwd(), "build", "core-as.wasm");
   if (!existsSync(wasmPath)) return "";
 
-  const simConfigPath = join(runDir, "build", "sim-config.json");
-  const initialStatePath = join(runDir, "build", "initial-state.json");
-  if (!existsSync(simConfigPath) || !existsSync(initialStatePath)) return "";
+  const simConfigPath = resolveBuildArtifact(runDir, "sim-config.json");
+  const initialStatePath = resolveBuildArtifact(runDir, "initial-state.json");
+  if (!simConfigPath || !initialStatePath) return "";
 
   try {
     const [simConfig, initialState] = await Promise.all([

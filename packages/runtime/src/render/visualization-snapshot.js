@@ -7,6 +7,23 @@ function buildBlankGrid(width, height) {
   return Array.from({ length: height }, () => " ".repeat(width));
 }
 
+function addCoordinateLegend(rows) {
+  if (!rows || rows.length === 0) return "";
+  const height = rows.length;
+  const width = rows[0].length;
+  const colLabelLen = `x=${width - 1}`.length;
+  const rowPrefixLen = `y=${height - 1}: `.length;
+  const cellWidth = colLabelLen + 1;
+  const header = " ".repeat(rowPrefixLen) +
+    Array.from({ length: width }, (_, x) => `x=${x}`.padEnd(cellWidth)).join("").trimEnd();
+  const dataRows = rows.map((row, y) => {
+    const prefix = `y=${y}: `.padEnd(rowPrefixLen);
+    const cells = row.split("").map((ch, x) => (x < width - 1 ? ch.padEnd(cellWidth) : ch)).join("");
+    return prefix + cells;
+  });
+  return [header, ...dataRows].join("\n");
+}
+
 function markPosition(rows, x, y, char) {
   if (y < 0 || y >= rows.length) return;
   const row = rows[y];
@@ -29,16 +46,43 @@ function computeActorPositions(initialState, tickFrame) {
   return positions;
 }
 
+function inferKind(actor) {
+  const raw = `${actor.role || ""} ${actor.kind || ""} ${actor.id || ""}`.toLowerCase();
+  return raw.includes("warden") ? "warden" : "delver";
+}
+
+function collectAffinities(actor) {
+  const entries = [];
+  if (Array.isArray(actor.affinities)) {
+    for (const a of actor.affinities) {
+      const name = (a.name || a.kind || "").trim().toLowerCase();
+      if (name) entries.push({ name, stacks: Number(a.stacks) || 1, expression: a.expression || "" });
+    }
+  }
+  const traitAff = actor.traits?.affinities;
+  if (traitAff && typeof traitAff === "object" && !Array.isArray(traitAff)) {
+    for (const [raw, rawStacks] of Object.entries(traitAff)) {
+      const [kindPart, exprPart] = raw.split(":");
+      const name = kindPart.trim().toLowerCase();
+      if (name) entries.push({ name, stacks: Number(rawStacks) || 1, expression: (exprPart || "").trim() });
+    }
+  }
+  if (entries.length === 0 && typeof actor.affinity === "string" && actor.affinity.trim()) {
+    entries.push({ name: actor.affinity.trim().toLowerCase(), stacks: 1, expression: actor.expression || "" });
+  }
+  return entries;
+}
+
 function buildActorDetails(initialState, actorPositions) {
   return initialState.actors.map((actor) => {
     const pos = actorPositions.get(actor.id) || actor.position;
     return {
       id: actor.id,
-      kind: actor.role,
+      kind: inferKind(actor),
       position: { x: pos.x, y: pos.y },
-      affinities: actor.affinities || [],
+      affinities: collectAffinities(actor),
       vitals: normalizeVitals(actor.vitals),
-      motivation: actor.motivation || "unknown",
+      motivation: actor.motivation || actor.traits?.motivation || "unknown",
     };
   });
 }
@@ -94,9 +138,9 @@ export async function createVisualizationSnapshot({
 
   for (const actor of initialState.actors) {
     const pos = actorPositions.get(actor.id) || actor.position;
-    if (actor.role === "delver") {
+    if (inferKind(actor) === "delver") {
       markPosition(delverRows, pos.x, pos.y, "D");
-    } else if (actor.role === "warden") {
+    } else {
       markPosition(wardenRows, pos.x, pos.y, "W");
     }
   }
@@ -118,7 +162,7 @@ export async function createVisualizationSnapshot({
     mode: "ascii",
     tick,
     runId,
-    ascii: asciiRows.join("\n"),
+    ascii: addCoordinateLegend(asciiRows),
     layers: {
       layout: layoutRows.join("\n"),
       hazards: hazardRows.join("\n"),
