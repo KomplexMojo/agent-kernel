@@ -883,3 +883,26 @@ export function wireSimulationView({
     },
   };
 }
+
+/**
+ * Apply a VisualizationSnapshot to a target DOM element.
+ *
+ * - ascii mode: sets `textContent` on the element to the composite ASCII string.
+ * - image mode: sets `src` attribute on the element to the base64 data URI.
+ *
+ * The element is expected to be a <pre> for ascii or an <img> for image, but
+ * any element with `textContent` / `setAttribute` works (including test fakes).
+ *
+ * @param {Element} el  Target DOM element.
+ * @param {object}  snap  VisualizationSnapshot artifact.
+ */
+export function applyVisualizationSnapshot(el, snap) {
+  if (!snap || typeof snap !== "object") return;
+  if (snap.mode === "ascii") {
+    el.textContent = typeof snap.ascii === "string" ? snap.ascii : "";
+  } else if (snap.mode === "image") {
+    if (typeof snap.visualizationDataUri === "string") {
+      el.setAttribute("src", snap.visualizationDataUri);
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createVisualizationSnapshot } from "../../runtime/src/render/visualization-snapshot.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Module is at packages/adapters-cli/src/ → project root is 3 dirs up
@@ -87,6 +88,46 @@ export async function readTickFrame(runDir, tick) {
   } catch {
     return null;
   }
+}
+
+const VALID_VISUALIZATION_MODES = ["ascii", "image"];
+
+export function validateVisualizationMode(mode) {
+  if (!VALID_VISUALIZATION_MODES.includes(mode)) {
+    return { ok: false, error: `visualization must be ascii or image, got: ${mode}` };
+  }
+  return { ok: true };
+}
+
+export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame, mode) {
+  const simConfigPath = join(runDir, "build", "sim-config.json");
+  const initialStatePath = join(runDir, "build", "initial-state.json");
+  if (!existsSync(simConfigPath) || !existsSync(initialStatePath)) return null;
+  try {
+    const [simConfig, initialState] = await Promise.all([
+      readFile(simConfigPath, "utf8").then(JSON.parse),
+      readFile(initialStatePath, "utf8").then(JSON.parse),
+    ]);
+    const snap = await createVisualizationSnapshot({ mode, tick, runId, simConfig, initialState, tickFrame });
+    if (mode === "image" && snap) {
+      snap.visualizationDataUri = await buildPngDataUri(simConfig, snap.actorDetails);
+    }
+    return snap;
+  } catch {
+    return null;
+  }
+}
+
+async function buildPngDataUri(simConfig, actorDetails) {
+  const { renderBoardWithResourceBundle, encodeRgbaToPng } = await import(
+    "../../runtime/src/render/resource-bundle.js"
+  );
+  const tiles = simConfig.layout.data.tiles;
+  const actors = actorDetails.map((a) => ({ id: a.id, kind: a.kind, position: a.position }));
+  const result = await renderBoardWithResourceBundle({ tiles, actors });
+  if (!result.ok) return null;
+  const pngBytes = encodeRgbaToPng({ width: result.width, height: result.height, pixels: result.pixels });
+  return `data:image/png;base64,${Buffer.from(pngBytes).toString("base64")}`;
 }
 
 export async function renderAscii(runDir) {

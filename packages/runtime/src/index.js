@@ -1,4 +1,5 @@
 export { createRuntime } from "./runner/runtime.js";
+export { createVisualizationSnapshot } from "./render/visualization-snapshot.js";
 export { applyBudgetCaps } from "./ports/budget.js";
 export { BUDGET_CATEGORY_IDS, resolveBudgetCategoryId } from "./contracts/budget-categories.js";
 export { solveWithAdapter } from "./ports/solver.js";

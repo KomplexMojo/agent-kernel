@@ -49,6 +49,8 @@ import {
   writeCursor,
   renderAscii,
   readTickFrame,
+  buildVisualizationSnapshot,
+  validateVisualizationMode,
 } from "../tick-session.mjs";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
 import {
@@ -5882,6 +5884,15 @@ async function tickCommand(argv) {
     throw new Error("tick requires --run-id <id>");
   }
 
+  const vizMode = args["visualization"];
+  if (vizMode !== undefined) {
+    const check = validateVisualizationMode(vizMode);
+    if (!check.ok) {
+      emitJsonStdout({ ok: false, command: "tick", action: subcommand, runId, error: check.error });
+      process.exit(1);
+    }
+  }
+
   const runDir = resolveTickRunDir(runId);
   if (!existsSync(runDir)) {
     throw new Error(`run directory not found: ${runDir}`);
@@ -5910,7 +5921,7 @@ async function tickCommand(argv) {
     }
     const newTick = currentTick + 1;
     await writeCursor(runDir, runId, newTick, maxTick);
-    emitJsonStdout({
+    const result = {
       ok: true,
       command: "tick",
       action: "forward",
@@ -5918,7 +5929,12 @@ async function tickCommand(argv) {
       previousTick: currentTick,
       tick: newTick,
       maxTick,
-    });
+    };
+    if (vizMode) {
+      const tickFrame = await readTickFrame(runDir, newTick);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, tickFrame, vizMode);
+    }
+    emitJsonStdout(result);
     return;
   }
 
@@ -5937,7 +5953,7 @@ async function tickCommand(argv) {
     }
     const newTick = currentTick - 1;
     await writeCursor(runDir, runId, newTick, maxTick);
-    emitJsonStdout({
+    const result = {
       ok: true,
       command: "tick",
       action: "backward",
@@ -5945,13 +5961,18 @@ async function tickCommand(argv) {
       previousTick: currentTick,
       tick: newTick,
       maxTick,
-    });
+    };
+    if (vizMode) {
+      const tickFrame = await readTickFrame(runDir, newTick);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, tickFrame, vizMode);
+    }
+    emitJsonStdout(result);
     return;
   }
 
   // subcommand === "state"
   const [ascii, tickFrame] = await Promise.all([renderAscii(runDir), readTickFrame(runDir, currentTick)]);
-  emitJsonStdout({
+  const stateResult = {
     ok: true,
     command: "tick",
     action: "state",
@@ -5960,7 +5981,11 @@ async function tickCommand(argv) {
     maxTick,
     ascii,
     tickFrame,
-  });
+  };
+  if (vizMode) {
+    stateResult.visualization = await buildVisualizationSnapshot(runDir, runId, currentTick, tickFrame, vizMode);
+  }
+  emitJsonStdout(stateResult);
 }
 
 async function runsCommand(argv) {

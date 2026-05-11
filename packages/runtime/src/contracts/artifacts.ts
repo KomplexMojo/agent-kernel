@@ -81,6 +81,52 @@ export interface ArtifactCostContextV1 {
 export type Phase = "intake" | "plan" | "allocate" | "configure" | "execute" | "annotate" | "publish";
 
 // -------------------------
+// Visualization snapshot
+// -------------------------
+
+export const VISUALIZATION_SNAPSHOT_SCHEMA = "agent-kernel/VisualizationSnapshot";
+
+export interface VisualizationActorDetail {
+  id: string;
+  kind: "delver" | "warden";
+  position: { x: number; y: number };
+  affinities: Array<{ name: string; stacks: number; expression: string }>;
+  vitals: Record<string, unknown>;
+  motivation: string;
+}
+
+export interface VisualizationSnapshotAsciiV1 {
+  schema: typeof VISUALIZATION_SNAPSHOT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  mode: "ascii";
+  tick: number;
+  runId: string;
+  ascii: string;
+  layers: {
+    layout: string;
+    hazards: string;
+    resources: string;
+    delvers: string;
+    wardens: string;
+  };
+  actorDetails: VisualizationActorDetail[];
+}
+
+export interface VisualizationSnapshotImageV1 {
+  schema: typeof VISUALIZATION_SNAPSHOT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  mode: "image";
+  tick: number;
+  runId: string;
+  visualizationDataUri: string | null;
+  actorDetails: VisualizationActorDetail[];
+}
+
+export type VisualizationSnapshot = VisualizationSnapshotAsciiV1 | VisualizationSnapshotImageV1;
+
+// -------------------------
 // Captured inputs (adapters)
 // -------------------------
 

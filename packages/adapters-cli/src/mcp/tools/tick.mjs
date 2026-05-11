@@ -7,7 +7,15 @@ import {
   writeCursor,
   renderAscii,
   readTickFrame,
+  buildVisualizationSnapshot,
+  validateVisualizationMode,
 } from "../../tick-session.mjs";
+
+const visualizationSchema = {
+  type: "string",
+  description: "Optional visualization mode. 'ascii' returns layered ASCII detail with actorDetails. 'image' returns a PNG data URI.",
+  enum: ["ascii", "image"],
+};
 
 async function resolveTickState(runId) {
   const runDir = resolveRunDir(runId);
@@ -30,10 +38,15 @@ const tickForwardTool = createHandlerTool({
   inputSchema: {
     properties: {
       runId: stringSchema("Run ID to advance the session cursor for."),
+      visualization: visualizationSchema,
     },
     required: ["runId"],
   },
-  handler: async ({ runId }) => {
+  handler: async ({ runId, visualization }) => {
+    if (visualization !== undefined) {
+      const check = validateVisualizationMode(visualization);
+      if (!check.ok) return { ok: false, command: "tick", action: "forward", runId, error: check.error };
+    }
     const state = await resolveTickState(runId);
     if (state.error) {
       return { ok: false, command: "tick", action: "forward", runId, error: state.error };
@@ -52,7 +65,7 @@ const tickForwardTool = createHandlerTool({
     }
     const newTick = tick + 1;
     await writeCursor(runDir, runId, newTick, maxTick);
-    return {
+    const result = {
       ok: true,
       command: "tick",
       action: "forward",
@@ -61,6 +74,11 @@ const tickForwardTool = createHandlerTool({
       tick: newTick,
       maxTick,
     };
+    if (visualization) {
+      const tickFrame = await readTickFrame(runDir, newTick);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, tickFrame, visualization);
+    }
+    return result;
   },
 });
 
@@ -71,10 +89,15 @@ const tickBackwardTool = createHandlerTool({
   inputSchema: {
     properties: {
       runId: stringSchema("Run ID to rewind the session cursor for."),
+      visualization: visualizationSchema,
     },
     required: ["runId"],
   },
-  handler: async ({ runId }) => {
+  handler: async ({ runId, visualization }) => {
+    if (visualization !== undefined) {
+      const check = validateVisualizationMode(visualization);
+      if (!check.ok) return { ok: false, command: "tick", action: "backward", runId, error: check.error };
+    }
     const state = await resolveTickState(runId);
     if (state.error) {
       return { ok: false, command: "tick", action: "backward", runId, error: state.error };
@@ -93,7 +116,7 @@ const tickBackwardTool = createHandlerTool({
     }
     const newTick = tick - 1;
     await writeCursor(runDir, runId, newTick, maxTick);
-    return {
+    const result = {
       ok: true,
       command: "tick",
       action: "backward",
@@ -102,6 +125,11 @@ const tickBackwardTool = createHandlerTool({
       tick: newTick,
       maxTick,
     };
+    if (visualization) {
+      const tickFrame = await readTickFrame(runDir, newTick);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, tickFrame, visualization);
+    }
+    return result;
   },
 });
 
@@ -112,17 +140,26 @@ const showStateTool = createHandlerTool({
   inputSchema: {
     properties: {
       runId: stringSchema("Run ID to show the current state for."),
+      visualization: visualizationSchema,
     },
     required: ["runId"],
   },
-  handler: async ({ runId }) => {
+  handler: async ({ runId, visualization }) => {
+    if (visualization !== undefined) {
+      const check = validateVisualizationMode(visualization);
+      if (!check.ok) return { ok: false, command: "tick", action: "state", runId, error: check.error };
+    }
     const state = await resolveTickState(runId);
     if (state.error) {
       return { ok: false, command: "tick", action: "state", runId, error: state.error };
     }
     const { runDir, tick, maxTick } = state;
     const [ascii, tickFrame] = await Promise.all([renderAscii(runDir), readTickFrame(runDir, tick)]);
-    return { ok: true, command: "tick", action: "state", runId, tick, maxTick, ascii, tickFrame };
+    const result = { ok: true, command: "tick", action: "state", runId, tick, maxTick, ascii, tickFrame };
+    if (visualization) {
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, tick, tickFrame, visualization);
+    }
+    return result;
   },
 });
 
