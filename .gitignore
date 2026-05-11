@@ -21,7 +21,7 @@ coverage/
 packages/adapters-cli/artifacts/solve_cli_test/*.json
 
 # Playwright test artifacts
-playwright/
+/playwright/
 .playwright-cli/
 
 # Codex runtime cache

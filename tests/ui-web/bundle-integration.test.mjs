@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { wireBuildOrchestrator } from "../../packages/ui-web/src/build-orchestrator.js";
+import { buildResultHasBundle, wireBuildOrchestrator } from "../../packages/ui-web/src/build-orchestrator.js";
 import { wireBundleReview } from "../../packages/ui-web/src/bundle-review.js";
 import { shouldHydrateDesignFromBundleSource } from "../../packages/ui-web/src/build-spec-ui.js";
 import { createDefaultResourceBundleArtifact } from "../../packages/runtime/src/render/resource-bundle.js";
@@ -194,6 +194,37 @@ test("build response snapshot loads into bundle review panel", async () => {
     globalThis.localStorage = originalLocalStorage;
     globalThis.sessionStorage = originalSessionStorage;
   }
+});
+
+test("build result readiness follows the persisted canonical bundle shape", () => {
+  assert.equal(
+    buildResultHasBundle({
+      ok: true,
+      response: {
+        bundle: { spec: {}, artifacts: [] },
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    buildResultHasBundle({
+      ok: true,
+      snapshot: {
+        response: {
+          bundle: { spec: {}, artifacts: [] },
+        },
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    buildResultHasBundle({
+      ok: true,
+      preview: { ready: true },
+      response: { manifest: {} },
+    }),
+    false,
+  );
 });
 
 test("bundle review normalizes agent-authored build specs on load", async () => {

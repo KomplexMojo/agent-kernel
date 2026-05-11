@@ -89,6 +89,13 @@ function extractSpecPath({ response, specPath }) {
   return response?.manifest?.specPath || specPath || "";
 }
 
+export function buildResultHasBundle(buildResult) {
+  return Boolean(
+    buildResult?.response?.bundle
+    || buildResult?.snapshot?.response?.bundle,
+  );
+}
+
 export function wireBuildOrchestrator({
   elements,
   commandHost,

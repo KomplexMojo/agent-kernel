@@ -1,6 +1,7 @@
 import { wireTabs } from "./tabs.js";
 import { createActorInspector } from "./actor-inspector.js";
 import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
+import { buildResultHasBundle } from "./build-orchestrator.js";
 import { wireDesignView } from "./views/design-view.js";
 import { wirePreviewView, validatePreviewLaunchBundle } from "./views/preview-view.js";
 import { wireSimulationView } from "./views/simulation-view.js";
@@ -181,7 +182,7 @@ async function refreshPreviewBundle({ resetBuildOutput = false } = {}) {
       previewView.clear(message);
       return { ok: false, message };
     }
-    if (buildResult?.preview?.ready === true) {
+    if (buildResultHasBundle(buildResult)) {
       diagnosticsView.loadLastBundle();
       return { ok: true };
     }
