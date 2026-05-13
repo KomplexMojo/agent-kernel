@@ -17,8 +17,8 @@
       "id": "actor_1",
       "kind": "stationary",
       "position": {
-        "x": 0,
-        "y": 0
+        "x": 1,
+        "y": 1
       },
       "traits": {
         "speed": 1

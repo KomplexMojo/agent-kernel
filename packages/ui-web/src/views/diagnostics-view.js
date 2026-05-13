@@ -1,9 +1,6 @@
-import { wireAdapterPanel } from "../adapter-panel.js";
 import { wireBuildOrchestrator } from "../build-orchestrator.js";
 import { wireBundleReview } from "../bundle-review.js";
 import { wireBudgetPanels } from "../budget-panels.js";
-import { wireOllamaPromptPanel } from "../ollama-panel.js";
-import { wireLlmTracePanel } from "../llm-trace-panel.js";
 import { createCliWorkerAdapter } from "../../../adapters-web/src/adapters/cli-worker/index.js";
 import { isLlmCaptureArtifact } from "../../../runtime/src/personas/annotator/llm-trace.js";
 
@@ -55,32 +52,6 @@ export function wireDiagnosticsView({
   onBuildStateReset,
   onBundleStateReset,
 } = {}) {
-  const adapterGateway = root.querySelector("#adapter-gateway");
-  const adapterRpc = root.querySelector("#adapter-rpc-url");
-  const adapterAddress = root.querySelector("#adapter-address");
-  const adapterPrompt = root.querySelector("#adapter-prompt");
-  const adapterCid = root.querySelector("#adapter-cid");
-  const adapterPath = root.querySelector("#adapter-path");
-  const adapterOutput = root.querySelector("#adapter-output");
-  const adapterStatus = root.querySelector("#adapter-status");
-  const adapterClear = root.querySelector("#adapter-clear");
-  const adapterIpfs = root.querySelector("#adapter-ipfs");
-  const adapterBlockchain = root.querySelector("#adapter-blockchain");
-  const adapterLlmButton = root.querySelector("#adapter-llm");
-  const adapterSolver = root.querySelector("#adapter-solver");
-
-  const ollamaMode = root.querySelector("#ollama-mode");
-  const ollamaModel = root.querySelector("#ollama-model");
-  const ollamaBaseUrl = root.querySelector("#ollama-base-url");
-  const ollamaPrompt = root.querySelector("#ollama-prompt");
-  const ollamaOptions = root.querySelector("#ollama-options");
-  const ollamaRun = root.querySelector("#ollama-run");
-  const ollamaClear = root.querySelector("#ollama-clear");
-  const ollamaDownload = root.querySelector("#ollama-download");
-  const ollamaDownloadPrompt = root.querySelector("#ollama-download-prompt");
-  const ollamaStatus = root.querySelector("#ollama-status");
-  const ollamaOutput = root.querySelector("#ollama-output");
-
   const buildSpecPath = root.querySelector("#build-spec-path");
   const buildSpecJson = root.querySelector("#build-spec-json");
   const buildOutDir = root.querySelector("#build-out-dir");
@@ -113,143 +84,9 @@ export function wireDiagnosticsView({
   const configBudgetJson = root.querySelector("#config-budget-json");
   const configPriceListJson = root.querySelector("#config-price-list-json");
   const configReceiptJson = root.querySelector("#config-receipt-json");
-  const allocatorBudgetJson = root.querySelector("#allocator-budget-json");
-  const allocatorPriceListJson = root.querySelector("#allocator-price-list-json");
-  const allocatorReceiptJson = root.querySelector("#allocator-receipt-json");
-
-  const llmTraceStatus = root.querySelector("#llm-trace-status");
-  const llmTraceCount = root.querySelector("#llm-trace-count");
-  const llmTraceTurns = root.querySelector("#llm-trace-turns");
-  const llmTracePrompt = root.querySelector("#llm-trace-prompt");
-  const llmTraceResponseRaw = root.querySelector("#llm-trace-response-raw");
-  const llmTraceResponseParsed = root.querySelector("#llm-trace-response-parsed");
-  const llmTraceErrors = root.querySelector("#llm-trace-errors");
-  const llmTraceSummary = root.querySelector("#llm-trace-summary");
-  const llmTraceTelemetry = root.querySelector("#llm-trace-telemetry");
-  const llmTraceClear = root.querySelector("#llm-trace-clear");
-
-  const diagnosticToggles = typeof root.querySelectorAll === "function"
-    ? Array.from(root.querySelectorAll("[data-diagnostic-toggle]"))
-    : [];
-  const diagnosticSections = new Map();
-  const diagnosticSectionNodes = typeof root.querySelectorAll === "function"
-    ? root.querySelectorAll("[data-diagnostic-section]")
-    : [];
-  Array.from(diagnosticSectionNodes).forEach((section) => {
-    const key = section?.dataset?.diagnosticSection;
-    if (!key) return;
-    diagnosticSections.set(key, section);
-  });
-
-  function setDiagnosticSectionVisible(key, visible) {
-    const section = diagnosticSections.get(key);
-    if (!section) return;
-    section.classList.toggle("diagnostic-section-hidden", !visible);
-  }
-
-  diagnosticToggles.forEach((toggle) => {
-    const key = toggle?.dataset?.diagnosticToggle;
-    if (!key) return;
-    setDiagnosticSectionVisible(key, Boolean(toggle.checked));
-    toggle.addEventListener("change", () => {
-      setDiagnosticSectionVisible(key, Boolean(toggle.checked));
-    });
-  });
-
-  const llmTracePanel = wireLlmTracePanel({
-    elements: {
-      statusEl: llmTraceStatus,
-      countEl: llmTraceCount,
-      turnSelect: llmTraceTurns,
-      promptEl: llmTracePrompt,
-      responseRawEl: llmTraceResponseRaw,
-      responseParsedEl: llmTraceResponseParsed,
-      errorsEl: llmTraceErrors,
-      summaryEl: llmTraceSummary,
-      telemetryEl: llmTraceTelemetry,
-      clearButton: llmTraceClear,
-    },
-  });
 
   let bundleReview = null;
   let buildOrchestrator = null;
-
-  wireAdapterPanel({
-    elements: {
-      modeSelect: { value: "live" },
-      gatewayInput: adapterGateway,
-      rpcInput: adapterRpc,
-      addressInput: adapterAddress,
-      cidInput: adapterCid,
-      ipfsPathInput: adapterPath,
-      promptInput: adapterPrompt,
-      outputEl: adapterOutput,
-      statusEl: adapterStatus,
-      clearButton: adapterClear,
-      ipfsButton: adapterIpfs,
-      blockchainButton: adapterBlockchain,
-      llmButton: adapterLlmButton,
-      solverButton: adapterSolver,
-    },
-    commandHost,
-    onIpfsLoaded: ({ bundle, manifest }) => {
-      if (manifest) {
-        bundleReview?.loadManifestPayload?.(manifest, { source: "ipfs" });
-      }
-      if (bundle) {
-        bundleReview?.loadBundlePayload?.(bundle, { source: "ipfs" });
-      }
-    },
-    resolveIpfsPublishArtifacts: () => {
-      const bundle = bundleReview?.getCurrentBundle?.()
-        || buildOrchestrator?.getLastSnapshot?.()?.response?.bundle
-        || null;
-      const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
-      const artifactMap = {};
-      artifacts.forEach((artifact) => {
-        if (!artifact || typeof artifact !== "object") return;
-        const id = typeof artifact.meta?.id === "string" ? artifact.meta.id.trim() : "";
-        const schema = typeof artifact.schema === "string" ? artifact.schema.trim() : "";
-        const stem = id || schema.replace(/^agent-kernel\//, "").replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
-        if (!stem) return;
-        const fileName = `${stem}.json`;
-        artifactMap[fileName] = artifact;
-      });
-      if (bundle?.spec) artifactMap["spec.json"] = bundle.spec;
-      if (bundle) artifactMap["bundle.json"] = bundle;
-      const manifest = bundleReview?.getCurrentManifest?.();
-      if (manifest) artifactMap["manifest.json"] = manifest;
-      return Object.keys(artifactMap).length > 0 ? artifactMap : null;
-    },
-  });
-
-  wireOllamaPromptPanel({
-    elements: {
-      modeSelect: ollamaMode || { value: "live" },
-      modelInput: ollamaModel,
-      baseUrlInput: ollamaBaseUrl,
-      promptInput: ollamaPrompt,
-      optionsInput: ollamaOptions,
-      runButton: ollamaRun,
-      clearButton: ollamaClear,
-      downloadButton: ollamaDownload,
-      downloadPromptButton: ollamaDownloadPrompt,
-      statusEl: ollamaStatus,
-      outputEl: ollamaOutput,
-    },
-    fixturePath: "/tests/fixtures/adapters/llm-build-spec.json",
-    commandHost,
-    onValidSpec: ({ specText }) => {
-      if (buildSpecJson) {
-        buildSpecJson.value = specText;
-        buildSpecJson.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-      if (buildSpecPath) {
-        buildSpecPath.value = "";
-        buildSpecPath.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-    },
-  });
 
   buildOrchestrator = wireBuildOrchestrator({
     elements: {
@@ -267,8 +104,6 @@ export function wireDiagnosticsView({
     },
     commandHost,
     onBuildComplete: (payload) => {
-      const captures = extractLlmCaptures({ snapshot: payload?.snapshot });
-      llmTracePanel.appendCaptures(captures, { source: "Loaded build captures" });
       budgetPanels.setFromArtifacts({
         snapshot: payload?.snapshot,
         response: payload?.snapshot?.response,
@@ -310,11 +145,8 @@ export function wireDiagnosticsView({
     },
     onBundleLoaded: (payload) => {
       if (payload?.source === "clear") {
-        llmTracePanel.clear({ source: "Bundle cleared" });
         budgetPanels.setData();
       } else {
-        const captures = extractLlmCaptures({ bundle: payload?.bundle });
-        llmTracePanel.setCaptures(captures, { source: "Loaded bundle captures" });
         budgetPanels.setFromArtifacts({ bundle: payload?.bundle });
       }
       if (typeof onBundleLoaded === "function") {
@@ -339,9 +171,6 @@ export function wireDiagnosticsView({
       configBudget: configBudgetJson,
       configPriceList: configPriceListJson,
       configReceipt: configReceiptJson,
-      allocatorBudget: allocatorBudgetJson,
-      allocatorPriceList: allocatorPriceListJson,
-      allocatorReceipt: allocatorReceiptJson,
     },
     mode: "live",
   });
@@ -371,9 +200,5 @@ export function wireDiagnosticsView({
     runBuild: () => buildOrchestrator?.runBuild?.(),
     loadLastBundle: () => bundleReview?.loadLastBuild?.(),
     setBuildSpecText,
-    refreshBudgetPanels: (mode = "live") => budgetPanels.refresh(mode),
-    setLlmCaptures: (captures, options) => llmTracePanel.setCaptures(captures, options),
-    appendLlmCaptures: (captures, options) => llmTracePanel.appendCaptures(captures, options),
-    clearLlmCaptures: (options) => llmTracePanel.clear(options),
   };
 }

@@ -31,10 +31,23 @@
   },
   "layout": {
     "kind": "grid",
-    "data": {
-      "width": 2,
-      "height": 2
-    }
+      "data": {
+        "width": 3,
+        "height": 3,
+        "tiles": [
+          "S..",
+          "...",
+          "..E"
+        ],
+        "spawn": {
+          "x": 0,
+          "y": 0
+        },
+        "exit": {
+          "x": 2,
+          "y": 2
+        }
+      }
   },
   "constraints": {
     "categoryCaps": {

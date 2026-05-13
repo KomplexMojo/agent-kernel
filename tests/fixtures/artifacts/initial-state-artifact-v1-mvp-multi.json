@@ -17,7 +17,7 @@
       "id": "actor_alpha",
       "kind": "ambulatory",
       "position": {
-        "x": 1,
+        "x": 2,
         "y": 1
       },
       "vitals": {
@@ -52,7 +52,7 @@
       "id": "actor_beta",
       "kind": "ambulatory",
       "position": {
-        "x": 2,
+        "x": 3,
         "y": 1
       },
       "vitals": {

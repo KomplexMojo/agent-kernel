@@ -5,7 +5,14 @@ import { collectBuildSpecCardSet } from "../build-spec-ui.js";
 import { computeAuraMap, serializeAuraMap } from "../../../runtime/src/render/affinity-aura.js";
 import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../../../runtime/src/contracts/affinity-spatial-rules.js";
 import { AFFINITY_OPPOSITES } from "../../../runtime/src/contracts/domain-constants.js";
-import { clearBundleCanvas, positionFromCanvasEvent, renderBundleBoardToCanvas } from "../resource-bundle-view.js";
+import {
+  createCanvasPreviewRenderer,
+  createPhaserPreviewRenderer,
+  readPreviewRendererPreference,
+  normalizePreviewRendererId,
+  writePreviewRendererPreference,
+} from "./preview-renderers.js";
+import { renderBundleBoardToCanvas } from "../resource-bundle-view.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -138,13 +145,18 @@ export function wirePreviewView({
   renderBundleBoard = renderBundleBoardToCanvas,
   actorInspector = null,
   onBuildAndLoadGame,
+  storage = globalThis.localStorage,
+  createCanvasRenderer = createCanvasPreviewRenderer,
+  createPhaserRenderer = createPhaserPreviewRenderer,
 } = {}) {
   const buildButton = root.querySelector("#preview-build-and-load");
+  const rendererHostEl = root.querySelector("#preview-renderer-host");
   const canvasEl = root.querySelector("#preview-render-canvas");
   const frameEl = root.querySelector("#preview-frame-buffer");
   const statusEl = root.querySelector("#preview-status");
   const summaryEl = root.querySelector("#preview-summary");
   const actorsEl = root.querySelector("#preview-actor-list");
+  const rendererButtons = Array.from(root.querySelectorAll?.("[data-preview-renderer]") || []);
 
   const wasmUrl = new URL("../../assets/core-as.wasm", import.meta.url);
   let core = null;
@@ -152,43 +164,71 @@ export function wirePreviewView({
   let lastBundle = null;
   let buildingGame = false;
   let lastPreviewState = null;
+  let activeRendererId = readPreviewRendererPreference(storage);
+  let activeRenderer = null;
+
+  const rendererFactories = {
+    canvas: () => createCanvasRenderer({
+      canvas: canvasEl,
+      onSelect: handleBoardSelection,
+      renderBundleBoard,
+    }),
+    phaser: () => createPhaserRenderer({
+      onSelect: handleBoardSelection,
+    }),
+  };
+
+  function updateRendererButtons() {
+    rendererButtons.forEach((button) => {
+      const isActive = normalizePreviewRendererId(button?.dataset?.previewRenderer) === activeRendererId;
+      button.setAttribute?.("aria-pressed", isActive ? "true" : "false");
+      button.dataset.active = isActive ? "true" : "false";
+      if (button.classList?.toggle) {
+        button.classList.toggle("active", isActive);
+      }
+    });
+    const host = getRendererHost();
+    if (host?.dataset) {
+      host.dataset.activeRenderer = activeRendererId;
+    }
+  }
+
+  function getRendererHost() {
+    return rendererHostEl || canvasEl?.parentElement || frameEl?.parentElement || null;
+  }
+
+  async function ensureRenderer(rendererId = activeRendererId) {
+    const nextId = normalizePreviewRendererId(rendererId);
+    if (activeRenderer && activeRendererId === nextId) return activeRenderer;
+    activeRenderer?.dispose?.();
+    activeRendererId = nextId;
+    const factory = rendererFactories[nextId] || rendererFactories.canvas;
+    activeRenderer = factory?.() || null;
+    activeRenderer?.mount?.(getRendererHost(), { canvas: canvasEl, frame: frameEl });
+    updateRendererButtons();
+    return activeRenderer;
+  }
 
   function showAsciiFrame() {
-    if (canvasEl) {
-      clearBundleCanvas(canvasEl);
-      clearCanvas(canvasEl);
-      canvasEl.hidden = true;
-    }
+    activeRenderer?.clear?.();
+    if (canvasEl) clearCanvas(canvasEl);
     if (frameEl) {
       frameEl.hidden = false;
     }
   }
 
-  async function renderPreviewBoard({
-    bundle,
-    tiles = [],
-    actors = [],
-    floorAffinityTraps = [],
-    observation = null,
-  } = {}) {
-    if (!canvasEl || !Array.isArray(tiles) || tiles.length === 0) {
+  async function renderPreviewBoard(previewState = null) {
+    if (!previewState || !Array.isArray(previewState?.tiles) || previewState.tiles.length === 0) {
       showAsciiFrame();
       return false;
     }
     try {
-      const result = await renderBundleBoard({
-        canvas: canvasEl,
-        tiles,
-        actors,
-        floorAffinityTraps,
-        bundle,
-        observation,
-      });
+      const renderer = await ensureRenderer(activeRendererId);
+      const result = await renderer?.renderPreview?.(previewState);
       if (!result?.ok) {
         showAsciiFrame();
         return false;
       }
-      canvasEl.hidden = false;
       if (frameEl) {
         frameEl.hidden = true;
       }
@@ -259,6 +299,23 @@ export function wirePreviewView({
       buildingGame = false;
       if (buildButton) buildButton.disabled = false;
     }
+  }
+
+  async function setRenderer(rendererId, { rerender = true } = {}) {
+    const normalized = writePreviewRendererPreference(storage, rendererId);
+    await ensureRenderer(normalized);
+    if (rerender && lastPreviewState?.boardState) {
+      await renderPreviewBoard(lastPreviewState.boardState);
+    }
+    return normalized;
+  }
+
+  function handleBoardSelection(position) {
+    if (!position) return null;
+    const selected = actorInspector?.selectEntityAtPosition?.(position, { notify: true });
+    if (!selected?.instanceId) return null;
+    focusInspectorEntity(selected);
+    return selected;
   }
 
   async function loadBundle(bundle, { source = "bundle" } = {}) {
@@ -341,13 +398,19 @@ export function wirePreviewView({
       }
 
       setText(frameEl, Array.isArray(frame?.buffer) ? frame.buffer.join("\n") : "No preview frame available.");
-      await renderPreviewBoard({
+      const boardState = {
         bundle,
+        resourceBundle,
+        simConfig,
+        initialState,
         tiles: previewTiles,
         actors: sortActors(observation?.actors),
         floorAffinityTraps: Array.isArray(simConfig?.layout?.data?.traps) ? simConfig.layout.data.traps : [],
         observation,
-      });
+        boardWidth: previewTiles.reduce((max, row) => Math.max(max, String(row || "").length), 0),
+        boardHeight: previewTiles.length,
+      };
+      await renderPreviewBoard(boardState);
       setText(summaryEl, summarizePreview(simConfig, initialState));
       setText(
         actorsEl,
@@ -368,6 +431,7 @@ export function wirePreviewView({
         simConfig,
         initialState,
         observation,
+        boardState,
       };
       actorInspector?.setMode?.("preview");
       actorInspector?.setResourceBundle?.(resourceBundle);
@@ -400,14 +464,13 @@ export function wirePreviewView({
     void buildAndLoadGame();
   });
 
-  canvasEl?.addEventListener?.("click", (event) => {
-    const position = positionFromCanvasEvent(event, canvasEl);
-    if (!position) return;
-    const selected = actorInspector?.selectEntityAtPosition?.(position, { notify: true });
-    if (!selected?.instanceId) return;
-    focusInspectorEntity(selected);
+  rendererButtons.forEach((button) => {
+    button.addEventListener?.("click", () => {
+      void setRenderer(button?.dataset?.previewRenderer);
+    });
   });
 
+  void ensureRenderer(activeRendererId);
   clearPreview();
 
   return {
@@ -416,6 +479,11 @@ export function wirePreviewView({
     focusInspectorEntity,
     clear: clearPreview,
     getLastBundle: () => lastBundle,
-    dispose() {},
+    getRendererId: () => activeRendererId,
+    setRenderer,
+    dispose() {
+      activeRenderer?.dispose?.();
+      activeRenderer = null;
+    },
   };
 }

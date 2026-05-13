@@ -171,6 +171,44 @@ test("buildBuildSpecFromSummary: V2 hazard in cardSet has no durability in plan.
   assert.equal(planHazards[0].durability, undefined, "plan.hints hazard must not have durability");
 });
 
+test("buildBuildSpecFromSummary: actor card instances keep role and unique positions", async () => {
+  const { buildBuildSpecFromSummary } = await loadAssembler();
+  const summary = {
+    dungeonAffinity: "water",
+    goal: "actor placement test",
+    cardSet: [
+      {
+        id: "A-ROLE",
+        type: "delver",
+        source: "actor",
+        affinity: "water",
+        count: 2,
+        motivations: ["attacking"],
+      },
+      {
+        id: "D-ROLE",
+        type: "warden",
+        source: "actor",
+        affinity: "fire",
+        count: 3,
+        motivations: ["defending"],
+      },
+    ],
+  };
+
+  const { spec } = buildBuildSpecFromSummary({ summary });
+  const actors = spec.configurator.inputs.actors;
+  assert.equal(actors.length, 5);
+  assert.deepEqual(actors.map((actor) => actor.archetype), [
+    "delver",
+    "delver",
+    "warden",
+    "warden",
+    "warden",
+  ]);
+  assert.equal(new Set(actors.map((actor) => `${actor.position.x},${actor.position.y}`)).size, 5);
+});
+
 /*
 ## TODO: Test Permutations
 - hazard with mana kind="one-time" round-trips preserving amount

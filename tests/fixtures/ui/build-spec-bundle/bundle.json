@@ -30,7 +30,29 @@
     },
     "plan": {
       "hints": {
-        "strategy": "simple"
+        "strategy": "simple",
+        "cardSet": [
+          {
+            "id": "room_alpha",
+            "type": "room",
+            "count": 1,
+            "affinity": "fire"
+          },
+          {
+            "id": "delver_alpha",
+            "type": "delver",
+            "count": 1,
+            "affinity": "water",
+            "motivation": "explore"
+          },
+          {
+            "id": "warden_alpha",
+            "type": "warden",
+            "count": 1,
+            "affinity": "fire",
+            "motivation": "guard"
+          }
+        ]
       }
     },
     "configurator": {
@@ -164,8 +186,8 @@
           "id": "actor_1",
           "kind": "stationary",
           "position": {
-            "x": 0,
-            "y": 0
+            "x": 1,
+            "y": 1
           },
           "traits": {
             "speed": 1
@@ -248,13 +270,26 @@
       "flags": {
         "demo": true
       },
-      "layout": {
-        "kind": "grid",
-        "data": {
-          "width": 2,
-          "height": 2
+    "layout": {
+      "kind": "grid",
+      "data": {
+        "width": 3,
+        "height": 3,
+        "tiles": [
+          "S..",
+          "...",
+          "..E"
+        ],
+        "spawn": {
+          "x": 0,
+          "y": 0
+        },
+        "exit": {
+          "x": 2,
+          "y": 2
         }
-      },
+      }
+    },
       "constraints": {
         "categoryCaps": {
           "caps": {

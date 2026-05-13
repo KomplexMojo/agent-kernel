@@ -59,7 +59,7 @@ test("stitch POC bundle summary derives deterministic fixture fields", () => {
 
   assert.equal(summary.goal, "demo scenario");
   assert.equal(summary.runId, "run_fixture");
-  assert.equal(summary.mapSizeLabel, "2x2");
+  assert.equal(summary.mapSizeLabel, "3x3");
   assert.equal(summary.actorCount, 1);
   assert.equal(summary.artifactCount, 5);
   assert.equal(summary.tagLabel, "basic");
@@ -82,7 +82,7 @@ test("stitch POC view renders fixture-backed menu state", async () => {
   assert.equal(result.ok, true);
   assert.equal(elements["#stitch-poc-goal"].textContent, "demo scenario");
   assert.equal(elements["#stitch-poc-run-id"].textContent, "run_fixture");
-  assert.equal(elements["#stitch-poc-map-size"].textContent, "2x2");
+  assert.equal(elements["#stitch-poc-map-size"].textContent, "3x3");
   assert.equal(elements["#stitch-poc-actor-count"].textContent, "1");
   assert.equal(elements["#stitch-poc-artifact-count"].textContent, "5");
   assert.equal(elements["#stitch-poc-tags"].textContent, "basic");

@@ -24,10 +24,21 @@ function getFirstPanelSlice(html, tabId) {
 test("primary workflow tabs render in the expected order", () => {
   const html = readHtml();
   const tabIds = [...html.matchAll(/data-tab="([a-z-]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(tabIds, ["design", "preview", "simulation", "diagnostics"]);
-  assert.match(html, /data-tab="preview"[^>]*>Preview</);
-  assert.match(html, /data-tab="simulation"[^>]*>Run</);
+  assert.deepEqual(tabIds, ["design", "gameplay"]);
+  assert.match(html, /data-tab="gameplay"[^>]*>Gameplay</);
   assert.match(html, /data-tab="design"[^>]*aria-selected="true"/);
+  assert.doesNotMatch(html, /data-tab="preview"[^>]*>Preview</);
+  assert.doesNotMatch(html, /data-tab="simulation"[^>]*>Run</);
+  assert.doesNotMatch(html, /data-tab="diagnostics"[^>]*>Diagnostics</);
+});
+
+test("gameplay panel contains Phaser host and tick navigation controls", () => {
+  const html = readHtml();
+  const gameplayPanel = getFirstPanelSlice(html, "gameplay");
+  assert.match(gameplayPanel, /id="gameplay-phaser-host"/);
+  assert.match(gameplayPanel, /id="gameplay-status"/);
+  assert.match(gameplayPanel, /id="gameplay-step-back"/);
+  assert.match(gameplayPanel, /id="gameplay-step-forward"/);
 });
 
 test("design panel contains the unified card workspace layout", () => {
@@ -67,68 +78,8 @@ test("design panel contains the unified card workspace layout", () => {
   assert.doesNotMatch(designPanel, /Drag chips onto this card\./);
   assert.match(
     designPanel,
-    /id="design-guidance-status"[^>]*>Configure one card in the center, then pull it right into grouped Room\/Delver\/Warden\/Hazard shelves\.<\/div>/,
+    /id="design-guidance-status"[^>]*>Configure a card, then shelve it\.<\/div>/,
   );
-});
-
-test("game board panel contains playback controls and action controls only", () => {
-  const html = readHtml();
-  const simulationPanel = getFirstPanelSlice(html, "simulation");
-
-  [
-    "status-message",
-    "frame-buffer",
-    "runtime-move-up-left",
-    "play-pause",
-    "step-back",
-    "step-forward",
-    "reset-run",
-    "runtime-move-up",
-    "runtime-move-up-right",
-    "runtime-move-down",
-    "runtime-move-down-right",
-    "runtime-move-down-left",
-    "runtime-move-left",
-    "runtime-move-right",
-    "runtime-cast",
-    "runtime-affinity-choice-fire",
-    "runtime-affinity-choice-water",
-    "runtime-affinity-choice-earth",
-    "runtime-affinity-expression-expand",
-    "runtime-affinity-expression-focus",
-    "runtime-affinity-expression-shift",
-  ].forEach((id) => {
-    assert.match(simulationPanel, new RegExp(`id="${id}"`));
-  });
-
-  assert.match(simulationPanel, /Playing Surface/);
-  assert.match(simulationPanel, /Runtime Actions/);
-  assert.match(simulationPanel, /Movement/);
-  assert.match(simulationPanel, /Affinity Placeholders/);
-  assert.match(
-    simulationPanel,
-    /class="runtime-controls"[^>]*>[\s\S]*id="runtime-move-up-left"[\s\S]*id="runtime-cast"[\s\S]*id="runtime-move-down-right"/,
-  );
-  assert.match(
-    simulationPanel,
-    /class="runtime-affinity-placeholders"[^>]*aria-label="Runtime affinity choice placeholders"[\s\S]*id="runtime-affinity-choice-fire"[^>]*disabled[\s\S]*id="runtime-affinity-choice-earth"[^>]*disabled/s,
-  );
-  assert.ok(simulationPanel.indexOf('id="status-message"') < simulationPanel.indexOf('id="frame-buffer"'));
-  assert.doesNotMatch(simulationPanel, /<small class="status">/);
-  assert.match(
-    simulationPanel,
-    /id="status-message"[^>]*>Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here\.<\/div>/,
-  );
-  assert.doesNotMatch(simulationPanel, /Selected Actor View/);
-  [
-    "runtime-viewport",
-    "runtime-status",
-    "runtime-delver-card",
-    "runtime-visible-wardens",
-    "runtime-offscreen-wardens",
-  ].forEach((id) => {
-    assert.doesNotMatch(simulationPanel, new RegExp(`id="${id}"`));
-  });
 });
 
 test("preview panel contains the active preview surface", () => {
@@ -138,18 +89,18 @@ test("preview panel contains the active preview surface", () => {
   [
     "preview-build-and-load",
     "preview-status",
-    "preview-render-canvas",
-    "preview-frame-buffer",
     "preview-summary",
     "preview-actor-list",
   ].forEach((id) => {
     assert.match(previewPanel, new RegExp(`id="${id}"`));
   });
 
-  assert.match(previewPanel, /Game Preview/);
   assert.match(previewPanel, /Build And Load Game/);
-  assert.ok(previewPanel.indexOf('id="preview-status"') < previewPanel.indexOf('id="preview-frame-buffer"'));
-  assert.doesNotMatch(previewPanel, /<small class="status">/);
+  assert.doesNotMatch(previewPanel, /id="preview-render-canvas"/);
+  assert.doesNotMatch(previewPanel, /id="preview-frame-buffer"/);
+  assert.doesNotMatch(previewPanel, /id="preview-renderer-host"/);
+  assert.doesNotMatch(previewPanel, /id="preview-renderer-canvas"/);
+  assert.doesNotMatch(previewPanel, /id="preview-renderer-phaser"/);
   assert.match(
     previewPanel,
     /id="preview-status"[^>]*>Inspect the current design bundle here\. When ready, use Build And Load Game to open Run\.<\/div>/,
@@ -175,24 +126,29 @@ test("game board layout includes the right-rail actor inspector", () => {
   );
 });
 
-test("diagnostics panel keeps only the active section toggles", () => {
+test("diagnostics panel contains the build pipeline section", () => {
   const html = readHtml();
   const diagnosticsPanel = getFirstPanelSlice(html, "diagnostics");
 
   [
-    "diagnostic-toggle-allocator",
-    "diagnostic-toggle-llm-trace",
-    "diagnostic-toggle-build",
-    "diagnostic-toggle-adapter-playground",
+    "build-run",
+    "build-spec-json",
+    "build-output",
+    "build-status",
+    "bundle-file",
+    "bundle-status",
+    "bundle-artifacts",
   ].forEach((id) => {
     assert.match(diagnosticsPanel, new RegExp(`id="${id}"`));
   });
 
   [
-    "diagnostic-toggle-actors",
-    "diagnostic-toggle-director",
-    "diagnostic-toggle-affinity",
-    "diagnostic-toggle-moderator",
+    "diagnostic-toggle-allocator",
+    "diagnostic-toggle-llm-trace",
+    "diagnostic-toggle-adapter-playground",
+    "llm-trace-status",
+    "adapter-output",
+    "allocator-budget-json",
     "bundle-run-runtime",
   ].forEach((id) => {
     assert.doesNotMatch(diagnosticsPanel, new RegExp(`id="${id}"`));

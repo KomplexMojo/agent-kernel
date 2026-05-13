@@ -41,22 +41,8 @@ test("artifact panels live only under diagnostics", () => {
     "config-budget-json",
     "config-price-list-json",
     "config-receipt-json",
-    "allocator-budget-json",
-    "allocator-price-list-json",
-    "allocator-receipt-json",
-    "adapter-output",
   ];
-  const diagnosticsOnlyIds = [
-    "llm-trace-status",
-    "llm-trace-count",
-    "llm-trace-turns",
-    "llm-trace-prompt",
-    "llm-trace-response-raw",
-    "llm-trace-response-parsed",
-    "llm-trace-errors",
-    "llm-trace-summary",
-    "llm-trace-telemetry",
-  ];
+  const diagnosticsOnlyIds = [];
   const removedIds = [
     "bundle-run-runtime",
     "diagnostic-toggle-actors",
@@ -67,6 +53,12 @@ test("artifact panels live only under diagnostics", () => {
     "director-json-output",
     "annotator-json-output",
     "moderator-json-output",
+    "allocator-budget-json",
+    "allocator-price-list-json",
+    "allocator-receipt-json",
+    "adapter-output",
+    "llm-trace-status",
+    "llm-trace-count",
   ];
 
   artifactIds.forEach((id) => {
@@ -83,5 +75,4 @@ test("artifact panels live only under diagnostics", () => {
 
   assert.equal(diagnosticsText.includes('id="adapter-mode"'), false, "Did not expect fixture/live mode toggle");
   assert.equal(diagnosticsText.includes("Ready in fixture mode"), false, "Did not expect fixture status text");
-  assert.ok(diagnosticsText.includes("Ready in live mode"), "Expected live mode status text");
 });

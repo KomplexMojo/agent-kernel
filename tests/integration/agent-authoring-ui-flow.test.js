@@ -141,17 +141,28 @@ function createBundleReviewElements() {
 function createPreviewRoot() {
   const elements = {
     "#preview-build-and-load": makeButton(),
+    "#preview-renderer-host": makeElement("div"),
     "#preview-render-canvas": makeCanvas(),
     "#preview-frame-buffer": makeElement("pre"),
     "#preview-status": makeElement(),
     "#preview-summary": makeElement("pre"),
     "#preview-actor-list": makeElement("pre"),
+    "#preview-renderer-canvas": makeButton(),
+    "#preview-renderer-phaser": makeButton(),
   };
+  elements["#preview-renderer-canvas"].dataset = { previewRenderer: "canvas" };
+  elements["#preview-renderer-phaser"].dataset = { previewRenderer: "phaser" };
   return {
     elements,
     root: {
       querySelector(selector) {
         return elements[selector] || null;
+      },
+      querySelectorAll(selector) {
+        if (selector === "[data-preview-renderer]") {
+          return [elements["#preview-renderer-canvas"], elements["#preview-renderer-phaser"]];
+        }
+        return [];
       },
     },
   };

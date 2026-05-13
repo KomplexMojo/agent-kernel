@@ -152,6 +152,12 @@ function isAttackingMotivation(value) {
   return value.trim().toLowerCase().includes("attack");
 }
 
+function normalizeActorType(value, fallback = "") {
+  if (typeof value !== "string") return fallback;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "delver" || normalized === "warden" ? normalized : fallback;
+}
+
 function pickHasAttackingMotivation(pick) {
   const motivations = normalizeMotivationKinds(
     pick?.motivations,
@@ -285,8 +291,12 @@ export function normalizeSummaryPick(
     ? []
     : normalizeAffinityEntries(entry?.affinities, affinity);
   const setupMode = normalizeSetupMode(entry?.setupMode ?? entry?.mode ?? delverConfig?.setupMode);
+  const actorType = source === "actor"
+    ? normalizeActorType(entry?.actorType ?? entry?.type)
+    : "";
   const pick = { motivation, affinity, count };
   if (id) pick.id = id;
+  if (actorType) pick.actorType = actorType;
   if (tokenHint !== undefined) pick.tokenHint = tokenHint;
   if (affinities.length > 0) pick.affinities = affinities;
   if (source === "room") {
@@ -412,6 +422,7 @@ function cardEntryToWardenPick(card, dungeonAffinity) {
   return normalizeSummaryPick(
     {
       id: card.id,
+      actorType: "warden",
       role: card.motivations?.[0] || "defending",
       affinity: card.affinity || dungeonAffinity,
       count: card.count,
@@ -428,6 +439,7 @@ function cardEntryToDelverPick(card, dungeonAffinity) {
   return normalizeSummaryPick(
     {
       id: card.id,
+      actorType: "delver",
       motivations: Array.isArray(card.motivations) && card.motivations.length > 0 ? card.motivations : ["attacking", "user_controlled"],
       role: card.motivations?.[0] || "attacking",
       affinity: card.affinity || dungeonAffinity,
@@ -669,6 +681,12 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
     ? normalizedPick.id.trim()
     : "";
   const baseId = requestedId || fallbackBaseId;
+  const actorType = kind === "actor"
+    ? normalizeActorType(
+      normalizedPick.actorType,
+      pickHasAttackingMotivation(normalizedPick) ? "delver" : "warden",
+    )
+    : "";
 
   return {
     kind,
@@ -694,6 +712,9 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
         affinity: normalizedPick.affinity,
         cost,
       };
+      if (actorType) {
+        instance.actorType = actorType;
+      }
       if (Array.isArray(normalizedPick.affinities) && normalizedPick.affinities.length > 0) {
         instance.affinities = normalizedPick.affinities.map((entry) => ({ ...entry }));
       }

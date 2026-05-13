@@ -14,7 +14,6 @@ const FIXTURE_NAMES = [
 
 const EXPECTED_ERRORS = new Set([
   "actor_out_of_bounds",
-  "actor_spawn_mismatch",
   "actor_blocked",
   "actor_collision",
 ]);

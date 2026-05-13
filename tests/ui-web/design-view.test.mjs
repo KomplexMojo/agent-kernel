@@ -157,6 +157,7 @@ function createRootElements() {
     "#design-card-group-room": make("div"),
     "#design-card-group-delver": make("div"),
     "#design-card-group-warden": make("div"),
+    "#design-card-group-hazard": make("div"),
     "#design-card-group-resource": make("div"),
     "#design-card-group-budget-room": make("div"),
     "#design-card-group-budget-delver": make("div"),
@@ -166,6 +167,8 @@ function createRootElements() {
     "#design-budget-split-room": make("input"),
     "#design-budget-split-delver": make("input"),
     "#design-budget-split-warden": make("input"),
+    "#design-budget-split-hazard": make("input"),
+    "#design-budget-split-resource": make("input"),
     "#design-budget-split-room-tokens": make("div"),
     "#design-budget-split-delver-tokens": make("div"),
     "#design-budget-split-warden-tokens": make("div"),
@@ -182,6 +185,8 @@ function createRootElements() {
   elements["#design-budget-split-room"].value = "50";
   elements["#design-budget-split-delver"].value = "25";
   elements["#design-budget-split-warden"].value = "25";
+  elements["#design-budget-split-hazard"].value = "12";
+  elements["#design-budget-split-resource"].value = "8";
 
   const root = {
     querySelector(selector) {
@@ -641,7 +646,7 @@ test("wireDesignGuidance shows default help text until a drop error occurs", () 
   assert.equal(elements["#design-guidance-status"].dataset.level, "info");
   assert.equal(
     elements["#design-guidance-status"].textContent,
-    "Configure one card in the center, then pull it right into grouped Room/Delver/Warden/Hazard shelves.",
+    "Configure a card, then shelve it.",
   );
 
   const blank = guidance.getActiveCard();
@@ -1204,6 +1209,48 @@ test("wireDesignView publishes preview spec from the current card model", async 
   assert.ok(Array.isArray(latestSpec.plan?.hints?.cardSet));
   assert.ok(latestSpec.configurator?.inputs?.levelGen);
   assert.equal(latestSpec.configurator.inputs.levelGen.shape.roomCount, 3);
+});
+
+test("wireDesignView auto-generate button fills all dungeon card groups without launching gameplay", () => {
+  const { root, elements } = createRootElements();
+  const view = wireDesignView({
+    root,
+    commandHost: {
+      async buildSpecFromSummary(payload) {
+        return buildSpecFromSummaryViaCommandHost(payload);
+      },
+    },
+  });
+
+  elements["#design-auto-generate"].trigger("click");
+
+  const cards = view.getCards();
+  assert.ok(cards.some((card) => card.type === "room"));
+  assert.ok(cards.some((card) => card.type === "delver"));
+  assert.ok(cards.some((card) => card.type === "warden"));
+  assert.ok(cards.some((card) => card.type === "hazard"));
+  assert.ok(cards.some((card) => card.type === "resource"));
+  assert.match(elements["#design-guidance-status"].textContent, /Auto-generated .* using the remaining allocation\./i);
+});
+
+test("wireDesignView resetToScratch clears authored cards and resets the editor", () => {
+  const { root, elements } = createRootElements();
+  const view = wireDesignView({ root });
+
+  view.setCards([
+    createDesignCard({ id: "room_existing", type: "room", roomSize: "medium", affinity: "fire", count: 2 }),
+    createDesignCard({ id: "atk_existing", type: "delver", affinity: "fire", motivations: ["attacking"], count: 1 }),
+  ]);
+
+  const result = view.resetToScratch();
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(view.getCards(), []);
+  const active = view.getActiveCard();
+  assert.equal(active.type, "");
+  assert.equal(active.count, 1);
+  assert.match(active.id, /^C-[A-Z0-9]{6}$/);
+  assert.match(elements["#design-guidance-status"].textContent, /Design reset\. Start a new run\./);
 });
 
 test("wireDesignView publishes preview spec through the command host even with a minimal budget", async () => {

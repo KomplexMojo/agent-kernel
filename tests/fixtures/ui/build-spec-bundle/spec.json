@@ -29,7 +29,29 @@
   },
   "plan": {
     "hints": {
-      "strategy": "simple"
+      "strategy": "simple",
+      "cardSet": [
+        {
+          "id": "room_alpha",
+          "type": "room",
+          "count": 1,
+          "affinity": "fire"
+        },
+        {
+          "id": "delver_alpha",
+          "type": "delver",
+          "count": 1,
+          "affinity": "water",
+          "motivation": "explore"
+        },
+        {
+          "id": "warden_alpha",
+          "type": "warden",
+          "count": 1,
+          "affinity": "fire",
+          "motivation": "guard"
+        }
+      ]
     }
   },
   "configurator": {

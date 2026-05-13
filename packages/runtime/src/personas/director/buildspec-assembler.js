@@ -205,11 +205,12 @@ function normalizeAffinityTraits(affinities, fallbackAffinity) {
 function buildActorsAndGroups(selections) {
   const actors = [];
   const groupCounts = new Map();
+  let actorIndex = 0;
 
   selections
     .filter((sel) => sel.kind === "actor" && sel.instances && sel.instances.length > 0)
     .forEach((sel) => {
-      sel.instances.forEach((inst, idx) => {
+      sel.instances.forEach((inst) => {
         const vitals = normalizeActorVitals(inst?.vitals);
         const affinityEntries = Array.isArray(inst?.affinities)
           ? inst.affinities
@@ -226,10 +227,14 @@ function buildActorsAndGroups(selections) {
           kind: sel.applied?.subType === "static" ? "static" : "ambulatory",
           affinity: inst.affinity,
           motivations: [inst.motivation],
-          position: { x: idx, y: 0 },
+          position: { x: actorIndex, y: 0 },
           tokenCost: Number.isInteger(inst?.cost) && inst.cost > 0 ? inst.cost : undefined,
           vitals,
         };
+        actorIndex += 1;
+        if (inst.actorType === "delver" || inst.actorType === "warden") {
+          entry.archetype = inst.actorType;
+        }
         if (typeof inst?.setupMode === "string" && inst.setupMode.trim()) {
           entry.setupMode = inst.setupMode.trim();
         }

@@ -22,11 +22,12 @@ test("mvp sim config defines a deterministic 9x9 grid with spawn/exit and palett
   assert.equal(data.tiles[data.exit.y][data.exit.x], "E");
 });
 
-test("initial actor defaults live on the spawn tile with vitals stub", () => {
+test("initial actor defaults live off the reserved spawn tile with vitals stub", () => {
   const actor = initialState.actors[0];
   assert.equal(actor.id, "actor_mvp");
   assert.equal(actor.kind, "ambulatory");
-  coordsEqual(actor.position, simConfig.layout.data.spawn);
+  coordsEqual(actor.position, { x: 2, y: 1 });
+  assert.notDeepEqual(actor.position, simConfig.layout.data.spawn);
   assert.equal(actor.traits.hp, 10);
   assert.equal(actor.traits.maxHp, 10);
   assert.equal(actor.traits.speed, 1);

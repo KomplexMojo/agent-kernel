@@ -1,33 +1,19 @@
 import { test, expect } from "@playwright/test";
 import { startServeUi, stopProcess } from "./helpers/serve-ui.mjs";
 
-test("served ui keeps runtime movement controls inside the runtime actions section", async ({ page }) => {
+test("served ui exposes gameplay step controls and removes legacy runtime movement controls", async ({ page }) => {
   const served = await startServeUi();
 
   try {
     await page.goto(served.url);
-    await page.locator('[data-tab="simulation"]').click();
+    await page.locator('[data-tab="gameplay"]').click();
 
-    const controlsSection = page.locator('[aria-label="Runtime controls"]');
-    const movementGroup = page.locator('[aria-label="Runtime movement controls"]');
-
-    await expect(controlsSection).toBeVisible();
-    await expect(movementGroup).toBeVisible();
-
-    const movementIds = [
-      "#runtime-move-up-left",
-      "#runtime-move-up",
-      "#runtime-move-up-right",
-      "#runtime-move-left",
-      "#runtime-move-right",
-      "#runtime-move-down-left",
-      "#runtime-move-down",
-      "#runtime-move-down-right",
-    ];
-
-    for (const selector of movementIds) {
-      await expect(movementGroup.locator(selector)).toHaveCount(1);
-    }
+    await expect(page.locator('[data-tab-panel="gameplay"]')).toBeVisible();
+    await expect(page.locator("#gameplay-step-back")).toBeVisible();
+    await expect(page.locator("#gameplay-step-forward")).toBeVisible();
+    await expect(page.locator('[data-tab="simulation"]')).toHaveCount(0);
+    await expect(page.locator('[aria-label="Runtime movement controls"]')).toHaveCount(0);
+    await expect(page.locator("#runtime-move-up")).toHaveCount(0);
   } finally {
     await stopProcess(served.proc);
   }

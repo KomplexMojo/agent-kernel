@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import {
+  PREVIEW_RENDERER_STORAGE_KEY,
+} from "../../packages/ui-web/src/views/preview-renderers.js";
 import { validatePreviewLaunchBundle, wirePreviewView } from "../../packages/ui-web/src/views/preview-view.js";
 
 function makeElement() {
@@ -7,8 +10,16 @@ function makeElement() {
     textContent: "",
     dataset: {},
     hidden: false,
+    attributes: {},
+    classList: {
+      toggle() {},
+    },
+    appendChild() {},
     addEventListener(type, handler) {
       handlers.set(type, handler);
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
     },
     click() {
       return handlers.get("click")?.();
@@ -58,13 +69,20 @@ function makeCanvas() {
 }
 
 function createRoot() {
+  const canvasToggle = makeElement();
+  canvasToggle.dataset.previewRenderer = "canvas";
+  const phaserToggle = makeElement();
+  phaserToggle.dataset.previewRenderer = "phaser";
   const elements = {
     "#preview-build-and-load": makeElement(),
+    "#preview-renderer-host": makeElement(),
     "#preview-render-canvas": makeCanvas(),
     "#preview-frame-buffer": makeElement(),
     "#preview-status": makeElement(),
     "#preview-summary": makeElement(),
     "#preview-actor-list": makeElement(),
+    "#preview-renderer-canvas": canvasToggle,
+    "#preview-renderer-phaser": phaserToggle,
   };
   return {
     elements,
@@ -72,8 +90,44 @@ function createRoot() {
       querySelector(selector) {
         return elements[selector] || null;
       },
+      querySelectorAll(selector) {
+        if (selector === "[data-preview-renderer]") {
+          return [canvasToggle, phaserToggle];
+        }
+        return [];
+      },
     },
   };
+}
+
+function createStorage(initial = {}) {
+  const store = new Map(Object.entries(initial));
+  return {
+    getItem(key) {
+      return store.has(key) ? store.get(key) : null;
+    },
+    setItem(key, value) {
+      store.set(key, String(value));
+    },
+  };
+}
+
+function createRendererRecorder(name, calls) {
+  return () => ({
+    mount() {
+      calls.push({ type: "mount", name });
+    },
+    async renderPreview(previewState) {
+      calls.push({ type: "render", name, previewState });
+      return { ok: true };
+    },
+    clear() {
+      calls.push({ type: "clear", name });
+    },
+    dispose() {
+      calls.push({ type: "dispose", name });
+    },
+  });
 }
 
 function createBundle({
@@ -408,4 +462,79 @@ test("preview view computes and attaches auras to observation", async () => {
   assert.equal(loaded, true);
   // The test passes if preview loads successfully with actor affinities
   // Actual aura rendering is tested in integration via the resource bundle tests
+});
+
+test("preview view restores the stored renderer choice and rerenders with the phaser adapter", async () => {
+  const { root } = createRoot();
+  const rendererCalls = [];
+  const storage = createStorage({
+    [PREVIEW_RENDERER_STORAGE_KEY]: "phaser",
+  });
+
+  const view = wirePreviewView({
+    root,
+    storage,
+    createCanvasRenderer: createRendererRecorder("canvas", rendererCalls),
+    createPhaserRenderer: createRendererRecorder("phaser", rendererCalls),
+    loadCoreFn: async () => ({ init() {} }),
+    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
+    applyInitialState: () => ({ ok: true }),
+    renderFrame: () => ({ baseTiles: ["#####", "#@..#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),
+    renderBase: () => ["#####", "#...#", "#...#", "#####"],
+    readObservationFn: () => ({ actors: createBundle().artifacts[1].actors }),
+  });
+
+  await view.loadBundle(createBundle(), { source: "design-build" });
+
+  assert.equal(view.getRendererId(), "phaser");
+  assert.equal(rendererCalls.some((entry) => entry.type === "render" && entry.name === "phaser"), true);
+});
+
+test("preview view rerenders the same preview state when switching between renderers", async () => {
+  const { root } = createRoot();
+  const rendererCalls = [];
+  const view = wirePreviewView({
+    root,
+    storage: createStorage(),
+    createCanvasRenderer: createRendererRecorder("canvas", rendererCalls),
+    createPhaserRenderer: createRendererRecorder("phaser", rendererCalls),
+    loadCoreFn: async () => ({ init() {} }),
+    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
+    applyInitialState: () => ({ ok: true }),
+    renderFrame: () => ({ baseTiles: ["#####", "#@..#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),
+    renderBase: () => ["#####", "#...#", "#...#", "#####"],
+    readObservationFn: () => ({ actors: createBundle().artifacts[1].actors }),
+  });
+
+  await view.loadBundle(createBundle(), { source: "design-build" });
+  await view.setRenderer("phaser");
+
+  const canvasState = rendererCalls.find((entry) => entry.type === "render" && entry.name === "canvas")?.previewState;
+  const phaserState = rendererCalls.find((entry) => entry.type === "render" && entry.name === "phaser")?.previewState;
+
+  assert.ok(canvasState);
+  assert.ok(phaserState);
+  assert.deepEqual(phaserState.tiles, canvasState.tiles);
+  assert.deepEqual(phaserState.simConfig, canvasState.simConfig);
+  assert.deepEqual(phaserState.initialState, canvasState.initialState);
+  assert.deepEqual(phaserState.observation, canvasState.observation);
+});
+
+test("preview renderer selection persists to storage and clear preserves status messaging", async () => {
+  const { root, elements } = createRoot();
+  const storage = createStorage();
+  const rendererCalls = [];
+  const view = wirePreviewView({
+    root,
+    storage,
+    createCanvasRenderer: createRendererRecorder("canvas", rendererCalls),
+    createPhaserRenderer: createRendererRecorder("phaser", rendererCalls),
+  });
+
+  await view.setRenderer("phaser", { rerender: false });
+  view.clear("Preview reset.");
+
+  assert.equal(storage.getItem(PREVIEW_RENDERER_STORAGE_KEY), "phaser");
+  assert.equal(elements["#preview-status"].textContent, "Preview reset.");
+  assert.equal(rendererCalls.some((entry) => entry.type === "clear"), true);
 });

@@ -4,8 +4,8 @@ import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-work
 import { buildResultHasBundle } from "./build-orchestrator.js";
 import { wireDesignView } from "./views/design-view.js";
 import { wirePreviewView, validatePreviewLaunchBundle } from "./views/preview-view.js";
-import { wireSimulationView } from "./views/simulation-view.js";
 import { wireDiagnosticsView } from "./views/diagnostics-view.js";
+import { wireGameplayView } from "./views/gameplay-view.js";
 import { resolveIcon } from "./icon-resolver.js";
 import { shouldHydrateDesignFromBundleSource } from "./build-spec-ui.js";
 import { setResourceBundle as setDesignResourceBundle } from "./design-guidance.js";
@@ -19,23 +19,53 @@ const tabButtons = document.querySelectorAll("[data-tab]");
 const tabPanels = document.querySelectorAll("[data-tab-panel]");
 const workspace = document.querySelector(".workspace");
 const actorInspectorRoot = document.querySelector("#actor-inspector");
+const gameplayRunIdLabel = document.querySelector("#gameplay-run-id-label");
 const commandHost = createCliWorkerAdapter();
 
-let simulationView = null;
 let designView = null;
 let diagnosticsView = null;
 let previewRefreshPromise = null;
 let previewView = null;
 let actorInspector = null;
+let gameplayView = null;
+let gameplayRunPending = false;
 
 function openTab(tabId) {
-  const button = document.querySelector(`[data-tab="${tabId}"]`);
-  button?.click?.();
+  tabs?.setActive(tabId);
 }
 
 function findArtifact(bundle, schema) {
   const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
   return artifacts.find((artifact) => artifact?.schema === schema) || null;
+}
+
+function getBundleRunId(bundle) {
+  const specRunId = bundle?.spec?.meta?.runId;
+  if (typeof specRunId === "string" && specRunId.trim()) {
+    return specRunId.trim();
+  }
+  const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
+  const artifactRunId = artifacts.find((artifact) => typeof artifact?.meta?.runId === "string" && artifact.meta.runId.trim())
+    ?.meta?.runId;
+  return typeof artifactRunId === "string" ? artifactRunId.trim() : "";
+}
+
+function setGameplayRunIdLabel(bundle) {
+  if (!gameplayRunIdLabel) return;
+  const runId = getBundleRunId(bundle);
+  gameplayRunIdLabel.textContent = runId ? `#${runId}` : "";
+  if (runId) {
+    gameplayRunIdLabel.title = runId;
+  } else {
+    gameplayRunIdLabel.removeAttribute?.("title");
+  }
+}
+
+function loadGameplayBundle(bundle) {
+  if (!bundle || typeof bundle !== "object") return false;
+  gameplayView?.loadRun(bundle);
+  setGameplayRunIdLabel(bundle);
+  return true;
 }
 
 function populateUIIcons(resourceBundle) {
@@ -63,7 +93,8 @@ function updateInspectorSurface(tabId) {
   actorInspector?.setMode?.(tabId === "preview" ? "preview" : "simulation");
 }
 
-wireTabs({
+let tabs;
+tabs = wireTabs({
   buttons: tabButtons,
   panels: tabPanels,
   defaultTab: "design",
@@ -72,24 +103,37 @@ wireTabs({
       workspace.dataset.activeTab = tabId;
     }
     updateInspectorSurface(tabId);
+    if (tabId === "gameplay" && !gameplayRunPending) {
+      gameplayView?.clear?.("Launching run…");
+      void launchGameplayRun({ autoGenerate: true });
+    }
     if (tabId === "preview") {
       void refreshPreviewBundle();
     }
   },
 });
+globalThis.__ak_setActiveTab = (id) => tabs?.setActive(id);
+globalThis.__ak_loadGameplayBundle = (bundle) => {
+  if (!loadGameplayBundle(bundle)) return false;
+  openTab("gameplay");
+  return true;
+};
 
 actorInspector = createActorInspector({
   containerEl: actorInspectorRoot,
   roomListEl: document.querySelector("#actor-inspector-room-list"),
   attackerListEl: document.querySelector("#actor-inspector-delver-list"),
   defenderListEl: document.querySelector("#actor-inspector-warden-list"),
+  hazardListEl: document.querySelector("#actor-inspector-hazard-list"),
+  resourceListEl: document.querySelector("#actor-inspector-resource-list"),
   detailEl: document.querySelector("#actor-inspector-detail"),
   onSelectEntity: (entity) => {
+    if (workspace?.dataset?.activeTab === "gameplay") {
+      gameplayView?.handleInspectorSelect?.(entity);
+    }
     if (workspace?.dataset?.activeTab === "preview") {
       previewView?.focusInspectorEntity?.(entity);
-      return;
     }
-    simulationView?.focusInspectorEntity?.(entity);
   },
 });
 
@@ -104,51 +148,29 @@ previewView = wirePreviewView({
     if (!launchValidation.ok) {
       return launchValidation;
     }
-    openTab("simulation");
+    const bundle = previewView.getLastBundle();
+    if (bundle) {
+      loadGameplayBundle(bundle);
+    }
+    openTab("gameplay");
     return { ok: true, message: "Run loaded from Preview." };
   },
 });
 
-simulationView = wireSimulationView({
-  actorInspector,
-});
-simulationView.setInspectorVisibility?.(true, actorInspector?.getSelectedEntity?.() || null);
+actorInspector?.setMode?.("simulation");
 updateInspectorSurface(workspace?.dataset?.activeTab || "design");
 
 async function syncBundleViews({ bundle, source }) {
   await previewView.loadBundle(bundle, { source });
 
   const resourceBundle = bundle ? findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA) : null;
+  setGameplayRunIdLabel(bundle);
 
   // Update icon displays across all views
   populateUIIcons(resourceBundle);
   actorInspector?.setResourceBundle?.(resourceBundle);
   setDesignResourceBundle(resourceBundle);
 
-  if (!bundle) {
-    simulationView?.clear?.("Run cleared.");
-    return;
-  }
-
-  const simConfig = findArtifact(bundle, SIM_CONFIG_SCHEMA);
-  if (!simConfig) {
-    simulationView?.clear?.("Bundle missing SimConfigArtifact.");
-    return;
-  }
-
-  const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA) || { actors: [] };
-  if (!Array.isArray(initialState?.actors) || initialState.actors.length === 0) {
-    simulationView?.clear?.("Bundle has no actors. Use Preview to inspect the layout-only result.");
-    return;
-  }
-
-  simulationView?.startRunFromArtifacts({
-    simConfig,
-    initialState,
-    affinityEffects: findArtifact(bundle, AFFINITY_SUMMARY_SCHEMA),
-    resourceBundle,
-    spec: bundle?.spec || null,
-  });
 }
 
 function summarizePreviewError(result) {
@@ -156,6 +178,37 @@ function summarizePreviewError(result) {
     ? result.errors.join("; ")
     : result?.message;
   return errorText || "Add at least one configured card in Design before opening Preview.";
+}
+
+async function launchGameplayRun({ autoGenerate = false } = {}) {
+  if (!designView || !diagnosticsView) return;
+
+  if (autoGenerate) {
+    const generated = designView.autoGenerateCards?.();
+    const hasCards = (designView.getCards?.() || []).length > 0;
+    if (generated?.ok === false && !hasCards) {
+      return generated;
+    }
+  }
+
+  const published = await designView.publishPreviewSpec({
+    force: true,
+    resetBuildOutput: false,
+    source: "design-preview",
+  });
+  if (!published?.ok) return;
+
+  gameplayRunPending = true;
+  const buildResult = await diagnosticsView.runBuild();
+  if (buildResult?.ok === false) {
+    gameplayRunPending = false;
+    return;
+  }
+  if (buildResultHasBundle(buildResult)) {
+    diagnosticsView.loadLastBundle();
+  } else {
+    gameplayRunPending = false;
+  }
 }
 
 async function refreshPreviewBundle({ resetBuildOutput = false } = {}) {
@@ -196,6 +249,17 @@ async function refreshPreviewBundle({ resetBuildOutput = false } = {}) {
   return previewRefreshPromise;
 }
 
+gameplayView = wireGameplayView({
+  root: document,
+  actorInspector,
+  onDiscardToDesign: () => {
+    void syncBundleViews({ bundle: null, source: "discard" });
+    setGameplayRunIdLabel(null);
+    openTab("design");
+  },
+});
+globalThis.__ak_gameplayView = gameplayView;
+
 diagnosticsView = wireDiagnosticsView({
   commandHost,
   onBundleLoaded: ({ bundle, source }) => {
@@ -203,8 +267,16 @@ diagnosticsView = wireDiagnosticsView({
       designView?.loadBuildSpec?.(bundle.spec, { source: `Diagnostics ${source}` });
     }
     void syncBundleViews({ bundle, source });
+
+    if (gameplayRunPending && bundle) {
+      gameplayRunPending = false;
+      loadGameplayBundle(bundle);
+      openTab("gameplay");
+    }
   },
   onBundleStateReset: () => {
+    gameplayRunPending = false;
+    setGameplayRunIdLabel(null);
     void syncBundleViews({ bundle: null, source: "clear" });
   },
 });
@@ -213,14 +285,12 @@ designView = wireDesignView({
   commandHost,
   onSendBuildSpec: ({ specText, source, resetBuildOutput }) =>
     diagnosticsView.setBuildSpecText(specText, { source, resetOutput: resetBuildOutput }),
-  onLlmCapture: ({ captures }) => {
-    diagnosticsView.appendLlmCaptures(captures, { source: "Captured design guidance turn" });
-  },
+  onLlmCapture: null,
 });
 
 globalThis.addEventListener?.("beforeunload", () => {
   previewView?.dispose?.();
-  simulationView?.dispose?.();
+  gameplayView?.dispose?.();
   commandHost.dispose?.();
 });
 

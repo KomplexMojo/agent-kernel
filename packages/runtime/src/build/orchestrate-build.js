@@ -90,6 +90,14 @@ function positionKey(pos) {
   return `${pos.x},${pos.y}`;
 }
 
+function normalizePoint(value) {
+  const raw = value?.position && typeof value.position === "object" ? value.position : value;
+  const x = Number(raw?.x);
+  const y = Number(raw?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x: Math.floor(x), y: Math.floor(y) };
+}
+
 function comparePoints(a, b) {
   return (a.y - b.y) || (a.x - b.x);
 }
@@ -249,6 +257,97 @@ function collectWalkablePositions(layout) {
   return walkable;
 }
 
+function collectReservedPlacementKeys(layout, {
+  includeSpawnExit = true,
+  includeTraps = true,
+  includeHazards = true,
+  includeResources = true,
+} = {}) {
+  const data = layout?.data || layout || {};
+  const reserved = new Set();
+  const addPoint = (point) => {
+    const normalized = normalizePoint(point);
+    if (normalized) reserved.add(positionKey(normalized));
+  };
+
+  if (includeSpawnExit) {
+    addPoint(data.spawn || layout?.spawn);
+    addPoint(data.exit || layout?.exit);
+  }
+  if (includeTraps && Array.isArray(data.traps)) {
+    data.traps.forEach(addPoint);
+  }
+  if (includeHazards && Array.isArray(data.hazards)) {
+    data.hazards.forEach(addPoint);
+  }
+  if (includeResources && Array.isArray(data.resources)) {
+    data.resources.forEach(addPoint);
+  }
+  return reserved;
+}
+
+function assignPositionedLayoutObjects({ layout, objects = [], kind, occupied = new Set() } = {}) {
+  if (!layout || !Array.isArray(objects) || objects.length === 0) return [];
+  const walkable = collectWalkablePositions(layout);
+  const walkableSet = new Set(walkable.map(positionKey));
+  const candidates = walkable
+    .filter((pos) => !occupied.has(positionKey(pos)))
+    .sort(comparePoints);
+  let cursor = 0;
+
+  return objects.map((object, index) => {
+    const explicit = normalizePoint(object);
+    let assigned = explicit && walkableSet.has(positionKey(explicit)) && !occupied.has(positionKey(explicit))
+      ? explicit
+      : null;
+    while (!assigned && cursor < candidates.length) {
+      const candidate = candidates[cursor];
+      cursor += 1;
+      if (!occupied.has(positionKey(candidate))) {
+        assigned = candidate;
+      }
+    }
+    if (!assigned) {
+      throw new Error(`configurator inputs could not place ${kind}: insufficient unoccupied walkable tiles`);
+    }
+    occupied.add(positionKey(assigned));
+    const id = typeof object?.id === "string" && object.id.trim()
+      ? object.id.trim()
+      : `${kind}_${index + 1}`;
+    return {
+      ...object,
+      id,
+      position: { x: assigned.x, y: assigned.y },
+      x: assigned.x,
+      y: assigned.y,
+    };
+  });
+}
+
+function placeLayoutObjects({ layout, hazards = [], resources = [] } = {}) {
+  if (!layout) return;
+  const occupied = collectReservedPlacementKeys(layout, {
+    includeSpawnExit: true,
+    includeTraps: true,
+    includeHazards: false,
+    includeResources: false,
+  });
+  const placedHazards = assignPositionedLayoutObjects({
+    layout,
+    objects: hazards,
+    kind: "hazard",
+    occupied,
+  });
+  const placedResources = assignPositionedLayoutObjects({
+    layout,
+    objects: resources,
+    kind: "resource",
+    occupied,
+  });
+  if (placedHazards.length > 0) layout.hazards = placedHazards;
+  if (placedResources.length > 0) layout.resources = placedResources;
+}
+
 function normalizeActorPositionsLegacy(actors, layout) {
   if (!Array.isArray(actors) || actors.length === 0) {
     return { actors, changed: false };
@@ -278,6 +377,7 @@ function normalizeActorPositionsLegacy(actors, layout) {
   }
 
   const used = new Set();
+  collectReservedPlacementKeys(layout).forEach((key) => used.add(key));
   let changed = false;
   const assignedById = new Map();
 
@@ -296,7 +396,7 @@ function normalizeActorPositionsLegacy(actors, layout) {
     });
   });
 
-  if (spawn) {
+  if (spawn && !used.has(positionKey(spawn))) {
     const primaryActor = actors.slice().sort(compareActorIdsAsc)[0];
     const primaryId = primaryActor?.id;
     if (primaryId && assignedById.has(primaryId)) {
@@ -1007,6 +1107,9 @@ const WARDEN_KEYWORDS = Object.freeze(["warden", "defend", "defending", "station
 function actorTextBag(actor) {
   const values = [];
   if (typeof actor?.id === "string") values.push(actor.id);
+  if (typeof actor?.archetype === "string") values.push(actor.archetype);
+  if (typeof actor?.actorType === "string") values.push(actor.actorType);
+  if (typeof actor?.type === "string") values.push(actor.type);
   if (Array.isArray(actor?.motivations)) {
     actor.motivations.forEach((entry) => {
       if (typeof entry === "string") values.push(entry);
@@ -1116,6 +1219,7 @@ function normalizeActorPositions(actors, layout, { delverCount = 1 } = {}) {
 
   const { delvers, wardens } = partitionActorsByRole(actors, { delverCountHint: delverCount });
   const used = new Set();
+  collectReservedPlacementKeys(layout).forEach((key) => used.add(key));
   const assignedById = new Map();
   let changed = false;
 
@@ -1275,6 +1379,11 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       cardSet: configuratorInputs?.cardSet,
       fallbackAffinity: configuratorInputs?.levelAffinity || DEFAULT_ROOM_CARD_AFFINITY,
       seed,
+    });
+    placeLayoutObjects({
+      layout,
+      hazards: Array.isArray(levelGenInput?.hazards) ? levelGenInput.hazards : [],
+      resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
     });
     const baseVitalsByActorId = Object.fromEntries(
       actorsInput.actors

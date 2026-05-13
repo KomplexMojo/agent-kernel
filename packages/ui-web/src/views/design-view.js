@@ -136,8 +136,16 @@ export function wireDesignView({
 
   if (autoGenerateButton?.addEventListener) {
     autoGenerateButton.addEventListener("click", () => {
-      guidance.autoGenerateCards();
+      autoGenerateCards();
     });
+  }
+
+  function autoGenerateCards() {
+    const result = guidance.autoGenerateCards();
+    if (result?.ok) {
+      void publishPreviewSpec({ force: true, resetBuildOutput: false });
+    }
+    return result;
   }
 
   async function loadMintedCard(tokenIdInput) {
@@ -321,6 +329,18 @@ export function wireDesignView({
     return { ok: true, spec, cards, normalized: changed };
   }
 
+  function resetToScratch({ message = "Design reset. Start a new run." } = {}) {
+    const applied = guidance.setCards([]);
+    if (!applied) {
+      setGuidanceMessage("Design could not be reset.", "error");
+      return { ok: false, reason: "apply_failed" };
+    }
+    refreshPreviewIdentity();
+    lastPublishedSpecText = "";
+    setGuidanceMessage(message, "info");
+    return { ok: true };
+  }
+
   void publishPreviewSpec();
 
   return {
@@ -337,9 +357,10 @@ export function wireDesignView({
     pullCardToEditor: guidance.pullCardToEditor,
     loadMintedCard,
     setBudgetSplit: guidance.setBudgetSplit,
-    autoGenerateCards: guidance.autoGenerateCards,
+    autoGenerateCards,
     generateAiConfiguration: guidance.generateAiConfiguration,
     loadBuildSpec,
+    resetToScratch,
     publishPreviewSpec,
     getActiveCard: guidance.getActiveCard,
     getSummary: guidance.getSummary,

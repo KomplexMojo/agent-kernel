@@ -662,20 +662,15 @@ function validatePlacementBounds(count: i32): ValidationError {
   return ValidationError.None;
 }
 
-function validatePlacementSpawnMatch(count: i32): ValidationError {
-  if (count > 0 && spawnX >= 0 && spawnY >= 0) {
-    if (getPlacementX(0) != spawnX || getPlacementY(0) != spawnY) {
-      return ValidationError.ActorSpawnMismatch;
-    }
-  }
-  return ValidationError.None;
-}
-
 function validateAndPopulateMotivatedOccupancy(count: i32): ValidationError {
   clearMotivatedOccupancy();
   for (let i = 0; i < count; i += 1) {
     const x = getPlacementX(i);
     const y = getPlacementY(i);
+    if ((spawnX >= 0 && spawnY >= 0 && x == spawnX && y == spawnY)
+      || (exitX >= 0 && exitY >= 0 && x == exitX && y == exitY)) {
+      return ValidationError.ActorBlocked;
+    }
     if (!isWalkableActorKind(getTileActorKind(x, y))) {
       return ValidationError.ActorBlocked;
     }
@@ -698,10 +693,6 @@ export function validateActorPlacement(): ValidationError {
     return error;
   }
   error = validatePlacementBounds(count);
-  if (error != ValidationError.None) {
-    return error;
-  }
-  error = validatePlacementSpawnMatch(count);
   if (error != ValidationError.None) {
     return error;
   }

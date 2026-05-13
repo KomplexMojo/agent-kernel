@@ -77,7 +77,7 @@ const DEFAULT_BUDGET_SPLIT = Object.freeze({
   hazard: 12,
   resource: 8,
 });
-const DEFAULT_DESIGN_HELP_TEXT = "Configure one card in the center, then pull it right into grouped Room/Delver/Warden/Hazard shelves.";
+const DEFAULT_DESIGN_HELP_TEXT = "Configure a card, then shelve it.";
 const EXCLUSIVE_PAIR_NOTE = "Choose 1";
 
 // Module-level resource bundle for icon resolution

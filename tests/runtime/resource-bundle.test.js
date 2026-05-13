@@ -49,6 +49,7 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     import assert from "node:assert/strict";
     import {
       createDefaultResourceBundleArtifact,
+      listResourceBundleAssetFiles,
       validateResourceBundleArtifact,
     } from ${JSON.stringify(modulePath)};
 
@@ -76,11 +77,23 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     assert.equal(bundle.mappings.overlays.stackTiers.tier3, "overlay.stack-tier.tier3");
 
     const delverFire = bundle.assets.find((asset) => asset.id === "actor.delver.fire");
+    const overlayFire = bundle.assets.find((asset) => asset.id === "overlay.affinity.fire");
+    const iconFire = bundle.assets.find((asset) => asset.id === "icon.affinity.fire");
     const fogTile = bundle.assets.find((asset) => asset.id === "tile.fog");
     assert.ok(delverFire?.dataUri?.startsWith("data:image/png;base64,"));
     assert.equal(delverFire?.relativePath, "visual-assets/actors/delver-fire.png");
+    assert.ok(overlayFire?.dataUri?.startsWith("data:image/png;base64,"));
+    assert.equal(overlayFire?.relativePath, "visual-assets/overlays/affinity-fire.png");
+    assert.equal(overlayFire?.variants?.hud?.width, 16);
+    assert.equal(overlayFire?.variants?.standard?.width, 32);
+    assert.equal(overlayFire?.variants?.large?.width, 64);
+    assert.ok(iconFire?.variants?.hud?.relativePath.endsWith("icon-affinity-fire.png"));
     assert.ok(fogTile?.dataUri?.startsWith("data:image/png;base64,"));
     assert.equal(fogTile?.relativePath, "visual-assets/tiles/fog.png");
+
+    const files = listResourceBundleAssetFiles(bundle);
+    assert.ok(files.some((file) => file.relativePath === "visual-assets/overlays/hud/affinity-fire.png"));
+    assert.ok(files.some((file) => file.relativePath === "visual-assets/overlays/large/affinity-fire.png"));
   `);
 });
 

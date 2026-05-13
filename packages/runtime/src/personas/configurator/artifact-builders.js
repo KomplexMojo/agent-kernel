@@ -19,6 +19,8 @@ function cloneLayoutData(layout) {
     rooms,
     connectivity,
     traps,
+    hazards,
+    resources,
   } = layout;
   const data = {
     width,
@@ -45,6 +47,12 @@ function cloneLayoutData(layout) {
   }
   if (Array.isArray(traps) && traps.length > 0) {
     data.traps = traps.map((trap) => ({ ...trap }));
+  }
+  if (Array.isArray(hazards) && hazards.length > 0) {
+    data.hazards = hazards.map((hazard) => ({ ...hazard }));
+  }
+  if (Array.isArray(resources) && resources.length > 0) {
+    data.resources = resources.map((resource) => ({ ...resource }));
   }
   return data;
 }

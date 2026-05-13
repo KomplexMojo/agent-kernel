@@ -205,3 +205,36 @@ test("buildSelectionsFromSummary derives instance ids from card template ids", a
     .sort();
   assert.deepEqual(instanceIds, ["A-2RB89Z-1", "A-2RB89Z-2", "D-5JH2QW-1"]);
 });
+
+test("buildSelectionsFromSummary preserves delver and warden actor types", async () => {
+  const { buildSelectionsFromSummary } = await import(
+    "../../packages/runtime/src/personas/director/summary-selections.js"
+  );
+
+  const selections = buildSelectionsFromSummary({
+    dungeonAffinity: "water",
+    cardSet: [
+      {
+        id: "A-TYPE",
+        type: "delver",
+        source: "actor",
+        count: 1,
+        affinity: "water",
+        motivations: ["attacking"],
+      },
+      {
+        id: "D-TYPE",
+        type: "warden",
+        source: "actor",
+        count: 2,
+        affinity: "fire",
+        motivations: ["defending"],
+      },
+    ],
+  });
+
+  const instances = selections.flatMap((entry) => entry.instances || []);
+  assert.equal(instances.find((entry) => entry.id === "A-TYPE-1").actorType, "delver");
+  assert.equal(instances.find((entry) => entry.id === "D-TYPE-1").actorType, "warden");
+  assert.equal(instances.find((entry) => entry.id === "D-TYPE-2").actorType, "warden");
+});

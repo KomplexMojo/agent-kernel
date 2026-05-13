@@ -66,6 +66,7 @@ async function handleStatic(req, res) {
   const mime = MIME_TYPES[ext] || "application/octet-stream";
   res.statusCode = 200;
   res.setHeader("Content-Type", mime);
+  res.setHeader("Cache-Control", "no-store, max-age=0");
   setCors(res);
 
   if (req.method === "HEAD") {

@@ -3,44 +3,142 @@ import { resolveFixturePath, startServeUi, stopProcess } from "./helpers/serve-u
 
 const bundlePath = resolveFixturePath("tests", "fixtures", "ui", "build-spec-bundle", "bundle.json");
 
-test("served Run tab keeps diagonal controls and disabled affinity placeholders after bundle load", async ({ page }) => {
+async function loadAuthoredBundleIntoPreview(page) {
+  await page.setInputFiles("#bundle-file", bundlePath);
+  await expect(page.locator("#bundle-status")).toContainText("Bundle loaded");
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "preview");
+  await expect(page.locator('[data-tab-panel="preview"]').first()).toBeVisible();
+  await expect(page.locator("#preview-status")).toContainText(/preview loaded from snapshot\./i, { timeout: 20_000 });
+  await expect(page.locator("#preview-summary")).toContainText(/Map \d+x\d+/);
+  await expect(page.locator("#preview-actor-list")).not.toContainText("No actors loaded.");
+}
+
+
+
+test("nav exposes only Design and Gameplay tab buttons", async ({ page }) => {
   const served = await startServeUi();
 
   try {
     await page.goto(served.url);
-    await page.locator('[data-tab="diagnostics"]').click();
+    const tabButtons = page.locator("[data-tab]");
+    await expect(tabButtons).toHaveCount(2);
+    await expect(page.locator('[data-tab="design"]')).toBeVisible();
+    await expect(page.locator('[data-tab="gameplay"]')).toBeVisible();
+    await expect(page.locator('[data-tab="preview"]')).toHaveCount(0);
+    await expect(page.locator('[data-tab="simulation"]')).toHaveCount(0);
+    await expect(page.locator('[data-tab="diagnostics"]')).toHaveCount(0);
+  } finally {
+    await stopProcess(served.proc);
+  }
+});
+
+test("diagnostics panel is accessible via setActiveTab and shows only the build pipeline", async ({ page }) => {
+  const served = await startServeUi();
+
+  try {
+    await page.goto(served.url);
+    await page.evaluate((id) => window.__ak_setActiveTab(id), "diagnostics");
     await expect(page.locator('[data-tab-panel="diagnostics"]').first()).toBeVisible();
+
+    await expect(page.locator("#build-run")).toBeVisible();
+    await expect(page.locator("#build-status")).toBeVisible();
+    await expect(page.locator("#build-output")).toBeVisible();
+    await expect(page.locator("#bundle-status")).toBeVisible();
+    await expect(page.locator("#bundle-file")).toBeAttached();
+    await expect(page.locator("#bundle-artifacts")).toBeAttached();
+
+    await expect(page.locator("#diagnostic-toggle-allocator")).toHaveCount(0);
+    await expect(page.locator("#diagnostic-toggle-llm-trace")).toHaveCount(0);
+    await expect(page.locator("#diagnostic-toggle-adapter-playground")).toHaveCount(0);
+    await expect(page.locator("#llm-trace-status")).toHaveCount(0);
+    await expect(page.locator("#adapter-output")).toHaveCount(0);
+    await expect(page.locator("#allocator-budget-json")).toHaveCount(0);
+    await expect(page.locator("#ollama-run")).toHaveCount(0);
+  } finally {
+    await stopProcess(served.proc);
+  }
+});
+
+test("preview panel has no renderer toggle controls", async ({ page }) => {
+  const served = await startServeUi();
+
+  try {
+    await page.goto(served.url);
+    await page.evaluate((id) => window.__ak_setActiveTab(id), "preview");
+    await expect(page.locator('[data-tab-panel="preview"]').first()).toBeVisible();
+
+    await expect(page.locator("#preview-build-and-load")).toBeVisible();
+    await expect(page.locator("#preview-status")).toBeVisible();
+    await expect(page.locator("#preview-summary")).toBeVisible();
+    await expect(page.locator("#preview-actor-list")).toBeVisible();
+
+    await expect(page.locator("#preview-renderer-canvas")).toHaveCount(0);
+    await expect(page.locator("#preview-renderer-phaser")).toHaveCount(0);
+    await expect(page.locator("#preview-renderer-host")).toHaveCount(0);
+    await expect(page.locator("#preview-render-canvas")).toHaveCount(0);
+    await expect(page.locator("#preview-frame-buffer")).toHaveCount(0);
+  } finally {
+    await stopProcess(served.proc);
+  }
+});
+
+test("actor inspector is hidden on design tab and visible on preview tab after bundle loads", async ({ page }) => {
+  const served = await startServeUi();
+
+  try {
+    await page.goto(served.url);
+    await expect(page.locator('[data-tab="design"]')).toBeVisible();
+    await expect(page.locator("#actor-inspector")).not.toBeVisible();
 
     await page.setInputFiles("#bundle-file", bundlePath);
     await expect(page.locator("#bundle-status")).toContainText("Bundle loaded");
+    await page.evaluate((id) => window.__ak_setActiveTab(id), "preview");
+    await expect(page.locator('[data-tab-panel="preview"]').first()).toBeVisible();
+    await expect(page.locator("#preview-status")).toContainText(/preview loaded from snapshot\./i, { timeout: 20_000 });
 
-    await page.locator('[data-tab="simulation"]').click();
-    await expect(page.locator('[data-tab-panel="simulation"]').first()).toBeVisible();
+    await expect(page.locator("#actor-inspector")).toBeVisible({ timeout: 10_000 });
+  } finally {
+    await stopProcess(served.proc);
+  }
+});
 
-    await expect(page.locator(".runtime-controls button")).toHaveCount(9);
-    await expect(page.locator(".runtime-affinity-placeholders button")).toHaveCount(6);
+test("authored bundle reaches preview with summary and actor data", async ({ page }) => {
+  const served = await startServeUi();
 
-    await expect(page.locator("#runtime-move-up-left")).toBeVisible();
-    await expect(page.locator("#runtime-move-up")).toBeVisible();
-    await expect(page.locator("#runtime-move-up-right")).toBeVisible();
-    await expect(page.locator("#runtime-move-left")).toBeVisible();
-    await expect(page.locator("#runtime-cast")).toBeVisible();
-    await expect(page.locator("#runtime-move-right")).toBeVisible();
-    await expect(page.locator("#runtime-move-down-left")).toBeVisible();
-    await expect(page.locator("#runtime-move-down")).toBeVisible();
-    await expect(page.locator("#runtime-move-down-right")).toBeVisible();
+  try {
+    await page.goto(served.url);
+    await loadAuthoredBundleIntoPreview(page);
+    await expect(page.locator("#preview-build-and-load")).toBeVisible();
+    await expect(page.locator("#preview-renderer-canvas")).toHaveCount(0);
+  } finally {
+    await stopProcess(served.proc);
+  }
+});
 
-    const affinityIds = [
-      "#runtime-affinity-choice-fire",
-      "#runtime-affinity-choice-water",
-      "#runtime-affinity-choice-earth",
-      "#runtime-affinity-expression-expand",
-      "#runtime-affinity-expression-focus",
-      "#runtime-affinity-expression-shift",
-    ];
-    for (const selector of affinityIds) {
-      await expect(page.locator(selector)).toBeDisabled();
-    }
+test("Build And Load Game from preview transitions to the gameplay tab", async ({ page }) => {
+  const served = await startServeUi();
+
+  try {
+    await page.goto(served.url);
+    await loadAuthoredBundleIntoPreview(page);
+
+    await page.locator("#preview-build-and-load").click();
+    await expect(page.locator('[data-tab-panel="gameplay"]').first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#preview-status")).toContainText(/Run loaded from Preview\./i, { timeout: 20_000 });
+    await expect(page.locator("#gameplay-status")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("#gameplay-phaser-host canvas")).toBeVisible({ timeout: 20_000 });
+  } finally {
+    await stopProcess(served.proc);
+  }
+});
+
+test("served UI disables static module caching so preview renderer updates reach the browser", async ({ page }) => {
+  const served = await startServeUi();
+
+  try {
+    const response = await page.request.get(new URL("/packages/ui-web/src/views/preview-renderers.js", served.url).href);
+    expect(response.ok()).toBe(true);
+    expect(response.headers()["cache-control"]).toContain("no-store");
   } finally {
     await stopProcess(served.proc);
   }
@@ -51,41 +149,16 @@ test("served Preview tab loads the canonical build bundle result", async ({ page
 
   try {
     await page.goto(served.url);
-    await page.locator('[data-tab="diagnostics"]').click();
-    await expect(page.locator('[data-tab-panel="diagnostics"]').first()).toBeVisible();
-
     await page.setInputFiles("#bundle-file", bundlePath);
     await expect(page.locator("#bundle-status")).toContainText("Bundle loaded");
 
-    await page.locator('[data-tab="preview"]').click();
+    await page.evaluate((id) => window.__ak_setActiveTab(id), "preview");
     await expect(page.locator('[data-tab-panel="preview"]').first()).toBeVisible();
 
-    await expect(page.locator("#build-status")).toContainText("Build complete.", { timeout: 20_000 });
-    await expect
-      .poll(async () => {
-        const text = await page.locator("#build-output").textContent();
-        try {
-          const payload = JSON.parse(text || "{}");
-          return {
-            hasBundle: Boolean(payload?.bundle),
-            hasLegacyPreviewReady: payload?.preview?.ready === true,
-            schema: payload?.bundle?.spec?.schema || "",
-          };
-        } catch (_error) {
-          return {
-            hasBundle: false,
-            hasLegacyPreviewReady: false,
-            schema: "",
-          };
-        }
-      }, { timeout: 20_000 })
-      .toEqual({
-        hasBundle: true,
-        hasLegacyPreviewReady: false,
-        schema: "agent-kernel/BuildSpec",
-      });
-
-    await expect(page.locator("#bundle-status")).toContainText("Loaded bundle from last build.", { timeout: 20_000 });
+    await expect(page.locator("#bundle-status")).toContainText("Bundle loaded", { timeout: 20_000 });
+    await expect(page.locator("#bundle-spec-edit")).toHaveValue(/"schema": "agent-kernel\/BuildSpec"/);
+    await expect(page.locator("#bundle-artifacts")).toContainText("agent-kernel/SimConfigArtifact");
+    await expect(page.locator("#bundle-artifacts")).toContainText("agent-kernel/InitialStateArtifact");
     await expect(page.locator("#preview-status")).toContainText(/preview loaded from snapshot\./i, { timeout: 20_000 });
     await expect(page.locator("#preview-status")).not.toContainText("Preview bundle is not ready yet.");
     await expect(page.locator("#preview-summary")).toContainText(/Map \d+x\d+/);

@@ -79,16 +79,19 @@ assert.equal(result.ok, true);
 
 const buildResult = await orchestrateBuild({ spec: result.spec, producedBy: "runtime-test" });
 const spawn = buildResult.simConfig.layout.data.spawn;
+const exit = buildResult.simConfig.layout.data.exit;
 const tiles = buildResult.simConfig.layout.data.tiles;
 assert.ok(spawn);
+assert.ok(exit);
 
 const actors = buildResult.initialState.actors;
 assert.ok(actors.length > 0);
-assert.deepEqual(actors[0].position, spawn);
 
 const used = new Set();
 actors.forEach((actor) => {
   const { x, y } = actor.position;
+  assert.notDeepEqual(actor.position, spawn);
+  assert.notDeepEqual(actor.position, exit);
   const row = String(tiles[y] ?? "");
   const char = row[x];
   assert.ok(char && char !== "#" && char !== "B");
@@ -358,10 +361,79 @@ assert.ok(spawn);
 assert.equal(actors.length, 3);
 const delver = actors.find((actor) => actor.id === "z_strong");
 assert.ok(delver);
-assert.deepEqual(delver.position, spawn);
+assert.notDeepEqual(delver.position, spawn);
 
 const spawnOccupants = actors.filter((actor) => actor.position.x === spawn.x && actor.position.y === spawn.y);
-assert.equal(spawnOccupants.length, 1);
+assert.equal(spawnOccupants.length, 0);
+
+const used = new Set();
+actors.forEach((actor) => {
+  const key = \`\${actor.position.x},\${actor.position.y}\`;
+  assert.equal(used.has(key), false);
+  used.add(key);
+});
+`;
+
+const environmentalPlacementScript = `
+import assert from "node:assert/strict";
+import { orchestrateBuild } from ${JSON.stringify(orchestratorModule)};
+
+const spec = {
+  schema: "agent-kernel/BuildSpec",
+  schemaVersion: 1,
+  meta: {
+    id: "spec_environmental_placement",
+    runId: "run_environmental_placement",
+    createdAt: "2025-01-01T00:00:00Z",
+    source: "runtime-test",
+  },
+  intent: {
+    goal: "environmental placement check",
+    tags: ["placement"],
+  },
+  plan: {},
+  configurator: {
+    inputs: {
+      levelGen: {
+        width: 9,
+        height: 9,
+        walkableTilesTarget: 42,
+        seed: 2,
+        hazards: [
+          { id: "hazard_spawn", affinity: "fire", position: { x: 0, y: 0 } },
+          { id: "hazard_auto", affinity: "water" },
+        ],
+      },
+      resources: [
+        { id: "resource_spawn", tier: "level", stat: "vitalMax", delta: 5, position: { x: 0, y: 0 } },
+        { id: "resource_auto", tier: "level", stat: "vitalMax", delta: 5 },
+      ],
+      actors: [
+        { id: "delver_1", kind: "ambulatory", motivations: ["attacking"], position: { x: 0, y: 0 } },
+        { id: "warden_1", kind: "ambulatory", motivations: ["defending"], position: { x: 0, y: 0 } },
+      ],
+      actorGroups: [{ role: "attacking", count: 1 }, { role: "defending", count: 1 }],
+    },
+  },
+};
+
+const buildResult = await orchestrateBuild({ spec, producedBy: "runtime-test" });
+const data = buildResult.simConfig.layout.data;
+const spawnKey = \`\${data.spawn.x},\${data.spawn.y}\`;
+const exitKey = \`\${data.exit.x},\${data.exit.y}\`;
+const occupied = new Set([spawnKey, exitKey]);
+
+for (const collection of [data.hazards, data.resources, buildResult.initialState.actors]) {
+  assert.ok(Array.isArray(collection));
+  for (const entry of collection) {
+    const position = entry.position || { x: entry.x, y: entry.y };
+    const key = \`\${position.x},\${position.y}\`;
+    assert.notEqual(key, spawnKey);
+    assert.notEqual(key, exitKey);
+    assert.equal(occupied.has(key), false, \`duplicate placement at \${key}\`);
+    occupied.add(key);
+  }
+}
 `;
 
 const roomAffinityPlacementScript = `
@@ -537,8 +609,12 @@ test("orchestrateBuild translates cardSet delvers/wardens and applies strategic 
   runEsm(cardSetStrategicPlacementScript);
 });
 
-test("orchestrateBuild keeps the inferred delver on spawn", () => {
+test("orchestrateBuild keeps spawn and actor placements distinct", () => {
   runEsm(spawnOrderingScript);
+});
+
+test("orchestrateBuild prevents environmental objects and actors from overlaying reserved cells", () => {
+  runEsm(environmentalPlacementScript);
 });
 
 test("orchestrateBuild maps room affinities to warden placement and tile emit traps", () => {

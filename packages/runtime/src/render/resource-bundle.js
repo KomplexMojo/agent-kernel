@@ -17,6 +17,7 @@ import {
   drawMask,
   stackAlphaMultiplier,
 } from "./affinity-tile-mask.js";
+import { getAffinitySpriteAsset } from "./generated/affinity-sprite-assets.js";
 import { SPATIAL_WEIGHTS } from "../contracts/affinity-spatial-rules.js";
 
 export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
@@ -165,6 +166,7 @@ function createAssetEntry(
     height = DEFAULT_RESOURCE_TILE_SIZE,
     dataUri,
     relativePath,
+    variants,
   } = {},
 ) {
   const entry = {
@@ -181,6 +183,9 @@ function createAssetEntry(
   }
   if (typeof relativePath === "string" && relativePath.trim()) {
     entry.relativePath = relativePath;
+  }
+  if (variants && typeof variants === "object" && !Array.isArray(variants)) {
+    entry.variants = variants;
   }
   return entry;
 }
@@ -238,6 +243,15 @@ function relativePathForAssetId(id) {
 }
 
 function createGeneratedAssetEntry(id, kind, label, ipfsUri) {
+  const affinitySpriteAsset = getAffinitySpriteAsset(id);
+  if (affinitySpriteAsset) {
+    return createAssetEntry(id, kind, label, ipfsUri, {
+      dataUri: affinitySpriteAsset.dataUri,
+      relativePath: affinitySpriteAsset.relativePath,
+      variants: affinitySpriteAsset.variants,
+    });
+  }
+
   const pixels = buildSpriteForSemantic(id, DEFAULT_RESOURCE_TILE_SIZE);
   return createAssetEntry(id, kind, label, ipfsUri, {
     dataUri: encodePngDataUri({
@@ -795,14 +809,23 @@ export function listResourceBundleAssetFiles(bundle) {
   if (!hasGeneratedResourceBundleAssets(bundle)) {
     return [];
   }
-  return bundle.assets
-    .map((asset) => {
-      const relativePath = typeof asset?.relativePath === "string" ? asset.relativePath.trim() : "";
-      const bytes = decodePngDataUri(asset?.dataUri);
-      if (!relativePath || !(bytes instanceof Uint8Array)) return null;
-      return { relativePath, bytes };
-    })
-    .filter(Boolean);
+  const files = [];
+  const seen = new Set();
+  const pushFile = (relativePathValue, dataUriValue) => {
+    const relativePath = typeof relativePathValue === "string" ? relativePathValue.trim() : "";
+    if (!relativePath || seen.has(relativePath)) return;
+    const bytes = decodePngDataUri(dataUriValue);
+    if (!(bytes instanceof Uint8Array)) return;
+    seen.add(relativePath);
+    files.push({ relativePath, bytes });
+  };
+  bundle.assets.forEach((asset) => {
+    pushFile(asset?.relativePath, asset?.dataUri);
+    Object.values(asset?.variants || {}).forEach((variant) => {
+      pushFile(variant?.relativePath, variant?.dataUri);
+    });
+  });
+  return files;
 }
 
 function resolveTileAssetId(bundle, char) {

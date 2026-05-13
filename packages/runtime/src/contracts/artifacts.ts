@@ -1660,6 +1660,15 @@ export interface ResourceBundleAssetV1 {
   dataUri?: string;
   /** V2+: Relative path for file export. */
   relativePath?: string;
+  /** V2+: Optional size-specific sprite variants for HUD, grid, and preview use. */
+  variants?: Record<string, ResourceBundleAssetVariantV1>;
+}
+
+export interface ResourceBundleAssetVariantV1 {
+  width: number;
+  height: number;
+  dataUri: string;
+  relativePath: string;
 }
 
 export interface ResourceBundleMappingsV1 {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Game Generator</title>
+    <title>Agent Kernel</title>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,700;6..72,800&family=Space+Grotesk:wght@400;500;600&family=Work+Sans:wght@300;400;600&display=swap");
 
@@ -21,6 +21,10 @@
 
       * {
         box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
       }
 
       body {
@@ -135,35 +139,6 @@
           radial-gradient(720px 240px at 86% -18%, rgba(126, 166, 255, 0.18), transparent 62%);
       }
 
-      .preview-header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: start;
-        gap: 12px;
-      }
-
-      .preview-header .controls {
-        margin-top: 0;
-        justify-content: flex-end;
-        align-self: center;
-      }
-
-      .preview-title {
-        display: grid;
-        gap: 6px;
-        min-width: 0;
-      }
-
-      .preview-kicker {
-        letter-spacing: 0.15em;
-      }
-
-      .preview-caption {
-        margin: 0;
-        color: color-mix(in srgb, var(--muted) 90%, var(--text));
-        font-size: 0.9rem;
-      }
-
       .design-surface {
         display: grid;
         gap: 16px;
@@ -202,15 +177,6 @@
         row-gap: 6px;
       }
 
-      .design-panel-subtitle {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: color-mix(in srgb, var(--muted) 82%, var(--text));
-      }
-
       .design-panel-header .controls {
         margin-top: 0;
         justify-content: flex-end;
@@ -236,19 +202,6 @@
         overflow: auto;
       }
 
-      #preview-frame-buffer {
-        min-height: 420px;
-        max-height: min(64vh, 720px);
-      }
-
-      #preview-render-canvas {
-        width: 100%;
-        min-height: 420px;
-        max-height: min(64vh, 720px);
-        border: 1px dashed var(--muted);
-        border-radius: 2px;
-      }
-
       #frame-buffer {
         min-height: 520px;
         max-height: min(70vh, 760px);
@@ -270,39 +223,6 @@
         text-shadow: 0 0 var(--tile-glow, 1px) hsl(var(--tile-hue, 0), var(--tile-sat, 45%), var(--tile-light, 70%));
       }
 
-      .preview-meta-grid {
-        display: grid;
-        gap: 12px;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      }
-
-      .preview-stage {
-        display: grid;
-        gap: 12px;
-        grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
-        align-items: start;
-      }
-
-      .preview-frame-card,
-      .preview-meta-card {
-        border: 1px solid color-mix(in srgb, var(--border) 84%, var(--accent));
-        border-radius: 10px;
-        background: color-mix(in srgb, var(--card) 88%, black);
-        padding: 10px;
-      }
-
-      .preview-frame-card {
-        display: grid;
-        gap: 8px;
-      }
-
-      .preview-sidebar {
-        display: grid;
-        gap: 10px;
-        min-width: 0;
-        align-content: start;
-      }
-
       .preview-meta-card {
         display: grid;
         gap: 8px;
@@ -318,180 +238,6 @@
 
       .preview-meta-card #preview-actor-list {
         min-height: 160px;
-      }
-
-      .simulation-shell {
-        display: grid;
-        gap: 12px;
-      }
-
-      .simulation-header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 12px;
-        align-items: start;
-      }
-
-      .simulation-title {
-        display: grid;
-        gap: 6px;
-        min-width: 0;
-      }
-
-      .simulation-kicker {
-        letter-spacing: 0.14em;
-      }
-
-      .simulation-badge-row {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        gap: 8px;
-      }
-
-      .simulation-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid #4f6389;
-        background: rgba(14, 19, 30, 0.85);
-        color: #c8d7ff;
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      .simulation-stage {
-        display: grid;
-        gap: 12px;
-        grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-        align-items: start;
-      }
-
-      .simulation-board-card,
-      .simulation-control-card {
-        border: 1px solid color-mix(in srgb, #4f6389 66%, var(--border));
-        border-radius: 10px;
-        background: rgba(12, 17, 26, 0.9);
-        padding: 10px;
-      }
-
-      .simulation-board-card {
-        display: grid;
-        gap: 8px;
-        max-width: 100%;
-        max-height: min(70vh, 760px);
-        overflow: auto;
-      }
-
-      .simulation-control-deck {
-        display: grid;
-        gap: 10px;
-        min-width: 0;
-        align-content: start;
-      }
-
-      .simulation-control-card {
-        display: grid;
-        gap: 8px;
-      }
-
-      .simulation-control-card .play-controls,
-      .simulation-control-card .runtime-controls {
-        margin-top: 0;
-      }
-
-      .diagnostics-shell {
-        display: grid;
-        gap: 14px;
-        background:
-          linear-gradient(162deg, rgba(30, 24, 24, 0.96), rgba(16, 13, 13, 0.99)),
-          radial-gradient(760px 280px at 92% -18%, rgba(255, 185, 168, 0.18), transparent 64%);
-      }
-
-      .diagnostics-intro {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: start;
-        gap: 12px;
-      }
-
-      .diagnostics-title {
-        display: grid;
-        gap: 6px;
-        min-width: 0;
-      }
-
-      .diagnostics-caption {
-        margin: 0;
-        color: color-mix(in srgb, var(--muted) 90%, var(--text));
-        max-width: 72ch;
-        font-size: 0.92rem;
-      }
-
-      .diagnostics-chip-row {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        gap: 8px;
-        align-self: center;
-      }
-
-      .diagnostics-chip-row .simulation-badge {
-        border-color: color-mix(in srgb, var(--accent) 48%, #4f6389);
-      }
-
-      .diagnostics-toggle-card {
-        border: 1px solid color-mix(in srgb, var(--border) 84%, var(--accent));
-        border-radius: 10px;
-        background: color-mix(in srgb, var(--card) 87%, black);
-        padding: 12px;
-        display: grid;
-        gap: 10px;
-      }
-
-      .diagnostic-toggle-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        gap: 8px;
-        max-height: none;
-        overflow: visible;
-      }
-
-      .diagnostic-toggle-item {
-        display: grid;
-        grid-template-columns: auto minmax(130px, 180px) 1fr;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 10px;
-        background: rgba(14, 10, 10, 0.88);
-        border: 1px solid color-mix(in srgb, var(--border) 86%, var(--accent));
-      }
-
-      .diagnostic-toggle-item input[type="checkbox"] {
-        margin: 0;
-        width: 16px;
-        height: 16px;
-        accent-color: var(--accent);
-      }
-
-      .diagnostic-toggle-item label {
-        margin: 0;
-        color: var(--text);
-        font-family: "Space Grotesk", "Work Sans", sans-serif;
-        font-size: 0.76rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-      }
-
-      .diagnostic-toggle-description {
-        color: var(--muted);
-        font-size: 0.82rem;
-        line-height: 1.35;
       }
 
       .diagnostic-surface {
@@ -565,20 +311,6 @@
         gap: 10px;
       }
 
-      .diagnostic-trace-row {
-        display: grid;
-        gap: 10px;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      }
-
-      .diagnostic-trace-row .diagnostic-pane .adapter-output {
-        min-height: 140px;
-      }
-
-      .diagnostic-section-hidden {
-        display: none !important;
-      }
-
       .stat-row {
         display: flex;
         align-items: center;
@@ -604,6 +336,35 @@
         text-transform: uppercase;
         cursor: pointer;
         transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+      }
+
+      .gameplay-tab-slot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .gameplay-tab-slot .tab-button {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .tab-run-id {
+        flex: 0 1 18ch;
+        max-width: 18ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--muted);
+        font-family: "Space Grotesk", "Work Sans", sans-serif;
+        font-size: 0.72rem;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+
+      .tab-run-id:empty {
+        display: none;
       }
 
       .tab-button:hover {
@@ -643,11 +404,11 @@
       }
 
       .workspace[data-active-tab="preview"],
-      .workspace[data-active-tab="simulation"] {
+      .workspace[data-active-tab="gameplay"] {
         grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
       }
 
-      .workspace:not([data-active-tab="simulation"]):not([data-active-tab="preview"]) #actor-inspector {
+      .workspace:not([data-active-tab="preview"]):not([data-active-tab="gameplay"]) #actor-inspector {
         display: none;
       }
 
@@ -783,7 +544,7 @@
         }
 
         .workspace[data-active-tab="preview"],
-        .workspace[data-active-tab="simulation"] {
+        .workspace[data-active-tab="gameplay"] {
           grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
         }
 
@@ -828,26 +589,11 @@
         }
 
         .workspace[data-active-tab="preview"],
-        .workspace[data-active-tab="simulation"] {
+        .workspace[data-active-tab="gameplay"] {
           grid-template-columns: 1fr;
         }
 
         .design-card-workspace {
-          grid-template-columns: 1fr;
-        }
-
-        .preview-header,
-        .simulation-header {
-          grid-template-columns: 1fr;
-        }
-
-        .preview-header .controls,
-        .simulation-badge-row {
-          justify-content: flex-start;
-        }
-
-        .preview-stage,
-        .simulation-stage {
           grid-template-columns: 1fr;
         }
 
@@ -876,32 +622,8 @@
           grid-template-columns: 1fr;
         }
 
-        .diagnostic-toggle-item {
+        .diagnostic-input-grid {
           grid-template-columns: 1fr;
-          align-items: start;
-        }
-
-        .diagnostics-intro {
-          grid-template-columns: 1fr;
-        }
-
-        .diagnostics-chip-row {
-          justify-content: flex-start;
-        }
-
-        .diagnostic-input-grid,
-        .diagnostic-trace-row {
-          grid-template-columns: 1fr;
-        }
-
-        #preview-frame-buffer {
-          min-height: 320px;
-          max-height: min(56vh, 560px);
-        }
-
-        #preview-render-canvas {
-          min-height: 320px;
-          max-height: min(56vh, 560px);
         }
 
         #frame-buffer {
@@ -1006,6 +728,39 @@
         min-height: 34px;
       }
 
+      .gameplay-shell {
+        min-height: min(78vh, 860px);
+      }
+
+      .gameplay-camera-controls {
+        justify-content: space-between;
+      }
+
+      .gameplay-camera-control-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      #gameplay-phaser-host {
+        width: 100%;
+        min-height: clamp(520px, 68vh, 820px);
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--border) 78%, var(--accent));
+        background: #050506;
+      }
+
+      .gameplay-phaser-stage,
+      .gameplay-phaser-stage canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .gameplay-phaser-stage {
+        min-height: inherit;
+      }
+
       .form-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1105,19 +860,6 @@
         margin-top: 8px;
         color: var(--muted);
         font-size: 0.95rem;
-      }
-
-      .adapter-grid {
-        display: grid;
-        gap: 12px;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        margin: 16px 0;
-      }
-
-      .prompt-params-groups {
-        display: grid;
-        gap: 14px;
-        margin-top: 12px;
       }
 
       .design-workflow-tabs {
@@ -2177,94 +1919,36 @@
   </head>
   <body>
     <main>
-      <header>
-        <p class="shell-kicker">Stitch Shell Rewrite</p>
-        <h1>Echoes of Intent</h1>
-      </header>
-
       <section class="stack">
         <div class="card shell-navigation">
           <div class="tab-bar" role="tablist" aria-label="Primary workflow tabs">
             <button class="tab-button active" type="button" data-tab="design" role="tab" aria-selected="true">Design</button>
-            <button class="tab-button" type="button" data-tab="preview" role="tab" aria-selected="false">Preview</button>
-            <button class="tab-button" type="button" data-tab="simulation" role="tab" aria-selected="false">Run</button>
-            <button class="tab-button" type="button" data-tab="diagnostics" role="tab" aria-selected="false">Diagnostics</button>
+            <div class="gameplay-tab-slot" role="presentation">
+              <button class="tab-button" type="button" data-tab="gameplay" role="tab" aria-selected="false">Gameplay</button>
+              <span class="tab-run-id" id="gameplay-run-id-label" aria-live="polite"></span>
+            </div>
           </div>
         </div>
 
         <div class="workspace">
           <div class="workspace-main">
-            <div class="tab-panel" data-tab-panel="simulation" role="tabpanel" hidden>
-          <div class="card frame-shell simulation-shell">
-            <div class="simulation-header">
-              <div class="simulation-title">
-                <p class="shell-kicker simulation-kicker">Run Surface</p>
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" data-icon-category="ui" data-icon-key="playing-surface" aria-hidden="true"></span>Playing Surface</span>
+            <div class="tab-panel" data-tab-panel="gameplay" role="tabpanel" hidden>
+              <div class="card frame-shell gameplay-shell">
+                <div class="status surface-status" id="gameplay-status" data-level="info">No run loaded. Open Gameplay from the Design screen to start.</div>
+                <div class="play-controls gameplay-camera-controls" aria-label="Gameplay camera controls">
+                  <div class="gameplay-camera-control-group">
+                    <button class="secondary" id="gameplay-zoom-out" type="button" title="Zoom out">-</button>
+                    <button class="secondary" id="gameplay-fit-level" type="button">Fit</button>
+                    <button class="secondary" id="gameplay-zoom-in" type="button" title="Zoom in">+</button>
+                  </div>
+                  <div class="gameplay-camera-control-group">
+                    <button class="secondary" id="gameplay-step-back" type="button">Step -</button>
+                    <button class="secondary" id="gameplay-step-forward" type="button">Step +</button>
+                  </div>
                 </div>
-              </div>
-              <div class="simulation-badge-row" aria-label="Run flow context">
-                <span class="simulation-badge">Artifact rail</span>
-                <span class="simulation-badge">Inspector synced</span>
+                <div id="gameplay-phaser-host"></div>
               </div>
             </div>
-            <div class="status surface-status" id="status-message" data-level="info">Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here.</div>
-            <div class="simulation-stage">
-              <section class="simulation-board-card">
-                <span class="stat-label">Board State</span>
-                <pre class="frame-display" id="frame-buffer">Loading...</pre>
-                <div class="canvas-tooltip" id="canvas-tooltip">
-                  <div class="canvas-tooltip-title" id="tooltip-title"></div>
-                  <div id="tooltip-content"></div>
-                </div>
-              </section>
-              <div class="simulation-control-deck">
-                <section class="simulation-control-card" aria-label="Playback controls">
-                  <span class="stat-label">Playback Controls</span>
-                  <div class="play-controls">
-                    <button class="secondary" id="step-back">Step -</button>
-                    <button class="primary" id="play-pause">Play</button>
-                    <button class="secondary" id="step-forward">Step +</button>
-                    <button class="secondary" id="reset-run">Reset</button>
-                  </div>
-                </section>
-                <section class="simulation-control-card" aria-label="Runtime controls">
-                  <span class="stat-label">Runtime Actions</span>
-                  <div class="runtime-actions-panel">
-                    <div class="runtime-actions-group">
-                      <span class="runtime-actions-group-label">Movement</span>
-                      <div class="runtime-controls" role="group" aria-label="Runtime movement controls">
-                        <button class="secondary" id="runtime-move-up-left" type="button" aria-label="Move up left" title="Move up left">↖</button>
-                        <button class="secondary" id="runtime-move-up" type="button" aria-label="Move up" title="Move up">↑</button>
-                        <button class="secondary" id="runtime-move-up-right" type="button" aria-label="Move up right" title="Move up right">↗</button>
-                        <button class="secondary" id="runtime-move-left" type="button" aria-label="Move left" title="Move left">←</button>
-                        <button class="primary" id="runtime-cast" type="button" aria-label="Cast ability" title="Cast ability">✦</button>
-                        <button class="secondary" id="runtime-move-right" type="button" aria-label="Move right" title="Move right">→</button>
-                        <button class="secondary" id="runtime-move-down-left" type="button" aria-label="Move down left" title="Move down left">↙</button>
-                        <button class="secondary" id="runtime-move-down" type="button" aria-label="Move down" title="Move down">↓</button>
-                        <button class="secondary" id="runtime-move-down-right" type="button" aria-label="Move down right" title="Move down right">↘</button>
-                      </div>
-                    </div>
-                    <div class="runtime-actions-group">
-                      <span class="runtime-actions-group-label">Affinity Placeholders</span>
-                      <div class="runtime-affinity-placeholders" role="group" aria-label="Runtime affinity choice placeholders">
-                        <button class="secondary" id="runtime-affinity-choice-fire" type="button" disabled>Fire</button>
-                        <button class="secondary" id="runtime-affinity-choice-water" type="button" disabled>Water</button>
-                        <button class="secondary" id="runtime-affinity-choice-earth" type="button" disabled>Earth</button>
-                      </div>
-                      <div class="runtime-affinity-placeholders" role="group" aria-label="Runtime affinity expression placeholders">
-                        <button class="secondary" id="runtime-affinity-expression-expand" type="button" disabled>Expand</button>
-                        <button class="secondary" id="runtime-affinity-expression-focus" type="button" disabled>Focus</button>
-                        <button class="secondary" id="runtime-affinity-expression-shift" type="button" disabled>Shift</button>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              </div>
-            </div>
-          </div>
-        </div>
-
             <div class="tab-panel" data-tab-panel="design" role="tabpanel">
           <div class="card design-surface">
             <div class="design-panel-header">
@@ -2272,7 +1956,6 @@
                 <h2>
                   <span class="ui-icon" data-icon-category="ui" data-icon-key="card-builder" aria-hidden="true"></span>
                   <span>Card Builder</span>
-                  <span class="design-panel-subtitle">Configure the dungeon.</span>
                 </h2>
               </div>
               <div class="controls">
@@ -2343,7 +2026,7 @@
                   </div>
                   <div class="design-budget-overview" id="design-budget-overview"></div>
                 </div>
-                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure one card in the center, then pull it right into grouped Room/Delver/Warden/Hazard shelves.</div>
+                <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure a card, then shelve it.</div>
                 <div class="design-card-grid" id="design-card-grid"></div>
               </section>
               <aside class="design-card-groups-window" aria-label="Card shelf groups">
@@ -2390,160 +2073,22 @@
 
             <div class="tab-panel" data-tab-panel="preview" role="tabpanel" hidden>
           <div class="card preview-shell preview-surface">
-            <div class="preview-header">
-              <div class="preview-title">
-                <p class="shell-kicker preview-kicker">Preview Surface</p>
-                <div class="stat">
-                  <span class="stat-label icon-label"><span class="ui-icon" data-icon-category="ui" data-icon-key="game-preview" aria-hidden="true"></span>Game Preview</span>
-                </div>
-                <p class="preview-caption">Validate artifact output before launching Run.</p>
-              </div>
-              <div class="controls">
-                <button class="primary" id="preview-build-and-load" type="button">Build And Load Game</button>
-              </div>
+            <div class="controls">
+              <button class="primary" id="preview-build-and-load" type="button">Build And Load Game</button>
             </div>
             <div class="status surface-status" id="preview-status" data-level="info">Inspect the current design bundle here. When ready, use Build And Load Game to open Run.</div>
-            <div class="preview-stage">
-              <section class="preview-frame-card">
-                <span class="stat-label">Rendered Board</span>
-                <canvas class="level-preview-canvas" id="preview-render-canvas" hidden aria-label="Generated room image"></canvas>
-                <pre class="frame-display" id="preview-frame-buffer">No preview loaded.</pre>
-              </section>
-              <div class="preview-sidebar">
-                <section class="preview-meta-card">
-                  <span class="stat-label">Preview Summary</span>
-                  <pre class="adapter-output" id="preview-summary">No preview bundle loaded.</pre>
-                </section>
-                <section class="preview-meta-card">
-                  <span class="stat-label">Actors</span>
-                  <pre class="adapter-output" id="preview-actor-list">No actors loaded.</pre>
-                </section>
-              </div>
-            </div>
+            <section class="preview-meta-card">
+              <span class="stat-label">Preview Summary</span>
+              <pre class="adapter-output" id="preview-summary">No preview bundle loaded.</pre>
+            </section>
+            <section class="preview-meta-card">
+              <span class="stat-label">Actors</span>
+              <pre class="adapter-output" id="preview-actor-list">No actors loaded.</pre>
+            </section>
           </div>
         </div>
 
-            <div class="tab-panel" data-tab-panel="diagnostics" role="tabpanel" hidden>
-              <div class="card diagnostics-shell">
-                <div class="diagnostics-intro">
-                  <div class="diagnostics-title">
-                    <p class="shell-kicker">Diagnostics Surface</p>
-                    <div class="stat">
-                      <span class="stat-label icon-label"><span class="ui-icon" data-icon-category="ui" data-icon-key="system-console" aria-hidden="true"></span>System Console</span>
-                    </div>
-                    <p class="diagnostics-caption">Inspect build orchestration, bundle payloads, adapter calls, and LLM traces while preserving the existing command-host rails.</p>
-                  </div>
-                  <div class="diagnostics-chip-row">
-                    <span class="simulation-badge">Allocator</span>
-                    <span class="simulation-badge">LLM Trace</span>
-                    <span class="simulation-badge">Build + Bundle</span>
-                    <span class="simulation-badge">Adapters</span>
-                  </div>
-                </div>
-                <section class="diagnostics-toggle-card" aria-label="Diagnostics visibility controls">
-                  <div class="stat-row">
-                    <span class="stat-label">Diagnostics Visibility</span>
-                    <span class="status">Toggle diagnostics sections on or off. Unchecked items stay hidden.</span>
-                  </div>
-                  <ul class="diagnostic-toggle-list">
-                    <li class="diagnostic-toggle-item">
-                      <input id="diagnostic-toggle-allocator" data-diagnostic-toggle="allocator" type="checkbox" checked aria-controls="diagnostic-section-allocator" />
-                      <label for="diagnostic-toggle-allocator">Allocator</label>
-                      <span class="diagnostic-toggle-description">Budget, price list, and receipt output from allocator flows.</span>
-                    </li>
-                    <li class="diagnostic-toggle-item">
-                      <input id="diagnostic-toggle-llm-trace" data-diagnostic-toggle="llm-trace" type="checkbox" checked aria-controls="diagnostic-section-llm-trace" />
-                      <label for="diagnostic-toggle-llm-trace">LLM Trace</label>
-                      <span class="diagnostic-toggle-description">Prompt/response capture, parsed trace, and annotator summaries.</span>
-                    </li>
-                    <li class="diagnostic-toggle-item">
-                      <input id="diagnostic-toggle-build" data-diagnostic-toggle="build" type="checkbox" checked aria-controls="diagnostic-section-build" />
-                      <label for="diagnostic-toggle-build">Build And Bundle</label>
-                      <span class="diagnostic-toggle-description">Build orchestration, bundle review, and budget inputs.</span>
-                    </li>
-                    <li class="diagnostic-toggle-item">
-                      <input id="diagnostic-toggle-adapter-playground" data-diagnostic-toggle="adapter-playground" type="checkbox" checked aria-controls="diagnostic-section-adapter-playground" />
-                      <label for="diagnostic-toggle-adapter-playground">Adapter Playground</label>
-                      <span class="diagnostic-toggle-description">Manual adapter calls for IPFS, blockchain, LLM, and solver.</span>
-                    </li>
-                  </ul>
-                </section>
-              </div>
-            </div>
-
-
-            <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="allocator" id="diagnostic-section-allocator" role="tabpanel" hidden>
-              <div class="card diagnostic-surface">
-                <div class="diagnostic-panel-header">
-                  <span class="stat-label">Allocator</span>
-                  <p>Budgeting artifacts are surfaced here.</p>
-                </div>
-                <div class="diagnostic-pane-grid">
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Budget</span>
-                    <pre class="adapter-output" id="allocator-budget-json">No JSON output yet.</pre>
-                  </section>
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Price List</span>
-                    <pre class="adapter-output" id="allocator-price-list-json">No JSON output yet.</pre>
-                  </section>
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Receipt</span>
-                    <pre class="adapter-output" id="allocator-receipt-json">No JSON output yet.</pre>
-                  </section>
-                </div>
-              </div>
-            </div>
-
-
-            <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="llm-trace" id="diagnostic-section-llm-trace" role="tabpanel" hidden>
-              <div class="card diagnostic-surface">
-                <div class="diagnostic-panel-header">
-                  <span class="stat-label">LLM Trace</span>
-                  <p>Prompt and response transcript captured by the Orchestrator, summarized by the Annotator.</p>
-                </div>
-                <div class="stat-row">
-                  <div class="badge">Turns <strong id="llm-trace-count">0</strong></div>
-                  <button class="secondary" id="llm-trace-clear" type="button">Clear Trace</button>
-                </div>
-                <div class="status" id="llm-trace-status">No LLM captures yet.</div>
-                <label>
-                  <span class="stat-label">Turn</span>
-                  <select id="llm-trace-turns"></select>
-                </label>
-                <div class="diagnostic-trace-row">
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Prompt</span>
-                    <pre class="adapter-output" id="llm-trace-prompt">No prompt captured.</pre>
-                  </section>
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Response (Raw)</span>
-                    <pre class="adapter-output" id="llm-trace-response-raw">No response captured.</pre>
-                  </section>
-                </div>
-                <div class="diagnostic-trace-row">
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Response (Parsed)</span>
-                    <pre class="adapter-output" id="llm-trace-response-parsed">No parsed response.</pre>
-                  </section>
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Errors</span>
-                    <pre class="adapter-output" id="llm-trace-errors">No parse/contract errors.</pre>
-                  </section>
-                </div>
-                <div class="diagnostic-pane-grid">
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Annotator Summary</span>
-                    <pre class="adapter-output" id="llm-trace-summary">No annotator summary yet.</pre>
-                  </section>
-                  <section class="diagnostic-pane">
-                    <span class="stat-label">Annotator Telemetry Record</span>
-                    <pre class="adapter-output" id="llm-trace-telemetry">No annotator telemetry yet.</pre>
-                  </section>
-                </div>
-              </div>
-            </div>
-            <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="build" id="diagnostic-section-build" role="tabpanel" hidden>
+            <div class="tab-panel" data-tab-panel="diagnostics" id="diagnostic-section-build" role="tabpanel" hidden>
               <div class="card diagnostic-surface diagnostic-build-stack">
                 <section class="diagnostic-build-card">
                   <div class="diagnostic-panel-header">
@@ -2658,52 +2203,6 @@
               </div>
             </div>
 
-            <div class="tab-panel" data-tab-panel="diagnostics" data-diagnostic-section="adapter-playground" id="diagnostic-section-adapter-playground" role="tabpanel" hidden>
-              <div class="card diagnostic-surface">
-                <div class="diagnostic-panel-header">
-                  <span class="stat-label">Adapter Playground</span>
-                  <p>Live mode only. Development fixtures should be run from CLI workflows.</p>
-                </div>
-                <div class="diagnostic-input-grid">
-                  <label>
-                    <span class="stat-label">IPFS Gateway</span>
-                    <input id="adapter-gateway" type="text" value="https://ipfs.io/ipfs" />
-                  </label>
-                  <label>
-                    <span class="stat-label">IPFS CID</span>
-                    <input id="adapter-cid" type="text" value="" placeholder="bafy..." />
-                  </label>
-                  <label>
-                    <span class="stat-label">IPFS Path</span>
-                    <input id="adapter-path" type="text" placeholder="optional/path.json" />
-                  </label>
-                  <label>
-                    <span class="stat-label">RPC URL</span>
-                    <input id="adapter-rpc-url" type="text" value="http://localhost:8545" />
-                  </label>
-                  <label>
-                    <span class="stat-label">Address</span>
-                    <input id="adapter-address" type="text" value="0xabc" />
-                  </label>
-                  <label>
-                    <span class="stat-label">Prompt</span>
-                    <input id="adapter-prompt" type="text" value="hello" />
-                  </label>
-                </div>
-                <div class="controls diagnostic-build-actions">
-                  <button class="primary" id="adapter-ipfs">Run IPFS</button>
-                  <button class="secondary" id="adapter-blockchain">Run Blockchain</button>
-                  <button class="secondary" id="adapter-llm">Run LLM</button>
-                  <button class="secondary" id="adapter-solver">Run Solver</button>
-                  <button class="secondary" id="adapter-clear">Clear</button>
-                </div>
-                <div class="status" id="adapter-status">Ready in live mode.</div>
-                <section class="diagnostic-pane">
-                  <span class="stat-label">Orchestrator JSON Output</span>
-                  <pre class="adapter-output" id="adapter-output">No JSON output yet.</pre>
-                </section>
-              </div>
-            </div>
           </div>
           <aside class="card inspector-shell inspector-surface" id="actor-inspector" hidden>
             <div class="inspector-header">
@@ -2734,6 +2233,18 @@
                     <h3 class="design-card-group-icon" aria-label="Warden" data-icon-category="types" data-icon-key="warden"></h3>
                   </div>
                   <div class="simulation-inspector-group-list" id="actor-inspector-warden-list"></div>
+                </section>
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Hazard" data-icon-category="types" data-icon-key="hazard"></h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-hazard-list"></div>
+                </section>
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Resource" data-icon-category="items" data-icon-key="resource"></h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-resource-list"></div>
                 </section>
               </div>
             </div>

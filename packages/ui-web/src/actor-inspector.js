@@ -5,6 +5,7 @@ import { collectBuildSpecCardSet } from "./build-spec-ui.js";
 import { resolveIconHTML } from "./icon-resolver.js";
 
 const TYPE_ORDER = Object.freeze(["room", "attacker", "defender"]);
+const WORLD_ENTITY_TYPES = Object.freeze(["hazard", "resource"]);
 
 const ATTACKER_KEYWORDS = Object.freeze(["attack", "attacker", "delver", "assault", "intruder", "raider", "player"]);
 
@@ -377,6 +378,7 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
   const specActors = sortById(Array.isArray(spec?.configurator?.inputs?.actors) ? spec.configurator.inputs.actors : []);
   const specActorsById = new Map(specActors.map((entry) => [normalizeName(entry?.id), entry]));
   const runtimeActors = sortById(Array.isArray(initialState?.actors) ? initialState.actors : []);
+  const hasRuntimeActors = runtimeActors.length > 0;
   const runtimeRooms = Array.isArray(simConfig?.layout?.data?.rooms)
     ? simConfig.layout.data.rooms.map((room, index) => ({
       ...room,
@@ -391,7 +393,43 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
     room: [],
     attacker: [],
     defender: [],
+    hazard: [],
+    resource: [],
   };
+
+  const layoutData = simConfig?.layout?.data || {};
+  const runtimeHazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+  const runtimeResources = Array.isArray(layoutData.resources) ? layoutData.resources : [];
+
+  runtimeHazards.forEach((hazard) => {
+    const id = normalizeName(hazard?.id, `hazard-${groups.hazard.length + 1}`);
+    groups.hazard.push({
+      instanceId: id,
+      templateId: id,
+      type: "hazard",
+      ordinal: groups.hazard.length + 1,
+      card: { id, type: "hazard", count: 1, affinity: "", affinities: [], motivations: [], vitals: null, cardValue: { unitTokens: 0, totalTokens: 0 } },
+      runtimeActorId: "",
+      roomId: "",
+      position: hazard?.position || null,
+      runtimeRoom: null,
+    });
+  });
+
+  runtimeResources.forEach((resource) => {
+    const id = normalizeName(resource?.id, `resource-${groups.resource.length + 1}`);
+    groups.resource.push({
+      instanceId: id,
+      templateId: id,
+      type: "resource",
+      ordinal: groups.resource.length + 1,
+      card: { id, type: "resource", count: 1, affinity: "", affinities: [], motivations: [], vitals: null, cardValue: { unitTokens: 0, totalTokens: 0 } },
+      runtimeActorId: "",
+      roomId: "",
+      position: resource?.position || null,
+      runtimeRoom: null,
+    });
+  });
 
   const runtimeActorPool = runtimeActors
     .map((actor) => {
@@ -444,6 +482,10 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
         || takeRuntimeActor((entry) => inferActorType(entry.actor, entry.specActor) === card.type && actorMatchesCardAffinities(entry.actor, card))
         || takeRuntimeActor((entry) => inferActorType(entry.actor, entry.specActor) === card.type)
         || takeRuntimeActor(() => true);
+
+      if (!runtimeActor && hasRuntimeActors) {
+        continue;
+      }
 
       const entity = {
         instanceId,
@@ -504,7 +546,10 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
     groups[type] = sortById(groups[type], "instanceId");
   });
 
-  const all = TYPE_ORDER.flatMap((type) => groups[type]);
+  const all = [
+    ...TYPE_ORDER.flatMap((type) => groups[type]),
+    ...WORLD_ENTITY_TYPES.flatMap((type) => groups[type]),
+  ];
   const byInstanceId = new Map(all.map((entry) => [entry.instanceId, entry]));
   const runtimeActorToInstance = new Map(
     all
@@ -667,6 +712,8 @@ export function createActorInspector({
   roomListEl,
   attackerListEl,
   defenderListEl,
+  hazardListEl,
+  resourceListEl,
   detailEl,
   onSelectEntity,
   onVisibilityChange,
@@ -728,6 +775,10 @@ export function createActorInspector({
       tick,
       running,
     };
+  }
+
+  function isWorldEntity(type) {
+    return WORLD_ENTITY_TYPES.includes(type);
   }
 
   function setVisible(nextVisible) {
@@ -1065,6 +1116,8 @@ export function createActorInspector({
     renderGroup(roomListEl, resolved.groups.room);
     renderGroup(attackerListEl, resolved.groups.attacker);
     renderGroup(defenderListEl, resolved.groups.defender);
+    renderGroup(hazardListEl, resolved.groups.hazard);
+    renderGroup(resourceListEl, resolved.groups.resource);
 
     const selected = selectedInstanceId ? resolved.byInstanceId.get(selectedInstanceId) || null : null;
     if (statusEl) {
@@ -1151,6 +1204,7 @@ export function createActorInspector({
     const actorEntity = resolved.all.find((entity) => (
       normalizeName(entity?.runtimeActorId)
       && entity.type !== "room"
+      && !isWorldEntity(entity.type)
       && entity.runtimeRoom == null
       && entity.roomId === ""
       && Number(entity?.position?.x) === Math.floor(x)
