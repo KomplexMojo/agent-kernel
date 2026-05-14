@@ -114,7 +114,7 @@ function isValidDataUri(dataUri) {
 /**
  * Resolve an icon from the resource bundle or return a text fallback.
  * @param {Object|null} bundle - ResourceBundleArtifact or null
- * @param {string} category - Icon category: "types", "affinities", "expressions", "motivations", "vitals", "ui"
+ * @param {string} category - Icon category: "types", "items", "affinities", "expressions", "motivations", "vitals", "ui"
  * @param {string} key - Icon key within the category
  * @returns {HTMLElement} - <img> element with dataUri or <span> with text label
  */

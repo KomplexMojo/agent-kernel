@@ -123,6 +123,17 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return scene?.cameras?.main || null;
   }
 
+  function getCameraViewportCenter(camera = getCamera()) {
+    if (!camera) return null;
+    const zoom = Number(camera.zoom) || cameraState.zoom || 1;
+    const viewportWidth = Number(camera.width) || cameraState.viewportWidth || 1;
+    const viewportHeight = Number(camera.height) || cameraState.viewportHeight || 1;
+    return {
+      x: (Number(camera.scrollX) || 0) + viewportWidth / (2 * zoom),
+      y: (Number(camera.scrollY) || 0) + viewportHeight / (2 * zoom),
+    };
+  }
+
   function setStageCameraDataset() {
     if (!stageEl?.dataset) return;
     stageEl.dataset.gameplayCameraZoom = String(Number(cameraState.zoom.toFixed(3)));
@@ -133,11 +144,14 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   function applyCameraZoom(nextZoom, { centerX, centerY } = {}) {
     const camera = getCamera();
     if (!camera) return cameraState.zoom;
+    const previousCenter = getCameraViewportCenter(camera);
     const zoom = clamp(nextZoom, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
     cameraState.zoom = zoom;
     camera.setZoom?.(zoom);
-    if (Number.isFinite(centerX) && Number.isFinite(centerY)) {
-      camera.centerOn?.(centerX, centerY);
+    const targetCenterX = Number.isFinite(centerX) ? centerX : previousCenter?.x;
+    const targetCenterY = Number.isFinite(centerY) ? centerY : previousCenter?.y;
+    if (Number.isFinite(targetCenterX) && Number.isFinite(targetCenterY)) {
+      camera.centerOn?.(targetCenterX, targetCenterY);
     }
     setStageCameraDataset();
     return zoom;

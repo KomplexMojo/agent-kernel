@@ -88,6 +88,15 @@ export function wireDiagnosticsView({
   let bundleReview = null;
   let buildOrchestrator = null;
 
+  const budgetPanels = wireBudgetPanels({
+    elements: {
+      configBudget: configBudgetJson,
+      configPriceList: configPriceListJson,
+      configReceipt: configReceiptJson,
+    },
+    mode: "live",
+  });
+
   buildOrchestrator = wireBuildOrchestrator({
     elements: {
       specPathInput: buildSpecPath,
@@ -165,15 +174,6 @@ export function wireDiagnosticsView({
     onBundleStateReset?.();
   });
   buildSendBundle?.addEventListener("click", () => bundleReview?.loadLastBuild?.());
-
-  const budgetPanels = wireBudgetPanels({
-    elements: {
-      configBudget: configBudgetJson,
-      configPriceList: configPriceListJson,
-      configReceipt: configReceiptJson,
-    },
-    mode: "live",
-  });
   budgetPanels.refresh();
 
   function setBuildSpecText(specText, { source = "design", resetOutput = true } = {}) {

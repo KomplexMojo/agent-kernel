@@ -1,4 +1,8 @@
-import { createDesignCard, wireDesignGuidance } from "../design-guidance.js";
+import {
+  createDesignCard,
+  setResourceBundle as setDesignResourceBundle,
+  wireDesignGuidance,
+} from "../design-guidance.js";
 import { extractDesignStateFromBuildSpec } from "../build-spec-ui.js";
 import { createCliWorkerAdapter } from "../../../adapters-web/src/adapters/cli-worker/index.js";
 
@@ -361,6 +365,11 @@ export function wireDesignView({
     generateAiConfiguration: guidance.generateAiConfiguration,
     loadBuildSpec,
     resetToScratch,
+    setResourceBundle: (bundle) => {
+      setDesignResourceBundle(bundle);
+      guidance.refreshIcons?.();
+      return { ok: true };
+    },
     publishPreviewSpec,
     getActiveCard: guidance.getActiveCard,
     getSummary: guidance.getSummary,

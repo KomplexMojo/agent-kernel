@@ -35,7 +35,13 @@ function createFakePhaser(records = {}) {
       records.config = config;
       this.canvas = { style: {} };
       this.scale = {
-        resize(w, h) { records.resizes.push({ w, h }); },
+        resize(w, h) {
+          records.resizes.push({ w, h });
+          if (records.scene?.cameras?.main) {
+            records.scene.cameras.main.width = w;
+            records.scene.cameras.main.height = h;
+          }
+        },
       };
       const scene = {
         textures: {
@@ -77,11 +83,18 @@ function createFakePhaser(records = {}) {
           main: {
             scrollX: 0,
             scrollY: 0,
+            width: config.width,
+            height: config.height,
             zoom: 1,
             setViewport(...args) { records.camera.viewport = args; return this; },
             setBounds(...args) { records.camera.bounds = args; return this; },
             setZoom(v) { this.zoom = v; records.camera.zoom = v; return this; },
-            centerOn(...args) { records.camera.center = args; return this; },
+            centerOn(x, y) {
+              records.camera.center = [x, y];
+              this.scrollX = x - this.width / (2 * this.zoom);
+              this.scrollY = y - this.height / (2 * this.zoom);
+              return this;
+            },
           },
         },
         input: {
@@ -354,6 +367,39 @@ test("gameplay phaser renderer exposes zoom and fit camera controls", async () =
   const zoomedOut = renderer.zoomOut();
   assert.ok(zoomedOut <= zoomedIn);
   assert.equal(renderer.fitToLevel(), fitZoom);
+  renderer.dispose();
+});
+
+test("gameplay phaser zoom controls preserve the current camera center", async () => {
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 30,
+    boardHeight: 20,
+    tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
+  });
+
+  records.inputHandlers.pointerdown({ x: 120, y: 100, worldX: 120, worldY: 100 });
+  records.inputHandlers.pointermove({ x: 80, y: 130, worldX: 80, worldY: 130, isDown: true });
+  records.inputHandlers.pointerup({ x: 80, y: 130, worldX: 80, worldY: 130 });
+
+  const camera = records.scene.cameras.main;
+  const centerBeforeZoom = {
+    x: camera.scrollX + camera.width / (2 * camera.zoom),
+    y: camera.scrollY + camera.height / (2 * camera.zoom),
+  };
+
+  renderer.zoomIn();
+
+  assert.deepEqual(records.camera.center, [centerBeforeZoom.x, centerBeforeZoom.y]);
+  assert.equal(camera.scrollX + camera.width / (2 * camera.zoom), centerBeforeZoom.x);
+  assert.equal(camera.scrollY + camera.height / (2 * camera.zoom), centerBeforeZoom.y);
   renderer.dispose();
 });
 

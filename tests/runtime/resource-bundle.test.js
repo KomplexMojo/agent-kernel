@@ -75,9 +75,20 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     assert.equal(bundle.mappings.actors.byRoleAndAffinity.delver.fire === bundle.mappings.actors.byRoleAndAffinity.warden.fire, false);
     assert.equal(bundle.mappings.overlays.expressions.emit, "overlay.expression.emit");
     assert.equal(bundle.mappings.overlays.stackTiers.tier3, "overlay.stack-tier.tier3");
+    assert.equal(bundle.mappings.overlays.tileAffinities.floor.fire, "overlay.tile.floor.affinity.fire");
+    assert.equal(bundle.mappings.overlays.tileAffinities.wall.fire, "overlay.tile.wall.affinity.fire");
+    assert.equal(bundle.mappings.tileEffects.composition, "base_tile_plus_overlay_alpha");
+    assert.equal(bundle.mappings.tileEffects.affinityOverlays.floor.fire, "overlay.tile.floor.affinity.fire");
+    assert.equal(bundle.mappings.icons.types.hazard, "icon.type.hazard");
+    assert.equal(bundle.mappings.icons.items.hazard, "icon.item.hazard");
+    assert.equal(bundle.mappings.icons.motivations.user_controlled, "icon.motivation.user_controlled");
+    assert.equal(bundle.mappings.icons.vitals.defence, "icon.vital.defence");
 
     const delverFire = bundle.assets.find((asset) => asset.id === "actor.delver.fire");
     const overlayFire = bundle.assets.find((asset) => asset.id === "overlay.affinity.fire");
+    const floorOverlayFire = bundle.assets.find((asset) => asset.id === "overlay.tile.floor.affinity.fire");
+    const wallOverlayFire = bundle.assets.find((asset) => asset.id === "overlay.tile.wall.affinity.fire");
+    const defenceIcon = bundle.assets.find((asset) => asset.id === "icon.vital.defence");
     const iconFire = bundle.assets.find((asset) => asset.id === "icon.affinity.fire");
     const fogTile = bundle.assets.find((asset) => asset.id === "tile.fog");
     assert.ok(delverFire?.dataUri?.startsWith("data:image/png;base64,"));
@@ -87,6 +98,10 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     assert.equal(overlayFire?.variants?.hud?.width, 16);
     assert.equal(overlayFire?.variants?.standard?.width, 32);
     assert.equal(overlayFire?.variants?.large?.width, 64);
+    assert.ok(floorOverlayFire?.dataUri?.startsWith("data:image/png;base64,"));
+    assert.equal(floorOverlayFire?.relativePath, "visual-assets/tiles/overlays/floor-affinity-fire.png");
+    assert.equal(wallOverlayFire?.relativePath, "visual-assets/tiles/overlays/wall-affinity-fire.png");
+    assert.equal(defenceIcon?.relativePath, "visual-assets/misc/icon-vital-defence.png");
     assert.ok(iconFire?.variants?.hud?.relativePath.endsWith("icon-affinity-fire.png"));
     assert.ok(fogTile?.dataUri?.startsWith("data:image/png;base64,"));
     assert.equal(fogTile?.relativePath, "visual-assets/tiles/fog.png");
@@ -94,6 +109,55 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     const files = listResourceBundleAssetFiles(bundle);
     assert.ok(files.some((file) => file.relativePath === "visual-assets/overlays/hud/affinity-fire.png"));
     assert.ok(files.some((file) => file.relativePath === "visual-assets/overlays/large/affinity-fire.png"));
+    assert.ok(files.some((file) => file.relativePath === "visual-assets/tiles/overlays/large/floor-affinity-fire.png"));
+    assert.ok(files.some((file) => file.relativePath === "visual-assets/misc/hud/icon-vital-defence.png"));
+  `);
+});
+
+test("renderBoardWithResourceBundle applies formula-driven affinity overlays to nearby walls", () => {
+  runEsm(`
+    import assert from "node:assert/strict";
+    import {
+      renderBoardWithResourceBundle,
+    } from ${JSON.stringify(modulePath)};
+
+    const tiles = [
+      "###",
+      "#.#",
+      "###",
+    ];
+
+    const base = await renderBoardWithResourceBundle({ tiles, actors: [], floorAffinityTraps: [] });
+    assert.equal(base.ok, true);
+
+    const affected = await renderBoardWithResourceBundle({
+      tiles,
+      actors: [],
+      floorAffinityTraps: [
+        { position: { x: 1, y: 1 }, affinity: { kind: "fire", expression: "emit", stacks: 3 } },
+      ],
+    });
+    assert.equal(affected.ok, true);
+
+    function tileChanged(left, right, tileX, tileY) {
+      const tileWidth = right.tileWidth;
+      for (let py = 0; py < tileWidth; py += 1) {
+        for (let px = 0; px < tileWidth; px += 1) {
+          const x = tileX * tileWidth + px;
+          const y = tileY * tileWidth + py;
+          const idx = (y * right.width + x) * 4;
+          if (
+            left.pixels[idx] !== right.pixels[idx]
+            || left.pixels[idx + 1] !== right.pixels[idx + 1]
+            || left.pixels[idx + 2] !== right.pixels[idx + 2]
+            || left.pixels[idx + 3] !== right.pixels[idx + 3]
+          ) return true;
+        }
+      }
+      return false;
+    }
+
+    assert.equal(tileChanged(base, affected, 0, 0), true, "nearby wall tile should receive affinity overlay");
   `);
 });
 
@@ -130,14 +194,25 @@ test("renderBoardWithResourceBundle tints floor tiles when affinities are presen
     });
     assert.equal(tinted.ok, true);
 
-    const baseRgba = Array.from(base.pixels.slice(0, 4));
-    const tintedRgba = Array.from(tinted.pixels.slice(0, 4));
+    function tileChanged(left, right, tileX, tileY) {
+      const tileWidth = right.tileWidth;
+      for (let py = 0; py < tileWidth; py += 1) {
+        for (let px = 0; px < tileWidth; px += 1) {
+          const x = tileX * tileWidth + px;
+          const y = tileY * tileWidth + py;
+          const idx = (y * right.width + x) * 4;
+          if (
+            left.pixels[idx] !== right.pixels[idx]
+            || left.pixels[idx + 1] !== right.pixels[idx + 1]
+            || left.pixels[idx + 2] !== right.pixels[idx + 2]
+            || left.pixels[idx + 3] !== right.pixels[idx + 3]
+          ) return true;
+        }
+      }
+      return false;
+    }
 
-    assert.notDeepEqual(
-      tintedRgba,
-      baseRgba,
-      "affinity tint should change top-left floor tile pixel RGBA",
-    );
+    assert.equal(tileChanged(base, tinted, 0, 0), true, "affinity overlay should change source floor tile pixels");
   `);
 });
 
@@ -177,15 +252,24 @@ test("renderBoardWithResourceBundle tints floor tiles for observation-style trap
     });
     assert.equal(tinted.ok, true);
 
-    const tileWidth = tinted.width / 2; // 2 tiles wide -> tileWidth pixels each
-    const offset = tileWidth * 4; // start of tile (1,0)
-    const baseRgba = Array.from(base.pixels.slice(offset, offset + 4));
-    const tintedRgba = Array.from(tinted.pixels.slice(offset, offset + 4));
+    function tileChanged(left, right, tileX, tileY) {
+      const tileWidth = right.tileWidth;
+      for (let py = 0; py < tileWidth; py += 1) {
+        for (let px = 0; px < tileWidth; px += 1) {
+          const x = tileX * tileWidth + px;
+          const y = tileY * tileWidth + py;
+          const idx = (y * right.width + x) * 4;
+          if (
+            left.pixels[idx] !== right.pixels[idx]
+            || left.pixels[idx + 1] !== right.pixels[idx + 1]
+            || left.pixels[idx + 2] !== right.pixels[idx + 2]
+            || left.pixels[idx + 3] !== right.pixels[idx + 3]
+          ) return true;
+        }
+      }
+      return false;
+    }
 
-    assert.notDeepEqual(
-      tintedRgba,
-      baseRgba,
-      "observation-style trap should tint pixel RGBA for its tile",
-    );
+    assert.equal(tileChanged(base, tinted, 1, 0), true, "observation-style trap should change source floor tile pixels");
   `);
 });

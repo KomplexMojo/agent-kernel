@@ -1685,10 +1685,23 @@ export interface ResourceBundleMappingsV1 {
     expressions?: Record<string, string>;
     stackTiers?: Record<string, string>;
     motivations?: Record<string, string>;
+    tileAffinities?: {
+      floor?: Record<string, string>;
+      wall?: Record<string, string>;
+    };
     darknessMask?: string;
+  };
+  tileEffects?: {
+    composition?: string;
+    alphaFormula?: string;
+    affinityOverlays?: {
+      floor?: Record<string, string>;
+      wall?: Record<string, string>;
+    };
   };
   icons?: {
     types?: Record<string, string>;
+    items?: Record<string, string>;
     affinities?: Record<string, string>;
     expressions?: Record<string, string>;
     motivations?: Record<string, string>;

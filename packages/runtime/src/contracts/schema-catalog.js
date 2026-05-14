@@ -232,7 +232,7 @@ const CATALOG = [
     schema: "agent-kernel/ResourceBundleArtifact",
     schemaVersion: 2,
     category: SCHEMA_CATEGORIES.CANONICAL_RUNTIME_HANDOFF,
-    description: "Canonical visual resource bundle with embedded data URIs.",
+    description: "Canonical visual resource bundle with embedded data URIs, sprite variants, and Phaser-ready tile effect overlays.",
     fields: ["meta", "bundleId", "bundleVersion", "tileWidth", "tileHeight", "gatewayBaseUrl", "assets", "mappings"],
   },
 ];

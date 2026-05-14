@@ -8,7 +8,6 @@ import { wireDiagnosticsView } from "./views/diagnostics-view.js";
 import { wireGameplayView } from "./views/gameplay-view.js";
 import { resolveIcon } from "./icon-resolver.js";
 import { shouldHydrateDesignFromBundleSource } from "./build-spec-ui.js";
-import { setResourceBundle as setDesignResourceBundle } from "./design-guidance.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -103,7 +102,7 @@ tabs = wireTabs({
       workspace.dataset.activeTab = tabId;
     }
     updateInspectorSurface(tabId);
-    if (tabId === "gameplay" && !gameplayRunPending) {
+    if (tabId === "gameplay" && !gameplayRunPending && !gameplayView?.isRunActive?.()) {
       gameplayView?.clear?.("Launching run…");
       void launchGameplayRun({ autoGenerate: true });
     }
@@ -169,7 +168,7 @@ async function syncBundleViews({ bundle, source }) {
   // Update icon displays across all views
   populateUIIcons(resourceBundle);
   actorInspector?.setResourceBundle?.(resourceBundle);
-  setDesignResourceBundle(resourceBundle);
+  designView?.setResourceBundle?.(resourceBundle);
 
 }
 

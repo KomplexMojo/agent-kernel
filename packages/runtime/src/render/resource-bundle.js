@@ -9,6 +9,7 @@ import {
   normalizeHex as sharedNormalizeHex,
   resolveStackIntensity,
 } from "./affinity-palette.js";
+import { computeTileAlpha } from "./affinity-spatial-formulas.js";
 import {
   applyAuraMask,
   emitMask,
@@ -18,6 +19,7 @@ import {
   stackAlphaMultiplier,
 } from "./affinity-tile-mask.js";
 import { getAffinitySpriteAsset } from "./generated/affinity-sprite-assets.js";
+import { getGameSpriteAsset } from "./generated/game-sprite-assets.js";
 import { SPATIAL_WEIGHTS } from "../contracts/affinity-spatial-rules.js";
 
 export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
@@ -59,6 +61,35 @@ const STACK_TIER_IDS = Object.freeze({
   tier2: "overlay.stack-tier.tier2",
   tier3: "overlay.stack-tier.tier3",
 });
+
+const ICON_TYPE_KEYS = Object.freeze(["room", "delver", "attacker", "warden", "defender", "hazard", "untyped"]);
+const ICON_ITEM_KEYS = Object.freeze(["hazard", "resource"]);
+const ICON_MOTIVATION_KEYS = Object.freeze([
+  "random",
+  "stationary",
+  "exploring",
+  "attacking",
+  "defending",
+  "stealthy",
+  "friendly",
+  "patrolling",
+  "reflexive",
+  "goal_oriented",
+  "strategy_focused",
+  "user_controlled",
+]);
+const ICON_VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability", "defence"]);
+const ICON_UI_KEYS = Object.freeze(["playing-surface", "card-builder", "game-preview", "system-console", "game-inspector"]);
+
+function mapKeys(keys, prefix) {
+  return Object.fromEntries(keys.map((key) => [key, `${prefix}.${key}`]));
+}
+
+function mapAffinityTileOverlayIds(tileSemantic) {
+  return Object.fromEntries(
+    ALLOWED_AFFINITIES.map((kind) => [kind, `overlay.tile.${tileSemantic}.affinity.${kind}`]),
+  );
+}
 
 function createLegacyMappings() {
   return {
@@ -108,46 +139,31 @@ function createVisualMappings() {
         tier3: STACK_TIER_IDS.tier3,
       },
       motivations: Object.fromEntries(ALLOWED_MOTIVATIONS.map((kind) => [kind, `overlay.motivation.${kind}`])),
+      tileAffinities: {
+        floor: mapAffinityTileOverlayIds("floor"),
+        wall: mapAffinityTileOverlayIds("wall"),
+      },
       darknessMask: "overlay.darkness-mask",
+    },
+    tileEffects: {
+      composition: "base_tile_plus_overlay_alpha",
+      alphaFormula: "computeTileAlpha(distance, stacks, expression, SPATIAL_WEIGHTS)",
+      affinityOverlays: {
+        floor: mapAffinityTileOverlayIds("floor"),
+        wall: mapAffinityTileOverlayIds("wall"),
+      },
     },
     affinities: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `overlay.affinity.${kind}`])),
     motivations: Object.fromEntries(ALLOWED_MOTIVATIONS.map((kind) => [kind, `overlay.motivation.${kind}`])),
     expressions: Object.fromEntries(ALLOWED_AFFINITY_EXPRESSIONS.map((kind) => [kind, `overlay.expression.${kind}`])),
     icons: {
-      types: {
-        room: "icon.type.room",
-        delver: "icon.type.delver",
-        attacker: "icon.type.attacker",
-        warden: "icon.type.warden",
-        defender: "icon.type.defender",
-        untyped: "icon.type.untyped",
-      },
+      types: mapKeys(ICON_TYPE_KEYS, "icon.type"),
+      items: mapKeys(ICON_ITEM_KEYS, "icon.item"),
       affinities: Object.fromEntries(ALLOWED_AFFINITIES.map((kind) => [kind, `icon.affinity.${kind}`])),
       expressions: Object.fromEntries(ALLOWED_AFFINITY_EXPRESSIONS.map((kind) => [kind, `icon.expression.${kind}`])),
-      motivations: {
-        random: "icon.motivation.random",
-        stationary: "icon.motivation.stationary",
-        exploring: "icon.motivation.exploring",
-        attacking: "icon.motivation.attacking",
-        defending: "icon.motivation.defending",
-        patrolling: "icon.motivation.patrolling",
-        reflexive: "icon.motivation.reflexive",
-        goal_oriented: "icon.motivation.goal_oriented",
-        strategy_focused: "icon.motivation.strategy_focused",
-      },
-      vitals: {
-        health: "icon.vital.health",
-        mana: "icon.vital.mana",
-        stamina: "icon.vital.stamina",
-        durability: "icon.vital.durability",
-      },
-      ui: {
-        "playing-surface": "icon.ui.playing-surface",
-        "card-builder": "icon.ui.card-builder",
-        "game-preview": "icon.ui.game-preview",
-        "system-console": "icon.ui.system-console",
-        "game-inspector": "icon.ui.game-inspector",
-      },
+      motivations: mapKeys(ICON_MOTIVATION_KEYS, "icon.motivation"),
+      vitals: mapKeys(ICON_VITAL_KEYS, "icon.vital"),
+      ui: mapKeys(ICON_UI_KEYS, "icon.ui"),
     },
   };
 }
@@ -243,7 +259,7 @@ function relativePathForAssetId(id) {
 }
 
 function createGeneratedAssetEntry(id, kind, label, ipfsUri) {
-  const affinitySpriteAsset = getAffinitySpriteAsset(id);
+  const affinitySpriteAsset = getAffinitySpriteAsset(id) || getGameSpriteAsset(id);
   if (affinitySpriteAsset) {
     return createAssetEntry(id, kind, label, ipfsUri, {
       dataUri: affinitySpriteAsset.dataUri,
@@ -287,6 +303,8 @@ function createDefaultAssets({ emitVisualAssets = false } = {}) {
       assets.push(makeEntry(`actor.delver.${kind}`, "actor", `Delver ${kind}`, `ipfs://ak-resource-bundle-v2/actor-delver-${kind}.png`));
       assets.push(makeEntry(`actor.warden.${kind}`, "actor", `Warden ${kind}`, `ipfs://ak-resource-bundle-v2/actor-warden-${kind}.png`));
       assets.push(makeEntry(`overlay.affinity.${kind}`, "overlay", `${kind} Overlay`, `ipfs://ak-resource-bundle-v2/overlay-affinity-${kind}.png`));
+      assets.push(makeEntry(`overlay.tile.floor.affinity.${kind}`, "overlay", `Floor ${kind} Affinity Overlay`, `ipfs://ak-resource-bundle-v2/overlay-tile-floor-affinity-${kind}.png`));
+      assets.push(makeEntry(`overlay.tile.wall.affinity.${kind}`, "overlay", `Wall ${kind} Affinity Overlay`, `ipfs://ak-resource-bundle-v2/overlay-tile-wall-affinity-${kind}.png`));
     });
     ALLOWED_AFFINITY_EXPRESSIONS.forEach((kind) => {
       assets.push(makeEntry(`overlay.expression.${kind}`, "overlay", `${kind} Expression Overlay`, `ipfs://ak-resource-bundle-v2/overlay-expression-${kind}.png`));
@@ -299,13 +317,13 @@ function createDefaultAssets({ emitVisualAssets = false } = {}) {
     });
     assets.push(makeEntry("overlay.darkness-mask", "overlay", "Darkness Mask", "ipfs://ak-resource-bundle-v2/overlay-darkness-mask.png"));
 
-    // Icon assets
-    assets.push(makeEntry("icon.type.room", "icon", "Room Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-room.png"));
-    assets.push(makeEntry("icon.type.delver", "icon", "Delver Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-delver.png"));
-    assets.push(makeEntry("icon.type.attacker", "icon", "Attacker Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-attacker.png"));
-    assets.push(makeEntry("icon.type.warden", "icon", "Warden Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-warden.png"));
-    assets.push(makeEntry("icon.type.defender", "icon", "Defender Type Icon", "ipfs://ak-resource-bundle-v2/icon-type-defender.png"));
-    assets.push(makeEntry("icon.type.untyped", "icon", "Untyped Icon", "ipfs://ak-resource-bundle-v2/icon-type-untyped.png"));
+    ICON_TYPE_KEYS.forEach((kind) => {
+      assets.push(makeEntry(`icon.type.${kind}`, "icon", `${kind} Type Icon`, `ipfs://ak-resource-bundle-v2/icon-type-${kind}.png`));
+    });
+
+    ICON_ITEM_KEYS.forEach((kind) => {
+      assets.push(makeEntry(`icon.item.${kind}`, "icon", `${kind} Item Icon`, `ipfs://ak-resource-bundle-v2/icon-item-${kind}.png`));
+    });
 
     ALLOWED_AFFINITIES.forEach((kind) => {
       assets.push(makeEntry(`icon.affinity.${kind}`, "icon", `${kind} Affinity Icon`, `ipfs://ak-resource-bundle-v2/icon-affinity-${kind}.png`));
@@ -315,21 +333,17 @@ function createDefaultAssets({ emitVisualAssets = false } = {}) {
       assets.push(makeEntry(`icon.expression.${kind}`, "icon", `${kind} Expression Icon`, `ipfs://ak-resource-bundle-v2/icon-expression-${kind}.png`));
     });
 
-    const motivationKeys = ["random", "stationary", "exploring", "attacking", "defending", "patrolling", "reflexive", "goal_oriented", "strategy_focused"];
-    motivationKeys.forEach((kind) => {
+    ICON_MOTIVATION_KEYS.forEach((kind) => {
       assets.push(makeEntry(`icon.motivation.${kind}`, "icon", `${kind} Motivation Icon`, `ipfs://ak-resource-bundle-v2/icon-motivation-${kind}.png`));
     });
 
-    assets.push(makeEntry("icon.vital.health", "icon", "Health Icon", "ipfs://ak-resource-bundle-v2/icon-vital-health.png"));
-    assets.push(makeEntry("icon.vital.mana", "icon", "Mana Icon", "ipfs://ak-resource-bundle-v2/icon-vital-mana.png"));
-    assets.push(makeEntry("icon.vital.stamina", "icon", "Stamina Icon", "ipfs://ak-resource-bundle-v2/icon-vital-stamina.png"));
-    assets.push(makeEntry("icon.vital.durability", "icon", "Durability Icon", "ipfs://ak-resource-bundle-v2/icon-vital-durability.png"));
+    ICON_VITAL_KEYS.forEach((kind) => {
+      assets.push(makeEntry(`icon.vital.${kind}`, "icon", `${kind} Vital Icon`, `ipfs://ak-resource-bundle-v2/icon-vital-${kind}.png`));
+    });
 
-    assets.push(makeEntry("icon.ui.playing-surface", "icon", "Playing Surface Icon", "ipfs://ak-resource-bundle-v2/icon-ui-playing-surface.png"));
-    assets.push(makeEntry("icon.ui.card-builder", "icon", "Card Builder Icon", "ipfs://ak-resource-bundle-v2/icon-ui-card-builder.png"));
-    assets.push(makeEntry("icon.ui.game-preview", "icon", "Game Preview Icon", "ipfs://ak-resource-bundle-v2/icon-ui-game-preview.png"));
-    assets.push(makeEntry("icon.ui.system-console", "icon", "System Console Icon", "ipfs://ak-resource-bundle-v2/icon-ui-system-console.png"));
-    assets.push(makeEntry("icon.ui.game-inspector", "icon", "Game Inspector Icon", "ipfs://ak-resource-bundle-v2/icon-ui-game-inspector.png"));
+    ICON_UI_KEYS.forEach((kind) => {
+      assets.push(makeEntry(`icon.ui.${kind}`, "icon", `${kind} UI Icon`, `ipfs://ak-resource-bundle-v2/icon-ui-${kind}.png`));
+    });
 
     return assets;
   }
@@ -411,6 +425,13 @@ export function validateResourceBundleArtifact(bundle) {
     if (!bundle.mappings?.overlays?.expressions) errors.push("mappings.overlays.expressions is required");
     if (!bundle.mappings?.overlays?.stackTiers?.tier1) errors.push("mappings.overlays.stackTiers.tier1 is required");
     if (!bundle.mappings?.overlays?.motivations) errors.push("mappings.overlays.motivations is required");
+    if (!bundle.mappings?.overlays?.tileAffinities?.floor?.fire) errors.push("mappings.overlays.tileAffinities.floor.fire is required");
+    if (!bundle.mappings?.overlays?.tileAffinities?.wall?.fire) errors.push("mappings.overlays.tileAffinities.wall.fire is required");
+    if (!bundle.mappings?.tileEffects?.affinityOverlays?.floor?.fire) errors.push("mappings.tileEffects.affinityOverlays.floor.fire is required");
+    if (!bundle.mappings?.icons?.types?.hazard) errors.push("mappings.icons.types.hazard is required");
+    if (!bundle.mappings?.icons?.items?.hazard) errors.push("mappings.icons.items.hazard is required");
+    if (!bundle.mappings?.icons?.motivations?.user_controlled) errors.push("mappings.icons.motivations.user_controlled is required");
+    if (!bundle.mappings?.icons?.vitals?.defence) errors.push("mappings.icons.vitals.defence is required");
     if (!bundle.mappings?.overlays?.darknessMask) errors.push("mappings.overlays.darknessMask is required");
   }
   return { ok: errors.length === 0, errors };
@@ -698,6 +719,23 @@ function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
     drawBorder(pixels, size, 18, 2, 12, PALETTE.border);
     return pixels;
   }
+  if (assetId.startsWith("overlay.tile.")) {
+    const parts = assetId.split(".");
+    const semantic = parts[2];
+    const kind = parts[4];
+    const color = PALETTE.affinity[kind] || PALETTE.white;
+    fillRect(pixels, size, 0, 0, size, size, [0, 0, 0, 0]);
+    if (semantic === "wall") {
+      drawLine(pixels, size, 2, 9, size - 3, 12, color);
+      drawLine(pixels, size, 0, 22, size - 1, 18, color);
+      drawLine(pixels, size, 10, 0, 12, size - 1, color);
+    } else {
+      drawCircle(pixels, size, Math.floor(size / 2), Math.floor(size / 2), Math.max(5, Math.floor(size * 0.32)), [color[0], color[1], color[2], 150]);
+      drawLine(pixels, size, 6, 20, 14, 12, color);
+      drawLine(pixels, size, 14, 12, 24, 8, color);
+    }
+    return pixels;
+  }
   if (assetId.startsWith("overlay.expression.")) {
     const expression = assetId.slice("overlay.expression.".length);
     fillRect(pixels, size, 0, 0, size, size, [0, 0, 0, 0]);
@@ -765,7 +803,9 @@ function alphaBlend(dst, src) {
   ];
 }
 
-function blitSprite(target, targetWidth, targetHeight, sprite, spriteSize, destX, destY) {
+function blitSprite(target, targetWidth, targetHeight, sprite, spriteSize, destX, destY, opacity = 1) {
+  const alphaScale = Math.max(0, Math.min(1, Number(opacity) || 0));
+  if (alphaScale <= 0) return;
   for (let y = 0; y < spriteSize; y += 1) {
     for (let x = 0; x < spriteSize; x += 1) {
       const tx = destX + x;
@@ -776,7 +816,7 @@ function blitSprite(target, targetWidth, targetHeight, sprite, spriteSize, destX
         sprite[spriteIndex],
         sprite[spriteIndex + 1],
         sprite[spriteIndex + 2],
-        sprite[spriteIndex + 3],
+        Math.round(sprite[spriteIndex + 3] * alphaScale),
       ];
       if (src[3] === 0) continue;
       const targetIndex = (ty * targetWidth + tx) * 4;
@@ -932,8 +972,11 @@ function normalizeTrapAffinityEntry(entry) {
   const kind = typeof entry.kind === "string" ? entry.kind.trim().toLowerCase() : "";
   if (!kind || !AFFINITY_COLOR_HEX[kind]) return null;
   const stacks = Math.max(1, Math.round(Number(entry.roomStacks ?? entry.stacks ?? entry.value) || 1));
+  const expression = typeof entry.expression === "string" && entry.expression.trim()
+    ? entry.expression.trim().toLowerCase()
+    : "emit";
   const targetType = typeof entry.targetType === "string" ? entry.targetType.trim().toLowerCase() : "";
-  return { kind, stacks, targetType };
+  return { kind, expression, stacks, targetType };
 }
 
 function collectTrapAffinities(trap) {
@@ -948,15 +991,17 @@ function collectTrapAffinities(trap) {
     Object.entries(trap.affinityTargets).forEach(([key, stacks]) => {
       const parts = String(key).split(":");
       const kind = parts[0];
+      const expression = parts[1] || "";
       const targetType = parts[2] || "";
-      candidates.push({ kind, stacks, targetType });
+      candidates.push({ kind, expression, stacks, targetType });
     });
   }
   if (trap?.affinityStacks && typeof trap.affinityStacks === "object") {
     Object.entries(trap.affinityStacks).forEach(([key, stacks]) => {
       const parts = String(key).split(":");
       const kind = parts[0];
-      candidates.push({ kind, stacks });
+      const expression = parts[1] || "";
+      candidates.push({ kind, expression, stacks });
     });
   }
   return candidates
@@ -994,6 +1039,71 @@ function buildFloorAffinityMap(floorAffinityTraps = []) {
     if (affinity.stacks === prior.stacks && affinityPriority(affinity.kind) < affinityPriority(prior.kind)) {
       map.set(key, affinity);
     }
+  });
+  return map;
+}
+
+function chebyshevDistance(left, right) {
+  return Math.max(Math.abs(left.x - right.x), Math.abs(left.y - right.y));
+}
+
+function resolveTileAffinityOverlayAssetId(bundle, semantic, kind) {
+  if (!kind) return "";
+  if (semantic !== "floor" && semantic !== "wall") {
+    return bundle?.mappings?.overlays?.affinities?.[kind] || `overlay.affinity.${kind}`;
+  }
+  return bundle?.mappings?.tileEffects?.affinityOverlays?.[semantic]?.[kind]
+    || bundle?.mappings?.overlays?.tileAffinities?.[semantic]?.[kind]
+    || bundle?.mappings?.overlays?.affinities?.[kind]
+    || `overlay.affinity.${kind}`;
+}
+
+function computeProjectionAlpha(distance, affinity) {
+  if (distance <= 0) return 1;
+  const expression = affinity?.expression || "emit";
+  const buffer = SPATIAL_WEIGHTS?.intensity?.[expression]?.buffer || 0;
+  return computeTileAlpha(distance + buffer, affinity?.stacks || 1, expression, SPATIAL_WEIGHTS);
+}
+
+function buildTileAffinityProjectionMap(floorAffinityTraps = [], tiles = [], widthTiles = 0, heightTiles = 0) {
+  const map = new Map();
+  if (!Array.isArray(floorAffinityTraps)) return map;
+
+  floorAffinityTraps.forEach((trap) => {
+    const position = normalizeTrapPosition(trap);
+    if (!position) return;
+    const affinities = collectTrapAffinities(trap);
+    affinities.forEach((affinity) => {
+      for (let y = 0; y < heightTiles; y += 1) {
+        const row = String(tiles[y] || "").padEnd(widthTiles, "#");
+        for (let x = 0; x < widthTiles; x += 1) {
+          const semantic = inferTileSemantic(row[x] || "#");
+          if (semantic !== "floor" && semantic !== "wall") continue;
+          const distance = chebyshevDistance(position, { x, y });
+          const alpha = computeProjectionAlpha(distance, affinity);
+          if (alpha <= 0) continue;
+          const key = `${x},${y}`;
+          const projections = map.get(key) || [];
+          projections.push({
+            kind: affinity.kind,
+            expression: affinity.expression,
+            stacks: affinity.stacks,
+            distance,
+            alpha,
+            semantic,
+          });
+          map.set(key, projections);
+        }
+      }
+    });
+  });
+
+  map.forEach((projections) => {
+    projections.sort((left, right) => {
+      if (left.distance !== right.distance) return right.distance - left.distance;
+      if (left.alpha !== right.alpha) return left.alpha - right.alpha;
+      return affinityPriority(left.kind) - affinityPriority(right.kind);
+    });
   });
   return map;
 }
@@ -1060,7 +1170,8 @@ export async function renderBoardWithResourceBundle({
   const height = heightTiles * tileHeight;
   const pixels = createPixelBuffer(width, height);
   const spriteCache = new Map();
-  const floorAffinityMap = buildFloorAffinityMap(floorAffinityTraps);
+  const sourceAffinityMap = buildFloorAffinityMap(floorAffinityTraps);
+  const tileAffinityProjectionMap = buildTileAffinityProjectionMap(floorAffinityTraps, tiles, widthTiles, heightTiles);
 
   async function getSprite(assetId) {
     if (spriteCache.has(assetId)) return spriteCache.get(assetId);
@@ -1087,15 +1198,13 @@ export async function renderBoardWithResourceBundle({
       const sprite = await getSprite(assetId);
       blitSprite(pixels, width, height, sprite, tileWidth, x * tileWidth, y * tileHeight);
 
-      // Apply affinity color tint to floor tiles (trap priority)
-      const char = row[x] || "#";
-      const semantic = inferTileSemantic(char);
-      if (semantic === "floor") {
-        const affinity = floorAffinityMap.get(`${x},${y}`);
-        if (affinity) {
-          const affinityRgba = resolveAffinityFloorRgba(affinity);
-          applyAffinityTint(pixels, width, x, y, tileWidth, tileHeight, affinityRgba);
-        }
+      const projections = tileAffinityProjectionMap.get(`${x},${y}`) || [];
+      for (const projection of projections) {
+        const overlayAssetId = projection.distance === 0
+          ? (bundle?.mappings?.overlays?.affinities?.[projection.kind] || `overlay.affinity.${projection.kind}`)
+          : resolveTileAffinityOverlayAssetId(bundle, projection.semantic, projection.kind);
+        const overlaySprite = await getSprite(overlayAssetId);
+        blitSprite(pixels, width, height, overlaySprite, tileWidth, x * tileWidth, y * tileHeight, projection.alpha);
       }
     }
   }
@@ -1114,9 +1223,9 @@ export async function renderBoardWithResourceBundle({
         const char = row[x] || "#";
         const semantic = inferTileSemantic(char);
 
-        // Only render auras on floor tiles without traps
+        // Observation auras render on floor tiles; authored trap/source tiles keep their stronger authored overlay.
         if (semantic !== "floor") continue;
-        const hasTrap = floorAffinityMap.has(`${x},${y}`);
+        const hasTrap = sourceAffinityMap.has(`${x},${y}`);
         if (hasTrap) continue;
 
         const auraData = auraIndex.get(`${x},${y}`);

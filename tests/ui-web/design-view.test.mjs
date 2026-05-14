@@ -8,6 +8,7 @@ import {
   groupCardsByType,
   normalizeDesignCardSet,
   serializeDesignCardSet,
+  setResourceBundle as setDesignResourceBundle,
   wireDesignGuidance,
 } from "../../packages/ui-web/src/design-guidance.js";
 import { wireDesignView } from "../../packages/ui-web/src/views/design-view.js";
@@ -210,6 +211,49 @@ function parseConfigurationSpendChip(text = "") {
   };
 }
 
+function createDesignIconBundle() {
+  return {
+    mappings: {
+      icons: {
+        types: {
+          room: "icon.type.room",
+          delver: "icon.type.delver",
+          warden: "icon.type.warden",
+        },
+        items: {
+          hazard: "icon.item.hazard",
+          resource: "icon.item.resource",
+        },
+        affinities: {
+          fire: "icon.affinity.fire",
+          water: "icon.affinity.water",
+        },
+        expressions: {
+          emit: "icon.expression.emit",
+        },
+        motivations: {
+          attacking: "icon.motivation.attacking",
+        },
+        vitals: {
+          health: "icon.vital.health",
+        },
+      },
+    },
+    assets: [
+      { id: "icon.type.room", dataUri: "data:image/png;base64,ROOM_ICON" },
+      { id: "icon.type.delver", dataUri: "data:image/png;base64,DELVER_ICON" },
+      { id: "icon.type.warden", dataUri: "data:image/png;base64,WARDEN_ICON" },
+      { id: "icon.item.hazard", dataUri: "data:image/png;base64,HAZARD_ICON" },
+      { id: "icon.item.resource", dataUri: "data:image/png;base64,RESOURCE_ICON" },
+      { id: "icon.affinity.fire", dataUri: "data:image/png;base64,FIRE_ICON" },
+      { id: "icon.affinity.water", dataUri: "data:image/png;base64,WATER_ICON" },
+      { id: "icon.expression.emit", dataUri: "data:image/png;base64,EMIT_ICON" },
+      { id: "icon.motivation.attacking", dataUri: "data:image/png;base64,ATTACKING_ICON" },
+      { id: "icon.vital.health", dataUri: "data:image/png;base64,HEALTH_ICON" },
+    ],
+  };
+}
+
 test("unified card schema normalizes type-specific fields and serializes deterministically", () => {
   const cards = normalizeDesignCardSet([
     {
@@ -398,6 +442,44 @@ test("room affinity fields have no effect on room card cost — rooms are generi
   const updatedValue = cardById(updated.cards, "room_aff").cardValue.totalTokens;
 
   assert.equal(updatedValue, baseValue, "adding affinity stacks to a room must not change its cost");
+});
+
+test("wireDesignView refreshes design rail and card icons from the resource bundle", () => {
+  const { root, elements } = createRootElements();
+  const view = wireDesignView({
+    root,
+    commandHost: {
+      async buildSpecFromSummary() {
+        return { ok: false, errors: ["not needed"] };
+      },
+    },
+  });
+
+  try {
+    view.setResourceBundle(createDesignIconBundle());
+
+    const roomChipIcon = elements["#design-property-group-type"]
+      .querySelector('[data-property-value="room"]')
+      ?.querySelector(".design-property-chip-icon");
+    assert.ok(roomChipIcon);
+    assert.match(roomChipIcon.innerHTML, /ROOM_ICON/);
+
+    const fireChipIcon = elements["#design-property-group-affinities"]
+      .querySelector('[data-property-value="fire"]')
+      ?.querySelector(".design-property-chip-icon");
+    assert.ok(fireChipIcon);
+    assert.match(fireChipIcon.innerHTML, /FIRE_ICON/);
+
+    const blank = view.getActiveCard();
+    view.applyPropertyDrop(blank.id, { group: "type", value: "delver" });
+    const renderedCard = elements["#design-card-grid"].children.find((child) => child.dataset?.cardId === view.getActiveCard().id);
+    const typeIcon = renderedCard?.querySelector(".is-type");
+    assert.ok(typeIcon);
+    assert.match(typeIcon.innerHTML, /DELVER_ICON/);
+  } finally {
+    view.setResourceBundle(null);
+    setDesignResourceBundle(null);
+  }
 });
 
 test("wireDesignGuidance uses single active card editor with vitals and stash/pull flow", () => {

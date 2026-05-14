@@ -708,7 +708,26 @@
         align-items: center;
         justify-content: center;
         width: 1.1em;
+        height: 1.1em;
         line-height: 1;
+      }
+
+      .icon-from-bundle {
+        display: inline-block;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+
+      .ui-icon img,
+      .design-property-chip-icon img,
+      .design-card-icon-chip img,
+      .design-card-motivation-icon img,
+      .design-card-group-icon img {
+        width: 100% !important;
+        height: 100% !important;
+        display: block !important;
+        object-fit: contain;
       }
 
       .pill {
@@ -986,7 +1005,9 @@
       }
 
       .design-property-chip-icon {
-        width: 1.1em;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 18px;
       }
 
       .design-property-chip-label {
@@ -1549,6 +1570,12 @@
       }
 
       .design-card-group-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        margin: 0;
         font-size: 1rem;
         line-height: 1;
         text-transform: none;
