@@ -385,6 +385,21 @@
         overflow: auto;
       }
 
+      .simulation-phaser-host {
+        position: relative;
+        min-height: 520px;
+        max-height: min(70vh, 760px);
+        overflow: hidden;
+        border: 1px solid #4f6389;
+        border-radius: 4px;
+        background: #030303;
+      }
+
+      .simulation-phaser-host .gameplay-phaser-stage {
+        width: 100%;
+        min-height: inherit;
+      }
+
       .simulation-control-deck {
         display: grid;
         gap: 10px;
@@ -816,6 +831,11 @@
           max-height: min(72vh, 820px);
         }
 
+        .simulation-phaser-host {
+          min-height: 620px;
+          max-height: min(72vh, 820px);
+        }
+
       }
 
       @media (max-width: 960px) {
@@ -905,6 +925,11 @@
         }
 
         #frame-buffer {
+          min-height: 360px;
+          max-height: min(62vh, 560px);
+        }
+
+        .simulation-phaser-host {
           min-height: 360px;
           max-height: min(62vh, 560px);
         }
@@ -2212,11 +2237,8 @@
             <div class="simulation-stage">
               <section class="simulation-board-card">
                 <span class="stat-label">Board State</span>
-                <pre class="frame-display" id="frame-buffer">Loading...</pre>
-                <div class="canvas-tooltip" id="canvas-tooltip">
-                  <div class="canvas-tooltip-title" id="tooltip-title"></div>
-                  <div id="tooltip-content"></div>
-                </div>
+                <div class="simulation-phaser-host" id="simulation-phaser-host" aria-label="Simulation game surface"></div>
+                <pre class="frame-display" id="frame-buffer" hidden>Loading...</pre>
               </section>
               <div class="simulation-control-deck">
                 <section class="simulation-control-card" aria-label="Playback controls">
@@ -2226,38 +2248,6 @@
                     <button class="primary" id="play-pause">Play</button>
                     <button class="secondary" id="step-forward">Step +</button>
                     <button class="secondary" id="reset-run">Reset</button>
-                  </div>
-                </section>
-                <section class="simulation-control-card" aria-label="Runtime controls">
-                  <span class="stat-label">Runtime Actions</span>
-                  <div class="runtime-actions-panel">
-                    <div class="runtime-actions-group">
-                      <span class="runtime-actions-group-label">Movement</span>
-                      <div class="runtime-controls" role="group" aria-label="Runtime movement controls">
-                        <button class="secondary" id="runtime-move-up-left" type="button" aria-label="Move up left" title="Move up left">↖</button>
-                        <button class="secondary" id="runtime-move-up" type="button" aria-label="Move up" title="Move up">↑</button>
-                        <button class="secondary" id="runtime-move-up-right" type="button" aria-label="Move up right" title="Move up right">↗</button>
-                        <button class="secondary" id="runtime-move-left" type="button" aria-label="Move left" title="Move left">←</button>
-                        <button class="primary" id="runtime-cast" type="button" aria-label="Cast ability" title="Cast ability">✦</button>
-                        <button class="secondary" id="runtime-move-right" type="button" aria-label="Move right" title="Move right">→</button>
-                        <button class="secondary" id="runtime-move-down-left" type="button" aria-label="Move down left" title="Move down left">↙</button>
-                        <button class="secondary" id="runtime-move-down" type="button" aria-label="Move down" title="Move down">↓</button>
-                        <button class="secondary" id="runtime-move-down-right" type="button" aria-label="Move down right" title="Move down right">↘</button>
-                      </div>
-                    </div>
-                    <div class="runtime-actions-group">
-                      <span class="runtime-actions-group-label">Affinity Placeholders</span>
-                      <div class="runtime-affinity-placeholders" role="group" aria-label="Runtime affinity choice placeholders">
-                        <button class="secondary" id="runtime-affinity-choice-fire" type="button" disabled>Fire</button>
-                        <button class="secondary" id="runtime-affinity-choice-water" type="button" disabled>Water</button>
-                        <button class="secondary" id="runtime-affinity-choice-earth" type="button" disabled>Earth</button>
-                      </div>
-                      <div class="runtime-affinity-placeholders" role="group" aria-label="Runtime affinity expression placeholders">
-                        <button class="secondary" id="runtime-affinity-expression-expand" type="button" disabled>Expand</button>
-                        <button class="secondary" id="runtime-affinity-expression-focus" type="button" disabled>Focus</button>
-                        <button class="secondary" id="runtime-affinity-expression-shift" type="button" disabled>Shift</button>
-                      </div>
-                    </div>
                   </div>
                 </section>
               </div>

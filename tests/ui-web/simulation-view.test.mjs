@@ -22,28 +22,30 @@ function slicePanel(html, tabId) {
   return nextPanelIndex === -1 ? html.slice(panelStart) : html.slice(panelStart, nextPanelIndex);
 }
 
-test("simulation view keeps the playing surface, playback controls, and board action controls", () => {
+test("simulation view keeps a Phaser-owned playing surface and shell controls", () => {
   const html = readHtml();
   const simulationPanel = slicePanel(html, "simulation");
+  assert.match(simulationPanel, /id="simulation-phaser-host"/);
   assert.match(simulationPanel, /id="frame-buffer"/);
+  assert.match(simulationPanel, /id="frame-buffer"[^>]*hidden/);
   assert.match(simulationPanel, /id="play-pause"/);
   assert.match(simulationPanel, /id="step-back"/);
   assert.match(simulationPanel, /id="step-forward"/);
   assert.match(simulationPanel, /id="reset-run"/);
-  assert.match(simulationPanel, /aria-label="Runtime movement controls"/);
-  assert.match(simulationPanel, /id="runtime-move-up"/);
-  assert.match(simulationPanel, /id="runtime-move-up-right"/);
-  assert.match(simulationPanel, /id="runtime-move-down"/);
-  assert.match(simulationPanel, /id="runtime-move-down-right"/);
-  assert.match(simulationPanel, /id="runtime-move-down-left"/);
-  assert.match(simulationPanel, /id="runtime-move-left"/);
-  assert.match(simulationPanel, /id="runtime-move-right"/);
-  assert.match(simulationPanel, /id="runtime-move-up-left"/);
-  assert.match(simulationPanel, /id="runtime-cast"/);
-  assert.match(simulationPanel, /aria-label="Runtime affinity choice placeholders"/);
-  assert.match(simulationPanel, /aria-label="Runtime affinity expression placeholders"/);
-  assert.match(simulationPanel, /id="runtime-affinity-choice-fire"[^>]*disabled/);
-  assert.match(simulationPanel, /id="runtime-affinity-expression-expand"[^>]*disabled/);
+  assert.doesNotMatch(simulationPanel, /aria-label="Runtime movement controls"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-move-up"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-move-up-right"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-move-down"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-move-down-right"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-move-down-left"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-move-left"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-move-right"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-move-up-left"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-cast"/);
+  assert.doesNotMatch(simulationPanel, /aria-label="Runtime affinity choice placeholders"/);
+  assert.doesNotMatch(simulationPanel, /aria-label="Runtime affinity expression placeholders"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-affinity-choice-fire"/);
+  assert.doesNotMatch(simulationPanel, /id="runtime-affinity-expression-expand"/);
   assert.doesNotMatch(simulationPanel, /id="simulation-inspector-toggle"/);
   assert.doesNotMatch(simulationPanel, /id="actor-id-display"/);
   assert.doesNotMatch(simulationPanel, /id="actor-pos"/);
@@ -61,25 +63,12 @@ test("simulation view keeps the playing surface, playback controls, and board ac
   assert.doesNotMatch(simulationPanel, /Selected Actor View/);
 });
 
-test("simulation view arranges runtime movement actions in a 3x3 grid order", () => {
-  const html = readHtml();
-  const simulationPanel = slicePanel(html, "simulation");
-  const orderedIds = [
-    "runtime-move-up-left",
-    "runtime-move-up",
-    "runtime-move-up-right",
-    "runtime-move-left",
-    "runtime-cast",
-    "runtime-move-right",
-    "runtime-move-down-left",
-    "runtime-move-down",
-    "runtime-move-down-right",
-  ];
-  const indexes = orderedIds.map((id) => simulationPanel.indexOf(`id="${id}"`));
-  indexes.forEach((index) => assert.ok(index >= 0));
-  for (let i = 1; i < indexes.length; i += 1) {
-    assert.ok(indexes[i] > indexes[i - 1], `expected ${orderedIds[i]} after ${orderedIds[i - 1]}`);
-  }
+test("simulation view mounts the gameplay Phaser renderer", () => {
+  const viewPath = path.resolve(root, "packages", "ui-web", "src", "views", "simulation-view.js");
+  const source = fs.readFileSync(viewPath, "utf8");
+  assert.match(source, /createGameplayPhaserRenderer/);
+  assert.match(source, /renderer\.mount\(phaserHost\)/);
+  assert.match(source, /renderer\.renderFrame\(/);
 });
 
 test("simulation view loads wasm from ui-web assets", () => {
@@ -119,7 +108,8 @@ test("simulation view renders bundle without requiring inline asset gating", () 
   const viewPath = path.resolve(root, "packages", "ui-web", "src", "views", "simulation-view.js");
   const source = fs.readFileSync(viewPath, "utf8");
   assert.doesNotMatch(source, /canRenderGeneratedBundle/);
-  assert.match(source, /renderBundleBoardToCanvas\(\{/);
+  assert.doesNotMatch(source, /renderBundleBoardToCanvas\(\{/);
+  assert.match(source, /renderer\.renderFrame\(/);
 });
 
 test("simulation view routes manual movement through the shared cli worker command host", () => {

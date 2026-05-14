@@ -3,7 +3,7 @@ import { resolveFixturePath, startServeUi, stopProcess } from "./helpers/serve-u
 
 const bundlePath = resolveFixturePath("tests", "fixtures", "ui", "build-spec-bundle", "bundle.json");
 
-test("served Run tab keeps diagonal controls and disabled affinity placeholders after bundle load", async ({ page }) => {
+test("served Run tab keeps the Phaser surface and removes HTML board-local controls after bundle load", async ({ page }) => {
   const served = await startServeUi();
 
   try {
@@ -17,20 +17,21 @@ test("served Run tab keeps diagonal controls and disabled affinity placeholders 
     await page.locator('[data-tab="simulation"]').click();
     await expect(page.locator('[data-tab-panel="simulation"]').first()).toBeVisible();
 
-    await expect(page.locator(".runtime-controls button")).toHaveCount(9);
-    await expect(page.locator(".runtime-affinity-placeholders button")).toHaveCount(6);
+    await expect(page.locator("#simulation-phaser-host")).toBeVisible();
+    await expect(page.locator("#frame-buffer")).toBeHidden();
+    await expect(page.locator(".runtime-controls button")).toHaveCount(0);
+    await expect(page.locator(".runtime-affinity-placeholders button")).toHaveCount(0);
 
-    await expect(page.locator("#runtime-move-up-left")).toBeVisible();
-    await expect(page.locator("#runtime-move-up")).toBeVisible();
-    await expect(page.locator("#runtime-move-up-right")).toBeVisible();
-    await expect(page.locator("#runtime-move-left")).toBeVisible();
-    await expect(page.locator("#runtime-cast")).toBeVisible();
-    await expect(page.locator("#runtime-move-right")).toBeVisible();
-    await expect(page.locator("#runtime-move-down-left")).toBeVisible();
-    await expect(page.locator("#runtime-move-down")).toBeVisible();
-    await expect(page.locator("#runtime-move-down-right")).toBeVisible();
-
-    const affinityIds = [
+    const removedIds = [
+      "#runtime-move-up-left",
+      "#runtime-move-up",
+      "#runtime-move-up-right",
+      "#runtime-move-left",
+      "#runtime-cast",
+      "#runtime-move-right",
+      "#runtime-move-down-left",
+      "#runtime-move-down",
+      "#runtime-move-down-right",
       "#runtime-affinity-choice-fire",
       "#runtime-affinity-choice-water",
       "#runtime-affinity-choice-earth",
@@ -38,8 +39,8 @@ test("served Run tab keeps diagonal controls and disabled affinity placeholders 
       "#runtime-affinity-expression-focus",
       "#runtime-affinity-expression-shift",
     ];
-    for (const selector of affinityIds) {
-      await expect(page.locator(selector)).toBeDisabled();
+    for (const selector of removedIds) {
+      await expect(page.locator(selector)).toHaveCount(0);
     }
   } finally {
     await stopProcess(served.proc);

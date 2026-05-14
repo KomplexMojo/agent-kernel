@@ -71,18 +71,42 @@ test("design panel contains the unified card workspace layout", () => {
   );
 });
 
-test("game board panel contains playback controls and action controls only", () => {
+test("game board panel contains a Phaser surface and shell playback controls only", () => {
   const html = readHtml();
   const simulationPanel = getFirstPanelSlice(html, "simulation");
 
   [
     "status-message",
+    "simulation-phaser-host",
     "frame-buffer",
-    "runtime-move-up-left",
     "play-pause",
     "step-back",
     "step-forward",
     "reset-run",
+  ].forEach((id) => {
+    assert.match(simulationPanel, new RegExp(`id="${id}"`));
+  });
+
+  assert.match(simulationPanel, /Playing Surface/);
+  assert.doesNotMatch(simulationPanel, /Runtime Actions/);
+  assert.doesNotMatch(simulationPanel, /Affinity Placeholders/);
+  assert.doesNotMatch(simulationPanel, /class="runtime-controls"/);
+  assert.doesNotMatch(simulationPanel, /class="runtime-affinity-placeholders"/);
+  assert.ok(simulationPanel.indexOf('id="status-message"') < simulationPanel.indexOf('id="simulation-phaser-host"'));
+  assert.ok(simulationPanel.indexOf('id="simulation-phaser-host"') < simulationPanel.indexOf('id="frame-buffer"'));
+  assert.doesNotMatch(simulationPanel, /<small class="status">/);
+  assert.match(
+    simulationPanel,
+    /id="status-message"[^>]*>Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here\.<\/div>/,
+  );
+  assert.doesNotMatch(simulationPanel, /Selected Actor View/);
+  [
+    "runtime-viewport",
+    "runtime-status",
+    "runtime-delver-card",
+    "runtime-visible-wardens",
+    "runtime-offscreen-wardens",
+    "runtime-move-up-left",
     "runtime-move-up",
     "runtime-move-up-right",
     "runtime-move-down",
@@ -97,35 +121,6 @@ test("game board panel contains playback controls and action controls only", () 
     "runtime-affinity-expression-expand",
     "runtime-affinity-expression-focus",
     "runtime-affinity-expression-shift",
-  ].forEach((id) => {
-    assert.match(simulationPanel, new RegExp(`id="${id}"`));
-  });
-
-  assert.match(simulationPanel, /Playing Surface/);
-  assert.match(simulationPanel, /Runtime Actions/);
-  assert.match(simulationPanel, /Movement/);
-  assert.match(simulationPanel, /Affinity Placeholders/);
-  assert.match(
-    simulationPanel,
-    /class="runtime-controls"[^>]*>[\s\S]*id="runtime-move-up-left"[\s\S]*id="runtime-cast"[\s\S]*id="runtime-move-down-right"/,
-  );
-  assert.match(
-    simulationPanel,
-    /class="runtime-affinity-placeholders"[^>]*aria-label="Runtime affinity choice placeholders"[\s\S]*id="runtime-affinity-choice-fire"[^>]*disabled[\s\S]*id="runtime-affinity-choice-earth"[^>]*disabled/s,
-  );
-  assert.ok(simulationPanel.indexOf('id="status-message"') < simulationPanel.indexOf('id="frame-buffer"'));
-  assert.doesNotMatch(simulationPanel, /<small class="status">/);
-  assert.match(
-    simulationPanel,
-    /id="status-message"[^>]*>Build and load a game from Preview, then select a room, delver, or warden to inspect and control it here\.<\/div>/,
-  );
-  assert.doesNotMatch(simulationPanel, /Selected Actor View/);
-  [
-    "runtime-viewport",
-    "runtime-status",
-    "runtime-delver-card",
-    "runtime-visible-wardens",
-    "runtime-offscreen-wardens",
   ].forEach((id) => {
     assert.doesNotMatch(simulationPanel, new RegExp(`id="${id}"`));
   });

@@ -9,7 +9,7 @@ import {
 } from "../../../runtime/src/contracts/domain-constants.js";
 import { createLevelBuilderAdapter } from "../../../adapters-web/src/adapters/level-builder/index.js";
 import { setupPlayback } from "../movement-ui.js";
-import { clearBundleCanvas, positionFromCanvasEvent, renderBundleBoardToCanvas } from "../resource-bundle-view.js";
+import { createGameplayPhaserRenderer } from "./gameplay-phaser-renderer.js";
 
 const ACTOR_ID_LABEL = "actor_mvp";
 const ACTOR_ID_VALUE = 1;
@@ -177,22 +177,6 @@ function normalizeRoomBounds(roomBounds = null) {
   };
 }
 
-function ensureRenderCanvas(root, frameEl) {
-  const existingCanvas = root?.querySelector?.("#simulation-render-canvas");
-  if (existingCanvas) return existingCanvas;
-  const parent = frameEl?.parentElement || frameEl?.parentNode;
-  const doc = frameEl?.ownerDocument || (typeof document !== "undefined" ? document : null);
-  if (!parent || typeof parent.insertBefore !== "function" || !doc || typeof doc.createElement !== "function") {
-    return null;
-  }
-  const canvas = doc.createElement("canvas");
-  canvas.id = "simulation-render-canvas";
-  canvas.className = "level-preview-canvas";
-  canvas.hidden = true;
-  parent.insertBefore(canvas, frameEl);
-  return canvas;
-}
-
 export function resolveCanvasBoardPosition(position, visibilitySummary = null) {
   if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) {
     return null;
@@ -249,9 +233,10 @@ export function wireSimulationView({
   autoBoot = true,
   levelBuilderOptions = {},
   onObservation,
+  createRenderer = createGameplayPhaserRenderer,
 } = {}) {
   const frameEl = root.querySelector("#frame-buffer");
-  const renderCanvasEl = ensureRenderCanvas(root, frameEl);
+  const phaserHost = root.querySelector("#simulation-phaser-host");
   const actorListEl = root.querySelector("#actor-list");
   const affinityListEl = root.querySelector("#affinity-list");
   const tileActorListEl = root.querySelector("#tile-actor-list");
@@ -264,18 +249,27 @@ export function wireSimulationView({
   const stepForwardButton = root.querySelector("#step-forward");
   const playPauseButton = root.querySelector("#play-pause");
   const resetRunButton = root.querySelector("#reset-run");
-  const moveUpButton = root.querySelector("#runtime-move-up");
-  const moveUpRightButton = root.querySelector("#runtime-move-up-right");
-  const moveDownButton = root.querySelector("#runtime-move-down");
-  const moveDownRightButton = root.querySelector("#runtime-move-down-right");
-  const moveDownLeftButton = root.querySelector("#runtime-move-down-left");
-  const moveLeftButton = root.querySelector("#runtime-move-left");
-  const moveRightButton = root.querySelector("#runtime-move-right");
-  const moveUpLeftButton = root.querySelector("#runtime-move-up-left");
-  const castButton = root.querySelector("#runtime-cast");
-  const tooltipEl = root.querySelector("#canvas-tooltip");
-  const tooltipTitleEl = root.querySelector("#tooltip-title");
-  const tooltipContentEl = root.querySelector("#tooltip-content");
+  const renderer = createRenderer({
+    onSelect: (position) => selectActorAtPosition(position),
+    onHover: (position) => {
+      const actor = findActorAtPosition(position);
+      if (actor) {
+        renderer.showQuickView?.({
+          id: actor.id,
+          entityType: actor.kind || actor.role || "actor",
+          position: actor.position,
+          vitals: actor.vitals,
+          affinities: actor.affinities,
+          motivations: actor.motivations,
+        });
+        return;
+      }
+      renderer.hideQuickView?.();
+    },
+    onHoverEnd: () => renderer.hideQuickView?.(),
+    onKeyPress: ({ key }) => performGameAction({ action: keyToGameAction(key), actorId: getSelectedActorId() }),
+  });
+  renderer.mount(phaserHost);
 
   let core = null;
   let controller = null;
@@ -291,7 +285,6 @@ export function wireSimulationView({
   let lastVisibilitySummary = null;
   let lastObservation = null;
   let lastObservationActors = [];
-  let lastObservationAuras = [];
   let inspectorVisible = actorInspector?.isVisible?.() === true;
   let inspectorSelectedEntity = null;
   let controllableActorIds = null;
@@ -328,13 +321,16 @@ export function wireSimulationView({
     lastVisibilitySummary = null;
     lastObservationActors = [];
     lastObservationTraps = [];
-    lastObservationAuras = [];
-    clearBundleCanvas(renderCanvasEl);
-    if (renderCanvasEl) renderCanvasEl.hidden = true;
-    if (frameEl) frameEl.hidden = false;
     if (frameEl) {
       frameEl.textContent = "No game loaded.";
     }
+    renderer.renderFrame?.({
+      tiles: [],
+      boardWidth: 1,
+      boardHeight: 1,
+      observation: { actors: [], hazards: [], resources: [] },
+      resourceBundle: null,
+    });
     actorInspector?.setScenario?.({});
     actorInspector?.setActors?.([], { tick: null });
     actorInspector?.setRunning?.(false);
@@ -435,6 +431,56 @@ export function wireSimulationView({
 
   let lastObservationTraps = [];
 
+  function buildRendererBoardState({ frame, observation } = {}) {
+    const tiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : [];
+    const boardHeight = Math.max(1, tiles.length || 1);
+    const boardWidth = Math.max(1, tiles.reduce((max, row) => Math.max(max, String(row || "").length), 0));
+    const layoutData = latestRuntimeArtifacts?.simConfig?.layout?.data || {};
+    return {
+      tiles,
+      boardWidth,
+      boardHeight,
+      simConfig: latestRuntimeArtifacts?.simConfig || null,
+      initialState: latestRuntimeArtifacts?.initialState || null,
+      observation: {
+        actors: Array.isArray(observation?.actors) ? observation.actors : [],
+        hazards: Array.isArray(observation?.traps) ? observation.traps : [],
+        resources: Array.isArray(layoutData.resources) ? layoutData.resources : [],
+      },
+      resourceBundle: latestRuntimeArtifacts?.resourceBundle || null,
+    };
+  }
+
+  function findActorAtPosition(position) {
+    const x = Number(position?.x);
+    const y = Number(position?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return lastObservationActors.find(
+      (entry) => entry?.position?.x === Math.floor(x) && entry?.position?.y === Math.floor(y),
+    ) || null;
+  }
+
+  function selectActorAtPosition(position) {
+    const actor = findActorAtPosition(position);
+    const actorId = typeof actor?.id === "string" ? actor.id.trim() : "";
+    if (!actorId) return null;
+    actorInspector?.selectActorById?.(actorId);
+    visibilityPreferences.viewerActorId = actorId;
+    controller?.setViewerActor?.(actorId);
+    renderer.highlightActor?.(actor.position);
+    return actor;
+  }
+
+  function keyToGameAction(key) {
+    const normalized = String(key || "").toLowerCase();
+    if (normalized === "arrowup" || normalized === "w") return "up";
+    if (normalized === "arrowdown" || normalized === "s") return "down";
+    if (normalized === "arrowleft" || normalized === "a") return "left";
+    if (normalized === "arrowright" || normalized === "d") return "right";
+    if (normalized === "c" || normalized === "x") return "cast";
+    return normalized;
+  }
+
   function handleObservation({ observation, frame, playing, visibility, actorIdLabel }) {
     lastObservation = observation || null;
     actorInspector?.setActors?.(observation?.actors || [], { tick: observation?.tick });
@@ -442,7 +488,6 @@ export function wireSimulationView({
     lastVisibilitySummary = visibility || null;
     lastObservationActors = Array.isArray(observation?.actors) ? observation.actors.slice() : [];
     lastObservationTraps = Array.isArray(observation?.traps) ? observation.traps.slice() : [];
-    lastObservationAuras = Array.isArray(observation?.auras) ? observation.auras.slice() : [];
     if (typeof onObservation === "function") {
       onObservation({
         observation,
@@ -454,34 +499,10 @@ export function wireSimulationView({
     }
     const baseTiles = Array.isArray(frame?.baseTiles) ? frame.baseTiles : null;
     if (!baseTiles || baseTiles.length === 0) {
-      if (renderCanvasEl && frameEl) {
-        renderCanvasEl.hidden = true;
-        frameEl.hidden = false;
-      }
+      void renderer.renderFrame?.(buildRendererBoardState({ frame, observation }));
       return;
     }
-    const bundle = latestRuntimeArtifacts?.resourceBundle
-      ? { spec: latestRuntimeArtifacts?.spec || null, artifacts: [latestRuntimeArtifacts.resourceBundle] }
-      : null;
-    if (renderCanvasEl && frameEl) {
-      void renderBundleBoardToCanvas({
-        canvas: renderCanvasEl,
-        tiles: baseTiles,
-        actors: lastObservationActors,
-        floorAffinityTraps: lastObservationTraps,
-        bundle,
-        observation,
-      }).then((result) => {
-        if (!renderCanvasEl || !frameEl) return;
-        const rendered = result?.ok === true;
-        renderCanvasEl.hidden = !rendered;
-        frameEl.hidden = rendered;
-      }).catch(() => {
-        if (!renderCanvasEl || !frameEl) return;
-        renderCanvasEl.hidden = true;
-        frameEl.hidden = false;
-      });
-    }
+    void renderer.renderFrame(buildRendererBoardState({ frame, observation }));
     const nextHash = hashTiles(baseTiles);
     if (nextHash === lastBaseTilesHash) return;
     lastBaseTilesHash = nextHash;
@@ -543,7 +564,6 @@ export function wireSimulationView({
       latestRuntimeArtifacts = null;
       lastObservationActors = [];
       lastObservationTraps = [];
-      lastObservationAuras = [];
       actorInspector?.setScenario?.({});
       const movement = runMvpMovement({
         core,
@@ -586,7 +606,6 @@ export function wireSimulationView({
       latestRuntimeArtifacts = { simConfig, initialState, affinityEffects, spec, resourceBundle };
       lastObservationActors = [];
       lastObservationTraps = [];
-      lastObservationAuras = [];
       actorInspector?.setScenario?.({ simConfig, initialState, spec });
       const sortedActors = sortActorsById(initialState);
       const actorIds = sortedActors
@@ -644,69 +663,6 @@ export function wireSimulationView({
     });
   }
 
-  if (renderCanvasEl?.addEventListener) {
-    renderCanvasEl.addEventListener("click", (event) => {
-      const position = positionFromCanvasEvent(event, renderCanvasEl);
-      const boardPosition = resolveCanvasBoardPosition(position, lastVisibilitySummary);
-      if (!boardPosition) return;
-      const actor = lastObservationActors.find(
-        (entry) => entry?.position?.x === boardPosition.x && entry?.position?.y === boardPosition.y,
-      );
-      const actorId = typeof actor?.id === "string" ? actor.id.trim() : "";
-      if (!actorId) return;
-      actorInspector?.selectActorById?.(actorId);
-      visibilityPreferences.viewerActorId = actorId;
-      controller?.setViewerActor?.(actorId);
-    });
-
-    renderCanvasEl.addEventListener("mousemove", (event) => {
-      if (!tooltipEl || !tooltipTitleEl || !tooltipContentEl) return;
-      const position = positionFromCanvasEvent(event, renderCanvasEl);
-      const boardPosition = resolveCanvasBoardPosition(position, lastVisibilitySummary);
-      if (!boardPosition) {
-        tooltipEl.classList.remove("visible");
-        return;
-      }
-
-      const aura = lastObservationAuras.find(
-        (entry) => entry?.x === boardPosition.x && entry?.y === boardPosition.y,
-      );
-
-      if (!aura || !aura.visualState) {
-        tooltipEl.classList.remove("visible");
-        return;
-      }
-
-      tooltipTitleEl.textContent = "Aura Effect";
-      const rows = [];
-      rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Position:</span><span class="canvas-tooltip-value">(${boardPosition.x}, ${boardPosition.y})</span></div>`);
-      rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Visual:</span><span class="canvas-tooltip-value">${aura.visualState || "none"}</span></div>`);
-      if (aura.sourceActorId) {
-        rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Source:</span><span class="canvas-tooltip-value">${aura.sourceActorId}</span></div>`);
-      }
-      if (aura.kind) {
-        rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Affinity:</span><span class="canvas-tooltip-value">${aura.kind}</span></div>`);
-      }
-      if (aura.expression) {
-        rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Expression:</span><span class="canvas-tooltip-value">${aura.expression}</span></div>`);
-      }
-      if (typeof aura.intensity === "number") {
-        rows.push(`<div class="canvas-tooltip-row"><span class="canvas-tooltip-label">Intensity:</span><span class="canvas-tooltip-value">${aura.intensity.toFixed(2)}</span></div>`);
-      }
-
-      tooltipContentEl.innerHTML = rows.join("");
-      tooltipEl.style.left = `${event.clientX + 12}px`;
-      tooltipEl.style.top = `${event.clientY + 12}px`;
-      tooltipEl.classList.add("visible");
-    });
-
-    renderCanvasEl.addEventListener("mouseleave", () => {
-      if (tooltipEl) {
-        tooltipEl.classList.remove("visible");
-      }
-    });
-  }
-
   function scrollFrameToPosition(position) {
     if (!frameEl || !position) return;
     const x = Number.isFinite(position.x) ? Math.max(0, Math.floor(position.x)) : null;
@@ -756,6 +712,7 @@ export function wireSimulationView({
       if (actorCell && typeof actorCell.scrollIntoView === "function") {
         actorCell.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
       }
+      renderer.highlightActor?.(normalizedEntity.position);
       return;
     }
     if (!normalizedEntity.position && normalizedEntity.roomBounds) {
@@ -782,15 +739,6 @@ export function wireSimulationView({
   stepBackButton?.addEventListener("click", () => controller?.stepBack?.());
   playPauseButton?.addEventListener("click", () => controller?.toggle?.());
   resetRunButton?.addEventListener("click", () => controller?.reset?.());
-  moveUpButton?.addEventListener("click", () => performGameAction({ action: "up", actorId: getSelectedActorId() }));
-  moveUpRightButton?.addEventListener("click", () => performGameAction({ action: "up-right", actorId: getSelectedActorId() }));
-  moveDownButton?.addEventListener("click", () => performGameAction({ action: "down", actorId: getSelectedActorId() }));
-  moveDownRightButton?.addEventListener("click", () => performGameAction({ action: "down-right", actorId: getSelectedActorId() }));
-  moveDownLeftButton?.addEventListener("click", () => performGameAction({ action: "down-left", actorId: getSelectedActorId() }));
-  moveLeftButton?.addEventListener("click", () => performGameAction({ action: "left", actorId: getSelectedActorId() }));
-  moveRightButton?.addEventListener("click", () => performGameAction({ action: "right", actorId: getSelectedActorId() }));
-  moveUpLeftButton?.addEventListener("click", () => performGameAction({ action: "up-left", actorId: getSelectedActorId() }));
-  castButton?.addEventListener("click", () => performGameAction({ action: "cast", actorId: getSelectedActorId() }));
 
   async function boot() {
     stepBackButton && (stepBackButton.disabled = true);
@@ -880,6 +828,7 @@ export function wireSimulationView({
         levelBuilder.dispose();
       }
       levelBuilder = null;
+      renderer.dispose?.();
     },
   };
 }
