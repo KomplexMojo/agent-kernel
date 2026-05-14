@@ -660,6 +660,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     clearHighlight,
     showQuickView,
     hideQuickView,
+    clearBoard() {
+      closePlayerPanel();
+      clearHighlight();
+      hideQuickView();
+      actorNodes.clear();
+      if (currentContainer) {
+        currentContainer.destroy(true);
+        currentContainer = null;
+      }
+    },
     dispose() {
       closePlayerPanel();
       clearHighlight();

@@ -144,7 +144,7 @@ export function wireGameplayView({
     setStatus(message);
     updateStepButtons();
     closePlayerPanel();
-    renderer.clearHighlight?.();
+    renderer.clearBoard?.();
     actorInspector?.clearSelection?.();
     actorInspector?.setRunning?.(false);
   }
