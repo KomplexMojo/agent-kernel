@@ -261,6 +261,7 @@ export function wireSimulationView({
           vitals: actor.vitals,
           affinities: actor.affinities,
           motivations: actor.motivations,
+          resourceBundle: latestRuntimeArtifacts?.resourceBundle || null,
         });
         return;
       }

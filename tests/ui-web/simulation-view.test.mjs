@@ -112,6 +112,19 @@ test("simulation view renders bundle without requiring inline asset gating", () 
   assert.match(source, /renderer\.renderFrame\(/);
 });
 
+test("gameplay Phaser renderer resolves live surface visuals through bundle textures", () => {
+  const rendererPath = path.resolve(root, "packages", "ui-web", "src", "views", "gameplay-phaser-renderer.js");
+  const source = fs.readFileSync(rendererPath, "utf8");
+  assert.match(source, /ensureBundleTexture/);
+  assert.match(source, /scene\.textures\.addBase64/);
+  assert.match(source, /addSurfaceImageOrFallback/);
+  assert.match(source, /resolveSurfaceAsset\(resourceBundle,\s*category,\s*key,\s*model\)/);
+  assert.match(source, /intentionalMissingBundleFallback/);
+  assert.doesNotMatch(source, /tileColorForType/);
+  assert.doesNotMatch(source, /scene\.add\.circle\(cx,\s*cy/);
+  assert.doesNotMatch(source, /role === "warden" \? "W" : "D"/);
+});
+
 test("simulation view routes manual movement through the shared cli worker command host", () => {
   const viewPath = path.resolve(root, "packages", "ui-web", "src", "views", "simulation-view.js");
   const source = fs.readFileSync(viewPath, "utf8");
