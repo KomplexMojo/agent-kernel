@@ -49,9 +49,7 @@ test("Card configuration changes should be reflected in gameplay when switching 
 
   // Step 4: Simulate a card configuration change by modifying a parameter
   // Change the DELVER % budget allocation
-  const delverPercentInput = page.locator(
-    'input[aria-label*="DELVER"]'
-  ).first();
+  const delverPercentInput = page.locator('#design-budget-split-delver');
 
   // Get the current value
   const currentValue = await delverPercentInput.inputValue();
@@ -111,9 +109,7 @@ test("Gameplay view clears board when switching back from design tab (visual reg
   await expect(page.locator('[data-tab-panel="design"]').first()).toBeVisible();
 
   // Make a change
-  const delverPercentInput = page.locator(
-    'input[aria-label*="DELVER"]'
-  ).first();
+  const delverPercentInput = page.locator('#design-budget-split-delver');
   const currentValue = await delverPercentInput.inputValue();
   const newValue = (parseInt(currentValue) + 5).toString();
   await delverPercentInput.fill(newValue);

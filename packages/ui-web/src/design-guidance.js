@@ -3455,7 +3455,7 @@ export function wireDesignGuidance({
       const icon = createDomElement(content, "span");
       if (icon) {
         icon.className = "ui-icon design-property-chip-icon";
-        icon.textContent = option.icon || "◈";
+        icon.innerHTML = option.icon || "◈";
         content.append(icon);
       }
       const label = createDomElement(content, "span");

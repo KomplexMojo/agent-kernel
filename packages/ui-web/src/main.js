@@ -115,7 +115,9 @@ tabs = wireTabs({
 globalThis.__ak_setActiveTab = (id) => tabs?.setActive(id);
 globalThis.__ak_loadGameplayBundle = (bundle) => {
   if (!loadGameplayBundle(bundle)) return false;
+  gameplayRunPending = true;
   openTab("gameplay");
+  gameplayRunPending = false;
   return true;
 };
 
@@ -151,8 +153,12 @@ previewView = wirePreviewView({
     const bundle = previewView.getLastBundle();
     if (bundle) {
       loadGameplayBundle(bundle);
+      gameplayRunPending = true;
+      openTab("gameplay");
+      gameplayRunPending = false;
+    } else {
+      openTab("gameplay");
     }
-    openTab("gameplay");
     return { ok: true, message: "Run loaded from Preview." };
   },
 });
@@ -269,9 +275,9 @@ diagnosticsView = wireDiagnosticsView({
     void syncBundleViews({ bundle, source });
 
     if (gameplayRunPending && bundle) {
-      gameplayRunPending = false;
       loadGameplayBundle(bundle);
       openTab("gameplay");
+      gameplayRunPending = false;
     }
   },
   onBundleStateReset: () => {
