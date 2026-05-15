@@ -340,6 +340,37 @@ test("gameplay Phaser renderer draws tiles, actors, items, and fallback from the
       true,
       "exit tile intentionally falls back when no bundle mapping exists",
     );
+
+    renderer.showQuickView({
+      id: "delver-1",
+      role: "delver",
+      affinity: "fire",
+      position: { x: 0, y: 0 },
+      vitals: { health: { current: 3, max: 5 } },
+      resourceBundle: {
+        tileWidth: 16,
+        tileHeight: 20,
+        mappings: {
+          actors: {
+            delver: "asset-actor-delver",
+            byRoleAndAffinity: {
+              delver: { fire: "asset-actor-delver-fire" },
+            },
+          },
+          overlays: {
+            darknessMask: "asset-overlay-darkness",
+          },
+        },
+        assets: [
+          { id: "asset-actor-delver", dataUri: "data:image/png;base64,DELVER" },
+          { id: "asset-actor-delver-fire", dataUri: "data:image/png;base64,DELVERFIRE" },
+          { id: "asset-overlay-darkness", dataUri: "data:image/png;base64,DARKNESS" },
+        ],
+      },
+    });
+
+    assert.ok(calls.images.map((node) => node.name).includes("asset-overlay-darkness"));
+    assert.ok(calls.addBase64.some((entry) => entry.key === "ak-bundle:asset-overlay-darkness"));
   } finally {
     globalThis.document = originalDocument;
   }
