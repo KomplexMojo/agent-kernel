@@ -36,17 +36,6 @@ function tileSymbolToType(symbol) {
   }
 }
 
-function tileColorForType(type) {
-  switch (type) {
-    case "wall": return 0x3b3237;
-    case "barrier": return 0x654a3d;
-    case "spawn": return 0x2b5f48;
-    case "exit": return 0x83704d;
-    case "inaccessible": return 0x101113;
-    default: return 0x241f22;
-  }
-}
-
 function inferActorRole(actor = {}) {
   const explicit = [actor.role, actor.type, actor.archetype, actor.actorType, actor.faction, actor.team, actor.kind]
     .find((v) => typeof v === "string" && v.trim());
@@ -77,6 +66,51 @@ function normalizeTileMetrics(resourceBundle) {
   const tileHeight = Number.isFinite(resourceBundle?.tileHeight) && resourceBundle.tileHeight > 0
     ? resourceBundle.tileHeight : DEFAULT_TILE_SIZE;
   return { tileWidth, tileHeight };
+}
+
+function normalizeResourceAssets(resourceBundle) {
+  return new Map((Array.isArray(resourceBundle?.assets) ? resourceBundle.assets : [])
+    .filter((asset) => typeof asset?.id === "string" && asset.id.trim())
+    .map((asset) => [asset.id, asset]));
+}
+
+function findBundleAsset(resourceBundle, assetId) {
+  if (!resourceBundle || typeof assetId !== "string" || !assetId.trim()) return null;
+  return normalizeResourceAssets(resourceBundle).get(assetId) || null;
+}
+
+function primaryAffinityKind(actor = {}) {
+  const explicit = typeof actor?.affinity === "string" ? actor.affinity.trim().toLowerCase() : "";
+  if (explicit) return explicit;
+  const affinities = Array.isArray(actor?.affinities) ? actor.affinities : [];
+  const first = affinities.find((entry) => typeof entry?.kind === "string" && entry.kind.trim());
+  if (first) return first.kind.trim().toLowerCase();
+  const traitAffinities = actor?.traits?.affinities;
+  if (traitAffinities && typeof traitAffinities === "object" && !Array.isArray(traitAffinities)) {
+    const [key] = Object.keys(traitAffinities);
+    return String(key || "").split(":")[0].trim().toLowerCase();
+  }
+  return "";
+}
+
+function resolveActorAssetId(resourceBundle, actor = {}) {
+  const role = inferActorRole(actor);
+  const affinity = primaryAffinityKind(actor);
+  const affinityAssetId = affinity ? resourceBundle?.mappings?.actors?.byRoleAndAffinity?.[role]?.[affinity] : "";
+  return affinityAssetId || resourceBundle?.mappings?.actors?.[role] || null;
+}
+
+function resolveSurfaceAsset(resourceBundle, category, key, model = {}) {
+  let assetId = null;
+  if (category === "tiles") assetId = resourceBundle?.mappings?.tiles?.[key] || null;
+  if (category === "actors") assetId = resolveActorAssetId(resourceBundle, model);
+  if (category === "items") assetId = resourceBundle?.mappings?.items?.[key] || null;
+  if (category === "overlays") {
+    assetId = key === "darknessMask"
+      ? resourceBundle?.mappings?.overlays?.darknessMask
+      : resourceBundle?.mappings?.overlays?.[key] || null;
+  }
+  return findBundleAsset(resourceBundle, assetId);
 }
 
 function ensureGameplayStageElement(container) {
@@ -286,6 +320,45 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return playerPanelOpen;
   }
 
+  function textureKeyForAsset(asset) {
+    return asset?.id ? `ak-bundle:${asset.id}` : "";
+  }
+
+  function ensureBundleTexture(asset) {
+    const key = textureKeyForAsset(asset);
+    const dataUri = typeof asset?.dataUri === "string" ? asset.dataUri.trim() : "";
+    if (!scene || !key || !dataUri) return "";
+    if (scene.textures?.exists?.(key)) return key;
+    if (typeof scene.textures?.addBase64 === "function") {
+      scene.textures.addBase64(key, dataUri);
+      return key;
+    }
+    return "";
+  }
+
+  function addBundleImage(asset, x, y, width, height) {
+    const textureKey = ensureBundleTexture(asset);
+    if (!textureKey || typeof scene?.add?.image !== "function") return null;
+    const node = scene.add.image(x, y, textureKey);
+    node.setDisplaySize?.(width, height);
+    node.setOrigin?.(0.5);
+    node.setName?.(asset.id);
+    return node;
+  }
+
+  function addMissingBundleFallback(x, y, width, height) {
+    const node = scene.add.rectangle(x, y, width, height, 0x111318, 0.92);
+    node.setStrokeStyle?.(1, 0xff4d6d, 0.8);
+    node.setData?.("intentionalMissingBundleFallback", true);
+    return node;
+  }
+
+  function addSurfaceImageOrFallback(resourceBundle, category, key, model, x, y, width, height) {
+    const asset = resolveSurfaceAsset(resourceBundle, category, key, model);
+    const image = addBundleImage(asset, x, y, width, height);
+    return image || addMissingBundleFallback(x, y, width, height);
+  }
+
   function openPlayerPanel(model) {
     closePlayerPanel();
     if (!scene || !model) return;
@@ -302,8 +375,15 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const dimmer = scene.add.rectangle(vw / 2, vh / 2, vw, vh, 0x000000, 0.65);
     overlay.add(dimmer);
 
-    const bg = scene.add.rectangle(
-      panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x1a1620, 0.97,
+    const bg = addSurfaceImageOrFallback(
+      model.resourceBundle,
+      "overlays",
+      "darknessMask",
+      null,
+      panelX + panelW / 2,
+      panelY + panelH / 2,
+      panelW,
+      panelH,
     );
     overlay.add(bg);
 
@@ -314,9 +394,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     );
     overlay.add(actorLabel);
 
-    const actorColor = model.entityType === "warden" ? 0x7da6ff : 0xffb9a8;
-    const actorCircle = scene.add.circle(panelX + 36, panelY + 68, 28, actorColor, 0.96);
-    overlay.add(actorCircle);
+    const actorAsset = resolveSurfaceAsset(model.resourceBundle, "actors", model.entityType, model);
+    const actorImage = addBundleImage(actorAsset, panelX + 36, panelY + 68, 56, 56)
+      || addMissingBundleFallback(panelX + 36, panelY + 68, 56, 56);
+    overlay.add(actorImage);
 
     let yVitals = panelY + 32;
     if (model.vitals?.health) {
@@ -377,8 +458,8 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   function clearHighlight() {
     if (!selectedActorKey) return;
     const entry = actorNodes.get(selectedActorKey);
-    if (entry?.circle) {
-      entry.circle.setTint?.(entry.originalColor);
+    if (entry?.node) {
+      entry.node.clearTint?.();
     }
     selectedActorKey = null;
   }
@@ -391,7 +472,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     clearHighlight();
     const entry = actorNodes.get(key);
     if (!entry) return false;
-    entry.circle.setTint?.(SELECTION_TINT);
+    entry.node.setTint?.(SELECTION_TINT);
     selectedActorKey = key;
     return true;
   }
@@ -430,7 +511,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const overlay = scene.add.container(overlayX, overlayY);
     quickViewContainer = overlay;
 
-    const bg = scene.add.rectangle(panelW / 2, panelH / 2, panelW, panelH, 0x0d0d0f, 0.88);
+    const bg = addSurfaceImageOrFallback(
+      model.resourceBundle,
+      "overlays",
+      "darknessMask",
+      null,
+      panelW / 2,
+      panelH / 2,
+      panelW,
+      panelH,
+    );
     overlay.add(bg);
 
     const idLabel = scene.add.text(padX, 3, model.id ?? "", { fontSize: "9px", color: "#c8c8c8" });
@@ -552,6 +642,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     selectedActorKey = null;
 
     const { tileWidth, tileHeight } = currentBoardMetrics;
+    const resourceBundle = boardState?.resourceBundle || null;
     const tiles = Array.isArray(boardState?.tiles) ? boardState.tiles : [];
     const boardHeight = Math.max(1, boardState?.boardHeight || tiles.length || 1);
     const boardWidth = Math.max(1, boardState?.boardWidth || 1);
@@ -581,8 +672,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         const symbol = row[x] || "X";
         const cx = x * tileWidth + tileWidth / 2;
         const cy = y * tileHeight + tileHeight / 2;
-        const tile = scene.add.rectangle(cx, cy, tileWidth - 1, tileHeight - 1, tileColorForType(tileSymbolToType(symbol)), 1);
-        tile.setStrokeStyle?.(1, 0x0d0d0f, 0.35);
+        const tile = addSurfaceImageOrFallback(
+          resourceBundle,
+          "tiles",
+          tileSymbolToType(symbol),
+          null,
+          cx,
+          cy,
+          tileWidth,
+          tileHeight,
+        );
         currentContainer.add(tile);
       }
     }
@@ -593,18 +692,18 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       if (ax === null || ay === null) continue;
       const cx = ax * tileWidth + tileWidth / 2;
       const cy = ay * tileHeight + tileHeight / 2;
-      const role = inferActorRole(actor);
-      const tintHex = role === "warden" ? "#7da6ff" : "#ffb9a8";
-      const tint = Number.parseInt(tintHex.replace("#", ""), 16);
-      const circle = scene.add.circle(cx, cy, Math.max(8, Math.min(tileWidth, tileHeight) * 0.3), tint, 0.96);
-      actorNodes.set(`${ax},${ay}`, { circle, originalColor: tint });
-      const label = scene.add.text(cx, cy, role === "warden" ? "W" : "D", {
-        fontFamily: "Space Grotesk, sans-serif",
-        fontSize: `${Math.max(12, Math.floor(tileWidth * 0.38))}px`,
-        color: "#140e0e",
-      }).setOrigin(0.5);
-      currentContainer.add(circle);
-      currentContainer.add(label);
+      const actorImage = addSurfaceImageOrFallback(
+        resourceBundle,
+        "actors",
+        inferActorRole(actor),
+        actor,
+        cx,
+        cy,
+        tileWidth,
+        tileHeight,
+      );
+      actorNodes.set(`${ax},${ay}`, { node: actorImage });
+      currentContainer.add(actorImage);
     }
 
     const hazards = Array.isArray(boardState?.observation?.hazards) ? boardState.observation.hazards : [];
@@ -614,7 +713,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       if (hx === null || hy === null) continue;
       const cx = hx * tileWidth + tileWidth / 2;
       const cy = hy * tileHeight + tileHeight / 2;
-      const hazardShape = scene.add.rectangle(cx, cy, tileWidth * 0.48, tileHeight * 0.48, 0xff6644, 0.92).setAngle(45);
+      const hazardShape = addSurfaceImageOrFallback(
+        resourceBundle,
+        "items",
+        "hazard",
+        hazard,
+        cx,
+        cy,
+        tileWidth,
+        tileHeight,
+      );
       currentContainer.add(hazardShape);
     }
 
@@ -625,7 +733,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       if (rx === null || ry === null) continue;
       const cx = rx * tileWidth + tileWidth / 2;
       const cy = ry * tileHeight + tileHeight / 2;
-      const resourceShape = scene.add.rectangle(cx, cy, tileWidth * 0.5, tileHeight * 0.5, 0x90ee90, 0.9);
+      const resourceShape = addSurfaceImageOrFallback(
+        resourceBundle,
+        "items",
+        "resource",
+        resource,
+        cx,
+        cy,
+        tileWidth,
+        tileHeight,
+      );
       currentContainer.add(resourceShape);
     }
 

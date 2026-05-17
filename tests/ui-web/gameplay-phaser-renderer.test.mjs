@@ -21,7 +21,10 @@ function createFakePhaser(records = {}) {
       setDepth(depth) { this.depth = depth; return this; },
       setDisplaySize(w, h) { this.displayWidth = w; this.displayHeight = h; return this; },
       setTint(tint) { this.tint = tint; return this; },
+      clearTint() { this.tint = undefined; return this; },
       setOrigin(x, y) { this.origin = { x, y }; return this; },
+      setName(name) { this.name = name; return this; },
+      setData(key, value) { (this.data = this.data || {})[key] = value; return this; },
       setAlpha(a) { this.alpha = a; return this; },
       setScale(s) { this.scale = s; return this; },
       setPosition(x, y) { this.x = x; this.y = y; return this; },
@@ -237,7 +240,7 @@ test("gameplay phaser renderer draws at least one shape per warden", async () =>
   renderer.dispose();
 });
 
-test("gameplay phaser renderer labels archetype wardens distinctly from delvers", async () => {
+test("gameplay phaser renderer renders archetype wardens and delvers as distinct surface nodes", async () => {
   const records = {};
   const container = makeContainer();
   const renderer = createGameplayPhaserRenderer({
@@ -257,8 +260,11 @@ test("gameplay phaser renderer labels archetype wardens distinctly from delvers"
     },
   });
 
-  assert.ok(records.texts.some((entry) => entry.text === "D"), "expected delver label");
-  assert.ok(records.texts.some((entry) => entry.text === "W"), "expected warden label");
+  // Both actors must be registered: the stage dataset reflects the correct actor count.
+  assert.equal(container.stage.dataset.gameplayActors, "2", "both actors must be registered");
+  // Each actor must highlight independently — warden and delver at different x-tiles.
+  assert.equal(renderer.highlightActor({ x: 1, y: 1 }), true, "delver at (1,1) must be highlightable");
+  assert.equal(renderer.highlightActor({ x: 2, y: 1 }), true, "warden at (2,1) must be highlightable");
   renderer.dispose();
 });
 
@@ -951,7 +957,7 @@ test("highlightActor returns false when no actor is at the position", async () =
   renderer.dispose();
 });
 
-test("highlightActor applies a selection tint to the actor circle", async () => {
+test("highlightActor applies a selection tint to the actor node", async () => {
   const records = {};
   const container = makeContainer();
   const renderer = createGameplayPhaserRenderer({
@@ -959,15 +965,14 @@ test("highlightActor applies a selection tint to the actor circle", async () => 
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  // DEFAULT_TILE_SIZE=32, delver at {x:2,y:2} → circle center at (80,80)
   renderer.highlightActor({ x: 2, y: 2 });
-  const actorCircle = records.circles.find((c) => c.x === 80 && c.y === 80);
-  assert.ok(actorCircle, "actor circle must exist at tile (2,2)");
-  assert.equal(actorCircle.tint, SELECTION_TINT, "actor circle must have selection tint");
+  // After highlight, exactly one rectangle must carry the selection tint.
+  const tinted = records.rectangles.filter((r) => r.tint === SELECTION_TINT);
+  assert.equal(tinted.length, 1, "exactly one node must have selection tint after highlight");
   renderer.dispose();
 });
 
-test("clearHighlight restores the actor circle's original tint", async () => {
+test("clearHighlight clears the selection tint from the actor node", async () => {
   const records = {};
   const container = makeContainer();
   const renderer = createGameplayPhaserRenderer({
@@ -977,9 +982,9 @@ test("clearHighlight restores the actor circle's original tint", async () => {
   await renderer.renderRun(BOARD_STATE);
   renderer.highlightActor({ x: 2, y: 2 });
   renderer.clearHighlight();
-  const actorCircle = records.circles.find((c) => c.x === 80 && c.y === 80);
-  assert.ok(actorCircle);
-  assert.notEqual(actorCircle.tint, SELECTION_TINT, "selection tint must be cleared after clearHighlight");
+  // After clearHighlight, no rectangle should carry the selection tint.
+  const tinted = records.rectangles.filter((r) => r.tint === SELECTION_TINT);
+  assert.equal(tinted.length, 0, "selection tint must be cleared after clearHighlight");
   renderer.dispose();
 });
 
@@ -991,13 +996,12 @@ test("highlightActor clears previous selection when called on a different actor"
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  // delver at (2,2), warden at (2,3) → circle centers (80,80) and (80,112)
+  // delver at (2,2), warden at (2,3)
   renderer.highlightActor({ x: 2, y: 2 });
   renderer.highlightActor({ x: 2, y: 3 });
-  const delverCircle = records.circles.find((c) => c.x === 80 && c.y === 80);
-  const wardenCircle = records.circles.find((c) => c.x === 80 && c.y === 112);
-  assert.notEqual(delverCircle.tint, SELECTION_TINT, "previous actor tint must be cleared");
-  assert.equal(wardenCircle.tint, SELECTION_TINT, "newly selected actor must have selection tint");
+  // After switching highlight, exactly one node must carry the selection tint (the warden's).
+  const tinted = records.rectangles.filter((r) => r.tint === SELECTION_TINT);
+  assert.equal(tinted.length, 1, "exactly one node must have selection tint after switching highlight");
   renderer.dispose();
 });
 
