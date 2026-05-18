@@ -13,10 +13,9 @@ Before writing any code in a new session, complete the checklist in `AGENTS.md �
 3. `git pull --ff-only` — confirm on HEAD
 4. `pnpm install --frozen-lockfile` — confirm lockfile match
 5. `pnpm run test` — confirm no pre-existing failures
-6. Rebuild graphify: `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` 
+6. `bash scripts/setup/agent-context.sh` — refresh branch-local Graphify and `local-codex/CodeContext.md`
 7. Start CodeContextGraph watch: `mcp__CodeGraphContext__watch_directory` on repo root
-8. Read `graphify-out/wiki/index.md` for community map
-9. Rewrite `local-codex/CodeContext.md` from three MCP queries (`local-codex/` symlinks resolve to `~/vault/sources/codex-snapshots/`)
+8. Read `local-codex/CodeContext.md`, then the mirrored Graphify report it names
 
 **This is not optional.** A stale vault context or missing dependencies produces wrong structural answers that compound across milestones.
 
@@ -72,7 +71,7 @@ Authors commit messages, opens PRs, and updates `docs/architecture-charter.md`, 
 | How do concepts cluster? | graphify wiki (`graphify-out/wiki/index.md`) | CodeContextGraph |
 | High-level architecture orientation | graphify wiki | CodeContextGraph |
 
-**Read `graphify-out/wiki/index.md` before any CodeContextGraph queries** — one file read vs. multiple MCP round-trips. Once oriented, use CodeContextGraph for all structural lookups.
+**Read `local-codex/CodeContext.md` before any CodeContextGraph queries** — it names the branch-local Graphify mirror under `~/vault/codex-context/`. Once oriented, use CodeContextGraph for all structural lookups.
 
 **Graph before grep:** query CodeContextGraph before any `grep`/`rg`/`find`/`Glob`. Text search is only permitted for literal content (README prose, fixture strings, exact command examples) — not for code discovery. Before using text search, name the MCP query already tried and why it was insufficient.
 
@@ -82,7 +81,7 @@ Authors commit messages, opens PRs, and updates `docs/architecture-charter.md`, 
 
 ### CodeContext snapshot for Codex handoffs
 
-Before each Codex handoff, write `local-codex/CodeContext.md` (symlink → `~/vault/sources/codex-snapshots/CodeContext.md`) covering: repo stats, package dependency summary, entry points for the milestone's target files, and top-10 complexity hotspots (`get_repository_stats`, `analyze_code_relationships`, `find_most_complex_functions`). Cite the queries used before opening any implementation file. After a large structural refactor, run `mcp__CodeGraphContext__add_package_to_graph` to force a full re-scan.
+Before each Codex handoff, run `bash scripts/setup/agent-context.sh` to write `local-codex/CodeContext.md` and mirror Graphify results for the current worktree. Then query live CodeContextGraph for repo stats, package dependency summary, entry points for the milestone's target files, and top-10 complexity hotspots (`get_repository_stats`, `analyze_code_relationships`, `find_most_complex_functions`). Cite the queries used before opening any implementation file. After a large structural refactor, run `mcp__CodeGraphContext__add_package_to_graph` to force a full re-scan.
 
 ---
 
