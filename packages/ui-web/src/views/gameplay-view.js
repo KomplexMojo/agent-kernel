@@ -64,6 +64,7 @@ export function wireGameplayView({
   const zoomInBtn = root.querySelector?.("#gameplay-zoom-in") ?? null;
   const zoomOutBtn = root.querySelector?.("#gameplay-zoom-out") ?? null;
   const fitBtn = root.querySelector?.("#gameplay-fit-level") ?? null;
+  const fullscreenBtn = root.querySelector?.("#gameplay-fullscreen") ?? null;
 
   let activeBundle = null;
   let entityIndex = new Map();
@@ -131,6 +132,12 @@ export function wireGameplayView({
     }
 
     void renderer.renderRun(frames[0]);
+    renderer.setPlaybackControls?.({
+      stepBack: () => stepBack(),
+      stepForward: () => stepForward(),
+      togglePlay: () => {},
+      reset: () => clear(),
+    });
     updateStepButtons();
     onRunLoaded?.(bundle);
   }
@@ -228,6 +235,16 @@ export function wireGameplayView({
   if (fitBtn?.addEventListener) {
     fitBtn.addEventListener("click", () => fitToLevel());
   }
+  if (fullscreenBtn?.addEventListener) {
+    fullscreenBtn.addEventListener("click", () => enterFullscreen());
+  }
+
+  // Disable step controls initially (no run loaded)
+  if (stepBackBtn) stepBackBtn.disabled = true;
+  if (stepForwardBtn) stepForwardBtn.disabled = true;
+
+  // Signal that playback controls are wired to the renderer bridge
+  if (phaserHost) phaserHost.dataset.__gameplayPlaybackControlsWired = "true";
 
   function resolveDisplayModel(position) {
     const x = Number(position?.x);
@@ -259,6 +276,14 @@ export function wireGameplayView({
     renderer.closePlayerPanel?.();
   }
 
+  function enterFullscreen() {
+    if (phaserHost) phaserHost.dataset.gameplayFullscreen = "true";
+  }
+
+  function exitFullscreen() {
+    if (phaserHost) phaserHost.dataset.gameplayFullscreen = "false";
+  }
+
   function handleInspectorSelect(payload) {
     if (!payload?.position) return;
     const pos = payload.position;
@@ -287,5 +312,7 @@ export function wireGameplayView({
     zoomIn,
     zoomOut,
     fitToLevel,
+    enterFullscreen,
+    exitFullscreen,
   };
 }

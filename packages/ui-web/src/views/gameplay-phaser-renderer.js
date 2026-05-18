@@ -364,12 +364,13 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     if (!scene || !model) return;
     const vw = cameraState.viewportWidth || 400;
     const vh = cameraState.viewportHeight || 300;
-    const panelW = 280;
-    const panelH = Math.min(vh - 40, 360);
+    const panelW = Math.floor(vw * 0.85);
+    const panelH = Math.floor(vh * 0.85);
     const panelX = Math.floor((vw - panelW) / 2);
     const panelY = Math.floor((vh - panelH) / 2);
 
     const overlay = scene.add.container(0, 0);
+    overlay.setScrollFactor?.(0);
     playerPanelContainer = overlay;
 
     const dimmer = scene.add.rectangle(vw / 2, vh / 2, vw, vh, 0x000000, 0.65);
@@ -450,9 +451,12 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       { fontSize: "9px", color: "#888888" },
     ));
 
-    overlay.setDepth?.(300);
+    overlay.setDepth?.(500);
     playerPanelOpen = true;
-    if (stageEl?.dataset) stageEl.dataset.gameplayPlayerPanelOpen = "true";
+    if (stageEl?.dataset) {
+      stageEl.dataset.gameplayPlayerPanelOpen = "true";
+      stageEl.dataset.gameplayPlayerPanelSize = `${vw}x${vh}`;
+    }
   }
 
   function clearHighlight() {
@@ -683,6 +687,26 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
           tileHeight,
         );
         currentContainer.add(tile);
+
+        // Apply tile affinity visuals (tint, alpha, overlay) when present.
+        const tileVisuals = boardState?.tileVisuals;
+        if (tileVisuals) {
+          const tileKey = `${x},${y}`;
+          const visual = tileVisuals.get(tileKey);
+          if (visual) {
+            tile.setTint?.(visual.color);
+            if (typeof visual.alpha === "number") tile.setAlpha?.(visual.alpha);
+            if (visual.overlayAssetId) {
+              const overlayNode = scene.add.image(cx, cy, visual.overlayAssetId);
+              if (overlayNode) {
+                overlayNode.setDisplaySize?.(tileWidth, tileHeight);
+                overlayNode.setOrigin?.(0.5);
+                if (typeof visual.alpha === "number") overlayNode.setAlpha?.(visual.alpha);
+                currentContainer.add(overlayNode);
+              }
+            }
+          }
+        }
       }
     }
 

@@ -1335,6 +1335,134 @@ test("onSelect is suppressed while Player Panel is open", async () => {
   renderer.dispose();
 });
 
+// --- M3: tile affinity visuals in the renderer ---
+
+import bundle from "../fixtures/ui-web/resource-hazard-run-bundle.json" with { type: "json" };
+
+const AFFINITY_BOARD_STATE = {
+  tiles: ["XXXXX", "X...X", "X...X", "X...X", "XXXXX"],
+  boardWidth: 5,
+  boardHeight: 5,
+  simConfig: { layout: { data: { width: 5, height: 5, rooms: [] } }, seed: 0 },
+  initialState: {
+    actors: [
+      { id: "delver-1", type: "delver", position: { x: 1, y: 1 } },
+    ],
+  },
+  observation: {
+    actors: [
+      { id: "delver-1", type: "delver", position: { x: 1, y: 1 } },
+    ],
+    hazards: [
+      {
+        id: "fire-trap-1",
+        kind: "fire",
+        position: { x: 2, y: 2 },
+        emitStrength: 3,
+        affinityStacks: [{ kind: "fire", stacks: 2, expression: "burning" }],
+      },
+    ],
+    resources: [],
+  },
+  resourceBundle: bundle.artifacts[2],
+  tileVisuals: new Map([
+    ["2,2", { intensity: 1.0, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 1.0, overlayAssetId: "overlay-fire-glow", isWall: false }],
+    ["2,1", { intensity: 0.66, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 0.66, overlayAssetId: "overlay-fire-glow", isWall: false }],
+    ["2,3", { intensity: 0.66, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 0.66, overlayAssetId: "overlay-fire-glow", isWall: false }],
+    ["1,2", { intensity: 0.66, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 0.66, overlayAssetId: "overlay-fire-glow", isWall: false }],
+    ["3,2", { intensity: 0.66, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 0.66, overlayAssetId: "overlay-fire-glow", isWall: false }],
+    ["1,1", { intensity: 0.33, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 0.33, overlayAssetId: null, isWall: false }],
+    ["3,1", { intensity: 0.33, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 0.33, overlayAssetId: null, isWall: false }],
+    ["1,3", { intensity: 0.33, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 0.33, overlayAssetId: null, isWall: false }],
+    ["3,3", { intensity: 0.33, affinityKind: "fire", expression: "burning", color: 0xff4400, alpha: 0.33, overlayAssetId: null, isWall: false }],
+  ]),
+};
+
+test("drawBoard applies tint to floor tiles when tileVisuals are provided", async () => {
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(AFFINITY_BOARD_STATE);
+
+  // Floor tiles at affected positions must have their tint set to the affinity color.
+  // Tile at (2,2) is the origin with color 0xff4400.
+  const tintedRects = records.rectangles.filter((r) => r.tint === 0xff4400);
+  assert.ok(
+    tintedRects.length > 0,
+    "at least one floor tile rectangle must have the affinity tint applied",
+  );
+  renderer.dispose();
+});
+
+test("drawBoard applies alpha to floor tiles based on tileVisuals intensity", async () => {
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(AFFINITY_BOARD_STATE);
+
+  // Check that at least one tile has a reduced alpha matching a non-origin intensity.
+  const reducedAlpha = records.rectangles.filter(
+    (r) => typeof r.alpha === "number" && r.alpha > 0 && r.alpha < 1,
+  );
+  assert.ok(
+    reducedAlpha.length > 0,
+    "floor tiles at distance from hazard must have reduced alpha from tileVisuals",
+  );
+  renderer.dispose();
+});
+
+test("drawBoard registers overlay textures for affected tiles with overlayAssetId", async () => {
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(AFFINITY_BOARD_STATE);
+
+  // Tiles with overlayAssetId should produce image nodes with the overlay texture key.
+  const overlayImages = records.images.filter(
+    (img) => img.textureKey === "overlay-fire-glow",
+  );
+  assert.ok(
+    overlayImages.length > 0,
+    "affected tiles with overlayAssetId must produce overlay image nodes",
+  );
+  // Origin plus 4 cardinal neighbors have overlayAssetId set
+  assert.ok(
+    overlayImages.length >= 5,
+    `expected at least 5 overlay images (origin + 4 cardinal), got ${overlayImages.length}`,
+  );
+  renderer.dispose();
+});
+
+test("drawBoard does not apply tint to tiles without affinity visuals", async () => {
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+
+  // Use the base BOARD_STATE which has no tileVisuals
+  await renderer.renderRun(BOARD_STATE);
+
+  // No rectangles should have the affinity tint
+  const affinityTinted = records.rectangles.filter((r) => r.tint === 0xff4400);
+  assert.equal(
+    affinityTinted.length,
+    0,
+    "tiles without tileVisuals must not have affinity tint applied",
+  );
+  renderer.dispose();
+});
+
 /*
 ## TODO: Test Permutations
 - renderRun with empty actors array renders only tiles without throwing
@@ -1356,4 +1484,9 @@ test("onSelect is suppressed while Player Panel is open", async () => {
 - openPlayerPanel before renderRun does not throw
 - onHover resumes after closePlayerPanel
 - onSelect resumes after closePlayerPanel
+- drawBoard with tileVisuals containing only wall tiles renders tint but no overlay
+- drawBoard with tileVisuals but missing overlayAssetId skips overlay image creation
+- drawBoard with overlapping affinity visuals from two hazards uses combined intensity
+- renderFrame preserves tileVisuals across frame updates
+- tileVisuals with intensity of 0 produces no visual change on the tile
 */

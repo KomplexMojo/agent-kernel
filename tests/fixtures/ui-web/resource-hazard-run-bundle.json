@@ -1,0 +1,69 @@
+{
+  "artifacts": [
+    {
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1,
+      "layout": {
+        "data": {
+          "width": 5,
+          "height": 5,
+          "tiles": ["XXXXX", "X...X", "X...X", "X...X", "XXXXX"],
+          "hazards": [
+            {
+              "id": "fire-trap-1",
+              "entityType": "hazard",
+              "kind": "fire",
+              "position": { "x": 2, "y": 2 },
+              "emitStrength": 3,
+              "affinityStacks": [
+                { "kind": "fire", "stacks": 2, "expression": "burning" }
+              ]
+            }
+          ],
+          "resources": [
+            {
+              "id": "gem-1",
+              "entityType": "resource",
+              "kind": "gem",
+              "position": { "x": 3, "y": 1 }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "schema": "agent-kernel/InitialStateArtifact",
+      "schemaVersion": 1,
+      "actors": [
+        {
+          "id": "delver-1",
+          "entityType": "actor",
+          "role": "delver",
+          "position": { "x": 1, "y": 1 },
+          "vitals": { "health": { "current": 10, "max": 10 } },
+          "affinities": [{ "kind": "fire", "stacks": 1, "expression": "resistant" }]
+        }
+      ]
+    },
+    {
+      "schema": "agent-kernel/ResourceBundleArtifact",
+      "schemaVersion": 2,
+      "tileWidth": 32,
+      "tileHeight": 32,
+      "assets": [
+        { "id": "tile-floor", "dataUri": "data:image/png;base64,iVBOR" },
+        { "id": "tile-wall", "dataUri": "data:image/png;base64,iVBOR" },
+        { "id": "hazard-fire", "dataUri": "data:image/png;base64,iVBOR" },
+        { "id": "overlay-fire-glow", "dataUri": "data:image/png;base64,iVBOR" },
+        { "id": "item-gem", "dataUri": "data:image/png;base64,iVBOR" },
+        { "id": "actor-delver", "dataUri": "data:image/png;base64,iVBOR" }
+      ],
+      "mappings": {
+        "tiles": { "floor": "tile-floor", "wall": "tile-wall" },
+        "items": { "hazard": "hazard-fire", "resource": "item-gem" },
+        "actors": { "delver": "actor-delver" },
+        "overlays": { "fireGlow": "overlay-fire-glow" }
+      }
+    }
+  ]
+}
