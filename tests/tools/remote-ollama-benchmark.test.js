@@ -99,6 +99,27 @@ test("hardware benchmark dry run advertises profile reset by default", () => {
   assert.deepEqual(output.runs.map((run) => run.profileName), ["dual"]);
 });
 
+test("remote ollama mac external host flag overrides the configured WAN host", () => {
+  const result = spawnSync(process.execPath, [
+    MAC_SCRIPT,
+    "dry-run",
+    "status",
+    "--route",
+    "external",
+    "--external-host",
+    "207.6.34.73",
+    "--profile",
+    "dual",
+  ], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /darren@207\.6\.34\.73/);
+  assert.doesNotMatch(result.stdout, /154\.5\.75\.3/);
+});
+
 // ## TODO: Test Permutations
 // - model with no configured profiles should be skipped from generated specs
 // - named effort should resolve from config benchmark defaults

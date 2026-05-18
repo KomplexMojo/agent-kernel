@@ -85,7 +85,12 @@ Without the systemd unit, `remote-ollama-profile` uses managed pid files under `
 
 ## Network Modes
 
-`--route internal` uses `192.168.1.143`. `--route external` uses `154.5.75.3`.
+`--route internal` uses `192.168.1.143`. `--route external` uses the configured `LLM_EXTERNAL_HOST`.
+When the WAN IP changes, override it per command with `--external-host`, for example:
+
+```bash
+./bin/remote-ollama-mac status --route external --external-host 207.6.34.73 --profile dual
+```
 
 Safe bind default is `127.0.0.1`. In this mode, use an SSH tunnel before querying from the Mac. The Mac wrapper's default tunnel ports are offset by `+10000` so they do not collide with a Mac-local Ollama:
 
@@ -176,6 +181,7 @@ Use `run-local` when Claude Code, Codex, or a repo skill should run on the Mac b
   --profile dual \
   --model qwen3-coder:30b \
   --route external \
+  --external-host 207.6.34.73 \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model qwen3-coder:30b --dry-run
 ```
 

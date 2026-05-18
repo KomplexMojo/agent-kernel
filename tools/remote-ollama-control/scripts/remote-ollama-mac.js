@@ -40,6 +40,9 @@ function usage() {
   remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route internal|external] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
 
+Common options:
+  --external-host HOST   Override LLM_EXTERNAL_HOST for this invocation.
+
 Profiles: ${Object.keys(config.profiles).join(', ')}
 `);
 }
@@ -78,6 +81,7 @@ function parseArgs(argv) {
     requireGpu: false,
     localPort: null,
     route: config.host.defaultRoute,
+    externalHost: null,
     profile: null,
     model: null,
     context: null,
@@ -139,6 +143,9 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--route') {
       options.route = readOptionValue(args, index, arg);
+      index += 1;
+    } else if (arg === '--external-host') {
+      options.externalHost = readOptionValue(args, index, arg);
       index += 1;
     } else if (arg === '--profile') {
       options.profile = readOptionValue(args, index, arg);
@@ -202,6 +209,16 @@ function parseArgs(argv) {
   }
 
   return options;
+}
+
+function applyHostOverrides(options) {
+  if (!options.externalHost) {
+    return;
+  }
+  if (/^https?:\/\//i.test(options.externalHost) || /[/?#]/.test(options.externalHost)) {
+    fail('--external-host expects a host or IP address, not a URL');
+  }
+  config.host.externalHost = options.externalHost;
 }
 
 function endpointLine(profileName, route) {
@@ -1244,6 +1261,7 @@ async function runContentGen(options) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  applyHostOverrides(options);
 
   if (options.command === 'help') {
     usage();

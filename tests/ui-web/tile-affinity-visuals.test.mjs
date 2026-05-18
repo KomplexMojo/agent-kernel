@@ -271,14 +271,242 @@ describe("resolveTileVisualAt", () => {
   });
 });
 
-// ## TODO: Test Permutations
-// - Non-fire hazard kinds (ice, poison, arcane)
-// - emitStrength of 0 (no spread at all)
-// - emitStrength of 1 (only origin tile)
-// - Very large emitStrength (10+) clamped to board edges
-// - Missing resource bundle asset mappings for overlay
-// - Multiple hazards of different kinds overlapping same tile
-// - Hazard at board edge (0,0) and (max,max)
-// - Empty tiles array with hazards present
-// - Hazard with empty affinityStacks array
-// - Resource bundle with no overlays mapping
+
+it("handles non-fire hazard kinds (ice, poison, arcane)", () => {
+    const nonFireHazards = [
+      {
+        id: "ice-trap",
+        entityType: "hazard",
+        kind: "ice",
+        position: { x: 2, y: 2 },
+        emitStrength: 2,
+        affinityStacks: [{ kind: "ice", stacks: 1, expression: "frozen" }],
+      },
+      {
+        id: "poison-trap",
+        entityType: "hazard",
+        kind: "poison",
+        position: { x: 2, y: 2 },
+        emitStrength: 2,
+        affinityStacks: [{ kind: "poison", stacks: 1, expression: "venomous" }],
+      },
+      {
+        id: "arcane-trap",
+        entityType: "hazard",
+        kind: "arcane",
+        position: { x: 2, y: 2 },
+        emitStrength: 2,
+        affinityStacks: [{ kind: "arcane", stacks: 1, expression: "magical" }],
+      },
+    ];
+    for (const hazard of nonFireHazards) {
+      const visuals = deriveTileAffinityVisuals({
+        tiles,
+        hazards: [hazard],
+        resourceBundle,
+      });
+      const origin = visuals.get("2,2");
+      assert.ok(origin, "origin tile must be present for all hazard kinds");
+      assert.equal(origin.affinityKind, hazard.kind, "must carry correct hazard kind");
+      assert.equal(origin.expression, hazard.affinityStacks[0].expression, "must carry correct expression");
+    }
+  });
+
+  it("handles emitStrength of 0 (no spread at all)", () => {
+    const zeroEmit = [
+      {
+        id: "fire-trap-1",
+        entityType: "hazard",
+        kind: "fire",
+        position: { x: 2, y: 2 },
+        emitStrength: 0,
+        affinityStacks: [{ kind: "fire", stacks: 1, expression: "burning" }],
+      },
+    ];
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards: zeroEmit,
+      resourceBundle,
+    });
+    assert.equal(visuals.size, 0, "zero emitStrength must produce no affected tiles");
+  });
+
+  it("handles emitStrength of 1 (only origin tile)", () => {
+    const oneEmit = [
+      {
+        id: "fire-trap-1",
+        entityType: "hazard",
+        kind: "fire",
+        position: { x: 2, y: 2 },
+        emitStrength: 1,
+        affinityStacks: [{ kind: "fire", stacks: 1, expression: "burning" }],
+      },
+    ];
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards: oneEmit,
+      resourceBundle,
+    });
+    assert.equal(visuals.size, 1, "emitStrength 1 should only affect origin tile");
+    const origin = visuals.get("2,2");
+    assert.ok(origin, "origin tile must be present");
+    assert.equal(origin.intensity, 1.0, "origin tile must have full intensity");
+  });
+
+  it("handles very large emitStrength (10+) clamped to board edges", () => {
+    const largeEmit = [
+      {
+        id: "fire-trap-1",
+        entityType: "hazard",
+        kind: "fire",
+        position: { x: 2, y: 2 },
+        emitStrength: 15,
+        affinityStacks: [{ kind: "fire", stacks: 1, expression: "burning" }],
+      },
+    ];
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards: largeEmit,
+      resourceBundle,
+    });
+    // Should not crash and should respect board boundaries
+    assert.ok(visuals.size > 0, "large emitStrength should still affect some tiles");
+    // Check that tiles are within bounds
+    for (const [key] of visuals) {
+      const [x, y] = key.split(",").map(Number);
+      assert.ok(x >= 0 && x < tiles[0].length, "x coordinate must be within board");
+      assert.ok(y >= 0 && y < tiles.length, "y coordinate must be within board");
+    }
+  });
+
+  it("handles missing resource bundle asset mappings for overlay", () => {
+    const missingOverlayBundle = {
+      ...resourceBundle,
+      mappings: {
+        ...resourceBundle.mappings,
+        overlays: {},
+      },
+    };
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards,
+      resourceBundle: missingOverlayBundle,
+    });
+    const origin = visuals.get("2,2");
+    assert.ok(origin, "origin tile must still be present even without overlay");
+    assert.equal(origin.overlayAssetId, null, "overlayAssetId should be null when no mapping exists");
+  });
+
+  it("handles multiple hazards of different kinds overlapping same tile", () => {
+    const mixedHazards = [
+      {
+        id: "fire-trap",
+        entityType: "hazard",
+        kind: "fire",
+        position: { x: 2, y: 2 },
+        emitStrength: 2,
+        affinityStacks: [{ kind: "fire", stacks: 1, expression: "burning" }],
+      },
+      {
+        id: "ice-trap",
+        entityType: "hazard",
+        kind: "ice",
+        position: { x: 2, y: 2 },
+        emitStrength: 2,
+        affinityStacks: [{ kind: "ice", stacks: 1, expression: "frozen" }],
+      },
+    ];
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards: mixedHazards,
+      resourceBundle,
+    });
+    const overlap = visuals.get("2,2");
+    assert.ok(overlap, "overlapping tile must be present");
+    assert.ok(
+      overlap.intensity > 0,
+      "overlapping tile intensity must be positive",
+    );
+    // Should use the last hazard's properties or some merged logic
+    assert.equal(overlap.affinityKind, "ice", "should use last hazard's kind");
+  });
+
+  it("handles hazard at board edge (0,0) and (max,max)", () => {
+    const edgeHazards = [
+      {
+        id: "edge-trap-1",
+        entityType: "hazard",
+        kind: "fire",
+        position: { x: 0, y: 0 },
+        emitStrength: 2,
+        affinityStacks: [{ kind: "fire", stacks: 1, expression: "burning" }],
+      },
+      {
+        id: "edge-trap-2",
+        entityType: "hazard",
+        kind: "fire",
+        position: { x: tiles[0].length - 1, y: tiles.length - 1 },
+        emitStrength: 2,
+        affinityStacks: [{ kind: "fire", stacks: 1, expression: "burning" }],
+      },
+    ];
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards: edgeHazards,
+      resourceBundle,
+    });
+    assert.ok(visuals.size > 0, "should handle edge hazards without crashing");
+    // Verify that tiles at edges are included
+    const topLeft = visuals.get("0,0");
+    const bottomRight = visuals.get(`${tiles[0].length - 1},${tiles.length - 1}`);
+    assert.ok(topLeft || bottomRight, "edge tiles should be included in visuals");
+  });
+
+  it("handles empty tiles array with hazards present", () => {
+    const emptyTiles = [];
+    const visuals = deriveTileAffinityVisuals({
+      tiles: emptyTiles,
+      hazards,
+      resourceBundle,
+    });
+    // Should not crash, but may return empty visuals
+    assert.ok(visuals instanceof Map, "must return a Map even with empty tiles");
+  });
+
+  it("handles hazard with empty affinityStacks array", () => {
+    const emptyStacksHazard = {
+      id: "empty-stack-trap",
+      entityType: "hazard",
+      kind: "fire",
+      position: { x: 2, y: 2 },
+      emitStrength: 2,
+      affinityStacks: [],
+    };
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards: [emptyStacksHazard],
+      resourceBundle,
+    });
+    const origin = visuals.get("2,2");
+    assert.ok(origin, "origin tile must still be present even with empty stacks");
+    assert.equal(origin.affinityKind, "fire", "should default to hazard kind");
+    assert.equal(origin.expression, "", "expression should default to an empty string with empty stacks");
+  });
+
+  it("handles resource bundle with no overlays mapping", () => {
+    const noOverlaysBundle = {
+      ...resourceBundle,
+      mappings: {
+        ...resourceBundle.mappings,
+        overlays: undefined,
+      },
+    };
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards,
+      resourceBundle: noOverlaysBundle,
+    });
+    const origin = visuals.get("2,2");
+    assert.ok(origin, "origin tile must be present");
+    assert.equal(origin.overlayAssetId, null, "overlayAssetId should be null when no overlays exist");
+  });
