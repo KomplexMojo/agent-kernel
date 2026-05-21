@@ -107,7 +107,7 @@ test("remote ollama mac external host flag overrides the configured WAN host", (
     "--route",
     "external",
     "--external-host",
-    "207.6.34.73",
+    "203.0.113.10",
     "--profile",
     "dual",
   ], {
@@ -116,7 +116,7 @@ test("remote ollama mac external host flag overrides the configured WAN host", (
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /darren@207\.6\.34\.73/);
+  assert.match(result.stdout, /darren@203\.0\.113\.10/);
   assert.doesNotMatch(result.stdout, /154\.5\.75\.3/);
 });
 

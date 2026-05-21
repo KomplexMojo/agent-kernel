@@ -132,7 +132,7 @@ When `LLM_SSH_HOST_ALIAS` is set (e.g. `llm-vpn`), the route selection is handle
 When the WAN IP changes, either update `~/.ssh/config` (preferred) or override per command:
 
 ```bash
-./bin/remote-ollama-mac status --route external --external-host 207.6.34.73 --profile dual
+./bin/remote-ollama-mac status --route external --external-host <wan-host-or-ip> --profile dual
 ```
 
 Safe bind default is `127.0.0.1`. In this mode, use an SSH tunnel before querying from the Mac. The Mac wrapper's default tunnel ports are offset by `+10000` so they do not collide with a Mac-local Ollama:
@@ -224,7 +224,7 @@ Use `run-local` when Claude Code, Codex, or a repo skill should run on the Mac b
   --profile dual \
   --model qwen3-coder:30b \
   --route external \
-  --external-host 207.6.34.73 \
+  --external-host <wan-host-or-ip> \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model qwen3-coder:30b --dry-run
 ```
 

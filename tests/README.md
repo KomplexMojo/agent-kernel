@@ -102,6 +102,29 @@ For the rarest families, keep the scaffolds narrow and pattern-matched:
 
 When generating permutations, stay **bounded and explainable**.
 
+## Core Game Domain Contract
+
+Generated tests must start from these canonical game concepts. Do not invent
+new names just because a local helper currently tolerates them.
+
+- Affinity kinds are only: `fire`, `water`, `earth`, `wind`, `life`,
+  `decay`, `corrode`, `fortify`, `light`, `dark`.
+- Affinity expressions are only: `push`, `pull`, `emit`, `draw`.
+- Affinity stacks are positive integer strength counts attached to an
+  affinity kind/expression pair. Effect strength, including Emit field
+  strength, comes from stacks. Do not add separate strength fields such as
+  `emitStrength`.
+- Motivation kinds are grouped by family:
+  - mobility: `random`, `stationary`, `exploring`, `patrolling`
+  - posture: `attacking`, `defending`, `stealthy`, `friendly`
+  - cognition: `reflexive`, `goal_oriented`, `strategy_focused`
+  - control: `user_controlled`
+- Motivations in the same exclusive family conflict. Cross-family motivations
+  compose.
+- Tests may use only fields present in versioned artifact contracts or existing
+  deterministic fixtures. If current implementation accepts an invented field
+  or value, write the test against the contract and surface implementation drift.
+
 Good:
 
 - missing required CLI arg

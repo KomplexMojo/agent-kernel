@@ -16,6 +16,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CWD = process.cwd();
 const REPORT_FILE = path.join(CWD, "test-gen-report.md");
 const LOG_FILE = path.join(CWD, "test-gen.log");
+const TEST_CONTEXT_FILE = path.join(CWD, "tests", "README.md");
+const ALLOWED_AFFINITY_KINDS = Object.freeze(["fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark"]);
+const ALLOWED_AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit", "draw"]);
+const ALLOWED_MOTIVATION_KINDS = Object.freeze([
+  "random",
+  "stationary",
+  "exploring",
+  "patrolling",
+  "attacking",
+  "defending",
+  "stealthy",
+  "friendly",
+  "reflexive",
+  "goal_oriented",
+  "strategy_focused",
+  "user_controlled",
+]);
+const KNOWN_INVALID_DOMAIN_TERMS = Object.freeze(["ice", "poison", "arcane"]);
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -75,6 +93,22 @@ if (!["auto", "off"].includes(SOURCE_CONTEXT_MODE)) {
 if (!Number.isInteger(SOURCE_CHAR_BUDGET) || SOURCE_CHAR_BUDGET < 0) {
   throw new Error("--source-char-budget / TEST_GEN_SOURCE_CHAR_BUDGET must be a non-negative integer");
 }
+
+function readTestGenerationContext() {
+  if (fs.existsSync(TEST_CONTEXT_FILE)) {
+    return fs.readFileSync(TEST_CONTEXT_FILE, "utf8");
+  }
+  return [
+    "# Test Generation Domain Contract",
+    "",
+    `Affinity kinds: ${ALLOWED_AFFINITY_KINDS.join(", ")}.`,
+    `Affinity expressions: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}.`,
+    "Affinity stacks control effect strength. Do not invent emitStrength or similar scalar strength fields.",
+    `Motivation kinds: ${ALLOWED_MOTIVATION_KINDS.join(", ")}.`,
+  ].join("\n");
+}
+
+const TEST_GENERATION_CONTEXT = readTestGenerationContext();
 
 function optionalPositiveInteger(flag, envValue) {
   const raw = argValue(flag) || envValue || null;
@@ -479,6 +513,11 @@ Existing tests:
 ${contentBeforeTodo(fileContent)}
 \`\`\`
 
+Repo test-generation contract:
+\`\`\`markdown
+${TEST_GENERATION_CONTEXT}
+\`\`\`
+
 Relevant implementation/source context:
 ${sourceContext.text || "(no source context provided)"}
 
@@ -531,6 +570,11 @@ Here is the existing test file (read it to understand the patterns, imports, and
 ${contentBeforeTodo(fileContent)}
 \`\`\`
 
+Repo test-generation contract:
+\`\`\`markdown
+${TEST_GENERATION_CONTEXT}
+\`\`\`
+
 Relevant implementation/source context:
 ${sourceContext.text || "(no source context provided)"}
 
@@ -546,6 +590,11 @@ Rules:
 - Follow EXACTLY the same style as the existing tests (same runner, same assertion library, same helper usage)
 - Do NOT add new import or require statements — use only what is already imported
 - Do NOT invent helper APIs or view/model methods that are not visible in the file
+- Do NOT invent game concepts, schema fields, affinity kinds, affinity expressions, or motivations
+- Use only canonical affinity kinds: ${ALLOWED_AFFINITY_KINDS.join(", ")}
+- Use only canonical affinity expressions: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}
+- Use only canonical motivation kinds: ${ALLOWED_MOTIVATION_KINDS.join(", ")}
+- Affinity stack count controls effect strength; do NOT add emitStrength or other scalar strength fields
 - Verify each expected value against the existing helper implementation and earlier tests; do not assume undefined/null/empty-string behavior
 - Do NOT repeat tests that already exist in the file
 - Each stub gets exactly one test() or it() block
@@ -604,6 +653,57 @@ function validateGeneratedCode(generatedCode, stubCount) {
   if (opens !== closes) {
     problems.push(`unbalanced block comments: ${opens} opener(s), ${closes} closer(s)`);
   }
+  if (/\bemitStrength\b/.test(code)) {
+    problems.push("generated code uses invented field emitStrength; Emit strength must derive from affinity stacks");
+  }
+  collectInvalidDomainTerms(code).forEach((problem) => problems.push(problem));
+  return problems;
+}
+
+function collectInvalidDomainTerms(code) {
+  const problems = [];
+  const seen = new Set();
+  const permitsInvalidValues = /\b(invalid|reject|rejected|error|errors|unknown|fail|fails|throw|throws|surfaces)\b/i.test(code);
+
+  function add(problem) {
+    if (seen.has(problem)) return;
+    seen.add(problem);
+    problems.push(problem);
+  }
+
+  for (const term of KNOWN_INVALID_DOMAIN_TERMS) {
+    const pattern = new RegExp(`["']${term}["']`, "i");
+    if (pattern.test(code) && !permitsInvalidValues) {
+      add(`generated code uses non-canonical affinity kind "${term}"`);
+    }
+  }
+
+  for (const match of code.matchAll(/\baffinityKind\s*:\s*["']([^"']+)["']/g)) {
+    if (!ALLOWED_AFFINITY_KINDS.includes(match[1]) && !permitsInvalidValues) {
+      add(`generated code uses invalid affinityKind "${match[1]}"`);
+    }
+  }
+
+  for (const match of code.matchAll(/\bexpression\s*:\s*["']([^"']+)["']/g)) {
+    if (!ALLOWED_AFFINITY_EXPRESSIONS.includes(match[1]) && !permitsInvalidValues) {
+      add(`generated code uses invalid affinity expression "${match[1]}"`);
+    }
+  }
+
+  for (const match of code.matchAll(/\bmotivation\s*:\s*["']([^"']+)["']/g)) {
+    if (!ALLOWED_MOTIVATION_KINDS.includes(match[1]) && !permitsInvalidValues) {
+      add(`generated code uses invalid motivation "${match[1]}"`);
+    }
+  }
+
+  for (const match of code.matchAll(/\bmotivations\s*:\s*\[([^\]]*)\]/g)) {
+    for (const value of match[1].matchAll(/["']([^"']+)["']/g)) {
+      if (!ALLOWED_MOTIVATION_KINDS.includes(value[1]) && !permitsInvalidValues) {
+        add(`generated code uses invalid motivation "${value[1]}"`);
+      }
+    }
+  }
+
   return problems;
 }
 

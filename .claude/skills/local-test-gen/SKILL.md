@@ -32,6 +32,7 @@ This skill is also the preferred harness for **model evaluation** when comparing
 3. You are in the repo root (where `tests/` exists and `pnpm` is available)
 4. For remote hardware through SSH, run through `remote-ollama-mac run-local` or set `OLLAMA_HOST` to the active tunnel endpoint
 5. For this repo, prefer the remote dual profile for 30B-class models
+6. For this repo, read `tests/README.md` before generation; the script injects it as the core game domain contract
 
 ---
 
@@ -66,7 +67,7 @@ Remote dual-GPU example from the repo root:
   --profile dual \
   --model qwen3-coder:30b-a3b-q4_K_M \
   --route external \
-  --external-host 207.6.34.73 \
+  --external-host <wan-host-or-ip> \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model qwen3-coder:30b-a3b-q4_K_M
 ```
 
@@ -77,7 +78,7 @@ Model-evaluation example against one target file:
   --profile dual \
   --model qwen3-coder:30b \
   --route external \
-  --external-host 207.6.34.73 \
+  --external-host <wan-host-or-ip> \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs \
     --model qwen3-coder:30b \
     --file tests/ui-web/tile-affinity-visuals.test.mjs \
@@ -100,18 +101,19 @@ Model-evaluation example against one target file:
 2. **Plan** — extracts the stub bullet points from each file's TODO section
 3. **Baseline** — runs the target file before generation and skips files with pre-existing failures
 4. **Source context** — includes local implementation files imported by the target test, capped by `--source-char-budget`
-5. **Reasoning pass** — in `plan-code` mode, asks the model for a concise per-stub contract plan before generating code
-6. **Generate** — sends each file's existing tests, source context, stubs, and optional plan to the selected model, asking it to produce concrete test cases for every stub
-7. **Static check** — rejects generated code with markdown fences, imports, leftover TODOs, too few test blocks, or unbalanced block comments
-8. **Insert** — writes the generated tests into the file, replacing the TODO section, including block-comment TODO wrappers
-9. **Run** — executes each modified file with the selected runner:
+5. **Domain context** — injects `tests/README.md`, including canonical affinity kinds, expressions, stacks, and motivations
+6. **Reasoning pass** — in `plan-code` mode, asks the model for a concise per-stub contract plan before generating code
+7. **Generate** — sends each file's existing tests, source context, domain context, stubs, and optional plan to the selected model, asking it to produce concrete test cases for every stub
+8. **Static check** — rejects generated code with markdown fences, imports, leftover TODOs, too few test blocks, unbalanced block comments, invented affinity concepts, invalid expressions/motivations, or forbidden scalar strength fields such as `emitStrength`
+9. **Insert** — writes the generated tests into the file, replacing the TODO section, including block-comment TODO wrappers
+10. **Run** — executes each modified file with the selected runner:
    - `auto` → Vitest when the repo has Vitest config or the file is `.mjs`; Node test runner otherwise
    - `vitest` → `pnpm exec vitest run <file>`
    - `node` → `node --test <file>`
-10. **Refine** — sends the previous failure output and generated code back to the model and retries until the narrow test passes or iterations are exhausted
-11. **Rollback** — by default, restores the original file if generated tests never pass
-12. **Report** — writes a `test-gen-report.md` to the repo root with per-file results
-13. **Evaluate** — when `--eval-run` is set, writes a JSON report with pass rate, iterations, failure classes, generated test count, prompt/source metrics, model profile settings, rollback/kept status, and human-review markers
+11. **Refine** — sends the previous failure output and generated code back to the model and retries until the narrow test passes or iterations are exhausted
+12. **Rollback** — by default, restores the original file if generated tests never pass
+13. **Report** — writes a `test-gen-report.md` to the repo root with per-file results
+14. **Evaluate** — when `--eval-run` is set, writes a JSON report with pass rate, iterations, failure classes, generated test count, prompt/source metrics, model profile settings, rollback/kept status, and human-review markers
 
 For model evaluation, do **not** pass `--keep-failing-logic`; passing generated tests are the comparable success condition. Use `--keep-failing-logic` only when the explicit goal is to preserve failing tests as suspected product bug repros.
 
