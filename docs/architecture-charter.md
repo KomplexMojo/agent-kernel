@@ -22,14 +22,17 @@ This project is intentionally split into:
 - Deterministic validation and legality checks.
 - Pure effects emitted as data (no IO). Effects must carry deterministic ids/requestIds and fulfillment hints; new kinds include solver_request, need_external_fact (fulfill/defer), log/telemetry, and limit_violation.
 - Deterministic render frame generation from canonical state (UI renders the buffer).
+- Affinity system: 10-kind codebook (fire/water/earth/wind/life/decay/corrode/fortify/light/dark), 4-expression spatial formulas (push/pull/emit/draw), 48-cell interaction matrix, opposite-pair resolution, field buffer computation for static traps/hazards and actor fields.
+- Motivation system: 12-kind codebook, cost formulas with per-kind unit costs, behavior flag evaluation, and 4-axis profile derivation (mobility/combat/cognition/reasoning).
 
 ### What belongs in personas (runtime)
 
 - Long-lived workflows and state machines.
 - Action proposal/ordering, orchestration, and integration logic (including budget-aware request_external_fact/request_solver/fulfill/defer loops).
 - Telemetry capture, normalization, and emission; log/telemetry effects are data-only and routed via adapters.
-- UI rendering and presentation logic (consumes core frame buffers).
+- UI rendering and presentation logic (consumes core frame buffers and WASM field records for tile affinity visuals).
 - Guidance-to-artifact derivation for background builders (for example, summary-to-level-gen transforms used by worker adapters).
+- Affinity/motivation plumbing: core-setup.mjs reads hazard and actor affinity data from artifacts, writes to core via bindings, triggers field computation; tile-affinity-visuals.js derives renderer-ready visuals from WASM field records. Legacy JS spatial formulas and aura modules are deprecated.
 
 The browser still runs JavaScript to host WASM. Shipping a no-install browser app does not require
 persona code to be inside WASM; it only requires that all code is delivered as static assets.

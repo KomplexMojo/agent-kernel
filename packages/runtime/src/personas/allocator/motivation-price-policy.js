@@ -195,3 +195,92 @@ export function buildMotivationPriceListItems() {
     description: `Motivation: ${kind}`,
   }));
 }
+
+// ── WASM-delegated cost computation ──
+
+/**
+ * Reverse map: motivation kind string → WASM code (1-based).
+ * Matches MOTIVATION_KIND_BY_CODE in bindings-ts.
+ */
+export const MOTIVATION_KIND_TO_CODE = Object.freeze({
+  random: 1,
+  stationary: 2,
+  exploring: 3,
+  patrolling: 4,
+  attacking: 5,
+  defending: 6,
+  stealthy: 7,
+  friendly: 8,
+  reflexive: 9,
+  goal_oriented: 10,
+  strategy_focused: 11,
+  user_controlled: 12,
+});
+
+/**
+ * Calculate motivation stack cost using the WASM cost accumulator.
+ *
+ * Delegates to the WASM codebook for unit cost resolution, ensuring the
+ * runtime matches core-as exactly. Returns the same shape as
+ * calculateMotivationStackCost for drop-in substitution.
+ *
+ * Does NOT support PriceList overrides — when overrides are needed,
+ * use the JS-based calculateMotivationStackCost instead.
+ *
+ * @param {object} core - WASM core object (from loadCore / bindings-ts).
+ * @param {Array<{kind:string, intensity?:number}|string>} motivations
+ * @returns {{cost:number, lineItems:Array}}
+ */
+export function calculateMotivationStackCostFromCore(core, motivations) {
+  const lineItems = [];
+
+  if (!core || typeof core.resetMotivationCostAccumulator !== "function") {
+    return { cost: 0, lineItems };
+  }
+  if (!Array.isArray(motivations) || motivations.length === 0) {
+    return { cost: 0, lineItems };
+  }
+
+  core.resetMotivationCostAccumulator();
+
+  const entries = [];
+  for (const entry of motivations) {
+    const kind = typeof entry === "string" ? entry : entry?.kind;
+    if (typeof kind !== "string") continue;
+    const code = MOTIVATION_KIND_TO_CODE[kind];
+    if (!code) continue;
+    const intensity = typeof entry === "object" && Number.isInteger(entry.intensity) && entry.intensity > 0
+      ? entry.intensity
+      : 1;
+    core.addMotivationCostEntry(code, intensity);
+    entries.push({ kind, code, intensity });
+  }
+
+  const total = core.getMotivationCostTotal();
+  const lineCount = core.getMotivationCostLineCount();
+
+  for (let i = 0; i < lineCount; i += 1) {
+    const lineKindCode = core.getMotivationCostLineKind(i);
+    const quantity = core.getMotivationCostLineQuantity(i);
+    const unitCost = core.getMotivationCostLineUnitCost(i);
+    const spend = core.getMotivationCostLineSpend(i);
+
+    // Find the matching entry to get the string kind name
+    const matched = entries.find((e) => e.code === lineKindCode);
+    const kindName = matched?.kind || "unknown";
+    const priceId = MOTIVATION_PRICE_IDS[kindName];
+
+    lineItems.push({
+      category: "motivation",
+      id: priceId || `motivation_${kindName}`,
+      motivationKind: kindName,
+      family: resolveMotivationFamily(kindName),
+      label: `motivation:${kindName}`,
+      quantity,
+      unitCostTokens: unitCost,
+      spendTokens: spend,
+    });
+  }
+
+  return { cost: total, lineItems };
+}

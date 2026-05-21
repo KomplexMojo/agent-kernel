@@ -1,4 +1,5 @@
 import { createGameplayPhaserRenderer } from "./gameplay-phaser-renderer.js";
+import { deriveTileAffinityVisuals } from "./tile-affinity-visuals.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -30,23 +31,35 @@ function buildEntityIndex(bundle) {
   return index;
 }
 
-function buildBoardState(bundle) {
+function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
   const simConfig = findArtifact(bundle, SIM_CONFIG_SCHEMA);
   const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
   const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA);
   const layoutData = simConfig?.layout?.data || {};
+  const tiles = Array.isArray(layoutData.tiles) ? layoutData.tiles : [];
+  const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+
+  // Derive tile visuals via injected facade or default hazard-based fallback
+  let tileVisuals;
+  if (typeof buildTileVisualsFn === "function") {
+    tileVisuals = buildTileVisualsFn(bundle);
+  } else {
+    tileVisuals = deriveTileAffinityVisuals({ tiles, hazards, resourceBundle });
+  }
+
   return {
-    tiles: Array.isArray(layoutData.tiles) ? layoutData.tiles : [],
+    tiles,
     boardWidth: Number(layoutData.width) || 1,
     boardHeight: Number(layoutData.height) || 1,
     simConfig,
     initialState,
     observation: {
       actors: Array.isArray(initialState?.actors) ? initialState.actors : [],
-      hazards: Array.isArray(layoutData.hazards) ? layoutData.hazards : [],
+      hazards,
       resources: Array.isArray(layoutData.resources) ? layoutData.resources : [],
     },
     resourceBundle,
+    tileVisuals,
   };
 }
 
@@ -56,6 +69,7 @@ export function wireGameplayView({
   onDiscardToDesign,
   actorInspector = null,
   createRenderer = createGameplayPhaserRenderer,
+  buildTileAffinityVisualsFromBundleFn = null,
 } = {}) {
   const statusEl = root.querySelector?.("#gameplay-status") ?? null;
   const phaserHost = root.querySelector?.("#gameplay-phaser-host") ?? null;
@@ -118,7 +132,7 @@ export function wireGameplayView({
     activeBundle = bundle;
     entityIndex = buildEntityIndex(bundle);
     selectedEntity = null;
-    frames = [buildBoardState(bundle)];
+    frames = [buildBoardState(bundle, { buildTileVisualsFn: buildTileAffinityVisualsFromBundleFn })];
     currentFrameIndex = 0;
     setStatus("Run loaded.");
 

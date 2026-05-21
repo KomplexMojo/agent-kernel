@@ -187,6 +187,135 @@ test("HTML contains gameplay-run-id-label element", () => {
   assert.match(html, /id="gameplay-run-id-label"/);
 });
 
+test("loadRun calls deriveTileAffinityVisuals and includes tileVisuals in board state", () => {
+  let renderedBoardState = null;
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({
+      mount() {},
+      renderRun(boardState) { renderedBoardState = boardState; },
+      renderFrame() {},
+      dispose() {},
+    }),
+  });
+
+  const bundle = {
+    artifacts: [
+      {
+        schema: "agent-kernel/SimConfigArtifact",
+        schemaVersion: 1,
+        layout: {
+          kind: "grid",
+          data: {
+            width: 4,
+            height: 4,
+            tiles: ["....", "....", "....", "...."],
+            hazards: [
+              {
+                id: "h1",
+                entityType: "hazard",
+                position: { x: 2, y: 2 },
+                emitStrength: 2,
+                affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }],
+              },
+            ],
+          },
+        },
+      },
+      {
+        schema: "agent-kernel/InitialStateArtifact",
+        schemaVersion: 1,
+        actors: [{ id: "delver-1", position: { x: 0, y: 0 } }],
+      },
+      {
+        schema: "agent-kernel/ResourceBundleArtifact",
+        schemaVersion: 1,
+        mappings: { overlays: {} },
+      },
+    ],
+  };
+
+  view.loadRun(bundle);
+  assert.ok(renderedBoardState, "renderer received board state");
+  assert.ok(renderedBoardState.tileVisuals instanceof Map, "tileVisuals is a Map");
+  assert.ok(renderedBoardState.tileVisuals.size > 0, "tileVisuals has entries from hazard");
+  const origin = renderedBoardState.tileVisuals.get("2,2");
+  assert.ok(origin, "hazard origin tile in tileVisuals");
+  assert.equal(origin.intensity, 1.0, "origin has full intensity");
+  assert.equal(origin.affinityKind, "fire", "fire kind");
+});
+
+test("loadRun uses injected buildTileAffinityVisualsFromBundleFn when provided", () => {
+  let renderedBoardState = null;
+  const customVisuals = new Map([["5,5", { intensity: 0.9, affinityKind: "water", color: 0x2b7fff, alpha: 0.9 }]]);
+
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({
+      mount() {},
+      renderRun(boardState) { renderedBoardState = boardState; },
+      renderFrame() {},
+      dispose() {},
+    }),
+    buildTileAffinityVisualsFromBundleFn: () => customVisuals,
+  });
+
+  const bundle = {
+    artifacts: [
+      {
+        schema: "agent-kernel/SimConfigArtifact",
+        schemaVersion: 1,
+        layout: {
+          kind: "grid",
+          data: {
+            width: 6,
+            height: 6,
+            tiles: ["......", "......", "......", "......", "......", "......"],
+            hazards: [{ id: "h1", position: { x: 2, y: 2 }, emitStrength: 2, affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }] }],
+          },
+        },
+      },
+      { schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1, actors: [] },
+      { schema: "agent-kernel/ResourceBundleArtifact", schemaVersion: 1, mappings: { overlays: {} } },
+    ],
+  };
+
+  view.loadRun(bundle);
+  assert.ok(renderedBoardState, "renderer received board state");
+  assert.strictEqual(renderedBoardState.tileVisuals, customVisuals, "custom facade used instead of default");
+  assert.ok(renderedBoardState.tileVisuals.has("5,5"), "custom visuals present");
+  assert.ok(!renderedBoardState.tileVisuals.has("2,2"), "hazard NOT spread — facade overrides");
+});
+
+test("loadRun with no hazards produces empty tileVisuals", () => {
+  let renderedBoardState = null;
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({
+      mount() {},
+      renderRun(boardState) { renderedBoardState = boardState; },
+      renderFrame() {},
+      dispose() {},
+    }),
+  });
+
+  const bundle = {
+    artifacts: [
+      {
+        schema: "agent-kernel/SimConfigArtifact",
+        schemaVersion: 1,
+        layout: { kind: "grid", data: { width: 3, height: 3, tiles: ["...", "...", "..."] } },
+      },
+      { schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1, actors: [] },
+      { schema: "agent-kernel/ResourceBundleArtifact", schemaVersion: 1, mappings: { overlays: {} } },
+    ],
+  };
+
+  view.loadRun(bundle);
+  assert.ok(renderedBoardState.tileVisuals instanceof Map, "tileVisuals is Map");
+  assert.equal(renderedBoardState.tileVisuals.size, 0, "no hazards → empty tileVisuals");
+});
+
 /*
 ## TODO: Test Permutations
 - loadRun with null bundle must not activate the run
@@ -197,4 +326,7 @@ test("HTML contains gameplay-run-id-label element", () => {
 - dispose cleans up internal state and does not throw on repeated calls
 - onRunLoaded is not called when loadRun receives a null or invalid bundle
 - isPlayerPanelOpen returns false after dispose
+- buildTileAffinityVisualsFromBundleFn receives the full bundle as argument
+- tileVisuals persists across stepForward/stepBack calls
+- fieldRecords path: injected facade returns fieldRecord-derived visuals with contributions
 */

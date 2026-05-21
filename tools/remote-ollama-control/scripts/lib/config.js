@@ -118,10 +118,11 @@ function loadConfig(rootDir = ROOT_DIR) {
     host: {
       remoteUser: env.LLM_REMOTE_USER || 'darren',
       internalHost: env.LLM_INTERNAL_HOST || '192.168.1.143',
-      externalHost: env.LLM_EXTERNAL_HOST || '154.5.75.3',
+      externalHost: env.LLM_EXTERNAL_HOST || '207.6.34.73',
       sshPort: numberFrom(env.LLM_SSH_PORT, 2222),
       sshKey: resolveMaybeRelative(rootDir, env.LLM_SSH_KEY || '~/.ssh/ubuntu_llm_ed25519'),
-      defaultRoute: env.LLM_DEFAULT_ROUTE || 'internal',
+      sshHostAlias: env.LLM_SSH_HOST_ALIAS || '',
+      defaultRoute: env.LLM_DEFAULT_ROUTE || 'external',
       remoteProjectDir: env.LLM_REMOTE_PROJECT_DIR || '/home/darren/Documents/GitHub/agent-kernel',
       remoteScriptsDir,
       remotePackageDir: env.LLM_REMOTE_PACKAGE_DIR || '/home/darren/remote-ollama-control',

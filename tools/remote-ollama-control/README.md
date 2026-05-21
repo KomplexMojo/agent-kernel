@@ -30,12 +30,52 @@ cp config/llm-host.env.example config/llm-host.env
 
 Edit `config/llm-host.env` for the Mac-side SSH settings. Keep `LLM_OLLAMA_BIND_HOST=127.0.0.1` for SSH-tunnel access. Use a LAN/VPN bind address only if the Ubuntu firewall limits access.
 
-If `LLM_SSH_KEY` is passphrase-protected, load it into the Mac SSH agent before running remote commands:
+### SSH Host Aliases (Recommended)
+
+The preferred connection method uses SSH host aliases defined in `~/.ssh/config`:
+
+```
+Host llm-lan
+  HostName 192.168.1.143
+  User darren
+  Port 2222
+  IdentityFile ~/.ssh/ubuntu_llm_ed25519
+  IdentitiesOnly yes
+  AddKeysToAgent yes
+  UseKeychain yes
+
+Host llm-vpn
+  HostName 207.6.34.73
+  User darren
+  Port 2222
+  IdentityFile ~/.ssh/ubuntu_llm_ed25519
+  IdentitiesOnly yes
+  AddKeysToAgent yes
+  UseKeychain yes
+```
+
+Set the alias in `config/llm-host.env`:
+
+```bash
+LLM_SSH_HOST_ALIAS=llm-vpn
+```
+
+When `LLM_SSH_HOST_ALIAS` is set, the tooling uses `ssh llm-vpn` directly instead of constructing SSH arguments from `LLM_*_HOST`, `LLM_SSH_PORT`, and `LLM_SSH_KEY`. This is simpler and respects any ProxyJump, VPN routing, or keychain integration in your SSH config.
+
+Quick connectivity check:
+
+```bash
+ssh llm-vpn 'echo ok'
+```
+
+### Manual SSH Key Setup (Alternative)
+
+If not using host aliases, load the key into the Mac SSH agent:
 
 ```bash
 ssh-add --apple-use-keychain ~/.ssh/ubuntu_llm_ed25519
 ssh-add -l
-ssh -p 2222 -i ~/.ssh/ubuntu_llm_ed25519 darren@192.168.1.143 'echo ok'
+ssh -p 2222 -i ~/.ssh/ubuntu_llm_ed25519 darren@207.6.34.73 'echo ok'
 ```
 
 Install the package onto Ubuntu from the Mac:
@@ -60,7 +100,7 @@ The install script copies this tool to `/home/darren/remote-ollama-control` and 
 Create a remote runtime config on Ubuntu:
 
 ```bash
-ssh -p 2222 -i ~/.ssh/ubuntu_llm_ed25519 darren@192.168.1.143
+ssh llm-vpn
 cd /home/darren/remote-ollama-control
 cp config/llm-host.env.example config/llm-host.env
 ```
@@ -85,8 +125,11 @@ Without the systemd unit, `remote-ollama-profile` uses managed pid files under `
 
 ## Network Modes
 
-`--route internal` uses `192.168.1.143`. `--route external` uses the configured `LLM_EXTERNAL_HOST`.
-When the WAN IP changes, override it per command with `--external-host`, for example:
+`--route internal` uses `192.168.1.143` (LAN). `--route external` uses the configured `LLM_EXTERNAL_HOST` (default: `207.6.34.73`, the VPN/WAN address).
+
+When `LLM_SSH_HOST_ALIAS` is set (e.g. `llm-vpn`), the route selection is handled by the SSH alias — the tooling uses the alias directly regardless of `--route`. This is the recommended setup.
+
+When the WAN IP changes, either update `~/.ssh/config` (preferred) or override per command:
 
 ```bash
 ./bin/remote-ollama-mac status --route external --external-host 207.6.34.73 --profile dual

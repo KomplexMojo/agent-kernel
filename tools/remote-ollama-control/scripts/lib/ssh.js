@@ -5,6 +5,24 @@ const { spawnSync } = require('child_process');
 const { hostForRoute, shellQuote } = require('./config');
 
 function sshBaseArgs(config, routeName) {
+  // When an SSH host alias is configured (e.g. "llm-vpn" from ~/.ssh/config),
+  // use it directly — the alias already encodes host, port, user, and key.
+  const hostAlias = config.host.sshHostAlias;
+  if (hostAlias) {
+    const args = [
+      '-o',
+      `ConnectTimeout=${config.host.sshConnectTimeoutSec || 10}`,
+      '-o',
+      'ServerAliveInterval=30',
+      '-o',
+      'ServerAliveCountMax=3',
+      '-o',
+      'BatchMode=yes',
+      hostAlias
+    ];
+    return args;
+  }
+
   const args = [
     '-p',
     String(config.host.sshPort),

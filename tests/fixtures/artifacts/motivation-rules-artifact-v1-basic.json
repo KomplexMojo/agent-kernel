@@ -109,7 +109,7 @@
         "canMove": true,
         "prefersStealth": false,
         "prefersCover": false,
-        "aggroRangeBoost": false
+        "aggroRangeBoost": true
       },
       "defaultDesignCostTokens": 0
     },
@@ -127,6 +127,40 @@
         "bodyguard"
       ],
       "defaultPattern": "hold_point",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": true,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
+    },
+    {
+      "kind": "stealthy",
+      "profile": {
+        "mobility": "exploring",
+        "combat": "none",
+        "cognition": "goal_oriented"
+      },
+      "exclusiveGroup": "posture",
+      "displayGroup": "posture",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": true,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
+    },
+    {
+      "kind": "friendly",
+      "profile": {
+        "mobility": "exploring",
+        "combat": "none",
+        "cognition": "reflexive"
+      },
+      "exclusiveGroup": "posture",
+      "displayGroup": "posture",
       "defaultFlags": {
         "canMove": true,
         "prefersStealth": false,
@@ -208,6 +242,23 @@
         "aggroRangeBoost": false
       },
       "defaultDesignCostTokens": 20
+    },
+    {
+      "kind": "user_controlled",
+      "profile": {
+        "mobility": "stationary",
+        "combat": "none",
+        "cognition": "none"
+      },
+      "exclusiveGroup": "control",
+      "displayGroup": "control",
+      "defaultFlags": {
+        "canMove": true,
+        "prefersStealth": false,
+        "prefersCover": false,
+        "aggroRangeBoost": false
+      },
+      "defaultDesignCostTokens": 0
     }
   ]
 }

@@ -1,6 +1,12 @@
 /**
  * Affinity Spatial Formulas — pure parametric functions.
  *
+ * @deprecated These JS formulas are superseded by core-as WASM spatial
+ * computation (AK-AFF-M2, AK-AFF-M3). Use bindings-ts readAffinityFieldAt
+ * or the WASM exports (computeAffinityRadius, computeAffinityIntensity,
+ * computeAffinityPotency, computeAffinityManaCost) for new code.
+ * This module is retained for backward compatibility only.
+ *
  * All formulas take a weights object so coefficients can be tuned
  * without changing code. Weights are sourced from SPATIAL_WEIGHTS
  * in affinity-spatial-rules.js.

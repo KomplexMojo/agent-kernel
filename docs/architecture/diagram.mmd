@@ -22,10 +22,18 @@ flowchart LR
 
   subgraph Bindings["bindings-ts"]
     BindingsTS["WASM bindings"]
+    AffinityReaders["Affinity readers\n(readAffinityFieldAt, readActorAffinity,\nreadAffinityInteractionResult)"]
+    MotivationReaders["Motivation readers\n(readMotivationCost, readMotivationEvaluation)"]
+    BindingsTS --- AffinityReaders
+    BindingsTS --- MotivationReaders
   end
 
   subgraph Core["core-as (WASM)"]
     CoreEngine["Deterministic core state + rules + effects + render buffers"]
+    AffinityCore["Affinity: 10-kind codebook + spatial fields\n+ 48-cell interaction matrix"]
+    MotivationCore["Motivation: 12-kind codebook + cost formulas\n+ behavior flags + profile evaluation"]
+    CoreEngine --- AffinityCore
+    CoreEngine --- MotivationCore
   end
 
   subgraph Adapters["Adapters (IO boundary)"]

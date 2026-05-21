@@ -222,6 +222,37 @@ function armStaticTrapsFromLayout(core, layoutData = {}) {
     if (trap.blocking === true) return;
     core.armStaticTrapAt(x, y, affinityKind, affinityExpression, stacks, manaReserve);
   });
+
+  // Also arm hazards from layout.data.hazards
+  const hazards = Array.isArray(layoutData?.hazards) ? layoutData.hazards : [];
+  hazards.forEach((hazard) => {
+    if (!hazard || typeof hazard !== "object") return;
+    // Hazards use position.x/y (not flat x/y)
+    const pos = hazard.position;
+    const x = toInt(pos?.x);
+    const y = toInt(pos?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    // Resolve affinity from affinityStacks[0]
+    const affinityEntry = Array.isArray(hazard.affinityStacks) && hazard.affinityStacks.length > 0
+      ? hazard.affinityStacks[0]
+      : null;
+    if (!affinityEntry || typeof affinityEntry !== "object") return;
+    const kind = typeof affinityEntry.kind === "string" ? affinityEntry.kind : "";
+    const rawExpression = typeof affinityEntry.expression === "string" ? affinityEntry.expression : "push";
+    // Normalize expression: fall back to "push" if not a canonical expression
+    const expression = AFFINITY_EXPRESSION_CODES[rawExpression] ? rawExpression : "push";
+    const stacks = toInt(affinityEntry.stacks);
+    const affinityKind = AFFINITY_KIND_CODES[kind];
+    const affinityExpression = AFFINITY_EXPRESSION_CODES[expression];
+    if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) return;
+    if (!Number.isFinite(stacks) || stacks <= 0) return;
+    // Mana reserve: prefer vitals.mana.current, fall back to stacks * 3
+    const manaFromVitals = toInt(hazard.vitals?.mana?.current);
+    const manaReserve = Number.isFinite(manaFromVitals) && manaFromVitals > 0
+      ? manaFromVitals
+      : stacks * 3;
+    core.armStaticTrapAt(x, y, affinityKind, affinityExpression, stacks, manaReserve);
+  });
 }
 
 export function applySimConfigToCore(core, simConfig) {
@@ -317,6 +348,23 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
         return { ok: false, reason: "invalid_actor_capabilities", error: capError };
       }
     }
+    // Write first affinity entry for each actor to core
+    if (typeof core.setMotivatedActorAffinity === "function") {
+      for (let index = 0; index < actors.length; index += 1) {
+        const affinities = Array.isArray(actors[index].affinities) ? actors[index].affinities : [];
+        const first = affinities.length > 0 ? affinities[0] : null;
+        if (!first || typeof first !== "object") continue;
+        const kind = typeof first.kind === "string" ? first.kind : "";
+        const rawExpression = typeof first.expression === "string" ? first.expression : "push";
+        const expression = AFFINITY_EXPRESSION_CODES[rawExpression] ? rawExpression : "push";
+        const stacks = toInt(first.stacks);
+        const affinityKind = AFFINITY_KIND_CODES[kind];
+        const affinityExpression = AFFINITY_EXPRESSION_CODES[expression];
+        if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) continue;
+        if (!Number.isFinite(stacks) || stacks <= 0) continue;
+        core.setMotivatedActorAffinity(index, affinityKind, affinityExpression, stacks);
+      }
+    }
     return { ok: true, actorId: primary.id, position: positions[0], actorCount: actors.length };
   }
 
@@ -359,5 +407,9 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
 export function initializeCoreFromArtifacts(core, { simConfig, initialState } = {}) {
   const layoutResult = applySimConfigToCore(core, simConfig);
   const actorResult = applyInitialStateToCore(core, initialState, { spawn: layoutResult.spawn });
+  // Compute combined affinity field after both layout traps/hazards and actor affinities are set
+  if (typeof core?.computeAffinityField === "function") {
+    core.computeAffinityField();
+  }
   return { layout: layoutResult, actor: actorResult };
 }

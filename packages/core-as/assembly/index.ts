@@ -101,9 +101,93 @@ import {
   getResourceDeltaAt as getResourceDeltaAtState,
   getResourceModeAt as getResourceModeAtState,
   getResourceCount as getResourceCountState,
+  clearAffinityField as clearAffinityFieldState,
+  computeStaticTrapAffinityField as computeStaticTrapAffinityFieldState,
+  getAffinityFieldIntensityAt as getAffinityFieldIntensityAtState,
+  getAffinityFieldStacksAt as getAffinityFieldStacksAtState,
+  getAffinityFieldExpressionAt as getAffinityFieldExpressionAtState,
+  getAffinityFieldContributionCountAt as getAffinityFieldContributionCountAtState,
+  setMotivatedActorAffinity as setMotivatedActorAffinityState,
+  getMotivatedActorAffinityKindByIndex as getMotivatedActorAffinityKindByIndexState,
+  getMotivatedActorAffinityExpressionByIndex as getMotivatedActorAffinityExpressionByIndexState,
+  getMotivatedActorAffinityStacksByIndex as getMotivatedActorAffinityStacksByIndexState,
+  computeActorAffinityField as computeActorAffinityFieldState,
+  computeAffinityField as computeAffinityFieldState,
 } from "./state/world";
 import { applyMove, decodeMove, MoveAction, reachedExitAfterMove, setMoveAction as setMoveActionState } from "./rules/move";
 import { ActionKind, ValidationError, validateAction, validateSeed } from "./validate/inputs";
+import {
+  getAffinityKindCount as getAffinityKindCountState,
+  getAffinityExpressionCount as getAffinityExpressionCountState,
+  getAffinityTargetTypeCount as getAffinityTargetTypeCountState,
+  getOppositeAffinityKind as getOppositeAffinityKindState,
+  resolveAffinityRelationshipCode as resolveAffinityRelationshipCodeState,
+  getAffinityTargetVital as getAffinityTargetVitalState,
+  getDefaultAffinityTargetType as getDefaultAffinityTargetTypeState,
+  affinityExpressionAllowsEnvironmentMutation as affinityExpressionAllowsEnvironmentMutationState,
+  affinityExpressionAllowsTrapArming as affinityExpressionAllowsTrapArmingState,
+  affinityExpressionIsPersistentField as affinityExpressionIsPersistentFieldState,
+} from "./state/affinity";
+import {
+  getMotivationKindCount as getMotivationKindCountState,
+  getMotivationFamily as getMotivationFamilyState,
+  getMotivationExclusiveGroup as getMotivationExclusiveGroupState,
+  motivationKindsConflict as motivationKindsConflictState,
+  getMotivationPatternCount as getMotivationPatternCountState,
+  getMotivationPatternCodeAt as getMotivationPatternCodeAtState,
+  getDefaultMotivationPattern as getDefaultMotivationPatternState,
+  normalizeMotivationIntensity as normalizeMotivationIntensityState,
+  getMotivationTier as getMotivationTierState,
+  getMotivationDefaultUnitCost as getMotivationDefaultUnitCostState,
+  resetMotivationCostAccumulator as resetMotivationCostAccumulatorState,
+  addMotivationCostEntry as addMotivationCostEntryState,
+  getMotivationCostTotal as getMotivationCostTotalState,
+  getMotivationCostLineCount as getMotivationCostLineCountState,
+  getMotivationCostLineKind as getMotivationCostLineKindState,
+  getMotivationCostLineFamily as getMotivationCostLineFamilyState,
+  getMotivationCostLineQuantity as getMotivationCostLineQuantityState,
+  getMotivationCostLineUnitCost as getMotivationCostLineUnitCostState,
+  getMotivationCostLineSpend as getMotivationCostLineSpendState,
+  getMotivationFlagCount as getMotivationFlagCountState,
+  getMotivationProfileCost as getMotivationProfileCostState,
+  getMotivationDefaultDesignCost as getMotivationDefaultDesignCostState,
+  getMotivationDefaultFlagMask as getMotivationDefaultFlagMaskState,
+  resetMotivationEvaluation as resetMotivationEvaluationState,
+  addMotivationEvaluationEntry as addMotivationEvaluationEntryState,
+  evaluateMotivations as evaluateMotivationsState,
+  getLastMotivationFlags as getLastMotivationFlagsState,
+  getLastMotivationMobilityTier as getLastMotivationMobilityTierState,
+  getLastMotivationCombatTier as getLastMotivationCombatTierState,
+  getLastMotivationCognitionTier as getLastMotivationCognitionTierState,
+  getLastMotivationReasoningClass as getLastMotivationReasoningClassState,
+} from "./state/motivation";
+import {
+  computeAffinityRadius as computeAffinityRadiusState,
+  computeAffinityIntensity as computeAffinityIntensityState,
+  computeAffinityPotency as computeAffinityPotencyState,
+  computeAffinityManaCost as computeAffinityManaCostState,
+  resolveAffinityStackCancellation as resolveAffinityStackCancellationState,
+  getLastAffinityCanceledStacks as getLastAffinityCanceledStacksState,
+  getLastAffinityNetSourceStacks as getLastAffinityNetSourceStacksState,
+  getLastAffinityNetTargetStacks as getLastAffinityNetTargetStacksState,
+  resolveAffinityMergedStacks as resolveAffinityMergedStacksState,
+  getAffinityInteractionCellCount as getAffinityInteractionCellCountState,
+  getAffinityMatrixSourceEffect as getAffinityMatrixSourceEffectState,
+  getAffinityMatrixTargetEffect as getAffinityMatrixTargetEffectState,
+  getAffinityMatrixVisualState as getAffinityMatrixVisualStateState,
+  getAffinityMatrixUsesStackCancellation as getAffinityMatrixUsesStackCancellationState,
+  getAffinityVisualStateCount as getAffinityVisualStateCountState,
+  getAffinityEffectCount as getAffinityEffectCountState,
+  resolveAffinityInteraction as resolveAffinityInteractionState,
+  resolveMotivatedActorAffinityInteraction as resolveMotivatedActorAffinityInteractionState,
+  getLastInteractionSourceEffect as getLastInteractionSourceEffectState,
+  getLastInteractionTargetEffect as getLastInteractionTargetEffectState,
+  getLastInteractionVisualState as getLastInteractionVisualStateState,
+  getLastInteractionRelationship as getLastInteractionRelationshipState,
+  getLastInteractionNetSourceStacks as getLastInteractionNetSourceStacksState,
+  getLastInteractionNetTargetStacks as getLastInteractionNetTargetStacksState,
+  getLastInteractionCanceledStacks as getLastInteractionCanceledStacksState,
+} from "./state/affinity-spatial";
 
 const DEFAULT_BUDGET_CATEGORY: i32 = 0;
 const EFFECT_BUDGET_CATEGORY: i32 = 1;
@@ -626,4 +710,339 @@ export function getResourceModeAt(x: i32, y: i32): i32 {
 
 export function getResourceCount(): i32 {
   return getResourceCountState();
+}
+
+// ── Affinity codebook exports ──
+
+export function getAffinityKindCount(): i32 {
+  return getAffinityKindCountState();
+}
+
+export function getAffinityExpressionCount(): i32 {
+  return getAffinityExpressionCountState();
+}
+
+export function getAffinityTargetTypeCount(): i32 {
+  return getAffinityTargetTypeCountState();
+}
+
+export function getOppositeAffinityKind(kind: i32): i32 {
+  return getOppositeAffinityKindState(kind);
+}
+
+export function resolveAffinityRelationshipCode(sourceKind: i32, targetKind: i32): i32 {
+  return resolveAffinityRelationshipCodeState(sourceKind, targetKind);
+}
+
+export function getAffinityTargetVital(kind: i32): i32 {
+  return getAffinityTargetVitalState(kind);
+}
+
+export function getDefaultAffinityTargetType(expression: i32): i32 {
+  return getDefaultAffinityTargetTypeState(expression);
+}
+
+export function affinityExpressionAllowsEnvironmentMutation(expression: i32): i32 {
+  return affinityExpressionAllowsEnvironmentMutationState(expression) ? 1 : 0;
+}
+
+export function affinityExpressionAllowsTrapArming(expression: i32): i32 {
+  return affinityExpressionAllowsTrapArmingState(expression) ? 1 : 0;
+}
+
+export function affinityExpressionIsPersistentField(expression: i32): i32 {
+  return affinityExpressionIsPersistentFieldState(expression) ? 1 : 0;
+}
+
+// ── Motivation codebook exports ──
+
+export function getMotivationKindCount(): i32 {
+  return getMotivationKindCountState();
+}
+
+export function getMotivationFamily(kind: i32): i32 {
+  return getMotivationFamilyState(kind);
+}
+
+export function getMotivationExclusiveGroup(kind: i32): i32 {
+  return getMotivationExclusiveGroupState(kind);
+}
+
+export function motivationKindsConflict(leftKind: i32, rightKind: i32): i32 {
+  return motivationKindsConflictState(leftKind, rightKind) ? 1 : 0;
+}
+
+export function getMotivationPatternCount(kind: i32): i32 {
+  return getMotivationPatternCountState(kind);
+}
+
+export function getMotivationPatternCodeAt(kind: i32, index: i32): i32 {
+  return getMotivationPatternCodeAtState(kind, index);
+}
+
+export function getDefaultMotivationPattern(kind: i32): i32 {
+  return getDefaultMotivationPatternState(kind);
+}
+
+// ── Motivation validation + cost exports ──
+
+export function normalizeMotivationIntensity(raw: i32): i32 {
+  return normalizeMotivationIntensityState(raw);
+}
+
+export function getMotivationTier(kind: i32): i32 {
+  return getMotivationTierState(kind);
+}
+
+export function getMotivationDefaultUnitCost(kind: i32): i32 {
+  return getMotivationDefaultUnitCostState(kind);
+}
+
+export function resetMotivationCostAccumulator(): i32 {
+  return resetMotivationCostAccumulatorState();
+}
+
+export function addMotivationCostEntry(kind: i32, intensity: i32): i32 {
+  return addMotivationCostEntryState(kind, intensity);
+}
+
+export function getMotivationCostTotal(): i32 {
+  return getMotivationCostTotalState();
+}
+
+export function getMotivationCostLineCount(): i32 {
+  return getMotivationCostLineCountState();
+}
+
+export function getMotivationCostLineKind(index: i32): i32 {
+  return getMotivationCostLineKindState(index);
+}
+
+export function getMotivationCostLineFamily(index: i32): i32 {
+  return getMotivationCostLineFamilyState(index);
+}
+
+export function getMotivationCostLineQuantity(index: i32): i32 {
+  return getMotivationCostLineQuantityState(index);
+}
+
+export function getMotivationCostLineUnitCost(index: i32): i32 {
+  return getMotivationCostLineUnitCostState(index);
+}
+
+export function getMotivationCostLineSpend(index: i32): i32 {
+  return getMotivationCostLineSpendState(index);
+}
+
+// ── Motivation behavior flags + evaluation exports ──
+
+export function getMotivationFlagCount(): i32 {
+  return getMotivationFlagCountState();
+}
+
+export function getMotivationProfileCost(kind: i32): i32 {
+  return getMotivationProfileCostState(kind);
+}
+
+export function getMotivationDefaultDesignCost(kind: i32): i32 {
+  return getMotivationDefaultDesignCostState(kind);
+}
+
+export function getMotivationDefaultFlagMask(kind: i32): i32 {
+  return getMotivationDefaultFlagMaskState(kind);
+}
+
+export function resetMotivationEvaluation(): i32 {
+  return resetMotivationEvaluationState();
+}
+
+export function addMotivationEvaluationEntry(kind: i32, intensity: i32, pattern: i32, flagMask: i32): i32 {
+  return addMotivationEvaluationEntryState(kind, intensity, pattern, flagMask);
+}
+
+export function evaluateMotivations(): i32 {
+  return evaluateMotivationsState();
+}
+
+export function getLastMotivationFlags(): i32 {
+  return getLastMotivationFlagsState();
+}
+
+export function getLastMotivationMobilityTier(): i32 {
+  return getLastMotivationMobilityTierState();
+}
+
+export function getLastMotivationCombatTier(): i32 {
+  return getLastMotivationCombatTierState();
+}
+
+export function getLastMotivationCognitionTier(): i32 {
+  return getLastMotivationCognitionTierState();
+}
+
+export function getLastMotivationReasoningClass(): i32 {
+  return getLastMotivationReasoningClassState();
+}
+
+// ── Affinity spatial formula exports ──
+
+export function computeAffinityRadius(expression: i32, stacks: i32): i32 {
+  return computeAffinityRadiusState(expression, stacks);
+}
+
+export function computeAffinityIntensity(distance: i32, stacks: i32, expression: i32): f64 {
+  return computeAffinityIntensityState(distance, stacks, expression);
+}
+
+export function computeAffinityPotency(stacks: i32, expression: i32): f64 {
+  return computeAffinityPotencyState(stacks, expression);
+}
+
+export function computeAffinityManaCost(stacks: i32, expression: i32): i32 {
+  return computeAffinityManaCostState(stacks, expression);
+}
+
+export function resolveAffinityStackCancellation(sourceStacks: i32, targetStacks: i32): i32 {
+  return resolveAffinityStackCancellationState(sourceStacks, targetStacks);
+}
+
+export function getLastAffinityCanceledStacks(): i32 {
+  return getLastAffinityCanceledStacksState();
+}
+
+export function getLastAffinityNetSourceStacks(): i32 {
+  return getLastAffinityNetSourceStacksState();
+}
+
+export function getLastAffinityNetTargetStacks(): i32 {
+  return getLastAffinityNetTargetStacksState();
+}
+
+export function resolveAffinityMergedStacks(sourceStacks: i32, targetStacks: i32): i32 {
+  return resolveAffinityMergedStacksState(sourceStacks, targetStacks);
+}
+
+// ── Affinity interaction matrix exports ──
+
+export function getAffinityInteractionCellCount(): i32 {
+  return getAffinityInteractionCellCountState();
+}
+
+export function getAffinityVisualStateCount(): i32 {
+  return getAffinityVisualStateCountState();
+}
+
+export function getAffinityEffectCount(): i32 {
+  return getAffinityEffectCountState();
+}
+
+export function getAffinityMatrixSourceEffect(srcExpr: i32, tgtExpr: i32, relationship: i32): i32 {
+  return getAffinityMatrixSourceEffectState(srcExpr, tgtExpr, relationship);
+}
+
+export function getAffinityMatrixTargetEffect(srcExpr: i32, tgtExpr: i32, relationship: i32): i32 {
+  return getAffinityMatrixTargetEffectState(srcExpr, tgtExpr, relationship);
+}
+
+export function getAffinityMatrixVisualState(srcExpr: i32, tgtExpr: i32, relationship: i32): i32 {
+  return getAffinityMatrixVisualStateState(srcExpr, tgtExpr, relationship);
+}
+
+export function getAffinityMatrixUsesStackCancellation(srcExpr: i32, tgtExpr: i32, relationship: i32): i32 {
+  return getAffinityMatrixUsesStackCancellationState(srcExpr, tgtExpr, relationship);
+}
+
+// ── Affinity field buffers ──
+
+export function clearAffinityField(): i32 {
+  return clearAffinityFieldState();
+}
+
+export function computeStaticTrapAffinityField(): i32 {
+  return computeStaticTrapAffinityFieldState();
+}
+
+export function getAffinityFieldIntensityAt(x: i32, y: i32, kind: i32): f64 {
+  return getAffinityFieldIntensityAtState(x, y, kind);
+}
+
+export function getAffinityFieldStacksAt(x: i32, y: i32, kind: i32): i32 {
+  return getAffinityFieldStacksAtState(x, y, kind);
+}
+
+export function getAffinityFieldExpressionAt(x: i32, y: i32, kind: i32): i32 {
+  return getAffinityFieldExpressionAtState(x, y, kind);
+}
+
+export function getAffinityFieldContributionCountAt(x: i32, y: i32, kind: i32): i32 {
+  return getAffinityFieldContributionCountAtState(x, y, kind);
+}
+
+// ── Actor affinity state + field exports ──
+
+export function setMotivatedActorAffinity(index: i32, kind: i32, expression: i32, stacks: i32): i32 {
+  return setMotivatedActorAffinityState(index, kind, expression, stacks);
+}
+
+export function getMotivatedActorAffinityKindByIndex(index: i32): i32 {
+  return getMotivatedActorAffinityKindByIndexState(index);
+}
+
+export function getMotivatedActorAffinityExpressionByIndex(index: i32): i32 {
+  return getMotivatedActorAffinityExpressionByIndexState(index);
+}
+
+export function getMotivatedActorAffinityStacksByIndex(index: i32): i32 {
+  return getMotivatedActorAffinityStacksByIndexState(index);
+}
+
+export function computeActorAffinityField(): i32 {
+  return computeActorAffinityFieldState();
+}
+
+export function computeAffinityField(): i32 {
+  return computeAffinityFieldState();
+}
+
+// ── Affinity interaction resolution exports ──
+
+export function resolveAffinityInteraction(
+  srcKind: i32, srcExpr: i32, srcStacks: i32,
+  tgtKind: i32, tgtExpr: i32, tgtStacks: i32,
+): i32 {
+  return resolveAffinityInteractionState(srcKind, srcExpr, srcStacks, tgtKind, tgtExpr, tgtStacks);
+}
+
+export function resolveMotivatedActorAffinityInteraction(
+  srcActorIndex: i32, tgtActorIndex: i32,
+): i32 {
+  return resolveMotivatedActorAffinityInteractionState(srcActorIndex, tgtActorIndex);
+}
+
+export function getLastInteractionSourceEffect(): i32 {
+  return getLastInteractionSourceEffectState();
+}
+
+export function getLastInteractionTargetEffect(): i32 {
+  return getLastInteractionTargetEffectState();
+}
+
+export function getLastInteractionVisualState(): i32 {
+  return getLastInteractionVisualStateState();
+}
+
+export function getLastInteractionRelationship(): i32 {
+  return getLastInteractionRelationshipState();
+}
+
+export function getLastInteractionNetSourceStacks(): i32 {
+  return getLastInteractionNetSourceStacksState();
+}
+
+export function getLastInteractionNetTargetStacks(): i32 {
+  return getLastInteractionNetTargetStacksState();
+}
+
+export function getLastInteractionCanceledStacks(): i32 {
+  return getLastInteractionCanceledStacksState();
 }

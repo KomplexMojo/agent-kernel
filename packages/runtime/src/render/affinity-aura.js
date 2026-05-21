@@ -1,6 +1,12 @@
 /**
  * Affinity Aura Projection and Tile Resolution
  *
+ * @deprecated This JS aura computation is superseded by core-as WASM field
+ * buffers (AK-AFF-M3, AK-AFF-M4) and the interaction resolution matrix
+ * (AK-AFF-M5). Use deriveTileAffinityVisuals with fieldRecords from
+ * computeAffinityField/readAffinityFieldAt for new code.
+ * This module is retained for backward compatibility only.
+ *
  * Wave 2: Given actor positions and affinities, compute what each tile "sees" and resolve overlaps.
  *
  * Functions:

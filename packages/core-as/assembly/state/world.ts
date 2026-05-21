@@ -1,4 +1,6 @@
 import { ValidationError } from "../validate/inputs";
+import { isValidAffinityKind, isValidAffinityExpression } from "./affinity";
+import { computeAffinityRadius, computeAffinityIntensity } from "./affinity-spatial";
 
 export const enum Tile {
   Wall = 0,
@@ -84,6 +86,14 @@ let placementActorX = new StaticArray<i32>(0);
 let placementActorY = new StaticArray<i32>(0);
 let motivatedOccupancyByCell = new StaticArray<i32>(0);
 
+// Per-cell, per-kind affinity field buffers.
+// Field index = (kind - 1) * cellCount + y * width + x
+const AFFINITY_KIND_COUNT: i32 = 10;
+let affinityFieldIntensity = new StaticArray<f64>(0);
+let affinityFieldStacks = new StaticArray<i32>(0);
+let affinityFieldExpression = new StaticArray<i32>(0);
+let affinityFieldContribCount = new StaticArray<i32>(0);
+
 let spawnX: i32 = -1;
 let spawnY: i32 = -1;
 let exitX: i32 = -1;
@@ -111,6 +121,9 @@ let motivatedActorVitalRegen = new StaticArray<i32>(0);
 let motivatedActorMovementCost = new StaticArray<i32>(0);
 let motivatedActorActionCostMana = new StaticArray<i32>(0);
 let motivatedActorActionCostStamina = new StaticArray<i32>(0);
+let motivatedActorAffinityKind = new StaticArray<i32>(0);
+let motivatedActorAffinityExpression = new StaticArray<i32>(0);
+let motivatedActorAffinityStacks = new StaticArray<i32>(0);
 let activeMotivatedActorIndex: i32 = 0;
 let currentTick: i32 = 0;
 
@@ -151,6 +164,14 @@ function resizeGrid(newWidth: i32, newHeight: i32): void {
   motivatedActorMovementCost = new StaticArray<i32>(maxMotivatedActors);
   motivatedActorActionCostMana = new StaticArray<i32>(maxMotivatedActors);
   motivatedActorActionCostStamina = new StaticArray<i32>(maxMotivatedActors);
+  motivatedActorAffinityKind = new StaticArray<i32>(maxMotivatedActors);
+  motivatedActorAffinityExpression = new StaticArray<i32>(maxMotivatedActors);
+  motivatedActorAffinityStacks = new StaticArray<i32>(maxMotivatedActors);
+  const fieldSize = AFFINITY_KIND_COUNT * cellCount;
+  affinityFieldIntensity = new StaticArray<f64>(fieldSize);
+  affinityFieldStacks = new StaticArray<i32>(fieldSize);
+  affinityFieldExpression = new StaticArray<i32>(fieldSize);
+  affinityFieldContribCount = new StaticArray<i32>(fieldSize);
 }
 
 export function prepareTileBuffer(length: i32): usize {
@@ -364,6 +385,14 @@ function applyDefaultCapabilitiesToMotivatedActors(count: i32): void {
   }
 }
 
+function clearActorAffinities(): void {
+  for (let i = 0; i < maxMotivatedActors; i += 1) {
+    unchecked(motivatedActorAffinityKind[i] = 0);
+    unchecked(motivatedActorAffinityExpression[i] = 0);
+    unchecked(motivatedActorAffinityStacks[i] = 0);
+  }
+}
+
 function resetMotivatedActors(): void {
   motivatedActorCount = 0;
   activeMotivatedActorIndex = 0;
@@ -374,6 +403,7 @@ function resetMotivatedActors(): void {
   actorY = -1;
   resetActorVitals();
   resetActorCapabilities();
+  clearActorAffinities();
 }
 
 function isValidVitalKind(kind: i32): bool {
@@ -442,6 +472,7 @@ function resetWorldState(): void {
   clearTileActorState();
   clearStaticTraps();
   clearResources();
+  clearAffinityFieldArrays();
   resetActorPlacementsState();
 }
 
@@ -1387,4 +1418,201 @@ export function getResourceModeAt(x: i32, y: i32): i32 {
 
 export function getResourceCount(): i32 {
   return resourceCount;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Affinity field buffers — per-cell, per-kind field projection
+// ══════════════════════════════════════════════════════════════════════════════
+
+function fieldIndexFor(x: i32, y: i32, kind: i32): i32 {
+  return (kind - 1) * cellCount + y * width + x;
+}
+
+function isValidFieldArgs(x: i32, y: i32, kind: i32): bool {
+  return withinBounds(x, y) && isValidAffinityKind(kind);
+}
+
+function clearAffinityFieldArrays(): void {
+  const fieldSize = AFFINITY_KIND_COUNT * cellCount;
+  for (let i = 0; i < fieldSize; i += 1) {
+    unchecked(affinityFieldIntensity[i] = 0.0);
+    unchecked(affinityFieldStacks[i] = 0);
+    unchecked(affinityFieldExpression[i] = 0);
+    unchecked(affinityFieldContribCount[i] = 0);
+  }
+}
+
+export function clearAffinityField(): i32 {
+  clearAffinityFieldArrays();
+  return 1;
+}
+
+function projectAffinitySource(
+  srcX: i32,
+  srcY: i32,
+  kind: i32,
+  expression: i32,
+  stacks: i32,
+): void {
+  const radius = computeAffinityRadius(expression, stacks);
+
+  const minY = srcY - radius >= 0 ? srcY - radius : 0;
+  const maxY = srcY + radius < height ? srcY + radius : height - 1;
+
+  for (let cy = minY; cy <= maxY; cy += 1) {
+    const dyAbs = cy > srcY ? cy - srcY : srcY - cy;
+    const xRange = radius - dyAbs;
+    const minX = srcX - xRange >= 0 ? srcX - xRange : 0;
+    const maxX = srcX + xRange < width ? srcX + xRange : width - 1;
+
+    for (let cx = minX; cx <= maxX; cx += 1) {
+      const dxAbs = cx > srcX ? cx - srcX : srcX - cx;
+      const dist = dxAbs + dyAbs;
+
+      let intensity: f64;
+      if (dist == 0) {
+        intensity = 1.0;
+      } else {
+        intensity = computeAffinityIntensity(dist, stacks, expression);
+      }
+
+      if (intensity <= 0.0) continue;
+
+      const fi = fieldIndexFor(cx, cy, kind);
+      const currentIntensity = unchecked(affinityFieldIntensity[fi]);
+      const currentCount = unchecked(affinityFieldContribCount[fi]);
+
+      if (currentCount == 0 || intensity > currentIntensity) {
+        unchecked(affinityFieldIntensity[fi] = intensity);
+        unchecked(affinityFieldStacks[fi] = stacks);
+        unchecked(affinityFieldExpression[fi] = expression);
+      }
+
+      unchecked(affinityFieldContribCount[fi] = currentCount + 1);
+    }
+  }
+}
+
+export function computeStaticTrapAffinityField(): i32 {
+  clearAffinityFieldArrays();
+  let trapCount: i32 = 0;
+
+  for (let ci = 0; ci < cellCount; ci += 1) {
+    const kind = unchecked(staticTrapAffinityByCell[ci]);
+    if (kind == STATIC_TRAP_NONE) continue;
+
+    const expression = unchecked(staticTrapExpressionByCell[ci]);
+    const stacks = unchecked(staticTrapStacksByCell[ci]);
+    if (!isValidAffinityExpression(expression) || stacks <= 0) continue;
+
+    const trapX = ci % width;
+    const trapY = ci / width;
+    projectAffinitySource(trapX, trapY, kind, expression, stacks);
+    trapCount += 1;
+  }
+
+  return trapCount;
+}
+
+export function getAffinityFieldIntensityAt(x: i32, y: i32, kind: i32): f64 {
+  if (!isValidFieldArgs(x, y, kind)) return 0.0;
+  return unchecked(affinityFieldIntensity[fieldIndexFor(x, y, kind)]);
+}
+
+export function getAffinityFieldStacksAt(x: i32, y: i32, kind: i32): i32 {
+  if (!isValidFieldArgs(x, y, kind)) return 0;
+  return unchecked(affinityFieldStacks[fieldIndexFor(x, y, kind)]);
+}
+
+export function getAffinityFieldExpressionAt(x: i32, y: i32, kind: i32): i32 {
+  if (!isValidFieldArgs(x, y, kind)) return 0;
+  return unchecked(affinityFieldExpression[fieldIndexFor(x, y, kind)]);
+}
+
+export function getAffinityFieldContributionCountAt(x: i32, y: i32, kind: i32): i32 {
+  if (!isValidFieldArgs(x, y, kind)) return 0;
+  return unchecked(affinityFieldContribCount[fieldIndexFor(x, y, kind)]);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Per-actor affinity state — first-affinity-only storage
+// ══════════════════════════════════════════════════════════════════════════════
+
+export function setMotivatedActorAffinity(
+  index: i32,
+  kind: i32,
+  expression: i32,
+  stacks: i32,
+): i32 {
+  if (!isValidMotivatedActorIndex(index)) return 0;
+  if (!isValidAffinityKind(kind)) return 0;
+  if (!isValidAffinityExpression(expression)) return 0;
+  if (stacks <= 0) return 0;
+  unchecked(motivatedActorAffinityKind[index] = kind);
+  unchecked(motivatedActorAffinityExpression[index] = expression);
+  unchecked(motivatedActorAffinityStacks[index] = stacks);
+  return 1;
+}
+
+export function getMotivatedActorAffinityKindByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) return 0;
+  return unchecked(motivatedActorAffinityKind[index]);
+}
+
+export function getMotivatedActorAffinityExpressionByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) return 0;
+  return unchecked(motivatedActorAffinityExpression[index]);
+}
+
+export function getMotivatedActorAffinityStacksByIndex(index: i32): i32 {
+  if (!isValidMotivatedActorIndex(index)) return 0;
+  return unchecked(motivatedActorAffinityStacks[index]);
+}
+
+// ── Actor affinity field projection ──
+
+export function computeActorAffinityField(): i32 {
+  let actorCount: i32 = 0;
+
+  for (let i = 0; i < motivatedActorCount; i += 1) {
+    const kind = unchecked(motivatedActorAffinityKind[i]);
+    if (kind == 0) continue;
+
+    const expression = unchecked(motivatedActorAffinityExpression[i]);
+    const stacks = unchecked(motivatedActorAffinityStacks[i]);
+    if (!isValidAffinityExpression(expression) || stacks <= 0) continue;
+
+    const actorPosX = unchecked(motivatedActorX[i]);
+    const actorPosY = unchecked(motivatedActorY[i]);
+
+    projectAffinitySource(actorPosX, actorPosY, kind, expression, stacks);
+    actorCount += 1;
+  }
+
+  return actorCount;
+}
+
+export function computeAffinityField(): i32 {
+  clearAffinityFieldArrays();
+  let totalSources: i32 = 0;
+
+  // Phase 1: static traps
+  for (let ci = 0; ci < cellCount; ci += 1) {
+    const kind = unchecked(staticTrapAffinityByCell[ci]);
+    if (kind == STATIC_TRAP_NONE) continue;
+
+    const expression = unchecked(staticTrapExpressionByCell[ci]);
+    const stacks = unchecked(staticTrapStacksByCell[ci]);
+    if (!isValidAffinityExpression(expression) || stacks <= 0) continue;
+
+    const trapX = ci % width;
+    const trapY = ci / width;
+    projectAffinitySource(trapX, trapY, kind, expression, stacks);
+    totalSources += 1;
+  }
+
+  // Phase 2: motivated actors with affinity
+  totalSources += computeActorAffinityField();
+
+  return totalSources;
 }

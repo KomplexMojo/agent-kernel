@@ -1,6 +1,11 @@
 /**
  * Affinity Spatial Rules — the definitive interaction grid.
  *
+ * @deprecated The INTERACTION_MATRIX and SPATIAL_WEIGHTS are now authoritative
+ * in core-as (AK-AFF-M2, AK-AFF-M5). Use the WASM interaction resolution
+ * exports (resolveAffinityInteraction, getAffinityMatrixSourceEffect, etc.)
+ * for new code. This module is retained for backward compatibility only.
+ *
  * This module defines:
  * - SPATIAL_WEIGHTS: tunable coefficients for all spatial formulas
  * - INTERACTION_MATRIX: 48-cell lookup for expression×expression×affinityRelationship

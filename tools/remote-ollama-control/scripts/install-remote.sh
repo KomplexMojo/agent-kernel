@@ -15,23 +15,30 @@ ROUTE="${1:-${LLM_DEFAULT_ROUTE:-internal}}"
 REMOTE_USER="${LLM_REMOTE_USER:-darren}"
 REMOTE_SSH_PORT="${LLM_SSH_PORT:-2222}"
 INTERNAL_HOST="${LLM_INTERNAL_HOST:-192.168.1.143}"
-EXTERNAL_HOST="${LLM_EXTERNAL_HOST:-154.5.75.3}"
+EXTERNAL_HOST="${LLM_EXTERNAL_HOST:-207.6.34.73}"
 SSH_KEY="${LLM_SSH_KEY:-$HOME/.ssh/ubuntu_llm_ed25519}"
+SSH_HOST_ALIAS="${LLM_SSH_HOST_ALIAS:-}"
 REMOTE_PACKAGE_DIR="${LLM_REMOTE_PACKAGE_DIR:-/home/darren/remote-ollama-control}"
 REMOTE_SCRIPTS_DIR="${LLM_REMOTE_SCRIPTS_DIR:-/home/darren/bin}"
 
-case "$ROUTE" in
-  internal|lan) REMOTE_HOST="$INTERNAL_HOST" ;;
-  external|vpn) REMOTE_HOST="$EXTERNAL_HOST" ;;
-  *) printf 'Invalid route: %s\n' "$ROUTE" >&2; exit 2 ;;
-esac
+# When an SSH host alias is configured, use it directly (skips route/host/port/key logic).
+if [ -n "$SSH_HOST_ALIAS" ]; then
+  SSH_OPTS=(-o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o BatchMode=yes)
+  REMOTE="$SSH_HOST_ALIAS"
+else
+  case "$ROUTE" in
+    internal|lan) REMOTE_HOST="$INTERNAL_HOST" ;;
+    external|vpn) REMOTE_HOST="$EXTERNAL_HOST" ;;
+    *) printf 'Invalid route: %s\n' "$ROUTE" >&2; exit 2 ;;
+  esac
 
-SSH_OPTS=(-p "$REMOTE_SSH_PORT" -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o BatchMode=yes)
-if [ -f "$SSH_KEY" ]; then
-  SSH_OPTS+=(-i "$SSH_KEY" -o IdentitiesOnly=yes -o PreferredAuthentications=publickey -o PasswordAuthentication=no)
+  SSH_OPTS=(-p "$REMOTE_SSH_PORT" -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o BatchMode=yes)
+  if [ -f "$SSH_KEY" ]; then
+    SSH_OPTS+=(-i "$SSH_KEY" -o IdentitiesOnly=yes -o PreferredAuthentications=publickey -o PasswordAuthentication=no)
+  fi
+
+  REMOTE="$REMOTE_USER@$REMOTE_HOST"
 fi
-
-REMOTE="$REMOTE_USER@$REMOTE_HOST"
 
 ssh "${SSH_OPTS[@]}" "$REMOTE" "mkdir -p '$REMOTE_PACKAGE_DIR' '$REMOTE_SCRIPTS_DIR'"
 

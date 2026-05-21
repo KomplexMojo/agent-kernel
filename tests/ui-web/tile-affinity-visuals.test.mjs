@@ -510,3 +510,122 @@ it("handles non-fire hazard kinds (ice, poison, arcane)", () => {
     assert.ok(origin, "origin tile must be present");
     assert.equal(origin.overlayAssetId, null, "overlayAssetId should be null when no overlays exist");
   });
+
+// ---------------------------------------------------------------------------
+// fieldRecords path (WASM core data)
+// ---------------------------------------------------------------------------
+
+describe("deriveTileAffinityVisuals with fieldRecords", () => {
+  it("returns empty map when fieldRecords is empty", () => {
+    const visuals = deriveTileAffinityVisuals({
+      fieldRecords: [],
+      resourceBundle,
+    });
+    assert.ok(visuals instanceof Map);
+    assert.equal(visuals.size, 0);
+  });
+
+  it("derives visuals from field records without JS spread", () => {
+    const fieldRecords = [
+      { x: 2, y: 2, kind: "fire", kindCode: 1, intensity: 1.0, stacks: 2, expressionName: "emit", expressionCode: 3, contributionCount: 1 },
+      { x: 2, y: 1, kind: "fire", kindCode: 1, intensity: 0.5, stacks: 2, expressionName: "emit", expressionCode: 3, contributionCount: 1 },
+      { x: 3, y: 2, kind: "fire", kindCode: 1, intensity: 0.5, stacks: 2, expressionName: "emit", expressionCode: 3, contributionCount: 1 },
+    ];
+    const visuals = deriveTileAffinityVisuals({
+      fieldRecords,
+      resourceBundle,
+    });
+    assert.equal(visuals.size, 3, "3 tiles from 3 records");
+    const origin = visuals.get("2,2");
+    assert.ok(origin, "origin tile present");
+    assert.equal(origin.intensity, 1.0, "full intensity at origin");
+    assert.equal(origin.affinityKind, "fire", "fire kind");
+    assert.equal(origin.alpha, 1.0, "alpha = intensity");
+    assert.ok(typeof origin.color === "number", "color is numeric");
+  });
+
+  it("fieldRecords path ignores hazards parameter", () => {
+    const fieldRecords = [
+      { x: 5, y: 5, kind: "water", kindCode: 2, intensity: 0.8, stacks: 1, expressionName: "push", expressionCode: 1, contributionCount: 1 },
+    ];
+    const visuals = deriveTileAffinityVisuals({
+      tiles,
+      hazards,
+      fieldRecords,
+      resourceBundle,
+    });
+    // Should have exactly 1 tile from fieldRecords, not the hazard spread
+    assert.equal(visuals.size, 1, "only fieldRecords tiles");
+    assert.ok(visuals.has("5,5"), "fieldRecord tile present");
+    assert.ok(!visuals.has("2,2"), "hazard origin NOT present — fieldRecords takes priority");
+  });
+
+  it("preserves per-kind contributions for overlap", () => {
+    const fieldRecords = [
+      { x: 3, y: 3, kind: "fire", kindCode: 1, intensity: 0.8, stacks: 2, expressionName: "emit", expressionCode: 3, contributionCount: 1 },
+      { x: 3, y: 3, kind: "water", kindCode: 2, intensity: 0.6, stacks: 1, expressionName: "push", expressionCode: 1, contributionCount: 1 },
+    ];
+    const visuals = deriveTileAffinityVisuals({
+      fieldRecords,
+      resourceBundle,
+    });
+    assert.equal(visuals.size, 1, "one tile with two contributions");
+    const tile = visuals.get("3,3");
+    assert.ok(tile, "tile present");
+    assert.ok(Array.isArray(tile.contributions), "contributions is array");
+    assert.equal(tile.contributions.length, 2, "two contributions");
+    // Dominant should be fire (higher intensity)
+    assert.equal(tile.affinityKind, "fire", "dominant = fire (higher intensity)");
+    assert.equal(tile.intensity, 0.8, "dominant intensity");
+    // Contributions sorted by intensity descending
+    assert.equal(tile.contributions[0].kind, "fire");
+    assert.equal(tile.contributions[1].kind, "water");
+  });
+
+  it("canonical 10-kind palette produces correct colors", () => {
+    const kinds = ["fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark"];
+    for (const kind of kinds) {
+      const fieldRecords = [
+        { x: 0, y: 0, kind, kindCode: 0, intensity: 1.0, stacks: 1, expressionName: "push", expressionCode: 1, contributionCount: 1 },
+      ];
+      const visuals = deriveTileAffinityVisuals({ fieldRecords, resourceBundle });
+      const tile = visuals.get("0,0");
+      assert.ok(tile, kind + " tile present");
+      assert.equal(tile.affinityKind, kind, kind + " kind correct");
+      assert.ok(typeof tile.color === "number", kind + " color is numeric");
+      assert.ok(tile.color !== 0xffffff, kind + " has a non-default color");
+    }
+  });
+
+  it("skips field records with zero or negative intensity", () => {
+    const fieldRecords = [
+      { x: 1, y: 1, kind: "fire", kindCode: 1, intensity: 0, stacks: 1, expressionName: "emit" },
+      { x: 2, y: 2, kind: "fire", kindCode: 1, intensity: -0.5, stacks: 1, expressionName: "emit" },
+      { x: 3, y: 3, kind: "fire", kindCode: 1, intensity: 0.5, stacks: 1, expressionName: "emit" },
+    ];
+    const visuals = deriveTileAffinityVisuals({ fieldRecords, resourceBundle });
+    assert.equal(visuals.size, 1, "only positive intensity record");
+    assert.ok(visuals.has("3,3"));
+  });
+
+  it("resolves overlay from resource bundle for fieldRecord kinds", () => {
+    const fieldRecords = [
+      { x: 2, y: 2, kind: "fire", kindCode: 1, intensity: 1.0, stacks: 1, expressionName: "emit" },
+    ];
+    const visuals = deriveTileAffinityVisuals({ fieldRecords, resourceBundle });
+    const tile = visuals.get("2,2");
+    assert.ok(tile);
+    // If resource bundle has fireGlow overlay, it should be resolved
+    const expectedOverlay = resourceBundle?.mappings?.overlays?.fireGlow || null;
+    assert.equal(tile.overlayAssetId, expectedOverlay, "overlay resolved from bundle");
+  });
+
+  it("returns empty map for null/undefined fieldRecords", () => {
+    const visuals = deriveTileAffinityVisuals({
+      fieldRecords: null,
+      hazards: [],
+      resourceBundle,
+    });
+    assert.equal(visuals.size, 0);
+  });
+});
