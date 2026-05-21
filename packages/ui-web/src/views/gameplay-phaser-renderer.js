@@ -324,16 +324,40 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return asset?.id ? `ak-bundle:${asset.id}` : "";
   }
 
+  async function preloadBundleTextures(resourceBundle) {
+    if (!scene || !resourceBundle) return;
+    const ImageCtor = typeof globalThis.Image === "function" ? globalThis.Image : null;
+    const assets = Array.isArray(resourceBundle?.assets) ? resourceBundle.assets : [];
+    const pending = [];
+    for (const asset of assets) {
+      const key = textureKeyForAsset(asset);
+      const dataUri = typeof asset?.dataUri === "string" ? asset.dataUri.trim() : "";
+      if (!key || !dataUri || scene.textures?.exists?.(key)) continue;
+      if (ImageCtor) {
+        pending.push(new Promise((resolve) => {
+          const img = new ImageCtor();
+          img.onload = () => {
+            try {
+              if (scene?.textures && !scene.textures.exists(key)) {
+                scene.textures.addImage(key, img);
+              }
+            } catch (_) { /* scene may be destroyed */ }
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = dataUri;
+        }));
+      } else if (typeof scene.textures?.addBase64 === "function") {
+        scene.textures.addBase64(key, dataUri);
+      }
+    }
+    if (pending.length > 0) await Promise.all(pending);
+  }
+
   function ensureBundleTexture(asset) {
     const key = textureKeyForAsset(asset);
-    const dataUri = typeof asset?.dataUri === "string" ? asset.dataUri.trim() : "";
-    if (!scene || !key || !dataUri) return "";
-    if (scene.textures?.exists?.(key)) return key;
-    if (typeof scene.textures?.addBase64 === "function") {
-      scene.textures.addBase64(key, dataUri);
-      return key;
-    }
-    return "";
+    if (!scene || !key) return "";
+    return scene.textures?.exists?.(key) ? key : "";
   }
 
   function addBundleImage(asset, x, y, width, height) {
@@ -638,6 +662,9 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const ready = await ensureGame(boardState);
     if (!ready?.ok || !scene) return ready;
 
+    const resourceBundle = boardState?.resourceBundle || null;
+    await preloadBundleTextures(resourceBundle);
+
     if (currentContainer) {
       currentContainer.destroy(true);
       currentContainer = null;
@@ -646,7 +673,6 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     selectedActorKey = null;
 
     const { tileWidth, tileHeight } = currentBoardMetrics;
-    const resourceBundle = boardState?.resourceBundle || null;
     const tiles = Array.isArray(boardState?.tiles) ? boardState.tiles : [];
     const boardHeight = Math.max(1, boardState?.boardHeight || tiles.length || 1);
     const boardWidth = Math.max(1, boardState?.boardWidth || 1);

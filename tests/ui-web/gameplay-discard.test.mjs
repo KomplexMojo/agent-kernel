@@ -10,7 +10,7 @@ function makeRoot() {
 
 const MINIMAL_BUNDLE = { artifacts: [] };
 
-function withConfirm(returnValue, fn) {
+async function withConfirm(returnValue, fn) {
   const original = globalThis.confirm;
   const calls = [];
   globalThis.confirm = (message) => {
@@ -18,7 +18,7 @@ function withConfirm(returnValue, fn) {
     return returnValue;
   };
   try {
-    fn(calls);
+    await fn(calls);
   } finally {
     globalThis.confirm = original;
   }
@@ -37,10 +37,10 @@ test("requestDesignTransition with no active run calls onDiscardToDesign without
   });
 });
 
-test("requestDesignTransition with active run prompts the user before discarding", () => {
-  withConfirm(true, (confirmCalls) => {
+test("requestDesignTransition with active run prompts the user before discarding", async () => {
+  await withConfirm(true, async (confirmCalls) => {
     const view = wireGameplayView({ root: makeRoot() });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     view.requestDesignTransition();
     assert.equal(confirmCalls.length, 1, "confirm must be called exactly once");
     assert.ok(
@@ -50,10 +50,10 @@ test("requestDesignTransition with active run prompts the user before discarding
   });
 });
 
-test("requestDesignTransition confirm prompt uses the exact required message text", () => {
-  withConfirm(true, (confirmCalls) => {
+test("requestDesignTransition confirm prompt uses the exact required message text", async () => {
+  await withConfirm(true, async (confirmCalls) => {
     const view = wireGameplayView({ root: makeRoot() });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     view.requestDesignTransition();
     assert.equal(
       confirmCalls[0],
@@ -62,38 +62,38 @@ test("requestDesignTransition confirm prompt uses the exact required message tex
   });
 });
 
-test("requestDesignTransition confirmed: calls onDiscardToDesign and clears run state", () => {
+test("requestDesignTransition confirmed: calls onDiscardToDesign and clears run state", async () => {
   let discarded = false;
-  withConfirm(true, () => {
+  await withConfirm(true, async () => {
     const view = wireGameplayView({
       root: makeRoot(),
       onDiscardToDesign: () => { discarded = true; },
     });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     view.requestDesignTransition();
     assert.equal(discarded, true, "onDiscardToDesign must be called on confirm");
     assert.equal(view.isRunActive(), false, "run must be deactivated after confirmed discard");
   });
 });
 
-test("requestDesignTransition cancelled: does not call onDiscardToDesign and preserves run state", () => {
+test("requestDesignTransition cancelled: does not call onDiscardToDesign and preserves run state", async () => {
   let discarded = false;
-  withConfirm(false, () => {
+  await withConfirm(false, async () => {
     const view = wireGameplayView({
       root: makeRoot(),
       onDiscardToDesign: () => { discarded = true; },
     });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     view.requestDesignTransition();
     assert.equal(discarded, false, "onDiscardToDesign must not be called when cancelled");
     assert.equal(view.isRunActive(), true, "run must remain active when discard is cancelled");
   });
 });
 
-test("requestDesignTransition fires the prompt on every call while run is active", () => {
-  withConfirm(false, (confirmCalls) => {
+test("requestDesignTransition fires the prompt on every call while run is active", async () => {
+  await withConfirm(false, async (confirmCalls) => {
     const view = wireGameplayView({ root: makeRoot() });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     view.requestDesignTransition();
     view.requestDesignTransition();
     assert.equal(confirmCalls.length, 2, "confirm must fire every time Design is requested");

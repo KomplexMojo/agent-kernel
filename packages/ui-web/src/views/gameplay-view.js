@@ -31,7 +31,7 @@ function buildEntityIndex(bundle) {
   return index;
 }
 
-function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
+async function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
   const simConfig = findArtifact(bundle, SIM_CONFIG_SCHEMA);
   const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
   const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA);
@@ -39,10 +39,12 @@ function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
   const tiles = Array.isArray(layoutData.tiles) ? layoutData.tiles : [];
   const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
 
-  // Derive tile visuals via injected facade or default hazard-based fallback
+  // Derive tile visuals via injected facade or default hazard-based fallback.
+  // The injected function may be async (WASM field bridge).
   let tileVisuals;
   if (typeof buildTileVisualsFn === "function") {
-    tileVisuals = buildTileVisualsFn(bundle);
+    const result = buildTileVisualsFn(bundle);
+    tileVisuals = result instanceof Promise ? await result : result;
   } else {
     tileVisuals = deriveTileAffinityVisuals({ tiles, hazards, resourceBundle });
   }
@@ -127,12 +129,12 @@ export function wireGameplayView({
     return activeBundle !== null;
   }
 
-  function loadRun(bundle) {
+  async function loadRun(bundle) {
     if (!bundle) return;
     activeBundle = bundle;
     entityIndex = buildEntityIndex(bundle);
     selectedEntity = null;
-    frames = [buildBoardState(bundle, { buildTileVisualsFn: buildTileAffinityVisualsFromBundleFn })];
+    frames = [await buildBoardState(bundle, { buildTileVisualsFn: buildTileAffinityVisualsFromBundleFn })];
     currentFrameIndex = 0;
     setStatus("Run loaded.");
 

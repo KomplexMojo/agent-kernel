@@ -78,14 +78,14 @@ describe("Fullscreen mode", () => {
       "wireGameplayView must return an enterFullscreen method");
   });
 
-  it("clicking fullscreen button triggers fullscreen entry", () => {
+  it("clicking fullscreen button triggers fullscreen entry", async () => {
     const root = createFakeRoot(["gameplay-fullscreen", "actor-inspector"]);
     const renderer = createFakeRenderer();
     const view = wireGameplayView({
       root,
       createRenderer: () => renderer,
     });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
 
     const btn = root.elements["gameplay-fullscreen"];
     assert.ok(btn._click, "fullscreen button must have a click handler wired by wireGameplayView");
@@ -111,14 +111,14 @@ describe("Fullscreen mode", () => {
       "wireGameplayView must return exitFullscreen");
   });
 
-  it("enterFullscreen sets data-gameplay-fullscreen to true on the host", () => {
+  it("enterFullscreen sets data-gameplay-fullscreen to true on the host", async () => {
     const root = createFakeRoot(["gameplay-fullscreen"]);
     const renderer = createFakeRenderer();
     const view = wireGameplayView({
       root,
       createRenderer: () => renderer,
     });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     view.enterFullscreen();
 
     const host = root.elements["gameplay-phaser-host"];
@@ -126,14 +126,14 @@ describe("Fullscreen mode", () => {
       "enterFullscreen must set data-gameplay-fullscreen='true'");
   });
 
-  it("exitFullscreen sets data-gameplay-fullscreen to false", () => {
+  it("exitFullscreen sets data-gameplay-fullscreen to false", async () => {
     const root = createFakeRoot(["gameplay-fullscreen"]);
     const renderer = createFakeRenderer();
     const view = wireGameplayView({
       root,
       createRenderer: () => renderer,
     });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     view.enterFullscreen();
     view.exitFullscreen();
 
@@ -142,14 +142,14 @@ describe("Fullscreen mode", () => {
       "exitFullscreen must set data-gameplay-fullscreen='false'");
   });
 
-  it("actor inspector remains accessible after exiting fullscreen", () => {
+  it("actor inspector remains accessible after exiting fullscreen", async () => {
     const root = createFakeRoot(["gameplay-fullscreen", "actor-inspector"]);
     const renderer = createFakeRenderer();
     const view = wireGameplayView({
       root,
       createRenderer: () => renderer,
     });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     view.enterFullscreen();
     view.exitFullscreen();
 
@@ -165,7 +165,7 @@ describe("Fullscreen mode", () => {
 // ---------------------------------------------------------------------------
 
 describe("Playback controls bridge", () => {
-  it("renderer receives setPlaybackControls after a run is loaded", () => {
+  it("renderer receives setPlaybackControls after a run is loaded", async () => {
     const root = createFakeRoot(["gameplay-fullscreen"]);
     let receivedControls = null;
     const renderer = createFakeRenderer();
@@ -175,7 +175,7 @@ describe("Playback controls bridge", () => {
       root,
       createRenderer: () => renderer,
     });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
 
     assert.ok(receivedControls,
       "renderer.setPlaybackControls must be called after loadRun");
@@ -189,7 +189,7 @@ describe("Playback controls bridge", () => {
       "playback controls must include reset");
   });
 
-  it("renderer playback stepBack closure invokes the controller stepBack", () => {
+  it("renderer playback stepBack closure invokes the controller stepBack", async () => {
     const root = createFakeRoot();
     let receivedControls = null;
     const renderer = createFakeRenderer();
@@ -201,7 +201,7 @@ describe("Playback controls bridge", () => {
     });
 
     // Load a bundle with two frames so stepBack is meaningful
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     assert.ok(receivedControls, "setPlaybackControls must have been called");
 
     // Step forward first so stepBack has somewhere to go
@@ -217,7 +217,7 @@ describe("Playback controls bridge", () => {
     assert.ok(receivedControls.stepBack, "stepBack closure must be a function");
   });
 
-  it("renderer playback stepForward closure invokes the controller stepForward", () => {
+  it("renderer playback stepForward closure invokes the controller stepForward", async () => {
     const root = createFakeRoot();
     let receivedControls = null;
     const renderer = createFakeRenderer();
@@ -227,7 +227,7 @@ describe("Playback controls bridge", () => {
       root,
       createRenderer: () => renderer,
     });
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     assert.ok(receivedControls, "setPlaybackControls must have been called");
 
     receivedControls.stepForward();
@@ -282,7 +282,7 @@ describe("Controls disabled when no run loaded", () => {
       "step-forward must be disabled when no run is loaded");
   });
 
-  it("after clear(), step controls are disabled", () => {
+  it("after clear(), step controls are disabled", async () => {
     const root = createFakeRoot();
     const renderer = createFakeRenderer();
     const view = wireGameplayView({
@@ -290,7 +290,7 @@ describe("Controls disabled when no run loaded", () => {
       createRenderer: () => renderer,
     });
 
-    view.loadRun(MINIMAL_BUNDLE);
+    await view.loadRun(MINIMAL_BUNDLE);
     // After loadRun, buttons may be enabled (single-frame means fwd disabled, back disabled)
     view.clear();
 

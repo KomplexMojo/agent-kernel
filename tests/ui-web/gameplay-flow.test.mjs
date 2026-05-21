@@ -115,41 +115,41 @@ test("isRunActive returns false before any loadRun call", () => {
   assert.equal(view.isRunActive(), false);
 });
 
-test("loadRun activates the run and invokes onRunLoaded callback", () => {
+test("loadRun activates the run and invokes onRunLoaded callback", async () => {
   let loadedBundle = null;
   const view = wireGameplayView({
     root: makeRoot(),
     onRunLoaded: (b) => { loadedBundle = b; },
   });
   const bundle = { artifacts: [] };
-  view.loadRun(bundle);
+  await view.loadRun(bundle);
   assert.equal(view.isRunActive(), true);
   assert.strictEqual(loadedBundle, bundle);
 });
 
-test("clear deactivates the run", () => {
+test("clear deactivates the run", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun({ artifacts: [] });
+  await view.loadRun({ artifacts: [] });
   assert.equal(view.isRunActive(), true);
   view.clear();
   assert.equal(view.isRunActive(), false);
 });
 
-test("getSelectedEntity returns null before any selection", () => {
+test("getSelectedEntity returns null before any selection", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun({ artifacts: [] });
+  await view.loadRun({ artifacts: [] });
   assert.equal(view.getSelectedEntity(), null);
 });
 
-test("stepForward does not throw when at the last frame", () => {
+test("stepForward does not throw when at the last frame", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun({ artifacts: [] });
+  await view.loadRun({ artifacts: [] });
   assert.doesNotThrow(() => view.stepForward());
 });
 
-test("stepBack does not throw when at the first frame", () => {
+test("stepBack does not throw when at the first frame", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun({ artifacts: [] });
+  await view.loadRun({ artifacts: [] });
   assert.doesNotThrow(() => view.stepBack());
 });
 
@@ -187,7 +187,7 @@ test("HTML contains gameplay-run-id-label element", () => {
   assert.match(html, /id="gameplay-run-id-label"/);
 });
 
-test("loadRun calls deriveTileAffinityVisuals and includes tileVisuals in board state", () => {
+test("loadRun calls deriveTileAffinityVisuals and includes tileVisuals in board state", async () => {
   let renderedBoardState = null;
   const view = wireGameplayView({
     root: makeRoot(),
@@ -235,7 +235,7 @@ test("loadRun calls deriveTileAffinityVisuals and includes tileVisuals in board 
     ],
   };
 
-  view.loadRun(bundle);
+  await view.loadRun(bundle);
   assert.ok(renderedBoardState, "renderer received board state");
   assert.ok(renderedBoardState.tileVisuals instanceof Map, "tileVisuals is a Map");
   assert.ok(renderedBoardState.tileVisuals.size > 0, "tileVisuals has entries from hazard");
@@ -245,7 +245,7 @@ test("loadRun calls deriveTileAffinityVisuals and includes tileVisuals in board 
   assert.equal(origin.affinityKind, "fire", "fire kind");
 });
 
-test("loadRun uses injected buildTileAffinityVisualsFromBundleFn when provided", () => {
+test("loadRun uses injected buildTileAffinityVisualsFromBundleFn when provided", async () => {
   let renderedBoardState = null;
   const customVisuals = new Map([["5,5", { intensity: 0.9, affinityKind: "water", color: 0x2b7fff, alpha: 0.9 }]]);
 
@@ -280,14 +280,14 @@ test("loadRun uses injected buildTileAffinityVisualsFromBundleFn when provided",
     ],
   };
 
-  view.loadRun(bundle);
+  await view.loadRun(bundle);
   assert.ok(renderedBoardState, "renderer received board state");
   assert.strictEqual(renderedBoardState.tileVisuals, customVisuals, "custom facade used instead of default");
   assert.ok(renderedBoardState.tileVisuals.has("5,5"), "custom visuals present");
   assert.ok(!renderedBoardState.tileVisuals.has("2,2"), "hazard NOT spread — facade overrides");
 });
 
-test("loadRun with no hazards produces empty tileVisuals", () => {
+test("loadRun with no hazards produces empty tileVisuals", async () => {
   let renderedBoardState = null;
   const view = wireGameplayView({
     root: makeRoot(),
@@ -311,7 +311,7 @@ test("loadRun with no hazards produces empty tileVisuals", () => {
     ],
   };
 
-  view.loadRun(bundle);
+  await view.loadRun(bundle);
   assert.ok(renderedBoardState.tileVisuals instanceof Map, "tileVisuals is Map");
   assert.equal(renderedBoardState.tileVisuals.size, 0, "no hazards → empty tileVisuals");
 });

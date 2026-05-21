@@ -68,22 +68,22 @@ const BUNDLE_WITH_RENDERED_NON_ACTORS = {
   ],
 };
 
-test("selectEntity returns null when no entity matches the position", () => {
+test("selectEntity returns null when no entity matches the position", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const entity = view.selectEntity({ x: 99, y: 99 });
   assert.equal(entity, null);
 });
 
-test("selectEntity returns the entity at the given position", () => {
+test("selectEntity returns the entity at the given position", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const entity = view.selectEntity({ x: 3, y: 4 });
   assert.ok(entity, "expected an entity at (3, 4)");
   assert.equal(entity.id, "delver-1");
 });
 
-test("selectEntity centers the Phaser camera on the selected entity", () => {
+test("selectEntity centers the Phaser camera on the selected entity", async () => {
   const centered = [];
   const view = wireGameplayView({
     root: makeRoot(),
@@ -95,25 +95,25 @@ test("selectEntity centers the Phaser camera on the selected entity", () => {
       centerOnTile: (position) => centered.push(position),
     }),
   });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const entity = view.selectEntity({ x: 3, y: 4 });
 
   assert.ok(entity);
   assert.deepEqual(centered, [{ x: 3, y: 4 }]);
 });
 
-test("selectEntity updates getSelectedEntity", () => {
+test("selectEntity updates getSelectedEntity", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.selectEntity({ x: 3, y: 4 });
   const selected = view.getSelectedEntity();
   assert.ok(selected);
   assert.equal(selected.id, "delver-1");
 });
 
-test("selected entity exposes affinities from run configuration", () => {
+test("selected entity exposes affinities from run configuration", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const entity = view.selectEntity({ x: 3, y: 4 });
   assert.ok(Array.isArray(entity.affinities), "entity must have affinities array");
   assert.equal(entity.affinities.length, 2);
@@ -122,24 +122,24 @@ test("selected entity exposes affinities from run configuration", () => {
   assert.equal(entity.affinities[0].stacks, 2);
 });
 
-test("selected entity exposes vitals from run configuration", () => {
+test("selected entity exposes vitals from run configuration", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const entity = view.selectEntity({ x: 3, y: 4 });
   assert.ok(entity.vitals, "entity must have vitals");
   assert.equal(entity.vitals.health.current, 10);
   assert.equal(entity.vitals.health.max, 10);
 });
 
-test("selected entity exposes motivations from run configuration", () => {
+test("selected entity exposes motivations from run configuration", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const entity = view.selectEntity({ x: 3, y: 4 });
   assert.ok(Array.isArray(entity.motivations), "entity must have motivations array");
   assert.deepEqual(entity.motivations, ["explore", "loot"]);
 });
 
-test("selectEntity resolves entity properties from run config without making fetch calls", () => {
+test("selectEntity resolves entity properties from run config without making fetch calls", async () => {
   let fetchCalled = false;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (...args) => {
@@ -149,7 +149,7 @@ test("selectEntity resolves entity properties from run config without making fet
 
   try {
     const view = wireGameplayView({ root: makeRoot() });
-    view.loadRun(BUNDLE_WITH_ACTORS);
+    await view.loadRun(BUNDLE_WITH_ACTORS);
     view.selectEntity({ x: 3, y: 4 });
     assert.equal(fetchCalled, false, "selectEntity must not make network requests");
   } finally {
@@ -157,27 +157,27 @@ test("selectEntity resolves entity properties from run config without making fet
   }
 });
 
-test("clear resets selected entity to null", () => {
+test("clear resets selected entity to null", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.selectEntity({ x: 3, y: 4 });
   assert.ok(view.getSelectedEntity());
   view.clear();
   assert.equal(view.getSelectedEntity(), null);
 });
 
-test("selectEntity resolves rendered hazards from the run layout", () => {
+test("selectEntity resolves rendered hazards from the run layout", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
+  await view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
   const entity = view.selectEntity({ x: 1, y: 2 });
   assert.ok(entity);
   assert.equal(entity.id, "hazard-1");
   assert.equal(entity.entityType, "hazard");
 });
 
-test("selectEntity resolves rendered resources from the run layout", () => {
+test("selectEntity resolves rendered resources from the run layout", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
+  await view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
   const entity = view.selectEntity({ x: 4, y: 2 });
   assert.ok(entity);
   assert.equal(entity.id, "resource-1");
@@ -186,9 +186,9 @@ test("selectEntity resolves rendered resources from the run layout", () => {
 
 // --- M1: resolveDisplayModel and bidirectional inspector sync ---
 
-test("resolveDisplayModel returns normalized model for actor position", () => {
+test("resolveDisplayModel returns normalized model for actor position", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const model = view.resolveDisplayModel({ x: 3, y: 4 });
   assert.ok(model, "expected a display model at (3, 4)");
   assert.equal(model.id, "delver-1");
@@ -199,35 +199,35 @@ test("resolveDisplayModel returns normalized model for actor position", () => {
   assert.equal(model.equippedAffinity?.kind, "fire");
 });
 
-test("resolveDisplayModel equippedAffinity is the first affinity in the array", () => {
+test("resolveDisplayModel equippedAffinity is the first affinity in the array", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const model = view.resolveDisplayModel({ x: 3, y: 4 });
   assert.ok(model);
   assert.equal(model.equippedAffinity?.kind, model.affinities[0]?.kind);
 });
 
-test("resolveDisplayModel returns normalized model for hazard position", () => {
+test("resolveDisplayModel returns normalized model for hazard position", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
+  await view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
   const model = view.resolveDisplayModel({ x: 1, y: 2 });
   assert.ok(model);
   assert.equal(model.id, "hazard-1");
   assert.equal(model.entityType, "hazard");
 });
 
-test("resolveDisplayModel returns normalized model for resource position", () => {
+test("resolveDisplayModel returns normalized model for resource position", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
+  await view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
   const model = view.resolveDisplayModel({ x: 4, y: 2 });
   assert.ok(model);
   assert.equal(model.id, "resource-1");
   assert.equal(model.entityType, "resource");
 });
 
-test("resolveDisplayModel returns null for unknown position", () => {
+test("resolveDisplayModel returns null for unknown position", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const model = view.resolveDisplayModel({ x: 99, y: 99 });
   assert.equal(model, null);
 });
@@ -238,7 +238,7 @@ test("resolveDisplayModel returns null before loadRun", () => {
   assert.equal(model, null);
 });
 
-test("handleInspectorSelect centers camera when payload has a position", () => {
+test("handleInspectorSelect centers camera when payload has a position", async () => {
   const centered = [];
   const view = wireGameplayView({
     root: makeRoot(),
@@ -250,19 +250,19 @@ test("handleInspectorSelect centers camera when payload has a position", () => {
       centerOnTile: (pos) => centered.push(pos),
     }),
   });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.handleInspectorSelect({ position: { x: 3, y: 4 }, type: "actor", actorId: "delver-1" });
   assert.deepEqual(centered, [{ x: 3, y: 4 }]);
 });
 
-test("handleInspectorSelect updates selectedEntity", () => {
+test("handleInspectorSelect updates selectedEntity", async () => {
   const view = wireGameplayView({ root: makeRoot() });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.handleInspectorSelect({ position: { x: 3, y: 4 }, type: "actor", actorId: "delver-1" });
   assert.equal(view.getSelectedEntity()?.id, "delver-1");
 });
 
-test("handleInspectorSelect is a no-op when payload has no position", () => {
+test("handleInspectorSelect is a no-op when payload has no position", async () => {
   const centered = [];
   const view = wireGameplayView({
     root: makeRoot(),
@@ -274,7 +274,7 @@ test("handleInspectorSelect is a no-op when payload has no position", () => {
       centerOnTile: (pos) => centered.push(pos),
     }),
   });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.handleInspectorSelect({ type: "room", roomBounds: { x: 0, y: 0, width: 4, height: 4 } });
   assert.deepEqual(centered, []);
 });
@@ -310,10 +310,10 @@ test("view passes onHover and onHoverEnd to the renderer factory", () => {
   assert.equal(typeof cap.onHoverEnd, "function", "onHoverEnd must be passed to renderer");
 });
 
-test("onHover callback resolves entity and calls renderer.showQuickView", () => {
+test("onHover callback resolves entity and calls renderer.showQuickView", async () => {
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onHover({ x: 3, y: 4 });
   assert.equal(cap.quickViews.length, 1);
   assert.equal(cap.quickViews[0].id, "delver-1");
@@ -321,19 +321,19 @@ test("onHover callback resolves entity and calls renderer.showQuickView", () => 
   assert.ok(cap.quickViews[0].equippedAffinity, "display model must include equippedAffinity");
 });
 
-test("onHover over empty position calls renderer.hideQuickView", () => {
+test("onHover over empty position calls renderer.hideQuickView", async () => {
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onHover({ x: 99, y: 99 });
   assert.equal(cap.hideCount, 1);
   assert.equal(cap.quickViews.length, 0);
 });
 
-test("onHoverEnd calls renderer.hideQuickView", () => {
+test("onHoverEnd calls renderer.hideQuickView", async () => {
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onHoverEnd();
   assert.equal(cap.hideCount, 1);
 });
@@ -363,27 +363,27 @@ function makeHighlightCapturingRenderer() {
   };
 }
 
-test("selectEntity calls renderer.highlightActor with the entity position", () => {
+test("selectEntity calls renderer.highlightActor with the entity position", async () => {
   const cap = makeHighlightCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.selectEntity({ x: 3, y: 4 });
   assert.deepEqual(cap.highlights, [{ x: 3, y: 4 }]);
 });
 
-test("clear calls renderer.clearHighlight", () => {
+test("clear calls renderer.clearHighlight", async () => {
   const cap = makeHighlightCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.selectEntity({ x: 3, y: 4 });
   view.clear();
   assert.ok(cap.clearCount >= 1, "clearHighlight must be called when view is cleared");
 });
 
-test("handleInspectorSelect calls renderer.highlightActor with the entity position", () => {
+test("handleInspectorSelect calls renderer.highlightActor with the entity position", async () => {
   const cap = makeHighlightCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.handleInspectorSelect({ position: { x: 3, y: 4 }, type: "actor", actorId: "delver-1" });
   assert.deepEqual(cap.highlights, [{ x: 3, y: 4 }]);
 });
@@ -423,20 +423,20 @@ function makePlayerPanelCapturingRenderer() {
   };
 }
 
-test("Z key with actor selected opens Player Panel with display model", () => {
+test("Z key with actor selected opens Player Panel with display model", async () => {
   const cap = makePlayerPanelCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.selectEntity({ x: 3, y: 4 });
   cap.onKeyPress?.({ key: "z" });
   assert.equal(cap.panelOpens.length, 1, "openPlayerPanel must be called when Z pressed with actor selected");
   assert.equal(cap.panelOpens[0].id, "delver-1");
 });
 
-test("Escape key calls renderer.closePlayerPanel", () => {
+test("Escape key calls renderer.closePlayerPanel", async () => {
   const cap = makePlayerPanelCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onKeyPress?.({ key: "escape" });
   assert.ok(cap.closePanelCount >= 1, "closePlayerPanel must be called when Escape pressed");
 });
@@ -448,27 +448,27 @@ test("Z key before loadRun does not open Player Panel", () => {
   assert.equal(cap.panelOpens.length, 0, "panel must not open before loadRun");
 });
 
-test("Z key with no actor selected does not open Player Panel", () => {
+test("Z key with no actor selected does not open Player Panel", async () => {
   const cap = makePlayerPanelCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onKeyPress?.({ key: "z" });
   assert.equal(cap.panelOpens.length, 0, "panel must not open when no actor is selected");
 });
 
-test("Z key with hazard selected does not open Player Panel", () => {
+test("Z key with hazard selected does not open Player Panel", async () => {
   const cap = makePlayerPanelCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
+  await view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
   view.selectEntity({ x: 1, y: 2 }); // hazard-1
   cap.onKeyPress?.({ key: "z" });
   assert.equal(cap.panelOpens.length, 0, "panel must not open for non-actor entities");
 });
 
-test("clear closes the Player Panel", () => {
+test("clear closes the Player Panel", async () => {
   const cap = makePlayerPanelCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   view.selectEntity({ x: 3, y: 4 });
   cap.onKeyPress?.({ key: "z" });
   const closeBefore = cap.closePanelCount;
@@ -476,10 +476,10 @@ test("clear closes the Player Panel", () => {
   assert.ok(cap.closePanelCount > closeBefore, "clear must close the player panel");
 });
 
-test("bundle is not mutated by openPlayerPanel and closePlayerPanel", () => {
+test("bundle is not mutated by openPlayerPanel and closePlayerPanel", async () => {
   const cap = makePlayerPanelCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
-  view.loadRun(BUNDLE_WITH_ACTORS);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
   const snapshot = JSON.stringify(BUNDLE_WITH_ACTORS);
   view.selectEntity({ x: 3, y: 4 });
   cap.onKeyPress?.({ key: "z" });

@@ -6,6 +6,7 @@ import { wireDesignView } from "./views/design-view.js";
 import { wirePreviewView, validatePreviewLaunchBundle } from "./views/preview-view.js";
 import { wireDiagnosticsView } from "./views/diagnostics-view.js";
 import { wireGameplayView } from "./views/gameplay-view.js";
+import { buildTileAffinityVisualsFromBundle } from "./views/affinity-field-bridge.js";
 import { resolveIcon } from "./icon-resolver.js";
 import { shouldHydrateDesignFromBundleSource } from "./build-spec-ui.js";
 
@@ -251,6 +252,7 @@ async function refreshPreviewBundle({ resetBuildOutput = false } = {}) {
 gameplayView = wireGameplayView({
   root: document,
   actorInspector,
+  buildTileAffinityVisualsFromBundleFn: (bundle) => buildTileAffinityVisualsFromBundle(bundle),
   onDiscardToDesign: () => {
     void syncBundleViews({ bundle: null, source: "discard" });
     setGameplayRunIdLabel(null);
