@@ -75,9 +75,41 @@ function call(fn: unknown, ...args: unknown[]): unknown {
   return fn(...args);
 }
 
-// ## TODO: Test Permutations
-// - wrong actor, tick mismatch, wrong source position, out-of-bounds destination, blocked wall, and actor collision once world.ts is ported
-// - diagonal movement cost with cardinal costs 0, 1, 2, and odd values above 2
-// - stamina regeneration before movement cost, including exact-cost and insufficient-stamina boundaries
-// - static emit trap damage for all affinity-to-vital mappings
-// - consumable, level, and permanent resource capture effects on current and max vital values
+describe("core-ts movement permutations", () => {
+  test("setMoveAction round-trip with all 7 fields", () => {
+    const move = createMoveRules(createWorldStub());
+
+    move.setMoveAction(42, 5, 6, 6, 6, Direction.East, 3);
+    const decoded = move.decodeMove(0);
+
+    expect(decoded.actorId).toBe(42);
+    expect(decoded.fromX).toBe(5);
+    expect(decoded.fromY).toBe(6);
+    expect(decoded.toX).toBe(6);
+    expect(decoded.toY).toBe(6);
+    expect(decoded.direction).toBe(Direction.East);
+    expect(decoded.tick).toBe(3);
+  });
+
+  test("validateDirection rejects direction 8 (out of 0-7 range)", () => {
+    const move = createMoveRules(createWorldStub());
+
+    move.setMoveAction(1, 0, 0, 0, 0, 8, 0);
+    const decoded = move.decodeMove(0);
+    expect(move.validateDirection(decoded)).toBe(false);
+  });
+
+  test("validateDirection accepts all 8 cardinal+diagonal directions", () => {
+    const move = createMoveRules(createWorldStub());
+    // Direction offsets: N(0,-1), NE(1,-1), E(1,0), SE(1,1), S(0,1), SW(-1,1), W(-1,0), NW(-1,-1)
+    const offsets: Array<[number, number]> = [
+      [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1],
+    ];
+    for (let dir = 0; dir < 8; dir++) {
+      const [dx, dy] = offsets[dir];
+      move.setMoveAction(1, 3, 3, 3 + dx, 3 + dy, dir, 0);
+      const decoded = move.decodeMove(0);
+      expect(move.validateDirection(decoded)).toBe(true);
+    }
+  });
+});

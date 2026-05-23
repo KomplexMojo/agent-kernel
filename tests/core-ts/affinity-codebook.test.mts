@@ -173,10 +173,43 @@ function call(fn: unknown, ...args: unknown[]): unknown {
   return fn(...args);
 }
 
-// ## TODO: Test Permutations
-// - invalid affinity kinds below 0 and above 11 return sentinel values consistently
-// - invalid affinity expressions below 0 and above 5 return sentinel values or false flags
-// - every affinity kind maps to its expected vital, not only representative samples
-// - reader utilities return "unknown" names for unmapped expression, effect, visual, and relationship codes
-// - readActorAffinity returns null for kind 0 and names mapped nonzero affinities
-// - readAffinityInteractionResult maps all effect, visual state, and relationship names
+describe("core-ts affinity codebook permutations", () => {
+  test("invalid affinity kinds return sentinel vital", () => {
+    const core = createCore();
+    expect(call(core.getAffinityTargetVital, 0)).toBe(-1);
+    expect(call(core.getAffinityTargetVital, 11)).toBe(-1);
+    expect(call(core.getAffinityTargetVital, -1)).toBe(-1);
+  });
+
+  test("invalid affinity expressions return false flags", () => {
+    const core = createCore();
+    expect(call(core.affinityExpressionAllowsEnvironmentMutation, 0)).toBe(false);
+    expect(call(core.affinityExpressionAllowsEnvironmentMutation, 5)).toBe(false);
+    expect(call(core.affinityExpressionAllowsTrapArming, 0)).toBe(false);
+    expect(call(core.affinityExpressionIsPersistentField, 0)).toBe(false);
+  });
+
+  test("every affinity kind maps to the expected vital", () => {
+    const core = createCore();
+    const expected: Array<[number, number]> = [
+      [AffinityKind.Fire, VitalKind.Health],
+      [AffinityKind.Water, VitalKind.Health],
+      [AffinityKind.Earth, VitalKind.Stamina],
+      [AffinityKind.Wind, VitalKind.Stamina],
+      [AffinityKind.Life, VitalKind.Health],
+      [AffinityKind.Decay, VitalKind.Health],
+      [AffinityKind.Corrode, VitalKind.Durability],
+      [AffinityKind.Fortify, VitalKind.Durability],
+      [AffinityKind.Light, VitalKind.Mana],
+      [AffinityKind.Dark, VitalKind.Mana],
+    ];
+    for (const [kind, vital] of expected) {
+      expect(call(core.getAffinityTargetVital, kind)).toBe(vital);
+    }
+  });
+
+  test("reader utilities return undefined for unmapped codes", () => {
+    expect(AFFINITY_KIND_BY_CODE[0]).toBeUndefined();
+    expect(AFFINITY_EXPRESSION_BY_CODE[0]).toBeUndefined();
+  });
+});

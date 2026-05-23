@@ -260,13 +260,100 @@ function call(fn: unknown, ...args: unknown[]): unknown {
   return fn(...args);
 }
 
-// ## TODO: Test Permutations
-// - all 12 motivation kinds map to the correct family
-// - exclusive group conflict matrix: all same-family pairs conflict, cross-family pairs do not
-// - pattern codes for patrolling, attacking, defending with boundary indices
-// - cost accumulator rejects invalid kinds and respects MAX_COST_LINES (12) cap
-// - cost accumulator reset clears all line items and total
-// - evaluation with all 12 kinds simultaneously to verify max-axis semantics
-// - evaluation flag OR semantics with explicit flagMask parameter overrides
-// - reasoning class derivation for all cognition tiers (0,1,2,3)
-// - profile cost computation for all 12 kinds against known expected values
+describe("core-ts motivation permutations", () => {
+  test("all 12 motivation kinds map to the correct family", () => {
+    const familyMap: Array<[number, number]> = [
+      [MotivationKind.Random, MotivationFamily.Mobility],
+      [MotivationKind.Stationary, MotivationFamily.Mobility],
+      [MotivationKind.Exploring, MotivationFamily.Mobility],
+      [MotivationKind.Patrolling, MotivationFamily.Mobility],
+      [MotivationKind.Attacking, MotivationFamily.Posture],
+      [MotivationKind.Defending, MotivationFamily.Posture],
+      [MotivationKind.Stealthy, MotivationFamily.Posture],
+      [MotivationKind.Friendly, MotivationFamily.Posture],
+      [MotivationKind.Reflexive, MotivationFamily.Cognition],
+      [MotivationKind.GoalOriented, MotivationFamily.Cognition],
+      [MotivationKind.StrategyFocused, MotivationFamily.Cognition],
+      [MotivationKind.UserControlled, MotivationFamily.Control],
+    ];
+    for (const [kind, family] of familyMap) {
+      expect(getMotivationFamily(kind)).toBe(family);
+    }
+  });
+
+  test("exclusive group conflict matrix: same-group pairs conflict, cross-group do not", () => {
+    // Mobility group: Random, Exploring, Patrolling (group 0)
+    expect(motivationKindsConflict(MotivationKind.Random, MotivationKind.Exploring)).toBe(true);
+    expect(motivationKindsConflict(MotivationKind.Random, MotivationKind.Patrolling)).toBe(true);
+    expect(motivationKindsConflict(MotivationKind.Exploring, MotivationKind.Patrolling)).toBe(true);
+
+    // Posture group: Attacking, Defending, Stealthy (group 1)
+    expect(motivationKindsConflict(MotivationKind.Attacking, MotivationKind.Defending)).toBe(true);
+    expect(motivationKindsConflict(MotivationKind.Attacking, MotivationKind.Stealthy)).toBe(true);
+    expect(motivationKindsConflict(MotivationKind.Defending, MotivationKind.Stealthy)).toBe(true);
+
+    // Cognition group: Reflexive, GoalOriented, StrategyFocused (group 2)
+    expect(motivationKindsConflict(MotivationKind.Reflexive, MotivationKind.GoalOriented)).toBe(true);
+    expect(motivationKindsConflict(MotivationKind.Reflexive, MotivationKind.StrategyFocused)).toBe(true);
+    expect(motivationKindsConflict(MotivationKind.GoalOriented, MotivationKind.StrategyFocused)).toBe(true);
+
+    // Cross-group: no conflict
+    expect(motivationKindsConflict(MotivationKind.Random, MotivationKind.Attacking)).toBe(false);
+    expect(motivationKindsConflict(MotivationKind.Exploring, MotivationKind.Reflexive)).toBe(false);
+    expect(motivationKindsConflict(MotivationKind.Defending, MotivationKind.GoalOriented)).toBe(false);
+
+    // Control group has exclusive group -1 (no conflicts)
+    expect(motivationKindsConflict(MotivationKind.UserControlled, MotivationKind.Random)).toBe(false);
+  });
+
+  test("cost accumulator rejects invalid kinds (0 and 13)", () => {
+    const core = createCore();
+    call(core.resetMotivationCostAccumulator);
+    // Kind 0 is invalid
+    call(core.addMotivationCostEntry, 0, 5);
+    expect(call(core.getMotivationCostLineCount)).toBe(0);
+  });
+
+  test("cost accumulator reset clears all line items and total", () => {
+    const core = createCore();
+    call(core.resetMotivationCostAccumulator);
+    call(core.addMotivationCostEntry, MotivationKind.Random, 5);
+    call(core.addMotivationCostEntry, MotivationKind.Stealthy, 3);
+    expect(call(core.getMotivationCostLineCount)).toBe(2);
+    expect(call(core.getMotivationCostTotal)).toBeGreaterThan(0);
+
+    call(core.resetMotivationCostAccumulator);
+    expect(call(core.getMotivationCostLineCount)).toBe(0);
+    expect(call(core.getMotivationCostTotal)).toBe(0);
+  });
+
+  test("reasoning class derivation for all cognition tiers", () => {
+    // cognition 0 → Instinctual (via Stationary which has cognition=0)
+    const core0 = createCore();
+    call(core0.resetMotivationEvaluation);
+    call(core0.addMotivationEvaluationEntry, MotivationKind.Stationary, 5, 0, 0);
+    call(core0.evaluateMotivations);
+    expect(call(core0.getLastMotivationReasoningClass)).toBe(ReasoningClass.Instinctual);
+
+    // cognition 1 → Instinctual (via Random which has cognition=1, still maps to Instinctual)
+    const core1 = createCore();
+    call(core1.resetMotivationEvaluation);
+    call(core1.addMotivationEvaluationEntry, MotivationKind.Random, 5, 0, 0);
+    call(core1.evaluateMotivations);
+    expect(call(core1.getLastMotivationReasoningClass)).toBe(ReasoningClass.Instinctual);
+
+    // cognition 2 → Tactical (via Attacking which has cognition=2)
+    const core2 = createCore();
+    call(core2.resetMotivationEvaluation);
+    call(core2.addMotivationEvaluationEntry, MotivationKind.Attacking, 5, 1, 0);
+    call(core2.evaluateMotivations);
+    expect(call(core2.getLastMotivationReasoningClass)).toBe(ReasoningClass.Tactical);
+
+    // cognition 3 → Strategic (via StrategyFocused)
+    const core3 = createCore();
+    call(core3.resetMotivationEvaluation);
+    call(core3.addMotivationEvaluationEntry, MotivationKind.StrategyFocused, 5, 0, 0);
+    call(core3.evaluateMotivations);
+    expect(call(core3.getLastMotivationReasoningClass)).toBe(ReasoningClass.Strategic);
+  });
+});

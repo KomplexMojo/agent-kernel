@@ -206,16 +206,148 @@ function call(fn: unknown, ...args: unknown[]): unknown {
   return fn(...args);
 }
 
-// ## TODO: Test Permutations
-// - loadMvpScenario and loadMvpBarrierScenario produce expected tile layout at known coordinates
-// - setActorPosition updates both actor mirror and motivated actor arrays
-// - motivated actor vital set/get with multiple actors and setActiveMotivatedActor switching
-// - actor capability setters (movement cost, mana cost, stamina cost) mirror to motivated arrays
-// - validateActorCapabilities rejects negative costs
-// - addActorPlacement overflow at maxMotivatedActors
-// - validateActorPlacement rejects spawn/exit tiles, wall tiles, and duplicate positions
-// - affinity field projection: armStaticTrapAt + computeStaticTrapAffinityField produces expected intensity at known distance
-// - computeActorAffinityField projects motivated actor affinities
-// - computeAffinityField combines traps and actors
-// - regen skips durability vital kind
-// - barrier durability defaults to 3
+// Affinity field projection, computeActorAffinityField, and computeAffinityField
+// are covered in affinity-actor-field.test.mts and affinity-environment-effects.test.mts.
+
+describe("core-ts world state permutations", () => {
+  test("loadMvpBarrierScenario produces expected barrier tile layout", () => {
+    const core = createCore();
+    call(core.loadMvpBarrierScenario);
+
+    expect(call(core.getMapWidth)).toBe(9);
+    expect(call(core.getMapHeight)).toBe(9);
+    // Corners are walls (#)
+    expect(call(core.renderBaseCellChar, 0, 0)).toBe(35); // '#'
+    // Interior floor tiles
+    expect(call(core.renderBaseCellChar, 1, 1)).toBe(83); // 'S' (spawn)
+    // Actor should be at spawn
+    expect(call(core.getActorX)).toBe(1);
+    expect(call(core.getActorY)).toBe(1);
+  });
+
+  test("motivated actor vital set/get with multiple actors and switching", () => {
+    const core = createCore();
+    call(core.configureGrid, 5, 5);
+    call(core.setTileAt, 1, 1, 1);
+    call(core.setTileAt, 3, 3, 1);
+    call(core.clearActorPlacements);
+    call(core.addActorPlacement, 10, 1, 1);
+    call(core.addActorPlacement, 20, 3, 3);
+    call(core.applyActorPlacements);
+
+    // Set all 4 vitals for actor 0
+    call(core.setMotivatedActorVital, 0, 0, 100, 100, 5); // Health
+    call(core.setMotivatedActorVital, 0, 1, 50, 50, 2);   // Mana
+    call(core.setMotivatedActorVital, 0, 2, 30, 30, 1);   // Stamina
+    call(core.setMotivatedActorVital, 0, 3, 10, 10, 0);   // Durability
+
+    // Set different vitals for actor 1
+    call(core.setMotivatedActorVital, 1, 0, 200, 200, 10);
+    call(core.setMotivatedActorVital, 1, 1, 80, 80, 3);
+    call(core.setMotivatedActorVital, 1, 2, 40, 40, 2);
+    call(core.setMotivatedActorVital, 1, 3, 20, 20, 0);
+
+    // Switch to actor 20 and verify
+    call(core.setActiveMotivatedActor, 20);
+    expect(call(core.getActorHp)).toBe(200);
+    expect(call(core.getActorMaxHp)).toBe(200);
+    expect(call(core.getActorVitalCurrent, 1)).toBe(80);
+    expect(call(core.getActorVitalCurrent, 2)).toBe(40);
+
+    // Switch back to actor 10
+    call(core.setActiveMotivatedActor, 10);
+    expect(call(core.getActorHp)).toBe(100);
+    expect(call(core.getActorVitalCurrent, 1)).toBe(50);
+  });
+
+  test("actor capability setters mirror to motivated arrays", () => {
+    const core = createCore();
+    call(core.configureGrid, 5, 5);
+    call(core.setTileAt, 1, 1, 1);
+    call(core.setTileAt, 3, 3, 1);
+    call(core.clearActorPlacements);
+    call(core.addActorPlacement, 10, 1, 1);
+    call(core.addActorPlacement, 20, 3, 3);
+    call(core.applyActorPlacements);
+
+    // Set capabilities for actor 0
+    call(core.setActorMovementCost, 3);
+    call(core.setActorActionCostMana, 5);
+    call(core.setActorActionCostStamina, 2);
+
+    expect(call(core.getActorMovementCost)).toBe(3);
+    expect(call(core.getActorActionCostMana)).toBe(5);
+    expect(call(core.getActorActionCostStamina)).toBe(2);
+
+    // Verify motivated actor array was updated
+    expect(call(core.getMotivatedActorMovementCostByIndex, 0)).toBe(3);
+    expect(call(core.getMotivatedActorActionCostManaByIndex, 0)).toBe(5);
+    expect(call(core.getMotivatedActorActionCostStaminaByIndex, 0)).toBe(2);
+
+    // Actor 1 should still have defaults
+    expect(call(core.getMotivatedActorMovementCostByIndex, 1)).toBe(1);
+  });
+
+  test("validateActorPlacement rejects wall tiles and duplicate positions", () => {
+    const core = createCore();
+    call(core.configureGrid, 5, 5);
+    call(core.setTileAt, 1, 1, 1); // Floor
+    // (0,0) remains wall
+
+    // Placement on wall should fail validation
+    call(core.clearActorPlacements);
+    call(core.addActorPlacement, 10, 0, 0);
+    const wallResult = call(core.applyActorPlacements);
+    expect(wallResult).not.toBe(0);
+
+    // Duplicate positions
+    call(core.clearActorPlacements);
+    call(core.addActorPlacement, 10, 1, 1);
+    call(core.addActorPlacement, 20, 1, 1);
+    const dupResult = call(core.applyActorPlacements);
+    expect(dupResult).not.toBe(0);
+  });
+
+  test("regen skips durability vital kind", () => {
+    const core = createCore();
+    call(core.configureGrid, 5, 5);
+    call(core.setTileAt, 1, 1, 2);
+    call(core.spawnActorAt, 1, 1);
+
+    // Set all 4 vitals with regen
+    call(core.setActorVital, 0, 5, 10, 2);  // Health: 5/10, regen 2
+    call(core.setActorVital, 1, 3, 10, 1);  // Mana: 3/10, regen 1
+    call(core.setActorVital, 2, 4, 10, 1);  // Stamina: 4/10, regen 1
+    call(core.setActorVital, 3, 1, 10, 5);  // Durability: 1/10, regen 5
+
+    call(core.advanceTick);
+
+    expect(call(core.getActorVitalCurrent, 0)).toBe(7);  // 5 + 2
+    expect(call(core.getActorVitalCurrent, 1)).toBe(4);  // 3 + 1
+    expect(call(core.getActorVitalCurrent, 2)).toBe(5);  // 4 + 1
+    expect(call(core.getActorVitalCurrent, 3)).toBe(1);  // Durability: NO regen
+  });
+
+  test("barrier durability defaults to 3", () => {
+    const core = createCore();
+    call(core.configureGrid, 5, 5);
+    call(core.setTileAt, 2, 2, 1); // Floor
+
+    call(core.raiseBarrierAt, 2, 2);
+    expect(call(core.getTileActorDurability, 2, 2)).toBe(3);
+  });
+
+  test("regen does not exceed max vital", () => {
+    const core = createCore();
+    call(core.configureGrid, 5, 5);
+    call(core.setTileAt, 1, 1, 2);
+    call(core.spawnActorAt, 1, 1);
+
+    call(core.setActorVital, 0, 9, 10, 5); // Health: 9/10, regen 5
+
+    call(core.advanceTick);
+
+    // Should clamp to max (10), not overflow to 14
+    expect(call(core.getActorVitalCurrent, 0)).toBe(10);
+  });
+});

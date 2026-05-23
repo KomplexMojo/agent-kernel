@@ -30,7 +30,43 @@ describe("core-ts vital constants parity", () => {
   });
 });
 
-// ## TODO: Test Permutations
-// - Verify VITAL_COUNT from domain-constants matches Object.keys(VitalKind).length
-// - Verify all persona vital references (TRAP_VITAL_KEYS, DELVER_VITAL_KEYS, etc.) are subsets of VitalKind keys
-// - Verify VitalKind values are contiguous starting from 0
+describe("core-ts vital constants permutations", () => {
+  test("VITAL_COUNT from domain-constants matches VitalKind member count", async () => {
+    const { VITAL_COUNT } = await import(
+      "../../packages/runtime/src/contracts/domain-constants.js"
+    );
+    expect(VITAL_COUNT).toBe(Object.keys(VitalKind).length);
+  });
+
+  test("all persona vital references are subsets of VitalKind keys", async () => {
+    const {
+      VITAL_KEYS,
+      TRAP_VITAL_KEYS,
+      DELVER_VITAL_KEYS,
+      WARDEN_VITAL_KEYS,
+      RESOURCE_VITAL_KEYS,
+    } = await import("../../packages/runtime/src/contracts/domain-constants.js");
+
+    const coreKeys = new Set(
+      Object.keys(VitalKind).map((k) => k.toLowerCase()),
+    );
+
+    for (const subset of [
+      TRAP_VITAL_KEYS,
+      DELVER_VITAL_KEYS,
+      WARDEN_VITAL_KEYS,
+      RESOURCE_VITAL_KEYS,
+    ]) {
+      for (const key of subset) {
+        expect(coreKeys.has(key)).toBe(true);
+      }
+    }
+  });
+
+  test("VitalKind values are contiguous starting from 0", () => {
+    const values = Object.values(VitalKind).sort((a, b) => a - b);
+    for (let i = 0; i < values.length; i++) {
+      expect(values[i]).toBe(i);
+    }
+  });
+});
