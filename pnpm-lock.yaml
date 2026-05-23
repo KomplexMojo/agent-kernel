@@ -49,6 +49,8 @@ importers:
 
   packages/bindings-ts: {}
 
+  packages/core-ts: {}
+
   packages/runtime: {}
 
   packages/ui-web: {}

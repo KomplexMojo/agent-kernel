@@ -30,6 +30,8 @@ export default defineConfig({
     include: [
       "tests/**/*.test.js",
       "tests/**/*.test.mjs",
+      "tests/**/*.test.ts",
+      "tests/**/*.test.mts",
     ],
     exclude: [
       "tests/playwright/**",
