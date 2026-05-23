@@ -32,112 +32,21 @@ describe("core-ts API surface", () => {
     expect(version()).toBe(1);
   });
 
-  test("stub functions throw 'not implemented'", () => {
+  test("all API keys are implemented (no stubs remain)", () => {
     const core = createCore();
-    const implementedKeys = new Set([
-      "affinityExpressionAllowsEnvironmentMutation",
-      "affinityExpressionAllowsTrapArming",
-      "affinityExpressionIsPersistentField",
-      "clearEffects",
-      "computeAffinityIntensity",
-      "computeAffinityManaCost",
-      "computeAffinityPotency",
-      "computeAffinityRadius",
-      "getAffinityEffectCount",
-      "getAffinityExpressionCount",
-      "getAffinityInteractionCellCount",
-      "getAffinityKindCount",
-      "getAffinityMatrixSourceEffect",
-      "getAffinityMatrixTargetEffect",
-      "getAffinityMatrixUsesStackCancellation",
-      "getAffinityMatrixVisualState",
-      "getAffinityTargetTypeCount",
-      "getAffinityTargetVital",
-      "getAffinityVisualStateCount",
-      "getBudget",
-      "getBudgetUsage",
-      "getCounter",
-      "getDefaultAffinityTargetType",
-      "getEffectActorId",
-      "getEffectCount",
-      "getEffectDelta",
-      "getEffectKind",
-      "getEffectReason",
-      "getEffectValue",
-      "getEffectX",
-      "getEffectY",
-      "getLastAffinityCanceledStacks",
-      "getLastAffinityNetSourceStacks",
-      "getLastAffinityNetTargetStacks",
-      "getLastInteractionCanceledStacks",
-      "getLastInteractionNetSourceStacks",
-      "getLastInteractionNetTargetStacks",
-      "getLastInteractionRelationship",
-      "getLastInteractionSourceEffect",
-      "getLastInteractionTargetEffect",
-      "getLastInteractionVisualState",
-      "getMotivatedActorAffinityExpressionByIndex",
-      "getMotivatedActorAffinityKindByIndex",
-      "getMotivatedActorAffinityStacksByIndex",
-      "getMotivatedActorCount",
-      "getOppositeAffinityKind",
-      "resolveAffinityInteraction",
-      "resolveAffinityMergedStacks",
-      "resolveAffinityRelationshipCode",
-      "resolveAffinityStackCancellation",
-      "resolveMotivatedActorAffinityInteraction",
-      "setBudget",
-      "setMotivatedActorAffinity",
-      "setMoveAction",
-      // M5: motivation
-      "addMotivationCostEntry",
-      "addMotivationEvaluationEntry",
-      "evaluateMotivations",
-      "getDefaultMotivationPattern",
-      "getLastMotivationCognitionTier",
-      "getLastMotivationCombatTier",
-      "getLastMotivationFlags",
-      "getLastMotivationMobilityTier",
-      "getLastMotivationReasoningClass",
-      "getMotivationCostLineCount",
-      "getMotivationCostLineFamily",
-      "getMotivationCostLineKind",
-      "getMotivationCostLineQuantity",
-      "getMotivationCostLineSpend",
-      "getMotivationCostLineUnitCost",
-      "getMotivationCostTotal",
-      "getMotivationDefaultDesignCost",
-      "getMotivationDefaultFlagMask",
-      "getMotivationDefaultUnitCost",
-      "getMotivationExclusiveGroup",
-      "getMotivationFamily",
-      "getMotivationFlagCount",
-      "getMotivationKindCount",
-      "getMotivationPatternCodeAt",
-      "getMotivationPatternCount",
-      "getMotivationProfileCost",
-      "getMotivationTier",
-      "motivationKindsConflict",
-      "normalizeMotivationIntensity",
-      "resetMotivationCostAccumulator",
-      "resetMotivationEvaluation",
-    ]);
-    const stubKeys = seededSample(
-      CORE_API_KEYS.filter(
-        (key) =>
-          key !== "memory" && key !== "version" && !implementedKeys.has(key),
-      ),
-      3,
-    );
+    const nonFunctionKeys = new Set(["memory"]);
 
-    for (const key of stubKeys) {
-      expect(() => {
-        const fn = core[key];
-        if (typeof fn !== "function") {
-          throw new Error(`${key} is not callable`);
-        }
-        fn();
-      }).toThrow(`not implemented: ${key}`);
+    for (const key of CORE_API_KEYS) {
+      if (nonFunctionKeys.has(key)) continue;
+      const fn = core[key];
+      expect(typeof fn).toBe("function");
+      // Verify it does NOT throw "not implemented"
+      try {
+        (fn as (...args: unknown[]) => unknown)();
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        expect(msg).not.toContain("not implemented");
+      }
     }
   });
 

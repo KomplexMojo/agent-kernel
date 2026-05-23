@@ -2,8 +2,6 @@ import {
   affinityExpressionAllowsEnvironmentMutation,
   affinityExpressionAllowsTrapArming,
   affinityExpressionIsPersistentField,
-  isValidAffinityExpression,
-  isValidAffinityKind,
   getAffinityExpressionCount,
   getAffinityKindCount,
   getAffinityTargetTypeCount,
@@ -48,6 +46,7 @@ import {
   motivationKindsConflict,
   normalizeMotivationIntensity,
 } from "./state/motivation.ts";
+import { createWorldState } from "./state/world.ts";
 
 export const CORE_API_KEYS = [
   "addActorPlacement",
@@ -236,58 +235,17 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   const budget = createBudgetState();
   const counter = createCounterState();
   const effects = createEffectsPort();
-  const motivatedAffinityKind: number[] = [];
-  const motivatedAffinityExpression: number[] = [];
-  const motivatedAffinityStacks: number[] = [];
-  let motivatedActorCount = 0;
-  let actorX = -1;
-  let actorY = -1;
-  let currentTick = 0;
-
-  const getMotivatedActorAffinityKindByIndex = (index: number): number =>
-    motivatedAffinityKind[index] ?? 0;
-  const getMotivatedActorAffinityExpressionByIndex = (index: number): number =>
-    motivatedAffinityExpression[index] ?? 0;
-  const getMotivatedActorAffinityStacksByIndex = (index: number): number =>
-    motivatedAffinityStacks[index] ?? 0;
+  const world = createWorldState();
   const affinitySpatial = createAffinitySpatialState({
-    getMotivatedActorAffinityKindByIndex,
-    getMotivatedActorAffinityExpressionByIndex,
-    getMotivatedActorAffinityStacksByIndex,
+    getMotivatedActorAffinityKindByIndex: (i: number) =>
+      world.getMotivatedActorAffinityKindByIndex(i),
+    getMotivatedActorAffinityExpressionByIndex: (i: number) =>
+      world.getMotivatedActorAffinityExpressionByIndex(i),
+    getMotivatedActorAffinityStacksByIndex: (i: number) =>
+      world.getMotivatedActorAffinityStacksByIndex(i),
   });
   const motivation = createMotivationState();
-  const move = createMoveRules({
-    advanceTick: () => {
-      currentTick += 1;
-    },
-    getActorId: () => 0,
-    getActorMovementCost: () => -1,
-    getActorVitalCurrent: () => 0,
-    getActorVitalMax: () => 0,
-    getActorVitalRegen: () => 0,
-    getStaticTrapAffinityAt: () => 0,
-    getStaticTrapExpressionAt: () => 0,
-    getStaticTrapManaReserveAt: () => 0,
-    getStaticTrapStacksAt: () => 0,
-    getActorX: () => actorX,
-    getActorY: () => actorY,
-    getCurrentTick: () => currentTick,
-    hasActor: () => false,
-    hasResourceAt: () => 0,
-    getResourceVitalKindAt: () => -1,
-    getResourceDeltaAt: () => 0,
-    getResourceModeAt: () => 0,
-    removeResourceAt: () => undefined,
-    isActorAtExit: () => false,
-    isMotivatedOccupied: () => false,
-    isWalkablePosition: () => false,
-    setActorPosition: (x: number, y: number) => {
-      actorX = x;
-      actorY = y;
-    },
-    setActorVital: () => undefined,
-    withinBounds: () => false,
-  });
+  const move = createMoveRules(world);
 
   core.memory = new ArrayBuffer(0);
   core.version = () => 1;
@@ -381,60 +339,114 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getMotivationFlagCount = getMotivationFlagCount as CoreFunction;
 
   // Motivation state (per-instance)
-  core.resetMotivationCostAccumulator =
-    motivation.resetMotivationCostAccumulator as CoreFunction;
-  core.addMotivationCostEntry =
-    motivation.addMotivationCostEntry as CoreFunction;
-  core.getMotivationCostTotal =
-    motivation.getMotivationCostTotal as CoreFunction;
-  core.getMotivationCostLineCount =
-    motivation.getMotivationCostLineCount as CoreFunction;
-  core.getMotivationCostLineKind =
-    motivation.getMotivationCostLineKind as CoreFunction;
-  core.getMotivationCostLineFamily =
-    motivation.getMotivationCostLineFamily as CoreFunction;
-  core.getMotivationCostLineQuantity =
-    motivation.getMotivationCostLineQuantity as CoreFunction;
-  core.getMotivationCostLineUnitCost =
-    motivation.getMotivationCostLineUnitCost as CoreFunction;
-  core.getMotivationCostLineSpend =
-    motivation.getMotivationCostLineSpend as CoreFunction;
-  core.resetMotivationEvaluation =
-    motivation.resetMotivationEvaluation as CoreFunction;
-  core.addMotivationEvaluationEntry =
-    motivation.addMotivationEvaluationEntry as CoreFunction;
+  core.resetMotivationCostAccumulator = motivation.resetMotivationCostAccumulator as CoreFunction;
+  core.addMotivationCostEntry = motivation.addMotivationCostEntry as CoreFunction;
+  core.getMotivationCostTotal = motivation.getMotivationCostTotal as CoreFunction;
+  core.getMotivationCostLineCount = motivation.getMotivationCostLineCount as CoreFunction;
+  core.getMotivationCostLineKind = motivation.getMotivationCostLineKind as CoreFunction;
+  core.getMotivationCostLineFamily = motivation.getMotivationCostLineFamily as CoreFunction;
+  core.getMotivationCostLineQuantity = motivation.getMotivationCostLineQuantity as CoreFunction;
+  core.getMotivationCostLineUnitCost = motivation.getMotivationCostLineUnitCost as CoreFunction;
+  core.getMotivationCostLineSpend = motivation.getMotivationCostLineSpend as CoreFunction;
+  core.resetMotivationEvaluation = motivation.resetMotivationEvaluation as CoreFunction;
+  core.addMotivationEvaluationEntry = motivation.addMotivationEvaluationEntry as CoreFunction;
   core.evaluateMotivations = motivation.evaluateMotivations as CoreFunction;
-  core.getLastMotivationFlags =
-    motivation.getLastMotivationFlags as CoreFunction;
-  core.getLastMotivationMobilityTier =
-    motivation.getLastMotivationMobilityTier as CoreFunction;
-  core.getLastMotivationCombatTier =
-    motivation.getLastMotivationCombatTier as CoreFunction;
-  core.getLastMotivationCognitionTier =
-    motivation.getLastMotivationCognitionTier as CoreFunction;
-  core.getLastMotivationReasoningClass =
-    motivation.getLastMotivationReasoningClass as CoreFunction;
-  core.getMotivatedActorAffinityKindByIndex =
-    getMotivatedActorAffinityKindByIndex as CoreFunction;
-  core.getMotivatedActorAffinityExpressionByIndex =
-    getMotivatedActorAffinityExpressionByIndex as CoreFunction;
-  core.getMotivatedActorAffinityStacksByIndex =
-    getMotivatedActorAffinityStacksByIndex as CoreFunction;
-  core.getMotivatedActorCount = (() => motivatedActorCount) as CoreFunction;
-  core.setMotivatedActorAffinity = ((
-    index: number,
-    kind: number,
-    expression: number,
-    stacks: number,
-  ) => {
-    if (index < 0) return;
-    motivatedAffinityKind[index] = isValidAffinityKind(kind) ? kind : 0;
-    motivatedAffinityExpression[index] = isValidAffinityExpression(expression)
-      ? expression
-      : 0;
-    motivatedAffinityStacks[index] = stacks >= 1 ? stacks : 0;
-    motivatedActorCount = Math.max(motivatedActorCount, index + 1);
-  }) as CoreFunction;
+  core.getLastMotivationFlags = motivation.getLastMotivationFlags as CoreFunction;
+  core.getLastMotivationMobilityTier = motivation.getLastMotivationMobilityTier as CoreFunction;
+  core.getLastMotivationCombatTier = motivation.getLastMotivationCombatTier as CoreFunction;
+  core.getLastMotivationCognitionTier = motivation.getLastMotivationCognitionTier as CoreFunction;
+  core.getLastMotivationReasoningClass = motivation.getLastMotivationReasoningClass as CoreFunction;
+
+  // World state (per-instance)
+  core.configureGrid = world.configureGrid as CoreFunction;
+  core.getMapWidth = world.getMapWidth as CoreFunction;
+  core.getMapHeight = world.getMapHeight as CoreFunction;
+  core.prepareTileBuffer = world.prepareTileBuffer as CoreFunction;
+  core.loadTilesFromBuffer = world.loadTilesFromBuffer as CoreFunction;
+  core.setTileAt = world.setTileAt as CoreFunction;
+  core.setSpawnPosition = world.setSpawnPosition as CoreFunction;
+  core.spawnActorAt = world.spawnActorAt as CoreFunction;
+  core.loadMvpScenario = world.loadMvpScenario.bind(world) as CoreFunction;
+  core.loadMvpBarrierScenario = world.loadMvpBarrierScenario.bind(world) as CoreFunction;
+  core.renderBaseCellChar = world.renderBaseCellChar as CoreFunction;
+  core.renderCellChar = world.renderCellChar.bind(world) as CoreFunction;
+  core.getActorId = world.getActorId as CoreFunction;
+  core.getActorKind = world.getActorKind as CoreFunction;
+  core.getActorX = world.getActorX as CoreFunction;
+  core.getActorY = world.getActorY as CoreFunction;
+  core.getActorHp = world.getActorHp as CoreFunction;
+  core.getActorMaxHp = world.getActorMaxHp as CoreFunction;
+  core.getActorMovementCost = world.getActorMovementCost as CoreFunction;
+  core.getActorActionCostMana = world.getActorActionCostMana as CoreFunction;
+  core.getActorActionCostStamina = world.getActorActionCostStamina as CoreFunction;
+  core.getActorVitalCurrent = world.getActorVitalCurrent as CoreFunction;
+  core.getActorVitalMax = world.getActorVitalMax as CoreFunction;
+  core.getActorVitalRegen = world.getActorVitalRegen as CoreFunction;
+  core.setActorVital = world.setActorVital as CoreFunction;
+  core.setActorMovementCost = world.setActorMovementCost as CoreFunction;
+  core.setActorActionCostMana = world.setActorActionCostMana as CoreFunction;
+  core.setActorActionCostStamina = world.setActorActionCostStamina as CoreFunction;
+  core.setMotivatedActorVital = world.setMotivatedActorVital as CoreFunction;
+  core.setMotivatedActorMovementCost = world.setMotivatedActorMovementCost as CoreFunction;
+  core.setMotivatedActorActionCostMana = world.setMotivatedActorActionCostMana as CoreFunction;
+  core.setMotivatedActorActionCostStamina = world.setMotivatedActorActionCostStamina as CoreFunction;
+  core.validateActorVitals = world.validateActorVitals as CoreFunction;
+  core.validateActorCapabilities = world.validateActorCapabilities as CoreFunction;
+  core.clearActorPlacements = world.clearActorPlacements as CoreFunction;
+  core.addActorPlacement = world.addActorPlacement as CoreFunction;
+  core.getActorPlacementCount = world.getActorPlacementCount as CoreFunction;
+  core.validateActorPlacement = world.validateActorPlacement as CoreFunction;
+  core.applyActorPlacements = world.applyActorPlacements.bind(world) as CoreFunction;
+  core.getMotivatedActorCount = world.getMotivatedActorCount as CoreFunction;
+  core.getMotivatedActorIdByIndex = world.getMotivatedActorIdByIndex as CoreFunction;
+  core.getMotivatedActorXByIndex = world.getMotivatedActorXByIndex as CoreFunction;
+  core.getMotivatedActorYByIndex = world.getMotivatedActorYByIndex as CoreFunction;
+  core.getMotivatedActorVitalCurrentByIndex = world.getMotivatedActorVitalCurrentByIndex as CoreFunction;
+  core.getMotivatedActorVitalMaxByIndex = world.getMotivatedActorVitalMaxByIndex as CoreFunction;
+  core.getMotivatedActorVitalRegenByIndex = world.getMotivatedActorVitalRegenByIndex as CoreFunction;
+  core.getMotivatedActorMovementCostByIndex = world.getMotivatedActorMovementCostByIndex as CoreFunction;
+  core.getMotivatedActorActionCostManaByIndex = world.getMotivatedActorActionCostManaByIndex as CoreFunction;
+  core.getMotivatedActorActionCostStaminaByIndex = world.getMotivatedActorActionCostStaminaByIndex as CoreFunction;
+  core.setActiveMotivatedActor = world.setActiveMotivatedActor as CoreFunction;
+  core.advanceTick = world.advanceTick as CoreFunction;
+  core.getCurrentTick = world.getCurrentTick as CoreFunction;
+  core.getTileActorCount = world.getTileActorCount as CoreFunction;
+  core.getTileActorIndex = world.getTileActorIndex as CoreFunction;
+  core.getTileActorId = world.getTileActorId as CoreFunction;
+  core.getTileActorKind = world.getTileActorKind as CoreFunction;
+  core.getTileActorXByIndex = world.getTileActorXByIndex as CoreFunction;
+  core.getTileActorYByIndex = world.getTileActorYByIndex as CoreFunction;
+  core.getTileActorKindByIndex = world.getTileActorKindByIndex as CoreFunction;
+  core.getTileActorIdByIndex = world.getTileActorIdByIndex as CoreFunction;
+  core.getTileActorDurabilityByIndex = world.getTileActorDurabilityByIndex as CoreFunction;
+  core.getTileActorDurability = world.getTileActorDurability.bind(world) as CoreFunction;
+  core.raiseBarrierAt = world.raiseBarrierAt as CoreFunction;
+  core.destroyBarrierAt = world.destroyBarrierAt as CoreFunction;
+  core.armStaticTrapAt = world.armStaticTrapAt as CoreFunction;
+  core.disarmStaticTrapAt = world.disarmStaticTrapAt as CoreFunction;
+  core.getStaticTrapCount = world.getStaticTrapCount as CoreFunction;
+  core.getStaticTrapAffinityAt = world.getStaticTrapAffinityAt as CoreFunction;
+  core.getStaticTrapExpressionAt = world.getStaticTrapExpressionAt as CoreFunction;
+  core.getStaticTrapStacksAt = world.getStaticTrapStacksAt as CoreFunction;
+  core.getStaticTrapManaReserveAt = world.getStaticTrapManaReserveAt as CoreFunction;
+  core.clearAffinityField = world.clearAffinityField as CoreFunction;
+  core.getAffinityFieldIntensityAt = world.getAffinityFieldIntensityAt as CoreFunction;
+  core.getAffinityFieldStacksAt = world.getAffinityFieldStacksAt as CoreFunction;
+  core.getAffinityFieldExpressionAt = world.getAffinityFieldExpressionAt as CoreFunction;
+  core.getAffinityFieldContributionCountAt = world.getAffinityFieldContributionCountAt as CoreFunction;
+  core.computeStaticTrapAffinityField = world.computeStaticTrapAffinityField as CoreFunction;
+  core.computeActorAffinityField = world.computeActorAffinityField as CoreFunction;
+  core.computeAffinityField = world.computeAffinityField.bind(world) as CoreFunction;
+  core.setMotivatedActorAffinity = world.setMotivatedActorAffinity as CoreFunction;
+  core.getMotivatedActorAffinityKindByIndex = world.getMotivatedActorAffinityKindByIndex as CoreFunction;
+  core.getMotivatedActorAffinityExpressionByIndex = world.getMotivatedActorAffinityExpressionByIndex as CoreFunction;
+  core.getMotivatedActorAffinityStacksByIndex = world.getMotivatedActorAffinityStacksByIndex as CoreFunction;
+
+  // init: configure a default empty 1x1 grid
+  core.init = (() => { world.configureGrid(1, 1); }) as CoreFunction;
+  // step and applyAction: delegate to move system
+  core.step = (() => { world.advanceTick(); }) as CoreFunction;
+  core.applyAction = move.applyMove as CoreFunction;
 
   return core;
 }
