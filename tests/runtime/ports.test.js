@@ -1,12 +1,11 @@
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const budgetModule = moduleUrl("packages/runtime/src/ports/budget.js");
-const effectsModule = moduleUrl("packages/runtime/src/ports/effects.js");
-const solverModule = moduleUrl("packages/runtime/src/ports/solver.js");
 
-const budgetScript = `
-import assert from "node:assert/strict";
-import { applyBudgetCaps } from ${JSON.stringify(budgetModule)};
+
+
+
+test("applyBudgetCaps applies known caps", async () => {
+const { applyBudgetCaps } = await import("../../packages/runtime/src/ports/budget.js");
 
 const calls = [];
 const core = { setBudget(category, cap) { calls.push({ category, cap }); } };
@@ -29,11 +28,10 @@ assert.deepEqual(categories, [0, 2]);
 const capsByCategory = Object.fromEntries(calls.map((entry) => [entry.category, entry.cap]));
 assert.equal(capsByCategory[0], 5);
 assert.equal(capsByCategory[2], 7);
-`;
+});
 
-const effectsScript = `
-import assert from "node:assert/strict";
-import { dispatchEffect, EffectKind, buildEffectFromCore } from ${JSON.stringify(effectsModule)};
+test("dispatchEffect handles log path", async () => {
+const { dispatchEffect, EffectKind, buildEffectFromCore } = await import("../../packages/runtime/src/ports/effects.js");
 
 const effect = buildEffectFromCore({ tick: 0, index: 0, kind: EffectKind.Log, value: 1 });
 const noLogger = dispatchEffect({}, effect);
@@ -54,11 +52,10 @@ assert.ok(factEffect.id.includes("2"));
 const repeatA = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, value: 0 });
 const repeatB = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, value: 0 });
 assert.equal(repeatA.id, repeatB.id);
-`;
+});
 
-const solverScript = `
-import assert from "node:assert/strict";
-import { createSolverPort } from ${JSON.stringify(solverModule)};
+test("solver port populates meta", async () => {
+const { createSolverPort } = await import("../../packages/runtime/src/ports/solver.js");
 
 const adapter = {
   async solve(request) {
@@ -75,16 +72,4 @@ assert.equal(result.meta.runId, "run_test");
 assert.equal(result.meta.correlationId, "corr");
 assert.equal(result.meta.id, "solver_req");
 assert.equal(result.meta.createdAt, "fixed-time");
-`;
-
-test("applyBudgetCaps applies known caps", () => {
-  runEsm(budgetScript);
-});
-
-test("dispatchEffect handles log path", () => {
-  runEsm(effectsScript);
-});
-
-test("solver port populates meta", () => {
-  runEsm(solverScript);
 });

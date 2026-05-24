@@ -1,8 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
-
 const ROOT = resolve(__dirname, "../..");
 
 function readJson(path) {
@@ -35,25 +33,25 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   const priceListFixture = readJson(resolve(ROOT, "tests/fixtures/allocator/price-list-v1-basic.json"));
 
   const { normalizeSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { mapSummaryToPool } = await import(
-    moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
+    "../../packages/runtime/src/personas/director/pool-mapper.js"
   );
   const { buildBuildSpecFromSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js")
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const { orchestrateBuild } = await import(
-    moduleUrl("packages/runtime/src/build/orchestrate-build.js")
+    "../../packages/runtime/src/build/orchestrate-build.js"
   );
   const { buildLlmCaptureArtifact } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/llm-capture.js")
+    "../../packages/runtime/src/personas/orchestrator/llm-capture.js"
   );
   const { buildBuildTelemetryRecord } = await import(
-    moduleUrl("packages/runtime/src/build/telemetry.js")
+    "../../packages/runtime/src/build/telemetry.js"
   );
   const { filterSchemaCatalogEntries } = await import(
-    moduleUrl("packages/runtime/src/contracts/schema-catalog.js")
+    "../../packages/runtime/src/contracts/schema-catalog.js"
   );
 
   const normalized = normalizeSummary(summaryFixture);

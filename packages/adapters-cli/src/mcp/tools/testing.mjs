@@ -193,7 +193,6 @@ ${paths.map((entry) => `  assert.equal(existsSync(resolve(ROOT, ${JSON.stringify
 function scaffoldBudgetPolicyInvariant(args) {
   const expectedChecks = args.expectedChecks ?? [];
   return `const assert = require("node:assert/strict");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 function getValueAtPath(root, path) {
   return path.split(".").reduce((value, segment) => {
@@ -207,7 +206,7 @@ function getValueAtPath(root, path) {
 }
 
 test(${JSON.stringify(args.title)}, async () => {
-  const { ${args.exportName} } = await import(moduleUrl(${JSON.stringify(args.modulePath)}));
+  const { ${args.exportName} } = await import(${JSON.stringify(`../../${args.modulePath}`)});
   const result = ${args.exportName}(${args.inputJson ?? "{}"});
 
 ${expectedChecks.map((entry) => {
@@ -221,7 +220,6 @@ ${expectedChecks.map((entry) => {
 function scaffoldRuntimeModuleContract(args) {
   const expectedChecks = args.expectedChecks ?? [];
   return `const assert = require("node:assert/strict");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 function getValueAtPath(root, path) {
   return path.split(".").reduce((value, segment) => {
@@ -235,7 +233,7 @@ function getValueAtPath(root, path) {
 }
 
 test(${JSON.stringify(args.title)}, async () => {
-  const mod = await import(moduleUrl(${JSON.stringify(args.modulePath)}));
+  const mod = await import(${JSON.stringify(`../../${args.modulePath}`)});
   const fn = mod[${JSON.stringify(args.exportName)}];
   assert.equal(typeof fn, "function", ${JSON.stringify(`Missing export ${args.exportName}`)});
   const result = await fn(${args.inputJson ?? "{}"});
@@ -252,145 +250,57 @@ function scaffoldRuntimePersonaTransition(args) {
   const retainedField = args.retainedField ?? "";
   const retainEvent = args.retainEvent ?? "";
   const retainedAssertions = retainedField && retainEvent
-    ? `  if (entry.event === ${JSON.stringify(retainEvent)}) {
-    assert.equal(result.context.${retainedField}, before.context.${retainedField});
-  }`
+    ? `    if (entry.event === ${JSON.stringify(retainEvent)}) {
+      assert.equal(result.context.${retainedField}, before.context.${retainedField});
+    }`
     : "";
   const counterAssertions = (args.counterChecks ?? []).map((entry) => {
     const [fixtureField, contextField] = entry.split(":", 2);
-    return `  if (entry.${fixtureField} !== undefined) {
-    assert.equal(result.context.${contextField}, entry.${fixtureField});
-  }`;
+    return `    if (entry.${fixtureField} !== undefined) {
+      assert.equal(result.context.${contextField}, entry.${fixtureField});
+    }`;
   }).join("\n");
 
   return `const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const modulePath = moduleUrl(${JSON.stringify(args.personaModulePath)});
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, ${JSON.stringify(args.happyFixturePath)}), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, ${JSON.stringify(args.guardFixturePath)}), "utf8"));
 
-const happyScript = \`
-import assert from "node:assert/strict";
-import { ${args.factoryName}, ${args.statesEnum} } from \${JSON.stringify(modulePath)};
+test(${JSON.stringify(args.title)} + " happy path", async () => {
+  const { ${args.factoryName}, ${args.statesEnum} } = await import(${JSON.stringify(`../../${args.personaModulePath}`)});
+  const fixture = happyFixture;
+  const machine = ${args.factoryName}({ initialState: fixture.initialState, clock: () => "fixed" });
 
-const fixture = \${JSON.stringify(happyFixture)};
-const machine = ${args.factoryName}({ initialState: fixture.initialState, clock: () => "fixed" });
-
-fixture.cases.forEach((entry) => {
-  const before = machine.view();
-  const result = machine.advance(entry.event, entry.payload);
-  assert.equal(result.state, ${args.statesEnum}[entry.expectState.toUpperCase()]);
-  assert.equal(result.context.lastEvent, entry.event);
-  assert.equal(result.context.updatedAt, "fixed");
+  fixture.cases.forEach((entry) => {
+    const before = machine.view();
+    const result = machine.advance(entry.event, entry.payload);
+    assert.equal(result.state, ${args.statesEnum}[entry.expectState.toUpperCase()]);
+    assert.equal(result.context.lastEvent, entry.event);
+    assert.equal(result.context.updatedAt, "fixed");
 ${counterAssertions}
 ${retainedAssertions}
-});
-\`;
-
-const guardScript = \`
-import assert from "node:assert/strict";
-import { ${args.factoryName} } from \${JSON.stringify(modulePath)};
-
-const fixture = \${JSON.stringify(guardFixture)};
-const machine = ${args.factoryName}({ initialState: fixture.initialState, clock: () => "fixed" });
-
-fixture.cases.forEach((entry) => {
-  let threw = false;
-  try {
-    machine.advance(entry.event, entry.payload);
-  } catch (err) {
-    threw = true;
-    assert.match(err.message, new RegExp(entry.expectError));
-  }
-  assert.equal(threw, true);
-});
-\`;
-
-test(${JSON.stringify(args.title)} + " happy path", () => {
-  runEsm(happyScript);
+  });
 });
 
-test(${JSON.stringify(args.title)} + " guards", () => {
-  runEsm(guardScript);
-});
-`;
-}
+test(${JSON.stringify(args.title)} + " guards", async () => {
+  const { ${args.factoryName} } = await import(${JSON.stringify(`../../${args.personaModulePath}`)});
+  const fixture = guardFixture;
+  const machine = ${args.factoryName}({ initialState: fixture.initialState, clock: () => "fixed" });
 
-function scaffoldWasmEffectContract(args) {
-  const variant = args.wasmVariant ?? "presence";
-  if (variant === "presence") {
-    const wasmPaths = args.wasmPaths ?? [];
-    return `const assert = require("node:assert/strict");
-const { existsSync } = require("node:fs");
-const { resolve } = require("node:path");
-
-const ROOT = resolve(__dirname, "..", "..");
-
-test(${JSON.stringify(args.title)}, () => {
-${wasmPaths.map((entry) => `  assert.equal(existsSync(resolve(ROOT, ${JSON.stringify(entry)})), true, ${JSON.stringify(`Missing ${entry}`)});`).join("\n")}
-});
-`;
-  }
-
-  if (variant === "load_error") {
-    return `const { runEsm, moduleUrl } = require("../helpers/esm-runner");
-
-const targetModule = moduleUrl(${JSON.stringify(args.wasmModulePath)});
-
-const script = \`
-import assert from "node:assert/strict";
-import { ${args.wasmExportName} } from \${JSON.stringify(targetModule)};
-
-await assert.rejects(
-  ${args.wasmExportName}({ wasmUrl: new URL(${JSON.stringify(args.wasmBadUrl)}) }),
-);
-\`;
-
-test(${JSON.stringify(args.title)}, () => {
-  runEsm(script);
-});
-`;
-  }
-
-  if (variant === "core_loader_smoke") {
-    const expectedChecks = args.expectedChecks ?? [];
-    return `const assert = require("node:assert/strict");
-const { existsSync } = require("node:fs");
-const { resolve } = require("node:path");
-const { ${args.loaderExportName ?? "loadCoreFromWasmPath"} } = require(${JSON.stringify(args.loaderRequirePath ?? "../helpers/core-loader")});
-
-const ROOT = resolve(__dirname, "..", "..");
-const WASM_PATH = resolve(ROOT, ${JSON.stringify(args.wasmPath ?? "build/core-as.wasm")});
-
-function getValueAtPath(root, path) {
-  return path.split(".").reduce((value, segment) => {
-    if (segment === "") return value;
-    const index = Number(segment);
-    if (Number.isInteger(index) && String(index) === segment) {
-      return value?.[index];
+  fixture.cases.forEach((entry) => {
+    let threw = false;
+    try {
+      machine.advance(entry.event, entry.payload);
+    } catch (err) {
+      threw = true;
+      assert.match(err.message, new RegExp(entry.expectError));
     }
-    return value?.[segment];
-  }, root);
-}
-
-test(${JSON.stringify(args.title)}, async () => {
-  if (!existsSync(WASM_PATH)) {
-    return;
-  }
-  const core = await ${args.loaderExportName ?? "loadCoreFromWasmPath"}(WASM_PATH);
-${(args.setupCalls ?? []).map((entry) => `  core.${entry};`).join("\n")}
-${expectedChecks.map((entry) => {
-      const [path, rawExpected = "null"] = entry.split("=", 2);
-      return `  assert.deepEqual(getValueAtPath(core, ${JSON.stringify(path)}), ${rawExpected});`;
-    }).join("\n")}
+    assert.equal(threw, true);
+  });
 });
 `;
-  }
-
-  throw new Error(`Unsupported wasm_effect_contract variant: ${variant}`);
 }
 
 function scaffoldUiCliEquivalence(args) {
@@ -600,60 +510,6 @@ test(${JSON.stringify(args.title)}, async () => {
 `;
 }
 
-function scaffoldPerfHarnessSmoke(args) {
-  const expectedChecks = args.expectedChecks ?? [];
-  return `const assert = require("node:assert/strict");
-const { existsSync } = require("node:fs");
-const { resolve } = require("node:path");
-const { performance } = require("node:perf_hooks");
-
-const ROOT = resolve(__dirname, "..", "..");
-const WASM_PATH = resolve(ROOT, ${JSON.stringify(args.wasmPath ?? "build/core-as.wasm")});
-const PERF_ENABLED = process.env[${JSON.stringify(args.perfEnvVar ?? "AK_PERF")}] === "1"
-  || process.env[${JSON.stringify(args.perfEnvVar ?? "AK_PERF")}] === "true";
-
-function getValueAtPath(root, path) {
-  return path.split(".").reduce((value, segment) => {
-    if (segment === "") return value;
-    const index = Number(segment);
-    if (Number.isInteger(index) && String(index) === segment) {
-      return value?.[index];
-    }
-    return value?.[segment];
-  }, root);
-}
-
-test(
-  ${JSON.stringify(args.title)},
-  { skip: !PERF_ENABLED && ${JSON.stringify(`Set ${args.perfEnvVar ?? "AK_PERF"}=1 to run perf harness`)} },
-  async () => {
-    if (!existsSync(WASM_PATH)) {
-      return;
-    }
-    const { ${args.loaderExportName ?? "loadCoreFromWasmPath"} } = require(${JSON.stringify(args.loaderRequirePath ?? "../helpers/core-loader")});
-    const core = await ${args.loaderExportName ?? "loadCoreFromWasmPath"}(WASM_PATH);
-${(args.setupCalls ?? ["core.init(0)"]).map((entry) => `    ${entry};`).join("\n")}
-    const ticks = ${Number(args.perfTicks ?? 25)};
-    const start = performance.now();
-    for (let i = 0; i < ticks; i += 1) {
-${(args.tickCalls ?? ["core.clearEffects()"]).map((entry) => `      ${entry};`).join("\n")}
-    }
-    const elapsed = performance.now() - start;
-    const metrics = {
-      ticks,
-      elapsed,
-      ticksPerSecond: elapsed > 0 ? ticks / (elapsed / 1000) : 0,
-    };
-${expectedChecks.map((entry) => {
-      const [path, rawExpected = "null"] = entry.split("=", 2);
-      return `    assert.deepEqual(getValueAtPath(metrics, ${JSON.stringify(path)}), ${rawExpected});`;
-    }).join("\n")}
-    assert.ok(metrics.ticksPerSecond >= 0);
-  },
-);
-`;
-}
-
 function scaffoldCliFailure(args) {
   return `const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -679,17 +535,12 @@ function scaffoldArtifactSchemaRoundtrip(args) {
   return `const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 const ROOT = resolve(__dirname, "..", "..");
 
-async function loadValidator() {
-  return import(moduleUrl(${JSON.stringify(args.validatorModule)}));
-}
-
 test(${JSON.stringify(args.title)}, async () => {
   const fixture = JSON.parse(readFileSync(resolve(ROOT, ${JSON.stringify(args.fixturePath)}), "utf8"));
-  const { ${args.validatorExport ?? "validateArtifact"}: validate } = await loadValidator();
+  const { ${args.validatorExport ?? "validateArtifact"}: validate } = await import(${JSON.stringify(`../../${args.validatorModule}`)});
   const result = validate(fixture);
   assert.equal(result.ok, ${expectedOk ? "true" : "false"}, result.errors?.join("; "));
 });
@@ -836,7 +687,7 @@ export const testingTools = [
         runners.add("vitest");
         if (path.startsWith("packages/adapters-cli/")) suites.add("adapters-cli");
         if (path.startsWith("packages/runtime/")) suites.add("runtime");
-        if (path.startsWith("packages/core-as/")) suites.add("core-as");
+        if (path.startsWith("packages/core-ts/")) suites.add("core-ts");
         if (path.startsWith("tests/")) suites.add(path.split("/")[1] || "tests");
       }
       return {
@@ -902,22 +753,10 @@ export const testingTools = [
         counterChecks: stringArraySchema("Counter checks as fixtureField:contextField for runtime_persona_transition."),
         retainedField: stringSchema("Context field that should remain unchanged on retainEvent."),
         retainEvent: stringSchema("Event name that should preserve retainedField."),
-        wasmVariant: stringSchema("Variant for wasm_effect_contract: presence, load_error, or core_loader_smoke."),
-        wasmPaths: stringArraySchema("Repository-relative wasm paths for wasm_effect_contract presence checks."),
-        wasmModulePath: pathSchema("Repository-relative module path for wasm_effect_contract load_error."),
-        wasmExportName: stringSchema("Export name to call for wasm_effect_contract load_error."),
-        wasmBadUrl: stringSchema("Bad wasm URL string for wasm_effect_contract load_error."),
-        loaderRequirePath: stringSchema("Require path for loader helper in wasm_effect_contract core_loader_smoke."),
-        loaderExportName: stringSchema("Loader export name for wasm_effect_contract core_loader_smoke."),
-        wasmPath: pathSchema("Repository-relative wasm path for wasm_effect_contract core_loader_smoke."),
-        setupCalls: stringArraySchema("Method call expressions for core setup in wasm_effect_contract core_loader_smoke."),
         equivalenceCliArgs: stringSchema("Serialized JS array literal of CLI args for ui_cli_equivalence."),
         adapterMethod: stringSchema("Adapter method name for ui_cli_equivalence."),
         adapterCallJson: stringSchema("Serialized JS object literal adapter call payload for ui_cli_equivalence."),
         equivalenceEnvJson: stringSchema("Serialized JS object literal env overrides for ui_cli_equivalence."),
-        perfEnvVar: stringSchema("Environment variable gate for perf_harness_smoke."),
-        perfTicks: integerSchema("Tick count for perf_harness_smoke.", { minimum: 1 }),
-        tickCalls: stringArraySchema("Method call expressions executed inside each perf tick loop."),
         expectedOk: stringSchema("Optional boolean-like flag for artifact_schema_roundtrip."),
         startPort: integerSchema("Start port override for serve_ui_redirect_health.", { minimum: 1 }),
       },
@@ -960,14 +799,8 @@ export const testingTools = [
         case "runtime_persona_transition":
           content = scaffoldRuntimePersonaTransition(args);
           break;
-        case "wasm_effect_contract":
-          content = scaffoldWasmEffectContract(args);
-          break;
         case "ui_cli_equivalence":
           content = scaffoldUiCliEquivalence(args);
-          break;
-        case "perf_harness_smoke":
-          content = scaffoldPerfHarnessSmoke(args);
           break;
         case "serve_ui_redirect_health":
           content = scaffoldServeUiRedirect(args);
@@ -1018,22 +851,10 @@ export const testingTools = [
         counterChecks: stringArraySchema("Counter checks as fixtureField:contextField for runtime_persona_transition."),
         retainedField: stringSchema("Context field that should remain unchanged on retainEvent."),
         retainEvent: stringSchema("Event name that should preserve retainedField."),
-        wasmVariant: stringSchema("Variant for wasm_effect_contract: presence, load_error, or core_loader_smoke."),
-        wasmPaths: stringArraySchema("Repository-relative wasm paths for wasm_effect_contract presence checks."),
-        wasmModulePath: pathSchema("Repository-relative module path for wasm_effect_contract load_error."),
-        wasmExportName: stringSchema("Export name to call for wasm_effect_contract load_error."),
-        wasmBadUrl: stringSchema("Bad wasm URL string for wasm_effect_contract load_error."),
-        loaderRequirePath: stringSchema("Require path for loader helper in wasm_effect_contract core_loader_smoke."),
-        loaderExportName: stringSchema("Loader export name for wasm_effect_contract core_loader_smoke."),
-        wasmPath: pathSchema("Repository-relative wasm path for wasm_effect_contract core_loader_smoke."),
-        setupCalls: stringArraySchema("Method call expressions for core setup in wasm_effect_contract core_loader_smoke."),
         equivalenceCliArgs: stringSchema("Serialized JS array literal of CLI args for ui_cli_equivalence."),
         adapterMethod: stringSchema("Adapter method name for ui_cli_equivalence."),
         adapterCallJson: stringSchema("Serialized JS object literal adapter call payload for ui_cli_equivalence."),
         equivalenceEnvJson: stringSchema("Serialized JS object literal env overrides for ui_cli_equivalence."),
-        perfEnvVar: stringSchema("Environment variable gate for perf_harness_smoke."),
-        perfTicks: integerSchema("Tick count for perf_harness_smoke.", { minimum: 1 }),
-        tickCalls: stringArraySchema("Method call expressions executed inside each perf tick loop."),
         expectedOk: stringSchema("Optional boolean-like flag for artifact_schema_roundtrip."),
         startPort: integerSchema("Start port override for serve_ui_redirect_health.", { minimum: 1 }),
       },
@@ -1076,14 +897,8 @@ export const testingTools = [
         case "runtime_persona_transition":
           fragment = scaffoldRuntimePersonaTransition(args).trim();
           break;
-        case "wasm_effect_contract":
-          fragment = scaffoldWasmEffectContract(args).trim();
-          break;
         case "ui_cli_equivalence":
           fragment = scaffoldUiCliEquivalence(args).trim();
-          break;
-        case "perf_harness_smoke":
-          fragment = scaffoldPerfHarnessSmoke(args).trim();
           break;
         case "serve_ui_redirect_health":
           fragment = scaffoldServeUiRedirect(args).trim();

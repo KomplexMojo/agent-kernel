@@ -1,56 +1,39 @@
 # Architecture Charter (Ports & Adapters)
-Core (AssemblyScript/WASM) is pure logic. It must not depend on UI, network, storage, or Node APIs.
 
-## Core vs Runtime Personas
+`packages/core-ts` is the deterministic core. It must not depend on UI, network, storage, filesystem, clocks, process state, or Node APIs.
 
-This project is intentionally split into:
+## Core vs Runtime
 
-- **`core-as` (WASM)**: deterministic simulation rules and state transitions only.
-- **Runtime personas (TypeScript)**: long-lived controllers that coordinate execution, orchestration,
-  telemetry, planning, and adapter interaction.
+- **`core-ts`**: simulation state, transition rules, validation, render buffers, affinity field computation, motivation evaluation, and data-only effects.
+- **Runtime personas**: long-lived controllers that coordinate planning, tick phases, action ordering, telemetry, and adapter interaction.
+- **Adapters/UI**: host-specific IO and presentation. They call runtime or consume artifacts; they do not own simulation rules.
 
-### Why this split exists
+## Dependency Direction
 
-- **Determinism**: core logic must be replayable and free of IO or hidden state.
-- **Portability**: WASM core runs in any browser environment; personas can evolve without changing the core.
-- **Separation of concerns**: personas handle policy, workflows, and IO selection; the core enforces rules.
-- **Safety**: keeping IO-adjacent logic out of the core prevents architectural drift.
+```text
+adapters-* -> runtime -> core-ts
+ui-web     -> runtime -> core-ts
+```
 
-### What belongs in `core-as`
+All external IO must be implemented behind adapters via narrow ports. Core APIs remain synchronous and deterministic.
 
-- Canonical simulation state and transition rules.
-- Deterministic validation and legality checks.
-- Pure effects emitted as data (no IO). Effects must carry deterministic ids/requestIds and fulfillment hints; new kinds include solver_request, need_external_fact (fulfill/defer), log/telemetry, and limit_violation.
-- Deterministic render frame generation from canonical state (UI renders the buffer).
-- Affinity system: 10-kind codebook (fire/water/earth/wind/life/decay/corrode/fortify/light/dark), 4-expression spatial formulas (push/pull/emit/draw), 48-cell interaction matrix, opposite-pair resolution, field buffer computation for static traps/hazards and actor fields.
-- Motivation system: 12-kind codebook, cost formulas with per-kind unit costs, behavior flag evaluation, and 4-axis profile derivation (mobility/combat/cognition/reasoning).
+## Core Responsibilities
 
-### What belongs in personas (runtime)
+- Canonical simulation state and legal state transitions.
+- Pure validation and deterministic rule enforcement.
+- Data-only effects with deterministic ids/requestIds and adapter hints.
+- Affinity system: 10-kind codebook, spatial formulas, interaction matrix, static trap and actor field computation.
+- Motivation system: 12-kind codebook, cost formulas, behavior flags, and profile derivation.
+- Render buffers and observations derived from canonical state.
 
-- Long-lived workflows and state machines.
-- Action proposal/ordering, orchestration, and integration logic (including budget-aware request_external_fact/request_solver/fulfill/defer loops).
-- Telemetry capture, normalization, and emission; log/telemetry effects are data-only and routed via adapters.
-- UI rendering and presentation logic (consumes core frame buffers and WASM field records for tile affinity visuals).
-- Guidance-to-artifact derivation for background builders (for example, summary-to-level-gen transforms used by worker adapters).
-- Affinity/motivation plumbing: core-setup.mjs reads hazard and actor affinity data from artifacts, writes to core via bindings, triggers field computation; tile-affinity-visuals.js derives renderer-ready visuals from WASM field records. Legacy JS spatial formulas and aura modules are deprecated.
+## Runtime Responsibilities
 
-The browser still runs JavaScript to host WASM. Shipping a no-install browser app does not require
-persona code to be inside WASM; it only requires that all code is delivered as static assets.
+- Tick FSM and persona orchestration.
+- Action proposal, ordering, replay, and telemetry capture.
+- Artifact normalization and schema boundary enforcement.
+- Solver/external fact request routing through ports.
+- UI-facing visualization assembly from core outputs and resource bundles.
 
----
+## Builder Port
 
-Allowed dependency direction:
-- adapters-*  -> runtime -> bindings-ts -> core-as (WASM)
-- ui-web      -> runtime -> bindings-ts -> core-as (WASM)
-- core-as imports nothing outside itself
-
-All external IO must be implemented as adapters via narrow ports.
-
-### Dedicated Builder Port
-
-- The LLM/orchestrator step may stop at guidance summary generation.
-- Heavy level synthesis must run behind a builder adapter (web worker in browser, in-process fallback in tests/unsupported runtimes).
-- UI code must hand off summaries to this adapter instead of synthesizing layouts on the main thread.
-- The builder output contract must include both ASCII and image-ready level artifacts.
-- The same builder adapter must support regeneration from guidance summary, normalized `levelGen`, or direct tile rows so it can be reused during simulation ticks and live gameplay updates.
-- Gameplay visibility policy (fog of war, explored-cell HUDs, viewport limits) lives in runtime/UI layers; simulation review may still render full-map output.
+Heavy level synthesis runs behind a builder adapter. UI code hands off summaries, normalized `levelGen`, or direct tile rows to that adapter instead of synthesizing layouts on the main thread.

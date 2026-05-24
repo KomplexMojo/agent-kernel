@@ -6,7 +6,7 @@ This adapter:
 - Provides a minimal JSON-RPC client.
 - Exposes `getBalance` and `getChainId` helpers.
 
-It is intended for Orchestrator/Allocator workflows and never used inside `core-as`.
+It is intended for Orchestrator/Allocator workflows and never used inside `core-ts`.
 
 ## Usage
 

@@ -1,18 +1,17 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/director/controller.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/director-phases-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/director-phases-guards.json"), "utf8"));
 
-const happyScript = `
-import assert from "node:assert/strict";
-import { createDirectorPersona, directorSubscribePhases } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts"))};
 
-const fixture = ${JSON.stringify(happyFixture)};
+
+test("director persona handles subscribed phases via table", async () => {
+const { createDirectorPersona, directorSubscribePhases } = await import("../../packages/runtime/src/personas/director/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
+const fixture = happyFixture;
 const persona = createDirectorPersona({ initialState: fixture.initialState, clock: () => fixture.clock });
 
 assert.deepEqual(directorSubscribePhases, [TickPhases.DECIDE]);
@@ -28,13 +27,12 @@ fixture.cases.forEach((entry) => {
     assert.equal(result.state, before.state);
   }
 });
-`;
+});
 
-const guardScript = `
-import assert from "node:assert/strict";
-import { createDirectorPersona } from ${JSON.stringify(personaModule)};
+test("director persona ignores non-subscribed phases and surfaces guard errors", async () => {
+const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.mts");
 
-const fixture = ${JSON.stringify(guardFixture)};
+const fixture = guardFixture;
 const persona = createDirectorPersona({ initialState: fixture.initialState, clock: () => fixture.clock });
 
 fixture.cases.forEach((entry) => {
@@ -53,12 +51,4 @@ fixture.cases.forEach((entry) => {
   const result = persona.advance({ phase: entry.phase, event: entry.event, payload: entry.payload, tick: 0 });
   assert.equal(result.state, before.state);
 });
-`;
-
-test("director persona handles subscribed phases via table", () => {
-  runEsm(happyScript);
-});
-
-test("director persona ignores non-subscribed phases and surfaces guard errors", () => {
-  runEsm(guardScript);
 });

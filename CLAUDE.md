@@ -89,11 +89,9 @@ Before each Codex handoff, run `bash scripts/setup/agent-context.sh` to write `l
 
 ```bash
 pnpm install                                                     # Install dependencies
-pnpm run build:wasm                                              # Compile AssemblyScript → WASM
 pnpm run test                                                    # Run Vitest suite
 pnpm run test:vitest -- tests/<path>/<name>.test.js             # Single Vitest file
 pnpm run test:playwright -- tests/playwright/<name>.spec.mjs   # Playwright spec
-pnpm run test:wasm-check                                         # Confirm WASM binary present
 pnpm run serve:ui                                                # UI dev server :8001
 pnpm run demo:cli                                                # CLI demo
 ```
@@ -121,13 +119,9 @@ node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
 Results land in `tools/remote-ollama-control/results/<timestamp>-content-gen/summary.md`.
 Pass threshold: **≥ 99 % exec ok** and **avg score ≥ 75** across all scenarios.
 
-Tests requiring the WASM binary skip gracefully when `build/core-as.wasm` is absent — run `pnpm run build:wasm` first.
-
----
-
 ## Architecture Overview
 
-WASM-first simulation kernel using **Ports & Adapters** with deterministic persona state machines. `pnpm` monorepo (`packages/*`).
+Core-ts-first simulation kernel using **Ports & Adapters** with deterministic persona state machines. `pnpm` monorepo (`packages/*`).
 
 ### Dependency Direction (non-negotiable)
 
@@ -136,22 +130,19 @@ adapters-* / ui-web
       ↓
    runtime          ← personas live here
       ↓
- bindings-ts        ← WASM boundary only
-      ↓
-  core-as           ← AssemblyScript WASM, pure logic, no IO
+  core-ts           ← TypeScript deterministic core, pure logic, no IO
 ```
 
 ### Package Roles
 
 | Package | Language | Role |
 |---|---|---|
-| `core-as` | AssemblyScript | Deterministic simulation: state transitions, validation, effect emission as data |
-| `bindings-ts` | TypeScript | Thin WASM wrapper — loads `build/core-as.wasm`, re-exports its surface |
+| `core-ts` | TypeScript | Deterministic simulation: state transitions, validation, effect emission as data |
 | `runtime` | TypeScript (ESM) | Persona FSMs, tick orchestration, artifact contracts, effect routing |
 | `adapters-web` | TypeScript | Browser IO (fetch, IndexedDB) |
 | `adapters-cli` | TypeScript | CLI commands (`packages/adapters-cli/src/cli/ak.mjs`) |
 | `adapters-test` | TypeScript | Fixture-based deterministic test doubles |
-| `ui-web` | HTML/JS | Browser UI; receives a copy of the WASM binary at build time |
+| `ui-web` | HTML/JS | Browser UI; imports the synchronous TypeScript core through runtime adapters |
 
 ### Test Layout
 
@@ -169,11 +160,11 @@ tests/
 
 All code must conform. Dependency direction is the same as above — violations are **blocking**, do not approve.
 
-### core-as (WASM)
+### core-ts
 
 - Contains **only** deterministic logic: state transitions, validation, render frame generation, effects as data.
 - No IO, no environment access, no clock. Must import nothing outside itself.
-- If code introduces IO or an external import into `core-as`, move it to the correct layer before the change lands.
+- If code introduces IO or an external import into `core-ts`, move it to the correct layer before the change lands.
 
 ### Runtime Personas
 
@@ -224,10 +215,10 @@ Evolve `schemaVersion` on breaking changes; never remove or rename fields in-pla
 Run on every diff. Fix failures — don't just flag them.
 
 ### Architecture
-- [ ] Dependency flows only: adapters/ui → runtime → bindings-ts → core-as
-- [ ] `core-as` has no IO and no imports outside itself
+- [ ] Dependency flows only: adapters/ui → runtime → core-ts
+- [ ] `core-ts` has no IO and no imports outside itself
 - [ ] All external IO is behind an adapter in `adapters-web`, `adapters-cli`, or `adapters-test`
-- [ ] No adapter code in `runtime` or `core-as`
+- [ ] No adapter code in `runtime` or `core-ts`
 
 ### Personas
 - [ ] Pure FSM: `view()` + `advance(event, payload)`
@@ -263,7 +254,7 @@ Tests verify correctness of the runtime and CLI. Benchmarks verify that the LLM 
 
 ### File Placement
 - [ ] Runtime: `packages/runtime/src/`
-- [ ] Core: `packages/core-as/assembly/`
+- [ ] Core: `packages/core-ts/src/`
 - [ ] Web adapters: `packages/adapters-web/src/adapters/`
 - [ ] CLI: `packages/adapters-cli/src/`
 - [ ] Tests: `tests/**` — fixtures: `tests/fixtures/**`
@@ -298,7 +289,7 @@ On escalation: state the violation and charter rule, propose the minimal fix wit
 | `packages/runtime/src/contracts/artifacts.ts` | All versioned artifact schemas |
 | `packages/runtime/src/ports/effects.js` | Effect dispatch — the adapter boundary |
 | `packages/runtime/src/runner/runtime-fsm.mjs` | Six-phase tick orchestration |
-| `packages/core-as/assembly/index.ts` | WASM export surface |
+| `packages/core-ts/src/index.ts` | Core export surface |
 | `docs/readme-index.md` | Index of all README files with one-line summaries |
 
 ---

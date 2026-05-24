@@ -635,7 +635,7 @@ template_overview() { cat <<'EOF'
 Two-paragraph executive summary kept up to date by hand. Updated whenever a milestone lands or scope shifts.
 
 ## What this project is
-WASM-first simulation kernel using Ports & Adapters with deterministic persona state machines.
+core-ts-first simulation kernel using Ports & Adapters with deterministic persona state machines.
 Implements an authoring + simulation pipeline for dungeon delving. See repo `docs/vision-contract.md`
 and `docs/architecture-charter.md` for the binding contracts.
 

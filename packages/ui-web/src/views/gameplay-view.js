@@ -40,7 +40,7 @@ async function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
   const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
 
   // Derive tile visuals via injected facade or default hazard-based fallback.
-  // The injected function may be async (WASM field bridge).
+  // The injected function may be async depending on the field bridge.
   let tileVisuals;
   if (typeof buildTileVisualsFn === "function") {
     const result = buildTileVisualsFn(bundle);

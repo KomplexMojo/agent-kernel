@@ -1,50 +1,36 @@
-const { existsSync } = require("node:fs");
-const { resolve } = require("node:path");
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
-const bindingsModule = moduleUrl("packages/bindings-ts/src/index.js");
-const wasmUrl = moduleUrl("build/core-as.wasm");
-const WASM_PATH = resolve(__dirname, "../../build/core-as.wasm");
+test("bindings observation includes affinity metadata when provided", async () => {
+  const { createCore, readObservation } = await import(
+    "../../packages/core-ts/src/index.ts"
+  );
 
-const script = `
-import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import { loadCore, readObservation } from ${JSON.stringify(bindingsModule)};
+  const fixture = JSON.parse(
+    fs.readFileSync(path.resolve("tests/fixtures/personas/affinity-resolution-v1-basic.json"), "utf8"),
+  );
 
-const wasmUrl = new URL(${JSON.stringify(wasmUrl)});
-const fixture = JSON.parse(
-  fs.readFileSync(path.resolve("tests/fixtures/personas/affinity-resolution-v1-basic.json"), "utf8"),
-);
+  const core = createCore();
+  core.init(1337);
+  core.loadMvpScenario();
 
-const core = await loadCore({ wasmUrl });
-core.init(1337);
-core.loadMvpScenario();
+  const baseObs = readObservation(core);
+  assert.deepEqual(baseObs.actors[0].affinities, []);
+  assert.deepEqual(baseObs.actors[0].abilities, []);
+  assert.equal(baseObs.traps, undefined);
 
-const baseObs = readObservation(core);
-assert.deepEqual(baseObs.actors[0].affinities, []);
-assert.deepEqual(baseObs.actors[0].abilities, []);
-assert.equal(baseObs.traps, undefined);
-
-const obs = readObservation(core, { affinityEffects: fixture.expected });
-assert.deepEqual(obs.actors[0].affinities, [
-  { kind: "fire", expression: "push", targetType: "enemy", stacks: 2 },
-  { kind: "life", expression: "pull", targetType: "self", stacks: 1 },
-]);
-assert.deepEqual(obs.actors[0].abilities, fixture.expected.actors[0].abilities);
-assert.equal(obs.traps.length, 1);
-assert.deepEqual(obs.traps[0].position, fixture.expected.traps[0].position);
-assert.deepEqual(obs.traps[0].affinities, [
-  { kind: "fire", expression: "push", targetType: "floor", stacks: 2 },
-]);
-assert.deepEqual(obs.traps[0].abilities, fixture.expected.traps[0].abilities);
-assert.deepEqual(obs.traps[0].vitals, fixture.expected.traps[0].vitals);
-`;
-
-test("bindings observation includes affinity metadata when provided", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
-  runEsm(script);
+  const obs = readObservation(core, { affinityEffects: fixture.expected });
+  assert.deepEqual(obs.actors[0].affinities, [
+    { kind: "fire", expression: "push", targetType: "enemy", stacks: 2 },
+    { kind: "life", expression: "pull", targetType: "self", stacks: 1 },
+  ]);
+  assert.deepEqual(obs.actors[0].abilities, fixture.expected.actors[0].abilities);
+  assert.equal(obs.traps.length, 1);
+  assert.deepEqual(obs.traps[0].position, fixture.expected.traps[0].position);
+  assert.deepEqual(obs.traps[0].affinities, [
+    { kind: "fire", expression: "push", targetType: "floor", stacks: 2 },
+  ]);
+  assert.deepEqual(obs.traps[0].abilities, fixture.expected.traps[0].abilities);
+  assert.deepEqual(obs.traps[0].vitals, fixture.expected.traps[0].vitals);
 });

@@ -1,238 +1,43 @@
 # agent-kernel
 
-WASM-first simulation kernel built around the **Ports & Adapters** architectural pattern.
+Pure TypeScript simulation kernel built around the **Ports & Adapters** architectural pattern.
 
-This repository is intentionally structured to keep the **AssemblyScript WebAssembly core** small, deterministic, and environment-agnostic, while all orchestration, personas, and IO live outside the core in clearly defined layers.
+The deterministic core now lives in `packages/core-ts`. Runtime personas, UI, CLI, and external IO remain outside the core and communicate through explicit artifacts and adapter boundaries.
 
----
+## Quick Start
 
-## High-level principles
-
-- **Browser-first**: the simulation core runs in the browser via WebAssembly.
-- **Deterministic & replayable**: core logic has no IO and no hidden state.
-- **Ports & Adapters**: all external interaction happens through explicit ports implemented by adapters.
-- **Persona-driven runtime**: long-lived workflows and coordination logic are modeled as personas.
-
----
-
-## Quick start
-
-```
+```bash
 pnpm install
-pnpm run build:wasm
+pnpm run test
 pnpm run serve:ui
 ```
 
-Open `http://localhost:8001/packages/ui-web/index.html` (or set `PORT` to override).
+Open `http://localhost:8001/packages/ui-web/index.html` after starting the UI server.
 
----
+## Architecture
 
-## Core vs Personas
+- **`packages/core-ts`**: deterministic simulation state, rules, affinity/motivation codebooks, field computation, and render buffers. It performs no IO.
+- **`packages/runtime`**: personas, tick orchestration, command kernel, artifact contracts, telemetry, replay, and policy coordination.
+- **`packages/adapters-*`**: concrete host adapters for CLI, browser, and tests.
+- **`packages/ui-web`**: browser rendering and interaction surfaces.
 
-**`core-as` (WASM)** is the authoritative simulation engine: it owns canonical state, enforces
-rules deterministically, emits events/effects, and produces render frame buffers.
+Allowed dependency direction:
 
-**Personas (runtime, TypeScript)** are workflow managers: they propose actions, coordinate phases,
-orchestrate adapters, and normalize telemetry. They never mutate core state directly.
-
-Rendering is performed by the UI layer, which reads the frame buffers produced by `core-as`.
-
----
-
-## Repository layout (overview)
-
-```
-docs/                 Architectural intent and constraints
-packages/
-  core-as/            AssemblyScript WASM simulation core
-  bindings-ts/        TypeScript bindings over WASM exports
-  runtime/            Application layer (personas, orchestration)
-  adapters-web/       Browser adapters (fetch, IndexedDB, etc.)
-  adapters-cli/       CLI / Node adapters (automation, AI drivers)
-  adapters-test/      Deterministic test adapters
-  ui-web/             Browser UI (rendering + input only)
-  tools/              Developer tooling
-scripts/              Repo maintenance and scaffolding scripts
+```text
+adapters/ui -> runtime -> core-ts
 ```
 
----
+## Common Commands
 
-## Documentation (`docs/`)
-
-| Path | Purpose |
-|------|---------|
-| `docs/README.md` | Documentation index (entry point) |
-| `docs/vision-contract.md` | Non-negotiable constraints (browser-runnable, decentralized, API-only IO) |
-| `docs/architecture-charter.md` | Ports & Adapters rules, dependency direction, banned patterns |
-| `docs/architecture/diagram.mmd` | Mermaid architecture overview |
-
-These documents define **architectural law** and are treated as normative.
-Start at `docs/README.md` for the full index.
-
----
-
-## Toolchain
-
-Required to compile AssemblyScript to WebAssembly and run tests:
-
-- **Node.js (LTS)** — build/test runtime and WASM host.
-- **Package manager** — `npm` or `pnpm` for installing toolchain deps.
-- **AssemblyScript compiler** — `assemblyscript` / `asc` for `packages/core-as`.
-- **Test runner** — `node:test` (built-in) or the project-selected runner.
-
-Runtime requirements: a modern browser only; no server or local installs for end users.
-
----
-
-## Running tests
-
-```
-node --test "tests/**/*.test.js"
+```bash
+pnpm run test
+pnpm run test:coverage:core-ts
+pnpm run benchmark:core-ts-affinity
+pnpm run serve:ui
 ```
 
-Core/runtime tests expect `build/core-as.wasm` to exist. If it is missing, those tests skip.
+The old binary build path has been removed. CLI, runtime, and UI preview workflows use the TypeScript core directly.
 
----
+## Documentation
 
-## `packages/core-as` — WASM simulation core
-
-This is the **hexagon center**. It contains only deterministic simulation logic.
-
-| Path | Purpose |
-|------|---------|
-| `assembly/index.ts` | Stable WASM export surface |
-| `assembly/state/` | Canonical simulation state |
-| `assembly/rules/` | Pure state transition rules |
-| `assembly/sim/` | Step / tick / apply-action logic |
-| `assembly/types/` | Shared domain types (actions, events, ids) |
-| `assembly/ports/` | Effect / port definitions (IO expressed as data) |
-| `assembly/util/` | Pure helpers |
-
-**Invariant:** `core-as` imports nothing outside itself and performs no IO.
-
-`core-as` owns canonical state and produces deterministic render frames as raw buffers in WASM memory.
-The UI consumes those buffers to draw; rendering is still performed outside the core.
-
----
-
-## `packages/bindings-ts` — WASM bindings
-
-Provides a stable TypeScript API over the WASM module.
-
-| Purpose |
-|---------|
-| Encapsulates WASM memory management |
-| Prevents adapters and UI from touching raw WASM internals |
-| Stabilizes the interface exposed by `core-as` |
-
----
-
-## `packages/runtime` — Application layer
-
-This layer composes the WASM core with ports, adapters, and personas.
-
-### Runtime structure
-
-| Path | Purpose |
-|------|---------|
-| `src/contracts/` | Shared port interfaces used by personas |
-| `src/runner/` | Simulation loop, stepping, replay |
-| `src/telemetry/` | Canonical telemetry envelopes |
-| `src/personas/` | Persona controllers (see below) |
-
----
-
-## Personas (`packages/runtime/src/personas`)
-
-Personas represent **long-lived, stateful controllers** that coordinate workflows.
-They do not perform IO directly and do not mutate WASM state directly.
-
-Each persona follows the same structure:
-
-```
-persona-name/
-  controller.ts     Lifecycle + state machine owner
-  contracts.ts      Persona-specific types and invariants
-  state/            Individual state handlers
-```
-
-### Defined personas
-
-| Persona | Responsibility |
-|--------|----------------|
-| **Orchestrator** | Handles external interaction and drives workflows |
-| **Director** | Translates requests into structured plans |
-| **Configurator** | Sets simulation dials, seeds, and constraints |
-| **Actor** | In-world decision logic (policies for simulation entities) |
-| **Allocator** | Resource and budget allocation policies |
-| **Annotator** | Telemetry capture, formatting, and emission |
-| **Moderator** | Responsible for the orderly running of the simulation. |
-
-
----
-
-## Adapters (`packages/adapters-*`)
-
-Adapters implement ports using concrete environments.
-
-### Web adapters
-
-| Path | Purpose |
-|------|---------|
-| `adapters-web/src/network/` | HTTP / fetch-based adapters |
-| `adapters-web/src/persistence/` | IndexedDB / browser storage |
-
-### CLI adapters
-
-| Path | Purpose |
-|------|---------|
-| `adapters-cli/src/` | Node-based drivers (automation, AI policies) |
-
-### Test adapters
-
-| Path | Purpose |
-|------|---------|
-| `adapters-test/src/` | Deterministic fakes for CI and replay tests |
-
----
-
-## UI (`packages/ui-web`)
-
-| Purpose |
-|---------|
-| Browser rendering and input handling |
-| Calls into `runtime` and `bindings-ts` to load `core-as` |
-
-### MVP movement slice
-
-- Open `packages/ui-web/index.html` after `pnpm run serve:ui` to use the MVP playing surface.
-- The Run Builder lets you choose seed/map preset and actor/vitals (health/mana/stamina/durability current/max/regen) plus fixture mode, then start a deterministic run.
-- The playback controls `[step-][play/pause][step+]` render the 9x9 buffer; actor stats/tick are shown alongside.
-- Golden artifacts and fixtures live under `tests/fixtures/artifacts/` and `artifacts/mvp-run/`; replay tests assert frames match `frame-buffer-log-v1-mvp.json`.
-
-## Actor-centric model
-
-- Actors are the core state primitive across core-as, bindings, runtime, CLI, and UI.
-- Tile actors represent the grid (stationary floors or barrier walls); motivated actors overlay tiles and drive movement.
-- Vitals are always explicit and deterministic: health/mana/stamina/durability with current/max/regen.
-
----
-
-## Tools (`packages/tools`)
-
-| Purpose |
-|---------|
-| Validators, generators, inspectors |
-| Development-only; not part of runtime execution |
-
----
-
-## Mental model
-
-- **WASM core** = physics of the world
-- **Runtime personas** = brains and workflows
-- **Ports** = promises about the outside world
-- **Adapters** = concrete reality
-- **UI / CLI / AI** = different drivers of the same machine
-
-This separation is intentional and enforced to prevent architectural drift over long development cycles.
+Start with `docs/README.md`. The architecture charter and diagram are normative when implementation plans or older notes disagree.

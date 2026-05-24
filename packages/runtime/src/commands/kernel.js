@@ -7,6 +7,7 @@ import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assemb
 import { mapSummaryToPool } from "../personas/director/pool-mapper.js";
 import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
+import { createCore } from "../../../core-ts/src/index.ts";
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
 import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
 import { runLlmSession } from "../personas/orchestrator/llm-session.js";
@@ -348,6 +349,28 @@ function requireHostFunction(host, name) {
     throw new Error(`command kernel host missing function: ${name}`);
   }
   return fn;
+}
+
+function createCommandRuntimeCore() {
+  const core = createCore();
+  return {
+    init: core.init,
+    step: core.step,
+    applyAction: core.applyAction,
+    getCounter: core.getCounter,
+    configureGrid: core.configureGrid,
+    setTileAt: core.setTileAt,
+    spawnActorAt: core.spawnActorAt,
+    setActorVital: core.setActorVital,
+    setBudget: core.setBudget,
+    getBudget: core.getBudget,
+    getBudgetUsage: core.getBudgetUsage,
+    getEffectCount: core.getEffectCount,
+    getEffectKind: core.getEffectKind,
+    getEffectValue: core.getEffectValue,
+    clearEffects: core.clearEffects,
+    version: core.version,
+  };
 }
 
 async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy, allowNetwork, host }) {
@@ -873,8 +896,6 @@ export function createCommandKernel(host = {}) {
   async function run(args) {
     const commandLog = typeof args?.log === "function" ? args.log : log;
     const onTickProgress = typeof args?.onTickProgress === "function" ? args.onTickProgress : null;
-    const loadCore = requireHostFunction(host, "loadCore");
-    const defaultWasmPath = typeof host.defaultWasmPath === "function" ? host.defaultWasmPath() : "build/core-as.wasm";
     const simConfigPath = resolvePath(args["sim-config"]);
     const initialStatePath = resolvePath(args["initial-state"]);
     const executionPolicyPath = resolvePath(args["execution-policy"]);
@@ -882,7 +903,6 @@ export function createCommandKernel(host = {}) {
     const affinityPresetsPath = resolvePath(args["affinity-presets"]);
     const affinityLoadoutsPath = resolvePath(args["affinity-loadouts"]);
     const affinitySummaryArg = args["affinity-summary"];
-    const wasmPath = resolvePath(args.wasm || defaultWasmPath);
     const ticks = args.ticks !== undefined ? Number(args.ticks) : 1;
     const seed = args.seed !== undefined ? Number(args.seed) : 0;
 
@@ -895,10 +915,6 @@ export function createCommandKernel(host = {}) {
     if (!Number.isFinite(seed)) {
       throw new Error("run requires a valid --seed value.");
     }
-    if (!wasmPath) {
-      throw new Error("run requires a valid --wasm value.");
-    }
-
     const simConfig = await readJson(simConfigPath);
     assertSchema(simConfig, SCHEMAS.simConfig);
     const initialState = await readJson(initialStatePath);
@@ -997,7 +1013,7 @@ export function createCommandKernel(host = {}) {
     }
 
     const clock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
-    const core = await loadCore(wasmPath);
+    const core = createCommandRuntimeCore();
     const runtime = createRuntime({ core, adapters: {}, runId, clock });
     await runtime.init({ seed, simConfig, initialState, clock });
     for (let i = 0; i < ticks; i += 1) {
@@ -1056,15 +1072,12 @@ export function createCommandKernel(host = {}) {
   }
 
   async function replay(args) {
-    const loadCore = requireHostFunction(host, "loadCore");
-    const defaultWasmPath = typeof host.defaultWasmPath === "function" ? host.defaultWasmPath() : "build/core-as.wasm";
     const simConfigPath = resolvePath(args["sim-config"]);
     const initialStatePath = resolvePath(args["initial-state"]);
     const executionPolicyPath = resolvePath(args["execution-policy"]);
     const tickFramesPath = resolvePath(args["tick-frames"]);
     const runId = makeId("replay");
     const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("replay", runId);
-    const wasmPath = resolvePath(args.wasm || defaultWasmPath);
     const seed = args.seed !== undefined ? Number(args.seed) : 0;
 
     if (!simConfigPath || !initialStatePath || !tickFramesPath) {
@@ -1073,10 +1086,6 @@ export function createCommandKernel(host = {}) {
     if (!Number.isFinite(seed)) {
       throw new Error("replay requires a valid --seed value.");
     }
-    if (!wasmPath) {
-      throw new Error("replay requires a valid --wasm value.");
-    }
-
     const simConfig = await readJson(simConfigPath);
     assertSchema(simConfig, SCHEMAS.simConfig);
     const initialState = await readJson(initialStatePath);
@@ -1096,7 +1105,7 @@ export function createCommandKernel(host = {}) {
     }
 
     const clock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
-    const core = await loadCore(wasmPath);
+    const core = createCommandRuntimeCore();
     const runtime = createRuntime({ core, adapters: {}, runId, clock });
     await runtime.init({ seed, simConfig, initialState, clock });
     for (let i = 0; i < ticks; i += 1) {

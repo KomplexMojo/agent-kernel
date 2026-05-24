@@ -1,12 +1,11 @@
 const assert = require("node:assert/strict");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 async function loadSelections() {
-  return import(moduleUrl("packages/runtime/src/personas/director/summary-selections.js"));
+  return import("../../packages/runtime/src/personas/director/summary-selections.js");
 }
 
 async function loadAssembler() {
-  return import(moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js"));
+  return import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
 }
 
 // --- Hazard V2: no durability in card or round-trip ---

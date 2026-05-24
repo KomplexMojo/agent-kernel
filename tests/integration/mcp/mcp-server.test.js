@@ -6,7 +6,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../../..");
 const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 const E2E_SCENARIO = resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json");
 const LLM_FIXTURE = resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary.json");
@@ -356,27 +355,23 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
     assert.equal(runsListResult.action, "list");
     assert.equal(runsListResult.runs.some((entry) => entry.runId === runId), true);
 
-    if (existsSync(WASM_PATH)) {
-      const runResult = await harness.callTool("ak_run", {
-        fromRun: runId,
-        ticks: 1,
-        wasm: WASM_PATH,
-      });
-      assert.equal(runResult.command, "run");
-      assert.equal(existsSync(join(runResult.outDir, "tick-frames.json")), true);
-      assert.equal(runResult.outDir.startsWith(os.tmpdir()), true);
+    const runResult = await harness.callTool("ak_run", {
+      fromRun: runId,
+      ticks: 1,
+    });
+    assert.equal(runResult.command, "run");
+    assert.equal(existsSync(join(runResult.outDir, "tick-frames.json")), true);
+    assert.equal(runResult.outDir.startsWith(os.tmpdir()), true);
 
-      const showWithRun = await harness.callTool("ak_show", { runId });
-      assert.equal(showWithRun.commands.some((entry) => entry.command === "run" && entry.outDir === runResult.outDir), true);
-    }
+    const showWithRun = await harness.callTool("ak_show", { runId });
+    assert.equal(showWithRun.commands.some((entry) => entry.command === "run" && entry.outDir === runResult.outDir), true);
   } finally {
     await harness.close();
   }
 });
 
-const testIfWasm = existsSync(WASM_PATH) ? test : test.skip;
 
-testIfWasm("mcp server run and inspect tool calls round-trip over stdio", async () => {
+test("mcp server run and inspect tool calls round-trip over stdio", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -386,7 +381,6 @@ testIfWasm("mcp server run and inspect tool calls round-trip over stdio", async 
       simConfig: SIM_CONFIG,
       initialState: INITIAL_STATE,
       ticks: 1,
-      wasm: WASM_PATH,
       outDir: runOutDir,
     });
     assert.equal(runResult.command, "run");
@@ -419,7 +413,7 @@ testIfWasm("mcp server run and inspect tool calls round-trip over stdio", async 
 // ak_llm_plan, ak_room_plan, ak_delver_plan, ak_warden_plan, ak_show, ak_runs_list, ak_run, ak_inspect.
 //
 // The tool families below are uncovered at the MCP layer. Each requires fixture files or
-// WASM-backed runs that do not yet exist, placing them outside the local-model permutation
+// core-backed runs that do not yet exist, placing them outside the local-model permutation
 // scope (complex async integration, multi-system coordination). They remain here as an
 // explicit gap registry so the uncovered surface stays observable rather than implied.
 //

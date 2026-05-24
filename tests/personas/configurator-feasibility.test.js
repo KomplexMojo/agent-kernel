@@ -1,10 +1,9 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/configurator/feasibility.js");
 
-const script = `
-import assert from "node:assert/strict";
-import { validateLayoutAndActors, validateLayoutCountsAndActors } from ${JSON.stringify(modulePath)};
+
+test("configurator feasibility validation checks layout and actor placement", async () => {
+const { validateLayoutAndActors, validateLayoutCountsAndActors } = await import("../../packages/runtime/src/personas/configurator/feasibility.js");
 
 const levelGen = { width: 5, height: 5, shape: {} };
 const ok = validateLayoutAndActors({ levelGen, actorCount: 1 });
@@ -40,8 +39,4 @@ assert.ok(hallwayHeavy.errors.find((err) => err.code === "insufficient_floor_til
 const error = hallwayHeavy.errors.find((err) => err.code === "insufficient_floor_tiles");
 assert.equal(error.detail.actorCount, 10);
 assert.equal(error.detail.floorTiles, 5);
-`;
-
-test("configurator feasibility validation checks layout and actor placement", () => {
-  runEsm(script);
 });

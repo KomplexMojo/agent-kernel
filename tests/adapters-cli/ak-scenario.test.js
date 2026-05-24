@@ -6,7 +6,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
@@ -18,10 +17,6 @@ function runCli(args, options = {}) {
 }
 
 test("cli scenario composes llm-plan, run, and inspect into one pipeline", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
 
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-scenario-"));
   const result = runCli(
@@ -38,10 +33,7 @@ test("cli scenario composes llm-plan, run, and inspect into one pipeline", (t) =
       "--fixture",
       "tests/fixtures/adapters/llm-generate-summary.json",
       "--ticks",
-      "1",
-      "--wasm",
-      WASM_PATH,
-      "--run-id",
+      "1",      "--run-id",
       "run_scenario_fixture",
       "--created-at",
       "2025-01-01T00:00:00Z",
@@ -80,10 +72,6 @@ test("cli scenario composes llm-plan, run, and inspect into one pipeline", (t) =
 });
 
 test("cli scenario resumes run and inspect from --from-run", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
 
   const workspaceDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-scenario-from-run-"));
   const sourceRunId = "run_llm_plan_resume";
@@ -139,10 +127,7 @@ test("cli scenario resumes run and inspect from --from-run", (t) => {
       "--from-run",
       sourceRunId,
       "--ticks",
-      "1",
-      "--wasm",
-      WASM_PATH,
-    ],
+      "1",    ],
     { cwd: workspaceDir },
   );
 
@@ -164,7 +149,7 @@ test("cli scenario resumes run and inspect from --from-run", (t) => {
   assert.equal(existsSync(summary.artifactPaths.inspect_summary), true);
 });
 
-test("cli scenario dry-run validates the llm-plan/build path without WASM or artifact writes", () => {
+test("cli scenario dry-run validates the llm-plan/build path with core-ts or artifact writes", () => {
   const rootDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-scenario-dry-run-"));
   const outDir = join(rootDir, "out");
   const result = runCli(

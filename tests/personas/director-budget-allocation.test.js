@@ -1,13 +1,12 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/director/budget-allocation.js");
 const budgetFixture = readFixture("budget-artifact-v1-basic.json");
 const priceListFixture = readFixture("price-list-artifact-v1-basic.json");
 
-const script = `
-import assert from "node:assert/strict";
-import { buildBudgetAllocation, REFERENCE_BUDGET_TOKENS, DEFAULT_DUNGEON_PCT, DEFAULT_DELVER_PCT, DEFAULT_DUNGEON_SUB_POOLS } from ${JSON.stringify(modulePath)};
+
+test("director budget allocation splits pools deterministically", async () => {
+const { buildBudgetAllocation, REFERENCE_BUDGET_TOKENS, DEFAULT_DUNGEON_PCT, DEFAULT_DELVER_PCT, DEFAULT_DUNGEON_SUB_POOLS } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
 
 // Verify exported constants
 assert.equal(REFERENCE_BUDGET_TOKENS, 2500);
@@ -19,8 +18,8 @@ assert.equal(DEFAULT_DUNGEON_SUB_POOLS.find(p => p.id === "hazards").weight, 0.1
 assert.equal(DEFAULT_DUNGEON_SUB_POOLS.find(p => p.id === "wardens").weight, 0.20);
 assert.equal(DEFAULT_DUNGEON_SUB_POOLS.find(p => p.id === "resources").weight, 0.10);
 
-const budget = ${JSON.stringify(budgetFixture)};
-const priceList = ${JSON.stringify(priceListFixture)};
+const budget = budgetFixture;
+const priceList = priceListFixture;
 const meta = {
   id: "allocation_basic",
   runId: "run_fixture",
@@ -110,8 +109,4 @@ assert.equal(cappedPools.rooms, 450, "excess resources redistributed to rooms");
 assert.equal(cappedPools.hazards, 90);
 assert.equal(cappedPools.wardens, 90);
 assert.equal(cappedPools.delver, 90);
-`;
-
-test("director budget allocation splits pools deterministically", () => {
-  runEsm(script);
 });

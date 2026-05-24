@@ -1,11 +1,7 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/moderator/affinity-target-effects.js");
 
-test("moderator affinity target resolver emits vital and environment effects", () => {
-  const script = `
-import assert from "node:assert/strict";
-import { resolveAffinityTargetEffectsForList } from ${JSON.stringify(modulePath)};
+test("moderator affinity target resolver emits vital and environment effects", async () => {const { resolveAffinityTargetEffectsForList } = await import("../../packages/runtime/src/personas/moderator/affinity-target-effects.js");
 
 const effects = resolveAffinityTargetEffectsForList(
   [
@@ -26,14 +22,9 @@ assert.ok(ids.includes("life:pull:self:vital"));
 const vital = effects.find((entry) => entry.id === "earth:pull:floor:vital");
 assert.equal(vital.targetVital, "stamina");
 assert.equal(vital.potency, 3);
-`;
-  runEsm(script);
 });
 
-test("moderator planner derives deterministic barrier and trap actions", () => {
-  const script = `
-import assert from "node:assert/strict";
-import { planModeratorAffinityActions } from ${JSON.stringify(modulePath)};
+test("moderator planner derives deterministic barrier and trap actions", async () => {const { planModeratorAffinityActions } = await import("../../packages/runtime/src/personas/moderator/affinity-target-effects.js");
 
 const observation = {
   actors: [{ id: "A-2RB89Z", position: { x: 1, y: 1 } }],
@@ -89,6 +80,4 @@ assert.equal(actions[1].params.y, 1);
 assert.equal(actions[1].params.kind, "water");
 assert.equal(actions[1].params.expression, "emit");
 assert.equal(actions[1].params.manaReserve, 2);
-`;
-  runEsm(script);
 });

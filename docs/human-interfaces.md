@@ -2,104 +2,32 @@
 
 Offline-first steps to exercise the CLI demos and web UI using fixtures.
 
-## 1) Build WASM (required for CLI run/replay and UI)
-```
-pnpm run build:wasm
-```
-Outputs:
-- `build/core-as.wasm`
-- `packages/ui-web/assets/core-as.wasm` (copied for the browser)
+## 1) Install and Test
 
-## 2) Validate WASM presence (optional fast-fail)
+```bash
+pnpm install
+pnpm run test
 ```
-pnpm run test:wasm-check
-```
-Skips if WASM hasn’t been built; otherwise asserts both copies exist.
 
-## 3) Run CLI demos (fixture-first, no network)
-```
-# Solve with fixture solver result
+## 2) Run CLI Demos
+
+```bash
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
-
-# Adapter demos (fixture)
-node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json --fixture tests/fixtures/adapters/ipfs-price-list.json
-node packages/adapters-cli/src/cli/ak.mjs blockchain --rpc-url http://local --address 0xabc --fixture-chain-id tests/fixtures/adapters/blockchain-chain-id.json --fixture-balance tests/fixtures/adapters/blockchain-balance.json
 node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" --fixture tests/fixtures/adapters/llm-generate.json
 ```
-Bundle all demos at once:
-```
+
+Bundle fixture demos:
+
+```bash
 pnpm run demo:cli
-# writes to artifacts/demo-bundle (override with: pnpm run demo:cli -- /path/to/out)
 ```
-See `packages/adapters-cli/README.md` for full help/flags; it mirrors `ak.mjs --help`.
 
-### New persona-visible effects (fixtures)
-- CLI run/replay records TickFrames and effect logs with effect ids, requestIds, targetAdapter hints, and fulfillment status.
-- `need_external_fact` effects with `sourceRef` are fulfilled deterministically; without a `sourceRef` they are marked deferred.
-- `solver_request` effects include requestId, adapter hints, and payloads; fixture solver adapters respond deterministically.
-- `log`/`telemetry` effects capture severity/tags/personaRef for UI timelines/inspectors.
-Inspect the emitted `artifacts/demo-bundle/*` JSON to see these in UI/CLI demos.
+## 3) Serve the Web UI
 
-## 4) Serve the web UI (live-first)
-```
+```bash
 pnpm run serve:ui
-# open http://localhost:8001/packages/ui-web/index.html
-```
-The UI uses primary workflow tabs: Design, Preview, Run, and Diagnostics. Design is the default entry point for strategic guidance, design brief generation, actor configuration, and build preparation. Preview is the staging surface for Build-and-Load before entering Run. Run focuses on the playing surface, runtime controls, event stream, and the persistent Actor Inspector drawer. Diagnostics aggregates artifact inspection, adapter playground outputs, and other troubleshooting panels.
-The web UI is live-mode only. For fixture-driven development flows, use CLI commands.
-
-## 5) Ollama prompt → build → review/run (UI flow)
-This flow runs in live mode in the web UI.
-
-1) Design → Strategic Guidance panel:
-   - Provide `model` + `baseUrl` for live execution.
-   - Generate a design brief and actor set from your guidance prompt.
-2) Design → Build And Load:
-   - Optionally edit the actor set JSON.
-   - Review Spend Ledger (`level config`, `actor base`, `actor configuration`) and resolve over-budget states before build.
-   - Run "Build And Load Simulation" to generate BuildSpec from the brief, run build, load bundle artifacts, and open Preview/Run-ready state.
-3) Diagnostics → Build Orchestration panel:
-   - Paste or auto-populate the BuildSpec JSON and run build through the browser command host (`cli-worker` shared rails).
-   - Outputs land in `artifacts/runs/<runId>/build` by default and include `manifest.json`, `bundle.json`, and `telemetry.json`.
-4) Diagnostics → Bundle Review panel:
-   - Load `bundle.json`/`manifest.json` (or “Load last build”) to inspect schemas, spec, and artifacts.
-   - Spec edits are validated and can be sent back to the build panel; adapter captures show up as `CapturedInputArtifact` entries.
-5) Simulation → Run/replay:
-   - When the bundle includes `SimConfigArtifact` + `InitialStateArtifact`, use the Simulation controls to run/replay with those artifacts.
-
-References:
-- BuildSpec contract: `packages/runtime/src/contracts/build-spec.js`
-- CLI build docs: `packages/adapters-cli/README.md`
-- Bundle fixture example: `tests/fixtures/ui/build-spec-bundle/`
-
-## 6) Pool-driven mapping (internal)
-The Design build step uses the pool mapper internally to transform summary picks into BuildSpec-ready selections.
-
-- Mapping: summary picks (`motivation`/`affinity`/`count`/`tokenHint`) snap down to catalog entries; receipts capture trims/down-tiers.
-- Budget: token cap from `budgetTokens` is applied deterministically.
-- BuildSpec: generated in-browser, validated, then sent to Build Orchestration.
-- Determinism: catalog sorting, snapping, budget enforcement, and BuildSpec validation are deterministic.
-
-## 7) End-to-end integration tests (fixtures)
-Use the deterministic fixtures under `tests/fixtures/e2e/` to exercise the full pipeline (prompt -> summary -> BuildSpec -> build artifacts -> runtime load).
-
-Run all tests:
-```
-node --test "tests/**/*.test.js"
-```
-Run the main e2e stitch test only:
-```
-node --test tests/integration/e2e-llm-pool-runtime.test.js
 ```
 
-Key fixtures:
-- `tests/fixtures/e2e/e2e-scenario-v1-basic.json` (scenario inputs)
-- `tests/fixtures/e2e/llm-summary-response.json` (prompt + LLM response capture)
-- `tests/fixtures/e2e/summary-v1-basic.json` (normalized summary)
-- `tests/fixtures/e2e/actors/` (tiered actor fixtures)
+Open `http://localhost:8001/packages/ui-web/index.html`.
 
-Expected outputs (asserted by tests):
-- bundle/manifest/telemetry artifacts from `orchestrateBuild` (`tests/runtime/e2e-build-artifacts.test.js`)
-- runtime-ready sim config + initial state for headless playback (`tests/ui-web/e2e-runtime-from-build.test.mjs`)
-
-Determinism: fixed ordering, fixture-driven inputs, and pinned runId/createdAt in tests.
+The UI uses Design, Preview, Run, and Diagnostics. Preview and Run use the synchronous TypeScript core path and do not require a separate binary build.

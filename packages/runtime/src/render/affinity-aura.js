@@ -1,7 +1,7 @@
 /**
  * Affinity Aura Projection and Tile Resolution
  *
- * @deprecated This JS aura computation is superseded by core-as WASM field
+ * @deprecated This JS aura computation is superseded by core-ts core-ts field
  * buffers (AK-AFF-M3, AK-AFF-M4) and the interaction resolution matrix
  * (AK-AFF-M5). Use deriveTileAffinityVisuals with fieldRecords from
  * computeAffinityField/readAffinityFieldAt for new code.

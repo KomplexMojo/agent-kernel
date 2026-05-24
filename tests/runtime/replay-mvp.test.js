@@ -1,11 +1,5 @@
 const assert = require("node:assert/strict");
-const { existsSync } = require("node:fs");
-const { resolve } = require("node:path");
 const { readFixture } = require("../helpers/fixtures");
-const { loadCoreFromWasmPath } = require("../helpers/core-loader");
-
-const ROOT = resolve(__dirname, "../..");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 const ACTION_KIND_MOVE = 8;
 
@@ -19,6 +13,11 @@ const DIRECTION = Object.freeze({
   west: 6,
   northwest: 7,
 });
+
+async function createCore() {
+  const coreModule = await import("../../packages/core-ts/src/index.ts");
+  return coreModule.createCore();
+}
 
 function applyMove(core, { actorId, from, to, direction, tick }) {
   core.setMoveAction(actorId, from.x, from.y, to.x, to.y, DIRECTION[direction], tick);
@@ -39,12 +38,8 @@ function renderFrame(core) {
   return rows;
 }
 
-test("replay produces golden frames for MVP action log", async (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
-  const core = await loadCoreFromWasmPath(WASM_PATH);
+test("replay produces golden frames for MVP action log", async () => {
+  const core = await createCore();
   const actions = readFixture("action-sequence-v1-mvp-to-exit.json").actions;
   const frameFixture = readFixture("frame-buffer-log-v1-mvp.json");
 
@@ -67,15 +62,10 @@ test("replay produces golden frames for MVP action log", async (t) => {
   assert.deepEqual(frames, frameFixture.frames.map((f) => f.buffer));
 });
 
-test("replay mismatch is detected when actions diverge", async (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
-  const core = await loadCoreFromWasmPath(WASM_PATH);
+test("replay mismatch is detected when actions diverge", async () => {
+  const core = await createCore();
   const actions = readFixture("action-sequence-v1-mvp-to-exit.json").actions.map((a) => JSON.parse(JSON.stringify(a)));
 
-  // Introduce divergence on the last step.
   actions[actions.length - 1].params.to = { x: 2, y: 2 };
   actions[actions.length - 1].params.direction = "west";
 

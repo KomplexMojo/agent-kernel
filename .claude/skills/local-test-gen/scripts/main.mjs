@@ -247,7 +247,7 @@ function scanTestFolder(folderPath) {
       if (entry.isDirectory()) {
         if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
         walk(full);
-      } else if (entry.isFile() && /\.test\.(js|mjs)$/.test(entry.name)) {
+      } else if (entry.isFile() && /\.test\.(js|mjs|mts)$/.test(entry.name)) {
         files.push(full);
       }
     }
@@ -278,7 +278,7 @@ function resolveRunner(filePath) {
   if (RUNNER_OVERRIDE !== "auto") {
     return RUNNER_OVERRIDE;
   }
-  if (filePath.endsWith(".mjs")) {
+  if (filePath.endsWith(".mjs") || filePath.endsWith(".mts")) {
     return "vitest";
   }
   if (fs.existsSync(path.join(CWD, "vitest.config.mjs")) || fs.existsSync(path.join(CWD, "vitest.config.js"))) {

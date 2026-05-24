@@ -54,7 +54,7 @@ General rules:
 - solver-request-v1-basic.json: solver input referencing intent/plan.
 - solver-result-v1-basic.json: solver output referencing the request.
 
-## Runtime ↔ core-as
+## Runtime ↔ core-ts
 - action-v1-basic.json: action proposal for a single actor/tick.
 - observation-v1-basic.json: minimal observation view for an actor/tick.
 - event-v1-basic.json: emitted event fact for a tick.
@@ -62,7 +62,7 @@ General rules:
 - snapshot-v1-basic.json: minimal inspector snapshot view.
 - debug-dump-v1-basic.json: debug-only full dump with warning flag.
 - tick-frame-v1-basic.json: Moderator execution frame with actions/effects.
-- actor-state-v1-mvp.json: canonical actor state with vitals for core-as actor model tests.
+- actor-state-v1-mvp.json: canonical actor state with vitals for core-ts actor model tests.
 - actor-state-v1-barrier.json: barrier actor state with durability initialized for collision tests.
 
 ## Telemetry

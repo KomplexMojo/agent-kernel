@@ -8,7 +8,6 @@
 // actor detail configuration (affinities, stacks, expressions, vitals, motivations).
 
 const assert = require("node:assert/strict");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 // ---------------------------------------------------------------------------
 // Shared fixture — minimal sim-config + initial-state + tick-frame for testing
@@ -85,7 +84,7 @@ const TICK_FRAME = {
 
 async function loadVisualizationModule() {
   // FAILS until M2 creates packages/runtime/src/render/visualization-snapshot.js
-  return import(moduleUrl("packages/runtime/src/render/visualization-snapshot.js"));
+  return import("../../packages/runtime/src/render/visualization-snapshot.js");
 }
 
 test("createVisualizationSnapshot is exported from runtime render module", async () => {

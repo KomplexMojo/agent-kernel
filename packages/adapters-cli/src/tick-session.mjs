@@ -1,12 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { createVisualizationSnapshot } from "../../runtime/src/render/visualization-snapshot.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// Module is at packages/adapters-cli/src/ → project root is 3 dirs up
-const PROJECT_WASM_PATH = resolve(__dirname, "../../..", "build", "core-as.wasm");
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 const TICK_CURSOR_SCHEMA = "agent-kernel/TickCursor";
@@ -170,12 +165,6 @@ async function buildPngDataUri(simConfig, initialState, tickFrame, runDir) {
 }
 
 export async function renderAscii(runDir) {
-  // Prefer env override, then module-relative project path, then cwd-relative fallback.
-  const wasmPath = process.env.AK_WASM_PATH
-    || (existsSync(PROJECT_WASM_PATH) ? PROJECT_WASM_PATH : null)
-    || resolve(process.cwd(), "build", "core-as.wasm");
-  if (!existsSync(wasmPath)) return "";
-
   const simConfigPath = resolveBuildArtifact(runDir, "sim-config.json");
   const initialStatePath = resolveBuildArtifact(runDir, "initial-state.json");
   if (!simConfigPath || !initialStatePath) return "";
@@ -186,15 +175,12 @@ export async function renderAscii(runDir) {
       readFile(initialStatePath, "utf8").then(JSON.parse),
     ]);
 
-    // Use the full bindings-ts core (has getMapWidth/renderBaseCellChar for rendering)
-    const { loadCore } = await import("../../bindings-ts/src/core-as.js");
     const { applySimConfigToCore, applyInitialStateToCore } = await import(
       "../../runtime/src/runner/core-setup.mjs"
     );
-    const { renderBaseTiles } = await import("../../bindings-ts/src/index.js");
+    const { createCore, renderBaseTiles } = await import("../../core-ts/src/index.ts");
 
-    const wasmUrl = new URL(`file://${wasmPath}`);
-    const core = await loadCore({ wasmUrl });
+    const core = createCore();
     const layoutResult = applySimConfigToCore(core, simConfig);
     if (!layoutResult.ok) return "";
 

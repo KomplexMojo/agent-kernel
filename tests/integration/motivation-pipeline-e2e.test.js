@@ -3,160 +3,132 @@
  *
  * Validates the full data flow:
  *   Actor motivations (normalized)
- *   → core cost accumulator + evaluation
- *   → bindings readers (readMotivationCost, readMotivationEvaluation)
- *   → verify cost line items and behavior profile
+ *   -> core cost accumulator + evaluation
+ *   -> bindings readers (readMotivationCost, readMotivationEvaluation)
+ *   -> verify cost line items and behavior profile
  *
  * This test exercises the pipeline from the runtime through bindings
- * to the WASM core and back:
- *   runtime normalization → core-as (WASM) → bindings-ts readers
+ * to the TypeScript core and back:
+ *   runtime normalization -> core-ts -> core-ts readers
  */
 
-const { existsSync } = require("node:fs");
-const { resolve } = require("node:path");
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const WASM_PATH = resolve(__dirname, "../../build/core-as.wasm");
+test("motivation pipeline e2e: normalize -> core cost/eval -> binding readers -> verify line items", async () => {
+  const {
+    createCore,
+    MOTIVATION_KIND_BY_CODE,
+    readMotivationCost,
+    readMotivationEvaluation,
+  } = await import("../../packages/core-ts/src/index.ts");
 
-const bindingsUrl = moduleUrl("packages/bindings-ts/src/index.js");
-const wasmUrl = moduleUrl("build/core-as.wasm");
+  const core = createCore();
+  core.init(0);
 
-const script = `
-import assert from "node:assert/strict";
-import {
-  loadCore,
-  MOTIVATION_KIND_BY_CODE,
-  readMotivationCost,
-  readMotivationEvaluation,
-} from ${JSON.stringify(bindingsUrl)};
+  // ── Scenario 1: Warden with exploring + defending motivations ──
 
-const core = await loadCore({ wasmUrl: new URL(${JSON.stringify(wasmUrl)}) });
-core.init(0);
+  core.resetMotivationCostAccumulator();
+  core.resetMotivationEvaluation();
 
-// ── Scenario 1: Warden with exploring + defending motivations ──
+  const EXPLORING = 3;
+  const DEFENDING = 6;
 
-// Simulate what the configurator persona does:
-// normalize motivations → add entries to core → evaluate → read results
+  // Add cost entries
+  core.addMotivationCostEntry(EXPLORING, 2);
+  core.addMotivationCostEntry(DEFENDING, 3);
 
-core.resetMotivationCostAccumulator();
-core.resetMotivationEvaluation();
+  const cost = readMotivationCost(core);
+  assert.equal(cost.lines.length, 2, "two cost lines");
 
-// Motivation entries: exploring (kind=3, intensity=2), defending (kind=6, intensity=3)
-const EXPLORING = 3;
-const DEFENDING = 6;
+  // Verify exploring line
+  const exploringLine = cost.lines.find((l) => l.kindName === "exploring");
+  assert.ok(exploringLine, "exploring line present");
+  assert.equal(exploringLine.quantity, 2, "exploring quantity = 2");
+  assert.ok(exploringLine.unitCost > 0, "exploring has unit cost");
+  assert.equal(exploringLine.spend, exploringLine.quantity * exploringLine.unitCost, "spend = qty * unit");
 
-// Add cost entries
-core.addMotivationCostEntry(EXPLORING, 2);
-core.addMotivationCostEntry(DEFENDING, 3);
+  // Verify defending line
+  const defendingLine = cost.lines.find((l) => l.kindName === "defending");
+  assert.ok(defendingLine, "defending line present");
+  assert.equal(defendingLine.quantity, 3, "defending quantity = 3");
+  assert.ok(defendingLine.unitCost > 0, "defending has unit cost");
+  assert.equal(defendingLine.spend, defendingLine.quantity * defendingLine.unitCost, "spend = qty * unit");
 
-const cost = readMotivationCost(core);
-assert.equal(cost.lines.length, 2, "two cost lines");
+  // Verify total
+  assert.equal(cost.total, exploringLine.spend + defendingLine.spend, "total = sum of spends");
+  assert.ok(cost.total > 0, "total > 0");
 
-// Verify exploring line
-const exploringLine = cost.lines.find((l) => l.kindName === "exploring");
-assert.ok(exploringLine, "exploring line present");
-assert.equal(exploringLine.quantity, 2, "exploring quantity = 2");
-assert.ok(exploringLine.unitCost > 0, "exploring has unit cost");
-assert.equal(exploringLine.spend, exploringLine.quantity * exploringLine.unitCost, "spend = qty * unit");
+  // ── Scenario 1b: Evaluate behavior profile ──
 
-// Verify defending line
-const defendingLine = cost.lines.find((l) => l.kindName === "defending");
-assert.ok(defendingLine, "defending line present");
-assert.equal(defendingLine.quantity, 3, "defending quantity = 3");
-assert.ok(defendingLine.unitCost > 0, "defending has unit cost");
-assert.equal(defendingLine.spend, defendingLine.quantity * defendingLine.unitCost, "spend = qty * unit");
+  core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(EXPLORING, 2, 0, 0);
+  core.addMotivationEvaluationEntry(DEFENDING, 3, 0, 0);
+  core.evaluateMotivations();
 
-// Verify total
-assert.equal(cost.total, exploringLine.spend + defendingLine.spend, "total = sum of spends");
-assert.ok(cost.total > 0, "total > 0");
+  const evaluation = readMotivationEvaluation(core);
 
-// ── Scenario 1b: Evaluate behavior profile ──
+  assert.ok(evaluation.flags & 1, "canMove set (from exploring or defending)");
+  assert.ok(evaluation.flagNames.includes("canMove"), "flagNames has canMove");
 
-core.resetMotivationEvaluation();
-core.addMotivationEvaluationEntry(EXPLORING, 2, 0, 0);
-core.addMotivationEvaluationEntry(DEFENDING, 3, 0, 0);
-core.evaluateMotivations();
+  // Profile axes
+  assert.equal(evaluation.mobilityName, "exploring", "mobility = exploring from exploring motivation");
+  assert.equal(evaluation.combatName, "defending", "combat = defending from defending motivation");
+  assert.ok(["instinctual", "tactical"].includes(evaluation.reasoningClassName),
+    "reasoning is instinctual or tactical");
 
-const evaluation = readMotivationEvaluation(core);
+  // Numeric codes match names
+  assert.equal(MOTIVATION_KIND_BY_CODE[EXPLORING], "exploring");
+  assert.equal(MOTIVATION_KIND_BY_CODE[DEFENDING], "defending");
 
-// Defending sets canMove flag and defending combat axis
-assert.ok(evaluation.flags & 1, "canMove set (from exploring or defending)");
-assert.ok(evaluation.flagNames.includes("canMove"), "flagNames has canMove");
+  // ── Scenario 2: Empty motivations produce zero cost ──
 
-// Profile axes
-assert.equal(evaluation.mobilityName, "exploring", "mobility = exploring from exploring motivation");
-assert.equal(evaluation.combatName, "defending", "combat = defending from defending motivation");
-assert.ok(["instinctual", "tactical"].includes(evaluation.reasoningClassName),
-  "reasoning is instinctual or tactical");
+  core.resetMotivationCostAccumulator();
+  const emptyCost = readMotivationCost(core);
+  assert.equal(emptyCost.total, 0, "empty total");
+  assert.equal(emptyCost.lines.length, 0, "empty lines");
 
-// Numeric codes match names
-assert.equal(MOTIVATION_KIND_BY_CODE[EXPLORING], "exploring");
-assert.equal(MOTIVATION_KIND_BY_CODE[DEFENDING], "defending");
+  core.resetMotivationEvaluation();
+  const emptyEval = readMotivationEvaluation(core);
+  assert.equal(emptyEval.flags, 0, "empty flags");
+  assert.deepEqual(emptyEval.flagNames, [], "empty flagNames");
+  assert.equal(emptyEval.mobilityName, "stationary", "empty mobility");
+  assert.equal(emptyEval.combatName, "none", "empty combat");
 
-// ── Scenario 2: Empty motivations produce zero cost ──
+  // ── Scenario 3: Single high-intensity attacking motivation ──
 
-core.resetMotivationCostAccumulator();
-const emptyCost = readMotivationCost(core);
-assert.equal(emptyCost.total, 0, "empty total");
-assert.equal(emptyCost.lines.length, 0, "empty lines");
+  core.resetMotivationCostAccumulator();
+  core.resetMotivationEvaluation();
 
-core.resetMotivationEvaluation();
-const emptyEval = readMotivationEvaluation(core);
-assert.equal(emptyEval.flags, 0, "empty flags");
-assert.deepEqual(emptyEval.flagNames, [], "empty flagNames");
-assert.equal(emptyEval.mobilityName, "stationary", "empty mobility");
-assert.equal(emptyEval.combatName, "none", "empty combat");
+  const ATTACKING = 5;
+  core.addMotivationCostEntry(ATTACKING, 8);
 
-// ── Scenario 3: Single high-intensity attacking motivation ──
+  const attackCost = readMotivationCost(core);
+  assert.equal(attackCost.lines.length, 1, "one cost line");
+  assert.equal(attackCost.lines[0].kindName, "attacking", "attacking kind");
+  assert.equal(attackCost.lines[0].quantity, 8, "quantity = 8");
+  assert.ok(attackCost.total > 0, "attacking cost > 0");
 
-core.resetMotivationCostAccumulator();
-core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(ATTACKING, 8, 1, 0); // melee variant
+  core.evaluateMotivations();
 
-const ATTACKING = 5;
-core.addMotivationCostEntry(ATTACKING, 8);
+  const attackEval = readMotivationEvaluation(core);
+  assert.equal(attackEval.combatName, "attacking", "combat = attacking");
+  assert.ok(attackEval.flagNames.includes("aggroRangeBoost"), "aggroRangeBoost flag from attacking");
+  assert.ok(attackEval.flagNames.includes("canMove"), "canMove from attacking");
 
-const attackCost = readMotivationCost(core);
-assert.equal(attackCost.lines.length, 1, "one cost line");
-assert.equal(attackCost.lines[0].kindName, "attacking", "attacking kind");
-assert.equal(attackCost.lines[0].quantity, 8, "quantity = 8");
-assert.ok(attackCost.total > 0, "attacking cost > 0");
+  // ── Scenario 4: Sequential accumulations after reset are independent ──
 
-core.addMotivationEvaluationEntry(ATTACKING, 8, 1, 0); // melee variant
-core.evaluateMotivations();
+  core.resetMotivationCostAccumulator();
+  core.addMotivationCostEntry(EXPLORING, 1);
+  const firstCost = readMotivationCost(core);
 
-const attackEval = readMotivationEvaluation(core);
-assert.equal(attackEval.combatName, "attacking", "combat = attacking");
-assert.ok(attackEval.flagNames.includes("aggroRangeBoost"), "aggroRangeBoost flag from attacking");
-assert.ok(attackEval.flagNames.includes("canMove"), "canMove from attacking");
+  core.resetMotivationCostAccumulator();
+  core.addMotivationCostEntry(DEFENDING, 5);
+  const secondCost = readMotivationCost(core);
 
-// ── Scenario 4: Sequential accumulations after reset are independent ──
-
-core.resetMotivationCostAccumulator();
-core.addMotivationCostEntry(EXPLORING, 1);
-const firstCost = readMotivationCost(core);
-
-core.resetMotivationCostAccumulator();
-core.addMotivationCostEntry(DEFENDING, 5);
-const secondCost = readMotivationCost(core);
-
-assert.notEqual(firstCost.total, secondCost.total, "different costs after reset");
-assert.equal(secondCost.lines.length, 1, "only defending after reset");
-assert.equal(secondCost.lines[0].kindName, "defending", "defending after reset");
-
-console.log("motivation-pipeline-e2e: all assertions passed");
-`;
-
-test("motivation pipeline e2e: normalize → core cost/eval → binding readers → verify line items", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip("WASM not built.");
-    return;
-  }
-  const result = runEsm(script);
-  if (result.status !== 0) {
-    const stderr = result.stderr?.toString() ?? "";
-    const stdout = result.stdout?.toString() ?? "";
-    throw new Error(`ESM script failed (exit ${result.status}):\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`);
-  }
+  assert.notEqual(firstCost.total, secondCost.total, "different costs after reset");
+  assert.equal(secondCost.lines.length, 1, "only defending after reset");
+  assert.equal(secondCost.lines[0].kindName, "defending", "defending after reset");
 });
 
 /*

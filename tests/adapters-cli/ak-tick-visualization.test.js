@@ -254,8 +254,8 @@ test("tick state --visualization with invalid value returns ok:false with struct
 /*
 ## TODO: Test Permutations
 - tick state --visualization ascii at tick 0 (no prior forward) returns ok:true with null/empty visualization
-- tick state --visualization ascii when WASM binary is absent returns ok:true with ascii null or empty
-- tick state --visualization image when WASM binary is absent returns ok:true with visualizationDataUri null
+- tick state --visualization ascii when core-ts binary is absent returns ok:true with ascii null or empty
+- tick state --visualization image when core-ts binary is absent returns ok:true with visualizationDataUri null
 - tick forward at maxTick boundary with --visualization ascii still returns ok:false boundary error
 - tick backward at tick 0 with --visualization ascii still returns ok:false boundary error
 - tick state --visualization ascii with missing initial-state.json returns ok:true with best-effort ascii

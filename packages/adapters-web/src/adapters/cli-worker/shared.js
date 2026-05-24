@@ -1,5 +1,4 @@
 import { createCommandKernel } from "../../../../runtime/src/commands/kernel.js";
-import { instantiateCommandRuntimeCoreFromBuffer } from "../../../../runtime/src/commands/wasm-core.js";
 import {
   buildSpecFromSummaryFlow,
   normalizeBuildSpecForUi,
@@ -104,17 +103,6 @@ async function fetchTextResource(pathValue, fetchFn) {
   };
 }
 
-async function fetchBinaryResource(pathValue, fetchFn) {
-  const response = await fetchFn(pathValue);
-  if (!response?.ok) {
-    throw new Error(`Failed to fetch ${pathValue}: ${response?.status || "ERR"} ${response?.statusText || ""}`.trim());
-  }
-  if (typeof response.arrayBuffer !== "function") {
-    throw new Error(`Binary fetch for ${pathValue} requires response.arrayBuffer().`);
-  }
-  return new Uint8Array(await response.arrayBuffer());
-}
-
 function createBrowserKernelHost({
   fetchFn = fetch,
   env = {},
@@ -196,7 +184,6 @@ function createBrowserKernelHost({
       },
       defaultRunCommandOutDir: (command, runId) => `/artifacts/runs/${runId || `run_${++seq}`}/${command}`,
       defaultLlmPlanOutDir: (runId) => `/artifacts/runs/${runId || `run_${++seq}`}/llm-plan`,
-      defaultWasmPath: () => "/assets/core-as.wasm",
       allowNetworkRequests: () => true,
       isLlmLiveEnabled: () => true,
       isLlmStrictEnabled: () => false,
@@ -217,11 +204,6 @@ function createBrowserKernelHost({
       createSolverAdapter: async ({ fixturePath } = {}) => {
         const fixture = fixturePath ? await readJson(fixturePath) : undefined;
         return createWebSolverAdapter({ fixture });
-      },
-      loadCore: async (wasmPath) => {
-        const resolved = resolveResourcePath(wasmPath || "/assets/core-as.wasm");
-        const buffer = await fetchBinaryResource(resolved, fetchFn);
-        return instantiateCommandRuntimeCoreFromBuffer(buffer);
       },
       nowIso,
       env,
@@ -873,7 +855,6 @@ export async function executeBrowserCommand(
       "affinity-presets": affinityPresetsPath || undefined,
       "affinity-loadouts": affinityLoadoutsPath || undefined,
       "affinity-summary": affinitySummaryArg,
-      wasm: payload?.wasmPath ? resolveResourcePath(payload.wasmPath) : undefined,
       ticks: payload?.ticks,
       seed: payload?.seed,
       "out-dir": requestedOutDir || undefined,
@@ -939,7 +920,6 @@ export async function executeBrowserCommand(
       "initial-state": initialStatePath,
       "execution-policy": executionPolicyPath || undefined,
       "tick-frames": tickFramesPath,
-      wasm: payload?.wasmPath ? resolveResourcePath(payload.wasmPath) : undefined,
       ticks: payload?.ticks,
       seed: payload?.seed,
       "out-dir": requestedOutDir || undefined,

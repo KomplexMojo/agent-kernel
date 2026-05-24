@@ -6,7 +6,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-basic.json");
 const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json");
@@ -53,10 +52,6 @@ test("cli solve produces stable solver request fields", () => {
 });
 
 test("cli run outputs deterministic frames for fixed inputs", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const outDirA = mkdtempSync(join(os.tmpdir(), "agent-kernel-run-a-"));
   const outDirB = mkdtempSync(join(os.tmpdir(), "agent-kernel-run-b-"));
 
@@ -67,10 +62,7 @@ test("cli run outputs deterministic frames for fixed inputs", (t) => {
     "--initial-state",
     INITIAL_STATE,
     "--ticks",
-    "1",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "1",    "--out-dir",
     outDirA,
   ]);
   runCli([
@@ -80,10 +72,7 @@ test("cli run outputs deterministic frames for fixed inputs", (t) => {
     "--initial-state",
     INITIAL_STATE,
     "--ticks",
-    "1",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "1",    "--out-dir",
     outDirB,
   ]);
 
@@ -93,10 +82,6 @@ test("cli run outputs deterministic frames for fixed inputs", (t) => {
 });
 
 test("cli replay and inspect produce stable schemas", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-run-c-"));
   runCli([
     "run",
@@ -105,10 +90,7 @@ test("cli replay and inspect produce stable schemas", (t) => {
     "--initial-state",
     INITIAL_STATE,
     "--ticks",
-    "1",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "1",    "--out-dir",
     runOutDir,
   ]);
 
@@ -123,10 +105,7 @@ test("cli replay and inspect produce stable schemas", (t) => {
     "--initial-state",
     INITIAL_STATE,
     "--tick-frames",
-    tickFramesPath,
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    tickFramesPath,    "--out-dir",
     replayOutDir,
   ]);
 

@@ -6,7 +6,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 function runCli(args, options = {}) {
   const result = spawnSync(process.execPath, [CLI, ...args], {
@@ -98,10 +97,6 @@ function createGridArtifacts(dir) {
 }
 
 test("cli run applies actor/vital/tile overrides and emits resolved artifacts", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-actors-"));
   const { simConfigPath, initialStatePath } = createGridArtifacts(workDir);
   const outDir = join(workDir, "out");
@@ -113,10 +108,7 @@ test("cli run applies actor/vital/tile overrides and emits resolved artifacts", 
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "0",    "--out-dir",
     outDir,
     "--actor",
     "actor_mvp,1,1,motivated",

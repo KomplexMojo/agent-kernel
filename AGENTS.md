@@ -150,14 +150,14 @@ Before opening implementation files or proposing edits, Claude should cite the C
 
 ## Architecture guardrails
 
-- Allowed dependency direction: adapters/ui → runtime → bindings-ts → core-as.
-- `core-as` performs no IO and imports nothing outside itself.
+- Allowed dependency direction: adapters/ui → runtime → core-ts.
+- `core-ts` performs no IO and imports nothing outside itself.
 - External IO is only via adapters (ports boundary).
 
 ## File placement rules
 
 - Runtime code: `packages/runtime/src/`
-- Core logic: `packages/core-as/assembly/`
+- Core logic: `packages/core-ts/src/`
 - Web adapters: `packages/adapters-web/src/adapters/`
 - UI code: `packages/ui-web/src/` (views, panels, templates)
 - CLI adapters and commands: `packages/adapters-cli/src/`
@@ -195,7 +195,7 @@ Benchmarking is distinct from testing. Tests verify correctness; benchmarks veri
 - **Model:** qwen3-coder:30b-a3b-q4_K_M on the remote GPU node (`--route external`)
 - **Coverage:** 50 scenarios across simple / affinity / complex tiers; 1500–10000 token budgets
 - **Pass bar:** ≥ 99 % exec ok, avg score ≥ 75; flag regressions in PR description
-- **Gate:** run before merging any change to the `ak_create` tool schema, `buildArgv`, entity normalization, or CLI arg mapping. No need to run for pure runtime/persona/WASM changes.
+- **Gate:** run before merging any change to the `ak_create` tool schema, `buildArgv`, entity normalization, or CLI arg mapping. No need to run for pure runtime/persona/core changes.
 - **Results:** saved in `tools/remote-ollama-control/results/<timestamp>-content-gen/summary.md` — not committed
 
 ## Large-change artifacts
@@ -209,8 +209,8 @@ Benchmarking is distinct from testing. Tests verify correctness; benchmarks veri
 
 - `local-codex/CodeContext.md` regenerated from CodeContextGraph before this Codex task started.
 - Requirements → tests → code traceable in the diff.
-- Dependency direction: adapters/ui → runtime → bindings-ts → core-as. No inversions.
-- No `core-as` IO or forbidden imports.
+- Dependency direction: adapters/ui → runtime → core-ts. No inversions.
+- No `core-ts` IO or forbidden imports.
 - Personas are pure FSMs: `view()` + `advance(event, payload)`, clock injected, context serializable.
 - All boundary-crossing data uses a versioned artifact schema from `contracts/artifacts.ts`.
 - New files placed in the correct package (see file placement rules above).

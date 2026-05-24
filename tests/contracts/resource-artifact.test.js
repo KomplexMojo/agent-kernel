@@ -26,7 +26,7 @@ function validateResourceArtifact(artifact) {
   assert.equal(typeof artifact.permanent, "boolean");
 }
 
-test("resource artifacts accept valid fixtures", () => {
+test("resource artifacts accept valid fixtures", async () => {
   const commonHealth = readFixture("resource-artifact-v1-common-health.json");
   const rareRegen = readFixture("resource-artifact-v1-rare-regen.json");
   const rareAffinity = readFixture("resource-artifact-v1-rare-affinity.json");
@@ -40,27 +40,26 @@ test("resource artifacts accept valid fixtures", () => {
   assert.equal(rareAffinity.permanent, true);
 });
 
-test("resource artifacts reject missing vitals field", () => {
+test("resource artifacts reject missing vitals field", async () => {
   const fixture = readFixture("invalid/resource-artifact-v1-missing-tier.json");
   assert.throws(() => validateResourceArtifact(fixture));
 });
 
-test("resource artifacts reject invalid vital key", () => {
+test("resource artifacts reject invalid vital key", async () => {
   const fixture = readFixture("invalid/resource-artifact-v1-invalid-tier.json");
   assert.throws(() => validateResourceArtifact(fixture));
 });
 
-test("resource artifacts reject empty vitals array", () => {
+test("resource artifacts reject empty vitals array", async () => {
   const fixture = readFixture("invalid/resource-artifact-v1-missing-stat.json");
   assert.throws(() => validateResourceArtifact(fixture));
 });
 
 // --- V3 contract: three permanence modes ---
 
-const { moduleUrl } = require("../helpers/esm-runner");
 
 async function loadValidator() {
-  return import(moduleUrl("packages/runtime/src/contracts/build-spec.js"));
+  return import("../../packages/runtime/src/contracts/build-spec.js");
 }
 
 const BASE_META = {
@@ -127,7 +126,7 @@ test("resource artifact V3 rejects unknown permanenceMode", async () => {
 
 test("RESOURCE_PERMANENCE_MODES exports all three modes", async () => {
   const { RESOURCE_PERMANENCE_MODES } = await import(
-    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
   assert.ok(Array.isArray(RESOURCE_PERMANENCE_MODES), "must be an array");
   assert.ok(RESOURCE_PERMANENCE_MODES.includes("consumable"));

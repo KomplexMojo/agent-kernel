@@ -6,7 +6,7 @@ This adapter:
 - Builds gateway URLs for IPFS CIDs.
 - Fetches text or JSON payloads using Node's fetch.
 
-It is intended for Orchestrator/Allocator tooling and never used inside `core-as`.
+It is intended for Orchestrator/Allocator tooling and never used inside `core-ts`.
 
 ## Usage
 

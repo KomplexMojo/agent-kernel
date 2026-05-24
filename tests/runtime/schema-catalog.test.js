@@ -1,7 +1,6 @@
 const assert = require("node:assert/strict");
-const { moduleUrl } = require("../helpers/esm-runner");
 
-const catalogModule = moduleUrl("packages/runtime/src/contracts/schema-catalog.js");
+const catalogModule = "../../packages/runtime/src/contracts/schema-catalog.js";
 
 test("schema catalog includes core runtime schemas", async () => {
   const {

@@ -1,16 +1,12 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const builderModule = moduleUrl("packages/runtime/src/personas/configurator/guidance-level-builder.js");
 
-test("guidance level builder derives deterministic level previews from guidance summaries", () => {
-  const script = `
-import assert from "node:assert/strict";
-import {
+test("guidance level builder derives deterministic level previews from guidance summaries", async () => {const {
   deriveLevelGenFromGuidanceSummary,
   buildLevelPreviewFromGuidanceSummary,
   buildLevelPreviewFromLevelGen,
   buildLevelRenderArtifactsFromTiles,
-} from ${JSON.stringify(builderModule)};
+} = await import("../../packages/runtime/src/personas/configurator/guidance-level-builder.js");
 
   const summary = {
   dungeonAffinity: "fire",
@@ -99,17 +95,11 @@ highBudgetShapes.forEach((shape, index) => {
   assert.equal(highBudgetPreview.walkableTiles, 5500, "shape index " + index);
 });
 
-`;
-
-  runEsm(script);
 });
 
-test("mixed-affinity floor resolution is invariant to trap ordering (permutation test)", () => {
-  const script = `
-import assert from "node:assert/strict";
-import {
+test("mixed-affinity floor resolution is invariant to trap ordering (permutation test)", async () => {const {
   buildLevelRenderArtifactsFromTiles,
-} from ${JSON.stringify(builderModule)};
+} = await import("../../packages/runtime/src/personas/configurator/guidance-level-builder.js");
 
 // Three traps at the same cell (1,0) with equal stacks but different affinities.
 // The tie-break rule uses AFFINITY_RENDER_ORDER index, so "fire" (index 0) should
@@ -197,19 +187,13 @@ mixedStackTraps.forEach((traps, permIndex) => {
       "mixed-stacks perm " + permIndex + ": pixel must match");
   }
 });
-`;
-
-  runEsm(script);
 });
 
-test("guidance level builder maps room cards into level generation inputs", () => {
-  const script = `
-import assert from "node:assert/strict";
-import {
+test("guidance level builder maps room cards into level generation inputs", async () => {const {
   deriveLevelGenFromCardSet,
   deriveLevelGenFromGuidanceSummary,
   buildLevelPreviewFromGuidanceSummary,
-} from ${JSON.stringify(builderModule)};
+} = await import("../../packages/runtime/src/personas/configurator/guidance-level-builder.js");
 
 const cardSet = [
   { id: "room_small", type: "room", affinity: "fire", roomSize: "small", count: 2 },
@@ -233,7 +217,4 @@ assert.equal(summaryLevelGen.shape.roomCount, 3);
 const preview = buildLevelPreviewFromGuidanceSummary(summary, { includeAscii: false, includeImage: false });
 assert.equal(preview.ok, true);
 assert.ok(preview.walkableTiles > 0);
-`;
-
-  runEsm(script);
 });

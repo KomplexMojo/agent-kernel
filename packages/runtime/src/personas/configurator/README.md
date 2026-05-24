@@ -4,7 +4,7 @@ The Configurator is the **simulation configuration and composition persona**.
 
 It is responsible for translating high-level plans into **concrete, executable simulation configurations**. The Configurator turns intent into structure by setting parameters, assembling layouts, and enabling or disabling features required for a run.
 
-This document defines the Configurator as a **runtime composition and validation role**. Simulation rules, legality, and state transitions remain the responsibility of the simulation core (`core-as`).
+This document defines the Configurator as a **runtime composition and validation role**. Simulation rules, legality, and state transitions remain the responsibility of the simulation core (`core-ts`).
 
 ---
 
@@ -19,7 +19,7 @@ At a high level, the Configurator:
 - Hands validated configuration artifacts to the runtime runner.
 - Emits a spend proposal for the Allocator when budgets/price lists are provided.
 
-The simulation core (`core-as`) remains the sole authority on rule enforcement and state mutation.
+The simulation core (`core-ts`) remains the sole authority on rule enforcement and state mutation.
 
 ---
 
@@ -67,7 +67,7 @@ Once execution begins, the Configurator no longer participates in the simulation
 
 ---
 
-## Relationship to core-as
+## Relationship to core-ts
 
 The Configurator does **not**:
 - Apply simulation rules.
@@ -85,7 +85,7 @@ Instead, it supplies:
 - Subscribed tick phases: init, observe.
 - Outputs: configuration artifacts/refs (data-only); no IO or runtime mutation.
 
-`core-as` enforces all rules and transitions based on the provided configuration.
+`core-ts` enforces all rules and transitions based on the provided configuration.
 
 ---
 

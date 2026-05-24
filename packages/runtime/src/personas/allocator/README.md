@@ -4,7 +4,7 @@ The Allocator is the **budgeting and resource-policy persona** for the simulatio
 
 It acts as a deterministic “banker” that evaluates proposed simulation configurations and behaviors against explicit cost models, ensuring that runs remain bounded, auditable, and comparable.
 
-This document defines the Allocator as a **policy and coordination role**. Detailed rule enforcement and state mutation remain the responsibility of the simulation core (`core-as`).
+This document defines the Allocator as a **policy and coordination role**. Detailed rule enforcement and state mutation remain the responsibility of the simulation core (`core-ts`).
 
 ---
 
@@ -18,7 +18,7 @@ At a high level, the Allocator:
 - Issues validated budget receipts.
 - Signals approval, rejection, or required reconciliation.
 
-The simulation core (`core-as`) remains responsible for applying costs to state and enforcing consequences.
+The simulation core (`core-ts`) remains responsible for applying costs to state and enforcing consequences.
 
 ---
 
@@ -139,7 +139,7 @@ This allows budget enforcement to be compared across runs and environments.
 - Subscribed tick phases: observe, decide.
 - Outputs: budget policies/receipts as data; no IO or direct state mutation.
 
-## Relationship to core-as
+## Relationship to core-ts
 
 The Allocator does **not**:
 - Deduct resources from simulation state.
@@ -148,12 +148,12 @@ The Allocator does **not**:
 
 Instead, it supplies **constraints and receipts** that the runtime and core respect.
 
-`core-as` maintains the authoritative budget ledger (caps, spend, availability) and emits
+`core-ts` maintains the authoritative budget ledger (caps, spend, availability) and emits
 limit events when caps are reached or violated.
 
-### What this implies for core-as
+### What this implies for core-ts
 
-The following concepts may exist in `core-as`, but only as **data and rule enforcement**, not policy:
+The following concepts may exist in `core-ts`, but only as **data and rule enforcement**, not policy:
 
 - Representation of resource counters or cost accumulators.
 - Validation that actions respect provided caps.

@@ -1,6 +1,6 @@
 import { createConfiguratorStateMachine, ConfiguratorStates } from "./state-machine.js";
-import { TickPhases } from "../_shared/tick-state-machine.js";
-import { buildSolverRequestEffect } from "../_shared/persona-helpers.js";
+import { TickPhases } from "../_shared/tick-state-machine.mts";
+import { buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 
 export const configuratorSubscribePhases = Object.freeze([TickPhases.INIT, TickPhases.OBSERVE]);
 

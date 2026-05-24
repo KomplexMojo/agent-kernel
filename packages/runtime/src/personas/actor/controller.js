@@ -1,13 +1,13 @@
 import { createActorStateMachine, ActorStates } from "./state-machine.js";
-import { TickPhases } from "../_shared/tick-state-machine.js";
-import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.js";
+import { TickPhases } from "../_shared/tick-state-machine.mts";
+import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { EIGHT_WAY_DELTAS } from "../_shared/movement-directions.js";
 import {
   RUNTIME_DECISION_CONTRACT,
   allowsLiveLlmRuntime,
   buildRuntimeDecisionEnvelope,
   resolveRuntimeDecisionProviderPolicy,
-} from "../_shared/runtime-decision.js";
+} from "../_shared/runtime-decision.mts";
 
 export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 

@@ -1,4 +1,3 @@
-const { moduleUrl } = require("./esm-runner");
 
 const TIER_SPECS = Object.freeze({
   1: { width: 5, height: 5, count: 1, seed: 101 },
@@ -46,8 +45,8 @@ let generatorPromise = null;
 async function loadGenerators() {
   if (!generatorPromise) {
     generatorPromise = Promise.all([
-      import(moduleUrl("packages/runtime/src/personas/configurator/level-layout.js")),
-      import(moduleUrl("packages/runtime/src/personas/configurator/actor-generator.js")),
+      import("../../packages/runtime/src/personas/configurator/level-layout.js"),
+      import("../../packages/runtime/src/personas/configurator/actor-generator.js"),
     ]).then(([layout, actors]) => ({
       generateGridLayoutFromInput: layout.generateGridLayoutFromInput,
       generateActorSet: actors.generateActorSet,

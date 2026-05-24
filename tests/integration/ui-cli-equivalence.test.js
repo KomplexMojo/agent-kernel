@@ -553,12 +553,7 @@ test("browser host llm artifacts are equivalent to Node CLI output", async () =>
   );
 });
 
-test("browser host run artifacts are equivalent to Node CLI output", async (t) => {
-  const wasmPath = resolve(ROOT, "build/core-as.wasm");
-  if (!existsSync(wasmPath)) {
-    t.skip(`Missing WASM at ${wasmPath}`);
-    return;
-  }
+test("browser host run artifacts are equivalent to Node CLI output", async () => {
 
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-run-"));
   runCli([
@@ -568,10 +563,7 @@ test("browser host run artifacts are equivalent to Node CLI output", async (t) =
     "--initial-state",
     "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
     "--ticks",
-    "0",
-    "--wasm",
-    wasmPath,
-    "--out-dir",
+    "0",    "--out-dir",
     outDir,
     "--affinity-presets",
     "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
@@ -593,9 +585,7 @@ test("browser host run artifacts are equivalent to Node CLI output", async (t) =
   const browserResult = await adapter.run({
     simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json",
     initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
-    ticks: 0,
-    wasmPath: "/build/core-as.wasm",
-    outDir: "/artifacts/equivalence/run",
+    ticks: 0,    outDir: "/artifacts/equivalence/run",
     affinityPresetsPath: "/tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
     affinityLoadoutsPath: "/tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json",
     affinitySummary: true,
@@ -611,12 +601,7 @@ test("browser host run artifacts are equivalent to Node CLI output", async (t) =
   );
 });
 
-test("browser host replay artifacts are equivalent to Node CLI output", async (t) => {
-  const wasmPath = resolve(ROOT, "build/core-as.wasm");
-  if (!existsSync(wasmPath)) {
-    t.skip(`Missing WASM at ${wasmPath}`);
-    return;
-  }
+test("browser host replay artifacts are equivalent to Node CLI output", async () => {
 
   const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-replay-run-"));
   runCli([
@@ -626,10 +611,7 @@ test("browser host replay artifacts are equivalent to Node CLI output", async (t
     "--initial-state",
     "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
     "--ticks",
-    "1",
-    "--wasm",
-    wasmPath,
-    "--out-dir",
+    "1",    "--out-dir",
     runOutDir,
   ]);
 
@@ -643,10 +625,7 @@ test("browser host replay artifacts are equivalent to Node CLI output", async (t
     "--tick-frames",
     join(runOutDir, "tick-frames.json"),
     "--ticks",
-    "1",
-    "--wasm",
-    wasmPath,
-    "--out-dir",
+    "1",    "--out-dir",
     replayOutDir,
   ]);
 
@@ -655,17 +634,13 @@ test("browser host replay artifacts are equivalent to Node CLI output", async (t
   const browserRun = await adapter.run({
     simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
     initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
-    ticks: 1,
-    wasmPath: "/build/core-as.wasm",
-    outDir: "/artifacts/equivalence/replay-run",
+    ticks: 1,    outDir: "/artifacts/equivalence/replay-run",
   });
   const browserResult = await adapter.replay({
     simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
     initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
     tickFramesJson: browserRun.tickFrames,
-    ticks: 1,
-    wasmPath: "/build/core-as.wasm",
-    outDir: "/artifacts/equivalence/replay",
+    ticks: 1,    outDir: "/artifacts/equivalence/replay",
   });
 
   assert.deepEqual(
@@ -674,12 +649,7 @@ test("browser host replay artifacts are equivalent to Node CLI output", async (t
   );
 });
 
-test("browser host inspect artifacts are equivalent to Node CLI output", async (t) => {
-  const wasmPath = resolve(ROOT, "build/core-as.wasm");
-  if (!existsSync(wasmPath)) {
-    t.skip(`Missing WASM at ${wasmPath}`);
-    return;
-  }
+test("browser host inspect artifacts are equivalent to Node CLI output", async () => {
 
   const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-inspect-run-"));
   runCli([
@@ -689,10 +659,7 @@ test("browser host inspect artifacts are equivalent to Node CLI output", async (
     "--initial-state",
     "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
     "--ticks",
-    "1",
-    "--wasm",
-    wasmPath,
-    "--out-dir",
+    "1",    "--out-dir",
     runOutDir,
   ]);
 
@@ -712,9 +679,7 @@ test("browser host inspect artifacts are equivalent to Node CLI output", async (
   const browserRun = await adapter.run({
     simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
     initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
-    ticks: 1,
-    wasmPath: "/build/core-as.wasm",
-    outDir: "/artifacts/equivalence/inspect-run",
+    ticks: 1,    outDir: "/artifacts/equivalence/inspect-run",
   });
   const browserResult = await adapter.inspect({
     tickFramesJson: browserRun.tickFrames,

@@ -1,19 +1,15 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const allocatorModule = moduleUrl("packages/runtime/src/personas/allocator/controller.mts");
-const actorModule = moduleUrl("packages/runtime/src/personas/actor/controller.mts");
-const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts");
 const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/persona-behavior-v1-allocator-actor.json"), "utf8"));
 
-const script = `
-import assert from "node:assert/strict";
-import { createAllocatorPersona } from ${JSON.stringify(allocatorModule)};
-import { createActorPersona } from ${JSON.stringify(actorModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
 
-const fixture = ${JSON.stringify(fixture)};
+test("allocator and actor personas emit budget-aware actions and close request loops", async () => {
+const { createAllocatorPersona } = await import("../../packages/runtime/src/personas/allocator/controller.mts");
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
 
 const allocator = createAllocatorPersona({ clock: () => "fixed" });
 allocator.advance({ phase: TickPhases.DECIDE, event: "budget", payload: { budgets: [{ category: "effects", cap: fixture.allocator.budget.effects }] }, tick: 0 });
@@ -56,8 +52,4 @@ assert.ok(actorKinds.includes("fulfill_request"));
 assert.ok(actorKinds.includes("defer_request"));
 const requestIds = actorResult.actions.filter((a) => a.kind.endsWith("request")).map((a) => a.params.requestId);
 assert.deepEqual(requestIds, ["fact-3", "fact-4"]);
-`;
-
-test("allocator and actor personas emit budget-aware actions and close request loops", () => {
-  runEsm(script);
 });

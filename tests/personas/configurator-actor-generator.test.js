@@ -1,11 +1,8 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/configurator/actor-generator.js");
 
-test("actor generator emits stable, diverse, bounded actors", () => {
-  const script = `
-import assert from "node:assert/strict";
-import { generateActorSet } from ${JSON.stringify(modulePath)};
+test("actor generator emits stable, async diverse, bounded actors", async () => {
+const { generateActorSet } = await import("../../packages/runtime/src/personas/configurator/actor-generator.js");
 
 const result = generateActorSet({
   count: 24,
@@ -35,7 +32,7 @@ const positions = new Set();
 result.actors.forEach((actor) => {
   assert.ok(actor.position.x >= 0 && actor.position.x < 40);
   assert.ok(actor.position.y >= 0 && actor.position.y < 30);
-  positions.add(\`\${actor.position.x},\${actor.position.y}\`);
+  positions.add(`${actor.position.x},${actor.position.y}`);
 });
 assert.equal(positions.size, result.actors.length);
 
@@ -45,6 +42,4 @@ const motivations = new Set(result.actors.map((actor) => actor.motivations[0].ki
 assert.ok(affinityKinds.size >= 3);
 assert.ok(expressions.size >= 3);
 assert.ok(motivations.size >= 3);
-`;
-  runEsm(script);
 });

@@ -87,16 +87,14 @@ Prefer these recipe families before free-form authoring:
 - `budget_policy_invariant`
 - `runtime_module_contract`
 - `runtime_persona_transition`
-- `wasm_effect_contract`
 - `browser_bundle_load_flow`
 - `serve_ui_redirect_health`
 
 All current cataloged recipe families now have scaffold support.
 
-For the rarest families, keep the scaffolds narrow and pattern-matched:
+For the rarest family, keep the scaffold narrow and pattern-matched:
 
 - `ui_cli_equivalence`
-- `perf_harness_smoke`
 
 ## Permutation Expansion Rules
 

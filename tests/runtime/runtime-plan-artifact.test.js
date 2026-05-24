@@ -1,10 +1,9 @@
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const runtimeModule = moduleUrl("packages/runtime/src/runner/runtime.js");
 
-const script = `
-import assert from "node:assert/strict";
-import { createRuntime } from ${JSON.stringify(runtimeModule)};
+
+test("runtime emits plan artifacts and orchestrator starts from director output", async () => {
+const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
 
 const core = {
   init() {},
@@ -49,8 +48,4 @@ assert.equal(planArtifact.intentRef.id, "intent_demo");
 const summarizeFrames = frames.filter((frame) => frame.phaseDetail === "summarize");
 const last = summarizeFrames[summarizeFrames.length - 1];
 assert.equal(last.personaViews.orchestrator.state, "running");
-`;
-
-test("runtime emits plan artifacts and orchestrator starts from director output", () => {
-  runEsm(script);
 });

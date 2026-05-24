@@ -6,7 +6,7 @@ The Director is the **planning and intent-translation persona**.
 
 It is responsible for turning high-level strategy into **structured, actionable plans** that can be executed by downstream personas. The Director bridges the gap between external intent and internal execution by shaping goals, constraints, and tactics into a form the system can reason about.
 
-This document defines the Director as a **runtime planning role**. Simulation rules, configuration assembly, budgeting policy, and execution remain the responsibility of other personas and the simulation core (`core-as`).
+This document defines the Director as a **runtime planning role**. Simulation rules, configuration assembly, budgeting policy, and execution remain the responsibility of other personas and the simulation core (`core-ts`).
 
 ---
 
@@ -95,7 +95,7 @@ The Director:
 
 ---
 
-## Relationship to core-as
+## Relationship to core-ts
 
 The Director does **not**:
 - Apply simulation rules.
@@ -103,7 +103,7 @@ The Director does **not**:
 - Modify actors or state directly.
 - Interpret or emit simulation events.
 
-`core-as` remains the sole authority on legality, state transitions, and outcomes.
+`core-ts` remains the sole authority on legality, state transitions, and outcomes.
 
 ---
 

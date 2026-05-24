@@ -1,9 +1,8 @@
 const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 async function loadValidator() {
-  return import(moduleUrl("packages/runtime/src/contracts/build-spec.js"));
+  return import("../../packages/runtime/src/contracts/build-spec.js");
 }
 
 test("hazard artifact validation accepts regen vital fixture", async () => {
@@ -88,7 +87,7 @@ test("hazard artifact V2 rejects durability field", async () => {
 
 test("HAZARD_VITAL_KEYS exports mana only", async () => {
   const { HAZARD_VITAL_KEYS } = await import(
-    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
   assert.ok(Array.isArray(HAZARD_VITAL_KEYS), "HAZARD_VITAL_KEYS must be an array");
   assert.ok(HAZARD_VITAL_KEYS.includes("mana"), "must include mana");
@@ -99,7 +98,7 @@ test("HAZARD_VITAL_KEYS exports mana only", async () => {
 
 test("ROOM_TILE_VITAL_KEYS exports durability only", async () => {
   const { ROOM_TILE_VITAL_KEYS } = await import(
-    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
   assert.ok(Array.isArray(ROOM_TILE_VITAL_KEYS), "ROOM_TILE_VITAL_KEYS must be an array");
   assert.ok(ROOM_TILE_VITAL_KEYS.includes("durability"), "must include durability");

@@ -1,9 +1,8 @@
 const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 async function loadMapper() {
-  return import(moduleUrl("packages/adapters-cli/src/build-spec/map.js"));
+  return import("../../packages/adapters-cli/src/build-spec/map.js");
 }
 
 test("map build spec to intent + plan artifacts", async () => {

@@ -1,7 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync, readdirSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 const FIXTURES_DIR = resolve(__dirname, "../fixtures/e2e/actors");
 
@@ -20,10 +19,10 @@ const EXPECTED_TIERS = new Map([
 
 test("e2e actor fixtures include deterministic, varied actor sets", async () => {
   const { AFFINITY_KINDS, AFFINITY_EXPRESSIONS, VITAL_KEYS } = await import(
-    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
   const { MOTIVATION_KINDS } = await import(
-    moduleUrl("packages/runtime/src/personas/configurator/motivation-loadouts.js")
+    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const files = readdirSync(FIXTURES_DIR)

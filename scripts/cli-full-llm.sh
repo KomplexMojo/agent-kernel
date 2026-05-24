@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLI="$ROOT/packages/adapters-cli/src/cli/ak.mjs"
-WASM="${WASM:-$ROOT/build/core-as.wasm}"
 
 RUN_ID="${RUN_ID:-run_cli_live_$(date +%Y%m%d_%H%M%S)}"
 CREATED_AT="${CREATED_AT:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}"
@@ -21,11 +20,6 @@ INITIAL_STATE="$BASE/llm-plan/initial-state.json"
 
 if [[ -z "$MODEL" ]]; then
   echo "MODEL is required (set MODEL or AK_LLM_MODEL)." >&2
-  exit 1
-fi
-
-if [[ ! -f "$WASM" ]]; then
-  echo "Missing WASM at $WASM. Run 'pnpm run build:wasm' first." >&2
   exit 1
 fi
 
@@ -47,14 +41,12 @@ node "$CLI" run \
   --sim-config "$SIM_CONFIG" \
   --initial-state "$INITIAL_STATE" \
   --ticks "$TICKS" \
-  --wasm "$WASM" \
   --run-id "$RUN_ID"
 
 node "$CLI" replay \
   --sim-config "$SIM_CONFIG" \
   --initial-state "$INITIAL_STATE" \
   --tick-frames "$BASE/run/tick-frames.json" \
-  --wasm "$WASM" \
   --out-dir "$BASE/replay"
 
 node "$CLI" inspect \

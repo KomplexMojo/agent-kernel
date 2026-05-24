@@ -4,7 +4,7 @@ The Moderator is the **execution and sequencing persona** for the simulation.
 
 It is responsible for running the simulation loop in a controlled, deterministic manner. The Moderator advances time, sequences and applies actions, and ensures that the simulation progresses according to a well-defined execution model.
 
-This document defines the Moderator as a **runtime execution role**. Simulation rules, legality, and state transitions are enforced by the simulation core (`core-as`), while planning, configuration, and policy are handled by other personas.
+This document defines the Moderator as a **runtime execution role**. Simulation rules, legality, and state transitions are enforced by the simulation core (`core-ts`), while planning, configuration, and policy are handled by other personas.
 
 ---
 
@@ -39,7 +39,7 @@ Tick progression is explicit and fully controlled by the Moderator.
 The Moderator:
 - Collects actions proposed by Actor personas.
 - Orders or batches actions according to deterministic rules.
-- Submits actions to `core-as` for validation and application.
+- Submits actions to `core-ts` for validation and application.
 
 The Moderator does not decide *which* actions actors choose—only *when* and *in what order* they are applied.
 
@@ -53,7 +53,7 @@ When multiple actions interact (e.g. simultaneous movement or competing interact
 - Optionally rejecting or deferring actions procedurally (e.g. capacity limits, phase rules).
 
 The Moderator does **not** decide whether an action is legal or what its effects are.
-It supplies an ordered sequence of actions to `core-as`, which enforces legality
+It supplies an ordered sequence of actions to `core-ts`, which enforces legality
 and produces authoritative outcomes (accepted, rejected, or state-changing).
 
 In short:
@@ -63,13 +63,13 @@ In short:
 - States: initializing → ticking → pausing → stopping.
 - Subscribed tick phases: all (init, observe, decide, apply, emit, summarize).
 - Outputs: ordered actions and execution records (data-only); IO stays at adapters.
-- `core-as` decides **what happens** when each ordered action is applied.
+- `core-ts` decides **what happens** when each ordered action is applied.
 
 ---
 
 ### Event and Effect Handling
 The Moderator:
-- Receives events and effects emitted by `core-as`.
+- Receives events and effects emitted by `core-ts`.
 - Routes events to downstream consumers (notably the Annotator).
 - Routes effects according to their declared fulfillment category.
 - Records effect fulfillment outcomes (fulfilled/deferred) for replay.
@@ -117,7 +117,7 @@ The Moderator:
 
 ---
 
-## Relationship to core-as
+## Relationship to core-ts
 
 The Moderator does **not**:
 - Implement simulation rules.
@@ -126,8 +126,8 @@ The Moderator does **not**:
 - Interpret simulation outcomes.
 
 Instead, the Moderator:
-- Calls into `core-as` to apply actions and advance state.
-- Treats `core-as` as the sole authority on state transitions and outcomes.
+- Calls into `core-ts` to apply actions and advance state.
+- Treats `core-ts` as the sole authority on state transitions and outcomes.
 
 ---
 

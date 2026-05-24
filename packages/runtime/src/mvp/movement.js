@@ -1,4 +1,4 @@
-import { applyMoveAction, packMoveAction, renderBaseTiles, renderFrameBuffer } from "../../../bindings-ts/src/mvp-movement.js";
+import { applyMoveAction, packMoveAction, renderBaseTiles, renderFrameBuffer } from "../../../core-ts/src/index.ts";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 
 function assertCoreSupportsGrid(core) {
@@ -14,7 +14,7 @@ function assertCoreSupportsGrid(core) {
   ];
   for (const fn of required) {
     if (typeof core?.[fn] !== "function") {
-      throw new Error(`WASM core is missing ${fn}; rerun pnpm run build:wasm and hard-reload the UI.`);
+      throw new Error(`core-ts core is missing ${fn}; check the core-ts export surface and hard-reload the UI.`);
     }
   }
 }

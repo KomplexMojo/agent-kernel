@@ -1,7 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 const fixturePath = resolve(__dirname, "../fixtures/e2e/llm-summary-response.json");
 
@@ -11,10 +10,10 @@ function readJson(path) {
 
 test("prompt/response fixture parses and matches summary contract", async () => {
   const { ALLOWED_AFFINITIES, ALLOWED_AFFINITY_EXPRESSIONS, ALLOWED_MOTIVATIONS, capturePromptResponse, normalizeSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { buildLlmActorConfigPromptTemplate } = await import(
-    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   const fixture = readJson(fixturePath);

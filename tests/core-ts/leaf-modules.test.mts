@@ -101,7 +101,7 @@ describe("core-ts leaf modules", () => {
     expect(effects.getEffectDelta(2)).toBe(-2);
   });
 
-  test("input validation matches AssemblyScript leaf behavior", () => {
+  test("input validation matches core-ts leaf behavior", () => {
     expect(validateSeed(-1)).toBe(ValidationError.InvalidSeed);
     expect(validateSeed(0)).toBe(ValidationError.None);
     expect(validateAction(ActionKind.IncrementCounter, 1)).toBe(

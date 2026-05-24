@@ -10,7 +10,7 @@ An **actor** represents any entity that exists in the world. One concept, with c
   - Traps: durability + mana; may have motivations like `attacking`/`defending` but no movement motivations; `canMove=false`.
 - **Player-controlled dynamic actors** (introduced later): configured by the player and directly controlled. These will require streamed simulation playback—regenerating one step at a time based on user actions—to keep determinism and replay intact.
 
-This document focuses on the **Actor persona** as a decision-making and behavior construct. Detailed simulation rules and physics are documented separately in the `core-as` README.
+This document focuses on the **Actor persona** as a decision-making and behavior construct. Detailed simulation rules and physics are documented separately in the `core-ts` README.
 
 ---
 
@@ -23,7 +23,7 @@ At a high level, the Actor persona:
 - Determines intent and selects actions.
 - Submits chosen actions to the simulation runner.
 
-The simulation core (`core-as`) remains the sole authority on legality, state transitions, and outcomes.
+The simulation core (`core-ts`) remains the sole authority on legality, state transitions, and outcomes.
 
 ---
 

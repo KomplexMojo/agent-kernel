@@ -1,7 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 const ROOT = resolve(__dirname, "../..");
 
@@ -50,22 +49,22 @@ test("e2e trace wires prompt -> summary -> build -> runtime", async () => {
   const summaryFixture = readJson(scenario.summaryPath);
 
   const { ALLOWED_AFFINITIES, ALLOWED_AFFINITY_EXPRESSIONS, ALLOWED_MOTIVATIONS, capturePromptResponse } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { buildLlmActorConfigPromptTemplate } = await import(
-    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
   const { mapSummaryToPool } = await import(
-    moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
+    "../../packages/runtime/src/personas/director/pool-mapper.js"
   );
   const { buildBuildSpecFromSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js")
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const { orchestrateBuild } = await import(
-    moduleUrl("packages/runtime/src/build/orchestrate-build.js")
+    "../../packages/runtime/src/build/orchestrate-build.js"
   );
   const { initializeCoreFromArtifacts } = await import(
-    moduleUrl("packages/runtime/src/runner/core-setup.mjs")
+    "../../packages/runtime/src/runner/core-setup.mjs"
   );
 
   const prompt = buildLlmActorConfigPromptTemplate({
@@ -134,16 +133,16 @@ test("e2e trace exercises room layouts for tiered scenario", async () => {
   const summaryFixture = readJson(scenario.summaryPath);
 
   const { normalizeSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { mapSummaryToPool } = await import(
-    moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
+    "../../packages/runtime/src/personas/director/pool-mapper.js"
   );
   const { buildBuildSpecFromSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js")
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const { orchestrateBuild } = await import(
-    moduleUrl("packages/runtime/src/build/orchestrate-build.js")
+    "../../packages/runtime/src/build/orchestrate-build.js"
   );
 
   const normalized = normalizeSummary(summaryFixture);

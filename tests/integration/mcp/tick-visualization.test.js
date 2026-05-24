@@ -302,6 +302,6 @@ test("ak_show_state with unknown visualization value returns ok:false with struc
 - ak_show_state at tick 0 with visualization:image returns visualizationDataUri or null gracefully
 - ak_tick_forward at maxTick boundary with visualization:ascii still returns ok:false boundary error
 - ak_tick_backward at tick 0 with visualization:ascii still returns ok:false boundary error
-- ak_show_state with visualization:ascii and missing WASM returns ok:true with best-effort ascii
+- ak_show_state with visualization:ascii and missing core-ts returns ok:true with best-effort ascii
 - ak_tick_forward with visualization:ascii for multiple successive calls produces different actorDetail positions
 */

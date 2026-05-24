@@ -1,11 +1,9 @@
 const assert = require("node:assert/strict");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const solverModule = moduleUrl("packages/adapters-test/src/adapters/solver/index.js");
 
-const script = `
-import assert from "node:assert/strict";
-import { createTestSolverAdapter } from ${JSON.stringify(solverModule)};
+
+test("test solver adapter looks up fixtures and defers missing", async () => {
+const { createTestSolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/index.js");
 
 const adapter = createTestSolverAdapter();
 
@@ -23,8 +21,4 @@ assert.equal(errorCase.reason, "solver_failed");
 const missing = await adapter.solve({ meta: { id: "not-there" } });
 assert.equal(missing.status, "deferred");
 assert.equal(missing.reason, "missing_fixture");
-`;
-
-test("test solver adapter looks up fixtures and defers missing", () => {
-  runEsm(script);
 });

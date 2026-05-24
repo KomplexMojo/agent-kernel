@@ -1,17 +1,16 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const effectsModule = moduleUrl("packages/runtime/src/ports/effects.js");
 const fixturePath = resolve(__dirname, "../fixtures/adapters/effects-routing.json");
 
-const script = `
-import assert from "node:assert/strict";
-import { dispatchEffect } from ${JSON.stringify(effectsModule)};
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
-const fixture = JSON.parse(readFileSync(resolve(${JSON.stringify(fixturePath)}), "utf8"));
+test("dispatchEffect consumes adapter fixtures for log/telemetry/solver_request", async () => {
+const { dispatchEffect } = await import("../../packages/runtime/src/ports/effects.js");
+const { readFileSync } = await import("node:fs");
+const { resolve } = await import("node:path");
+
+const fixture = JSON.parse(readFileSync(resolve(fixturePath), "utf8"));
 const effects = fixture.effects;
 
 const logs = [];
@@ -38,8 +37,4 @@ assert.equal(telemetry[0].id, effects.find((e) => e.kind === "telemetry").id);
 assert.equal(solverCalls.length, 1);
 assert.equal(solverCalls[0].requestId, "solver-1");
 assert.equal(solverCalls[0].targetAdapter, "solver");
-`;
-
-test("dispatchEffect consumes adapter fixtures for log/telemetry/solver_request", () => {
-  runEsm(script);
 });

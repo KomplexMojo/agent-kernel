@@ -1,5 +1,5 @@
-async function loadWasmInstance(wasmUrl, imports = {}) {
-  const response = await fetch(wasmUrl);
+async function loadWasmInstance(moduleUrl, imports = {}) {
+  const response = await fetch(moduleUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch solver WASM: ${response.status} ${response.statusText}`);
   }
@@ -18,8 +18,8 @@ async function loadWasmInstance(wasmUrl, imports = {}) {
   return instance;
 }
 
-export async function createWasmSolverAdapter({ wasmUrl, imports = {}, createSolver } = {}) {
-  const instance = wasmUrl ? await loadWasmInstance(wasmUrl, imports) : null;
+export async function createWasmSolverAdapter({ moduleUrl, imports = {}, createSolver } = {}) {
+  const instance = moduleUrl ? await loadWasmInstance(moduleUrl, imports) : null;
   const solve = createSolver ? createSolver({ instance }) : null;
 
   return {

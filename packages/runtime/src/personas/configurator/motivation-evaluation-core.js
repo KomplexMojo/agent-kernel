@@ -1,12 +1,12 @@
 /**
- * WASM-delegated motivation profile evaluation.
+ * core-delegated motivation profile evaluation.
  *
- * Delegates behavior profile computation to the WASM evaluation engine,
- * ensuring runtime and core-as produce identical behavioral axes and flags.
+ * Delegates behavior profile computation to the core evaluation engine,
+ * ensuring runtime and core-ts produce identical behavioral axes and flags.
  *
  * Does NOT replace motivation-rules.js — that module still owns artifact
  * validation and normalization. This module is the evaluation shortcut
- * when a WASM core is available.
+ * when a core implementation is available.
  */
 import { MOTIVATION_KIND_TO_CODE } from "../allocator/motivation-price-policy.js";
 import { MOTIVATION_PATTERNS } from "./motivation-loadouts.js";
@@ -14,7 +14,7 @@ import { MOTIVATION_PATTERNS } from "./motivation-loadouts.js";
 // ── Conversion helpers ──
 
 /**
- * Convert flag object → WASM bitmask.
+ * Convert flag object → core bitmask.
  * canMove=1, prefersStealth=2, prefersCover=4, aggroRangeBoost=8
  */
 function flagsToBitmask(flags) {
@@ -40,7 +40,7 @@ function bitmaskToFlags(mask) {
 }
 
 /**
- * Convert pattern name → WASM pattern code (1-based, 0 = use default).
+ * Convert pattern name → core pattern code (1-based, 0 = use default).
  */
 function resolvePatternCode(kind, pattern) {
   const patterns = MOTIVATION_PATTERNS[kind];
@@ -52,7 +52,7 @@ function resolvePatternCode(kind, pattern) {
 // ── Evaluation ──
 
 /**
- * Evaluate the behavior profile for a set of motivations using the WASM engine.
+ * Evaluate the behavior profile for a set of motivations using the core engine.
  *
  * Accepts the same normalized motivation entries as produced by
  * normalizeMotivation() / normalizeMotivations().
@@ -60,7 +60,7 @@ function resolvePatternCode(kind, pattern) {
  * Returns a profile object compatible with the runtime's behavioral model:
  *   { flags, flagValues, mobility, combat, cognition, reasoningClass }
  *
- * @param {object} core - WASM core object (from loadCore / bindings-ts).
+ * @param {object} core - Core object from core-ts.
  * @param {Array<{kind:string, intensity?:number, pattern?:string, flags?:object}|string>} motivations
  * @returns {{
  *   flags: number,

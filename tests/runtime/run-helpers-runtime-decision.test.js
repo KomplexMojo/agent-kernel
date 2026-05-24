@@ -1,11 +1,7 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const helpersModule = moduleUrl("packages/runtime/src/commands/run-helpers.js");
 
-test("run helpers summarize and compare runtime decisions from tick frames", () => {
-  const script = `
-import assert from "node:assert/strict";
-import {
+test("run helpers summarize and compare runtime decisions from tick frames", async () => {const {
   collectRuntimeDecisionCaptureRecords,
   collectRuntimeDecisionRecords,
   compareFrameSummaries,
@@ -14,7 +10,7 @@ import {
   summarizeFrame,
   summarizeRuntimeDecisionCaptures,
   summarizeRuntimeDecisions,
-} from ${JSON.stringify(helpersModule)};
+} = await import("../../packages/runtime/src/commands/run-helpers.js");
 
 const expectedFrames = [
   {
@@ -138,6 +134,4 @@ assert.equal(captureComparison.match, false);
 assert.equal(captureComparison.mismatches, 1);
 assert.equal(captureComparison.firstMismatch.expected.selectedActionId, "move_east");
 assert.equal(captureComparison.firstMismatch.actual.selectedActionId, "wait_here");
-`;
-  runEsm(script);
 });

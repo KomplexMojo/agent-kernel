@@ -6,7 +6,7 @@ This adapter:
 - Provides a minimal JSON-RPC client.
 - Exposes `getBalance`, `getChainId`, `mintCard`, and `loadMintedCard` helpers.
 
-It is intended for Orchestrator/Allocator tooling and never used inside `core-as`.
+It is intended for Orchestrator/Allocator tooling and never used inside `core-ts`.
 
 ## Usage
 

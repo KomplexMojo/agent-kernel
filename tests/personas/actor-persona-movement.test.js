@@ -1,17 +1,14 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/actor/controller.mts");
-const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts");
 const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/persona-behavior-v1-actor-movement.json"), "utf8"));
 
-const script = `
-import assert from "node:assert/strict";
-import { createActorPersona } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
 
-const fixture = ${JSON.stringify(fixture)};
+test("actor persona proposes deterministic movement toward exit", async () => {
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
 
 function applyDirection(position, direction) {
   if (direction === "north") return { x: position.x, y: position.y - 1 };
@@ -68,16 +65,12 @@ fixture.cases.forEach((entry) => {
     });
   });
 });
-`;
-
-test("actor persona proposes deterministic movement toward exit", () => {
-  runEsm(script);
 });
 
-const exploringScript = `
-import assert from "node:assert/strict";
-import { createActorPersona } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
+
+test("actor persona with exploring motivation proposes move toward exit", async () => {
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 // 5×3 board: actor at (1,1), exit "E" at (4,1), floor in between.
 const baseTiles = ["#####", "#...E", "#####"];
@@ -112,18 +105,14 @@ assert.ok(Array.isArray(result.actions));
 assert.equal(result.actions.length, 1, "exploring motivation must produce exactly one action");
 assert.equal(result.actions[0].kind, "move", "exploring motivation must advance toward exit");
 assert.equal(result.actions[0].actorId, actorId);
-`;
-
-test("actor persona with exploring motivation proposes move toward exit", () => {
-  runEsm(exploringScript);
 });
 
 // FAILING: buildMoveProposal ignores motivation.mobility (gap #5).
 // M4 will check actor.motivation.mobility and return [] for stationary actors.
-const stationaryScript = `
-import assert from "node:assert/strict";
-import { createActorPersona } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
+
+test("actor persona with stationary motivation proposes wait not move", async () => {
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const baseTiles = ["#####", "#...E", "#####"];
 const actorId = "actor_warden";
@@ -157,10 +146,6 @@ const result = persona.advance({
 assert.ok(Array.isArray(result.actions));
 assert.equal(result.actions.length, 1, "stationary motivation must produce exactly one action");
 assert.equal(result.actions[0].kind, "wait", "stationary motivation must produce wait, not move");
-`;
-
-test("actor persona with stationary motivation proposes wait not move", () => {
-  runEsm(stationaryScript);
 });
 
 /*

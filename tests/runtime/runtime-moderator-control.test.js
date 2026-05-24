@@ -1,10 +1,9 @@
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const runtimeModule = moduleUrl("packages/runtime/src/runner/runtime.js");
 
-const script = `
-import assert from "node:assert/strict";
-import { createRuntime } from ${JSON.stringify(runtimeModule)};
+
+test("runtime routes control events to moderator", async () => {
+const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
 
 const core = {
   init() {},
@@ -36,8 +35,4 @@ frames = runtime.getTickFrames();
 summarizeFrames = frames.filter((frame) => frame.phaseDetail === "summarize");
 last = summarizeFrames[summarizeFrames.length - 1];
 assert.equal(last.personaViews.moderator.state, "stopping");
-`;
-
-test("runtime routes control events to moderator", () => {
-  runEsm(script);
 });

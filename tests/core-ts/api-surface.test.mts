@@ -1,10 +1,8 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
-// @ts-expect-error The existing JS binding does not ship TypeScript declarations.
-import { loadCore } from "../../packages/bindings-ts/src/core-as.js";
 import { CORE_API_KEYS, createCore } from "../../packages/core-ts/src/index.ts";
 
 describe("core-ts API surface", () => {
@@ -77,15 +75,8 @@ describe("core-ts API surface", () => {
     scanDir(srcRoot);
   });
 
-  test("WASM API parity can run when WASM is built", async (context) => {
-    const wasmUrl = new URL("../../build/core-as.wasm", import.meta.url);
-    if (!existsSync(wasmUrl)) {
-      context.skip();
-    }
-
-    const wasmCore = await loadCore({ wasmUrl });
-
-    expect(Object.keys(wasmCore).sort()).toEqual(CORE_API_KEYS);
+  test("core-ts API key export matches createCore", () => {
+    expect(Object.keys(createCore()).sort()).toEqual(CORE_API_KEYS);
   });
 });
 

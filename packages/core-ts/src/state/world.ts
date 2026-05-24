@@ -1,5 +1,5 @@
 // World state — grid, tiles, actors, motivated actors, traps, resources, affinity field.
-// Ported from packages/core-as/assembly/state/world.ts (1618 lines).
+// Ported from packages/core-ts/src/state/world.ts (1618 lines).
 // No IO, no imports outside core-ts.
 
 import { ValidationError } from "../validate/inputs.ts";
@@ -640,7 +640,7 @@ export function createWorldState() {
         tileBuffer = new Uint8Array(length);
         tileBufferLength = length;
       }
-      // Return a dummy pointer — TS doesn't use raw WASM pointers
+      // Return a dummy pointer because the TypeScript core keeps the tile buffer in memory.
       return 1;
     },
 

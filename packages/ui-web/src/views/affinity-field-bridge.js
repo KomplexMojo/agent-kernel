@@ -1,16 +1,15 @@
 /**
  * affinity-field-bridge.js
  *
- * Connects the WASM core affinity field computation to the UI tile visuals
- * pipeline. Loads core-as WASM, initialises it from the bundle's SimConfig +
- * InitialState, reads the computed field records, and returns renderer-ready
- * tile visuals via deriveTileAffinityVisuals.
+ * Connects the core affinity field computation to the UI tile visuals
+ * pipeline. Initialises a core from the bundle's SimConfig + InitialState,
+ * reads the computed field records, and returns renderer-ready tile visuals
+ * via deriveTileAffinityVisuals.
  *
- * Dependency direction: ui-web → runtime → bindings-ts → core-as  (valid)
+ * Dependency direction: ui-web -> runtime -> core-ts -> core-ts
  */
 
-import { loadCore } from "../../../bindings-ts/src/core-as.js";
-import { readAffinityFieldAt, AFFINITY_KIND_BY_CODE } from "../../../bindings-ts/src/affinity-readers.js";
+import { createCore, readAffinityFieldAt, AFFINITY_KIND_BY_CODE } from "../../../core-ts/src/index.ts";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
 import { deriveTileAffinityVisuals } from "./tile-affinity-visuals.js";
 
@@ -18,25 +17,16 @@ const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
 const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 
-// All 10 affinity kind codes (1–10)
+// All 10 affinity kind codes (1-10)
 const ALL_KIND_CODES = Object.keys(AFFINITY_KIND_BY_CODE).map(Number);
 
-let corePromise = null;
+let cachedCore = null;
 
-/**
- * Lazily load the WASM core (cached across calls).
- * Falls back gracefully — returns null if WASM is unavailable.
- */
 function getCore() {
-  if (!corePromise) {
-    const wasmUrl = new URL("../../assets/core-as.wasm", import.meta.url);
-    corePromise = loadCore({ wasmUrl }).catch((err) => {
-      console.warn("[affinity-field-bridge] WASM load failed, falling back to JS path:", err.message);
-      corePromise = null;
-      return null;
-    });
+  if (!cachedCore) {
+    cachedCore = createCore();
   }
-  return corePromise;
+  return cachedCore;
 }
 
 function findArtifact(bundle, schema) {
@@ -75,12 +65,12 @@ function readAllFieldRecords(core, width, height) {
 }
 
 /**
- * Build tile affinity visuals from a bundle using the WASM core pipeline.
+ * Build tile affinity visuals from a bundle using the core field pipeline.
  *
- * Pipeline: bundle → initializeCoreFromArtifacts → computeAffinityField →
- * readAllFieldRecords → deriveTileAffinityVisuals({ fieldRecords })
+ * Pipeline: bundle -> initializeCoreFromArtifacts -> computeAffinityField ->
+ * readAllFieldRecords -> deriveTileAffinityVisuals({ fieldRecords })
  *
- * Falls back to the JS hazard-spread path if WASM is unavailable.
+ * Falls back to the hazard-spread path if the field path cannot produce records.
  *
  * @param {object} bundle - The artifact bundle
  * @returns {Map<string, object>} - Tile visuals map for the renderer
@@ -93,8 +83,7 @@ export async function buildTileAffinityVisualsFromBundle(bundle) {
   const tiles = Array.isArray(layoutData.tiles) ? layoutData.tiles : [];
   const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
 
-  // Try WASM path
-  const core = await getCore();
+  const core = getCore();
   if (core && simConfig && initialState) {
     try {
       const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
@@ -109,34 +98,24 @@ export async function buildTileAffinityVisualsFromBundle(bundle) {
         }
       }
     } catch (err) {
-      console.warn("[affinity-field-bridge] WASM field computation failed, falling back to JS:", err.message);
+      console.warn("[affinity-field-bridge] Field computation failed, falling back:", err.message);
     }
   }
 
-  // JS fallback — hazard-based spread
+  // Hazard-based spread fallback.
   return deriveTileAffinityVisuals({ tiles, hazards, resourceBundle });
 }
 
 /**
  * Synchronous wrapper that returns a function suitable for the
  * buildTileAffinityVisualsFromBundleFn injection point.
- *
- * Because the WASM path is async (loadCore), but the view expects a
- * synchronous return from buildTileVisualsFn, we cache the last result
- * and trigger an async re-compute. On first call the JS fallback runs
- * synchronously; subsequent calls after WASM loads get field records.
  */
 export function createAffinityFieldBridge() {
   let cachedVisuals = null;
   let lastBundleRef = null;
 
-  // Kick off WASM load immediately so it's ready before first render
-  getCore();
-
   /**
    * Synchronous entry point for the view layer.
-   * Returns the JS-fallback visuals immediately; triggers async WASM
-   * computation in background to upgrade on next render.
    */
   function buildVisualsSync(bundle) {
     // If same bundle reference, return cached
@@ -145,22 +124,32 @@ export function createAffinityFieldBridge() {
     }
     lastBundleRef = bundle;
 
-    // Synchronous JS fallback for immediate return
     const simConfig = findArtifact(bundle, SIM_CONFIG_SCHEMA);
+    const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
     const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA);
     const layoutData = simConfig?.layout?.data || {};
     const tiles = Array.isArray(layoutData.tiles) ? layoutData.tiles : [];
     const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
-    cachedVisuals = deriveTileAffinityVisuals({ tiles, hazards, resourceBundle });
 
-    // Fire-and-forget: upgrade to WASM visuals in background
-    buildTileAffinityVisualsFromBundle(bundle).then((wasmVisuals) => {
-      if (bundle === lastBundleRef && wasmVisuals.size > 0) {
-        cachedVisuals = wasmVisuals;
+    cachedVisuals = deriveTileAffinityVisuals({ tiles, hazards, resourceBundle });
+    const core = getCore();
+    if (core && simConfig && initialState) {
+      try {
+        const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
+        if (result.layout?.ok) {
+          const width = result.layout.dimensions?.width || 0;
+          const height = result.layout.dimensions?.height || 0;
+          const fieldRecords = width > 0 && height > 0
+            ? readAllFieldRecords(core, width, height)
+            : [];
+          if (fieldRecords.length > 0) {
+            cachedVisuals = deriveTileAffinityVisuals({ fieldRecords, resourceBundle });
+          }
+        }
+      } catch {
+        // Hazard fallback already applied.
       }
-    }).catch(() => {
-      // JS fallback already applied — nothing to do
-    });
+    }
 
     return cachedVisuals;
   }

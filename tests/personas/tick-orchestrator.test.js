@@ -1,22 +1,18 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const orchestratorModule = moduleUrl("packages/runtime/src/personas/_shared/tick-orchestrator.mts");
-const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/tick-orchestrator-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/tick-orchestrator-guards.json"), "utf8"));
-const solverPortModule = moduleUrl("packages/runtime/src/ports/solver.js");
-const runtimeDecisionModule = moduleUrl("packages/runtime/src/personas/_shared/runtime-decision.mts");
 
-const happyScript = `
-import assert from "node:assert/strict";
-import { createTickOrchestrator } from ${JSON.stringify(orchestratorModule)};
-import { createSolverPort } from ${JSON.stringify(solverPortModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
 
-const fixture = ${JSON.stringify(happyFixture)};
+
+test("tick orchestrator drives phases and personas and collects actions", async () => {
+const { createTickOrchestrator } = await import("../../packages/runtime/src/personas/_shared/tick-orchestrator.mts");
+const { createSolverPort } = await import("../../packages/runtime/src/ports/solver.js");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
+const fixture = happyFixture;
 const appliedActions = [];
 
 const stubPersona = {
@@ -57,13 +53,12 @@ for (const entry of fixture.sequence) {
     assert.equal(result.personaViews.stub.state, "ready");
   }
 }
-`;
+});
 
-const guardScript = `
-import assert from "node:assert/strict";
-import { createTickOrchestrator } from ${JSON.stringify(orchestratorModule)};
+test("tick orchestrator surfaces invalid transitions", async () => {
+const { createTickOrchestrator } = await import("../../packages/runtime/src/personas/_shared/tick-orchestrator.mts");
 
-const fixture = ${JSON.stringify(guardFixture)};
+const fixture = guardFixture;
 const orchestrator = createTickOrchestrator({ clock: () => "fixed" });
 
 let threw = false;
@@ -74,23 +69,12 @@ try {
   assert.match(err.message, /No transition/);
 }
 assert.equal(threw, true);
-`;
-
-test("tick orchestrator drives phases and personas and collects actions", () => {
-  runEsm(happyScript);
 });
 
-test("tick orchestrator surfaces invalid transitions", () => {
-  runEsm(guardScript);
-});
-
-test("tick orchestrator converts solver runtime decisions into actions on the existing rail", () => {
-  const script = `
-import assert from "node:assert/strict";
-import { createTickOrchestrator } from ${JSON.stringify(orchestratorModule)};
-import { createSolverPort } from ${JSON.stringify(solverPortModule)};
-import { buildRuntimeDecisionEnvelope } from ${JSON.stringify(runtimeDecisionModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
+test("tick orchestrator converts solver runtime decisions into actions on the existing rail", async () => {const { createTickOrchestrator } = await import("../../packages/runtime/src/personas/_shared/tick-orchestrator.mts");
+const { createSolverPort } = await import("../../packages/runtime/src/ports/solver.js");
+const { buildRuntimeDecisionEnvelope } = await import("../../packages/runtime/src/personas/_shared/runtime-decision.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const appliedActions = [];
 const persona = {
@@ -176,16 +160,11 @@ assert.equal(appliedActions.length, 1);
 assert.equal(result.solverResults.length, 1);
 assert.equal(result.solverResults[0].decision.selectedActionId, "move_east");
 assert.equal(result.solverResults[0].action.kind, "move");
-`;
-  runEsm(script);
 });
 
-test("tick orchestrator fulfills manual-mode live LLM runtime decisions on the same rail and captures the exchange", () => {
-  const script = `
-import assert from "node:assert/strict";
-import { createTickOrchestrator } from ${JSON.stringify(orchestratorModule)};
-import { buildRuntimeDecisionEnvelope } from ${JSON.stringify(runtimeDecisionModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
+test("tick orchestrator fulfills manual-mode live LLM runtime decisions on the same rail and captures the exchange", async () => {const { createTickOrchestrator } = await import("../../packages/runtime/src/personas/_shared/tick-orchestrator.mts");
+const { buildRuntimeDecisionEnvelope } = await import("../../packages/runtime/src/personas/_shared/runtime-decision.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const appliedActions = [];
 const persona = {
@@ -282,17 +261,12 @@ assert.equal(result.artifacts[0].source.adapter, "llm");
 assert.equal(result.artifacts[0].payload.requestEnvelope.contract, "runtime-decision-v1");
 assert.equal(result.artifacts[0].payload.responseParsed.decision.selectedActionId, "cast_dark_bolt");
 assert.equal(appliedActions.length, 1);
-`;
-  runEsm(script);
 });
 
-test("tick orchestrator does not perform automatic solver-to-LLM fallback when solver is unfulfilled", () => {
-  const script = `
-import assert from "node:assert/strict";
-import { createTickOrchestrator } from ${JSON.stringify(orchestratorModule)};
-import { createSolverPort } from ${JSON.stringify(solverPortModule)};
-import { buildRuntimeDecisionEnvelope } from ${JSON.stringify(runtimeDecisionModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
+test("tick orchestrator does not perform automatic solver-to-LLM fallback when solver is unfulfilled", async () => {const { createTickOrchestrator } = await import("../../packages/runtime/src/personas/_shared/tick-orchestrator.mts");
+const { createSolverPort } = await import("../../packages/runtime/src/ports/solver.js");
+const { buildRuntimeDecisionEnvelope } = await import("../../packages/runtime/src/personas/_shared/runtime-decision.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 let llmCalls = 0;
 const persona = {
@@ -346,7 +320,7 @@ const solverAdapter = {
 const llmAdapter = {
   async generate() {
     llmCalls += 1;
-    return { response: "{\\"decision\\":{\\"selectedActionId\\":\\"move_east\\"}}" };
+    return { response: "{\"decision\":{\"selectedActionId\":\"move_east\"}}" };
   },
 };
 
@@ -367,6 +341,4 @@ assert.equal(result.solverResults[0].provider.selected, "solver");
 assert.equal(result.solverResults[0].fallback.requested, true);
 assert.equal(result.solverResults[0].fallback.performed, false);
 assert.equal(result.solverResults[0].fallback.reason, "auto_llm_fallback_disabled");
-`;
-  runEsm(script);
 });

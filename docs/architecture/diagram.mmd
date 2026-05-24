@@ -6,47 +6,30 @@ flowchart LR
   end
 
   subgraph Runtime["Runtime (TypeScript)"]
-    CommandKernel["shared command kernel\n(default UI/CLI rail)\n(build | solve | run | replay | inspect |\nconfigurator | budget | llm-plan)"]
-    RuntimePorts["runtime runner + ports\n(effect routing + tick frames + decision capture)"]
-    TickOrch["tick orchestrator (phases)"]
-    subgraph Personas["Personas"]
-      Orchestrator["Orchestrator: workflow coordination"]
-      Moderator["Moderator: tick execution + effects"]
-      Director["Director: planning + solving"]
-      Actor["Actor: action proposals"]
-      Allocator["Allocator: budget policy"]
-      Annotator["Annotator: observations + telemetry"]
-      Configurator["Configurator: config assembly + validation"]
-    end
+    CommandKernel["shared command kernel"]
+    RuntimePorts["runtime runner + ports"]
+    TickOrch["tick orchestrator"]
+    Personas["personas"]
   end
 
-  subgraph Bindings["bindings-ts"]
-    BindingsTS["WASM bindings"]
-    AffinityReaders["Affinity readers\n(readAffinityFieldAt, readActorAffinity,\nreadAffinityInteractionResult)"]
-    MotivationReaders["Motivation readers\n(readMotivationCost, readMotivationEvaluation)"]
-    BindingsTS --- AffinityReaders
-    BindingsTS --- MotivationReaders
-  end
-
-  subgraph Core["core-as (WASM)"]
-    CoreEngine["Deterministic core state + rules + effects + render buffers"]
-    AffinityCore["Affinity: 10-kind codebook + spatial fields\n+ 48-cell interaction matrix"]
-    MotivationCore["Motivation: 12-kind codebook + cost formulas\n+ behavior flags + profile evaluation"]
+  subgraph Core["core-ts"]
+    CoreEngine["deterministic state + rules + effects + render buffers"]
+    AffinityCore["affinity fields + interaction matrix"]
+    MotivationCore["motivation costs + behavior profiles"]
     CoreEngine --- AffinityCore
     CoreEngine --- MotivationCore
   end
 
   subgraph Adapters["Adapters (IO boundary)"]
-    AWeb["adapters-web (cli-worker | ipfs | blockchain |\nllm | dom-log | level-builder)"]
-    LevelBuilderWorker["level-builder worker (summary/levelGen/tiles -> ascii + image artifacts)"]
-    ACli["adapters-cli (ak.mjs host shell | ipfs |\nblockchain | llm | solver-wasm)"]
-    ATest["adapters-test (fixture adapters)"]
+    AWeb["adapters-web"]
+    ACli["adapters-cli"]
+    ATest["adapters-test"]
   end
 
   subgraph External["External Services"]
     IPFS["IPFS gateway"]
     Chain["Blockchain JSON-RPC"]
-    LLM["LLM API (local Ollama primary)"]
+    LLM["LLM API"]
     Storage["Persistence"]
   end
 
@@ -56,29 +39,13 @@ flowchart LR
   AWeb --> CommandKernel
   ACli --> CommandKernel
   CommandKernel --> RuntimePorts
-  CommandKernel --> BindingsTS
   RuntimePorts --> TickOrch
-  Moderator --> TickOrch
-  TickOrch --> Director
-  TickOrch --> Actor
-  TickOrch --> Allocator
-  TickOrch --> Annotator
-  TickOrch --> Configurator
-  TickOrch --> Orchestrator
-  Orchestrator --> RuntimePorts
-  Moderator --> RuntimePorts
-  Director --> RuntimePorts
-  Actor --> RuntimePorts
-  Allocator --> RuntimePorts
-  Annotator --> RuntimePorts
-  Configurator --> RuntimePorts
+  TickOrch --> Personas
   RuntimePorts --> CoreEngine
-  BindingsTS --> CoreEngine
 
   RuntimePorts <--> AWeb
-  AWeb --> LevelBuilderWorker
+  RuntimePorts <--> ACli
   ATest -.fixtures.-> RuntimePorts
-  RuntimePorts -.effects (id/requestId/adapter hint)-> Adapters
 
   AWeb --> IPFS
   AWeb --> Chain
@@ -88,77 +55,3 @@ flowchart LR
   ACli --> Chain
   ACli --> LLM
   ACli --> Storage
-
-%% Tick phase super state machine (deterministic FSM)
-stateDiagram-v2
-  [*] --> init
-  init --> observe: observe
-  observe --> decide: decide
-  decide --> apply: apply
-  apply --> emit: emit
-  emit --> summarize: summarize
-  summarize --> observe: next_tick (tick++)
-
-%% Director persona state machine (deterministic FSM)
-stateDiagram-v2
-  [*] --> uninitialized
-  uninitialized --> intake: bootstrap (intent|plan)
-  intake --> draft_plan: ingest_intent
-  intake --> ready: ingest_plan
-  draft_plan --> refine: draft_complete
-  refine --> ready: refinement_complete
-  ready --> stale: invalidate_plan
-  stale --> intake: refresh (intent|plan)
-
-%% Actor persona (observe/decide)
-stateDiagram-v2
-  [*] --> idle
-  idle --> observing: observe
-  observing --> deciding: decide
-  deciding --> proposing: propose (proposals>0)
-  proposing --> cooldown: cooldown
-  cooldown --> observing: observe
-
-%% Allocator persona (observe/decide)
-stateDiagram-v2
-  [*] --> idle
-  idle --> budgeting: budget
-  budgeting --> allocating: allocate (budgets>0)
-  allocating --> monitoring: monitor
-  monitoring --> rebalancing: rebalance (signals>0)
-  rebalancing --> monitoring: monitor
-
-%% Annotator persona (emit/summarize)
-stateDiagram-v2
-  [*] --> idle
-  idle --> recording: observe
-  recording --> summarizing: summarize (observations>0)
-  summarizing --> idle: reset
-
-%% Configurator persona (init/observe)
-stateDiagram-v2
-  [*] --> uninitialized
-  uninitialized --> pending_config: provide_config
-  pending_config --> configured: validate
-  configured --> locked: lock
-  configured --> pending_config: update_config
-
-%% Orchestrator persona (observe/decide/emit)
-stateDiagram-v2
-  [*] --> idle
-  idle --> planning: plan
-  planning --> running: start_run (planRef)
-  running --> replaying: replay
-  running --> completed: complete
-  running --> errored: error
-  replaying --> completed: complete
-  replaying --> errored: error
-
-%% Moderator persona (all phases)
-stateDiagram-v2
-  [*] --> initializing
-  initializing --> ticking: start
-  ticking --> pausing: pause
-  pausing --> ticking: resume
-  ticking --> stopping: stop
-  pausing --> stopping: stop

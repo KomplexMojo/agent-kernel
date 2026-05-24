@@ -10,7 +10,7 @@ import {
   getOppositeAffinityKind,
   resolveAffinityRelationshipCode,
 } from "./state/affinity.ts";
-import { createEffectsPort } from "./ports/effects.ts";
+import { createEffectsPort, EffectKind } from "./ports/effects.ts";
 import { createMoveRules } from "./rules/move.ts";
 import {
   computeAffinityIntensity,
@@ -29,6 +29,7 @@ import {
 } from "./state/affinity-spatial.ts";
 import { createBudgetState } from "./state/budget.ts";
 import { createCounterState } from "./state/counter.ts";
+import { createEffectState } from "./state/effects.ts";
 import {
   createMotivationState,
   getDefaultMotivationPattern,
@@ -47,6 +48,11 @@ import {
   normalizeMotivationIntensity,
 } from "./state/motivation.ts";
 import { createWorldState } from "./state/world.ts";
+import { ActionKind, validateAction, validateSeed, ValidationError } from "./validate/inputs.ts";
+
+export * from "./affinity-readers.ts";
+export * from "./motivation-readers.ts";
+export * from "./mvp-movement.ts";
 
 export const CORE_API_KEYS = [
   "addActorPlacement",
@@ -228,6 +234,14 @@ function notImplemented(name: string): CoreFunction {
   };
 }
 
+const DEFAULT_BUDGET_CATEGORY = 0;
+const EFFECT_BUDGET_CATEGORY = 1;
+const REQUEST_DETAIL_MASK = 0xff;
+
+function encodeRequestPayload(seq: number, detail: number): number {
+  return (seq << 8) | (detail & REQUEST_DETAIL_MASK);
+}
+
 export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport> {
   const core = Object.fromEntries(
     CORE_API_KEYS.map((name) => [name, notImplemented(name)]),
@@ -235,6 +249,7 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   const budget = createBudgetState();
   const counter = createCounterState();
   const effects = createEffectsPort();
+  const effectState = createEffectState();
   const world = createWorldState();
   const affinitySpatial = createAffinitySpatialState({
     getMotivatedActorAffinityKindByIndex: (i: number) =>
@@ -246,6 +261,113 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   });
   const motivation = createMotivationState();
   const move = createMoveRules(world);
+
+  function emitBudgetEffects(category: number, spent: number): void {
+    const cap = budget.getBudgetCap(category);
+    if (cap >= 0 && spent === cap) {
+      effects.pushEffect(EffectKind.LimitReached, spent);
+    } else if (cap >= 0 && spent > cap) {
+      effects.pushEffect(EffectKind.LimitViolated, spent);
+    }
+  }
+
+  function validatePendingRequestAction(kind: number, value: number): number {
+    if (kind !== ActionKind.FulfillRequest && kind !== ActionKind.DeferRequest) {
+      return ValidationError.None;
+    }
+    const pending = effectState.getPendingRequest();
+    if (pending === 0) {
+      return ValidationError.MissingPendingRequest;
+    }
+    if (pending !== value) {
+      return ValidationError.InvalidActionValue;
+    }
+    return ValidationError.None;
+  }
+
+  function chargeBudgetForAction(kind: number): void {
+    const budgetCategory = kind === ActionKind.RequestExternalFact || kind === ActionKind.RequestSolver
+      ? EFFECT_BUDGET_CATEGORY
+      : DEFAULT_BUDGET_CATEGORY;
+    const budgetCost = kind === ActionKind.RequestSolver ? 2 : 1;
+    const nextSpent = budget.chargeBudget(budgetCategory, budgetCost);
+    emitBudgetEffects(budgetCategory, nextSpent);
+  }
+
+  function dispatchNonMoveAction(kind: number, value: number): void {
+    if (kind === ActionKind.IncrementCounter) {
+      const nextValue = counter.incrementCounter(value);
+      effects.pushEffect(EffectKind.Log, nextValue);
+      return;
+    }
+    if (kind === ActionKind.EmitLog) {
+      effects.pushEffect(EffectKind.Log, value);
+      return;
+    }
+    if (kind === ActionKind.EmitTelemetry) {
+      effects.pushEffect(EffectKind.Telemetry, value);
+      return;
+    }
+    if (kind === ActionKind.RequestExternalFact) {
+      const seq = effectState.nextRequestSequence();
+      effectState.setPendingRequest(seq);
+      effects.pushEffect(EffectKind.NeedExternalFact, encodeRequestPayload(seq, value));
+      return;
+    }
+    if (kind === ActionKind.RequestSolver) {
+      const seq = effectState.nextRequestSequence();
+      effects.pushEffect(EffectKind.SolverRequest, encodeRequestPayload(seq, value));
+      return;
+    }
+    if (kind === ActionKind.FulfillRequest) {
+      effectState.clearPendingRequest();
+      effects.pushEffect(EffectKind.EffectFulfilled, value);
+      return;
+    }
+    if (kind === ActionKind.DeferRequest) {
+      effectState.clearPendingRequest();
+      effects.pushEffect(EffectKind.EffectDeferred, value);
+    }
+  }
+
+  function handleMoveAction(value: number): void {
+    const action = move.decodeMove(value);
+    const moveError = move.applyMove(action);
+    if (moveError !== ValidationError.None) {
+      if (moveError === ValidationError.BlockedByWall || moveError === ValidationError.ActorCollision) {
+        effects.pushActorBlocked(action.actorId, action.toX, action.toY, moveError);
+        return;
+      }
+      effects.pushEffect(EffectKind.ActionRejected, moveError);
+      return;
+    }
+    effects.pushActorMoved(action.actorId, action.toX, action.toY);
+    if (world.isActorAtExit()) {
+      effects.pushEffect(EffectKind.LimitReached, action.tick);
+    }
+  }
+
+  function applyAction(kind: number, value: number): void {
+    if (kind === ActionKind.Move) {
+      handleMoveAction(value);
+      return;
+    }
+
+    const actionError = validateAction(kind, value);
+    if (actionError !== ValidationError.None) {
+      effects.pushEffect(EffectKind.ActionRejected, actionError);
+      return;
+    }
+
+    const pendingRequestError = validatePendingRequestAction(kind, value);
+    if (pendingRequestError !== ValidationError.None) {
+      effects.pushEffect(EffectKind.ActionRejected, pendingRequestError);
+      return;
+    }
+
+    chargeBudgetForAction(kind);
+    dispatchNonMoveAction(kind, value);
+  }
 
   core.memory = new ArrayBuffer(0);
   core.version = () => 1;
@@ -442,11 +564,20 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getMotivatedActorAffinityExpressionByIndex = world.getMotivatedActorAffinityExpressionByIndex as CoreFunction;
   core.getMotivatedActorAffinityStacksByIndex = world.getMotivatedActorAffinityStacksByIndex as CoreFunction;
 
-  // init: configure a default empty 1x1 grid
-  core.init = (() => { world.configureGrid(1, 1); }) as CoreFunction;
-  // step and applyAction: delegate to move system
-  core.step = (() => { world.advanceTick(); }) as CoreFunction;
-  core.applyAction = move.applyMove as CoreFunction;
+  core.init = ((seed: number) => {
+    effects.clearEffects();
+    budget.resetBudgets();
+    effectState.resetEffectState();
+    world.configureGrid(1, 1);
+    const seedError = validateSeed(seed);
+    if (seedError !== ValidationError.None) {
+      effects.pushEffect(EffectKind.InitInvalid, seedError);
+      return;
+    }
+    counter.resetCounter(seed);
+  }) as CoreFunction;
+  core.step = (() => { applyAction(ActionKind.IncrementCounter, 1); }) as CoreFunction;
+  core.applyAction = applyAction as CoreFunction;
 
   return core;
 }

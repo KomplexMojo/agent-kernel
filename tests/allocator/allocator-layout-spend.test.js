@@ -1,14 +1,12 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
 
-const spendModulePath = moduleUrl("packages/runtime/src/personas/allocator/layout-spend.js");
 const priceList = readFixture("price-list-artifact-v1-tiles.json");
 
-const script = `
-import assert from "node:assert/strict";
-import { evaluateLayoutSpend, resolveLayoutTileCosts } from ${JSON.stringify(spendModulePath)};
 
-const priceList = ${JSON.stringify(priceList)};
+test("allocator layout spend applies tile costs and budget bounds", async () => {
+const { evaluateLayoutSpend, resolveLayoutTileCosts } = await import("../../packages/runtime/src/personas/allocator/layout-spend.js");
+
 const layout = { floorTiles: 3, hallwayTiles: 1 };
 
 const costs = resolveLayoutTileCosts(priceList);
@@ -26,8 +24,4 @@ assert.ok(spend.warnings?.some((warn) => warn.code === "deprecated_hallway_tiles
 const over = evaluateLayoutSpend({ layout, budgetTokens: 5, priceList });
 assert.equal(over.overBudget, false);
 assert.equal(over.remainingBudgetTokens, 2);
-`;
-
-test("allocator layout spend applies tile costs and budget bounds", () => {
-  runEsm(script);
 });

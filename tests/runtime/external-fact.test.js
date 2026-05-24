@@ -1,11 +1,7 @@
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const RUNTIME_MODULE = moduleUrl("packages/runtime/src/runner/runtime.js");
 
-test("need_external_fact effects enforce sourceRef policy", () => {
-  const script = `
-import assert from "node:assert/strict";
-import { createRuntime } from ${JSON.stringify(RUNTIME_MODULE)};
+test("need_external_fact effects enforce sourceRef policy", async () => {const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
 
 let effectCount = 2;
 const effectKinds = [900, 901];
@@ -48,6 +44,4 @@ assert.equal(fulfilled[0].status, "fulfilled");
 assert.ok(fulfilled[0].result);
 assert.equal(fulfilled[1].status, "deferred");
 assert.equal(fulfilled[1].reason, "missing_source_ref");
-`;
-  runEsm(script);
 });

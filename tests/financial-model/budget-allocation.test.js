@@ -1,11 +1,8 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const budgetAllocUrl = moduleUrl("packages/runtime/src/personas/director/budget-allocation.js");
 
-test("default pool weights: 44% rooms, 20% delver, 16% wardens, 12% hazards, 8% resources (design §2.2)", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { computeBudgetPools, REFERENCE_BUDGET_TOKENS } from ${JSON.stringify(budgetAllocUrl)};
+test("default pool weights: 44% rooms, async 20% delver, 16% wardens, 12% hazards, 8% resources (design §2.2)", async () => {
+  const { computeBudgetPools, REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
 
 const result = computeBudgetPools({ budgetTokens: 2500 });
 assert.ok(result.ok);
@@ -16,22 +13,16 @@ assert.equal(poolMap.get("delver"), 500);
 assert.equal(poolMap.get("wardens"), 400);
 assert.equal(poolMap.get("hazards"), 300);
 assert.equal(poolMap.get("resources"), 200);
-`);
 });
 
-test("reference budget constant is 2500 (design §2.1)", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { REFERENCE_BUDGET_TOKENS } from ${JSON.stringify(budgetAllocUrl)};
+test("reference budget constant is 2500 (design §2.1)", async () => {
+  const { REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
 
 assert.equal(REFERENCE_BUDGET_TOKENS, 2500);
-`);
 });
 
-test("custom pool weights override defaults", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { computeBudgetPools } from ${JSON.stringify(budgetAllocUrl)};
+test("custom pool weights override defaults", async () => {
+  const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
 
 const result = computeBudgetPools({
   budgetTokens: 800,
@@ -49,5 +40,4 @@ assert.equal(poolMap.get("delver"), 120);
 assert.equal(poolMap.get("wardens"), 200);
 assert.equal(poolMap.get("hazards"), 0);
 assert.equal(poolMap.get("resources"), 0);
-`);
 });

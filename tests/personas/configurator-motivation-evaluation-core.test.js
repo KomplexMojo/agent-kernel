@@ -1,24 +1,16 @@
-const { existsSync } = require("node:fs");
-const { resolve } = require("node:path");
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const bindingsModule = moduleUrl("packages/bindings-ts/src/index.js");
-const evalModule = moduleUrl("packages/runtime/src/personas/configurator/motivation-evaluation-wasm.js");
-const wasmUrl = moduleUrl("build/core-as.wasm");
-const WASM_PATH = resolve(__dirname, "../../build/core-as.wasm");
 
-const script = `
-import assert from "node:assert/strict";
-import { loadCore } from ${JSON.stringify(bindingsModule)};
-import {
+test("motivation evaluation delegation: core-ts produces correct behavior profiles", async () => {
+const { createCore } = await import("../../packages/core-ts/src/index.ts");
+const {
   evaluateMotivationProfileFromCore,
   flagsToBitmask,
   bitmaskToFlags,
   resolvePatternCode,
-} from ${JSON.stringify(evalModule)};
+} = await import("../../packages/runtime/src/personas/configurator/motivation-evaluation-core.js");
 
-const wasmUrl = new URL(${JSON.stringify(wasmUrl)});
-const core = await loadCore({ wasmUrl });
+const core = createCore();
 core.init(0);
 
 // ── Helper tests ──
@@ -144,20 +136,7 @@ assert.equal(resolvePatternCode("random", undefined), 0);
   assert.equal(profile.reasoningClassCode, 1, "tactical = 1");
 }
 
-console.log("configurator-motivation-evaluation-wasm: all assertions passed");
-`;
-
-test("motivation evaluation delegation: WASM produces correct behavior profiles", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip("WASM not built.");
-    return;
-  }
-  const result = runEsm(script);
-  if (result.status !== 0) {
-    const stderr = result.stderr?.toString() ?? "";
-    const stdout = result.stdout?.toString() ?? "";
-    throw new Error(`ESM script failed (exit ${result.status}):\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`);
-  }
+console.log("configurator-motivation-evaluation: all assertions passed");
 });
 
 // ## TODO: Test Permutations

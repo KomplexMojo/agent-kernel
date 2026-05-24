@@ -3,13 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLI="$ROOT/packages/adapters-cli/src/cli/ak.mjs"
-WASM="$ROOT/build/core-as.wasm"
 OUT_DIR="${1:-"$ROOT/artifacts/demo-bundle"}"
-
-if [[ ! -f "$WASM" ]]; then
-  echo "Missing WASM at $WASM. Run 'pnpm run build:wasm' first." >&2
-  exit 1
-fi
 
 mkdir -p "$OUT_DIR"
 
@@ -29,14 +23,12 @@ node "$CLI" run \
   --sim-config "$SIM_CONFIG" \
   --initial-state "$INITIAL_STATE" \
   --ticks 1 \
-  --wasm "$WASM" \
   --out-dir "$OUT_DIR/run"
 
 node "$CLI" replay \
   --sim-config "$SIM_CONFIG" \
   --initial-state "$INITIAL_STATE" \
   --tick-frames "$OUT_DIR/run/tick-frames.json" \
-  --wasm "$WASM" \
   --out-dir "$OUT_DIR/replay"
 
 node "$CLI" inspect \

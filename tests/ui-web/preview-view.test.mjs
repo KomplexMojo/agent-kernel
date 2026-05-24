@@ -227,7 +227,7 @@ test("preview view renders bundle-backed frame and actor summaries", async () =>
       canvas.height = 4;
       return { ok: true, width: 5, height: 4 };
     },
-    loadCoreFn: async () => ({
+    createCoreFn: async () => ({
       init(seed) {
         this.seed = seed;
       },
@@ -314,7 +314,7 @@ test("preview view falls back to layout-only rendering when the bundle has no ac
   const view = wirePreviewView({
     root,
     renderBundleBoard: async () => ({ ok: false, reason: "missing_canvas_context" }),
-    loadCoreFn: async () => ({ init() {} }),
+    createCoreFn: async () => ({ init() {} }),
     applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
     renderBase: () => ["#####", "#...#", "#...#", "#####"],
   });
@@ -354,7 +354,7 @@ test("preview view syncs canvas selections into the shared actor inspector", asy
       canvas.height = 128;
       return { ok: true, width: 160, height: 128 };
     },
-    loadCoreFn: async () => ({ init() {} }),
+    createCoreFn: async () => ({ init() {} }),
     applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
     applyInitialState: () => ({ ok: true }),
     renderFrame: () => ({ baseTiles: ["#####", "#...#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),
@@ -392,7 +392,7 @@ test("preview view computes and attaches auras to observation", async () => {
 
   const view = wirePreviewView({
     root,
-    loadCoreFn: async () => ({
+    createCoreFn: async () => ({
       init(seed) {
         this.seed = seed;
       },
@@ -476,7 +476,7 @@ test("preview view restores the stored renderer choice and rerenders with the ph
     storage,
     createCanvasRenderer: createRendererRecorder("canvas", rendererCalls),
     createPhaserRenderer: createRendererRecorder("phaser", rendererCalls),
-    loadCoreFn: async () => ({ init() {} }),
+    createCoreFn: async () => ({ init() {} }),
     applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
     applyInitialState: () => ({ ok: true }),
     renderFrame: () => ({ baseTiles: ["#####", "#@..#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),
@@ -498,7 +498,7 @@ test("preview view rerenders the same preview state when switching between rende
     storage: createStorage(),
     createCanvasRenderer: createRendererRecorder("canvas", rendererCalls),
     createPhaserRenderer: createRendererRecorder("phaser", rendererCalls),
-    loadCoreFn: async () => ({ init() {} }),
+    createCoreFn: async () => ({ init() {} }),
     applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
     applyInitialState: () => ({ ok: true }),
     renderFrame: () => ({ baseTiles: ["#####", "#@..#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),

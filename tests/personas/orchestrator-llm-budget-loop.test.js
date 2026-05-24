@@ -1,17 +1,16 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 const { readFixture } = require("../helpers/fixtures");
 
-const loopModulePath = moduleUrl("packages/runtime/src/personas/orchestrator/llm-budget-loop.js");
 
 const catalogPath = resolve(__dirname, "../fixtures/pool/catalog-basic.json");
 const catalogFixture = JSON.parse(readFileSync(catalogPath, "utf8"));
 const tilePriceList = readFixture("price-list-artifact-v1-tiles.json");
 
-const script = `
-import assert from "node:assert/strict";
-import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
+
+test("orchestrator budget loop sequences layout then actors", async () => {
+const { runLlmBudgetLoop } = await import("../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js");
 
 const ambulatoryVitals = {
   health: { current: 8, max: 8, regen: 0 },
@@ -59,7 +58,7 @@ const adapter = {
 const result = await runLlmBudgetLoop({
   adapter,
   model: "fixture",
-  catalog: ${JSON.stringify(catalogFixture)},
+  catalog: catalogFixture,
   goal: "Budget loop test",
   budgetTokens: 320,
   poolWeights: [
@@ -85,15 +84,11 @@ assert.equal(result.stopReason, "done");
 assert.ok(result.trace[0].startedAt);
 assert.ok(result.trace[0].endedAt);
 assert.equal(typeof result.trace[0].durationMs, "number");
-`;
-
-test("orchestrator budget loop sequences layout then actors", () => {
-  runEsm(script);
 });
 
-const priceListScript = `
-import assert from "node:assert/strict";
-import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
+
+test("orchestrator budget loop applies tile price list costs", async () => {
+const { runLlmBudgetLoop } = await import("../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js");
 
 const ambulatoryVitals = {
   health: { current: 8, max: 8, regen: 0 },
@@ -132,8 +127,8 @@ const adapter = {
 const result = await runLlmBudgetLoop({
   adapter,
   model: "fixture",
-  catalog: ${JSON.stringify(catalogFixture)},
-  priceList: ${JSON.stringify(tilePriceList)},
+  catalog: catalogFixture,
+  priceList: tilePriceList,
   goal: "Budget loop with tile costs",
   budgetTokens: 100,
   poolWeights: [
@@ -150,15 +145,11 @@ assert.equal(result.ok, true);
 assert.equal(result.trace[0].spentTokens, 3);
 assert.equal(result.trace[0].remainingBudgetTokens, 97);
 assert.equal(result.remainingBudgetTokens, 97);
-`;
-
-test("orchestrator budget loop applies tile price list costs", () => {
-  runEsm(priceListScript);
 });
 
-const phi4OptionsScript = `
-import assert from "node:assert/strict";
-import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
+
+test("orchestrator budget loop uses phi4 option budgets by phase", async () => {
+const { runLlmBudgetLoop } = await import("../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js");
 
 const calls = [];
 const ambulatoryVitals = {
@@ -199,7 +190,7 @@ const adapter = {
 const result = await runLlmBudgetLoop({
   adapter,
   model: "phi4",
-  catalog: ${JSON.stringify(catalogFixture)},
+  catalog: catalogFixture,
   goal: "Phi4 options",
   budgetTokens: 300,
   poolWeights: [
@@ -219,15 +210,11 @@ assert.equal(calls[0].options.num_ctx, 16384);
 assert.equal(calls[0].options.num_predict, 160);
 assert.equal(calls[1].options.num_predict, 320);
 assert.equal(calls[1].options.temperature, 0.15);
-`;
-
-test("orchestrator budget loop uses phi4 option budgets by phase", () => {
-  runEsm(phi4OptionsScript);
 });
 
-const overBudgetLayoutAutoFitScript = `
-import assert from "node:assert/strict";
-import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
+
+test("orchestrator budget loop auto-fits over-budget layout responses in non-strict mode", async () => {
+const { runLlmBudgetLoop } = await import("../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js");
 
 const ambulatoryVitals = {
   health: { current: 8, max: 8, regen: 0 },
@@ -267,7 +254,7 @@ const adapter = {
 const result = await runLlmBudgetLoop({
   adapter,
   model: "phi4",
-  catalog: ${JSON.stringify(catalogFixture)},
+  catalog: catalogFixture,
   goal: "Auto-fit over budget layout",
   budgetTokens: 1000,
   poolWeights: [
@@ -287,15 +274,11 @@ assert.ok(result.trace[0].spentTokens <= result.poolBudgets.rooms);
 assert.ok(result.summary.layout.floorTiles + result.summary.layout.hallwayTiles > 0);
 assert.equal(result.summary.actors.length, 1);
 assert.equal(result.captures.length, 2);
-`;
-
-test("orchestrator budget loop auto-fits over-budget layout responses in non-strict mode", () => {
-  runEsm(overBudgetLayoutAutoFitScript);
 });
 
-const unmatchedCatalogActorFallbackScript = `
-import assert from "node:assert/strict";
-import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
+
+test("orchestrator budget loop recovers actor picks without exact catalog pair in non-strict mode", async () => {
+const { runLlmBudgetLoop } = await import("../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js");
 
 const ambulatoryVitals = {
   health: { current: 8, max: 8, regen: 0 },
@@ -335,7 +318,7 @@ const adapter = {
 const result = await runLlmBudgetLoop({
   adapter,
   model: "fixture",
-  catalog: ${JSON.stringify(catalogFixture)},
+  catalog: catalogFixture,
   goal: "Fallback unmatched defender pair",
   budgetTokens: 500,
   poolWeights: [
@@ -351,20 +334,16 @@ const result = await runLlmBudgetLoop({
 assert.equal(result.ok, true);
 assert.equal(result.summary.actors.length, 1);
 assert.notEqual(
-  \`\${result.summary.actors[0].motivation}:\${result.summary.actors[0].affinity}\`,
+  `${result.summary.actors[0].motivation}:${result.summary.actors[0].affinity}`,
   "defending:fire",
 );
 assert.ok(Array.isArray(result.trace[1].validationWarnings));
 assert.ok(result.trace[1].validationWarnings.some((entry) => entry.code === "missing_catalog_match"));
-`;
-
-test("orchestrator budget loop recovers actor picks without exact catalog pair in non-strict mode", () => {
-  runEsm(unmatchedCatalogActorFallbackScript);
 });
 
-const layoutFeasibilityAutoFitScript = `
-import assert from "node:assert/strict";
-import { runLlmBudgetLoop } from ${JSON.stringify(loopModulePath)};
+
+test("orchestrator budget loop keeps oversized walkable layout when budget allows", async () => {
+const { runLlmBudgetLoop } = await import("../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js");
 
 const prompts = [];
 const responses = [
@@ -390,7 +369,7 @@ const adapter = {
 const result = await runLlmBudgetLoop({
   adapter,
   model: "fixture",
-  catalog: ${JSON.stringify(catalogFixture)},
+  catalog: catalogFixture,
   goal: "Layout feasibility auto-fit without LLM repair",
   budgetTokens: 10000,
   poolWeights: [
@@ -410,8 +389,4 @@ assert.equal(result.summary.layout.floorTiles, 9000);
 assert.equal(result.summary.layout.hallwayTiles, 0);
 assert.ok(result.summary.layout.floorTiles + result.summary.layout.hallwayTiles > 0);
 assert.ok(!Array.isArray(result.trace[0].validationWarnings) || result.trace[0].validationWarnings.length === 0);
-`;
-
-test("orchestrator budget loop keeps oversized walkable layout when budget allows", () => {
-  runEsm(layoutFeasibilityAutoFitScript);
 });

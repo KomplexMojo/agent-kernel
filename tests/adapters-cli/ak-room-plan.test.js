@@ -3,11 +3,9 @@ const { spawnSync } = require("node:child_process");
 const { mkdtempSync, readFileSync, existsSync, writeFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const spendProposalUrl = moduleUrl("packages/runtime/src/personas/configurator/spend-proposal.js");
 
 function runCli(args) {
   return spawnSync(process.execPath, [CLI, ...args], {
@@ -47,7 +45,7 @@ function listAffinityTuples(card) {
   }));
 }
 
-test("cli room-plan authors room cards directly from room flags", () => {
+test("cli room-plan authors room cards directly from room flags", async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-basic-"));
   const result = runCliOk([
     "room-plan",
@@ -85,7 +83,7 @@ test("cli room-plan authors room cards directly from room flags", () => {
   assert.deepEqual(listAffinityTuples(room), [], "rooms carry no affinities — affinity comes from traps/hazards");
 });
 
-test("cli room-plan produces a generic room card with no affinity tuples", () => {
+test("cli room-plan produces a generic room card with no affinity tuples", async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-defaults-"));
   runCliOk([
     "room-plan",
@@ -108,7 +106,7 @@ test("cli room-plan produces a generic room card with no affinity tuples", () =>
   assert.deepEqual(listAffinityTuples(room), [], "rooms are generic containers and carry no affinities");
 });
 
-test("cli room-plan supports multiple room configurations in one command", () => {
+test("cli room-plan supports multiple room configurations in one command", async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-multi-"));
   runCliOk([
     "room-plan",
@@ -134,7 +132,7 @@ test("cli room-plan supports multiple room configurations in one command", () =>
   assert.deepEqual(listAffinityTuples(bySize.get("large")), [], "rooms carry no affinities");
 });
 
-test("cli room-plan writes budget receipt with room layout spend only — no affinity line items", () => {
+test("cli room-plan writes budget receipt with room layout spend only — no affinity line items", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budget-"));
   const outDir = join(workDir, "out");
   const budgetPath = join(workDir, "budget.json");
@@ -207,7 +205,7 @@ test("cli room-plan writes budget receipt with room layout spend only — no aff
   assert.equal(simConfig.budgetReceiptRef.id, receipt.meta.id);
 });
 
-test("cli room-plan rejects invalid room size", () => {
+test("cli room-plan rejects invalid room size", async () => {
   const result = runCli([
     "room-plan",
     "--room",
@@ -217,7 +215,7 @@ test("cli room-plan rejects invalid room size", () => {
   assert.match(result.stderr, /room\[1\] size must be one of/i);
 });
 
-test("cli room-plan rejects affinity field — rooms are generic containers", () => {
+test("cli room-plan rejects affinity field — rooms are generic containers", async () => {
   const result = runCli([
     "room-plan",
     "--room",
@@ -227,7 +225,7 @@ test("cli room-plan rejects affinity field — rooms are generic containers", ()
   assert.match(result.stderr, /not supported.*trap.*hazard/i);
 });
 
-test("cli room-plan requires --budget and --price-list together", () => {
+test("cli room-plan requires --budget and --price-list together", async () => {
   const result = runCli([
     "room-plan",
     "--room",
@@ -239,7 +237,7 @@ test("cli room-plan requires --budget and --price-list together", () => {
   assert.match(result.stderr, /requires both --budget and --price-list/i);
 });
 
-test("cli room-plan maximizes a flexible room within a 400-token budget", () => {
+test("cli room-plan maximizes a flexible room within a 400-token budget", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-room-plan-budgeted-"));
   const outDir = join(workDir, "out");
   const budgetPath = join(workDir, "budget.json");
@@ -292,11 +290,8 @@ test("cli room-plan maximizes a flexible room within a 400-token budget", () => 
   assert.equal(room.roomSize, "large");
   assert.deepEqual(listAffinityTuples(room), [], "rooms carry no affinities");
 
-  runEsm(`
-import assert from "node:assert/strict";
-import { calculateRoomCardUnitCost } from ${JSON.stringify(spendProposalUrl)};
+  const { calculateRoomCardUnitCost } = await import("../../packages/runtime/src/personas/configurator/spend-proposal.js");
 
-const room = ${JSON.stringify(room)};
 const mediumCost = calculateRoomCardUnitCost({
   card: { ...room, roomSize: "medium" },
   priceList: { items: [] },
@@ -308,5 +303,4 @@ const largeCost = calculateRoomCardUnitCost({
 
 assert.ok(largeCost <= 400);
 assert.ok(largeCost >= mediumCost);
-`);
 });

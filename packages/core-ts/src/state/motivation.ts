@@ -1,5 +1,5 @@
 // Motivation codebook — deterministic constants and lookup helpers.
-// Ported from packages/core-as/assembly/state/motivation.ts.
+// Ported from packages/core-ts/src/state/motivation.ts.
 // No IO, no imports outside core-ts. All codes are number-safe.
 
 // ── Motivation Kind (1-based, matching runtime MOTIVATION_KINDS order) ──

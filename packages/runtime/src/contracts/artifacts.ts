@@ -3,7 +3,7 @@
  * -------------------------------------
  * This module defines the stable, versioned artifacts used to hand off work between
  * personas (Orchestrator, Director, Configurator, Allocator, Actor, Moderator, Annotator) and
- * the simulation core (`core-as` via bindings).
+ * the simulation core (`core-ts` via bindings).
  *
  * Design goals:
  * - Explicit, serializable artifacts (easy to log, replay, compare).
@@ -12,7 +12,7 @@
  *
  * IMPORTANT:
  * - These types describe *data*, not behavior.
- * - `core-as` consumes configuration/state/action inputs and emits events/effects/snapshots.
+ * - `core-ts` consumes configuration/state/action inputs and emits events/effects/snapshots.
  * - Personas operate in `runtime` and communicate using these artifacts.
  */
 
@@ -462,7 +462,7 @@ export const INTENT_ENVELOPE_SCHEMA = "agent-kernel/IntentEnvelope";
 
 /**
  * Normalized request envelope created at the boundary (UI/CLI/API/automation).
- * This is a runtime artifact only; `core-as` never consumes it directly.
+ * This is a runtime artifact only; `core-ts` never consumes it directly.
  */
 export interface IntentEnvelopeV1 {
   schema: typeof INTENT_ENVELOPE_SCHEMA;
@@ -623,7 +623,7 @@ export interface BudgetReceiptV1 {
   /** Decision outcome. */
   decision: "approved" | "rejected" | "approved_with_constraints";
 
-  /** Effective caps/limits to be enforced downstream (policy-free enforcement happens in `core-as`). */
+  /** Effective caps/limits to be enforced downstream (policy-free enforcement happens in `core-ts`). */
   effectiveCaps: BudgetCategoryCaps;
 
   /**
@@ -842,7 +842,7 @@ export interface PriceListArtifactV1 {
 export type PriceListArtifact = PriceListArtifactV1;
 
 // -------------------------
-// Configurator → core-as inputs (via bindings)
+// Configurator → core-ts inputs (via bindings)
 // -------------------------
 
 export const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
@@ -875,7 +875,7 @@ export interface ExecutionPolicyV1 {
 
 /**
  * Executable simulation configuration. Immutable once execution begins.
- * This is consumed by the runtime runner and supplied to `core-as` at initialization.
+ * This is consumed by the runtime runner and supplied to `core-ts` at initialization.
  */
 export interface SimConfigArtifactV1 {
   schema: typeof SIM_CONFIG_SCHEMA;
@@ -951,7 +951,7 @@ export interface InitialStateArtifactV1 {
 
   /**
    * Actor instantiation data. Keep it minimal and serializable.
-   * `core-as` will validate legality and enforce semantics.
+   * `core-ts` will validate legality and enforce semantics.
    */
   actors: Array<{
     id: string;
@@ -970,7 +970,7 @@ export interface InitialStateArtifactV1 {
       stamina: VitalRecordV1;
       durability: VitalRecordV1;
     };
-    /** Optional capability parameters for core-as (movement/action costs). */
+    /** Optional capability parameters for core-ts (movement/action costs). */
     capabilities?: CapabilityRecordV1;
   }>;
 }
@@ -1127,7 +1127,7 @@ export interface AffinitySummaryV1 {
 export type AffinitySummary = AffinitySummaryV1;
 
 // -------------------------
-// Core Actor State (core-as)
+// Core Actor State (core-ts)
 // -------------------------
 
 export const ACTOR_STATE_SCHEMA = "agent-kernel/ActorState";
@@ -1219,7 +1219,7 @@ export type SolverRequest = SolverRequestV1;
 export type SolverResult = SolverResultV1;
 
 // -------------------------
-// Runtime ↔ core-as execution contracts
+// Runtime ↔ core-ts execution contracts
 // -------------------------
 
 export const ACTION_SCHEMA = "agent-kernel/Action";
@@ -1245,7 +1245,7 @@ export interface EffectFulfillmentRecordV1 {
 
 /**
  * An action chosen by an Actor policy (human/script/heuristic/AI).
- * Supplied to `core-as` which decides legality and outcomes.
+ * Supplied to `core-ts` which decides legality and outcomes.
  *
  * Schema stability rules:
  * - Additive fields must be optional and backward compatible.
@@ -1281,7 +1281,7 @@ export interface ActionV1 {
     | "custom";
 
   /**
-   * Action parameters. Keep this minimal; core-as should validate and interpret.
+   * Action parameters. Keep this minimal; core-ts should validate and interpret.
    * Use primitive JSON values where possible for portability.
    */
   params?: Record<string, unknown>;
@@ -1289,7 +1289,7 @@ export interface ActionV1 {
 
 /**
  * Observation derived from simulation state for a specific actor.
- * Produced by `core-as` (or by runtime via core APIs), consumed by Actor policies.
+ * Produced by `core-ts` (or by runtime via core APIs), consumed by Actor policies.
  *
  * Schema stability rules:
  * - Additive fields must be optional and backward compatible.
@@ -1311,7 +1311,7 @@ export interface ObservationV1 {
 }
 
 /**
- * Facts emitted by `core-as` after applying actions (or advancing ticks).
+ * Facts emitted by `core-ts` after applying actions (or advancing ticks).
  * Annotator consumes these as read-only inputs.
  *
  * Schema stability rules:
@@ -1350,8 +1350,8 @@ export interface EventV1 {
 }
 
 /**
- * Effects/requests emitted by `core-as` when interaction beyond pure simulation is required.
- * These are fulfilled by runtime/adapters; core-as never performs IO.
+ * Effects/requests emitted by `core-ts` when interaction beyond pure simulation is required.
+ * These are fulfilled by runtime/adapters; core-ts never performs IO.
  *
  * Schema stability rules:
  * - Additive fields must be optional and backward compatible.
@@ -1486,14 +1486,14 @@ export interface TickFrameV1 {
   phaseDetail?: string;
 
   /**
-   * Actions accepted for this tick in the exact order they were submitted to `core-as`.
+   * Actions accepted for this tick in the exact order they were submitted to `core-ts`.
    * These should already have `tick` set to this frame's tick.
    */
   acceptedActions: ActionV1[];
 
   /**
-   * Actions rejected or deferred before reaching `core-as` (procedural reasons only).
-   * Legality rejections belong to `core-as` and appear as events.
+   * Actions rejected or deferred before reaching `core-ts` (procedural reasons only).
+   * Legality rejections belong to `core-ts` and appear as events.
    */
   preCoreRejections?: Array<{
     action: ActionV1;
@@ -1503,7 +1503,7 @@ export interface TickFrameV1 {
 
   /**
    * Optional authoritative outputs captured for convenience.
-   * These are facts emitted by `core-as` and may also be recorded elsewhere.
+   * These are facts emitted by `core-ts` and may also be recorded elsewhere.
    */
   emittedEvents?: EventV1[];
   emittedEffects?: EffectV1[];

@@ -1,4 +1,4 @@
-import { applyMoveAction, packMoveAction, renderFrameBuffer, readObservation } from "../../bindings-ts/src/mvp-movement.js";
+import { applyMoveAction, packMoveAction, renderFrameBuffer, readObservation } from "../../core-ts/src/index.ts";
 import {
   AFFINITY_KINDS,
   DARKNESS_OBSCURE_RADIUS,

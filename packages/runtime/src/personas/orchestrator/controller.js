@@ -1,5 +1,5 @@
 import { createOrchestratorStateMachine, OrchestratorStates } from "./state-machine.js";
-import { TickPhases } from "../_shared/tick-state-machine.js";
+import { TickPhases } from "../_shared/tick-state-machine.mts";
 
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 

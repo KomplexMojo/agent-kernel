@@ -1,17 +1,16 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const spendModulePath = moduleUrl("packages/runtime/src/personas/allocator/selection-spend.js");
-const mapperModulePath = moduleUrl("packages/runtime/src/personas/director/pool-mapper.js");
 
 const catalogPath = resolve(__dirname, "../fixtures/pool/catalog-basic.json");
 const catalogFixture = JSON.parse(readFileSync(catalogPath, "utf8"));
 
-const trimScript = `
-import assert from "node:assert/strict";
-import { evaluateSelectionSpend } from ${JSON.stringify(spendModulePath)};
-import { mapSummaryToPool } from ${JSON.stringify(mapperModulePath)};
+
+
+test("allocator selection spend trims over-budget selections deterministically", async () => {
+const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
 
 const summary = {
   dungeonAffinity: "fire",
@@ -19,7 +18,7 @@ const summary = {
   actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
 };
 
-const mapped = mapSummaryToPool({ summary, catalog: ${JSON.stringify(catalogFixture)} });
+const mapped = mapSummaryToPool({ summary, catalog: catalogFixture });
 const result = evaluateSelectionSpend({ selections: mapped.selections, budgetTokens: 250 });
 
 assert.equal(result.spentTokens, 200);
@@ -27,12 +26,11 @@ assert.equal(result.remainingBudgetTokens, 50);
 assert.equal(result.approvedSelections.length, 1);
 assert.equal(result.rejectedSelections.length, 1);
 assert.ok(result.warnings?.some((entry) => entry.code === "trimmed"));
-`;
+});
 
-const approveScript = `
-import assert from "node:assert/strict";
-import { evaluateSelectionSpend } from ${JSON.stringify(spendModulePath)};
-import { mapSummaryToPool } from ${JSON.stringify(mapperModulePath)};
+test("allocator selection spend approves selections when budget allows", async () => {
+const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
 
 const summary = {
   dungeonAffinity: "fire",
@@ -40,27 +38,19 @@ const summary = {
   actors: [{ motivation: "patrolling", affinity: "wind", count: 1 }],
 };
 
-const mapped = mapSummaryToPool({ summary, catalog: ${JSON.stringify(catalogFixture)} });
+const mapped = mapSummaryToPool({ summary, catalog: catalogFixture });
 const result = evaluateSelectionSpend({ selections: mapped.selections, budgetTokens: 400 });
 
 assert.equal(result.spentTokens, 280);
 assert.equal(result.remainingBudgetTokens, 120);
 assert.equal(result.approvedSelections.length, 2);
 assert.equal(result.rejectedSelections.length, 0);
-`;
-
-test("allocator selection spend trims over-budget selections deterministically", () => {
-  runEsm(trimScript);
 });
 
-test("allocator selection spend approves selections when budget allows", () => {
-  runEsm(approveScript);
-});
 
-const actorConfigCostScript = `
-import assert from "node:assert/strict";
-import { evaluateSelectionSpend } from ${JSON.stringify(spendModulePath)};
-import { mapSummaryToPool } from ${JSON.stringify(mapperModulePath)};
+test("allocator selection spend includes actor configuration costs", async () => {
+const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
 
 const summary = {
   dungeonAffinity: "fire",
@@ -77,7 +67,7 @@ const summary = {
   }],
 };
 
-const mapped = mapSummaryToPool({ summary, catalog: ${JSON.stringify(catalogFixture)} });
+const mapped = mapSummaryToPool({ summary, catalog: catalogFixture });
 const result = evaluateSelectionSpend({ selections: mapped.selections, budgetTokens: 100 });
 
 assert.equal(result.approvedSelections.length, 0);
@@ -91,8 +81,4 @@ assert.equal(result.decisions[0].baseUnitCost, 80);
 // total config: 41
 assert.equal(result.decisions[0].configUnitCost, 41);
 assert.equal(result.decisions[0].unitCost, 121);
-`;
-
-test("allocator selection spend includes actor configuration costs", () => {
-  runEsm(actorConfigCostScript);
 });

@@ -66,11 +66,8 @@ function detectRecipe(relativePath, content) {
   if (relativePath.includes("serve-ui")) {
     return "serve_ui_redirect_health";
   }
-  if (relativePath.startsWith("tests/core-as/") || content.includes("loadCoreFromWasmPath")) {
-    return "wasm_effect_contract";
-  }
-  if (relativePath.startsWith("tests/bindings/") || relativePath === "tests/wasm-presence.test.js") {
-    return "wasm_effect_contract";
+  if (relativePath.startsWith("tests/bindings/")) {
+    return "runtime_module_contract";
   }
   if (relativePath.startsWith("tests/personas/")) {
     return "runtime_persona_transition";
@@ -80,9 +77,6 @@ function detectRecipe(relativePath, content) {
   }
   if (relativePath.startsWith("tests/allocator/") || relativePath.startsWith("tests/financial-model/")) {
     return "budget_policy_invariant";
-  }
-  if (relativePath.startsWith("tests/perf/")) {
-    return "perf_harness_smoke";
   }
   if (content.includes("manifest.json") && content.includes("bundle.json")) {
     return "manifest_bundle_consistency";

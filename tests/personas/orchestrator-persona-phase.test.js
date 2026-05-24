@@ -1,17 +1,17 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/orchestrator/controller.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/orchestrator-phases-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/orchestrator-phases-guards.json"), "utf8"));
 
-const happyScript = `
-import assert from "node:assert/strict";
-import { createOrchestratorPersona, orchestratorSubscribePhases } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts"))};
 
-const fixture = ${JSON.stringify(happyFixture)};
+
+test("orchestrator persona handles phase-driven cases", async () => {
+const { createOrchestratorPersona, orchestratorSubscribePhases } = await import("../../packages/runtime/src/personas/orchestrator/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
+const fixture = happyFixture;
 const persona = createOrchestratorPersona({ clock: () => "fixed" });
 assert.deepEqual(orchestratorSubscribePhases, [TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 
@@ -27,13 +27,12 @@ fixture.cases.forEach((entry) => {
     assert.equal(result.context.planRef, entry.expectPlanRef);
   }
 });
-`;
+});
 
-const guardScript = `
-import assert from "node:assert/strict";
-import { createOrchestratorPersona } from ${JSON.stringify(personaModule)};
+test("orchestrator persona enforces guard/invalid events", async () => {
+const { createOrchestratorPersona } = await import("../../packages/runtime/src/personas/orchestrator/controller.mts");
 
-const fixture = ${JSON.stringify(guardFixture)};
+const fixture = guardFixture;
 const persona = createOrchestratorPersona({ initialState: fixture.initialState || undefined, clock: () => "fixed" });
 
 fixture.cases.forEach((entry) => {
@@ -52,12 +51,4 @@ fixture.cases.forEach((entry) => {
     assert.equal(result.state, before.state);
   }
 });
-`;
-
-test("orchestrator persona handles phase-driven cases", () => {
-  runEsm(happyScript);
-});
-
-test("orchestrator persona enforces guard/invalid events", () => {
-  runEsm(guardScript);
 });

@@ -1,11 +1,10 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/director/controller.mts");
 
-const script = `
-import assert from "node:assert/strict";
-import { createDirectorPersona } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts"))};
+
+test("director persona emits solver_request effect when provided", async () => {
+const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const persona = createDirectorPersona({ clock: () => "fixed" });
 const payload = {
@@ -20,8 +19,4 @@ assert.equal(result.effects.length, 1);
 assert.equal(result.effects[0].kind, "solver_request");
 assert.equal(result.effects[0].request.id, "solver_req");
 assert.equal(result.context.lastSolverRequest.id, "solver_req");
-`;
-
-test("director persona emits solver_request effect when provided", () => {
-  runEsm(script);
 });

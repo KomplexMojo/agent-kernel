@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 test("trap vitals enrichment preserves layout vitals in observations", () => {
   // This test verifies the logic in resolveObservation that enriches traps from layout data
 
-  // Mock observation from WASM core (only has manaReserve, not full vitals)
+  // Mock observation from core-ts core (only has manaReserve, not full vitals)
   const observationFromCore = {
     actors: [],
     traps: [

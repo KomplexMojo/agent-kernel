@@ -6,7 +6,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 const INVALID_SIM_CONFIG = resolve(
   ROOT,
   "tests/fixtures/artifacts/invalid/sim-config-artifact-v2.json",
@@ -153,10 +152,6 @@ test("cli llm rejects missing args", () => {
 });
 
 test("cli run rejects schema mismatch", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const tempDir = createTempDir("agent-kernel-cli-error-");
   const initialStatePath = join(tempDir, "initial-state.json");
   writeJson(initialStatePath, {
@@ -181,69 +176,41 @@ test("cli run rejects schema mismatch", (t) => {
     "--sim-config",
     INVALID_SIM_CONFIG,
     "--initial-state",
-    initialStatePath,
-    "--wasm",
-    WASM_PATH,
-  ]);
+    initialStatePath,  ]);
   assert.match(result.stderr, /Expected schema/);
 });
 
 test("cli run rejects initial state schema mismatch", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const result = runCliExpectFailure([
     "run",
     "--sim-config",
     INVALID_SIM_CONFIG,
     "--initial-state",
-    INVALID_INITIAL_STATE,
-    "--wasm",
-    WASM_PATH,
-  ]);
+    INVALID_INITIAL_STATE,  ]);
   assert.match(result.stderr, /Expected schemaVersion 1/);
 });
 
 test("cli run rejects sim config missing schemaVersion", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const result = runCliExpectFailure([
     "run",
     "--sim-config",
     INVALID_SIM_CONFIG_MISSING_VERSION,
     "--initial-state",
-    resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json"),
-    "--wasm",
-    WASM_PATH,
-  ]);
+    resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json"),  ]);
   assert.match(result.stderr, /Expected schemaVersion 1/);
 });
 
 test("cli run rejects initial state schema kind mismatch", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const result = runCliExpectFailure([
     "run",
     "--sim-config",
     resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-basic.json"),
     "--initial-state",
-    INVALID_INITIAL_STATE_MISMATCHED_SCHEMA,
-    "--wasm",
-    WASM_PATH,
-  ]);
+    INVALID_INITIAL_STATE_MISMATCHED_SCHEMA,  ]);
   assert.match(result.stderr, /Expected schema/);
 });
 
 test("cli run rejects out-of-bounds tile overrides", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const tempDir = createTempDir("agent-kernel-cli-override-");
   const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
@@ -253,20 +220,13 @@ test("cli run rejects out-of-bounds tile overrides", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",
-    "--wasm",
-    WASM_PATH,
-    "--tile-wall",
+    "0",    "--tile-wall",
     "5,5",
   ]);
   assert.match(result.stderr, /tile override out of bounds/);
 });
 
 test("cli run rejects malformed vital specs", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const tempDir = createTempDir("agent-kernel-cli-override-");
   const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
@@ -276,20 +236,13 @@ test("cli run rejects malformed vital specs", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",
-    "--wasm",
-    WASM_PATH,
-    "--vital",
+    "0",    "--vital",
     "actor_1,health,1,2",
   ]);
   assert.match(result.stderr, /--vital expects actorId,vital,current,max,regen/);
 });
 
 test("cli run rejects invalid actor kind", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const tempDir = createTempDir("agent-kernel-cli-override-");
   const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
@@ -299,10 +252,7 @@ test("cli run rejects invalid actor kind", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",
-    "--wasm",
-    WASM_PATH,
-    "--actor",
+    "0",    "--actor",
     "actor_x,0,0,unknown",
   ]);
   assert.match(result.stderr, /--actor kind/);

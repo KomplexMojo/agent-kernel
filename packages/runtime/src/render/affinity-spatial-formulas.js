@@ -1,9 +1,9 @@
 /**
  * Affinity Spatial Formulas — pure parametric functions.
  *
- * @deprecated These JS formulas are superseded by core-as WASM spatial
- * computation (AK-AFF-M2, AK-AFF-M3). Use bindings-ts readAffinityFieldAt
- * or the WASM exports (computeAffinityRadius, computeAffinityIntensity,
+ * @deprecated These JS formulas are superseded by core-ts core-ts spatial
+ * computation (AK-AFF-M2, AK-AFF-M3). Use core-ts readAffinityFieldAt
+ * or the core-ts exports (computeAffinityRadius, computeAffinityIntensity,
  * computeAffinityPotency, computeAffinityManaCost) for new code.
  * This module is retained for backward compatibility only.
  *

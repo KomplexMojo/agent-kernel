@@ -6,7 +6,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 function runCli(args, options = {}) {
   const result = spawnSync(process.execPath, [CLI, ...args], {
@@ -102,10 +101,6 @@ test("cli solve writes solver artifacts", () => {
 });
 
 test("cli run writes tick frames and logs", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = makeTempDir("agent-kernel-run-");
   const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
   const outDir = join(workDir, "out");
@@ -117,10 +112,7 @@ test("cli run writes tick frames and logs", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "1",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "1",    "--out-dir",
     outDir,
   ]);
 
@@ -142,10 +134,6 @@ test("cli run writes tick frames and logs", (t) => {
 });
 
 test("cli run --progress emits JSON lines to stderr without polluting stdout", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = makeTempDir("agent-kernel-run-progress-");
   const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
   const outDir = join(workDir, "out");
@@ -158,10 +146,7 @@ test("cli run --progress emits JSON lines to stderr without polluting stdout", (
     initialStatePath,
     "--ticks",
     "2",
-    "--progress",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "--progress",    "--out-dir",
     outDir,
   ]);
 
@@ -188,10 +173,6 @@ test("cli run --progress emits JSON lines to stderr without polluting stdout", (
 });
 
 test("cli run resolves sim artifacts from --from-run", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workspaceDir = makeTempDir("agent-kernel-run-from-run-");
   const sourceRunId = "run_source_fixture";
   const sourceDir = join(workspaceDir, "artifacts", "runs", sourceRunId, "build");
@@ -206,10 +187,7 @@ test("cli run resolves sim artifacts from --from-run", (t) => {
       "--from-run",
       sourceRunId,
       "--ticks",
-      "1",
-      "--wasm",
-      WASM_PATH,
-      "--run-id",
+      "1",      "--run-id",
       "run_from_source",
       "--out-dir",
       outDir,
@@ -253,10 +231,6 @@ test("cli run dry-run validates sim artifacts without executing runtime outputs"
 });
 
 test("cli replay writes replay summary", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = makeTempDir("agent-kernel-replay-");
   const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
   const runOutDir = join(workDir, "run-out");
@@ -268,10 +242,7 @@ test("cli replay writes replay summary", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "1",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "1",    "--out-dir",
     runOutDir,
   ]);
 
@@ -285,10 +256,7 @@ test("cli replay writes replay summary", (t) => {
     "--initial-state",
     initialStatePath,
     "--tick-frames",
-    tickFramesPath,
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    tickFramesPath,    "--out-dir",
     replayOutDir,
   ]);
 
@@ -304,10 +272,6 @@ test("cli replay writes replay summary", (t) => {
 });
 
 test("cli inspect writes summary", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = makeTempDir("agent-kernel-inspect-");
   const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
   const runOutDir = join(workDir, "run-out");
@@ -319,10 +283,7 @@ test("cli inspect writes summary", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "1",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "1",    "--out-dir",
     runOutDir,
   ]);
 

@@ -1,17 +1,17 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/annotator/controller.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/annotator-phases-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/annotator-phases-guards.json"), "utf8"));
 
-const happyScript = `
-import assert from "node:assert/strict";
-import { createAnnotatorPersona, annotatorSubscribePhases } from ${JSON.stringify(personaModule)};
-import { TickPhases } from ${JSON.stringify(moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts"))};
 
-const fixture = ${JSON.stringify(happyFixture)};
+
+test("annotator persona handles phase-driven cases", async () => {
+const { createAnnotatorPersona, annotatorSubscribePhases } = await import("../../packages/runtime/src/personas/annotator/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
+const fixture = happyFixture;
 const persona = createAnnotatorPersona({ clock: () => "fixed" });
 assert.deepEqual(annotatorSubscribePhases, [TickPhases.EMIT, TickPhases.SUMMARIZE]);
 
@@ -27,13 +27,12 @@ fixture.cases.forEach((entry) => {
     assert.equal(result.context.lastObservationCount, entry.expectObservationCount);
   }
 });
-`;
+});
 
-const guardScript = `
-import assert from "node:assert/strict";
-import { createAnnotatorPersona } from ${JSON.stringify(personaModule)};
+test("annotator persona enforces guard/invalid events", async () => {
+const { createAnnotatorPersona } = await import("../../packages/runtime/src/personas/annotator/controller.mts");
 
-const fixture = ${JSON.stringify(guardFixture)};
+const fixture = guardFixture;
 const persona = createAnnotatorPersona({ initialState: fixture.initialState || undefined, clock: () => "fixed" });
 
 fixture.cases.forEach((entry) => {
@@ -52,12 +51,4 @@ fixture.cases.forEach((entry) => {
     assert.equal(result.state, before.state);
   }
 });
-`;
-
-test("annotator persona handles phase-driven cases", () => {
-  runEsm(happyScript);
-});
-
-test("annotator persona enforces guard/invalid events", () => {
-  runEsm(guardScript);
 });

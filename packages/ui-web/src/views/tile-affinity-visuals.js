@@ -5,7 +5,7 @@
  * hazard affinity fields or precomputed core field records.
  * No Phaser dependency — returns a plain Map consumed by the gameplay renderer.
  *
- * When fieldRecords are provided (from WASM core), visuals are derived
+ * When fieldRecords are provided by core field computation, visuals are derived
  * directly from precomputed data — no JS-side spread computation.
  * When fieldRecords are absent, falls back to hazard-based JS spread.
  */
@@ -43,7 +43,7 @@ function resolveOverlayAssetId(kind, resourceBundle) {
     : null;
 }
 
-// ── Field-record path (WASM core data) ──
+// Field-record path.
 
 /**
  * Derive tile visuals from precomputed core field records.
@@ -117,13 +117,13 @@ function deriveFromFieldRecords(fieldRecords, resourceBundle) {
  * @param {object} params
  * @param {string[]} params.tiles       - Row strings like ["XXXXX", "X...X", ...]
  * @param {object[]} params.hazards     - Hazard objects with position, emitStrength, affinityStacks
- * @param {object[]} [params.fieldRecords] - Precomputed core field records (from WASM).
+ * @param {object[]} [params.fieldRecords] - Precomputed core field records.
  *        When present, bypasses JS spread and uses field data directly.
  * @param {object}   params.resourceBundle - Resource bundle with .mappings.overlays
  * @returns {Map<string, object>}
  */
 export function deriveTileAffinityVisuals({ tiles, hazards, fieldRecords, resourceBundle } = {}) {
-  // When field records are provided, derive from precomputed WASM data
+  // When field records are provided, derive from precomputed core data.
   if (Array.isArray(fieldRecords) && fieldRecords.length > 0) {
     return deriveFromFieldRecords(fieldRecords, resourceBundle);
   }

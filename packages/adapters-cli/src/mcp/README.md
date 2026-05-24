@@ -216,11 +216,11 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 | ak_warden_plan | Authoring | Build a warden-only authoring plan. | warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_build | Simulation | Build artifacts from a build spec. | spec |
 | ak_solve | Simulation | Solve a scenario into runnable artifacts. | scenario, plan, intent, options |
-| ak_run | Simulation | Run a simulation from artifacts or from an existing run. | simConfig, initialState, fromRun, executionPolicy, ticks, seed, wasm, actor[], vital[], vitalDefault[], tileWall[], tileBarrier[], tileFloor[], actions, affinityPresets, affinityLoadouts, affinitySummary, progress, dryRun |
+| ak_run | Simulation | Run a simulation from artifacts or from an existing run. | simConfig, initialState, fromRun, executionPolicy, ticks, seed, actor[], vital[], vitalDefault[], tileWall[], tileBarrier[], tileFloor[], actions, affinityPresets, affinityLoadouts, affinitySummary, progress, dryRun |
 | ak_configurator | Simulation | Assemble simulation config and initial state inputs. | levelGen, actors, plan, budgetReceipt, budget, priceList, receiptOut, affinityPresets, affinityLoadouts |
 | ak_budget | Simulation | Compute a budget receipt from budget and price list artifacts. | budget, priceList, receipt, receiptOut |
-| ak_replay | Simulation | Replay a run deterministically from recorded tick frames. | simConfig, initialState, tickFrames, executionPolicy, ticks, seed, wasm |
-| ak_scenario | Simulation | Run llm-plan plus run plus inspect as a single scenario pipeline. | text, fromRun, catalog, model, goal, budgetTokens, baseUrl, fixture, budgetLoop, budgetPool[], budgetReserve, ticks, seed, wasm, dryRun |
+| ak_replay | Simulation | Replay a run deterministically from recorded tick frames. | simConfig, initialState, tickFrames, executionPolicy, ticks, seed |
+| ak_scenario | Simulation | Run llm-plan plus run plus inspect as a single scenario pipeline. | text, fromRun, catalog, model, goal, budgetTokens, baseUrl, fixture, budgetLoop, budgetPool[], budgetReserve, ticks, seed, dryRun |
 | ak_schemas | Inspection | List the schema catalog used by the runtime. | outDir |
 | ak_inspect | Inspection | Inspect recorded tick frames and summarize effects. | tickFrames, effectsLog |
 | ak_narrate | Inspection | Generate a narrative artifact from frames and initial state. | tickFrames, initialState |
@@ -589,7 +589,6 @@ Schema:
 | executionPolicy | string | no | Execution policy artifact path |
 | ticks | integer | no | Minimum 1 |
 | seed | integer | no | Minimum 0 |
-| wasm | string | no | WASM binary path |
 | actor | string[] | no | Actor override specs |
 | vital | string[] | no | Vital override specs |
 | vitalDefault | string[] | no | Default vital specs |
@@ -731,7 +730,6 @@ Schema:
 | executionPolicy | string | no |
 | ticks | integer | no |
 | seed | integer | no |
-| wasm | string | no |
 | outDir | string | no |
 
 Example call:
@@ -778,7 +776,6 @@ Schema:
 | budgetReserve | integer | no | Minimum 0 |
 | ticks | integer | no | Minimum 1 |
 | seed | integer | no | Minimum 0 |
-| wasm | string | no | WASM binary path |
 | dryRun | boolean | no | Validate only |
 | outDir | string | no | Output directory override |
 | runId | string | no | Run id override |
@@ -1448,7 +1445,6 @@ Important nuances:
 | LLM model | phi4 | packages/runtime/src/contracts/domain-constants.js |
 | LLM base URL | http://localhost:11434 | packages/runtime/src/contracts/domain-constants.js |
 | IPFS gateway | https://ipfs.io/ipfs | packages/adapters-cli/src/mcp/tools/shared.mjs |
-| WASM path | build/core-as.wasm | CLI default |
 | Default output root | artifacts/runs/<runId>/<command> | CLI default |
 
 ### Environment overrides
@@ -1478,4 +1474,4 @@ Harness-specific snippets live in `~/.agents/skills/agent-kernel/`, especially `
 
 ## Architecture Note
 
-This MCP server lives in the adapters layer. It exposes the CLI command surface over stdio and delegates into the existing command/runtime entrypoints; it does not introduce a new runtime path and it does not talk directly to `core-as`. In the Ports & Adapters stack, it is an adapter-facing transport wrapper around CLI operations, with runtime and WASM access remaining behind the existing command boundary.
+This MCP server lives in the adapters layer. It exposes the CLI command surface over stdio and delegates into the existing command/runtime entrypoints; it does not introduce a new runtime path and it does not talk directly to `core-ts`. In the Ports & Adapters stack, it is an adapter-facing transport wrapper around CLI operations, with runtime remaining behind the existing command boundary.

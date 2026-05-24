@@ -1,15 +1,14 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const llmTraceModulePath = moduleUrl("packages/runtime/src/personas/annotator/llm-trace.js");
 
-const script = `
-import assert from "node:assert/strict";
-import {
+
+test("annotator llm trace helper summarizes orchestrator captures", async () => {
+const {
   isLlmCaptureArtifact,
   buildLlmTraceTurns,
   summarizeLlmTrace,
   buildLlmTraceTelemetryRecord,
-} from ${JSON.stringify(llmTraceModulePath)};
+} = await import("../../packages/runtime/src/personas/annotator/llm-trace.js");
 
 const llmCaptureB = {
   schema: "agent-kernel/CapturedInputArtifact",
@@ -31,7 +30,7 @@ const llmCaptureB = {
   contentType: "application/json",
   payload: {
     prompt: "phase layout",
-    responseRaw: "{\\"layout\\":{\\"floorTiles\\":12,\\"hallwayTiles\\":0}}",
+    responseRaw: "{\"layout\":{\"floorTiles\":12,\"hallwayTiles\":0}}",
     phase: "layout_only",
     phaseTiming: {
       durationMs: 100,
@@ -59,7 +58,7 @@ const llmCaptureA = {
   contentType: "application/json",
   payload: {
     prompt: "phase actors",
-    responseRaw: "{\\"actors\\":[]}",
+    responseRaw: "{\"actors\":[]}",
     responseParsed: { actors: [] },
     phase: "actors_only",
     phaseTiming: {
@@ -122,8 +121,4 @@ assert.equal(telemetry.data.summary.turnCount, 2);
 assert.equal(telemetry.data.turns.length, 2);
 assert.equal(telemetry.data.turns[0].id, "capture_b");
 assert.equal(telemetry.data.turns[1].id, "capture_a");
-`;
-
-test("annotator llm trace helper summarizes orchestrator captures", () => {
-  runEsm(script);
 });

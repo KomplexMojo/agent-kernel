@@ -1,7 +1,8 @@
-// Motivation code maps and reader helpers for bindings-ts.
-// Thin wrappers only — no recomputation. All values come from WASM.
+// @ts-nocheck
+// Motivation code maps and reader helpers for core-ts.
+// Thin wrappers only; no recomputation. Values come from the core API.
 
-// ── Code maps: WASM i32 codes → human-readable names ──
+// Code maps: core numeric codes -> human-readable names.
 
 export const MOTIVATION_KIND_BY_CODE = Object.freeze({
   1: "random",
@@ -63,10 +64,10 @@ export const MOTIVATION_FLAG_NAMES = Object.freeze({
   8: "aggroRangeBoost",
 });
 
-// ── Readers: extract structured JS objects from WASM last-result getters ──
+// Readers: extract structured JS objects from core last-result getters.
 
 /**
- * Read the motivation cost accumulator state from WASM.
+ * Read the motivation cost accumulator state from core state.
  * Call after resetMotivationCostAccumulator + addMotivationCostEntry calls.
  * Returns { total, lines[] } where each line has kind, kindName, family,
  * familyName, quantity, unitCost, spend.
@@ -92,7 +93,7 @@ export function readMotivationCost(core) {
 }
 
 /**
- * Read the motivation evaluation result from WASM.
+ * Read the motivation evaluation result from core state.
  * Call after resetMotivationEvaluation + addMotivationEvaluationEntry +
  * evaluateMotivations.
  * Returns { flags, flagNames[], mobility, combat, cognition, reasoningClass,

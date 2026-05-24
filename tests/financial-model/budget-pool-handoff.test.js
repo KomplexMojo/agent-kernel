@@ -1,13 +1,9 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const buildspecAssemblerUrl = moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js");
-const budgetAllocUrl = moduleUrl("packages/runtime/src/personas/director/budget-allocation.js");
 
-test("UI budgetSplitPercent handoff: poolWeights pass through summary → BuildSpec → allocation", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { buildBuildSpecFromSummary } from ${JSON.stringify(buildspecAssemblerUrl)};
-import { computeBudgetPools } from ${JSON.stringify(budgetAllocUrl)};
+test("UI budgetSplitPercent handoff: poolWeights pass through summary → BuildSpec → allocation", async () => {
+  const { buildBuildSpecFromSummary } = await import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
+const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
 
 // Simulate UI passing custom budget and split percentages
 const summary = {
@@ -54,14 +50,11 @@ assert.equal(poolMap.get("delver"), 120, "15% of 800 = 120");
 assert.equal(poolMap.get("wardens"), 200, "25% of 800 = 200");
 assert.equal(poolMap.get("hazards"), 0, "not specified → 0");
 assert.equal(poolMap.get("resources"), 0, "not specified → 0");
-`);
 });
 
-test("default allocation when poolWeights not provided", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { buildBuildSpecFromSummary } from ${JSON.stringify(buildspecAssemblerUrl)};
-import { computeBudgetPools } from ${JSON.stringify(budgetAllocUrl)};
+test("default allocation when poolWeights not provided", async () => {
+  const { buildBuildSpecFromSummary } = await import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
+const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
 
 const summary = {
   dungeonAffinity: "fire",
@@ -87,5 +80,4 @@ assert.equal(poolMap.get("delver"), 500, "20% of 2500 = 500");
 assert.equal(poolMap.get("wardens"), 400, "16% of 2500 = 400");
 assert.equal(poolMap.get("hazards"), 300, "12% of 2500 = 300");
 assert.equal(poolMap.get("resources"), 200, "8% of 2500 = 200");
-`);
 });

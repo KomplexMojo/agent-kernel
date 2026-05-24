@@ -6,7 +6,7 @@ This adapter:
 - Builds gateway URLs for IPFS CIDs.
 - Fetches text or JSON payloads using `fetch`.
 
-It is intended for use by runtime personas (e.g., Orchestrator) and never called by `core-as`.
+It is intended for use by runtime personas (e.g., Orchestrator) and never called by `core-ts`.
 
 ## Usage
 

@@ -136,7 +136,7 @@ const tickBackwardTool = createHandlerTool({
 const showStateTool = createHandlerTool({
   name: "ak_show_state",
   description:
-    "Return the current dungeon state for the given run at the session cursor tick. Includes an ASCII grid rendered from WASM when the binary is available.",
+    "Return the current dungeon state for the given run at the session cursor tick. Includes an ASCII grid rendered from core-ts when the binary is available.",
   inputSchema: {
     properties: {
       runId: stringSchema("Run ID to show the current state for."),

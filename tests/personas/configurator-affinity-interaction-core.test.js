@@ -1,25 +1,17 @@
-const { existsSync } = require("node:fs");
-const { resolve } = require("node:path");
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const bindingsModule = moduleUrl("packages/bindings-ts/src/index.js");
-const interactionModule = moduleUrl("packages/runtime/src/personas/configurator/affinity-interaction-wasm.js");
-const wasmUrl = moduleUrl("build/core-as.wasm");
-const WASM_PATH = resolve(__dirname, "../../build/core-as.wasm");
 
-const script = `
-import assert from "node:assert/strict";
-import { loadCore } from ${JSON.stringify(bindingsModule)};
-import {
+test("affinity interaction delegation: core-ts resolves interactions, async pressure, and relationships", async () => {
+const { createCore } = await import("../../packages/core-ts/src/index.ts");
+const {
   AFFINITY_KIND_TO_CODE,
   AFFINITY_EXPRESSION_TO_CODE,
   resolveAffinityInteractionFromCore,
   resolveNetPressureFromCore,
   resolveRelationshipFromCore,
-} from ${JSON.stringify(interactionModule)};
+} = await import("../../packages/runtime/src/personas/configurator/affinity-interaction-core.js");
 
-const wasmUrl = new URL(${JSON.stringify(wasmUrl)});
-const core = await loadCore({ wasmUrl });
+const core = createCore();
 core.init(0);
 
 // ── Code map validation ──
@@ -242,20 +234,7 @@ assert.equal(AFFINITY_EXPRESSION_TO_CODE.draw, 4);
   assert.equal(rel, "unknown", "invalid kind → unknown");
 }
 
-console.log("configurator-affinity-interaction-wasm: all assertions passed");
-`;
-
-test("affinity interaction delegation: WASM resolves interactions, pressure, and relationships", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip("WASM not built.");
-    return;
-  }
-  const result = runEsm(script);
-  if (result.status !== 0) {
-    const stderr = result.stderr?.toString() ?? "";
-    const stdout = result.stdout?.toString() ?? "";
-    throw new Error(`ESM script failed (exit ${result.status}):\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`);
-  }
+console.log("configurator-affinity-interaction: all assertions passed");
 });
 
 // ## TODO: Test Permutations

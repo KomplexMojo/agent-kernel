@@ -5,11 +5,11 @@ const { resolve } = require("node:path");
 const ROOT = resolve(__dirname, "../..");
 
 const FILES = [
-  "packages/bindings-ts/src/index.js",
-  "packages/bindings-ts/src/core-as.js",
+  "packages/core-ts/src/index.ts",
+  "packages/core-ts/src/mvp-movement.ts",
 ];
 
-test("bindings entrypoints exist", () => {
+test("core-ts entrypoints exist", () => {
   for (const file of FILES) {
     assert.ok(existsSync(resolve(ROOT, file)), `Missing ${file}`);
   }

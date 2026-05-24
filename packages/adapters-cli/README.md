@@ -2,15 +2,14 @@
 
 `adapters-cli` provides Node-based command-line tools that exercise runtime artifacts and
 support deterministic workflows (solve, run, replay, inspect). These CLIs are **adapters**:
-they do not contain core simulation logic and they do not mutate `core-as` directly.
+they do not contain core simulation logic and they do not mutate `core-ts` state directly.
 
 This package exists to enable automation, debugging, and batch execution outside the UI.
 
 Minimum-install baseline:
 - the default author/build/preview/run workflow is expected to work without live IPFS,
   blockchain, or Ollama services;
-- `pnpm run build:wasm` is required before browser `Preview`/`Run` and CLI `run`/`replay`
-  because it produces `build/core-as.wasm` and copies `packages/ui-web/assets/core-as.wasm`;
+- the TypeScript core is synchronous and does not require a binary build step;
 - adapter demos remain fixture-first so they can be exercised offline.
 
 ---
@@ -23,7 +22,7 @@ CLI adapters:
 - Produce deterministic logs suitable for replay.
 
 They do **not**:
-- Embed simulation rules (those live in `core-as`).
+- Embed simulation rules (those live in `core-ts`).
 - Replace personas (they act as a driver and record artifacts for downstream personas).
 
 ---
@@ -115,7 +114,7 @@ Inputs/outputs:
 - Input: either `--text` + `--catalog`, optional `--model`, `--goal`, `--budget-tokens`,
   `--base-url`, `--fixture`, optional budget-loop flags, `--created-at`; or `--from-run <runId>`
   to reuse prior stage outputs discovered under `artifacts/runs/<runId>/*`. Both modes accept
-  `--ticks`, `--seed`, `--wasm`, optional `--run-id`, and `--out-dir`.
+  `--ticks`, `--seed`, optional `--run-id`, and `--out-dir`.
 - Output dir: `artifacts/runs/<runId>` by default, or `--out-dir` as the pipeline root.
 - Outputs: `llm-plan/spec.json`, `llm-plan/sim-config.json`, `llm-plan/initial-state.json`,
   `run/tick-frames.json`, `run/effects-log.json`, `run/run-summary.json`, and
@@ -202,11 +201,9 @@ Inputs/outputs:
 Agent workflow notes:
 - `spec.authoring.request` is the canonical normalized copy of the freeform request plus parsed object flags.
 - `bundle.json` and `manifest.json` are the handoff point into the UI `Diagnostics -> Preview -> Run` flow.
-- `Preview` can render the generated room image for room-only requests, but only after
-  `pnpm run build:wasm` has produced the browser asset at `packages/ui-web/assets/core-as.wasm`.
+- `Preview` can render generated room images for room-only requests without a binary build step.
 - `Build And Load Game` in the UI remains stricter than plain preview: the authored card set still needs at least 1 room, 1 delver, and 1 warden before `Run` is considered playable.
-- Authoring and bundle review stay available without WASM, but the real browser Preview path loads
-  `packages/ui-web/assets/core-as.wasm`, so `pnpm run build:wasm` is also a Preview prerequisite.
+- Authoring, bundle review, and Preview all use the synchronous TypeScript core path.
 
 ### `room-plan`
 Builds a `BuildSpec` directly from Room authoring flags (no hand-edited JSON required) and
@@ -407,8 +404,6 @@ node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 
 UI-to-CLI parity recipes (Room/Delver/Warden, AD1):
 ```
-# Prereq: build/core-as.wasm exists (run: pnpm run build:wasm)
-
 # 1) Room parity recipe (RP1-RP4): author rooms, costs, then smoke-run with one actor override.
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1;affinities=water:pull:1" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/room/sim-config.json --initial-state artifacts/parity-recipes/room/initial-state.json --actor room_probe,1,1,motivated --ticks 0 --run-id run_room_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room-run
@@ -459,8 +454,7 @@ node packages/adapters-cli/src/cli/ak.mjs create \
 
 What to do next:
 - Load `artifacts/room_preview/bundle.json` and `artifacts/room_preview/manifest.json` into the UI `Diagnostics` surface.
-- Run `pnpm run build:wasm`, then load the bundle in `Preview`; the generated room image renders on
-  the canvas when the layout is valid and `packages/ui-web/assets/core-as.wasm` is present.
+- Load the bundle in `Preview`; the generated room image renders on the canvas when the layout is valid.
 - `Run` is still blocked until the authored bundle includes at least 1 room, 1 delver, and 1 warden.
 
 ### 2) Mixed-object request -> playable bundle -> Preview/Run
@@ -622,7 +616,7 @@ Inspect the emitted artifacts in your chosen `--out-dir` or `artifacts/demo-bund
 
 CLI tools are **adapters** in the Ports & Adapters model:
 
-- They live outside `core-as` and do not depend on browser APIs.
+- They live outside `core-ts` and do not depend on browser APIs.
 - They interact with runtime through ports and artifacts.
 - They can use native Node capabilities (file system, process control) without changing
   determinism, because inputs/outputs are fully captured as artifacts.
@@ -635,9 +629,9 @@ for development and batch workflows.
 ## Relationship to Runtime and Core
 
 ```
-cli -> adapters-cli -> core-as (WASM)
+cli -> adapters-cli -> runtime -> core-ts
 ```
 
-The CLI layer is a **driver**, not a simulator. For the MVP it loads WASM directly and
-implements a minimal runner for deterministic outputs; deeper runtime integration can
-follow once the runtime entrypoints are wired for CLI use.
+The CLI layer is a **driver**, not a simulator. It delegates command policy to the
+shared runtime command kernel and uses the synchronous TypeScript core through runtime
+boundaries.

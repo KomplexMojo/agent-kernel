@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { runEsm } from "../helpers/esm-runner.js";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,14 +11,8 @@ test("budget panels render fixture JSON when in fixture mode", async () => {
   const budget = JSON.parse(await readFile(path.resolve(root, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"), "utf8"));
   const priceList = JSON.parse(await readFile(path.resolve(root, "tests/fixtures/artifacts/price-list-artifact-v1-basic.json"), "utf8"));
   const receipt = JSON.parse(await readFile(path.resolve(root, "tests/fixtures/artifacts/budget-receipt-artifact-v1-basic.json"), "utf8"));
+const { wireBudgetPanels, DEFAULT_BUDGET_FIXTURES } = await import("../../packages/ui-web/src/budget-panels.js");
 
-  const script = `
-import assert from "node:assert/strict";
-import { wireBudgetPanels, DEFAULT_BUDGET_FIXTURES } from ${JSON.stringify(pathToFileURL(path.resolve(root, "packages/ui-web/src/budget-panels.js")).href)};
-
-const budget = ${JSON.stringify(budget)};
-const priceList = ${JSON.stringify(priceList)};
-const receipt = ${JSON.stringify(receipt)};
 
 function makePanel() {
   return { textContent: "" };
@@ -61,15 +54,9 @@ assert.match(panels.configReceipt.textContent, /BudgetReceiptArtifact/);
 assert.match(panels.allocatorBudget.textContent, /BudgetArtifact/);
 assert.match(panels.allocatorPriceList.textContent, /PriceList/);
 assert.match(panels.allocatorReceipt.textContent, /BudgetReceiptArtifact/);
-`;
-
-  runEsm(script);
 });
 
-test("budget panels render live artifact JSON from bundle and build outputs", async () => {
-  const script = `
-import assert from "node:assert/strict";
-import { wireBudgetPanels } from ${JSON.stringify(pathToFileURL(path.resolve(root, "packages/ui-web/src/budget-panels.js")).href)};
+test("budget panels render live artifact JSON from bundle and build outputs", async () => {const { wireBudgetPanels } = await import("../../packages/ui-web/src/budget-panels.js");
 
 function makePanel() {
   return { textContent: "" };
@@ -116,7 +103,4 @@ wiring.setFromArtifacts({
 assert.match(panels.allocatorBudget.textContent, /1200/);
 assert.match(panels.allocatorPriceList.textContent, /baseCost/);
 assert.match(panels.allocatorReceipt.textContent, /850/);
-`;
-
-  runEsm(script);
 });

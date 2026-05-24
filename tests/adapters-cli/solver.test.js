@@ -1,25 +1,18 @@
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
-const { resolve } = require("node:path");
+const { spawnSync } = require("node:child_process");
+const { mkdtempSync } = require("node:fs");
+const { join, resolve } = require("node:path");
+const { tmpdir } = require("node:os");
 
-const cliPath = moduleUrl("packages/adapters-cli/src/cli/ak.mjs");
-const fixturePath = resolve(__dirname, "../fixtures/artifacts/solver-result-v1-basic.json");
-
-const script = `
-import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-
-const cli = ${JSON.stringify(cliPath)};
-const nodePath = process.execPath;
-const outDir = mkdtempSync(join(tmpdir(), "agent-kernel-solve-cli-"));
-
-const result = spawnSync(nodePath, [cli.replace("file://", ""), "solve", "--scenario", "test", "--solver-fixture", ${JSON.stringify(fixturePath)}, "--out-dir", outDir], { encoding: "utf8" });
-if (result.status !== 0) {
-  throw new Error(result.stderr || "solve command failed");
-}
-`;
+const ROOT = resolve(__dirname, "../..");
+const cliPath = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const fixturePath = resolve(ROOT, "tests/fixtures/artifacts/solver-result-v1-basic.json");
 
 test("cli solve supports solver fixture", () => {
-  runEsm(script);
+  const nodePath = process.execPath;
+  const outDir = mkdtempSync(join(tmpdir(), "agent-kernel-solve-cli-"));
+
+  const result = spawnSync(nodePath, [cliPath, "solve", "--scenario", "test", "--solver-fixture", fixturePath, "--out-dir", outDir], { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || "solve command failed");
+  }
 });

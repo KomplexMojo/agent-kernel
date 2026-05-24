@@ -17,7 +17,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
@@ -45,10 +44,6 @@ function makeWorkDir(prefix) {
 }
 
 test("cli verification ring: create -> run -> inspect/narrate/replay", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH} — run 'pnpm run build:wasm' first.`);
-    return;
-  }
 
   const workDir = makeWorkDir("agent-kernel-cli-verify-");
   const createOut = join(workDir, "create");
@@ -83,9 +78,7 @@ test("cli verification ring: create -> run -> inspect/narrate/replay", (t) => {
     "run",
     "--sim-config", simConfig,
     "--initial-state", initialState,
-    "--ticks", "1",
-    "--wasm", WASM_PATH,
-    "--out-dir", runOut,
+    "--ticks", "1",    "--out-dir", runOut,
   ]);
 
   const tickFrames = join(runOut, "tick-frames.json");
@@ -125,9 +118,7 @@ test("cli verification ring: create -> run -> inspect/narrate/replay", (t) => {
     "replay",
     "--sim-config", simConfig,
     "--initial-state", initialState,
-    "--tick-frames", tickFrames,
-    "--wasm", WASM_PATH,
-    "--out-dir", replayOut,
+    "--tick-frames", tickFrames,    "--out-dir", replayOut,
   ]);
   const replaySummary = join(replayOut, "replay-summary.json");
   const replayFrames = join(replayOut, "replay-tick-frames.json");
@@ -136,10 +127,6 @@ test("cli verification ring: create -> run -> inspect/narrate/replay", (t) => {
 });
 
 test("cli verification ring: show resolves a default-path run from artifacts/runs/<id>", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH} — run 'pnpm run build:wasm' first.`);
-    return;
-  }
   const workDir = makeWorkDir("agent-kernel-show-verify-");
 
   // Use the default --out-dir so artifacts land under artifacts/runs/<id>.
@@ -167,10 +154,6 @@ test("cli verification ring: show resolves a default-path run from artifacts/run
 });
 
 test("cli verification ring: --from-run chains create into run when default paths are used", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH} — run 'pnpm run build:wasm' first.`);
-    return;
-  }
   const workDir = makeWorkDir("agent-kernel-from-run-verify-");
 
   runCliOk([
@@ -184,9 +167,7 @@ test("cli verification ring: --from-run chains create into run when default path
 
   runCliOk([
     "run",
-    "--from-run", "ring_from_run",
-    "--wasm", WASM_PATH,
-    "--ticks", "1",
+    "--from-run", "ring_from_run",    "--ticks", "1",
   ], { cwd: workDir });
 
   const tickFrames = join(workDir, "artifacts", "runs", "ring_from_run", "run", "tick-frames.json");
@@ -220,10 +201,6 @@ test("show without --run-id exits non-zero with a stable argument error", () => 
 });
 
 test("cli verification ring: 10-tick full dungeon demo with tick session navigation", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH} — run 'pnpm run build:wasm' first.`);
-    return;
-  }
   const workDir = makeWorkDir("agent-kernel-10tick-demo-");
 
   // Step 1: create — full dungeon with trap, resource, delver, and warden.
@@ -247,9 +224,7 @@ test("cli verification ring: 10-tick full dungeon demo with tick session navigat
   // Step 2: run — execute 10 ticks via --from-run.
   runCliOk([
     "run",
-    "--from-run", "ring_10tick_demo",
-    "--wasm", WASM_PATH,
-    "--ticks", "10",
+    "--from-run", "ring_10tick_demo",    "--ticks", "10",
   ], { cwd: workDir });
 
   const tickFramesPath = join(runDir, "run", "tick-frames.json");

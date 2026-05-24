@@ -1,9 +1,8 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 const { readFixture } = require("../helpers/fixtures");
 
-const ledgerModule = moduleUrl("packages/runtime/src/personas/allocator/budget-ledger.js");
 const allocatorFixtures = resolve(__dirname, "../fixtures/allocator");
 
 function readAllocatorFixture(name) {
@@ -14,18 +13,11 @@ const receipt = readFixture("budget-receipt-artifact-v1-basic.json");
 const ledger = readFixture("budget-ledger-artifact-v1-basic.json");
 const spendEvents = readAllocatorFixture("spend-events-v1-basic.json").events;
 
-const script = `
-import assert from "node:assert/strict";
-import { updateBudgetLedger } from ${JSON.stringify(ledgerModule)};
 
-const receipt = ${JSON.stringify(receipt)};
-const ledger = ${JSON.stringify(ledger)};
-const spendEvents = ${JSON.stringify(spendEvents)};
+test("allocator ledger updates deterministically", async () => {
+const { updateBudgetLedger } = await import("../../packages/runtime/src/personas/allocator/budget-ledger.js");
+
 
 const result = updateBudgetLedger({ receipt, spendEvents, meta: ledger.meta });
 assert.deepEqual(result.ledger, ledger);
-`;
-
-test("allocator ledger updates deterministically", () => {
-  runEsm(script);
 });

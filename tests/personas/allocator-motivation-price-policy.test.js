@@ -1,10 +1,9 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const policyModule = moduleUrl("packages/runtime/src/personas/allocator/motivation-price-policy.js");
 
-const script = `
-import assert from "node:assert/strict";
-import {
+
+test("motivation price policy: canonical costs, async families, and stack pricing", async () => {
+const {
   DEFAULT_MOTIVATION_COSTS,
   MOTIVATION_FAMILIES,
   MOTIVATION_PRICE_IDS,
@@ -12,7 +11,7 @@ import {
   resolveMotivationFamily,
   calculateMotivationStackCost,
   buildMotivationPriceListItems,
-} from ${JSON.stringify(policyModule)};
+} = await import("../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
 
 // ── DEFAULT_MOTIVATION_COSTS: simple=25, advanced=50 (design §6.6) ──
 assert.ok(
@@ -139,8 +138,4 @@ assert.equal(resolveMotivationFamily("unknown"), null);
   // patrolling(25*2) + stealthy(50*1) + strategy_focused(50*1) = 50 + 50 + 50 = 150
   assert.equal(r1.cost, 150);
 }
-`;
-
-test("motivation price policy: canonical costs, families, and stack pricing", () => {
-  runEsm(script);
 });

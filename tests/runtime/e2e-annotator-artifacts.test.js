@@ -1,8 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
-
 const ROOT = resolve(__dirname, "../..");
 
 function readJson(path) {
@@ -25,7 +23,7 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
   const expected = readJson(resolve(ROOT, "tests/fixtures/personas/affinity-resolution-v1-basic.json")).expected;
 
   const { orchestrateBuild } = await import(
-    moduleUrl("packages/runtime/src/build/orchestrate-build.js")
+    "../../packages/runtime/src/build/orchestrate-build.js"
   );
 
   const runId = "run_affinity_e2e";

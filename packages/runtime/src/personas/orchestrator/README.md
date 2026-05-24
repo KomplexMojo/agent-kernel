@@ -4,7 +4,7 @@ The Orchestrator is the **integration and boundary persona** between the simulat
 
 It is responsible for receiving external requests, selecting appropriate external services, and coordinating interactions *around* the simulation without compromising determinism. The Orchestrator does not influence simulation outcomes directly; it brokers intent and context across system boundaries.
 
-This document defines the Orchestrator as a **runtime integration role**. Planning, configuration, policy, execution, and observation are handled by other personas and the simulation core (`core-as`).
+This document defines the Orchestrator as a **runtime integration role**. Planning, configuration, policy, execution, and observation are handled by other personas and the simulation core (`core-ts`).
 
 ---
 
@@ -112,7 +112,7 @@ The Orchestrator does **not**:
 
 ---
 
-## Relationship to core-as
+## Relationship to core-ts
 
 The Orchestrator does **not**:
 - Call into the simulation core directly.
@@ -120,7 +120,7 @@ The Orchestrator does **not**:
 - Mutate world or actor state.
 - Observe simulation internals beyond exposed telemetry.
 
-`core-as` remains fully isolated from external systems.
+`core-ts` remains fully isolated from external systems.
 
 ---
 

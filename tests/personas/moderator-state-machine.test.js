@@ -1,17 +1,16 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/moderator/state-machine.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/moderator-transitions-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/moderator-transitions-guards.json"), "utf8"));
 
-const happyScript = `
-import assert from "node:assert/strict";
-import { createModeratorStateMachine, ModeratorStates } from ${JSON.stringify(modulePath)};
 
-const fixture = ${JSON.stringify(happyFixture)};
+
+test("moderator state machine follows happy path transitions", async () => {
+const { createModeratorStateMachine, ModeratorStates } = await import("../../packages/runtime/src/personas/moderator/state-machine.mts");
+
+const fixture = happyFixture;
 const machine = createModeratorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
 
 fixture.cases.forEach((entry) => {
@@ -20,13 +19,12 @@ fixture.cases.forEach((entry) => {
   assert.equal(result.context.lastEvent, entry.event);
   assert.equal(result.context.updatedAt, "fixed");
 });
-`;
+});
 
-const guardScript = `
-import assert from "node:assert/strict";
-import { createModeratorStateMachine } from ${JSON.stringify(modulePath)};
+test("moderator state machine enforces guard and invalid transitions", async () => {
+const { createModeratorStateMachine } = await import("../../packages/runtime/src/personas/moderator/state-machine.mts");
 
-const fixture = ${JSON.stringify(guardFixture)};
+const fixture = guardFixture;
 const machine = createModeratorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
 
 fixture.cases.forEach((entry) => {
@@ -39,12 +37,4 @@ fixture.cases.forEach((entry) => {
   }
   assert.equal(threw, true);
 });
-`;
-
-test("moderator state machine follows happy path transitions", () => {
-  runEsm(happyScript);
-});
-
-test("moderator state machine enforces guard and invalid transitions", () => {
-  runEsm(guardScript);
 });

@@ -1,7 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 const ROOT = resolve(__dirname, "../..");
 
@@ -18,13 +17,13 @@ test("buildspec includes budget and price list refs from fixtures", async () => 
   const priceListFixture = readJson(resolve(ROOT, "tests/fixtures/adapters/ipfs-price-list.json"));
 
   const { normalizeSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { mapSummaryToPool } = await import(
-    moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
+    "../../packages/runtime/src/personas/director/pool-mapper.js"
   );
   const { buildBuildSpecFromSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js")
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
 
   const normalized = normalizeSummary(summaryFixture);

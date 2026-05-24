@@ -5,7 +5,7 @@ The Annotator is the **telemetry and observability persona** for the simulation.
 
 It is responsible for capturing what occurred during execution, structuring that information into stable, queryable formats, and emitting it for downstream consumption. The Annotator does not influence simulation outcomes; it records them.
 
-This document defines the Annotator as a **runtime observation and formatting role**. Simulation rules, state transitions, and event generation remain the responsibility of the simulation core (`core-as`).
+This document defines the Annotator as a **runtime observation and formatting role**. Simulation rules, state transitions, and event generation remain the responsibility of the simulation core (`core-ts`).
 
 ---
 
@@ -71,7 +71,7 @@ Telemetry generation must never affect simulation timing or outcomes.
 
 ---
 
-## Relationship to core-as
+## Relationship to core-ts
 
 The Annotator does **not**:
 - Generate or alter simulation events.
@@ -84,7 +84,7 @@ The Annotator does **not**:
 - Subscribed tick phases: emit, summarize.
 - Outputs: telemetry records/summaries (data-only); no IO or feedback into decisions.
 
-`core-as` is the authoritative source of truth for what occurred.  
+`core-ts` is the authoritative source of truth for what occurred.  
 The Annotator is responsible only for **describing that truth**.
 
 ---

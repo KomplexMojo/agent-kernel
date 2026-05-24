@@ -1,6 +1,6 @@
 import { createAllocatorStateMachine, AllocatorStates } from "./state-machine.js";
-import { TickPhases } from "../_shared/tick-state-machine.js";
-import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.js";
+import { TickPhases } from "../_shared/tick-state-machine.mts";
+import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 
 export const allocatorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 

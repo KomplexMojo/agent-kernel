@@ -1,17 +1,16 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/annotator/state-machine.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/annotator-transitions-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/annotator-transitions-guards.json"), "utf8"));
 
-const happyScript = `
-import assert from "node:assert/strict";
-import { createAnnotatorStateMachine, AnnotatorStates } from ${JSON.stringify(modulePath)};
 
-const fixture = ${JSON.stringify(happyFixture)};
+
+test("annotator state machine follows happy path transitions", async () => {
+const { createAnnotatorStateMachine, AnnotatorStates } = await import("../../packages/runtime/src/personas/annotator/state-machine.mts");
+
+const fixture = happyFixture;
 const machine = createAnnotatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
 
 fixture.cases.forEach((entry) => {
@@ -27,13 +26,12 @@ fixture.cases.forEach((entry) => {
     assert.equal(result.context.lastObservationCount, before.context.lastObservationCount);
   }
 });
-`;
+});
 
-const guardScript = `
-import assert from "node:assert/strict";
-import { createAnnotatorStateMachine } from ${JSON.stringify(modulePath)};
+test("annotator state machine enforces guard and invalid transitions", async () => {
+const { createAnnotatorStateMachine } = await import("../../packages/runtime/src/personas/annotator/state-machine.mts");
 
-const fixture = ${JSON.stringify(guardFixture)};
+const fixture = guardFixture;
 const machine = createAnnotatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
 
 fixture.cases.forEach((entry) => {
@@ -46,12 +44,4 @@ fixture.cases.forEach((entry) => {
   }
   assert.equal(threw, true);
 });
-`;
-
-test("annotator state machine follows happy path transitions", () => {
-  runEsm(happyScript);
-});
-
-test("annotator state machine enforces guard and invalid transitions", () => {
-  runEsm(guardScript);
 });

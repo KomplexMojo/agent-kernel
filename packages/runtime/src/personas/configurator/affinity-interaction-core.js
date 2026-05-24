@@ -1,11 +1,11 @@
 /**
- * WASM-delegated affinity interaction resolution and pressure computation.
+ * core-delegated affinity interaction resolution and pressure computation.
  *
  * Delegates the 48-cell interaction matrix lookup and stack cancellation
- * to the WASM engine, ensuring runtime matches core-as exactly.
+ * to the core engine, ensuring runtime matches core-ts exactly.
  */
 
-// ── Reverse code maps (string → WASM i32 code) ──
+// ── Reverse code maps (string → core i32 code) ──
 
 export const AFFINITY_KIND_TO_CODE = Object.freeze({
   fire: 1, water: 2, earth: 3, wind: 4, life: 5,
@@ -44,9 +44,9 @@ const VISUAL_STATE_NAMES = Object.freeze({
 // ── Interaction resolution ──
 
 /**
- * Resolve affinity interaction between two sources using the WASM matrix.
+ * Resolve affinity interaction between two sources using the core matrix.
  *
- * @param {object} core - WASM core (from loadCore).
+ * @param {object} core - Core object from core-ts.
  * @param {object} source - { kind: string, expression: string, stacks: number }
  * @param {object} target - { kind: string, expression: string, stacks: number }
  * @returns {object|null} Interaction result or null if resolution failed.
@@ -99,12 +99,12 @@ const AFFINITY_KINDS_ORDERED = [
 ];
 
 /**
- * Resolve net affinity pressure using WASM stack cancellation.
+ * Resolve net affinity pressure using core stack cancellation.
  *
  * Takes a baseByKind map ({ fire: 3, water: 2, ... }) and resolves
- * opposite-pair cancellation via the WASM engine.
+ * opposite-pair cancellation via the core engine.
  *
- * @param {object} core - WASM core.
+ * @param {object} core - core.
  * @param {object} baseByKind - { [kind]: stackCount }
  * @returns {{ netByKind: object, cancellations: Array }}
  */
@@ -141,7 +141,7 @@ export function resolveNetPressureFromCore(core, baseByKind) {
       continue;
     }
 
-    // Use WASM cancellation (min-based)
+    // Use core cancellation (min-based)
     const s = Math.max(1, sourceStacks);
     const t = Math.max(1, oppositeStacks);
     core.resolveAffinityStackCancellation(s, t);
@@ -170,9 +170,9 @@ export function resolveNetPressureFromCore(core, baseByKind) {
 }
 
 /**
- * Resolve the relationship between two affinity kinds using WASM.
+ * Resolve the relationship between two affinity kinds using core-ts.
  *
- * @param {object} core - WASM core.
+ * @param {object} core - core.
  * @param {string} sourceKind - Source affinity kind name.
  * @param {string} targetKind - Target affinity kind name.
  * @returns {string} "same", "opposite", "neutral", or "unknown"

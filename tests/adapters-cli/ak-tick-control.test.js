@@ -8,9 +8,7 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
-const testIfWasm = existsSync(WASM_PATH) ? test : test.skip;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -242,9 +240,9 @@ test("cli tick state returns runId, tick, maxTick, and ascii field", () => {
   assert.ok("ascii" in output, "response must include ascii field");
 });
 
-testIfWasm("cli tick state ascii is a non-empty grid string when WASM is present", () => {
-  const workDir = mkdtempSync(join(os.tmpdir(), "ak-tick-state-wasm-"));
-  const runId = "run_tick_state_wasm";
+test("cli tick state ascii is a non-empty grid string", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-tick-state-core-"));
+  const runId = "run_tick_state_core";
   scaffoldRun(workDir, runId, { maxTick: 10 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);

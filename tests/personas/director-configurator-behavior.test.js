@@ -1,19 +1,15 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const directorModule = moduleUrl("packages/runtime/src/personas/director/controller.mts");
-const configuratorModule = moduleUrl("packages/runtime/src/personas/configurator/controller.mts");
-const tickModule = moduleUrl("packages/runtime/src/personas/_shared/tick-state-machine.mts");
 const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/persona-behavior-v1-director-configurator.json"), "utf8"));
 
-const script = `
-import assert from "node:assert/strict";
-import { createDirectorPersona } from ${JSON.stringify(directorModule)};
-import { createConfiguratorPersona } from ${JSON.stringify(configuratorModule)};
-import { TickPhases } from ${JSON.stringify(tickModule)};
 
-const fixture = ${JSON.stringify(fixture)};
+test("director/configurator personas emit deterministic solver_request effects", async () => {
+const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.mts");
+const { createConfiguratorPersona } = await import("../../packages/runtime/src/personas/configurator/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
 
 const director = createDirectorPersona({ clock: () => "fixed" });
 const dirPayload = { ...fixture.director };
@@ -37,8 +33,4 @@ assert.equal(cfgEffect.requestId, "solver-config");
 assert.equal(cfgEffect.targetAdapter, "solver");
 assert.equal(cfgEffect.request.planRef.id, "plan-1");
 assert.equal(cfgResult.context.lastSolverRequest.id, "solver-config");
-`;
-
-test("director/configurator personas emit deterministic solver_request effects", () => {
-  runEsm(script);
 });

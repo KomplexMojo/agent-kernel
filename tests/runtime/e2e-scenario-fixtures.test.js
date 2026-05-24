@@ -1,8 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync, readdirSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
-
 const ROOT = resolve(__dirname, "../..");
 const FIXTURES_DIR = resolve(ROOT, "tests/fixtures/e2e");
 
@@ -18,7 +16,7 @@ test("e2e scenario fixtures load and summary matches prompt contract", async () 
   assert.ok(scenarioFiles.length > 0);
 
   const { normalizeSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
 
   scenarioFiles.forEach((name) => {

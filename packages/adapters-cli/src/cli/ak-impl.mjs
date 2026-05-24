@@ -11,7 +11,6 @@ import {
   collectBuildOutputArtifactRecords,
   createCommandKernel,
 } from "../../../runtime/src/commands/kernel.js";
-import { instantiateCommandRuntimeCoreFromBuffer } from "../../../runtime/src/commands/wasm-core.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
 import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
@@ -94,7 +93,6 @@ const SCHEMAS = Object.freeze({
   capturedInput: "agent-kernel/CapturedInputArtifact",
 });
 
-const DEFAULT_WASM_PATH = "build/core-as.wasm";
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 const DEFAULT_RUNS_DIR = "runs";
 const DEFAULT_TICKS = 1;
@@ -116,10 +114,10 @@ function usage() {
   node ${rel} build --spec path [--out-dir dir] [--emit-intermediates]
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
-  node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
+  node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
   node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
-  node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--wasm path] [--out-dir dir]
+  node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--out-dir dir]
   node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
   node ${rel} narrate --tick-frames path --initial-state path [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
@@ -130,7 +128,7 @@ function usage() {
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
-  node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId) [--ticks N] [--seed N] [--wasm path] [--out-dir dir] [--run-id id] [--dry-run]
+  node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
@@ -143,7 +141,6 @@ function usage() {
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
   --out           Output file path (command-specific default when omitted)
-  --wasm          Path to core-as WASM (default: ${DEFAULT_WASM_PATH})
   --ticks         Number of ticks for run/replay (default: ${DEFAULT_TICKS})
   --seed          Seed for init (default: 0)
   --solver-fixture Fixture path for solve command (no network)
@@ -3685,7 +3682,6 @@ function assertAllowedScenarioArgs(args) {
     "budget-reserve",
     "ticks",
     "seed",
-    "wasm",
     "out-dir",
     "run-id",
     "created-at",
@@ -3705,7 +3701,7 @@ function assertAllowedScenarioArgs(args) {
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`scenario only accepts --text, --from-run, --catalog, --model, --goal, --budget-tokens, --base-url, --fixture, --budget-loop, --budget-pool, --budget-reserve, --ticks, --seed, --wasm, --out-dir, --run-id, --created-at, --emit-intermediates, and --dry-run. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`scenario only accepts --text, --from-run, --catalog, --model, --goal, --budget-tokens, --base-url, --fixture, --budget-loop, --budget-pool, --budget-reserve, --ticks, --seed, --out-dir, --run-id, --created-at, --emit-intermediates, and --dry-run. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -4074,7 +4070,6 @@ async function validateScenarioDryRun(args) {
       seed: args.seed,
       "run-id": runId,
       "out-dir": join(outDir, "run"),
-      wasm: args.wasm,
       actor: args.actor,
       vital: args.vital,
       "vital-default": args["vital-default"],
@@ -4442,11 +4437,6 @@ function logMixedRoomAssembliesFromBuildResult(buildResult) {
   });
 }
 
-async function loadCoreFromWasm(wasmPath) {
-  const buffer = await readFile(wasmPath);
-  return instantiateCommandRuntimeCoreFromBuffer(buffer);
-}
-
 const commandKernel = createCommandKernel({
   readJson,
   readText,
@@ -4472,13 +4462,6 @@ const commandKernel = createCommandKernel({
   createSolverAdapter: async (options) => {
     const { createSolverAdapter } = await import("../adapters/solver-z3/index.js");
     return createSolverAdapter(options);
-  },
-  defaultWasmPath: () => resolvePath(DEFAULT_WASM_PATH),
-  loadCore: async (wasmPath) => {
-    if (!wasmPath || !existsSync(wasmPath)) {
-      throw new Error(`WASM not found at ${wasmPath}`);
-    }
-    return loadCoreFromWasm(wasmPath);
   },
   nowIso: () => new Date().toISOString(),
   env: process.env,
@@ -5738,7 +5721,6 @@ async function scenarioCommand(argv) {
       "initial-state": resolvedFromRun.initialStatePath,
       ticks: args.ticks,
       seed: args.seed,
-      wasm: args.wasm,
       "run-id": runId,
       "out-dir": runOutDir,
     };
@@ -5777,7 +5759,6 @@ async function scenarioCommand(argv) {
       "initial-state": initialStatePath,
       ticks: args.ticks,
       seed: args.seed,
-      wasm: args.wasm,
       "run-id": runId,
       "out-dir": runOutDir,
     };

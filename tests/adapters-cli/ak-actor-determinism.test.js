@@ -6,7 +6,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 const ACTION_FIXTURE = resolve(ROOT, "tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json");
 
 let VITAL_KEYS = [];
@@ -115,10 +114,6 @@ function createGridArtifacts(dir) {
 }
 
 test("cli run emits deterministic actor configs and action logs", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-determinism-"));
   const { simConfigPath, initialStatePath } = createGridArtifacts(workDir);
   const outDirA = join(workDir, "out-a");
@@ -131,10 +126,7 @@ test("cli run emits deterministic actor configs and action logs", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",
-    "--wasm",
-    WASM_PATH,
-    "--actions",
+    "0",    "--actions",
     ACTION_FIXTURE,
     "--actor",
     "actor_b,1,1,motivated",
@@ -175,10 +167,6 @@ test("cli run emits deterministic actor configs and action logs", (t) => {
 });
 
 test("cli run normalizes action logs without fixture input", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-determinism-"));
   const { simConfigPath, initialStatePath } = createGridArtifacts(workDir);
   const outDirA = join(workDir, "out-c");
@@ -191,10 +179,7 @@ test("cli run normalizes action logs without fixture input", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",
-    "--wasm",
-    WASM_PATH,
-    "--actor",
+    "0",    "--actor",
     "actor_b,1,1,motivated",
   ];
 

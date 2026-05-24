@@ -1,17 +1,16 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
-const modulePath = moduleUrl("packages/runtime/src/personas/allocator/state-machine.mts");
 const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/allocator-transitions-happy.json"), "utf8"));
 const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/allocator-transitions-guards.json"), "utf8"));
 
-const happyScript = `
-import assert from "node:assert/strict";
-import { createAllocatorStateMachine, AllocatorStates } from ${JSON.stringify(modulePath)};
 
-const fixture = ${JSON.stringify(happyFixture)};
+
+test("allocator state machine follows happy path transitions", async () => {
+const { createAllocatorStateMachine, AllocatorStates } = await import("../../packages/runtime/src/personas/allocator/state-machine.mts");
+
+const fixture = happyFixture;
 const machine = createAllocatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
 
 fixture.cases.forEach((entry) => {
@@ -31,13 +30,12 @@ fixture.cases.forEach((entry) => {
     assert.equal(result.context.lastSignalCount, before.context.lastSignalCount);
   }
 });
-`;
+});
 
-const guardScript = `
-import assert from "node:assert/strict";
-import { createAllocatorStateMachine } from ${JSON.stringify(modulePath)};
+test("allocator state machine enforces guard and invalid transitions", async () => {
+const { createAllocatorStateMachine } = await import("../../packages/runtime/src/personas/allocator/state-machine.mts");
 
-const fixture = ${JSON.stringify(guardFixture)};
+const fixture = guardFixture;
 const machine = createAllocatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
 
 fixture.cases.forEach((entry) => {
@@ -50,12 +48,4 @@ fixture.cases.forEach((entry) => {
   }
   assert.equal(threw, true);
 });
-`;
-
-test("allocator state machine follows happy path transitions", () => {
-  runEsm(happyScript);
-});
-
-test("allocator state machine enforces guard and invalid transitions", () => {
-  runEsm(guardScript);
 });

@@ -6,7 +6,7 @@ This adapter:
 - Calls an Ollama-style `/api/generate` endpoint.
 - Returns the raw JSON response for downstream processing.
 
-It is intended for Orchestrator/Director tooling and never used inside `core-as`.
+It is intended for Orchestrator/Director tooling and never used inside `core-ts`.
 
 ## Usage
 

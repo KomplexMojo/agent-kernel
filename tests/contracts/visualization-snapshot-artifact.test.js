@@ -8,7 +8,6 @@
 // Shape-validator tests (tests 2–6) document the contract and pass immediately.
 
 const assert = require("node:assert/strict");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 // ---------------------------------------------------------------------------
 // Inline contract validators — define the intended shape
@@ -61,7 +60,7 @@ function validateActorDetail(detail) {
 
 test("runtime exports createVisualizationSnapshot", async () => {
   // FAILS until M2 creates packages/runtime/src/render/visualization-snapshot.js
-  const mod = await import(moduleUrl("packages/runtime/src/render/visualization-snapshot.js"));
+  const mod = await import("../../packages/runtime/src/render/visualization-snapshot.js");
   assert.equal(typeof mod.createVisualizationSnapshot, "function",
     "createVisualizationSnapshot must be a named export");
 });

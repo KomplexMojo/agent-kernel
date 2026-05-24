@@ -3,11 +3,9 @@ const { spawnSync } = require("node:child_process");
 const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const spendProposalUrl = moduleUrl("packages/runtime/src/personas/configurator/spend-proposal.js");
 
 function runCli(args) {
   return spawnSync(process.execPath, [CLI, ...args], {
@@ -39,7 +37,7 @@ function listDelverCards(spec) {
   return cardSet.filter((entry) => entry?.type === "delver");
 }
 
-test("cli delver-plan authors delver cards directly from delver flags", () => {
+test("cli delver-plan authors delver cards directly from delver flags", async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-basic-"));
   const result = runCliOk([
     "delver-plan",
@@ -77,7 +75,7 @@ test("cli delver-plan authors delver cards directly from delver flags", () => {
   assert.deepEqual(delver.motivations, ["attacking", "user_controlled"]);
 });
 
-test("cli delver-plan applies default delver motivation and affinity fallback", () => {
+test("cli delver-plan applies default delver motivation and affinity fallback", async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-defaults-"));
   runCliOk([
     "delver-plan",
@@ -102,7 +100,7 @@ test("cli delver-plan applies default delver motivation and affinity fallback", 
   assert.deepEqual(delver.motivations, ["attacking", "user_controlled"]);
 });
 
-test("cli delver-plan supports multiple delver configurations in one command", () => {
+test("cli delver-plan supports multiple delver configurations in one command", async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-multi-"));
   runCliOk([
     "delver-plan",
@@ -128,7 +126,7 @@ test("cli delver-plan supports multiple delver configurations in one command", (
   assert.deepEqual(byAffinity.get("earth")?.motivations, ["patrolling", "user_controlled"]);
 });
 
-test("cli delver-plan supports advanced affinities, vitals, setup mode, and receipt accounting", () => {
+test("cli delver-plan supports advanced affinities, vitals, setup mode, and receipt accounting", async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-advanced-"));
   runCliOk([
     "delver-plan",
@@ -175,7 +173,7 @@ test("cli delver-plan supports advanced affinities, vitals, setup mode, and rece
   assert.equal(byId.get("vital_mana_regen_tick")?.quantity, 2);
 });
 
-test("cli delver-plan rejects invalid motivation", () => {
+test("cli delver-plan rejects invalid motivation", async () => {
   const result = runCli([
     "delver-plan",
     "--delver",
@@ -185,7 +183,7 @@ test("cli delver-plan rejects invalid motivation", () => {
   assert.match(result.stderr, /motivation must be one of/i);
 });
 
-test("cli delver-plan rejects duplicate motivation declarations", () => {
+test("cli delver-plan rejects duplicate motivation declarations", async () => {
   const result = runCli([
     "delver-plan",
     "--delver",
@@ -195,7 +193,7 @@ test("cli delver-plan rejects duplicate motivation declarations", () => {
   assert.match(result.stderr, /motivation may only be specified once/i);
 });
 
-test("cli delver-plan rejects invalid setup mode", () => {
+test("cli delver-plan rejects invalid setup mode", async () => {
   const result = runCli([
     "delver-plan",
     "--delver",
@@ -205,7 +203,7 @@ test("cli delver-plan rejects invalid setup mode", () => {
   assert.match(result.stderr, /setup-mode must be one of/i);
 });
 
-test("cli delver-plan rejects invalid vital tuple", () => {
+test("cli delver-plan rejects invalid vital tuple", async () => {
   const result = runCli([
     "delver-plan",
     "--delver",
@@ -215,7 +213,7 @@ test("cli delver-plan rejects invalid vital tuple", () => {
   assert.match(result.stderr, /non-negative integer/i);
 });
 
-test("cli delver-plan requires --budget and --price-list together", () => {
+test("cli delver-plan requires --budget and --price-list together", async () => {
   const result = runCli([
     "delver-plan",
     "--delver",
@@ -227,7 +225,7 @@ test("cli delver-plan requires --budget and --price-list together", () => {
   assert.match(result.stderr, /requires both --budget and --price-list/i);
 });
 
-test("cli delver-plan maximizes mana-focused spend within a 200-token budget", () => {
+test("cli delver-plan maximizes mana-focused spend within a 200-token budget", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-budgeted-"));
   const outDir = join(workDir, "out");
   const budgetPath = join(workDir, "budget.json");
@@ -284,11 +282,9 @@ test("cli delver-plan maximizes mana-focused spend within a 200-token budget", (
   assert.ok(delver.vitals.mana.regen > 0);
   assert.ok(delver.vitals.stamina.regen > 0);
 
-  runEsm(`
-import assert from "node:assert/strict";
-import { calculateActorConfigurationUnitCost } from ${JSON.stringify(spendProposalUrl)};
+  const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/configurator/spend-proposal.js");
 
-const card = ${JSON.stringify(delver)};
+const card = delver;
 const unitCost = calculateActorConfigurationUnitCost({
   entry: {
     motivations: card.motivations,
@@ -301,5 +297,4 @@ const unitCost = calculateActorConfigurationUnitCost({
 assert.equal(unitCost, 200);
 assert.ok(card.vitals.mana.max >= 29, "mana max should still be driven up by the budgeted fulfillment after manual-control pricing");
 assert.ok(card.vitals.mana.regen >= 1);
-`);
 });

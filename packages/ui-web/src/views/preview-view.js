@@ -1,5 +1,4 @@
-import { loadCore } from "../../../bindings-ts/src/core-as.js";
-import { readObservation, renderBaseTiles, renderFrameBuffer } from "../../../bindings-ts/src/mvp-movement.js";
+import { createCore, readObservation, renderBaseTiles, renderFrameBuffer } from "../../../core-ts/src/index.ts";
 import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
 import { collectBuildSpecCardSet } from "../build-spec-ui.js";
 import { computeAuraMap, serializeAuraMap } from "../../../runtime/src/render/affinity-aura.js";
@@ -137,7 +136,7 @@ function clearCanvas(canvas) {
 
 export function wirePreviewView({
   root = document,
-  loadCoreFn = loadCore,
+  createCoreFn = createCore,
   applySimConfig = applySimConfigToCore,
   applyInitialState = applyInitialStateToCore,
   renderFrame = renderFrameBuffer,
@@ -160,7 +159,6 @@ export function wirePreviewView({
   const actorsEl = root.querySelector("#preview-actor-list");
   const rendererButtons = Array.from(root.querySelectorAll?.("[data-preview-renderer]") || []);
 
-  const wasmUrl = new URL("../../assets/core-as.wasm", import.meta.url);
   let core = null;
   let loadingCore = null;
   let lastBundle = null;
@@ -245,7 +243,7 @@ export function wirePreviewView({
     if (core) return core;
     if (!loadingCore) {
       setStatus(statusEl, "Loading preview engine...");
-      loadingCore = Promise.resolve(loadCoreFn({ wasmUrl }))
+      loadingCore = Promise.resolve(createCoreFn())
         .then((loaded) => {
           core = loaded;
           return loaded;

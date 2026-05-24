@@ -6,18 +6,12 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const SCRIPT = resolve(ROOT, "scripts/demo-cli.sh");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
-test("demo script produces fixture-backed artifacts", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
-
+test("demo script produces fixture-backed artifacts", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-demo-"));
   const result = spawnSync("bash", [SCRIPT, outDir], {
     cwd: ROOT,

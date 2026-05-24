@@ -1,10 +1,9 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const spendModule = moduleUrl("packages/runtime/src/personas/configurator/spend-proposal.js");
 
-const script = `
-import assert from "node:assert/strict";
-import { calculateActorConfigurationUnitCost } from ${JSON.stringify(spendModule)};
+
+test("motivation costs flow through calculateActorConfigurationUnitCost", async () => {
+const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/configurator/spend-proposal.js");
 
 // ── motivation costs are included in actor configuration cost ──
 {
@@ -88,8 +87,4 @@ import { calculateActorConfigurationUnitCost } from ${JSON.stringify(spendModule
   // goal_oriented and strategy_focused are both advanced tier (50 tokens each)
   assert.ok(r2.detail.motivationCost <= r3.detail.motivationCost, "goal_oriented <= strategy_focused");
 }
-`;
-
-test("motivation costs flow through calculateActorConfigurationUnitCost", () => {
-  runEsm(script);
 });

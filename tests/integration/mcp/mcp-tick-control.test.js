@@ -5,7 +5,7 @@
 // Tools tested:
 //   ak_tick_forward  — advance the session cursor one tick; returns ok, runId, tick, maxTick, previousTick
 //   ak_tick_backward — rewind the session cursor one tick; structured error when already at tick 0
-//   ak_show_state    — return current dungeon state for the session cursor; ascii grid (WASM-conditional)
+//   ak_show_state    — return current dungeon state for the session cursor; ascii grid (core runtime)
 
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
@@ -15,9 +15,7 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../../..");
 const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
-const testIfWasm = existsSync(WASM_PATH) ? test : test.skip;
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -355,9 +353,9 @@ test("mcp ak_show_state returns runId, tick, maxTick, and ascii field", async ()
   }
 });
 
-testIfWasm("mcp ak_show_state ascii is a non-empty grid string when WASM is present", async () => {
-  const workDir = makeTempDir("mcp-tick-state-wasm-");
-  const runId = "run_mcp_tick_state_wasm";
+test("mcp ak_show_state ascii is a non-empty grid string", async () => {
+  const workDir = makeTempDir("mcp-tick-state-core-");
+  const runId = "run_mcp_tick_state_core";
   scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });

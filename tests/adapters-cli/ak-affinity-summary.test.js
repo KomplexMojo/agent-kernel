@@ -6,7 +6,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 const PRESETS = resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json");
 const LOADOUTS = resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json");
 const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json");
@@ -27,10 +26,6 @@ function runCli(args, options = {}) {
 }
 
 test("cli run writes affinity summary", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-"));
   const outDir = join(workDir, "out");
 
@@ -41,10 +36,7 @@ test("cli run writes affinity summary", (t) => {
     "--initial-state",
     INITIAL_STATE,
     "--ticks",
-    "0",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "0",    "--out-dir",
     outDir,
     "--affinity-presets",
     PRESETS,
@@ -64,10 +56,6 @@ test("cli run writes affinity summary", (t) => {
 });
 
 test("cli run rejects affinity summary without presets or loadouts", (t) => {
-  if (!existsSync(WASM_PATH)) {
-    t.skip(`Missing WASM at ${WASM_PATH}`);
-    return;
-  }
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-"));
   const outDir = join(workDir, "out");
   const result = spawnSync(process.execPath, [
@@ -78,10 +66,7 @@ test("cli run rejects affinity summary without presets or loadouts", (t) => {
     "--initial-state",
     INITIAL_STATE,
     "--ticks",
-    "0",
-    "--wasm",
-    WASM_PATH,
-    "--out-dir",
+    "0",    "--out-dir",
     outDir,
     "--affinity-summary",
   ], {

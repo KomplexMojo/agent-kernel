@@ -1,9 +1,8 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
 const { readFixture } = require("../helpers/fixtures");
 
-const allocatorModule = moduleUrl("packages/runtime/src/personas/allocator/validate-spend.js");
 const allocatorFixtures = resolve(__dirname, "../fixtures/allocator");
 
 function readAllocatorFixture(name) {
@@ -36,13 +35,10 @@ const cases = [
   },
 ];
 
-const script = `
-import assert from "node:assert/strict";
-import { validateSpendProposal } from ${JSON.stringify(allocatorModule)};
 
-const budget = ${JSON.stringify(budget)};
-const priceList = ${JSON.stringify(priceList)};
-const cases = ${JSON.stringify(cases)};
+test("allocator validates spend proposals deterministically", async () => {
+const { validateSpendProposal } = await import("../../packages/runtime/src/personas/allocator/validate-spend.js");
+
 
 cases.forEach((entry) => {
   const proposal = entry.proposal;
@@ -60,8 +56,4 @@ cases.forEach((entry) => {
     assert.equal(result.errors, undefined);
   }
 });
-`;
-
-test("allocator validates spend proposals deterministically", () => {
-  runEsm(script);
 });

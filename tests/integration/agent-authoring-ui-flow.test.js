@@ -1,13 +1,12 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { existsSync, mkdtempSync, readFileSync } = require("node:fs");
+const { mkdtempSync, readFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const { pathToFileURL } = require("node:url");
 const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const UI_WASM_PATH = resolve(ROOT, "packages/ui-web/assets/core-as.wasm");
 const BUNDLE_REVIEW_URL = pathToFileURL(resolve(ROOT, "packages/ui-web/src/bundle-review.js")).href;
 const PREVIEW_VIEW_URL = pathToFileURL(resolve(ROOT, "packages/ui-web/src/views/preview-view.js")).href;
 
@@ -211,7 +210,7 @@ function createInjectedPreviewOptions() {
         };
       },
     },
-    loadCoreFn: async () => ({
+    createCoreFn: async () => ({
       init() {},
     }),
     applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
@@ -248,7 +247,7 @@ function createInjectedPreviewOptions() {
   };
 }
 
-test("preview load reflects the real ui-web core-as.wasm prerequisite", async () => withUiGlobals(async () => {
+test("preview load uses the synchronous TypeScript core without a binary prerequisite", async () => withUiGlobals(async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-agent-flow-real-preview-"));
   runCliOk([
     "create",
@@ -286,20 +285,12 @@ test("preview load reflects the real ui-web core-as.wasm prerequisite", async ()
     renderBase: () => ["#####", "#...#", "#...#", "#####"],
   });
 
-  const hasUiWasmAsset = existsSync(UI_WASM_PATH);
   const loaded = await preview.loadBundle(bundle, { source: "file" });
 
-  assert.equal(loaded, hasUiWasmAsset);
-  if (hasUiWasmAsset) {
-    assert.equal(elements["#preview-render-canvas"].hidden, false);
-    assert.equal(elements["#preview-frame-buffer"].hidden, true);
-    assert.equal(elements["#preview-status"].textContent, "Layout preview loaded from file.");
-  } else {
-    assert.equal(elements["#preview-render-canvas"].hidden, true);
-    assert.equal(elements["#preview-frame-buffer"].hidden, false);
-    assert.match(elements["#preview-status"].textContent, /^Preview failed:/);
-    assert.match(elements["#preview-status"].textContent, /core-as\.wasm|ENOENT|no such file/i);
-  }
+  assert.equal(loaded, true);
+  assert.equal(elements["#preview-render-canvas"].hidden, false);
+  assert.equal(elements["#preview-frame-buffer"].hidden, true);
+  assert.equal(elements["#preview-status"].textContent, "Layout preview loaded from file.");
 }));
 
 test("mixed-object create bundle survives the CLI -> Diagnostics -> injected Preview -> run-gating flow", async () => withUiGlobals(async () => {

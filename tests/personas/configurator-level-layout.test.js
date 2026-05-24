@@ -1,13 +1,8 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const layoutModule = moduleUrl("packages/runtime/src/personas/configurator/level-layout.js");
-const levelGenModule = moduleUrl("packages/runtime/src/personas/configurator/level-gen.js");
 
-test("level layout generator is deterministic for rooms-and-hallways inputs", () => {
-const script = `
-import assert from "node:assert/strict";
-import { normalizeLevelGenInput } from ${JSON.stringify(levelGenModule)};
-import { generateGridLayout } from ${JSON.stringify(layoutModule)};
+test("level layout generator is deterministic for rooms-and-hallways inputs", async () => {const { normalizeLevelGenInput } = await import("../../packages/runtime/src/personas/configurator/level-gen.js");
+const { generateGridLayout } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 const inputs = [
   {
@@ -35,14 +30,9 @@ inputs.forEach((input) => {
   assert.ok(Array.isArray(layoutA.rooms));
   assert.ok(layoutA.rooms.length > 0);
 });
-`;
-  runEsm(script);
 });
 
-test("default layout uses room-first flow with explicit room chambers", () => {
-const script = `
-import assert from "node:assert/strict";
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("default layout uses room-first flow with explicit room chambers", async () => {const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 const base = {
   width: 36,
@@ -73,14 +63,9 @@ let blockedInsideRooms = 0;
   }
 });
 assert.equal(blockedInsideRooms, 0);
-`;
-  runEsm(script);
 });
 
-test("level layout honors walkable tile targets for connected rooms", () => {
-const script = `
-import assert from "node:assert/strict";
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("level layout honors walkable tile targets for connected rooms", async () => {const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 const targetWalkableTiles = 1800;
 const result = generateGridLayoutFromInput({
@@ -105,14 +90,9 @@ const walkable = result.value.tiles.reduce((sum, row) => {
 assert.equal(walkable, targetWalkableTiles);
 assert.ok(result.value.connectivity);
 assert.equal(result.value.connectivity.connectedRooms, result.value.connectivity.rooms);
-`;
-  runEsm(script);
 });
 
-test("requirePath guarantees a spawn-to-exit path in room layouts", () => {
-const script = `
-import assert from "node:assert/strict";
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("requirePath guarantees a spawn-to-exit path in room layouts", async () => {const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 const result = generateGridLayoutFromInput({
   width: 60,
@@ -150,14 +130,9 @@ while (head < queue.length) {
 }
 
 assert.equal(visited[layout.exit.y][layout.exit.x], true);
-`;
-  runEsm(script);
 });
 
-test("wider hallways increase carved walkable area for the same room seed", () => {
-const script = `
-import assert from "node:assert/strict";
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("wider hallways increase carved walkable area for the same room seed", async () => {const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 const base = {
   width: 40,
@@ -187,15 +162,10 @@ const countWalkable = (tiles) => tiles.reduce((sum, row) => {
 }, 0);
 
 assert.ok(countWalkable(wide.value.tiles) >= countWalkable(narrow.value.tiles));
-`;
-  runEsm(script);
 });
 
-test("high-scale walkable room layouts complete in practical time", () => {
-const script = `
-import assert from "node:assert/strict";
-import { normalizeLevelGenInput } from ${JSON.stringify(levelGenModule)};
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("high-scale walkable room layouts complete in practical time", async () => {const { normalizeLevelGenInput } = await import("../../packages/runtime/src/personas/configurator/level-gen.js");
+const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 const targetWalkableTiles = 550000;
 const side = Math.max(5, Math.ceil(Math.sqrt(targetWalkableTiles / 0.5)) + 2);
@@ -222,15 +192,10 @@ const walkable = layoutResult.value.tiles.reduce((sum, row) => {
   return sum;
 }, 0);
 assert.equal(walkable, targetWalkableTiles);
-assert.ok(elapsedMs < 10000, \`expected large room layout under 10s, got \${elapsedMs.toFixed(2)}ms\`);
-`;
-  runEsm(script);
+assert.ok(elapsedMs < 10000, `expected large room layout under 10s, got ${elapsedMs.toFixed(2)}ms`);
 });
 
-test("grid overlay carves internal room barriers while preserving movement gaps", () => {
-const script = `
-import assert from "node:assert/strict";
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("grid overlay carves internal room barriers while preserving movement gaps", async () => {const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 function buildRoomIndex(layout) {
   const height = layout.tiles.length;
@@ -324,14 +289,9 @@ assert.ok(gridStats.blocked > noneStats.blocked);
 assert.ok(gridStats.mixedRooms > 0);
 assert.equal(hasGapAroundInternalBarrier(gridResult.value), true);
 assert.equal(gridResult.value.connectivity.exitReachable, true);
-`;
-  runEsm(script);
 });
 
-test("diagonal and concentric hallway overlays carve patterned internal barriers", () => {
-const script = `
-import assert from "node:assert/strict";
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("diagonal and concentric hallway overlays carve patterned internal barriers", async () => {const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 function buildRoomIndex(layout) {
   const height = layout.tiles.length;
@@ -405,14 +365,9 @@ assert.ok(
 );
 assert.equal(diagonal.value.connectivity.exitReachable, true);
 assert.equal(concentric.value.connectivity.exitReachable, true);
-`;
-  runEsm(script);
 });
 
-test("higher hallway infill produces denser in-room overlay carving", () => {
-const script = `
-import assert from "node:assert/strict";
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("higher hallway infill produces denser in-room overlay carving", async () => {const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 function buildRoomIndex(layout) {
   const height = layout.tiles.length;
@@ -472,14 +427,9 @@ assert.equal(sparse.ok, true);
 assert.equal(dense.ok, true);
 assert.ok(countInternalBlocked(dense.value) >= countInternalBlocked(sparse.value));
 assert.equal(dense.value.connectivity.exitReachable, true);
-`;
-  runEsm(script);
 });
 
-test("pattern overlays do not block walkable room perimeter tiles", () => {
-const script = `
-import assert from "node:assert/strict";
-import { generateGridLayoutFromInput } from ${JSON.stringify(layoutModule)};
+test("pattern overlays do not block walkable room perimeter tiles", async () => {const { generateGridLayoutFromInput } = await import("../../packages/runtime/src/personas/configurator/level-layout.js");
 
 function roomPerimeterCells(room) {
   const cells = [];
@@ -503,7 +453,7 @@ function assertPerimeterPreserved(baseLayout, patternedLayout) {
       const baseChar = String(baseLayout.tiles[y] || "")[x];
       if (baseChar === "#") return;
       const patternedChar = String(patternedLayout.tiles[y] || "")[x];
-      assert.notEqual(patternedChar, "#", \`perimeter blocked at \${x},\${y}\`);
+      assert.notEqual(patternedChar, "#", `perimeter blocked at ${x},${y}`);
     });
   });
 }
@@ -541,6 +491,4 @@ assert.equal(concentric.ok, true);
 assertPerimeterPreserved(none.value, grid.value);
 assertPerimeterPreserved(none.value, diagonal.value);
 assertPerimeterPreserved(none.value, concentric.value);
-`;
-  runEsm(script);
 });

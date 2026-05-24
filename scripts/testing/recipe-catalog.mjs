@@ -19,11 +19,6 @@ export const RECIPE_CATALOG = {
     scaffoldable: true,
     description: "Artifact fixture validates against a contract validator.",
   },
-  wasm_effect_contract: {
-    runner: "vitest",
-    scaffoldable: true,
-    description: "WASM or bindings contract remains stable across helpers and fixtures.",
-  },
   runtime_persona_transition: {
     runner: "vitest",
     scaffoldable: true,
@@ -58,11 +53,6 @@ export const RECIPE_CATALOG = {
     runner: "vitest",
     scaffoldable: true,
     description: "Runtime helper modules preserve fixture-driven contract behavior.",
-  },
-  perf_harness_smoke: {
-    runner: "vitest",
-    scaffoldable: true,
-    description: "Perf harness still executes and returns a bounded smoke signal.",
   },
 };
 

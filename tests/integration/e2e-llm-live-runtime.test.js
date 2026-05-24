@@ -1,13 +1,10 @@
 const assert = require("node:assert/strict");
 const { readFileSync, appendFileSync, mkdirSync } = require("node:fs");
 const { resolve, dirname } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
-const { loadCoreFromWasmPath, resolveWasmPathOrThrow } = require("../helpers/core-loader");
 
 const ROOT = resolve(__dirname, "../..");
 const LIVE_ENABLED = ["1", "true"].includes(String(process.env.AK_LLM_LIVE).toLowerCase());
 const CAPTURE_PATH = process.env.AK_LLM_CAPTURE_PATH;
-const USE_WASM = ["1", "true"].includes(String(process.env.AK_LLM_USE_WASM).toLowerCase());
 const STRICT_ENABLED = ["1", "true"].includes(String(process.env.AK_LLM_STRICT).toLowerCase());
 
 function readJson(relativePath) {
@@ -246,14 +243,14 @@ test("live llm prompt flows into build + runtime", async (t) => {
   const catalog = readJson(scenario.catalogPath);
 
   const { createLlmAdapter } = await import(
-    moduleUrl("packages/adapters-cli/src/adapters/llm/index.js")
+    "../../packages/adapters-cli/src/adapters/llm/index.js"
   );
   const {
     ALLOWED_AFFINITIES,
     ALLOWED_AFFINITY_EXPRESSIONS,
     ALLOWED_MOTIVATIONS,
   } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const {
     LLM_REPAIR_TEXT,
@@ -263,22 +260,22 @@ test("live llm prompt flows into build + runtime", async (t) => {
     buildLlmConstraintSection,
     buildLlmRepairPromptTemplate,
   } = await import(
-    moduleUrl("packages/runtime/src/contracts/domain-constants.js")
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
   const { mapSummaryToPool } = await import(
-    moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
+    "../../packages/runtime/src/personas/director/pool-mapper.js"
   );
   const { buildBuildSpecFromSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js")
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const { orchestrateBuild } = await import(
-    moduleUrl("packages/runtime/src/build/orchestrate-build.js")
+    "../../packages/runtime/src/build/orchestrate-build.js"
   );
   const { runLlmSession } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/llm-session.js")
+    "../../packages/runtime/src/personas/orchestrator/llm-session.js"
   );
   const { initializeCoreFromArtifacts } = await import(
-    moduleUrl("packages/runtime/src/runner/core-setup.mjs")
+    "../../packages/runtime/src/runner/core-setup.mjs"
   );
 
   const allowedPairs = deriveAllowedPairs(catalog);
@@ -419,22 +416,12 @@ test("live llm prompt flows into build + runtime", async (t) => {
   assert.ok(buildResult.initialState);
   assert.equal(buildResult.capturedInputs?.length, 1);
 
-  let core = createStubCore();
-  let usedWasm = false;
-  let wasmPath = null;
-  if (USE_WASM) {
-    wasmPath = resolveWasmPathOrThrow();
-    core = await loadCoreFromWasmPath(wasmPath);
-    usedWasm = true;
-  }
+  const { createCore } = await import("../../packages/core-ts/src/index.ts");
+  let core = createCore();
 
   ["configureGrid", "setTileAt", "spawnActorAt", "setActorVital"].forEach((method) => {
     assert.equal(typeof core[method], "function", `core.${method} must be a function`);
   });
-  if (USE_WASM) {
-    assert.equal(usedWasm, true);
-    t.diagnostic(`LLM live test using WASM core at ${wasmPath}`);
-  }
   const runtimeLoad = initializeCoreFromArtifacts(core, {
     simConfig: buildResult.simConfig,
     initialState: buildResult.initialState,

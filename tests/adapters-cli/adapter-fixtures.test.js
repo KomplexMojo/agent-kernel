@@ -1,19 +1,16 @@
+const assert = require("node:assert/strict");
 const { resolve } = require("node:path");
-const { runEsm, moduleUrl } = require("../helpers/esm-runner");
 
 const ROOT = resolve(__dirname, "../..");
-const ipfsModule = moduleUrl("packages/adapters-cli/src/adapters/ipfs/index.js");
-const blockchainModule = moduleUrl("packages/adapters-cli/src/adapters/blockchain/index.js");
-const llmModule = moduleUrl("packages/adapters-cli/src/adapters/llm/index.js");
 
-const fixturesScript = `
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { createIpfsAdapter } from ${JSON.stringify(ipfsModule)};
-import { createBlockchainAdapter } from ${JSON.stringify(blockchainModule)};
-import { createLlmAdapter } from ${JSON.stringify(llmModule)};
 
-const root = ${JSON.stringify(ROOT)};
+test("cli adapters use deterministic fixtures", async () => {
+const { readFile } = await import("node:fs/promises");
+const { createIpfsAdapter } = await import("../../packages/adapters-cli/src/adapters/ipfs/index.js");
+const { createBlockchainAdapter } = await import("../../packages/adapters-cli/src/adapters/blockchain/index.js");
+const { createLlmAdapter } = await import("../../packages/adapters-cli/src/adapters/llm/index.js");
+
+const root = ROOT;
 const ipfsFixturePath = root + "/tests/fixtures/adapters/ipfs-price-list.json";
 const chainFixturePath = root + "/tests/fixtures/adapters/blockchain-chain-id.json";
 const balanceFixturePath = root + "/tests/fixtures/adapters/blockchain-balance.json";
@@ -54,8 +51,4 @@ const llmAdapter = createLlmAdapter({
 });
 const llmResponse = await llmAdapter.generate({ model: "fixture", prompt: "hello" });
 assert.equal(llmResponse.response, "ok");
-`;
-
-test("cli adapters use deterministic fixtures", () => {
-  runEsm(fixturesScript);
 });

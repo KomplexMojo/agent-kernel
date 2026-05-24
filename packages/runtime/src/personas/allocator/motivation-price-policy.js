@@ -196,11 +196,11 @@ export function buildMotivationPriceListItems() {
   }));
 }
 
-// ── WASM-delegated cost computation ──
+// ── core-delegated cost computation ──
 
 /**
- * Reverse map: motivation kind string → WASM code (1-based).
- * Matches MOTIVATION_KIND_BY_CODE in bindings-ts.
+ * Reverse map: motivation kind string → core-ts code (1-based).
+ * Matches MOTIVATION_KIND_BY_CODE in core-ts.
  */
 export const MOTIVATION_KIND_TO_CODE = Object.freeze({
   random: 1,
@@ -218,16 +218,16 @@ export const MOTIVATION_KIND_TO_CODE = Object.freeze({
 });
 
 /**
- * Calculate motivation stack cost using the WASM cost accumulator.
+ * Calculate motivation stack cost using the core cost accumulator.
  *
- * Delegates to the WASM codebook for unit cost resolution, ensuring the
- * runtime matches core-as exactly. Returns the same shape as
+ * Delegates to the core codebook for unit cost resolution, ensuring the
+ * runtime matches core-ts exactly. Returns the same shape as
  * calculateMotivationStackCost for drop-in substitution.
  *
  * Does NOT support PriceList overrides — when overrides are needed,
  * use the JS-based calculateMotivationStackCost instead.
  *
- * @param {object} core - WASM core object (from loadCore / bindings-ts).
+ * @param {object} core - Core object from core-ts.
  * @param {Array<{kind:string, intensity?:number}|string>} motivations
  * @returns {{cost:number, lineItems:Array}}
  */

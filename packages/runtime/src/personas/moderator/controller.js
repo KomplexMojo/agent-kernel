@@ -1,5 +1,5 @@
 import { createModeratorStateMachine, ModeratorStates } from "./state-machine.js";
-import { TickPhases } from "../_shared/tick-state-machine.js";
+import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { planModeratorAffinityActions } from "./affinity-target-effects.js";
 
 export const moderatorSubscribePhases = Object.freeze([

@@ -2,7 +2,7 @@
  * Affinity Spatial Rules — the definitive interaction grid.
  *
  * @deprecated The INTERACTION_MATRIX and SPATIAL_WEIGHTS are now authoritative
- * in core-as (AK-AFF-M2, AK-AFF-M5). Use the WASM interaction resolution
+ * in core-ts (AK-AFF-M2, AK-AFF-M5). Use the core-ts interaction resolution
  * exports (resolveAffinityInteraction, getAffinityMatrixSourceEffect, etc.)
  * for new code. This module is retained for backward compatibility only.
  *

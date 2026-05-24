@@ -1,8 +1,7 @@
 const assert = require("node:assert/strict");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 async function loadUiFlow() {
-  return import(moduleUrl("packages/runtime/src/commands/ui-flow.js"));
+  return import("../../packages/runtime/src/commands/ui-flow.js");
 }
 
 test("normalizeBuildSpecForUi normalizes singleton authoring request fields", async () => {

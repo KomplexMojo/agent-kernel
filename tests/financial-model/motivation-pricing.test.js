@@ -1,16 +1,13 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const motivationUrl = moduleUrl("packages/runtime/src/personas/allocator/motivation-price-policy.js");
 
-test("motivation pricing preserves simple and advanced tiers while allowing cheaper manual control", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import {
+test("motivation pricing preserves simple and advanced tiers while allowing cheaper manual control", async () => {
+  const {
   DEFAULT_MOTIVATION_COSTS,
   SIMPLE_MOTIVATION_COST,
   ADVANCED_MOTIVATION_COST,
   MOTIVATION_TIER,
-} from ${JSON.stringify(motivationUrl)};
+} = await import("../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
 
 assert.equal(SIMPLE_MOTIVATION_COST, 25);
 assert.equal(ADVANCED_MOTIVATION_COST, 50);
@@ -24,13 +21,10 @@ for (const [kind, tier] of Object.entries(MOTIVATION_TIER)) {
     kind + " should cost " + expectedCost,
   );
 }
-`);
 });
 
-test("calculateMotivationStackCost uses updated pricing", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { calculateMotivationStackCost } from ${JSON.stringify(motivationUrl)};
+test("calculateMotivationStackCost uses updated pricing", async () => {
+  const { calculateMotivationStackCost } = await import("../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
 
 // Simple motivation: 25 tokens
 const simple = calculateMotivationStackCost([{ kind: "defending" }]);
@@ -49,5 +43,4 @@ assert.equal(mixed.cost, 75);
 
 const manualControl = calculateMotivationStackCost([{ kind: "user_controlled" }]);
 assert.equal(manualControl.cost, 10);
-`);
 });

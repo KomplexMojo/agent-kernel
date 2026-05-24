@@ -1,8 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
-
 const ROOT = resolve(__dirname, "../..");
 const scenarioPath = resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json");
 
@@ -44,16 +42,16 @@ test("summary -> pool -> budget -> buildspec chain uses fixtures deterministical
   const expectedSelections = readJson(resolve(ROOT, scenario.expectedSelectionsPath));
 
   const { normalizeSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { mapSummaryToPool } = await import(
-    moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
+    "../../packages/runtime/src/personas/director/pool-mapper.js"
   );
   const { enforceBudget } = await import(
-    moduleUrl("packages/runtime/src/personas/director/budget-enforcer.js")
+    "../../packages/runtime/src/personas/director/budget-enforcer.js"
   );
   const { buildBuildSpecFromSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js")
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
 
   const normalized = normalizeSummary(summaryFixture);
@@ -92,16 +90,16 @@ test("budget enforcement trims selections when budget is tight", async () => {
   const catalog = readJson(resolve(ROOT, scenario.catalogPath));
 
   const { normalizeSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { mapSummaryToPool } = await import(
-    moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
+    "../../packages/runtime/src/personas/director/pool-mapper.js"
   );
   const { enforceBudget } = await import(
-    moduleUrl("packages/runtime/src/personas/director/budget-enforcer.js")
+    "../../packages/runtime/src/personas/director/budget-enforcer.js"
   );
   const { buildBuildSpecFromSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js")
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
 
   const normalized = normalizeSummary(summaryFixture);

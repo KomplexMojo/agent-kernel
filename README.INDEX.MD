@@ -15,8 +15,8 @@ This file lists all README.md files in the repository, grouped by category. Path
 - ./packages/adapters-cli/src/adapters/ipfs/README.md
 - ./packages/adapters-cli/src/adapters/llm/README.md
 - ./packages/adapters-cli/src/mcp/README.md
-- ./packages/core-as/assembly/README.md
-- ./packages/core-as/assembly/ports/README.md
+- ./packages/core-ts/src/README.md
+- ./packages/core-ts/src/ports/README.md
 - ./packages/adapters-test/README.md
 - ./packages/adapters-test/src/adapters/blockchain/README.md
 - ./packages/adapters-test/src/adapters/ipfs/README.md

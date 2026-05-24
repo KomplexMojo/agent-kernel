@@ -1,10 +1,9 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const personaModule = moduleUrl("packages/runtime/src/personas/director/controller.js");
 
-const script = `
-import assert from "node:assert/strict";
-import { createDirectorPersona } from ${JSON.stringify(personaModule)};
+
+test("director emits hazard_proposal effects for affinity-tagged rooms on ingest_intent", async () => {
+const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.js");
 
 const CLOCK = "2025-01-01T00:00:00.000Z";
 const clock = () => CLOCK;
@@ -67,15 +66,11 @@ assert.equal(proposal.planRef.schema, "agent-kernel/PlanArtifact");
 
 // Non-affinity room (rest, no affinity) should NOT produce a hazard proposal
 assert.equal(hazardEffects.filter((e) => e.roomIndex === 1).length, 0, "rest room with no affinity should not produce a proposal");
-`;
-
-test("director emits hazard_proposal effects for affinity-tagged rooms on ingest_intent", () => {
-  runEsm(script);
 });
 
-const noRoomsScript = `
-import assert from "node:assert/strict";
-import { createDirectorPersona } from ${JSON.stringify(personaModule)};
+
+test("director emits no hazard_proposal effects when intent has no affinity-tagged rooms", async () => {
+const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.js");
 
 const CLOCK = "2025-01-01T00:00:00.000Z";
 const clock = () => CLOCK;
@@ -108,8 +103,4 @@ const result = persona.advance({
 
 const hazardEffects = result.effects.filter((e) => e.kind === "hazard_proposal");
 assert.equal(hazardEffects.length, 0, "no hazard proposals when no rooms have affinities");
-`;
-
-test("director emits no hazard_proposal effects when intent has no affinity-tagged rooms", () => {
-  runEsm(noRoomsScript);
 });

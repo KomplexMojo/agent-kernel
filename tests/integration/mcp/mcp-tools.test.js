@@ -2,18 +2,17 @@
 //
 // This file covers the 22 MCP tools that were identified as uncovered in the Gap Registry
 // (mcp-server.test.js). Tests are grouped by tool family. Each group uses its own harness
-// instance for isolation. WASM-conditional tests skip gracefully when build/core-as.wasm
-// is absent.
+// instance for isolation. Run/replay/narrate coverage uses the in-process core-ts runtime.
 //
 // Tools tested here (22 total):
-//   Simulation (no WASM): ak_build, ak_budget, ak_configurator
+//   Simulation: ak_build, ak_budget, ak_configurator
 //   LLM (fixture-backed): ak_llm, ak_ollama
 //   External adapters:    ak_ipfs, ak_ipfs_publish, ak_ipfs_load,
 //                         ak_blockchain, ak_blockchain_mint, ak_blockchain_load
 //   Test handlers:        ak_test_list_suites, ak_test_discover_patterns, ak_test_plan_from_change,
 //                         ak_test_run, ak_test_scaffold_case, ak_test_insert_case,
 //                         ak_test_explain_failure, ak_test_lint_structure
-//   WASM-conditional:     ak_replay, ak_narrate
+//   core runtime:     ak_replay, ak_narrate
 //
 // Known limitations (excluded — require on-disk artifacts/runs/<id> structure):
 //   ak_diff     — resolveDiffRunArtifacts reads from artifacts/runs/<id> on the filesystem
@@ -28,7 +27,6 @@ const os = require("node:os");
 
 const ROOT = resolve(__dirname, "../../..");
 const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
-const WASM_PATH = resolve(ROOT, "build/core-as.wasm");
 
 // Fixture paths
 const BUILD_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-basic.json");
@@ -170,11 +168,10 @@ function makeTempDir(prefix) {
   return mkdtempSync(join(os.tmpdir(), prefix));
 }
 
-const testIfWasm = existsSync(WASM_PATH) ? test : test.skip;
 
-// ── Simulation tools (no WASM required) ──────────────────────────────────────
+// ── Simulation tools (no core-ts required) ──────────────────────────────────────
 
-test("mcp ak_build produces a bundle from a build spec without WASM", async () => {
+test("mcp ak_build produces a bundle from a build spec with core-ts", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -613,9 +610,9 @@ test("mcp ak_test_lint_structure returns structural lint envelope", async () => 
   }
 });
 
-// ── WASM-conditional tools ────────────────────────────────────────────────────
+// ── core runtime tools ────────────────────────────────────────────────────
 
-testIfWasm("mcp ak_replay re-executes tick frames deterministically", async () => {
+test("mcp ak_replay re-executes tick frames deterministically", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -625,9 +622,7 @@ testIfWasm("mcp ak_replay re-executes tick frames deterministically", async () =
     const runResult = await harness.callTool("ak_run", {
       simConfig: SIM_CONFIG,
       initialState: INITIAL_STATE,
-      ticks: 1,
-      wasm: WASM_PATH,
-      outDir: runOutDir,
+      ticks: 1,      outDir: runOutDir,
     });
     const tickFramesPath = join(runOutDir, "tick-frames.json");
     assert.equal(existsSync(tickFramesPath), true, "run must produce tick-frames.json");
@@ -636,9 +631,7 @@ testIfWasm("mcp ak_replay re-executes tick frames deterministically", async () =
     const replayResult = await harness.callTool("ak_replay", {
       simConfig: SIM_CONFIG,
       initialState: INITIAL_STATE,
-      tickFrames: tickFramesPath,
-      wasm: WASM_PATH,
-      outDir: replayOutDir,
+      tickFrames: tickFramesPath,      outDir: replayOutDir,
     });
     assert.equal(replayResult.command, "replay");
     assert.equal(existsSync(join(replayOutDir, "replay-tick-frames.json")), true, "replay must produce replay-tick-frames.json");
@@ -655,7 +648,7 @@ testIfWasm("mcp ak_replay re-executes tick frames deterministically", async () =
   }
 });
 
-testIfWasm("mcp ak_narrate produces a narrative artifact from tick-frames and initial-state", async () => {
+test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-state", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
@@ -665,9 +658,7 @@ testIfWasm("mcp ak_narrate produces a narrative artifact from tick-frames and in
     await harness.callTool("ak_run", {
       simConfig: SIM_CONFIG,
       initialState: INITIAL_STATE,
-      ticks: 1,
-      wasm: WASM_PATH,
-      outDir: runOutDir,
+      ticks: 1,      outDir: runOutDir,
     });
     const tickFramesPath = join(runOutDir, "tick-frames.json");
     assert.equal(existsSync(tickFramesPath), true, "run must produce tick-frames.json");
@@ -687,7 +678,7 @@ testIfWasm("mcp ak_narrate produces a narrative artifact from tick-frames and in
   }
 });
 
-testIfWasm("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a full-dungeon run", async () => {
+test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a full-dungeon run", async () => {
   const workDir = makeTempDir("agent-kernel-mcp-tick-session-");
   const artifactsDir = join(workDir, "artifacts");
   const runId = "ring_mcp_tick_session";
@@ -712,9 +703,7 @@ testIfWasm("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward a
 
   const runOut = cliSpawn([
     "run",
-    "--from-run", runId,
-    "--wasm", WASM_PATH,
-    "--ticks", "3",
+    "--from-run", runId,    "--ticks", "3",
   ]);
   assert.equal(runOut.status, 0, `CLI run failed:\n${runOut.stderr}`);
 
@@ -763,4 +752,4 @@ testIfWasm("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward a
 // 4. mcp tick: ak_tick_forward with a non-existent runId returns ok=false with a path error
 // 5. mcp tick: ak_show_state with a non-existent runId returns ok=false
 // 6. mcp tick: interleaved forward/state calls on the same runId maintain cursor consistency
-// 7. mcp tick: ak_show_state ascii field is a non-empty string when WASM is present
+// 7. mcp tick: ak_show_state ascii field is a non-empty string

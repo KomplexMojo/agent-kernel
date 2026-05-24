@@ -1,11 +1,8 @@
-const { moduleUrl, runEsm } = require("../helpers/esm-runner");
+const assert = require("node:assert/strict");
 
-const incentiveUrl = moduleUrl("packages/runtime/src/personas/allocator/incentive-model.js");
 
-test("incentive multiplier: max(0, 1 - 1.25×|D/W - 0.8|) (design §3.3)", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { computeIncentiveMultiplier } from ${JSON.stringify(incentiveUrl)};
+test("incentive multiplier: max(0, async 1 - 1.25×|D/W - 0.8|) (design §3.3)", async () => {
+  const { computeIncentiveMultiplier } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
 
 // Perfect ratio: D/W = 0.8 → multiplier = 1.0
 assert.equal(computeIncentiveMultiplier(200, 250), 1.0);
@@ -22,39 +19,27 @@ assert.equal(computeIncentiveMultiplier(500, 100), 0);
 // Slightly off: D=220, W=250 → 0.88 → |0.88-0.8| = 0.08 → 1 - 0.1 = 0.9
 const m = computeIncentiveMultiplier(220, 250);
 assert.ok(Math.abs(m - 0.9) < 0.001);
-`);
 });
 
-test("target delver/warden ratio is 0.8 (design §3.2)", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { TARGET_DELVER_WARDEN_RATIO } from ${JSON.stringify(incentiveUrl)};
+test("target delver/warden ratio is 0.8 (design §3.2)", async () => {
+  const { TARGET_DELVER_WARDEN_RATIO } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
 assert.equal(TARGET_DELVER_WARDEN_RATIO, 0.8);
-`);
 });
 
-test("reference budget is 2500 (design §2.1)", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { REFERENCE_BUDGET_TOKENS } from ${JSON.stringify(incentiveUrl)};
+test("reference budget is 2500 (design §2.1)", async () => {
+  const { REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
 assert.equal(REFERENCE_BUDGET_TOKENS, 2500);
-`);
 });
 
-test("reference targets: rooms=1100, delvers=500, wardens=400 (design §2.2)", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { REFERENCE_TARGETS } from ${JSON.stringify(incentiveUrl)};
+test("reference targets: rooms=1100, async delvers=500, wardens=400 (design §2.2)", async () => {
+  const { REFERENCE_TARGETS } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
 assert.equal(REFERENCE_TARGETS.rooms, 1100);
 assert.equal(REFERENCE_TARGETS.delvers, 500);
 assert.equal(REFERENCE_TARGETS.wardens, 400);
-`);
 });
 
-test("scenario spend report includes all required fields (design §14)", () => {
-  runEsm(`
-import assert from "node:assert/strict";
-import { buildScenarioSpendReport } from ${JSON.stringify(incentiveUrl)};
+test("scenario spend report includes all required fields (design §14)", async () => {
+  const { buildScenarioSpendReport } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
 
 const report = buildScenarioSpendReport({
   roomsSpend: 500,
@@ -82,5 +67,4 @@ assert.equal(report.incentive.targetRatio, 0.8);
 assert.equal(typeof report.incentive.multiplier, "number");
 assert.ok(report.incentive.multiplier > 0);
 assert.ok(report.incentive.multiplier <= 1);
-`);
 });

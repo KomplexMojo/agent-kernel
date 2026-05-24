@@ -1,8 +1,6 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { moduleUrl } = require("../helpers/esm-runner");
-
 const ROOT = resolve(__dirname, "../..");
 
 function readJson(path) {
@@ -18,19 +16,19 @@ test("allocator receipts and ledger link to buildspec budget refs", async () => 
   const spendEvents = readJson(resolve(ROOT, "tests/fixtures/allocator/spend-events-v1-basic.json"));
 
   const { normalizeSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/orchestrator/prompt-contract.js")
+    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { mapSummaryToPool } = await import(
-    moduleUrl("packages/runtime/src/personas/director/pool-mapper.js")
+    "../../packages/runtime/src/personas/director/pool-mapper.js"
   );
   const { buildBuildSpecFromSummary } = await import(
-    moduleUrl("packages/runtime/src/personas/director/buildspec-assembler.js")
+    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const { orchestrateBuild } = await import(
-    moduleUrl("packages/runtime/src/build/orchestrate-build.js")
+    "../../packages/runtime/src/build/orchestrate-build.js"
   );
   const { updateBudgetLedger } = await import(
-    moduleUrl("packages/runtime/src/personas/allocator/budget-ledger.js")
+    "../../packages/runtime/src/personas/allocator/budget-ledger.js"
   );
 
   const normalized = normalizeSummary(summaryFixture);

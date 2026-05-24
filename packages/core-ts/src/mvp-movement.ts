@@ -1,3 +1,4 @@
+// @ts-nocheck
 const DIR_MAP = Object.freeze({
   north: 0,
   northeast: 1,

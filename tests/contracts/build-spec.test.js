@@ -1,9 +1,8 @@
 const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
-const { moduleUrl } = require("../helpers/esm-runner");
 
 async function loadValidator() {
-  return import(moduleUrl("packages/runtime/src/contracts/build-spec.js"));
+  return import("../../packages/runtime/src/contracts/build-spec.js");
 }
 
 test("build spec validation accepts basic fixture", async () => {
