@@ -5,6 +5,7 @@ import {
   resolveTileVisualAt,
 } from "../../packages/ui-web/src/views/tile-affinity-visuals.js";
 import bundle from "../fixtures/ui-web/resource-hazard-run-bundle.json" with { type: "json" };
+import overlapFixture from "../fixtures/sandbox/affinity-overlap-v1-water-fire.json" with { type: "json" };
 
 const simConfig = bundle.artifacts[0];
 const resourceBundle = bundle.artifacts[2];
@@ -268,6 +269,94 @@ describe("resolveTileVisualAt", () => {
       null,
       "undefined visuals map must return null",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// water fire overlap — uses affinity-overlap-v1-water-fire.json fixture
+// ---------------------------------------------------------------------------
+
+const overlapTiles   = overlapFixture.simConfig.layout.data.tiles;
+const overlapHazards = overlapFixture.simConfig.layout.data.hazards;
+
+describe("water fire overlap", () => {
+  it("hazard-spread path: water hazard origin (2,0) has affinityKind water", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: overlapTiles,
+      hazards: overlapHazards,
+    });
+    const waterOrigin = visuals.get("2,0");
+    assert.ok(waterOrigin, "water hazard origin tile (2,0) must have a visual");
+    assert.equal(waterOrigin.affinityKind, "water", "water origin must carry water affinity");
+    assert.equal(waterOrigin.intensity, 1.0, "origin tile must have full intensity");
+  });
+
+  it("hazard-spread path: fire hazard origin (2,4) has affinityKind fire", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: overlapTiles,
+      hazards: overlapHazards,
+    });
+    const fireOrigin = visuals.get("2,4");
+    assert.ok(fireOrigin, "fire hazard origin tile (2,4) must have a visual");
+    assert.equal(fireOrigin.affinityKind, "fire", "fire origin must carry fire affinity");
+    assert.equal(fireOrigin.intensity, 1.0, "origin tile must have full intensity");
+  });
+
+  it("overlap tile (2,2) has a visual with non-zero intensity", () => {
+    // Tile (2,2) is distance 2 from both water@(2,0) and fire@(2,4)
+    // with emitStrength=3: intensity = 1 - 2/3 ≈ 0.33 from each hazard.
+    // Hazard-spread path: fire wins (last processed), intensity = max(0.33, 0.33) = 0.33.
+    const visuals = deriveTileAffinityVisuals({
+      tiles: overlapTiles,
+      hazards: overlapHazards,
+    });
+    const overlap = visuals.get("2,2");
+    assert.ok(overlap, "overlap tile (2,2) must have a visual");
+    assert.ok(overlap.intensity > 0, "overlap tile intensity must be positive");
+    assert.ok(
+      overlap.affinityKind === "water" || overlap.affinityKind === "fire",
+      `overlap tile affinityKind must be water or fire, got "${overlap.affinityKind}"`,
+    );
+  });
+
+  it("non-overlapping tiles carry only their respective affinity", () => {
+    // emitStrength=3: water@(2,0) reaches tiles up to distance 2; fire@(2,4) likewise.
+    // Tiles at distance 3 from one hazard but within 3 of the other are pure.
+    const visuals = deriveTileAffinityVisuals({
+      tiles: overlapTiles,
+      hazards: overlapHazards,
+    });
+    // (0,0) is distance 2 from water@(2,0) → in water field, and distance 6 from fire@(2,4) → out
+    const pureWater = visuals.get("0,0");
+    assert.ok(pureWater, "tile (0,0) must be in the water field");
+    assert.equal(pureWater.affinityKind, "water", "(0,0) must be pure water");
+
+    // (4,4) is distance 2 from fire@(2,4) → in fire field, and distance 6 from water@(2,0) → out
+    const pureFire = visuals.get("4,4");
+    assert.ok(pureFire, "tile (4,4) must be in the fire field");
+    assert.equal(pureFire.affinityKind, "fire", "(4,4) must be pure fire");
+  });
+
+  it("field-records path: overlap tile contributions contain both water and fire", async () => {
+    // Uses the full field-records pipeline via affinity-field-bridge.
+    // This test validates the sandbox bundle path end-to-end.
+    const { buildTileAffinityVisualsFromSandboxBundle } = await import(
+      "../../packages/ui-web/src/views/affinity-field-bridge.js"
+    );
+    const visuals = await buildTileAffinityVisualsFromSandboxBundle({
+      simConfig:     overlapFixture.simConfig,
+      initialState:  overlapFixture.initialState,
+      resourceBundle: null,
+    });
+    assert.ok(visuals instanceof Map, "must return a Map");
+    assert.ok(visuals.size > 0, "must produce tile visuals");
+
+    const overlap = visuals.get("2,2");
+    assert.ok(overlap, "overlap tile (2,2) must have a visual");
+    assert.ok(Array.isArray(overlap.contributions), "field-records path must include contributions array");
+    const kinds = overlap.contributions.map((c) => c.kind);
+    assert.ok(kinds.includes("water"), "contributions must include water at overlap tile");
+    assert.ok(kinds.includes("fire"),  "contributions must include fire at overlap tile");
   });
 });
 

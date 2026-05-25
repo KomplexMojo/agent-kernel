@@ -179,6 +179,63 @@ test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals ->
   assert.equal(unexpectedVisuals.length, 0, "only fire and water visuals present");
 });
 
+// ---------------------------------------------------------------------------
+// Sandbox bundle path — water/fire overlap through buildTileAffinityVisualsFromSandboxBundle
+// ---------------------------------------------------------------------------
+
+test("water/fire sandbox bundle: full pipeline produces visuals with contributions at overlap tile", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { resolve } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+
+  const __dirname = fileURLToPath(new URL(".", import.meta.url));
+  const fixturePath = resolve(
+    __dirname,
+    "../fixtures/sandbox/affinity-overlap-v1-water-fire.json",
+  );
+  const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+
+  const { buildTileAffinityVisualsFromSandboxBundle } = await import(
+    "../../packages/ui-web/src/views/affinity-field-bridge.js"
+  );
+
+  const visuals = await buildTileAffinityVisualsFromSandboxBundle({
+    simConfig:    fixture.simConfig,
+    initialState: fixture.initialState,
+    resourceBundle: null,
+  });
+
+  assert.ok(visuals instanceof Map, "must return a Map");
+  assert.ok(visuals.size > 0, "must produce tile visuals");
+
+  // Water origin (2,0) — intensity ≥ 1.0
+  const waterOrigin = visuals.get("2,0");
+  assert.ok(waterOrigin, "water origin (2,0) must have a visual");
+  assert.equal(waterOrigin.affinityKind, "water", "water origin affinity kind");
+
+  // Fire origin (2,4) — intensity ≥ 1.0
+  const fireOrigin = visuals.get("2,4");
+  assert.ok(fireOrigin, "fire origin (2,4) must have a visual");
+  assert.equal(fireOrigin.affinityKind, "fire", "fire origin affinity kind");
+
+  // Overlap tile (2,2) — equidistant (2 tiles) from both hazards, contributions from both kinds
+  const overlap = visuals.get("2,2");
+  assert.ok(overlap, "overlap tile (2,2) must have a visual");
+  assert.ok(Array.isArray(overlap.contributions), "contributions must be an array");
+  const kinds = overlap.contributions.map((c) => c.kind);
+  assert.ok(kinds.includes("water"), "overlap contributions must include water");
+  assert.ok(kinds.includes("fire"),  "overlap contributions must include fire");
+
+  // Every visual must have the renderer-required shape
+  for (const [key, visual] of visuals) {
+    assert.ok(typeof visual.intensity === "number",     `${key}: intensity must be a number`);
+    assert.ok(typeof visual.affinityKind === "string",  `${key}: affinityKind must be a string`);
+    assert.ok(typeof visual.color === "number",         `${key}: color must be a number`);
+    assert.ok(typeof visual.alpha === "number",         `${key}: alpha must be a number`);
+    assert.ok(visual.alpha >= 0 && visual.alpha <= 1,   `${key}: alpha must be in [0,1]`);
+  }
+});
+
 /*
 ## TODO: Test Permutations
 - [ ] Fixture with water hazard (emit): verify water visuals with blue tint (0x2b7fff)

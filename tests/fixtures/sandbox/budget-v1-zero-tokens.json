@@ -1,0 +1,13 @@
+{
+  "schema": "agent-kernel/BudgetArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "budget_sandbox_zero",
+    "runId": "run_sandbox_zero",
+    "createdAt": "2026-05-25T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "budget": {
+    "tokens": 0
+  }
+}

@@ -16,6 +16,7 @@ import { llmTools } from "./tools/llm.mjs";
 import { simulationTools } from "./tools/simulation.mjs";
 import { testingTools } from "./tools/testing.mjs";
 import { tickTools } from "./tools/tick.mjs";
+import { sandboxTools } from "./tools/sandbox.mjs";
 
 const SERVER_NAME = "agent-kernel-cli";
 const SERVER_VERSION = "1.0.0";
@@ -27,6 +28,7 @@ const TOOL_DEFINITIONS = [
   ...externalTools,
   ...testingTools,
   ...tickTools,
+  ...sandboxTools,
 ];
 
 const TOOL_MAP = new Map(TOOL_DEFINITIONS.map((tool) => [tool.name, tool]));

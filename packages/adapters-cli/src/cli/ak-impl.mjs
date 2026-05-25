@@ -52,6 +52,8 @@ import {
   validateVisualizationMode,
 } from "../tick-session.mjs";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
+import { SANDBOX_SESSION_SCHEMA } from "../../../runtime/src/contracts/sandbox-session.mjs";
+import { executeSandboxPlace, executeSandboxMove } from "../mcp/tools/sandbox.mjs";
 import {
   DEFAULT_LLM_BASE_URL,
   DEFAULT_LLM_MODEL,
@@ -2184,6 +2186,9 @@ const STRUCTURED_STDOUT_COMMANDS = new Set([
   "diff",
   "runs",
   "tick",
+  "sandbox-create",
+  "sandbox-place",
+  "sandbox-move",
 ]);
 
 const RUN_INDEX_INPUT_FILES = Object.freeze([
@@ -5991,6 +5996,182 @@ async function runsCommand(argv) {
   emitJsonStdout(await summarizeRunsIndex({ rootDir }));
 }
 
+async function sandboxCreateCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  const budgetReceiptPath = resolvePath(args["budget-receipt"]);
+  const budgetPath = resolvePath(args.budget);
+
+  if (!budgetReceiptPath && !budgetPath) {
+    emitJsonStdout({
+      ok: false,
+      command: "sandbox-create",
+      error: "sandbox-create requires --budget-receipt or --budget.",
+      budgetRequired: true,
+    });
+    return;
+  }
+
+  const runId = isNonEmptyString(args["run-id"]) ? args["run-id"].trim() : makeId("sandbox_run");
+  const createdAt = isNonEmptyString(args["created-at"])
+    ? args["created-at"].trim()
+    : new Date().toISOString();
+
+  let budgetReceiptRef;
+
+  if (budgetReceiptPath) {
+    const receipt = await readJson(budgetReceiptPath);
+    assertSchema(receipt, SCHEMAS.budgetReceiptArtifact);
+    if (
+      receipt.status === "denied" ||
+      (typeof receipt.remaining === "number" && receipt.remaining < 0)
+    ) {
+      emitJsonStdout({
+        ok: false,
+        command: "sandbox-create",
+        error: `Budget insufficient: status=${receipt.status}, remaining=${receipt.remaining}`,
+        budgetInsufficient: true,
+      });
+      return;
+    }
+    budgetReceiptRef = toRef(receipt);
+  } else {
+    const budgetArtifact = await readJson(budgetPath);
+    assertSchema(budgetArtifact, SCHEMAS.budgetArtifact);
+    const tokens = budgetArtifact.budget?.tokens;
+    if (!Number.isInteger(tokens) || tokens <= 0) {
+      emitJsonStdout({
+        ok: false,
+        command: "sandbox-create",
+        error: `Budget insufficient: tokens=${tokens}`,
+        budgetInsufficient: true,
+      });
+      return;
+    }
+    budgetReceiptRef = {
+      id: `budget_receipt_${runId}`,
+      schema: "agent-kernel/BudgetReceiptArtifact",
+      schemaVersion: 1,
+    };
+  }
+
+  const width = args.width !== undefined ? Number(args.width) : 10;
+  const height = args.height !== undefined ? Number(args.height) : 10;
+  if (!Number.isInteger(width) || width <= 0) {
+    throw new Error("sandbox-create: --width must be a positive integer.");
+  }
+  if (!Number.isInteger(height) || height <= 0) {
+    throw new Error("sandbox-create: --height must be a positive integer.");
+  }
+
+  const entityCategories = [];
+  if (isNonEmptyString(args["entity-categories"])) {
+    for (const cat of args["entity-categories"].split(",")) {
+      const trimmed = cat.trim();
+      if (trimmed) entityCategories.push(trimmed);
+    }
+  }
+
+  const sandboxId = `sandbox_session_${runId}`;
+  const outDir =
+    resolvePath(args["out-dir"]) ||
+    resolve(process.cwd(), DEFAULT_ARTIFACTS_DIR, "sandbox", runId);
+  await mkdir(outDir, { recursive: true });
+
+  const session = {
+    schema: SANDBOX_SESSION_SCHEMA,
+    schemaVersion: 1,
+    meta: { id: sandboxId, runId, createdAt, producedBy: "sandbox-create" },
+    rooms: [{ id: "room_default", width, height }],
+    artifacts: { budgetReceiptRef },
+    ...(entityCategories.length > 0 ? { entityCategories } : {}),
+  };
+
+  await writeJson(join(outDir, "sandbox-session.json"), session);
+
+  emitJsonStdout({
+    ok: true,
+    command: "sandbox-create",
+    sandboxId,
+    runId,
+    outDir,
+    rooms: session.rooms,
+    artifacts: session.artifacts,
+    ...(entityCategories.length > 0 ? { entityCategories } : {}),
+  });
+}
+
+async function sandboxPlaceCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  const sessionPath = resolvePath(args.session);
+  const entityType = args["entity-type"];
+  const spec = args.spec;
+
+  if (!sessionPath) {
+    throw new Error("sandbox-place requires --session <path>");
+  }
+  if (!isNonEmptyString(entityType)) {
+    throw new Error("sandbox-place requires --entity-type <type>");
+  }
+  if (!isNonEmptyString(spec)) {
+    throw new Error("sandbox-place requires --spec <spec-string>");
+  }
+
+  const result = await executeSandboxPlace({ session: sessionPath, entityType, spec });
+  emitJsonStdout(result);
+  if (!result.ok) {
+    process.exit(1);
+  }
+}
+
+async function sandboxMoveCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  const sessionPath = resolvePath(args.session);
+  const actorId = args["actor-id"];
+  const direction = args.direction;
+  const actionsOut = resolvePath(args["actions-out"]);
+
+  if (!sessionPath) {
+    throw new Error("sandbox-move requires --session <path>");
+  }
+  if (!isNonEmptyString(actorId)) {
+    throw new Error("sandbox-move requires --actor-id <id>");
+  }
+  if (!isNonEmptyString(direction)) {
+    throw new Error(
+      "sandbox-move requires --direction <north|northeast|east|southeast|south|southwest|west|northwest>",
+    );
+  }
+  if (!actionsOut) {
+    throw new Error("sandbox-move requires --actions-out <path>");
+  }
+
+  const result = await executeSandboxMove({
+    session: sessionPath,
+    actorId,
+    direction,
+    actionsOut,
+  });
+  emitJsonStdout(result);
+  if (!result.ok) {
+    process.exit(1);
+  }
+}
+
 export const COMMANDS = {
   build: buildCommand,
   schemas: schemasCommand,
@@ -6020,6 +6201,9 @@ export const COMMANDS = {
   diff: diffCommand,
   runs: runsCommand,
   tick: tickCommand,
+  "sandbox-create": sandboxCreateCommand,
+  "sandbox-place": sandboxPlaceCommand,
+  "sandbox-move": sandboxMoveCommand,
 };
 
 export async function executeCommand(command, rest = []) {

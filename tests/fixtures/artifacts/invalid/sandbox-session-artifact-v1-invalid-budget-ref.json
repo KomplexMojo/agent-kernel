@@ -1,0 +1,35 @@
+{
+  "schema": "agent-kernel/SandboxSessionArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "sandbox_session_invalid_budget",
+    "runId": "run_sandbox_invalid_budget",
+    "createdAt": "2026-05-25T00:00:00.000Z",
+    "producedBy": "sandbox-create"
+  },
+  "rooms": [
+    {
+      "id": "room_default",
+      "width": 10,
+      "height": 10
+    }
+  ],
+  "artifacts": {
+    "simConfigRef": {
+      "id": "sim_config_sandbox_invalid",
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1
+    },
+    "initialStateRef": {
+      "id": "initial_state_sandbox_invalid",
+      "schema": "agent-kernel/InitialStateArtifact",
+      "schemaVersion": 1
+    },
+    "resourceBundleRef": {
+      "id": "resource_bundle_sandbox_invalid",
+      "schema": "agent-kernel/ResourceBundleArtifact",
+      "schemaVersion": 2
+    }
+  },
+  "entityCategories": ["delver"]
+}

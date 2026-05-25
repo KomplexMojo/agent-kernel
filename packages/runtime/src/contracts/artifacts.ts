@@ -1908,3 +1908,90 @@ export interface TickCursorArtifactV1 {
 }
 
 export type TickCursorArtifact = TickCursorArtifactV1;
+
+// -------------------------
+// Sandbox Session (Phaser sandbox surface)
+// -------------------------
+
+export const SANDBOX_SESSION_SCHEMA = "agent-kernel/SandboxSessionArtifact";
+
+/**
+ * A single room definition inside a sandbox session.
+ * Default dimensions are 10×10.
+ */
+export interface SandboxRoomV1 {
+  /** Stable room identifier (e.g. "room_default", "room_extra"). */
+  id: string;
+  /** Room width in tiles. Must be a positive integer. Default: 10. */
+  width: number;
+  /** Room height in tiles. Must be a positive integer. Default: 10. */
+  height: number;
+}
+
+/**
+ * Index of artifact references produced during a sandbox session.
+ * References existing artifacts rather than duplicating their payloads.
+ * Fields are written lazily as the sandbox progresses through creation steps.
+ */
+export interface SandboxArtifactIndexV1 {
+  /** Reference to the canonical SimConfigArtifact for this sandbox run. */
+  simConfigRef?: ArtifactRef;
+  /** Reference to the canonical InitialStateArtifact for this sandbox run. */
+  initialStateRef?: ArtifactRef;
+  /** Reference to the canonical ResourceBundleArtifact for this sandbox. */
+  resourceBundleRef?: ArtifactRef;
+  /**
+   * Reference to the BudgetReceiptArtifact that governed this sandbox creation.
+   * Required — budget enforcement must be completed before entity placement.
+   */
+  budgetReceiptRef: ArtifactRef;
+  /** Optional reference to the latest tick-frames output for navigation. */
+  tickFramesRef?: ArtifactRef;
+}
+
+/**
+ * Supported entity categories for the sandbox at launch.
+ * Future entity kinds may be added as the sandbox surface evolves.
+ */
+export type SandboxEntityCategory = "delver" | "warden" | "hazard" | "trap" | "resource";
+
+/**
+ * Session envelope for a standalone Phaser sandbox.
+ *
+ * This is a boundary-crossing artifact: MCP, CLI, runtime, and the Phaser
+ * sandbox surface all reference the session by schema/id. It must be stable
+ * and versioned.
+ *
+ * Design contract:
+ * - Single room by default; additional rooms are always explicit.
+ * - References existing artifacts; never embeds full payloads.
+ * - The sandbox is the evolutionary foundation for the primary Phaser game
+ *   surface — it must not depend on the Web UI for rendering or game logic.
+ */
+export interface SandboxSessionArtifactV1 {
+  schema: typeof SANDBOX_SESSION_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  /**
+   * Rooms in this sandbox session.
+   * The first room is always the default room (10×10 unless overridden).
+   * Additional rooms must be explicitly requested.
+   */
+  rooms: SandboxRoomV1[];
+
+  /**
+   * Index of canonical artifact references for this sandbox session.
+   * At minimum the budgetReceiptRef must be present.
+   */
+  artifacts: SandboxArtifactIndexV1;
+
+  /**
+   * Optional declared entity categories this session was created to host.
+   * Must be a subset of the supported launch categories.
+   * If omitted, all launch categories are implicitly supported.
+   */
+  entityCategories?: SandboxEntityCategory[];
+}
+
+export type SandboxSessionArtifact = SandboxSessionArtifactV1;

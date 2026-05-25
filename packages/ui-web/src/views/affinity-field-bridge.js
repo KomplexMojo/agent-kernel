@@ -107,6 +107,55 @@ export async function buildTileAffinityVisualsFromBundle(bundle) {
 }
 
 /**
+ * Build tile affinity visuals from a sandbox bundle
+ * `{ simConfig, initialState, resourceBundle? }`.
+ *
+ * Accepts the sandbox bundle shape directly (no wrapping `artifacts` array needed).
+ * Pipeline: simConfig + initialState -> initializeCoreFromArtifacts ->
+ *   readAllFieldRecords -> deriveTileAffinityVisuals({ fieldRecords })
+ *
+ * Falls back to the hazard-spread JS path when the field pipeline cannot
+ * produce records (missing actors, unsupported layout, etc.).
+ *
+ * @param {{ simConfig: object, initialState: object, resourceBundle?: object }} sandboxBundle
+ * @returns {Promise<Map<string, object>>}
+ */
+export async function buildTileAffinityVisualsFromSandboxBundle({
+  simConfig,
+  initialState,
+  resourceBundle = null,
+} = {}) {
+  const layoutData = simConfig?.layout?.data || {};
+  const tiles   = Array.isArray(layoutData.tiles)   ? layoutData.tiles   : [];
+  const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+
+  const core = getCore();
+  if (core && simConfig && initialState) {
+    try {
+      const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
+      if (result.layout?.ok) {
+        const width  = result.layout.dimensions?.width  || 0;
+        const height = result.layout.dimensions?.height || 0;
+        if (width > 0 && height > 0) {
+          const fieldRecords = readAllFieldRecords(core, width, height);
+          if (fieldRecords.length > 0) {
+            return deriveTileAffinityVisuals({ fieldRecords, resourceBundle });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(
+        "[affinity-field-bridge] Sandbox field computation failed, falling back:",
+        err.message,
+      );
+    }
+  }
+
+  // Hazard-based spread fallback.
+  return deriveTileAffinityVisuals({ tiles, hazards, resourceBundle });
+}
+
+/**
  * Synchronous wrapper that returns a function suitable for the
  * buildTileAffinityVisualsFromBundleFn injection point.
  */

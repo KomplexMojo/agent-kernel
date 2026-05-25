@@ -1,0 +1,42 @@
+{
+  "hazard": {
+    "id": "hazard_fire",
+    "x": 4,
+    "y": 4,
+    "affinity": "fire",
+    "expression": "emit",
+    "stacks": 2
+  },
+  "delver": {
+    "id": "delver_1",
+    "x": 1,
+    "y": 1,
+    "affinity": "water",
+    "motivation": "exploring"
+  },
+  "warden": {
+    "id": "warden_1",
+    "x": 2,
+    "y": 1,
+    "affinity": "fire",
+    "motivation": "defending"
+  },
+  "trap": {
+    "id": "trap_1",
+    "x": 3,
+    "y": 2,
+    "affinity": "dark",
+    "expression": "emit",
+    "stacks": 1,
+    "blocking": false
+  },
+  "resource": {
+    "id": "res_1",
+    "x": 3,
+    "y": 3,
+    "tier": "level",
+    "stat": "affinityStack",
+    "delta": 1,
+    "dropRate": 1
+  }
+}

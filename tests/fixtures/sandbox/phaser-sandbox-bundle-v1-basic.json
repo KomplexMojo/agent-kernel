@@ -1,0 +1,68 @@
+{
+  "simConfig": {
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "sim-config-bundle-test",
+      "runId": "bundle_test",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "producedBy": "fixture"
+    },
+    "layout": {
+      "kind": "grid",
+      "data": {
+        "width": 5,
+        "height": 5,
+        "tiles": ["#####", "#...#", "#...#", "#...#", "#####"],
+        "legend": { "#": { "tile": "wall" }, ".": { "tile": "floor" } }
+      }
+    }
+  },
+  "initialState": {
+    "schema": "agent-kernel/InitialStateArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "initial-state-bundle-test",
+      "runId": "bundle_test",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "producedBy": "fixture"
+    },
+    "actors": [
+      {
+        "id": "delver_1",
+        "kind": "ambulatory",
+        "archetype": "delver",
+        "position": { "x": 1, "y": 1 },
+        "traits": { "affinity": "water", "motivation": "exploring" }
+      },
+      {
+        "id": "warden_1",
+        "kind": "ambulatory",
+        "archetype": "warden",
+        "position": { "x": 3, "y": 3 },
+        "traits": { "affinity": "fire", "motivation": "defending" }
+      },
+      {
+        "id": "hazard_fire",
+        "kind": "stationary",
+        "archetype": "hazard",
+        "position": { "x": 2, "y": 2 },
+        "traits": { "affinity": "fire", "expression": "emit", "stacks": 2 }
+      },
+      {
+        "id": "trap_1",
+        "kind": "stationary",
+        "archetype": "trap",
+        "position": { "x": 1, "y": 3 },
+        "traits": { "affinity": "dark", "expression": "emit", "stacks": 1 }
+      },
+      {
+        "id": "res_1",
+        "kind": "stationary",
+        "archetype": "resource",
+        "position": { "x": 3, "y": 1 },
+        "traits": { "tier": "level", "stat": "affinityStack", "delta": 1 }
+      }
+    ]
+  }
+}
