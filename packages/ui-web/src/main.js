@@ -286,6 +286,15 @@ designView = wireDesignView({
   commandHost,
   onSendBuildSpec: ({ specText, source, resetBuildOutput }) =>
     diagnosticsView.setBuildSpecText(specText, { source, resetOutput: resetBuildOutput }),
+  // Clear the run ID and any active gameplay run when the user manually clicks
+  // Auto-generate — the previous run is stale.  Clearing the gameplay view also
+  // resets isRunActive() so the next Gameplay tab switch triggers a fresh launch.
+  // This fires only from the button, NOT from launchGameplayRun (which calls
+  // autoGenerateCards() programmatically, bypassing this callback).
+  onAutoGenerate: () => {
+    setGameplayRunIdLabel(null);
+    gameplayView?.clear?.("Design changed — re-generating…");
+  },
   onLlmCapture: null,
 });
 

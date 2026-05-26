@@ -1,9 +1,20 @@
 #!/usr/bin/env node
 import { createServer } from "node:http";
-import { stat } from "node:fs/promises";
+import { stat, readFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { resolve, join, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+
+const _require = createRequire(import.meta.url);
+const ts = _require("typescript");
+
+const TS_TRANSPILE_OPTIONS = {
+  compilerOptions: {
+    module: ts.ModuleKind.ESNext,
+    target: ts.ScriptTarget.ESNext,
+  },
+};
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -63,6 +74,35 @@ async function handleStatic(req, res) {
   }
 
   const ext = extname(filePath).toLowerCase();
+
+  // Transpile TypeScript files on-the-fly so the browser receives valid JavaScript.
+  // ts.transpileModule strips TypeScript-specific syntax (type annotations, `as const`, etc.)
+  // and preserves ES module import/export statements including .ts import paths.
+  if (ext === ".ts" || ext === ".mts") {
+    let content;
+    try {
+      content = await readFile(filePath, "utf8");
+    } catch (_err) {
+      res.statusCode = 404;
+      res.end("Not found");
+      return;
+    }
+    let output;
+    try {
+      output = ts.transpileModule(content, TS_TRANSPILE_OPTIONS).outputText;
+    } catch (err) {
+      res.statusCode = 500;
+      res.end(`TypeScript transpilation error: ${err.message}`);
+      return;
+    }
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    setCors(res);
+    res.end(output);
+    return;
+  }
+
   const mime = MIME_TYPES[ext] || "application/octet-stream";
   res.statusCode = 200;
   res.setHeader("Content-Type", mime);

@@ -320,7 +320,7 @@
 
       .tab-bar {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr) minmax(0, 3fr);
         gap: 10px;
       }
 
@@ -351,11 +351,10 @@
       }
 
       .tab-run-id {
-        flex: 0 1 18ch;
-        max-width: 18ch;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        flex: 0 0 auto;
+        overflow: visible;
         white-space: nowrap;
+        margin-left: 0.5rem;
         color: var(--muted);
         font-family: "Space Grotesk", "Work Sans", sans-serif;
         font-size: 0.72rem;
@@ -2283,50 +2282,6 @@
         </div>
       </section>
     </main>
-    <script>
-      // Server readiness check: if page loaded before server was ready, retry loading
-      (function checkServerReady() {
-        let retryCount = 0;
-        const maxRetries = 30;
-        const retryDelay = 500; // ms
-
-        function checkHealth() {
-          fetch('/health')
-            .then(res => res.json())
-            .then(data => {
-              if (data.status === 'ready') {
-                // Server is ready, proceed with loading main.js
-                const script = document.createElement('script');
-                script.type = 'module';
-                script.src = './src/main.js?v=' + Date.now();
-                document.body.appendChild(script);
-              } else {
-                retryLoad();
-              }
-            })
-            .catch(err => {
-              // Server not reachable yet, retry
-              retryLoad();
-            });
-        }
-
-        function retryLoad() {
-          retryCount++;
-          if (retryCount < maxRetries) {
-            setTimeout(checkHealth, retryDelay);
-          } else {
-            // Max retries reached, try loading anyway
-            console.warn('Server readiness check timed out, attempting to load');
-            const script = document.createElement('script');
-            script.type = 'module';
-            script.src = './src/main.js?v=' + Date.now();
-            document.body.appendChild(script);
-          }
-        }
-
-        // Start the check
-        checkHealth();
-      })();
-    </script>
+    <script type="module" src="./src/main.js"></script>
   </body>
 </html>

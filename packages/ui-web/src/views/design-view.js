@@ -11,6 +11,7 @@ export function wireDesignView({
   llmConfig = {},
   commandHost = createCliWorkerAdapter({ forceInProcess: typeof Worker !== "function" }),
   onSendBuildSpec,
+  onAutoGenerate,
   onLlmCapture,
 } = {}) {
   const guidanceStatus = root.querySelector("#design-guidance-status");
@@ -140,6 +141,7 @@ export function wireDesignView({
 
   if (autoGenerateButton?.addEventListener) {
     autoGenerateButton.addEventListener("click", () => {
+      onAutoGenerate?.();
       autoGenerateCards();
     });
   }
