@@ -435,3 +435,40 @@ test("resolveIconHTML allows short base64 test fixtures through", () => {
   assert.match(html, /<img /);
   assert.match(html, /src="data:image\/png;base64,ABC"/);
 });
+
+// ─── B4: Icon size forwarding (M3 — populateUIIcons size param) ───────────────
+
+test("resolveIcon accepts a size argument without throwing and still resolves the icon", () => {
+  // main.js reads data-icon-size and passes it as the 4th arg to resolveIcon.
+  // Verify that extra size param is accepted gracefully (no throw, icon returned).
+  withFakeDocument(() => {
+    const bundle = {
+      mappings: { icons: { affinities: { fire: "asset-fire" } } },
+      assets: [{ id: "asset-fire", dataUri: "data:image/png;base64,FIRE" }],
+    };
+
+    for (const size of ["sm", "md", "lg", undefined]) {
+      const el = resolveIcon(bundle, "affinities", "fire", size);
+      assert.ok(el, `resolveIcon must return an element for size="${size}"`);
+      // Bundle icon found — should be an img element regardless of size
+      assert.equal(el.tagName, "IMG", `expected IMG for size="${size}", got ${el.tagName}`);
+    }
+  });
+});
+
+test("resolveIcon falls back to text label when size is provided but bundle is null", () => {
+  withFakeDocument(() => {
+    const el = resolveIcon(null, "affinities", "fire", "lg");
+    assert.ok(el, "must return a fallback element");
+    assert.equal(el.tagName, "SPAN", "fallback without bundle must be a SPAN");
+    assert.equal(el.textContent, "🔥");
+  });
+});
+
+/*
+## TODO: Test Permutations
+- resolveIcon with multi-size bundle mapping: sm/md/lg each resolve to different asset IDs
+- resolveIcon size fallback chain: lg missing → md → sm → text label
+- resolveIconHTML with size param: returns correct img src for each size
+- populateUIIcons integration: DOM element with data-icon-size="lg" receives lg asset
+*/

@@ -645,6 +645,7 @@ function readRoomSettings(levelGen) {
     corridorWidth,
     roomPadding: ROOM_PLACEMENT_PADDING,
     preferLargeRooms: false,
+    preferIrregular: true,
   };
   if (walkableTilesTarget === null) {
     return baseSettings;
@@ -681,6 +682,7 @@ function readRoomSettings(levelGen) {
     corridorWidth,
     roomPadding: targetDensity > 0.62 ? 0 : ROOM_PLACEMENT_PADDING,
     preferLargeRooms: true,
+    preferIrregular: true,
   };
 }
 
@@ -749,6 +751,28 @@ function randomRoomSize(rng, min, max, preferLargeRooms = false) {
     : randomIntBetween(rng, min, max);
 }
 
+/**
+ * Return { width, height } where the longer dimension is always >= 1.5× the shorter.
+ * When the range is too tight to satisfy the ratio, falls back to { width: min, height: max }.
+ * @param {() => number} rng  - RNG returning [0, 1)
+ * @param {number} min        - minimum dimension (inclusive)
+ * @param {number} max        - maximum dimension (inclusive)
+ * @returns {{ width: number, height: number }}
+ */
+export function randomIrregularRoomDimensions(rng, min, max) {
+  const maxShort = Math.floor(max / 1.5);
+  if (maxShort < min) {
+    // Range too tight to guarantee 1.5 ratio — return the widest valid rectangle
+    const wide = rng() < 0.5;
+    return wide ? { width: max, height: min } : { width: min, height: max };
+  }
+  const short = randomIntBetween(rng, min, maxShort);
+  const minLong = Math.ceil(short * 1.5);
+  const long = randomIntBetween(rng, minLong, max);
+  const wide = rng() < 0.5;
+  return wide ? { width: long, height: short } : { width: short, height: long };
+}
+
 function buildRoomSurfaceSlots(width, height, roomCount) {
   const slots = [];
   if (!Number.isInteger(roomCount) || roomCount <= 0) return slots;
@@ -792,8 +816,17 @@ function placeRoomInSlot(mask, slot, roomId, rng, settings) {
   if (roomMaxWidth <= 0 || roomMaxHeight <= 0) return null;
 
   for (let attempt = 0; attempt < ROOM_SURFACE_PLACEMENT_ATTEMPTS; attempt += 1) {
-    const roomWidth = randomRoomSize(rng, roomMinWidth, roomMaxWidth, settings.preferLargeRooms);
-    const roomHeight = randomRoomSize(rng, roomMinHeight, roomMaxHeight, settings.preferLargeRooms);
+    let roomWidth, roomHeight;
+    if (settings.preferIrregular) {
+      const effMin = Math.min(roomMinWidth, roomMinHeight);
+      const effMax = Math.min(roomMaxWidth, roomMaxHeight);
+      const dims = randomIrregularRoomDimensions(rng, effMin, effMax);
+      roomWidth = Math.min(dims.width, roomMaxWidth);
+      roomHeight = Math.min(dims.height, roomMaxHeight);
+    } else {
+      roomWidth = randomRoomSize(rng, roomMinWidth, roomMaxWidth, settings.preferLargeRooms);
+      roomHeight = randomRoomSize(rng, roomMinHeight, roomMaxHeight, settings.preferLargeRooms);
+    }
     const maxX = slot.endX - roomWidth + 1;
     const maxY = slot.endY - roomHeight + 1;
     if (maxX < slot.startX || maxY < slot.startY) continue;
@@ -822,6 +855,7 @@ function placeRooms(mask, rng, settings) {
     roomMaxSize,
     roomPadding = ROOM_PLACEMENT_PADDING,
     preferLargeRooms = false,
+    preferIrregular = true,
   } = settings;
   const bounds = resolveInteriorBounds(width, height);
 
@@ -833,6 +867,7 @@ function placeRooms(mask, rng, settings) {
       roomMaxSize,
       roomPadding,
       preferLargeRooms,
+      preferIrregular,
     });
     if (!room) continue;
     rooms.push(room);
@@ -842,8 +877,15 @@ function placeRooms(mask, rng, settings) {
 
   let attempts = 0;
   while (rooms.length < roomCount && attempts < maxAttempts) {
-    const roomWidth = randomRoomSize(rng, roomMinSize, roomMaxSize, preferLargeRooms);
-    const roomHeight = randomRoomSize(rng, roomMinSize, roomMaxSize, preferLargeRooms);
+    let roomWidth, roomHeight;
+    if (preferIrregular) {
+      const dims = randomIrregularRoomDimensions(rng, roomMinSize, roomMaxSize);
+      roomWidth = dims.width;
+      roomHeight = dims.height;
+    } else {
+      roomWidth = randomRoomSize(rng, roomMinSize, roomMaxSize, preferLargeRooms);
+      roomHeight = randomRoomSize(rng, roomMinSize, roomMaxSize, preferLargeRooms);
+    }
     const maxX = bounds.maxX - roomWidth + 1;
     const maxY = bounds.maxY - roomHeight + 1;
     if (maxX < bounds.minX || maxY < bounds.minY) {

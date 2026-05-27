@@ -2269,7 +2269,8 @@ export function wireDesignGuidance({
   }
 
   function stashActiveCardToGroup(groupType = null) {
-    const active = createDesignCard(state.activeCard || {});
+    const rawActive = state.activeCard || {};
+    const active = createDesignCard(rawActive);
     const activeType = normalizeCardType(active.type);
     const targetType = normalizeCardType(groupType || activeType);
     if (!targetType) {
@@ -2280,6 +2281,31 @@ export function wireDesignGuidance({
       setStatus(statusEl, `Card type ${activeType} cannot be moved to ${targetType} group.`, true);
       return false;
     }
+
+    // Pre-normalization gate: when the card has no type yet (being assigned via groupType),
+    // validate raw fields BEFORE createDesignCard injects defaults (Issue #M1).
+    if (!activeType && targetType) {
+      const rawAffinities = Array.isArray(rawActive.affinities) ? rawActive.affinities : [];
+      if (targetType === "hazard") {
+        const hasExplicitAffinity = rawAffinities.some((a) => a?.expression);
+        if (!hasExplicitAffinity) {
+          setStatus(statusEl, "Hazard cards require at least one affinity with an expression.", true);
+          return false;
+        }
+        const hasExplicitMana = rawActive.mana && typeof rawActive.mana === "object";
+        if (!hasExplicitMana) {
+          setStatus(statusEl, "Hazard cards require a mana vital.", true);
+          return false;
+        }
+      }
+      if (targetType === "resource") {
+        if (rawAffinities.length === 0) {
+          setStatus(statusEl, "Resource cards require at least one affinity.", true);
+          return false;
+        }
+      }
+    }
+
     const staged = activeType
       ? active
       : createDesignCard({

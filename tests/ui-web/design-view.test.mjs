@@ -1644,3 +1644,136 @@ test("groupCardsByType and count updates preserve card payload while regrouping"
   assert.equal(grouped.warden[0].count, 1);
   assert.ok(grouped.delver[0].vitals.health.max > 0);
 });
+
+// ─── B3: Negative shelving gate tests (M1 normalization bypass fix) ───────────
+
+test("stashActiveCard rejects hazard when active card has no type and no affinities set (pre-normalization gate)", () => {
+  const { elements } = createRootElements();
+  const guidance = wireDesignGuidance({
+    elements: {
+      statusEl: elements["#design-guidance-status"],
+      leftRailType: elements["#design-property-group-type"],
+      leftRailAffinities: elements["#design-property-group-affinities"],
+      leftRailExpressions: elements["#design-property-group-expressions"],
+      leftRailMotivations: elements["#design-property-group-motivations"],
+      cardGrid: elements["#design-card-grid"],
+      roomGroup: elements["#design-card-group-room"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
+      hazardGroup: elements["#design-card-group-hazard"],
+      resourceGroup: elements["#design-card-group-resource"],
+      roomGroupBudget: elements["#design-card-group-budget-room"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
+      resourceGroupBudget: elements["#design-card-group-budget-resource"],
+      levelBudgetInput: elements["#design-level-budget"],
+      budgetSplitRoomInput: elements["#design-budget-split-room"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
+      budgetSplitHazardInput: elements["#design-budget-split-hazard"],
+      budgetSplitResourceInput: elements["#design-budget-split-resource"],
+      budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
+      budgetOverviewEl: elements["#design-budget-overview"],
+    },
+  });
+
+  // Active card starts blank (no type, no affinities) — stashing as hazard must be rejected
+  // before createDesignCard normalization injects default affinities/mana.
+  const result = guidance.stashActiveCard("hazard");
+  assert.equal(result, false, "blank card → hazard stash must be rejected (no affinities set)");
+  assert.equal(
+    elements["#design-guidance-status"].textContent.toLowerCase().includes("affinity"),
+    true,
+    "status must mention affinity requirement",
+  );
+});
+
+test("stashActiveCard rejects resource when active card has no type and no affinities set (pre-normalization gate)", () => {
+  const { elements } = createRootElements();
+  const guidance = wireDesignGuidance({
+    elements: {
+      statusEl: elements["#design-guidance-status"],
+      leftRailType: elements["#design-property-group-type"],
+      leftRailAffinities: elements["#design-property-group-affinities"],
+      leftRailExpressions: elements["#design-property-group-expressions"],
+      leftRailMotivations: elements["#design-property-group-motivations"],
+      cardGrid: elements["#design-card-grid"],
+      roomGroup: elements["#design-card-group-room"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
+      hazardGroup: elements["#design-card-group-hazard"],
+      resourceGroup: elements["#design-card-group-resource"],
+      roomGroupBudget: elements["#design-card-group-budget-room"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
+      resourceGroupBudget: elements["#design-card-group-budget-resource"],
+      levelBudgetInput: elements["#design-level-budget"],
+      budgetSplitRoomInput: elements["#design-budget-split-room"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
+      budgetSplitHazardInput: elements["#design-budget-split-hazard"],
+      budgetSplitResourceInput: elements["#design-budget-split-resource"],
+      budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
+      budgetOverviewEl: elements["#design-budget-overview"],
+    },
+  });
+
+  // Blank card with no type/affinities → stashing as resource must be rejected
+  const result = guidance.stashActiveCard("resource");
+  assert.equal(result, false, "blank card → resource stash must be rejected (no affinities set)");
+  assert.equal(
+    elements["#design-guidance-status"].textContent.toLowerCase().includes("affinity"),
+    true,
+    "status must mention affinity requirement",
+  );
+});
+
+test("stashActiveCard accepts hazard card that already has type, affinities, and mana set via applyPropertyDrop", () => {
+  const { elements } = createRootElements();
+  const guidance = wireDesignGuidance({
+    elements: {
+      statusEl: elements["#design-guidance-status"],
+      leftRailType: elements["#design-property-group-type"],
+      leftRailAffinities: elements["#design-property-group-affinities"],
+      leftRailExpressions: elements["#design-property-group-expressions"],
+      leftRailMotivations: elements["#design-property-group-motivations"],
+      cardGrid: elements["#design-card-grid"],
+      roomGroup: elements["#design-card-group-room"],
+      attackerGroup: elements["#design-card-group-delver"],
+      defenderGroup: elements["#design-card-group-warden"],
+      hazardGroup: elements["#design-card-group-hazard"],
+      resourceGroup: elements["#design-card-group-resource"],
+      roomGroupBudget: elements["#design-card-group-budget-room"],
+      attackerGroupBudget: elements["#design-card-group-budget-delver"],
+      defenderGroupBudget: elements["#design-card-group-budget-warden"],
+      resourceGroupBudget: elements["#design-card-group-budget-resource"],
+      levelBudgetInput: elements["#design-level-budget"],
+      budgetSplitRoomInput: elements["#design-budget-split-room"],
+      budgetSplitAttackerInput: elements["#design-budget-split-delver"],
+      budgetSplitDefenderInput: elements["#design-budget-split-warden"],
+      budgetSplitHazardInput: elements["#design-budget-split-hazard"],
+      budgetSplitResourceInput: elements["#design-budget-split-resource"],
+      budgetSplitRoomTokens: elements["#design-budget-split-room-tokens"],
+      budgetSplitAttackerTokens: elements["#design-budget-split-delver-tokens"],
+      budgetSplitDefenderTokens: elements["#design-budget-split-warden-tokens"],
+      budgetOverviewEl: elements["#design-budget-overview"],
+    },
+  });
+
+  // Set type=hazard via applyPropertyDrop (injects defaults for type, affinities, mana)
+  const blank = guidance.getActiveCard();
+  guidance.applyPropertyDrop(blank.id, { group: "type", value: "hazard" });
+  const active = guidance.getActiveCard();
+  assert.equal(active.type, "hazard");
+  assert.ok(Array.isArray(active.affinities) && active.affinities.length > 0, "defaults should be injected");
+
+  // Card now has type + defaults set → stash should succeed
+  const result = guidance.stashActiveCard("hazard");
+  assert.equal(result, true, "fully configured hazard card must be accepted");
+  const shelved = guidance.getCards();
+  assert.ok(shelved.some((c) => c.type === "hazard"), "hazard card should appear in shelved cards");
+});
