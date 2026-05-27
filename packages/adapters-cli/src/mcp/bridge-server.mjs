@@ -7,7 +7,7 @@
  *
  * Exports:
  *   startSandboxBridgeServer({ host?, port })  → { port, stop }
- *   getSandboxBridgeState()                    → { connectedClients, latestBundle }
+ *   getSandboxBridgeState()                    → { connectedClients, latestBundle, startFailed }
  *   pushGameplayBundle(message)                → { deliveredClientIds, timedOutClientIds }
  *   stopSandboxBridgeServer()
  */
@@ -22,7 +22,10 @@ const ACK_TIMEOUT_MS = 8_000;
 /** @type {{ wss: import("ws").WebSocketServer, httpServer: import("node:http").Server } | null} */
 let _server = null;
 
-/** Map<clientId, { ws, capabilities, connectedAt }> */
+/** D6: track whether the bridge failed to start */
+let _startFailed = false;
+
+/** Map<clientId, { ws, capabilities, connectedAt, replayedIds: Set<string> }> */
 const _clients = new Map();
 
 /** { bundle, pushedAt } | null */
@@ -48,6 +51,13 @@ function replayToClient(clientId, ws) {
   if (age > REPLAY_WINDOW_MS) {
     _pendingReplay = null;
     return;
+  }
+  // D9: deduplicate — only replay if this client hasn't received this message already
+  const client = _clients.get(clientId);
+  const msgId = _pendingReplay.bundle?.id;
+  if (client && msgId) {
+    if (client.replayedIds.has(msgId)) return;
+    client.replayedIds.add(msgId);
   }
   sendJson(ws, _pendingReplay.bundle);
 }
@@ -88,6 +98,7 @@ export async function startSandboxBridgeServer({ host = LOOPBACK, port } = {}) {
           ws,
           capabilities: msg.capabilities ?? {},
           connectedAt: new Date().toISOString(),
+          replayedIds: new Set(),  // D9: per-client dedup set
         });
         // Replay latest bundle within the window
         replayToClient(clientId, ws);
@@ -103,12 +114,12 @@ export async function startSandboxBridgeServer({ host = LOOPBACK, port } = {}) {
     });
   });
 
+  // D6: track startup failure so getSandboxBridgeState can surface it
   await new Promise((resolve, reject) => {
-    // Absorb error events on both httpServer and wss so no unhandled error
-    // propagates to the process before the promise rejects cleanly.
     function onError(err) {
       httpServer.removeListener("error", onError);
       wss.removeListener("error", onError);
+      _startFailed = true;
       reject(err);
     }
     httpServer.once("error", onError);
@@ -117,6 +128,7 @@ export async function startSandboxBridgeServer({ host = LOOPBACK, port } = {}) {
     httpServer.listen(port, LOOPBACK, () => {
       httpServer.removeListener("error", onError);
       wss.removeListener("error", onError);
+      _startFailed = false;
       resolve();
     });
   });
@@ -131,12 +143,13 @@ export async function startSandboxBridgeServer({ host = LOOPBACK, port } = {}) {
 }
 
 /**
- * @returns {{ connectedClients: number, latestBundle: object | null }}
+ * @returns {{ connectedClients: number, latestBundle: object | null, startFailed: boolean }}
  */
 export function getSandboxBridgeState() {
   return {
     connectedClients: _clients.size,
     latestBundle: _pendingReplay?.bundle ?? null,
+    startFailed: _startFailed,   // D6: expose startup failure to callers
   };
 }
 
@@ -196,13 +209,21 @@ export async function pushGameplayBundle(message) {
 
 /**
  * Stop the bridge server and disconnect all clients cleanly.
+ * D8: Force-terminate active client WebSockets before closing the server
+ * so wss.close() doesn't hang waiting for long-lived connections.
  */
 export async function stopSandboxBridgeServer() {
   if (!_server) return;
   const { wss, httpServer } = _server;
   _server = null;
+
+  // D8: terminate all connected clients before closing
+  for (const { ws } of _clients.values()) {
+    try { ws.terminate(); } catch { /* ignore */ }
+  }
   _clients.clear();
   _pendingReplay = null;
+  _startFailed = false;
 
   await new Promise((resolve) => wss.close(resolve));
   await new Promise((resolve) => httpServer.close(resolve));

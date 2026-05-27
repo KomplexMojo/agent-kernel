@@ -114,6 +114,26 @@ async function handleStatic(req, res) {
     return;
   }
 
+  // D7: inject AK_SANDBOX_BRIDGE_PORT into index.html so the browser client
+  // connects to the correct port when AK_SANDBOX_BRIDGE_PORT is overridden.
+  if (ext === ".html") {
+    let content;
+    try {
+      content = await readFile(filePath, "utf8");
+    } catch {
+      res.statusCode = 500;
+      res.end("Failed to read file");
+      return;
+    }
+    const bridgePort = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
+    content = content.replace(
+      "/* __AK_INJECT_SANDBOX_BRIDGE_PORT__ */",
+      `globalThis.__ak_sandboxBridgePort = ${bridgePort};`,
+    );
+    res.end(content);
+    return;
+  }
+
   const stream = createReadStream(filePath);
   stream.on("error", () => {
     res.statusCode = 500;

@@ -174,9 +174,17 @@ tabs = wireTabs({
   },
 });
 globalThis.__ak_setActiveTab = (id) => tabs?.setActive(id);
-globalThis.__ak_loadGameplayBundle = (bundle) => {
+// D3+D4: also hydrate Design/Preview from the bundle spec and honor targetTab
+globalThis.__ak_loadGameplayBundle = (bundle, { targetTab = "gameplay" } = {}) => {
   if (!loadGameplayBundle(bundle)) return false;
-  openTab("gameplay");
+  // D3: hydrate Design tab from the incoming spec so it reflects the pushed build
+  if (bundle?.spec && designView?.loadBuildSpec) {
+    designView.loadBuildSpec(bundle.spec, { source: "sandbox-bridge" });
+  }
+  // D3: sync Preview/icon state with the new bundle
+  void syncBundleViews({ bundle, source: "sandbox-bridge" });
+  // D4: honor targetTab — default to "gameplay", but "design" is valid
+  openTab(targetTab === "design" ? "design" : "gameplay");
   return true;
 };
 

@@ -6206,6 +6206,25 @@ export const COMMANDS = {
   "sandbox-move": sandboxMoveCommand,
 };
 
+/**
+ * Compile a BuildSpec into a gameplay bundle suitable for the browser UI.
+ *
+ * Returns { spec, artifacts } where artifacts is the canonical artifact array
+ * produced by buildBuildArtifacts (SimConfigArtifact, InitialStateArtifact,
+ * ResourceBundleArtifact, AffinitySummary, etc.).
+ *
+ * @param {object} buildSpec  BuildSpec object (agent-kernel/BuildSpec)
+ * @returns {Promise<{ spec: object, artifacts: object[] }>}
+ */
+export async function compileBuildSpecToGameplayBundle(buildSpec) {
+  if (!buildSpec || typeof buildSpec !== "object") {
+    throw new Error("compileBuildSpecToGameplayBundle requires a BuildSpec object.");
+  }
+  const buildResult = await orchestrateBuild({ spec: buildSpec, producedBy: "sandbox-bridge" });
+  const artifacts = buildBuildArtifacts(buildResult, { includeAffinitySummary: true });
+  return { spec: buildSpec, artifacts };
+}
+
 export async function executeCommand(command, rest = []) {
   const handler = COMMANDS[command];
   if (!handler) {

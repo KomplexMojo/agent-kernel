@@ -63,11 +63,12 @@ test("sandbox-bridge-client: bundle received → loadGameplayBundle called → a
   globalThis.WebSocket.OPEN = 1;
 
   const receivedBundles = [];
-  const activatedTabs = [];
+  const receivedOptions = [];
 
   installMockGlobals({
-    loadFn: (bundle) => { receivedBundles.push(bundle); return true; },
-    setTabFn: (tab) => { activatedTabs.push(tab); },
+    // D4: __ak_loadGameplayBundle now receives { targetTab } option — tab routing moved here
+    loadFn: (bundle, opts) => { receivedBundles.push(bundle); receivedOptions.push(opts); return true; },
+    setTabFn: () => {},
   });
 
   try {
@@ -95,8 +96,8 @@ test("sandbox-bridge-client: bundle received → loadGameplayBundle called → a
     assert.equal(receivedBundles.length, 1);
     assert.deepEqual(receivedBundles[0], bundle);
 
-    // Tab was activated
-    assert.ok(activatedTabs.includes("gameplay"), "setActiveTab must be called with 'gameplay'");
+    // D4: targetTab is forwarded as an option to __ak_loadGameplayBundle (tab routing moved there)
+    assert.equal(receivedOptions[0]?.targetTab, "gameplay", "targetTab option must be forwarded to loadGameplayBundle");
 
     // ACK was sent back
     const ackRaw = mockWs._sent.find((s) => {

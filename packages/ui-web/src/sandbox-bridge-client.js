@@ -48,7 +48,8 @@ function announceReady(ws) {
 async function handleBundle(ws, msg) {
   const messageId = msg.id;
   const bundle = msg?.payload?.bundle;
-  const targetTab = msg?.payload ? (msg.targetTab ?? "gameplay") : "gameplay";
+  // D4: targetTab is at the envelope root (not inside payload)
+  const targetTab = typeof msg.targetTab === "string" ? msg.targetTab : "gameplay";
 
   try {
     if (typeof globalThis.__ak_loadGameplayBundle !== "function") {
@@ -57,11 +58,8 @@ async function handleBundle(ws, msg) {
       });
     }
 
-    await globalThis.__ak_loadGameplayBundle(bundle);
-
-    if (typeof globalThis.__ak_setActiveTab === "function") {
-      globalThis.__ak_setActiveTab(targetTab);
-    }
+    // D4: pass targetTab so __ak_loadGameplayBundle can handle design vs gameplay routing
+    await globalThis.__ak_loadGameplayBundle(bundle, { targetTab });
 
     if (typeof _onBundle === "function") {
       _onBundle(bundle);
