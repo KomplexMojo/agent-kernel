@@ -458,11 +458,13 @@ test("wireDesignView refreshes design rail and card icons from the resource bund
   try {
     view.setResourceBundle(createDesignIconBundle());
 
-    const roomChipIcon = elements["#design-property-group-type"]
-      .querySelector('[data-property-value="room"]')
+    // Rooms are rendered as action chips (data-action-value), not property chips.
+    // Delver/warden/hazard/resource are the property chips with icon slots.
+    const delverChipIcon = elements["#design-property-group-type"]
+      .querySelector('[data-property-value="delver"]')
       ?.querySelector(".design-property-chip-icon");
-    assert.ok(roomChipIcon);
-    assert.match(roomChipIcon.innerHTML, /ROOM_ICON/);
+    assert.ok(delverChipIcon, "delver type chip icon must exist");
+    assert.match(delverChipIcon.innerHTML, /DELVER_ICON/);
 
     const fireChipIcon = elements["#design-property-group-affinities"]
       .querySelector('[data-property-value="fire"]')
