@@ -592,20 +592,29 @@ export function createDesignCard({
       roomSize: undefined,
       tokenHint: readOptionalToken(tokenHint),
       vitals: undefined,
-      mana: normalizeHazardVital(mana, { kind: "one-time", amount: 3 }),
-      durability: normalizeHazardVital(durability, { kind: "one-time", amount: 1 }),
+      mana: normalizeHazardVital(mana, { kind: "regen", current: 3, max: 3, regen: 1 }),
+      durability: normalizeHazardVital(durability, { kind: "regen", current: 5, max: 5, regen: 0 }),
       flipped: flipped === true,
     };
   }
   if (normalizedType === "resource") {
+    const resourceAffinity = normalizeAffinity(normalizedAffinityInput, DEFAULT_DUNGEON_AFFINITY);
+    const resourceExpression = normalizeExpression(
+      Array.isArray(affinities) && affinities.length > 0
+        ? affinities[0]?.expression
+        : Array.isArray(expressions)
+          ? expressions[0]
+          : expressions,
+      DEFAULT_AFFINITY_EXPRESSION,
+    );
     return {
       id: typeof id === "string" && id.trim() ? id.trim() : buildCardId("resource"),
       type: "resource",
       source: "resource",
       count: normalizeCardCount(count, 1),
-      affinity: normalizedAffinityInput,
-      affinities: [],
-      expressions: [],
+      affinity: resourceAffinity,
+      affinities: [{ kind: resourceAffinity, expression: resourceExpression, stacks: 1 }],
+      expressions: [resourceExpression],
       motivations: [],
       setupMode: "hybrid",
       roomSize: undefined,
@@ -732,6 +741,8 @@ export function normalizeDesignCardSet(cards, { dungeonAffinity = DEFAULT_DUNGEO
         motivations: entry?.motivations,
         affinities: entry?.affinities,
         vitals: entry?.vitals,
+        resourceVitals: entry?.resourceVitals,
+        permanent: entry?.permanent,
         source: entry?.source,
         setupMode: entry?.setupMode,
         flipped: entry?.flipped,
@@ -1646,8 +1657,8 @@ const AUTO_GENERATE_HAZARD_BLUEPRINTS = Object.freeze([
       type: "hazard",
       affinity: "fire",
       expression: "emit",
-      mana: "one-time",
-      durability: "one-time",
+      mana: { kind: "regen", current: 3, max: 3, regen: 1 },
+      durability: { kind: "regen", current: 5, max: 5, regen: 0 },
       tokenHint: 50,
       source: "auto-generated",
     },
@@ -1658,8 +1669,8 @@ const AUTO_GENERATE_HAZARD_BLUEPRINTS = Object.freeze([
       type: "hazard",
       affinity: "dark",
       expression: "emit",
-      mana: "regen",
-      durability: "one-time",
+      mana: { kind: "regen", current: 3, max: 3, regen: 1 },
+      durability: { kind: "regen", current: 5, max: 5, regen: 0 },
       tokenHint: 50,
       source: "auto-generated",
     },
@@ -1670,8 +1681,8 @@ const AUTO_GENERATE_HAZARD_BLUEPRINTS = Object.freeze([
       type: "hazard",
       affinity: "water",
       expression: "pull",
-      mana: "one-time",
-      durability: "regen",
+      mana: { kind: "regen", current: 3, max: 3, regen: 1 },
+      durability: { kind: "regen", current: 5, max: 5, regen: 0 },
       tokenHint: 50,
       source: "auto-generated",
     },
@@ -1682,8 +1693,8 @@ const AUTO_GENERATE_HAZARD_BLUEPRINTS = Object.freeze([
       type: "hazard",
       affinity: "earth",
       expression: "push",
-      mana: "one-time",
-      durability: "regen",
+      mana: { kind: "regen", current: 3, max: 3, regen: 1 },
+      durability: { kind: "regen", current: 5, max: 5, regen: 0 },
       tokenHint: 50,
       source: "auto-generated",
     },
@@ -1905,6 +1916,7 @@ export function wireDesignGuidance({
   elements = {},
   llmConfig = {},
   onSummary,
+  onStatusUpdate,
   onLlmCapture,
   onMintCard,
 } = {}) {
@@ -2093,7 +2105,7 @@ export function wireDesignGuidance({
       ...base,
       allocations: allocationLedger?.byType || {},
       overBudget: baseOverBudget || allocationOverBy > 0,
-      totalOverBudgetBy: baseOverBy + allocationOverBy,
+      totalOverBudgetBy: Math.max(baseOverBy, allocationOverBy),
     };
   }
 
@@ -2244,6 +2256,16 @@ export function wireDesignGuidance({
     }
     updateGroupBudgetIndicators();
     updateBudgetOverviewIndicator();
+    if (onStatusUpdate) {
+      const budgetTokens = readPositiveInt(state.budgetTokens, DEFAULT_LEVEL_BUDGET_TOKENS);
+      const totalSpentTokens = state.spendLedger?.totalSpentTokens ?? 0;
+      onStatusUpdate({
+        byType: state.allocationLedger?.byType ?? {},
+        budgetTokens,
+        totalSpentTokens,
+        remainingTokens: Math.max(0, budgetTokens - totalSpentTokens),
+      });
+    }
   }
 
   function stashActiveCardToGroup(groupType = null) {
@@ -2264,6 +2286,26 @@ export function wireDesignGuidance({
         ...active,
         type: targetType,
       });
+    if (targetType === "hazard") {
+      const hasAffinity = Array.isArray(staged.affinities) && staged.affinities.length > 0
+        && staged.affinities[0]?.expression;
+      const hasMana = staged.mana && typeof staged.mana === "object";
+      if (!hasAffinity) {
+        setStatus(statusEl, "Hazard cards require at least one affinity with an expression.", true);
+        return false;
+      }
+      if (!hasMana) {
+        setStatus(statusEl, "Hazard cards require a mana vital.", true);
+        return false;
+      }
+    }
+    if (targetType === "resource") {
+      const hasAffinity = Array.isArray(staged.affinities) && staged.affinities.length > 0;
+      if (!hasAffinity) {
+        setStatus(statusEl, "Resource cards require at least one affinity.", true);
+        return false;
+      }
+    }
     const existingCards = state.cards.filter((entry) => entry.id !== staged.id);
     const usedIds = new Set(
       existingCards
@@ -2333,9 +2375,24 @@ export function wireDesignGuidance({
   function pullCardToEditor(cardId) {
     const index = state.cards.findIndex((card) => card.id === cardId);
     if (index < 0) return false;
-    const [card] = state.cards.splice(index, 1);
     const active = createDesignCard(state.activeCard || {});
-    if (isCardConfigured(active) && active.id !== card.id) {
+    const willAutoStash = isCardConfigured(active) && active.id !== cardId;
+
+    // Budget preflight: build the candidate card set after the swap
+    // (remove pulled card, add active card if it will be auto-stashed)
+    // to ensure the swap doesn't push the total over budget.
+    if (willAutoStash) {
+      const candidateCards = state.cards.filter((c) => c.id !== cardId);
+      candidateCards.push(createDesignCard({ ...active, flipped: false }));
+      const evaluation = evaluateShelvedCards(candidateCards);
+      if (evaluation.overBudget) {
+        setStatus(statusEl, `Cannot pull: auto-stashing active card would exceed budget. ${describeBudgetViolation(evaluation)}`, true);
+        return false;
+      }
+    }
+
+    const [card] = state.cards.splice(index, 1);
+    if (willAutoStash) {
       state.cards.push(createDesignCard({ ...active, flipped: false }));
     }
     state.activeCard = createDesignCard({ ...card, flipped: false });
@@ -2441,7 +2498,7 @@ export function wireDesignGuidance({
     renderGroupList(resourceGroup, grouped.resource, "resource");
   }
 
-  function updateCard(cardId, updater) {
+  function updateCard(cardId, updater, { skipBudgetPreflight = false } = {}) {
     if (state.activeCard?.id === cardId) {
       const next = updater(state.activeCard);
       if (!next) return false;
@@ -2452,7 +2509,17 @@ export function wireDesignGuidance({
     if (index >= 0) {
       const next = updater(state.cards[index]);
       if (!next) return false;
-      state.cards[index] = createDesignCard(next);
+      const nextCard = createDesignCard(next);
+      // Budget preflight: ensure the updated shelved card doesn't push total over budget.
+      if (!skipBudgetPreflight) {
+        const candidateCards = state.cards.map((c, i) => (i === index ? nextCard : c));
+        const evaluation = evaluateShelvedCards(candidateCards);
+        if (evaluation.overBudget) {
+          setStatus(statusEl, `Update blocked: ${describeBudgetViolation(evaluation)}`, true);
+          return false;
+        }
+      }
+      state.cards[index] = nextCard;
       return true;
     }
     return false;
@@ -3582,9 +3649,114 @@ export function wireDesignGuidance({
     replaceChildren(container, wrappers);
   }
 
+  function renderTypeChips(container, catalog) {
+    if (!container) return;
+
+    // Row 1 (C-14): Generation action chips — [Generate Level][Small Room] / [Medium Room][Large Room]
+    function makeActionChip(parent, actionValue, label) {
+      const chip = createDomElement(parent, "button");
+      if (!chip) return null;
+      chip.type = "button";
+      chip.className = "design-property-chip design-property-chip-action";
+      chip.dataset.actionValue = actionValue;
+      chip.textContent = label;
+      return chip;
+    }
+
+    const roomGenWrapper = createDomElement(container, "div");
+    if (roomGenWrapper) {
+      roomGenWrapper.className = "design-property-chip-group";
+
+      // Pair 1: Generate Level + Small Room
+      const genRow1 = createDomElement(roomGenWrapper, "div");
+      if (genRow1) {
+        genRow1.className = "design-property-chip-pair";
+        const genLevelChip = makeActionChip(genRow1, "generate-rooms", "+ Generate Rooms");
+        if (genLevelChip) {
+          genLevelChip.addEventListener?.("click", () => {
+            generateRoomCards();
+          });
+          genRow1.append(genLevelChip);
+        }
+        const smallRoomChip = makeActionChip(genRow1, "room-small", "+ Small Room");
+        if (smallRoomChip) {
+          smallRoomChip.addEventListener?.("click", () => {
+            addCard({ type: "room", roomSize: "small" });
+            stashActiveCardToGroup("room");
+          });
+          genRow1.append(smallRoomChip);
+        }
+        roomGenWrapper.append(genRow1);
+      }
+
+      // Pair 2: Medium Room + Large Room
+      const genRow2 = createDomElement(roomGenWrapper, "div");
+      if (genRow2) {
+        genRow2.className = "design-property-chip-pair";
+        const mediumRoomChip = makeActionChip(genRow2, "room-medium", "+ Medium Room");
+        if (mediumRoomChip) {
+          mediumRoomChip.addEventListener?.("click", () => {
+            addCard({ type: "room", roomSize: "medium" });
+            stashActiveCardToGroup("room");
+          });
+          genRow2.append(mediumRoomChip);
+        }
+        const largeRoomChip = makeActionChip(genRow2, "room-large", "+ Large Room");
+        if (largeRoomChip) {
+          largeRoomChip.addEventListener?.("click", () => {
+            addCard({ type: "room", roomSize: "large" });
+            stashActiveCardToGroup("room");
+          });
+          genRow2.append(largeRoomChip);
+        }
+        roomGenWrapper.append(genRow2);
+      }
+    }
+
+    // Row 2: Delver + Warden paired
+    const actorWrapper = createDomElement(container, "div");
+    if (actorWrapper) {
+      actorWrapper.className = "design-property-chip-group";
+      const actorRow = createDomElement(actorWrapper, "div");
+      if (actorRow) {
+        actorRow.className = "design-property-chip-pair";
+        ["delver", "warden"].forEach((typeVal) => {
+          const option = catalog.type.find((o) => o.value === typeVal);
+          if (!option) return;
+          const chip = createPropertyChip(container, "type", option, {
+            selected: state.activeCard?.type === typeVal,
+          });
+          if (chip) actorRow.append(chip);
+        });
+        actorWrapper.append(actorRow);
+      }
+    }
+
+    // Row 3: Hazard + Resource paired
+    const itemWrapper = createDomElement(container, "div");
+    if (itemWrapper) {
+      itemWrapper.className = "design-property-chip-group";
+      const itemRow = createDomElement(itemWrapper, "div");
+      if (itemRow) {
+        itemRow.className = "design-property-chip-pair";
+        ["hazard", "resource"].forEach((typeVal) => {
+          const option = catalog.type.find((o) => o.value === typeVal);
+          if (!option) return;
+          const chip = createPropertyChip(container, "type", option, {
+            selected: state.activeCard?.type === typeVal,
+          });
+          if (chip) itemRow.append(chip);
+        });
+        itemWrapper.append(itemRow);
+      }
+    }
+
+    replaceChildren(container, [roomGenWrapper, actorWrapper, itemWrapper].filter(Boolean));
+  }
+
   function renderLeftRail() {
     const catalog = buildPropertyCatalog();
-    renderPropertyChips(leftRailType, "type", catalog.type);
+    renderTypeChips(leftRailType, catalog);
     renderPropertyChipPairs(leftRailAffinities, "affinities", catalog.affinities);
     renderPropertyChipPairs(leftRailExpressions, "expressions", catalog.expressions);
     renderMotivationPairChips(leftRailMotivations, catalog.motivations);
@@ -3773,6 +3945,35 @@ export function wireDesignGuidance({
     };
   }
 
+  function generateRoomCards() {
+    const allocation = state.allocationLedger || resolveAllocationLedger(state.cards);
+    const costContext = {
+      tileCosts: state.tileCosts,
+      priceList: state.priceList,
+    };
+    const generatedCards = buildAutoGeneratedRoomCards(allocation?.byType?.room?.remainingTokens, costContext);
+
+    if (generatedCards.length === 0) {
+      setStatus(statusEl, "No remaining room allocation available.");
+      return { ok: false, reason: "no_remaining_allocation", cards: [] };
+    }
+
+    const identified = normalizeCardIdentifiers([...state.cards, ...generatedCards], state.activeCard);
+    const evaluation = evaluateShelvedCards(identified.cards);
+    if (evaluation.allocationLedger?.overBudget) {
+      setStatus(statusEl, `Cannot generate rooms: ${describeBudgetViolation(evaluation)}`, true);
+      return { ok: false, reason: "budget_overflow", cards: generatedCards };
+    }
+
+    state.cards = identified.cards;
+    const count = generatedCards.reduce((acc, card) => acc + normalizeCardCount(card?.count, 1), 0);
+
+    recompute();
+    setStatus(statusEl, `Generated ${formatAutoGenerateCount("room", count)} using the remaining room allocation.`);
+
+    return { ok: true, cards: generatedCards, counts: { room: count } };
+  }
+
   async function resolveAiSummary(prompt) {
     if (typeof llmConfig.aiSummary === "function") {
       return llmConfig.aiSummary({ prompt, budgetTokens: state.budgetTokens });
@@ -3911,11 +4112,42 @@ export function wireDesignGuidance({
     recompute();
   }
 
+  /**
+   * Atomically load budget + split + cards without triggering intermediate
+   * per-step gate checks.  Used by loadBuildSpec so a spec reload never
+   * produces a transient over-budget flash from stale card state.
+   *
+   * @param {{ budgetTokens?: number, budgetSplitPercent?: object, cards?: object[] }} options
+   * @returns {boolean} true on success
+   */
+  function loadState({ budgetTokens: newBudgetTokens, budgetSplitPercent: newSplitPercent, cards: newCards } = {}) {
+    if (Number.isFinite(Number(newBudgetTokens))) {
+      state.budgetTokens = readPositiveInt(newBudgetTokens, DEFAULT_LEVEL_BUDGET_TOKENS);
+      if (levelBudgetInput) levelBudgetInput.value = String(state.budgetTokens);
+    }
+    if (newSplitPercent && typeof newSplitPercent === "object") {
+      for (const key of BUDGET_BUCKET_ORDER) {
+        if (newSplitPercent[key] !== undefined) {
+          state.budgetSplitPercent[key] = readBoundedPercent(newSplitPercent[key], DEFAULT_BUDGET_SPLIT[key]);
+        }
+      }
+    }
+    if (Array.isArray(newCards)) {
+      const normalized = normalizeDesignCardSet(newCards, { dungeonAffinity: state.dungeonAffinity });
+      const identified = normalizeCardIdentifiers(normalized, state.activeCard);
+      state.cards = identified.cards;
+      state.activeCard = createEditorCard();
+    }
+    recompute();
+    return true;
+  }
+
   initialize();
 
   return {
     addCard,
     setCards,
+    loadState,
     stashActiveCard: stashActiveCardToGroup,
     mintActiveCard: mintActiveCardToGroup,
     pullCardToEditor,
@@ -3937,6 +4169,13 @@ export function wireDesignGuidance({
     getCards: () => state.cards.slice(),
     getSummary: () => (state.summary ? { ...state.summary } : null),
     getSpendLedger: () => (state.spendLedger ? { ...state.spendLedger } : null),
+    getAllocationLedger: () => (state.allocationLedger ? { ...state.allocationLedger } : null),
+    getState: () => ({
+      budgetTokens: state.budgetTokens,
+      budgetSplitPercent: { ...state.budgetSplitPercent },
+    }),
+    getSplitSum: () => BUDGET_BUCKET_ORDER.reduce((sum, key) => sum + (state.budgetSplitPercent[key] || 0), 0),
+    isSplitOverAllocated: () => BUDGET_BUCKET_ORDER.reduce((sum, key) => sum + (state.budgetSplitPercent[key] || 0), 0) > 100,
     serializeCards: () => serializeDesignCardSet(state.cards, { dungeonAffinity: state.dungeonAffinity }),
     refreshIcons: () => {
       renderLeftRail();

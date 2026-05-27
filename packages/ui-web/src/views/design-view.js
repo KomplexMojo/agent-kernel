@@ -13,6 +13,7 @@ export function wireDesignView({
   onSendBuildSpec,
   onAutoGenerate,
   onLlmCapture,
+  onStatusUpdate,
 } = {}) {
   const guidanceStatus = root.querySelector("#design-guidance-status");
   const leftRailType = root.querySelector("#design-property-group-type");
@@ -100,6 +101,7 @@ export function wireDesignView({
     },
     llmConfig,
     onLlmCapture,
+    onStatusUpdate,
     onSummary: handleSummary,
     onMintCard: async ({ card }) => {
       if (typeof commandHost?.blockchainMint !== "function") {
@@ -311,16 +313,26 @@ export function wireDesignView({
       return { ok: false, reason: "missing_card_set" };
     }
 
-    if (Number.isFinite(budgetTokens)) {
-      guidance.setBudget?.(budgetTokens);
-    }
-    if (budgetSplitPercent) {
-      guidance.setBudgetSplit?.("room", budgetSplitPercent.room);
-      guidance.setBudgetSplit?.("delver", budgetSplitPercent.delver);
-      guidance.setBudgetSplit?.("warden", budgetSplitPercent.warden);
-    }
-
-    const applied = guidance.setCards(cards);
+    // Use loadState for atomic apply: sets budget + splits + cards in a single
+    // recompute pass so no intermediate over-budget flash can occur (Issue #4).
+    const applied = typeof guidance.loadState === "function"
+      ? guidance.loadState({
+        budgetTokens: Number.isFinite(budgetTokens) ? budgetTokens : undefined,
+        budgetSplitPercent: budgetSplitPercent || undefined,
+        cards,
+      })
+      : (() => {
+        // Fallback for older guidance versions: apply individually
+        if (Number.isFinite(budgetTokens)) guidance.setBudget?.(budgetTokens);
+        if (budgetSplitPercent) {
+          guidance.setBudgetSplit?.("room", budgetSplitPercent.room);
+          guidance.setBudgetSplit?.("delver", budgetSplitPercent.delver);
+          guidance.setBudgetSplit?.("warden", budgetSplitPercent.warden);
+          guidance.setBudgetSplit?.("hazard", budgetSplitPercent.hazard);
+          guidance.setBudgetSplit?.("resource", budgetSplitPercent.resource);
+        }
+        return guidance.setCards?.(cards);
+      })();
     if (!applied) {
       setGuidanceMessage("Loaded build spec could not be applied to the editor.", "error");
       return { ok: false, reason: "apply_failed" };
@@ -377,5 +389,6 @@ export function wireDesignView({
     getSummary: guidance.getSummary,
     getCards: guidance.getCards,
     getSpendLedger: guidance.getSpendLedger,
+    getAllocationLedger: guidance.getAllocationLedger,
   };
 }

@@ -9,6 +9,7 @@ import { wireGameplayView } from "./views/gameplay-view.js";
 import { buildTileAffinityVisualsFromBundle } from "./views/affinity-field-bridge.js";
 import { resolveIcon } from "./icon-resolver.js";
 import { shouldHydrateDesignFromBundleSource } from "./build-spec-ui.js";
+import { connectSandboxBridge } from "./sandbox-bridge-client.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -19,8 +20,18 @@ const tabButtons = document.querySelectorAll("[data-tab]");
 const tabPanels = document.querySelectorAll("[data-tab-panel]");
 const workspace = document.querySelector(".workspace");
 const actorInspectorRoot = document.querySelector("#actor-inspector");
-const gameplayRunIdLabel = document.querySelector("#gameplay-run-id-label");
 const commandHost = createCliWorkerAdapter();
+
+// Status rail elements
+const statusRailRunId = document.querySelector("#status-rail-run-id");
+const statusRailTokens = {
+  room: document.querySelector("#sr-room"),
+  delver: document.querySelector("#sr-delver"),
+  warden: document.querySelector("#sr-warden"),
+  hazard: document.querySelector("#sr-hazard"),
+  resource: document.querySelector("#sr-resource"),
+};
+const statusRailTotal = document.querySelector("#sr-total");
 
 let designView = null;
 let diagnosticsView = null;
@@ -29,6 +40,10 @@ let previewView = null;
 let actorInspector = null;
 let gameplayView = null;
 let gameplayRunPending = false;
+let currentRunId = "";
+// Sequence counter for status rail updates — only the highest sequence number wins,
+// preventing stale syncBundleViews calls from overwriting fresh design-ledger state.
+let statusRailSeq = 0;
 
 function openTab(tabId) {
   tabs?.setActive(tabId);
@@ -50,21 +65,61 @@ function getBundleRunId(bundle) {
   return typeof artifactRunId === "string" ? artifactRunId.trim() : "";
 }
 
-function setGameplayRunIdLabel(bundle) {
-  if (!gameplayRunIdLabel) return;
-  const runId = getBundleRunId(bundle);
-  gameplayRunIdLabel.textContent = runId ? `#${runId}` : "";
-  if (runId) {
-    gameplayRunIdLabel.title = runId;
-  } else {
-    gameplayRunIdLabel.removeAttribute?.("title");
+function updateStatusRail({ runId, byType, budgetTokens, totalSpentTokens, remainingTokens, _seq } = {}) {
+  // Reject stale updates — only accept if no sequence token is present or it matches
+  // the current high-water mark (Issue #3).
+  if (typeof _seq === "number" && _seq < statusRailSeq) return;
+  // Run ID
+  if (statusRailRunId) {
+    statusRailRunId.textContent = runId ? `#${runId}` : "";
+    if (runId) {
+      statusRailRunId.title = runId;
+    } else {
+      statusRailRunId.removeAttribute?.("title");
+    }
+  }
+
+  // Per-type token spans
+  const typeOrder = ["room", "delver", "warden", "hazard", "resource"];
+  typeOrder.forEach((type) => {
+    const el = statusRailTokens[type];
+    if (!el) return;
+    const entry = byType?.[type];
+    if (entry) {
+      const used = entry.usedTokens ?? 0;
+      const allocated = entry.allocatedTokens ?? 0;
+      el.textContent = `${type[0].toUpperCase()}${type.slice(1)}: ${used}/${allocated}`;
+      el.classList?.toggle("is-over-budget", (entry.overByTokens ?? 0) > 0);
+    } else {
+      el.textContent = "";
+      el.classList?.remove("is-over-budget");
+    }
+  });
+
+  // Total remaining
+  if (statusRailTotal) {
+    if (typeof remainingTokens === "number" && typeof budgetTokens === "number") {
+      statusRailTotal.textContent = `${totalSpentTokens ?? 0}/${budgetTokens} (${remainingTokens} left)`;
+    } else {
+      statusRailTotal.textContent = "";
+    }
   }
 }
 
 function loadGameplayBundle(bundle) {
   if (!bundle || typeof bundle !== "object") return false;
   gameplayView?.loadRun(bundle);
-  setGameplayRunIdLabel(bundle);
+  currentRunId = getBundleRunId(bundle);
+  // Preserve existing allocation ledger state on the rail (Issue #1):
+  // Only update the runId; leave byType/budgetTokens/etc. unchanged by
+  // passing the current design ledger state alongside the new run ID.
+  const existingLedger = designView?.getAllocationLedger?.();
+  updateStatusRail({
+    runId: currentRunId,
+    ...(existingLedger ? {
+      byType: existingLedger.byType,
+    } : {}),
+  });
   return true;
 }
 
@@ -82,7 +137,8 @@ function populateUIIcons(resourceBundle) {
     }
 
     // Resolve and append icon
-    const iconEl = resolveIcon(resourceBundle, category, key);
+    const size = el.dataset.iconSize || "sm";
+    const iconEl = resolveIcon(resourceBundle, category, key, size);
     if (iconEl) {
       el.appendChild(iconEl);
     }
@@ -103,6 +159,11 @@ tabs = wireTabs({
       workspace.dataset.activeTab = tabId;
     }
     updateInspectorSurface(tabId);
+    // Issue #2: clear the stale Gameplay run ID when returning to Design so that
+    // subsequent design-ledger status updates are not labelled under the old run.
+    if (tabId === "design") {
+      currentRunId = "";
+    }
     if (tabId === "gameplay" && !gameplayRunPending && !gameplayView?.isRunActive?.()) {
       gameplayView?.clear?.("Launching run…");
       void launchGameplayRun({ autoGenerate: true });
@@ -127,6 +188,7 @@ actorInspector = createActorInspector({
   hazardListEl: document.querySelector("#actor-inspector-hazard-list"),
   resourceListEl: document.querySelector("#actor-inspector-resource-list"),
   detailEl: document.querySelector("#actor-inspector-detail"),
+  detailFrameEl: document.querySelector("#actor-inspector-detail-frame"),
   onSelectEntity: (entity) => {
     if (workspace?.dataset?.activeTab === "gameplay") {
       gameplayView?.handleInspectorSelect?.(entity);
@@ -161,16 +223,20 @@ actorInspector?.setMode?.("simulation");
 updateInspectorSurface(workspace?.dataset?.activeTab || "design");
 
 async function syncBundleViews({ bundle, source }) {
+  // Capture the sequence number BEFORE the async previewView.loadBundle so that
+  // any onStatusUpdate fired by design-guidance during this await gets a higher
+  // sequence number and wins over this stale bundle-derived call (Issue #3).
+  const mySeq = ++statusRailSeq;
   await previewView.loadBundle(bundle, { source });
 
   const resourceBundle = bundle ? findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA) : null;
-  setGameplayRunIdLabel(bundle);
+  currentRunId = bundle ? getBundleRunId(bundle) : "";
+  updateStatusRail({ runId: currentRunId, _seq: mySeq });
 
   // Update icon displays across all views
   populateUIIcons(resourceBundle);
   actorInspector?.setResourceBundle?.(resourceBundle);
   designView?.setResourceBundle?.(resourceBundle);
-
 }
 
 function summarizePreviewError(result) {
@@ -254,12 +320,18 @@ gameplayView = wireGameplayView({
   actorInspector,
   buildTileAffinityVisualsFromBundleFn: (bundle) => buildTileAffinityVisualsFromBundle(bundle),
   onDiscardToDesign: () => {
+    currentRunId = "";
+    updateStatusRail({ runId: "" });
     void syncBundleViews({ bundle: null, source: "discard" });
-    setGameplayRunIdLabel(null);
     openTab("design");
   },
 });
 globalThis.__ak_gameplayView = gameplayView;
+
+// M8 — Sandbox bridge client
+const AK_BRIDGE_PORT = Number(globalThis.__ak_sandboxBridgePort ?? 38487);
+const sandboxBridge = connectSandboxBridge({ port: AK_BRIDGE_PORT });
+globalThis.__ak_sandboxBridge = sandboxBridge;
 
 diagnosticsView = wireDiagnosticsView({
   commandHost,
@@ -277,7 +349,8 @@ diagnosticsView = wireDiagnosticsView({
   },
   onBundleStateReset: () => {
     gameplayRunPending = false;
-    setGameplayRunIdLabel(null);
+    currentRunId = "";
+    updateStatusRail({ runId: "" });
     void syncBundleViews({ bundle: null, source: "clear" });
   },
 });
@@ -292,10 +365,14 @@ designView = wireDesignView({
   // This fires only from the button, NOT from launchGameplayRun (which calls
   // autoGenerateCards() programmatically, bypassing this callback).
   onAutoGenerate: () => {
-    setGameplayRunIdLabel(null);
+    currentRunId = "";
+    updateStatusRail({ runId: "" });
     gameplayView?.clear?.("Design changed — re-generating…");
   },
   onLlmCapture: null,
+  // Bump the sequence counter so this live design-ledger update always wins
+  // over any in-flight stale syncBundleViews call (Issue #3).
+  onStatusUpdate: (data) => updateStatusRail({ ...data, runId: currentRunId, _seq: ++statusRailSeq }),
 });
 
 globalThis.addEventListener?.("beforeunload", () => {
