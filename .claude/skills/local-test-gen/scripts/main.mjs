@@ -78,6 +78,14 @@ const OLLAMA_TIMEOUT_MS = Number(argValue("--ollama-timeout-ms") || process.env.
 if (!Number.isFinite(OLLAMA_TIMEOUT_MS) || OLLAMA_TIMEOUT_MS <= 0) {
   throw new Error("--ollama-timeout-ms / OLLAMA_TIMEOUT_MS must be a positive number");
 }
+// Override undici's default 300-second bodyTimeout so long Ollama generations
+// don't get killed by the socket layer before OLLAMA_TIMEOUT_MS fires.
+try {
+  const { setGlobalDispatcher, Agent } = await import("undici");
+  setGlobalDispatcher(new Agent({ bodyTimeout: OLLAMA_TIMEOUT_MS, headersTimeout: 60_000 }));
+} catch {
+  // undici not available (older Node or bundled differently) — AbortController is the fallback
+}
 if (!Number.isInteger(MAX_ITERATIONS) || MAX_ITERATIONS <= 0) {
   throw new Error("--max-iterations / TEST_GEN_MAX_ITERATIONS must be a positive integer");
 }
