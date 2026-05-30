@@ -1945,6 +1945,87 @@
       .canvas-tooltip-value {
         color: var(--text);
       }
+
+      /* ── Status Rail (persistent footer) ── */
+      .status-rail {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 20px;
+        background: rgba(12, 9, 9, 0.94);
+        border-top: 1px solid var(--border);
+        backdrop-filter: blur(8px);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.72rem;
+        color: var(--muted);
+        flex-wrap: wrap;
+        min-height: 32px;
+      }
+
+      .status-rail-run-id {
+        color: var(--accent);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 18ch;
+      }
+
+      .status-rail-run-id:empty {
+        display: none;
+      }
+
+      .status-rail-run-id:empty + .status-rail-sep {
+        display: none;
+      }
+
+      .status-rail-sep {
+        color: var(--border);
+        flex: 0 0 auto;
+      }
+
+      .status-rail-tokens {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex: 1 1 auto;
+      }
+
+      .status-rail-token {
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .status-rail-token:empty {
+        display: none;
+      }
+
+      .status-rail-token.is-over-budget {
+        color: #e88e9d;
+      }
+
+      .status-rail-total {
+        margin-left: auto;
+        white-space: nowrap;
+        color: var(--text);
+        flex: 0 0 auto;
+      }
+
+      .status-rail-total:empty {
+        display: none;
+      }
+
+      /* Push main content up so the rail doesn't overlap it */
+      body {
+        padding-bottom: 36px;
+      }
     </style>
   </head>
   <body>
@@ -2286,6 +2367,20 @@
         </div>
       </section>
     </main>
+    <!-- Status Rail: updated by updateStatusRail() in main.js -->
+    <footer class="status-rail" aria-label="Configuration status rail">
+      <span class="status-rail-run-id" id="status-rail-run-id" title=""></span>
+      <span class="status-rail-sep" aria-hidden="true">·</span>
+      <div class="status-rail-tokens" aria-label="Token budget by type">
+        <span class="status-rail-token" id="sr-room"></span>
+        <span class="status-rail-token" id="sr-delver"></span>
+        <span class="status-rail-token" id="sr-warden"></span>
+        <span class="status-rail-token" id="sr-hazard"></span>
+        <span class="status-rail-token" id="sr-resource"></span>
+      </div>
+      <span class="status-rail-total" id="sr-total"></span>
+    </footer>
+
     <!-- D7: serve-ui.mjs replaces this placeholder with the actual AK_SANDBOX_BRIDGE_PORT value -->
     <script>/* __AK_INJECT_SANDBOX_BRIDGE_PORT__ */</script>
     <script type="module" src="./src/main.js"></script>
