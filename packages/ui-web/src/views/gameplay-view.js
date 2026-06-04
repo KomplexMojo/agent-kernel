@@ -10,12 +10,31 @@ function findArtifact(bundle, schema) {
   return artifacts.find((a) => a?.schema === schema) || null;
 }
 
+function resolveHazards(layoutData) {
+  const explicit = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+  const fromTraps = Array.isArray(layoutData.traps)
+    ? layoutData.traps
+        .filter((t) => t != null && t.x != null && t.y != null)
+        .map((t) => ({
+          ...t,
+          position: { x: t.x, y: t.y },
+          entityType: "hazard",
+          emitStrength: t.affinity?.stacks ?? 0,
+          affinityStacks: t.affinity
+            ? [{ kind: t.affinity.kind, expression: t.affinity.expression }]
+            : [],
+        }))
+    : [];
+  const seen = new Set(explicit.map((h) => `${h.position?.x},${h.position?.y}`));
+  return [...explicit, ...fromTraps.filter((t) => !seen.has(`${t.position.x},${t.position.y}`))];
+}
+
 function buildEntityIndex(bundle) {
   const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
   const simConfig = findArtifact(bundle, SIM_CONFIG_SCHEMA);
   const layoutData = simConfig?.layout?.data || {};
   const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
-  const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+  const hazards = resolveHazards(layoutData);
   const resources = Array.isArray(layoutData.resources) ? layoutData.resources : [];
   const index = new Map();
   [
@@ -37,7 +56,7 @@ async function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
   const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA);
   const layoutData = simConfig?.layout?.data || {};
   const tiles = Array.isArray(layoutData.tiles) ? layoutData.tiles : [];
-  const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+  const hazards = resolveHazards(layoutData);
 
   // Derive tile visuals via injected facade or default hazard-based fallback.
   // The injected function may be async depending on the field bridge.
@@ -65,6 +84,56 @@ async function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
   };
 }
 
+/**
+ * Build a board-state frame for every unique tick in bundle.tickFrames by
+ * accumulating accepted Move actions against the initial actor positions.
+ *
+ * Returns an array whose index 0 is the initial state and each subsequent
+ * entry represents the world after that tick completes.
+ */
+function buildTickBoardStates(baseFrame, tickFrames) {
+  if (!Array.isArray(tickFrames) || tickFrames.length === 0) return [baseFrame];
+
+  // Deep-clone the initial actor positions so we can mutate them.
+  let actorPositions = (baseFrame.observation?.actors || []).map((a) => ({ ...a }));
+
+  const frames = [baseFrame];
+
+  // Group tick frames by tick number; process in ascending tick order.
+  const byTick = new Map();
+  for (const tf of tickFrames) {
+    const t = tf?.tick;
+    if (typeof t !== "number" || !Array.isArray(tf?.acceptedActions)) continue;
+    if (!byTick.has(t)) byTick.set(t, []);
+    byTick.get(t).push(tf);
+  }
+
+  const ticks = Array.from(byTick.keys()).sort((a, b) => a - b);
+  for (const tick of ticks) {
+    const tfGroup = byTick.get(tick);
+    // Apply every accepted Move action across all frames in this tick.
+    for (const tf of tfGroup) {
+      for (const action of tf.acceptedActions || []) {
+        if (action?.kind !== "move") continue;
+        const to = action.params?.to;
+        if (!to) continue;
+        const actor = actorPositions.find((a) => a.id === action.actorId);
+        if (actor) actor.position = { ...to };
+      }
+    }
+    // Snapshot the world after this tick.
+    frames.push({
+      ...baseFrame,
+      observation: {
+        ...baseFrame.observation,
+        actors: actorPositions.map((a) => ({ ...a })),
+      },
+    });
+  }
+
+  return frames;
+}
+
 export function wireGameplayView({
   root = document,
   onRunLoaded,
@@ -77,6 +146,7 @@ export function wireGameplayView({
   const phaserHost = root.querySelector?.("#gameplay-phaser-host") ?? null;
   const stepBackBtn = root.querySelector?.("#gameplay-step-back") ?? null;
   const stepForwardBtn = root.querySelector?.("#gameplay-step-forward") ?? null;
+  const runToEndBtn = root.querySelector?.("#gameplay-run-to-end") ?? null;
   const zoomInBtn = root.querySelector?.("#gameplay-zoom-in") ?? null;
   const zoomOutBtn = root.querySelector?.("#gameplay-zoom-out") ?? null;
   const fitBtn = root.querySelector?.("#gameplay-fit-level") ?? null;
@@ -123,6 +193,7 @@ export function wireGameplayView({
   function updateStepButtons() {
     if (stepBackBtn) stepBackBtn.disabled = currentFrameIndex <= 0;
     if (stepForwardBtn) stepForwardBtn.disabled = currentFrameIndex >= frames.length - 1;
+    if (runToEndBtn) runToEndBtn.disabled = currentFrameIndex >= frames.length - 1;
   }
 
   function isRunActive() {
@@ -134,7 +205,8 @@ export function wireGameplayView({
     activeBundle = bundle;
     entityIndex = buildEntityIndex(bundle);
     selectedEntity = null;
-    frames = [await buildBoardState(bundle, { buildTileVisualsFn: buildTileAffinityVisualsFromBundleFn })];
+    const initialFrame = await buildBoardState(bundle, { buildTileVisualsFn: buildTileAffinityVisualsFromBundleFn });
+    frames = buildTickBoardStates(initialFrame, bundle.tickFrames);
     currentFrameIndex = 0;
     setStatus("Run loaded.");
 
@@ -190,6 +262,22 @@ export function wireGameplayView({
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
   }
 
+  /**
+   * Run To End — jump cursor to the last frame and render it.
+   * From M1 contract: this is UI playback over precomputed tickFrames,
+   * not live tick execution. Updates the actor inspector to the final state
+   * and disables forward stepping.
+   */
+  function runToEnd() {
+    if (!isRunActive() || frames.length === 0) return;
+    currentFrameIndex = frames.length - 1;
+    const frame = frames[currentFrameIndex];
+    void renderer.renderFrame(frame);
+    updateStepButtons();
+    actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    setStatus(`Run completed at tick ${currentFrameIndex}.`);
+  }
+
   function selectEntity(position) {
     if (!position || !isRunActive()) return null;
     const key = `${position.x},${position.y}`;
@@ -242,6 +330,9 @@ export function wireGameplayView({
   if (stepForwardBtn?.addEventListener) {
     stepForwardBtn.addEventListener("click", () => stepForward());
   }
+  if (runToEndBtn?.addEventListener) {
+    runToEndBtn.addEventListener("click", () => runToEnd());
+  }
   if (zoomInBtn?.addEventListener) {
     zoomInBtn.addEventListener("click", () => zoomIn());
   }
@@ -258,6 +349,7 @@ export function wireGameplayView({
   // Disable step controls initially (no run loaded)
   if (stepBackBtn) stepBackBtn.disabled = true;
   if (stepForwardBtn) stepForwardBtn.disabled = true;
+  if (runToEndBtn) runToEndBtn.disabled = true;
 
   // Signal that playback controls are wired to the renderer bridge
   if (phaserHost) phaserHost.dataset.__gameplayPlaybackControlsWired = "true";
@@ -314,6 +406,7 @@ export function wireGameplayView({
     loadRun,
     stepForward,
     stepBack,
+    runToEnd,
     dispose,
     isRunActive,
     clear,

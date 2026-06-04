@@ -37,7 +37,13 @@ function isObject(value) {
 
 function isMotivatedKind(kind) {
   if (typeof kind === "number") return kind === MOTIVATED_KIND;
-  if (typeof kind === "string") return kind.toLowerCase() === "motivated";
+  // The actor contract only uses "stationary" | "ambulatory".
+  // "ambulatory" actors CAN move and should have their proposals accepted.
+  // Treat both "motivated" (legacy) and "ambulatory" as proposal-eligible.
+  if (typeof kind === "string") {
+    const k = kind.toLowerCase();
+    return k === "motivated" || k === "ambulatory";
+  }
   return false;
 }
 
@@ -759,6 +765,132 @@ function buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig 
   ];
 }
 
+// ── M5: Simple motivation helpers ──────────────────────────────────────────
+
+const DEFAULT_ATTACK_DAMAGE = 2; // M1 contract: fixed deterministic damage
+
+/**
+ * Read the motivation kind string from the self-actor in the observation view.
+ * Returns null if not found.
+ */
+/**
+ * Resolve the motivation.kind for the actor.
+ * Checks (in order):
+ *   1. observation view actors (motivation set inline, e.g. in tests)
+ *   2. payload.initialState.actors (runtime path — motivation stored in config, not core)
+ */
+function resolveActorMotivationKind(view, actorId, payload) {
+  if (view?.actors && Array.isArray(view.actors)) {
+    const self = view.actors.find((a) => a && a.id === actorId);
+    if (self?.motivation?.kind) return self.motivation.kind;
+  }
+  const configActors = payload?.initialState?.actors;
+  if (Array.isArray(configActors)) {
+    const configActor = configActors.find((a) => a && a.id === actorId);
+    if (configActor?.motivation?.kind) return configActor.motivation.kind;
+  }
+  return null;
+}
+
+/**
+ * Find the nearest hostile actor (any actor other than self) by Chebyshev
+ * distance. Returns { actor, distance } or null if no others exist.
+ */
+function resolveNearestHostile(view, actorId) {
+  if (!view?.actors || !Array.isArray(view.actors)) return null;
+  const selfActor = view.actors.find((a) => a && a.id === actorId);
+  if (!selfActor?.position) return null;
+
+  let nearest = null;
+  let nearestDist = Infinity;
+  for (const other of view.actors) {
+    if (!other || other.id === actorId || !other.position) continue;
+    const dist = Math.max(
+      Math.abs(other.position.x - selfActor.position.x),
+      Math.abs(other.position.y - selfActor.position.y),
+    );
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = { actor: other, distance: dist };
+    }
+  }
+  return nearest;
+}
+
+/**
+ * Motivation-aware proposal builder. Routes to attack or hostile pursuit
+ * before falling back to the existing exit pathfinding.
+ *
+ * Rules (from M1 contract):
+ *   attacking  + adjacent hostile  → attack
+ *   attacking  + non-adjacent      → move toward hostile
+ *   defending  + adjacent hostile  → attack
+ *   defending  + non-adjacent      → wait (no action)
+ *   stationary                     → wait (no action)
+ *   any        + no hostile        → existing exit pathfinding
+ */
+function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig }) {
+  const view = resolveObservationView(observation);
+  if (!view) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+
+  const actorId = payload?.actorId;
+  const actor = resolveActor(view, actorId, observation);
+  if (!actor?.position) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+
+  const motivationKind = resolveActorMotivationKind(view, actorId, payload);
+  const hostile = resolveNearestHostile(view, actorId);
+
+  // Stationary: never propose movement
+  if (motivationKind === "stationary") {
+    return [];
+  }
+
+  if (hostile) {
+    const adjacent = hostile.distance <= 1;
+
+    // Adjacent hostile + attacking or defending → attack
+    if (adjacent && (motivationKind === "attacking" || motivationKind === "defending")) {
+      return [
+        {
+          kind: "attack",
+          params: {
+            targetId: hostile.actor.id,
+            attackerPosition: { ...actor.position },
+            targetPosition: { ...hostile.actor.position },
+            damage: DEFAULT_ATTACK_DAMAGE,
+          },
+        },
+      ];
+    }
+
+    // Non-adjacent + attacking → move toward hostile
+    if (!adjacent && motivationKind === "attacking") {
+      const baseTiles = resolveBaseTiles(payload, view, lastBaseTiles, lastSimConfig);
+      const tileKinds = resolveTileKinds(view, payload);
+      const path = findPath(actor.position, hostile.actor.position, tileKinds, baseTiles);
+      if (path && path.length >= 2) {
+        const from = path[0];
+        const to = path[1];
+        const delta = { dx: to.x - from.x, dy: to.y - from.y };
+        const direction = DEFAULT_DELTAS.find(
+          (e) => e.dx === delta.dx && e.dy === delta.dy,
+        )?.direction;
+        if (direction) {
+          return [{ kind: "move", params: { direction, from, to } }];
+        }
+      }
+    }
+
+    // Non-adjacent + defending → hold position (no action)
+    if (!adjacent && motivationKind === "defending") {
+      return [];
+    }
+  }
+
+  // Fallback: existing exit pathfinding
+  return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+}
+
 export function createActorPersona({ initialState = ActorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
   const fsm = createActorStateMachine({ initialState, clock });
   let lastObservation = null;
@@ -796,7 +928,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
     }
 
     const shouldEmitActions = event === "propose";
-    const derivedProposals = shouldEmitActions ? buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig }) : [];
+    const derivedProposals = shouldEmitActions ? buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig }) : [];
     const proposals = Array.isArray(payload.proposals) && payload.proposals.length > 0 ? payload.proposals : derivedProposals;
     const budgetReceipt = payload.budgetReceipt || payload.budget?.receipt || payload.budget?.receiptArtifact || null;
     const budgetAllocation = payload.budgetAllocation || payload.budget?.allocation || null;

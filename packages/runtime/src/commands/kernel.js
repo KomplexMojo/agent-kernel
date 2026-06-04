@@ -370,6 +370,35 @@ function createCommandRuntimeCore() {
     getEffectValue: core.getEffectValue,
     clearEffects: core.clearEffects,
     version: core.version,
+    // Observation functions — required by canReadObservation() so the runtime-fsm
+    // can provide actor positions and tile data to the actor persona's buildMoveProposal.
+    getMapWidth: core.getMapWidth,
+    getMapHeight: core.getMapHeight,
+    getActorX: core.getActorX,
+    getActorY: core.getActorY,
+    getActorKind: core.getActorKind,
+    getActorVitalCurrent: core.getActorVitalCurrent,
+    getActorVitalMax: core.getActorVitalMax,
+    getActorVitalRegen: core.getActorVitalRegen,
+    getTileActorKind: core.getTileActorKind,
+    getCurrentTick: core.getCurrentTick,
+    // Additional helpers used by readObservation and renderBaseTiles
+    getActorCount: core.getActorCount,
+    getActorId: core.getActorId,
+    getActorHp: core.getActorHp,
+    getActorMaxHp: core.getActorMaxHp,
+    getActorPlacementCount: core.getActorPlacementCount,
+    getAffinityEffectCount: core.getAffinityEffectCount,
+    getAffinityFieldIntensityAt: core.getAffinityFieldIntensityAt,
+    getAffinityFieldExpressionAt: core.getAffinityFieldExpressionAt,
+    armStaticTrapAt: core.armStaticTrapAt,
+    destroyBarrierAt: core.destroyBarrierAt,
+    raiseBarrierAt: core.raiseBarrierAt,
+    // Required by canRenderBaseTiles() so baseTiles string grid is available
+    // for pathfinding (findExitFromTiles / isPassable) in buildMoveProposal.
+    renderBaseCellChar: core.renderBaseCellChar,
+    // Required by applyActionsToCore "missing_move_exports" check before applyMoveAction.
+    setMoveAction: core.setMoveAction,
   };
 }
 

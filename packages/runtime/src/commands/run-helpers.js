@@ -55,7 +55,9 @@ function parseActorSpec(value) {
   }
   const rawKind = (parts[3] || "motivated").toLowerCase();
   let kind;
-  if (rawKind === "motivated" || rawKind === "ambulatory") {
+  if (rawKind === "motivated") {
+    kind = "motivated";
+  } else if (rawKind === "ambulatory") {
     kind = "ambulatory";
   } else if (rawKind === "stationary") {
     kind = "stationary";

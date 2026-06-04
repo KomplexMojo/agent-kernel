@@ -691,7 +691,7 @@ test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a
 
   const createOut = cliSpawn([
     "create",
-    "--room", "size=small;count=1",
+    "--room", "size=medium;count=1",
     "--trap", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
     "--resource", "tier=level;stat=vitalMax;delta=10;dropRate=50",
     "--delver", "count=1;affinity=fire;motivation=attacking",

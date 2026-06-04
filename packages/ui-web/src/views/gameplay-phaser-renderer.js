@@ -93,6 +93,15 @@ function primaryAffinityKind(actor = {}) {
   return "";
 }
 
+function resolveHazardAssetId(resourceBundle, hazard = {}) {
+  const kind = hazard?.affinity?.kind || hazard?.affinityStacks?.[0]?.kind;
+  if (kind) {
+    const byAffinity = resourceBundle?.mappings?.affinities?.[kind];
+    if (byAffinity) return byAffinity;
+  }
+  return resourceBundle?.mappings?.items?.["hazard"] || null;
+}
+
 function resolveActorAssetId(resourceBundle, actor = {}) {
   const role = inferActorRole(actor);
   const affinity = primaryAffinityKind(actor);
@@ -763,16 +772,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       if (hx === null || hy === null) continue;
       const cx = hx * tileWidth + tileWidth / 2;
       const cy = hy * tileHeight + tileHeight / 2;
-      const hazardShape = addSurfaceImageOrFallback(
-        resourceBundle,
-        "items",
-        "hazard",
-        hazard,
-        cx,
-        cy,
-        tileWidth,
-        tileHeight,
-      );
+      const hazardAssetId = resolveHazardAssetId(resourceBundle, hazard);
+      const hazardAsset = findBundleAsset(resourceBundle, hazardAssetId);
+      const hazardShape = addBundleImage(hazardAsset, cx, cy, tileWidth, tileHeight)
+        || addMissingBundleFallback(cx, cy, tileWidth, tileHeight);
       currentContainer.add(hazardShape);
     }
 

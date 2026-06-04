@@ -3817,7 +3817,31 @@ function deriveGoalForAgentCommand({ action, goal, objects }) {
   return `${action === "configure" ? "Configure" : "Author"} ${labels.join(", ")} into a playable dungeon bundle.`;
 }
 
-function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps }) {
+// Minimum room dimensions when traps/hazards occupy floor tiles alongside entrance + exit.
+// A room smaller than medium (roomMinSize=5) compresses all elements into too few walkable cells.
+const MIN_ROOM_SIZE_WITH_ITEMS = 5;
+const MIN_ROOM_MAX_SIZE_WITH_ITEMS = 8;
+
+// Room size profiles: map CLI size token → { roomMinSize, roomMaxSize }
+const ROOM_SIZE_PROFILES = {
+  small:  { roomMinSize: 3,  roomMaxSize: 5  },
+  medium: { roomMinSize: 5,  roomMaxSize: 8  },
+  large:  { roomMinSize: 8,  roomMaxSize: 12 },
+};
+
+// Pick the largest profile requested by any room in parsedRooms.
+// Falls back to medium when no rooms are present.
+function resolveRoomSizeProfile(rooms) {
+  const order = ["small", "medium", "large"];
+  let best = "medium";
+  for (const entry of (rooms || [])) {
+    const size = String(entry?.value?.size || entry?.value?.roomSize || "medium").toLowerCase();
+    if (order.indexOf(size) > order.indexOf(best)) best = size;
+  }
+  return ROOM_SIZE_PROFILES[best] || ROOM_SIZE_PROFILES.medium;
+}
+
+function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps, rooms }) {
   const blockingTrapCount = traps.reduce((sum, trap) => sum + (trap.blocking === true ? 1 : 0), 0);
   const walkableTarget = Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0 ? walkableTilesTarget : 0;
   const trapWidth = traps.reduce((max, trap) => Math.max(max, trap.x + 3), 5);
@@ -3826,15 +3850,28 @@ function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps 
   const walkableSide = requestedWalkable > 0
     ? Math.max(5, Math.ceil(Math.sqrt(Math.ceil(requestedWalkable / 0.5))) + 2)
     : 5;
+
+  // Resolve the room-size profile early so we can size the grid to fit it.
+  // level-layout.js clamps roomMinSize to (min(width,height) - 2), so the grid must be at
+  // least (roomMinSize + 4) on each side for the profile to take effect.
+  const sizeProfile = resolveRoomSizeProfile(rooms);
+  const profileMinSize = traps.length > 0
+    ? Math.max(MIN_ROOM_SIZE_WITH_ITEMS, sizeProfile.roomMinSize)
+    : sizeProfile.roomMinSize;
+  // +4 = 2 walls + 2 padding so the clamp in readRoomSettings allows the full room size
+  const profileGridSide = profileMinSize + 4;
+
   const width = Math.max(
     Number.isInteger(levelGen?.width) ? levelGen.width : 0,
     walkableSide,
     trapWidth,
+    profileGridSide,
   );
   const height = Math.max(
     Number.isInteger(levelGen?.height) ? levelGen.height : 0,
     walkableSide,
     trapHeight,
+    profileGridSide,
   );
   const shape = levelGen?.shape && typeof levelGen.shape === "object" && !Array.isArray(levelGen.shape)
     ? { ...levelGen.shape }
@@ -3842,11 +3879,17 @@ function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps 
   if (!Number.isInteger(shape.roomCount) || shape.roomCount <= 0) {
     shape.roomCount = 1;
   }
-  if (!Number.isInteger(shape.roomMinSize) || shape.roomMinSize <= 0) {
-    shape.roomMinSize = 3;
+  // When traps are present, enforce the requested room-size profile (at least medium) to avoid
+  // compressing entrance, exit, and hazard tiles into an unusably small floor area.
+  const minRoomSize = profileMinSize;
+  if (!Number.isInteger(shape.roomMinSize) || shape.roomMinSize < minRoomSize) {
+    shape.roomMinSize = minRoomSize;
   }
-  if (!Number.isInteger(shape.roomMaxSize) || shape.roomMaxSize <= 0) {
-    shape.roomMaxSize = Math.max(shape.roomMinSize, 3);
+  const minRoomMax = traps.length > 0
+    ? Math.max(shape.roomMinSize, sizeProfile.roomMaxSize)
+    : Math.max(shape.roomMinSize, 3);
+  if (!Number.isInteger(shape.roomMaxSize) || shape.roomMaxSize < minRoomMax) {
+    shape.roomMaxSize = minRoomMax;
   }
   if (!Number.isInteger(shape.corridorWidth) || shape.corridorWidth <= 0) {
     shape.corridorWidth = 1;
@@ -4855,6 +4898,18 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .filter(Boolean)
     .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
 
+  // Reject small rooms when traps or hazards are present — they compress entrance, exit,
+  // and item tiles into too few walkable cells. Medium (roomMinSize=5) is the minimum.
+  if (parsedTraps.length > 0 || parsedHazards.length > 0) {
+    parsedRooms.forEach((entry, i) => {
+      if (!entry.sizeFlexible && entry.value?.size === "small") {
+        throw new Error(
+          `room[${i + 1}] size=small is too small to fit entrance, exit, and ${parsedTraps.length + parsedHazards.length} hazard(s) without compression. Use size=medium or size=large.`,
+        );
+      }
+    });
+  }
+
   if (
     parsedRooms.length === 0
     && parsedFloorTiles.length === 0
@@ -5034,7 +5089,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   const traps = parsedTraps.map((entry) => entry.value);
   const levelGen = ensureAuthoringLevelGenCapacity(
     built.spec.configurator?.inputs?.levelGen || {},
-    { walkableTilesTarget, traps },
+    { walkableTilesTarget, traps, rooms: parsedRooms },
   );
   if (walkableTilesTarget > 0) {
     levelGen.walkableTilesTarget = walkableTilesTarget;

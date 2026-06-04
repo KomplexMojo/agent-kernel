@@ -213,12 +213,14 @@ function armStaticTrapsFromLayout(core, layoutData = {}) {
     const kind = typeof trap.affinity?.kind === "string" ? trap.affinity.kind : "";
     const expression = typeof trap.affinity?.expression === "string" ? trap.affinity.expression : "push";
     const stacks = toInt(trap.affinity?.stacks);
-    const manaReserve = toInt(trap.vitals?.mana?.current);
+    const manaFromVitals = toInt(trap.vitals?.mana?.current);
+    const manaReserve = Number.isFinite(manaFromVitals) && manaFromVitals > 0
+      ? manaFromVitals
+      : stacks * 3;
     const affinityKind = AFFINITY_KIND_CODES[kind];
     const affinityExpression = AFFINITY_EXPRESSION_CODES[expression];
     if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) return;
     if (!Number.isFinite(stacks) || stacks <= 0) return;
-    if (!Number.isFinite(manaReserve) || manaReserve <= 0) return;
     if (trap.blocking === true) return;
     core.armStaticTrapAt(x, y, affinityKind, affinityExpression, stacks, manaReserve);
   });
