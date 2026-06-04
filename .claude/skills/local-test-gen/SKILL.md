@@ -1,40 +1,24 @@
 ---
 name: local-test-gen
-description: Generate and evaluate test permutations using an Ollama model reachable locally or through a remote SSH tunnel. Scans for ## TODO: Test Permutations sections, generates concrete test cases, runs the narrow suite, and iterates until generated tests are syntactically valid, runner-correct, passing, and useful. No MCP tools required — uses filesystem + Ollama API + shell only.
-compatibility: Requires Node.js 18+, pnpm for Vitest projects, and an Ollama-compatible endpoint reachable via OLLAMA_HOST or localhost:11434 with at least one model loaded
+description: Generate and evaluate test permutations using an Ollama model reachable locally or via remote SSH tunnel. Scans for ## TODO: Test Permutations sections, generates concrete test cases, runs the narrow suite, and iterates until the tests are syntactically valid, runner-correct, passing, and useful. No MCP tools — filesystem + Ollama API + shell only.
+compatibility: Node.js 18+, pnpm (for Vitest projects), and an Ollama-compatible endpoint at OLLAMA_HOST or localhost:11434 with at least one model loaded.
 trigger: /local-test-gen
 ---
 
 ## Purpose
 
-Expand `## TODO: Test Permutations` stubs in test files into concrete, runnable test cases using whatever model is currently loaded in Ollama. The model is auto-detected at startup via `/api/ps` (warm/running models) with a fallback to `/api/tags` (first installed model). Override with `--model <name>` when needed.
+Expand `## TODO: Test Permutations` stubs in test files into concrete, runnable tests using whatever model is loaded in Ollama. The model is **auto-detected** at startup — `/api/ps` (warm models) with a fallback to `/api/tags` (first installed) — so you rarely name one; override with `--model <name>` only when needed. This is also the preferred harness for **model evaluation**: generated tests are kept only after the target file passes its narrow test command.
 
-This skill is also the preferred harness for **model evaluation** when comparing local or remote Ollama models for test generation quality. A successful model run means the generated tests are kept only after the target file passes its narrow test command.
+**Use when** a test file ends with a `## TODO: Test Permutations` section of plain-language stubs and you want to expand them locally (no cloud tokens), or to compare Ollama models for test-gen quality.
 
-**Use this skill when:**
-- A test file ends with a `## TODO: Test Permutations` section containing plain-language stub descriptions
-- You want to expand permutations locally without spending cloud tokens
-- You want to compare local or remote Ollama models for test-generation quality
-- You are on a machine with Ollama running `qwen3-coder:30b`, `qwen3-coder:30b-a3b-q4_K_M`, or another candidate model
-
-**Do NOT use this skill for:**
-- Architecture decisions
-- Changing production code
-- Integration tests that require live external services
-- Tests requiring deep FSM or adapter reasoning
-
----
+**Do NOT use for** architecture decisions, production-code changes, integration tests needing live services, or tests requiring deep FSM/adapter reasoning.
 
 ## Prerequisites
 
-1. Ollama is running: `ollama serve`
-2. At least one model is loaded in Ollama (the script picks the currently warm one automatically)
-3. You are in the repo root (where `tests/` exists and `pnpm` is available)
-4. For remote hardware through SSH, run through `remote-ollama-mac run-local` or set `OLLAMA_HOST` to the active tunnel endpoint
-5. For this repo, prefer the remote dual profile for 30B-class models
-6. For this repo, read `tests/README.md` before generation; the script injects it as the core game domain contract
-
----
+1. Ollama running (`ollama serve`) with at least one model loaded — the script picks the warm one.
+2. Run from repo root (where `tests/` exists and `pnpm` is available).
+3. For remote hardware, go through `remote-ollama-mac run-local` or set `OLLAMA_HOST` to the tunnel endpoint; prefer the **dual** profile for 30B-class models.
+4. The script injects `tests/README.md` as the game-domain contract — keep it current.
 
 ## How to Run
 
@@ -42,104 +26,50 @@ This skill is also the preferred harness for **model evaluation** when comparing
 node ~/.claude/skills/local-test-gen/scripts/main.mjs
 ```
 
-Optional flags:
-- `--file tests/path/to/file.test.js` — process one specific file only
-- `--dry-run` — print what would be generated without writing or running anything
-- `--model qwen3-coder:7b` — override the model (default: qwen3-coder:30b-a3b-q4_K_M)
-- `--ollama-host http://127.0.0.1:21436` — override `OLLAMA_HOST`
-- `--ollama-timeout-ms 1800000` — override the request timeout
-- `--runner auto|vitest|node` — choose the narrow test runner (`auto` prefers Vitest when the repo has Vitest config)
-- `--max-iterations 5` — override retry count
-- `--num-ctx 65536` — pass Ollama `num_ctx` for long-context remote profiles
-- `--num-predict 8192` — pass Ollama `num_predict` for larger generated/refined outputs
-- `--temperature 0.2` — pass Ollama temperature
-- `--reasoning-mode direct|plan-code` — use one direct code call or a plan pass followed by a code pass (`plan-code` is the default in eval mode)
-- `--source-context auto|off` — include local implementation files imported by the target test, or disable source context
-- `--source-char-budget 16000` — cap imported implementation source context
-- `--eval-run` — write a structured JSON model-evaluation report
-- `--eval-output test-gen-eval.json` — choose the JSON evaluation report path
-- `--keep-failing-logic` — keep syntactically valid failing tests for application-bug triage; omit this for model evaluation
+Flags:
+- `--file <path>` — process one file only · `--dry-run` — show planned work, write nothing
+- `--model <name>` — override auto-detection · `--ollama-host <url>` · `--ollama-timeout-ms <n>`
+- `--runner auto|vitest|node` — `auto` prefers Vitest when the repo has Vitest config
+- `--max-iterations 5` — retry count · `--temperature 0.2`
+- `--num-ctx <n>` / `--num-predict <n>` — Ollama context / output budget for long remote profiles
+- `--reasoning-mode direct|plan-code` — one code pass, or a plan pass then a code pass (`plan-code` is the eval-mode default)
+- `--source-context auto|off` / `--source-char-budget 16000` — include (and cap) implementation files imported by the target test
+- `--eval-run` / `--eval-output <path>` — write a structured JSON model-evaluation report
+- `--keep-failing-logic` — keep syntactically valid failing tests for application-bug triage; **omit for model evaluation**
 
-Remote dual-GPU example from the repo root:
+Remote dual-GPU run, and model-evaluation against one file:
 
 ```bash
 ./tools/remote-ollama-control/bin/remote-ollama-mac run-local \
-  --profile dual \
-  --model qwen3-coder:30b-a3b-q4_K_M \
-  --route external \
-  --external-host <wan-host-or-ip> \
-  -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model qwen3-coder:30b-a3b-q4_K_M
-```
+  --profile dual --model <ollama-model> --route external --external-host <wan-host-or-ip> \
+  -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model <ollama-model>
 
-Model-evaluation example against one target file:
-
-```bash
 ./tools/remote-ollama-control/bin/remote-ollama-mac run-local \
-  --profile dual \
-  --model qwen3-coder:30b \
-  --route external \
-  --external-host <wan-host-or-ip> \
+  --profile dual --model <ollama-model> --route external --external-host <wan-host-or-ip> \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs \
-    --model qwen3-coder:30b \
-    --file tests/ui-web/tile-affinity-visuals.test.mjs \
-    --runner auto \
-    --max-iterations 5 \
-    --num-ctx 65536 \
-    --num-predict 8192 \
-    --reasoning-mode plan-code \
-    --source-context auto \
-    --source-char-budget 16000 \
-    --eval-run \
-    --eval-output tools/remote-ollama-control/results/qwen3-coder-30b-test-gen-eval.json
+     --model <ollama-model> --file tests/ui-web/tile-affinity-visuals.test.mjs \
+     --runner auto --max-iterations 5 --num-ctx 65536 --num-predict 8192 \
+     --reasoning-mode plan-code --source-context auto --source-char-budget 16000 \
+     --eval-run --eval-output tools/remote-ollama-control/results/test-gen-eval.json
 ```
-
----
 
 ## What the Script Does
 
-1. **Scan** — finds all `*.test.js` and `*.test.mjs` files under `tests/` that contain a `## TODO: Test Permutations` section
-2. **Plan** — extracts the stub bullet points from each file's TODO section
-3. **Baseline** — runs the target file before generation and skips files with pre-existing failures
-4. **Source context** — includes local implementation files imported by the target test, capped by `--source-char-budget`
-5. **Domain context** — injects `tests/README.md`, including canonical affinity kinds, expressions, stacks, and motivations
-6. **Reasoning pass** — in `plan-code` mode, asks the model for a concise per-stub contract plan before generating code
-7. **Generate** — sends each file's existing tests, source context, domain context, stubs, and optional plan to the selected model, asking it to produce concrete test cases for every stub
-8. **Static check** — rejects generated code with markdown fences, imports, leftover TODOs, too few test blocks, unbalanced block comments, invented affinity concepts, invalid expressions/motivations, or forbidden scalar strength fields such as `emitStrength`
-9. **Insert** — writes the generated tests into the file, replacing the TODO section, including block-comment TODO wrappers
-10. **Run** — executes each modified file with the selected runner:
-   - `auto` → Vitest when the repo has Vitest config or the file is `.mjs`; Node test runner otherwise
-   - `vitest` → `pnpm exec vitest run <file>`
-   - `node` → `node --test <file>`
-11. **Refine** — sends the previous failure output and generated code back to the model and retries until the narrow test passes or iterations are exhausted
-12. **Rollback** — by default, restores the original file if generated tests never pass
-13. **Report** — writes a `test-gen-report.md` to the repo root with per-file results
-14. **Evaluate** — when `--eval-run` is set, writes a JSON report with pass rate, iterations, failure classes, generated test count, prompt/source metrics, model profile settings, rollback/kept status, and human-review markers
+1. **Scan** `tests/**/*.test.{js,mjs}` for files with a `## TODO: Test Permutations` section, and extract the stub bullets.
+2. **Baseline** — run the target before generation; skip files with pre-existing failures.
+3. **Context** — inject `tests/README.md` (affinity kinds, expressions, stacks, motivations) plus, optionally, the implementation files the test imports (capped by `--source-char-budget`).
+4. **Generate** — in `plan-code` mode, request a per-stub contract plan first, then send existing tests + context + stubs and ask for concrete cases per stub.
+5. **Static check** — reject output with markdown fences, imports, leftover TODOs, too few test blocks, unbalanced block comments, invented affinity concepts, invalid expressions/motivations, or forbidden scalar fields (e.g. `emitStrength`).
+6. **Insert & run** — replace the TODO section, then run the file: `auto` → Vitest when the repo has Vitest config or the file is `.mjs`, else `node --test`.
+7. **Refine** — feed failure output back to the model and retry until the narrow test passes or `--max-iterations` is hit.
+8. **Rollback** — restore the original file if generated tests never pass (unless `--keep-failing-logic`).
+9. **Report** — write `test-gen-report.md` (per-file results); with `--eval-run`, also a JSON report (pass rate, iterations, failure classes, test count, prompt/source metrics, model profile, rollback/kept status, review markers).
 
-For model evaluation, do **not** pass `--keep-failing-logic`; passing generated tests are the comparable success condition. Use `--keep-failing-logic` only when the explicit goal is to preserve failing tests as suspected product bug repros.
-
----
+For model evaluation, passing tests are the comparable success condition — do not pass `--keep-failing-logic`.
 
 ## TODO Section Format
 
-The script looks for a line matching:
-```
-// ## TODO: Test Permutations
-```
-or
-```
-## TODO: Test Permutations
-```
-
-It also handles TODO sections wrapped in a block comment:
-
-```js
-/*
-## TODO: Test Permutations
-- edge case
-*/
-```
-
-Everything after that line (until end of file) is treated as stub descriptions. Example:
+The script matches `## TODO: Test Permutations` (with or without a `//` prefix, including inside a block comment). Everything after that line to EOF is treated as stub descriptions:
 
 ```js
 // ## TODO: Test Permutations
@@ -148,42 +78,18 @@ Everything after that line (until end of file) is treated as stub descriptions. 
 // - receipt where floor_tiles.usagePercent > 100 (valid — over-budget per category is allowed)
 ```
 
----
-
-## Output
-
-- Console: live progress per file
-- `test-gen-report.md` in repo root: summary table with pass/fail/error-type per stub
-- `test-gen-eval.json` or `--eval-output <path>` when `--eval-run` is set: structured model-evaluation data
-- Original files are restored on rollback if all iterations fail
-
-Evaluation JSON includes:
-- `model`, `ollamaHost`, `modelProfile` (`numCtx`, `numPredict`, `temperature`, `reasoningMode`, source-context settings)
-- summary pass rate, total/average iterations, prompt size, failure classes, and human-review count
-- per-file stubs, runner, baseline status, source files included, kept/rolled-back status, generated test blocks
-- per-attempt plan/code prompt size, generated character count, test-block count, static validation failures, error class, and snippet
-
----
-
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `Connection refused localhost:11434` | Run `ollama serve` |
-| `Cannot detect Ollama model` | Load a model first (`ollama run <name>`), or pass `--model <name>` |
-| Generated code has syntax errors | The model will auto-iterate up to 5 times; if still failing, make stubs more explicit |
-| `.test.js` fails with `test is not defined` | Use `--runner vitest`, or leave `--runner auto` in a Vitest repo |
-| Test fails with "module not found" | The model added an import — the script will retry with an instruction to avoid new imports |
-| Generated tests fail but look syntactically valid | The script rolls back by default; inspect `test-gen.log`, then rerun the same model/target or try a stronger model |
-| pnpm not found | Run `npm install -g pnpm` or use `npx pnpm` |
-
----
+| `Connection refused localhost:11434` | `ollama serve` |
+| `Cannot detect Ollama model` | Load one (`ollama run <name>`) or pass `--model <name>` |
+| Generated code has syntax errors | Auto-iterates up to 5×; if still failing, make stubs more explicit |
+| `.test.js` fails with `test is not defined` | Use `--runner vitest` (or `auto` in a Vitest repo) |
+| Test fails with "module not found" | Model added an import — the script retries instructing it not to |
+| Tests fail but look valid | Rolls back by default; inspect `test-gen.log`, rerun or try a stronger model |
+| pnpm not found | `npm install -g pnpm` or `npx pnpm` |
 
 ## When Claude Invokes This Skill
 
-Claude runs the script, monitors output, reads `test-gen-report.md` when done, and reports:
-- How many stubs were expanded
-- Which tests passed, failed with syntax errors, and failed with application-code issues
-- The specific failing test names and error snippets for application-code failures
-
-Claude does NOT fix production code during this skill run. It may correct generated-test expectations only when the existing implementation and earlier tests clearly establish the contract. For model evaluation, record whether any human correction was required.
+Run the script, monitor output, read `test-gen-report.md`, and report: how many stubs were expanded; which passed, failed with syntax errors, or failed on application-code issues (with failing test names + error snippets for the latter). Claude does **not** fix production code during this run; it may correct generated-test expectations only when the existing implementation and earlier tests clearly establish the contract. For model evaluation, record whether any human correction was required.
