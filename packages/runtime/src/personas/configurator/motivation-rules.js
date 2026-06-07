@@ -1,3 +1,8 @@
+import {
+  GAME_MOTIVATION_KIND_IDS,
+  GAME_MOTIVATION_KINDS,
+} from "../../contracts/game-elements.js";
+
 export const BEHAVIOR_COMPLEXITY_CLASSES = Object.freeze(["instinctual", "tactical", "strategic"]);
 
 export const MOTIVATION_AXIS_VALUES = Object.freeze({
@@ -19,20 +24,7 @@ export const DEFAULT_MOTIVATION_FLAGS = Object.freeze({
   aggroRangeBoost: false,
 });
 
-export const MOTIVATION_KIND_IDS = Object.freeze({
-  random: "motivation_random",
-  stationary: "motivation_stationary",
-  exploring: "motivation_exploring",
-  attacking: "motivation_attacking",
-  defending: "motivation_defending",
-  patrolling: "motivation_patrolling",
-  stealthy: "motivation_stealthy",
-  friendly: "motivation_friendly",
-  reflexive: "motivation_reflexive",
-  goal_oriented: "motivation_goal_oriented",
-  strategy_focused: "motivation_strategy_focused",
-  user_controlled: "motivation_user_controlled",
-});
+export const MOTIVATION_KIND_IDS = GAME_MOTIVATION_KIND_IDS;
 
 export const MOTIVATION_PROFILE_ITEM_IDS = Object.freeze({
   mobility: Object.freeze({
@@ -54,7 +46,7 @@ export const MOTIVATION_PROFILE_ITEM_IDS = Object.freeze({
 });
 
 export const MOTIVATION_FLAG_KEYS = Object.freeze(Object.keys(DEFAULT_MOTIVATION_FLAGS));
-export const MOTIVATION_KINDS = Object.freeze(Object.keys(MOTIVATION_KIND_IDS));
+export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS;
 
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));

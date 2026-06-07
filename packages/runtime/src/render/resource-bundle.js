@@ -1,14 +1,18 @@
 import {
-  ALLOWED_AFFINITIES,
-  ALLOWED_AFFINITY_EXPRESSIONS,
-  ALLOWED_MOTIVATIONS,
-} from "../personas/orchestrator/prompt-contract.js";
-import {
   AFFINITY_COLOR_HEX,
   hexToRgba as sharedHexToRgba,
   normalizeHex as sharedNormalizeHex,
   resolveStackIntensity,
 } from "./affinity-palette.js";
+import {
+  GAME_AFFINITY_EXPRESSIONS,
+  GAME_AFFINITY_KINDS,
+  GAME_ELEMENT_ASSET_IDS,
+  GAME_ELEMENT_ICON_KEYS,
+  GAME_MOTIVATION_KINDS,
+  getResourceBundleAssetSpecs,
+  relativePathForGameAssetId,
+} from "../contracts/game-elements.js";
 import { computeTileAlpha } from "./affinity-spatial-formulas.js";
 import {
   applyAuraMask,
@@ -30,56 +34,19 @@ const RESOURCE_BUNDLE_VERSION_V2 = 2;
 
 const PNG_SIGNATURE = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
-const DEFAULT_TILE_ASSET_IDS = Object.freeze({
-  floor: "tile.floor",
-  wall: "tile.wall",
-  barrier: "tile.barrier",
-  spawn: "tile.spawn",
-  exit: "tile.exit",
-  inaccessible: "tile.inaccessible",
-  fog: "tile.fog",
-});
-
-const DEFAULT_ACTOR_ASSET_IDS = Object.freeze({
-  delver: "actor.delver",
-  warden: "actor.warden",
-});
-
-const DEFAULT_ITEM_ASSET_IDS = Object.freeze({
-  hazard: "item.hazard",
-  resource: "item.resource",
-});
-
-const DEFAULT_CARD_ASSET_IDS = Object.freeze({
-  room: "card.room",
-  delver: "card.delver",
-  warden: "card.warden",
-});
-
-const STACK_TIER_IDS = Object.freeze({
-  tier1: "overlay.stack-tier.tier1",
-  tier2: "overlay.stack-tier.tier2",
-  tier3: "overlay.stack-tier.tier3",
-});
-
-const ICON_TYPE_KEYS = Object.freeze(["room", "delver", "attacker", "warden", "defender", "hazard", "untyped"]);
-const ICON_ITEM_KEYS = Object.freeze(["hazard", "resource"]);
-const ICON_MOTIVATION_KEYS = Object.freeze([
-  "random",
-  "stationary",
-  "exploring",
-  "attacking",
-  "defending",
-  "stealthy",
-  "friendly",
-  "patrolling",
-  "reflexive",
-  "goal_oriented",
-  "strategy_focused",
-  "user_controlled",
-]);
-const ICON_VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability", "defence"]);
-const ICON_UI_KEYS = Object.freeze(["playing-surface", "card-builder", "game-preview", "system-console", "game-inspector"]);
+const ALLOWED_AFFINITIES = GAME_AFFINITY_KINDS;
+const ALLOWED_AFFINITY_EXPRESSIONS = GAME_AFFINITY_EXPRESSIONS;
+const ALLOWED_MOTIVATIONS = GAME_MOTIVATION_KINDS;
+const DEFAULT_TILE_ASSET_IDS = GAME_ELEMENT_ASSET_IDS.tiles;
+const DEFAULT_ACTOR_ASSET_IDS = GAME_ELEMENT_ASSET_IDS.actors;
+const DEFAULT_ITEM_ASSET_IDS = GAME_ELEMENT_ASSET_IDS.items;
+const DEFAULT_CARD_ASSET_IDS = GAME_ELEMENT_ASSET_IDS.cards;
+const STACK_TIER_IDS = GAME_ELEMENT_ASSET_IDS.stackTiers;
+const ICON_TYPE_KEYS = GAME_ELEMENT_ICON_KEYS.types;
+const ICON_ITEM_KEYS = GAME_ELEMENT_ICON_KEYS.items;
+const ICON_MOTIVATION_KEYS = GAME_ELEMENT_ICON_KEYS.motivations;
+const ICON_VITAL_KEYS = GAME_ELEMENT_ICON_KEYS.vitals;
+const ICON_UI_KEYS = GAME_ELEMENT_ICON_KEYS.ui;
 
 function mapKeys(keys, prefix) {
   return Object.fromEntries(keys.map((key) => [key, `${prefix}.${key}`]));
@@ -240,22 +207,7 @@ function decodePngDataUri(dataUri) {
 }
 
 function relativePathForAssetId(id) {
-  if (id.startsWith("tile.")) {
-    return `visual-assets/tiles/${id.slice("tile.".length).replace(/\./g, "-")}.png`;
-  }
-  if (id.startsWith("actor.")) {
-    return `visual-assets/actors/${id.slice("actor.".length).replace(/\./g, "-")}.png`;
-  }
-  if (id.startsWith("card.")) {
-    return `visual-assets/cards/${id.slice("card.".length).replace(/\./g, "-")}.png`;
-  }
-  if (id.startsWith("overlay.")) {
-    return `visual-assets/overlays/${id.slice("overlay.".length).replace(/\./g, "-")}.png`;
-  }
-  if (id.startsWith("affinity.") || id.startsWith("motivation.") || id.startsWith("expression.")) {
-    return `visual-assets/overlays/${id.replace(/\./g, "-")}.png`;
-  }
-  return `visual-assets/misc/${id.replace(/\./g, "-")}.png`;
+  return relativePathForGameAssetId(id);
 }
 
 function createGeneratedAssetEntry(id, kind, label, ipfsUri) {
@@ -281,84 +233,8 @@ function createGeneratedAssetEntry(id, kind, label, ipfsUri) {
 
 function createDefaultAssets({ emitVisualAssets = false } = {}) {
   const makeEntry = emitVisualAssets ? createGeneratedAssetEntry : createAssetEntry;
-  const assets = [
-    makeEntry(DEFAULT_TILE_ASSET_IDS.floor, "tile", "Floor Tile", "ipfs://ak-resource-bundle-v1/tile-floor.png"),
-    makeEntry(DEFAULT_TILE_ASSET_IDS.wall, "tile", "Wall Tile", "ipfs://ak-resource-bundle-v1/tile-wall.png"),
-    makeEntry(DEFAULT_TILE_ASSET_IDS.barrier, "tile", "Barrier Tile", "ipfs://ak-resource-bundle-v1/tile-barrier.png"),
-    makeEntry(DEFAULT_TILE_ASSET_IDS.spawn, "tile", "Spawn Tile", "ipfs://ak-resource-bundle-v1/tile-spawn.png"),
-    makeEntry(DEFAULT_TILE_ASSET_IDS.exit, "tile", "Exit Tile", "ipfs://ak-resource-bundle-v1/tile-exit.png"),
-    makeEntry(DEFAULT_TILE_ASSET_IDS.inaccessible, "tile", "Inaccessible Tile", "ipfs://ak-resource-bundle-v1/tile-inaccessible.png"),
-    makeEntry(DEFAULT_ACTOR_ASSET_IDS.delver, "actor", "Generic Delver", "ipfs://ak-resource-bundle-v1/actor-delver.png"),
-    makeEntry(DEFAULT_ACTOR_ASSET_IDS.warden, "actor", "Generic Warden", "ipfs://ak-resource-bundle-v1/actor-warden.png"),
-    makeEntry(DEFAULT_ITEM_ASSET_IDS.hazard, "item", "Generic Hazard", "ipfs://ak-resource-bundle-v1/item-hazard.png"),
-    makeEntry(DEFAULT_ITEM_ASSET_IDS.resource, "item", "Generic Resource", "ipfs://ak-resource-bundle-v1/item-resource.png"),
-    makeEntry(DEFAULT_CARD_ASSET_IDS.room, "card", "Room Card", "ipfs://ak-resource-bundle-v1/card-room.png"),
-    makeEntry(DEFAULT_CARD_ASSET_IDS.delver, "card", "Delver Card", "ipfs://ak-resource-bundle-v1/card-delver.png"),
-    makeEntry(DEFAULT_CARD_ASSET_IDS.warden, "card", "Warden Card", "ipfs://ak-resource-bundle-v1/card-warden.png"),
-  ];
-
-  if (emitVisualAssets) {
-    assets.push(makeEntry(DEFAULT_TILE_ASSET_IDS.fog, "tile", "Fog Tile", "ipfs://ak-resource-bundle-v2/tile-fog.png"));
-    ALLOWED_AFFINITIES.forEach((kind) => {
-      assets.push(makeEntry(`actor.delver.${kind}`, "actor", `Delver ${kind}`, `ipfs://ak-resource-bundle-v2/actor-delver-${kind}.png`));
-      assets.push(makeEntry(`actor.warden.${kind}`, "actor", `Warden ${kind}`, `ipfs://ak-resource-bundle-v2/actor-warden-${kind}.png`));
-      assets.push(makeEntry(`overlay.affinity.${kind}`, "overlay", `${kind} Overlay`, `ipfs://ak-resource-bundle-v2/overlay-affinity-${kind}.png`));
-      assets.push(makeEntry(`overlay.tile.floor.affinity.${kind}`, "overlay", `Floor ${kind} Affinity Overlay`, `ipfs://ak-resource-bundle-v2/overlay-tile-floor-affinity-${kind}.png`));
-      assets.push(makeEntry(`overlay.tile.wall.affinity.${kind}`, "overlay", `Wall ${kind} Affinity Overlay`, `ipfs://ak-resource-bundle-v2/overlay-tile-wall-affinity-${kind}.png`));
-    });
-    ALLOWED_AFFINITY_EXPRESSIONS.forEach((kind) => {
-      assets.push(makeEntry(`overlay.expression.${kind}`, "overlay", `${kind} Expression Overlay`, `ipfs://ak-resource-bundle-v2/overlay-expression-${kind}.png`));
-    });
-    assets.push(makeEntry(STACK_TIER_IDS.tier1, "overlay", "Stack Tier 1", "ipfs://ak-resource-bundle-v2/overlay-stack-tier-1.png"));
-    assets.push(makeEntry(STACK_TIER_IDS.tier2, "overlay", "Stack Tier 2", "ipfs://ak-resource-bundle-v2/overlay-stack-tier-2.png"));
-    assets.push(makeEntry(STACK_TIER_IDS.tier3, "overlay", "Stack Tier 3", "ipfs://ak-resource-bundle-v2/overlay-stack-tier-3.png"));
-    ALLOWED_MOTIVATIONS.forEach((kind) => {
-      assets.push(makeEntry(`overlay.motivation.${kind}`, "overlay", `${kind} Motivation Overlay`, `ipfs://ak-resource-bundle-v2/overlay-motivation-${kind}.png`));
-    });
-    assets.push(makeEntry("overlay.darkness-mask", "overlay", "Darkness Mask", "ipfs://ak-resource-bundle-v2/overlay-darkness-mask.png"));
-
-    ICON_TYPE_KEYS.forEach((kind) => {
-      assets.push(makeEntry(`icon.type.${kind}`, "icon", `${kind} Type Icon`, `ipfs://ak-resource-bundle-v2/icon-type-${kind}.png`));
-    });
-
-    ICON_ITEM_KEYS.forEach((kind) => {
-      assets.push(makeEntry(`icon.item.${kind}`, "icon", `${kind} Item Icon`, `ipfs://ak-resource-bundle-v2/icon-item-${kind}.png`));
-    });
-
-    ALLOWED_AFFINITIES.forEach((kind) => {
-      assets.push(makeEntry(`icon.affinity.${kind}`, "icon", `${kind} Affinity Icon`, `ipfs://ak-resource-bundle-v2/icon-affinity-${kind}.png`));
-    });
-
-    ALLOWED_AFFINITY_EXPRESSIONS.forEach((kind) => {
-      assets.push(makeEntry(`icon.expression.${kind}`, "icon", `${kind} Expression Icon`, `ipfs://ak-resource-bundle-v2/icon-expression-${kind}.png`));
-    });
-
-    ICON_MOTIVATION_KEYS.forEach((kind) => {
-      assets.push(makeEntry(`icon.motivation.${kind}`, "icon", `${kind} Motivation Icon`, `ipfs://ak-resource-bundle-v2/icon-motivation-${kind}.png`));
-    });
-
-    ICON_VITAL_KEYS.forEach((kind) => {
-      assets.push(makeEntry(`icon.vital.${kind}`, "icon", `${kind} Vital Icon`, `ipfs://ak-resource-bundle-v2/icon-vital-${kind}.png`));
-    });
-
-    ICON_UI_KEYS.forEach((kind) => {
-      assets.push(makeEntry(`icon.ui.${kind}`, "icon", `${kind} UI Icon`, `ipfs://ak-resource-bundle-v2/icon-ui-${kind}.png`));
-    });
-
-    return assets;
-  }
-
-  ALLOWED_AFFINITIES.forEach((kind) => {
-    assets.push(createAssetEntry(`affinity.${kind}`, "affinity", `${kind} Affinity`, `ipfs://ak-resource-bundle-v1/affinity-${kind}.png`));
-  });
-  ALLOWED_MOTIVATIONS.forEach((kind) => {
-    assets.push(createAssetEntry(`motivation.${kind}`, "motivation", `${kind} Motivation`, `ipfs://ak-resource-bundle-v1/motivation-${kind}.png`));
-  });
-  ALLOWED_AFFINITY_EXPRESSIONS.forEach((kind) => {
-    assets.push(createAssetEntry(`expression.${kind}`, "expression", `${kind} Expression`, `ipfs://ak-resource-bundle-v1/expression-${kind}.png`));
-  });
-
-  return assets;
+  return getResourceBundleAssetSpecs({ emitVisualAssets })
+    .map((spec) => makeEntry(spec.id, spec.kind, spec.label, spec.ipfsUri));
 }
 
 export function createDefaultResourceBundleArtifact({
