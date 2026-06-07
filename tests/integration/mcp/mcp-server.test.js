@@ -325,7 +325,7 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
       runId,
       createdAt: "2026-04-19T00:00:00.000Z",
       text: "Create a full playable dungeon scenario with room layout, traps, hazards, resources, delvers, and a warden under a total budget of 2000 tokens.",
-      room: ["size=small;count=1"],
+      room: ["size=medium;count=1"],
       floorTile: ["count=12"],
       trap: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
       hazard: ["affinity=dark;expression=emit;proximityRadius=1;mana=one-time:1"],

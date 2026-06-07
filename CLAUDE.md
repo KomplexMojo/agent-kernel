@@ -1,150 +1,106 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) in this repository.
 
 Claude is the **orchestration and implementation engine**. Codex drives ideation and adversarial verification. GitHub Copilot owns documentation and commits.
 
+> **Model names, not versions.** This file names model *tiers* (Opus, Sonnet, Haiku, GPT-5) rather than dated IDs, which churn. Use the latest release in each tier; pick the exact ID with `/model` or the API.
+
 ## Session-Start Protocol (mandatory before first code change)
 
-Before writing any code in a new session, complete the checklist in `AGENTS.md → Session-Start Checklist`. The short form:
+Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form — **not optional**; a stale vault or missing deps produce wrong structural answers that compound:
 
-1. Read `~/vault/hot.md` — last-session compounding context
-2. Read `~/vault/index.md` — vault catalog (only if `hot.md` is sparse)
-3. `git pull --ff-only` — confirm on HEAD
-4. `pnpm install --frozen-lockfile` — confirm lockfile match
-5. `pnpm run test` — confirm no pre-existing failures
-6. `bash scripts/setup/agent-context.sh` — refresh branch-local Graphify and `local-codex/CodeContext.md`
-7. Start CodeContextGraph watch: `mcp__CodeGraphContext__watch_directory` on repo root
-8. Read `local-codex/CodeContext.md`, then the mirrored Graphify report it names
-
-**This is not optional.** A stale vault context or missing dependencies produces wrong structural answers that compound across milestones.
+1. Read `~/vault/hot.md` (last-session context); `~/vault/index.md` only if `hot.md` is sparse
+2. `git pull --ff-only` — confirm on HEAD
+3. `pnpm install --frozen-lockfile` — confirm lockfile match
+4. `pnpm run test` — confirm no pre-existing failures
+5. `bash scripts/setup/agent-context.sh` — refresh branch-local Graphify + `local-codex/CodeContext.md`
+6. Start CodeContextGraph watch (`mcp__CodeGraphContext__watch_directory` on repo root)
+7. Read `local-codex/CodeContext.md`, then the Graphify report it names
 
 ---
 
 ## Multi-Agent Delegation
 
-| Task | Agent | Model / Effort | Mechanism |
-|------|-------|---------------|-----------|
-| Ideation, plan authoring | **Codex** | gpt-5.4 / high | `/codex:review` via plugin |
-| Adversarial plan / code verification | **Codex** | gpt-5.4 / high | `/codex:adversarial-review` via plugin |
-| Orchestration — split plans, assign milestones | **Claude Opus** | claude-opus-4-7 / high | Direct |
-| Implementation — write and refactor code | **Claude Sonnet** | claude-sonnet-4-6 / high | Direct |
-| Author base-level tests (with TODO permutation stubs) | **Claude Sonnet** | claude-sonnet-4-6 / medium | Direct |
-| Expand test permutations from TODO stubs | **Ollama** (local model) | local / — | `/ollama-test-permutations` skill |
-| Summarize artifacts, classify schemas, extract structured data | **Ollama** (local model) | local / — | `local_summarize`, `local_classify`, `local_extract` via MCP |
-| **Content-gen benchmark** — permutation + stress testing of LLM tool-call surface | **Remote Ollama** (GPU node) | qwen3-coder:30b-a3b-q4_K_M / — | `run-content-gen` via `tools/remote-ollama-control/` |
-| Author commit messages, open PRs, update architecture / design / README docs | **GitHub Copilot** | — | Native `gh` CLI + Copilot agent |
+| Task | Agent / Tier | Mechanism |
+|------|-------|-----------|
+| Ideation, plan authoring | **Codex** (GPT-5, high) | `/codex:review` |
+| Adversarial plan / code verification | **Codex** (GPT-5, high) | `/codex:adversarial-review` |
+| Orchestration — split plans, assign milestones | **Claude Opus** (high) | Direct |
+| Implementation — write / refactor code | **Claude Sonnet** (high) | Direct |
+| Author base tests (with TODO permutation stubs) | **Claude Sonnet** (medium) | Direct |
+| Expand test permutations from TODO stubs | **Ollama** (local) | `/ollama-test-permutations` |
+| Summarize / classify / extract structured data | **Ollama** (local) | `local_*` via MCP |
+| Content-gen benchmark — permutation + stress of the tool-call surface | **Remote Ollama** (dual GPU) | `run-content-gen` |
+| Commit messages, PRs, architecture / design / README docs | **GitHub Copilot** | `gh` CLI + Copilot agent |
 
 All agents have live MCP access to CodeContextGraph. Name the query used when handing off or justifying a target area.
 
-### Codex
-
-Use `/codex:*` for ideation, plan authoring (`local-codex/Plan.md` → `~/vault/plans/active/Plan.md`), and adversarial review. Every adversarial review must answer: (1) **Correctness** — does the diff satisfy the milestone spec? (2) **Simplicity** — is it 3× more complex than the simplest solution? If yes, provide a specific rewrite. Codex does not write production code or tests.
-
-### Claude
-
-**Before any milestone code:** state assumptions explicitly, surface ambiguity (stop and ask rather than guess), present tradeoffs if a simpler path exists.
-
-**Implementation order:** (1) failing tests + TODO permutation stubs → (2) production code → (3) hand TODO stubs to Ollama.
-
-**Test-first:** every test file ends with `## TODO: Test Permutations` stubs — the handoff trigger for Ollama.
-
-### Ollama
-
-Reads `## TODO: Test Permutations` stubs and expands them in place via `/ollama-test-permutations`. Read `tests/README.md` first. Do not use for architecture decisions, enforcement reviews, or persona FSM design.
-
-### GitHub Copilot
-
-Authors commit messages, opens PRs, and updates `docs/architecture-charter.md`, `docs/architecture/diagram.mmd`, `docs/README.md`, `packages/adapters-cli/README.md`, and any README changed by the work. Does not write production code or tests.
+- **Codex** — ideation, plan authoring (`local-codex/Plan.md` → `~/vault/plans/active/Plan.md`), adversarial review. Every adversarial review answers: (1) **Correctness** — does the diff satisfy the milestone spec? (2) **Simplicity** — is it 3× more complex than the simplest solution? If so, give a specific rewrite. Codex writes no production code or tests.
+- **Claude** — before any milestone code: state assumptions, surface ambiguity (stop and ask rather than guess), present tradeoffs if a simpler path exists. Implementation order: (1) failing tests + `## TODO: Test Permutations` stubs → (2) production code → (3) hand stubs to Ollama.
+- **Ollama** — expands `## TODO: Test Permutations` stubs in place via `/ollama-test-permutations`. Read `tests/README.md` first. Not for architecture, enforcement review, or persona FSM design.
+- **GitHub Copilot** — commit messages, PRs, and updates to `docs/architecture-charter.md`, `docs/architecture/diagram.mmd`, `docs/README.md`, `packages/adapters-cli/README.md`, and any README the work touches. No production code or tests.
 
 ---
 
 ## Code Navigation — CodeContextGraph vs graphify
 
-| Question | Use | Never use |
-|---|---|---|
-| Where is function X defined? | CodeContextGraph `find_code` | graphify |
-| What does module Y import? | CodeContextGraph `analyze_code_relationships` | graphify |
-| Which files are riskiest to touch? | CodeContextGraph `find_most_complex_functions` | graphify |
-| Find unused code | CodeContextGraph `find_dead_code` | graphify |
-| Repo-wide file / function counts | CodeContextGraph `get_repository_stats` | graphify |
-| How do concepts cluster? | graphify wiki (`graphify-out/wiki/index.md`) | CodeContextGraph |
-| High-level architecture orientation | graphify wiki | CodeContextGraph |
+| Question | Use |
+|---|---|
+| Where is function X defined? | CodeContextGraph `find_code` |
+| What does module Y import? | CodeContextGraph `analyze_code_relationships` |
+| Which files are riskiest to touch? | CodeContextGraph `find_most_complex_functions` |
+| Find unused code | CodeContextGraph `find_dead_code` |
+| Repo-wide file / function counts | CodeContextGraph `get_repository_stats` |
+| How do concepts cluster? / High-level orientation | graphify wiki (`graphify-out/wiki/index.md`) |
 
-**Read `local-codex/CodeContext.md` before any CodeContextGraph queries** — it names the branch-local Graphify mirror under `~/vault/codex-context/`. Once oriented, use CodeContextGraph for all structural lookups.
+- **Read `local-codex/CodeContext.md` first** — it names the branch-local Graphify mirror under `~/vault/codex-context/`. Then use CodeContextGraph for all structural lookups.
+- **Graph before grep:** query CodeContextGraph before any `grep`/`rg`/`find`/`Glob`. Text search is only for literal content (README prose, fixture strings, exact commands) — not code discovery. Before any text search, name the MCP query already tried and why it was insufficient.
+- **Failure policy:** if CodeContextGraph is unavailable or insufficient, stop and report which query was attempted, what was missing, and what decision is blocked. Do not silently fall back to filesystem search.
+- **Re-run `/graphify` only for:** post-milestone docs passes, onboarding a new agent, or a major structural refactor. CodeContextGraph updates incrementally on every save.
 
-**Graph before grep:** query CodeContextGraph before any `grep`/`rg`/`find`/`Glob`. Text search is only permitted for literal content (README prose, fixture strings, exact command examples) — not for code discovery. Before using text search, name the MCP query already tried and why it was insufficient.
-
-**Failure policy:** if CodeContextGraph is unavailable or returns insufficient results, stop and report: which query was attempted, what was missing, and what decision is blocked. Do not silently fall back to filesystem search.
-
-**Re-run `/graphify` only for:** post-milestone docs passes, onboarding a new agent, or after a major structural refactor. CodeContextGraph handles incremental updates automatically on every file save.
-
-### CodeContext snapshot for Codex handoffs
-
-Before each Codex handoff, run `bash scripts/setup/agent-context.sh` to write `local-codex/CodeContext.md` and mirror Graphify results for the current worktree. Then query live CodeContextGraph for repo stats, package dependency summary, entry points for the milestone's target files, and top-10 complexity hotspots (`get_repository_stats`, `analyze_code_relationships`, `find_most_complex_functions`). Cite the queries used before opening any implementation file. After a large structural refactor, run `mcp__CodeGraphContext__add_package_to_graph` to force a full re-scan.
+**Codex handoffs:** run `bash scripts/setup/agent-context.sh` to write `local-codex/CodeContext.md` and mirror Graphify. Then query live CodeContextGraph for repo stats, package dependency summary, milestone entry points, and top-10 complexity hotspots; cite the queries before opening any file. After a large refactor, run `mcp__CodeGraphContext__add_package_to_graph` to force a full re-scan.
 
 ---
 
 ## Commands
 
 ```bash
-pnpm install                                                     # Install dependencies
-pnpm run test                                                    # Run Vitest suite
-pnpm run test:vitest -- tests/<path>/<name>.test.js             # Single Vitest file
-pnpm run test:playwright -- tests/playwright/<name>.spec.mjs   # Playwright spec
-pnpm run serve:ui                                                # UI dev server :8001
-pnpm run demo:cli                                                # CLI demo
+pnpm install                                          # Install dependencies
+pnpm run test                                         # Vitest suite
+pnpm run test:vitest -- tests/<path>/<name>.test.js   # Single Vitest file
+pnpm run test:playwright -- tests/playwright/<name>.spec.mjs
+pnpm run serve:ui                                     # UI dev server :8001
+pnpm run demo:cli                                     # CLI demo
 ```
 
-### Benchmark commands
+**Content-gen benchmark** — permutation + stress testing of the LLM tool-call surface (separate from correctness tests). Runs 50 scenarios against the remote GPU node via the dual profile.
 
 ```bash
-# Content-gen benchmark — permutation + stress testing of the LLM tool-call surface.
-# Runs all 50 scenarios against the remote GPU node via the dual profile (qwen3-coder:30b).
-# Tests = correctness; benchmarks = does the model produce valid tool calls under load?
-
-node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
-  --profiles dual --runs 3 --route external          # stable 3-run baseline (≈10 min)
-
-node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
-  --profiles dual --runs 1 --route external          # quick single-run smoke check
-
-node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
-  --profiles dual --scenario-ids 27,29,30 --runs 3   # narrow re-run on specific scenarios
-
-node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
-  --profiles dual --dry-run                          # verify scenario loading without hitting the GPU
+node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen --profiles dual --runs 3 --route external   # 3-run baseline (≈10 min)
+#                                                                            --runs 1 --route external   # quick smoke
+#                                                                            --scenario-ids 27,29,30 --runs 3   # narrow re-run
+#                                                                            --dry-run                   # verify loading, no GPU
 ```
 
-Results land in `tools/remote-ollama-control/results/<timestamp>-content-gen/summary.md`.
-Pass threshold: **≥ 99 % exec ok** and **avg score ≥ 75** across all scenarios.
+Results: `tools/remote-ollama-control/results/<timestamp>-content-gen/summary.md`. Pass bar: **≥ 99 % exec ok** and **avg score ≥ 75**. Do not commit result directories.
 
-## Architecture Overview
+---
 
-Core-ts-first simulation kernel using **Ports & Adapters** with deterministic persona state machines. `pnpm` monorepo (`packages/*`).
+## Architecture
 
-### Dependency Direction (non-negotiable)
+Pure-TypeScript simulation kernel using **Ports & Adapters** with deterministic persona state machines. `pnpm` monorepo (`packages/*`). There is no WASM build step — the core runs directly under Node.
 
-```
-adapters-* / ui-web
-      ↓
-   runtime          ← personas live here
-      ↓
-  core-ts           ← TypeScript deterministic core, pure logic, no IO
-```
+**Dependency direction (non-negotiable):** `adapters-* / ui-web` → `runtime` (personas) → `core-ts` (pure logic, no IO). Violations are **blocking** — do not approve.
 
-### Package Roles
-
-| Package | Language | Role |
-|---|---|---|
-| `core-ts` | TypeScript | Deterministic simulation: state transitions, validation, effect emission as data |
-| `runtime` | TypeScript (ESM) | Persona FSMs, tick orchestration, artifact contracts, effect routing |
-| `adapters-web` | TypeScript | Browser IO (fetch, IndexedDB) |
-| `adapters-cli` | TypeScript | CLI commands (`packages/adapters-cli/src/cli/ak.mjs`) |
-| `adapters-test` | TypeScript | Fixture-based deterministic test doubles |
-| `ui-web` | HTML/JS | Browser UI; imports the synchronous TypeScript core through runtime adapters |
-
-### Test Layout
+| Package | Role |
+|---|---|
+| `core-ts` | Deterministic simulation: state transitions, validation, effect emission as data. No IO, no clock, no imports outside itself. |
+| `runtime` | Persona FSMs, tick orchestration, artifact contracts, effect routing (ESM). |
+| `adapters-web` | Browser IO (fetch, IndexedDB). |
+| `adapters-cli` | CLI commands (`packages/adapters-cli/src/cli/ak.mjs`). |
+| `adapters-test` | Fixture-based deterministic test doubles. |
+| `ui-web` | Browser UI; imports the synchronous TypeScript core via runtime adapters. |
 
 ```
 tests/
@@ -158,35 +114,24 @@ tests/
 
 ## Design Pattern: Ports & Adapters with Persona State Machines
 
-All code must conform. Dependency direction is the same as above — violations are **blocking**, do not approve.
+**core-ts** — only deterministic logic (state transitions, validation, render-frame generation, effects as data). No IO, no env access, no clock, no external imports. Any IO/import introduced here must move to the correct layer before the change lands.
 
-### core-ts
-
-- Contains **only** deterministic logic: state transitions, validation, render frame generation, effects as data.
-- No IO, no environment access, no clock. Must import nothing outside itself.
-- If code introduces IO or an external import into `core-ts`, move it to the correct layer before the change lands.
-
-### Runtime Personas
-
-Each persona is a **deterministic state machine**:
+**Runtime personas** — each is a deterministic state machine. Clock injected (never read directly). Context serializable (no class instances, no functions). Effects returned as data and routed via `ports/effects.js`, never executed inline.
 
 ```typescript
 // controller.mts
 constructor(adapters, config)
 advance(event, payload): { nextState, effects }
-
 // state-machine.mts
 view(): PersonaState
 advance(event, payload): { state, context, effects }
 ```
 
-Clock injected, never read directly. Context serializable (no class instances, no functions). Effects are data — routed via `ports/effects.js`, never executed inline.
-
 | Persona | Tick Phases | Responsibility |
 |---|---|---|
 | Orchestrator | observe, decide, emit | External interaction and workflow coordination |
 | Director | decide | Intent translation: BuildSpec → PlanArtifact → SimConfig |
-| Configurator | init, observe | Configuration assembly, validation, and locking |
+| Configurator | init, observe | Configuration assembly, validation, locking |
 | Actor | observe, decide | Action proposal generation |
 | Allocator | observe, decide | Budget and resource allocation policy |
 | Annotator | emit, summarize | Telemetry capture and normalization |
@@ -194,124 +139,63 @@ Clock injected, never read directly. Context serializable (no class instances, n
 
 New personas require `controller.mts`, `state-machine.mts`, `contracts.ts`, and at least one state handler.
 
-### Adapters
+**Adapters** — all external IO (LLM, IPFS, blockchain, solver, logging) lives only in `adapters-web/-cli/-test`. Adapters receive effects from `runtime/src/ports/effects.js`; they do not pull state. Test adapters are fixture-based and fully deterministic.
 
-All external IO (LLM, IPFS, blockchain, solver, logging) lives in `adapters-web`, `adapters-cli`, or `adapters-test` only. Adapters receive effects from `runtime/src/ports/effects.js`; they do not pull state. Test adapters must be fixture-based and produce fully deterministic output.
-
-### Artifacts
-
-All boundary-crossing data must use a versioned schema from `packages/runtime/src/contracts/artifacts.ts`:
-
-```typescript
-{ schema: "agent-kernel/ArtifactName", schemaVersion: 1, meta: ArtifactMeta }
-```
-
-Evolve `schemaVersion` on breaking changes; never remove or rename fields in-place.
+**Artifacts** — all boundary-crossing data uses a versioned schema from `packages/runtime/src/contracts/artifacts.ts`: `{ schema: "agent-kernel/ArtifactName", schemaVersion: 1, meta: ArtifactMeta }`. Evolve `schemaVersion` on breaking changes; never remove or rename fields in-place.
 
 ---
 
-## Claude's Enforcement Checklist
+## Enforcement Checklist
 
-Run on every diff. Fix failures — don't just flag them.
+Run on every diff. **Fix failures — don't just flag them.**
 
-### Architecture
-- [ ] Dependency flows only: adapters/ui → runtime → core-ts
-- [ ] `core-ts` has no IO and no imports outside itself
-- [ ] All external IO is behind an adapter in `adapters-web`, `adapters-cli`, or `adapters-test`
-- [ ] No adapter code in `runtime` or `core-ts`
+**Architecture** — dependency flows only adapters/ui → runtime → core-ts · `core-ts` has no IO and no outside imports · all external IO behind an adapter · no adapter code in `runtime`/`core-ts`.
 
-### Personas
-- [ ] Pure FSM: `view()` + `advance(event, payload)`
-- [ ] Clock injected, not read directly
-- [ ] Context serializable (no class instances, no functions in state)
-- [ ] Effects returned as data, not executed inline
-- [ ] New persona folders include `controller.mts`, `state-machine.mts`, `contracts.ts`
+**Personas** — pure FSM (`view()` + `advance`) · clock injected · context serializable · effects returned as data · new persona folders include `controller.mts`, `state-machine.mts`, `contracts.ts`.
 
-### Artifacts
-- [ ] All boundary-crossing data uses a schema from `artifacts.ts`
-- [ ] `schema`, `schemaVersion`, `meta` present
-- [ ] No new field names conflict with existing contracts
+**Artifacts** — boundary data uses an `artifacts.ts` schema · `schema`/`schemaVersion`/`meta` present · no field-name conflicts with existing contracts.
 
-### Tests
-- [ ] Failing tests written *before* production code
-- [ ] New behavior has a test under `tests/`
-- [ ] Deterministic behavior uses fixture-based tests
-- [ ] Negative cases under `tests/fixtures/artifacts/invalid/`
-- [ ] No test reaches live external services
-- [ ] Base test file ends with `## TODO: Test Permutations` before Ollama handoff
+**Tests** — failing tests written *before* production code · new behavior covered under `tests/` · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff.
 
-### Benchmarks
-Tests verify correctness of the runtime and CLI. Benchmarks verify that the LLM tool-call surface holds up under permutation and stress — they are a separate concern and a separate harness.
+**Benchmarks** — if `ak_create` tool schema, CLI arg mapping, or entity normalization changed, run `run-content-gen --runs 3 --route external` before merging · pass bar ≥ 99 % exec ok, avg score ≥ 75 (document any regression in the PR) · results stay out of git.
 
-- [ ] If `ak_create` tool schema, CLI arg mapping, or entity normalization changed: run `run-content-gen --runs 3 --route external` before merging
-- [ ] Pass bar: **≥ 99 % exec ok**, **avg score ≥ 75**; document any regression in the PR
-- [ ] Benchmark results are saved in `tools/remote-ollama-control/results/` — do not commit result directories
+**Code quality** — every changed line traces to the current milestone spec (no drive-by cleanup) · not over-engineered · assumptions stated before implementation.
 
-### Code Quality
-- [ ] Every changed line traces to the current milestone spec — no drive-by cleanup or refactoring
-- [ ] Not over-engineered; a senior engineer would not flag it
-- [ ] Assumptions stated before implementation began
+**File placement** — runtime `packages/runtime/src/` · core `packages/core-ts/src/` · web adapters `packages/adapters-web/src/adapters/` · CLI `packages/adapters-cli/src/` · tests `tests/**` (fixtures `tests/fixtures/**`).
 
-### File Placement
-- [ ] Runtime: `packages/runtime/src/`
-- [ ] Core: `packages/core-ts/src/`
-- [ ] Web adapters: `packages/adapters-web/src/adapters/`
-- [ ] CLI: `packages/adapters-cli/src/`
-- [ ] Tests: `tests/**` — fixtures: `tests/fixtures/**`
-
-### Documentation
-- [ ] Architecture boundaries changed → update `docs/architecture-charter.md` + `docs/architecture/diagram.mmd` (Copilot, same PR)
-- [ ] CLI flags/behavior changed → update `packages/adapters-cli/README.md` (Copilot, same PR)
+**Documentation (Copilot, same PR)** — architecture boundaries changed → `docs/architecture-charter.md` + `docs/architecture/diagram.mmd` · CLI flags/behavior changed → `packages/adapters-cli/README.md`.
 
 ---
 
 ## Refactoring and Escalation
 
-**Refactor without asking** when the fix is clear: preserve intent, move code to the right layer, extract ports where missing, change only what conformance requires, update tests in the same pass.
+**Refactor without asking** when the fix is clear: preserve intent, move code to the right layer, extract missing ports, change only what conformance requires, update tests in the same pass.
 
-**Escalate instead** when:
-- The correct layer is genuinely ambiguous given the charter.
-- The fix requires updating `docs/architecture-charter.md` or `docs/architecture/diagram.mmd`.
-- The refactor touches more than one package boundary with unclear intent.
-
-On escalation: state the violation and charter rule, propose the minimal fix with tradeoffs, wait for confirmation. Do not silently pass ambiguous code.
+**Escalate** when the correct layer is genuinely ambiguous, the fix needs `docs/architecture-charter.md` or `docs/architecture/diagram.mmd` changes, or the refactor crosses more than one package boundary with unclear intent. On escalation: state the violation and charter rule, propose the minimal fix with tradeoffs, wait for confirmation. Do not silently pass ambiguous code.
 
 ---
 
-## Key Files for Reference
+## Key Files
 
 | File | Purpose |
 |---|---|
 | `docs/architecture-charter.md` | Architectural law — the primary reference |
 | `docs/vision-contract.md` | Non-negotiable product constraints |
-| `docs/architecture/diagram.mmd` | Mermaid diagrams for dependency layers and persona FSMs |
+| `docs/architecture/diagram.mmd` | Dependency-layer and persona-FSM diagrams |
 | `AGENTS.md` | Working agreement between all agents and the developer |
 | `packages/runtime/src/contracts/artifacts.ts` | All versioned artifact schemas |
 | `packages/runtime/src/ports/effects.js` | Effect dispatch — the adapter boundary |
 | `packages/runtime/src/runner/runtime-fsm.mjs` | Six-phase tick orchestration |
 | `packages/core-ts/src/index.ts` | Core export surface |
-| `docs/readme-index.md` | Index of all README files with one-line summaries |
+| `docs/readme-index.md` | Index of all READMEs with one-line summaries |
 
 ---
 
 ## Vault-Backed Knowledge Management
 
-Non-load-bearing knowledge — plans, design rationale, dictation, scratch notes — lives in the Obsidian vault. Code-binding contracts stay in the repo. See Session-Start Protocol for the canonical orientation order.
+Non-load-bearing knowledge (plans, design rationale, dictation, scratch notes) lives in the Obsidian vault; code-binding contracts stay in the repo. Rule: "would removing this break a build, test, or agent workflow?" — if no, it belongs in the vault. Code, tests, fixtures, build outputs, package READMEs, the architecture charter, vision contract, and CLI runbook stay in the repo.
 
-### Vault paths
-- **Mac:** `~/Documents/Obsidian/agent-kernel-vault/`
-- **Linux:** `~/agent-kernel-vault/`
-- **Both:** `~/vault` (symlink) — use this in any path you cite
-
-### Repo-vault interaction
-- `local-codex/Plan.md`, `Prompt.md`, `Implement.md`, `Documentation.md`, `Dictation.md`, `CodeContext.md` are **symlinks** into the vault — resolve to `~/vault/plans/active/...` and `~/vault/sources/codex-snapshots/...`.
-- Design decisions → `~/vault/decisions/` via `/save`.
-- Cite vault code links as `[[ccg://<pkg>/<path>]]` or `[[graphify://community/<name>]]`; `wiki-lint` validates on demand.
-
-### What does NOT belong in the vault
-Code, tests, fixtures, build outputs, package READMEs, the architecture charter, vision contract, CLI runbook. Rule: "would removing this break a build, test, or agent workflow?"
-
-### Setup / sync
-- Initial setup: `bash scripts/setup/setup-km.sh`
-- Sync: Syncthing peer-to-peer (Mac ↔ Ubuntu, manual pairing once)
-- Per-machine `hot.mac.md` / `hot.linux.md`; merged into `hot.md` by SessionStart hook
+- **Paths:** Mac `~/Documents/Obsidian/agent-kernel-vault/` · Linux `~/agent-kernel-vault/` · cite via the `~/vault` symlink.
+- `local-codex/{Plan,Prompt,Implement,Documentation,Dictation,CodeContext}.md` are symlinks into `~/vault/plans/active/...` and `~/vault/sources/codex-snapshots/...`.
+- Design decisions → `~/vault/decisions/` via `/save`. Cite vault code links as `[[ccg://<pkg>/<path>]]` or `[[graphify://community/<name>]]` (`wiki-lint` validates on demand).
+- Setup `bash scripts/setup/setup-km.sh` · sync via Syncthing (Mac ↔ Ubuntu) · per-machine `hot.mac.md`/`hot.linux.md` merged into `hot.md` by the SessionStart hook.

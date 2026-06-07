@@ -10,20 +10,27 @@ flowchart LR
     RuntimePorts["runtime runner + ports"]
     TickOrch["tick orchestrator"]
     Personas["personas"]
+    ActorPersona["actor persona\nbuildMotivatedProposals"]
+    RuntimeFSM["runtime-fsm\nadaptActionToCore"]
+    SolverPort["createSolverPort"]
+    SolverResolver["resolveActionFromSolverResult"]
   end
 
   subgraph Core["core-ts"]
     CoreEngine["deterministic state + rules + effects + render buffers"]
+    CombatCore["core.applyAttack"]
     AffinityCore["affinity fields + interaction matrix"]
     MotivationCore["motivation costs + behavior profiles"]
     CoreEngine --- AffinityCore
     CoreEngine --- MotivationCore
+    CoreEngine --- CombatCore
   end
 
   subgraph Adapters["Adapters (IO boundary)"]
     AWeb["adapters-web"]
     ACli["adapters-cli"]
     ATest["adapters-test"]
+    Z3Adapter["Z3-shaped solver adapter\n(adapters-test)"]
   end
 
   subgraph External["External Services"]
@@ -42,10 +49,19 @@ flowchart LR
   RuntimePorts --> TickOrch
   TickOrch --> Personas
   RuntimePorts --> CoreEngine
+  Personas --> ActorPersona
+  ActorPersona -- "attack action" --> RuntimeFSM
+  RuntimeFSM -- "apply_attack directive" --> CombatCore
+  ActorPersona -- "solver_request effect" --> RuntimeFSM
+  RuntimeFSM --> SolverPort
+  SolverPort --> Z3Adapter
+  Z3Adapter -- "solver result" --> SolverResolver
+  SolverResolver -- "concrete action" --> RuntimeFSM
 
   RuntimePorts <--> AWeb
   RuntimePorts <--> ACli
   ATest -.fixtures.-> RuntimePorts
+  ATest --> Z3Adapter
 
   AWeb --> IPFS
   AWeb --> Chain

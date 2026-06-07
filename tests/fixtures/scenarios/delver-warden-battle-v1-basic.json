@@ -1,0 +1,92 @@
+{
+  "$schema": "agent-kernel/Scenario",
+  "schemaVersion": 1,
+  "id": "delver-warden-battle-v1-basic",
+  "name": "Delver vs Warden Battle (M6 basic)",
+  "description": "Deterministic scenario for the M1 contract: 5x5 room with one attacking delver moving toward a defending warden, exchanging blows until the warden's HP reaches 0.",
+  "ticks": 6,
+  "expected": {
+    "delverFinalPosition": { "x": 2, "y": 2 },
+    "wardenFinalHp": 0,
+    "minAttackFrames": 3,
+    "expectedFirstMoveDirection": "east"
+  },
+  "simConfig": {
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "delver_warden_battle_sim",
+      "runId": "delver_warden_battle",
+      "createdAt": "2026-06-04T00:00:00.000Z"
+    },
+    "seed": 0,
+    "layout": {
+      "kind": "grid",
+      "data": {
+        "width": 5,
+        "height": 5,
+        "tiles": [
+          "#####",
+          "#####",
+          "S...E",
+          "#####",
+          "#####"
+        ],
+        "spawn": { "x": 0, "y": 2 },
+        "exit": { "x": 4, "y": 2 },
+        "rooms": [{ "id": "R1", "x": 0, "y": 2, "width": 5, "height": 1 }],
+        "traps": []
+      }
+    }
+  },
+  "initialState": {
+    "schema": "agent-kernel/InitialStateArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "delver_warden_battle_state",
+      "runId": "delver_warden_battle",
+      "createdAt": "2026-06-04T00:00:00.000Z"
+    },
+    "simConfigRef": {
+      "id": "delver_warden_battle_sim",
+      "schema": "agent-kernel/SimConfigArtifact",
+      "schemaVersion": 1
+    },
+    "actors": [
+      {
+        "id": "delver_1",
+        "kind": "ambulatory",
+        "archetype": "delver",
+        "role": "delver",
+        "position": { "x": 1, "y": 2 },
+        "motivation": { "kind": "attacking" },
+        "traits": { "affinities": { "fire": 1 } },
+        "vitals": {
+          "health":     { "current": 10, "max": 10, "regen": 0 },
+          "mana":       { "current": 10, "max": 10, "regen": 0 },
+          "stamina":    { "current": 10, "max": 10, "regen": 0 },
+          "durability": { "current": 1,  "max": 1,  "regen": 0 }
+        }
+      },
+      {
+        "id": "warden_1",
+        "kind": "ambulatory",
+        "archetype": "warden",
+        "role": "warden",
+        "position": { "x": 3, "y": 2 },
+        "motivation": { "kind": "defending" },
+        "traits": { "affinities": { "dark": 1 } },
+        "vitals": {
+          "health":     { "current": 6, "max": 6, "regen": 0 },
+          "mana":       { "current": 6, "max": 6, "regen": 0 },
+          "stamina":    { "current": 6, "max": 6, "regen": 0 },
+          "durability": { "current": 1, "max": 1, "regen": 0 }
+        }
+      }
+    ]
+  },
+  "cliEquivalent": {
+    "comment": "Approximate CLI authoring path (preserves motivation kinds used in this fixture)",
+    "command": "ak.mjs create --room \"size=medium;count=1\" --delver \"count=1;affinity=fire;motivation=attacking;vitals=health:10:10:0,mana:10:10:0,stamina:10:10:0\" --warden \"count=1;affinity=dark;motivation=defending;vitals=health:6:6:0,mana:6:6:0,stamina:6:6:0\""
+  }
+}

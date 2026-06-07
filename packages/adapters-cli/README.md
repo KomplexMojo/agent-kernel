@@ -198,6 +198,17 @@ Inputs/outputs:
 - `--emit-intermediates` additionally persists `request.json`, `intent.json`, `plan.json`,
   and sidecars such as `spend-proposal.json`.
 
+### Scenario authoring example
+
+The canonical motivation-sandbox fixture is
+`tests/fixtures/scenarios/delver-warden-battle-v1-basic.json`. Its `cliEquivalent`
+documents the matching `create` invocation and the motivation kinds currently used by
+the sandbox path: `attacking`, `defending`, and `stationary`.
+
+```bash
+ak.mjs create --room "size=medium;count=1" --delver "count=1;affinity=fire;motivation=attacking;vitals=health:10:10:0,mana:10:10:0,stamina:10:10:0" --warden "count=1;affinity=dark;motivation=defending;vitals=health:6:6:0,mana:6:6:0,stamina:6:6:0"
+```
+
 Agent workflow notes:
 - `spec.authoring.request` is the canonical normalized copy of the freeform request plus parsed object flags.
 - `bundle.json` and `manifest.json` are the handoff point into the UI `Diagnostics -> Preview -> Run` flow.

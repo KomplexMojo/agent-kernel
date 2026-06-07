@@ -206,7 +206,7 @@ test("cli verification ring: 10-tick full dungeon demo with tick session navigat
   // Step 1: create — full dungeon with trap, resource, delver, and warden.
   runCliOk([
     "create",
-    "--room", "size=small;count=1",
+    "--room", "size=medium;count=1",
     "--trap", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
     "--resource", "tier=level;stat=vitalMax;delta=10;dropRate=50",
     "--delver", "count=1;affinity=fire;motivation=attacking",

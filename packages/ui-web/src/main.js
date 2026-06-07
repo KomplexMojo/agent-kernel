@@ -174,6 +174,15 @@ tabs = wireTabs({
   },
 });
 globalThis.__ak_setActiveTab = (id) => tabs?.setActive(id);
+
+// M7: scenario loader — compile a scenario JSON into a gameplay bundle and load it.
+// Used by the UI sandbox controls and by Playwright tests that inject scenarios.
+globalThis.__ak_loadScenario = async (scenario, options = {}) => {
+  const { compileScenarioToBundle } = await import("./scenario-loader.js");
+  const bundle = await compileScenarioToBundle(scenario);
+  return globalThis.__ak_loadGameplayBundle(bundle, options);
+};
+
 // D3+D4: also hydrate Design/Preview from the bundle spec and honor targetTab
 globalThis.__ak_loadGameplayBundle = (bundle, { targetTab = "gameplay" } = {}) => {
   if (!loadGameplayBundle(bundle)) return false;

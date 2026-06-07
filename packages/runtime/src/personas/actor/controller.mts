@@ -37,7 +37,13 @@ function isObject(value) {
 
 function isMotivatedKind(kind) {
   if (typeof kind === "number") return kind === MOTIVATED_KIND;
-  if (typeof kind === "string") return kind.toLowerCase() === "motivated";
+  // The actor contract only uses "stationary" | "ambulatory".
+  // "ambulatory" means the actor CAN move and should have its proposals accepted.
+  // Treat both "motivated" (legacy) and "ambulatory" as proposal-eligible.
+  if (typeof kind === "string") {
+    const k = kind.toLowerCase();
+    return k === "motivated" || k === "ambulatory";
+  }
   return false;
 }
 
@@ -741,6 +747,82 @@ function buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig 
   ];
 }
 
+// ── M5: Simple motivation helpers ──────────────────────────────────────────
+
+const DEFAULT_ATTACK_DAMAGE = 2;
+
+function resolveActorMotivationKind(view, actorId, payload) {
+  if (view?.actors && Array.isArray(view.actors)) {
+    const self = view.actors.find((a) => a && a.id === actorId);
+    if (self?.motivation?.kind) return self.motivation.kind;
+  }
+  const configActors = payload?.initialState?.actors;
+  if (Array.isArray(configActors)) {
+    const configActor = configActors.find((a) => a && a.id === actorId);
+    if (configActor?.motivation?.kind) return configActor.motivation.kind;
+  }
+  return null;
+}
+
+function resolveNearestHostile(view, actorId) {
+  if (!view?.actors || !Array.isArray(view.actors)) return null;
+  const selfActor = view.actors.find((a) => a && a.id === actorId);
+  if (!selfActor?.position) return null;
+  let nearest = null;
+  let nearestDist = Infinity;
+  for (const other of view.actors) {
+    if (!other || other.id === actorId || !other.position) continue;
+    const dist = Math.max(
+      Math.abs(other.position.x - selfActor.position.x),
+      Math.abs(other.position.y - selfActor.position.y),
+    );
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = { actor: other, distance: dist };
+    }
+  }
+  return nearest;
+}
+
+function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig }) {
+  const view = resolveObservationView(observation);
+  if (!view) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+  const actorId = payload?.actorId;
+  const actor = resolveActor(view, actorId, observation);
+  if (!actor?.position) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+  const motivationKind = resolveActorMotivationKind(view, actorId, payload);
+  const hostile = resolveNearestHostile(view, actorId);
+  if (motivationKind === "stationary") return [];
+  if (hostile) {
+    const adjacent = hostile.distance <= 1;
+    if (adjacent && (motivationKind === "attacking" || motivationKind === "defending")) {
+      return [{
+        kind: "attack",
+        params: {
+          targetId: hostile.actor.id,
+          attackerPosition: { ...actor.position },
+          targetPosition: { ...hostile.actor.position },
+          damage: DEFAULT_ATTACK_DAMAGE,
+        },
+      }];
+    }
+    if (!adjacent && motivationKind === "attacking") {
+      const baseTiles = resolveBaseTiles(payload, view, lastBaseTiles, lastSimConfig);
+      const tileKinds = resolveTileKinds(view, payload);
+      const path = findPath(actor.position, hostile.actor.position, tileKinds, baseTiles);
+      if (path && path.length >= 2) {
+        const from = path[0];
+        const to = path[1];
+        const delta = { dx: to.x - from.x, dy: to.y - from.y };
+        const direction = DEFAULT_DELTAS.find((e) => e.dx === delta.dx && e.dy === delta.dy)?.direction;
+        if (direction) return [{ kind: "move", params: { direction, from, to } }];
+      }
+    }
+    if (!adjacent && motivationKind === "defending") return [];
+  }
+  return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+}
+
 export function createActorPersona({ initialState = ActorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
   const fsm = createActorStateMachine({ initialState, clock });
   let lastObservation = null;
@@ -778,7 +860,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
     }
 
     const shouldEmitActions = event === "propose";
-    const derivedProposals = shouldEmitActions ? buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig }) : [];
+    const derivedProposals = shouldEmitActions ? buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig }) : [];
     const proposals = Array.isArray(payload.proposals) && payload.proposals.length > 0 ? payload.proposals : derivedProposals;
     const budgetReceipt = payload.budgetReceipt || payload.budget?.receipt || payload.budget?.receiptArtifact || null;
     const budgetAllocation = payload.budgetAllocation || payload.budget?.allocation || null;

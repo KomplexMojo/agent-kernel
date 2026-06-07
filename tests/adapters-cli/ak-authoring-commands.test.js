@@ -263,7 +263,7 @@ test("cli configure preserves generic parsing but records configure action", () 
     "--text",
     "Configure the existing trap layout for a fire room.",
     "--room",
-    "size=small;count=1",
+    "size=medium;count=1",
     "--trap",
     "id=trap_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1",
     "--run-id",

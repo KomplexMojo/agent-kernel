@@ -202,10 +202,10 @@ function resolveBaseTiles(simConfig, core) {
   return null;
 }
 
-function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutTraps = []) {
+function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutTraps = [], actorIds = []) {
   if (!core || !canReadObservation(core)) return null;
   try {
-    const observation = readObservation(core, { actorIdLabel, affinityEffects });
+    const observation = readObservation(core, { actorIdLabel, affinityEffects, actorIds });
 
     // Enrich observation traps with full vitals from layout
     if (observation && Array.isArray(observation.traps) && Array.isArray(layoutTraps)) {
@@ -473,6 +473,28 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
         tick: coreTick,
       });
       return { ok: true, action: { ...action, tick: coreTick }, kind: ACTION_KIND.Move, value: packed };
+    }
+    case "attack": {
+      // M5: simple motivation combat dispatch.
+      // Resolves attacker/defender by actor ID, passes to core.applyAttack via direct directive.
+      const targetId = params.targetId;
+      if (!targetId) {
+        return { ok: false, reason: "missing_target_id" };
+      }
+      const attackerNumeric = resolveActorIdNumeric({ actorId: action.actorId, actorIdMap, core });
+      const defenderNumeric = resolveActorIdNumeric({ actorId: targetId, actorIdMap, core });
+      const damage = typeof params.damage === "number" && params.damage > 0 ? params.damage : 2;
+      return {
+        ok: true,
+        action: { ...action, tick: actionTick },
+        direct: {
+          kind: "apply_attack",
+          attackerNumeric,
+          defenderNumeric,
+          damage,
+          targetId,
+        },
+      };
     }
     case "destroy_barrier": {
       const x = toInt(params.x);
@@ -935,6 +957,25 @@ export function createFsmRuntime({
           acceptedActions.push(adaptation.action);
           continue;
         }
+        if (directive.kind === "apply_attack") {
+          if (typeof core?.applyAttack !== "function") {
+            preCoreRejections.push({ action, reason: "missing_applyAttack_export" });
+            continue;
+          }
+          // resolveActorIdNumeric returns 1-based IDs from actorIdMap; core.applyAttack
+          // expects 0-based motivated actor indices. Convert here.
+          const result = core.applyAttack(
+            directive.attackerNumeric - 1,
+            directive.defenderNumeric - 1,
+            directive.damage,
+          );
+          if (result === 0) {
+            preCoreRejections.push({ action, reason: "attack_rejected_by_core" });
+            continue;
+          }
+          acceptedActions.push(adaptation.action);
+          continue;
+        }
         preCoreRejections.push({ action, reason: "unsupported_directive" });
         continue;
       }
@@ -1051,7 +1092,12 @@ export function createFsmRuntime({
 
       const currentPhase = orchestrator.view().phase;
       const layoutTraps = simConfig?.layout?.data?.traps || [];
-      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutTraps);
+      // Build sorted actor ID list so readObservation labels all actors by their original IDs.
+      // actorIdMap maps id → 1-based numeric index; sort by index to get core ordering.
+      const sortedActorIds = actorIdMap.size > 0
+        ? Array.from(actorIdMap.entries()).sort((a, b) => a[1] - b[1]).map(([id]) => id)
+        : [];
+      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutTraps, sortedActorIds);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,
