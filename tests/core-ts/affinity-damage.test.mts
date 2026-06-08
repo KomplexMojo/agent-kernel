@@ -42,15 +42,25 @@ type Core = ReturnType<typeof createCore>;
 
 /**
  * Build a 7×7 floor grid with two motivated actors placed at the given positions.
- * Returns the configured core with full vitals set on both actors.
+ * Returns the configured core with vitals set on both actors.
  *
- *   index 0 = attacker, HP 10, mana 10, stamina 10, durability 5
- *   index 1 = defender, HP 10, mana 10, stamina 10, durability 5
+ * `current` and `maxes` are passed independently so buff tests can start with
+ * current < max (e.g. current health 5, max health 10). Defaults:
+ *   current = { health: 10, mana: 10, stamina: 10, durability: 5 }
+ *   maxes   = { health: 10, mana: 10, stamina: 10, durability: 5 }
+ *
+ * Passing only `current: { health: 5 }` lowers the current to 5 but the max
+ * stays at the default of 10, so a +2 buff produces 7 (not clamped to 5).
+ *
+ * Passing both lets you exercise the clamp-to-max path explicitly.
  */
 function buildTwoActorWorld(
   attackerXY: [number, number] = [1, 1],
   defenderXY: [number, number] = [2, 1],
-  vitals: { health?: number; mana?: number; stamina?: number; durability?: number } = {},
+  options: {
+    current?: { health?: number; mana?: number; stamina?: number; durability?: number };
+    maxes?:   { health?: number; mana?: number; stamina?: number; durability?: number };
+  } = {},
 ): Core {
   const core = createCore();
   call(core.configureGrid, 7, 7);
@@ -63,16 +73,21 @@ function buildTwoActorWorld(
   call(core.addActorPlacement, 1, ...attackerXY);
   call(core.addActorPlacement, 2, ...defenderXY);
   call(core.applyActorPlacements);
-  // Full vitals (override via vitals arg)
-  const v = {
-    health: 10, mana: 10, stamina: 10, durability: 5,
-    ...vitals,
+  const defaultMax = { health: 10, mana: 10, stamina: 10, durability: 5 };
+  const maxes = { ...defaultMax, ...(options.maxes ?? {}) };
+  const current = {
+    // Each current defaults to the resolved max so the actor starts full.
+    health: maxes.health,
+    mana: maxes.mana,
+    stamina: maxes.stamina,
+    durability: maxes.durability,
+    ...(options.current ?? {}),
   };
   for (const actorIdx of [0, 1]) {
-    call(core.setMotivatedActorVital, actorIdx, VitalKind.Health, v.health, v.health, 0);
-    call(core.setMotivatedActorVital, actorIdx, VitalKind.Mana, v.mana, v.mana, 0);
-    call(core.setMotivatedActorVital, actorIdx, VitalKind.Stamina, v.stamina, v.stamina, 0);
-    call(core.setMotivatedActorVital, actorIdx, VitalKind.Durability, v.durability, v.durability, 0);
+    call(core.setMotivatedActorVital, actorIdx, VitalKind.Health,     current.health,     maxes.health,     0);
+    call(core.setMotivatedActorVital, actorIdx, VitalKind.Mana,       current.mana,       maxes.mana,       0);
+    call(core.setMotivatedActorVital, actorIdx, VitalKind.Stamina,    current.stamina,    maxes.stamina,    0);
+    call(core.setMotivatedActorVital, actorIdx, VitalKind.Durability, current.durability, maxes.durability, 0);
   }
   return core;
 }
@@ -151,7 +166,7 @@ describe("applyAffinityDamage: drain effects (negative matrix entries)", () => {
 
 describe("applyAffinityDamage: buff effects (positive matrix entries)", () => {
   test("life+push (buff Health, base 2) at stack 1 increases target HP by 2 (clamped to max)", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { health: 5 }); // start half-HP so we can see the buff
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 5 } }); // start half-HP so we can see the buff
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -161,7 +176,7 @@ describe("applyAffinityDamage: buff effects (positive matrix entries)", () => {
   });
 
   test("life+emit at stack 1 buffs target Health by 1 (diffuse intensity)", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { health: 5 });
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 5 } });
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -171,7 +186,7 @@ describe("applyAffinityDamage: buff effects (positive matrix entries)", () => {
   });
 
   test("fortify+2+push (worked example) replenishes target Durability by 4", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { durability: 1 }); // start at 1
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { durability: 1 } }); // start at 1
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -181,7 +196,7 @@ describe("applyAffinityDamage: buff effects (positive matrix entries)", () => {
   });
 
   test("earth+emit buffs target Durability by 1 (diffuse intensity)", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { durability: 1 });
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { durability: 1 } });
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -191,7 +206,7 @@ describe("applyAffinityDamage: buff effects (positive matrix entries)", () => {
   });
 
   test("light+push buffs target Mana by 2", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { mana: 5 });
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { mana: 5 } });
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -207,11 +222,11 @@ describe("applyAffinityDamage: buff effects (positive matrix entries)", () => {
 
 describe("applyAffinityDamage: sign-reversal pair behaviour", () => {
   test("life+pull DRAINS the same Health amount that life+push BUFFS (sign reversal)", () => {
-    const a = buildTwoActorWorld([1, 1], [2, 1], { health: 5 });
+    const a = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 5 } });
     call((a as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Life, AffinityExpression.Push, 1);
     const afterPush = vitalOf(a, 1, VitalKind.Health); // 5 + 2 = 7
 
-    const b = buildTwoActorWorld([1, 1], [2, 1], { health: 5 });
+    const b = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 5 } });
     call((b as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Life, AffinityExpression.Pull, 1);
     const afterPull = vitalOf(b, 1, VitalKind.Health); // 5 - 2 = 3
 
@@ -219,7 +234,7 @@ describe("applyAffinityDamage: sign-reversal pair behaviour", () => {
   });
 
   test("corrode+pull buffs Durability (sign-reversed: corrode+push drains, so pull buffs)", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { durability: 1 });
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { durability: 1 } });
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -246,7 +261,7 @@ describe("applyAffinityDamage: stack scaling (linear effect = base * stacks)", (
   });
 
   test("stacks=5 multiplies emit base by 5 (life+emit at stacks=5 buffs 5 HP)", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { health: 1 });
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 1 } });
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -262,7 +277,7 @@ describe("applyAffinityDamage: stack scaling (linear effect = base * stacks)", (
 
 describe("applyAffinityDamage: vital clamping", () => {
   test("lethal overkill clamps Health to 0 (does not go negative)", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { health: 3 });
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 3 } });
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -272,8 +287,11 @@ describe("applyAffinityDamage: vital clamping", () => {
   });
 
   test("buff that would exceed max clamps to max", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { health: 9 }); // max 9 effectively (set by buildTwoActorWorld)
-    // Default max from buildTwoActorWorld is whatever 'health' is passed; we set 9 → max 9
+    // Explicit max=9 so the buff clamps at 9 (life+push at stacks=5 would add 10).
+    const core = buildTwoActorWorld([1, 1], [2, 1], {
+      current: { health: 9 },
+      maxes: { health: 9 },
+    });
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -283,7 +301,7 @@ describe("applyAffinityDamage: vital clamping", () => {
   });
 
   test("Durability drain clamps at 0", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1], { durability: 1 });
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { durability: 1 } });
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1,
@@ -342,7 +360,7 @@ describe("applyAffinityDamage: push/pull range == stacks (Chebyshev)", () => {
   });
 
   test("pull also enforces range == stacks (same rule, sign-reversed)", () => {
-    const core = buildTwoActorWorld([1, 1], [3, 1], { health: 5 }); // Chebyshev = 2
+    const core = buildTwoActorWorld([1, 1], [3, 1], { current: { health: 5 } }); // Chebyshev = 2
     // life+pull at stacks=1 would be out of range
     const rejected = call(
       (core as Record<string, unknown>).applyAffinityDamage,
@@ -368,11 +386,11 @@ describe("applyAffinityDamage: push/pull range == stacks (Chebyshev)", () => {
 
 describe("applyAffinityDamage: emit/draw have no range constraint at the per-target level", () => {
   test("emit at any distance applies the diffuse per-target effect (area iteration is the caller's job)", () => {
-    const close = buildTwoActorWorld([1, 1], [2, 1], { health: 5 });
+    const close = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 5 } });
     call((close as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Life, AffinityExpression.Emit, 1);
     expect(vitalOf(close, 1, VitalKind.Health)).toBe(5 + 1);
 
-    const far = buildTwoActorWorld([1, 1], [5, 5], { health: 5 });
+    const far = buildTwoActorWorld([1, 1], [5, 5], { current: { health: 5 } });
     call((far as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Life, AffinityExpression.Emit, 1);
     expect(vitalOf(far, 1, VitalKind.Health)).toBe(5 + 1);
   });

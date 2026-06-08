@@ -11,6 +11,7 @@ import {
   resolveAffinityRelationshipCode,
 } from "./state/affinity.ts";
 import { createEffectsPort, EffectKind } from "./ports/effects.ts";
+import { createAffinityDamageRules } from "./rules/affinity-damage.ts";
 import { createCombatRules } from "./rules/combat.ts";
 import { createMoveRules } from "./rules/move.ts";
 import {
@@ -65,6 +66,7 @@ export const CORE_API_KEYS = [
   "affinityExpressionIsPersistentField",
   "applyAction",
   "applyActorPlacements",
+  "applyAffinityDamage",
   "applyAttack",
   "armStaticTrapAt",
   "clearActorPlacements",
@@ -264,6 +266,7 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   const motivation = createMotivationState();
   const move = createMoveRules(world);
   const combat = createCombatRules(world);
+  const affinityDamage = createAffinityDamageRules(world);
 
   function emitBudgetEffects(category: number, spent: number): void {
     const cap = budget.getBudgetCap(category);
@@ -582,6 +585,7 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.step = (() => { applyAction(ActionKind.IncrementCounter, 1); }) as CoreFunction;
   core.applyAction = applyAction as CoreFunction;
   core.applyAttack = combat.applyAttack as CoreFunction;
+  core.applyAffinityDamage = affinityDamage.applyAffinityDamage as CoreFunction;
 
   return core;
 }
