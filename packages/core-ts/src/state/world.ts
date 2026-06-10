@@ -73,6 +73,11 @@ export function createWorldState() {
   let staticTrapExpressionByCell = new Int32Array(0);
   let staticTrapStacksByCell = new Int32Array(0);
   let staticTrapManaReserveByCell = new Int32Array(0);
+  let staticTrapManaMaxByCell = new Int32Array(0);
+  let staticTrapManaRegenByCell = new Int32Array(0);
+  let staticTrapDurabilityCurrentByCell = new Int32Array(0);
+  let staticTrapDurabilityMaxByCell = new Int32Array(0);
+  let staticTrapDurabilityRegenByCell = new Int32Array(0);
   let staticTrapCount = 0;
 
   // ── Resources ──
@@ -169,6 +174,11 @@ export function createWorldState() {
     staticTrapExpressionByCell = new Int32Array(cellCount);
     staticTrapStacksByCell = new Int32Array(cellCount);
     staticTrapManaReserveByCell = new Int32Array(cellCount);
+    staticTrapManaMaxByCell = new Int32Array(cellCount);
+    staticTrapManaRegenByCell = new Int32Array(cellCount);
+    staticTrapDurabilityCurrentByCell = new Int32Array(cellCount);
+    staticTrapDurabilityMaxByCell = new Int32Array(cellCount);
+    staticTrapDurabilityRegenByCell = new Int32Array(cellCount);
     resourceVitalKindByCell = new Int32Array(cellCount);
     resourceDeltaByCell = new Int32Array(cellCount);
     resourceModeByCell = new Int32Array(cellCount);
@@ -280,6 +290,11 @@ export function createWorldState() {
     staticTrapExpressionByCell[index] = 0;
     staticTrapStacksByCell[index] = 0;
     staticTrapManaReserveByCell[index] = 0;
+    staticTrapManaMaxByCell[index] = 0;
+    staticTrapManaRegenByCell[index] = 0;
+    staticTrapDurabilityCurrentByCell[index] = 0;
+    staticTrapDurabilityMaxByCell[index] = 0;
+    staticTrapDurabilityRegenByCell[index] = 0;
   }
 
   function clearStaticTraps(): void {
@@ -288,6 +303,11 @@ export function createWorldState() {
     staticTrapExpressionByCell.fill(0);
     staticTrapStacksByCell.fill(0);
     staticTrapManaReserveByCell.fill(0);
+    staticTrapManaMaxByCell.fill(0);
+    staticTrapManaRegenByCell.fill(0);
+    staticTrapDurabilityCurrentByCell.fill(0);
+    staticTrapDurabilityMaxByCell.fill(0);
+    staticTrapDurabilityRegenByCell.fill(0);
   }
 
   // ── Resource helpers ──
@@ -570,9 +590,7 @@ export function createWorldState() {
       for (let i = 0; i < motivatedActorCount; i++) {
         applyRegenForActorIndex(i);
       }
-      return;
-    }
-    if (actorActive) {
+    } else if (actorActive) {
       for (let kind = 0; kind < VITAL_COUNT; kind++) {
         if (kind === VitalKind.Durability) continue;
         actorVitalCurrent[kind] = clampVitalValue(
@@ -580,6 +598,29 @@ export function createWorldState() {
           actorVitalMax[kind],
           actorVitalRegen[kind],
         );
+      }
+    }
+    // Per-trap mana and durability regen (independent of actor regen)
+    if (staticTrapCount > 0) {
+      const cellCount = width * height;
+      for (let idx = 0; idx < cellCount; idx++) {
+        if (staticTrapAffinityByCell[idx] === STATIC_TRAP_NONE) continue;
+        const manaRegen = staticTrapManaRegenByCell[idx];
+        if (manaRegen > 0) {
+          const manaMax = staticTrapManaMaxByCell[idx];
+          const manaCur = staticTrapManaReserveByCell[idx];
+          if (manaCur < manaMax) {
+            staticTrapManaReserveByCell[idx] = Math.min(manaMax, manaCur + manaRegen);
+          }
+        }
+        const durRegen = staticTrapDurabilityRegenByCell[idx];
+        if (durRegen > 0) {
+          const durMax = staticTrapDurabilityMaxByCell[idx];
+          const durCur = staticTrapDurabilityCurrentByCell[idx];
+          if (durCur < durMax) {
+            staticTrapDurabilityCurrentByCell[idx] = Math.min(durMax, durCur + durRegen);
+          }
+        }
       }
     }
   }
@@ -1124,6 +1165,11 @@ export function createWorldState() {
       expression: number,
       stacks: number,
       manaReserve: number,
+      durabilityCurrentOpt = 0,
+      durabilityMaxOpt = 0,
+      durabilityRegenOpt = 0,
+      manaMaxOpt = -1,   // -1 sentinel → default to manaReserve
+      manaRegenOpt = 0,
     ): number {
       if (!withinBounds(x, y)) return 0;
       if (affinityKind <= 0 || expression <= 0) return 0;
@@ -1135,6 +1181,11 @@ export function createWorldState() {
       staticTrapExpressionByCell[idx] = expression;
       staticTrapStacksByCell[idx] = stacks;
       staticTrapManaReserveByCell[idx] = manaReserve;
+      staticTrapManaMaxByCell[idx] = manaMaxOpt < 0 ? manaReserve : Math.max(0, manaMaxOpt);
+      staticTrapManaRegenByCell[idx] = Math.max(0, manaRegenOpt);
+      staticTrapDurabilityCurrentByCell[idx] = Math.max(0, durabilityCurrentOpt);
+      staticTrapDurabilityMaxByCell[idx] = Math.max(0, durabilityMaxOpt);
+      staticTrapDurabilityRegenByCell[idx] = Math.max(0, durabilityRegenOpt);
       return 1;
     },
 
@@ -1166,6 +1217,47 @@ export function createWorldState() {
     getStaticTrapManaReserveAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
       return staticTrapManaReserveByCell[indexFor(x, y)];
+    },
+
+    getStaticTrapManaMaxAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return staticTrapManaMaxByCell[indexFor(x, y)];
+    },
+
+    getStaticTrapManaRegenAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return staticTrapManaRegenByCell[indexFor(x, y)];
+    },
+
+    setStaticTrapManaCurrentAt(x: number, y: number, current: number): number {
+      if (!withinBounds(x, y)) return 0;
+      const idx = indexFor(x, y);
+      if (!hasStaticTrapAtIndex(idx)) return 0;
+      staticTrapManaReserveByCell[idx] = Math.max(0, current);
+      return 1;
+    },
+
+    getStaticTrapDurabilityAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return staticTrapDurabilityCurrentByCell[indexFor(x, y)];
+    },
+
+    getStaticTrapDurabilityMaxAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return staticTrapDurabilityMaxByCell[indexFor(x, y)];
+    },
+
+    getStaticTrapDurabilityRegenAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return staticTrapDurabilityRegenByCell[indexFor(x, y)];
+    },
+
+    setStaticTrapDurabilityCurrentAt(x: number, y: number, current: number): number {
+      if (!withinBounds(x, y)) return 0;
+      const idx = indexFor(x, y);
+      if (!hasStaticTrapAtIndex(idx)) return 0;
+      staticTrapDurabilityCurrentByCell[idx] = Math.max(0, current);
+      return 1;
     },
 
     // ── Resources ──
@@ -1297,6 +1389,14 @@ export function createWorldState() {
       motivatedActorAffinityKindArr[index] = kind;
       motivatedActorAffinityExpressionArr[index] = expression;
       motivatedActorAffinityStacksArr[index] = stacks;
+      return 1;
+    },
+
+    clearMotivatedActorAffinity(index: number): number {
+      if (!isValidMotivatedActorIndex(index)) return 0;
+      motivatedActorAffinityKindArr[index] = 0;
+      motivatedActorAffinityExpressionArr[index] = 0;
+      motivatedActorAffinityStacksArr[index] = 0;
       return 1;
     },
 

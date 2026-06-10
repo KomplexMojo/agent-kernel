@@ -13,23 +13,13 @@
  */
 
 import { AFFINITY_KINDS } from "../contracts/domain-constants.js";
+import { GAME_AFFINITY_COLOR_HEX } from "../contracts/game-elements.js";
 
 /**
  * Canonical hex color for each affinity kind.
  * Used for sprite generation and visual styling.
  */
-export const AFFINITY_COLOR_HEX = Object.freeze({
-  fire: "#f05a28",
-  water: "#2b7fff",
-  earth: "#7a5c33",
-  wind: "#8fd3ff",
-  life: "#49b96b",
-  decay: "#6f7b46",
-  corrode: "#7fbf42",
-  fortify: "#8c6dd7",
-  light: "#f5d14d",
-  dark: "#3a2a57",
-});
+export const AFFINITY_COLOR_HEX = GAME_AFFINITY_COLOR_HEX;
 
 /**
  * Stack intensity progression rules.

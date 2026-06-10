@@ -2,6 +2,7 @@
  * icon-resolver.js
  * Resolves icons from resource bundle mappings, with text label fallback.
  */
+import { GAME_ICON_FALLBACKS } from "../../runtime/src/contracts/game-elements.js";
 
 /**
  * Unicode icon fallbacks for each category and key.
@@ -9,67 +10,7 @@
  */
 const DEFAULT_UI_ICON = "◈";
 
-const TEXT_LABELS = Object.freeze({
-  types: {
-    room: "🏛️",
-    delver: "⚔️",
-    attacker: "⚔️",
-    warden: "🛡️",
-    defender: "🛡️",
-    hazard: "☠️",
-    untyped: "◻️",
-  },
-  affinities: {
-    fire: "🔥",
-    water: "💧",
-    earth: "🪨",
-    wind: "🌪️",
-    life: "🌿",
-    decay: "🧪",
-    corrode: "🧫",
-    fortify: "🧱",
-    light: "🌟",
-    dark: "🌑",
-  },
-  items: {
-    hazard: "☠️",
-    resource: "💎",
-  },
-  expressions: {
-    push: "⬆️",
-    pull: "⬇️",
-    emit: "📡",
-    draw: "🧲",
-  },
-  motivations: {
-    random: "🎲",
-    stationary: "🧱",
-    exploring: "🧭",
-    attacking: "⚔️",
-    defending: "🛡️",
-    stealthy: "🥷",
-    friendly: "🤝",
-    patrolling: "👣",
-    reflexive: "⚡",
-    goal_oriented: "🎯",
-    strategy_focused: "♟️",
-    user_controlled: "🎮",
-  },
-  vitals: {
-    health: "❤️",
-    mana: "🔷",
-    stamina: "🏃",
-    defence: "🛡️",
-    durability: "⛓️",
-  },
-  ui: {
-    "playing-surface": "◈",
-    "card-builder": DEFAULT_UI_ICON,
-    "game-preview": "◈",
-    "system-console": "◈",
-    "game-inspector": "◈",
-  },
-});
+const TEXT_LABELS = GAME_ICON_FALLBACKS;
 
 /**
  * Check if a dataUri string is valid and not a placeholder image.

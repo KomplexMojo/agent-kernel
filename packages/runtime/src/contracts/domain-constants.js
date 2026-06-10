@@ -1,17 +1,11 @@
-export const AFFINITY_KINDS = Object.freeze([
-  "fire",
-  "water",
-  "earth",
-  "wind",
-  "life",
-  "decay",
-  "corrode",
-  "fortify",
-  "light",
-  "dark",
-]);
+import {
+  GAME_AFFINITY_EXPRESSIONS,
+  GAME_AFFINITY_KINDS,
+  GAME_VITAL_KEYS,
+} from "./game-elements.js";
 
-export const AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit", "draw"]);
+export const AFFINITY_KINDS = GAME_AFFINITY_KINDS;
+export const AFFINITY_EXPRESSIONS = GAME_AFFINITY_EXPRESSIONS;
 export const AFFINITY_TARGET_TYPES = Object.freeze(["self", "ally", "enemy", "area", "barrier", "floor"]);
 export const DEFAULT_DUNGEON_AFFINITY = AFFINITY_KINDS[0];
 export const DEFAULT_AFFINITY_EXPRESSION = AFFINITY_EXPRESSIONS[0];
@@ -107,7 +101,7 @@ export const PHI4_OLLAMA_OPTIONS = Object.freeze({
   repeat_penalty: 1.05,
 });
 
-export const VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
+export const VITAL_KEYS = GAME_VITAL_KEYS;
 export const TRAP_VITAL_KEYS = Object.freeze(["mana", "durability"]);
 
 // Per-actor-type vital constraints
