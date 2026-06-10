@@ -508,16 +508,155 @@ describe("applyAffinityDamage: PR #42 applyAttack non-regression", () => {
   });
 });
 
-// ## TODO: Test Permutations
-//
-// 1. applyAffinityDamage with every (kind, expression) pair × stacks ∈ {1, 2, 3} → verify each routes
-//    to the affinity's primary vital with the matrix-computed signed magnitude
-// 2. Sequence of drains until vital reaches 0 — subsequent calls succeed but leave vital at 0 (clamp)
-// 3. Sequence of buffs until vital reaches max — subsequent calls succeed but leave vital at max (clamp)
-// 4. applyAffinityDamage with kind/expression that has a 0 cell on the routed vital — call accepted
-//    but no change to any vital (effect == 0 still returns 1? or 0? — locked by M3 contract)
-// 5. Push/pull at stacks=0 is rejected even when distance is 0 (zero-magnitude no-op)
-// 6. Emit/draw against the attacker itself (self-target) — rejected by the self-target rule
-// 7. Multiple actors in a row: applyAffinityDamage only mutates the named target index, not neighbors
-// 8. After applyAffinityDamage modifies a vital, getMotivatedActorVitalCurrentByIndex reflects the change
-//    immediately on the next call (no buffer / no batching)
+// ---------------------------------------------------------------------------
+// Permutations: all 40 (kind × expression) pairs route to the correct primary vital
+// ---------------------------------------------------------------------------
+
+describe("permutations: all 40 (kind × expression) pairs route to the correct primary vital", () => {
+  // Mirrors the contract in affinity-vital-matrix.test.mts PRIMARY table
+  const ROUTE: Record<number, { vital: number; polarity: number }> = {
+    [AffinityKind.Fire]:    { vital: VitalKind.Health,     polarity: -1 },
+    [AffinityKind.Water]:   { vital: VitalKind.Health,     polarity: +1 },
+    [AffinityKind.Earth]:   { vital: VitalKind.Durability, polarity: +1 },
+    [AffinityKind.Wind]:    { vital: VitalKind.Stamina,    polarity: -1 },
+    [AffinityKind.Life]:    { vital: VitalKind.Health,     polarity: +1 },
+    [AffinityKind.Decay]:   { vital: VitalKind.Health,     polarity: -1 },
+    [AffinityKind.Corrode]: { vital: VitalKind.Durability, polarity: -1 },
+    [AffinityKind.Fortify]: { vital: VitalKind.Durability, polarity: +1 },
+    [AffinityKind.Light]:   { vital: VitalKind.Mana,       polarity: +1 },
+    [AffinityKind.Dark]:    { vital: VitalKind.Mana,       polarity: -1 },
+  };
+
+  // Mid-range starting vitals — stacks=1 never saturates at either bound
+  const START: Record<number, number> = {
+    [VitalKind.Health]: 5, [VitalKind.Mana]: 5,
+    [VitalKind.Stamina]: 5, [VitalKind.Durability]: 2,
+  };
+  const MAX: Record<number, number> = {
+    [VitalKind.Health]: 10, [VitalKind.Mana]: 10,
+    [VitalKind.Stamina]: 10, [VitalKind.Durability]: 5,
+  };
+  const startCurrent = { health: 5, mana: 5, stamina: 5, durability: 2 };
+  const startMaxes   = { health: 10, mana: 10, stamina: 10, durability: 5 };
+  const ALL_KINDS = [
+    AffinityKind.Fire, AffinityKind.Water, AffinityKind.Earth, AffinityKind.Wind,
+    AffinityKind.Life, AffinityKind.Decay, AffinityKind.Corrode, AffinityKind.Fortify,
+    AffinityKind.Light, AffinityKind.Dark,
+  ];
+  const ALL_EXPRS = [
+    AffinityExpression.Push, AffinityExpression.Pull,
+    AffinityExpression.Emit, AffinityExpression.Draw,
+  ];
+  const ALL_VITAL_KINDS = [VitalKind.Health, VitalKind.Mana, VitalKind.Stamina, VitalKind.Durability];
+
+  test("each combination applies to the primary vital and leaves all other vitals unchanged", () => {
+    for (const kind of ALL_KINDS) {
+      for (const expr of ALL_EXPRS) {
+        // Fresh world for each combination
+        const core = buildTwoActorWorld([1, 1], [2, 1], { current: startCurrent, maxes: startMaxes });
+        const { vital: pVital, polarity } = ROUTE[kind]!;
+        const base = (expr === AffinityExpression.Push || expr === AffinityExpression.Pull) ? 2 : 1;
+        const sign = (expr === AffinityExpression.Pull || expr === AffinityExpression.Draw) ? -polarity : polarity;
+        const effect = sign * base;
+
+        call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, kind, expr, 1);
+
+        // Primary vital must reflect the effect (clamped to [0, max])
+        const expected = Math.max(0, Math.min(MAX[pVital]!, START[pVital]! + effect));
+        expect(vitalOf(core, 1, pVital)).toBe(expected);
+
+        // All other vitals must be unchanged
+        for (const other of ALL_VITAL_KINDS) {
+          if (other !== pVital) {
+            expect(vitalOf(core, 1, other)).toBe(START[other]!);
+          }
+        }
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: drain-to-zero sequence — vital clamps at 0, does not go negative
+// ---------------------------------------------------------------------------
+
+describe("permutations: repeated drain calls clamp vital at 0 without going negative", () => {
+  test("fire+push repeated until health hits 0 — health stays at 0 on subsequent accepted calls", () => {
+    // health starts at 4, each push drains by 2 → hits 0 after 2 calls
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 4 } });
+    call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Fire, AffinityExpression.Push, 1);
+    expect(vitalOf(core, 1, VitalKind.Health)).toBe(2);
+    call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Fire, AffinityExpression.Push, 1);
+    expect(vitalOf(core, 1, VitalKind.Health)).toBe(0);
+    // additional calls accepted but vital stays at 0
+    const result = call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Fire, AffinityExpression.Push, 1) as number;
+    expect(result).not.toBe(0); // still accepted
+    expect(vitalOf(core, 1, VitalKind.Health)).toBe(0); // still clamped
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: buff-to-max sequence — vital clamps at max, does not overflow
+// ---------------------------------------------------------------------------
+
+describe("permutations: repeated buff calls clamp vital at max without overflowing", () => {
+  test("water+push repeated until health hits max — health stays at max on subsequent accepted calls", () => {
+    // health starts at 4 max=10, each push buffs by 2 → hits 10 after 3 calls (4→6→8→10)
+    const core = buildTwoActorWorld([1, 1], [2, 1], { current: { health: 4 } });
+    call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Water, AffinityExpression.Push, 1);
+    expect(vitalOf(core, 1, VitalKind.Health)).toBe(6);
+    call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Water, AffinityExpression.Push, 1);
+    expect(vitalOf(core, 1, VitalKind.Health)).toBe(8);
+    call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Water, AffinityExpression.Push, 1);
+    expect(vitalOf(core, 1, VitalKind.Health)).toBe(10);
+    // additional buff accepted but vital stays at max
+    const result = call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Water, AffinityExpression.Push, 1) as number;
+    expect(result).not.toBe(0);
+    expect(vitalOf(core, 1, VitalKind.Health)).toBe(10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: multiple actors — only the named target is mutated
+// ---------------------------------------------------------------------------
+
+describe("permutations: only the named target actor is mutated by applyAffinityDamage", () => {
+  test("applying fire+push to actor 1 does not change actor 0 (attacker) or actor 2 (bystander)", () => {
+    // Build a 3-actor world manually: actor 0 at (1,1), actor 1 at (2,1), actor 2 at (3,1)
+    const core = createCore();
+    call(core.configureGrid, 7, 7);
+    for (let y = 1; y <= 5; y++) {
+      for (let x = 1; x <= 5; x++) call(core.setTileAt, x, y, 1);
+    }
+    call(core.addActorPlacement, 1, 1, 1);
+    call(core.addActorPlacement, 2, 2, 1);
+    call(core.addActorPlacement, 3, 3, 1);
+    call(core.applyActorPlacements);
+    for (const idx of [0, 1, 2]) {
+      call(core.setMotivatedActorVital, idx, VitalKind.Health,     10, 10, 0);
+      call(core.setMotivatedActorVital, idx, VitalKind.Mana,       10, 10, 0);
+      call(core.setMotivatedActorVital, idx, VitalKind.Stamina,    10, 10, 0);
+      call(core.setMotivatedActorVital, idx, VitalKind.Durability,  5,  5, 0);
+    }
+
+    call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Fire, AffinityExpression.Push, 1);
+
+    expect(vitalOf(core, 0, VitalKind.Health)).toBe(10); // attacker unchanged
+    expect(vitalOf(core, 1, VitalKind.Health)).toBe(8);  // target drained
+    expect(vitalOf(core, 2, VitalKind.Health)).toBe(10); // bystander unchanged
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: getMotivatedActorVitalCurrentByIndex reflects changes immediately
+// ---------------------------------------------------------------------------
+
+describe("permutations: vital changes are reflected by the getter on the very next call", () => {
+  test("getter returns updated value immediately after applyAffinityDamage returns", () => {
+    const core = buildTwoActorWorld([1, 1], [2, 1]);
+    const before = vitalOf(core, 1, VitalKind.Health);
+    call((core as Record<string, unknown>).applyAffinityDamage, 0, 1, AffinityKind.Fire, AffinityExpression.Push, 1);
+    const after = vitalOf(core, 1, VitalKind.Health);
+    expect(after).toBe(before - 2);
+  });
+});

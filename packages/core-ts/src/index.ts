@@ -67,6 +67,8 @@ export const CORE_API_KEYS = [
   "applyAction",
   "applyActorPlacements",
   "applyAffinityDamage",
+  "applyAffinityDamageToHazard",
+  "applyAffinityPullFromHazard",
   "applyAttack",
   "armStaticTrapAt",
   "clearActorPlacements",
@@ -176,7 +178,12 @@ export const CORE_API_KEYS = [
   "getOppositeAffinityKind",
   "getStaticTrapAffinityAt",
   "getStaticTrapCount",
+  "getStaticTrapDurabilityAt",
+  "getStaticTrapDurabilityMaxAt",
+  "getStaticTrapDurabilityRegenAt",
   "getStaticTrapExpressionAt",
+  "getStaticTrapManaMaxAt",
+  "getStaticTrapManaRegenAt",
   "getStaticTrapManaReserveAt",
   "getStaticTrapStacksAt",
   "getTileActorCount",
@@ -554,9 +561,14 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.disarmStaticTrapAt = world.disarmStaticTrapAt as CoreFunction;
   core.getStaticTrapCount = world.getStaticTrapCount as CoreFunction;
   core.getStaticTrapAffinityAt = world.getStaticTrapAffinityAt as CoreFunction;
+  core.getStaticTrapDurabilityAt = world.getStaticTrapDurabilityAt as CoreFunction;
+  core.getStaticTrapDurabilityMaxAt = world.getStaticTrapDurabilityMaxAt as CoreFunction;
+  core.getStaticTrapDurabilityRegenAt = world.getStaticTrapDurabilityRegenAt as CoreFunction;
   core.getStaticTrapExpressionAt = world.getStaticTrapExpressionAt as CoreFunction;
-  core.getStaticTrapStacksAt = world.getStaticTrapStacksAt as CoreFunction;
+  core.getStaticTrapManaMaxAt = world.getStaticTrapManaMaxAt as CoreFunction;
+  core.getStaticTrapManaRegenAt = world.getStaticTrapManaRegenAt as CoreFunction;
   core.getStaticTrapManaReserveAt = world.getStaticTrapManaReserveAt as CoreFunction;
+  core.getStaticTrapStacksAt = world.getStaticTrapStacksAt as CoreFunction;
   core.clearAffinityField = world.clearAffinityField as CoreFunction;
   core.getAffinityFieldIntensityAt = world.getAffinityFieldIntensityAt as CoreFunction;
   core.getAffinityFieldStacksAt = world.getAffinityFieldStacksAt as CoreFunction;
@@ -586,6 +598,8 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.applyAction = applyAction as CoreFunction;
   core.applyAttack = combat.applyAttack as CoreFunction;
   core.applyAffinityDamage = affinityDamage.applyAffinityDamage as CoreFunction;
+  core.applyAffinityDamageToHazard = affinityDamage.applyAffinityDamageToHazard as CoreFunction;
+  core.applyAffinityPullFromHazard = affinityDamage.applyAffinityPullFromHazard as CoreFunction;
 
   return core;
 }

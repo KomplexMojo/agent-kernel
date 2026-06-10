@@ -482,16 +482,211 @@ describe("affinity-vital matrix: stack scaling (linear for this milestone)", () 
   });
 });
 
-// ## TODO: Test Permutations
-//
-// 1. getAffinityVitalEffect across all 10 affinities × 4 expressions × 4 vitals × stacks ∈ {1, 2, 3, 5, 10}
-//    — assert no integer overflow within INT32 bounds
-// 2. Sign-reversal property holds at every stack count (push(s) = -pull(s) for all valid s, same vital)
-// 3. Polarity invariant: for each affinity, the SET of (expression, vital) cells with sign matches the affinity's polarity
-//    table exactly (push/emit share sign, pull/draw share opposite sign)
-// 4. Opposite-affinity pairs (Fire↔Water, Earth↔Wind, Life↔Decay, Corrode↔Fortify, Light↔Dark) produce
-//    matrix entries with opposite polarities on their shared/related primary vital where applicable
-// 5. scaleAffinityVitalEffect with extremely large stacks (e.g. 1_000_000) does not throw and returns a finite integer
-// 6. Calling getAffinityVitalEffectBase twice with the same args is referentially transparent (no hidden state)
-// 7. Helpers are not exposed via createCore() unless an api-surface test explicitly approves the addition
-//    (M3 may add them to CORE_API_KEYS — until then, they live only on the affinity.ts module)
+// ---------------------------------------------------------------------------
+// Permutations: no integer overflow across full matrix × stacks
+// ---------------------------------------------------------------------------
+
+describe("permutations: no integer overflow across full matrix × stacks", () => {
+  test("all 160 cells × stacks in {1,2,3,5,10} produce integers within INT32 bounds", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    const INT32_MAX = 2 ** 31 - 1;
+    for (const kind of ALL_AFFINITY_KINDS) {
+      for (const expr of ALL_EXPRESSIONS) {
+        for (const vital of ALL_VITALS) {
+          for (const stacks of [1, 2, 3, 5, 10]) {
+            const effect = call(getAffinityVitalEffect, kind, expr, vital, stacks) as number;
+            expect(Number.isInteger(effect)).toBe(true);
+            expect(Math.abs(effect)).toBeLessThanOrEqual(INT32_MAX);
+          }
+        }
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: sign-reversal — push(s) = −pull(s), emit(s) = −draw(s)
+// ---------------------------------------------------------------------------
+
+describe("permutations: sign-reversal property across all (kind, vital, stacks)", () => {
+  test("push(s) = −pull(s) for all (kind, vital) pairs at stacks ∈ {1,2,3,5}", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    for (const kind of ALL_AFFINITY_KINDS) {
+      for (const vital of ALL_VITALS) {
+        for (const stacks of [1, 2, 3, 5]) {
+          const push = call(getAffinityVitalEffect, kind, AffinityExpression.Push, vital, stacks) as number;
+          const pull = call(getAffinityVitalEffect, kind, AffinityExpression.Pull, vital, stacks) as number;
+          expect(push + pull).toBe(0); // +0 vs -0 safe: avoids Object.is edge case on zero cells
+        }
+      }
+    }
+  });
+
+  test("emit(s) = −draw(s) for all (kind, vital) pairs at stacks ∈ {1,2,3,5}", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    for (const kind of ALL_AFFINITY_KINDS) {
+      for (const vital of ALL_VITALS) {
+        for (const stacks of [1, 2, 3, 5]) {
+          const emit = call(getAffinityVitalEffect, kind, AffinityExpression.Emit, vital, stacks) as number;
+          const draw = call(getAffinityVitalEffect, kind, AffinityExpression.Draw, vital, stacks) as number;
+          expect(emit + draw).toBe(0); // +0 vs -0 safe: avoids Object.is edge case on zero cells
+        }
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: polarity invariant on primary vitals
+// ---------------------------------------------------------------------------
+
+describe("permutations: polarity invariant — push/emit carry polarity sign; pull/draw carry opposite", () => {
+  test("push and emit on the primary vital have the affinity's polarity sign for all 10 kinds", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    for (const kind of ALL_AFFINITY_KINDS) {
+      const { vital, polarity } = PRIMARY[kind as keyof typeof PRIMARY];
+      const push = call(getAffinityVitalEffect, kind, AffinityExpression.Push, vital, 1) as number;
+      const emit = call(getAffinityVitalEffect, kind, AffinityExpression.Emit, vital, 1) as number;
+      expect(Math.sign(push)).toBe(polarity);
+      expect(Math.sign(emit)).toBe(polarity);
+    }
+  });
+
+  test("pull and draw on the primary vital carry the opposite polarity sign for all 10 kinds", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    for (const kind of ALL_AFFINITY_KINDS) {
+      const { vital, polarity } = PRIMARY[kind as keyof typeof PRIMARY];
+      const pull = call(getAffinityVitalEffect, kind, AffinityExpression.Pull, vital, 1) as number;
+      const draw = call(getAffinityVitalEffect, kind, AffinityExpression.Draw, vital, 1) as number;
+      expect(Math.sign(pull)).toBe(-polarity);
+      expect(Math.sign(draw)).toBe(-polarity);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: opposite-affinity pairs produce opposite polarities on shared vitals
+// ---------------------------------------------------------------------------
+
+describe("permutations: opposite-affinity pairs have opposite push effects on their shared vital", () => {
+  test("Fire (−Health) vs Water (+Health): push(1) effects are negatives of each other", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    const firePush  = call(getAffinityVitalEffect, AffinityKind.Fire,  AffinityExpression.Push, VitalKind.Health, 1) as number;
+    const waterPush = call(getAffinityVitalEffect, AffinityKind.Water, AffinityExpression.Push, VitalKind.Health, 1) as number;
+    expect(firePush).toBe(-waterPush);
+    expect(firePush).not.toBe(0);
+  });
+
+  test("Life (+Health) vs Decay (−Health): push(1) effects are negatives of each other", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    const lifePush  = call(getAffinityVitalEffect, AffinityKind.Life,  AffinityExpression.Push, VitalKind.Health, 1) as number;
+    const decayPush = call(getAffinityVitalEffect, AffinityKind.Decay, AffinityExpression.Push, VitalKind.Health, 1) as number;
+    expect(lifePush).toBe(-decayPush);
+    expect(lifePush).not.toBe(0);
+  });
+
+  test("Corrode (−Durability) vs Fortify (+Durability): push(1) effects are negatives of each other", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    const corrodePush = call(getAffinityVitalEffect, AffinityKind.Corrode, AffinityExpression.Push, VitalKind.Durability, 1) as number;
+    const fortifyPush = call(getAffinityVitalEffect, AffinityKind.Fortify, AffinityExpression.Push, VitalKind.Durability, 1) as number;
+    expect(corrodePush).toBe(-fortifyPush);
+    expect(corrodePush).not.toBe(0);
+  });
+
+  test("Light (+Mana) vs Dark (−Mana): push(1) effects are negatives of each other", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    const lightPush = call(getAffinityVitalEffect, AffinityKind.Light, AffinityExpression.Push, VitalKind.Mana, 1) as number;
+    const darkPush  = call(getAffinityVitalEffect, AffinityKind.Dark,  AffinityExpression.Push, VitalKind.Mana, 1) as number;
+    expect(lightPush).toBe(-darkPush);
+    expect(lightPush).not.toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: large stacks safety
+// ---------------------------------------------------------------------------
+
+describe("permutations: large stacks do not throw and return finite integers", () => {
+  test("scaleAffinityVitalEffect(base, 1_000_000) returns a finite integer for all base values in {−2,−1,0,1,2}", async () => {
+    const { scaleAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    for (const base of [-2, -1, 0, 1, 2]) {
+      const result = call(scaleAffinityVitalEffect, base, 1_000_000) as number;
+      expect(Number.isFinite(result)).toBe(true);
+      expect(Number.isInteger(result)).toBe(true);
+    }
+  });
+
+  test("getAffinityVitalEffect(kind, expr, vital, 1_000_000) returns a finite integer on all 160 cells", async () => {
+    const { getAffinityVitalEffect } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    for (const kind of ALL_AFFINITY_KINDS) {
+      for (const expr of ALL_EXPRESSIONS) {
+        for (const vital of ALL_VITALS) {
+          const result = call(getAffinityVitalEffect, kind, expr, vital, 1_000_000) as number;
+          expect(Number.isFinite(result)).toBe(true);
+          expect(Number.isInteger(result)).toBe(true);
+        }
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: referential transparency (no hidden state)
+// ---------------------------------------------------------------------------
+
+describe("permutations: getAffinityVitalEffectBase is referentially transparent", () => {
+  test("calling with the same (kind, expr, vital) twice returns the same value across all 160 cells", async () => {
+    const { getAffinityVitalEffectBase } = await import(
+      "../../packages/core-ts/src/state/affinity.ts"
+    );
+    for (const kind of ALL_AFFINITY_KINDS) {
+      for (const expr of ALL_EXPRESSIONS) {
+        for (const vital of ALL_VITALS) {
+          const first  = call(getAffinityVitalEffectBase, kind, expr, vital);
+          const second = call(getAffinityVitalEffectBase, kind, expr, vital);
+          expect(first).toBe(second);
+        }
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permutations: helpers remain outside createCore() API surface
+// ---------------------------------------------------------------------------
+
+describe("permutations: affinity helpers are not exposed on createCore() return value", () => {
+  test("getAffinityVitalEffectBase is not present on the createCore() object", async () => {
+    const { createCore } = await import("../../packages/core-ts/src/index.ts");
+    const core = createCore();
+    expect((core as Record<string, unknown>).getAffinityVitalEffectBase).toBeUndefined();
+  });
+
+  test("scaleAffinityVitalEffect is not present on the createCore() object", async () => {
+    const { createCore } = await import("../../packages/core-ts/src/index.ts");
+    const core = createCore();
+    expect((core as Record<string, unknown>).scaleAffinityVitalEffect).toBeUndefined();
+  });
+});
