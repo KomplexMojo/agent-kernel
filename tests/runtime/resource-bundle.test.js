@@ -66,6 +66,8 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   assert.equal(bundle.mappings.actors.byRoleAndAffinity.delver.fire, "actor.delver.fire");
   assert.equal(bundle.mappings.actors.byRoleAndAffinity.warden.fire, "actor.warden.fire");
   assert.equal(bundle.mappings.actors.byRoleAndAffinity.delver.fire === bundle.mappings.actors.byRoleAndAffinity.warden.fire, false);
+  assert.equal(bundle.mappings.actorMedallions.expressionStyle, "triangles");
+  assert.equal(bundle.mappings.actorMedallions.components.frame, "component.actor-medallion.frame");
   assert.equal(bundle.mappings.overlays.expressions.emit, "overlay.expression.emit");
   assert.equal(bundle.mappings.overlays.stackTiers.tier3, "overlay.stack-tier.tier3");
   assert.equal(bundle.mappings.overlays.tileAffinities.floor.fire, "overlay.tile.floor.affinity.fire");
@@ -84,6 +86,9 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   const defenceIcon = bundle.assets.find((asset) => asset.id === "icon.vital.defence");
   const iconFire = bundle.assets.find((asset) => asset.id === "icon.affinity.fire");
   const fogTile = bundle.assets.find((asset) => asset.id === "tile.fog");
+  const medallionFrame = bundle.assets.find((asset) => asset.id === "component.actor-medallion.frame");
+  const medallionExpression = bundle.assets.find((asset) => asset.id === "component.actor-medallion.expression.push");
+  const medallionAffinity = bundle.assets.find((asset) => asset.id === "component.actor-medallion.affinity.fire");
   assert.ok(delverFire?.dataUri?.startsWith("data:image/png;base64,"));
   assert.equal(delverFire?.relativePath, "visual-assets/actors/delver-fire.png");
   assert.ok(overlayFire?.dataUri?.startsWith("data:image/png;base64,"));
@@ -98,12 +103,43 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   assert.ok(iconFire?.variants?.hud?.relativePath.endsWith("icon-affinity-fire.png"));
   assert.ok(fogTile?.dataUri?.startsWith("data:image/png;base64,"));
   assert.equal(fogTile?.relativePath, "visual-assets/tiles/fog.png");
+  assert.ok(medallionFrame?.dataUri?.startsWith("data:image/png;base64,"));
+  assert.equal(medallionFrame?.relativePath, "visual-assets/actor-medallions/components/frame.png");
+  assert.ok(medallionExpression?.dataUri?.startsWith("data:image/png;base64,"));
+  assert.equal(medallionExpression?.relativePath, "visual-assets/actor-medallions/components/expression-push.png");
+  assert.ok(medallionAffinity?.dataUri?.startsWith("data:image/png;base64,"));
+  assert.equal(medallionAffinity?.relativePath, "visual-assets/actor-medallions/components/affinity-fire.png");
 
   const files = listResourceBundleAssetFiles(bundle);
   assert.ok(files.some((file) => file.relativePath === "visual-assets/overlays/hud/affinity-fire.png"));
   assert.ok(files.some((file) => file.relativePath === "visual-assets/overlays/large/affinity-fire.png"));
   assert.ok(files.some((file) => file.relativePath === "visual-assets/tiles/overlays/large/floor-affinity-fire.png"));
   assert.ok(files.some((file) => file.relativePath === "visual-assets/misc/hud/icon-vital-defence.png"));
+  assert.ok(files.some((file) => file.relativePath === "visual-assets/actor-medallions/components/frame.png"));
+});
+
+test("resource bundle v1 keeps static actor rendering compatibility", async () => {
+  const {
+    createDefaultResourceBundleArtifact,
+    validateResourceBundleArtifact,
+  } = await import("../../packages/runtime/src/render/resource-bundle.js");
+
+  const bundle = createDefaultResourceBundleArtifact({
+    createMeta: ({ producedBy = "test", runId = "run_resource_bundle_v1" } = {}) => ({
+      id: `${producedBy}_${runId}`,
+      runId,
+      createdAt: "2000-01-01T00:00:00.000Z",
+      producedBy,
+    }),
+    runId: "run_resource_bundle_v1",
+    producedBy: "test",
+  });
+
+  const validation = validateResourceBundleArtifact(bundle);
+  assert.equal(validation.ok, true, validation.errors?.join(", "));
+  assert.equal(bundle.schemaVersion, 1);
+  assert.equal(bundle.mappings.actorMedallions, undefined);
+  assert.equal(bundle.assets.some((asset) => asset.id.startsWith("component.actor-medallion.")), false);
 });
 
 test("renderBoardWithResourceBundle applies formula-driven affinity overlays to nearby walls", async () => {

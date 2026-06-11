@@ -26,6 +26,9 @@ export function relativePathForGameAssetId(assetId) {
   if (id.startsWith("actor.")) {
     return `visual-assets/actors/${id.slice("actor.".length).replace(/\./g, "-")}.png`;
   }
+  if (id.startsWith("component.actor-medallion.")) {
+    return `visual-assets/actor-medallions/components/${id.slice("component.actor-medallion.".length).replace(/\./g, "-")}.png`;
+  }
   if (id.startsWith("card.")) {
     return `visual-assets/cards/${id.slice("card.".length).replace(/\./g, "-")}.png`;
   }
@@ -148,6 +151,62 @@ const VITAL_COLORS = Object.freeze({
   durability: "#ffaa33",
   defence: "#ffaa33",
 });
+
+const ACTOR_MEDALLION_COMPONENT_VISUALS = [
+  {
+    key: "frame",
+    unicodeIcon: "▣",
+    defaultColor: "#24282a",
+    description: "Actor medallion frame and dark stone backing component.",
+    assetId: "component.actor-medallion.frame",
+  },
+  ...["delver", "warden"].map((role) => ({
+    key: `actor-${role}`,
+    unicodeIcon: role === "warden" ? "△" : "○",
+    defaultColor: role === "warden" ? "#b18edc" : "#d8d2bf",
+    description: `Actor medallion ${titleLabel(role)} center symbol component.`,
+    assetId: `component.actor-medallion.actor.${role}`,
+  })),
+  ...GAME_VITAL_KEYS.map((vital) => ({
+    key: `vital-${vital}`,
+    unicodeIcon: { health: "♥", mana: "◆", stamina: "↯", durability: "▰" }[vital],
+    defaultColor: VITAL_COLORS[vital],
+    description: `Actor medallion ${titleLabel(vital)} perimeter bar component.`,
+    assetId: `component.actor-medallion.vital.${vital}`,
+  })),
+  ...GAME_AFFINITY_EXPRESSIONS.map((expression) => ({
+    key: `expression-${expression}`,
+    unicodeIcon: { push: "⇢", pull: "⇠", emit: "⊙", draw: "⟲" }[expression],
+    defaultColor: "#f8fcff",
+    description: `Actor medallion ${titleLabel(expression)} corner triangle expression component.`,
+    assetId: `component.actor-medallion.expression.${expression}`,
+  })),
+  ...GAME_AFFINITY_KINDS.map((affinity) => ({
+    key: `affinity-${affinity}`,
+    unicodeIcon: {
+      fire: "♨",
+      water: "◍",
+      earth: "◆",
+      wind: "〰",
+      life: "♧",
+      decay: "☠",
+      corrode: "◌",
+      fortify: "⬟",
+      light: "✦",
+      dark: "☾",
+    }[affinity],
+    defaultColor: AFFINITY_COLORS[affinity],
+    description: `Actor medallion ${titleLabel(affinity)} affinity glyph component.`,
+    assetId: `component.actor-medallion.affinity.${affinity}`,
+  })),
+  ...GAME_MOTIVATION_KINDS.map((motivation) => ({
+    key: `motivation-${motivation}`,
+    unicodeIcon: "◉",
+    defaultColor: "#f2e7c8",
+    description: `Actor medallion ${titleLabel(motivation)} motivation glyph component.`,
+    assetId: `component.actor-medallion.motivation.${motivation}`,
+  })),
+];
 
 const GAME_ELEMENT_VISUALS_VALUE = {
   tiles: byKey([
@@ -549,6 +608,17 @@ const GAME_ELEMENT_VISUALS_VALUE = {
       description: "Darkness and visibility mask overlay.",
     }),
   ]),
+  actorMedallionComponents: byKey(
+    ACTOR_MEDALLION_COMPONENT_VISUALS.map((visual) => element({
+      group: "actorMedallionComponents",
+      key: visual.key,
+      unicodeIcon: visual.unicodeIcon,
+      defaultColor: visual.defaultColor,
+      assetId: visual.assetId,
+      assetKind: "component",
+      description: visual.description,
+    })),
+  ),
 };
 
 export const GAME_ELEMENT_VISUALS = deepFreeze(GAME_ELEMENT_VISUALS_VALUE);
@@ -564,6 +634,7 @@ export const GAME_ELEMENT_ASSET_IDS = deepFreeze({
   cards: assetIdMap(GAME_ELEMENT_VISUALS.cards),
   stackTiers: assetIdMap(GAME_ELEMENT_VISUALS.affinityStacks),
   darknessMask: GAME_ELEMENT_VISUALS.overlays["darkness-mask"].assetId,
+  actorMedallionComponents: assetIdMap(GAME_ELEMENT_VISUALS.actorMedallionComponents),
 });
 
 export const GAME_ELEMENT_ICON_KEYS = deepFreeze({
@@ -714,6 +785,7 @@ export function getResourceBundleAssetSpecs({ emitVisualAssets = false } = {}) {
   });
   Object.values(visuals.vitals).forEach((visual) => push(specForVisual(visual)));
   Object.values(visuals.ui).forEach((visual) => push(specForVisual(visual)));
+  Object.values(visuals.actorMedallionComponents).forEach((visual) => push(specForVisual(visual)));
 
   return specs;
 }
