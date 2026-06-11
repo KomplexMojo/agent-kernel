@@ -1,122 +1,80 @@
 const assert = require("node:assert/strict");
-const { readFixture } = require("../helpers/fixtures");
+const { readFileSync } = require("node:fs");
+const { resolve } = require("node:path");
 
-function isObject(v) {
-  return v !== null && typeof v === "object";
+const ROOT = resolve(__dirname, "../..");
+
+function readJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
 }
 
-function validateArtifactRef(ref, label = "ref") {
-  assert.ok(isObject(ref), `${label}: expected object`);
-  assert.ok(typeof ref.id === "string", `${label}.id: expected string`);
-  assert.ok(typeof ref.schema === "string", `${label}.schema: expected string`);
-  assert.ok(Number.isInteger(ref.schemaVersion), `${label}.schemaVersion: expected integer`);
+async function buildWithBudget() {
+  const scenario = readJson(resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json"));
+  const summaryFixture = readJson(resolve(ROOT, scenario.summaryPath));
+  const catalog = readJson(resolve(ROOT, scenario.catalogPath));
+  const budget = readJson(resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"));
+  const priceList = readJson(resolve(ROOT, "tests/fixtures/allocator/price-list-v1-basic.json"));
+
+  const [{ normalizeSummary }, { mapSummaryToPool }, { buildBuildSpecFromSummary }, { orchestrateBuild }] = await Promise.all([
+    import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js"),
+    import("../../packages/runtime/src/personas/director/pool-mapper.js"),
+    import("../../packages/runtime/src/personas/director/buildspec-assembler.js"),
+    import("../../packages/runtime/src/build/orchestrate-build.js"),
+  ]);
+
+  const normalized = normalizeSummary(summaryFixture);
+  assert.equal(normalized.ok, true);
+  const mapped = mapSummaryToPool({ summary: normalized.value, catalog });
+  assert.equal(mapped.ok, true);
+
+  const specResult = buildBuildSpecFromSummary({
+    summary: normalized.value,
+    catalog,
+    selections: mapped.selections,
+    runId: "artifact_meta_cost_context",
+    createdAt: "2026-06-11T00:00:00.000Z",
+    source: "test",
+    budgetRef: { id: budget.meta.id, schema: budget.schema, schemaVersion: budget.schemaVersion },
+    priceListRef: { id: priceList.meta.id, schema: priceList.schema, schemaVersion: priceList.schemaVersion },
+    budgetArtifact: budget,
+    priceListArtifact: priceList,
+  });
+  assert.equal(specResult.ok, true);
+
+  return orchestrateBuild({ spec: specResult.spec, producedBy: "runtime-build" });
 }
 
-/**
- * Validates the optional ArtifactCostContextV1 shape on ArtifactMeta.cost.
- * All numeric token fields must be non-negative when present.
- * lineItemIds must be an array of strings when present.
- * Refs must conform to ArtifactRef shape when present.
- */
-function validateArtifactCostContext(cost) {
-  assert.ok(isObject(cost), "cost: expected object");
+test("orchestrateBuild attaches real cost context refs to emitted artifact metadata", async () => {
+  const buildResult = await buildWithBudget();
+  const cost = buildResult.simConfig.meta.cost;
 
-  if (cost.selfTokens !== undefined) {
-    assert.ok(
-      Number.isFinite(cost.selfTokens) && cost.selfTokens >= 0,
-      "cost.selfTokens: expected non-negative number",
-    );
-  }
-  if (cost.runTotalTokens !== undefined) {
-    assert.ok(
-      Number.isFinite(cost.runTotalTokens) && cost.runTotalTokens >= 0,
-      "cost.runTotalTokens: expected non-negative number",
-    );
-  }
-  if (cost.budgetTokens !== undefined) {
-    assert.ok(
-      Number.isInteger(cost.budgetTokens) && cost.budgetTokens >= 0,
-      "cost.budgetTokens: expected non-negative integer",
-    );
-  }
-  if (cost.category !== undefined) {
-    assert.ok(
-      typeof cost.category === "string" && cost.category.length > 0,
-      "cost.category: expected non-empty string",
-    );
-  }
-  if (cost.receiptRef !== undefined) {
-    validateArtifactRef(cost.receiptRef, "cost.receiptRef");
-  }
-  if (cost.proposalRef !== undefined) {
-    validateArtifactRef(cost.proposalRef, "cost.proposalRef");
-  }
-  if (cost.lineItemIds !== undefined) {
-    assert.ok(Array.isArray(cost.lineItemIds), "cost.lineItemIds: expected array");
-    cost.lineItemIds.forEach((id, i) => {
-      assert.ok(typeof id === "string", `cost.lineItemIds[${i}]: expected string`);
-    });
-  }
-}
-
-function validateArtifactMetaWithCost(meta) {
-  assert.ok(isObject(meta), "meta: expected object");
-  assert.ok(typeof meta.id === "string", "meta.id: expected string");
-  assert.ok(typeof meta.runId === "string", "meta.runId: expected string");
-  assert.ok(typeof meta.createdAt === "string", "meta.createdAt: expected string");
-  assert.ok(typeof meta.producedBy === "string", "meta.producedBy: expected string");
-  if (meta.cost !== undefined) {
-    validateArtifactCostContext(meta.cost);
-  }
-}
-
-test("ArtifactMeta accepts optional cost context with all fields", () => {
-  const fixture = readFixture("artifact-cost-context-v1-full.json");
-  validateArtifactMetaWithCost(fixture.meta);
-  assert.ok(isObject(fixture.meta.cost));
-  assert.ok(Number.isFinite(fixture.meta.cost.selfTokens));
-  assert.ok(Number.isFinite(fixture.meta.cost.runTotalTokens));
-  assert.ok(Number.isInteger(fixture.meta.cost.budgetTokens));
-  assert.ok(typeof fixture.meta.cost.category === "string");
-  assert.ok(isObject(fixture.meta.cost.receiptRef));
-  assert.ok(isObject(fixture.meta.cost.proposalRef));
-  assert.ok(Array.isArray(fixture.meta.cost.lineItemIds));
+  assert.equal(cost.runTotalTokens, buildResult.budgetReceipt.totalCost);
+  assert.equal(cost.budgetTokens, buildResult.budgetReceipt.totalCost + buildResult.budgetReceipt.remaining);
+  assert.deepEqual(cost.receiptRef, {
+    id: buildResult.budgetReceipt.meta.id,
+    schema: buildResult.budgetReceipt.schema,
+    schemaVersion: buildResult.budgetReceipt.schemaVersion,
+  });
+  assert.deepEqual(cost.proposalRef, {
+    id: buildResult.spendProposal.meta.id,
+    schema: buildResult.spendProposal.schema,
+    schemaVersion: buildResult.spendProposal.schemaVersion,
+  });
 });
 
-test("ArtifactMeta accepts meta without cost field (cost is optional)", () => {
-  const fixture = readFixture("artifact-cost-context-v1-no-cost.json");
-  validateArtifactMetaWithCost(fixture.meta);
-  assert.equal(fixture.meta.cost, undefined);
-});
+test("orchestrateBuild applies the same real cost context to the canonical build artifacts", async () => {
+  const buildResult = await buildWithBudget();
+  const cost = buildResult.simConfig.meta.cost;
 
-test("ArtifactMeta rejects invalid cost context shapes", () => {
-  const fixture = readFixture("invalid/artifact-meta-v1-invalid-cost.json");
-  assert.throws(() => validateArtifactMetaWithCost(fixture.meta));
+  [
+    buildResult.spec,
+    buildResult.intent,
+    buildResult.plan,
+    buildResult.simConfig,
+    buildResult.initialState,
+    buildResult.resourceBundle,
+  ].forEach((artifact) => {
+    assert.ok(artifact?.meta?.cost, `${artifact?.schema || "artifact"} should include meta.cost`);
+    assert.deepEqual(artifact.meta.cost, cost);
+  });
 });
-
-test("ArtifactCostContext accepts partial fields (all fields optional except object itself)", () => {
-  const partialCost = { category: "rooms", budgetTokens: 100 };
-  assert.doesNotThrow(() => validateArtifactCostContext(partialCost));
-});
-
-test("ArtifactCostContext rejects negative token values", () => {
-  assert.throws(() => validateArtifactCostContext({ selfTokens: -1 }));
-  assert.throws(() => validateArtifactCostContext({ runTotalTokens: -5 }));
-  assert.throws(() => validateArtifactCostContext({ budgetTokens: -10 }));
-});
-
-test("ArtifactCostContext rejects non-integer budgetTokens", () => {
-  assert.throws(() => validateArtifactCostContext({ budgetTokens: 1.5 }));
-});
-
-test("ArtifactCostContext rejects lineItemIds with non-string entries", () => {
-  assert.throws(() => validateArtifactCostContext({ lineItemIds: ["valid", 42] }));
-});
-
-// ## TODO: Test Permutations
-// - cost.receiptRef with missing id field
-// - cost.proposalRef with wrong schemaVersion type
-// - cost with unknown extra fields (should pass — open world)
-// - meta.cost = null (should fail, null is not an object)
-// - meta.cost.category = "" (empty string, should fail)
-// - runTotalTokens < selfTokens (no constraint enforced at contract level — confirm behavior)
