@@ -304,7 +304,7 @@ test("mixed-object create bundle survives the CLI -> Diagnostics -> injected Pre
     "--floor-tile",
     "count=18",
     "--trap",
-    "x=2;y=2;affinity=fire;expression=push;stacks=2",
+    "x=5;y=3;affinity=fire;expression=push;stacks=2",
     "--delver",
     "id=ember_delver;count=1;affinity=fire;motivation=attacking;setup-mode=user",
     "--warden",

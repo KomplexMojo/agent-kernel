@@ -280,6 +280,7 @@ function reconcileConnectedWalkableTiles({
   target,
   isEligible,
   anchor,
+  preserve = [],
 } = {}) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
@@ -349,9 +350,26 @@ function reconcileConnectedWalkableTiles({
     return true;
   };
 
+  // Pre-select preserved positions so they count toward the target budget.
+  // Force them walkable and seed the BFS queue so their neighbors are explored.
+  let preSelectedCount = 0;
+  for (const pos of preserve) {
+    if (!pos || !isEligible(pos.x, pos.y)) continue;
+    mask[pos.y][pos.x] = true;
+    const pi = toIndex(pos.x, pos.y);
+    if (!selected[pi]) {
+      selected[pi] = 1;
+      preSelectedCount += 1;
+    }
+    if (!queuedWalkable[pi]) {
+      queuedWalkable[pi] = 1;
+      walkableQueue.push(pi);
+    }
+  }
+
   tryQueueWalkable(anchorCell.x, anchorCell.y);
   let walkableHead = 0;
-  let selectedCount = 0;
+  let selectedCount = preSelectedCount;
 
   while (walkableHead < walkableQueue.length && selectedCount < target) {
     const index = walkableQueue[walkableHead];
@@ -397,6 +415,7 @@ function reconcileConnectedWalkableTiles({
       mask[y][x] = selected[index] === 1;
     }
   }
+
 }
 
 function reconcileWalkableTiles({
@@ -438,6 +457,7 @@ function reconcileWalkableTiles({
       target,
       isEligible,
       anchor,
+      preserve: Array.isArray(preserve) ? preserve : [],
     });
     return;
   }
@@ -1846,16 +1866,22 @@ export function generateGridLayout(levelGen) {
   const currentWalkableTiles = countWalkableMask(mask);
 
   if (walkableTilesTarget && currentWalkableTiles !== walkableTilesTarget) {
+    const nonBlockingTrapPositions = traps
+      .filter((t) => !t.blocking)
+      .map((t) => ({ x: t.x, y: t.y }));
     reconcileWalkableTiles({
       mask,
       targetWalkableTiles: walkableTilesTarget,
       blockedIndex: blockingTrapIndex,
       requireConnected: requiresConnectedWalkable,
       anchor: spawn,
-      preserve: spawn ? [spawn] : [],
+      preserve: spawn ? [spawn, ...nonBlockingTrapPositions] : nonBlockingTrapPositions,
     });
   }
-  if (requiresConnectedWalkable && spawn && mask[spawn.y]?.[spawn.x]) {
+  // When walkableTilesTarget is set, reconcileConnectedWalkableTiles already
+  // built a connected component from spawn — a second connectivity pass would
+  // add cells and break the tile-count contract.
+  if (requiresConnectedWalkable && spawn && mask[spawn.y]?.[spawn.x] && !walkableTilesTarget) {
     ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingTrapIndex);
   }
 
@@ -1927,6 +1953,24 @@ export function generateGridLayoutFromInput(input) {
     return normalized;
   }
   const layout = generateGridLayout(normalized.value);
+
+  if (Array.isArray(layout.traps) && layout.traps.length > 0 && Array.isArray(layout.tiles)) {
+    const wallTrapErrors = [];
+    layout.traps.forEach((trap, idx) => {
+      const row = layout.tiles[trap.y];
+      if (typeof row === "string" && row[trap.x] === "#") {
+        wallTrapErrors.push({
+          field: `traps[${idx}].position`,
+          code: "trap_on_wall",
+          detail: { x: trap.x, y: trap.y, affinity: trap.affinity?.kind },
+        });
+      }
+    });
+    if (wallTrapErrors.length > 0) {
+      return { ok: false, errors: wallTrapErrors, warnings: normalized.warnings, value: null };
+    }
+  }
+
   const walkableTilesTarget = resolveWalkableTilesTarget(normalized.value);
   if (walkableTilesTarget !== null) {
     const walkableTiles = countLayoutWalkableTiles(layout);
