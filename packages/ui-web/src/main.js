@@ -6,6 +6,7 @@ import { wireDesignView } from "./views/design-view.js";
 import { wirePreviewView, validatePreviewLaunchBundle } from "./views/preview-view.js";
 import { wireDiagnosticsView } from "./views/diagnostics-view.js";
 import { wireGameplayView } from "./views/gameplay-view.js";
+import { createPhaserFrameView } from "./views/phaser-frame-view.js";
 import { buildTileAffinityVisualsFromBundle } from "./views/affinity-field-bridge.js";
 import { resolveIcon } from "./icon-resolver.js";
 import { shouldHydrateDesignFromBundleSource } from "./build-spec-ui.js";
@@ -344,6 +345,20 @@ gameplayView = wireGameplayView({
   },
 });
 globalThis.__ak_gameplayView = gameplayView;
+
+// M4 — Unified Phaser game frame shell. Mounts one frame hosting the card builder
+// and gameplay surfaces. The frame delegates gameplay-bundle loading to the existing
+// __ak_loadGameplayBundle path; the legacy DOM panels remain as the compatibility
+// renderer during the transition.
+let phaserFrame = null;
+if (document.querySelector("#phaser-frame-root")) {
+  phaserFrame = createPhaserFrameView({
+    root: document,
+    onLoadGameplayBundle: (bundle) => globalThis.__ak_loadGameplayBundle(bundle),
+  });
+  phaserFrame.mount();
+  globalThis.__ak_phaserFrame = phaserFrame;
+}
 
 // M8 — Sandbox bridge client
 const AK_BRIDGE_PORT = Number(globalThis.__ak_sandboxBridgePort ?? 38487);

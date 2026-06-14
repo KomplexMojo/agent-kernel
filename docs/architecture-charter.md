@@ -65,3 +65,11 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - `packages/ui-web/src/scenario-loader.js` compiles a scenario into a gameplay bundle by running the runtime to completion once, then the UI replays the recorded frames.
 - `globalThis.__ak_loadScenario(scenario, options)` compiles and forwards to `globalThis.__ak_loadGameplayBundle(bundle, options)`.
 - `packages/ui-web/src/views/gameplay-view.js` implements Step and `runToEnd()` by moving the current frame cursor over `tickFrames`; it does not call runtime step during playback.
+
+## Phaser UI Layer
+
+- `packages/ui-web/src/card-builder-controller.js` is a headless controller around the existing card-builder helpers. It has no DOM dependency; UI surfaces orchestrate view state only, while simulation rules and artifact contracts remain outside `ui-web`.
+- `packages/ui-web/src/views/phaser-frame-view.js` is the unified Phaser game frame. It hosts the Card Builder surface and the Gameplay surface, including the existing `createGameplayPhaserRenderer` path.
+- `ui-web` renders and emits UI intents only. The allowed UI intent set is: drag chip, drop chip, select card, move card between groups, load bundle, and select tile/entity.
+- `packages/ui-web/src/views/card-builder-phaser-renderer.js` renders card-builder interactions for the Phaser surface without owning card semantics or artifact schemas.
+- `packages/ui-web/src/phaser-surface-ingestion.js` is a UI-side artifact ingestion boundary. It routes existing versioned artifacts to the correct Phaser surface and introduces no new MCP tool schemas.

@@ -1829,7 +1829,7 @@ function replaceChildren(el, children) {
   }
 }
 
-function buildPropertyCatalog() {
+export function buildPropertyCatalog() {
   const affinityOptionMap = new Map(
     AFFINITY_KINDS.map((value) => [value, {
       value,

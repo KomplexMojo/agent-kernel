@@ -2,6 +2,11 @@
 flowchart LR
   subgraph Interfaces["Interfaces"]
     UIWeb["ui-web (browser)"]
+    PhaserFrame["phaser-frame-view"]
+    CardBuilderRenderer["card-builder-phaser-renderer"]
+    CardBuilderController["card-builder-controller"]
+    GameplaySurface["gameplay surface\ncreateGameplayPhaserRenderer"]
+    PhaserIngestion["phaser-surface-ingestion"]
     CLI["CLI (ak.mjs)"]
   end
 
@@ -42,6 +47,12 @@ flowchart LR
 
   UIWeb --> RuntimePorts
   UIWeb --> AWeb
+  UIWeb --> PhaserIngestion
+  PhaserIngestion --> PhaserFrame
+  PhaserFrame --> CardBuilderRenderer
+  CardBuilderRenderer --> CardBuilderController
+  PhaserFrame --> GameplaySurface
+  GameplaySurface --> RuntimePorts
   CLI --> ACli
   AWeb --> CommandKernel
   ACli --> CommandKernel
