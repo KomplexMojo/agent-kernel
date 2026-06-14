@@ -3,7 +3,7 @@ const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
-const SOURCE_BACKED_SCENARIO_CATEGORIES = ["rooms", "delvers", "wardens"];
+const SOURCE_BACKED_SCENARIO_CATEGORIES = ["rooms", "delvers", "wardens", "resources"];
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));

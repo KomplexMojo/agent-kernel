@@ -10,6 +10,9 @@ function createFakePhaser(records = {}) {
   records.camera = records.camera || {};
   records.resizes = records.resizes || [];
   records.inputHandlers = records.inputHandlers || {};
+  records.createdTextures = records.createdTextures || [];
+  records.canvasPuts = records.canvasPuts || [];
+  records.textureRefreshes = records.textureRefreshes || [];
   records.destroyed = false;
 
   function createNode(type, props = {}) {
@@ -37,6 +40,8 @@ function createFakePhaser(records = {}) {
     constructor(config) {
       records.config = config;
       this.canvas = { style: {} };
+      const textureStore = records.textureStore || new Map();
+      records.textureStore = textureStore;
       this.scale = {
         resize(w, h) {
           records.resizes.push({ w, h });
@@ -48,8 +53,48 @@ function createFakePhaser(records = {}) {
       };
       const scene = {
         textures: {
-          exists() { return false; },
-          addImage() {},
+          exists(key) { return textureStore.has(key); },
+          get(key) { return textureStore.get(key); },
+          createCanvas(key, width, height) {
+            const canvas = {
+              width,
+              height,
+              getContext(type) {
+                if (type !== "2d") return null;
+                return {
+                  createImageData(w, h) {
+                    return { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
+                  },
+                  putImageData(imageData, x, y) {
+                    records.canvasPuts.push({
+                      key,
+                      x,
+                      y,
+                      width: imageData.width,
+                      height: imageData.height,
+                      data: new Uint8ClampedArray(imageData.data),
+                    });
+                  },
+                };
+              },
+            };
+            const texture = {
+              key,
+              width,
+              height,
+              getSourceImage() { return canvas; },
+              refresh() { records.textureRefreshes.push(key); },
+            };
+            textureStore.set(key, texture);
+            records.createdTextures.push({ key, width, height });
+            return texture;
+          },
+          addImage(key, image) {
+            textureStore.set(key, { key, image, getSourceImage() { return image; } });
+          },
+          addBase64(key, dataUri) {
+            textureStore.set(key, { key, dataUri });
+          },
         },
         add: {
           container(x, y) {
@@ -265,6 +310,93 @@ test("gameplay phaser renderer renders archetype wardens and delvers as distinct
   // Each actor must highlight independently — warden and delver at different x-tiles.
   assert.equal(renderer.highlightActor({ x: 1, y: 1 }), true, "delver at (1,1) must be highlightable");
   assert.equal(renderer.highlightActor({ x: 2, y: 1 }), true, "warden at (2,1) must be highlightable");
+  renderer.dispose();
+});
+
+test("gameplay phaser renderer composes actor medallion textures for v2 resource bundles", async () => {
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 3,
+    boardHeight: 3,
+    tiles: ["...", "...", "..."],
+    observation: {
+      actors: [
+        {
+          id: "delver-1",
+          type: "delver",
+          position: { x: 1, y: 1 },
+          affinities: [{ kind: "fire", expression: "push" }],
+          vitals: { health: { current: 4, max: 10 } },
+          motivation: "attacking",
+        },
+      ],
+      hazards: [],
+      resources: [],
+    },
+    resourceBundle: {
+      schema: "agent-kernel/ResourceBundleArtifact",
+      schemaVersion: 2,
+      bundleVersion: 2,
+      tileWidth: 64,
+      tileHeight: 64,
+      assets: [],
+      mappings: {},
+    },
+  });
+
+  const medallionImages = records.images.filter((img) => String(img.textureKey).startsWith("ak-medallion:64:delver-1"));
+  assert.equal(medallionImages.length, 1, "actor should render from a generated medallion texture");
+  assert.equal(records.createdTextures.length, 1, "one canvas texture should be created for the composed actor");
+  assert.deepEqual(
+    { width: records.canvasPuts[0]?.width, height: records.canvasPuts[0]?.height },
+    { width: 64, height: 64 },
+  );
+  assert.equal(records.canvasPuts[0].data.length, 64 * 64 * 4);
+  assert.equal(container.stage.dataset.gameplayActorMedallions, "runtime");
+  renderer.dispose();
+});
+
+test("gameplay phaser renderer keeps v1 static actor asset rendering unchanged", async () => {
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 2,
+    boardHeight: 2,
+    tiles: ["..", ".."],
+    observation: {
+      actors: [{ id: "delver-1", type: "delver", position: { x: 1, y: 1 } }],
+      hazards: [],
+      resources: [],
+    },
+    resourceBundle: {
+      schema: "agent-kernel/ResourceBundleArtifact",
+      schemaVersion: 1,
+      bundleVersion: 1,
+      tileWidth: 32,
+      tileHeight: 32,
+      assets: [{ id: "actor.delver", dataUri: "data:image/png;base64,AAAA" }],
+      mappings: { actors: { delver: "actor.delver" }, tiles: {} },
+    },
+  });
+
+  assert.ok(
+    records.images.some((img) => img.textureKey === "ak-bundle:actor.delver"),
+    "v1 actor rendering should continue to use the static bundle texture",
+  );
+  assert.equal(records.createdTextures.length, 0, "v1 actor rendering must not create medallion canvas textures");
   renderer.dispose();
 });
 
@@ -1389,10 +1521,10 @@ test("drawBoard applies tint to floor tiles when tileVisuals are provided", asyn
 
   // Floor tiles at affected positions must have their tint set to the affinity color.
   // Tile at (2,2) is the origin with color 0xff4400.
-  const tintedRects = records.rectangles.filter((r) => r.tint === 0xff4400);
+  const tintedTiles = [...records.rectangles, ...records.images].filter((node) => node.tint === 0xff4400);
   assert.ok(
-    tintedRects.length > 0,
-    "at least one floor tile rectangle must have the affinity tint applied",
+    tintedTiles.length > 0,
+    "at least one floor tile node must have the affinity tint applied",
   );
   renderer.dispose();
 });
@@ -1407,7 +1539,7 @@ test("drawBoard applies alpha to floor tiles based on tileVisuals intensity", as
   await renderer.renderRun(AFFINITY_BOARD_STATE);
 
   // Check that at least one tile has a reduced alpha matching a non-origin intensity.
-  const reducedAlpha = records.rectangles.filter(
+  const reducedAlpha = [...records.rectangles, ...records.images].filter(
     (r) => typeof r.alpha === "number" && r.alpha > 0 && r.alpha < 1,
   );
   assert.ok(
@@ -1469,6 +1601,8 @@ test("drawBoard does not apply tint to tiles without affinity visuals", async ()
 - renderRun with null observation renders tiles only without throwing
 - renderRun with empty hazards and resources arrays produces no extra shapes
 - renderRun with resourceBundle containing asset mappings passes texture keys to image nodes
+- renderRun with a v2 ResourceBundle and two actors sharing an id refreshes the same medallion texture safely
+- renderRun with a v2 ResourceBundle and no actor id falls back to a deterministic state-based medallion key
 - renderRun with resourceBundle absent falls back to shape/text primitives for all element types
 - renderFrame advances to a new tick and re-renders actor positions
 - renderFrame with no actors in the frame observation does not throw

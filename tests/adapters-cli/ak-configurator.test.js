@@ -113,8 +113,8 @@ test("cli configurator emits a budget receipt from budget inputs", () => {
   assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
   assert.equal(receipt.schemaVersion, 1);
   assert.equal(receipt.status, "partial");
-  assert.equal(receipt.totalCost, 17);
-  assert.equal(receipt.remaining, 983);
+  assert.equal(receipt.totalCost, 20); // actor health(16) + actor mana(1) + trap mana(3)
+  assert.equal(receipt.remaining, 980);
   assert.equal(receipt.meta.runId, "run_configurator_budget");
   assert.deepEqual(simConfig.budgetReceiptRef, {
     id: receipt.meta.id,
@@ -138,7 +138,7 @@ test("cli configurator emits a budget receipt from budget inputs", () => {
   const manaLine = receipt.lineItems.find((item) => item.id === "vital_mana_point");
   assert.ok(manaLine);
   assert.equal(manaLine.unitCost, 1);
-  assert.equal(manaLine.totalCost, 1);
+  assert.equal(manaLine.totalCost, 4); // actor mana(1) + trap mana.max(3)
   assert.equal(manaLine.status, "approved");
 });
 

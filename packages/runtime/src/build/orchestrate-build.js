@@ -6,6 +6,7 @@ import { buildAmbientAffinityPressure } from "../personas/configurator/affinity-
 import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../personas/configurator/affinity-rules.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
+import { maximizeActorBudget } from "../personas/configurator/budget-maximizer.js";
 import { buildDefaultPriceList } from "../personas/allocator/default-price-list.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
@@ -1407,12 +1408,38 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         ? buildDefaultPriceList({ meta: createBuildMeta(spec, producedBy, "default_price_list") })
         : null);
 
+    const configuratorResources = Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [];
+
+    if (configuratorInputs?.maximizeBudget && !budgetReceipt && mapped.budget?.budget && resolvedPriceList) {
+      const probeResult = evaluateConfiguratorSpend({
+        budget: mapped.budget.budget,
+        priceList: resolvedPriceList,
+        layout,
+        actors: actorsInput.actors,
+        resources: configuratorResources,
+        proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal_probe"),
+        receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt_probe"),
+      });
+      const probeRemaining = probeResult.receipt?.remaining ?? 0;
+      if (probeRemaining > 0) {
+        actorsInput.actors = maximizeActorBudget({
+          actors: actorsInput.actors,
+          remaining: probeRemaining,
+          priceList: resolvedPriceList,
+        });
+        if (spec?.configurator?.inputs) {
+          spec.configurator.inputs.actors = actorsInput.actors;
+        }
+      }
+    }
+
     if (!budgetReceipt && mapped.budget?.budget && resolvedPriceList) {
       const spendResult = evaluateConfiguratorSpend({
         budget: mapped.budget.budget,
         priceList: resolvedPriceList,
         layout,
         actors: actorsInput.actors,
+        resources: configuratorResources,
         motivationRules,
         affinityRules,
         proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal"),
@@ -1429,6 +1456,10 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       // Layout spend (rooms, traps, tiles)
       const roomsSpend = budgetReceipt.lineItems
         .filter((item) => item.kind === "layout" || item.kind === "trap")
+        .reduce((sum, item) => sum + item.totalCost, 0);
+
+      const resourcesSpend = budgetReceipt.lineItems
+        .filter((item) => item.kind === "resource")
         .reduce((sum, item) => sum + item.totalCost, 0);
 
       // Actor spend - partition by delver/warden lists
@@ -1462,6 +1493,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         roomsSpend,
         delverSpend,
         wardenSpend,
+        resourcesSpend,
         budgetTokens: mapped.budget.budget?.budget?.tokens,
       });
     }

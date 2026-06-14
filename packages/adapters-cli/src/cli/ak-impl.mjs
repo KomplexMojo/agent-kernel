@@ -5117,15 +5117,18 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   }
   built.spec.configurator.inputs.levelGen = levelGen;
 
+  if (resolvedBudgetTokens !== undefined) {
+    built.spec.configurator.inputs.maximizeBudget = true;
+  }
+
   const resources = parsedResources.map((entry) => entry.value);
   if (resources.length > 0) {
-    built.spec.configurator.inputs.resources = resources.map((entry) => ({
-      id: entry.id,
-      tier: entry.tier,
-      stat: entry.stat,
-      delta: entry.delta,
-      dropRate: entry.dropRate,
-    }));
+    built.spec.configurator.inputs.resources = resources.map((entry) => {
+      if (entry._schemaVersion === 3) {
+        return { id: entry.id, permanenceMode: entry.permanenceMode, vitals: entry.vitals };
+      }
+      return { id: entry.id, tier: entry.tier, stat: entry.stat, delta: entry.delta, dropRate: entry.dropRate };
+    });
   }
 
   const sharedConfig = {

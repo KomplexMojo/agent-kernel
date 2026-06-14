@@ -43,9 +43,10 @@ export function buildScenarioSpendReport({
   roomsSpend = 0,
   delverSpend = 0,
   wardenSpend = 0,
+  resourcesSpend = 0,
   budgetTokens = REFERENCE_BUDGET_TOKENS,
 } = {}) {
-  const totalSpend = roomsSpend + delverSpend + wardenSpend;
+  const totalSpend = roomsSpend + delverSpend + wardenSpend + resourcesSpend;
   const budget = Number.isInteger(budgetTokens) && budgetTokens > 0
     ? budgetTokens
     : REFERENCE_BUDGET_TOKENS;
@@ -80,6 +81,13 @@ export function buildScenarioSpendReport({
         target: REFERENCE_TARGETS.wardens,
         usagePercent: REFERENCE_TARGETS.wardens > 0
           ? Math.round((wardenSpend / REFERENCE_TARGETS.wardens) * 100)
+          : 0,
+      },
+      resources: {
+        actual: resourcesSpend,
+        target: REFERENCE_TARGETS.resources,
+        usagePercent: REFERENCE_TARGETS.resources > 0
+          ? Math.round((resourcesSpend / REFERENCE_TARGETS.resources) * 100)
           : 0,
       },
     },
