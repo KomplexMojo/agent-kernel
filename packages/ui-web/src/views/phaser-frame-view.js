@@ -8,6 +8,7 @@ export function createPhaserFrameView({
   root = typeof document !== "undefined" ? document : null,
   llmConfig = {},
   onLoadGameplayBundle,
+  onInventorySelect,
   createCardRenderer = createCardBuilderPhaserRenderer,
   loadPhaser,
 } = {}) {
@@ -24,6 +25,12 @@ export function createPhaserFrameView({
     emitIntent: (intent) =>
       cardRenderer ? cardRenderer.emitIntent(intent) : cardBuilderController.applyPropertyDrop(intent?.cardId, intent?.property),
     render: () => (cardRenderer ? cardRenderer.render() : Promise.resolve({ ok: false, reason: "renderer_unmounted" })),
+    getChipPositions: () => cardRenderer?.getChipPositions() ?? [],
+    getCardPositions: () => cardRenderer?.getCardPositions() ?? [],
+    getEditorChips: () => cardRenderer?.getEditorChips() ?? [],
+    getBudgetInfo: () => cardRenderer?.getBudgetInfo() ?? null,
+    getShelfBudget: () => cardRenderer?.getShelfBudget() ?? null,
+    getHoveredChip: () => cardRenderer?.getHoveredChip() ?? null,
   };
   const gameplaySurface = {
     getHost: () => gameplayHost,
@@ -56,6 +63,7 @@ export function createPhaserFrameView({
     mountEl.appendChild(gameplayHost);
     cardRenderer = createCardRenderer({
       controller: cardBuilderController,
+      ...(onInventorySelect ? { onInventorySelect } : {}),
       ...(loadPhaser ? { loadPhaser } : {}),
     });
     cardRenderer.mount(cardBuilderHost);
@@ -88,6 +96,9 @@ export function createPhaserFrameView({
     mount,
     dispose,
     loadGameplayBundle,
+    setResourceBundle: (bundle) => cardRenderer?.setResourceBundle?.(bundle),
+    setActiveTab: (tabId) => cardRenderer?.setActiveTab?.(tabId),
+    setRenderMode: (mode) => cardRenderer?.setRenderMode?.(mode),
     ingest: (payload) => ingestion.ingest(payload),
     getCardBuilderSurface: () => cardBuilderSurface,
     getGameplaySurface: () => gameplaySurface,

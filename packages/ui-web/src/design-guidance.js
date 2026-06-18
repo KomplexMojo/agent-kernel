@@ -31,6 +31,7 @@ import {
   GLOBAL_ISSUED_CARD_IDS,
   RESOURCE_PERMANENT_MULTIPLIER,
   RESOURCE_VITAL_KEYS,
+  ROOM_SHAPE_ORDER,
   ROOM_SIZE_ORDER,
   adjustAffinityStack,
   adjustCardCount,
@@ -48,6 +49,7 @@ import {
   calculateCardValue,
   cardPrefixForType,
   createDesignCard,
+  cycleRoomCardShape,
   cycleRoomCardSize,
   dropPropertyOnCard,
   findMotivationConflict,
@@ -70,6 +72,7 @@ import {
 export {
   CARD_PROPERTY_GROUP_ORDER,
   CARD_TYPE_ORDER,
+  ROOM_SHAPE_ORDER,
   ROOM_SIZE_ORDER,
   adjustAffinityStack,
   adjustCardCount,
@@ -79,6 +82,7 @@ export {
   buildSummaryFromCardSet,
   calculateCardValue,
   createDesignCard,
+  cycleRoomCardShape,
   cycleRoomCardSize,
   dropPropertyOnCard,
   groupCardsByType,
@@ -2273,6 +2277,13 @@ export function wireDesignGuidance({
     return true;
   }
 
+  function cycleRoomShape(cardId) {
+    const updated = updateCard(cardId, (card) => cycleRoomCardShape(card));
+    if (!updated) return false;
+    recompute();
+    return true;
+  }
+
   function applyPropertyDrop(cardId, property) {
     const updated = updateCard(cardId, (card) => {
       const result = dropPropertyOnCard(card, property);
@@ -2600,6 +2611,7 @@ export function wireDesignGuidance({
     cycleAffinityExpression: cycleCardAffinityExpression,
     flipCard,
     cycleRoomSize,
+    cycleRoomShape,
     setBudget,
     setBudgetSplit,
     autoGenerateCards,

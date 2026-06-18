@@ -768,6 +768,30 @@
         background: #050506;
       }
 
+      .phaser-frame-root {
+        display: block;
+        width: 100%;
+        min-height: clamp(520px, 68vh, 820px);
+        background: #10131a;
+        margin-bottom: 16px;
+      }
+
+      .phaser-frame-root [data-card-builder-surface] {
+        width: 100%;
+        height: 100%;
+      }
+
+      .card-builder-phaser-stage,
+      .card-builder-phaser-stage canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .card-builder-phaser-stage {
+        min-height: clamp(520px, 68vh, 820px);
+      }
+
       .gameplay-phaser-stage,
       .gameplay-phaser-stage canvas {
         display: block;

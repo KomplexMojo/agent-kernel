@@ -11,6 +11,7 @@ import { buildTileAffinityVisualsFromBundle } from "./views/affinity-field-bridg
 import { resolveIcon } from "./icon-resolver.js";
 import { shouldHydrateDesignFromBundleSource } from "./build-spec-ui.js";
 import { connectSandboxBridge } from "./sandbox-bridge-client.js";
+import { createDefaultResourceBundleArtifact } from "../../runtime/src/render/resource-bundle.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
@@ -40,6 +41,7 @@ let previewRefreshPromise = null;
 let previewView = null;
 let actorInspector = null;
 let gameplayView = null;
+let phaserFrame = null;
 let gameplayRunPending = false;
 let currentRunId = "";
 // Sequence counter for status rail updates — only the highest sequence number wins,
@@ -159,6 +161,8 @@ tabs = wireTabs({
     if (workspace) {
       workspace.dataset.activeTab = tabId;
     }
+    phaserFrame?.setActiveTab?.(tabId);
+    phaserFrame?.setRenderMode?.(tabId === "gameplay" ? "shelf" : "design");
     updateInspectorSurface(tabId);
     // Issue #2: clear the stale Gameplay run ID when returning to Design so that
     // subsequent design-ledger status updates are not labelled under the old run.
@@ -255,6 +259,7 @@ async function syncBundleViews({ bundle, source }) {
   populateUIIcons(resourceBundle);
   actorInspector?.setResourceBundle?.(resourceBundle);
   designView?.setResourceBundle?.(resourceBundle);
+  phaserFrame?.setResourceBundle?.(resourceBundle);
 }
 
 function summarizePreviewError(result) {
@@ -265,22 +270,50 @@ function summarizePreviewError(result) {
 }
 
 async function launchGameplayRun({ autoGenerate = false } = {}) {
-  if (!designView || !diagnosticsView) return;
+  if (!diagnosticsView) return;
+
+  // In index_c.html the Phaser card builder is the live design state; designView reads
+  // from DOM elements that don't exist there, so designView.getCards() is always empty.
+  // Read cards and publish spec from the Phaser controller when it's present.
+  const phaserController = phaserFrame?.getCardBuilderSurface?.()?.getController?.();
+  const phaserCards = phaserController?.getCards?.() ?? [];
+  const hasPhaserCards = phaserCards.length > 0;
 
   if (autoGenerate) {
-    const generated = designView.autoGenerateCards?.();
-    const hasCards = (designView.getCards?.() || []).length > 0;
-    if (generated?.ok === false && !hasCards) {
-      return generated;
+    if (hasPhaserCards) {
+      const hasRooms = phaserCards.some((c) => c.type === "room");
+      if (!hasRooms) {
+        gameplayView?.clear?.(
+          "Your design needs at least one Room card. Add a Room in the Design screen before launching Gameplay."
+        );
+        return { ok: false, reason: "no_room" };
+      }
+    } else if (designView) {
+      const generated = designView.autoGenerateCards?.();
+      if (generated?.ok === false) {
+        gameplayView?.clear?.("Add cards in the Design screen before launching Gameplay.");
+        return generated;
+      }
     }
   }
 
-  const published = await designView.publishPreviewSpec({
-    force: true,
-    resetBuildOutput: false,
-    source: "design-preview",
-  });
-  if (!published?.ok) return;
+  if (hasPhaserCards && phaserController) {
+    const built = await phaserController.publishSpecText({ source: "design-preview" });
+    if (!built?.ok) {
+      gameplayView?.clear?.("Could not build a run from your design. Check your cards.");
+      return built;
+    }
+    diagnosticsView.setBuildSpecText(built.specText, { source: "design-preview", resetOutput: false });
+  } else if (designView) {
+    const published = await designView.publishPreviewSpec({
+      force: true,
+      resetBuildOutput: false,
+      source: "design-preview",
+    });
+    if (!published?.ok) return;
+  } else {
+    return { ok: false, reason: "no_spec_source" };
+  }
 
   gameplayRunPending = true;
   const buildResult = await diagnosticsView.runBuild();
@@ -350,13 +383,26 @@ globalThis.__ak_gameplayView = gameplayView;
 // and gameplay surfaces. The frame delegates gameplay-bundle loading to the existing
 // __ak_loadGameplayBundle path; the legacy DOM panels remain as the compatibility
 // renderer during the transition.
-let phaserFrame = null;
+const _startupResourceBundle = createDefaultResourceBundleArtifact({
+  createMeta: ({ producedBy, runId }) => ({
+    id: `${producedBy}-${runId}`,
+    runId,
+    createdAt: new Date().toISOString(),
+    producedBy,
+  }),
+  runId: "startup-default",
+  producedBy: "ui-startup",
+  emitVisualAssets: true,
+});
+
 if (document.querySelector("#phaser-frame-root")) {
   phaserFrame = createPhaserFrameView({
     root: document,
     onLoadGameplayBundle: (bundle) => globalThis.__ak_loadGameplayBundle(bundle),
+    onInventorySelect: (card) => gameplayView?.selectEntityById?.(card.id) ?? null,
   });
   phaserFrame.mount();
+  phaserFrame.setResourceBundle(_startupResourceBundle);
   globalThis.__ak_phaserFrame = phaserFrame;
 }
 
@@ -413,5 +459,6 @@ globalThis.addEventListener?.("beforeunload", () => {
   commandHost.dispose?.();
 });
 
-// Initialize UI icons with text labels on startup
-populateUIIcons(null);
+// Initialize all views with the startup visual bundle so icons are visible before the first build.
+designView?.setResourceBundle?.(_startupResourceBundle);
+populateUIIcons(_startupResourceBundle);

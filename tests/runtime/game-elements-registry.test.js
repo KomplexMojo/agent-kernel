@@ -4,6 +4,7 @@ test("game element visual registry covers core game vocabularies", async () => {
   const {
     GAME_AFFINITY_EXPRESSIONS,
     GAME_AFFINITY_KINDS,
+    GAME_COLOR_PALETTE,
     GAME_ELEMENT_VISUALS,
     GAME_MOTIVATION_KINDS,
     getGameElementVisualEntries,
@@ -27,6 +28,65 @@ test("game element visual registry covers core game vocabularies", async () => {
     assert.ok(entry.imageResource.assetId.length > 0, `${entry.id} has empty image assetId`);
     assert.equal(typeof entry.imageResource?.relativePath, "string", `${entry.id} missing relativePath`);
     assert.ok(entry.imageResource.relativePath.endsWith(".png"), `${entry.id} relativePath must be png`);
+  });
+
+  assert.equal(GAME_ELEMENT_VISUALS.types.room.defaultColor, GAME_COLOR_PALETTE.types.room);
+  assert.equal(GAME_ELEMENT_VISUALS.cards.room.defaultColor, GAME_COLOR_PALETTE.types.room);
+  assert.equal(GAME_ELEMENT_VISUALS.types.attacker.defaultColor, GAME_COLOR_PALETTE.types.attacker);
+  assert.notEqual(GAME_ELEMENT_VISUALS.types.attacker.defaultColor, GAME_ELEMENT_VISUALS.vitals.health.defaultColor);
+});
+
+test("game element palette avoids cross-concept color overlap", async () => {
+  const {
+    GAME_AFFINITY_KINDS,
+    GAME_ELEMENT_VISUALS,
+    getGameElementVisualEntries,
+  } = await import("../../packages/runtime/src/contracts/game-elements.js");
+
+  const roleForVisual = (entry) => {
+    if (entry.group === "affinities") return `affinity.${entry.key}`;
+    if (entry.group === "affinityExpressions") return `expression.${entry.key}`;
+    if (entry.group === "motivations") return `motivation.${entry.key}`;
+    if (entry.group === "vitals") return `vital.${entry.key}`;
+    if (entry.group === "affinityStacks") return `stack.${entry.key}`;
+    if (entry.group === "tiles") return `tile.${entry.key}`;
+    if (entry.group === "ui") return `ui.${entry.key}`;
+    if (entry.group === "overlays") return `overlay.${entry.key}`;
+    if (entry.group === "actorMedallionComponents") {
+      if (entry.key.startsWith("actor-")) return entry.key.slice("actor-".length);
+      if (entry.key.startsWith("vital-")) return `vital.${entry.key.slice("vital-".length)}`;
+      if (entry.key.startsWith("expression-")) return `expression.${entry.key.slice("expression-".length)}`;
+      if (entry.key.startsWith("motivation-")) return `motivation.${entry.key.slice("motivation-".length)}`;
+      if (entry.key.startsWith("affinity-")) return `affinity.${entry.key.slice("affinity-".length)}`;
+      return `component.${entry.key}`;
+    }
+    return entry.key;
+  };
+
+  const roleColors = new Map();
+  const colorRoles = new Map();
+  getGameElementVisualEntries().forEach((entry) => {
+    const role = roleForVisual(entry);
+    const color = entry.defaultColor.toLowerCase();
+    const previousColor = roleColors.get(role);
+    if (previousColor) {
+      assert.equal(color, previousColor, `${entry.id} does not match existing ${role} color`);
+    } else {
+      roleColors.set(role, color);
+    }
+    const previousRole = colorRoles.get(color);
+    if (previousRole) {
+      assert.equal(previousRole, role, `${entry.id} color overlaps ${previousRole}`);
+    } else {
+      colorRoles.set(color, role);
+    }
+  });
+
+  GAME_AFFINITY_KINDS.forEach((affinity) => {
+    assert.equal(
+      GAME_ELEMENT_VISUALS.affinities[affinity].defaultColor,
+      GAME_ELEMENT_VISUALS.actorMedallionComponents[`affinity-${affinity}`].defaultColor,
+    );
   });
 });
 

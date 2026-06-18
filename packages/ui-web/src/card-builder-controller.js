@@ -92,6 +92,8 @@ export function createCardBuilderController({ llmConfig = {} } = {}) {
     adjustVital: guidance.adjustVital,
     adjustAffinityStack: guidance.adjustAffinityStack,
     cycleAffinityExpression: guidance.cycleAffinityExpression,
+    adjustRoomSize: (cardId, direction) => guidance.cycleRoomSize(cardId, direction),
+    adjustRoomShape: (cardId) => guidance.cycleRoomShape(cardId),
     stashActiveCard: guidance.stashActiveCard,
     pullCardToEditor: guidance.pullCardToEditor,
     setCards: guidance.setCards,

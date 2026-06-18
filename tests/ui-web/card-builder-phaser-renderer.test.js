@@ -56,6 +56,16 @@ function createFakePhaser(records = {}) {
             records.images.push(i);
             return i;
           },
+          graphics() {
+            return {
+              lineStyle() { return this; },
+              beginPath() { return this; },
+              moveTo() { return this; },
+              lineTo() { return this; },
+              strokePath() { return this; },
+              destroy() {},
+            };
+          },
         },
         cameras: { main: { width: config.width, height: config.height, setBackgroundColor() {} } },
         input: { on(event, handler) { records.inputHandlers[event] = handler; }, keyboard: { on() {} } },

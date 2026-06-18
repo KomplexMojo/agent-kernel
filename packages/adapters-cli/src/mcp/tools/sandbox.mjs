@@ -17,6 +17,7 @@ import {
   validateSandboxSession,
   SANDBOX_SESSION_SCHEMA,
 } from "../../../../runtime/src/contracts/sandbox-session.mjs";
+import { createDefaultResourceBundleArtifact } from "../../../../runtime/src/render/resource-bundle.js";
 import {
   createHandlerTool,
   integerSchema,
@@ -335,27 +336,22 @@ function buildMinimalInitialState({ runId, createdAt, simConfigRef, actors = [] 
 }
 
 /**
- * Build a minimal ResourceBundleArtifact (v2) placeholder for sandbox use.
- * Actual tile assets are populated by the renderer (M6+).
+ * Build a full visual ResourceBundleArtifact for sandbox use.
+ * Uses the same createDefaultResourceBundleArtifact path as the normal build
+ * so icon mappings are present and the card builder palette shows real sprites.
  */
-function buildMinimalResourceBundle({ runId, createdAt }) {
-  return {
-    schema: "agent-kernel/ResourceBundleArtifact",
-    schemaVersion: 2,
-    meta: {
+function buildVisualResourceBundle({ runId, createdAt }) {
+  return createDefaultResourceBundleArtifact({
+    createMeta: ({ producedBy }) => ({
       id: `resource-bundle-${runId}`,
       runId,
       createdAt,
-      producedBy: "sandbox-place",
-    },
-    bundleId: `sandbox-bundle-${runId}`,
-    bundleVersion: 1,
-    tileWidth: 16,
-    tileHeight: 16,
-    gatewayBaseUrl: "",
-    assets: [],
-    mappings: { tiles: {}, actors: {}, effects: {} },
-  };
+      producedBy,
+    }),
+    runId,
+    producedBy: "sandbox-place",
+    emitVisualAssets: true,
+  });
 }
 
 /**
@@ -544,17 +540,21 @@ export async function executeSandboxPlace({ session: sessionPath, entityType, sp
     });
   }
 
-  // Load or create ResourceBundle placeholder
+  // Load or create ResourceBundle. Upgrade minimal bundles (no icon mappings) to visual bundles
+  // so the card builder palette shows real sprites instead of Unicode fallbacks.
   const resourceBundlePath = join(sessionDir, "resource-bundle.json");
   let resourceBundle;
   if (existsSync(resourceBundlePath)) {
     try {
       resourceBundle = await readJson(resourceBundlePath);
+      if (!resourceBundle?.mappings?.icons) {
+        resourceBundle = buildVisualResourceBundle({ runId, createdAt });
+      }
     } catch {
-      resourceBundle = buildMinimalResourceBundle({ runId, createdAt });
+      resourceBundle = buildVisualResourceBundle({ runId, createdAt });
     }
   } else {
-    resourceBundle = buildMinimalResourceBundle({ runId, createdAt });
+    resourceBundle = buildVisualResourceBundle({ runId, createdAt });
   }
 
   // Build the actor and add/replace in InitialState

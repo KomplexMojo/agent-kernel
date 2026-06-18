@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Kernel — Current</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body class="interface-c">
+    <main>
+      <section class="stack">
+        <div class="card shell-navigation">
+          <div class="tab-bar" role="tablist" aria-label="Primary workflow tabs">
+            <button class="tab-button active" type="button" data-tab="design" role="tab" aria-selected="true">Design</button>
+            <div class="gameplay-tab-slot" role="presentation">
+              <button class="tab-button" type="button" data-tab="gameplay" role="tab" aria-selected="false">Gameplay</button>
+              <span class="tab-run-id" id="gameplay-run-id-label" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <div class="workspace-main">
+            <!-- Phaser canvas is the design interface — mounts here and stays always visible -->
+            <div id="phaser-frame-root" class="phaser-frame-root"></div>
+            <div class="tab-panel" data-tab-panel="gameplay" role="tabpanel" hidden>
+              <div class="gameplay-surface-c">
+                <div class="status surface-status" id="gameplay-status" data-level="info">No run loaded. Open Gameplay from the Design screen to start.</div>
+                <div id="gameplay-phaser-host"></div>
+              </div>
+            </div>
+            <!-- Design tab panel: empty — the Phaser canvas above is the design interface -->
+            <div class="tab-panel" data-tab-panel="design" role="tabpanel"></div>
+
+            <div class="tab-panel" data-tab-panel="preview" role="tabpanel" hidden>
+              <div class="card preview-shell preview-surface">
+                <div class="controls">
+                  <button class="primary" id="preview-build-and-load" type="button">Build And Load Game</button>
+                </div>
+                <div class="status surface-status" id="preview-status" data-level="info">Inspect the current design bundle here. When ready, use Build And Load Game to open Run.</div>
+                <section class="preview-meta-card">
+                  <span class="stat-label">Preview Summary</span>
+                  <pre class="adapter-output" id="preview-summary">No preview bundle loaded.</pre>
+                </section>
+                <section class="preview-meta-card">
+                  <span class="stat-label">Actors</span>
+                  <pre class="adapter-output" id="preview-actor-list">No actors loaded.</pre>
+                </section>
+              </div>
+            </div>
+
+            <div class="tab-panel" data-tab-panel="diagnostics" id="diagnostic-section-build" role="tabpanel" hidden>
+              <div class="card diagnostic-surface diagnostic-build-stack">
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Build Orchestration</span>
+                    <p>Run BuildSpec execution through the browser command host.</p>
+                  </div>
+                  <div class="diagnostic-input-grid">
+                    <label>
+                      <span class="stat-label">Spec Path (optional)</span>
+                      <input id="build-spec-path" type="text" placeholder="tests/fixtures/artifacts/build-spec-v1-basic.json" />
+                    </label>
+                    <label>
+                      <span class="stat-label">Out Dir (optional)</span>
+                      <input id="build-out-dir" type="text" placeholder="artifacts/runs/runId/build" />
+                    </label>
+                  </div>
+                  <label>
+                    <span class="stat-label">Spec JSON</span>
+                    <textarea id="build-spec-json" placeholder="{...}"></textarea>
+                  </label>
+                  <ul id="build-validation" hidden></ul>
+                  <div class="controls diagnostic-build-actions">
+                    <button class="primary" id="build-run">Run Build</button>
+                    <button class="secondary" id="build-load" disabled>Load last build</button>
+                    <button class="secondary" id="build-send-bundle" disabled>Load last build in Bundle Review</button>
+                    <button class="secondary" id="build-download" hidden>Download spec.json</button>
+                    <button class="secondary" id="build-clear">Clear</button>
+                  </div>
+                  <div class="status" id="build-status">Command host ready.</div>
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Build Output</span>
+                    <pre class="adapter-output" id="build-output">No build output yet.</pre>
+                  </section>
+                </section>
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Bundle Review</span>
+                    <p>Load a bundle.json/manifest.json set to inspect and edit the BuildSpec.</p>
+                  </div>
+                  <div class="diagnostic-input-grid">
+                    <label>
+                      <span class="stat-label">Bundle JSON</span>
+                      <input id="bundle-file" type="file" accept="application/json" />
+                    </label>
+                    <label>
+                      <span class="stat-label">Manifest JSON (optional)</span>
+                      <input id="bundle-manifest-file" type="file" accept="application/json" />
+                    </label>
+                  </div>
+                  <div class="controls diagnostic-build-actions">
+                    <button class="secondary" id="bundle-load-last">Load last build</button>
+                    <button class="secondary" id="bundle-clear">Clear</button>
+                  </div>
+                  <div class="status" id="bundle-status">No bundle loaded.</div>
+                  <div class="diagnostic-pane-grid">
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Schemas</span>
+                      <ul id="bundle-schemas" hidden></ul>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Manifest JSON</span>
+                      <pre class="adapter-output" id="bundle-manifest">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane diagnostic-pane-wide">
+                      <span class="stat-label">BuildSpec (editable)</span>
+                      <textarea id="bundle-spec-edit" placeholder="{...}"></textarea>
+                      <ul id="bundle-spec-errors" hidden></ul>
+                      <div class="controls diagnostic-build-actions">
+                        <button class="primary" id="bundle-apply-spec">Apply spec edits</button>
+                        <button class="secondary" id="bundle-send-spec">Send to Build</button>
+                        <button class="secondary" id="bundle-download-spec">Download spec.json</button>
+                      </div>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Intent</span>
+                      <pre class="adapter-output" id="bundle-intent">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Plan</span>
+                      <pre class="adapter-output" id="bundle-plan">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Configurator</span>
+                      <pre class="adapter-output" id="bundle-configurator">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane diagnostic-pane-wide">
+                      <span class="stat-label">Artifacts</span>
+                      <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
+                    </section>
+                  </div>
+                </section>
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Budget Inputs</span>
+                    <p>Configurator and allocator budget artifacts synced from build/bundle payloads.</p>
+                  </div>
+                  <div class="diagnostic-pane-grid">
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Budget</span>
+                      <pre class="adapter-output" id="config-budget-json">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Price List</span>
+                      <pre class="adapter-output" id="config-price-list-json">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Receipt</span>
+                      <pre class="adapter-output" id="config-receipt-json">No JSON output yet.</pre>
+                    </section>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+    </main>
+    <!-- Status Rail: updated by updateStatusRail() in main.js -->
+    <footer class="status-rail" aria-label="Configuration status rail">
+      <span class="status-rail-run-id" id="status-rail-run-id" title=""></span>
+      <span class="status-rail-sep" aria-hidden="true">·</span>
+      <div class="status-rail-tokens" aria-label="Token budget by type">
+        <span class="status-rail-token" id="sr-room"></span>
+        <span class="status-rail-token" id="sr-delver"></span>
+        <span class="status-rail-token" id="sr-warden"></span>
+        <span class="status-rail-token" id="sr-hazard"></span>
+        <span class="status-rail-token" id="sr-resource"></span>
+      </div>
+      <span class="status-rail-total" id="sr-total"></span>
+    </footer>
+
+    <!-- D7: serve-ui.mjs replaces this placeholder with the actual AK_SANDBOX_BRIDGE_PORT value -->
+    <script>/* __AK_INJECT_SANDBOX_BRIDGE_PORT__ */</script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

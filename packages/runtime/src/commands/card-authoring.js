@@ -41,6 +41,14 @@ const CARD_PROPERTY_GROUP_ORDER = Object.freeze(["type", "affinities", "expressi
 
 const ROOM_SIZE_ORDER = Object.freeze(["small", "medium", "large"]);
 
+const ROOM_SHAPE_ORDER = Object.freeze(["regular", "irregular"]);
+
+function normalizeRoomCardShape(value) {
+  if (typeof value !== "string") return "regular";
+  const normalized = value.trim().toLowerCase();
+  return ROOM_SHAPE_ORDER.includes(normalized) ? normalized : "regular";
+}
+
 const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
 
 const RESOURCE_VITAL_KEYS = Object.freeze(["health", "mana", "stamina"]);
@@ -456,6 +464,7 @@ function createDesignCard({
   type = "",
   affinity,
   roomSize = "medium",
+  roomShape = "regular",
   count = 1,
   expressions,
   motivations,
@@ -596,6 +605,7 @@ function createDesignCard({
     normalizedCard.type = "room";
     normalizedCard.source = "room";
     normalizedCard.roomSize = normalizeRoomCardSize(roomSize);
+    normalizedCard.roomShape = normalizeRoomCardShape(roomShape);
     normalizedCard.motivations = [];
     normalizedCard.vitals = undefined;
     normalizedCard.affinities = [];
@@ -1048,6 +1058,15 @@ function cycleRoomCardSize(card, direction = 1) {
   const index = ROOM_SIZE_ORDER.indexOf(currentSize);
   const nextIndex = (index + Math.trunc(direction) + ROOM_SIZE_ORDER.length) % ROOM_SIZE_ORDER.length;
   working.roomSize = ROOM_SIZE_ORDER[nextIndex];
+  return createDesignCard(working);
+}
+
+function cycleRoomCardShape(card) {
+  const working = createDesignCard(card || {});
+  if (working.type !== "room") return working;
+  const currentShape = normalizeRoomCardShape(working.roomShape);
+  const index = ROOM_SHAPE_ORDER.indexOf(currentShape);
+  working.roomShape = ROOM_SHAPE_ORDER[(index + 1) % ROOM_SHAPE_ORDER.length];
   return createDesignCard(working);
 }
 
@@ -1691,6 +1710,7 @@ export {
   GLOBAL_ISSUED_CARD_IDS,
   RESOURCE_PERMANENT_MULTIPLIER,
   RESOURCE_VITAL_KEYS,
+  ROOM_SHAPE_ORDER,
   ROOM_SIZE_ORDER,
   adjustAffinityStack,
   adjustCardCount,
@@ -1708,6 +1728,7 @@ export {
   calculateCardValue,
   cardPrefixForType,
   createDesignCard,
+  cycleRoomCardShape,
   cycleRoomCardSize,
   dropPropertyOnCard,
   formatDisplayLabel,
