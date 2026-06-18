@@ -1,6 +1,6 @@
 import { readFixture } from "../../helpers/fixtures.js";
 import assert from "node:assert/strict";
-import { validateSpendProposal, normalizePriceItems } from "../../../packages/runtime/src/personas/allocator/validate-spend.js";
+import { buildPriceMap, validateSpendProposal, normalizePriceItems } from "../../../packages/runtime/src/personas/allocator/validate-spend.js";
 import { buildDefaultPriceList } from "../../../packages/runtime/src/personas/allocator/default-price-list.js";
 
 const baseMeta = {
@@ -63,6 +63,19 @@ test("normalizePriceItems accepts new canonical unitCost field", () => {
   assert.ok(map.has("vital:vital_health_point"), "vital_health_point should be addressable by kind:id");
   const entry = map.get("vital:vital_health_point");
   assert.equal(entry.unitCost, 1);
+});
+
+test("buildPriceMap exposes only canonical kind:id price entries", () => {
+  const priceMap = buildPriceMap({
+    items: [
+      { id: "actor_spawn", kind: "actor", unitCost: 5 },
+      { key: "actor_spawn", unitCost: 99 },
+      { id: "bad_negative", kind: "actor", unitCost: -1 },
+    ],
+  });
+  assert.equal(priceMap.get("actor:actor_spawn"), 5);
+  assert.equal(priceMap.has("legacy:actor_spawn"), false);
+  assert.equal(priceMap.has("actor:bad_negative"), false);
 });
 
 test("validateSpendProposal uses default price list when priceList omitted but items are present", () => {

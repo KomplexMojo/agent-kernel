@@ -53,10 +53,10 @@ function parseActorSpec(value) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     throw new Error("--actor expects numeric x,y");
   }
-  const rawKind = (parts[3] || "motivated").toLowerCase();
+  const rawKind = (parts[3] || "ambulatory").toLowerCase();
   let kind;
   if (rawKind === "motivated") {
-    kind = "motivated";
+    kind = "ambulatory";
   } else if (rawKind === "ambulatory") {
     kind = "ambulatory";
   } else if (rawKind === "stationary") {

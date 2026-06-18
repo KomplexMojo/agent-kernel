@@ -12,6 +12,7 @@ dist/
 build/
 out/
 target/
+coverage/
 *.wasm
 
 # Version control / tooling config

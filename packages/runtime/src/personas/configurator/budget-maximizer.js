@@ -1,5 +1,5 @@
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
-import { normalizePriceItems } from "../allocator/validate-spend.js";
+import { buildPriceMap } from "../allocator/validate-spend.js";
 import { REGEN_COST_COEFFICIENT } from "./cost-model.js";
 
 const VITAL_POINT_IDS = Object.freeze({
@@ -11,17 +11,6 @@ const VITAL_POINT_IDS = Object.freeze({
 
 // Distribute evenly across all four vitals; health and durability lead the order
 const VITAL_DISTRIBUTION_ORDER = ["health", "durability", "mana", "stamina"];
-
-function buildPriceMap(priceList) {
-  const normalized = normalizePriceItems(priceList);
-  const map = new Map();
-  for (const [key, entry] of normalized) {
-    if (typeof key === "string" && key.includes(":") && !key.startsWith("legacy:")) {
-      if (entry.unitCost >= 0) map.set(key, entry.unitCost);
-    }
-  }
-  return map;
-}
 
 function getUnitCost(priceMap, kind, id, fallback) {
   const val = priceMap.get(`${kind}:${id}`);

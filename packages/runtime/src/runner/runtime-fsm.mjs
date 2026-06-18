@@ -227,13 +227,13 @@ function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layo
       });
     }
 
-    // Attach aura map to observation
-    // Include traps as pseudo-actors for aura computation
+    // Compatibility only: existing renderers/tests still consume observation.auras.
+    // New tile visuals should come from core affinity field records.
     if (observation && baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.traps))) {
       const actors = Array.isArray(observation.actors) ? observation.actors : [];
       const traps = Array.isArray(observation.traps) ? observation.traps : [];
 
-      // Convert traps to pseudo-actors for aura computation
+      // Convert traps to pseudo-actors for the compatibility aura projection.
       const trapActors = traps.map((trap, index) => ({
         id: `trap_${index}`,
         x: trap.position?.x ?? 0,

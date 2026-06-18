@@ -1,10 +1,11 @@
-import { createCore, readObservation, renderBaseTiles, renderFrameBuffer } from "../../../core-ts/src/index.ts";
+import {
+  createRuntimeCore,
+  readCoreObservation,
+  renderCoreBaseTiles,
+  renderCoreFrame,
+} from "../../../runtime/src/runner/core-facade.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
 import { collectBuildSpecCardSet } from "../build-spec-ui.js";
-import { computeAuraMap, serializeAuraMap } from "../../../runtime/src/render/affinity-aura.js";
-import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../../../runtime/src/contracts/affinity-spatial-rules.js";
-import { AFFINITY_OPPOSITES } from "../../../runtime/src/contracts/domain-constants.js";
-import { deriveTileAffinityVisuals } from "./tile-affinity-visuals.js";
 import {
   createCanvasPreviewRenderer,
   createPhaserPreviewRenderer,
@@ -136,12 +137,12 @@ function clearCanvas(canvas) {
 
 export function wirePreviewView({
   root = document,
-  createCoreFn = createCore,
+  createCoreFn = createRuntimeCore,
   applySimConfig = applySimConfigToCore,
   applyInitialState = applyInitialStateToCore,
-  renderFrame = renderFrameBuffer,
-  renderBase = renderBaseTiles,
-  readObservationFn = readObservation,
+  renderFrame = renderCoreFrame,
+  renderBase = renderCoreBaseTiles,
+  readObservationFn = readCoreObservation,
   renderBundleBoard = renderBundleBoardToCanvas,
   actorInspector = null,
   onBuildAndLoadGame,
@@ -375,40 +376,8 @@ export function wirePreviewView({
         ? frame.baseTiles
         : baseTiles;
 
-      // Derive tile affinity visuals — prefer core field records via facade,
-      // fall back to legacy JS aura computation (deprecated)
       if (typeof buildTileAffinityVisualsFromBundleFn === "function" && lastBundle) {
         observation.tileVisuals = buildTileAffinityVisualsFromBundleFn(lastBundle);
-      } else if (observation && frame?.baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.traps))) {
-        const actors = Array.isArray(observation.actors) ? observation.actors : [];
-        const traps = Array.isArray(observation.traps) ? observation.traps : [];
-
-        // Convert traps to pseudo-actors for legacy aura computation (deprecated path)
-        const trapActors = traps.map((trap, index) => ({
-          id: `trap_${index}`,
-          x: trap.position?.x ?? 0,
-          y: trap.position?.y ?? 0,
-          affinities: trap.affinities || [],
-        }));
-
-        const allActors = [...actors, ...trapActors];
-        const auraMap = computeAuraMap(allActors, frame.baseTiles, {
-          affinityOpposites: AFFINITY_OPPOSITES,
-          weights: SPATIAL_WEIGHTS,
-        });
-        observation.auras = serializeAuraMap(auraMap, INTERACTION_MATRIX, SPATIAL_WEIGHTS);
-
-        // Also derive tile visuals from hazards for the hazard-based fallback
-        const simConfig = findArtifact(lastBundle, SIM_CONFIG_SCHEMA);
-        const resourceBundle = findArtifact(lastBundle, RESOURCE_BUNDLE_SCHEMA);
-        const hazards = Array.isArray(simConfig?.layout?.data?.hazards) ? simConfig.layout.data.hazards : [];
-        if (hazards.length > 0) {
-          observation.tileVisuals = deriveTileAffinityVisuals({
-            tiles: previewTiles,
-            hazards,
-            resourceBundle,
-          });
-        }
       }
 
       setText(frameEl, Array.isArray(frame?.buffer) ? frame.buffer.join("\n") : "No preview frame available.");
