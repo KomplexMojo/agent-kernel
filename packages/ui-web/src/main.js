@@ -297,13 +297,15 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
     }
   }
 
+  let buildResult;
   if (hasPhaserCards && phaserController) {
     const built = await phaserController.publishSpecText({ source: "design-preview" });
     if (!built?.ok) {
       gameplayView?.clear?.("Could not build a run from your design. Check your cards.");
       return built;
     }
-    diagnosticsView.setBuildSpecText(built.specText, { source: "design-preview", resetOutput: false });
+    gameplayRunPending = true;
+    buildResult = await diagnosticsView.runBuildWithSpec(built.specText);
   } else if (designView) {
     const published = await designView.publishPreviewSpec({
       force: true,
@@ -311,12 +313,11 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
       source: "design-preview",
     });
     if (!published?.ok) return;
+    gameplayRunPending = true;
+    buildResult = await diagnosticsView.runBuild();
   } else {
     return { ok: false, reason: "no_spec_source" };
   }
-
-  gameplayRunPending = true;
-  const buildResult = await diagnosticsView.runBuild();
   if (buildResult?.ok === false) {
     gameplayRunPending = false;
     return;

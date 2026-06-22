@@ -198,6 +198,10 @@ export function wireDiagnosticsView({
 
   return {
     runBuild: () => buildOrchestrator?.runBuild?.(),
+    runBuildWithSpec: (specText) => {
+      buildOrchestrator?.setSpecOverride?.(specText);
+      return buildOrchestrator?.runBuild?.();
+    },
     loadLastBundle: () => bundleReview?.loadLastBuild?.(),
     setBuildSpecText,
   };

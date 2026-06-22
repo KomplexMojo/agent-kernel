@@ -1010,39 +1010,51 @@ export function createCardBuilderPhaserRenderer({
 
     const currentSize = activeCard?.roomSize || "medium";
     const sizeIdx = ROOM_SIZE_ORDER.indexOf(currentSize);
-    const SIZE_PX = { small: 30, medium: 48, large: 66 };
-    const sqPx = SIZE_PX[currentSize] || 48;
+    // Pixel sizes scale with size tier for visual clarity
+    const SIZE_PX = { small: 52, medium: 76, large: 100 };
+    // Billable floor tiles per card (card-model.js): small=24, medium=48, large=96
+    // At 1100t room budget: small→~45 rooms, medium→~22 rooms, large→~11 rooms
+    const SIZE_INFO = {
+      small:  { tokens: 24, guide: "~30-45 rooms" },
+      medium: { tokens: 48, guide: "~15-22 rooms" },
+      large:  { tokens: 96, guide: "~10-12 rooms" },
+    };
+    const sqPx = SIZE_PX[currentSize] || 76;
+    const sizeInfo = SIZE_INFO[currentSize] || SIZE_INFO.medium;
 
-    const BTN_W = 26;
-    const BTN_H = 22;
-    const BTN_GAP = 12;
-    const sqT = row + 10;
+    const BTN_W = 28;
+    const BTN_H = 24;
+    const BTN_GAP = 10;
+    const sqT = row + 12;
     const sqL = centerX - Math.floor(sqPx / 2);
 
-    // Visual square — scales with size
+    // Visual square — scales with size, shows internal tile grid
     const gSq = addObj(scene.add.graphics());
     gSq.fillStyle(0x1a2840, 1);
     gSq.fillRect(sqL, sqT, sqPx, sqPx);
     gSq.lineStyle(2, 0x4a78b8, 1);
     gSq.strokeRect(sqL, sqT, sqPx, sqPx);
-    // inner grid lines
+    const gridDiv = currentSize === "large" ? 4 : currentSize === "medium" ? 3 : 2;
     gSq.lineStyle(1, 0x4a78b8, 0.25);
-    gSq.beginPath();
-    gSq.moveTo(sqL + Math.floor(sqPx / 3), sqT);
-    gSq.lineTo(sqL + Math.floor(sqPx / 3), sqT + sqPx);
-    gSq.moveTo(sqL + Math.floor(2 * sqPx / 3), sqT);
-    gSq.lineTo(sqL + Math.floor(2 * sqPx / 3), sqT + sqPx);
-    gSq.moveTo(sqL, sqT + Math.floor(sqPx / 3));
-    gSq.lineTo(sqL + sqPx, sqT + Math.floor(sqPx / 3));
-    gSq.moveTo(sqL, sqT + Math.floor(2 * sqPx / 3));
-    gSq.lineTo(sqL + sqPx, sqT + Math.floor(2 * sqPx / 3));
-    gSq.strokePath();
+    for (let c = 1; c < gridDiv; c++) {
+      const gx = sqL + Math.round(sqPx * c / gridDiv);
+      gSq.beginPath(); gSq.moveTo(gx, sqT + 1); gSq.lineTo(gx, sqT + sqPx - 1); gSq.strokePath();
+    }
+    for (let r = 1; r < gridDiv; r++) {
+      const gy = sqT + Math.round(sqPx * r / gridDiv);
+      gSq.beginPath(); gSq.moveTo(sqL + 1, gy); gSq.lineTo(sqL + sqPx - 1, gy); gSq.strokePath();
+    }
 
-    // Size label inside square
+    // Size name + token cost inside square
     addObj(
-      scene.add.text(centerX, sqT + Math.floor(sqPx / 2), currentSize[0].toUpperCase() + currentSize.slice(1), {
-        fontSize: "11px", color: "#6a98d8",
-      }).setOrigin(0.5, 0.5),
+      scene.add.text(centerX, sqT + Math.floor(sqPx / 2) - 7,
+        currentSize[0].toUpperCase() + currentSize.slice(1),
+        { fontSize: "14px", color: "#6a98d8" }).setOrigin(0.5, 0.5),
+    );
+    addObj(
+      scene.add.text(centerX, sqT + Math.floor(sqPx / 2) + 10,
+        `${sizeInfo.tokens}t`,
+        { fontSize: "11px", color: "#4a78b8" }).setOrigin(0.5, 0.5),
     );
 
     const btnCy = sqT + Math.floor(sqPx / 2);
@@ -1084,47 +1096,49 @@ export function createCardBuilderPhaserRenderer({
     chipRegistry.push({ label: currentSize, zone: "editor", role: "room_size_display", value: currentSize,
       x: sqL, y: sqT, width: sqPx, height: sqPx });
 
-    row = sqT + sqPx + 14;
+    // Room count guidance below the square
+    addObj(
+      scene.add.text(centerX, sqT + sqPx + 7, sizeInfo.guide,
+        { fontSize: "11px", color: COLOR_HEADER }).setOrigin(0.5, 0),
+    );
+
+    row = sqT + sqPx + 26;
 
     // ── SHAPE ─────────────────────────────────────────────────────────────────
     row = drawSectionBand(editorX, row, editorW, "ROOM SHAPE");
-    row += 8;
+    row += 6;
 
     const currentShape = activeCard?.roomShape || "regular";
-    // Full-width chips stacked vertically — regular on top, irregular below
     const CHIP_W = editorW - 8;
-    const CHIP_H = 120;
-    const CHIP_GAP = 6;
+    const CHIP_H = 68;
+    const CHIP_GAP = 5;
 
     ROOM_SHAPE_ORDER.forEach((shape, idx) => {
       const chipX = editorX + 4;
       const chipY = row + idx * (CHIP_H + CHIP_GAP);
       const isActive = shape === currentShape;
 
-      // Background
       const bgColor = isActive ? 0x1e2d48 : 0x0d1018;
       const borderNum = isActive ? 0x4a78b8 : 0x2a3250;
       const bg = addObj(scene.add.rectangle(chipX + Math.floor(CHIP_W / 2), chipY + Math.floor(CHIP_H / 2), CHIP_W, CHIP_H, bgColor, 1));
       if (isActive) bg.setStrokeStyle(2, borderNum, 1);
 
-      // Diagram area — generous padding, 18px at bottom for label
-      const pad = 12;
+      const labelH = 16;
+      const pad = 8;
       const diagX = chipX + pad;
       const diagY = chipY + pad;
       const diagW = CHIP_W - pad * 2;
-      const diagH = CHIP_H - pad * 2 - 18;
+      const diagH = CHIP_H - pad * 2 - labelH;
       const lineColor = isActive ? 0x7aaae8 : 0x3a4a68;
       const lineAlpha = isActive ? 1 : 0.6;
 
       const g = addObj(scene.add.graphics());
 
       if (shape === "regular") {
-        // Filled rectangle with visible wall lines and a faint tile grid
         g.fillStyle(0x0a1520, 1);
         g.fillRect(diagX, diagY, diagW, diagH);
         g.lineStyle(2, lineColor, lineAlpha);
         g.strokeRect(diagX, diagY, diagW, diagH);
-        // Faint interior grid suggesting floor tiles
         g.lineStyle(1, lineColor, lineAlpha * 0.2);
         const cols = 4, rows = 3;
         for (let c = 1; c < cols; c++) {
@@ -1136,67 +1150,59 @@ export function createCardBuilderPhaserRenderer({
           g.beginPath(); g.moveTo(diagX + 1, gy); g.lineTo(diagX + diagW - 1, gy); g.strokePath();
         }
       } else {
-        // Cave/cavern: organic blob traced with many short lineTo segments —
-        // no straight sides, looks like rough hewn rock.
-        // Vertices expressed as [fracX, fracY] fractions of diagW/diagH.
-        const X = (f) => diagX + f * diagW;
-        const Y = (f) => diagY + f * diagH;
+        // Blocky irregular cave — axis-aligned (90° turns only), like dungeon rooms carved from grid blocks
+        const X = (f) => Math.round(diagX + f * diagW);
+        const Y = (f) => Math.round(diagY + f * diagH);
 
-        // 38-point cave polygon — alternating jags give rocky wall texture
+        // Main chamber + right alcove (L-shape), with a notch cut from the top-left corner
         const verts = [
-          [0.08, 0.38], [0.04, 0.26], [0.0,  0.18], [0.07, 0.08], [0.15, 0.02],
-          [0.24, 0.08], [0.32, 0.0],  [0.41, 0.07], [0.5,  0.0],  [0.59, 0.06],
-          [0.68, 0.0],  [0.77, 0.05], [0.85, 0.0],  [0.93, 0.07], [1.0,  0.17],
-          [1.02, 0.28], [0.96, 0.37], [1.03, 0.46], [0.97, 0.55], [1.03, 0.64],
-          [0.96, 0.73], [1.01, 0.81], [0.93, 0.91], [0.83, 0.97], [0.73, 1.02],
-          [0.63, 0.95], [0.53, 1.03], [0.43, 0.96], [0.33, 1.02], [0.23, 0.96],
-          [0.13, 1.03], [0.05, 0.95], [0.0,  0.84], [-0.02, 0.74], [0.04, 0.64],
-          [-0.02, 0.54], [0.05, 0.46], [0.0,  0.38],
+          [0.25, 0.0],  [0.65, 0.0],
+          [0.65, 0.0],  [0.65, 0.35],
+          [0.65, 0.35], [1.0, 0.35],
+          [1.0, 0.35],  [1.0, 1.0],
+          [1.0, 1.0],   [0.0, 1.0],
+          [0.0, 1.0],   [0.0, 0.35],
+          [0.0, 0.35],  [0.25, 0.35],
+          [0.25, 0.35], [0.25, 0.0],
         ];
+        const points = [];
+        for (let i = 0; i < verts.length; i += 2) points.push(verts[i]);
 
-        // Filled interior (darker void)
         g.fillStyle(0x080f1c, 1);
         g.beginPath();
-        g.moveTo(X(verts[0][0]), Y(verts[0][1]));
-        verts.slice(1).forEach(([fx, fy]) => g.lineTo(X(fx), Y(fy)));
+        g.moveTo(X(points[0][0]), Y(points[0][1]));
+        points.slice(1).forEach(([fx, fy]) => g.lineTo(X(fx), Y(fy)));
         g.closePath();
         g.fillPath();
 
-        // Rocky outline
         g.lineStyle(2, lineColor, lineAlpha);
         g.beginPath();
-        g.moveTo(X(verts[0][0]), Y(verts[0][1]));
-        verts.slice(1).forEach(([fx, fy]) => g.lineTo(X(fx), Y(fy)));
+        g.moveTo(X(points[0][0]), Y(points[0][1]));
+        points.slice(1).forEach(([fx, fy]) => g.lineTo(X(fx), Y(fy)));
         g.closePath();
         g.strokePath();
 
-        // Stalactites hanging from ceiling
-        g.lineStyle(1, lineColor, lineAlpha * 0.6);
-        [[0.22, 0.07, 0.12], [0.45, 0.05, 0.14], [0.68, 0.06, 0.11]].forEach(([fx, fy, flen]) => {
-          const sx = X(fx), sy = Y(fy);
-          g.beginPath();
-          g.moveTo(sx - 4, sy); g.lineTo(sx, sy + flen * diagH); g.lineTo(sx + 4, sy);
-          g.strokePath();
-        });
-        // Stalagmites rising from floor
-        [[0.3, 0.96, 0.1], [0.55, 0.98, 0.09], [0.76, 0.95, 0.11]].forEach(([fx, fy, flen]) => {
-          const sx = X(fx), sy = Y(fy);
-          g.beginPath();
-          g.moveTo(sx - 4, sy); g.lineTo(sx, sy - flen * diagH); g.lineTo(sx + 4, sy);
-          g.strokePath();
-        });
+        // Faint interior tile grid
+        g.lineStyle(1, lineColor, lineAlpha * 0.2);
+        const cols = 5, rows = 3;
+        for (let c = 1; c < cols; c++) {
+          const gx = X(c / cols);
+          g.beginPath(); g.moveTo(gx, Y(0) + 1); g.lineTo(gx, Y(1) - 1); g.strokePath();
+        }
+        for (let r = 1; r < rows; r++) {
+          const gy = Y(r / rows);
+          g.beginPath(); g.moveTo(X(0) + 1, gy); g.lineTo(X(1) - 1, gy); g.strokePath();
+        }
       }
 
-      // Label
       const labelColor = isActive ? COLOR_ROOM_SIZE : COLOR_HEADER;
       addObj(
-        scene.add.text(chipX + Math.floor(CHIP_W / 2), chipY + CHIP_H - 10,
+        scene.add.text(chipX + Math.floor(CHIP_W / 2), chipY + CHIP_H - 9,
           shape === "regular" ? "Regular Room" : "Irregular / Cave",
           { fontSize: "11px", color: labelColor },
         ).setOrigin(0.5, 0.5),
       );
 
-      // Hit area
       const hit = addObj(
         scene.add.rectangle(chipX + Math.floor(CHIP_W / 2), chipY + Math.floor(CHIP_H / 2), CHIP_W, CHIP_H, 0, 0)
           .setInteractive({ useHandCursor: true }),
