@@ -167,7 +167,7 @@ test("cli room-plan writes budget receipt with room layout spend only — no aff
       producedBy: "test",
     },
     items: [
-      { id: "layout_grid_7x7", kind: "layout", costTokens: 11 },
+      { id: "layout_grid_10x10", kind: "layout", costTokens: 11 },
       { id: "trap_basic", kind: "trap", costTokens: 2 },
     ],
   }, null, 2));
@@ -193,7 +193,7 @@ test("cli room-plan writes budget receipt with room layout spend only — no aff
   assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
   assert.equal(receipt.status, "approved");
 
-  const layoutLine = receipt.lineItems.find((item) => item.id === "layout_grid_7x7" && item.kind === "layout");
+  const layoutLine = receipt.lineItems.find((item) => item.id === "layout_grid_10x10" && item.kind === "layout");
   assert.ok(layoutLine);
   assert.equal(layoutLine.status, "approved");
   assert.equal(layoutLine.totalCost, 11);

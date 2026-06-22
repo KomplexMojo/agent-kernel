@@ -1,11 +1,12 @@
 /**
  * Affinity Aura Projection and Tile Resolution
  *
- * @deprecated This JS aura computation is superseded by core-ts core-ts field
+ * @deprecated This JS aura computation is superseded by core-ts field
  * buffers (AK-AFF-M3, AK-AFF-M4) and the interaction resolution matrix
  * (AK-AFF-M5). Use deriveTileAffinityVisuals with fieldRecords from
  * computeAffinityField/readAffinityFieldAt for new code.
- * This module is retained for backward compatibility only.
+ * This module is retained only for compatibility observation.auras consumed by
+ * existing runtime renderers and tests.
  *
  * Wave 2: Given actor positions and affinities, compute what each tile "sees" and resolve overlaps.
  *

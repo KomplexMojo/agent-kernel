@@ -1,54 +1,64 @@
 import assert from "node:assert/strict";
+import { computeAuraMap, serializeAuraMap } from "../../packages/runtime/src/render/affinity-aura.js";
+import { INTERACTION_MATRIX, SPATIAL_WEIGHTS } from "../../packages/runtime/src/contracts/affinity-spatial-rules.js";
+import { AFFINITY_OPPOSITES } from "../../packages/runtime/src/contracts/domain-constants.js";
+import { computePreviewFocusBounds } from "../../packages/ui-web/src/views/preview-renderers.js";
 
-describe("UI aura display integration", () => {
-  it("simulation view stores auras from observation", () => {
-    const mockObservation = {
-      actors: [],
-      traps: [],
-      auras: [
-        { x: 5, y: 5, visualState: "emit_solo", kind: "fire", expression: "emit", intensity: 0.8 },
-      ],
-    };
+function floorTiles(width, height) {
+  return Array.from({ length: height }, (_, y) =>
+    Array.from({ length: width }, (_, x) => ({ x, y, type: "floor" })),
+  ).flat();
+}
 
-    let capturedAuras = null;
-    const mockHandleObservation = ({ observation }) => {
-      capturedAuras = Array.isArray(observation?.auras) ? observation.auras.slice() : [];
-    };
-
-    mockHandleObservation({ observation: mockObservation });
-
-    assert.equal(capturedAuras.length, 1);
-    assert.equal(capturedAuras[0].x, 5);
-    assert.equal(capturedAuras[0].y, 5);
-    assert.equal(capturedAuras[0].visualState, "emit_solo");
-  });
-
-  it("tooltip format includes expected aura fields", () => {
-    const aura = {
+test("serialized runtime aura data is consumed by preview focus bounds", () => {
+  const baseTiles = floorTiles(7, 7);
+  const auraMap = computeAuraMap([
+    {
+      id: "actor_fire_emit",
       x: 3,
-      y: 7,
-      visualState: "conflict",
-      sourceActorId: "actor_1",
-      kind: "water",
-      expression: "push",
-      intensity: 0.65,
-    };
-
-    const rows = [];
-    rows.push(`Position: (${aura.x}, ${aura.y})`);
-    rows.push(`Visual: ${aura.visualState}`);
-    rows.push(`Source: ${aura.sourceActorId}`);
-    rows.push(`Affinity: ${aura.kind}`);
-    rows.push(`Expression: ${aura.expression}`);
-    rows.push(`Intensity: ${aura.intensity.toFixed(2)}`);
-
-    const content = rows.join("\n");
-
-    assert.ok(content.includes("Position: (3, 7)"));
-    assert.ok(content.includes("Visual: conflict"));
-    assert.ok(content.includes("Source: actor_1"));
-    assert.ok(content.includes("Affinity: water"));
-    assert.ok(content.includes("Expression: push"));
-    assert.ok(content.includes("Intensity: 0.65"));
+      y: 3,
+      affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
+    },
+  ], baseTiles, {
+    affinityOpposites: AFFINITY_OPPOSITES,
+    weights: SPATIAL_WEIGHTS,
   });
+  const auras = serializeAuraMap(auraMap, INTERACTION_MATRIX, SPATIAL_WEIGHTS);
+
+  assert.ok(auras.length > 0);
+  assert.ok(auras.some((aura) => aura.visualState && aura.layers.some((layer) => layer.kind === "fire")));
+
+  const bounds = computePreviewFocusBounds({
+    boardWidth: 7,
+    boardHeight: 7,
+    observation: { actors: [], traps: [], auras },
+  });
+
+  assert.ok(bounds);
+  assert.ok(bounds.minX <= 3 && bounds.maxX >= 3);
+  assert.ok(bounds.minY <= 3 && bounds.maxY >= 3);
+});
+
+test("serialized aura records expose tooltip-ready production fields", () => {
+  const auraMap = computeAuraMap([
+    {
+      id: "trap_dark_emit",
+      x: 2,
+      y: 2,
+      affinities: [{ kind: "dark", expression: "emit", stacks: 1 }],
+    },
+  ], floorTiles(5, 5), {
+    affinityOpposites: AFFINITY_OPPOSITES,
+    weights: SPATIAL_WEIGHTS,
+  });
+  const [aura] = serializeAuraMap(auraMap, INTERACTION_MATRIX, SPATIAL_WEIGHTS);
+
+  assert.ok(aura);
+  assert.equal(typeof aura.x, "number");
+  assert.equal(typeof aura.y, "number");
+  assert.equal(typeof aura.visualState, "string");
+  assert.ok(Array.isArray(aura.layers));
+  assert.ok(Array.isArray(aura.sourceEffects));
+  assert.ok(Array.isArray(aura.targetEffects));
+  assert.ok(aura.layers.some((layer) => layer.actorId === "trap_dark_emit"));
 });

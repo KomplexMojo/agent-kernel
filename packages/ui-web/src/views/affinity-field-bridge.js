@@ -6,25 +6,24 @@
  * reads the computed field records, and returns renderer-ready tile visuals
  * via deriveTileAffinityVisuals.
  *
- * Dependency direction: ui-web -> runtime -> core-ts -> core-ts
+ * Dependency direction: ui-web -> runtime -> core-ts
  */
 
-import { createCore, readAffinityFieldAt, AFFINITY_KIND_BY_CODE } from "../../../core-ts/src/index.ts";
-import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
+import {
+  createRuntimeCore,
+  readCoreAffinityFieldRecordsFromArtifacts,
+} from "../../../runtime/src/runner/core-facade.js";
 import { deriveTileAffinityVisuals } from "./tile-affinity-visuals.js";
 
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
 const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 
-// All 10 affinity kind codes (1-10)
-const ALL_KIND_CODES = Object.keys(AFFINITY_KIND_BY_CODE).map(Number);
-
 let cachedCore = null;
 
 function getCore() {
   if (!cachedCore) {
-    cachedCore = createCore();
+    cachedCore = createRuntimeCore();
   }
   return cachedCore;
 }
@@ -32,36 +31,6 @@ function getCore() {
 function findArtifact(bundle, schema) {
   const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
   return artifacts.find((a) => a?.schema === schema) || null;
-}
-
-/**
- * Read all non-zero field records from the core after field computation.
- * Returns an array of { x, y, kind, kindCode, intensity, stacks, expression,
- * expressionName, contributionCount }.
- */
-function readAllFieldRecords(core, width, height) {
-  const records = [];
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      for (const kindCode of ALL_KIND_CODES) {
-        const field = readAffinityFieldAt(core, x, y, kindCode);
-        if (field.intensity > 0) {
-          records.push({
-            x,
-            y,
-            kind: AFFINITY_KIND_BY_CODE[kindCode] || "unknown",
-            kindCode,
-            intensity: field.intensity,
-            stacks: field.stacks,
-            expression: field.expression,
-            expressionName: field.expressionName,
-            contributionCount: field.contributionCount,
-          });
-        }
-      }
-    }
-  }
-  return records;
 }
 
 /**
@@ -86,16 +55,9 @@ export async function buildTileAffinityVisualsFromBundle(bundle) {
   const core = getCore();
   if (core && simConfig && initialState) {
     try {
-      const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
-      if (result.layout?.ok) {
-        const width = result.layout.dimensions?.width || 0;
-        const height = result.layout.dimensions?.height || 0;
-        if (width > 0 && height > 0) {
-          const fieldRecords = readAllFieldRecords(core, width, height);
-          if (fieldRecords.length > 0) {
-            return deriveTileAffinityVisuals({ fieldRecords, resourceBundle });
-          }
-        }
+      const result = readCoreAffinityFieldRecordsFromArtifacts(core, { simConfig, initialState });
+      if (result.fieldRecords.length > 0) {
+        return deriveTileAffinityVisuals({ fieldRecords: result.fieldRecords, resourceBundle });
       }
     } catch (err) {
       console.warn("[affinity-field-bridge] Field computation failed, falling back:", err.message);
@@ -132,16 +94,9 @@ export async function buildTileAffinityVisualsFromSandboxBundle({
   const core = getCore();
   if (core && simConfig && initialState) {
     try {
-      const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
-      if (result.layout?.ok) {
-        const width  = result.layout.dimensions?.width  || 0;
-        const height = result.layout.dimensions?.height || 0;
-        if (width > 0 && height > 0) {
-          const fieldRecords = readAllFieldRecords(core, width, height);
-          if (fieldRecords.length > 0) {
-            return deriveTileAffinityVisuals({ fieldRecords, resourceBundle });
-          }
-        }
+      const result = readCoreAffinityFieldRecordsFromArtifacts(core, { simConfig, initialState });
+      if (result.fieldRecords.length > 0) {
+        return deriveTileAffinityVisuals({ fieldRecords: result.fieldRecords, resourceBundle });
       }
     } catch (err) {
       console.warn(
@@ -184,16 +139,9 @@ export function createAffinityFieldBridge() {
     const core = getCore();
     if (core && simConfig && initialState) {
       try {
-        const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
-        if (result.layout?.ok) {
-          const width = result.layout.dimensions?.width || 0;
-          const height = result.layout.dimensions?.height || 0;
-          const fieldRecords = width > 0 && height > 0
-            ? readAllFieldRecords(core, width, height)
-            : [];
-          if (fieldRecords.length > 0) {
-            cachedVisuals = deriveTileAffinityVisuals({ fieldRecords, resourceBundle });
-          }
+        const result = readCoreAffinityFieldRecordsFromArtifacts(core, { simConfig, initialState });
+        if (result.fieldRecords.length > 0) {
+          cachedVisuals = deriveTileAffinityVisuals({ fieldRecords: result.fieldRecords, resourceBundle });
         }
       } catch {
         // Hazard fallback already applied.

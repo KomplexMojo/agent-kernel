@@ -26,7 +26,6 @@
 ./packages/ui-web/src/tabs.js
 ./packages/ui-web/src/resource-bundle-view.js
 ./packages/ui-web/src/bundle-review.js
-./packages/ui-web/src/movement-ui.js
 ./packages/ui-web/src/ollama-panel.js
 ./packages/ui-web/src/main.js
 ./packages/ui-web/src/build-spec-ui.js
@@ -53,6 +52,7 @@
 ./packages/runtime/package.json
 ./packages/runtime/src/mvp/movement.js
 ./packages/runtime/src/runner/runtime.js
+./packages/runtime/src/runner/core-facade.js
 ./packages/runtime/src/contracts/artifacts.ts
 ./packages/runtime/src/contracts/build-spec.js
 ./packages/runtime/src/contracts/schema-catalog.js

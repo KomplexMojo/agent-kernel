@@ -30,6 +30,7 @@ export const REFERENCE_TARGETS = Object.freeze({
   rooms: 1100,
   delvers: 500,
   wardens: 400,
+  resources: 160,
 });
 
 /** Target delver/warden spend ratio (design §3.2): 200/250 = 0.8. */

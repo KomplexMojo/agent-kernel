@@ -31,8 +31,11 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Tick FSM and persona orchestration.
 - Action proposal, ordering, replay, and telemetry capture.
 - Artifact normalization and schema boundary enforcement.
+- Card-authoring semantics: card normalization, property application, budget receipts, and summary construction live in `packages/runtime/src/commands/card-authoring.js`.
 - Solver/external fact request routing through ports.
 - UI-facing visualization assembly from core outputs and resource bundles.
+- UI-facing core access facades for preview/playback setup. Browser UI code must
+  call runtime helpers rather than importing `core-ts` directly.
 
 ## Builder Port
 
@@ -65,3 +68,18 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - `packages/ui-web/src/scenario-loader.js` compiles a scenario into a gameplay bundle by running the runtime to completion once, then the UI replays the recorded frames.
 - `globalThis.__ak_loadScenario(scenario, options)` compiles and forwards to `globalThis.__ak_loadGameplayBundle(bundle, options)`.
 - `packages/ui-web/src/views/gameplay-view.js` implements Step and `runToEnd()` by moving the current frame cursor over `tickFrames`; it does not call runtime step during playback.
+- `packages/runtime/src/runner/core-facade.js` is the runtime-owned browser facade for preview/playback helpers that need deterministic core setup, frame rendering, observation reads, and affinity field records.
+
+## Affinity Visualization
+
+- `core-ts` affinity field buffers are the canonical source for tile affinity visualization.
+- Runtime facades assemble UI-facing tile visuals from core field records and resource bundles.
+- `packages/runtime/src/render/affinity-aura.js` and `observation.auras` are retained only as compatibility output for existing renderers/tests. New preview or gameplay surfaces must not recompute JS aura fallbacks in `ui-web`.
+
+## Phaser UI Layer
+
+- `packages/ui-web/src/card-builder-controller.js` is a headless controller around runtime card-authoring commands. It has no DOM dependency; UI surfaces orchestrate view state only, while card semantics, simulation rules, and artifact contracts remain outside `ui-web`.
+- `packages/ui-web/src/views/phaser-frame-view.js` is the unified Phaser game frame. It hosts the Card Builder surface and the Gameplay surface, including the existing `createGameplayPhaserRenderer` path.
+- `ui-web` renders and emits UI intents only. The current Phaser card-builder intent set is: select chip, apply property to the active card, select card, move card between groups, load bundle, and select tile/entity. Phaser interaction mechanics remain in `ui-web`; card-authoring semantics remain in runtime.
+- `packages/ui-web/src/views/card-builder-phaser-renderer.js` renders card-builder interactions for the Phaser surface without owning card semantics or artifact schemas.
+- `packages/ui-web/src/phaser-surface-ingestion.js` is a UI-side artifact ingestion boundary. It routes existing versioned artifacts to the correct Phaser surface and introduces no new MCP tool schemas.

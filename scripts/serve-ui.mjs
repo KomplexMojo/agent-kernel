@@ -20,6 +20,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const DEFAULT_PORT = Number(process.env.PORT) || 8001;
 
+const _entryArg = process.argv.indexOf("--entry");
+const ENTRY_FILE = _entryArg !== -1 ? process.argv[_entryArg + 1] : "index.html";
+
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -148,7 +151,7 @@ function createUiServer() {
     // Redirect root to UI
     if (req.url === "/" || req.url === "") {
       res.statusCode = 302;
-      res.setHeader("Location", "/packages/ui-web/index.html");
+      res.setHeader("Location", `/packages/ui-web/${ENTRY_FILE}`);
       res.end();
       return;
     }
@@ -210,7 +213,7 @@ export function listenWithPortFallback({ startPort = DEFAULT_PORT, maxAttempts =
         resolvePromise({
           port: portToTry,
           server,
-          url: `http://localhost:${portToTry}/packages/ui-web/index.html`,
+          url: `http://localhost:${portToTry}/packages/ui-web/${ENTRY_FILE}`,
         });
       });
     }

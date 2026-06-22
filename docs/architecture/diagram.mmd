@@ -2,12 +2,20 @@
 flowchart LR
   subgraph Interfaces["Interfaces"]
     UIWeb["ui-web (browser)"]
+    PhaserFrame["phaser-frame-view"]
+    CardBuilderRenderer["card-builder-phaser-renderer"]
+    CardBuilderController["card-builder-controller"]
+    GameplaySurface["gameplay surface\ncreateGameplayPhaserRenderer"]
+    PhaserIngestion["phaser-surface-ingestion"]
+    ScenarioLoader["scenario-loader + preview-view"]
     CLI["CLI (ak.mjs)"]
   end
 
   subgraph Runtime["Runtime (TypeScript)"]
     CommandKernel["shared command kernel"]
+    CardAuthoring["card-authoring commands\nnormalize cards + apply properties"]
     RuntimePorts["runtime runner + ports"]
+    CoreFacade["core-facade + core-setup\npreview/playback helpers"]
     TickOrch["tick orchestrator"]
     Personas["personas"]
     ActorPersona["actor persona\nbuildMotivatedProposals"]
@@ -42,10 +50,22 @@ flowchart LR
 
   UIWeb --> RuntimePorts
   UIWeb --> AWeb
+  UIWeb --> PhaserIngestion
+  PhaserIngestion --> PhaserFrame
+  PhaserFrame --> CardBuilderRenderer
+  CardBuilderRenderer --> CardBuilderController
+  CardBuilderController --> CardAuthoring
+  PhaserFrame --> GameplaySurface
+  GameplaySurface --> RuntimePorts
+  ScenarioLoader --> CoreFacade
+  UIWeb --> ScenarioLoader
   CLI --> ACli
   AWeb --> CommandKernel
   ACli --> CommandKernel
+  CommandKernel --> CardAuthoring
   CommandKernel --> RuntimePorts
+  CoreFacade --> RuntimePorts
+  CoreFacade --> CoreEngine
   RuntimePorts --> TickOrch
   TickOrch --> Personas
   RuntimePorts --> CoreEngine

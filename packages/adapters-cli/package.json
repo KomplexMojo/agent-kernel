@@ -6,6 +6,7 @@
     "ak-mcp": "src/mcp/server.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ws": "^8.21.0"
   }
 }

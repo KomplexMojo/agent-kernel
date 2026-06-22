@@ -1,4 +1,4 @@
-import { validateSpendProposal, normalizePriceItems } from "../allocator/validate-spend.js";
+import { buildPriceMap, validateSpendProposal } from "../allocator/validate-spend.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
@@ -23,11 +23,12 @@ function readLayoutData(layout) {
   return layout.data && typeof layout.data === "object" ? layout.data : layout;
 }
 
-function countTraps(layoutData, trapsOverride) {
-  if (Array.isArray(trapsOverride)) return trapsOverride.length;
-  if (Array.isArray(layoutData?.traps)) return layoutData.traps.length;
-  return 0;
-}
+
+const RESOURCE_PRICE_IDS = Object.freeze({
+  consumable: "resource_base",
+  level: "resource_level",
+  permanent: "resource_permanent",
+});
 
 const AFFINITY_EXPRESSION_IDS = Object.freeze({
   push: "affinity_expression_externalize",
@@ -88,8 +89,28 @@ function extractMotivations(actor) {
   return value || [];
 }
 
-function buildSpendItems({ layoutData, actors, trapCount }) {
+function extractResourcePriceEntries(resource) {
+  // V3: { permanenceMode, vitals: [{ key, delta }] }
+  if (resource?.permanenceMode && Array.isArray(resource.vitals)) {
+    const priceId = RESOURCE_PRICE_IDS[resource.permanenceMode];
+    if (!priceId) return [];
+    return resource.vitals.map((v) => ({
+      priceId,
+      quantity: Math.abs(Number.isFinite(v?.delta) ? v.delta : 0),
+    }));
+  }
+  // V1: { tier, delta }
+  if (resource?.tier) {
+    const priceId = RESOURCE_PRICE_IDS[resource.tier];
+    if (!priceId) return [];
+    return [{ priceId, quantity: Math.abs(Number.isFinite(resource.delta) ? resource.delta : 0) }];
+  }
+  return [];
+}
+
+function buildSpendItems({ layoutData, actors, traps, resources }) {
   const counts = new Map();
+  const trapArray = Array.isArray(traps) ? traps : [];
 
   if (isInteger(layoutData?.width) && isInteger(layoutData?.height)) {
     accumulateItem(counts, `layout_grid_${layoutData.width}x${layoutData.height}`, "layout", 1);
@@ -99,8 +120,43 @@ function buildSpendItems({ layoutData, actors, trapCount }) {
     accumulateItem(counts, "actor_spawn", "actor", actors.length);
   }
 
-  if (trapCount > 0) {
-    accumulateItem(counts, "trap_basic", "trap", trapCount);
+  if (trapArray.length > 0) {
+    accumulateItem(counts, "trap_basic", "trap", trapArray.length);
+  }
+
+  trapArray.forEach((trap) => {
+    const vitals = trap?.vitals;
+    if (vitals && typeof vitals === "object") {
+      Object.keys(vitals).forEach((key) => {
+        const vital = vitals[key];
+        if (!vital || typeof vital !== "object") return;
+        const max = Number.isInteger(vital.max)
+          ? vital.max
+          : Number.isInteger(vital.current)
+            ? vital.current
+            : 0;
+        const regen = Number.isInteger(vital.regen) ? vital.regen : 0;
+        accumulateItem(counts, `vital_${key}_point`, "vital", max);
+        accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen);
+      });
+    }
+    const affinity = trap?.affinity;
+    if (affinity && typeof affinity === "object") {
+      const stacks = Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
+      const expressionId = AFFINITY_EXPRESSION_IDS[affinity.expression];
+      if (expressionId) {
+        accumulateItem(counts, expressionId, "affinity", stacks);
+      }
+      accumulateItem(counts, "affinity_stack", "affinity", stacks);
+    }
+  });
+
+  if (Array.isArray(resources)) {
+    resources.forEach((resource) => {
+      extractResourcePriceEntries(resource).forEach(({ priceId, quantity }) => {
+        accumulateItem(counts, priceId, "resource", quantity);
+      });
+    });
   }
 
   if (Array.isArray(actors)) {
@@ -149,10 +205,12 @@ function buildSpendItems({ layoutData, actors, trapCount }) {
   });
 }
 
-export function buildSpendProposal({ meta, layout, actors, traps } = {}) {
+export function buildSpendProposal({ meta, layout, actors, traps, resources } = {}) {
   const layoutData = readLayoutData(layout);
-  const trapCount = countTraps(layoutData, traps);
-  const items = buildSpendItems({ layoutData, actors, trapCount });
+  const trapArray = Array.isArray(traps) ? traps
+    : Array.isArray(layoutData?.traps) ? layoutData.traps
+    : [];
+  const items = buildSpendItems({ layoutData, actors, traps: trapArray, resources });
 
   return {
     schema: SPEND_PROPOSAL_SCHEMA,
@@ -168,10 +226,11 @@ export function evaluateConfiguratorSpend({
   layout,
   actors,
   traps,
+  resources,
   proposalMeta,
   receiptMeta,
 } = {}) {
-  const proposal = buildSpendProposal({ meta: proposalMeta, layout, actors, traps });
+  const proposal = buildSpendProposal({ meta: proposalMeta, layout, actors, traps, resources });
   const proposalRef = proposal?.meta?.id
     ? { id: proposal.meta.id, schema: proposal.schema, schemaVersion: proposal.schemaVersion }
     : undefined;
@@ -229,22 +288,6 @@ function scaleTokenCost(value, scale = 1) {
   if (scale === 1) return base;
   const scaled = Math.round(base * scale);
   return scaled > 0 ? scaled : 1;
-}
-
-// Build a `${kind}:${id}` -> unitCost map. Accepts both canonical PriceListItemLegacyV1
-// (`unitCost`) and legacy PriceListItemTokenV1 (`costTokens`) shapes via normalizePriceItems.
-// Without this, price maps were always empty for `unitCost` items (BUG-2).
-function buildPriceMap(priceList) {
-  const normalized = normalizePriceItems(priceList);
-  const map = new Map();
-  for (const [key, entry] of normalized) {
-    if (typeof key === "string" && key.includes(":") && !key.startsWith("legacy:")) {
-      if (entry.unitCost >= 0) {
-        map.set(key, entry.unitCost);
-      }
-    }
-  }
-  return map;
 }
 
 function resolveUnitCost({ priceMap, kind, id, fallback }) {

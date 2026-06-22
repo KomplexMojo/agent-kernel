@@ -13,6 +13,8 @@
  * then steps through the frames without re-executing simulation logic.
  */
 
+import { compileScenarioPlaybackBundle } from "../../runtime/src/runner/core-facade.js";
+
 /**
  * Compile a scenario into a gameplay bundle by running it through the runtime.
  *
@@ -24,41 +26,7 @@ export async function compileScenarioToBundle(scenario) {
     throw new Error("compileScenarioToBundle: scenario must include simConfig and initialState");
   }
 
-  const [{ createRuntime }, { createCore }] = await Promise.all([
-    import("../../runtime/src/runner/runtime.js"),
-    import("../../core-ts/src/index.ts"),
-  ]);
-
-  const ticks = Number.isInteger(scenario.ticks) && scenario.ticks > 0 ? scenario.ticks : 10;
-
-  const core = createCore();
-  const runtime = createRuntime({ core, adapters: {} });
-  await runtime.init({
-    seed: 0,
-    simConfig: scenario.simConfig,
-    initialState: scenario.initialState,
-  });
-  for (let i = 0; i < ticks; i++) {
-    await runtime.step();
-  }
-  const tickFrames = runtime.getTickFrames();
-
-  return {
-    schema: "agent-kernel/GameplayBundle",
-    schemaVersion: 1,
-    meta: {
-      id: scenario.id || "scenario_bundle",
-      scenarioId: scenario.id || null,
-      ticks,
-      createdAt: new Date().toISOString(),
-    },
-    artifacts: [
-      scenario.simConfig,
-      scenario.initialState,
-    ],
-    spec: { scenario: { id: scenario.id, name: scenario.name } },
-    tickFrames,
-  };
+  return compileScenarioPlaybackBundle(scenario);
 }
 
 /**

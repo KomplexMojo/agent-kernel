@@ -307,6 +307,16 @@ export function wireGameplayView({
     return selectedEntity;
   }
 
+  function selectEntityById(cardId) {
+    if (!cardId || !isRunActive()) return null;
+    for (const entity of entityIndex.values()) {
+      if (entity.id === cardId) {
+        return selectEntity(entity.position);
+      }
+    }
+    return null;
+  }
+
   function requestDesignTransition() {
     if (!isRunActive()) {
       onDiscardToDesign?.();
@@ -413,6 +423,7 @@ export function wireGameplayView({
     requestDesignTransition,
     getSelectedEntity,
     selectEntity,
+    selectEntityById,
     resolveDisplayModel,
     handleInspectorSelect,
     openPlayerPanel,

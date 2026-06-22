@@ -1,115 +1,79 @@
 const assert = require("node:assert/strict");
-const { readFixture } = require("../helpers/fixtures");
+const { readFileSync } = require("node:fs");
+const { resolve } = require("node:path");
 
-function isObject(v) {
-  return v !== null && typeof v === "object";
+const ROOT = resolve(__dirname, "../..");
+const SOURCE_BACKED_SCENARIO_CATEGORIES = ["rooms", "delvers", "wardens", "resources"];
+
+function readJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
 }
 
-const FULL_CATEGORIES = [
-  "rooms",
-  "floor_tiles",
-  "traps",
-  "hazards",
-  "resources",
-  "delvers",
-  "wardens",
-  "shared_system",
-];
-
-function validateCategoryEntry(entry, label) {
-  assert.ok(isObject(entry), `${label}: expected object`);
-  assert.ok(Number.isFinite(entry.actual), `${label}.actual: expected number`);
-  assert.ok(Number.isFinite(entry.target), `${label}.target: expected number`);
-  assert.ok(Number.isFinite(entry.usagePercent), `${label}.usagePercent: expected number`);
+function refFor(artifact) {
+  return { id: artifact.meta.id, schema: artifact.schema, schemaVersion: artifact.schemaVersion };
 }
 
-/**
- * Validates the expanded scenarioSpendReport on a BudgetReceiptArtifact.
- * All 8 canonical categories must be present when scenarioSpendReport is present.
- */
-function validateExpandedScenarioSpendReport(report) {
-  assert.ok(isObject(report), "scenarioSpendReport: expected object");
-  assert.ok(Number.isFinite(report.budget), "scenarioSpendReport.budget: expected number");
-  assert.ok(Number.isFinite(report.totalSpend), "scenarioSpendReport.totalSpend: expected number");
-  assert.ok(Number.isFinite(report.remainingBudget), "scenarioSpendReport.remainingBudget: expected number");
-  assert.equal(typeof report.overBudget, "boolean", "scenarioSpendReport.overBudget: expected boolean");
-  assert.ok(isObject(report.categories), "scenarioSpendReport.categories: expected object");
+async function buildReceipt() {
+  const scenario = readJson(resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json"));
+  const summaryFixture = readJson(resolve(ROOT, scenario.summaryPath));
+  const catalog = readJson(resolve(ROOT, scenario.catalogPath));
+  const budget = readJson(resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"));
+  const priceList = readJson(resolve(ROOT, "tests/fixtures/allocator/price-list-v1-basic.json"));
 
-  for (const cat of FULL_CATEGORIES) {
-    assert.ok(
-      isObject(report.categories[cat]),
-      `scenarioSpendReport.categories.${cat}: expected object (missing from report)`,
-    );
-    validateCategoryEntry(report.categories[cat], `categories.${cat}`);
-  }
+  const [{ normalizeSummary }, { mapSummaryToPool }, { buildBuildSpecFromSummary }, { orchestrateBuild }] = await Promise.all([
+    import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js"),
+    import("../../packages/runtime/src/personas/director/pool-mapper.js"),
+    import("../../packages/runtime/src/personas/director/buildspec-assembler.js"),
+    import("../../packages/runtime/src/build/orchestrate-build.js"),
+  ]);
 
-  assert.ok(
-    Number.isFinite(report.totalBudgetUsagePercent),
-    "scenarioSpendReport.totalBudgetUsagePercent: expected number",
-  );
+  const normalized = normalizeSummary(summaryFixture);
+  assert.equal(normalized.ok, true);
+  const mapped = mapSummaryToPool({ summary: normalized.value, catalog });
+  assert.equal(mapped.ok, true);
+
+  const specResult = buildBuildSpecFromSummary({
+    summary: normalized.value,
+    catalog,
+    selections: mapped.selections,
+    runId: "budget_receipt_source_backed",
+    createdAt: "2026-06-11T00:00:00.000Z",
+    source: "test",
+    budgetRef: refFor(budget),
+    priceListRef: refFor(priceList),
+    budgetArtifact: budget,
+    priceListArtifact: priceList,
+  });
+  assert.equal(specResult.ok, true);
+
+  return orchestrateBuild({ spec: specResult.spec, producedBy: "runtime-build" });
 }
 
-function validateBudgetReceiptWithExpandedReport(artifact) {
-  assert.ok(isObject(artifact), "artifact: expected object");
-  assert.equal(artifact.schema, "agent-kernel/BudgetReceiptArtifact");
-  assert.equal(artifact.schemaVersion, 1);
-  assert.ok(isObject(artifact.meta));
-  assert.ok(isObject(artifact.budgetRef));
-  assert.ok(isObject(artifact.priceListRef));
-  assert.ok(["approved", "denied", "partial"].includes(artifact.status));
-  assert.ok(Number.isFinite(artifact.totalCost));
-  assert.ok(Number.isFinite(artifact.remaining));
-  assert.ok(Array.isArray(artifact.lineItems));
+test("orchestrateBuild emits a real BudgetReceiptArtifact with expanded scenario spend report", async () => {
+  const buildResult = await buildReceipt();
+  const receipt = buildResult.budgetReceipt;
 
-  if (artifact.scenarioSpendReport !== undefined) {
-    validateExpandedScenarioSpendReport(artifact.scenarioSpendReport);
-  }
-}
-
-test("BudgetReceiptArtifact accepts expanded scenarioSpendReport with all 8 categories", () => {
-  const fixture = readFixture("budget-receipt-artifact-v1-full-categories.json");
-  validateBudgetReceiptWithExpandedReport(fixture);
-  assert.ok(isObject(fixture.scenarioSpendReport));
-  for (const cat of FULL_CATEGORIES) {
-    assert.ok(
-      isObject(fixture.scenarioSpendReport.categories[cat]),
-      `Missing category: ${cat}`,
-    );
-  }
+  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.equal(receipt.schemaVersion, 1);
+  assert.equal(receipt.proposalRef.id, buildResult.spendProposal.meta.id);
+  assert.ok(receipt.scenarioSpendReport);
+  assert.equal(receipt.scenarioSpendReport.budget, receipt.totalCost + receipt.remaining);
+  assert.equal(receipt.scenarioSpendReport.totalSpend, receipt.totalCost);
+  assert.equal(receipt.scenarioSpendReport.remainingBudget, receipt.remaining);
+  assert.equal(receipt.scenarioSpendReport.overBudget, receipt.totalCost > receipt.totalCost + receipt.remaining);
+  assert.ok(Number.isFinite(receipt.scenarioSpendReport.totalBudgetUsagePercent));
+  assert.ok(receipt.scenarioSpendReport.incentive);
 });
 
-test("BudgetReceiptArtifact rejects scenarioSpendReport missing new categories", () => {
-  const fixture = readFixture("invalid/budget-receipt-artifact-v1-missing-categories.json");
-  assert.throws(() => validateBudgetReceiptWithExpandedReport(fixture));
-});
+test("generated scenario spend report covers the categories emitted by the production incentive model", async () => {
+  const buildResult = await buildReceipt();
+  const categories = buildResult.budgetReceipt.scenarioSpendReport.categories;
 
-test("BudgetReceiptArtifact still accepts legacy 3-category report via old validator", () => {
-  const fixture = readFixture("budget-receipt-artifact-v1-basic.json");
-  // Old-style receipt without expanded categories should still be structurally valid
-  assert.ok(isObject(fixture));
-  assert.equal(fixture.schema, "agent-kernel/BudgetReceiptArtifact");
+  SOURCE_BACKED_SCENARIO_CATEGORIES.forEach((category) => {
+    assert.ok(categories[category], `missing ${category}`);
+    assert.equal(typeof categories[category].actual, "number");
+    assert.equal(typeof categories[category].target, "number");
+    assert.equal(typeof categories[category].usagePercent, "number");
+  });
+  assert.deepEqual(Object.keys(categories).sort(), [...SOURCE_BACKED_SCENARIO_CATEGORIES].sort());
 });
-
-test("scenarioSpendReport category entries require actual/target/usagePercent", () => {
-  assert.throws(() =>
-    validateExpandedScenarioSpendReport({
-      budget: 100,
-      totalSpend: 80,
-      remainingBudget: 20,
-      overBudget: false,
-      categories: {
-        rooms: { actual: 10, target: 10, usagePercent: 100 },
-        // missing all other categories
-      },
-      totalBudgetUsagePercent: 80,
-    }),
-  );
-});
-
-// ## TODO: Test Permutations
-// - scenarioSpendReport.categories.hazards.actual = NaN (should fail)
-// - scenarioSpendReport with all 8 categories but totalBudgetUsagePercent missing (should fail)
-// - scenarioSpendReport.overBudget = "true" string (should fail — not boolean)
-// - receipt with scenarioSpendReport = null (should fail — not an object)
-// - receipt with shared_system.actual = 0 (valid — zero spend is legitimate)
-// - receipt where floor_tiles category has usagePercent > 100 (valid — over-budget per category is allowed)

@@ -6,7 +6,7 @@
  *
  * These rules drive:
  * - Resource bundle sprite generation (resource-bundle.js)
- * - ASCII-styled affinity rendering (movement-ui.js)
+ * - ASCII-styled affinity rendering in runtime/UI preview surfaces
  * - Future CLI-generated imagery with affinity-aware room/floor visuals
  *
  * @module affinity-palette

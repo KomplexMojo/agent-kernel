@@ -398,20 +398,29 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
   };
 
   const layoutData = simConfig?.layout?.data || {};
-  const runtimeHazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+  const runtimeHazards = Array.isArray(layoutData.hazards)
+    ? layoutData.hazards
+    : Array.isArray(layoutData.traps) ? layoutData.traps : [];
   const runtimeResources = Array.isArray(layoutData.resources) ? layoutData.resources : [];
 
   runtimeHazards.forEach((hazard) => {
     const id = normalizeName(hazard?.id, `hazard-${groups.hazard.length + 1}`);
+    const trapAffinity = hazard?.affinity;
+    const affinity = trapAffinity?.kind || "";
+    const affinities = trapAffinity?.kind
+      ? [{ kind: trapAffinity.kind, expression: trapAffinity.expression || "", stacks: trapAffinity.stacks || 1 }]
+      : [];
+    const position = hazard?.position
+      || (hazard?.x != null && hazard?.y != null ? { x: hazard.x, y: hazard.y } : null);
     groups.hazard.push({
       instanceId: id,
       templateId: id,
       type: "hazard",
       ordinal: groups.hazard.length + 1,
-      card: { id, type: "hazard", count: 1, affinity: "", affinities: [], motivations: [], vitals: null, cardValue: { unitTokens: 0, totalTokens: 0 } },
+      card: { id, type: "hazard", count: 1, affinity, affinities, motivations: [], vitals: null, cardValue: { unitTokens: 0, totalTokens: 0 } },
       runtimeActorId: "",
       roomId: "",
-      position: hazard?.position || null,
+      position,
       runtimeRoom: null,
     });
   });

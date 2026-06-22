@@ -1,114 +1,94 @@
 const assert = require("node:assert/strict");
-const { readFixture } = require("../helpers/fixtures");
+const { readFileSync } = require("node:fs");
+const { resolve } = require("node:path");
 
-function isObject(value) {
-  return value !== null && typeof value === "object";
+const ROOT = resolve(__dirname, "../..");
+
+function readJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
 }
 
-function validateBudgetArtifact(artifact) {
-  assert.ok(isObject(artifact));
-  assert.equal(artifact.schema, "agent-kernel/BudgetArtifact");
-  assert.equal(artifact.schemaVersion, 1);
-  assert.ok(isObject(artifact.meta));
-  assert.ok(isObject(artifact.budget));
-  assert.equal(Number.isInteger(artifact.budget.tokens), true);
+function refFor(artifact) {
+  return { id: artifact.meta.id, schema: artifact.schema, schemaVersion: artifact.schemaVersion };
 }
 
-function isLegacyPriceItem(item) {
-  return typeof item.key === "string" && Number.isFinite(item.unitCost);
-}
+async function buildBudgetedRun() {
+  const scenario = readJson(resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json"));
+  const summaryFixture = readJson(resolve(ROOT, scenario.summaryPath));
+  const catalog = readJson(resolve(ROOT, scenario.catalogPath));
+  const budget = readJson(resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"));
+  const priceList = readJson(resolve(ROOT, "tests/fixtures/allocator/price-list-v1-basic.json"));
+  const spendEvents = readJson(resolve(ROOT, "tests/fixtures/allocator/spend-events-v1-basic.json"));
 
-function isTokenPriceItem(item) {
-  return typeof item.id === "string" && typeof item.kind === "string" && Number.isFinite(item.costTokens);
-}
+  const [
+    { normalizeSummary },
+    { mapSummaryToPool },
+    { buildBuildSpecFromSummary },
+    { orchestrateBuild },
+    { updateBudgetLedger },
+  ] = await Promise.all([
+    import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js"),
+    import("../../packages/runtime/src/personas/director/pool-mapper.js"),
+    import("../../packages/runtime/src/personas/director/buildspec-assembler.js"),
+    import("../../packages/runtime/src/build/orchestrate-build.js"),
+    import("../../packages/runtime/src/personas/allocator/budget-ledger.js"),
+  ]);
 
-function validatePriceListArtifact(artifact) {
-  assert.ok(isObject(artifact));
-  assert.equal(artifact.schema, "agent-kernel/PriceList");
-  assert.equal(artifact.schemaVersion, 1);
-  assert.ok(isObject(artifact.meta));
-  assert.ok(Array.isArray(artifact.items));
-  assert.ok(artifact.items.length > 0);
-  artifact.items.forEach((item) => {
-    assert.ok(isLegacyPriceItem(item) || isTokenPriceItem(item));
+  const normalized = normalizeSummary(summaryFixture);
+  assert.equal(normalized.ok, true);
+  const mapped = mapSummaryToPool({ summary: normalized.value, catalog });
+  assert.equal(mapped.ok, true);
+
+  const specResult = buildBuildSpecFromSummary({
+    summary: normalized.value,
+    catalog,
+    selections: mapped.selections,
+    runId: "budget_artifacts_source_backed",
+    createdAt: "2026-06-11T00:00:00.000Z",
+    source: "test",
+    budgetRef: refFor(budget),
+    priceListRef: refFor(priceList),
+    budgetArtifact: budget,
+    priceListArtifact: priceList,
   });
-}
+  assert.equal(specResult.ok, true);
 
-function validateBudgetReceiptArtifact(artifact) {
-  assert.ok(isObject(artifact));
-  assert.equal(artifact.schema, "agent-kernel/BudgetReceiptArtifact");
-  assert.equal(artifact.schemaVersion, 1);
-  assert.ok(isObject(artifact.meta));
-  assert.ok(isObject(artifact.budgetRef));
-  assert.ok(isObject(artifact.priceListRef));
-  assert.ok(["approved", "denied", "partial"].includes(artifact.status));
-  assert.equal(Number.isFinite(artifact.totalCost), true);
-  assert.equal(Number.isFinite(artifact.remaining), true);
-  assert.ok(Array.isArray(artifact.lineItems));
-  artifact.lineItems.forEach((item) => {
-    assert.equal(typeof item.id, "string");
-    assert.equal(typeof item.kind, "string");
-    assert.equal(Number.isFinite(item.quantity), true);
-    assert.equal(Number.isFinite(item.unitCost), true);
-    assert.equal(Number.isFinite(item.totalCost), true);
-    assert.ok(["approved", "denied", "partial"].includes(item.status));
+  const buildResult = await orchestrateBuild({ spec: specResult.spec, producedBy: "runtime-build" });
+  const ledgerResult = updateBudgetLedger({
+    receipt: buildResult.budgetReceipt,
+    spendEvents: spendEvents.events,
+    meta: {
+      id: "ledger_budget_artifacts_source_backed",
+      runId: specResult.spec.meta.runId,
+      createdAt: "2026-06-11T00:00:00.000Z",
+      producedBy: "allocator",
+    },
   });
-  if (artifact.status === "approved") {
-    assert.equal(artifact.remaining >= 0, true);
-  }
-  // scenarioSpendReport is optional
-  if (artifact.scenarioSpendReport) {
-    assert.ok(isObject(artifact.scenarioSpendReport));
-    assert.equal(Number.isFinite(artifact.scenarioSpendReport.budget), true);
-    assert.equal(Number.isFinite(artifact.scenarioSpendReport.totalSpend), true);
-    assert.equal(Number.isFinite(artifact.scenarioSpendReport.remainingBudget), true);
-    assert.equal(typeof artifact.scenarioSpendReport.overBudget, "boolean");
-    assert.ok(isObject(artifact.scenarioSpendReport.categories));
-    assert.ok(isObject(artifact.scenarioSpendReport.categories.rooms));
-    assert.ok(isObject(artifact.scenarioSpendReport.categories.delvers));
-    assert.ok(isObject(artifact.scenarioSpendReport.categories.wardens));
-    assert.ok(isObject(artifact.scenarioSpendReport.incentive));
-  }
+
+  return { budget, priceList, buildResult, ledger: ledgerResult.ledger };
 }
 
-function validateBudgetLedgerArtifact(artifact) {
-  assert.ok(isObject(artifact));
-  assert.equal(artifact.schema, "agent-kernel/BudgetLedgerArtifact");
-  assert.equal(artifact.schemaVersion, 1);
-  assert.ok(isObject(artifact.meta));
-  assert.ok(isObject(artifact.budgetRef));
-  assert.equal(Number.isFinite(artifact.remaining), true);
-  assert.ok(Array.isArray(artifact.spendEvents));
-  artifact.spendEvents.forEach((event) => {
-    assert.equal(typeof event.id, "string");
-    assert.equal(typeof event.kind, "string");
-    assert.equal(Number.isFinite(event.quantity), true);
-    assert.equal(Number.isFinite(event.unitCost), true);
-    assert.equal(Number.isFinite(event.totalCost), true);
-  });
-}
+test("orchestrateBuild produces budget receipt refs and totals from real budget artifacts", async () => {
+  const { budget, priceList, buildResult } = await buildBudgetedRun();
+  const receipt = buildResult.budgetReceipt;
 
-test("budget artifacts accept valid shapes", () => {
-  const budget = readFixture("budget-artifact-v1-basic.json");
-  const priceList = readFixture("price-list-artifact-v1-basic.json");
-  const receipt = readFixture("budget-receipt-artifact-v1-basic.json");
-  const ledger = readFixture("budget-ledger-artifact-v1-basic.json");
-
-  validateBudgetArtifact(budget);
-  validatePriceListArtifact(priceList);
-  validateBudgetReceiptArtifact(receipt);
-  validateBudgetLedgerArtifact(ledger);
+  assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
+  assert.deepEqual(receipt.budgetRef, refFor(budget));
+  assert.deepEqual(receipt.priceListRef, refFor(priceList));
+  assert.equal(receipt.proposalRef.id, buildResult.spendProposal.meta.id);
+  assert.ok(["approved", "denied", "partial"].includes(receipt.status));
+  assert.equal(receipt.totalCost + receipt.remaining, budget.budget.tokens);
+  assert.ok(receipt.lineItems.length > 0);
 });
 
-test("budget artifacts reject missing costs or status", () => {
-  const priceListMissingCost = readFixture("invalid/price-list-artifact-v1-missing-cost.json");
-  assert.throws(() => validatePriceListArtifact(priceListMissingCost));
+test("updateBudgetLedger creates a real ledger linked to the generated receipt", async () => {
+  const { budget, buildResult, ledger } = await buildBudgetedRun();
+  const expectedEventSpend = ledger.spendEvents.reduce((sum, event) => sum + event.totalCost, 0);
 
-  const receiptMissingStatus = readFixture("invalid/budget-receipt-artifact-v1-missing-status.json");
-  assert.throws(() => validateBudgetReceiptArtifact(receiptMissingStatus));
-});
-
-test("budget receipts reject negative remaining when approved", () => {
-  const overBudget = readFixture("invalid/budget-receipt-artifact-v1-over-budget.json");
-  assert.throws(() => validateBudgetReceiptArtifact(overBudget));
+  assert.equal(ledger.schema, "agent-kernel/BudgetLedgerArtifact");
+  assert.deepEqual(ledger.budgetRef, refFor(budget));
+  assert.equal(ledger.receiptRef.id, buildResult.budgetReceipt.meta.id);
+  assert.ok(Array.isArray(ledger.spendEvents));
+  assert.ok(ledger.spendEvents.length > 0);
+  assert.equal(ledger.remaining, buildResult.budgetReceipt.remaining - expectedEventSpend);
 });

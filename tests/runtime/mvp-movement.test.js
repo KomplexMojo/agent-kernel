@@ -2,12 +2,12 @@ const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
 
 test("runtime default movement generates golden actions and frames", async () => {
-  const [{ createCore }, { runMvpMovement }] = await Promise.all([
-    import("../../packages/core-ts/src/index.ts"),
+  const [{ createRuntimeCore }, { runMvpMovement }] = await Promise.all([
+    import("../../packages/runtime/src/runner/core-facade.js"),
     import("../../packages/runtime/src/index.js"),
   ]);
 
-  const core = createCore();
+  const core = createRuntimeCore();
   const actionFixture = readFixture("action-sequence-v1-mvp-to-exit.json");
   const frameFixture = readFixture("frame-buffer-log-v1-mvp.json");
 

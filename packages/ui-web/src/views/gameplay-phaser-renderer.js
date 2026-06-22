@@ -1,3 +1,5 @@
+import { createActorMedallionTextureDescriptor } from "./actor-medallion-textures.js";
+
 const DEFAULT_TILE_SIZE = 32;
 const MIN_CAMERA_ZOOM = 0.25;
 const MAX_CAMERA_ZOOM = 3;
@@ -379,6 +381,44 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return node;
   }
 
+  function canvasForTexture(texture) {
+    return texture?.getSourceImage?.() || texture?.source?.[0]?.image || null;
+  }
+
+  function ensureActorMedallionTexture(resourceBundle, actor, width, height) {
+    const descriptor = createActorMedallionTextureDescriptor({ resourceBundle, actor, width, height });
+    if (!descriptor || !scene?.textures) return "";
+
+    let texture = scene.textures.get?.(descriptor.key) || null;
+    const exists = scene.textures.exists?.(descriptor.key) === true;
+    if (!exists) {
+      if (typeof scene.textures.createCanvas !== "function") return "";
+      texture = scene.textures.createCanvas(descriptor.key, descriptor.size, descriptor.size);
+    }
+
+    const canvas = canvasForTexture(texture);
+    const context = canvas?.getContext?.("2d");
+    if (!context?.createImageData || !context?.putImageData) return "";
+
+    const imageData = context.createImageData(descriptor.size, descriptor.size);
+    imageData.data.set(descriptor.pixels);
+    context.putImageData(imageData, 0, 0);
+    texture?.refresh?.();
+    if (stageEl?.dataset) stageEl.dataset.gameplayActorMedallions = "runtime";
+    return descriptor.key;
+  }
+
+  function addActorMedallionImage(resourceBundle, actor, x, y, width, height) {
+    const textureKey = ensureActorMedallionTexture(resourceBundle, actor, width, height);
+    if (!textureKey || typeof scene?.add?.image !== "function") return null;
+    const node = scene.add.image(x, y, textureKey);
+    node.setDisplaySize?.(width, height);
+    node.setOrigin?.(0.5);
+    node.setName?.(`actor-medallion:${actor?.id || inferActorRole(actor)}`);
+    node.setData?.("actorMedallion", true);
+    return node;
+  }
+
   function addMissingBundleFallback(x, y, width, height) {
     const node = scene.add.rectangle(x, y, width, height, 0x111318, 0.92);
     node.setStrokeStyle?.(1, 0xff4d6d, 0.8);
@@ -387,6 +427,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   }
 
   function addSurfaceImageOrFallback(resourceBundle, category, key, model, x, y, width, height) {
+    if (category === "actors") {
+      const actorImage = addActorMedallionImage(resourceBundle, model, x, y, width, height);
+      if (actorImage) return actorImage;
+    }
     const asset = resolveSurfaceAsset(resourceBundle, category, key, model);
     const image = addBundleImage(asset, x, y, width, height);
     return image || addMissingBundleFallback(x, y, width, height);
@@ -428,9 +472,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     );
     overlay.add(actorLabel);
 
-    const actorAsset = resolveSurfaceAsset(model.resourceBundle, "actors", model.entityType, model);
-    const actorImage = addBundleImage(actorAsset, panelX + 36, panelY + 68, 56, 56)
-      || addMissingBundleFallback(panelX + 36, panelY + 68, 56, 56);
+    const actorImage = addSurfaceImageOrFallback(
+      model.resourceBundle,
+      "actors",
+      model.entityType,
+      model,
+      panelX + 36,
+      panelY + 68,
+      56,
+      56,
+    );
     overlay.add(actorImage);
 
     let yVitals = panelY + 32;

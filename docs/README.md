@@ -21,6 +21,13 @@ If a plan or README conflicts with these documents, the charter and vision contr
 - The canonical M6 sandbox scenario fixture is `tests/fixtures/scenarios/delver-warden-battle-v1-basic.json`.
 - The motivation-sandbox executable specs are `tests/core-ts/combat-actions.test.mts`, `tests/runtime/actor-motivation-combat.test.js`, `tests/runtime/runtime-combat-application.test.js`, `tests/adapters-test/z3-solver-adapter.test.js`, and `tests/runtime/complex-motivation-z3.test.js`.
 - The UI sandbox exposes Step and Run-To-End playback over precomputed `tickFrames`; tests and tooling can load scenarios through `window.__ak_loadScenario(scenario, options)` or bundles through `window.__ak_loadGameplayBundle(bundle, options)`.
+- UI preview/playback helpers that need deterministic core setup go through `packages/runtime/src/runner/core-facade.js`; `ui-web` must not import `core-ts` directly.
+- Core affinity field records are the canonical tile visualization input. Runtime `observation.auras` remains compatibility output only.
+- The Phaser UI shell is centered on `packages/ui-web/src/views/phaser-frame-view.js`, a unified game frame for Card Builder and Gameplay surfaces.
+- Card-authoring semantics live in `packages/runtime/src/commands/card-authoring.js`; `packages/ui-web/src/card-builder-controller.js` is the headless controller used by DOM and Phaser renderers.
+- `packages/ui-web/src/views/card-builder-phaser-renderer.js` renders the Card Builder surface inside the Phaser frame.
+- `packages/ui-web/src/phaser-surface-ingestion.js` routes existing versioned artifacts to the correct UI surface.
+- `tests/playwright/phaser-frame.spec.mjs` is the Phaser frame browser smoke test.
 
 ## Common Commands
 

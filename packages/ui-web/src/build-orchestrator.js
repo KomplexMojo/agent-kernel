@@ -122,6 +122,7 @@ export function wireBuildOrchestrator({
     lastSnapshot: null,
     validation: { ok: true, errors: [], spec: null, specText: "" },
     running: false,
+    specOverride: null,
   };
   const adapter = commandHost || adapterFactory();
 
@@ -319,7 +320,8 @@ export function wireBuildOrchestrator({
   async function runBuild() {
     setDownloadVisible(false);
     const specPath = valueOf(specPathInput);
-    const specText = valueOf(specJsonInput);
+    const specText = state.specOverride ?? valueOf(specJsonInput);
+    state.specOverride = null;
     const requestedOutDir = valueOf(outDirInput);
 
     const validation = validateSpecInput({ notifyStatus: true });
@@ -434,6 +436,9 @@ export function wireBuildOrchestrator({
     runBuild,
     loadLastBuild,
     reset,
+    setSpecOverride(specText) {
+      state.specOverride = typeof specText === "string" ? specText : null;
+    },
     getLastSnapshot() {
       return state.lastSnapshot;
     },

@@ -40,6 +40,17 @@ export function normalizePriceItems(priceList) {
   return map;
 }
 
+export function buildPriceMap(priceList) {
+  const normalized = normalizePriceItems(priceList);
+  const map = new Map();
+  for (const [key, entry] of normalized) {
+    if (typeof key === "string" && key.includes(":") && !key.startsWith("legacy:")) {
+      map.set(key, entry.unitCost);
+    }
+  }
+  return map;
+}
+
 function normalizeQuantity(value) {
   if (!isFiniteNumber(value)) return 1;
   return value <= 0 ? 1 : value;
