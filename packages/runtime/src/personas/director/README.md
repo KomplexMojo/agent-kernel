@@ -1,14 +1,24 @@
-The Director turns goals into structured plans. When LLMs are used (Ollama/OpenAI-style), the Director authors the prompt plan and response contract, and the Orchestrator performs the IO, captures the exchange, and hands the resulting guidance back as explicit artifacts.
-
 # Director Persona
 
 The Director is the **planning and intent-translation persona**.
 
 It is responsible for turning high-level strategy into **structured, actionable plans** that can be executed by downstream personas. The Director bridges the gap between external intent and internal execution by shaping goals, constraints, and tactics into a form the system can reason about.
 
+When LLMs are used, the Director authors the prompt plan and response contract. The Orchestrator performs the IO, captures the exchange, and hands the resulting guidance back as explicit artifacts.
+
 This document defines the Director as a **runtime planning role**. Simulation rules, configuration assembly, budgeting policy, and execution remain the responsibility of other personas and the simulation core (`core-ts`).
 
 ---
+
+## At a Glance
+
+| Area | Director responsibility |
+| --- | --- |
+| Owns | Translating goals into structured plans and prompt contracts |
+| Does not own | IO, configuration assembly, budget enforcement, or execution |
+| Primary inputs | Human/agent intent, scenario objectives, external guidance artifacts |
+| Primary outputs | Planning artifacts, constraints, directives, prompt plans |
+| Boundary | Defines what should be attempted; downstream personas decide feasibility and execution |
 
 ## Persona Scope
 

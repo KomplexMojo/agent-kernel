@@ -14,6 +14,28 @@ Minimum-install baseline:
 
 ---
 
+## How to Read This README
+
+Start with the workflow map below, then jump to the command family you need. The long command examples later in the file are reference material; they intentionally preserve exact CLI invocations for automation and regression checks.
+
+| Need | Start with | Produces |
+| --- | --- | --- |
+| Author a room, delver, warden, trap, hazard, or resource | `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan` | `spec.json`, `bundle.json`, `sim-config.json`, `initial-state.json` |
+| Build from an existing BuildSpec | `build` | Canonical persisted handoff artifacts |
+| Run or replay deterministic simulation artifacts | `run`, `replay` | TickFrames, effects log, run summary |
+| Inspect prior outputs | `show`, `diff`, `runs list`, `inspect`, `narrate` | Structured summaries and narrative artifacts |
+| Use LLM planning with captured inputs | `llm-plan`, `scenario`, `llm` | Captured LLM artifacts plus build/run outputs |
+| Exercise external adapters directly | `ipfs`, `blockchain`, `llm`, publish/load variants | Adapter response artifacts |
+
+## Typical Local Workflow
+
+1. Author or build a scenario into artifacts.
+2. Inspect `bundle.json` and `manifest.json`, or load them in the UI.
+3. Run the scenario from `sim-config.json` and `initial-state.json`.
+4. Inspect, narrate, diff, or replay the emitted TickFrames.
+
+The default output root is `artifacts/runs/<runId>/<command>`, which keeps each command stage readable and chainable.
+
 ## Scope
 
 CLI adapters:
@@ -27,7 +49,7 @@ They do **not**:
 
 ---
 
-## CLI Commands (MVP)
+## CLI Commands
 
 Default output layout: `artifacts/runs/<runId>/<command>`. Older layouts
 (`artifacts/build_<runId>`, `artifacts/<command>_<timestamp>`) can be preserved

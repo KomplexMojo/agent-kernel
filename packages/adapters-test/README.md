@@ -3,6 +3,10 @@
 This package contains **adapter implementations** that return deterministic,
 fixture-backed responses for tests and replay. It is not a test suite itself.
 
+## Where it fits
+
+`adapters-test` sits beside the real CLI and web adapters. It implements the same port-shaped behavior with in-memory fixtures so tests can exercise runtime flows without IPFS gateways, JSON-RPC endpoints, or live model servers.
+
 ## Purpose
 
 `adapters-test` exists to provide predictable versions of external IO adapters:
@@ -19,7 +23,7 @@ is **where tests live**.
 
 ## Usage
 
-```
+```js
 import { createIpfsTestAdapter } from "./src/adapters/ipfs/index.js";
 
 const ipfs = createIpfsTestAdapter({ fixtures: { bafy123: "{\"ok\":true}" } });

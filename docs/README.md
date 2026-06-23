@@ -1,6 +1,19 @@
 # Documentation Index
 
-This folder contains the design intent and architecture rules for the project.
+This folder contains the design intent, architecture rules, and current execution model for the project. Treat it as the starting point when you need to understand why the repo is shaped the way it is.
+
+## Reading Order
+
+For a newcomer, read these in order:
+
+1. `README.md` at the repo root for the high-level project map.
+2. `docs/vision-contract.md` for the constraints the project is preserving.
+3. `docs/architecture-charter.md` for dependency direction and Ports & Adapters rules.
+4. `docs/architecture/diagram.mmd` for the package-level map.
+5. `docs/architecture/persona-state-machines.md` for runtime persona phases and transitions.
+6. Package READMEs for the area you are working in.
+
+When older notes disagree with the charter or vision contract, the charter and vision contract win.
 
 ## Core Documents
 
@@ -9,9 +22,16 @@ This folder contains the design intent and architecture rules for the project.
 - `docs/architecture/diagram.mmd` — Mermaid architecture overview.
 - `docs/architecture/persona-state-machines.md` — deterministic persona FSM rules and state sets.
 
-If a plan or README conflicts with these documents, the charter and vision contract win.
-
 ## Current Execution Model
+
+At runtime, the system moves from authored intent to deterministic replayable artifacts:
+
+1. A user, agent, fixture, or UI surface describes a scenario.
+2. Runtime personas translate that intent into plans, budgets, configuration, and execution requests.
+3. The TypeScript core applies deterministic rules and emits state changes.
+4. Runtime writes TickFrames, effects, summaries, telemetry, and bundles for replay and inspection.
+
+Key facts:
 
 - The deterministic simulation core is `packages/core-ts`.
 - The tick FSM (`init -> observe -> decide -> apply -> emit -> summarize`) is the canonical runtime loop.
@@ -42,7 +62,7 @@ The TypeScript core is synchronous and does not require a separate binary build 
 
 ## Builder Workflow
 
-Agent/CLI/UI share the same BuildSpec (`agent-kernel/BuildSpec`). The agent writes a spec, the CLI builds artifacts, and the UI can load/edit the emitted bundle without translation.
+Agent, CLI, and UI share the same BuildSpec (`agent-kernel/BuildSpec`). The agent writes a spec, the CLI builds artifacts, and the UI can load or edit the emitted bundle without translation.
 
 `create`, `configure`, `room-plan`, `delver-plan`, and `warden-plan` share one canonical preview handoff: `bundle.json`, `manifest.json`, `sim-config.json`, `initial-state.json`, `telemetry.json`, and `resource-bundle.json`.
 

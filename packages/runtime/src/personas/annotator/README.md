@@ -1,13 +1,24 @@
-The Annotator is the steward of runtime truth. It actively “visits” actors and other personas each tick to collect telemetry, aggregates those raw signals into structured summaries, and emits the results so Orchestrator, the UI, and observability stacks (Prometheus/Grafana) can consume an accurate view of what happened.
 # Annotator Persona
 
 The Annotator is the **telemetry and observability persona** for the simulation.
 
 It is responsible for capturing what occurred during execution, structuring that information into stable, queryable formats, and emitting it for downstream consumption. The Annotator does not influence simulation outcomes; it records them.
 
+In practice, the Annotator is the steward of runtime truth: it collects telemetry from actors and personas, aggregates raw signals into structured summaries, and emits accurate run views for the Orchestrator, UI, and observability stacks.
+
 This document defines the Annotator as a **runtime observation and formatting role**. Simulation rules, state transitions, and event generation remain the responsibility of the simulation core (`core-ts`).
 
 ---
+
+## At a Glance
+
+| Area | Annotator responsibility |
+| --- | --- |
+| Owns | Telemetry collection, summarization, and inspection-ready records |
+| Does not own | Decisions, rule enforcement, state mutation, or feedback into execution |
+| Primary inputs | Events, effects, TickFrames, persona views, state snapshots |
+| Primary outputs | Telemetry records, summaries, timeline/inspection artifacts |
+| Boundary | Observes runtime truth; never changes it |
 
 ## Persona Scope
 

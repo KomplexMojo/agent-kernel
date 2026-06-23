@@ -8,6 +8,16 @@ This document defines the Moderator as a **runtime execution role**. Simulation 
 
 ---
 
+## At a Glance
+
+| Area | Moderator responsibility |
+| --- | --- |
+| Owns | Tick advancement, phase order, action sequencing, effect routing |
+| Does not own | Strategy, configuration assembly, external IO, or rule legality |
+| Primary inputs | Configuration artifacts, actor action proposals, execution policies |
+| Primary outputs | Ordered action batches, TickFrames, effects logs, run summaries |
+| Boundary | Calls `core-ts`; does not replace `core-ts` rule enforcement |
+
 ## Persona Scope
 
 The Moderator persona is responsible for **how the simulation is executed**, not for deciding what should be attempted or how the world is configured.

@@ -4,6 +4,12 @@
 **macOS** (primary) and **Ubuntu** (secondary). It is **idempotent** — re-running it
 fixes drift rather than duplicating state.
 
+## What this is for
+
+The repo keeps load-bearing source, tests, fixtures, and architecture docs in git. Long-lived working notes, active plans, snapshots, and non-load-bearing research live in the paired Obsidian vault. This script wires those two worlds together so local agent workflows can read and update `local-codex/*` paths while the content actually lives in `~/vault`.
+
+Run this when setting up a new machine, repairing vault symlinks, refreshing Claude/Obsidian skills, or validating the knowledge-management hooks.
+
 ## What it sets up
 
 1. **Prerequisites** — `git`, `gh`, `jq`, `node`, `syncthing` (via Homebrew on Mac,
@@ -43,6 +49,11 @@ fixes drift rather than duplicating state.
 8. **Verify** — sanity checks each component.
 
 ## Usage
+
+Choose exactly one role:
+
+- **Primary Mac**: owns the one-time repo migration and pushes the resulting git changes.
+- **Secondary Ubuntu**: installs the same tooling and waits for Syncthing to fill the vault.
 
 ### One-time on the Mac (primary)
 
