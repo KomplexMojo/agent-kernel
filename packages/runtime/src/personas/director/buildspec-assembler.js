@@ -4,7 +4,6 @@ import {
   buildSelectionsFromSummary,
   extractSummaryFromCardSet,
 } from "./summary-selections.js";
-import { deriveLevelGenFromRoomCards } from "../configurator/card-model.js";
 import { validateBuildSpec } from "../../contracts/build-spec.js";
 import {
   DEFAULT_VITALS,
@@ -317,9 +316,13 @@ export function buildBuildSpecFromSummary({
         dropRate: entry.dropRate,
       }))
     : [];
-  const levelGen = layout || roomDesign
-    ? deriveLevelGenFromLayout(layout || {}, roomDesign)
-    : deriveLevelGenFromRoomCards(cardSet) || deriveLevelGen({ roomCount });
+  const prebuiltLevelGen = resolvedSummary?.levelGen && typeof resolvedSummary.levelGen === "object"
+    ? { ...resolvedSummary.levelGen }
+    : null;
+  const levelGen = prebuiltLevelGen
+    || (layout || roomDesign
+      ? deriveLevelGenFromLayout(layout || {}, roomDesign)
+      : deriveLevelGen({ roomCount }));
   if (hazards.length > 0) {
     levelGen.hazards = hazards;
   }

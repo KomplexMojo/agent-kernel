@@ -28,6 +28,9 @@ import {
   normalizeCardType,
   normalizeCardCount,
   normalizeRoomCardSize,
+  deriveLayoutFromRoomCards,
+  deriveLevelGenFromRoomCards,
+  buildRoomDesignFromRoomCards,
 } from "../personas/configurator/card-model.js";
 
 // Removed from domain-constants in cost refactor (046f786); kept local to preserve display scale.
@@ -1350,10 +1353,17 @@ function buildSummaryFromCardSet({
     priceList,
   });
   const typedCardsWithBudget = cardsWithBudget.filter((card) => Boolean(normalizeCardType(card.type)));
+  const roomLayout = deriveLayoutFromRoomCards(typedCards);
+  const roomDesign = buildRoomDesignFromRoomCards(typedCards);
+  const cardLevelGen = deriveLevelGenFromRoomCards(typedCards);
+  if (cardLevelGen) delete cardLevelGen.walkableTilesTarget;
   const finalSummary = {
     ...summary,
     budgetTokens: summaryInput.budgetTokens,
     cardSet: cardsWithBudget,
+    ...(roomLayout ? { layout: roomLayout } : {}),
+    ...(roomDesign ? { roomDesign } : {}),
+    ...(cardLevelGen ? { levelGen: cardLevelGen } : {}),
   };
   const spendLedger = buildDesignSpendLedger({
     summary: {
