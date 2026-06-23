@@ -198,37 +198,44 @@ export function wireBuildOrchestrator({
     }
   }
 
+  // Parse + normalize + schema-validate a spec string. Pure: no DOM reads, no
+  // state mutation. Used both for the DOM editor and for programmatic overrides
+  // (the Phaser design surface in index_c.html, which has no spec textarea).
+  function validateSpecFromText(text) {
+    const errors = [];
+    let spec = null;
+    let normalizedSpecText = text;
+    const parsed = parseJsonWithDetails(text);
+    if (!parsed.ok) {
+      const detail = parsed.line && parsed.column
+        ? `Parse error at line ${parsed.line}, column ${parsed.column}`
+        : "Parse error";
+      errors.push(`${detail}: ${parsed.error?.message || "Invalid JSON"}`);
+    } else {
+      const normalized = normalizeBuildSpecForEditor(parsed.value);
+      spec = normalized.spec;
+      normalizedSpecText = normalized.specText;
+      const validation = validateBuildSpec(spec);
+      if (!validation.ok) {
+        errors.push(...validation.errors);
+      }
+    }
+    return { ok: errors.length === 0, errors, spec, specText: normalizedSpecText };
+  }
+
   function validateSpecInput({ notifyStatus = false } = {}) {
     const specText = valueOf(specJsonInput);
     const specPath = valueOf(specPathInput);
-    const errors = [];
-    let spec = null;
-    let normalizedSpecText = specText;
+    const extraErrors = [];
 
     if (specText && specPath) {
-      errors.push("Provide either Spec Path or Spec JSON, not both.");
+      extraErrors.push("Provide either Spec Path or Spec JSON, not both.");
     }
 
-    if (specText) {
-      const parsed = parseJsonWithDetails(specText);
-      if (!parsed.ok) {
-        const detail = parsed.line && parsed.column
-          ? `Parse error at line ${parsed.line}, column ${parsed.column}`
-          : "Parse error";
-        errors.push(`${detail}: ${parsed.error?.message || "Invalid JSON"}`);
-      } else {
-        const normalized = normalizeBuildSpecForEditor(parsed.value);
-        spec = normalized.spec;
-        normalizedSpecText = normalized.specText;
-        const validation = validateBuildSpec(spec);
-        if (!validation.ok) {
-          errors.push(...validation.errors);
-        }
-      }
-    }
-
+    const parsedValidation = specText ? validateSpecFromText(specText) : { ok: true, errors: [], spec: null, specText };
+    const errors = [...extraErrors, ...parsedValidation.errors];
     const ok = errors.length === 0;
-    state.validation = { ok, errors, spec, specText: normalizedSpecText };
+    state.validation = { ok, errors, spec: parsedValidation.spec, specText: parsedValidation.specText };
     renderValidation(errors);
     if (notifyStatus && specText && !ok) {
       setStatus(statusEl, "BuildSpec invalid. Fix errors before building.");
@@ -320,11 +327,17 @@ export function wireBuildOrchestrator({
   async function runBuild() {
     setDownloadVisible(false);
     const specPath = valueOf(specPathInput);
-    const specText = state.specOverride ?? valueOf(specJsonInput);
+    // A programmatic override (Phaser design surface) is authoritative: the DOM
+    // spec textarea may be absent or hold a stale spec in index_c.html, so when an
+    // override is present we validate THAT text rather than the DOM-derived state.
+    const overrideText = state.specOverride;
     state.specOverride = null;
+    const specText = overrideText ?? valueOf(specJsonInput);
     const requestedOutDir = valueOf(outDirInput);
 
-    const validation = validateSpecInput({ notifyStatus: true });
+    const validation = overrideText != null
+      ? validateSpecFromText(overrideText)
+      : validateSpecInput({ notifyStatus: true });
     if (specText && !validation.ok) {
       return { ok: false, reason: "invalid_spec", errors: validation.errors };
     }
@@ -342,9 +355,11 @@ export function wireBuildOrchestrator({
     let specJson = null;
     let outDir = requestedOutDir;
     if (!specPath && specText) {
-      updateSpecState(validation.specText, { ok: validation.ok });
       specJson = validation.spec;
-      if (specJson && specJsonInput && validation.specText && specJsonInput.value !== validation.specText) {
+      updateSpecState(specJson ? specText : "", { ok: Boolean(specJson) });
+      // Only reflect a built spec back into the editor for DOM-driven builds. An
+      // override is a transient programmatic build and must not mutate the editor.
+      if (overrideText == null && specJson && specJsonInput && validation.specText && specJsonInput.value !== validation.specText) {
         specJsonInput.value = validation.specText;
       }
       if (!outDir) {

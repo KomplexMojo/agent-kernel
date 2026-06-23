@@ -2,6 +2,7 @@ import { wireTabs } from "./tabs.js";
 import { createActorInspector } from "./actor-inspector.js";
 import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
 import { buildResultHasBundle } from "./build-orchestrator.js";
+import { shouldReuseActiveRun } from "./gameplay-launch.js";
 import { wireDesignView } from "./views/design-view.js";
 import { wirePreviewView, validatePreviewLaunchBundle } from "./views/preview-view.js";
 import { wireDiagnosticsView } from "./views/diagnostics-view.js";
@@ -44,6 +45,10 @@ let gameplayView = null;
 let phaserFrame = null;
 let gameplayRunPending = false;
 let currentRunId = "";
+// Spec text of the run currently loaded into the Gameplay tab. Used to decide
+// whether re-entering Gameplay should rebuild (design changed) or keep the active
+// run (design unchanged), so editing room size in Design always shows up in play.
+let lastGameplaySpecText = "";
 // Sequence counter for status rail updates — only the highest sequence number wins,
 // preventing stale syncBundleViews calls from overwriting fresh design-ledger state.
 let statusRailSeq = 0;
@@ -169,8 +174,10 @@ tabs = wireTabs({
     if (tabId === "design") {
       currentRunId = "";
     }
-    if (tabId === "gameplay" && !gameplayRunPending && !gameplayView?.isRunActive?.()) {
-      gameplayView?.clear?.("Launching run…");
+    // Always re-evaluate the design on entering Gameplay: launchGameplayRun keeps the
+    // active run when the design is unchanged and rebuilds when it changed. The old
+    // `!isRunActive()` guard skipped the rebuild, so edits (e.g. room size) never showed.
+    if (tabId === "gameplay" && !gameplayRunPending) {
       void launchGameplayRun({ autoGenerate: true });
     }
     if (tabId === "preview") {
@@ -297,6 +304,15 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
     }
   }
 
+  // Compare the design's current spec against the run already loaded in Gameplay.
+  // If unchanged and a run is active, keep it (preserves tick navigation); otherwise
+  // rebuild so design edits — including room size — are reflected in play.
+  const reuseActiveRun = (specText) => shouldReuseActiveRun({
+    specText,
+    lastGameplaySpecText,
+    isRunActive: Boolean(gameplayView?.isRunActive?.()),
+  });
+
   let buildResult;
   if (hasPhaserCards && phaserController) {
     const built = await phaserController.publishSpecText({ source: "design-preview" });
@@ -304,6 +320,10 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
       gameplayView?.clear?.("Could not build a run from your design. Check your cards.");
       return built;
     }
+    if (reuseActiveRun(built.specText)) {
+      return { ok: true, reason: "unchanged" };
+    }
+    lastGameplaySpecText = built.specText;
     gameplayRunPending = true;
     buildResult = await diagnosticsView.runBuildWithSpec(built.specText);
   } else if (designView) {
@@ -313,6 +333,12 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
       source: "design-preview",
     });
     if (!published?.ok) return;
+    if (reuseActiveRun(published.specText)) {
+      return { ok: true, reason: "unchanged" };
+    }
+    if (typeof published.specText === "string") {
+      lastGameplaySpecText = published.specText;
+    }
     gameplayRunPending = true;
     buildResult = await diagnosticsView.runBuild();
   } else {
