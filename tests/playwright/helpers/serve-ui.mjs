@@ -10,8 +10,13 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function parseServeUrl(output) {
-  const match = output.match(/Serving UI at:\s+(http:\/\/localhost:\d+\/packages\/ui-web\/index(?:_c)?\.html)/);
+// serve-ui.mjs serves index_c.html by default; the entry parameter must match
+// what the spawned server actually announces or startServeUi times out.
+function parseServeUrl(output, entry = "index_c.html") {
+  const escaped = entry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = output.match(
+    new RegExp(`Serving UI at:\\s+(http:\\/\\/localhost:\\d+\\/packages\\/ui-web\\/${escaped})`),
+  );
   return match ? match[1] : null;
 }
 
@@ -19,8 +24,9 @@ export function resolveFixturePath(...parts) {
   return path.resolve(root, ...parts);
 }
 
-export async function startServeUi({ port = 0 } = {}) {
-  const proc = spawn(process.execPath, ["scripts/serve-ui.mjs"], {
+export async function startServeUi({ port = 0, entry = "index_c.html" } = {}) {
+  const args = ["scripts/serve-ui.mjs", "--entry", entry];
+  const proc = spawn(process.execPath, args, {
     cwd: root,
     env: { ...process.env, PORT: String(port) },
     stdio: ["ignore", "pipe", "pipe"],
@@ -37,7 +43,7 @@ export async function startServeUi({ port = 0 } = {}) {
     const startedAt = Date.now();
     const timeoutMs = 10_000;
     const interval = setInterval(() => {
-      const parsed = parseServeUrl(output);
+      const parsed = parseServeUrl(output, entry);
       if (parsed) {
         clearInterval(interval);
         resolveUrl(parsed);

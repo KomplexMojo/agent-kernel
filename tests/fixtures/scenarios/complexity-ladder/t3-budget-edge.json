@@ -1,0 +1,13 @@
+{
+  "id": "t3-budget-edge",
+  "tier": "budget-edge",
+  "description": "Budget saturation: large rooms and a heavy actor roster squeezed into a tiny budget. The allocator degrades gracefully (scales actor vitals/affinities to fit) rather than over-spending. Asserts the deterministic feasible outcome and that the budget receipt respects the cap.",
+  "budgetTokens": 5,
+  "createArgs": [
+    "--room", "size=large;count=3",
+    "--delver", "count=10;affinity=fire;motivation=attacking;affinities=fire:push:3,light:emit:3",
+    "--warden", "count=10;affinity=corrode;motivation=defending;affinities=corrode:emit:3",
+    "--budget-tokens", "5"
+  ],
+  "expect": { "ok": true, "runnable": true, "budgetCapTokens": 5, "budgetStatus": "denied", "budgetOverspent": true }
+}
