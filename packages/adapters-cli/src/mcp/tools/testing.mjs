@@ -9,6 +9,7 @@ import {
   stringArraySchema,
   stringSchema,
 } from "./shared.mjs";
+import { runMcpCapabilityExercise } from "../../../../../scripts/testing/mcp-capability-exercise.mjs";
 import { RECIPE_CATALOG, SCAFFOLDABLE_RECIPES } from "../../../../../scripts/testing/recipe-catalog.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -928,6 +929,24 @@ export const testingTools = [
     handler: async (args) => ({
       ok: true,
       explanation: explainFailureText(args.text),
+    }),
+  }),
+  createHandlerTool({
+    name: "ak_test_exercise_capabilities",
+    description: "Run a fixture-backed MCP capability exercise across the live tool surface.",
+    inputSchema: {
+      properties: {
+        scope: stringSchema("Capability scope to exercise. Use core to skip test-scaffolding tools; all covers the full fixture-backed surface.", {
+          enum: ["core", "all"],
+          default: "all",
+        }),
+        outDir: pathSchema("Output directory for temporary exercise artifacts."),
+      },
+    },
+    handler: async (args) => runMcpCapabilityExercise({
+      scope: args.scope ?? "all",
+      outDir: args.outDir,
+      includeSelf: true,
     }),
   }),
   createHandlerTool({

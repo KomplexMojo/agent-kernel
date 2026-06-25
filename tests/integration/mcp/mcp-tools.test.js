@@ -1,10 +1,11 @@
-// M9 — Full MCP tool coverage test suite
+// M9 — MCP tool family coverage test suite
 //
-// This file covers the 22 MCP tools that were identified as uncovered in the Gap Registry
-// (mcp-server.test.js). Tests are grouped by tool family. Each group uses its own harness
-// instance for isolation. Run/replay/narrate coverage uses the in-process core-ts runtime.
+// This file keeps focused coverage for the MCP tool families that were identified as
+// gaps in mcp-server.test.js. The full live-surface exercise, including ak_diff,
+// ak_scenario, ak_push_to_ui, tick controls, and ak_test_exercise_capabilities,
+// lives in full-capability-exercise.test.js.
 //
-// Tools tested here (22 total):
+// Tools tested here:
 //   Simulation: ak_build, ak_budget, ak_configurator
 //   LLM (fixture-backed): ak_llm, ak_ollama
 //   External adapters:    ak_ipfs, ak_ipfs_publish, ak_ipfs_load,
@@ -13,11 +14,10 @@
 //                         ak_test_run, ak_test_scaffold_case, ak_test_insert_case,
 //                         ak_test_explain_failure, ak_test_lint_structure
 //   core runtime:     ak_replay, ak_narrate
+//   Tick controls:    ak_tick_forward, ak_tick_backward, ak_show_state
 //
-// Known limitations (excluded — require on-disk artifacts/runs/<id> structure):
-//   ak_diff     — resolveDiffRunArtifacts reads from artifacts/runs/<id> on the filesystem
-//   ak_scenario — fromRun mode also reads from artifacts/runs/<id> on the filesystem;
-//                 text+catalog+dry-run requires a full LLM session even for validation
+// The full-capability exercise covers filesystem-shaped run artifacts where needed,
+// so ak_diff and ak_scenario are no longer excluded from MCP integration coverage.
 
 const assert = require("node:assert/strict");
 const { spawn, spawnSync } = require("node:child_process");

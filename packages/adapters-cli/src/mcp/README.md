@@ -7,7 +7,7 @@
 - Server name: `agent-kernel-cli`
 - Server version: `1.0.0`
 - Transport: stdio
-- Tool count: `27`
+- Tool count: `40`
 - Tool source: `packages/adapters-cli/src/mcp/tools/*.mjs`
 
 The server is a thin adapter over the CLI command surface in `packages/adapters-cli/src/cli/ak-impl.mjs`. Each MCP tool maps to one CLI command, translates JSON input into CLI flags, executes the command, and returns structured JSON back to the client.
@@ -112,7 +112,7 @@ Expected output shape:
     "name": "agent-kernel-cli",
     "version": "1.0.0"
   },
-  "toolCount": 27,
+  "toolCount": 40,
   "firstTools": [
     "ak_create",
     "ak_configure",
@@ -236,6 +236,19 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 | ak_blockchain | External Adapters | Inspect blockchain adapter state. | rpcUrl, address, fixtureChainId, fixtureBalance, out, outDir |
 | ak_blockchain_mint | External Adapters | Mint a card through the blockchain adapter. | rpcUrl, card, owner, contract, tokenId, fixtureChainId, fixtureMint, out, outDir |
 | ak_blockchain_load | External Adapters | Load a minted card through the blockchain adapter. | rpcUrl, tokenId, owner, contract, fixtureChainId, fixtureLoad, out, outDir |
+| ak_test_list_suites | Testing | Return test inventory, classification, and scaffold recipe metadata. | none |
+| ak_test_discover_patterns | Testing | List known test files and filter by runner. | runner, suite |
+| ak_test_plan_from_change | Testing | Map changed files to recommended test runners and suites. | paths[] |
+| ak_test_run | Testing | Run the test matrix wrapper in a selected mode. | mode, args[] |
+| ak_test_scaffold_case | Testing | Create a test file from a supported recipe. | recipe, targetFile, title |
+| ak_test_insert_case | Testing | Append a recipe-generated case to an existing test file. | recipe, targetFile, title |
+| ak_test_explain_failure | Testing | Classify runner output into migration-focused failure categories. | text |
+| ak_test_lint_structure | Testing | Report structural test inventory and codemod adoption gaps. | none |
+| ak_test_exercise_capabilities | Testing | Run a fixture-backed MCP capability exercise across the live tool surface. | scope, outDir |
+| ak_tick_forward | Tick Control | Advance a run cursor by one tick and return current state. | runId, visualization |
+| ak_tick_backward | Tick Control | Rewind a run cursor by one tick and return current state. | runId, visualization |
+| ak_show_state | Tick Control | Show the current tick cursor state for a run. | runId, visualization |
+| ak_push_to_ui | UI Bridge | Compile an inline BuildSpec and push or pre-stage the gameplay bundle for the browser UI. | buildSpec, targetTab, requireClient, openBrowser, correlationId |
 
 ## Tool Groups
 
@@ -1398,6 +1411,64 @@ Expected output shape:
   "artifactPaths": {
     "response": "/tmp/agent-kernel/blockchain-load/blockchain-load.json"
   }
+}
+```
+
+### Testing
+
+The `ak_test_*` tools expose the repo-local test inventory and a fixture-backed
+capability exercise through MCP. They are intended for harnesses that need to
+choose or run validation without shell-specific argument construction.
+
+Use `ak_test_exercise_capabilities` as the broad smoke path for the MCP surface:
+
+```json
+{
+  "scope": "all",
+  "outDir": "/tmp/agent-kernel/mcp-capability"
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "test-exercise-capabilities",
+  "scope": "all",
+  "toolCount": 40,
+  "coveredToolCount": 40,
+  "families": {
+    "authoring": { "covered": 5, "failed": 0 }
+  },
+  "failures": []
+}
+```
+
+### Tick Control
+
+The tick tools navigate an existing run under `artifacts/runs/<runId>/run`.
+Use them after `ak_run` has written `tick-frames.json` in the default run
+layout. They return the current cursor, max tick, and optional visualization
+data.
+
+```json
+{ "runId": "run_abc123", "visualization": "ascii" }
+```
+
+### UI Bridge
+
+`ak_push_to_ui` is the canonical MCP path for browser playback. It compiles an
+inline BuildSpec into a gameplay bundle and sends it over the sandbox bridge.
+For headless or CI use, set `requireClient:false` and `openBrowser:false`; this
+pre-stages the bundle without launching a browser.
+
+```json
+{
+  "buildSpec": { "schema": "agent-kernel/BuildSpec", "schemaVersion": 1 },
+  "targetTab": "gameplay",
+  "requireClient": false,
+  "openBrowser": false
 }
 ```
 
