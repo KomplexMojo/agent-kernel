@@ -86,7 +86,7 @@ test("sandbox-bridge-client: bundle received → loadGameplayBundle called → a
       type: "ak.gameplayBundle.v1",
       id: messageId,
       targetTab: "gameplay",
-      payload: { bundle, source: { tool: "ak_sandbox_push_ui" } },
+      payload: { bundle, source: { tool: "ak_push_to_ui" } },
     });
 
     // Allow async handleBundle to complete

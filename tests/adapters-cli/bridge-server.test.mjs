@@ -111,7 +111,7 @@ test("bridge-server: pushGameplayBundle delivers exact envelope to connected cli
       targetTab: "gameplay",
       payload: {
         bundle: { simConfig: { schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1, meta: { id: "sc1" } } },
-        source: { tool: "ak_sandbox_push_ui" },
+        source: { tool: "ak_push_to_ui" },
       },
     };
 
@@ -124,7 +124,7 @@ test("bridge-server: pushGameplayBundle delivers exact envelope to connected cli
     const received = await receivePromise;
     assert.equal(received.type, "ak.gameplayBundle.v1");
     assert.equal(received.id, "msg_test_001");
-    assert.deepEqual(received.payload.source, { tool: "ak_sandbox_push_ui" });
+    assert.deepEqual(received.payload.source, { tool: "ak_push_to_ui" });
 
     // Let push finish (it will time out waiting for ACK since our test client doesn't ACK)
     const result = await pushPromise;
@@ -227,3 +227,14 @@ test("bridge-server: stopSandboxBridgeServer clears state", async () => {
   assert.equal(getSandboxBridgeState().connectedClients, 0);
   assert.equal(getSandboxBridgeState().latestBundle, null);
 });
+
+/*
+## TODO: Test Permutations
+- start → getSandboxBridgeState().startFailed is false after a successful bind
+- starting a second server while one is running rejects ("already running")
+- start on an in-use port sets startFailed and rejects (port collision path)
+- replay window: a client connecting after REPLAY_WINDOW_MS does NOT receive the stale bundle
+- replay dedup: a client that already received a bundle is not sent it twice (D9)
+- pushGameplayBundle to a mix of ACKing and non-ACKing clients splits delivered vs timedOut
+- stop terminates in-flight client sockets so wss.close() does not hang (D8)
+*/

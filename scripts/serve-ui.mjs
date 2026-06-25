@@ -21,7 +21,9 @@ const root = resolve(__dirname, "..");
 const DEFAULT_PORT = Number(process.env.PORT) || 8001;
 
 const _entryArg = process.argv.indexOf("--entry");
-const ENTRY_FILE = _entryArg !== -1 ? process.argv[_entryArg + 1] : "index.html";
+// index_c.html is the canonical "current" UI shell (Phaser frame + bridge client).
+// index.html / index_l.html remain available via `--entry` for the legacy surfaces.
+const ENTRY_FILE = _entryArg !== -1 ? process.argv[_entryArg + 1] : "index_c.html";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -73,7 +75,7 @@ async function handleStatic(req, res) {
   }
 
   if (stats.isDirectory()) {
-    filePath = join(filePath, "index.html");
+    filePath = join(filePath, "index_c.html");
   }
 
   const ext = extname(filePath).toLowerCase();
@@ -117,7 +119,7 @@ async function handleStatic(req, res) {
     return;
   }
 
-  // D7: inject AK_SANDBOX_BRIDGE_PORT into index.html so the browser client
+  // D7: inject AK_SANDBOX_BRIDGE_PORT into the served HTML so the browser client
   // connects to the correct port when AK_SANDBOX_BRIDGE_PORT is overridden.
   if (ext === ".html") {
     let content;

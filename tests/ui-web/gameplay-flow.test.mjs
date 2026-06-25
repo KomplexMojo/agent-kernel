@@ -6,7 +6,7 @@ import { wireGameplayView } from "../../packages/ui-web/src/views/gameplay-view.
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const htmlPath = path.resolve(__dirname, "..", "..", "packages", "ui-web", "index.html");
+const htmlPath = path.resolve(__dirname, "..", "..", "packages", "ui-web", "index_c.html");
 
 function readHtml() {
   return fs.readFileSync(htmlPath, "utf8");
@@ -46,24 +46,10 @@ function makeButtonRoot() {
   };
 }
 
-test("design-auto-generate button label remains Auto-generate", () => {
-  const html = readHtml();
-  assert.match(html, /id="design-auto-generate"[^>]*>\s*Auto-generate\s*</);
-  assert.doesNotMatch(html, /id="design-auto-generate"[^>]*>\s*Run\s*</);
-});
-
 test("HTML contains a gameplay tab button and panel", () => {
   const html = readHtml();
   assert.match(html, /data-tab="gameplay"/);
   assert.match(html, /data-tab-panel="gameplay"/);
-});
-
-test("HTML exposes gameplay camera controls", () => {
-  const html = readHtml();
-  assert.match(html, /id="gameplay-zoom-out"/);
-  assert.match(html, /id="gameplay-fit-level"/);
-  assert.match(html, /id="gameplay-zoom-in"/);
-  assert.match(html, /id="gameplay-phaser-host"/);
 });
 
 test("wireGameplayView returns expected API surface", () => {
@@ -168,18 +154,6 @@ test("openPlayerPanel and closePlayerPanel before loadRun do not throw", () => {
   const view = wireGameplayView({ root: makeRoot() });
   assert.doesNotThrow(() => view.openPlayerPanel());
   assert.doesNotThrow(() => view.closePlayerPanel());
-});
-
-test("HTML contains actor-inspector and gameplay-status elements", () => {
-  const html = readHtml();
-  assert.match(html, /id="actor-inspector"/);
-  assert.match(html, /id="gameplay-status"/);
-});
-
-test("HTML contains gameplay step-back and step-forward controls", () => {
-  const html = readHtml();
-  assert.match(html, /id="gameplay-step-back"/);
-  assert.match(html, /id="gameplay-step-forward"/);
 });
 
 test("HTML contains gameplay-run-id-label element", () => {

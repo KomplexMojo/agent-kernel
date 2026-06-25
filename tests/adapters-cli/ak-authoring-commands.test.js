@@ -52,6 +52,7 @@ test("cli help documents generic create and configure authoring commands", () =>
   assert.match(result.stdout, /\bconfigure\b/);
   assert.match(result.stdout, /--floor-tile/);
   assert.match(result.stdout, /--trap/);
+  assert.match(result.stdout, /--maximize-budget/);
   assert.match(result.stdout, /goals=max_mana/);
 });
 
@@ -336,6 +337,58 @@ test("cli create keeps budget-only input as a hard constraint without maximize-s
   assert.equal(request.sharedConfig.optimizationGoals, undefined);
   assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 100);
   assert.equal(spec.authoring.optimizationGoals, undefined);
+  assert.equal(spec.configurator.inputs.maximizeBudget, undefined);
+});
+
+test("cli create sets configurator maximizeBudget only when --maximize-budget is passed", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-maximize-budget-"));
+  runCliOk([
+    "create",
+    "--text",
+    "Create one delver with budget 200 tokens.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens",
+    "200",
+    "--maximize-budget",
+    "--run-id",
+    "run_create_maximize_budget",
+    "--created-at",
+    "2026-04-09T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  assert.equal(spec.configurator.inputs.maximizeBudget, true);
+});
+
+test("mcp authoring argv exposes --maximize-budget for CLI parity", async () => {
+  const [{ authoringSpec, authoringTools }, { buildArgv }] = await Promise.all([
+    import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs"),
+    import("../../packages/adapters-cli/src/mcp/tools/shared.mjs"),
+  ]);
+
+  const argv = buildArgv({
+    text: "Create one delver.",
+    delver: ["count=1;affinity=fire;motivation=attacking"],
+    budgetTokens: 200,
+    maximizeBudget: true,
+  }, authoringSpec);
+  assert.deepEqual(argv, [
+    "--text",
+    "Create one delver.",
+    "--delver",
+    "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens",
+    "200",
+    "--maximize-budget",
+  ]);
+
+  const createTool = authoringTools.find((tool) => tool.name === "ak_create");
+  const configureTool = authoringTools.find((tool) => tool.name === "ak_configure");
+  assert.equal(createTool.inputSchema.properties.maximizeBudget.type, "boolean");
+  assert.equal(configureTool.inputSchema.properties.maximizeBudget.type, "boolean");
 });
 
 test("cli create maximizes delver spend deterministically when explicitly asked to maximize spend", () => {

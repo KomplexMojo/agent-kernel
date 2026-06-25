@@ -7,7 +7,7 @@ import { wireDiagnosticsView } from "../../packages/ui-web/src/views/diagnostics
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..", "..");
-const htmlPath = path.resolve(root, "packages", "ui-web", "index.html");
+const htmlPath = path.resolve(root, "packages", "ui-web", "index_c.html");
 const bundleFixturePath = path.resolve(root, "tests", "fixtures", "ui", "build-spec-bundle", "bundle.json");
 
 function readHtml() {

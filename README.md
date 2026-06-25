@@ -12,7 +12,7 @@ pnpm run test
 pnpm run serve:ui
 ```
 
-Open `http://localhost:8001/packages/ui-web/index.html` after starting the UI server.
+Open `http://localhost:8001/packages/ui-web/index_c.html` after starting the UI server.
 
 ## Architecture
 

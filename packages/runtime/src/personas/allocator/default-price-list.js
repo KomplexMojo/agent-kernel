@@ -8,6 +8,8 @@ const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
  *   - Vitals (max points): linear — 1 token per point
  *   - Regen (per-tick rate): quadratic — n units costs n² tokens
  *   - Affinity stacks: quadratic — n stacks costs n² tokens
+ *   - Layout grid metadata: structural bookkeeping at 0 tokens; floor/hallway
+ *     tiles are the room cost surface, so charging layout would double count.
  *   - Everything else: linear at the listed unitCost
  *
  * "formula" field on each item tells consumers how to compute totalCost:
@@ -50,6 +52,9 @@ const DEFAULT_ITEMS = [
 
   // --- Actor spawn ---
   { id: "actor_spawn", kind: "actor", unitCost: 5, formula: "linear", description: "Spawn one actor (delver or warden)" },
+
+  // --- Layout bookkeeping (covered by tile pricing) ---
+  { id: "layout_grid", kind: "layout", unitCost: 0, formula: "linear", description: "Generated layout grid metadata; structural overhead covered by tile pricing" },
 
   // --- Floor tiles (rooms are priced by component; tiles are atomic) ---
   { id: "tile_floor",   kind: "tile", unitCost: 1, formula: "linear", description: "One floor tile" },

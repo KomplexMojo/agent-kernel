@@ -1957,6 +1957,7 @@ export function generateGridLayoutFromInput(input) {
   if (Array.isArray(layout.traps) && layout.traps.length > 0 && Array.isArray(layout.tiles)) {
     const wallTrapErrors = [];
     layout.traps.forEach((trap, idx) => {
+      if (trap?.blocking === true) return;
       const row = layout.tiles[trap.y];
       if (typeof row === "string" && row[trap.x] === "#") {
         wallTrapErrors.push({

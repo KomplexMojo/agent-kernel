@@ -169,7 +169,7 @@ These commands do not replace `room-plan`, `delver-plan`, `warden-plan`, `build`
 Inputs/outputs:
 - Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--trap`, `--hazard`,
   `--resource`, `--delver`, and `--warden`, optional `--goal`, `--dungeon-affinity`,
-  optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard
+  optional `--budget-tokens`, optional `--maximize-budget`, optional `--budget` + `--price-list`, plus standard
   `--run-id`, `--created-at`, `--out-dir`.
 - `--budget-tokens` is a hard cap for agent-authored spend. If `--text` or `--goal` also says
   `budget <N> tokens`, and/or `--budget` supplies `budget.tokens`, all values must agree or
@@ -182,6 +182,8 @@ Inputs/outputs:
   Produces a `ResourceArtifact` written to `resource-artifact-<n>.json` in the output directory.
 - `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
   vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
+- `--maximize-budget` opts into build-time budget maximization. Without it, an authored hard budget
+  remains only a cap and explicit vitals are not inflated to spend remaining tokens.
 - Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.
   The current contract treats total budget as a hard constraint and maximize-spend / mana goals as
   optimization directions for later fulfillment waves. A hard budget alone does not imply

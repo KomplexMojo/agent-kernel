@@ -16,10 +16,15 @@ import { llmTools } from "./tools/llm.mjs";
 import { simulationTools } from "./tools/simulation.mjs";
 import { testingTools } from "./tools/testing.mjs";
 import { tickTools } from "./tools/tick.mjs";
-import { sandboxTools } from "./tools/sandbox.mjs";
+import { pushToUiTools } from "./tools/push-to-ui.mjs";
+import {
+  startSandboxBridgeServer,
+  stopSandboxBridgeServer,
+} from "./bridge-server.mjs";
 
 const SERVER_NAME = "agent-kernel-cli";
 const SERVER_VERSION = "1.0.0";
+const SANDBOX_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
 const TOOL_DEFINITIONS = [
   ...authoringTools,
   ...simulationTools,
@@ -28,7 +33,7 @@ const TOOL_DEFINITIONS = [
   ...externalTools,
   ...testingTools,
   ...tickTools,
-  ...sandboxTools,
+  ...pushToUiTools,
 ];
 
 const TOOL_MAP = new Map(TOOL_DEFINITIONS.map((tool) => [tool.name, tool]));
@@ -328,5 +333,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   };
 });
 
+// Auto-start the loopback sandbox bridge so ak_push_to_ui can deliver compiled
+// bundles to a connected browser UI. A startup failure (e.g. port in use) must
+// NOT crash the stdio server — getSandboxBridgeState().startFailed surfaces it
+// to the tool, which returns a SANDBOX_BRIDGE_START_FAILED error (D6).
+try {
+  await startSandboxBridgeServer({ port: SANDBOX_BRIDGE_PORT });
+} catch (err) {
+  process.stderr.write(
+    `[agent-kernel] sandbox bridge failed to start on port ${SANDBOX_BRIDGE_PORT}: ${err?.message ?? err}\n`,
+  );
+}
+
+let _shuttingDown = false;
+async function shutdownBridge() {
+  if (_shuttingDown) return;
+  _shuttingDown = true;
+  try {
+    await stopSandboxBridgeServer();
+  } catch {
+    /* ignore — best-effort teardown */
+  }
+}
+function shutdownAndExit() {
+  void shutdownBridge().finally(() => process.exit(0));
+}
+process.on("SIGINT", shutdownAndExit);
+process.on("SIGTERM", shutdownAndExit);
+
 const transport = new StdioServerTransport();
+// When stdin closes (client disconnects), stop the bridge and let the process
+// exit instead of being held open by the bridge's listening socket.
+server.onclose = shutdownAndExit;
 await server.connect(transport);

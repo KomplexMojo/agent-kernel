@@ -1,10 +1,13 @@
 /**
- * M8 — ak_sandbox_push_ui MCP tool
+ * ak_push_to_ui MCP tool (formerly ak_sandbox_push_ui)
  *
  * Compiles an inline BuildSpec into a gameplay bundle and pushes it to any
  * connected browser UI via the sandbox bridge WebSocket server.
  */
 
+import { spawn } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createHandlerTool } from "./shared.mjs";
 import { compileBuildSpecToGameplayBundle } from "../../cli/ak-impl.mjs";
 import {
@@ -14,13 +17,74 @@ import {
 
 const DEFAULT_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
 
+// Canonical UI entry served for the bridge workflow (M3). index.html / index_l.html
+// remain available via serve-ui.mjs --entry but are not the default.
+const UI_ENTRY = "index_c.html";
+// push-to-ui.mjs lives at packages/adapters-cli/src/mcp/tools/ — five levels below the repo root.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
+
 function makeMessageId() {
   return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export const sandboxUiTools = [
+function canonicalUiUrl() {
+  const host = process.env.AK_UI_HOST || "127.0.0.1";
+  const port = Number(process.env.AK_UI_PORT) || 8001;
+  return `http://${host}:${port}/packages/ui-web/${UI_ENTRY}`;
+}
+
+function platformOpenCommand(url) {
+  if (process.platform === "darwin") return ["open", [url]];
+  if (process.platform === "win32") return ["cmd", ["/c", "start", "", url]];
+  return ["xdg-open", [url]];
+}
+
+/**
+ * Best-effort: ensure the canonical UI is being served and open it in the default
+ * browser. Side effects are skipped when AK_DISABLE_UI_LAUNCH=1 (tests, headless CI).
+ * Always returns the canonical URL so callers can surface it regardless.
+ */
+async function launchCanonicalUi() {
+  const url = canonicalUiUrl();
+  const out = { url, entry: UI_ENTRY, opened: false, serverSpawned: false };
+  if (process.env.AK_DISABLE_UI_LAUNCH === "1") return out;
+
+  // Spawn serve-ui on the canonical entry only if nothing is answering /health.
+  try {
+    const health = await fetch(new URL("/health", url)).catch(() => null);
+    if (!health || !health.ok) {
+      const child = spawn(
+        process.execPath,
+        ["scripts/serve-ui.mjs", "--entry", UI_ENTRY],
+        {
+          cwd: REPO_ROOT,
+          env: { ...process.env, PORT: String(Number(process.env.AK_UI_PORT) || 8001) },
+          stdio: "ignore",
+          detached: true,
+        },
+      );
+      child.unref();
+      out.serverSpawned = true;
+    }
+  } catch {
+    /* best-effort — a failed probe/spawn must not fail the push */
+  }
+
+  // Open the default browser at the canonical URL.
+  try {
+    const [cmd, args] = platformOpenCommand(url);
+    const child = spawn(cmd, args, { stdio: "ignore", detached: true });
+    child.unref();
+    out.opened = true;
+  } catch {
+    out.opened = false;
+  }
+  return out;
+}
+
+export const pushToUiTools = [
   createHandlerTool({
-    name: "ak_sandbox_push_ui",
+    name: "ak_push_to_ui",
     description:
       "Compile a BuildSpec and push the resulting gameplay bundle to the connected browser UI via the sandbox WebSocket bridge. " +
       "The UI will display the Design cards and launch the Gameplay Phaser dungeon automatically. " +
@@ -51,11 +115,19 @@ export const sandboxUiTools = [
           type: "string",
           description: "Optional caller-supplied correlation ID echoed back in the result.",
         },
+        openBrowser: {
+          type: "boolean",
+          description:
+            "When true, serve the canonical index_c.html UI (if not already up) and open it in the " +
+            "default browser, then pre-stage the bundle so it loads as soon as the UI connects. " +
+            "Implies requireClient: false. Defaults to false.",
+          default: false,
+        },
       },
       // D5: buildSpec is no longer marked required — missing buildSpec returns a structured error
     },
 
-    async handler({ buildSpec, targetTab = "gameplay", requireClient = true, correlationId }) {
+    async handler({ buildSpec, targetTab = "gameplay", requireClient = true, correlationId, openBrowser = false }) {
       // D5: structured error when buildSpec is omitted (future: use current sandbox state)
       if (!buildSpec || typeof buildSpec !== "object") {
         return {
@@ -81,7 +153,9 @@ export const sandboxUiTools = [
         };
       }
 
-      if (requireClient && state.connectedClients === 0) {
+      // openBrowser launches a fresh UI, so there is no connected client yet: pre-stage instead.
+      const effectiveRequireClient = openBrowser ? false : requireClient;
+      if (effectiveRequireClient && state.connectedClients === 0) {
         return {
           ok: false,
           error: "SANDBOX_UI_NOT_CONNECTED",
@@ -91,6 +165,10 @@ export const sandboxUiTools = [
           bridge: { port: DEFAULT_BRIDGE_PORT, connectedClients: 0 },
         };
       }
+
+      // O1: when openBrowser is set, serve + open the canonical UI before pushing so it can
+      // connect within the replay window and pick up the pre-staged bundle.
+      const ui = openBrowser ? await launchCanonicalUi() : undefined;
 
       // D1+D2: compile BuildSpec → proper bundle with artifacts[] including InitialStateArtifact
       let bundle;
@@ -123,7 +201,7 @@ export const sandboxUiTools = [
         payload: {
           // D1: send full bundle shape { spec, artifacts[] } — not bare { simConfig, resourceBundle }
           bundle,
-          source: { tool: "ak_sandbox_push_ui" },
+          source: { tool: "ak_push_to_ui" },
         },
       };
 
@@ -132,6 +210,7 @@ export const sandboxUiTools = [
       return {
         ok: true,
         ...(correlationId ? { correlationId } : {}),
+        ...(ui ? { ui } : {}),
         bridge: {
           port: DEFAULT_BRIDGE_PORT,
           connectedClients: state.connectedClients,

@@ -40,6 +40,8 @@
 
     { "id": "actor_spawn", "kind": "actor", "unitCost": 5, "formula": "linear", "description": "Spawn one actor (delver or warden)" },
 
+    { "id": "layout_grid", "kind": "layout", "unitCost": 0, "formula": "linear", "description": "Generated layout grid metadata; structural overhead covered by tile pricing" },
+
     { "id": "tile_floor",   "kind": "tile", "unitCost": 1, "formula": "linear", "description": "One floor tile" },
     { "id": "tile_hallway", "kind": "tile", "unitCost": 3, "formula": "linear", "description": "One hallway tile" },
 

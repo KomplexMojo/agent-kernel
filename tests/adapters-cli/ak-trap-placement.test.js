@@ -269,6 +269,34 @@ test("trap coordinates are preserved as-is in sim-config (floor-tile trap ends o
   assert.equal(fireTrap.y, 2, "trap y should match the requested coordinate");
 });
 
+test("blocking trap choke succeeds and records the blocking trap cell", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-trap-placement-blocking-"));
+  const result = runCli([
+    "create",
+    "--text", "Create Blocking Trap Choke.",
+    "--room", "size=medium;count=1",
+    "--floor-tile", "count=18",
+    "--trap", "id=trap_choke;x=2;y=2;affinity=earth;expression=emit;stacks=2;blocking=true;vitals=mana:4:1,durability:8:0",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--budget", BUDGET,
+    "--price-list", PRICE_LIST,
+    "--out-dir", outDir,
+  ]);
+  if (result.status !== 0) {
+    throw new Error(`Expected blocking trap success, got: ${result.stderr || result.stdout}`);
+  }
+
+  const simConfig = readJson(join(outDir, "sim-config.json"));
+  const traps = simConfig.layout?.data?.traps ?? [];
+  const chokeTrap = traps.find((t) => t.x === 2 && t.y === 2 && t.blocking === true);
+  assert.ok(chokeTrap, "blocking trap should be present in sim-config");
+  assert.equal(chokeTrap.x, 2);
+  assert.equal(chokeTrap.y, 2);
+  assert.equal(chokeTrap.blocking, true);
+  assert.equal(simConfig.layout.data.tiles[2][2], "#", "blocking trap should occupy a blocking cell");
+});
+
 test("two traps at the same coordinate are rejected with a duplicate position error", () => {
   const result = runCli([
     "create",

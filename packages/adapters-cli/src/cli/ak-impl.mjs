@@ -52,8 +52,6 @@ import {
   validateVisualizationMode,
 } from "../tick-session.mjs";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
-import { SANDBOX_SESSION_SCHEMA } from "../../../runtime/src/contracts/sandbox-session.mjs";
-import { executeSandboxPlace, executeSandboxMove } from "../mcp/tools/sandbox.mjs";
 import {
   DEFAULT_LLM_BASE_URL,
   DEFAULT_LLM_MODEL,
@@ -133,8 +131,8 @@ function usage() {
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
-  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--maximize-budget] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
+  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--maximize-budget] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
@@ -174,6 +172,7 @@ Options:
   --budget-tokens Hard budget cap in tokens. If freeform text also states a budget, they must match.
   --dungeon-budget-tokens Separate hard budget cap for dungeon-side objects (rooms, tiles, traps, hazards).
   --delver-budget-tokens  Separate hard budget cap for delver-side objects (delvers, wardens).
+  --maximize-budget Opt in to build-time budget maximization; default preserves authored values.
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --hazard        Hazard spec for create/configure (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>]
@@ -2175,9 +2174,6 @@ const STRUCTURED_STDOUT_COMMANDS = new Set([
   "diff",
   "runs",
   "tick",
-  "sandbox-create",
-  "sandbox-place",
-  "sandbox-move",
 ]);
 
 const RUN_INDEX_INPUT_FILES = Object.freeze([
@@ -3634,6 +3630,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     "budget-tokens",
     "dungeon-budget-tokens",
     "delver-budget-tokens",
+    "maximize-budget",
     "budget",
     "price-list",
     "out-dir",
@@ -3657,7 +3654,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --hazard, --resource, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --hazard, --resource, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --maximize-budget, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -4831,6 +4828,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   if (args["delver-budget-tokens"] !== undefined) {
     delverBudgetTokensFlag = parsePositiveIntStrict(args["delver-budget-tokens"], `${commandName} --delver-budget-tokens`);
   }
+  const maximizeBudgetFlag = Boolean(args["maximize-budget"]);
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
     throw new Error(`${commandName} requires both --budget and --price-list.`);
   }
@@ -4921,10 +4919,18 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     text: authoringText,
     scope: textVitalScope,
   });
-  const sharedOptimizationGoals = buildSharedOptimizationGoals({
-    text: authoringText,
-    hardBudgetConstraint: authoringConstraints,
-  });
+  const sharedOptimizationGoals = dedupeOptimizationGoals([
+    ...buildSharedOptimizationGoals({
+      text: authoringText,
+      hardBudgetConstraint: authoringConstraints,
+    }),
+    ...(maximizeBudgetFlag ? [buildOptimizationGoal({
+      kind: "maximize_budget_spend",
+      scope: "shared_config",
+      priority: "high",
+      source: "flag",
+    })] : []),
+  ]);
   const textDelverGoals = textVitalScope === "delver" ? textVitalGoals : [];
   const textWardenGoals = textVitalScope === "warden" ? textVitalGoals : [];
   // Resolve split budgets: explicit split flags take priority over combined budget.
@@ -5106,7 +5112,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   }
   built.spec.configurator.inputs.levelGen = levelGen;
 
-  if (resolvedBudgetTokens !== undefined) {
+  if (maximizeBudgetFlag) {
     built.spec.configurator.inputs.maximizeBudget = true;
   }
 
@@ -6043,182 +6049,6 @@ async function runsCommand(argv) {
   emitJsonStdout(await summarizeRunsIndex({ rootDir }));
 }
 
-async function sandboxCreateCommand(argv) {
-  const args = parseArgs(argv);
-  if (args.help) {
-    console.log(usage());
-    return;
-  }
-
-  const budgetReceiptPath = resolvePath(args["budget-receipt"]);
-  const budgetPath = resolvePath(args.budget);
-
-  if (!budgetReceiptPath && !budgetPath) {
-    emitJsonStdout({
-      ok: false,
-      command: "sandbox-create",
-      error: "sandbox-create requires --budget-receipt or --budget.",
-      budgetRequired: true,
-    });
-    return;
-  }
-
-  const runId = isNonEmptyString(args["run-id"]) ? args["run-id"].trim() : makeId("sandbox_run");
-  const createdAt = isNonEmptyString(args["created-at"])
-    ? args["created-at"].trim()
-    : new Date().toISOString();
-
-  let budgetReceiptRef;
-
-  if (budgetReceiptPath) {
-    const receipt = await readJson(budgetReceiptPath);
-    assertSchema(receipt, SCHEMAS.budgetReceiptArtifact);
-    if (
-      receipt.status === "denied" ||
-      (typeof receipt.remaining === "number" && receipt.remaining < 0)
-    ) {
-      emitJsonStdout({
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget insufficient: status=${receipt.status}, remaining=${receipt.remaining}`,
-        budgetInsufficient: true,
-      });
-      return;
-    }
-    budgetReceiptRef = toRef(receipt);
-  } else {
-    const budgetArtifact = await readJson(budgetPath);
-    assertSchema(budgetArtifact, SCHEMAS.budgetArtifact);
-    const tokens = budgetArtifact.budget?.tokens;
-    if (!Number.isInteger(tokens) || tokens <= 0) {
-      emitJsonStdout({
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget insufficient: tokens=${tokens}`,
-        budgetInsufficient: true,
-      });
-      return;
-    }
-    budgetReceiptRef = {
-      id: `budget_receipt_${runId}`,
-      schema: "agent-kernel/BudgetReceiptArtifact",
-      schemaVersion: 1,
-    };
-  }
-
-  const width = args.width !== undefined ? Number(args.width) : 10;
-  const height = args.height !== undefined ? Number(args.height) : 10;
-  if (!Number.isInteger(width) || width <= 0) {
-    throw new Error("sandbox-create: --width must be a positive integer.");
-  }
-  if (!Number.isInteger(height) || height <= 0) {
-    throw new Error("sandbox-create: --height must be a positive integer.");
-  }
-
-  const entityCategories = [];
-  if (isNonEmptyString(args["entity-categories"])) {
-    for (const cat of args["entity-categories"].split(",")) {
-      const trimmed = cat.trim();
-      if (trimmed) entityCategories.push(trimmed);
-    }
-  }
-
-  const sandboxId = `sandbox_session_${runId}`;
-  const outDir =
-    resolvePath(args["out-dir"]) ||
-    resolve(process.cwd(), DEFAULT_ARTIFACTS_DIR, "sandbox", runId);
-  await mkdir(outDir, { recursive: true });
-
-  const session = {
-    schema: SANDBOX_SESSION_SCHEMA,
-    schemaVersion: 1,
-    meta: { id: sandboxId, runId, createdAt, producedBy: "sandbox-create" },
-    rooms: [{ id: "room_default", width, height }],
-    artifacts: { budgetReceiptRef },
-    ...(entityCategories.length > 0 ? { entityCategories } : {}),
-  };
-
-  await writeJson(join(outDir, "sandbox-session.json"), session);
-
-  emitJsonStdout({
-    ok: true,
-    command: "sandbox-create",
-    sandboxId,
-    runId,
-    outDir,
-    rooms: session.rooms,
-    artifacts: session.artifacts,
-    ...(entityCategories.length > 0 ? { entityCategories } : {}),
-  });
-}
-
-async function sandboxPlaceCommand(argv) {
-  const args = parseArgs(argv);
-  if (args.help) {
-    console.log(usage());
-    return;
-  }
-
-  const sessionPath = resolvePath(args.session);
-  const entityType = args["entity-type"];
-  const spec = args.spec;
-
-  if (!sessionPath) {
-    throw new Error("sandbox-place requires --session <path>");
-  }
-  if (!isNonEmptyString(entityType)) {
-    throw new Error("sandbox-place requires --entity-type <type>");
-  }
-  if (!isNonEmptyString(spec)) {
-    throw new Error("sandbox-place requires --spec <spec-string>");
-  }
-
-  const result = await executeSandboxPlace({ session: sessionPath, entityType, spec });
-  emitJsonStdout(result);
-  if (!result.ok) {
-    process.exit(1);
-  }
-}
-
-async function sandboxMoveCommand(argv) {
-  const args = parseArgs(argv);
-  if (args.help) {
-    console.log(usage());
-    return;
-  }
-
-  const sessionPath = resolvePath(args.session);
-  const actorId = args["actor-id"];
-  const direction = args.direction;
-  const actionsOut = resolvePath(args["actions-out"]);
-
-  if (!sessionPath) {
-    throw new Error("sandbox-move requires --session <path>");
-  }
-  if (!isNonEmptyString(actorId)) {
-    throw new Error("sandbox-move requires --actor-id <id>");
-  }
-  if (!isNonEmptyString(direction)) {
-    throw new Error(
-      "sandbox-move requires --direction <north|northeast|east|southeast|south|southwest|west|northwest>",
-    );
-  }
-  if (!actionsOut) {
-    throw new Error("sandbox-move requires --actions-out <path>");
-  }
-
-  const result = await executeSandboxMove({
-    session: sessionPath,
-    actorId,
-    direction,
-    actionsOut,
-  });
-  emitJsonStdout(result);
-  if (!result.ok) {
-    process.exit(1);
-  }
-}
-
 export const COMMANDS = {
   build: buildCommand,
   schemas: schemasCommand,
@@ -6248,9 +6078,6 @@ export const COMMANDS = {
   diff: diffCommand,
   runs: runsCommand,
   tick: tickCommand,
-  "sandbox-create": sandboxCreateCommand,
-  "sandbox-place": sandboxPlaceCommand,
-  "sandbox-move": sandboxMoveCommand,
 };
 
 /**

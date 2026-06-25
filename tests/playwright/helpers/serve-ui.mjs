@@ -11,7 +11,8 @@ function wait(ms) {
 }
 
 function parseServeUrl(output) {
-  const match = output.match(/Serving UI at:\s+(http:\/\/localhost:\d+\/packages\/ui-web\/index\.html)/);
+  // serve-ui now defaults to index_c.html; accept any index*.html entry the server announces.
+  const match = output.match(/Serving UI at:\s+(http:\/\/localhost:\d+\/packages\/ui-web\/index[\w-]*\.html)/);
   return match ? match[1] : null;
 }
 
@@ -19,10 +20,16 @@ export function resolveFixturePath(...parts) {
   return path.resolve(root, ...parts);
 }
 
-export async function startServeUi({ port = 0 } = {}) {
+export async function startServeUi({ port = 0, bridgePort } = {}) {
+  const env = { ...process.env, PORT: String(port) };
+  // When a bridge port is supplied, the served HTML injects it so the browser
+  // bridge client connects to the loopback sandbox bridge under test.
+  if (bridgePort !== undefined) {
+    env.AK_SANDBOX_BRIDGE_PORT = String(bridgePort);
+  }
   const proc = spawn(process.execPath, ["scripts/serve-ui.mjs"], {
     cwd: root,
-    env: { ...process.env, PORT: String(port) },
+    env,
     stdio: ["ignore", "pipe", "pipe"],
   });
 

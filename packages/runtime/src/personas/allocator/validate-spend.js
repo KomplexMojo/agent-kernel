@@ -1,3 +1,5 @@
+import { applyFormula } from "./default-price-list.js";
+
 const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
@@ -56,6 +58,21 @@ function normalizeQuantity(value) {
   return value <= 0 ? 1 : value;
 }
 
+export function calculatePriceItemCost(price, quantity) {
+  return applyFormula(price, normalizeQuantity(quantity));
+}
+
+export function resolvePriceEntry(priceMap, kind, id) {
+  const key = `${kind}:${id}`;
+  const legacyKey = `legacy:${id}`;
+  const price = priceMap.get(key) || priceMap.get(legacyKey);
+  if (price) return price;
+  if (kind === "layout" && typeof id === "string" && id.startsWith("layout_grid_")) {
+    return priceMap.get("layout:layout_grid");
+  }
+  return undefined;
+}
+
 export function validateSpendProposal({
   budget,
   priceList,
@@ -87,9 +104,7 @@ export function validateSpendProposal({
       };
     }
 
-    const key = `${kind}:${id}`;
-    const legacyKey = `legacy:${id}`;
-    const price = priceMap.get(key) || priceMap.get(legacyKey);
+    const price = resolvePriceEntry(priceMap, kind, id);
     if (!price) {
       errors.push(`Unknown price item: ${kind}:${id}`);
       return {
@@ -103,7 +118,7 @@ export function validateSpendProposal({
       };
     }
 
-    const totalCost = price.unitCost * quantity;
+    const totalCost = calculatePriceItemCost(price, quantity);
     const lineItem = {
       id,
       kind,

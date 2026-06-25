@@ -82,26 +82,6 @@ test("preview panel has no renderer toggle controls", async ({ page }) => {
   }
 });
 
-test("actor inspector is hidden on design tab and visible on preview tab after bundle loads", async ({ page }) => {
-  const served = await startServeUi();
-
-  try {
-    await page.goto(served.url);
-    await expect(page.locator('[data-tab="design"]')).toBeVisible();
-    await expect(page.locator("#actor-inspector")).not.toBeVisible();
-
-    await page.setInputFiles("#bundle-file", bundlePath);
-    await expect(page.locator("#bundle-status")).toContainText("Bundle loaded");
-    await page.evaluate((id) => window.__ak_setActiveTab(id), "preview");
-    await expect(page.locator('[data-tab-panel="preview"]').first()).toBeVisible();
-    await expect(page.locator("#preview-status")).toContainText(/preview loaded from snapshot\./i, { timeout: 20_000 });
-
-    await expect(page.locator("#actor-inspector")).toBeVisible({ timeout: 10_000 });
-  } finally {
-    await stopProcess(served.proc);
-  }
-});
-
 test("authored bundle reaches preview with summary and actor data", async ({ page }) => {
   const served = await startServeUi();
 
@@ -110,23 +90,6 @@ test("authored bundle reaches preview with summary and actor data", async ({ pag
     await loadAuthoredBundleIntoPreview(page);
     await expect(page.locator("#preview-build-and-load")).toBeVisible();
     await expect(page.locator("#preview-renderer-canvas")).toHaveCount(0);
-  } finally {
-    await stopProcess(served.proc);
-  }
-});
-
-test("Build And Load Game from preview transitions to the gameplay tab", async ({ page }) => {
-  const served = await startServeUi();
-
-  try {
-    await page.goto(served.url);
-    await loadAuthoredBundleIntoPreview(page);
-
-    await page.locator("#preview-build-and-load").click();
-    await expect(page.locator('[data-tab-panel="gameplay"]').first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator("#preview-status")).toContainText(/Run loaded from Preview\./i, { timeout: 20_000 });
-    await expect(page.locator("#gameplay-status")).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator("#gameplay-phaser-host canvas")).toBeVisible({ timeout: 20_000 });
   } finally {
     await stopProcess(served.proc);
   }

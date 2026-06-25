@@ -1,6 +1,5 @@
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
-import { buildPriceMap } from "../allocator/validate-spend.js";
-import { REGEN_COST_COEFFICIENT } from "./cost-model.js";
+import { calculatePriceItemCost, normalizePriceItems } from "../allocator/validate-spend.js";
 
 const VITAL_POINT_IDS = Object.freeze({
   health: "vital_health_point",
@@ -13,8 +12,26 @@ const VITAL_POINT_IDS = Object.freeze({
 const VITAL_DISTRIBUTION_ORDER = ["health", "durability", "mana", "stamina"];
 
 function getUnitCost(priceMap, kind, id, fallback) {
-  const val = priceMap.get(`${kind}:${id}`);
+  const val = priceMap.get(`${kind}:${id}`)?.unitCost;
   return Number.isFinite(val) && val >= 0 ? val : fallback;
+}
+
+function getPriceEntry(priceMap, kind, id, fallbackUnitCost, fallbackFormula = "linear") {
+  const entry = priceMap.get(`${kind}:${id}`);
+  if (entry && Number.isFinite(entry.unitCost) && entry.unitCost >= 0) {
+    return entry;
+  }
+  return { kind, id, unitCost: fallbackUnitCost, formula: fallbackFormula };
+}
+
+function maxAffordableQuantity(priceEntry, budget) {
+  if (!priceEntry || !Number.isFinite(budget) || budget <= 0) return 0;
+  const unitCost = Number.isFinite(priceEntry.unitCost) ? priceEntry.unitCost : 0;
+  if (unitCost <= 0) return 0;
+  if (priceEntry.formula === "quadratic") {
+    return Math.floor(Math.sqrt(budget / unitCost));
+  }
+  return Math.floor(budget / unitCost);
 }
 
 function cloneActor(actor) {
@@ -68,7 +85,7 @@ export function maximizeActorBudget({ actors, remaining, priceList }) {
   const budget = typeof remaining === "number" ? Math.floor(remaining) : 0;
   if (budget <= 0) return actors;
 
-  const priceMap = buildPriceMap(priceList);
+  const priceMap = normalizePriceItems(priceList);
 
   const scalableIndices = actors
     .map((a, i) => (a?.vitals && typeof a.vitals === "object" ? i : -1))
@@ -99,7 +116,7 @@ export function maximizeActorBudget({ actors, remaining, priceList }) {
   let regenVitalRemainder = regenBudget - perRegenVital * VITAL_DISTRIBUTION_ORDER.length;
 
   for (const key of VITAL_DISTRIBUTION_ORDER) {
-    const coeff = REGEN_COST_COEFFICIENT[key] ?? 1;
+    const regenPrice = getPriceEntry(priceMap, "vital", `vital_${key}_regen_tick`, 1, "quadratic");
     const allotment = perRegenVital + (regenVitalRemainder-- > 0 ? 1 : 0);
     if (allotment <= 0) continue;
 
@@ -108,9 +125,9 @@ export function maximizeActorBudget({ actors, remaining, priceList }) {
 
     scalableIndices.forEach((actorIdx) => {
       const actorAllotment = perActorAllotment + (actorAllocRemainder-- > 0 ? 1 : 0);
-      const n = Math.floor(Math.sqrt(actorAllotment / coeff));
+      const n = maxAffordableQuantity(regenPrice, actorAllotment);
       if (n <= 0) return;
-      const spent = coeff * n * n;
+      const spent = calculatePriceItemCost(regenPrice, n);
       cloned[actorIdx].vitals[key].regen += n;
       regenLeftover -= spent;
     });

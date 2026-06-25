@@ -11,6 +11,54 @@ const E2E_SCENARIO = resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.jso
 const LLM_FIXTURE = resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary.json");
 const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json");
 const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json");
+const BUILD_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-configurator.json");
+
+// The renamed bridge push tool (Plan O3) and the sandbox bridge WebSocket path.
+const PUSH_TOOL_NAME = "ak_push_to_ui";
+const LEGACY_PUSH_TOOL_NAME = "ak_sandbox_push_ui";
+const BRIDGE_WS_PATH = "/ak-sandbox";
+
+// Reserve an ephemeral loopback port, then release it so the MCP server can bind it.
+function reserveFreePort() {
+  const net = require("node:net");
+  return new Promise((resolvePort, rejectPort) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on("error", rejectPort);
+    srv.listen(0, "127.0.0.1", () => {
+      const { port } = srv.address();
+      srv.close(() => resolvePort(port));
+    });
+  });
+}
+
+// Try to open a WebSocket to the sandbox bridge, retrying until it connects or the deadline passes.
+// Resolves on the first successful open; rejects if the bridge never accepts a connection.
+function connectBridgeWithRetry(port, timeoutMs = 4000) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolveConn, rejectConn) => {
+    const attempt = () => {
+      let ws;
+      try {
+        ws = new globalThis.WebSocket(`ws://127.0.0.1:${port}${BRIDGE_WS_PATH}`);
+      } catch (err) {
+        if (Date.now() >= deadline) return rejectConn(err);
+        return setTimeout(attempt, 150);
+      }
+      const onErrorOrClose = () => {
+        if (Date.now() >= deadline) {
+          rejectConn(new Error(`bridge did not accept a connection on port ${port} within ${timeoutMs}ms`));
+        } else {
+          setTimeout(attempt, 150);
+        }
+      };
+      ws.addEventListener("open", () => resolveConn(ws), { once: true });
+      ws.addEventListener("error", onErrorOrClose, { once: true });
+      ws.addEventListener("close", onErrorOrClose, { once: true });
+    };
+    attempt();
+  });
+}
 
 class McpServerHarness {
   constructor(env = {}) {
@@ -405,6 +453,165 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
     await harness.close();
   }
 });
+
+// ---------------------------------------------------------------------------
+// M1 — Bridge exposure and autostart (sandbox consolidation)
+//
+// These tests define the M2 contract: the renamed `ak_push_to_ui` tool is
+// registered in TOOL_DEFINITIONS and the loopback bridge auto-starts on
+// AK_SANDBOX_BRIDGE_PORT during MCP server startup.
+// ---------------------------------------------------------------------------
+
+test("mcp server exposes ak_push_to_ui and not the legacy ak_sandbox_push_ui (O3)", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const listed = await harness.request("tools/list", {});
+    const toolNames = listed.tools.map((tool) => tool.name);
+    assert.ok(
+      toolNames.includes(PUSH_TOOL_NAME),
+      `expected ${PUSH_TOOL_NAME} in tools/list, got: ${toolNames.join(", ")}`,
+    );
+    assert.ok(
+      !toolNames.includes(LEGACY_PUSH_TOOL_NAME),
+      `legacy ${LEGACY_PUSH_TOOL_NAME} must be removed, got: ${toolNames.join(", ")}`,
+    );
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp server auto-starts the loopback sandbox bridge on AK_SANDBOX_BRIDGE_PORT", async () => {
+  const port = await reserveFreePort();
+  const harness = new McpServerHarness({ AK_SANDBOX_BRIDGE_PORT: String(port) });
+  let ws;
+  try {
+    await harness.initialize();
+    // The bridge must be listening once the server is up: a raw loopback client connects.
+    ws = await connectBridgeWithRetry(port, 4000);
+    assert.equal(ws.readyState, globalThis.WebSocket.OPEN, "bridge WebSocket must accept the connection");
+  } finally {
+    ws?.close();
+    await harness.close();
+  }
+});
+
+test("mcp ak_push_to_ui compiles and pre-stages a bundle when requireClient:false", async () => {
+  const port = await reserveFreePort();
+  const harness = new McpServerHarness({ AK_SANDBOX_BRIDGE_PORT: String(port) });
+  try {
+    await harness.initialize();
+    const buildSpec = readJson(BUILD_SPEC);
+    const result = await harness.callTool(PUSH_TOOL_NAME, {
+      buildSpec,
+      requireClient: false,
+    });
+    assert.equal(result.ok, true);
+    assert.ok(result.bundle, "must include bundle summary");
+    assert.ok(
+      typeof result.bundle.artifactCount === "number" && result.bundle.artifactCount > 0,
+      "must report artifact count > 0",
+    );
+    assert.ok(result.bundle.simConfigArtifactId, "must include simConfigArtifactId");
+    assert.ok(result.bundle.resourceBundleArtifactId, "must include resourceBundleArtifactId");
+  } finally {
+    await harness.close();
+  }
+});
+
+/*
+## TODO: Test Permutations
+- ak_push_to_ui with omitted buildSpec → MISSING_BUILD_SPEC over the stdio surface
+- ak_push_to_ui with requireClient:true and no connected client → SANDBOX_UI_NOT_CONNECTED
+- bridge autostart honors the default port (38487) when AK_SANDBOX_BRIDGE_PORT is unset
+- two MCP server instances on different AK_SANDBOX_BRIDGE_PORT values do not collide
+- ak_push_to_ui with openBrowser:true (O1) returns the served index_c.html URL in the result
+- correlationId round-trips through the stdio tool envelope
+*/
+
+// ---------------------------------------------------------------------------
+// M4 — Canonical replacement for the file-based sandbox tools (lean scope)
+//
+// The file-based ak_sandbox_create/place/move tools are removed in M5. The
+// code-is-law rules they touched (walls, stamina, bounds, budget) stay covered
+// by core-ts/runtime tests (validateActorPlacement, wind+push stamina, room
+// bounds, design-spend-ledger). Here we (1) assert the removed tool surface is
+// gone — a FAILING test until M5 — and (2) prove the budget gate through the
+// canonical ak_create path that replaces ak_sandbox_create's receipt gate.
+// ---------------------------------------------------------------------------
+
+test("mcp tools/list no longer exposes the file-based sandbox tools (M5)", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const listed = await harness.request("tools/list", {});
+    const names = listed.tools.map((tool) => tool.name);
+    for (const removed of ["ak_sandbox_create", "ak_sandbox_place", "ak_sandbox_move"]) {
+      assert.ok(
+        !names.includes(removed),
+        `${removed} must be removed from tools/list (replaced by the BuildSpec/run path), got: ${names.join(", ")}`,
+      );
+    }
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_create computes and reports deterministic budget cost (canonical budget gate)", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    // Within budget → valid with non-negative remaining.
+    const within = await harness.callTool("ak_create", {
+      dryRun: true,
+      text: "single fire delver",
+      delver: ["count=1;affinity=fire;motivation=attacking"],
+      budgetTokens: 1000,
+      runId: "run_m4_budget_within",
+      createdAt: "2026-04-10T00:00:00.000Z",
+    });
+    assert.equal(within.valid, true);
+    assert.ok(within.budgetEstimate, "create must report a budgetEstimate");
+    assert.ok(
+      within.budgetEstimate.remaining >= 0,
+      `within-budget spec must have non-negative remaining, got ${within.budgetEstimate.remaining}`,
+    );
+
+    // Over budget → the overage is reported deterministically as negative remaining.
+    const over = await harness.callTool("ak_create", {
+      dryRun: true,
+      text: "fire warden dungeon",
+      room: ["size=medium;count=1"],
+      warden: ["count=3;affinity=fire;motivation=defending"],
+      delver: ["count=2;affinity=water;motivation=exploring"],
+      budgetTokens: 5,
+      runId: "run_m4_budget_over",
+      createdAt: "2026-04-10T00:00:00.000Z",
+    });
+    assert.ok(over.budgetEstimate, "create must report a budgetEstimate");
+    assert.equal(over.budgetEstimate.total, 5);
+    assert.ok(
+      over.budgetEstimate.used > over.budgetEstimate.total,
+      "used must exceed the budget for an over-budget spec",
+    );
+    assert.ok(
+      over.budgetEstimate.remaining < 0,
+      `over-budget spec must report negative remaining, got ${over.budgetEstimate.remaining}`,
+    );
+  } finally {
+    await harness.close();
+  }
+});
+
+/*
+## TODO: Test Permutations (M4 — canonical sandbox replacement)
+- ak_create within budget then ak_run produces tick-frames (end-to-end runnable scenario)
+- ak_create over budget by exactly 1 token → remaining === -1
+- ak_create with dungeonBudgetTokens/delverBudgetTokens split → per-pool budgetEstimate
+- BuildSpec→ak_run replays N ticks and the final tick index === N-1 (tick navigation parity)
+- walls/stamina/bounds remain covered by core-ts/runtime move-rule tests (no MCP duplication)
+*/
 
 // ## Gap Registry — Uncovered MCP Tools (M7 scope boundary)
 //

@@ -28,6 +28,6 @@ pnpm run demo:cli
 pnpm run serve:ui
 ```
 
-Open `http://localhost:8001/packages/ui-web/index.html`.
+Open `http://localhost:8001/packages/ui-web/index_c.html`.
 
 The UI uses Design, Preview, Run, and Diagnostics. Preview and Run use the synchronous TypeScript core path and do not require a separate binary build.

@@ -92,6 +92,7 @@ const REQUIRED_MOTIVATION_IDS = [
 ];
 
 const REQUIRED_STRUCTURE_IDS = [
+  "layout_grid",
   "tile_floor",
   "tile_hallway",
 ];

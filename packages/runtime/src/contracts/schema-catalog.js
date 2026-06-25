@@ -235,13 +235,6 @@ const CATALOG = [
     description: "Canonical visual resource bundle with embedded data URIs, sprite variants, and Phaser-ready tile effect overlays.",
     fields: ["meta", "bundleId", "bundleVersion", "tileWidth", "tileHeight", "gatewayBaseUrl", "assets", "mappings"],
   },
-  {
-    schema: "agent-kernel/SandboxSessionArtifact",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.INTERMEDIATE,
-    description: "Session envelope for a standalone Phaser sandbox. Indexes SimConfig, InitialState, ResourceBundle, and BudgetReceipt artifact references. Foundation for the primary Phaser game surface.",
-    fields: ["meta", "rooms", "artifacts", "entityCategories"],
-  },
 ];
 
 function sortSchemas(entries) {

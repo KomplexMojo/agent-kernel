@@ -25,6 +25,8 @@
     "test:matrix": "node scripts/testing/test-matrix.mjs",
     "test:coverage:core-ts": "node scripts/testing/run-core-ts-coverage.mjs",
     "benchmark:core-ts-affinity": "node scripts/testing/benchmark-compute-affinity-field.mjs",
+    "benchmark:mcp:generate": "node tools/benchmark/generate-baselines.mjs",
+    "benchmark:mcp:validate": "node tools/benchmark/validate-benchmark.mjs",
     "serve:ui": "node scripts/serve-ui.mjs",
     "serve:c": "node scripts/serve-ui.mjs --entry index_c.html",
     "serve:l": "node scripts/serve-ui.mjs --entry index_l.html",

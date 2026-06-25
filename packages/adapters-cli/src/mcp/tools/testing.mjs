@@ -139,7 +139,7 @@ test(${JSON.stringify(title)}, async ({ page, request }) => {
     const health = await request.get(\`http://127.0.0.1:\${port}/health\`);
     expect(health.ok()).toBeTruthy();
     await page.goto(\`http://127.0.0.1:\${port}/\`);
-    await expect(page).toHaveURL(new RegExp("/packages/ui-web/index.html$"));
+    await expect(page).toHaveURL(new RegExp("/packages/ui-web/index_c.html$"));
   } finally {
     await closeServer(server);
     await closeServer(blocker);
