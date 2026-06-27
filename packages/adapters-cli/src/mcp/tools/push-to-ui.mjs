@@ -100,8 +100,10 @@ export const pushToUiTools = [
         },
         targetTab: {
           type: "string",
-          enum: ["design", "gameplay"],
-          description: "Which UI tab to activate after loading. Defaults to 'gameplay'.",
+          enum: ["design", "gameplay", "preview"],
+          description:
+            "Which UI tab to activate after loading. 'preview' shows the bundle summary + actor " +
+            "list (DOM); 'gameplay' renders the run. Defaults to 'gameplay'.",
           default: "gameplay",
         },
         requireClient: {

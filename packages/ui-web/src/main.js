@@ -196,16 +196,17 @@ globalThis.__ak_loadScenario = async (scenario, options = {}) => {
 };
 
 // D3+D4: also hydrate Design/Preview from the bundle spec and honor targetTab
-globalThis.__ak_loadGameplayBundle = (bundle, { targetTab = "gameplay" } = {}) => {
+globalThis.__ak_loadGameplayBundle = (bundle, { targetTab = "design" } = {}) => {
+  // Load the run into the Gameplay surface so switching to Gameplay carries the scenario over.
   if (!loadGameplayBundle(bundle)) return false;
-  // D3: hydrate Design tab from the incoming spec so it reflects the pushed build
-  if (bundle?.spec && designView?.loadBuildSpec) {
-    designView.loadBuildSpec(bundle.spec, { source: "sandbox-bridge" });
+  // Populate the Phaser Design screen (card builder) from the pushed BuildSpec — this is the
+  // canonical design surface; the bridge feeds it directly via the ingestion boundary.
+  if (bundle?.spec) {
+    void phaserFrame?.ingest?.(bundle.spec);
   }
-  // D3: sync Preview/icon state with the new bundle
-  void syncBundleViews({ bundle, source: "sandbox-bridge" });
-  // D4: honor targetTab — default to "gameplay", but "design" is valid
-  openTab(targetTab === "design" ? "design" : "gameplay");
+  // Honor targetTab — design, gameplay, or preview are valid (default design).
+  const ALLOWED_TABS = new Set(["design", "gameplay", "preview"]);
+  openTab(ALLOWED_TABS.has(targetTab) ? targetTab : "design");
   return true;
 };
 
