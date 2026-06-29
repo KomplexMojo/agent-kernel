@@ -45,6 +45,30 @@ export function collectBuildSpecCardSet(specInput) {
   );
 }
 
+const POOL_TYPES = ["room", "delver", "warden", "hazard", "resource"];
+
+function deriveContentAwareSplit(cards) {
+  const present = new Set();
+  (Array.isArray(cards) ? cards : []).forEach((card) => {
+    const type = typeof card?.type === "string" ? card.type : "";
+    if (type === "delver") present.add("delver");
+    else if (type === "warden") present.add("warden");
+    else if (type === "room") present.add("room");
+    else if (type === "hazard") present.add("hazard");
+    else if (type === "resource") present.add("resource");
+  });
+  if (present.size === 0) return null;
+  const share = Math.floor(100 / present.size);
+  const split = {};
+  POOL_TYPES.forEach((type) => { split[type] = present.has(type) ? share : 0; });
+  const assigned = present.size * share;
+  if (assigned < 100) {
+    const first = POOL_TYPES.find((t) => present.has(t));
+    if (first) split[first] += 100 - assigned;
+  }
+  return split;
+}
+
 export function extractDesignStateFromBuildSpec(specInput) {
   const { spec, changed, specText } = normalizeBuildSpecForEditor(specInput);
   const poolWeights = Array.isArray(spec?.intent?.hints?.poolWeights) ? spec.intent.hints.poolWeights : [];
@@ -54,7 +78,9 @@ export function extractDesignStateFromBuildSpec(specInput) {
       .map((entry) => [String(entry.id || ""), poolWeightToPercent(entry.weight)]),
   );
 
-  const budgetSplitPercent = [
+  const cards = collectBuildSpecCardSet(spec);
+
+  const explicitSplit = [
     weights.layout,
     weights.player,
     weights.wardens,
@@ -66,11 +92,13 @@ export function extractDesignStateFromBuildSpec(specInput) {
     }
     : null;
 
+  const budgetSplitPercent = explicitSplit || deriveContentAwareSplit(cards);
+
   return {
     spec,
     changed,
     specText,
-    cards: collectBuildSpecCardSet(spec),
+    cards,
     budgetTokens: Number.isFinite(spec?.intent?.hints?.budgetTokens)
       ? Math.floor(spec.intent.hints.budgetTokens)
       : null,
