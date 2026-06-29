@@ -183,11 +183,34 @@ test("cli warden-plan supports advanced affinities, vitals, and receipt accounti
 
   const receipt = readJson(join(outDir, "budget-receipt.json"));
   const byId = new Map(receipt.lineItems.map((item) => [item.id, item]));
+  assert.equal(receipt.status, "approved");
+  assert.equal(receipt.lineItems.some((item) => item.category === "wardens"), true);
+  assert.equal(receipt.lineItems.some((item) => item.category === "delvers"), false);
   assert.equal(byId.get("affinity_stack")?.quantity, 5);
   assert.equal(byId.get("affinity_expression_localized")?.quantity, 4);
   assert.equal(byId.get("affinity_expression_internalize")?.quantity, 1);
   assert.equal(byId.get("vital_health_point")?.quantity, 15);
   assert.equal(byId.get("vital_stamina_regen_tick")?.quantity, 1);
+});
+
+test("cli warden-plan rejects insufficient hard budget", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-warden-plan-budget-fail-"));
+  const result = runCli([
+    "warden-plan",
+    "--warden",
+    "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0",
+    "--budget-tokens",
+    "10",
+    "--run-id",
+    "run_warden_plan_budget_fail",
+    "--created-at",
+    "2026-03-07T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(`${result.stdout}\n${result.stderr}`, /budget|minimum_cost_exceeds_budget|Budget receipt denied/i);
+  assert.equal(existsSync(join(outDir, "budget-receipt.json")), false);
 });
 
 test("cli warden-plan rejects invalid motivation", () => {

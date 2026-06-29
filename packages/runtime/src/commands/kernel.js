@@ -76,6 +76,64 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+const SUMMARY_POOL_WEIGHT_DEFAULTS = Object.freeze({
+  rooms: 0.44,
+  hazards: 0.12,
+  wardens: 0.16,
+  resources: 0.08,
+  delver: 0.20,
+});
+
+function buildSummaryPoolWeights(summary = {}) {
+  const cards = Array.isArray(summary.cardSet)
+    ? summary.cardSet
+    : Array.isArray(summary.cards) ? summary.cards : [];
+  const layout = summary.layout && typeof summary.layout === "object" ? summary.layout : null;
+  const layoutHasRoomSpend = layout
+    && (
+      Number.isInteger(layout.floorTiles)
+      || Number.isInteger(layout.hallwayTiles)
+      || (Array.isArray(layout.traps) && layout.traps.length > 0)
+    );
+  const rooms = [
+    ...(Array.isArray(summary.rooms) ? summary.rooms : []),
+    ...cards.filter((entry) => entry?.type === "room" || entry?.source === "room"),
+  ];
+  const hazards = [
+    ...(Array.isArray(summary.hazards) ? summary.hazards : []),
+    ...cards.filter((entry) => entry?.type === "hazard" || entry?.source === "hazard"),
+  ];
+  const resources = [
+    ...(Array.isArray(summary.resources) ? summary.resources : []),
+    ...cards.filter((entry) => entry?.type === "resource" || entry?.source === "resource"),
+  ];
+  const actorCards = cards.filter((entry) => entry?.type === "delver" || entry?.type === "warden");
+  const actorEntries = Array.isArray(summary.actors) ? summary.actors : [];
+  const delvers = [
+    ...actorCards.filter((entry) => entry.type === "delver"),
+    ...actorEntries.filter((entry) => {
+      const role = String(entry?.actorType || entry?.type || entry?.role || entry?.motivation || "").toLowerCase();
+      return role.includes("delver") || role.includes("attack");
+    }),
+  ];
+  const wardens = [
+    ...actorCards.filter((entry) => entry.type === "warden"),
+    ...actorEntries.filter((entry) => {
+      const role = String(entry?.actorType || entry?.type || entry?.role || entry?.motivation || "").toLowerCase();
+      return role.includes("warden") || role.includes("defend") || role.includes("stationary");
+    }),
+  ];
+  const weights = [];
+  if (rooms.length > 0 || layoutHasRoomSpend) {
+    weights.push({ id: "rooms", weight: SUMMARY_POOL_WEIGHT_DEFAULTS.rooms });
+  }
+  if (hazards.length > 0) weights.push({ id: "hazards", weight: SUMMARY_POOL_WEIGHT_DEFAULTS.hazards });
+  if (wardens.length > 0) weights.push({ id: "wardens", weight: SUMMARY_POOL_WEIGHT_DEFAULTS.wardens });
+  if (resources.length > 0) weights.push({ id: "resources", weight: SUMMARY_POOL_WEIGHT_DEFAULTS.resources });
+  if (delvers.length > 0) weights.push({ id: "delver", weight: SUMMARY_POOL_WEIGHT_DEFAULTS.delver });
+  return weights;
+}
+
 function sanitizeFileSegment(value) {
   const raw = String(value || "").toLowerCase();
   const cleaned = raw.replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
@@ -2033,6 +2091,14 @@ export function createCommandKernel(host = {}) {
       }
       if (Number.isFinite(resolvedBudgetTokens)) {
         summaryForSpec.budgetTokens = resolvedBudgetTokens;
+      }
+    }
+    if (!Array.isArray(summaryForSpec?.poolWeights) || summaryForSpec.poolWeights.length === 0) {
+      const poolWeights = Array.isArray(budgetPoolWeights) && budgetPoolWeights.length > 0
+        ? budgetPoolWeights
+        : buildSummaryPoolWeights(summaryForSpec);
+      if (poolWeights.length > 0) {
+        summaryForSpec = { ...summaryForSpec, poolWeights };
       }
     }
 

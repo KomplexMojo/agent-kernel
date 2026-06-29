@@ -29,18 +29,42 @@
     {
       "id": "actor_spawn",
       "kind": "actor",
-      "quantity": 2,
-      "unitCost": 0,
-      "totalCost": 0,
-      "status": "denied"
-    },
-    {
-      "id": "layout_grid_9x9",
-      "kind": "layout",
       "quantity": 1,
       "unitCost": 0,
       "totalCost": 0,
-      "status": "denied"
+      "status": "denied",
+      "subjectRef": {
+        "id": "actor_one",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "unitCost": 0,
+      "totalCost": 0,
+      "status": "denied",
+      "subjectRef": {
+        "id": "actor_two",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "tile_floor",
+      "kind": "tile",
+      "quantity": 81,
+      "unitCost": 0,
+      "totalCost": 0,
+      "status": "denied",
+      "category": "floor_tiles",
+      "subjectRef": {
+        "id": "layout",
+        "schema": "agent-kernel/LayoutArtifact",
+        "schemaVersion": 1
+      }
     },
     {
       "id": "trap_basic",
@@ -48,7 +72,13 @@
       "quantity": 1,
       "unitCost": 0,
       "totalCost": 0,
-      "status": "denied"
+      "status": "denied",
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_1",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
     }
   ]
 }

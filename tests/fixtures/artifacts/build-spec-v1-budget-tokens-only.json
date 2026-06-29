@@ -47,6 +47,7 @@
         {
           "id": "actor_test",
           "kind": "ambulatory",
+          "archetype": "delver",
           "position": { "x": 2, "y": 2 },
           "vitals": {
             "health": { "current": 10, "max": 10, "regen": 0 },

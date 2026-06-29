@@ -7,10 +7,33 @@
  */
 
 import {
+  computeBudgetPools,
   REFERENCE_BUDGET_TOKENS,
   REFERENCE_TARGETS,
   TARGET_DELVER_WARDEN_RATIO,
 } from "../director/budget-allocation.js";
+
+const REPORT_CATEGORIES = Object.freeze([
+  "rooms",
+  "floor_tiles",
+  "traps",
+  "hazards",
+  "resources",
+  "delvers",
+  "wardens",
+  "shared_system",
+]);
+
+const CATEGORY_POOL_IDS = Object.freeze({
+  rooms: "rooms",
+  floor_tiles: "rooms",
+  traps: "rooms",
+  hazards: "hazards",
+  resources: "resources",
+  delvers: "delver",
+  wardens: "wardens",
+  shared_system: "rooms",
+});
 
 /**
  * Compute the incentive multiplier (design §3.3).
@@ -29,6 +52,82 @@ export function computeIncentiveMultiplier(delverSpend, wardenSpend) {
   return Math.max(0, 1 - 1.25 * mismatch);
 }
 
+function normalizeSpend(value) {
+  return Number.isFinite(value) ? value : 0;
+}
+
+function buildPoolTargets({ budgetTokens, allocation } = {}) {
+  const pools = Array.isArray(allocation?.pools)
+    ? allocation.pools
+    : computeBudgetPools({ budgetTokens }).pools;
+  return new Map((pools || []).map((pool) => [pool.id, Number.isInteger(pool.tokens) ? pool.tokens : 0]));
+}
+
+function buildCategoryTargets({ budgetTokens, allocation } = {}) {
+  const poolTargets = buildPoolTargets({ budgetTokens, allocation });
+  const fallbackScale = (Number.isInteger(budgetTokens) && budgetTokens > 0 ? budgetTokens : REFERENCE_BUDGET_TOKENS)
+    / REFERENCE_BUDGET_TOKENS;
+  const fallback = {
+    rooms: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
+    floor_tiles: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
+    traps: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
+    hazards: Math.round((REFERENCE_TARGETS.hazards || 0) * fallbackScale),
+    resources: Math.round(REFERENCE_TARGETS.resources * fallbackScale),
+    delvers: Math.round(REFERENCE_TARGETS.delvers * fallbackScale),
+    wardens: Math.round(REFERENCE_TARGETS.wardens * fallbackScale),
+    shared_system: 0,
+  };
+  return Object.fromEntries(REPORT_CATEGORIES.map((category) => {
+    const poolId = CATEGORY_POOL_IDS[category];
+    const poolTarget = poolId ? poolTargets.get(poolId) : undefined;
+    return [category, Number.isInteger(poolTarget) ? poolTarget : fallback[category] || 0];
+  }));
+}
+
+function sumLineItemsByCategory(lineItems = []) {
+  const categorySpend = Object.fromEntries(REPORT_CATEGORIES.map((category) => [category, 0]));
+  lineItems.forEach((item) => {
+    const category = typeof item?.category === "string" ? item.category : null;
+    if (!category || !Object.prototype.hasOwnProperty.call(categorySpend, category)) return;
+    categorySpend[category] += normalizeSpend(item.totalCost);
+  });
+  return categorySpend;
+}
+
+function buildLegacyCategorySpend({ roomsSpend, delverSpend, wardenSpend, resourcesSpend } = {}) {
+  return {
+    rooms: normalizeSpend(roomsSpend),
+    floor_tiles: 0,
+    traps: 0,
+    hazards: 0,
+    resources: normalizeSpend(resourcesSpend),
+    delvers: normalizeSpend(delverSpend),
+    wardens: normalizeSpend(wardenSpend),
+    shared_system: 0,
+  };
+}
+
+function buildCategorySpend(options = {}) {
+  if (Array.isArray(options.lineItems)) {
+    return sumLineItemsByCategory(options.lineItems);
+  }
+  if (options.categorySpend && typeof options.categorySpend === "object") {
+    return Object.fromEntries(REPORT_CATEGORIES.map((category) => [
+      category,
+      normalizeSpend(options.categorySpend[category]),
+    ]));
+  }
+  return buildLegacyCategorySpend(options);
+}
+
+function buildCategory(actual, target) {
+  return {
+    actual,
+    target,
+    usagePercent: target > 0 ? Math.round((actual / target) * 100) : 0,
+  };
+}
+
 /**
  * Build a scenario-level spend report (design §14).
  *
@@ -44,15 +143,30 @@ export function buildScenarioSpendReport({
   delverSpend = 0,
   wardenSpend = 0,
   resourcesSpend = 0,
+  lineItems,
+  categorySpend,
+  allocation,
   budgetTokens = REFERENCE_BUDGET_TOKENS,
 } = {}) {
-  const totalSpend = roomsSpend + delverSpend + wardenSpend + resourcesSpend;
   const budget = Number.isInteger(budgetTokens) && budgetTokens > 0
     ? budgetTokens
     : REFERENCE_BUDGET_TOKENS;
+  const spend = buildCategorySpend({
+    roomsSpend,
+    delverSpend,
+    wardenSpend,
+    resourcesSpend,
+    lineItems,
+    categorySpend,
+  });
+  spend.rooms += spend.floor_tiles + spend.traps + spend.shared_system;
+  const totalSpend = Array.isArray(lineItems)
+    ? lineItems.reduce((sum, item) => sum + normalizeSpend(item.totalCost), 0)
+    : spend.rooms + spend.hazards + spend.resources + spend.delvers + spend.wardens;
+  const targets = buildCategoryTargets({ budgetTokens: budget, allocation });
 
-  const actualRatio = wardenSpend > 0 ? delverSpend / wardenSpend : 0;
-  const incentiveMultiplier = computeIncentiveMultiplier(delverSpend, wardenSpend);
+  const actualRatio = spend.wardens > 0 ? spend.delvers / spend.wardens : 0;
+  const incentiveMultiplier = computeIncentiveMultiplier(spend.delvers, spend.wardens);
 
   return {
     budget,
@@ -60,37 +174,10 @@ export function buildScenarioSpendReport({
     remainingBudget: Math.max(0, budget - totalSpend),
     overBudget: totalSpend > budget,
 
-    // Per-category actuals and targets (design §14.1–14.3)
-    categories: {
-      rooms: {
-        actual: roomsSpend,
-        target: REFERENCE_TARGETS.rooms,
-        usagePercent: REFERENCE_TARGETS.rooms > 0
-          ? Math.round((roomsSpend / REFERENCE_TARGETS.rooms) * 100)
-          : 0,
-      },
-      delvers: {
-        actual: delverSpend,
-        target: REFERENCE_TARGETS.delvers,
-        usagePercent: REFERENCE_TARGETS.delvers > 0
-          ? Math.round((delverSpend / REFERENCE_TARGETS.delvers) * 100)
-          : 0,
-      },
-      wardens: {
-        actual: wardenSpend,
-        target: REFERENCE_TARGETS.wardens,
-        usagePercent: REFERENCE_TARGETS.wardens > 0
-          ? Math.round((wardenSpend / REFERENCE_TARGETS.wardens) * 100)
-          : 0,
-      },
-      resources: {
-        actual: resourcesSpend,
-        target: REFERENCE_TARGETS.resources,
-        usagePercent: REFERENCE_TARGETS.resources > 0
-          ? Math.round((resourcesSpend / REFERENCE_TARGETS.resources) * 100)
-          : 0,
-      },
-    },
+    categories: Object.fromEntries(REPORT_CATEGORIES.map((category) => [
+      category,
+      buildCategory(spend[category], targets[category]),
+    ])),
 
     totalBudgetUsagePercent: budget > 0
       ? Math.round((totalSpend / budget) * 100)

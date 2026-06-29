@@ -8,6 +8,7 @@ import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/c
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
 import { maximizeActorBudget } from "../personas/configurator/budget-maximizer.js";
 import { buildDefaultPriceList } from "../personas/allocator/default-price-list.js";
+import { buildBudgetAllocation } from "../personas/director/budget-allocation.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
 import { buildScenarioSpendReport } from "../personas/allocator/incentive-model.js";
@@ -54,6 +55,65 @@ function toRef(artifact) {
     schema: artifact.schema,
     schemaVersion: artifact.schemaVersion,
   };
+}
+
+function mergePriceListWithDefaults(priceList, { meta } = {}) {
+  const defaults = buildDefaultPriceList({ meta });
+  if (!priceList) return defaults;
+  const itemsByKey = new Map();
+  defaults.items.forEach((item) => {
+    itemsByKey.set(`${item.kind}:${item.id}`, item);
+  });
+  if (Array.isArray(priceList.items)) {
+    priceList.items.forEach((item) => {
+      if (typeof item?.id === "string" && typeof item?.kind === "string") {
+        itemsByKey.set(`${item.kind}:${item.id}`, item);
+      } else if (typeof item?.key === "string") {
+        itemsByKey.set(`legacy:${item.key}`, item);
+      }
+    });
+  }
+  return {
+    ...defaults,
+    ...priceList,
+    meta: priceList.meta || defaults.meta,
+    items: Array.from(itemsByKey.values()),
+  };
+}
+
+function formatBudgetReceiptDenial(receipt) {
+  const parts = [
+    `status=${receipt?.status}`,
+    `remaining=${receipt?.remaining}`,
+  ];
+  const deniedLines = Array.isArray(receipt?.lineItems)
+    ? receipt.lineItems
+      .filter((item) => item?.status !== "approved")
+      .slice(0, 5)
+      .map((item) => `${item.kind}:${item.id}${item.category ? `:${item.category}` : ""}`)
+    : [];
+  if (deniedLines.length > 0) {
+    parts.push(`deniedLines=${deniedLines.join(",")}`);
+  }
+  const deniedPools = Array.isArray(receipt?.poolStatuses)
+    ? receipt.poolStatuses
+      .filter((pool) => pool?.status !== "approved")
+      .map((pool) => `${pool.id}:${pool.spentTokens}/${pool.capTokens}`)
+    : [];
+  if (deniedPools.length > 0) {
+    parts.push(`deniedPools=${deniedPools.join(",")}`);
+  }
+  return `Budget receipt denied: ${parts.join("; ")}`;
+}
+
+function resolveActorPoolRemaining(receipt) {
+  if (!Array.isArray(receipt?.poolStatuses)) return null;
+  const actorPools = receipt.poolStatuses.filter((pool) => pool?.id === "delver" || pool?.id === "wardens");
+  if (actorPools.length === 0) return null;
+  return actorPools.reduce((sum, pool) => {
+    const remaining = Number.isFinite(pool?.remainingTokens) ? pool.remainingTokens : 0;
+    return sum + Math.max(0, remaining);
+  }, 0);
 }
 
 function assertSchema(artifact, expectedSchema) {
@@ -1327,6 +1387,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
   let motivationRules = null;
   let resourceBundle = null;
   let resolvedPriceList = null;
+  let budgetAllocation = null;
 
   if (hasLevelGen) {
     if (!hasActors) {
@@ -1375,6 +1436,9 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
     }
 
     const layout = layoutResult.value;
+    if (levelGenInput?.budgetScaffold === true) {
+      layout.budgetScaffold = true;
+    }
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
     augmentLayoutWithRoomAffinityEffects(layout, {
       cardSet: configuratorInputs?.cardSet,
@@ -1403,10 +1467,24 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       });
     }
 
-    resolvedPriceList = mapped.budget?.priceList
-      || (mapped.budget?.budget
-        ? buildDefaultPriceList({ meta: createBuildMeta(spec, producedBy, "default_price_list") })
-        : null);
+    resolvedPriceList = mapped.budget?.budget
+      ? mergePriceListWithDefaults(mapped.budget?.priceList, {
+        meta: createBuildMeta(spec, producedBy, "default_price_list"),
+      })
+      : null;
+    if (mapped.budget?.budget && resolvedPriceList) {
+      const allocationResult = buildBudgetAllocation({
+        budget: mapped.budget.budget,
+        priceList: resolvedPriceList,
+        meta: createBuildMeta(spec, producedBy, "budget_allocation"),
+        poolWeights: spec.intent?.hints?.poolWeights,
+      });
+      if (!allocationResult.ok) {
+        const details = allocationResult.errors.map((entry) => `${entry.field || "poolWeights"}:${entry.code}`).join(", ");
+        throw new Error(`Budget allocation invalid: ${details}`);
+      }
+      budgetAllocation = allocationResult.allocation;
+    }
 
     const configuratorResources = Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [];
 
@@ -1414,6 +1492,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       const probeResult = evaluateConfiguratorSpend({
         budget: mapped.budget.budget,
         priceList: resolvedPriceList,
+        allocation: budgetAllocation,
         layout,
         actors: actorsInput.actors,
         resources: configuratorResources,
@@ -1421,10 +1500,14 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt_probe"),
       });
       const probeRemaining = probeResult.receipt?.remaining ?? 0;
-      if (probeRemaining > 0) {
+      const actorPoolRemaining = resolveActorPoolRemaining(probeResult.receipt);
+      const maximizeRemaining = actorPoolRemaining === null
+        ? probeRemaining
+        : Math.min(probeRemaining, actorPoolRemaining);
+      if (maximizeRemaining > 0) {
         actorsInput.actors = maximizeActorBudget({
           actors: actorsInput.actors,
-          remaining: probeRemaining,
+          remaining: maximizeRemaining,
           priceList: resolvedPriceList,
         });
         if (spec?.configurator?.inputs) {
@@ -1437,6 +1520,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       const spendResult = evaluateConfiguratorSpend({
         budget: mapped.budget.budget,
         priceList: resolvedPriceList,
+        allocation: budgetAllocation,
         layout,
         actors: actorsInput.actors,
         resources: configuratorResources,
@@ -1447,55 +1531,17 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       });
       spendProposal = spendResult.proposal;
       budgetReceipt = spendResult.receipt;
-
-      // Compute scenario spend report using existing spend categorization
-      const { delvers, wardens } = partitionActorsByRole(actorsInput.actors, {
-        delverCountHint: configuratorInputs?.delverCount,
-      });
-
-      // Layout spend (rooms, traps, tiles)
-      const roomsSpend = budgetReceipt.lineItems
-        .filter((item) => item.kind === "layout" || item.kind === "trap")
-        .reduce((sum, item) => sum + item.totalCost, 0);
-
-      const resourcesSpend = budgetReceipt.lineItems
-        .filter((item) => item.kind === "resource")
-        .reduce((sum, item) => sum + item.totalCost, 0);
-
-      // Actor spend - partition by delver/warden lists
-      const delverIds = new Set(delvers.map((a) => a.id));
-      let delverSpend = 0;
-      let wardenSpend = 0;
-
-      // SpendProposal items have format "{kind}:{id}" but receipt lineItems have separate fields
-      // We need to match actors based on whether their vitals/affinities belong to delvers or wardens
-      budgetReceipt.lineItems.forEach((item) => {
-        if (item.kind === "actor") {
-          // Actor spawn cost
-          const actorId = item.id?.replace(/^actor_spawn_/, "");
-          if (actorId && delverIds.has(actorId)) {
-            delverSpend += item.totalCost;
-          } else if (actorId) {
-            wardenSpend += item.totalCost;
-          }
-        } else if (item.kind === "vital" || item.kind === "affinity" || item.kind === "motivation") {
-          // These aggregate across all actors - split proportionally
-          // This is a limitation acknowledged in the task note
-          const totalActors = actorsInput.actors.length;
-          if (totalActors > 0) {
-            delverSpend += item.totalCost * (delvers.length / totalActors);
-            wardenSpend += item.totalCost * (wardens.length / totalActors);
-          }
-        }
-      });
-
       budgetReceipt.scenarioSpendReport = buildScenarioSpendReport({
-        roomsSpend,
-        delverSpend,
-        wardenSpend,
-        resourcesSpend,
+        lineItems: budgetReceipt.lineItems,
+        allocation: budgetAllocation,
         budgetTokens: mapped.budget.budget?.budget?.tokens,
       });
+      if (budgetReceipt.status !== "approved") {
+        throw new Error(formatBudgetReceiptDenial(budgetReceipt));
+      }
+    }
+    if (budgetReceipt && budgetReceipt.status !== "approved") {
+      throw new Error(formatBudgetReceiptDenial(budgetReceipt));
     }
 
     const normalizedActors = normalizeActorPositions(actorsInput.actors, layout, {
@@ -1554,8 +1600,12 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
     });
   }
 
-  const resolvedBudget = mapped.budget && resolvedPriceList && !mapped.budget.priceList
-    ? { ...mapped.budget, priceList: resolvedPriceList }
+  const resolvedBudget = mapped.budget
+    ? {
+      ...mapped.budget,
+      ...(resolvedPriceList && !mapped.budget.priceList ? { priceList: resolvedPriceList } : {}),
+      ...(budgetAllocation ? { allocation: budgetAllocation } : {}),
+    }
     : mapped.budget;
 
   if (spendProposal && budgetReceipt) {

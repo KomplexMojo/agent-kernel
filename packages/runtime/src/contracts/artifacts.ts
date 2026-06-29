@@ -679,6 +679,18 @@ export interface BudgetReceiptLineItemV1 {
   unitCost: number;
   totalCost: number;
   status: "approved" | "denied" | "partial";
+  category?: SpendProposalCategory;
+  artifactRef?: ArtifactRef;
+  subjectRef?: ArtifactRef;
+  detail?: unknown;
+}
+
+export interface BudgetReceiptPoolStatusV1 {
+  id: string;
+  capTokens: number;
+  spentTokens: number;
+  remainingTokens: number;
+  status: "approved" | "denied";
 }
 
 export interface BudgetReceiptArtifactV1 {
@@ -688,10 +700,12 @@ export interface BudgetReceiptArtifactV1 {
   budgetRef: ArtifactRef;
   priceListRef: ArtifactRef;
   proposalRef?: ArtifactRef;
+  allocationRef?: ArtifactRef;
   status: "approved" | "denied" | "partial";
   totalCost: number;
   remaining: number;
   lineItems: BudgetReceiptLineItemV1[];
+  poolStatuses?: BudgetReceiptPoolStatusV1[];
   scenarioSpendReport?: {
     budget: number;
     totalSpend: number;
@@ -820,9 +834,14 @@ export interface PriceListItemTokenV1 {
   id: string;
   kind: string;
   /** Cost in tokens for one unit of the item. */
-  costTokens: number;
+  unitCost?: number;
+  /** Legacy cost field retained for old fixtures and imported artifacts. */
+  costTokens?: number;
+  /** Formula used to convert quantity into total cost. */
+  formula?: "linear" | "quadratic";
   /** Optional description for clarity/audit. */
   notes?: string;
+  description?: string;
 }
 
 export type PriceListItemV1 = PriceListItemLegacyV1 | PriceListItemTokenV1;

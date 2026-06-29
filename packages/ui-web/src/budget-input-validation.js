@@ -65,25 +65,27 @@ export function validatePercentage(value, defaultValue = 0) {
 
 /**
  * Validates that budget percentages sum to 100%
- * @param {Object} percentages - Object with room, delver, warden keys
+ * @param {Object} percentages - Object with room, delver, warden, hazard, resource keys
  * @param {number} percentages.room - Room percentage
  * @param {number} percentages.delver - Delver percentage
  * @param {number} percentages.warden - Warden percentage
  * @returns {Object} - Validated percentages
  * @throws {Error} - If percentages don't sum to 100
  */
-export function validateBudgetPercentages({ room = 0, delver = 0, warden = 0 }) {
+export function validateBudgetPercentages({ room = 0, delver = 0, warden = 0, hazard = 0, resource = 0 }) {
   const validated = {
     room: validatePercentage(room),
     delver: validatePercentage(delver),
     warden: validatePercentage(warden),
+    hazard: validatePercentage(hazard),
+    resource: validatePercentage(resource),
   };
 
-  const total = validated.room + validated.delver + validated.warden;
+  const total = validated.room + validated.delver + validated.warden + validated.hazard + validated.resource;
 
   if (total !== 100) {
     throw new Error(
-      `Budget percentages must sum to 100%. Got: ${total}% (room: ${validated.room}%, delver: ${validated.delver}%, warden: ${validated.warden}%)`
+      `Budget percentages must sum to 100%. Got: ${total}% (room: ${validated.room}%, delver: ${validated.delver}%, warden: ${validated.warden}%, hazard: ${validated.hazard}%, resource: ${validated.resource}%)`
     );
   }
 
@@ -97,14 +99,18 @@ export function validateBudgetPercentages({ room = 0, delver = 0, warden = 0 }) 
  * @param {number|string} input.roomPercent - Room percentage
  * @param {number|string} input.delverPercent - Delver percentage
  * @param {number|string} input.wardenPercent - Warden percentage
+ * @param {number|string} input.hazardPercent - Hazard percentage
+ * @param {number|string} input.resourcePercent - Resource percentage
  * @returns {Object} - Normalized and validated values
  * @throws {Error} - If any value fails validation
  */
 export function normalizeBudgetInputs({
   levelBudget = 1000,
-  roomPercent = 55,
+  roomPercent = 44,
   delverPercent = 20,
-  wardenPercent = 25,
+  wardenPercent = 16,
+  hazardPercent = 12,
+  resourcePercent = 8,
 } = {}) {
   return {
     levelBudget: validateLevelBudget(levelBudget),
@@ -112,6 +118,8 @@ export function normalizeBudgetInputs({
       room: roomPercent,
       delver: delverPercent,
       warden: wardenPercent,
+      hazard: hazardPercent,
+      resource: resourcePercent,
     }),
   };
 }

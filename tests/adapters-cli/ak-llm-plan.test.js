@@ -388,7 +388,7 @@ test("cli llm-plan supports text mode without an explicit fixture", () => {
       "--catalog",
       "tests/fixtures/pool/catalog-basic.json",
       "--budget-tokens",
-      "200",
+      "300",
       "--run-id",
       "run_llm_plan_text",
       "--created-at",
@@ -401,7 +401,7 @@ test("cli llm-plan supports text mode without an explicit fixture", () => {
 
   const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
   assert.equal(spec.intent.goal, "a dungeon with two fire delvers");
-  assert.equal(spec.intent.hints.budgetTokens, 200);
+  assert.equal(spec.intent.hints.budgetTokens, 300);
 
   const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
   const captureEntry = manifest.artifacts.find(

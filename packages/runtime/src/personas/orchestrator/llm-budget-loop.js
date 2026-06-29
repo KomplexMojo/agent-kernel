@@ -1071,6 +1071,24 @@ function buildCombinedSummary({ baseSummary, selections, layout } = {}) {
   return summary;
 }
 
+function applyActorTypeToSelections(selections = [], actorType) {
+  if (actorType !== "delver" && actorType !== "warden") return selections;
+  return selections.map((selection) => {
+    if (selection?.kind !== "actor") return selection;
+    const next = { ...selection };
+    if (next.requested && typeof next.requested === "object") {
+      next.requested = { ...next.requested, actorType: next.requested.actorType || actorType };
+    }
+    if (Array.isArray(next.instances)) {
+      next.instances = next.instances.map((instance) => ({
+        ...instance,
+        actorType: instance.actorType || actorType,
+      }));
+    }
+    return next;
+  });
+}
+
 function buildActorPhaseGoal({ baseGoal, dungeonAffinity, wardenAffinities } = {}) {
   const wardenPhrase = formatAffinityPhrase(wardenAffinities);
   if (isNonEmptyString(wardenPhrase)) {
@@ -1326,8 +1344,9 @@ export async function runLlmBudgetLoop({
       return { ok: false, errors: actorsPhase.errors || [], captures, trace };
     }
 
+    const actorSelections = applyActorTypeToSelections(actorsPhase.selections, "warden");
     const actorSpend = evaluateSelectionSpend({
-      selections: actorsPhase.selections,
+      selections: actorSelections,
       budgetTokens: remainingBudgetTokens,
       priceList,
     });

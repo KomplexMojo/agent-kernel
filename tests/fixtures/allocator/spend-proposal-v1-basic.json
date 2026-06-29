@@ -8,8 +8,47 @@
     "producedBy": "configurator"
   },
   "items": [
-    { "id": "actor_spawn", "kind": "actor", "quantity": 2 },
-    { "id": "layout_grid_9x9", "kind": "layout", "quantity": 1 },
-    { "id": "trap_basic", "kind": "trap", "quantity": 1 }
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_one",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_two",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "tile_floor",
+      "kind": "tile",
+      "quantity": 81,
+      "category": "floor_tiles",
+      "subjectRef": {
+        "id": "layout",
+        "schema": "agent-kernel/LayoutArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_1",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    }
   ]
 }

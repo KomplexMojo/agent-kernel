@@ -30,7 +30,8 @@ export const REFERENCE_TARGETS = Object.freeze({
   rooms: 1100,
   delvers: 500,
   wardens: 400,
-  resources: 160,
+  hazards: 300,
+  resources: 200,
 });
 
 /** Target delver/warden spend ratio (design §3.2): 200/250 = 0.8. */
@@ -175,7 +176,12 @@ function normalizePoolWeights(poolWeights) {
     errors.push({ field: "poolWeights", code: "invalid_pool_weight_total" });
   }
 
-  return { pools: normalized, errors };
+  const positivePools = normalized.filter((pool) => pool.weight > 0);
+  const resourceOnlyExplicit = callerProvidedExplicit
+    && positivePools.length === 1
+    && positivePools[0].id === "resources";
+
+  return { pools: normalized, errors, resourceOnlyExplicit };
 }
 
 export function computeBudgetPools({ budgetTokens, policy = {}, dungeonPct, delverPct, poolWeights } = {}) {
@@ -190,7 +196,9 @@ export function computeBudgetPools({ budgetTokens, policy = {}, dungeonPct, delv
   let pools = allocatePools({ tokens: availableTokens, pools: normalized.pools });
 
   // Apply resource cap: resources must not exceed hazards + wardens (excess → rooms)
-  pools = applyResourceCap(pools);
+  if (!normalized.resourceOnlyExplicit) {
+    pools = applyResourceCap(pools);
+  }
 
   // Compute convenience totals for two-tier reporting
   const dungeonPoolIds = new Set(["rooms", "hazards", "wardens", "resources"]);

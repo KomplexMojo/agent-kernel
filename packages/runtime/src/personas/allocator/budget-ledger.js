@@ -19,9 +19,14 @@ function buildRef(artifact, fallbackSchema) {
   return { id: meta?.id || "unknown", schema: fallbackSchema, schemaVersion: 1 };
 }
 
-function resolveUnitCost(lineItems, { id, kind }) {
+function resolveReceiptLine(lineItems, { id, kind, quantity }) {
   const match = lineItems.find((item) => item?.id === id && item?.kind === kind && item?.status !== "denied");
-  return isFiniteNumber(match?.unitCost) ? match.unitCost : 0;
+  const unitCost = isFiniteNumber(match?.unitCost) ? match.unitCost : 0;
+  const lineQuantity = normalizeQuantity(match?.quantity);
+  const totalCost = isFiniteNumber(match?.totalCost) && lineQuantity === quantity
+    ? match.totalCost
+    : unitCost * quantity;
+  return { unitCost, totalCost };
 }
 
 export function updateBudgetLedger({ receipt, spendEvents, meta, receiptRef } = {}) {
@@ -31,8 +36,7 @@ export function updateBudgetLedger({ receipt, spendEvents, meta, receiptRef } = 
     const id = typeof event?.id === "string" ? event.id : "unknown";
     const kind = typeof event?.kind === "string" ? event.kind : "unknown";
     const quantity = normalizeQuantity(event?.quantity);
-    const unitCost = resolveUnitCost(lineItems, { id, kind });
-    const totalCost = unitCost * quantity;
+    const { unitCost, totalCost } = resolveReceiptLine(lineItems, { id, kind, quantity });
     return { id, kind, quantity, unitCost, totalCost };
   });
 
