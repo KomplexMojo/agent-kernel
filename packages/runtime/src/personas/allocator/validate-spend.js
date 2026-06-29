@@ -1,6 +1,18 @@
 const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
+const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
+
+const CATEGORY_POOL_IDS = Object.freeze({
+  rooms: "rooms",
+  floor_tiles: "rooms",
+  traps: "rooms",
+  hazards: "hazards",
+  resources: "resources",
+  delvers: "delver",
+  wardens: "wardens",
+  shared_system: "rooms",
+});
 
 function isFiniteNumber(value) {
   return Number.isFinite(value);
@@ -51,15 +63,72 @@ export function buildPriceMap(priceList) {
   return map;
 }
 
+export function calculatePriceTotal(price, quantity) {
+  const unitCost = isFiniteNumber(price?.unitCost) ? price.unitCost : 0;
+  const q = normalizeQuantity(quantity);
+  return price?.formula === "quadratic" ? unitCost * q * q : unitCost * q;
+}
+
+function buildAllocationRef(allocation) {
+  return allocation ? buildRef(allocation, BUDGET_ALLOCATION_SCHEMA) : undefined;
+}
+
+function buildAllocationAudit({ allocation, lineItems, errors }) {
+  const pools = Array.isArray(allocation?.pools) ? allocation.pools : [];
+  if (pools.length === 0) return undefined;
+
+  const spendByPool = new Map(pools.map((pool) => [pool.id, 0]));
+  lineItems.forEach((item) => {
+    const poolId = CATEGORY_POOL_IDS[item.category];
+    if (!poolId) {
+      item.status = "denied";
+      errors.push(`Unattributed spend item: ${item.kind}:${item.id}`);
+      return;
+    }
+    spendByPool.set(poolId, (spendByPool.get(poolId) || 0) + item.totalCost);
+  });
+
+  const poolStatuses = pools.map((pool) => {
+    const capTokens = Number.isInteger(pool.tokens) ? pool.tokens : 0;
+    const spentTokens = spendByPool.get(pool.id) || 0;
+    const remainingTokens = capTokens - spentTokens;
+    const status = remainingTokens >= 0 ? "approved" : "denied";
+    if (status === "denied") {
+      errors.push(`Pool ${pool.id} exceeds allocation: spent ${spentTokens}, cap ${capTokens}.`);
+      lineItems.forEach((item) => {
+        if (CATEGORY_POOL_IDS[item.category] === pool.id) item.status = "denied";
+      });
+    }
+    return {
+      id: pool.id,
+      capTokens,
+      spentTokens,
+      remainingTokens,
+      status,
+    };
+  });
+
+  return { poolStatuses };
+}
+
 function normalizeQuantity(value) {
   if (!isFiniteNumber(value)) return 1;
   return value <= 0 ? 1 : value;
+}
+
+function copyAttribution(item, lineItem) {
+  if (typeof item?.category === "string") lineItem.category = item.category;
+  if (item?.artifactRef != null) lineItem.artifactRef = item.artifactRef;
+  if (item?.subjectRef != null) lineItem.subjectRef = item.subjectRef;
+  if (item?.detail !== undefined) lineItem.detail = item.detail;
+  return lineItem;
 }
 
 export function validateSpendProposal({
   budget,
   priceList,
   proposal,
+  allocation,
   meta,
   budgetRef,
   priceListRef,
@@ -76,15 +145,14 @@ export function validateSpendProposal({
     const quantity = normalizeQuantity(item?.quantity);
     if (typeof id !== "string" || typeof kind !== "string") {
       errors.push(`Invalid proposal item: ${JSON.stringify(item)}`);
-      return {
+      return copyAttribution(item, {
         id: String(id || "unknown"),
         kind: String(kind || "unknown"),
         quantity,
         unitCost: 0,
         totalCost: 0,
         status: "denied",
-        ...(typeof item?.category === "string" ? { category: item.category } : {}),
-      };
+      });
     }
 
     const key = `${kind}:${id}`;
@@ -92,18 +160,17 @@ export function validateSpendProposal({
     const price = priceMap.get(key) || priceMap.get(legacyKey);
     if (!price) {
       errors.push(`Unknown price item: ${kind}:${id}`);
-      return {
+      return copyAttribution(item, {
         id,
         kind,
         quantity,
         unitCost: 0,
         totalCost: 0,
         status: "denied",
-        ...(typeof item?.category === "string" ? { category: item.category } : {}),
-      };
+      });
     }
 
-    const totalCost = price.unitCost * quantity;
+    const totalCost = calculatePriceTotal(price, quantity);
     const lineItem = {
       id,
       kind,
@@ -112,16 +179,12 @@ export function validateSpendProposal({
       totalCost,
       status: "approved",
     };
-    // Pass through attribution fields from the proposal item if present
-    if (typeof item.category === "string") lineItem.category = item.category;
-    if (item.artifactRef != null) lineItem.artifactRef = item.artifactRef;
-    if (item.subjectRef != null) lineItem.subjectRef = item.subjectRef;
-    if (item.detail !== undefined) lineItem.detail = item.detail;
-    return lineItem;
+    return copyAttribution(item, lineItem);
   });
 
   const totalCost = lineItems.reduce((sum, item) => sum + item.totalCost, 0);
   const remaining = isFiniteNumber(budgetTokens) ? budgetTokens - totalCost : 0;
+  const allocationAudit = buildAllocationAudit({ allocation, lineItems, errors });
 
   let status = "approved";
   if (!Number.isInteger(budgetTokens)) {
@@ -131,7 +194,7 @@ export function validateSpendProposal({
 
   const hasDenied = lineItems.some((item) => item.status !== "approved");
   if (hasDenied && status !== "denied") {
-    status = lineItems.some((item) => item.status === "approved") ? "partial" : "denied";
+    status = allocation ? "denied" : lineItems.some((item) => item.status === "approved") ? "partial" : "denied";
   }
 
   if (status !== "denied" && Number.isInteger(budgetTokens) && totalCost > budgetTokens) {
@@ -150,10 +213,12 @@ export function validateSpendProposal({
       budgetRef: budgetRef || buildRef(budget, BUDGET_ARTIFACT_SCHEMA),
       priceListRef: priceListRef || buildRef(priceList, PRICE_LIST_SCHEMA),
       proposalRef,
+      ...(allocation ? { allocationRef: buildAllocationRef(allocation) } : {}),
       status,
       totalCost,
       remaining,
       lineItems,
+      ...(allocationAudit ? allocationAudit : {}),
     },
     errors: errors.length ? errors : undefined,
   };

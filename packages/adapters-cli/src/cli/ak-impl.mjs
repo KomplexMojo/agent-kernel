@@ -136,6 +136,8 @@ function usage() {
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]" [--hazard "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} resource-plan --resource "permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>" [--resource "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
@@ -170,14 +172,14 @@ Options:
   --catalog       Catalog path for text/prompt-only llm-plan runs
   --goal          Goal text override (llm-plan prompt-only)
   --text          Freeform text for llm-plan; when no fixture is provided, CLI falls back to the default stub summary fixture
-  --dungeon-affinity Dungeon affinity for room/delver/warden summary defaults
+  --dungeon-affinity Dungeon affinity for plan summary defaults
   --budget-tokens Hard budget cap in tokens. If freeform text also states a budget, they must match.
   --dungeon-budget-tokens Separate hard budget cap for dungeon-side objects (rooms, tiles, traps, hazards).
   --delver-budget-tokens  Separate hard budget cap for delver-side objects (delvers, wardens).
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
-  --hazard        Hazard spec for create/configure (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>]
-  --resource      Resource artifact spec for create/configure (repeatable): tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
+  --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
+  --resource      Resource artifact spec for create/configure/resource-plan (repeatable): permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>] or legacy tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
   --trap          Trap spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --trap/--hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
@@ -200,7 +202,7 @@ Options:
   --fixture-mint  Fixture JSON-RPC response for blockchain-mint
   --fixture-load  Fixture JSON-RPC response for blockchain-load
   --run-id        Override run id for output artifacts
-  --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/delver-plan/warden-plan
+  --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/hazard-plan/resource-plan/delver-plan/warden-plan
   --dry-run       Validate schema/budget inputs without executing run or writing artifacts
   --help          Show this help
 
@@ -977,6 +979,19 @@ function parseHazardSpec(value, hazardIndex) {
   };
 }
 
+function parseHazardSpecs(rawHazards) {
+  const values = normalizeList(rawHazards)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean);
+  if (values.length === 0) {
+    throw new Error("hazard-plan requires at least one --hazard entry.");
+  }
+  return values.map((value, index) => ({
+    prompt: value,
+    value: parseHazardSpec(value, index + 1),
+  }));
+}
+
 const RESOURCE_ALLOWED_TIERS = new Set(["level", "permanent"]);
 const RESOURCE_ALLOWED_STATS = new Set([
   "vitalMax", "vitalRegen", "affinity", "affinityStack", "pushExpression",
@@ -1087,6 +1102,19 @@ function parseResourceSpec(value, resourceIndex) {
     dropRate,
     _schemaVersion: 1,
   };
+}
+
+function parseResourceSpecs(rawResources) {
+  const values = normalizeList(rawResources)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean);
+  if (values.length === 0) {
+    throw new Error("resource-plan requires at least one --resource entry.");
+  }
+  return values.map((value, index) => ({
+    prompt: value,
+    value: parseResourceSpec(value, index + 1),
+  }));
 }
 
 function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON_AFFINITY } = {}) {
@@ -1534,11 +1562,39 @@ function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) 
   };
 }
 
+function assessBudgetedWardenRequirement(entry, wardenIndex, priceListArtifact) {
+  const card = entry?.value && typeof entry.value === "object" ? entry.value : {};
+  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
+  const priceMap = buildPriceMap(priceListArtifact);
+  const totalCost = calculateDelverCardUnitCost(card, priceMap) * count;
+  const requirementParts = [];
+  if (Array.isArray(card?.affinities) && card.affinities.length > 0) {
+    requirementParts.push(`affinities ${formatAffinityList(card.affinities)}`);
+  }
+  if (card?.vitals && typeof card.vitals === "object") {
+    requirementParts.push("explicit vitals");
+  }
+  return {
+    path: `warden[${wardenIndex}]`,
+    totalCost,
+    requirementSummary: requirementParts.length > 0
+      ? `requested ${joinConstraintClauses(requirementParts)}`
+      : "requested warden configuration",
+  };
+}
+
+function requirementKind(path = "") {
+  if (path.startsWith("room[")) return "room";
+  if (path.startsWith("warden[")) return "warden";
+  return "delver";
+}
+
 function ensureBudgetedFulfillmentFeasible({
   commandName,
   budgetTokens,
   rooms = [],
   delvers = [],
+  wardens = [],
   priceListArtifact,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
@@ -1559,7 +1615,8 @@ function ensureBudgetedFulfillmentFeasible({
 
   const roomRequirements = rooms.map((entry, index) => assessBudgetedRoomRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
   const delverRequirements = delvers.map((entry, index) => assessBudgetedDelverRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
-  const requirements = [...roomRequirements, ...delverRequirements];
+  const wardenRequirements = wardens.map((entry, index) => assessBudgetedWardenRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
+  const requirements = [...roomRequirements, ...delverRequirements, ...wardenRequirements];
   const minimumRequiredTokens = requirements.reduce((sum, entry) => sum + entry.totalCost, 0);
 
   if (minimumRequiredTokens > budgetTokens) {
@@ -1567,7 +1624,7 @@ function ensureBudgetedFulfillmentFeasible({
       outcome: AUTHORING_VALIDATION_OUTCOMES.insufficientBudget,
       summary: `hard budget is ${budgetTokens} tokens but minimum required spend is ${minimumRequiredTokens} tokens.`,
       issues: requirements.map((entry) => createAuthoringValidationIssue({
-        code: `${entry.path.startsWith("room[") ? "room" : "delver"}_minimum_cost_exceeds_budget`,
+        code: `${requirementKind(entry.path)}_minimum_cost_exceeds_budget`,
         path: entry.path,
         message: `${entry.path} requires at least ${entry.totalCost} tokens to preserve ${entry.requirementSummary}.`,
       })),
@@ -1946,6 +2003,8 @@ const FROM_RUN_STAGE_PRIORITY = Object.freeze([
   "create",
   "configure",
   "room-plan",
+  "hazard-plan",
+  "resource-plan",
   "delver-plan",
   "warden-plan",
   "run",
@@ -2164,6 +2223,8 @@ const STRUCTURED_STDOUT_COMMANDS = new Set([
   "create",
   "configure",
   "room-plan",
+  "hazard-plan",
+  "resource-plan",
   "delver-plan",
   "warden-plan",
   "run",
@@ -3559,6 +3620,66 @@ function assertAllowedRoomPlanArgs(args) {
   }
 }
 
+function assertAllowedHazardPlanArgs(args) {
+  const allowed = new Set([
+    "hazard",
+    "goal",
+    "dungeon-affinity",
+    "budget-tokens",
+    "budget",
+    "price-list",
+    "out-dir",
+    "run-id",
+    "created-at",
+    "emit-intermediates",
+  ]);
+  const unknown = [];
+  for (const key of Object.keys(args)) {
+    if (key === "_" || key === "help") {
+      continue;
+    }
+    if (!allowed.has(key)) {
+      unknown.push(`--${key}`);
+    }
+  }
+  if (Array.isArray(args._) && args._.length > 0) {
+    unknown.push(...args._);
+  }
+  if (unknown.length > 0) {
+    throw new Error(`hazard-plan only accepts --hazard, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, and --emit-intermediates. Unknown: ${unknown.join(", ")}`);
+  }
+}
+
+function assertAllowedResourcePlanArgs(args) {
+  const allowed = new Set([
+    "resource",
+    "goal",
+    "dungeon-affinity",
+    "budget-tokens",
+    "budget",
+    "price-list",
+    "out-dir",
+    "run-id",
+    "created-at",
+    "emit-intermediates",
+  ]);
+  const unknown = [];
+  for (const key of Object.keys(args)) {
+    if (key === "_" || key === "help") {
+      continue;
+    }
+    if (!allowed.has(key)) {
+      unknown.push(`--${key}`);
+    }
+  }
+  if (Array.isArray(args._) && args._.length > 0) {
+    unknown.push(...args._);
+  }
+  if (unknown.length > 0) {
+    throw new Error(`resource-plan only accepts --resource, --goal, --dungeon-affinity, --budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, and --emit-intermediates. Unknown: ${unknown.join(", ")}`);
+  }
+}
+
 function assertAllowedDelverPlanArgs(args) {
   const allowed = new Set([
     "delver",
@@ -3716,11 +3837,11 @@ function makeAgentCommandRoutes(kind) {
       ];
     case "hazard":
       return [
-        { target: "build_spec_configurator", path: "configurator.inputs.levelGen.hazards", legacyFlow: "configurator" },
+        { target: "build_spec_configurator", path: "configurator.inputs.levelGen.hazards", legacyFlow: "hazard-plan" },
       ];
     case "resource":
       return [
-        { target: "build_spec_configurator", path: "configurator.inputs.resources", legacyFlow: "configurator" },
+        { target: "build_spec_configurator", path: "configurator.inputs.resources", legacyFlow: "resource-plan" },
       ];
     case "delver":
       return [
@@ -4002,6 +4123,124 @@ function buildCostSummary(budgetReceipt, spendProposal, outDir) {
   };
 }
 
+async function writeHazardArtifactFiles({ parsedHazards = [], outDir, runId, createdAt, producedBy } = {}) {
+  for (let i = 0; i < parsedHazards.length; i += 1) {
+    const h = parsedHazards[i].value;
+    const hazardVersion = h._schemaVersion ?? 2;
+    const hazardArtifact = {
+      schema: "agent-kernel/HazardArtifact",
+      schemaVersion: hazardVersion,
+      meta: {
+        id: h.id,
+        runId,
+        createdAt,
+        producedBy,
+      },
+      affinity: h.affinity,
+      expression: h.expression,
+      proximityRadius: h.proximityRadius,
+      mana: { ...h.mana },
+      ...(hazardVersion === 1 && h.durability ? { durability: { ...h.durability } } : {}),
+    };
+    await writeJson(join(outDir, `hazard-${i + 1}.json`), hazardArtifact);
+  }
+}
+
+async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId, createdAt, producedBy } = {}) {
+  for (let i = 0; i < parsedResources.length; i += 1) {
+    const r = parsedResources[i].value;
+    const resourceVersion = r._schemaVersion ?? 1;
+    const meta = { id: r.id, runId, createdAt, producedBy };
+    let resourceArtifact;
+    if (resourceVersion === 3) {
+      resourceArtifact = {
+        schema: "agent-kernel/ResourceArtifact",
+        schemaVersion: 3,
+        meta,
+        vitals: r.vitals,
+        permanenceMode: r.permanenceMode,
+      };
+    } else {
+      resourceArtifact = {
+        schema: "agent-kernel/ResourceArtifact",
+        schemaVersion: 1,
+        meta,
+        tier: r.tier,
+        stat: r.stat,
+        delta: r.delta,
+        dropRate: r.dropRate,
+      };
+    }
+    await writeJson(join(outDir, `resource-${i + 1}.json`), resourceArtifact);
+  }
+}
+
+const AUTHORING_POOL_WEIGHT_DEFAULTS = Object.freeze({
+  rooms: 0.44,
+  hazards: 0.12,
+  wardens: 0.16,
+  resources: 0.08,
+  delver: 0.20,
+});
+
+function buildPoolWeightsForAuthoredKinds({
+  rooms = [],
+  floorTiles = [],
+  traps = [],
+  hazards = [],
+  resources = [],
+  delvers = [],
+  wardens = [],
+} = {}) {
+  const weights = [];
+  if (rooms.length > 0 || floorTiles.length > 0 || traps.length > 0) {
+    weights.push({ id: "rooms", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.rooms });
+  }
+  if (hazards.length > 0) weights.push({ id: "hazards", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.hazards });
+  if (wardens.length > 0) weights.push({ id: "wardens", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.wardens });
+  if (resources.length > 0) weights.push({ id: "resources", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.resources });
+  if (delvers.length > 0) weights.push({ id: "delver", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.delver });
+  return weights;
+}
+
+function buildPoolWeightsForSummary(summary = {}) {
+  const cards = Array.isArray(summary.cardSet)
+    ? summary.cardSet
+    : Array.isArray(summary.cards) ? summary.cards : [];
+  const layout = summary.layout && typeof summary.layout === "object" ? summary.layout : null;
+  const rooms = [
+    ...(Array.isArray(summary.rooms) ? summary.rooms : []),
+    ...cards.filter((entry) => entry?.type === "room" || entry?.source === "room"),
+  ];
+  const floorTiles = layout && Number.isInteger(layout.floorTiles) ? [layout] : [];
+  const traps = layout && Array.isArray(layout.traps) ? layout.traps : [];
+  const hazards = [
+    ...(Array.isArray(summary.hazards) ? summary.hazards : []),
+    ...cards.filter((entry) => entry?.type === "hazard" || entry?.source === "hazard"),
+  ];
+  const resources = [
+    ...(Array.isArray(summary.resources) ? summary.resources : []),
+    ...cards.filter((entry) => entry?.type === "resource" || entry?.source === "resource"),
+  ];
+  const actorCards = cards.filter((entry) => entry?.type === "delver" || entry?.type === "warden");
+  const actorEntries = Array.isArray(summary.actors) ? summary.actors : [];
+  const delvers = [
+    ...actorCards.filter((entry) => entry.type === "delver"),
+    ...actorEntries.filter((entry) => {
+      const role = String(entry?.actorType || entry?.type || entry?.role || entry?.motivation || "").toLowerCase();
+      return role.includes("delver") || role.includes("attack");
+    }),
+  ];
+  const wardens = [
+    ...actorCards.filter((entry) => entry.type === "warden"),
+    ...actorEntries.filter((entry) => {
+      const role = String(entry?.actorType || entry?.type || entry?.role || entry?.motivation || "").toLowerCase();
+      return role.includes("warden") || role.includes("defend") || role.includes("stationary");
+    }),
+  ];
+  return buildPoolWeightsForAuthoredKinds({ rooms, floorTiles, traps, hazards, resources, delvers, wardens });
+}
+
 async function validateRunDryRun(args) {
   const simConfigPath = resolvePath(args["sim-config"]);
   const initialStatePath = resolvePath(args["initial-state"]);
@@ -4246,6 +4485,7 @@ async function validateScenarioDryRun(args) {
   let captures = [];
   let summary = null;
   let mappedSelections;
+  let budgetPoolWeights = null;
 
   if (isLlmLiveEnabled() || Boolean(fixturePath)) {
     if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
@@ -4304,6 +4544,7 @@ async function validateScenarioDryRun(args) {
       captures = loopResult.captures || [];
       summary = loopResult.summary;
       mappedSelections = loopResult.selections;
+      budgetPoolWeights = loopResult.poolWeights || null;
     } else {
       let session = await runLlmSession({
         adapter,
@@ -4394,6 +4635,14 @@ async function validateScenarioDryRun(args) {
     }
     if (Number.isFinite(resolvedBudgetTokens)) {
       summaryForSpec.budgetTokens = resolvedBudgetTokens;
+    }
+  }
+  if (!Array.isArray(summaryForSpec?.poolWeights) || summaryForSpec.poolWeights.length === 0) {
+    const poolWeights = Array.isArray(budgetPoolWeights) && budgetPoolWeights.length > 0
+      ? budgetPoolWeights
+      : buildPoolWeightsForSummary(summaryForSpec);
+    if (poolWeights.length > 0) {
+      summaryForSpec = { ...summaryForSpec, poolWeights };
     }
   }
 
@@ -4925,6 +5174,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     text: authoringText,
     hardBudgetConstraint: authoringConstraints,
   });
+  const shouldMaximizeSpend = sharedOptimizationGoals.some((entry) => entry.kind === "maximize_budget_spend");
   const textDelverGoals = textVitalScope === "delver" ? textVitalGoals : [];
   const textWardenGoals = textVitalScope === "warden" ? textVitalGoals : [];
   // Resolve split budgets: explicit split flags take priority over combined budget.
@@ -4944,10 +5194,11 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
         budgetTokens: resolvedDungeonBudgetTokens,
         rooms: parsedRooms,
         delvers: [],
+        wardens: [],
         priceListArtifact,
       });
     }
-    if (Number.isInteger(resolvedDelverBudgetTokens) && parsedWardens.length === 0) {
+    if (Number.isInteger(resolvedDelverBudgetTokens)) {
       ensureBudgetedFulfillmentFeasible({
         commandName,
         budgetTokens: resolvedDelverBudgetTokens,
@@ -4959,6 +5210,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
             ...textDelverGoals,
           ]),
         })),
+        wardens: parsedWardens,
         priceListArtifact,
       });
     }
@@ -4968,7 +5220,6 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     && parsedTraps.length === 0
     && parsedHazards.length === 0
     && parsedResources.length === 0
-    && parsedWardens.length === 0
   ) {
     ensureBudgetedFulfillmentFeasible({
       commandName,
@@ -4981,6 +5232,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
           ...textDelverGoals,
         ]),
       })),
+      wardens: parsedWardens,
       priceListArtifact,
     });
   }
@@ -4988,7 +5240,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   let fulfilled;
   if (hasSplitBudget) {
     // Split-budget fulfillment: maximize each side against its own budget.
-    const dungeonFulfilled = (parsedFloorTiles.length === 0 && parsedTraps.length === 0)
+    const dungeonFulfilled = (shouldMaximizeSpend && parsedFloorTiles.length === 0 && parsedTraps.length === 0)
       ? applyBudgetCappedFulfillment({
         rooms: parsedRooms,
         delvers: [],
@@ -4996,7 +5248,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
         budgetTokens: resolvedDungeonBudgetTokens,
       })
       : { rooms: parsedRooms, delvers: [] };
-    const delverFulfilled = parsedWardens.length === 0
+    const delverFulfilled = shouldMaximizeSpend && parsedWardens.length === 0
       ? applyBudgetCappedFulfillment({
         rooms: [],
         delvers: parsedDelvers.map((entry) => ({
@@ -5013,7 +5265,8 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     fulfilled = { rooms: dungeonFulfilled.rooms, delvers: delverFulfilled.delvers };
   } else {
     fulfilled = (
-      parsedFloorTiles.length === 0
+      shouldMaximizeSpend
+      && parsedFloorTiles.length === 0
       && parsedTraps.length === 0
       && parsedHazards.length === 0
       && parsedResources.length === 0
@@ -5051,7 +5304,19 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     dungeonAffinity,
     rooms: fulfilled.rooms.map((entry) => entry.value),
     actors: [...fulfilled.delvers.map((entry) => entry.value), ...parsedWardens.map((entry) => entry.value)],
+    poolWeights: buildPoolWeightsForAuthoredKinds({
+      rooms: fulfilled.rooms,
+      floorTiles: parsedFloorTiles,
+      traps: parsedTraps,
+      hazards: parsedHazards,
+      resources: parsedResources,
+      delvers: fulfilled.delvers,
+      wardens: parsedWardens,
+    }),
   };
+  if (parsedRooms.length === 0 && parsedFloorTiles.length === 0 && parsedTraps.length === 0) {
+    summary.budgetScaffold = true;
+  }
   if (resolvedBudgetTokens !== undefined) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
@@ -5106,7 +5371,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   }
   built.spec.configurator.inputs.levelGen = levelGen;
 
-  if (resolvedBudgetTokens !== undefined) {
+  if (sharedOptimizationGoals.some((entry) => entry.kind === "maximize_budget_spend")) {
     built.spec.configurator.inputs.maximizeBudget = true;
   }
 
@@ -5278,55 +5543,20 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     producedBy: `cli-${commandName}`,
   });
 
-  // Write HazardArtifact files for each --hazard flag
-  for (let i = 0; i < parsedHazards.length; i++) {
-    const h = parsedHazards[i].value;
-    const hazardVersion = h._schemaVersion ?? 2;
-    const hazardArtifact = {
-      schema: "agent-kernel/HazardArtifact",
-      schemaVersion: hazardVersion,
-      meta: {
-        id: h.id,
-        runId,
-        createdAt,
-        producedBy: `cli-${commandName}`,
-      },
-      affinity: h.affinity,
-      expression: h.expression,
-      proximityRadius: h.proximityRadius,
-      mana: { ...h.mana },
-      ...(hazardVersion === 1 && h.durability ? { durability: { ...h.durability } } : {}),
-    };
-    await writeJson(join(outDir, `hazard-${i + 1}.json`), hazardArtifact);
-  }
-
-  // Write ResourceArtifact files for each --resource flag
-  for (let i = 0; i < parsedResources.length; i++) {
-    const r = parsedResources[i].value;
-    const resourceVersion = r._schemaVersion ?? 1;
-    const meta = { id: r.id, runId, createdAt, producedBy: `cli-${commandName}` };
-    let resourceArtifact;
-    if (resourceVersion === 3) {
-      resourceArtifact = {
-        schema: "agent-kernel/ResourceArtifact",
-        schemaVersion: 3,
-        meta,
-        vitals: r.vitals,
-        permanenceMode: r.permanenceMode,
-      };
-    } else {
-      resourceArtifact = {
-        schema: "agent-kernel/ResourceArtifact",
-        schemaVersion: 1,
-        meta,
-        tier: r.tier,
-        stat: r.stat,
-        delta: r.delta,
-        dropRate: r.dropRate,
-      };
-    }
-    await writeJson(join(outDir, `resource-${i + 1}.json`), resourceArtifact);
-  }
+  await writeHazardArtifactFiles({
+    parsedHazards,
+    outDir,
+    runId,
+    createdAt,
+    producedBy: `cli-${commandName}`,
+  });
+  await writeResourceArtifactFiles({
+    parsedResources,
+    outDir,
+    runId,
+    createdAt,
+    producedBy: `cli-${commandName}`,
+  });
 
   emitJsonStdout(stdoutSummary);
 }
@@ -5435,6 +5665,7 @@ async function roomPlanCommand(argv) {
     dungeonAffinity,
     rooms: fulfilledRooms.map((entry) => entry.value),
     actors: [],
+    poolWeights: [{ id: "rooms", weight: 1 }],
   };
   if (resolvedBudgetTokens !== undefined) {
     summary.budgetTokens = resolvedBudgetTokens;
@@ -5470,6 +5701,228 @@ async function roomPlanCommand(argv) {
     commandName: "room-plan",
     producedBy: "cli-room-plan",
   }));
+}
+
+async function hazardPlanCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  assertAllowedHazardPlanArgs(args);
+
+  const parsedHazards = parseHazardSpecs(args.hazard);
+  const runId = args["run-id"] || makeId("run");
+  const createdAt = args["created-at"] || new Date().toISOString();
+  const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("hazard-plan", runId);
+  const budgetPath = resolvePath(args.budget);
+  const priceListPath = resolvePath(args["price-list"]);
+
+  const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
+    ? args["dungeon-affinity"].trim().toLowerCase()
+    : DEFAULT_DUNGEON_AFFINITY;
+  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    throw new Error(`hazard-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+  }
+
+  let budgetTokensFlag;
+  if (args["budget-tokens"] !== undefined) {
+    budgetTokensFlag = parsePositiveIntStrict(args["budget-tokens"], "hazard-plan --budget-tokens");
+  }
+  if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
+    throw new Error("hazard-plan requires both --budget and --price-list.");
+  }
+
+  let budgetArtifact = null;
+  let priceListArtifact = null;
+  if (budgetPath) {
+    budgetArtifact = await readJson(budgetPath);
+    assertSchema(budgetArtifact, SCHEMAS.budgetArtifact);
+  }
+  if (priceListPath) {
+    priceListArtifact = await readJson(priceListPath);
+    assertSchema(priceListArtifact, SCHEMAS.priceList);
+  }
+
+  const goal = isNonEmptyString(args.goal)
+    ? args.goal.trim()
+    : `Author hazards (${parsedHazards.length} configuration${parsedHazards.length === 1 ? "" : "s"}).`;
+  const textBudgetTokens = extractBudgetTokensFromText(goal, "hazard-plan --goal");
+  const {
+    resolvedBudgetTokens,
+    constraints: authoringConstraints,
+  } = resolveAuthoringBudget({
+    commandName: "hazard-plan",
+    textBudgetTokens,
+    flagBudgetTokens: budgetTokensFlag,
+    budgetArtifact,
+  });
+  const sharedOptimizationGoals = buildSharedOptimizationGoals({
+    text: goal,
+    hardBudgetConstraint: authoringConstraints,
+  });
+  const hazards = parsedHazards.map((entry) => entry.value);
+  const summary = {
+    goal,
+    dungeonAffinity,
+    hazards,
+    budgetScaffold: true,
+    poolWeights: [{ id: "hazards", weight: 1 }],
+  };
+  if (resolvedBudgetTokens !== undefined) {
+    summary.budgetTokens = resolvedBudgetTokens;
+  }
+
+  const built = buildBuildSpecFromSummary({
+    summary,
+    runId,
+    createdAt,
+    source: "cli-hazard-plan",
+    budgetArtifact: budgetArtifact || undefined,
+    priceListArtifact: priceListArtifact || undefined,
+  });
+  if (!built.ok) {
+    throw new Error(`hazard-plan build spec failed: ${built.errors.join("; ")}`);
+  }
+  applyAuthoringSection(built.spec, buildAuthoringSection({
+    objectKinds: ["hazard"],
+    constraints: authoringConstraints,
+    sharedOptimizationGoals,
+  }), "hazard-plan");
+
+  const buildResult = await orchestrateBuild({
+    spec: built.spec,
+    producedBy: "cli-hazard-plan",
+  });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const stdoutSummary = await writeBuildOutputs({
+    outDir,
+    spec: buildResult.spec,
+    buildResult,
+    emitIntermediates: Boolean(args["emit-intermediates"]),
+    commandName: "hazard-plan",
+    producedBy: "cli-hazard-plan",
+  });
+  await writeHazardArtifactFiles({
+    parsedHazards,
+    outDir,
+    runId,
+    createdAt,
+    producedBy: "cli-hazard-plan",
+  });
+  emitJsonStdout(stdoutSummary);
+}
+
+async function resourcePlanCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+
+  assertAllowedResourcePlanArgs(args);
+
+  const parsedResources = parseResourceSpecs(args.resource);
+  const runId = args["run-id"] || makeId("run");
+  const createdAt = args["created-at"] || new Date().toISOString();
+  const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("resource-plan", runId);
+  const budgetPath = resolvePath(args.budget);
+  const priceListPath = resolvePath(args["price-list"]);
+
+  const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
+    ? args["dungeon-affinity"].trim().toLowerCase()
+    : DEFAULT_DUNGEON_AFFINITY;
+  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    throw new Error(`resource-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+  }
+
+  let budgetTokensFlag;
+  if (args["budget-tokens"] !== undefined) {
+    budgetTokensFlag = parsePositiveIntStrict(args["budget-tokens"], "resource-plan --budget-tokens");
+  }
+  if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
+    throw new Error("resource-plan requires both --budget and --price-list.");
+  }
+
+  let budgetArtifact = null;
+  let priceListArtifact = null;
+  if (budgetPath) {
+    budgetArtifact = await readJson(budgetPath);
+    assertSchema(budgetArtifact, SCHEMAS.budgetArtifact);
+  }
+  if (priceListPath) {
+    priceListArtifact = await readJson(priceListPath);
+    assertSchema(priceListArtifact, SCHEMAS.priceList);
+  }
+
+  const goal = isNonEmptyString(args.goal)
+    ? args.goal.trim()
+    : `Author resources (${parsedResources.length} configuration${parsedResources.length === 1 ? "" : "s"}).`;
+  const textBudgetTokens = extractBudgetTokensFromText(goal, "resource-plan --goal");
+  const {
+    resolvedBudgetTokens,
+    constraints: authoringConstraints,
+  } = resolveAuthoringBudget({
+    commandName: "resource-plan",
+    textBudgetTokens,
+    flagBudgetTokens: budgetTokensFlag,
+    budgetArtifact,
+  });
+  const sharedOptimizationGoals = buildSharedOptimizationGoals({
+    text: goal,
+    hardBudgetConstraint: authoringConstraints,
+  });
+  const resources = parsedResources.map((entry) => entry.value);
+  const summary = {
+    goal,
+    dungeonAffinity,
+    resources,
+    budgetScaffold: true,
+    poolWeights: [{ id: "resources", weight: 1 }],
+  };
+  if (resolvedBudgetTokens !== undefined) {
+    summary.budgetTokens = resolvedBudgetTokens;
+  }
+
+  const built = buildBuildSpecFromSummary({
+    summary,
+    runId,
+    createdAt,
+    source: "cli-resource-plan",
+    budgetArtifact: budgetArtifact || undefined,
+    priceListArtifact: priceListArtifact || undefined,
+  });
+  if (!built.ok) {
+    throw new Error(`resource-plan build spec failed: ${built.errors.join("; ")}`);
+  }
+  applyAuthoringSection(built.spec, buildAuthoringSection({
+    objectKinds: ["resource"],
+    constraints: authoringConstraints,
+    sharedOptimizationGoals,
+  }), "resource-plan");
+
+  const buildResult = await orchestrateBuild({
+    spec: built.spec,
+    producedBy: "cli-resource-plan",
+  });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const stdoutSummary = await writeBuildOutputs({
+    outDir,
+    spec: buildResult.spec,
+    buildResult,
+    emitIntermediates: Boolean(args["emit-intermediates"]),
+    commandName: "resource-plan",
+    producedBy: "cli-resource-plan",
+  });
+  await writeResourceArtifactFiles({
+    parsedResources,
+    outDir,
+    runId,
+    createdAt,
+    producedBy: "cli-resource-plan",
+  });
+  emitJsonStdout(stdoutSummary);
 }
 
 async function delverPlanCommand(argv) {
@@ -5570,6 +6023,8 @@ async function delverPlanCommand(argv) {
     goal,
     dungeonAffinity,
     cardSet: fulfilledDelvers.map((entry) => entry.value),
+    budgetScaffold: true,
+    poolWeights: [{ id: "delver", weight: 1 }],
   };
   if (resolvedBudgetTokens !== undefined) {
     summary.budgetTokens = resolvedBudgetTokens;
@@ -5673,10 +6128,23 @@ async function wardenPlanCommand(argv) {
     text: goal,
     hardBudgetConstraint: authoringConstraints,
   });
+  ensureBudgetedFulfillmentFeasible({
+    commandName: "warden-plan",
+    budgetTokens: resolvedBudgetTokens,
+    rooms: [],
+    delvers: [],
+    wardens: wardens.map((entry) => ({
+      value: entry,
+      optimizationGoals: dedupeOptimizationGoals(textVitalGoals),
+    })),
+    priceListArtifact,
+  });
   const summary = {
     goal,
     dungeonAffinity,
     cardSet: wardens,
+    budgetScaffold: true,
+    poolWeights: [{ id: "wardens", weight: 1 }],
   };
   if (resolvedBudgetTokens !== undefined) {
     summary.budgetTokens = resolvedBudgetTokens;
@@ -6240,6 +6708,8 @@ export const COMMANDS = {
   llm: llmCommand,
   ollama: llmCommand,
   "room-plan": roomPlanCommand,
+  "hazard-plan": hazardPlanCommand,
+  "resource-plan": resourcePlanCommand,
   "delver-plan": delverPlanCommand,
   "warden-plan": wardenPlanCommand,
   "llm-plan": llmPlanCommand,

@@ -8,8 +8,846 @@
     "producedBy": "configurator"
   },
   "items": [
-    { "id": "actor_spawn", "kind": "actor", "quantity": 50 },
-    { "id": "layout_grid_9x9", "kind": "layout", "quantity": 1 },
-    { "id": "trap_basic", "kind": "trap", "quantity": 30 }
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_0",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_10",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_11",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_12",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_13",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_14",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_15",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_16",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_17",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_18",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_19",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_2",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_20",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_21",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_22",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_23",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_24",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_25",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_26",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_27",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_28",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_29",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_3",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_30",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_31",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_32",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_33",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_34",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_35",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_36",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_37",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_38",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_39",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_4",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_40",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_41",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_42",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_43",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_44",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_45",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_46",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_47",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_48",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_49",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_5",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_6",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_7",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_8",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_9",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "tile_floor",
+      "kind": "tile",
+      "quantity": 81,
+      "category": "floor_tiles",
+      "subjectRef": {
+        "id": "layout",
+        "schema": "agent-kernel/LayoutArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_1",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_10",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_11",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_12",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_13",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_14",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_15",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_16",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_17",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_18",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_19",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_2",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_20",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_21",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_22",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_23",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_24",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_25",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_26",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_27",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_28",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_29",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_3",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_30",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_4",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_5",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_6",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_7",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_8",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "trap_basic",
+      "kind": "trap",
+      "quantity": 1,
+      "category": "traps",
+      "subjectRef": {
+        "id": "trap_9",
+        "schema": "agent-kernel/TrapArtifact",
+        "schemaVersion": 1
+      }
+    }
   ]
 }

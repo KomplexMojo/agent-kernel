@@ -123,23 +123,24 @@ test("cli configurator emits a budget receipt from budget inputs", () => {
   });
   assert.deepEqual(receiptOutData, receipt);
 
-  const layoutLine = receipt.lineItems.find((item) => item.id === "layout_grid_5x5");
+  const layoutLine = receipt.lineItems.find((item) => item.id === "tile_floor" && item.kind === "tile");
   assert.ok(layoutLine);
+  assert.equal(layoutLine.quantity, 9);
   assert.equal(layoutLine.unitCost, 0);
   assert.equal(layoutLine.totalCost, 0);
   assert.equal(layoutLine.status, "denied");
 
-  const healthLine = receipt.lineItems.find((item) => item.id === "vital_health_point");
-  assert.ok(healthLine);
-  assert.equal(healthLine.unitCost, 1);
-  assert.equal(healthLine.totalCost, 16);
-  assert.equal(healthLine.status, "approved");
+  const healthLines = receipt.lineItems.filter((item) => item.id === "vital_health_point");
+  assert.ok(healthLines.length > 0);
+  assert.ok(healthLines.every((item) => item.unitCost === 1));
+  assert.equal(healthLines.reduce((sum, item) => sum + item.totalCost, 0), 16);
+  assert.ok(healthLines.every((item) => item.status === "approved"));
 
-  const manaLine = receipt.lineItems.find((item) => item.id === "vital_mana_point");
-  assert.ok(manaLine);
-  assert.equal(manaLine.unitCost, 1);
-  assert.equal(manaLine.totalCost, 4); // actor mana(1) + trap mana.max(3)
-  assert.equal(manaLine.status, "approved");
+  const manaLines = receipt.lineItems.filter((item) => item.id === "vital_mana_point");
+  assert.ok(manaLines.length > 0);
+  assert.ok(manaLines.every((item) => item.unitCost === 1));
+  assert.equal(manaLines.reduce((sum, item) => sum + item.totalCost, 0), 4); // actor mana(1) + trap mana.max(3)
+  assert.ok(manaLines.every((item) => item.status === "approved"));
 });
 
 test("cli configurator rejects invalid level-gen input", () => {

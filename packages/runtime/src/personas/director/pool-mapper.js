@@ -118,6 +118,12 @@ export function mapSummaryToPool({ summary, catalog }) {
         if (affinities.length > 0) {
           instance.affinities = affinities.map((entry) => ({ ...entry }));
         }
+        if (pick.actorType === "delver" || pick.actorType === "warden") {
+          instance.actorType = pick.actorType;
+        }
+        if (typeof pick.setupMode === "string" && pick.setupMode.trim()) {
+          instance.setupMode = pick.setupMode.trim();
+        }
         const copiedVitals = copyActorVitals(pick?.vitals);
         if (copiedVitals) instance.vitals = copiedVitals;
         return instance;

@@ -1,6 +1,6 @@
 {
   "dungeonAffinity": "fire",
-  "budgetTokens": 800,
+  "budgetTokens": 4500,
   "rooms": [
     {
       "motivation": "stationary",

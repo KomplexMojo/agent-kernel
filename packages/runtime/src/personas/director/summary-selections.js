@@ -373,6 +373,9 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
     vitals: type === "resource"
       ? (Array.isArray(entry?.vitals) ? entry.vitals : undefined)
       : (type === "room" || type === "hazard" ? undefined : normalizeVitals(entry?.vitals)),
+    resourceVitals: type === "resource" && entry?.resourceVitals && typeof entry.resourceVitals === "object"
+      ? { ...entry.resourceVitals }
+      : undefined,
     proximityRadius: type === "hazard" ? normalizePositiveInt(entry?.proximityRadius, 1) : undefined,
     mana: type === "hazard" ? normalizeHazardVital(entry?.mana, { kind: "one-time", amount: 3 }) : undefined,
     durability: type === "room" && entry?.durability ? normalizeHazardVital(entry.durability, { kind: "one-time", amount: 1 }) : undefined,
@@ -381,6 +384,7 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
     delta: type === "resource" && Number.isFinite(Number(entry?.delta)) ? Number(entry.delta) : undefined,
     dropRate: type === "resource" && Number.isFinite(Number(entry?.dropRate)) ? Math.floor(Number(entry.dropRate)) : undefined,
     permanenceMode: type === "resource" ? entry?.permanenceMode : undefined,
+    permanent: type === "resource" ? entry?.permanent === true : undefined,
     budgetCeiling: type === "resource" && Number.isFinite(Number(entry?.budgetCeiling))
       ? Math.max(0, Math.floor(Number(entry.budgetCeiling)))
       : undefined,
@@ -561,8 +565,11 @@ export function buildCardSetFromSummary(summary) {
       entry?.motivations,
       entry?.motivation || entry?.role || "defending",
     );
-    const delver = motivations.some((motivation) => isAttackingMotivation(motivation));
-    const type = delver ? "delver" : "warden";
+    const explicitType = normalizeActorType(entry?.actorType ?? entry?.type);
+    const delver = explicitType
+      ? explicitType === "delver"
+      : motivations.some((motivation) => isAttackingMotivation(motivation));
+    const type = explicitType || (delver ? "delver" : "warden");
     return normalizeCardEntry(
     {
       id: entry?.id || `card_${type}_${index + 1}`,
@@ -619,10 +626,13 @@ export function extractSummaryFromCardSet(summary) {
     id: card.id,
     permanenceMode: card.permanenceMode,
     vitals: card.vitals,
+    resourceVitals: card.resourceVitals,
+    permanent: card.permanent,
     tier: card.tier,
     stat: card.stat,
     delta: card.delta,
     dropRate: card.dropRate,
+    budgetCeiling: card.budgetCeiling,
   }));
   const actors = actorCards.map((card) => (
     card.type === "delver"

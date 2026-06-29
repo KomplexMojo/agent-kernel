@@ -35,7 +35,7 @@ by passing `--out-dir`.
 
 ### Structured stdout contract
 The automation-facing authoring and execution commands emit exactly one JSON object line to stdout on success:
-`build`, `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan`, `run`, `inspect`, `narrate`, `llm-plan`, `scenario`, `show`, `diff`, and `runs list`.
+`build`, `create`, `configure`, `room-plan`, `hazard-plan`, `resource-plan`, `delver-plan`, `warden-plan`, `run`, `inspect`, `narrate`, `llm-plan`, `scenario`, `show`, `diff`, and `runs list`.
 
 Success shape:
 ```json
@@ -163,8 +163,9 @@ Inputs/outputs:
 Generic additive agent-facing authoring commands that normalize freeform text plus
 structured object flags into an inline `AgentCommandRequestArtifact`, compile that
 request into `BuildSpec`, and run the existing deterministic build/configurator flow.
-These commands do not replace `room-plan`, `delver-plan`, `warden-plan`, `build`, or
-`configurator`; they provide a single multi-object entrypoint for automation callers.
+These commands do not replace `room-plan`, `hazard-plan`, `resource-plan`,
+`delver-plan`, `warden-plan`, `build`, or `configurator`; they provide a
+single multi-object entrypoint for automation callers.
 
 Inputs/outputs:
 - Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--trap`, `--hazard`,
@@ -178,7 +179,7 @@ Inputs/outputs:
 - `--trap` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
 - `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
-- `--resource` format: `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
+- `--resource` format: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>]`, or legacy `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
   Produces a `ResourceArtifact` written to `resource-artifact-<n>.json` in the output directory.
 - `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
   vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
@@ -238,6 +239,44 @@ Inputs/outputs:
   `manifest.json`, `telemetry.json`.
 - `--emit-intermediates` additionally persists `intent.json` and `plan.json`.
 
+### `hazard-plan`
+Builds a `BuildSpec` directly from Hazard authoring flags and runs the standard
+build pipeline. This is the first-order hazard command for configuring hazard
+cards and hazard-only budget checks without routing through mixed-object authoring.
+
+Inputs/outputs:
+- Input: one or more `--hazard` flags (repeatable), optional `--goal`,
+  `--dungeon-affinity`, optional `--budget-tokens`, optional `--budget` +
+  `--price-list`, plus standard `--run-id`, `--created-at`, `--out-dir`.
+- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
+- A budgeted run uses an explicit hazards-only allocation pool, so hazard base,
+  affinity, and vital spend are capped against hazards instead of rooms or actors.
+- Output dir: `artifacts/runs/<runId>/hazard-plan` by default, or `--out-dir`.
+- Outputs: `spec.json`, optional `budget.json`, `price-list.json`,
+  `budget-receipt.json`, `hazard-<n>.json`, `sim-config.json`,
+  `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
+  `manifest.json`, `telemetry.json`.
+- `--emit-intermediates` additionally persists `intent.json` and `plan.json`.
+
+### `resource-plan`
+Builds a `BuildSpec` directly from Resource authoring flags and runs the standard
+build pipeline. This is the first-order resource command for configuring resource
+cards and resource-only budget checks without routing through mixed-object authoring.
+
+Inputs/outputs:
+- Input: one or more `--resource` flags (repeatable), optional `--goal`,
+  `--dungeon-affinity`, optional `--budget-tokens`, optional `--budget` +
+  `--price-list`, plus standard `--run-id`, `--created-at`, `--out-dir`.
+- `--resource` format: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>]`, or legacy `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
+- A budgeted run uses an explicit resources-only allocation pool, so resource
+  grants are capped against resources instead of actor or shared spend.
+- Output dir: `artifacts/runs/<runId>/resource-plan` by default, or `--out-dir`.
+- Outputs: `spec.json`, optional `budget.json`, `price-list.json`,
+  `budget-receipt.json`, `resource-artifact-<n>.json`, `sim-config.json`,
+  `initial-state.json`, `resource-bundle.json`, plus `bundle.json`,
+  `manifest.json`, `telemetry.json`.
+- `--emit-intermediates` additionally persists `intent.json` and `plan.json`.
+
 ### `delver-plan`
 Builds a `BuildSpec` directly from Delver authoring flags (no hand-edited JSON required) and
 runs the standard build pipeline. This is the direct delver parity command for CLI card authoring.
@@ -287,8 +326,9 @@ Inputs/outputs:
 The canonical additive contract for agent-friendly CLI authoring is
 `agent-kernel/AgentCommandRequestArtifact` (schema version `1`). This milestone
 defines the contract and taxonomy only; it does not replace existing commands.
-Current `room-plan`, `delver-plan`, `warden-plan`, `build`, and `configurator`
-flows remain valid and are the backward-compatible execution paths.
+Current `room-plan`, `hazard-plan`, `resource-plan`, `delver-plan`,
+`warden-plan`, `build`, and `configurator` flows remain valid and are the
+backward-compatible execution paths.
 
 Top-level shape:
 - `meta`: standard artifact metadata (`id`, `runId`, `createdAt`, `producedBy`).
@@ -309,6 +349,8 @@ Canonical object taxonomy:
 - `room`: authored room cards and room-level composition hints. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
 - `floor_tile`: authored floor/wall/barrier tile intent. Default compile target is `build_spec_configurator`.
 - `trap`: authored trap placement or trap-affinity intent. Default compile target is `build_spec_configurator`.
+- `hazard`: authored hazard cards and hazard-level affinity/vital spend. Default compile target is `build_spec_configurator`.
+- `resource`: authored resource reward cards. Default compile target is `build_spec_configurator`.
 - `delver`: authored player-facing actor cards. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
 - `warden`: authored opposing actor cards. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
 - `shared_config`: authored cross-cutting dungeon or run settings. Default compile targets are `build_spec_intent`, `build_spec_plan`, and `build_spec_configurator`.
@@ -321,10 +363,12 @@ Compilation target semantics:
 
 Current compatibility rules:
 - `room-plan` remains the direct additive authoring path for `room` requests and any `shared_config` budget/affinity hints it already supports.
+- `hazard-plan` remains the direct additive authoring path for `hazard` requests and compatible `shared_config` hints.
+- `resource-plan` remains the direct additive authoring path for `resource` requests and compatible `shared_config` hints.
 - `delver-plan` remains the direct additive authoring path for `delver` requests and compatible `shared_config` hints.
 - `warden-plan` remains the direct additive authoring path for `warden` requests and compatible `shared_config` hints.
 - `build --spec` remains the generic entry point once an agent command has been compiled to `BuildSpec`.
-- `configurator` remains the direct entry point for deterministic `levelGen`, `actors`, trap placement, and tile-shape payloads.
+- `configurator` remains the direct entry point for deterministic `levelGen`, `actors`, trap placement, hazard placement, resource drops, and tile-shape payloads.
 - `floor_tile` and richer `trap` requests are intentionally mapped as `build_spec_configurator` work first; when an authored request cannot be represented by current configurator inputs, it must declare `artifact_extension` instead of inventing an unversioned side channel.
 
 Build inputs/outputs:
@@ -387,6 +431,10 @@ node packages/adapters-cli/src/cli/ak.mjs create --text "Create a fire room with
 node packages/adapters-cli/src/cli/ak.mjs configure --text "Configure the trap layout for the room." --room "size=small;count=1" --trap "id=trap_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1" --run-id run_configure_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/configure_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1" --run-id run_room_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1;affinities=fire:emit:2" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_budget_demo
+node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --run-id run_hazard_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/hazard_plan_demo
+node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --budget-tokens 200 --run-id run_hazard_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/hazard_plan_budget_demo
+node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --run-id run_resource_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/resource_plan_demo
+node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --budget-tokens 200 --run-id run_resource_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/resource_plan_budget_demo
 node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=2;affinity=fire;motivation=attacking" --delver "count=1;affinity=earth;motivation=patrolling" --run-id run_delver_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_budget_demo
 node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_plan_advanced_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/delver_plan_advanced_demo
@@ -413,17 +461,23 @@ node packages/adapters-cli/src/cli/ak.mjs llm --model phi4 --prompt "Summarize p
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 ```
 
-UI-to-CLI parity recipes (Room/Delver/Warden, AD1):
+UI-to-CLI parity recipes (Room/Hazard/Resource/Delver/Warden, AD1):
 ```
 # 1) Room parity recipe (RP1-RP4): author rooms, costs, then smoke-run with one actor override.
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1;affinities=water:pull:1" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/room/sim-config.json --initial-state artifacts/parity-recipes/room/initial-state.json --actor room_probe,1,1,motivated --ticks 0 --run-id run_room_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room-run
 
-# 2) Delver parity recipe (AP1/AP2): direct advanced delver authoring + playback.
+# 2) Hazard parity recipe: direct hazard authoring + sidecar artifact.
+node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --budget-tokens 200 --run-id run_hazard_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/hazard
+
+# 3) Resource parity recipe: direct resource authoring + sidecar artifact.
+node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMode=permanent;vital=mana;delta=6" --budget-tokens 200 --run-id run_resource_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/resource
+
+# 4) Delver parity recipe (AP1/AP2): direct advanced delver authoring + playback.
 node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:3,wind:emit:2;vitals=health:12:12:1,mana:7:7:2,stamina:6:6:1,durability:5:5:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_delver_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/delver
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/delver/sim-config.json --initial-state artifacts/parity-recipes/delver/initial-state.json --ticks 0 --run-id run_delver_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/delver-run
 
-# 3) Warden parity recipe (DP1/DP2): direct advanced warden authoring + playback.
+# 5) Warden parity recipe (DP1/DP2): direct advanced warden authoring + playback.
 node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark;motivation=defending;affinities=dark:emit:4,earth:pull:1;vitals=health:15:15:0,mana:3:3:1,stamina:4:4:1,durability:8:8:0" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_warden_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/warden
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/warden/sim-config.json --initial-state artifacts/parity-recipes/warden/initial-state.json --ticks 0 --run-id run_warden_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/warden-run
 ```
@@ -442,6 +496,8 @@ node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1" --run-id run_room_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2" --run-id run_hazard_plan_fixture --created-at 2025-01-01T00:00:00Z
+node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMode=level;vital=health;delta=4" --run-id run_resource_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire" --run-id run_delver_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark" --run-id run_warden_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
@@ -501,6 +557,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - llm: `llm.json`
 - solve: `solver-request.json`, `solver-result.json`
 - run: `tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`, `run-summary.json`, `action-log.json`
+- room-plan / hazard-plan / resource-plan / delver-plan / warden-plan: build handoff artifacts plus command-specific sidecars such as `hazard-<n>.json` and `resource-artifact-<n>.json`
 - configurator: `sim-config.json`, `initial-state.json` (plus `budget-receipt.json` when `--budget` + `--price-list` are provided)
 
 ---
@@ -522,6 +579,10 @@ Expected outputs (defaults when `--out-dir` is set):
 - Room authoring (`room-plan`): repeat `--room` with `size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...`.
   If `affinities` is omitted, the command applies `dark:emit:2`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
+- Hazard authoring (`hazard-plan`): repeat `--hazard` with `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]`.
+  Use `--budget-tokens` or `--budget` + `--price-list` to enforce a hazards-only allocation receipt.
+- Resource authoring (`resource-plan`): repeat `--resource` with `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>]`.
+  Use `--budget-tokens` or `--budget` + `--price-list` to enforce a resources-only allocation receipt.
 - Delver authoring (`delver-plan`): repeat `--delver` with `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>]`.
   If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
   If `motivation` is omitted, default is `attacking`.

@@ -8,16 +8,115 @@
     "producedBy": "configurator"
   },
   "items": [
-    { "id": "actor_spawn", "kind": "actor", "quantity": 1 },
-    { "id": "affinity_expression_externalize", "kind": "affinity", "quantity": 2 },
-    { "id": "affinity_expression_internalize", "kind": "affinity", "quantity": 1 },
-    { "id": "affinity_stack", "kind": "affinity", "quantity": 3 },
-    { "id": "motivation_reflexive", "kind": "motivation", "quantity": 1 },
-    { "id": "vital_durability_point", "kind": "vital", "quantity": 1 },
-    { "id": "vital_health_point", "kind": "vital", "quantity": 10 },
-    { "id": "vital_health_regen_tick", "kind": "vital", "quantity": 2 },
-    { "id": "vital_mana_point", "kind": "vital", "quantity": 3 },
-    { "id": "vital_stamina_point", "kind": "vital", "quantity": 4 },
-    { "id": "vital_stamina_regen_tick", "kind": "vital", "quantity": 1 }
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_externalize",
+      "kind": "affinity",
+      "quantity": 2,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_internalize",
+      "kind": "affinity",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "quantity": 3,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "motivation_reflexive",
+      "kind": "motivation",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_health_point",
+      "kind": "vital",
+      "quantity": 10,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_health_regen_tick",
+      "kind": "vital",
+      "quantity": 2,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "quantity": 3,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_stamina_point",
+      "kind": "vital",
+      "quantity": 4,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_stamina_regen_tick",
+      "kind": "vital",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    }
   ]
 }

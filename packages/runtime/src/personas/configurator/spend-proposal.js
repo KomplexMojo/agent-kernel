@@ -49,15 +49,83 @@ const VITAL_REGEN_IDS = Object.freeze({
   durability: "vital_durability_regen_tick",
 });
 
-function accumulateItem(counts, id, kind, quantity) {
+const DELVER_KEYWORDS = Object.freeze(["delver", "attack", "attacking", "player", "assault", "intruder", "raider", "runner"]);
+const WARDEN_KEYWORDS = Object.freeze(["warden", "defend", "defending", "stationary", "guard", "patrol", "patrolling", "sentry"]);
+
+function buildSubjectRef(id, schema) {
+  return {
+    id: String(id || "unknown"),
+    schema,
+    schemaVersion: 1,
+  };
+}
+
+function accumulateItem(counts, id, kind, quantity, { category, subjectRef, detail } = {}) {
   if (!Number.isInteger(quantity) || quantity <= 0) return;
-  const key = `${kind}:${id}`;
+  const subjectId = subjectRef?.id || "";
+  const detailKey = detail === undefined ? "" : JSON.stringify(detail);
+  const key = `${category || ""}:${subjectId}:${kind}:${id}:${detailKey}`;
   const existing = counts.get(key);
   if (existing) {
     existing.quantity += quantity;
     return;
   }
-  counts.set(key, { id, kind, quantity });
+  counts.set(key, {
+    id,
+    kind,
+    quantity,
+    ...(category ? { category } : {}),
+    ...(subjectRef ? { subjectRef } : {}),
+    ...(detail !== undefined ? { detail } : {}),
+  });
+}
+
+function countFloorTiles(layoutData) {
+  if (Number.isInteger(layoutData?.floorTiles) && layoutData.floorTiles > 0) {
+    return layoutData.floorTiles;
+  }
+  if (!Array.isArray(layoutData?.tiles)) {
+    if (isInteger(layoutData?.width) && isInteger(layoutData?.height)) {
+      return layoutData.width * layoutData.height;
+    }
+    return 0;
+  }
+  let count = 0;
+  layoutData.tiles.forEach((rowValue) => {
+    const row = String(rowValue || "");
+    for (let i = 0; i < row.length; i += 1) {
+      if (row[i] !== "#") count += 1;
+    }
+  });
+  if (count > 0) return count;
+  if (isInteger(layoutData?.width) && isInteger(layoutData?.height)) {
+    return layoutData.width * layoutData.height;
+  }
+  return 0;
+}
+
+function textBag(entry) {
+  const values = [];
+  ["id", "archetype", "actorType", "type", "kind", "role", "motivation", "source"].forEach((field) => {
+    if (typeof entry?.[field] === "string") values.push(entry[field]);
+  });
+  if (Array.isArray(entry?.motivations)) {
+    entry.motivations.forEach((motivation) => {
+      if (typeof motivation === "string") values.push(motivation);
+      if (motivation && typeof motivation === "object" && typeof motivation.kind === "string") values.push(motivation.kind);
+    });
+  }
+  return values.join(" ").toLowerCase();
+}
+
+function inferActorCategory(actor) {
+  const explicit = String(actor?.archetype || actor?.actorType || actor?.type || actor?.kind || "").toLowerCase();
+  if (explicit === "delver") return "delvers";
+  if (explicit === "warden") return "wardens";
+  const bag = textBag(actor);
+  if (DELVER_KEYWORDS.some((token) => bag.includes(token))) return "delvers";
+  if (WARDEN_KEYWORDS.some((token) => bag.includes(token))) return "wardens";
+  return undefined;
 }
 
 function extractAffinities(actor) {
@@ -68,7 +136,7 @@ function extractAffinities(actor) {
       if (!Number.isInteger(stacks) || stacks <= 0) return;
       const [kind, expression] = key.split(":");
       if (!expression) return;
-      entries.push({ expression, stacks });
+      entries.push({ kind, expression, stacks });
     });
   }
   const affinityList = Array.isArray(actor?.affinities) ? actor.affinities : [];
@@ -76,9 +144,9 @@ function extractAffinities(actor) {
     if (!entry) return;
     const stacks = Number.isInteger(entry.stacks) ? entry.stacks : 1;
     if (stacks <= 0) return;
-    const expression = entry.expression || entry.kind || entry.type;
+    const expression = entry.expression || entry.type;
     if (!expression) return;
-    entries.push({ expression, stacks });
+    entries.push({ kind: entry.kind, expression, stacks });
   });
   return entries;
 }
@@ -99,11 +167,22 @@ function extractResourcePriceEntries(resource) {
       quantity: Math.abs(Number.isFinite(v?.delta) ? v.delta : 0),
     }));
   }
+  if (resource?.resourceVitals && typeof resource.resourceVitals === "object") {
+    const permanenceMode = resource.permanenceMode || (resource.permanent ? "permanent" : resource.tier) || "consumable";
+    const priceId = RESOURCE_PRICE_IDS[permanenceMode] || RESOURCE_PRICE_IDS.consumable;
+    return Object.values(resource.resourceVitals)
+      .map((v) => Math.abs(Number.isFinite(v?.delta) ? v.delta : 0) + Math.abs(Number.isFinite(v?.regen) ? v.regen : 0))
+      .filter((quantity) => quantity > 0)
+      .map((quantity) => ({ priceId, quantity }));
+  }
   // V1: { tier, delta }
   if (resource?.tier) {
     const priceId = RESOURCE_PRICE_IDS[resource.tier];
     if (!priceId) return [];
     return [{ priceId, quantity: Math.abs(Number.isFinite(resource.delta) ? resource.delta : 0) }];
+  }
+  if (Number.isInteger(resource?.budgetCeiling) && resource.budgetCeiling > 0) {
+    return [{ priceId: RESOURCE_PRICE_IDS.consumable, quantity: resource.budgetCeiling }];
   }
   return [];
 }
@@ -111,20 +190,41 @@ function extractResourcePriceEntries(resource) {
 function buildSpendItems({ layoutData, actors, traps, resources }) {
   const counts = new Map();
   const trapArray = Array.isArray(traps) ? traps : [];
+  const hazardArray = Array.isArray(layoutData?.hazards) ? layoutData.hazards : [];
+  const resourceArray = [
+    ...(Array.isArray(resources) ? resources : []),
+    ...(Array.isArray(layoutData?.resources) ? layoutData.resources : []),
+  ];
 
-  if (isInteger(layoutData?.width) && isInteger(layoutData?.height)) {
-    accumulateItem(counts, `layout_grid_${layoutData.width}x${layoutData.height}`, "layout", 1);
+  const floorTiles = layoutData?.budgetScaffold === true ? 0 : countFloorTiles(layoutData);
+  if (floorTiles > 0) {
+    accumulateItem(counts, "tile_floor", "tile", floorTiles, {
+      category: "floor_tiles",
+      subjectRef: buildSubjectRef("layout", "agent-kernel/LayoutArtifact"),
+    });
   }
 
   if (Array.isArray(actors) && actors.length > 0) {
-    accumulateItem(counts, "actor_spawn", "actor", actors.length);
+    actors.forEach((actor, index) => {
+      const category = inferActorCategory(actor);
+      accumulateItem(counts, "actor_spawn", "actor", 1, {
+        category,
+        subjectRef: buildSubjectRef(actor?.id || `actor_${index + 1}`, "agent-kernel/ActorArtifact"),
+      });
+    });
   }
 
   if (trapArray.length > 0) {
-    accumulateItem(counts, "trap_basic", "trap", trapArray.length);
+    trapArray.forEach((trap, index) => {
+      accumulateItem(counts, "trap_basic", "trap", 1, {
+        category: "traps",
+        subjectRef: buildSubjectRef(trap?.id || `trap_${index + 1}`, "agent-kernel/TrapArtifact"),
+      });
+    });
   }
 
-  trapArray.forEach((trap) => {
+  trapArray.forEach((trap, index) => {
+    const subjectRef = buildSubjectRef(trap?.id || `trap_${index + 1}`, "agent-kernel/TrapArtifact");
     const vitals = trap?.vitals;
     if (vitals && typeof vitals === "object") {
       Object.keys(vitals).forEach((key) => {
@@ -136,8 +236,8 @@ function buildSpendItems({ layoutData, actors, traps, resources }) {
             ? vital.current
             : 0;
         const regen = Number.isInteger(vital.regen) ? vital.regen : 0;
-        accumulateItem(counts, `vital_${key}_point`, "vital", max);
-        accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen);
+        accumulateItem(counts, `vital_${key}_point`, "vital", max, { category: "traps", subjectRef });
+        accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category: "traps", subjectRef });
       });
     }
     const affinity = trap?.affinity;
@@ -145,22 +245,52 @@ function buildSpendItems({ layoutData, actors, traps, resources }) {
       const stacks = Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
       const expressionId = AFFINITY_EXPRESSION_IDS[affinity.expression];
       if (expressionId) {
-        accumulateItem(counts, expressionId, "affinity", stacks);
+        accumulateItem(counts, expressionId, "affinity", stacks, { category: "traps", subjectRef });
       }
-      accumulateItem(counts, "affinity_stack", "affinity", stacks);
+      accumulateItem(counts, "affinity_stack", "affinity", stacks, { category: "traps", subjectRef });
     }
   });
 
-  if (Array.isArray(resources)) {
-    resources.forEach((resource) => {
+  hazardArray.forEach((hazard, index) => {
+    const subjectRef = buildSubjectRef(hazard?.id || `hazard_${index + 1}`, "agent-kernel/HazardArtifact");
+    accumulateItem(counts, "hazard_base", "hazard", 1, { category: "hazards", subjectRef });
+    const mana = hazard?.mana;
+    if (mana && typeof mana === "object") {
+      const max = Number.isInteger(mana.max)
+        ? mana.max
+        : Number.isInteger(mana.current)
+          ? mana.current
+          : Number.isInteger(mana.amount)
+            ? mana.amount
+            : 0;
+      const regen = Number.isInteger(mana.regen) ? mana.regen : 0;
+      accumulateItem(counts, "vital_mana_point", "vital", max, { category: "hazards", subjectRef });
+      accumulateItem(counts, "vital_mana_regen_tick", "vital", regen, { category: "hazards", subjectRef });
+    }
+    const expression = hazard?.expression || hazard?.affinities?.[0]?.expression;
+    const stacks = Number.isInteger(hazard?.stacks) && hazard.stacks > 0 ? hazard.stacks : 1;
+    const expressionId = AFFINITY_EXPRESSION_IDS[expression];
+    if (expressionId) {
+      accumulateItem(counts, expressionId, "affinity", stacks, { category: "hazards", subjectRef });
+    }
+    if (typeof hazard?.affinity === "string" || expressionId) {
+      accumulateItem(counts, "affinity_stack", "affinity", stacks, { category: "hazards", subjectRef });
+    }
+  });
+
+  if (resourceArray.length > 0) {
+    resourceArray.forEach((resource, index) => {
+      const subjectRef = buildSubjectRef(resource?.id || `resource_${index + 1}`, "agent-kernel/ResourceArtifact");
       extractResourcePriceEntries(resource).forEach(({ priceId, quantity }) => {
-        accumulateItem(counts, priceId, "resource", quantity);
+        accumulateItem(counts, priceId, "resource", Math.floor(quantity), { category: "resources", subjectRef });
       });
     });
   }
 
   if (Array.isArray(actors)) {
-    actors.forEach((actor) => {
+    actors.forEach((actor, index) => {
+      const category = inferActorCategory(actor);
+      const subjectRef = buildSubjectRef(actor?.id || `actor_${index + 1}`, "agent-kernel/ActorArtifact");
       const vitals = actor?.vitals;
       if (vitals && typeof vitals === "object") {
         VITAL_KEYS.forEach((key) => {
@@ -171,20 +301,20 @@ function buildSpendItems({ layoutData, actors, traps, resources }) {
             : Number.isInteger(vital.current)
               ? vital.current
               : 0;
-          accumulateItem(counts, `vital_${key}_point`, "vital", max);
+          accumulateItem(counts, `vital_${key}_point`, "vital", max, { category, subjectRef });
           const regen = Number.isInteger(vital.regen) ? vital.regen : 0;
-          accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen);
+          accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category, subjectRef });
         });
       }
 
       const affinities = extractAffinities(actor);
       if (affinities.length > 0) {
         const totalStacks = affinities.reduce((sum, entry) => sum + entry.stacks, 0);
-        accumulateItem(counts, "affinity_stack", "affinity", totalStacks);
+        accumulateItem(counts, "affinity_stack", "affinity", totalStacks, { category, subjectRef });
         affinities.forEach((entry) => {
           const expressionId = AFFINITY_EXPRESSION_IDS[entry.expression];
           if (!expressionId) return;
-          accumulateItem(counts, expressionId, "affinity", entry.stacks);
+          accumulateItem(counts, expressionId, "affinity", entry.stacks, { category, subjectRef });
         });
       }
 
@@ -193,12 +323,16 @@ function buildSpendItems({ layoutData, actors, traps, resources }) {
         const motivationId = MOTIVATION_KIND_IDS[entry.kind];
         if (!motivationId) return;
         const quantity = Number.isInteger(entry.intensity) && entry.intensity > 0 ? entry.intensity : 1;
-        accumulateItem(counts, motivationId, "motivation", quantity);
+        accumulateItem(counts, motivationId, "motivation", quantity, { category, subjectRef });
       });
     });
   }
 
   return Array.from(counts.values()).sort((a, b) => {
+    const categoryOrder = String(a.category || "").localeCompare(String(b.category || ""));
+    if (categoryOrder !== 0) return categoryOrder;
+    const subjectOrder = String(a.subjectRef?.id || "").localeCompare(String(b.subjectRef?.id || ""));
+    if (subjectOrder !== 0) return subjectOrder;
     const kindOrder = a.kind.localeCompare(b.kind);
     if (kindOrder !== 0) return kindOrder;
     return a.id.localeCompare(b.id);
@@ -210,7 +344,10 @@ export function buildSpendProposal({ meta, layout, actors, traps, resources } = 
   const trapArray = Array.isArray(traps) ? traps
     : Array.isArray(layoutData?.traps) ? layoutData.traps
     : [];
-  const items = buildSpendItems({ layoutData, actors, traps: trapArray, resources });
+  const resourceArray = Array.isArray(resources) && resources.length > 0
+    ? resources
+    : Array.isArray(layoutData?.resources) ? layoutData.resources : [];
+  const items = buildSpendItems({ layoutData, actors, traps: trapArray, resources: resourceArray });
 
   return {
     schema: SPEND_PROPOSAL_SCHEMA,
@@ -227,6 +364,7 @@ export function evaluateConfiguratorSpend({
   actors,
   traps,
   resources,
+  allocation,
   proposalMeta,
   receiptMeta,
 } = {}) {
@@ -238,6 +376,7 @@ export function evaluateConfiguratorSpend({
     budget,
     priceList,
     proposal,
+    allocation,
     meta: receiptMeta,
     proposalRef,
   });

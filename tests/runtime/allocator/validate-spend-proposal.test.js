@@ -19,6 +19,17 @@ function makeBudget(tokens) {
   };
 }
 
+function makeAllocation(pools) {
+  return {
+    schema: "agent-kernel/BudgetAllocationArtifact",
+    schemaVersion: 1,
+    meta: { id: "allocation-1", runId: "run-1", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
+    budgetRef: { id: "budget-1", schema: "agent-kernel/BudgetArtifact", schemaVersion: 1 },
+    priceListRef: { id: "price-list-1", schema: "agent-kernel/PriceList", schemaVersion: 1 },
+    pools,
+  };
+}
+
 test("buildDefaultPriceList returns a valid PriceList artifact", () => {
   const pl = buildDefaultPriceList();
   assert.equal(pl.schema, "agent-kernel/PriceList");
@@ -147,6 +158,94 @@ test("validateSpendProposal denies when total cost exceeds budget", () => {
   });
   assert.equal(result.receipt.status, "denied");
   assert.ok(result.errors?.length > 0);
+});
+
+test("validateSpendProposal applies quadratic price formulas", () => {
+  const proposal = {
+    schema: "agent-kernel/SpendProposal",
+    schemaVersion: 1,
+    meta: { ...baseMeta, id: "prop-quadratic" },
+    items: [
+      { id: "affinity_stack", kind: "affinity", quantity: 4 },
+    ],
+  };
+  const result = validateSpendProposal({
+    budget: makeBudget(500),
+    priceList: buildDefaultPriceList(),
+    proposal,
+    meta: { ...baseMeta, id: "receipt-quadratic" },
+  });
+  assert.equal(result.receipt.status, "approved");
+  assert.equal(result.receipt.totalCost, 16);
+  assert.equal(result.receipt.lineItems[0].totalCost, 16);
+});
+
+test("validateSpendProposal keeps legacy partial status for mixed known and unknown spend without allocation", () => {
+  const proposal = {
+    schema: "agent-kernel/SpendProposal",
+    schemaVersion: 1,
+    meta: { ...baseMeta, id: "prop-partial" },
+    items: [
+      { id: "vital_health_point", kind: "vital", quantity: 5 },
+      { id: "mystery", kind: "unknown", quantity: 1 },
+    ],
+  };
+  const result = validateSpendProposal({
+    budget: makeBudget(500),
+    priceList: buildDefaultPriceList(),
+    proposal,
+    meta: { ...baseMeta, id: "receipt-partial" },
+  });
+  assert.equal(result.receipt.status, "partial");
+  assert.equal(result.receipt.totalCost, 5);
+  assert.equal(result.receipt.lineItems[0].status, "approved");
+  assert.equal(result.receipt.lineItems[1].status, "denied");
+});
+
+test("validateSpendProposal denies category pool overspend even when total budget remains", () => {
+  const proposal = {
+    schema: "agent-kernel/SpendProposal",
+    schemaVersion: 1,
+    meta: { ...baseMeta, id: "prop-pool-over" },
+    items: [
+      { id: "tile_floor", kind: "tile", quantity: 6, category: "floor_tiles" },
+    ],
+  };
+  const result = validateSpendProposal({
+    budget: makeBudget(1000),
+    priceList: buildDefaultPriceList(),
+    allocation: makeAllocation([
+      { id: "rooms", tokens: 5 },
+      { id: "delver", tokens: 995 },
+    ]),
+    proposal,
+    meta: { ...baseMeta, id: "receipt-pool-over" },
+  });
+  assert.equal(result.receipt.status, "denied");
+  assert.equal(result.receipt.totalCost, 6);
+  assert.equal(result.receipt.poolStatuses.find((pool) => pool.id === "rooms").status, "denied");
+  assert.equal(result.receipt.lineItems[0].status, "denied");
+});
+
+test("validateSpendProposal denies unattributed spend when allocation is enforced", () => {
+  const proposal = {
+    schema: "agent-kernel/SpendProposal",
+    schemaVersion: 1,
+    meta: { ...baseMeta, id: "prop-unattributed" },
+    items: [
+      { id: "actor_spawn", kind: "actor", quantity: 1 },
+    ],
+  };
+  const result = validateSpendProposal({
+    budget: makeBudget(1000),
+    priceList: buildDefaultPriceList(),
+    allocation: makeAllocation([{ id: "delver", tokens: 1000 }]),
+    proposal,
+    meta: { ...baseMeta, id: "receipt-unattributed" },
+  });
+  assert.equal(result.receipt.status, "denied");
+  assert.equal(result.receipt.lineItems[0].status, "denied");
+  assert.match(result.errors.join("\n"), /Unattributed spend item/);
 });
 
 // ## TODO: Test Permutations

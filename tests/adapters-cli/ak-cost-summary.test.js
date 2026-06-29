@@ -34,7 +34,7 @@ test("ak create with --budget-tokens emits top-level cost summary", () => {
     "--room", "size=small;count=1",
     "--delver", "count=1;motivation=attacking",
     "--text", "Cost summary test",
-    "--budget-tokens", "500",
+    "--budget-tokens", "1000",
     "--run-id", "run_cost_summary_create",
     "--created-at", "2026-04-22T00:00:00.000Z",
     "--out-dir", outDir,
@@ -43,7 +43,7 @@ test("ak create with --budget-tokens emits top-level cost summary", () => {
   assert.ok(summary.cost, "create output must include a top-level cost field when budget is present");
   assert.ok(Number.isInteger(summary.cost.totalSpend), "cost.totalSpend must be an integer");
   assert.ok(Number.isInteger(summary.cost.budgetTokens), "cost.budgetTokens must be an integer");
-  assert.equal(summary.cost.budgetTokens, 500, "cost.budgetTokens must equal the --budget-tokens value");
+  assert.equal(summary.cost.budgetTokens, 1000, "cost.budgetTokens must equal the --budget-tokens value");
   assert.ok(Number.isInteger(summary.cost.remaining), "cost.remaining must be an integer");
   assert.ok(typeof summary.cost.status === "string", "cost.status must be a string");
   assert.ok(typeof summary.cost.receiptPath === "string", "cost.receiptPath must be a string");
@@ -73,7 +73,7 @@ test("ak create cost.totalSpend + cost.remaining equals cost.budgetTokens", () =
     "create",
     "--room", "size=small;count=1",
     "--delver", "count=1;motivation=exploring",
-    "--budget-tokens", "500",
+    "--budget-tokens", "1000",
     "--run-id", "run_cost_budget_math",
     "--created-at", "2026-04-22T00:00:00.000Z",
     "--out-dir", outDir,

@@ -193,10 +193,12 @@ test("cli room-plan writes budget receipt with room layout spend only — no aff
   assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
   assert.equal(receipt.status, "approved");
 
-  const layoutLine = receipt.lineItems.find((item) => item.id === "layout_grid_7x7" && item.kind === "layout");
+  const layoutLine = receipt.lineItems.find((item) => item.id === "tile_floor" && item.kind === "tile");
   assert.ok(layoutLine);
   assert.equal(layoutLine.status, "approved");
-  assert.equal(layoutLine.totalCost, 11);
+  assert.equal(layoutLine.category, "floor_tiles");
+  assert.equal(layoutLine.quantity, 9);
+  assert.equal(layoutLine.totalCost, 9);
 
   const affinityLines = receipt.lineItems.filter((item) => item.kind === "affinity");
   assert.equal(affinityLines.length, 0, "room receipt must contain no affinity line items");

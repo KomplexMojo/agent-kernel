@@ -127,3 +127,71 @@ test("configurator prices room cards by layout only — affinities on room card 
   assert.ok(large.cost >= medium.cost);
   assert.equal(large.detail.affinitySpend, undefined, "rooms must not include affinity spend in cost detail");
 });
+
+test("configurator emits per-subject delver and warden attribution", async () => {
+  const { buildSpendProposal } = await import(
+    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+  );
+
+  const proposal = buildSpendProposal({
+    meta: {
+      id: "proposal_actor_attribution",
+      runId: "run_fixture",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      producedBy: "configurator",
+    },
+    actors: [
+      { id: "delver_one", actorType: "delver" },
+      { id: "warden_one", archetype: "warden", motivations: ["defending"] },
+    ],
+  });
+
+  const bySubject = new Map(proposal.items.map((item) => [item.subjectRef?.id, item]));
+  assert.equal(bySubject.get("delver_one").category, "delvers");
+  assert.equal(bySubject.get("warden_one").category, "wardens");
+});
+
+test("configurator accounts for hazards and UI-authored resources", async () => {
+  const { buildSpendProposal } = await import(
+    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+  );
+
+  const proposal = buildSpendProposal({
+    meta: {
+      id: "proposal_hazard_resource",
+      runId: "run_fixture",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      producedBy: "configurator",
+    },
+    layout: {
+      hazards: [
+        {
+          id: "hazard_fire",
+          affinity: "fire",
+          expression: "emit",
+          stacks: 2,
+          mana: { current: 3, max: 3, regen: 1 },
+        },
+      ],
+    },
+    resources: [
+      {
+        id: "ui_resource",
+        permanenceMode: "permanent",
+        resourceVitals: { health: { delta: 4 } },
+      },
+      {
+        id: "budget_only_resource",
+        budgetCeiling: 7,
+      },
+    ],
+  });
+
+  const byId = new Map(proposal.items.map((item) => [`${item.subjectRef?.id}:${item.id}`, item]));
+  assert.equal(byId.get("hazard_fire:hazard_base").category, "hazards");
+  assert.equal(byId.get("hazard_fire:vital_mana_point").quantity, 3);
+  assert.equal(byId.get("hazard_fire:affinity_stack").quantity, 2);
+  assert.equal(byId.get("ui_resource:resource_permanent").category, "resources");
+  assert.equal(byId.get("ui_resource:resource_permanent").quantity, 4);
+  assert.equal(byId.get("budget_only_resource:resource_base").quantity, 7);
+});

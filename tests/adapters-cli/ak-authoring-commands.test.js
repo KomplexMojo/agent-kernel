@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
+const { mkdtempSync, readFileSync, existsSync, writeFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
 
@@ -50,17 +50,33 @@ test("cli help documents generic create and configure authoring commands", () =>
   assert.equal(result.status, 0);
   assert.match(result.stdout, /\bcreate\b/);
   assert.match(result.stdout, /\bconfigure\b/);
+  assert.match(result.stdout, /\bhazard-plan\b/);
+  assert.match(result.stdout, /\bresource-plan\b/);
   assert.match(result.stdout, /--floor-tile/);
   assert.match(result.stdout, /--trap/);
+  assert.match(result.stdout, /--hazard/);
+  assert.match(result.stdout, /--resource/);
   assert.match(result.stdout, /goals=max_mana/);
 });
 
 test("cli create emits a complete playable artifact bundle for agent requests", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-create-authoring-"));
+  const budgetPath = join(outDir, "budget-input.json");
+  writeFileSync(budgetPath, JSON.stringify({
+    schema: "agent-kernel/BudgetArtifact",
+    schemaVersion: 1,
+    meta: {
+      id: "budget_create_authoring_1200",
+      runId: "run_create_authoring",
+      createdAt: "2026-04-08T00:00:00.000Z",
+      producedBy: "test",
+    },
+    budget: { tokens: 1200 },
+  }, null, 2));
   const result = runCliOk([
     "create",
     "--text",
-    "Create a fire room with a trap, one delver, and one warden. Total budget 1000 tokens.",
+    "Create a fire room with a trap, one delver, and one warden. Total budget 1200 tokens.",
     "--room",
     "size=large;count=1",
     "--floor-tile",
@@ -72,13 +88,13 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
     "--warden",
     "id=ember_warden;count=1;affinity=fire;motivation=defending",
     "--budget-tokens",
-    "1000",
+    "1200",
     "--run-id",
     "run_create_authoring",
     "--created-at",
     "2026-04-08T00:00:00.000Z",
     "--budget",
-    BUDGET,
+    budgetPath,
     "--price-list",
     PRICE_LIST,
     "--out-dir",
@@ -117,17 +133,17 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
 
   assert.equal(request.schema, "agent-kernel/AgentCommandRequestArtifact");
   assert.equal(request.command.action, "author");
-  assert.equal(request.command.text, "Create a fire room with a trap, one delver, and one warden. Total budget 1000 tokens.");
+  assert.equal(request.command.text, "Create a fire room with a trap, one delver, and one warden. Total budget 1200 tokens.");
   assert.deepEqual(
     request.objects.map((entry) => entry.kind),
     ["room", "floor_tile", "trap", "delver", "warden", "shared_config"],
   );
 
   assert.deepEqual(spec.authoring.objectKinds, ["room", "floor_tile", "trap", "delver", "warden", "shared_config"]);
-  assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 1000);
+  assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 1200);
   assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag", "budget_artifact"]);
   assert.equal(request.sharedConfig.optimizationGoals, undefined);
-  assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 1000);
+  assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 1200);
   assert.ok(spec.authoring.optimizationGoals.every((entry) => entry.kind !== "maximize_budget_spend"));
   const delverRequest = request.objects.find((entry) => entry.kind === "delver");
   assert.equal(delverRequest.optimizationGoals.length, 2);

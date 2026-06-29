@@ -310,10 +310,13 @@ export function buildBuildSpecFromSummary({
         id: entry.id,
         permanenceMode: entry.permanenceMode,
         vitals: Array.isArray(entry.vitals) ? entry.vitals.map((v) => ({ ...v })) : undefined,
+        resourceVitals: entry.resourceVitals && typeof entry.resourceVitals === "object" ? { ...entry.resourceVitals } : undefined,
+        permanent: entry.permanent === true,
         tier: entry.tier,
         stat: entry.stat,
         delta: entry.delta,
         dropRate: entry.dropRate,
+        budgetCeiling: entry.budgetCeiling,
       }))
     : [];
   const prebuiltLevelGen = resolvedSummary?.levelGen && typeof resolvedSummary.levelGen === "object"
@@ -323,6 +326,9 @@ export function buildBuildSpecFromSummary({
     || (layout || roomDesign
       ? deriveLevelGenFromLayout(layout || {}, roomDesign)
       : deriveLevelGen({ roomCount }));
+  if (resolvedSummary?.budgetScaffold === true) {
+    levelGen.budgetScaffold = true;
+  }
   if (hazards.length > 0) {
     levelGen.hazards = hazards;
   }
