@@ -38,10 +38,10 @@ test("serve-ui falls back to the next port and keeps the root redirect", async (
       maxRedirects: 0,
     });
     expect(root.status()).toBe(302);
-    expect(root.headers().location).toBe("/packages/ui-web/index.html");
+    expect(root.headers().location).toBe("/packages/ui-web/index_c.html");
 
     await page.goto(`http://127.0.0.1:${port}/`);
-    await expect(page).toHaveURL(/\/packages\/ui-web\/index\.html$/);
+    await expect(page).toHaveURL(/\/packages\/ui-web\/index_c\.html$/);
   } finally {
     await closeServer(server);
     await closeServer(blocker);

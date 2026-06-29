@@ -21,7 +21,7 @@ const root = resolve(__dirname, "..");
 const DEFAULT_PORT = Number(process.env.PORT) || 8001;
 
 const _entryArg = process.argv.indexOf("--entry");
-const ENTRY_FILE = _entryArg !== -1 ? process.argv[_entryArg + 1] : "index.html";
+const ENTRY_FILE = _entryArg !== -1 ? process.argv[_entryArg + 1] : "index_c.html";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",

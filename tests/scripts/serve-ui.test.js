@@ -64,15 +64,15 @@ test("serve-ui falls back to the next port and keeps the root redirect", async (
 
     try {
       assert.equal(port, startPort + 1);
-      assert.equal(url, `http://localhost:${startPort + 1}/packages/ui-web/index.html`);
+      assert.equal(url, `http://localhost:${startPort + 1}/packages/ui-web/index_c.html`);
 
       const rootResponse = await fetch(`http://127.0.0.1:${port}/`, {
         redirect: "manual",
       });
       assert.equal(rootResponse.status, 302);
-      assert.equal(rootResponse.headers.get("location"), "/packages/ui-web/index.html");
+      assert.equal(rootResponse.headers.get("location"), "/packages/ui-web/index_c.html");
 
-      const uiResponse = await fetch(`http://127.0.0.1:${port}/packages/ui-web/index.html`);
+      const uiResponse = await fetch(`http://127.0.0.1:${port}/packages/ui-web/index_c.html`);
       assert.equal(uiResponse.status, 200);
       assert.match(uiResponse.headers.get("content-type") || "", /text\/html/);
 
