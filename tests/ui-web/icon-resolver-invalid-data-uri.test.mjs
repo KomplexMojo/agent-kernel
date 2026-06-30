@@ -76,7 +76,7 @@ test("resolveIcon falls back to glyph when bundle has http URL instead of data U
 
     const iconEl = resolveIcon(bundle, "expressions", "push");
     assert.equal(iconEl?.tagName, "SPAN", "Should fallback to span for http URL");
-    assert.equal(iconEl?.textContent, "⬆️", "Should show push glyph");
+    assert.equal(iconEl?.textContent, "➡️", "Should show push glyph");
   }));
 
 test("resolveIconHTML falls back to glyph when bundle has empty dataUri", () => {
