@@ -45,6 +45,9 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     listResourceBundleAssetFiles,
     validateResourceBundleArtifact,
   } = await import("../../packages/runtime/src/render/resource-bundle.js");
+  const {
+    getAffinitySpriteAsset,
+  } = await import("../../packages/runtime/src/render/generated/affinity-sprite-assets.js");
 
   const bundle = createDefaultResourceBundleArtifact({
     createMeta: ({ producedBy = "test", runId = "run_resource_bundle_visual" } = {}) => ({
@@ -89,6 +92,12 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   const medallionFrame = bundle.assets.find((asset) => asset.id === "component.actor-medallion.frame");
   const medallionExpression = bundle.assets.find((asset) => asset.id === "component.actor-medallion.expression.push");
   const medallionAffinity = bundle.assets.find((asset) => asset.id === "component.actor-medallion.affinity.fire");
+  const replacedAffinityAssetIds = [
+    "overlay.affinity.fortify",
+    "overlay.affinity.dark",
+    "icon.affinity.fortify",
+    "icon.affinity.dark",
+  ];
   assert.ok(delverFire?.dataUri?.startsWith("data:image/png;base64,"));
   assert.equal(delverFire?.relativePath, "visual-assets/actors/delver-fire.png");
   assert.ok(overlayFire?.dataUri?.startsWith("data:image/png;base64,"));
@@ -109,6 +118,15 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   assert.equal(medallionExpression?.relativePath, "visual-assets/actor-medallions/components/expression-push.png");
   assert.ok(medallionAffinity?.dataUri?.startsWith("data:image/png;base64,"));
   assert.equal(medallionAffinity?.relativePath, "visual-assets/actor-medallions/components/affinity-fire.png");
+  replacedAffinityAssetIds.forEach((assetId) => {
+    const bundleAsset = bundle.assets.find((asset) => asset.id === assetId);
+    const generatedAsset = getAffinitySpriteAsset(assetId);
+    assert.ok(generatedAsset, `${assetId} should be provided by the dedicated affinity sprite bundle`);
+    assert.equal(bundleAsset?.relativePath, generatedAsset.relativePath);
+    assert.equal(bundleAsset?.dataUri, generatedAsset.dataUri);
+    assert.equal(bundleAsset?.variants?.hud?.dataUri, generatedAsset.variants.hud.dataUri);
+    assert.equal(bundleAsset?.variants?.large?.dataUri, generatedAsset.variants.large.dataUri);
+  });
 
   const files = listResourceBundleAssetFiles(bundle);
   assert.ok(files.some((file) => file.relativePath === "visual-assets/overlays/hud/affinity-fire.png"));

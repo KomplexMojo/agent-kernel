@@ -52,7 +52,7 @@ test("resolveIcon falls back to glyph when bundle has whitespace-only dataUri", 
 
     const iconEl = resolveIcon(bundle, "types", "delver");
     assert.equal(iconEl?.tagName, "SPAN", "Should fallback to span for whitespace dataUri");
-    assert.equal(iconEl?.textContent, "⚔️", "Should show delver glyph");
+    assert.equal(iconEl?.textContent, "⛏️", "Should show delver glyph");
   }));
 
 test("resolveIcon falls back to glyph when bundle has non-data-uri string", () =>
@@ -64,7 +64,7 @@ test("resolveIcon falls back to glyph when bundle has non-data-uri string", () =
 
     const iconEl = resolveIcon(bundle, "motivations", "attacking");
     assert.equal(iconEl?.tagName, "SPAN", "Should fallback to span for invalid dataUri format");
-    assert.equal(iconEl?.textContent, "⚔️", "Should show attacking glyph");
+    assert.equal(iconEl?.textContent, "💥", "Should show attacking glyph");
   }));
 
 test("resolveIcon falls back to glyph when bundle has http URL instead of data URI", () =>
@@ -97,7 +97,7 @@ test("resolveIconHTML falls back to glyph when bundle has non-data-uri string", 
   };
 
   const html = resolveIconHTML(bundle, "motivations", "defending");
-  assert.equal(html, "🛡️", "Should return defending glyph for https URL");
+  assert.equal(html, "🚧", "Should return defending glyph for https URL");
   assert.doesNotMatch(html, /<img/, "Should not return img tag");
 });
 

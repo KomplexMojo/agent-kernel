@@ -20,9 +20,9 @@ const AFFINITY_COLORS = {
   life:    0x49b96b,
   decay:   0x6f7b46,
   corrode: 0x7fbf42,
-  fortify: 0x8c6dd7,
+  fortify: 0x9ca3af,
   light:   0xf5d14d,
-  dark:    0x3a2a57,
+  dark:    0x0b0d12,
 };
 
 const DEFAULT_COLOR = 0xffffff;

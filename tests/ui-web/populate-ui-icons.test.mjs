@@ -174,8 +174,8 @@ test("populateUIIcons falls back to glyphs when bundle is missing", () =>
     assert.equal(roomIcon.children[0].className, "icon-fallback-text", "Should have fallback class");
     assert.equal(roomIcon.children[0].textContent, "🏛️", "Should show room glyph");
 
-    assert.equal(delverIcon.children[0].textContent, "⚔️", "Should show delver glyph");
-    assert.equal(wardenIcon.children[0].textContent, "🛡️", "Should show warden glyph");
+    assert.equal(delverIcon.children[0].textContent, "⛏️", "Should show delver glyph");
+    assert.equal(wardenIcon.children[0].textContent, "🗝️", "Should show warden glyph");
   }));
 
 test("populateUIIcons clears existing content before adding new icon", () =>

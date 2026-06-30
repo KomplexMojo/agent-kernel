@@ -35,6 +35,9 @@ function createFakePhaser(records = {}) {
       setScale(s) { this.scale = s; return this; },
       setPosition(x, y) { this.x = x; this.y = y; return this; },
       setVisible(v) { this.visible = v; return this; },
+      setInteractive() { this.interactive = true; return this; },
+      setScrollFactor(f) { this.scrollFactor = f; return this; },
+      on(event, handler) { (this.handlers = this.handlers || {})[event] = handler; return this; },
       destroy() { this.destroyed = true; },
     };
   }
@@ -78,6 +81,17 @@ function createFakePhaser(records = {}) {
             const node = createNode("circle", { x, y, radius: r, color, alpha });
             records.circles.push(node);
             return node;
+          },
+          graphics() {
+            return {
+              fillStyle() { return this; }, fillRect() { return this; },
+              fillRoundedRect() { return this; }, fillTriangle() { return this; },
+              fillCircle() { return this; }, strokeRoundedRect() { return this; },
+              lineStyle() { return this; }, beginPath() { return this; },
+              moveTo() { return this; }, lineTo() { return this; },
+              strokePath() { return this; }, strokeRect() { return this; },
+              clear() { return this; }, destroy() {},
+            };
           },
           text(x, y, text, style) {
             const node = createNode("text", { x, y, text, style });
