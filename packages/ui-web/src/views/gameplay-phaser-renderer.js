@@ -140,7 +140,7 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, onSelect, onHover, onHoverEnd, onKeyPress } = {}) {
+export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, onSelect, onHover, onHoverEnd, onKeyPress, onBack } = {}) {
   let container = null;
   let stageEl = null;
   let game = null;
@@ -756,16 +756,37 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
 
     currentContainer = scene.add.container(0, 0);
 
+    const tileTypeGrid = [];
     for (let y = 0; y < boardHeight; y += 1) {
       const row = String(tiles[y] || "");
+      const typeRow = [];
       for (let x = 0; x < boardWidth; x += 1) {
-        const symbol = row[x] || "X";
+        typeRow.push(tileSymbolToType(row[x] || "X"));
+      }
+      tileTypeGrid.push(typeRow);
+    }
+
+    const FLOOR_BG = 0x3a3a3a;
+    const WALL_BORDER_COLOR = 0xcccccc;
+    const WALL_BORDER_ALPHA = 0.6;
+    const WALL_BORDER_W = 2;
+
+    for (let y = 0; y < boardHeight; y += 1) {
+      for (let x = 0; x < boardWidth; x += 1) {
+        const tileType = tileTypeGrid[y][x];
         const cx = x * tileWidth + tileWidth / 2;
         const cy = y * tileHeight + tileHeight / 2;
+        const isFloor = tileType === "floor" || tileType === "spawn" || tileType === "exit";
+
+        if (isFloor) {
+          const floorBg = scene.add.rectangle(cx, cy, tileWidth, tileHeight, FLOOR_BG, 1);
+          currentContainer.add(floorBg);
+        }
+
         const tile = addSurfaceImageOrFallback(
           resourceBundle,
           "tiles",
-          tileSymbolToType(symbol),
+          tileType,
           null,
           cx,
           cy,
@@ -774,7 +795,23 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         );
         currentContainer.add(tile);
 
-        // Apply tile affinity visuals (tint, alpha, overlay) when present.
+        if (isFloor) {
+          const wallG = scene.add.graphics();
+          let hasWall = false;
+          const isWall = (ty, tx) => {
+            if (ty < 0 || ty >= boardHeight || tx < 0 || tx >= boardWidth) return true;
+            const t = tileTypeGrid[ty][tx];
+            return t === "wall" || t === "barrier" || t === "inaccessible";
+          };
+          wallG.lineStyle(WALL_BORDER_W, WALL_BORDER_COLOR, WALL_BORDER_ALPHA);
+          if (isWall(y - 1, x)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight); wallG.strokePath(); hasWall = true; }
+          if (isWall(y + 1, x)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight + tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasWall = true; }
+          if (isWall(y, x - 1)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasWall = true; }
+          if (isWall(y, x + 1)) { wallG.beginPath(); wallG.moveTo(x * tileWidth + tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasWall = true; }
+          if (hasWall) currentContainer.add(wallG);
+          else wallG.destroy();
+        }
+
         const tileVisuals = boardState?.tileVisuals;
         if (tileVisuals) {
           const tileKey = `${x},${y}`;
@@ -851,8 +888,57 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     }
 
     bindCameraInput();
+    drawBackArrow();
 
     return { ok: true };
+  }
+
+  let backArrowNodes = [];
+
+  function drawBackArrow() {
+    backArrowNodes.forEach((n) => n.destroy?.());
+    backArrowNodes = [];
+    if (!scene) return;
+
+    const SZ = 28;
+    const PAD = 8;
+    const cx = PAD + SZ / 2;
+    const cy = PAD + SZ / 2;
+
+    const bg = scene.add.graphics();
+    bg.fillStyle(0x2a3a4a, 1);
+    bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
+    bg.lineStyle(1, 0x5a7a9a, 0.8);
+    bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
+    bg.fillStyle(0x9ac8ff, 1);
+    bg.fillTriangle(cx + 5, cy - 7, cx - 7, cy, cx + 5, cy + 7);
+    bg.setScrollFactor?.(0);
+    bg.setDepth?.(1000);
+
+    const hit = scene.add.rectangle(cx, cy, SZ, SZ, 0, 0).setInteractive({ useHandCursor: true });
+    hit.setScrollFactor?.(0);
+    hit.setDepth?.(1001);
+    hit.on("pointerover", () => {
+      bg.clear();
+      bg.fillStyle(0x3a4a5a, 1);
+      bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
+      bg.lineStyle(1, 0x7a9aba, 1);
+      bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
+      bg.fillStyle(0xc8e0ff, 1);
+      bg.fillTriangle(cx + 5, cy - 7, cx - 7, cy, cx + 5, cy + 7);
+    });
+    hit.on("pointerout", () => {
+      bg.clear();
+      bg.fillStyle(0x2a3a4a, 1);
+      bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
+      bg.lineStyle(1, 0x5a7a9a, 0.8);
+      bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
+      bg.fillStyle(0x9ac8ff, 1);
+      bg.fillTriangle(cx + 5, cy - 7, cx - 7, cy, cx + 5, cy + 7);
+    });
+    hit.on("pointerdown", () => { onBack?.(); });
+
+    backArrowNodes = [bg, hit];
   }
 
   return {

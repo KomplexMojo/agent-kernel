@@ -58,11 +58,19 @@ function createFakePhaser(records = {}) {
           },
           graphics() {
             return {
+              fillStyle() { return this; },
+              fillRect() { return this; },
+              fillRoundedRect() { return this; },
+              fillTriangle() { return this; },
+              fillCircle() { return this; },
+              strokeRoundedRect() { return this; },
               lineStyle() { return this; },
               beginPath() { return this; },
               moveTo() { return this; },
               lineTo() { return this; },
               strokePath() { return this; },
+              strokeRect() { return this; },
+              clear() { return this; },
               destroy() {},
             };
           },

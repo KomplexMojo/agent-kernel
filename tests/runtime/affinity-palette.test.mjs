@@ -34,7 +34,7 @@ describe("affinity-palette", () => {
       assert.equal(AFFINITY_COLOR_HEX.fire, "#f05a28");
       assert.equal(AFFINITY_COLOR_HEX.water, "#2b7fff");
       assert.equal(AFFINITY_COLOR_HEX.light, "#f5d14d");
-      assert.equal(AFFINITY_COLOR_HEX.dark, "#3a2a57");
+      assert.equal(AFFINITY_COLOR_HEX.dark, "#6040b8");
     });
   });
 

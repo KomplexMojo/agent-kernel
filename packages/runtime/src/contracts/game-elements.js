@@ -132,16 +132,16 @@ export const GAME_MOTIVATION_DISPLAY_GROUPS = deepFreeze([
 ]);
 
 const AFFINITY_COLORS = Object.freeze({
-  fire: "#f05a28",
-  water: "#2b7fff",
-  earth: "#7a5c33",
-  wind: "#8fd3ff",
-  life: "#49b96b",
-  decay: "#6f7b46",
-  corrode: "#7fbf42",
-  fortify: "#8c6dd7",
-  light: "#f5d14d",
-  dark: "#3a2a57",
+  fire:    "#f05a28",  // red-orange
+  water:   "#2b7fff",  // vivid blue
+  earth:   "#7a5c33",  // warm brown
+  wind:    "#60d8c0",  // teal/cyan — distinct from water's blue
+  life:    "#49b96b",  // emerald green
+  decay:   "#a05828",  // amber-rust — distinct from life/corrode green family
+  corrode: "#c8c030",  // acid yellow — corrosion/chemical distinct from green family
+  fortify: "#8c6dd7",  // purple
+  light:   "#f5d14d",  // yellow
+  dark:    "#6040b8",  // indigo — visible on dark palette BG, distinct from fortify purple
 });
 
 export const GAME_COLOR_PALETTE = deepFreeze({
@@ -497,8 +497,8 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         earth: "🪨",
         wind: "🌪️",
         life: "🌿",
-        decay: "🧪",
-        corrode: "🧫",
+        decay: "🍂",
+        corrode: "⚗️",
         fortify: "🧱",
         light: "🌟",
         dark: "🌑",

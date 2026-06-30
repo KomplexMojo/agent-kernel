@@ -159,6 +159,7 @@ export function wireGameplayView({
   let currentFrameIndex = -1;
 
   const renderer = createRenderer({
+    onBack: () => requestDesignTransition(),
     onSelect: (pos) => selectEntity(pos),
     onHover: (pos) => {
       const model = resolveDisplayModel(pos);

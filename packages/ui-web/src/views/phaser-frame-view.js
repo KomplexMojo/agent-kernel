@@ -68,6 +68,9 @@ export function createPhaserFrameView({
     });
     cardRenderer.mount(cardBuilderHost);
     void cardRenderer.render();
+    const htmlTabBar = root.querySelector?.(".shell-navigation");
+    if (htmlTabBar) htmlTabBar.style.display = "none";
+    if (gameplayHost) gameplayHost.style.display = "none";
     mounted = true;
     return { ok: true };
   }

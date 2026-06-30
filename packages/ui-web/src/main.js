@@ -196,11 +196,19 @@ globalThis.__ak_loadScenario = async (scenario, options = {}) => {
 };
 
 // D3+D4: also hydrate Design/Preview from the bundle spec and honor targetTab
-globalThis.__ak_loadGameplayBundle = (bundle, { targetTab = "design" } = {}) => {
+globalThis.__ak_loadGameplayBundle = async (bundle, { targetTab = "design" } = {}) => {
   if (!loadGameplayBundle(bundle)) return false;
   // Route spec to Phaser card builder (index_c.html path)
-  if (bundle?.spec) {
-    void phaserFrame?.ingest?.(bundle.spec);
+  if (bundle?.spec && phaserFrame) {
+    await phaserFrame.ingest(bundle.spec);
+    const surface = phaserFrame.getCardBuilderSurface?.();
+    const ctrl = surface?.getController?.();
+    const cards = ctrl?.getCards?.() || [];
+    const firstActor = cards.find((c) => c.type === "delver" || c.type === "warden");
+    if (firstActor) {
+      ctrl.pullCardToEditor(firstActor.id);
+      await surface.render?.();
+    }
   }
   const ALLOWED_TABS = new Set(["design", "gameplay", "preview"]);
   openTab(ALLOWED_TABS.has(targetTab) ? targetTab : "design");
