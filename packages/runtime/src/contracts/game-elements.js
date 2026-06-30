@@ -139,9 +139,9 @@ const AFFINITY_COLORS = Object.freeze({
   life:    "#49b96b",  // emerald green
   decay:   "#a05828",  // amber-rust — distinct from life/corrode green family
   corrode: "#c8c030",  // acid yellow — corrosion/chemical distinct from green family
-  fortify: "#8c6dd7",  // purple
+  fortify: "#9ca3af",  // neutral ward-steel — distinct from water blue
   light:   "#f5d14d",  // yellow
-  dark:    "#6040b8",  // indigo — visible on dark palette BG, distinct from fortify purple
+  dark:    "#0b0d12",  // near-black moon base with light sprite highlights
 });
 
 export const GAME_COLOR_PALETTE = deepFreeze({
@@ -434,7 +434,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
     element({
       group: "types",
       key: "delver",
-      unicodeIcon: "⚔️",
+      unicodeIcon: "⛏️",
       defaultColor: TYPE_COLORS.delver,
       assetId: "icon.type.delver",
       assetKind: "icon",
@@ -452,7 +452,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
     element({
       group: "types",
       key: "warden",
-      unicodeIcon: "🛡️",
+      unicodeIcon: "🗝️",
       defaultColor: TYPE_COLORS.warden,
       assetId: "icon.type.warden",
       assetKind: "icon",
@@ -574,11 +574,11 @@ const GAME_ELEMENT_VISUALS_VALUE = {
       label: `${titleLabel(kind)} Motivation`,
       unicodeIcon: {
         random: "🎲",
-        stationary: "🧱",
+        stationary: "⏸️",
         exploring: "🧭",
         patrolling: "👣",
-        attacking: "⚔️",
-        defending: "🛡️",
+        attacking: "💥",
+        defending: "🚧",
         stealthy: "🥷",
         friendly: "🤝",
         reflexive: "⚡",
@@ -617,7 +617,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         mana: "🔷",
         stamina: "🏃",
         durability: "⛓️",
-        defence: "🛡️",
+        defence: "🪖",
       }[kind],
       defaultColor: VITAL_COLORS[kind],
       assetId: `icon.vital.${kind}`,

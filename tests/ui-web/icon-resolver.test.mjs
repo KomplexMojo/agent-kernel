@@ -46,10 +46,11 @@ const EXPECTED_AFFINITY_GLYPHS = Object.freeze({
 
 const EXPECTED_TYPE_GLYPHS = Object.freeze({
   room: "🏛️",
-  delver: "⚔️",
+  delver: "⛏️",
   attacker: "⚔️",
-  warden: "🛡️",
+  warden: "🗝️",
   defender: "🛡️",
+  hazard: "☠️",
   untyped: "◻️",
 });
 
@@ -62,23 +63,24 @@ const EXPECTED_EXPRESSION_GLYPHS = Object.freeze({
 
 const EXPECTED_MOTIVATION_GLYPHS = Object.freeze({
   random: "🎲",
-  stationary: "🧱",
+  stationary: "⏸️",
   exploring: "🧭",
-  attacking: "⚔️",
-  defending: "🛡️",
+  attacking: "💥",
+  defending: "🚧",
   stealthy: "🥷",
   friendly: "🤝",
   patrolling: "👣",
   reflexive: "⚡",
   goal_oriented: "🎯",
   strategy_focused: "♟️",
+  user_controlled: "🕹️",
 });
 
 const EXPECTED_VITAL_GLYPHS = Object.freeze({
   health: "❤️",
   mana: "🔷",
   stamina: "🏃",
-  defence: "🛡️",
+  defence: "🪖",
   durability: "⛓️",
 });
 
@@ -166,7 +168,7 @@ test("resolveIcon creates fallback span element with appropriate glyph for types
     const iconEl = resolveIcon(null, "types", "delver");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "⚔️");
+    assert.equal(iconEl?.textContent, "⛏️");
   }));
 
 test("resolveIcon creates fallback span element with appropriate glyph for affinities", () =>
@@ -284,7 +286,7 @@ test("resolveIcon creates fallback span element with appropriate glyph for types
     const iconEl = resolveIcon(null, "types", "delver");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "⚔️");
+    assert.equal(iconEl?.textContent, "⛏️");
   }));
 
 test("resolveIcon creates fallback span element with appropriate glyph for affinities", () =>

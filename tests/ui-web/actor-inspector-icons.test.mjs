@@ -229,7 +229,7 @@ test("actor inspector falls back to glyphs when bundle is missing", () =>
     // Motivation chip should have glyph fallback
     const motivationChip = chips.find((chip) => chip.className?.includes("is-motivation"));
     assert.ok(motivationChip, "Should have motivation chip");
-    assert.equal(motivationChip.innerHTML, "⚔️", "Motivation chip should show attacking glyph");
+    assert.equal(motivationChip.innerHTML, "💥", "Motivation chip should show attacking glyph");
   }));
 
 test("actor inspector detail panel renders bundle images", () =>
@@ -388,5 +388,5 @@ test("actor inspector detail panel falls back to legacy glyphs without bundle", 
 
     assert.ok(motivationChips.length >= 2, "Should have motivation chips");
     assert.equal(motivationChips[0]?.innerHTML, "🧭", "Exploring motivation should use legacy glyph");
-    assert.equal(motivationChips[1]?.innerHTML, "⚔️", "Attacking motivation should use legacy glyph");
+    assert.equal(motivationChips[1]?.innerHTML, "💥", "Attacking motivation should use legacy glyph");
   }));
