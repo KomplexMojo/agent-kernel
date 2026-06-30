@@ -55,9 +55,9 @@ const EXPECTED_TYPE_GLYPHS = Object.freeze({
 });
 
 const EXPECTED_EXPRESSION_GLYPHS = Object.freeze({
-  push: "⬆️",
-  pull: "⬇️",
-  emit: "📡",
+  push: "➡️",
+  pull: "⬅️",
+  emit: "✴️",
   draw: "🧲",
 });
 

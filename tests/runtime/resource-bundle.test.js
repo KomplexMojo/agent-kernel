@@ -48,6 +48,9 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
   const {
     getAffinitySpriteAsset,
   } = await import("../../packages/runtime/src/render/generated/affinity-sprite-assets.js");
+  const {
+    getGameSpriteAsset,
+  } = await import("../../packages/runtime/src/render/generated/game-sprite-assets.js");
 
   const bundle = createDefaultResourceBundleArtifact({
     createMeta: ({ producedBy = "test", runId = "run_resource_bundle_visual" } = {}) => ({
@@ -98,6 +101,16 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     "icon.affinity.fortify",
     "icon.affinity.dark",
   ];
+  const expressionAssetIds = [
+    "overlay.expression.push",
+    "overlay.expression.pull",
+    "overlay.expression.emit",
+    "overlay.expression.draw",
+    "icon.expression.push",
+    "icon.expression.pull",
+    "icon.expression.emit",
+    "icon.expression.draw",
+  ];
   assert.ok(delverFire?.dataUri?.startsWith("data:image/png;base64,"));
   assert.equal(delverFire?.relativePath, "visual-assets/actors/delver-fire.png");
   assert.ok(overlayFire?.dataUri?.startsWith("data:image/png;base64,"));
@@ -122,6 +135,15 @@ test("resource bundle visual-assets mode emits v2 mappings and inline asset payl
     const bundleAsset = bundle.assets.find((asset) => asset.id === assetId);
     const generatedAsset = getAffinitySpriteAsset(assetId);
     assert.ok(generatedAsset, `${assetId} should be provided by the dedicated affinity sprite bundle`);
+    assert.equal(bundleAsset?.relativePath, generatedAsset.relativePath);
+    assert.equal(bundleAsset?.dataUri, generatedAsset.dataUri);
+    assert.equal(bundleAsset?.variants?.hud?.dataUri, generatedAsset.variants.hud.dataUri);
+    assert.equal(bundleAsset?.variants?.large?.dataUri, generatedAsset.variants.large.dataUri);
+  });
+  expressionAssetIds.forEach((assetId) => {
+    const bundleAsset = bundle.assets.find((asset) => asset.id === assetId);
+    const generatedAsset = getGameSpriteAsset(assetId);
+    assert.ok(generatedAsset, `${assetId} should be provided by the generated game sprite bundle`);
     assert.equal(bundleAsset?.relativePath, generatedAsset.relativePath);
     assert.equal(bundleAsset?.dataUri, generatedAsset.dataUri);
     assert.equal(bundleAsset?.variants?.hud?.dataUri, generatedAsset.variants.hud.dataUri);

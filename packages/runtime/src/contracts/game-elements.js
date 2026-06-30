@@ -183,10 +183,10 @@ export const GAME_COLOR_PALETTE = deepFreeze({
     tier3: "#e0c060",
   },
   expressions: {
-    push: "#d56f3e",
-    pull: "#4f9ac6",
-    emit: "#d9bc4f",
-    draw: "#9b6fd3",
+    push: "#22d3ee",
+    pull: "#06b6d4",
+    emit: "#a5f3fc",
+    draw: "#67e8f9",
   },
   motivations: {
     random: "#9a948e",
@@ -549,9 +549,9 @@ const GAME_ELEMENT_VISUALS_VALUE = {
       key: kind,
       label: `${titleLabel(kind)} Expression`,
       unicodeIcon: {
-        push: "⬆️",
-        pull: "⬇️",
-        emit: "📡",
+        push: "➡️",
+        pull: "⬅️",
+        emit: "✴️",
         draw: "🧲",
       }[kind],
       defaultColor: {

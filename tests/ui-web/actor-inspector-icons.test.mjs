@@ -366,7 +366,7 @@ test("actor inspector detail panel falls back to legacy glyphs without bundle", 
     assert.equal(fireAffinity?.innerHTML, "🔥", "Fire affinity should use legacy glyph");
 
     const pushExpression = firePushChips.find((chip) => chip.className?.includes("is-expression"));
-    assert.equal(pushExpression?.innerHTML, "⬆️", "Push expression should use legacy glyph");
+    assert.equal(pushExpression?.innerHTML, "➡️", "Push expression should use fallback glyph");
 
     // Check water:pull row
     const waterPullRow = affinityRows[1];
@@ -378,7 +378,7 @@ test("actor inspector detail panel falls back to legacy glyphs without bundle", 
     assert.equal(waterAffinity?.innerHTML, "💧", "Water affinity should use legacy glyph");
 
     const pullExpression = waterPullChips.find((chip) => chip.className?.includes("is-expression"));
-    assert.equal(pullExpression?.innerHTML, "⬇️", "Pull expression should use legacy glyph");
+    assert.equal(pullExpression?.innerHTML, "⬅️", "Pull expression should use fallback glyph");
 
     // Check motivation chips in traits section
     const traits = card?.children.find((child) => child.className?.includes("design-card-traits"));
