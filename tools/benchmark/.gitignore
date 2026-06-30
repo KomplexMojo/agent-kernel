@@ -1,0 +1,4 @@
+# Generated benchmark output (reproducible via `pnpm benchmark:mcp:generate`).
+# The harness (generator + validator + README) is tracked; the bulky generated
+# notes + Reference Artifacts + Validation results are not.
+out/
