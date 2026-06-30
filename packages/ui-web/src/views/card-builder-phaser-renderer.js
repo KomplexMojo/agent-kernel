@@ -17,8 +17,12 @@ export const CARD_BUILDER_UI_INTENTS = Object.freeze([
 
 const UI_INTENT_SET = new Set(CARD_BUILDER_UI_INTENTS);
 
-const DEFAULT_WIDTH = 800;
-const DEFAULT_HEIGHT = 520;
+// Fixed design resolution — all layout math is in these coordinates.
+// Phaser CSS-scales the canvas into its container via FIT mode.
+const DESIGN_WIDTH  = 1440;
+const DESIGN_HEIGHT = 860;
+const DEFAULT_WIDTH  = DESIGN_WIDTH;
+const DEFAULT_HEIGHT = DESIGN_HEIGHT;
 const TAB_BAR_H = 40;
 const STATUS_BAR_H = 28;
 const GAP = 6;
@@ -1403,18 +1407,15 @@ export function createCardBuilderPhaserRenderer({
       const Phaser = await loadPhaser();
       if (!Phaser || typeof Phaser.Game !== "function") return;
 
-      const w = container?.clientWidth || DEFAULT_WIDTH;
-      const h = container?.clientHeight || DEFAULT_HEIGHT;
-
       await new Promise((resolve) => {
         game = new Phaser.Game({
           type: Phaser.AUTO,
           parent: stageEl,
-          width: w,
-          height: h || DEFAULT_HEIGHT,
+          width: DESIGN_WIDTH,
+          height: DESIGN_HEIGHT,
           backgroundColor: "#0d1018",
           scale: {
-            mode: Phaser.Scale?.RESIZE ?? Phaser.Scale?.NONE ?? 0,
+            mode: Phaser.Scale?.FIT ?? Phaser.Scale?.NONE ?? 0,
             autoCenter: Phaser.Scale?.CENTER_BOTH ?? 0,
           },
           scene: {
