@@ -661,11 +661,11 @@ export function createCardBuilderPhaserRenderer({
     const kinds = Object.keys(byKind);
     if (kinds.length === 0) return startRow;
 
-    const ROW_H = 30;
+    const ROW_H = 36;
     const ROW_GAP = 4;
-    const AFF_ICON_SZ = 18;
-    const EXPR_ICON_SZ = 13;
-    const BTN_W = 12;
+    const AFF_ICON_SZ = 24;
+    const EXPR_ICON_SZ = 18;
+    const BTN_W = 14;
     const PAD = 6;
     const REMOVE_W = 16;
 

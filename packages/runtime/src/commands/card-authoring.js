@@ -985,7 +985,16 @@ function adjustAffinityStack(card, affinityKind, delta = 0, expressionValue = un
       })
       .filter(Boolean),
   );
-  if (!updated) return working;
+  if (!updated) {
+    if (amount > 0 && targetExpression) {
+      working.affinities = stableSortAffinities([
+        ...working.affinities,
+        { kind: targetKind, expression: targetExpression, stacks: 1 },
+      ]);
+    } else {
+      return working;
+    }
+  }
   working.affinity = working.affinities.find((entry) => entry.kind === targetKind)?.kind
     || working.affinities[0]?.kind
     || normalizeAffinity(working.affinity, DEFAULT_DUNGEON_AFFINITY);
