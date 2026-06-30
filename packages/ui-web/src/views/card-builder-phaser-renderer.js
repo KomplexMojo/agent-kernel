@@ -647,97 +647,156 @@ export function createCardBuilderPhaserRenderer({
     const affinities = Array.isArray(activeCard?.affinities) ? activeCard.affinities : [];
     if (affinities.length === 0) return startRow;
 
-    const ROW_H = 26;
-    const ROW_GAP = 3;
-    const ICON_SZ = 20;
-    const BTN_SZ = 14;
+    // Group entries by kind → { expr: stacks }
+    const byKind = {};
+    affinities.forEach(({ kind, expression, stacks }) => {
+      if (!byKind[kind]) {
+        byKind[kind] = { push: 0, pull: 0, emit: 0, draw: 0 };
+      }
+      if (expression && expression in byKind[kind]) {
+        byKind[kind][expression] = stacks || 0;
+      }
+    });
+
+    const kinds = Object.keys(byKind);
+    if (kinds.length === 0) return startRow;
+
+    const ROW_H = 30;
+    const ROW_GAP = 4;
+    const AFF_ICON_SZ = 18;
+    const EXPR_ICON_SZ = 13;
+    const BTN_W = 12;
     const PAD = 6;
+    const REMOVE_W = 16;
 
     function hexToNum(hex) {
       return parseInt((hex || "#888888").replace("#", ""), 16);
     }
 
+    function drawIcon(x, y, html, size, alpha) {
+      if (!html) return;
+      if (html.startsWith("<img")) {
+        drawIconAt(x, y, html, size, { alpha });
+      } else {
+        addObj(scene.add.text(x + size / 2, y + size / 2, html, {
+          fontSize: `${size}px`,
+        }).setOrigin(0.5, 0.5).setAlpha(alpha));
+      }
+    }
+
     let row = startRow + PAD;
 
-    affinities.forEach((entry) => {
-      const { kind, expression, stacks } = entry;
+    kinds.forEach((kind) => {
+      const stackMap = byKind[kind];
       const colHex = GAME_AFFINITY_COLOR_HEX[kind] || "#6688aa";
       const colNum = hexToNum(colHex);
       const chipX = editorX;
       const chipW = editorW;
       const cy = row + ROW_H / 2;
 
+      // Row background
       const bg = addObj(scene.add.graphics());
-      bg.fillStyle(colNum, 0.12);
+      bg.fillStyle(colNum, 0.10);
       bg.fillRoundedRect(chipX, row, chipW, ROW_H, 4);
-      bg.lineStyle(1, colNum, 0.35);
+      bg.lineStyle(1, colNum, 0.30);
       bg.strokeRoundedRect(chipX, row, chipW, ROW_H, 4);
 
-      let cx = chipX + 4;
-
+      // Affinity icon (no text label)
+      let cx = chipX + 5;
       const affIconHtml = resolveIconHTML(rendererBundle, "affinities", kind);
-      const affDrawn = drawIconAt(cx, row + (ROW_H - ICON_SZ) / 2, affIconHtml, ICON_SZ);
-      cx += ICON_SZ + 4;
+      drawIcon(cx, row + (ROW_H - AFF_ICON_SZ) / 2, affIconHtml, AFF_ICON_SZ, 1.0);
+      cx += AFF_ICON_SZ + 4;
 
-      addObj(scene.add.text(cx, cy, kind, { fontSize: "11px", color: "#e0e0e0" }).setOrigin(0, 0.5));
-      cx += kind.length * 7 + 6;
+      // Vertical separator
+      const sepG = addObj(scene.add.graphics());
+      sepG.lineStyle(1, colNum, 0.4);
+      sepG.beginPath();
+      sepG.moveTo(cx, row + 4);
+      sepG.lineTo(cx, row + ROW_H - 4);
+      sepG.strokePath();
+      cx += 6;
 
-      addObj(scene.add.text(cx, cy, "+", { fontSize: "10px", color: "#888888" }).setOrigin(0, 0.5));
-      cx += 12;
-
-      const exprStartX = cx;
-      const exprIconHtml = resolveIconHTML(rendererBundle, "expressions", expression);
-      drawIconAt(cx, row + (ROW_H - (ICON_SZ - 4)) / 2, exprIconHtml, ICON_SZ - 4);
-      cx += ICON_SZ;
-
-      const exprTxt = addObj(scene.add.text(cx, cy, expression, { fontSize: "11px", color: "#e0e0e0" }).setOrigin(0, 0.5));
-      const exprHitW = (cx - exprStartX) + expression.length * 7 + 8;
-      const exprHit = addObj(
-        scene.add.rectangle(exprStartX + exprHitW / 2, cy, exprHitW, ROW_H, 0, 0).setInteractive({ useHandCursor: true }),
+      // × remove button (far right, placed first so we know available width)
+      const removeX = chipX + chipW - REMOVE_W - 3;
+      const removeTxt = addObj(
+        scene.add.text(removeX + REMOVE_W / 2, cy, "×", { fontSize: "13px", color: "#ff6666" }).setOrigin(0.5, 0.5),
       );
-      exprHit.on("pointerover", () => exprTxt.setStyle({ color: COLOR_HOVER }));
-      exprHit.on("pointerout", () => exprTxt.setStyle({ color: "#e0e0e0" }));
-      exprHit.on("pointerdown", () => {
-        const id = controller.getActiveCard()?.id;
-        if (id) { controller.cycleAffinityExpression?.(id, kind); void render(); }
-      });
-
-      const rightEdge = chipX + chipW - 4;
-
-      const removeTxt = addObj(scene.add.text(rightEdge, cy, "×", { fontSize: "12px", color: "#ff6666" }).setOrigin(1, 0.5));
-      const removeHit = addObj(scene.add.rectangle(rightEdge - 6, cy, BTN_SZ, BTN_SZ, 0, 0).setInteractive({ useHandCursor: true }));
+      const removeHit = addObj(
+        scene.add.rectangle(removeX + REMOVE_W / 2, cy, REMOVE_W, ROW_H - 4, 0, 0).setInteractive({ useHandCursor: true }),
+      );
       removeHit.on("pointerover", () => removeTxt.setStyle({ color: "#ff9999" }));
-      removeHit.on("pointerout", () => removeTxt.setStyle({ color: "#ff6666" }));
+      removeHit.on("pointerout",  () => removeTxt.setStyle({ color: "#ff6666" }));
       removeHit.on("pointerdown", () => {
         const id = controller.getActiveCard()?.id;
         if (id) { applyIntent({ kind: "drop_chip", cardId: id, property: { group: "affinities", value: kind } }); void render(); }
       });
 
-      const plusX = rightEdge - BTN_SZ - 8;
-      const plusTxt = addObj(scene.add.text(plusX, cy, "+", { fontSize: "12px", color: colHex }).setOrigin(0.5, 0.5));
-      const plusHit = addObj(scene.add.rectangle(plusX, cy, BTN_SZ, BTN_SZ, 0, 0).setInteractive({ useHandCursor: true }));
-      plusHit.on("pointerover", () => plusTxt.setStyle({ color: COLOR_HOVER }));
-      plusHit.on("pointerout", () => plusTxt.setStyle({ color: colHex }));
-      plusHit.on("pointerdown", () => {
-        const id = controller.getActiveCard()?.id;
-        if (id) { controller.adjustAffinityStack?.(id, kind, 1, expression); void render(); }
+      // 4 expression cells distributed across remaining space
+      const availW = removeX - cx - 2;
+      const cellW  = Math.floor(availW / 4);
+
+      GAME_AFFINITY_EXPRESSIONS.forEach((expr, idx) => {
+        const stacks = stackMap[expr] || 0;
+        const active = stacks > 0;
+        const cellX  = cx + idx * cellW;
+        const cellCx = cellX + cellW / 2;
+
+        // Active cell highlight
+        if (active) {
+          const cellBg = addObj(scene.add.graphics());
+          cellBg.fillStyle(colNum, 0.22);
+          cellBg.fillRoundedRect(cellX + 1, row + 2, cellW - 2, ROW_H - 4, 3);
+        }
+
+        // − button
+        const minusCx = cellX + BTN_W / 2 + 1;
+        const minusTxt = addObj(
+          scene.add.text(minusCx, cy, "−", { fontSize: "13px", color: active ? colHex : "#3a4a5a" }).setOrigin(0.5, 0.5),
+        );
+        const minusHit = addObj(
+          scene.add.rectangle(minusCx, cy, BTN_W, ROW_H - 2, 0, 0).setInteractive({ useHandCursor: true }),
+        );
+        minusHit.on("pointerover", () => minusTxt.setStyle({ color: active ? COLOR_HOVER : "#5a6a7a" }));
+        minusHit.on("pointerout",  () => minusTxt.setStyle({ color: active ? colHex : "#3a4a5a" }));
+        minusHit.on("pointerdown", () => {
+          const id = controller.getActiveCard()?.id;
+          if (id) { controller.adjustAffinityStack?.(id, kind, -1, expr); void render(); }
+        });
+
+        // Expression icon
+        const iconX = cellX + BTN_W + 2;
+        const iconY = row + (ROW_H - EXPR_ICON_SZ) / 2;
+        const exprIconHtml = resolveIconHTML(rendererBundle, "expressions", expr);
+        drawIcon(iconX, iconY, exprIconHtml, EXPR_ICON_SZ, active ? 1.0 : 0.22);
+
+        // Stack count (only when active)
+        const countX = iconX + EXPR_ICON_SZ + 1;
+        if (active) {
+          addObj(
+            scene.add.text(countX, cy, String(stacks), { fontSize: "10px", color: colHex, fontStyle: "bold" }).setOrigin(0, 0.5),
+          );
+        }
+
+        // + button
+        const plusCx = cellX + cellW - BTN_W / 2 - 1;
+        const plusTxt = addObj(
+          scene.add.text(plusCx, cy, "+", { fontSize: "13px", color: active ? colHex : "#4a5a6a" }).setOrigin(0.5, 0.5),
+        );
+        const plusHit = addObj(
+          scene.add.rectangle(plusCx, cy, BTN_W, ROW_H - 2, 0, 0).setInteractive({ useHandCursor: true }),
+        );
+        plusHit.on("pointerover", () => plusTxt.setStyle({ color: COLOR_HOVER }));
+        plusHit.on("pointerout",  () => plusTxt.setStyle({ color: active ? colHex : "#4a5a6a" }));
+        plusHit.on("pointerdown", () => {
+          const id = controller.getActiveCard()?.id;
+          if (id) { controller.adjustAffinityStack?.(id, kind, 1, expr); void render(); }
+        });
       });
 
-      const minusX = plusX - BTN_SZ - 4;
-      const minusTxt = addObj(scene.add.text(minusX, cy, "−", { fontSize: "12px", color: colHex }).setOrigin(0.5, 0.5));
-      const minusHit = addObj(scene.add.rectangle(minusX, cy, BTN_SZ, BTN_SZ, 0, 0).setInteractive({ useHandCursor: true }));
-      minusHit.on("pointerover", () => minusTxt.setStyle({ color: COLOR_HOVER }));
-      minusHit.on("pointerout", () => minusTxt.setStyle({ color: colHex }));
-      minusHit.on("pointerdown", () => {
-        const id = controller.getActiveCard()?.id;
-        if (id) { controller.adjustAffinityStack?.(id, kind, -1, expression); void render(); }
+      chipRegistry.push({
+        label: kind, zone: "editor", group: "affinities", role: "affinity_row",
+        value: kind, x: chipX, y: row, width: chipW, height: ROW_H,
       });
-
-      const countX = minusX - 8;
-      addObj(scene.add.text(countX, cy, `×${stacks}`, { fontSize: "12px", color: "#ffffff", fontStyle: "bold" }).setOrigin(1, 0.5));
-
-      chipRegistry.push({ label: `${kind}:${expression}`, zone: "editor", group: "affinities", role: "affinity_stack",
-        value: `${kind}:${expression}`, x: chipX, y: row, width: chipW, height: ROW_H });
 
       row += ROW_H + ROW_GAP;
     });
@@ -1208,32 +1267,6 @@ export function createCardBuilderPhaserRenderer({
         });
 
         row += MOTIVATION_CHIP_H + 4;
-      });
-      row += 4;
-    }
-
-    const EXPRESSION_ICON_SIZE = 20;
-    const expressions = Array.isArray(activeCard?.expressions) ? activeCard.expressions : [];
-    if (expressions.length > 0) {
-      row = drawSectionBand(editorX, row, editorW, "EXPRESSIONS");
-      row += 4;
-      expressions.forEach((expr) => {
-        const exprIconHtml = resolveIconHTML(rendererBundle, "expressions", expr);
-        const exprIconResult = drawIconAt(editorX, row, exprIconHtml, EXPRESSION_ICON_SIZE);
-        const textX = exprIconResult.drawn ? editorX + EXPRESSION_ICON_SIZE + 4 : editorX;
-        const label = exprIconResult.drawn ? expr : `${exprIconHtml} ${expr}`;
-        const textY = exprIconResult.drawn ? row + (EXPRESSION_ICON_SIZE - 16) / 2 : row;
-        drawEditorChip(textX, textY, label, {
-          group: "expressions",
-          value: expr,
-          color: COLOR_EXPRESSION,
-          interactive: true,
-          onDown: () => {
-            const freshId = controller.getActiveCard().id;
-            applyIntent({ kind: "drop_chip", cardId: freshId, property: { group: "expressions", value: expr } });
-          },
-        });
-        row += EXPRESSION_ICON_SIZE + 4;
       });
       row += 4;
     }
