@@ -10,101 +10,67 @@ function makeRoot() {
 
 const MINIMAL_BUNDLE = { artifacts: [] };
 
-async function withConfirm(returnValue, fn) {
-  const original = globalThis.confirm;
-  const calls = [];
-  globalThis.confirm = (message) => {
-    calls.push(message);
-    return returnValue;
-  };
-  try {
-    await fn(calls);
-  } finally {
-    globalThis.confirm = original;
-  }
-}
+// The gameplay view is read-only — nothing on it is ever edited, so there is
+// no "unsaved changes" to confirm discarding. requestDesignTransition (the
+// back-arrow handler) must navigate back immediately, every time, without
+// prompting.
 
 test("requestDesignTransition with no active run calls onDiscardToDesign without prompting", () => {
   let discarded = false;
-  withConfirm(false, (confirmCalls) => {
+  let confirmCalled = false;
+  const originalConfirm = globalThis.confirm;
+  globalThis.confirm = () => { confirmCalled = true; return false; };
+  try {
     const view = wireGameplayView({
       root: makeRoot(),
       onDiscardToDesign: () => { discarded = true; },
     });
     view.requestDesignTransition();
-    assert.equal(confirmCalls.length, 0, "confirm must not be called when no run is active");
+    assert.equal(confirmCalled, false, "confirm must never be called");
     assert.equal(discarded, true, "onDiscardToDesign must be called immediately when no run is active");
-  });
+  } finally {
+    globalThis.confirm = originalConfirm;
+  }
 });
 
-test("requestDesignTransition with active run prompts the user before discarding", async () => {
-  await withConfirm(true, async (confirmCalls) => {
-    const view = wireGameplayView({ root: makeRoot() });
-    await view.loadRun(MINIMAL_BUNDLE);
-    view.requestDesignTransition();
-    assert.equal(confirmCalls.length, 1, "confirm must be called exactly once");
-    assert.ok(
-      confirmCalls[0].includes("Discard"),
-      `confirm message must mention discard, got: "${confirmCalls[0]}"`,
-    );
-  });
-});
-
-test("requestDesignTransition confirm prompt uses the exact required message text", async () => {
-  await withConfirm(true, async (confirmCalls) => {
-    const view = wireGameplayView({ root: makeRoot() });
-    await view.loadRun(MINIMAL_BUNDLE);
-    view.requestDesignTransition();
-    assert.equal(
-      confirmCalls[0],
-      "Discard current run and return to design?",
-    );
-  });
-});
-
-test("requestDesignTransition confirmed: calls onDiscardToDesign and clears run state", async () => {
-  let discarded = false;
-  await withConfirm(true, async () => {
+test("requestDesignTransition with active run navigates back immediately without prompting", async () => {
+  let confirmCalled = false;
+  const originalConfirm = globalThis.confirm;
+  globalThis.confirm = () => { confirmCalled = true; return false; };
+  try {
+    let discarded = false;
     const view = wireGameplayView({
       root: makeRoot(),
       onDiscardToDesign: () => { discarded = true; },
     });
     await view.loadRun(MINIMAL_BUNDLE);
     view.requestDesignTransition();
-    assert.equal(discarded, true, "onDiscardToDesign must be called on confirm");
-    assert.equal(view.isRunActive(), false, "run must be deactivated after confirmed discard");
-  });
+    assert.equal(confirmCalled, false, "confirm must never be called, even with an active run");
+    assert.equal(discarded, true, "onDiscardToDesign must be called immediately");
+    assert.equal(view.isRunActive(), false, "run must be cleared on transition");
+  } finally {
+    globalThis.confirm = originalConfirm;
+  }
 });
 
-test("requestDesignTransition cancelled: does not call onDiscardToDesign and preserves run state", async () => {
-  let discarded = false;
-  await withConfirm(false, async () => {
-    const view = wireGameplayView({
-      root: makeRoot(),
-      onDiscardToDesign: () => { discarded = true; },
-    });
-    await view.loadRun(MINIMAL_BUNDLE);
-    view.requestDesignTransition();
-    assert.equal(discarded, false, "onDiscardToDesign must not be called when cancelled");
-    assert.equal(view.isRunActive(), true, "run must remain active when discard is cancelled");
+test("requestDesignTransition fires onDiscardToDesign on every call while a run is active", async () => {
+  let calls = 0;
+  const view = wireGameplayView({
+    root: makeRoot(),
+    onDiscardToDesign: () => { calls += 1; },
   });
-});
-
-test("requestDesignTransition fires the prompt on every call while run is active", async () => {
-  await withConfirm(false, async (confirmCalls) => {
-    const view = wireGameplayView({ root: makeRoot() });
-    await view.loadRun(MINIMAL_BUNDLE);
-    view.requestDesignTransition();
-    view.requestDesignTransition();
-    assert.equal(confirmCalls.length, 2, "confirm must fire every time Design is requested");
-  });
+  await view.loadRun(MINIMAL_BUNDLE);
+  view.requestDesignTransition();
+  await view.loadRun(MINIMAL_BUNDLE);
+  view.requestDesignTransition();
+  assert.equal(calls, 2, "onDiscardToDesign must fire every time Design is requested");
 });
 
 /*
 ## TODO: Test Permutations
-- requestDesignTransition with active run and onDiscardToDesign undefined does not throw on confirm
-- requestDesignTransition after clear does not prompt (run is no longer active)
-- requestDesignTransition confirm clears renderer state without throwing
-- requestDesignTransition confirm clears selected entity
-- requestDesignTransition confirm clears tick position back to initial state
+- requestDesignTransition with active run and onDiscardToDesign undefined does not throw
+- requestDesignTransition after clear does not throw (run is no longer active)
+- requestDesignTransition clears renderer state without throwing
+- requestDesignTransition clears selected entity
+- requestDesignTransition clears tick position back to initial state
 */

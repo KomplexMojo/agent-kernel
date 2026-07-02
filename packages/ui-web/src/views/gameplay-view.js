@@ -159,7 +159,6 @@ export function wireGameplayView({
   let currentFrameIndex = -1;
 
   const renderer = createRenderer({
-    onBack: () => requestDesignTransition(),
     onSelect: (pos) => selectEntity(pos),
     onHover: (pos) => {
       const model = resolveDisplayModel(pos);
@@ -319,15 +318,10 @@ export function wireGameplayView({
   }
 
   function requestDesignTransition() {
-    if (!isRunActive()) {
-      onDiscardToDesign?.();
-      return;
-    }
-    const confirmed = globalThis.confirm("Discard current run and return to design?");
-    if (confirmed) {
-      clear();
-      onDiscardToDesign?.();
-    }
+    // The gameplay view is read-only — nothing here is ever edited, so
+    // there's no "unsaved changes" to confirm discarding. Just go back.
+    if (isRunActive()) clear();
+    onDiscardToDesign?.();
   }
 
   function dispose() {

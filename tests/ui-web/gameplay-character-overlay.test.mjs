@@ -77,6 +77,11 @@ function createFakePhaser(records = {}) {
             records.rectangles.push(node);
             return node;
           },
+          zone(x, y, w, h) {
+            const node = createNode("zone", { x, y, width: w, height: h });
+            records.rectangles.push(node);
+            return node;
+          },
           circle(x, y, r, color, alpha) {
             const node = createNode("circle", { x, y, radius: r, color, alpha });
             records.circles.push(node);

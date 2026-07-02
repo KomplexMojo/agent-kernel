@@ -46,6 +46,11 @@ function createFakePhaser(records = {}) {
             records.rectangles.push(r);
             return r;
           },
+          zone(x, y, w, h) {
+            const z = node("zone", { x, y, width: w, height: h });
+            records.rectangles.push(z);
+            return z;
+          },
           text(x, y, text, style) {
             const t = node("text", { x, y, text, style });
             records.texts.push(t);

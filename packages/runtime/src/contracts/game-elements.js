@@ -52,6 +52,7 @@ function element({
   label = titleLabel(key),
   unicodeIcon,
   defaultColor,
+  textColor = defaultColor,
   description,
   assetId,
   assetKind,
@@ -73,6 +74,7 @@ function element({
     legacyAssetId,
     iconAssetId,
     defaultColor,
+    textColor,
     description,
     imageResource: {
       assetId: resolvedAssetId,
@@ -142,6 +144,11 @@ const AFFINITY_COLORS = Object.freeze({
   fortify: "#9ca3af",  // neutral ward-steel — distinct from water blue
   light:   "#f5d14d",  // yellow
   dark:    "#0b0d12",  // near-black moon base with light sprite highlights
+});
+
+const AFFINITY_TEXT_COLORS = Object.freeze({
+  ...AFFINITY_COLORS,
+  dark: "#ffffff",  // legible against the near-black dark affinity background
 });
 
 export const GAME_COLOR_PALETTE = deepFreeze({
@@ -240,7 +247,7 @@ const ACTOR_MEDALLION_COMPONENT_VISUALS = [
   },
   ...["delver", "warden"].map((role) => ({
     key: `actor-${role}`,
-    unicodeIcon: role === "warden" ? "△" : "○",
+    unicodeIcon: role === "warden" ? "◆" : "○",
     defaultColor: GAME_COLOR_PALETTE.actors[role],
     description: `Actor medallion ${titleLabel(role)} center symbol component.`,
     assetId: `component.actor-medallion.actor.${role}`,
@@ -365,7 +372,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
     element({
       group: "actors",
       key: "warden",
-      unicodeIcon: "△",
+      unicodeIcon: "◆",
       defaultColor: GAME_COLOR_PALETTE.actors.warden,
       assetId: "actor.warden",
       assetKind: "actor",
@@ -414,7 +421,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
     element({
       group: "cards",
       key: "warden",
-      unicodeIcon: "△",
+      unicodeIcon: "◆",
       defaultColor: GAME_COLOR_PALETTE.cards.warden,
       assetId: "card.warden",
       assetKind: "card",
@@ -504,6 +511,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         dark: "🌑",
       }[kind],
       defaultColor: AFFINITY_COLORS[kind],
+      textColor: AFFINITY_TEXT_COLORS[kind],
       assetId: `overlay.affinity.${kind}`,
       legacyAssetId: `affinity.${kind}`,
       iconAssetId: `icon.affinity.${kind}`,
@@ -726,6 +734,12 @@ export const GAME_ELEMENT_ICON_KEYS = deepFreeze({
 export const GAME_AFFINITY_COLOR_HEX = deepFreeze(
   Object.fromEntries(
     Object.entries(GAME_ELEMENT_VISUALS.affinities).map(([kind, visual]) => [kind, visual.defaultColor]),
+  ),
+);
+
+export const GAME_AFFINITY_TEXT_COLOR_HEX = deepFreeze(
+  Object.fromEntries(
+    Object.entries(GAME_ELEMENT_VISUALS.affinities).map(([kind, visual]) => [kind, visual.textColor ?? visual.defaultColor]),
   ),
 );
 
