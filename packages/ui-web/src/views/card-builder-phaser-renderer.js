@@ -3,6 +3,7 @@ import {
   GAME_ICON_FALLBACKS,
   GAME_VITAL_KEYS,
   GAME_AFFINITY_COLOR_HEX,
+  GAME_AFFINITY_TEXT_COLOR_HEX,
   GAME_AFFINITY_EXPRESSIONS,
 } from "../../../runtime/src/contracts/game-elements.js";
 import { ROOM_SIZE_ORDER, ROOM_SHAPE_ORDER } from "../../../runtime/src/commands/card-authoring.js";
@@ -109,10 +110,17 @@ export function createCardBuilderPhaserRenderer({
   let scene = null;
   let sceneReady = null;
   let lastSnapshot = null;
+  // Captured from mount() so setRenderMode() can switch Scale Manager modes
+  // later (e.g. for the narrow gameplay inventory rail, see below).
+  let phaserRef = null;
 
   let chipRegistry = [];
   let activeObjects = [];
   let hoveredChip = null;
+  // Bumped on every render() call so a stale in-flight call (still awaiting
+  // icon textures) can detect a newer call started and bail before drawing,
+  // instead of redrawing over it and producing duplicated/stacked UI.
+  let renderToken = 0;
   // Maps icon HTML string (or dataUri) → loaded Phaser texture key, or null if failed.
   const iconTextureCache = new Map();
   let nextIconTextureId = 0;
@@ -358,7 +366,7 @@ export function createCardBuilderPhaserRenderer({
     if (enabled) {
       // Transparent hit-rect covers the full chip (icon + text) from the chip's top-left.
       const hit = addObj(
-        scene.add.rectangle(x + chipW / 2, y + chipH / 2, chipW, chipH, 0x000000, 0)
+        scene.add.zone(x + chipW / 2, y + chipH / 2, chipW, chipH)
           .setInteractive({ useHandCursor: true }),
       );
       hit.on("pointerover", () => { hoveredChip = displayLabel; obj.setStyle({ color: COLOR_HOVER }); });
@@ -424,9 +432,10 @@ export function createCardBuilderPhaserRenderer({
     const iconHtml = iconCat ? resolveIconHTML(rendererBundle, iconCat, iconKey) : null;
     const { drawn } = drawIconAt(x, y + 1, iconHtml, ICON_SIZE);
 
-    // Affinity color pip
+    // Affinity color pip — rooms no longer carry a user-facing affinity (that
+    // moved to hazards), so skip the otherwise-always-defaulted pip for them.
     let pipEndX = x;
-    if (card.affinity) {
+    if (card.affinity && card.type !== "room") {
       const pipHex = GAME_AFFINITY_COLOR_HEX[card.affinity] || "#888888";
       const pipNum = parseInt(pipHex.replace("#", ""), 16);
       const pipG = addObj(scene.add.graphics());
@@ -443,40 +452,12 @@ export function createCardBuilderPhaserRenderer({
 
     const obj = addObj(scene.add.text(textX, y, labelText, { fontSize: "13px", color: COLOR_CARD }));
 
-    // Second line: motivation + vitals for actors
-    const ROW2_Y = y + 18;
-    if (isActor) {
-      let r2x = x + 2;
-      const motivations = Array.isArray(card.motivations) ? card.motivations : [];
-      if (motivations.length > 0) {
-        const motLabel = motivations[0].length > 6 ? motivations[0].slice(0, 6) + "…" : motivations[0];
-        addObj(scene.add.text(r2x, ROW2_Y, motLabel, { fontSize: "9px", color: COLOR_MOTIVATION }));
-        r2x += motLabel.length * 5.5 + 6;
-      }
-      const vitals = card.vitals;
-      if (vitals) {
-        const VITAL_COLORS = { health: 0xff3030, mana: 0x269cff, stamina: 0x4cff28, durability: 0xffa412 };
-        const BAR_W = 16;
-        const BAR_H = 4;
-        const BAR_GAP = 2;
-        ["health", "mana", "stamina", "durability"].forEach((vk) => {
-          const v = vitals[vk];
-          if (!v || !v.max) return;
-          const vg = addObj(scene.add.graphics());
-          vg.fillStyle(0x1a1a1a, 1);
-          vg.fillRect(r2x, ROW2_Y + 2, BAR_W, BAR_H);
-          const fill = Math.min(1, v.max / 12);
-          vg.fillStyle(VITAL_COLORS[vk] || 0x888888, 0.8);
-          vg.fillRect(r2x, ROW2_Y + 2, Math.round(BAR_W * fill), BAR_H);
-          r2x += BAR_W + BAR_GAP;
-        });
-      }
-    }
-
+    // The inventory rail is a compact budget/roster summary, not a stats panel —
+    // motivations and vitals belong in the editor or the gameplay quick-view.
     const totalW = Math.max((textX - x) + (obj.width || 120), 100);
-    const totalH = isActor ? 32 : Math.max(ICON_SIZE + 2, obj.height || 18);
+    const totalH = Math.max(ICON_SIZE + 2, obj.height || 18);
     const hitRect = addObj(
-      scene.add.rectangle(x + totalW / 2, y + totalH / 2, totalW, totalH, 0x000000, 0)
+      scene.add.zone(x + totalW / 2, y + totalH / 2, totalW, totalH)
         .setInteractive({ useHandCursor: true }),
     );
 
@@ -514,48 +495,6 @@ export function createCardBuilderPhaserRenderer({
   }
 
   // ---------------------------------------------------------------------------
-  // Gameplay arrow — top-right directional control replacing the tab bar.
-  // ---------------------------------------------------------------------------
-
-  function drawGameplayArrow({ canvasW }) {
-    const SZ = 28;
-    const PAD = 8;
-    const cx = canvasW - PAD - SZ / 2;
-    const cy = PAD + SZ / 2;
-
-    const bg = addObj(scene.add.graphics());
-    bg.fillStyle(0x2a3a4a, 1);
-    bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-    bg.lineStyle(1, 0x5a7a9a, 0.8);
-    bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-    bg.fillStyle(0x9ac8ff, 1);
-    bg.fillTriangle(cx - 5, cy - 7, cx + 7, cy, cx - 5, cy + 7);
-
-    const hit = addObj(
-      scene.add.rectangle(cx, cy, SZ, SZ, 0, 0).setInteractive({ useHandCursor: true }),
-    );
-    hit.on("pointerover", () => {
-      bg.clear();
-      bg.fillStyle(0x3a4a5a, 1);
-      bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-      bg.lineStyle(1, 0x7a9aba, 1);
-      bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-      bg.fillStyle(0xc8e0ff, 1);
-      bg.fillTriangle(cx - 5, cy - 7, cx + 7, cy, cx - 5, cy + 7);
-    });
-    hit.on("pointerout", () => {
-      bg.clear();
-      bg.fillStyle(0x2a3a4a, 1);
-      bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-      bg.lineStyle(1, 0x5a7a9a, 0.8);
-      bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-      bg.fillStyle(0x9ac8ff, 1);
-      bg.fillTriangle(cx - 5, cy - 7, cx + 7, cy, cx - 5, cy + 7);
-    });
-    hit.on("pointerdown", () => { globalThis.__ak_setActiveTab?.("gameplay"); });
-  }
-
-  // ---------------------------------------------------------------------------
   // Panel: PALETTE
   // ---------------------------------------------------------------------------
 
@@ -567,10 +506,11 @@ export function createCardBuilderPhaserRenderer({
     const hasType = Boolean(activeType);
     const hasAffinity = activeAffinities.length > 0;
     const isActor = activeType === "delver" || activeType === "warden";
+    const isRoom = activeType === "room";
     const halfW = Math.floor((paletteW - 4) / 2);
 
     const typeRows = Math.ceil(catalog.type.length / 2);
-    const affRows = catalog.affinities.length;
+    const affRows = isRoom ? 0 : catalog.affinities.length;
     const exprRows = catalog.expressions.length;
     const motRows = catalog.motivations.length;
     const totalRows = typeRows + affRows + exprRows + motRows;
@@ -593,21 +533,23 @@ export function createCardBuilderPhaserRenderer({
     });
     row += typeRows * CHIP_ROW + 2;
 
-    drawHeader(paletteX, row, "AFFINITIES");
-    row += 14;
-    catalog.affinities.forEach((group) => {
-      group.options.forEach((option, idx) => {
-        drawPaletteChip(
-          paletteX + idx * halfW,
-          row,
-          option.label,
-          { group: "affinities", value: option.value },
-          { icon: option.icon, color: COLOR_AFFINITY, enabled: hasType, iconSize: CHIP_ROW - 6 },
-        );
+    if (!isRoom) {
+      drawHeader(paletteX, row, "AFFINITIES");
+      row += 14;
+      catalog.affinities.forEach((group) => {
+        group.options.forEach((option, idx) => {
+          drawPaletteChip(
+            paletteX + idx * halfW,
+            row,
+            option.label,
+            { group: "affinities", value: option.value },
+            { icon: option.icon, color: COLOR_AFFINITY, enabled: hasType, iconSize: CHIP_ROW - 6 },
+          );
+        });
+        row += CHIP_ROW;
       });
-      row += CHIP_ROW;
-    });
-    row += 4;
+      row += 4;
+    }
 
     drawHeader(paletteX, row, "EXPRESSIONS");
     row += 14;
@@ -693,6 +635,7 @@ export function createCardBuilderPhaserRenderer({
     kinds.forEach((kind) => {
       const stackMap = byKind[kind];
       const colHex = GAME_AFFINITY_COLOR_HEX[kind] || "#6688aa";
+      const textHex = GAME_AFFINITY_TEXT_COLOR_HEX[kind] || colHex;
       const colNum = hexToNum(colHex);
       const chipX = editorX;
       const chipW = editorW;
@@ -708,6 +651,11 @@ export function createCardBuilderPhaserRenderer({
       // Affinity icon (no text label)
       let cx = chipX + 5;
       const affIconHtml = resolveIconHTML(rendererBundle, "affinities", kind);
+      if (kind === "dark") {
+        const ringG = addObj(scene.add.graphics());
+        ringG.lineStyle(1.5, 0xffffff, 0.8);
+        ringG.strokeCircle(cx + AFF_ICON_SZ / 2, row + ROW_H / 2, AFF_ICON_SZ / 2 + 1);
+      }
       drawIcon(cx, row + (ROW_H - AFF_ICON_SZ) / 2, affIconHtml, AFF_ICON_SZ, 1.0);
       cx += AFF_ICON_SZ + 4;
 
@@ -726,7 +674,7 @@ export function createCardBuilderPhaserRenderer({
         scene.add.text(removeX + REMOVE_W / 2, cy, "×", { fontSize: "13px", color: "#ff6666" }).setOrigin(0.5, 0.5),
       );
       const removeHit = addObj(
-        scene.add.rectangle(removeX + REMOVE_W / 2, cy, REMOVE_W, ROW_H - 4, 0, 0).setInteractive({ useHandCursor: true }),
+        scene.add.zone(removeX + REMOVE_W / 2, cy, REMOVE_W, ROW_H - 4).setInteractive({ useHandCursor: true }),
       );
       removeHit.on("pointerover", () => removeTxt.setStyle({ color: "#ff9999" }));
       removeHit.on("pointerout",  () => removeTxt.setStyle({ color: "#ff6666" }));
@@ -755,13 +703,13 @@ export function createCardBuilderPhaserRenderer({
         // − button
         const minusCx = cellX + BTN_W / 2 + 1;
         const minusTxt = addObj(
-          scene.add.text(minusCx, cy, "−", { fontSize: "13px", color: active ? colHex : "#3a4a5a" }).setOrigin(0.5, 0.5),
+          scene.add.text(minusCx, cy, "−", { fontSize: "13px", color: active ? textHex : "#3a4a5a" }).setOrigin(0.5, 0.5),
         );
         const minusHit = addObj(
-          scene.add.rectangle(minusCx, cy, BTN_W, ROW_H - 2, 0, 0).setInteractive({ useHandCursor: true }),
+          scene.add.zone(minusCx, cy, BTN_W, ROW_H - 2).setInteractive({ useHandCursor: true }),
         );
         minusHit.on("pointerover", () => minusTxt.setStyle({ color: active ? COLOR_HOVER : "#5a6a7a" }));
-        minusHit.on("pointerout",  () => minusTxt.setStyle({ color: active ? colHex : "#3a4a5a" }));
+        minusHit.on("pointerout",  () => minusTxt.setStyle({ color: active ? textHex : "#3a4a5a" }));
         minusHit.on("pointerdown", () => {
           const id = controller.getActiveCard()?.id;
           if (id) { controller.adjustAffinityStack?.(id, kind, -1, expr); void render(); }
@@ -777,20 +725,20 @@ export function createCardBuilderPhaserRenderer({
         const countX = iconX + EXPR_ICON_SZ + 1;
         if (active) {
           addObj(
-            scene.add.text(countX, cy, String(stacks), { fontSize: "10px", color: colHex, fontStyle: "bold" }).setOrigin(0, 0.5),
+            scene.add.text(countX, cy, String(stacks), { fontSize: "10px", color: textHex, fontStyle: "bold" }).setOrigin(0, 0.5),
           );
         }
 
         // + button
         const plusCx = cellX + cellW - BTN_W / 2 - 1;
         const plusTxt = addObj(
-          scene.add.text(plusCx, cy, "+", { fontSize: "13px", color: active ? colHex : "#4a5a6a" }).setOrigin(0.5, 0.5),
+          scene.add.text(plusCx, cy, "+", { fontSize: "13px", color: active ? textHex : "#4a5a6a" }).setOrigin(0.5, 0.5),
         );
         const plusHit = addObj(
-          scene.add.rectangle(plusCx, cy, BTN_W, ROW_H - 2, 0, 0).setInteractive({ useHandCursor: true }),
+          scene.add.zone(plusCx, cy, BTN_W, ROW_H - 2).setInteractive({ useHandCursor: true }),
         );
         plusHit.on("pointerover", () => plusTxt.setStyle({ color: COLOR_HOVER }));
-        plusHit.on("pointerout",  () => plusTxt.setStyle({ color: active ? colHex : "#4a5a6a" }));
+        plusHit.on("pointerout",  () => plusTxt.setStyle({ color: active ? textHex : "#4a5a6a" }));
         plusHit.on("pointerdown", () => {
           const id = controller.getActiveCard()?.id;
           if (id) { controller.adjustAffinityStack?.(id, kind, 1, expr); void render(); }
@@ -863,7 +811,7 @@ export function createCardBuilderPhaserRenderer({
         scene.add.text(bcx, bcy, label, { fontSize: "11px", color: hex }).setOrigin(0.5, 0.5),
       );
       const hit = addObj(
-        scene.add.rectangle(bcx, bcy, BSZ, BSZ, 0x000000, 0).setInteractive({ useHandCursor: true }),
+        scene.add.zone(bcx, bcy, BSZ, BSZ).setInteractive({ useHandCursor: true }),
       );
       hit.on("pointerover", () => txt.setStyle({ color: COLOR_HOVER }));
       hit.on("pointerout", () => txt.setStyle({ color: hex }));
@@ -960,225 +908,264 @@ export function createCardBuilderPhaserRenderer({
   // Room controls — size (-/+) visual square + shape toggle (regular/irregular)
   // ---------------------------------------------------------------------------
 
-  function drawRoomControls({ editorX, editorW }, activeCard, startRow) {
+  const ROOM_SHAPE_LABELS = Object.freeze({
+    regular: "Regular",
+    irregular: "Irregular / Cave",
+    obstructed: "Obstructed",
+  });
+
+  // Billable floor tiles per card (card-model.js): small=24, medium=48, large=96
+  // At 1100t room budget: small→~45 rooms, medium→~22 rooms, large→~11 rooms
+  const ROOM_SIZE_INFO = Object.freeze({
+    small:  { tokens: 24, guide: "~30-45 rooms" },
+    medium: { tokens: 48, guide: "~15-22 rooms" },
+    large:  { tokens: 96, guide: "~10-12 rooms" },
+  });
+
+  // Fraction of the available diagram box the room-shape diagram fills, by size.
+  const ROOM_SIZE_DIAGRAM_FILL = Object.freeze({
+    small: 0.62,
+    medium: 0.82,
+    large: 1.0,
+  });
+
+  function drawRoomShapeDiagram(g, shape, diagX, diagY, diagW, diagH, lineColor, lineAlpha) {
+    if (shape === "regular") {
+      g.fillStyle(0x0a1520, 1);
+      g.fillRect(diagX, diagY, diagW, diagH);
+      g.lineStyle(2, lineColor, lineAlpha);
+      g.strokeRect(diagX, diagY, diagW, diagH);
+      g.lineStyle(1, lineColor, lineAlpha * 0.2);
+      const cols = 4, rows = 3;
+      for (let c = 1; c < cols; c++) {
+        const gx = diagX + Math.round(diagW * c / cols);
+        g.beginPath(); g.moveTo(gx, diagY + 1); g.lineTo(gx, diagY + diagH - 1); g.strokePath();
+      }
+      for (let r = 1; r < rows; r++) {
+        const gy = diagY + Math.round(diagH * r / rows);
+        g.beginPath(); g.moveTo(diagX + 1, gy); g.lineTo(diagX + diagW - 1, gy); g.strokePath();
+      }
+      return;
+    }
+
+    if (shape === "obstructed") {
+      // Regular rectangular room with internal obstruction blocks (pillars).
+      g.fillStyle(0x0a1520, 1);
+      g.fillRect(diagX, diagY, diagW, diagH);
+      g.lineStyle(2, lineColor, lineAlpha);
+      g.strokeRect(diagX, diagY, diagW, diagH);
+      g.lineStyle(1, lineColor, lineAlpha * 0.2);
+      const cols = 4, rows = 3;
+      for (let c = 1; c < cols; c++) {
+        const gx = diagX + Math.round(diagW * c / cols);
+        g.beginPath(); g.moveTo(gx, diagY + 1); g.lineTo(gx, diagY + diagH - 1); g.strokePath();
+      }
+      for (let r = 1; r < rows; r++) {
+        const gy = diagY + Math.round(diagH * r / rows);
+        g.beginPath(); g.moveTo(diagX + 1, gy); g.lineTo(diagX + diagW - 1, gy); g.strokePath();
+      }
+      const X = (f) => Math.round(diagX + f * diagW);
+      const Y = (f) => Math.round(diagY + f * diagH);
+      const obstructions = [
+        [0.18, 0.20, 0.14, 0.18],
+        [0.68, 0.20, 0.14, 0.18],
+        [0.18, 0.62, 0.14, 0.18],
+        [0.68, 0.62, 0.14, 0.18],
+        [0.43, 0.41, 0.14, 0.18],
+      ];
+      g.fillStyle(0x12202e, 1);
+      g.lineStyle(1.5, lineColor, lineAlpha);
+      obstructions.forEach(([fx, fy, fw, fh]) => {
+        const bx = X(fx), by = Y(fy), bw = X(fx + fw) - bx, bh = Y(fy + fh) - by;
+        g.fillRect(bx, by, bw, bh);
+        g.strokeRect(bx, by, bw, bh);
+      });
+      return;
+    }
+
+    // Blocky irregular cave — axis-aligned (90° turns only), like dungeon rooms carved from grid blocks
+    const X = (f) => Math.round(diagX + f * diagW);
+    const Y = (f) => Math.round(diagY + f * diagH);
+
+    // Main chamber + right alcove (L-shape), with a notch cut from the top-left corner
+    const verts = [
+      [0.25, 0.0],  [0.65, 0.0],
+      [0.65, 0.0],  [0.65, 0.35],
+      [0.65, 0.35], [1.0, 0.35],
+      [1.0, 0.35],  [1.0, 1.0],
+      [1.0, 1.0],   [0.0, 1.0],
+      [0.0, 1.0],   [0.0, 0.35],
+      [0.0, 0.35],  [0.25, 0.35],
+      [0.25, 0.35], [0.25, 0.0],
+    ];
+    const points = [];
+    for (let i = 0; i < verts.length; i += 2) points.push(verts[i]);
+
+    g.fillStyle(0x080f1c, 1);
+    g.beginPath();
+    g.moveTo(X(points[0][0]), Y(points[0][1]));
+    points.slice(1).forEach(([fx, fy]) => g.lineTo(X(fx), Y(fy)));
+    g.closePath();
+    g.fillPath();
+
+    g.lineStyle(2, lineColor, lineAlpha);
+    g.beginPath();
+    g.moveTo(X(points[0][0]), Y(points[0][1]));
+    points.slice(1).forEach(([fx, fy]) => g.lineTo(X(fx), Y(fy)));
+    g.closePath();
+    g.strokePath();
+
+    // Faint interior tile grid
+    g.lineStyle(1, lineColor, lineAlpha * 0.2);
+    const cols = 5, rows = 3;
+    for (let c = 1; c < cols; c++) {
+      const gx = X(c / cols);
+      g.beginPath(); g.moveTo(gx, Y(0) + 1); g.lineTo(gx, Y(1) - 1); g.strokePath();
+    }
+    for (let r = 1; r < rows; r++) {
+      const gy = Y(r / rows);
+      g.beginPath(); g.moveTo(X(0) + 1, gy); g.lineTo(X(1) - 1, gy); g.strokePath();
+    }
+  }
+
+  // Three side-by-side panels — one per room shape — each with its own size
+  // and bulk-count steppers. Affinities are no longer associated with rooms
+  // (those now live on hazards within rooms), so this panel fills the full
+  // available editor height.
+  function drawRoomControls({ editorX, editorW, contentH, topOffset }, activeCard, startRow) {
     if (!scene) return startRow;
 
-    const centerX = editorX + Math.floor(editorW / 2);
-    let row = startRow;
-
-    // ── SIZE ──────────────────────────────────────────────────────────────────
-    row = drawSectionBand(editorX, row, editorW, "ROOM SIZE");
-
-    const currentSize = activeCard?.roomSize || "medium";
-    const sizeIdx = ROOM_SIZE_ORDER.indexOf(currentSize);
-    // Pixel sizes scale with size tier for visual clarity
-    const SIZE_PX = { small: 52, medium: 76, large: 100 };
-    // Billable floor tiles per card (card-model.js): small=24, medium=48, large=96
-    // At 1100t room budget: small→~45 rooms, medium→~22 rooms, large→~11 rooms
-    const SIZE_INFO = {
-      small:  { tokens: 24, guide: "~30-45 rooms" },
-      medium: { tokens: 48, guide: "~15-22 rooms" },
-      large:  { tokens: 96, guide: "~10-12 rooms" },
-    };
-    const sqPx = SIZE_PX[currentSize] || 76;
-    const sizeInfo = SIZE_INFO[currentSize] || SIZE_INFO.medium;
-
-    const BTN_W = 28;
-    const BTN_H = 24;
-    const BTN_GAP = 10;
-    const sqT = row + 12;
-    const sqL = centerX - Math.floor(sqPx / 2);
-
-    // Visual square — scales with size, shows internal tile grid
-    const gSq = addObj(scene.add.graphics());
-    gSq.fillStyle(0x1a2840, 1);
-    gSq.fillRect(sqL, sqT, sqPx, sqPx);
-    gSq.lineStyle(2, 0x4a78b8, 1);
-    gSq.strokeRect(sqL, sqT, sqPx, sqPx);
-    const gridDiv = currentSize === "large" ? 4 : currentSize === "medium" ? 3 : 2;
-    gSq.lineStyle(1, 0x4a78b8, 0.25);
-    for (let c = 1; c < gridDiv; c++) {
-      const gx = sqL + Math.round(sqPx * c / gridDiv);
-      gSq.beginPath(); gSq.moveTo(gx, sqT + 1); gSq.lineTo(gx, sqT + sqPx - 1); gSq.strokePath();
-    }
-    for (let r = 1; r < gridDiv; r++) {
-      const gy = sqT + Math.round(sqPx * r / gridDiv);
-      gSq.beginPath(); gSq.moveTo(sqL + 1, gy); gSq.lineTo(sqL + sqPx - 1, gy); gSq.strokePath();
-    }
-
-    // Size name + token cost inside square
-    addObj(
-      scene.add.text(centerX, sqT + Math.floor(sqPx / 2) - 7,
-        currentSize[0].toUpperCase() + currentSize.slice(1),
-        { fontSize: "14px", color: "#6a98d8" }).setOrigin(0.5, 0.5),
-    );
-    addObj(
-      scene.add.text(centerX, sqT + Math.floor(sqPx / 2) + 10,
-        `${sizeInfo.tokens}t`,
-        { fontSize: "11px", color: "#4a78b8" }).setOrigin(0.5, 0.5),
-    );
-
-    const btnCy = sqT + Math.floor(sqPx / 2);
-
-    // Minus button
-    const canDec = sizeIdx > 0;
-    const minusBtnX = sqL - BTN_GAP - Math.floor(BTN_W / 2);
-    {
-      const col = canDec ? 0x3a4868 : 0x1e2230;
-      const tc = canDec ? COLOR_ROOM_SIZE : COLOR_DISABLED;
-      const bg = addObj(scene.add.rectangle(minusBtnX, btnCy, BTN_W, BTN_H, col, 1));
-      if (canDec) bg.setStrokeStyle(1, 0x4a78b8, 0.8);
-      const txt = addObj(scene.add.text(minusBtnX, btnCy, "−", { fontSize: "18px", color: tc }).setOrigin(0.5, 0.5));
-      if (canDec) {
-        const hit = addObj(scene.add.rectangle(minusBtnX, btnCy, BTN_W, BTN_H, 0, 0).setInteractive({ useHandCursor: true }));
-        hit.on("pointerover", () => txt.setStyle({ color: COLOR_HOVER }));
-        hit.on("pointerout", () => txt.setStyle({ color: tc }));
-        hit.on("pointerdown", () => { controller.adjustRoomSize?.(activeCard.id, -1); void render(); });
-      }
-    }
-
-    // Plus button
-    const canInc = sizeIdx < ROOM_SIZE_ORDER.length - 1;
-    const plusBtnX = sqL + sqPx + BTN_GAP + Math.floor(BTN_W / 2);
-    {
-      const col = canInc ? 0x3a4868 : 0x1e2230;
-      const tc = canInc ? COLOR_ROOM_SIZE : COLOR_DISABLED;
-      const bg = addObj(scene.add.rectangle(plusBtnX, btnCy, BTN_W, BTN_H, col, 1));
-      if (canInc) bg.setStrokeStyle(1, 0x4a78b8, 0.8);
-      const txt = addObj(scene.add.text(plusBtnX, btnCy, "+", { fontSize: "18px", color: tc }).setOrigin(0.5, 0.5));
-      if (canInc) {
-        const hit = addObj(scene.add.rectangle(plusBtnX, btnCy, BTN_W, BTN_H, 0, 0).setInteractive({ useHandCursor: true }));
-        hit.on("pointerover", () => txt.setStyle({ color: COLOR_HOVER }));
-        hit.on("pointerout", () => txt.setStyle({ color: tc }));
-        hit.on("pointerdown", () => { controller.adjustRoomSize?.(activeCard.id, +1); void render(); });
-      }
-    }
-
-    chipRegistry.push({ label: currentSize, zone: "editor", role: "room_size_display", value: currentSize,
-      x: sqL, y: sqT, width: sqPx, height: sqPx });
-
-    // Room count guidance below the square
-    addObj(
-      scene.add.text(centerX, sqT + sqPx + 7, sizeInfo.guide,
-        { fontSize: "11px", color: COLOR_HEADER }).setOrigin(0.5, 0),
-    );
-
-    row = sqT + sqPx + 26;
-
-    // ── SHAPE ─────────────────────────────────────────────────────────────────
-    row = drawSectionBand(editorX, row, editorW, "ROOM SHAPE");
-    row += 6;
-
     const currentShape = activeCard?.roomShape || "regular";
-    const CHIP_W = editorW - 8;
-    const CHIP_H = 68;
-    const CHIP_GAP = 5;
+    const currentSize = activeCard?.roomSize || "medium";
+    const currentCount = Math.max(1, Math.floor(activeCard?.count ?? 1));
+
+    const PANEL_GAP = 8;
+    const SHELVE_ROW_H = 22 + 4;
+    const panelW = Math.floor((editorW - PANEL_GAP * 2) / 3);
+    const panelTop = startRow;
+    const bottomLimit = topOffset + contentH - 8 - SHELVE_ROW_H;
+    const panelH = Math.max(180, bottomLimit - panelTop);
+
+    function stepperRow(panel, cx, cy, label, value, { onMinus, onPlus, canDec = true, canInc = true } = {}) {
+      const BTN_W = 22;
+      const BTN_H = 22;
+      const VAL_W = 56;
+
+      if (label) {
+        addObj(
+          scene.add.text(cx, cy - 16, label, { fontSize: "10px", color: COLOR_HEADER }).setOrigin(0.5, 0.5),
+        );
+      }
+
+      const minusX = cx - VAL_W / 2 - BTN_W / 2 - 4;
+      const minusCol = canDec ? 0x3a4868 : 0x1e2230;
+      const minusTc = canDec ? COLOR_ROOM_SIZE : COLOR_DISABLED;
+      const minusBg = addObj(scene.add.rectangle(minusX, cy, BTN_W, BTN_H, minusCol, 1));
+      if (canDec) minusBg.setStrokeStyle(1, 0x4a78b8, 0.8);
+      const minusTxt = addObj(scene.add.text(minusX, cy, "−", { fontSize: "15px", color: minusTc }).setOrigin(0.5, 0.5));
+      const minusHit = addObj(scene.add.zone(minusX, cy, BTN_W, BTN_H).setInteractive({ useHandCursor: true }));
+      minusHit.on("pointerover", () => { if (canDec) minusTxt.setStyle({ color: COLOR_HOVER }); });
+      minusHit.on("pointerout", () => minusTxt.setStyle({ color: minusTc }));
+      minusHit.on("pointerdown", () => { if (canDec) onMinus?.(); });
+
+      addObj(
+        scene.add.text(cx, cy, String(value), { fontSize: "13px", color: COLOR_ROOM_SIZE, fontStyle: "bold" }).setOrigin(0.5, 0.5),
+      );
+
+      const plusX = cx + VAL_W / 2 + BTN_W / 2 + 4;
+      const plusCol = canInc ? 0x3a4868 : 0x1e2230;
+      const plusTc = canInc ? COLOR_ROOM_SIZE : COLOR_DISABLED;
+      const plusBg = addObj(scene.add.rectangle(plusX, cy, BTN_W, BTN_H, plusCol, 1));
+      if (canInc) plusBg.setStrokeStyle(1, 0x4a78b8, 0.8);
+      const plusTxt = addObj(scene.add.text(plusX, cy, "+", { fontSize: "15px", color: plusTc }).setOrigin(0.5, 0.5));
+      const plusHit = addObj(scene.add.zone(plusX, cy, BTN_W, BTN_H).setInteractive({ useHandCursor: true }));
+      plusHit.on("pointerover", () => { if (canInc) plusTxt.setStyle({ color: COLOR_HOVER }); });
+      plusHit.on("pointerout", () => plusTxt.setStyle({ color: plusTc }));
+      plusHit.on("pointerdown", () => { if (canInc) onPlus?.(); });
+    }
 
     ROOM_SHAPE_ORDER.forEach((shape, idx) => {
-      const chipX = editorX + 4;
-      const chipY = row + idx * (CHIP_H + CHIP_GAP);
       const isActive = shape === currentShape;
+      const panelX = editorX + idx * (panelW + PANEL_GAP);
+      const cx = panelX + Math.floor(panelW / 2);
 
       const bgColor = isActive ? 0x1e2d48 : 0x0d1018;
       const borderNum = isActive ? 0x4a78b8 : 0x2a3250;
-      const bg = addObj(scene.add.rectangle(chipX + Math.floor(CHIP_W / 2), chipY + Math.floor(CHIP_H / 2), CHIP_W, CHIP_H, bgColor, 1));
-      if (isActive) bg.setStrokeStyle(2, borderNum, 1);
+      const bg = addObj(scene.add.rectangle(cx, panelTop + Math.floor(panelH / 2), panelW, panelH, bgColor, 1));
+      bg.setStrokeStyle(isActive ? 2 : 1, borderNum, 1);
 
-      const labelH = 16;
-      const pad = 8;
-      const diagX = chipX + pad;
-      const diagY = chipY + pad;
-      const diagW = CHIP_W - pad * 2;
-      const diagH = CHIP_H - pad * 2 - labelH;
-      const lineColor = isActive ? 0x7aaae8 : 0x3a4a68;
-      const lineAlpha = isActive ? 1 : 0.6;
-
-      const g = addObj(scene.add.graphics());
-
-      if (shape === "regular") {
-        g.fillStyle(0x0a1520, 1);
-        g.fillRect(diagX, diagY, diagW, diagH);
-        g.lineStyle(2, lineColor, lineAlpha);
-        g.strokeRect(diagX, diagY, diagW, diagH);
-        g.lineStyle(1, lineColor, lineAlpha * 0.2);
-        const cols = 4, rows = 3;
-        for (let c = 1; c < cols; c++) {
-          const gx = diagX + Math.round(diagW * c / cols);
-          g.beginPath(); g.moveTo(gx, diagY + 1); g.lineTo(gx, diagY + diagH - 1); g.strokePath();
-        }
-        for (let r = 1; r < rows; r++) {
-          const gy = diagY + Math.round(diagH * r / rows);
-          g.beginPath(); g.moveTo(diagX + 1, gy); g.lineTo(diagX + diagW - 1, gy); g.strokePath();
-        }
-      } else {
-        // Blocky irregular cave — axis-aligned (90° turns only), like dungeon rooms carved from grid blocks
-        const X = (f) => Math.round(diagX + f * diagW);
-        const Y = (f) => Math.round(diagY + f * diagH);
-
-        // Main chamber + right alcove (L-shape), with a notch cut from the top-left corner
-        const verts = [
-          [0.25, 0.0],  [0.65, 0.0],
-          [0.65, 0.0],  [0.65, 0.35],
-          [0.65, 0.35], [1.0, 0.35],
-          [1.0, 0.35],  [1.0, 1.0],
-          [1.0, 1.0],   [0.0, 1.0],
-          [0.0, 1.0],   [0.0, 0.35],
-          [0.0, 0.35],  [0.25, 0.35],
-          [0.25, 0.35], [0.25, 0.0],
-        ];
-        const points = [];
-        for (let i = 0; i < verts.length; i += 2) points.push(verts[i]);
-
-        g.fillStyle(0x080f1c, 1);
-        g.beginPath();
-        g.moveTo(X(points[0][0]), Y(points[0][1]));
-        points.slice(1).forEach(([fx, fy]) => g.lineTo(X(fx), Y(fy)));
-        g.closePath();
-        g.fillPath();
-
-        g.lineStyle(2, lineColor, lineAlpha);
-        g.beginPath();
-        g.moveTo(X(points[0][0]), Y(points[0][1]));
-        points.slice(1).forEach(([fx, fy]) => g.lineTo(X(fx), Y(fy)));
-        g.closePath();
-        g.strokePath();
-
-        // Faint interior tile grid
-        g.lineStyle(1, lineColor, lineAlpha * 0.2);
-        const cols = 5, rows = 3;
-        for (let c = 1; c < cols; c++) {
-          const gx = X(c / cols);
-          g.beginPath(); g.moveTo(gx, Y(0) + 1); g.lineTo(gx, Y(1) - 1); g.strokePath();
-        }
-        for (let r = 1; r < rows; r++) {
-          const gy = Y(r / rows);
-          g.beginPath(); g.moveTo(X(0) + 1, gy); g.lineTo(X(1) - 1, gy); g.strokePath();
-        }
+      // Whole-panel select zone (selects this shape without changing size/count).
+      const selectHit = addObj(scene.add.zone(cx, panelTop + Math.floor(panelH / 2), panelW, panelH));
+      selectHit.setInteractive({ useHandCursor: !isActive });
+      if (!isActive) {
+        selectHit.on("pointerdown", () => { controller.setRoomShape?.(activeCard.id, shape); void render(); });
       }
+      selectHit.setDepth?.(-1);
 
       const labelColor = isActive ? COLOR_ROOM_SIZE : COLOR_HEADER;
       addObj(
-        scene.add.text(chipX + Math.floor(CHIP_W / 2), chipY + CHIP_H - 9,
-          shape === "regular" ? "Regular Room" : "Irregular / Cave",
-          { fontSize: "11px", color: labelColor },
-        ).setOrigin(0.5, 0.5),
+        scene.add.text(cx, panelTop + 14, ROOM_SHAPE_LABELS[shape] || shape,
+          { fontSize: "13px", color: labelColor, fontStyle: "bold" }).setOrigin(0.5, 0.5),
       );
 
-      const hit = addObj(
-        scene.add.rectangle(chipX + Math.floor(CHIP_W / 2), chipY + Math.floor(CHIP_H / 2), CHIP_W, CHIP_H, 0, 0)
-          .setInteractive({ useHandCursor: true }),
-      );
-      hit.on("pointerover", () => { if (!isActive) bg.setFillStyle(0x151e30); });
-      hit.on("pointerout", () => { if (!isActive) bg.setFillStyle(bgColor); });
-      hit.on("pointerdown", () => {
-        if (!isActive) { controller.adjustRoomShape?.(activeCard.id); void render(); }
-      });
+      // Shape diagram — box footprint scales with the selected room size.
+      const pad = 12;
+      const diagTop = panelTop + 28;
+      const maxDiagH = Math.floor(panelH * 0.42);
+      const maxDiagW = panelW - pad * 2;
+      const sizeIdx = isActive ? ROOM_SIZE_ORDER.indexOf(currentSize) : ROOM_SIZE_ORDER.indexOf("medium");
+      const displaySize = isActive ? currentSize : "medium";
+      const fillRatio = ROOM_SIZE_DIAGRAM_FILL[displaySize] ?? ROOM_SIZE_DIAGRAM_FILL.medium;
+      const diagW = Math.round(maxDiagW * fillRatio);
+      const diagH = Math.round(maxDiagH * fillRatio);
+      const diagX = panelX + Math.floor((panelW - diagW) / 2);
+      const diagY = diagTop + Math.floor((maxDiagH - diagH) / 2);
+      const lineColor = isActive ? 0x7aaae8 : 0x3a4a68;
+      const lineAlpha = isActive ? 1 : 0.6;
+      const g = addObj(scene.add.graphics());
+      drawRoomShapeDiagram(g, shape, diagX, diagY, diagW, diagH, lineColor, lineAlpha);
 
       chipRegistry.push({ label: shape, zone: "editor", role: "room_shape", value: shape,
-        x: chipX, y: chipY, width: CHIP_W, height: CHIP_H });
+        x: panelX, y: panelTop, width: panelW, height: panelH });
+
+      function applyShapeFirst(fn) {
+        if (!activeCard?.id) return;
+        if (!isActive) controller.setRoomShape?.(activeCard.id, shape);
+        fn();
+        void render();
+      }
+
+      // Size stepper
+      const sizeInfo = ROOM_SIZE_INFO[displaySize] || ROOM_SIZE_INFO.medium;
+      const sizeRowY = diagTop + maxDiagH + 26;
+      stepperRow(shape, cx, sizeRowY, "SIZE", displaySize[0].toUpperCase() + displaySize.slice(1), {
+        canDec: sizeIdx > 0,
+        canInc: sizeIdx < ROOM_SIZE_ORDER.length - 1,
+        onMinus: () => applyShapeFirst(() => controller.adjustRoomSize?.(activeCard.id, -1)),
+        onPlus: () => applyShapeFirst(() => controller.adjustRoomSize?.(activeCard.id, +1)),
+      });
+      addObj(
+        scene.add.text(cx, sizeRowY + 16, `${sizeInfo.tokens}t · ${sizeInfo.guide}`,
+          { fontSize: "9px", color: COLOR_HEADER }).setOrigin(0.5, 0.5),
+      );
+
+      // Bulk count stepper
+      const displayCount = isActive ? currentCount : 1;
+      const countRowY = sizeRowY + 46;
+      stepperRow(shape, cx, countRowY, "COUNT", `x${displayCount}`, {
+        canDec: displayCount > 1,
+        canInc: true,
+        onMinus: () => applyShapeFirst(() => controller.adjustCardCount?.(activeCard.id, -1)),
+        onPlus: () => applyShapeFirst(() => controller.adjustCardCount?.(activeCard.id, +1)),
+      });
+
+      chipRegistry.push({ label: `${shape}_size`, zone: "editor", role: "room_size_display", value: displaySize,
+        x: panelX, y: sizeRowY - 10, width: panelW, height: 20 });
+      chipRegistry.push({ label: `${shape}_count`, zone: "editor", role: "room_count_display", value: displayCount,
+        x: panelX, y: countRowY - 10, width: panelW, height: 20 });
     });
 
-    return row + 2 * (CHIP_H + CHIP_GAP) + 8;
+    return panelTop + panelH + 8;
   }
 
   // ---------------------------------------------------------------------------
@@ -1216,8 +1203,16 @@ export function createCardBuilderPhaserRenderer({
     });
     row += type ? TYPE_ICON_SIZE + 6 : 22;
 
+    if (!type) {
+      drawText(editorX, row + 8, "Select a TYPE from the palette to begin configuring this card.", {
+        fontSize: "12px",
+        color: COLOR_HEADER,
+        wordWrap: { width: editorW },
+      });
+    }
+
     if (type === "room") {
-      row = drawRoomControls({ editorX, editorW, contentH }, activeCard, row);
+      row = drawRoomControls({ editorX, editorW, contentH, topOffset }, activeCard, row);
     }
 
     const affinities = Array.isArray(activeCard?.affinities) ? activeCard.affinities : [];
@@ -1235,18 +1230,23 @@ export function createCardBuilderPhaserRenderer({
       motivations.forEach((m) => {
         const chipX = editorX + 2;
         const chipW = editorW - 4;
+        // Capture this pill's own row — `row` is mutated by the outer loop as
+        // it advances, and the hover/out handlers below fire long after the
+        // loop has finished, so they must close over a per-pill value rather
+        // than the shared, by-then-stale outer variable.
+        const chipRow = row;
         const pillBg = addObj(scene.add.graphics());
         pillBg.fillStyle(0x2a3a28, 1);
-        pillBg.fillRoundedRect(chipX, row, chipW, MOTIVATION_CHIP_H, 6);
+        pillBg.fillRoundedRect(chipX, chipRow, chipW, MOTIVATION_CHIP_H, 6);
         pillBg.lineStyle(1, 0x4a6a40, 0.7);
-        pillBg.strokeRoundedRect(chipX, row, chipW, MOTIVATION_CHIP_H, 6);
+        pillBg.strokeRoundedRect(chipX, chipRow, chipW, MOTIVATION_CHIP_H, 6);
 
         const motivationIconHtml = resolveIconHTML(rendererBundle, "motivations", m);
         const iconX = chipX + 6;
-        const iconY = row + (MOTIVATION_CHIP_H - MOTIVATION_ICON_SIZE) / 2;
+        const iconY = chipRow + (MOTIVATION_CHIP_H - MOTIVATION_ICON_SIZE) / 2;
         const motivationIconResult = drawIconAt(iconX, iconY, motivationIconHtml, MOTIVATION_ICON_SIZE);
         const textX = motivationIconResult.drawn ? iconX + MOTIVATION_ICON_SIZE + 6 : chipX + 8;
-        const textY = row + (MOTIVATION_CHIP_H - 14) / 2;
+        const textY = chipRow + (MOTIVATION_CHIP_H - 14) / 2;
         drawEditorChip(textX, textY, m, {
           group: "motivations",
           value: m,
@@ -1259,11 +1259,11 @@ export function createCardBuilderPhaserRenderer({
         });
 
         const hitArea = addObj(
-          scene.add.rectangle(chipX + chipW / 2, row + MOTIVATION_CHIP_H / 2, chipW, MOTIVATION_CHIP_H, 0x000000, 0)
+          scene.add.zone(chipX + chipW / 2, chipRow + MOTIVATION_CHIP_H / 2, chipW, MOTIVATION_CHIP_H)
             .setInteractive({ useHandCursor: true }),
         );
-        hitArea.on("pointerover", () => pillBg.clear().fillStyle(0x3a4a38, 1).fillRoundedRect(chipX, row, chipW, MOTIVATION_CHIP_H, 6).lineStyle(1, 0x5a8a50, 0.9).strokeRoundedRect(chipX, row, chipW, MOTIVATION_CHIP_H, 6));
-        hitArea.on("pointerout", () => pillBg.clear().fillStyle(0x2a3a28, 1).fillRoundedRect(chipX, row, chipW, MOTIVATION_CHIP_H, 6).lineStyle(1, 0x4a6a40, 0.7).strokeRoundedRect(chipX, row, chipW, MOTIVATION_CHIP_H, 6));
+        hitArea.on("pointerover", () => pillBg.clear().fillStyle(0x3a4a38, 1).fillRoundedRect(chipX, chipRow, chipW, MOTIVATION_CHIP_H, 6).lineStyle(1, 0x5a8a50, 0.9).strokeRoundedRect(chipX, chipRow, chipW, MOTIVATION_CHIP_H, 6));
+        hitArea.on("pointerout", () => pillBg.clear().fillStyle(0x2a3a28, 1).fillRoundedRect(chipX, chipRow, chipW, MOTIVATION_CHIP_H, 6).lineStyle(1, 0x4a6a40, 0.7).strokeRoundedRect(chipX, chipRow, chipW, MOTIVATION_CHIP_H, 6));
         hitArea.on("pointerdown", () => {
           const freshId = controller.getActiveCard().id;
           applyIntent({ kind: "drop_chip", cardId: freshId, property: { group: "motivations", value: m } });
@@ -1301,7 +1301,7 @@ export function createCardBuilderPhaserRenderer({
           { fontSize: "11px", color: COLOR_SHELVE_BTN }).setOrigin(0, 0.5).setAlpha(0),
       );
       const shelveHit = addObj(
-        scene.add.rectangle(shelveCx, shelveCy, SHELVE_SZ, SHELVE_SZ, 0, 0).setInteractive({ useHandCursor: true }),
+        scene.add.zone(shelveCx, shelveCy, SHELVE_SZ, SHELVE_SZ).setInteractive({ useHandCursor: true }),
       );
       shelveHit.on("pointerover", () => { shelveLabel.setAlpha(1); shelveG.clear().fillStyle(0x4a4428, 1).fillRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).lineStyle(1, 0xa08830, 1).strokeRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).fillStyle(0xffdd88, 1).fillTriangle(shelveCx - 4, shelveCy - 5, shelveCx + 5, shelveCy, shelveCx - 4, shelveCy + 5); });
       shelveHit.on("pointerout", () => { shelveLabel.setAlpha(0); shelveG.clear().fillStyle(0x3a3420, 1).fillRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).lineStyle(1, 0x806820, 0.8).strokeRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).fillStyle(0xf0d060, 1).fillTriangle(shelveCx - 4, shelveCy - 5, shelveCx + 5, shelveCy, shelveCx - 4, shelveCy + 5); });
@@ -1311,14 +1311,6 @@ export function createCardBuilderPhaserRenderer({
       row += SHELVE_SZ + 4;
     }
 
-    const status = controller.getStatus();
-    if (status.message) {
-      const truncated = status.message.length > 50 ? status.message.slice(0, 50) + "…" : status.message;
-      drawText(editorX, topOffset + contentH - 20, truncated, {
-        fontSize: "12px",
-        color: status.level === "error" ? COLOR_STATUS_ERROR : COLOR_STATUS_OK,
-      });
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1326,11 +1318,11 @@ export function createCardBuilderPhaserRenderer({
   // ---------------------------------------------------------------------------
 
   function drawShelf({ shelfX, shelfW, contentH, topOffset }, allocationLedger) {
-    const TITLE_H = 28;
+    const TITLE_H = 32;
     drawRect(shelfX - GAP, topOffset, shelfW + GAP * 2, contentH, BG_SHELF);
 
-    // Inventory title header
     drawRect(shelfX - GAP, topOffset, shelfW + GAP * 2, TITLE_H, 0x0d0f18);
+
     addObj(scene.add.text(shelfX + shelfW / 2, topOffset + TITLE_H / 2, "INVENTORY", {
       fontSize: "11px", color: "#8892b0", letterSpacing: 3,
     }).setOrigin(0.5, 0.5));
@@ -1390,15 +1382,131 @@ export function createCardBuilderPhaserRenderer({
     const barY = topOffset + contentH;
 
     drawRect(0, barY, canvasW, STATUS_BAR_H, 0x0d1018);
-    drawText(GAP, barY + 5, `Budget: ${totalTokens}t  │  Spent: ${spentTokens}t  │  Remaining: ${remaining}t`, {
+    const budgetLabel = `Budget: ${totalTokens}t  │  Spent: ${spentTokens}t  │  Remaining: ${remaining}t`;
+    const budgetText = drawText(GAP, barY + 5, budgetLabel, {
       fontSize: "12px",
       color: remaining < 0 ? COLOR_STATUS_ERROR : COLOR_DEFAULT,
     });
+
+    const status = controller.getStatus();
+    if (status.message) {
+      const truncated = status.message.length > 80 ? status.message.slice(0, 80) + "…" : status.message;
+      const statusX = GAP + (budgetText.width || 0) + 24;
+      drawText(statusX, barY + 5, truncated, {
+        fontSize: "12px",
+        color: status.level === "error" ? COLOR_STATUS_ERROR : COLOR_STATUS_OK,
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
   // Mount / render / dispose
   // ---------------------------------------------------------------------------
+
+  // "design" mode hosts the full card builder at a stable, wide 1440×860
+  // resolution (FIT). "shelf" mode hosts only the narrow inventory rail used
+  // alongside the gameplay board — FIT would preserve the wide design aspect
+  // and letterbox down to a sliver of the tall, narrow rail container.
+  // Mutating a live ScaleManager's mode proved unreliable: autoCenter's
+  // margin math, displaySize's aspectMode lock, and parentSize's caching
+  // each independently keep reapplying stale state from whichever mode was
+  // active before the switch, fighting an in-place RESIZE/FIT toggle no
+  // matter how many of those pieces get reset alongside scaleMode. A freshly
+  // constructed Phaser.Game has none of that leftover state, so the mode is
+  // applied by destroying and recreating the Game instead.
+  let gameMode = null;
+
+  // Polls clientWidth/clientHeight across animation frames until two
+  // consecutive reads agree (or a frame budget is exhausted). A single rAF
+  // isn't reliably enough — the CSS grid-layout change that resizes
+  // #phaser-frame-root (data-active-tab switch) can take more than one
+  // frame to fully settle, and reading too early sees a stale, in-between
+  // size.
+  function waitForStableSize(el, callback, attempt = 0) {
+    const w = el?.clientWidth || 0;
+    const h = el?.clientHeight || 0;
+    requestAnimationFrame(() => {
+      const w2 = el?.clientWidth || 0;
+      const h2 = el?.clientHeight || 0;
+      if ((w === w2 && h === h2) || attempt >= 10) {
+        callback(w2, h2);
+      } else {
+        waitForStableSize(el, callback, attempt + 1);
+      }
+    });
+  }
+
+  function buildScaleConfig(mode) {
+    if (mode === "shelf") {
+      return { mode: phaserRef.Scale?.RESIZE ?? 0, autoCenter: phaserRef.Scale?.NO_CENTER ?? 0 };
+    }
+    return { mode: phaserRef.Scale?.FIT ?? phaserRef.Scale?.NONE ?? 0, autoCenter: phaserRef.Scale?.CENTER_BOTH ?? 0 };
+  }
+
+  function createGame(mode, width, height) {
+    return new Promise((resolve) => {
+      gameMode = mode;
+      game = new phaserRef.Game({
+        type: phaserRef.AUTO,
+        parent: stageEl,
+        width,
+        height,
+        backgroundColor: "#0d1018",
+        scale: buildScaleConfig(mode),
+        scene: {
+          create() {
+            scene = this;
+            // Re-render when the canvas is resized by the browser.
+            if (typeof this.scale?.on === "function") {
+              this.scale.on("resize", () => { void render(); });
+            }
+            resolve();
+            // Phaser's own post-boot layout settling can leave the canvas
+            // mis-centered (autoCenter computing margins before the new
+            // canvas has actually been laid out) and/or the very first
+            // frame unpainted even though scene/game are ready. Keep
+            // refreshing + rendering until the canvas's own on-screen
+            // position stops moving between frames, rather than guessing a
+            // fixed number of settle passes.
+            const sc = this.scale;
+            const settleUntilStable = (prevTop, attempt = 0) => {
+              requestAnimationFrame(() => {
+                sc?.refresh?.();
+                void render();
+                const top = sc?.canvas?.getBoundingClientRect?.().top ?? 0;
+                if (top !== prevTop && attempt < 15) {
+                  settleUntilStable(top, attempt + 1);
+                }
+              });
+            };
+            settleUntilStable(NaN);
+          },
+        },
+      });
+    });
+  }
+
+  async function recreateGame(mode) {
+    const applyRecreate = async (width, height) => {
+      if (game?.destroy) game.destroy(true);
+      game = null;
+      scene = null;
+      // Textures belong to the destroyed game's texture manager — force
+      // icons to reload into the new instance.
+      iconTextureCache.clear();
+      await createGame(mode, width, height);
+    };
+    if (mode === "shelf") {
+      await new Promise((resolve) => {
+        waitForStableSize(stageEl, (width, height) => {
+          applyRecreate(width || DESIGN_WIDTH, height || DESIGN_HEIGHT).then(resolve);
+        });
+      });
+    } else {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await applyRecreate(DESIGN_WIDTH, DESIGN_HEIGHT);
+    }
+  }
 
   function mount(host) {
     container = host;
@@ -1406,36 +1514,16 @@ export function createCardBuilderPhaserRenderer({
     sceneReady = (async () => {
       const Phaser = await loadPhaser();
       if (!Phaser || typeof Phaser.Game !== "function") return;
-
-      await new Promise((resolve) => {
-        game = new Phaser.Game({
-          type: Phaser.AUTO,
-          parent: stageEl,
-          width: DESIGN_WIDTH,
-          height: DESIGN_HEIGHT,
-          backgroundColor: "#0d1018",
-          scale: {
-            mode: Phaser.Scale?.FIT ?? Phaser.Scale?.NONE ?? 0,
-            autoCenter: Phaser.Scale?.CENTER_BOTH ?? 0,
-          },
-          scene: {
-            create() {
-              scene = this;
-              // Re-render when the canvas is resized by the browser.
-              if (typeof this.scale?.on === "function") {
-                this.scale.on("resize", () => { void render(); });
-              }
-              resolve();
-            },
-          },
-        });
-      });
+      phaserRef = Phaser;
+      await createGame(renderMode, DESIGN_WIDTH, DESIGN_HEIGHT);
     })();
     return sceneReady;
   }
 
   async function render() {
+    const token = ++renderToken;
     if (sceneReady) await sceneReady;
+    if (token !== renderToken) return { ok: false, reason: "superseded" };
     if (!scene) return { ok: false, reason: "scene_unavailable" };
 
     const catalog = buildResolvedCatalog();
@@ -1450,6 +1538,9 @@ export function createCardBuilderPhaserRenderer({
       ...buildEditorIconEntries(activeCard),
     ];
     await loadIconTextures(allIconEntries);
+    // A newer render() call started while this one was awaiting textures —
+    // bail out so we don't clear/redraw over the newer call's output.
+    if (token !== renderToken) return { ok: false, reason: "superseded" };
 
     clearScene();
 
@@ -1470,7 +1561,6 @@ export function createCardBuilderPhaserRenderer({
     drawEditor(layout);
     drawShelf(layout, allocationLedger);
     drawStatusBar(layout, allocationLedger);
-    drawGameplayArrow(layout);
 
     lastSnapshot = buildSnapshot();
     return { ok: true };
@@ -1576,7 +1666,13 @@ export function createCardBuilderPhaserRenderer({
     emitIntent: emit,
     setResourceBundle,
     setActiveTab: (tabId) => { activeTab = tabId; void render(); },
-    setRenderMode: (mode) => { renderMode = mode; void render(); },
+    setRenderMode: (mode) => {
+      renderMode = mode;
+      if (gameMode !== null && mode !== gameMode) {
+        sceneReady = recreateGame(mode);
+      }
+      void render();
+    },
     getRenderedSnapshot,
     getChipPositions,
     getCardPositions,

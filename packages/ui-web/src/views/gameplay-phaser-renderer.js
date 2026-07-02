@@ -140,7 +140,7 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, onSelect, onHover, onHoverEnd, onKeyPress, onBack } = {}) {
+export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, onSelect, onHover, onHoverEnd, onKeyPress } = {}) {
   let container = null;
   let stageEl = null;
   let game = null;
@@ -221,12 +221,90 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return fitZoom;
   }
 
-  function configureCamera({ resetView = false } = {}) {
+  // Tile-space bounds of "the entry": the structured room (from
+  // simConfig.layout.data.rooms) containing the spawn tile or the first
+  // delver, expanded to also cover every delver's position. Falls back to
+  // null (caller should then fit the whole level) when no spawn/room/delver
+  // data is available to anchor on.
+  function computeEntryFocusTileBounds(boardState) {
+    const rooms = Array.isArray(boardState?.simConfig?.layout?.data?.rooms)
+      ? boardState.simConfig.layout.data.rooms : [];
+    const tiles = Array.isArray(boardState?.tiles) ? boardState.tiles : [];
+
+    let spawn = null;
+    for (let y = 0; y < tiles.length && !spawn; y += 1) {
+      const x = String(tiles[y] || "").indexOf("S");
+      if (x !== -1) spawn = { x, y };
+    }
+
+    const actors = Array.isArray(boardState?.observation?.actors) ? boardState.observation.actors : [];
+    const delverPositions = actors
+      .filter((actor) => inferActorRole(actor) === "delver")
+      .map((actor) => ({ x: Number(actor?.position?.x), y: Number(actor?.position?.y) }))
+      .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+
+    const anchor = spawn || delverPositions[0] || null;
+    if (!anchor && delverPositions.length === 0) return null;
+
+    const room = anchor
+      ? rooms.find((r) => (
+        anchor.x >= r.x && anchor.x < r.x + r.width &&
+        anchor.y >= r.y && anchor.y < r.y + r.height
+      )) || null
+      : null;
+
+    const points = [...delverPositions];
+    if (room) {
+      points.push({ x: room.x, y: room.y }, { x: room.x + room.width - 1, y: room.y + room.height - 1 });
+    } else if (anchor) {
+      points.push(anchor);
+    }
+    if (points.length === 0) return null;
+
+    const PAD = 1;
+    return {
+      minX: Math.min(...points.map((p) => p.x)) - PAD,
+      minY: Math.min(...points.map((p) => p.y)) - PAD,
+      maxX: Math.max(...points.map((p) => p.x)) + PAD,
+      maxY: Math.max(...points.map((p) => p.y)) + PAD,
+    };
+  }
+
+  // Like fitCameraToWorld(), but fits/centers on a tile-space sub-region
+  // instead of the entire level.
+  function fitCameraToRegion(tileBounds) {
+    const camera = getCamera();
+    if (!camera) return cameraState.zoom;
+    const { tileWidth, tileHeight } = currentBoardMetrics;
+    const regionWidth = Math.max(1, (tileBounds.maxX - tileBounds.minX + 1) * tileWidth);
+    const regionHeight = Math.max(1, (tileBounds.maxY - tileBounds.minY + 1) * tileHeight);
+    const centerX = tileBounds.minX * tileWidth + regionWidth / 2;
+    const centerY = tileBounds.minY * tileHeight + regionHeight / 2;
+    const fitZoom = clamp(
+      Math.min(
+        cameraState.viewportWidth / regionWidth,
+        cameraState.viewportHeight / regionHeight,
+      ),
+      MIN_CAMERA_ZOOM,
+      MAX_CAMERA_ZOOM,
+    );
+    cameraState.fitZoom = fitZoom;
+    applyCameraZoom(fitZoom, { centerX, centerY });
+    setStageCameraDataset();
+    return fitZoom;
+  }
+
+  function configureCamera({ resetView = false, focusBoardState = null } = {}) {
     const camera = getCamera();
     if (!camera) return;
     camera.setBounds?.(0, 0, cameraState.worldWidth, cameraState.worldHeight);
     if (resetView) {
-      fitCameraToWorld();
+      const region = focusBoardState ? computeEntryFocusTileBounds(focusBoardState) : null;
+      if (region) {
+        fitCameraToRegion(region);
+      } else {
+        fitCameraToWorld();
+      }
     } else {
       applyCameraZoom(cameraState.zoom);
     }
@@ -752,7 +830,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       stageEl.dataset.gameplayWardens = String(wardenCount);
       stageEl.dataset.gameplayActorPositions = JSON.stringify(diagnostics);
     }
-    configureCamera({ resetView: resetCamera || worldChanged });
+    configureCamera({ resetView: resetCamera || worldChanged, focusBoardState: boardState });
 
     currentContainer = scene.add.container(0, 0);
 
@@ -770,6 +848,18 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const WALL_BORDER_COLOR = 0xcccccc;
     const WALL_BORDER_ALPHA = 0.6;
     const WALL_BORDER_W = 2;
+
+    // Single Graphics object for all wall-border strokes — one draw call for
+    // the whole board instead of one Graphics instance per wall-adjacent
+    // tile, which dropped strokes on larger dungeons.
+    const wallG = scene.add.graphics();
+    wallG.lineStyle(WALL_BORDER_W, WALL_BORDER_COLOR, WALL_BORDER_ALPHA);
+    let hasAnyWall = false;
+    const isWall = (ty, tx) => {
+      if (ty < 0 || ty >= boardHeight || tx < 0 || tx >= boardWidth) return true;
+      const t = tileTypeGrid[ty][tx];
+      return t === "wall" || t === "barrier" || t === "inaccessible";
+    };
 
     for (let y = 0; y < boardHeight; y += 1) {
       for (let x = 0; x < boardWidth; x += 1) {
@@ -796,20 +886,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         currentContainer.add(tile);
 
         if (isFloor) {
-          const wallG = scene.add.graphics();
-          let hasWall = false;
-          const isWall = (ty, tx) => {
-            if (ty < 0 || ty >= boardHeight || tx < 0 || tx >= boardWidth) return true;
-            const t = tileTypeGrid[ty][tx];
-            return t === "wall" || t === "barrier" || t === "inaccessible";
-          };
-          wallG.lineStyle(WALL_BORDER_W, WALL_BORDER_COLOR, WALL_BORDER_ALPHA);
-          if (isWall(y - 1, x)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight); wallG.strokePath(); hasWall = true; }
-          if (isWall(y + 1, x)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight + tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasWall = true; }
-          if (isWall(y, x - 1)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasWall = true; }
-          if (isWall(y, x + 1)) { wallG.beginPath(); wallG.moveTo(x * tileWidth + tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasWall = true; }
-          if (hasWall) currentContainer.add(wallG);
-          else wallG.destroy();
+          if (isWall(y - 1, x)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight); wallG.strokePath(); hasAnyWall = true; }
+          if (isWall(y + 1, x)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight + tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasAnyWall = true; }
+          if (isWall(y, x - 1)) { wallG.beginPath(); wallG.moveTo(x * tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasAnyWall = true; }
+          if (isWall(y, x + 1)) { wallG.beginPath(); wallG.moveTo(x * tileWidth + tileWidth, y * tileHeight); wallG.lineTo(x * tileWidth + tileWidth, y * tileHeight + tileHeight); wallG.strokePath(); hasAnyWall = true; }
         }
 
         const tileVisuals = boardState?.tileVisuals;
@@ -832,6 +912,9 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         }
       }
     }
+
+    if (hasAnyWall) currentContainer.add(wallG);
+    else wallG.destroy();
 
     for (const actor of actors) {
       const ax = Number.isFinite(actor?.position?.x) ? actor.position.x : null;
@@ -888,57 +971,8 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     }
 
     bindCameraInput();
-    drawBackArrow();
 
     return { ok: true };
-  }
-
-  let backArrowNodes = [];
-
-  function drawBackArrow() {
-    backArrowNodes.forEach((n) => n.destroy?.());
-    backArrowNodes = [];
-    if (!scene) return;
-
-    const SZ = 28;
-    const PAD = 8;
-    const cx = PAD + SZ / 2;
-    const cy = PAD + SZ / 2;
-
-    const bg = scene.add.graphics();
-    bg.fillStyle(0x2a3a4a, 1);
-    bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-    bg.lineStyle(1, 0x5a7a9a, 0.8);
-    bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-    bg.fillStyle(0x9ac8ff, 1);
-    bg.fillTriangle(cx + 5, cy - 7, cx - 7, cy, cx + 5, cy + 7);
-    bg.setScrollFactor?.(0);
-    bg.setDepth?.(1000);
-
-    const hit = scene.add.rectangle(cx, cy, SZ, SZ, 0, 0).setInteractive({ useHandCursor: true });
-    hit.setScrollFactor?.(0);
-    hit.setDepth?.(1001);
-    hit.on("pointerover", () => {
-      bg.clear();
-      bg.fillStyle(0x3a4a5a, 1);
-      bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-      bg.lineStyle(1, 0x7a9aba, 1);
-      bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-      bg.fillStyle(0xc8e0ff, 1);
-      bg.fillTriangle(cx + 5, cy - 7, cx - 7, cy, cx + 5, cy + 7);
-    });
-    hit.on("pointerout", () => {
-      bg.clear();
-      bg.fillStyle(0x2a3a4a, 1);
-      bg.fillRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-      bg.lineStyle(1, 0x5a7a9a, 0.8);
-      bg.strokeRoundedRect(cx - SZ / 2, cy - SZ / 2, SZ, SZ, 6);
-      bg.fillStyle(0x9ac8ff, 1);
-      bg.fillTriangle(cx + 5, cy - 7, cx - 7, cy, cx + 5, cy + 7);
-    });
-    hit.on("pointerdown", () => { onBack?.(); });
-
-    backArrowNodes = [bg, hit];
   }
 
   return {

@@ -44,7 +44,7 @@ const CARD_PROPERTY_GROUP_ORDER = Object.freeze(["type", "affinities", "expressi
 
 const ROOM_SIZE_ORDER = Object.freeze(["small", "medium", "large"]);
 
-const ROOM_SHAPE_ORDER = Object.freeze(["regular", "irregular"]);
+const ROOM_SHAPE_ORDER = Object.freeze(["regular", "irregular", "obstructed"]);
 
 function normalizeRoomCardShape(value) {
   if (typeof value !== "string") return "regular";
@@ -1082,6 +1082,17 @@ function cycleRoomCardShape(card) {
   return createDesignCard(working);
 }
 
+function setRoomCardShape(card, shape) {
+  const working = createDesignCard(card || {});
+  if (working.type !== "room") return working;
+  const nextShape = normalizeRoomCardShape(shape);
+  if (nextShape !== normalizeRoomCardShape(working.roomShape)) {
+    working.count = 1;
+  }
+  working.roomShape = nextShape;
+  return createDesignCard(working);
+}
+
 function buildCardReceipt(card, { unitTokens, totalTokens, lineItems: inputLineItems } = {}) {
   const affinities = Array.isArray(card?.affinities)
     ? card.affinities.map((entry) => `${entry.kind}:${entry.expression}x${entry.stacks}`)
@@ -1764,5 +1775,6 @@ export {
   readPositiveInt,
   resolveExpressionAffinityTarget,
   serializeDesignCardSet,
+  setRoomCardShape,
   toggleHazardVital,
 };

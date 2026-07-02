@@ -44,6 +44,8 @@ let actorInspector = null;
 let gameplayView = null;
 let phaserFrame = null;
 let gameplayRunPending = false;
+// tabGeneration captured when gameplayRunPending was set; see the onBundleLoaded guard.
+let pendingGameplayGeneration = -1;
 let currentRunId = "";
 // Spec text of the run currently loaded into the Gameplay tab. Used to decide
 // whether re-entering Gameplay should rebuild (design changed) or keep the active
@@ -157,12 +159,20 @@ function updateInspectorSurface(tabId) {
   actorInspector?.setMode?.(tabId === "preview" ? "preview" : "simulation");
 }
 
+// Incremented on every explicit tab change (click or programmatic). Captured by
+// launchGameplayRun before it kicks off an async worker build, then compared when
+// the build's onBundleLoaded callback fires — if the user already navigated away
+// (e.g. pressed "back" to Design) while the build was in flight, the generation
+// will have moved on and the stale completion won't force the tab back to Gameplay.
+let tabGeneration = 0;
+
 let tabs;
 tabs = wireTabs({
   buttons: tabButtons,
   panels: tabPanels,
   defaultTab: "design",
   onChange: (tabId) => {
+    tabGeneration++;
     if (workspace) {
       workspace.dataset.activeTab = tabId;
     }
@@ -331,6 +341,7 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
     }
     lastGameplaySpecText = built.specText;
     gameplayRunPending = true;
+    pendingGameplayGeneration = tabGeneration;
     buildResult = await diagnosticsView.runBuildWithSpec(built.specText);
   } else if (designView) {
     const published = await designView.publishPreviewSpec({
@@ -346,6 +357,7 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
       lastGameplaySpecText = published.specText;
     }
     gameplayRunPending = true;
+    pendingGameplayGeneration = tabGeneration;
     buildResult = await diagnosticsView.runBuild();
   } else {
     return { ok: false, reason: "no_spec_source" };
@@ -428,6 +440,17 @@ const _startupResourceBundle = createDefaultResourceBundleArtifact({
   emitVisualAssets: true,
 });
 
+// Used by the Cmd+Arrow keyboard shortcut below. "back" reuses the gameplay
+// view's own transition logic (clears run state, resets the status rail)
+// rather than a bare tab switch.
+function navigateScreens(direction) {
+  if (direction === "forward") {
+    tabs?.setActive("gameplay");
+  } else {
+    gameplayView?.requestDesignTransition?.();
+  }
+}
+
 if (document.querySelector("#phaser-frame-root")) {
   phaserFrame = createPhaserFrameView({
     root: document,
@@ -438,6 +461,21 @@ if (document.querySelector("#phaser-frame-root")) {
   phaserFrame.setResourceBundle(_startupResourceBundle);
   globalThis.__ak_phaserFrame = phaserFrame;
 }
+
+// Cmd+Right (Mac) / Ctrl+Right (other platforms) → Gameplay, Cmd+Left / Ctrl+Left → Design.
+// Keyboard events bypass Phaser's InputManager/hit-zone testing entirely, so this
+// works reliably even when canvas-based nav buttons don't (destroy/recreate timing,
+// camera-transform hit-testing, etc).
+document.addEventListener("keydown", (event) => {
+  if (!(event.metaKey || event.ctrlKey)) return;
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    navigateScreens("forward");
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    navigateScreens("back");
+  }
+});
 
 // M8 — Sandbox bridge client
 const AK_BRIDGE_PORT = Number(globalThis.__ak_sandboxBridgePort ?? 38487);
@@ -454,8 +492,14 @@ diagnosticsView = wireDiagnosticsView({
 
     if (gameplayRunPending && bundle) {
       gameplayRunPending = false;
-      loadGameplayBundle(bundle);
-      openTab("gameplay");
+      // If the user navigated away from Gameplay while this worker build was
+      // in flight (e.g. pressed back to Design), don't force them back —
+      // that's the "back button just blinks" bug. A stale completion is a no-op;
+      // re-entering Gameplay later triggers a fresh, current build.
+      if (tabGeneration === pendingGameplayGeneration) {
+        loadGameplayBundle(bundle);
+        openTab("gameplay");
+      }
     }
   },
   onBundleStateReset: () => {

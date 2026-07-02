@@ -66,6 +66,7 @@ import {
   readPositiveInt,
   resolveExpressionAffinityTarget,
   serializeDesignCardSet,
+  setRoomCardShape,
   toggleHazardVital,
 } from "../../runtime/src/commands/card-authoring.js";
 
@@ -2284,6 +2285,13 @@ export function wireDesignGuidance({
     return true;
   }
 
+  function setRoomShape(cardId, shape) {
+    const updated = updateCard(cardId, (card) => setRoomCardShape(card, shape));
+    if (!updated) return false;
+    recompute();
+    return true;
+  }
+
   function applyPropertyDrop(cardId, property) {
     const updated = updateCard(cardId, (card) => {
       const result = dropPropertyOnCard(card, property);
@@ -2612,6 +2620,7 @@ export function wireDesignGuidance({
     flipCard,
     cycleRoomSize,
     cycleRoomShape,
+    setRoomShape,
     setBudget,
     setBudgetSplit,
     autoGenerateCards,

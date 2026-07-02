@@ -114,6 +114,11 @@ function createFakePhaser(records = {}) {
             records.rectangles.push(node);
             return node;
           },
+          zone(x, y, w, h) {
+            const node = createNode("zone", { x, y, width: w, height: h });
+            records.rectangles.push(node);
+            return node;
+          },
           circle(x, y, r, color, alpha) {
             const node = createNode("circle", { x, y, radius: r, color, alpha });
             records.circles.push(node);
@@ -486,7 +491,7 @@ test("gameplay phaser renderer wires onSelect through input handler", async () =
   renderer.dispose();
 });
 
-test("gameplay phaser renderer fits the full level into the viewport on first render", async () => {
+test("gameplay phaser renderer focuses the entry room on first render instead of fitting the full level", async () => {
   const records = {};
   const container = makeContainer();
   const renderer = createGameplayPhaserRenderer({
@@ -499,11 +504,17 @@ test("gameplay phaser renderer fits the full level into the viewport on first re
     boardWidth: 30,
     boardHeight: 20,
     tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
+    simConfig: { layout: { data: { width: 30, height: 20, rooms: [{ id: "R1", x: 0, y: 0, width: 4, height: 4 }] } }, seed: 0 },
   });
 
+  // setBounds always spans the whole world (scroll clamping), even though
+  // the initial view only focuses on the entry room.
   assert.deepEqual(records.camera.bounds, [0, 0, 960, 640]);
-  assert.ok(records.camera.zoom < 1, "large boards should start zoomed out to fit");
-  assert.deepEqual(records.camera.center, [480, 320]);
+  // Focused on the 4x4 entry room (plus 1-tile padding) instead of the full
+  // 960x640 world, so the fit zoom is well above 1 rather than the ~0.42
+  // the old whole-level fit would have produced.
+  assert.ok(records.camera.zoom > 1, "should zoom in on the entry room, not out to fit the whole level");
+  assert.notDeepEqual(records.camera.center, [480, 320], "should not center on the whole level");
   assert.equal(container.stage.dataset.gameplayWorldPixels, "960x640");
   renderer.dispose();
 });
@@ -521,13 +532,17 @@ test("gameplay phaser renderer exposes zoom and fit camera controls", async () =
     boardWidth: 30,
     boardHeight: 20,
     tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
+    simConfig: { layout: { data: { width: 30, height: 20, rooms: [{ id: "R1", x: 0, y: 0, width: 4, height: 4 }] } }, seed: 0 },
   });
   const fitZoom = renderer.getCameraState().zoom;
   const zoomedIn = renderer.zoomIn();
   assert.ok(zoomedIn > fitZoom);
   const zoomedOut = renderer.zoomOut();
   assert.ok(zoomedOut <= zoomedIn);
-  assert.equal(renderer.fitToLevel(), fitZoom);
+  // fitToLevel() is the explicit "zoom out to see everything" action — it
+  // should still fit the whole level (lower zoom), unlike the entry-focused
+  // zoom the view started at.
+  assert.ok(renderer.fitToLevel() < fitZoom);
   renderer.dispose();
 });
 
