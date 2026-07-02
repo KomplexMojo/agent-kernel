@@ -322,16 +322,21 @@ function drawActorGlyph(pixels, size, role) {
     const thickness = Math.max(2, Math.round(4 * s));
     if (role === "warden") {
         const outer = [
-            [32, 13],
-            [13, 49],
-            [51, 49],
+            [32, 10],
+            [52, 32],
+            [32, 54],
+            [12, 32],
         ].map((point) => scalePoint(point, s));
-        drawLine(pixels, size, outer[0][0] + 1, outer[0][1] + 1, outer[1][0] + 1, outer[1][1] + 1, FRAME.actorShadow, thickness + 2);
-        drawLine(pixels, size, outer[1][0] + 1, outer[1][1] + 1, outer[2][0] + 1, outer[2][1] + 1, FRAME.actorShadow, thickness + 2);
-        drawLine(pixels, size, outer[2][0] + 1, outer[2][1] + 1, outer[0][0] + 1, outer[0][1] + 1, FRAME.actorShadow, thickness + 2);
-        drawLine(pixels, size, outer[0][0], outer[0][1], outer[1][0], outer[1][1], FRAME.actor, thickness);
-        drawLine(pixels, size, outer[1][0], outer[1][1], outer[2][0], outer[2][1], FRAME.actor, thickness);
-        drawLine(pixels, size, outer[2][0], outer[2][1], outer[0][0], outer[0][1], FRAME.actor, thickness);
+        const shadow = outer.map(([x, y]) => [x + 1, y + 1]);
+        fillTriangle(pixels, size, shadow[0], shadow[1], shadow[2], FRAME.actorShadow);
+        fillTriangle(pixels, size, shadow[2], shadow[3], shadow[0], FRAME.actorShadow);
+        fillTriangle(pixels, size, outer[0], outer[1], outer[2], rgba("#3b3430", 190));
+        fillTriangle(pixels, size, outer[2], outer[3], outer[0], rgba("#3b3430", 190));
+        for (let index = 0; index < outer.length; index += 1) {
+            const next = (index + 1) % outer.length;
+            drawLine(pixels, size, shadow[index][0], shadow[index][1], shadow[next][0], shadow[next][1], FRAME.actorShadow, thickness + 2);
+            drawLine(pixels, size, outer[index][0], outer[index][1], outer[next][0], outer[next][1], FRAME.actor, thickness);
+        }
         return;
     }
     drawRing(pixels, size, cx + 1, cy + 1, Math.round(18 * s), Math.round(12 * s), FRAME.actorShadow);

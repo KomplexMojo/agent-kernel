@@ -45,7 +45,7 @@ function redCenterMassY(pixels: Uint8ClampedArray) {
   return weight > 0 ? weightedY / weight : 0;
 }
 
-test("composer renders delver circle and warden triangle actor glyphs", () => {
+test("composer renders delver circle and warden diamond actor glyphs", () => {
   const delver = composeActorMedallion({
     size,
     actor: { role: "delver", affinities: [{ kind: "water", expression: "emit" }] },
@@ -55,8 +55,9 @@ test("composer renders delver circle and warden triangle actor glyphs", () => {
     actor: { role: "warden", affinities: [{ kind: "water", expression: "emit" }] },
   });
 
-  assert.ok(luminance(pixel(delver, 14, 32)) > luminance(pixel(warden, 14, 32)) + 100, "delver circle should occupy the left-center ring");
-  assert.ok(luminance(pixel(warden, 32, 13)) > luminance(pixel(delver, 32, 13)) + 50, "warden triangle should occupy the top apex");
+  assert.ok(luminance(pixel(delver, 32, 14)) > luminance(pixel(warden, 32, 14)) + 100, "delver circle should occupy the top ring");
+  assert.ok(luminance(pixel(warden, 32, 10)) > luminance(pixel(delver, 32, 10)) + 50, "warden diamond should occupy the top point");
+  assert.ok(luminance(pixel(warden, 52, 32)) > luminance(pixel(delver, 52, 32)) + 50, "warden diamond should occupy the right point");
 });
 
 test("composer changes the center affinity glyph when primary affinity changes", () => {
@@ -93,7 +94,7 @@ test("composer expression triangles change for push, pull, emit, and draw", () =
   assert.ok(luminance(pixel(sprites.draw, 9, 9)) > 500, "draw should point inward");
 });
 
-test("composer shifts the warden affinity glyph down inside the triangle", () => {
+test("composer shifts the warden affinity glyph down inside the diamond", () => {
   const delver = composeActorMedallion({
     size,
     actor: { role: "delver", affinities: [{ kind: "fire", expression: "emit" }] },

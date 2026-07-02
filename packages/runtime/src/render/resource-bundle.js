@@ -375,6 +375,51 @@ function drawLine(pixels, width, x0, y0, x1, y1, rgba) {
   }
 }
 
+function scaleCoord(size, value) {
+  return Math.round((Number(value) || 0) * size / DEFAULT_RESOURCE_TILE_SIZE);
+}
+
+function fillScaledRect(pixels, width, size, x, y, rectWidth, rectHeight, rgba) {
+  fillRect(
+    pixels,
+    width,
+    scaleCoord(size, x),
+    scaleCoord(size, y),
+    Math.max(1, scaleCoord(size, rectWidth)),
+    Math.max(1, scaleCoord(size, rectHeight)),
+    rgba,
+  );
+}
+
+function polygonContainsPoint(points, px, py) {
+  let inside = false;
+  for (let index = 0, previous = points.length - 1; index < points.length; previous = index, index += 1) {
+    const [x1, y1] = points[index];
+    const [x2, y2] = points[previous];
+    const intersects = ((y1 > py) !== (y2 > py))
+      && (px < ((x2 - x1) * (py - y1)) / ((y2 - y1) || 1) + x1);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function fillScaledPolygon(pixels, width, size, points, rgba) {
+  const scaled = points.map(([x, y]) => [x * size / DEFAULT_RESOURCE_TILE_SIZE, y * size / DEFAULT_RESOURCE_TILE_SIZE]);
+  const xs = scaled.map(([x]) => x);
+  const ys = scaled.map(([, y]) => y);
+  const minX = Math.max(0, Math.floor(Math.min(...xs)));
+  const maxX = Math.min(size - 1, Math.ceil(Math.max(...xs)));
+  const minY = Math.max(0, Math.floor(Math.min(...ys)));
+  const maxY = Math.min(size - 1, Math.ceil(Math.max(...ys)));
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      if (polygonContainsPoint(scaled, x + 0.5, y + 0.5)) {
+        setPixel(pixels, width, x, y, rgba);
+      }
+    }
+  }
+}
+
 function drawCircle(pixels, width, cx, cy, radius, rgba) {
   for (let y = -radius; y <= radius; y += 1) {
     for (let x = -radius; x <= radius; x += 1) {
@@ -408,6 +453,14 @@ const PALETTE = Object.freeze({
   border: hexToRgba("#0d1110"),
   white: hexToRgba("#ffffff"),
   black: hexToRgba("#000000"),
+  roomGlyph: hexToRgba("#c7a765"),
+  roomGlyphDark: hexToRgba("#171517"),
+  entranceArrow: hexToRgba("#49b96b"),
+  exitArrow: hexToRgba("#f5d14d"),
+  spawnTileA: hexToRgba("#241f22"),
+  spawnTileB: hexToRgba("#2b5f48"),
+  exitTileA: hexToRgba("#241f22"),
+  exitTileB: hexToRgba("#83704d"),
   // Affinity colors now sourced from shared palette
   affinity: Object.freeze(
     Object.fromEntries(
@@ -533,15 +586,32 @@ function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
     return pixels;
   }
   if (assetId.startsWith("tile.spawn")) {
-    checker(pixels, size, size, PALETTE.floorA, PALETTE.floorB, 4);
-    drawCircle(pixels, size, 16, 16, 9, PALETTE.spawn);
+    checker(pixels, size, size, PALETTE.spawnTileA, PALETTE.spawnTileB, Math.max(2, Math.floor(size / 8)));
+    fillScaledRect(pixels, size, size, 7, 7, 15, 18, PALETTE.roomGlyph);
+    fillScaledRect(pixels, size, size, 9, 9, 11, 14, PALETTE.roomGlyphDark);
+    fillScaledRect(pixels, size, size, 12, 18, 5, 7, PALETTE.black);
+    fillScaledPolygon(
+      pixels,
+      size,
+      size,
+      [[13, 14], [22, 14], [22, 11], [28, 16], [22, 21], [22, 18], [13, 18]],
+      PALETTE.entranceArrow,
+    );
     drawBorder(pixels, size, 0, 0, size, PALETTE.border);
     return pixels;
   }
   if (assetId.startsWith("tile.exit")) {
-    checker(pixels, size, size, PALETTE.floorA, PALETTE.floorB, 4);
-    fillRect(pixels, size, 9, 6, 14, 20, PALETTE.exit);
-    fillRect(pixels, size, 12, 9, 8, 14, PALETTE.black);
+    checker(pixels, size, size, PALETTE.exitTileA, PALETTE.exitTileB, Math.max(2, Math.floor(size / 8)));
+    fillScaledRect(pixels, size, size, 7, 7, 15, 18, PALETTE.roomGlyph);
+    fillScaledRect(pixels, size, size, 9, 9, 11, 14, PALETTE.roomGlyphDark);
+    fillScaledRect(pixels, size, size, 12, 18, 5, 7, PALETTE.black);
+    fillScaledPolygon(
+      pixels,
+      size,
+      size,
+      [[28, 14], [19, 14], [19, 11], [13, 16], [19, 21], [19, 18], [28, 18]],
+      PALETTE.exitArrow,
+    );
     drawBorder(pixels, size, 0, 0, size, PALETTE.border);
     return pixels;
   }
@@ -562,22 +632,36 @@ function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
     const affinityKind = assetId.split(".")[2];
     const color = PALETTE.affinity[affinityKind] || PALETTE.delver;
     fillRect(pixels, size, 0, 0, size, size, [0, 0, 0, 0]);
-    drawCircle(pixels, size, 16, 10, 5, PALETTE.white);
-    drawCircle(pixels, size, 16, 15, 8, color);
-    fillRect(pixels, size, 11, 21, 10, 6, color);
-    drawLine(pixels, size, 11, 14, 7, 22, PALETTE.white);
-    drawLine(pixels, size, 21, 14, 25, 22, PALETTE.white);
+    fillScaledPolygon(
+      pixels,
+      size,
+      size,
+      [[16, 5], [22, 7], [26, 11], [27, 16], [26, 21], [22, 25], [16, 27], [10, 25], [6, 21], [5, 16], [6, 11], [10, 7]],
+      PALETTE.black,
+    );
+    fillScaledPolygon(
+      pixels,
+      size,
+      size,
+      [[16, 4], [23, 6], [27, 10], [28, 16], [27, 22], [23, 26], [16, 28], [9, 26], [5, 22], [4, 16], [5, 10], [9, 6]],
+      color,
+    );
+    fillScaledPolygon(
+      pixels,
+      size,
+      size,
+      [[16, 10], [20, 11], [22, 16], [20, 21], [16, 22], [12, 21], [10, 16], [12, 11]],
+      PALETTE.black,
+    );
     return pixels;
   }
   if (assetId.startsWith("actor.warden")) {
     const affinityKind = assetId.split(".")[2];
     const color = PALETTE.affinity[affinityKind] || PALETTE.warden;
     fillRect(pixels, size, 0, 0, size, size, [0, 0, 0, 0]);
-    fillRect(pixels, size, 9, 10, 14, 14, color);
-    fillRect(pixels, size, 12, 5, 8, 5, color);
-    drawBorder(pixels, size, 9, 10, 14, PALETTE.white);
-    drawLine(pixels, size, 8, 25, 16, 19, PALETTE.white);
-    drawLine(pixels, size, 24, 25, 16, 19, PALETTE.white);
+    fillScaledPolygon(pixels, size, size, [[16, 3], [29, 16], [16, 29], [3, 16]], PALETTE.black);
+    fillScaledPolygon(pixels, size, size, [[16, 5], [27, 16], [16, 27], [5, 16]], color);
+    fillScaledPolygon(pixels, size, size, [[16, 10], [22, 16], [16, 22], [10, 16]], PALETTE.black);
     return pixels;
   }
   if (assetId.startsWith("affinity.")) {
