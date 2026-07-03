@@ -333,17 +333,117 @@ test("MB4 — adjustCardCount on a shelved card is blocked when it would exceed 
   }
 });
 
-// ---------------------------------------------------------------------------
-// TODO: Test Permutations
-// ---------------------------------------------------------------------------
-// - mergeSpendLedgerWithAllocation: both overages non-zero → max wins
-// - mergeSpendLedgerWithAllocation: only spendLedger over → totalOverBudgetBy = baseOverBy
-// - mergeSpendLedgerWithAllocation: neither over → totalOverBudgetBy = 0
-// - normalizeDesignCardSet: resource card with no resourceVitals → permanent defaults to false
-// - normalizeDesignCardSet: resource card with nested vital keys → all keys preserved
-// - normalizeDesignCardSet: permanent=true with multiplier → token cost × RESOURCE_PERMANENT_MULTIPLIER
-// - loadState: budgetTokens only → cards unchanged
-// - loadState: cards only → budget unchanged
-// - getSplitSum: zero splits → 0
-// - isSplitOverAllocated: splits sum = 100 → false
-// - isSplitOverAllocated: splits sum = 101 → true
+test("MB1 permutation — spend-ledger overage reports base overage when allocation ledger is absent", () => {
+  const card = createDesignCard({
+    id: "delver_spend_only",
+    type: "delver",
+    affinity: "fire",
+    motivations: ["attacking"],
+    tokenHint: 5000,
+  });
+
+  const built = buildSummaryFromCardSet({ cards: [card], budgetTokens: 100 });
+
+  assert.equal(built.spendLedger.totalOverBudgetBy, built.spendLedger.totalSpentTokens - 100);
+  assert.equal(built.spendLedger.overBudget, true);
+});
+
+test("MB1 permutation — no overage reports totalOverBudgetBy zero", () => {
+  const card = createDesignCard({ id: "room_under_budget", type: "room", roomSize: "small", affinity: "fire" });
+
+  const built = buildSummaryFromCardSet({ cards: [card], budgetTokens: 10000 });
+
+  assert.equal(built.spendLedger.totalOverBudgetBy, 0);
+  assert.equal(built.spendLedger.overBudget, false);
+});
+
+test.skip("MB1 permutation — merged spend and allocation overages use max, not sum", () => {
+  assert.equal(true, false, "allocation merge ledger is not exposed by buildSummaryFromCardSet in this layer");
+});
+
+test("MB2 permutation — resource card without resourceVitals defaults permanent to false", () => {
+  const [resource] = normalizeDesignCardSet([
+    createDesignCard({ id: "resource_no_vitals", type: "resource", resourceVitals: undefined }),
+  ]);
+
+  assert.equal(resource.permanent, false);
+  assert.ok(resource.resourceVitals);
+});
+
+test("MB2 permutation — nested resource vital keys are preserved", () => {
+  const [resource] = normalizeDesignCardSet([
+    makeResourceCard({
+      resourceVitals: {
+        health: { delta: 2, regen: 1 },
+        mana: { delta: 3, regen: 2 },
+        stamina: { delta: 4, regen: 3 },
+      },
+    }),
+  ]);
+
+  assert.deepEqual(resource.resourceVitals.health, { delta: 2, regen: 1 });
+  assert.deepEqual(resource.resourceVitals.mana, { delta: 3, regen: 2 });
+  assert.deepEqual(resource.resourceVitals.stamina, { delta: 4, regen: 3 });
+});
+
+test("MB2 permutation — permanent resource multiplier scales token cost", () => {
+  const temporary = makeResourceCard({
+    id: "resource_temp",
+    resourceVitals: { health: { delta: 5, regen: 0 } },
+    permanent: false,
+  });
+  const permanent = makeResourceCard({
+    id: "resource_perm",
+    resourceVitals: { health: { delta: 5, regen: 0 } },
+    permanent: true,
+  });
+
+  const tempBuilt = buildSummaryFromCardSet({ cards: [temporary], budgetTokens: 10000 });
+  const permBuilt = buildSummaryFromCardSet({ cards: [permanent], budgetTokens: 10000 });
+
+  assert.equal(permBuilt.cards[0].cardValue.unitTokens, tempBuilt.cards[0].cardValue.unitTokens * 10);
+});
+
+test("MB3 permutation — loadState with budgetTokens only leaves cards unchanged", async () => {
+  const { wireDesignGuidance } = await import("../../packages/ui-web/src/design-guidance.js");
+  const guidance = wireDesignGuidance({ elements: {} });
+  const cards = [makeRoomCard({ id: "room_load_budget" })];
+  guidance.setCards(cards);
+  const beforeCardIds = guidance.getCards().map((card) => card.id);
+
+  const result = guidance.loadState({ budgetTokens: 7777 });
+
+  assert.ok(result !== false);
+  assert.equal(guidance.getState().budgetTokens, 7777);
+  assert.deepEqual(guidance.getCards().map((card) => card.id), beforeCardIds);
+  assert.equal(guidance.getCards().length, 1);
+});
+
+test("MB3 permutation — loadState with cards only leaves budget unchanged", async () => {
+  const { wireDesignGuidance } = await import("../../packages/ui-web/src/design-guidance.js");
+  const guidance = wireDesignGuidance({ elements: {} });
+  guidance.setBudget(4321);
+
+  const result = guidance.loadState({ cards: [makeRoomCard({ id: "room_load_cards" })] });
+
+  assert.ok(result !== false);
+  assert.equal(guidance.getState().budgetTokens, 4321);
+  assert.equal(guidance.getCards().length, 1);
+});
+
+test("MB4 permutation — getSplitSum handles zero, exact, and over-allocated splits", async () => {
+  const { wireDesignGuidance } = await import("../../packages/ui-web/src/design-guidance.js");
+  const guidance = wireDesignGuidance({ elements: {} });
+
+  guidance.loadState({ budgetSplitPercent: { room: 0, delver: 0, warden: 0, hazard: 0, resource: 0 } });
+  assert.equal(guidance.getSplitSum(), 0);
+  assert.equal(guidance.isSplitOverAllocated(), false);
+
+  guidance.loadState({ budgetSplitPercent: { room: 40, delver: 20, warden: 20, hazard: 10, resource: 10 } });
+  assert.equal(guidance.getSplitSum(), 100);
+  assert.equal(guidance.isSplitOverAllocated(), false);
+
+  guidance.loadState({ budgetSplitPercent: { room: 41, delver: 20, warden: 20, hazard: 10, resource: 10 } });
+  assert.equal(guidance.getSplitSum(), 101);
+  assert.equal(guidance.isSplitOverAllocated(), true);
+});

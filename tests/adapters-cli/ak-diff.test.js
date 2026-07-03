@@ -232,14 +232,25 @@ test("cli diff returns structured failure for missing runs", () => {
   assert.match(output.error, /Run directory not found:/);
 });
 
-// ## TODO: Test Permutations
-// - Permutation: diff between two create-only runs (no run step) — currently fails per GAP-3.
-//   Encode the expected ok:false envelope so the gap stays observable until repaired.
-// - Permutation: diff with --run-a == --run-b — confirm the command short-circuits to a "no diff"
-//   stable result instead of throwing.
-// - Permutation: diff against a run whose tick-frames artifact is missing but run-summary exists —
-//   confirm the error message names the missing artifact, not the run id.
-// - Permutation: diff with both runs containing identical tick-frames — confirm zero divergence
-//   reported in a stable, deterministic envelope.
-// - Permutation: diff where one run has more ticks than the other — confirm the longer run's
-//   tail frames are reported as additions, not as parity errors.
+test("cli diff between two create-only runs returns an ok:false envelope for documented GAP-3", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-create-only-"));
+  const runA = "run_create_only_a";
+  const runB = "run_create_only_b";
+
+  writeJson(join(workDir, "artifacts", "runs", runA, "build", "sim-config.json"), createSimConfig(runA));
+  writeJson(join(workDir, "artifacts", "runs", runB, "build", "sim-config.json"), createSimConfig(runB));
+  writeJson(join(workDir, "artifacts", "runs", runA, "build", "initial-state.json"), createInitialState(runA, []));
+  writeJson(join(workDir, "artifacts", "runs", runB, "build", "initial-state.json"), createInitialState(runB, []));
+
+  const result = runCli(["diff", "--run-a", runA, "--run-b", runB], { cwd: workDir });
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.equal(output.command, "diff");
+});
+
+test.skip("cli diff with --run-a equal to --run-b short-circuits to a stable no-diff result", () => {});
+test.skip("cli diff names missing tick-frames artifact when run-summary exists", () => {});
+test.skip("cli diff with identical tick-frames reports zero divergence deterministically", () => {});
+test.skip("cli diff reports longer-run tail frames as additions", () => {});

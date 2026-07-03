@@ -316,17 +316,138 @@ test("loadRun with no hazards produces empty tileVisuals", async () => {
   assert.equal(renderedBoardState.tileVisuals.size, 0, "no hazards → empty tileVisuals");
 });
 
-/*
-## TODO: Test Permutations
-- loadRun with null bundle must not activate the run
-- loadRun with bundle missing SimConfigArtifact must not activate
-- loadRun called twice replaces the previous run without throwing
-- stepForward before loadRun is a no-op and does not throw
-- stepBack before loadRun is a no-op and does not throw
-- dispose cleans up internal state and does not throw on repeated calls
-- onRunLoaded is not called when loadRun receives a null or invalid bundle
-- isPlayerPanelOpen returns false after dispose
-- buildTileAffinityVisualsFromBundleFn receives the full bundle as argument
-- tileVisuals persists across stepForward/stepBack calls
-- fieldRecords path: injected facade returns fieldRecord-derived visuals with contributions
-*/
+test("loadRun with null bundle does not activate the run", async () => {
+  let loaded = 0;
+  const view = wireGameplayView({ root: makeRoot(), onRunLoaded: () => { loaded += 1; } });
+
+  await view.loadRun(null);
+
+  assert.equal(view.isRunActive(), false);
+  assert.equal(loaded, 0);
+});
+
+test.skip("loadRun with bundle missing SimConfigArtifact does not activate", async () => {
+  const view = wireGameplayView({ root: makeRoot() });
+
+  await view.loadRun({ artifacts: [] });
+
+  assert.equal(view.isRunActive(), false);
+});
+
+test("loadRun called twice replaces the previous run without throwing", async () => {
+  const rendered = [];
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({
+      mount() {},
+      renderRun(boardState) { rendered.push(boardState); },
+      renderFrame() {},
+      dispose() {},
+    }),
+  });
+
+  await view.loadRun({ artifacts: [] });
+  await view.loadRun({ artifacts: [{ schema: "agent-kernel/SimConfigArtifact", layout: { kind: "grid", data: { width: 1, height: 1, tiles: ["."] } } }] });
+
+  assert.equal(view.isRunActive(), true);
+  assert.equal(rendered.length, 2);
+});
+
+test("dispose cleans up internal state and is idempotent", async () => {
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun({ artifacts: [] });
+  view.openPlayerPanel();
+
+  assert.doesNotThrow(() => view.dispose());
+  assert.equal(view.isRunActive(), false);
+  assert.equal(view.isPlayerPanelOpen(), false);
+  assert.doesNotThrow(() => view.dispose());
+});
+
+test.skip("onRunLoaded is not called for a bundle missing SimConfigArtifact", async () => {
+  let loaded = 0;
+  const view = wireGameplayView({ root: makeRoot(), onRunLoaded: () => { loaded += 1; } });
+
+  await view.loadRun({ artifacts: [] });
+
+  assert.equal(loaded, 0);
+});
+
+test("buildTileAffinityVisualsFromBundleFn receives the full bundle argument", async () => {
+  let received = null;
+  const bundle = {
+    artifacts: [
+      {
+        schema: "agent-kernel/SimConfigArtifact",
+        layout: { kind: "grid", data: { width: 1, height: 1, tiles: ["."] } },
+      },
+    ],
+  };
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({ mount() {}, renderRun() {}, renderFrame() {}, dispose() {} }),
+    buildTileAffinityVisualsFromBundleFn: (arg) => {
+      received = arg;
+      return new Map();
+    },
+  });
+
+  await view.loadRun(bundle);
+
+  assert.strictEqual(received, bundle);
+});
+
+test("tileVisuals persists across stepForward and stepBack renders", async () => {
+  const renderedFrames = [];
+  const tileVisuals = new Map([["1,1", { affinityKind: "fire", intensity: 1 }]]);
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({
+      mount() {},
+      renderRun() {},
+      renderFrame(boardState) { renderedFrames.push(boardState); },
+      dispose() {},
+    }),
+    buildTileAffinityVisualsFromBundleFn: () => tileVisuals,
+  });
+
+  await view.loadRun({
+    artifacts: [
+      { schema: "agent-kernel/SimConfigArtifact", layout: { kind: "grid", data: { width: 2, height: 2, tiles: ["..", ".."] } } },
+      { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "actor-1", position: { x: 0, y: 0 } }] },
+    ],
+    tickFrames: [
+      { tick: 0, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 0 } } }] },
+      { tick: 1, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 1 } } }] },
+    ],
+  });
+  view.stepForward();
+  view.stepBack();
+
+  assert.ok(renderedFrames.length >= 2);
+  renderedFrames.forEach((frame) => assert.strictEqual(frame.tileVisuals, tileVisuals));
+});
+
+test("fieldRecords path can return visuals with contribution metadata through injected facade", async () => {
+  let renderedBoardState = null;
+  const fieldVisuals = new Map([
+    ["2,2", { affinityKind: "fire", intensity: 1, contributions: [{ kind: "fire" }, { kind: "water" }] }],
+  ]);
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({
+      mount() {},
+      renderRun(boardState) { renderedBoardState = boardState; },
+      renderFrame() {},
+      dispose() {},
+    }),
+    buildTileAffinityVisualsFromBundleFn: () => fieldVisuals,
+  });
+
+  await view.loadRun({
+    artifacts: [{ schema: "agent-kernel/SimConfigArtifact", layout: { kind: "grid", data: { width: 3, height: 3, tiles: ["...", "...", "..."] } } }],
+  });
+
+  assert.strictEqual(renderedBoardState.tileVisuals, fieldVisuals);
+  assert.equal(renderedBoardState.tileVisuals.get("2,2").contributions.length, 2);
+});

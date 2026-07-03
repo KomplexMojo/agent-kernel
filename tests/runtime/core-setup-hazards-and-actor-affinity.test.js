@@ -7,6 +7,84 @@ function loadSetupModule() {
   return coreSetupModulePromise;
 }
 
+const AFFINITY_KIND_CODES = Object.freeze({
+  fire: 1,
+  water: 2,
+  earth: 3,
+  wind: 4,
+  life: 5,
+  decay: 6,
+  corrode: 7,
+  fortify: 8,
+  light: 9,
+  dark: 10,
+});
+
+const AFFINITY_EXPRESSION_CODES = Object.freeze({
+  push: 1,
+  pull: 2,
+  emit: 3,
+  draw: 4,
+});
+
+function createArmingCore(armed) {
+  return {
+    configureGrid() { return 0; },
+    setTileAt() {},
+    armStaticTrapAt(x, y, kind, expression, stacks, manaReserve) {
+      armed.push({ x, y, kind, expression, stacks, manaReserve });
+      return 1;
+    },
+  };
+}
+
+function createActorAffinityCore(affinityWrites, computeCalls = null) {
+  return {
+    configureGrid() { return 0; },
+    setTileAt() {},
+    armStaticTrapAt() { return 1; },
+    clearActorPlacements() {},
+    addActorPlacement() {},
+    validateActorPlacement() { return 0; },
+    applyActorPlacements() { return 0; },
+    setMotivatedActorVital() {},
+    setMotivatedActorMovementCost() {},
+    setMotivatedActorActionCostMana() {},
+    setMotivatedActorActionCostStamina() {},
+    validateActorCapabilities() { return 0; },
+    setMotivatedActorAffinity(index, kind, expression, stacks) {
+      affinityWrites.push({ index, kind, expression, stacks });
+      return 1;
+    },
+    ...(computeCalls
+      ? {
+        computeAffinityField() {
+          computeCalls.count += 1;
+          return 0;
+        },
+      }
+      : {}),
+  };
+}
+
+function createGridSimConfig(data = {}) {
+  return {
+    layout: {
+      kind: "grid",
+      data: {
+        width: 6,
+        height: 6,
+        tiles: ["......", "......", "......", "......", "......", "......"],
+        ...data,
+      },
+    },
+  };
+}
+
+function createInitialState(actors) {
+  return { actors };
+}
+
 test("applySimConfigToCore arms hazards from layout.data.hazards", async () => {
   const { applySimConfigToCore } = await loadSetupModule();
   const armed = [];
@@ -368,19 +446,189 @@ test("initializeCoreFromArtifacts calls computeAffinityField when available", as
 
   const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
   assert.equal(result.layout.ok, true);
-  assert.equal(result.actor.ok, true);
-  assert.equal(fieldComputed, true, "computeAffinityField was called");
+assert.equal(result.actor.ok, true);
+assert.equal(fieldComputed, true, "computeAffinityField was called");
 });
 
-// ## TODO: Test Permutations
-// - [ ] All 10 affinity kinds as hazard affinityStacks[0].kind: verify kind code correct
-// - [ ] All 4 expressions as hazard expression: verify expression code correct
-// - [ ] Hazard with vitals.mana vs hazard without vitals: verify mana fallback
-// - [ ] Hazard emitStrength > stacks and emitStrength < stacks: verify stacks used (not emitStrength)
-// - [ ] Multiple hazards at same position: verify both armed
-// - [ ] Hazard at board edge (0,0) and (width-1, height-1): verify armed
-// - [ ] Actor with non-canonical expression (e.g. "resistant"): verify fallback to push
-// - [ ] Actor with stacks=0 or negative: verify skipped or defaulted
-// - [ ] Mixed actors with and without affinities: verify only valid ones written
-// - [ ] initializeCoreFromArtifacts without computeAffinityField export: verify no error
-// - [ ] Sequential initializeCoreFromArtifacts calls: verify field recomputed each time
+test("applySimConfigToCore maps all hazard affinity kinds to core codes", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const armed = [];
+  const hazards = Object.keys(AFFINITY_KIND_CODES).map((kind, index) => ({
+    id: `hazard-${kind}`,
+    position: { x: index % 6, y: Math.floor(index / 6) },
+    affinityStacks: [{ kind, stacks: 1, expression: "emit" }],
+  }));
+
+  const result = applySimConfigToCore(createArmingCore(armed), createGridSimConfig({ hazards }));
+
+  assert.equal(result.ok, true);
+  assert.equal(armed.length, 10);
+  for (const entry of armed) {
+    const kind = Object.entries(AFFINITY_KIND_CODES).find(([, code]) => code === entry.kind)?.[0];
+    assert.ok(kind, `unknown kind code ${entry.kind}`);
+    assert.equal(entry.kind, AFFINITY_KIND_CODES[kind]);
+  }
+});
+
+test("applySimConfigToCore maps all hazard affinity expressions to core codes", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const armed = [];
+  const hazards = Object.keys(AFFINITY_EXPRESSION_CODES).map((expression, index) => ({
+    id: `hazard-${expression}`,
+    position: { x: index + 1, y: 1 },
+    affinityStacks: [{ kind: "fire", stacks: 2, expression }],
+  }));
+
+  const result = applySimConfigToCore(createArmingCore(armed), createGridSimConfig({ hazards }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(
+    armed.map((entry) => entry.expression),
+    Object.values(AFFINITY_EXPRESSION_CODES),
+  );
+});
+
+test("applySimConfigToCore prefers hazard vitals.mana and falls back to stacks", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const armed = [];
+  const hazards = [
+    {
+      id: "with-mana",
+      position: { x: 1, y: 1 },
+      affinityStacks: [{ kind: "fire", stacks: 2, expression: "emit" }],
+      vitals: { mana: { current: 9, max: 9, regen: 0 } },
+    },
+    {
+      id: "without-mana",
+      position: { x: 2, y: 1 },
+      affinityStacks: [{ kind: "water", stacks: 4, expression: "emit" }],
+    },
+  ];
+
+  const result = applySimConfigToCore(createArmingCore(armed), createGridSimConfig({ hazards }));
+
+  assert.equal(result.ok, true);
+  assert.equal(armed[0].manaReserve, 9);
+  assert.equal(armed[1].manaReserve, 12);
+});
+
+test("applySimConfigToCore uses affinity stacks rather than hazard emitStrength", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const armed = [];
+  const hazards = [
+    {
+      id: "emit-greater",
+      position: { x: 1, y: 1 },
+      emitStrength: 10,
+      affinityStacks: [{ kind: "fire", stacks: 2, expression: "emit" }],
+    },
+    {
+      id: "emit-smaller",
+      position: { x: 2, y: 1 },
+      emitStrength: 1,
+      affinityStacks: [{ kind: "water", stacks: 4, expression: "emit" }],
+    },
+  ];
+
+  const result = applySimConfigToCore(createArmingCore(armed), createGridSimConfig({ hazards }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(armed.map((entry) => entry.stacks), [2, 4]);
+});
+
+test("applySimConfigToCore arms duplicate-position hazards and board-edge hazards", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const armed = [];
+  const hazards = [
+    { id: "same-a", position: { x: 2, y: 2 }, affinityStacks: [{ kind: "fire", stacks: 1, expression: "push" }] },
+    { id: "same-b", position: { x: 2, y: 2 }, affinityStacks: [{ kind: "water", stacks: 1, expression: "pull" }] },
+    { id: "edge-a", position: { x: 0, y: 0 }, affinityStacks: [{ kind: "earth", stacks: 1, expression: "emit" }] },
+    { id: "edge-b", position: { x: 5, y: 5 }, affinityStacks: [{ kind: "wind", stacks: 1, expression: "draw" }] },
+  ];
+
+  const result = applySimConfigToCore(createArmingCore(armed), createGridSimConfig({ hazards }));
+
+  assert.equal(result.ok, true);
+  assert.equal(armed.length, 4);
+  assert.deepEqual(armed.map(({ x, y }) => `${x},${y}`), ["2,2", "2,2", "0,0", "5,5"]);
+});
+
+test("applyInitialStateToCore normalizes actor affinity expressions and skips invalid stacks", async () => {
+  const { applyInitialStateToCore } = await loadSetupModule();
+  const affinityWrites = [];
+  const core = createActorAffinityCore(affinityWrites);
+  const initialState = createInitialState([
+    {
+      id: "actor-negative",
+      position: { x: 1, y: 1 },
+      affinities: [{ kind: "fire", stacks: -1, expression: "emit" }],
+    },
+    {
+      id: "actor-resistant",
+      position: { x: 2, y: 2 },
+      affinities: [{ kind: "water", stacks: 3, expression: "resistant" }],
+    },
+    {
+      id: "actor-zero",
+      position: { x: 3, y: 3 },
+      affinities: [{ kind: "earth", stacks: 0, expression: "draw" }],
+    },
+  ]);
+
+  const result = applyInitialStateToCore(core, initialState);
+
+  assert.equal(result.ok, true);
+  assert.equal(affinityWrites.length, 1);
+  assert.equal(affinityWrites[0].index, 1);
+  assert.equal(affinityWrites[0].kind, AFFINITY_KIND_CODES.water);
+  assert.equal(affinityWrites[0].expression, AFFINITY_EXPRESSION_CODES.push);
+  assert.equal(affinityWrites[0].stacks, 3);
+});
+
+test("applyInitialStateToCore writes only valid actors from a mixed actor list", async () => {
+  const { applyInitialStateToCore } = await loadSetupModule();
+  const affinityWrites = [];
+  const initialState = createInitialState([
+    { id: "actor-empty", position: { x: 0, y: 0 }, affinities: [] },
+    { id: "actor-invalid-kind", position: { x: 1, y: 1 }, affinities: [{ kind: "void", stacks: 1, expression: "emit" }] },
+    { id: "actor-valid", position: { x: 2, y: 2 }, affinities: [{ kind: "dark", stacks: 5, expression: "draw" }] },
+  ]);
+
+  const result = applyInitialStateToCore(createActorAffinityCore(affinityWrites), initialState);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(affinityWrites, [{ index: 2, kind: AFFINITY_KIND_CODES.dark, expression: AFFINITY_EXPRESSION_CODES.draw, stacks: 5 }]);
+});
+
+test("initializeCoreFromArtifacts tolerates missing computeAffinityField export", async () => {
+  const { initializeCoreFromArtifacts } = await loadSetupModule();
+  const affinityWrites = [];
+  const core = createActorAffinityCore(affinityWrites);
+  delete core.computeAffinityField;
+
+  const result = initializeCoreFromArtifacts(core, {
+    simConfig: createGridSimConfig(),
+    initialState: createInitialState([{ id: "actor", position: { x: 1, y: 1 } }]),
+  });
+
+  assert.equal(result.layout.ok, true);
+  assert.equal(result.actor.ok, true);
+});
+
+test("initializeCoreFromArtifacts recomputes affinity field on sequential calls", async () => {
+  const { initializeCoreFromArtifacts } = await loadSetupModule();
+  const affinityWrites = [];
+  const computeCalls = { count: 0 };
+  const core = createActorAffinityCore(affinityWrites, computeCalls);
+  const payload = {
+    simConfig: createGridSimConfig({
+      hazards: [{ id: "h1", position: { x: 1, y: 1 }, affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }] }],
+    }),
+    initialState: createInitialState([{ id: "actor", position: { x: 2, y: 2 }, affinities: [{ kind: "water", stacks: 1, expression: "push" }] }]),
+  };
+
+  initializeCoreFromArtifacts(core, payload);
+  initializeCoreFromArtifacts(core, payload);
+
+  assert.equal(computeCalls.count, 2);
+});

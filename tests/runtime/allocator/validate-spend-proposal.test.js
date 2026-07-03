@@ -248,10 +248,62 @@ test("validateSpendProposal denies unattributed spend when allocation is enforce
   assert.match(result.errors.join("\n"), /Unattributed spend item/);
 });
 
-// ## TODO: Test Permutations
-// - proposal with mix of known and unknown item ids (partial status)
-// - proposal item with quantity=0 (normalizes to 1 — verify)
-// - proposal item with quadratic formula item — does validateSpendProposal apply n² cost?
-// - validateSpendProposal with priceList=null and proposal items (all items denied)
-// - validateSpendProposal with empty proposal.items (totalCost=0, status=approved)
-// - receipt lineItems preserve category from proposal item (not just id/kind/quantity)
+test("validateSpendProposal normalizes quantity zero to one", () => {
+  const proposal = {
+    schema: "agent-kernel/SpendProposal",
+    schemaVersion: 1,
+    meta: { ...baseMeta, id: "prop-zero-quantity" },
+    items: [
+      { id: "vital_health_point", kind: "vital", quantity: 0 },
+    ],
+  };
+  const result = validateSpendProposal({
+    budget: makeBudget(500),
+    priceList: buildDefaultPriceList(),
+    proposal,
+    meta: { ...baseMeta, id: "receipt-zero-quantity" },
+  });
+  assert.equal(result.receipt.status, "approved");
+  assert.equal(result.receipt.lineItems[0].quantity, 1);
+  assert.equal(result.receipt.totalCost, 1);
+});
+
+test("validateSpendProposal denies all proposal items when priceList is null", () => {
+  const proposal = {
+    schema: "agent-kernel/SpendProposal",
+    schemaVersion: 1,
+    meta: { ...baseMeta, id: "prop-no-price-list" },
+    items: [
+      { id: "vital_health_point", kind: "vital", quantity: 5 },
+      { id: "actor_spawn", kind: "actor", quantity: 1 },
+    ],
+  };
+  const result = validateSpendProposal({
+    budget: makeBudget(500),
+    priceList: null,
+    proposal,
+    meta: { ...baseMeta, id: "receipt-no-price-list" },
+  });
+  assert.equal(result.receipt.status, "denied");
+  assert.equal(result.receipt.totalCost, 0);
+  assert.deepEqual(result.receipt.lineItems.map((item) => item.status), ["denied", "denied"]);
+});
+
+test("validateSpendProposal approves empty proposal items with zero total cost", () => {
+  const proposal = {
+    schema: "agent-kernel/SpendProposal",
+    schemaVersion: 1,
+    meta: { ...baseMeta, id: "prop-empty" },
+    items: [],
+  };
+  const result = validateSpendProposal({
+    budget: makeBudget(500),
+    priceList: buildDefaultPriceList(),
+    proposal,
+    meta: { ...baseMeta, id: "receipt-empty" },
+  });
+  assert.equal(result.receipt.status, "approved");
+  assert.equal(result.receipt.totalCost, 0);
+  assert.deepEqual(result.receipt.lineItems, []);
+  assert.equal(result.errors, undefined);
+});

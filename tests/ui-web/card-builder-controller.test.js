@@ -190,7 +190,6 @@ test("loadBuildSpec hydrates the controller from an agent-authored build spec an
   assert.ok(specText.specText.length > 0);
 });
 
-// ## TODO: Test Permutations
 test("unknown catalog affinity rejects without mutating the typed active card", () => {
   const controller = createCardBuilderController();
   controller.applyPropertyDrop(activeCardId(controller), { group: "type", value: "delver" });

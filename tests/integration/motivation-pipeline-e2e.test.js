@@ -131,16 +131,72 @@ test("motivation pipeline e2e: normalize -> core cost/eval -> binding readers ->
   assert.equal(secondCost.lines[0].kindName, "defending", "defending after reset");
 });
 
-/*
-## TODO: Test Permutations
-- [ ] All 12 motivation kinds: verify each produces a cost line with correct kindName
-- [ ] Intensity clamping: intensity > 10 should clamp to 10, intensity < 1 should clamp to 1
-- [ ] All 4 families: verify at least one kind per family evaluates to correct profile axis
-- [ ] user_controlled motivation: verify all axes are stationary/none/none (control family)
-- [ ] Stealthy + goal_oriented: verify prefersStealth flag and cognition = goal_oriented
-- [ ] Mixed control + mobility: verify user_controlled overrides mobility (control family)
-- [ ] Cost scaling: verify unitCost * quantity = spend for all 12 kinds at intensity 5
-- [ ] Evaluation with 3+ motivations: verify max-wins on each axis
-- [ ] readMotivationEvaluation flagNames: verify all expected flags present for attacking+defending+stealthy combo
-- [ ] Round-trip: cost.total matches sum of all line spends for arbitrary 4-motivation combo
-*/
+test("motivation pipeline e2e permutations cover codebook costs and evaluation profiles", async () => {
+  const {
+    createCore,
+    MOTIVATION_KIND_BY_CODE,
+    readMotivationCost,
+    readMotivationEvaluation,
+  } = await import("../../packages/core-ts/src/index.ts");
+
+  const core = createCore();
+  core.init(0);
+
+  assert.equal(core.normalizeMotivationIntensity(15), 10);
+  assert.equal(core.normalizeMotivationIntensity(-3), 1);
+
+  core.resetMotivationCostAccumulator();
+  for (let kind = 1; kind <= 12; kind += 1) {
+    core.addMotivationCostEntry(kind, 5);
+  }
+  const allKindsCost = readMotivationCost(core);
+  assert.equal(allKindsCost.lines.length, 12);
+  for (const line of allKindsCost.lines) {
+    assert.equal(line.kindName, MOTIVATION_KIND_BY_CODE[line.kind]);
+    assert.equal(line.quantity, 5);
+    assert.equal(line.spend, line.unitCost * line.quantity);
+  }
+  assert.equal(
+    allKindsCost.total,
+    allKindsCost.lines.reduce((sum, line) => sum + line.spend, 0),
+  );
+
+  core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(3, 2, 0, 0);  // exploring
+  core.addMotivationEvaluationEntry(5, 4, 1, 0);  // attacking
+  core.addMotivationEvaluationEntry(11, 3, 0, 0); // strategy_focused
+  core.evaluateMotivations();
+  const maxWins = readMotivationEvaluation(core);
+  assert.equal(maxWins.mobilityName, "exploring");
+  assert.equal(maxWins.combatName, "attacking");
+  assert.equal(maxWins.cognitionName, "strategy_focused");
+  assert.equal(maxWins.reasoningClassName, "strategic");
+
+  core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(12, 1, 0, 0); // user_controlled
+  core.evaluateMotivations();
+  const controlled = readMotivationEvaluation(core);
+  assert.equal(controlled.mobilityName, "stationary");
+  assert.equal(controlled.combatName, "none");
+  assert.equal(controlled.cognitionName, "none");
+
+  core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(7, 1, 0, 0);  // stealthy
+  core.addMotivationEvaluationEntry(10, 1, 0, 0); // goal_oriented
+  core.evaluateMotivations();
+  const stealthGoal = readMotivationEvaluation(core);
+  assert.ok(stealthGoal.flagNames.includes("prefersStealth"));
+  assert.equal(stealthGoal.cognitionName, "goal_oriented");
+
+  core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(5, 1, 0, 0); // attacking
+  core.addMotivationEvaluationEntry(6, 1, 0, 0); // defending
+  core.addMotivationEvaluationEntry(7, 1, 0, 0); // stealthy
+  core.evaluateMotivations();
+  const flags = readMotivationEvaluation(core);
+  for (const expected of ["canMove", "aggroRangeBoost", "prefersCover", "prefersStealth"]) {
+    assert.ok(flags.flagNames.includes(expected), `expected ${expected} flag`);
+  }
+});
+
+test.skip("motivation pipeline mixed user_controlled plus mobility override is pending control-family arbitration", () => {});

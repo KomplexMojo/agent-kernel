@@ -164,14 +164,119 @@ test("actorDetail with empty affinities array is valid", () => {
   validateActorDetail(detail);
 });
 
-/*
-## TODO: Test Permutations
-- ascii snapshot with empty actorDetails array is valid
-- ascii snapshot where all layers are identical (no entities) is valid
-- image snapshot with null ascii field is valid (ascii not required in image mode)
-- actorDetail with unknown kind (e.g. "creature") throws from validateActorDetail
-- actorDetail missing motivation field fails validateActorDetail
-- actorDetail with fractional position (x:1.5) passes contract (bounds not validated at schema level)
-- schemaVersion 0 or undefined fails validateBase
-- meta missing runId fails validateBase
-*/
+test("ascii snapshot with empty actorDetails array is valid", () => {
+  const snap = {
+    schema: "agent-kernel/VisualizationSnapshot",
+    schemaVersion: 1,
+    meta: { id: "vs6", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    mode: "ascii",
+    tick: 1,
+    runId: "run1",
+    ascii: "...\n...\n...",
+    layers: {
+      layout: "...\n...\n...",
+      hazards: "   \n   \n   ",
+      resources: "   \n   \n   ",
+      delvers: "   \n   \n   ",
+      wardens: "   \n   \n   ",
+    },
+    actorDetails: [],
+  };
+  validateAsciiSnapshot(snap);
+});
+
+test("ascii snapshot with identical empty layers is valid", () => {
+  const emptyLayer = "   \n   \n   ";
+  const snap = {
+    schema: "agent-kernel/VisualizationSnapshot",
+    schemaVersion: 1,
+    meta: { id: "vs7", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    mode: "ascii",
+    tick: 1,
+    runId: "run1",
+    ascii: emptyLayer,
+    layers: {
+      layout: emptyLayer,
+      hazards: emptyLayer,
+      resources: emptyLayer,
+      delvers: emptyLayer,
+      wardens: emptyLayer,
+    },
+    actorDetails: [],
+  };
+  validateAsciiSnapshot(snap);
+});
+
+test("image snapshot permits null ascii field", () => {
+  const snap = {
+    schema: "agent-kernel/VisualizationSnapshot",
+    schemaVersion: 1,
+    meta: { id: "vs8", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    mode: "image",
+    tick: 1,
+    runId: "run1",
+    ascii: null,
+    visualizationDataUri: "data:image/png;base64,iVBORw0KGgo=",
+    actorDetails: [],
+  };
+  validateImageSnapshot(snap);
+});
+
+test("actorDetail rejects unknown kind", () => {
+  const detail = {
+    id: "actor_creature_1",
+    kind: "creature",
+    position: { x: 1, y: 1 },
+    affinities: [],
+    vitals: { health: { current: 1, max: 1, regen: 0 } },
+    motivation: "exploring",
+  };
+  assert.throws(() => validateActorDetail(detail), /kind must be delver or warden/);
+});
+
+test("actorDetail rejects missing motivation", () => {
+  const detail = {
+    id: "actor_delver_2",
+    kind: "delver",
+    position: { x: 1, y: 1 },
+    affinities: [],
+    vitals: { health: { current: 1, max: 1, regen: 0 } },
+  };
+  assert.throws(() => validateActorDetail(detail), /motivation must be a string/);
+});
+
+test("actorDetail accepts fractional position", () => {
+  const detail = {
+    id: "actor_delver_3",
+    kind: "delver",
+    position: { x: 1.5, y: 2 },
+    affinities: [],
+    vitals: { health: { current: 1, max: 1, regen: 0 } },
+    motivation: "exploring",
+  };
+  validateActorDetail(detail);
+});
+
+test("VisualizationSnapshot rejects schemaVersion 0 or undefined", () => {
+  const base = {
+    schema: "agent-kernel/VisualizationSnapshot",
+    meta: { id: "vs9", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    mode: "ascii",
+    tick: 1,
+    runId: "run1",
+  };
+  assert.throws(() => validateBase({ ...base, schemaVersion: 0 }), /Expected values to be strictly equal/);
+  assert.throws(() => validateBase(base), /Expected values to be strictly equal/);
+});
+
+test("VisualizationSnapshot rejects meta missing runId", () => {
+  const snap = {
+    schema: "agent-kernel/VisualizationSnapshot",
+    schemaVersion: 1,
+    meta: { id: "vs10", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    mode: "ascii",
+    tick: 1,
+    runId: "run1",
+  };
+  assert.throws(() => validateBase(snap), /Expected values to be strictly equal/);
+});

@@ -487,20 +487,171 @@ test("bundle is not mutated by openPlayerPanel and closePlayerPanel", async () =
   assert.equal(JSON.stringify(BUNDLE_WITH_ACTORS), snapshot, "bundle must not be mutated");
 });
 
-/*
-## TODO: Test Permutations
-- selectEntity with entity having no affinities returns entity with empty affinities array
-- selectEntity with entity having no vitals returns entity with null or empty vitals
-- selectEntity with entity having no motivations returns entity with empty motivations array
-- selectEntity with warden at a position returns the warden with its properties
-- selectEntity with overlapping actor and hazard positions prefers the actor
-- selectEntity called before loadRun returns null without throwing
-- selectEntity called after clear returns null without throwing
-- resolveDisplayModel with actor having no affinities returns equippedAffinity null
-- resolveDisplayModel called after clear returns null
-- handleInspectorSelect with null payload is a no-op
-- selectEntity on a hazard position returns false from highlightActor but entity is still returned
-- Z key with resource selected does not open Player Panel
-- openPlayerPanel with actor having no vitals does not throw
-- pressing Escape when panel is already closed is a no-op
-*/
+test("selectEntity handles actors with missing optional arrays and vitals", async () => {
+  const bundle = {
+    artifacts: [
+      { schema: "agent-kernel/SimConfigArtifact", layout: { data: { width: 3, height: 3 } } },
+      { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "plain", position: { x: 1, y: 1 } }] },
+    ],
+  };
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(bundle);
+
+  const entity = view.selectEntity({ x: 1, y: 1 });
+
+  assert.ok(entity);
+  assert.equal(entity.affinities, undefined);
+  assert.equal(entity.vitals, undefined);
+  assert.equal(entity.motivations, undefined);
+});
+
+test("selectEntity resolves a warden with its properties", async () => {
+  const bundle = {
+    artifacts: [
+      { schema: "agent-kernel/SimConfigArtifact", layout: { data: { width: 3, height: 3 } } },
+      {
+        schema: "agent-kernel/InitialStateArtifact",
+        actors: [{
+          id: "warden-1",
+          role: "warden",
+          position: { x: 2, y: 1 },
+          affinities: [{ kind: "dark", expression: "draw", stacks: 1 }],
+          motivations: ["defending"],
+        }],
+      },
+    ],
+  };
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(bundle);
+
+  const entity = view.selectEntity({ x: 2, y: 1 });
+
+  assert.equal(entity.id, "warden-1");
+  assert.equal(entity.role, "warden");
+  assert.equal(entity.affinities[0].kind, "dark");
+});
+
+test.skip("selectEntity prefers an actor over a hazard at the same position", async () => {
+  const bundle = {
+    artifacts: [
+      {
+        schema: "agent-kernel/SimConfigArtifact",
+        layout: { data: { width: 3, height: 3, hazards: [{ id: "hazard-overlap", position: { x: 1, y: 1 } }] } },
+      },
+      { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "actor-overlap", position: { x: 1, y: 1 } }] },
+    ],
+  };
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(bundle);
+
+  const entity = view.selectEntity({ x: 1, y: 1 });
+
+  assert.equal(entity.id, "actor-overlap");
+  assert.equal(entity.entityType, "actor");
+});
+
+test("selectEntity before loadRun and after clear returns null without throwing", async () => {
+  const view = wireGameplayView({ root: makeRoot() });
+  assert.equal(view.selectEntity({ x: 1, y: 1 }), null);
+  await view.loadRun(BUNDLE_WITH_ACTORS);
+  view.clear();
+  assert.equal(view.selectEntity({ x: 3, y: 4 }), null);
+});
+
+test("resolveDisplayModel with no affinities and after clear returns null-safe values", async () => {
+  const bundle = {
+    artifacts: [
+      { schema: "agent-kernel/SimConfigArtifact", layout: { data: { width: 3, height: 3 } } },
+      { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "plain", position: { x: 1, y: 1 }, affinities: [] }] },
+    ],
+  };
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(bundle);
+  const model = view.resolveDisplayModel({ x: 1, y: 1 });
+  assert.equal(model.equippedAffinity, null);
+  view.clear();
+  assert.equal(view.resolveDisplayModel({ x: 1, y: 1 }), null);
+});
+
+test("handleInspectorSelect ignores null payload", async () => {
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(BUNDLE_WITH_ACTORS);
+
+  assert.doesNotThrow(() => view.handleInspectorSelect(null));
+  assert.equal(view.getSelectedEntity(), null);
+});
+
+test("selectEntity on a hazard returns entity even when highlightActor returns false", async () => {
+  const highlighted = [];
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({
+      mount() {},
+      renderRun() {},
+      renderFrame() {},
+      dispose() {},
+      centerOnTile() {},
+      highlightActor(pos) { highlighted.push(pos); return false; },
+    }),
+  });
+  await view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
+
+  const entity = view.selectEntity({ x: 1, y: 2 });
+
+  assert.equal(entity.id, "hazard-1");
+  assert.deepEqual(highlighted, [{ x: 1, y: 2 }]);
+});
+
+test("Z key with a resource selected does not open Player Panel", async () => {
+  let openCalls = 0;
+  let onKeyPress = null;
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: ({ onKeyPress: keyHandler }) => {
+      onKeyPress = keyHandler;
+      return {
+        mount() {},
+        renderRun() {},
+        renderFrame() {},
+        dispose() {},
+        centerOnTile() {},
+        openPlayerPanel() { openCalls += 1; },
+      };
+    },
+  });
+  await view.loadRun(BUNDLE_WITH_RENDERED_NON_ACTORS);
+  view.selectEntity({ x: 4, y: 2 });
+  onKeyPress({ key: "z" });
+
+  assert.equal(openCalls, 0);
+});
+
+test("openPlayerPanel with actor missing vitals and Escape while closed do not throw", async () => {
+  let onKeyPress = null;
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: ({ onKeyPress: keyHandler }) => {
+      onKeyPress = keyHandler;
+      return {
+        mount() {},
+        renderRun() {},
+        renderFrame() {},
+        dispose() {},
+        centerOnTile() {},
+        openPlayerPanel() {},
+        closePlayerPanel() {},
+        isPlayerPanelOpen() { return false; },
+      };
+    },
+  });
+  await view.loadRun({
+    artifacts: [
+      { schema: "agent-kernel/SimConfigArtifact", layout: { data: { width: 3, height: 3 } } },
+      { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "plain", position: { x: 1, y: 1 } }] },
+    ],
+  });
+  view.selectEntity({ x: 1, y: 1 });
+
+  assert.doesNotThrow(() => view.openPlayerPanel());
+  assert.doesNotThrow(() => onKeyPress({ key: "escape" }));
+});

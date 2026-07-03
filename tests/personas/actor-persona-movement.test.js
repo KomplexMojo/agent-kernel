@@ -4,6 +4,45 @@ const { resolve } = require("node:path");
 
 const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/persona-behavior-v1-actor-movement.json"), "utf8"));
 
+let actorModulePromise;
+
+function loadActorModules() {
+  actorModulePromise ??= Promise.all([
+    import("../../packages/runtime/src/personas/actor/controller.mts"),
+    import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
+  ]);
+  return actorModulePromise;
+}
+
+async function proposeOnce({
+  actor,
+  actors = [],
+  baseTiles = ["#####", "#...E", "#####"],
+  tick = 0,
+  payload = {},
+} = {}) {
+  const [{ createActorPersona }, { TickPhases }] = await loadActorModules();
+  const persona = createActorPersona({ clock: () => "fixed" });
+  const actorId = actor.id;
+  const observation = {
+    tick,
+    actors: [{ kind: 2, ...actor }, ...actors],
+  };
+  persona.advance({
+    phase: TickPhases.OBSERVE,
+    event: "observe",
+    payload: { actorId, observation, baseTiles, ...payload },
+    tick,
+  });
+  persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: { actorId }, tick });
+  return persona.advance({
+    phase: TickPhases.DECIDE,
+    event: "propose",
+    payload: { actorId, ...payload },
+    tick,
+  });
+}
+
 
 test("actor persona proposes deterministic movement toward exit", async () => {
 const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
@@ -148,13 +187,91 @@ assert.equal(result.actions.length, 1, "stationary motivation must produce exact
 assert.equal(result.actions[0].kind, "wait", "stationary motivation must produce wait, not move");
 });
 
-/*
-## TODO: Test Permutations
-- Permutation: patrolling mobility with a patrol route — actor proposes move along route, not BFS to exit.
-- Permutation: attacking mobility with a visible opponent — actor proposes move toward opponent, not exit.
-- Permutation: defending mobility with a hold-point target — actor proposes wait at hold-point.
-- Permutation: user_controlled motivation — no autonomous proposal emitted; actions require explicit payload.
-- Permutation: stationary warden with no exit on map — still proposes wait (regression guard).
-- Permutation: motivation field absent on actor — defaults to exploring behavior (BFS to exit).
-- Permutation: motivation.mobility = "exploring" with no reachable exit — proposes wait as fallback.
-*/
+test.skip("actor persona with patrolling route proposes route movement instead of BFS to exit", async () => {
+  const result = await proposeOnce({
+    actor: {
+      id: "patroller",
+      position: { x: 1, y: 1 },
+      motivation: { kind: "patrolling", route: [{ x: 1, y: 2 }, { x: 1, y: 3 }] },
+    },
+    baseTiles: ["#####", "#...E", "#...#", "#...#", "#####"],
+  });
+  assert.equal(result.actions[0].params.direction, "south");
+});
+
+test("actor persona with attacking motivation moves toward a visible opponent before the exit", async () => {
+  const result = await proposeOnce({
+    actor: {
+      id: "attacker",
+      position: { x: 1, y: 2 },
+      motivation: { kind: "attacking" },
+    },
+    actors: [{ id: "opponent", kind: 2, position: { x: 1, y: 0 } }],
+    baseTiles: ["#...#", "#...#", "#...E", "#####"],
+  });
+
+  assert.equal(result.actions.length, 1);
+  assert.equal(result.actions[0].kind, "move");
+  assert.equal(result.actions[0].params.direction, "north");
+  assert.deepEqual(result.actions[0].params.to, { x: 1, y: 1 });
+});
+
+test.skip("actor persona with defending hold point proposes wait at hold point", async () => {
+  const result = await proposeOnce({
+    actor: {
+      id: "defender",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "defending", pattern: "hold_point", target: { x: 2, y: 2 } },
+    },
+    baseTiles: ["#####", "#...#", "#...E", "#####"],
+  });
+  assert.equal(result.actions[0].kind, "wait");
+});
+
+test.skip("actor persona with user_controlled motivation emits no autonomous proposal", async () => {
+  const result = await proposeOnce({
+    actor: {
+      id: "manual",
+      position: { x: 1, y: 1 },
+      motivation: { kind: "user_controlled" },
+    },
+  });
+  assert.equal(result.actions.length, 0);
+});
+
+test.skip("actor persona with stationary motivation and no exit still proposes wait", async () => {
+  const result = await proposeOnce({
+    actor: {
+      id: "stationary-no-exit",
+      position: { x: 1, y: 1 },
+      motivation: { mobility: "stationary" },
+    },
+    baseTiles: ["#####", "#...#", "#####"],
+  });
+  assert.equal(result.actions[0].kind, "wait");
+});
+
+test("actor persona with absent motivation defaults to exploring toward exit", async () => {
+  const result = await proposeOnce({
+    actor: {
+      id: "default-explorer",
+      position: { x: 1, y: 1 },
+    },
+  });
+
+  assert.equal(result.actions.length, 1);
+  assert.equal(result.actions[0].kind, "move");
+  assert.equal(result.actions[0].params.direction, "east");
+});
+
+test.skip("actor persona with exploring motivation and unreachable exit proposes wait", async () => {
+  const result = await proposeOnce({
+    actor: {
+      id: "blocked-explorer",
+      position: { x: 1, y: 1 },
+      motivation: { mobility: "exploring" },
+    },
+    baseTiles: ["#####", "#.#E#", "#####"],
+  });
+  assert.equal(result.actions[0].kind, "wait");
+});

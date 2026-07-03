@@ -139,13 +139,109 @@ assert.equal(resolvePatternCode("random", undefined), 0);
 console.log("configurator-motivation-evaluation: all assertions passed");
 });
 
-// ## TODO: Test Permutations
-// - [ ] All 12 motivation kinds solo: verify profile axes match JS rules
-// - [ ] All pattern codes for attacking/defending/patrolling: verify resolvePatternCode
-// - [ ] flagsToBitmask round-trip for all 16 combinations
-// - [ ] Multiple motivations from same exclusive group: verify max-axis behavior
-// - [ ] user_controlled: verify stationary/none/none/instinctual
-// - [ ] patrolling with all 3 patterns: verify profile unchanged by pattern
-// - [ ] Intensity > 1 does not change axes: verify profile same as intensity=1
-// - [ ] Custom flags override: verify flagMask > 0 contributes to output flags
-// - [ ] Sequential evaluations: verify second call resets previous state
+test("motivation evaluation delegation permutations", async () => {
+const { createCore } = await import("../../packages/core-ts/src/index.ts");
+const {
+  evaluateMotivationProfileFromCore,
+  flagsToBitmask,
+  bitmaskToFlags,
+  resolvePatternCode,
+} = await import("../../packages/runtime/src/personas/configurator/motivation-evaluation-core.js");
+
+const core = createCore();
+core.init(0);
+const soloProfiles = {
+  random: ["exploring", "none", "reflexive", "instinctual"],
+  stationary: ["stationary", "none", "none", "instinctual"],
+  exploring: ["exploring", "none", "reflexive", "instinctual"],
+  patrolling: ["patrolling", "none", "reflexive", "instinctual"],
+  attacking: ["exploring", "attacking", "goal_oriented", "tactical"],
+  defending: ["stationary", "defending", "goal_oriented", "tactical"],
+  stealthy: ["exploring", "none", "goal_oriented", "tactical"],
+  friendly: ["exploring", "none", "reflexive", "instinctual"],
+  reflexive: ["stationary", "none", "reflexive", "instinctual"],
+  goal_oriented: ["stationary", "none", "goal_oriented", "tactical"],
+  strategy_focused: ["stationary", "none", "strategy_focused", "strategic"],
+  user_controlled: ["stationary", "none", "none", "instinctual"],
+};
+
+for (const [kind, [mobility, combat, cognition, reasoningClass]] of Object.entries(soloProfiles)) {
+  const profile = evaluateMotivationProfileFromCore(core, [{ kind, intensity: 1 }]);
+  assert.equal(profile.mobility, mobility, `${kind} mobility`);
+  assert.equal(profile.combat, combat, `${kind} combat`);
+  assert.equal(profile.cognition, cognition, `${kind} cognition`);
+  assert.equal(profile.reasoningClass, reasoningClass, `${kind} reasoning`);
+}
+
+assert.equal(resolvePatternCode("attacking", "melee"), 1);
+assert.equal(resolvePatternCode("attacking", "ranged"), 2);
+assert.equal(resolvePatternCode("attacking", "mixed"), 3);
+assert.equal(resolvePatternCode("defending", "hold_point"), 1);
+assert.equal(resolvePatternCode("defending", "bodyguard"), 2);
+assert.equal(resolvePatternCode("patrolling", "loop"), 1);
+assert.equal(resolvePatternCode("patrolling", "ping_pong"), 2);
+assert.equal(resolvePatternCode("patrolling", "random_walk"), 3);
+
+for (let mask = 0; mask < 16; mask += 1) {
+  const roundTrip = flagsToBitmask(bitmaskToFlags(mask));
+  assert.equal(roundTrip, mask, `flag mask ${mask} round-trips`);
+}
+
+{
+  const profile = evaluateMotivationProfileFromCore(core, [
+    { kind: "random", intensity: 1 },
+    { kind: "patrolling", intensity: 1 },
+    { kind: "attacking", intensity: 1 },
+    { kind: "defending", intensity: 1 },
+    { kind: "goal_oriented", intensity: 1 },
+    { kind: "strategy_focused", intensity: 1 },
+  ]);
+  assert.equal(profile.mobility, "patrolling");
+  assert.equal(profile.combat, "defending");
+  assert.equal(profile.cognition, "strategy_focused");
+  assert.equal(profile.reasoningClass, "strategic");
+}
+
+{
+  const profile = evaluateMotivationProfileFromCore(core, [{ kind: "user_controlled", intensity: 1 }]);
+  assert.equal(profile.mobility, "stationary");
+  assert.equal(profile.combat, "none");
+  assert.equal(profile.cognition, "none");
+  assert.equal(profile.reasoningClass, "instinctual");
+}
+
+const patrollingBase = evaluateMotivationProfileFromCore(core, [{ kind: "patrolling", pattern: "loop" }]);
+for (const pattern of ["ping_pong", "random_walk"]) {
+  const profile = evaluateMotivationProfileFromCore(core, [{ kind: "patrolling", pattern }]);
+  assert.equal(profile.mobility, patrollingBase.mobility);
+  assert.equal(profile.combat, patrollingBase.combat);
+  assert.equal(profile.cognition, patrollingBase.cognition);
+  assert.equal(profile.reasoningClass, patrollingBase.reasoningClass);
+}
+
+{
+  const one = evaluateMotivationProfileFromCore(core, [{ kind: "attacking", intensity: 1 }]);
+  const high = evaluateMotivationProfileFromCore(core, [{ kind: "attacking", intensity: 10 }]);
+  assert.equal(high.mobility, one.mobility);
+  assert.equal(high.combat, one.combat);
+  assert.equal(high.cognition, one.cognition);
+  assert.equal(high.reasoningClass, one.reasoningClass);
+}
+
+{
+  const profile = evaluateMotivationProfileFromCore(core, [
+    { kind: "reflexive", flags: { prefersStealth: true, prefersCover: true, aggroRangeBoost: true } },
+  ]);
+  assert.equal(profile.flagValues.canMove, true);
+  assert.equal(profile.flagValues.prefersStealth, true);
+  assert.equal(profile.flagValues.prefersCover, true);
+  assert.equal(profile.flagValues.aggroRangeBoost, true);
+}
+
+evaluateMotivationProfileFromCore(core, [{ kind: "strategy_focused" }]);
+const resetProfile = evaluateMotivationProfileFromCore(core, [{ kind: "stationary" }]);
+assert.equal(resetProfile.mobility, "stationary");
+assert.equal(resetProfile.combat, "none");
+assert.equal(resetProfile.cognition, "none");
+assert.equal(resetProfile.reasoningClass, "instinctual");
+});

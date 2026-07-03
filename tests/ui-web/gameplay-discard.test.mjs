@@ -66,11 +66,78 @@ test("requestDesignTransition fires onDiscardToDesign on every call while a run 
   assert.equal(calls, 2, "onDiscardToDesign must fire every time Design is requested");
 });
 
-/*
-## TODO: Test Permutations
-- requestDesignTransition with active run and onDiscardToDesign undefined does not throw
-- requestDesignTransition after clear does not throw (run is no longer active)
-- requestDesignTransition clears renderer state without throwing
-- requestDesignTransition clears selected entity
-- requestDesignTransition clears tick position back to initial state
-*/
+test("requestDesignTransition with active run and no onDiscardToDesign does not throw", async () => {
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(MINIMAL_BUNDLE);
+
+  assert.doesNotThrow(() => view.requestDesignTransition());
+  assert.equal(view.isRunActive(), false);
+});
+
+test("requestDesignTransition after clear does not throw", async () => {
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(MINIMAL_BUNDLE);
+  view.clear();
+
+  assert.doesNotThrow(() => view.requestDesignTransition());
+  assert.equal(view.isRunActive(), false);
+});
+
+test("requestDesignTransition clears renderer state without throwing", async () => {
+  const calls = [];
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({
+      mount() {},
+      renderRun() {},
+      renderFrame() {},
+      closePlayerPanel() { calls.push("closePlayerPanel"); },
+      clearHighlight() { calls.push("clearHighlight"); },
+      dispose() {},
+    }),
+  });
+  await view.loadRun(MINIMAL_BUNDLE);
+
+  assert.doesNotThrow(() => view.requestDesignTransition());
+  assert.ok(calls.includes("closePlayerPanel"));
+  assert.ok(calls.includes("clearHighlight"));
+});
+
+test("requestDesignTransition clears selected entity", async () => {
+  const bundle = {
+    artifacts: [
+      { schema: "agent-kernel/SimConfigArtifact", layout: { kind: "grid", data: { width: 2, height: 2, tiles: ["..", ".."] } } },
+      { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "actor-1", position: { x: 1, y: 1 } }] },
+    ],
+  };
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(bundle);
+  view.selectEntity({ x: 1, y: 1 });
+  assert.ok(view.getSelectedEntity());
+
+  view.requestDesignTransition();
+
+  assert.equal(view.getSelectedEntity(), null);
+});
+
+test("requestDesignTransition clears tick position back to initial state on next load", async () => {
+  const bundle = {
+    artifacts: [
+      { schema: "agent-kernel/SimConfigArtifact", layout: { kind: "grid", data: { width: 2, height: 2, tiles: ["..", ".."] } } },
+      { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "actor-1", position: { x: 0, y: 0 } }] },
+    ],
+    tickFrames: [{ tick: 0, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 0 } } }] }],
+  };
+  const renderedFrames = [];
+  const view = wireGameplayView({
+    root: makeRoot(),
+    createRenderer: () => ({ mount() {}, renderRun() {}, renderFrame(frame) { renderedFrames.push(frame); }, closePlayerPanel() {}, clearHighlight() {}, dispose() {} }),
+  });
+  await view.loadRun(bundle);
+  view.stepForward();
+  view.requestDesignTransition();
+  await view.loadRun(bundle);
+  view.stepForward();
+
+  assert.equal(renderedFrames.at(-1).observation.actors[0].position.x, 1);
+});

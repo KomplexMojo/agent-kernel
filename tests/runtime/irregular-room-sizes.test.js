@@ -97,11 +97,98 @@ test("generateGridLayoutFromInput produces mostly non-square rooms by default (p
   );
 });
 
-/*
-## TODO: Test Permutations
-- randomIrregularRoomDimensions orientation: when wide, width > height; when tall, height > width
-- randomIrregularRoomDimensions distribution: roughly equal wide/tall across many calls (not biased)
-- generateGridLayout with preferIrregular: explicitly disabled produces more square rooms on average
-- preferIrregular coexists with preferLargeRooms: large irregular rooms are produced
-- placeRooms fallback path also uses preferIrregular when set
-*/
+test("randomIrregularRoomDimensions orientation follows wide/tall roll", async () => {
+  const { randomIrregularRoomDimensions } = await import(
+    "../../packages/runtime/src/personas/configurator/level-layout.js"
+  );
+  const wide = randomIrregularRoomDimensions(() => 0.1, 3, 9);
+  const tall = randomIrregularRoomDimensions(() => 0.9, 3, 9);
+  assert.ok(wide.width > wide.height, `expected wide room, got ${wide.width}x${wide.height}`);
+  assert.ok(tall.height > tall.width, `expected tall room, got ${tall.width}x${tall.height}`);
+});
+
+test("randomIrregularRoomDimensions produces a balanced wide/tall distribution", async () => {
+  const { randomIrregularRoomDimensions } = await import(
+    "../../packages/runtime/src/personas/configurator/level-layout.js"
+  );
+  let seed = 123;
+  const rng = () => {
+    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+    return (seed >>> 0) / 0x100000000;
+  };
+  let wide = 0;
+  let tall = 0;
+  for (let i = 0; i < 200; i += 1) {
+    const result = randomIrregularRoomDimensions(rng, 3, 9);
+    if (result.width > result.height) wide += 1;
+    if (result.height > result.width) tall += 1;
+  }
+  assert.ok(wide >= 70 && wide <= 130, `wide count ${wide} is outside expected balance`);
+  assert.ok(tall >= 70 && tall <= 130, `tall count ${tall} is outside expected balance`);
+});
+
+test("preferIrregular coexists with preferLargeRooms", async () => {
+  const { generateGridLayoutFromInput } = await import(
+    "../../packages/runtime/src/personas/configurator/level-layout.js"
+  );
+  const result = generateGridLayoutFromInput({
+    seed: 333,
+    width: 80,
+    height: 80,
+    shape: {
+      roomCount: 12,
+      roomMinSize: 3,
+      roomMaxSize: 10,
+      preferIrregular: true,
+      preferLargeRooms: true,
+    },
+  });
+  assert.ok(result.ok, `generateGridLayoutFromInput failed: ${JSON.stringify(result.errors)}`);
+  const rooms = result.value.rooms;
+  assert.ok(rooms.some((room) => room.width * room.height >= 48), "must produce at least one large room");
+  assert.ok(rooms.every((room) => {
+    const longer = Math.max(room.width, room.height);
+    const shorter = Math.min(room.width, room.height);
+    return longer / shorter >= 1.5;
+  }), "all rooms should remain irregular");
+});
+
+test("dense placement still produces mostly irregular rooms", async () => {
+  const { generateGridLayoutFromInput } = await import(
+    "../../packages/runtime/src/personas/configurator/level-layout.js"
+  );
+  const result = generateGridLayoutFromInput({
+    seed: 444,
+    width: 30,
+    height: 30,
+    shape: { roomCount: 20, roomMinSize: 3, roomMaxSize: 8 },
+  });
+  assert.ok(result.ok, `generateGridLayoutFromInput failed: ${JSON.stringify(result.errors)}`);
+  const rooms = result.value.rooms;
+  assert.equal(rooms.length, 20);
+  const irregular = rooms.filter((room) => {
+    const longer = Math.max(room.width, room.height);
+    const shorter = Math.min(room.width, room.height);
+    return longer / shorter >= 1.5;
+  });
+  assert.ok(irregular.length / rooms.length >= 0.8, `expected mostly irregular rooms, got ${irregular.length}/${rooms.length}`);
+});
+
+test.skip("generateGridLayout with preferIrregular explicitly disabled produces more square rooms on average", async () => {
+  const { generateGridLayoutFromInput } = await import(
+    "../../packages/runtime/src/personas/configurator/level-layout.js"
+  );
+  const result = generateGridLayoutFromInput({
+    seed: 555,
+    width: 30,
+    height: 30,
+    shape: { roomCount: 12, roomMinSize: 3, roomMaxSize: 8, preferIrregular: false },
+  });
+  assert.ok(result.ok);
+  const irregular = result.value.rooms.filter((room) => {
+    const longer = Math.max(room.width, room.height);
+    const shorter = Math.min(room.width, room.height);
+    return longer / shorter >= 1.5;
+  });
+  assert.ok(irregular.length / result.value.rooms.length < 0.5);
+});

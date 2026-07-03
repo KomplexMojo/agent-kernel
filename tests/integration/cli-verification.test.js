@@ -261,12 +261,10 @@ test("cli verification ring: 10-tick full dungeon demo with tick session navigat
   assert.equal(bwOutput.previousTick, 3);
 });
 
-// ## TODO: Test Permutations
-//
-// 1. 10-tick ring: tick forward past maxTick returns ok=false with a stable boundary error
-// 2. 10-tick ring: tick backward at tick 0 returns ok=false with a stable error
-// 3. 10-tick ring: tick state without any prior forward returns tick=0 and null tickFrame
-// 4. 10-tick ring: create with hazard but no explicit trap still produces a valid sim-config
-// 5. 10-tick ring: run with ticks=1 followed by tick forward advances to the maxTick boundary
-// 6. 10-tick ring: create+run with resource tier=permanent surfaces resource events in tick frames
-// 7. 10-tick ring: replaying a 10-tick run produces an identical frame count to the original
+test.skip("10-tick ring tick forward past maxTick returns ok:false with stable boundary error", () => {});
+test.skip("10-tick ring tick backward at tick 0 returns ok:false with stable boundary error", () => {});
+test.skip("10-tick ring tick state before forward returns tick 0 and null tickFrame", () => {});
+test.skip("10-tick ring create with hazard but no explicit trap still produces valid sim-config", () => {});
+test.skip("10-tick ring run ticks=1 then tick forward advances to maxTick boundary", () => {});
+test.skip("10-tick ring create and run with permanent resource surfaces resource events in tick frames", () => {});
+test.skip("10-tick ring replaying 10-tick run produces identical frame count", () => {});

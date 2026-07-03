@@ -131,13 +131,133 @@ test("motivation bindings: code maps, readMotivationCost, readMotivationEvaluati
   assert.equal(core.normalizeMotivationIntensity(-3), 1, "clamps to min");
 });
 
-// ## TODO: Test Permutations
-// - [ ] All 12 motivation kinds: verify kindName round-trip through code map
-// - [ ] readMotivationCost with all 12 kinds: verify lineCount matches entry count
-// - [ ] readMotivationCost with max intensity (10): verify spend = 10 * unitCost
-// - [ ] readMotivationEvaluation with strategy_focused: verify reasoningClassName = "strategic"
-// - [ ] readMotivationEvaluation with stealthy + defending: verify flagNames includes prefersStealth + prefersCover
-// - [ ] readMotivationEvaluation with user_controlled alone: verify all axes stationary/none/none
-// - [ ] Code map completeness: every code in core range has a name entry
-// - [ ] Multiple sequential cost accumulations: verify reset clears previous state
-// - [ ] Core codebook exports available through createCore: all 7 codebook functions callable
+test("motivation bindings round-trip all 12 kind names", async () => {
+  const { MOTIVATION_KIND_BY_CODE } = await import("../../packages/core-ts/src/index.ts");
+  assert.deepEqual(Object.values(MOTIVATION_KIND_BY_CODE), [
+    "random",
+    "stationary",
+    "exploring",
+    "patrolling",
+    "attacking",
+    "defending",
+    "stealthy",
+    "friendly",
+    "reflexive",
+    "goal_oriented",
+    "strategy_focused",
+    "user_controlled",
+  ]);
+});
+
+test("readMotivationCost reports one line for each motivation kind", async () => {
+  const { createCore, readMotivationCost, MOTIVATION_KIND_BY_CODE } = await import(
+    "../../packages/core-ts/src/index.ts"
+  );
+  const core = createCore();
+  core.init(0);
+  core.resetMotivationCostAccumulator();
+  for (let kind = 1; kind <= 12; kind += 1) {
+    core.addMotivationCostEntry(kind, 1);
+  }
+  const cost = readMotivationCost(core);
+  assert.equal(cost.lines.length, 12);
+  cost.lines.forEach((line, index) => {
+    const kind = index + 1;
+    assert.equal(line.kind, kind);
+    assert.equal(line.kindName, MOTIVATION_KIND_BY_CODE[kind]);
+  });
+});
+
+test("readMotivationCost uses max intensity in spend calculation", async () => {
+  const { createCore, readMotivationCost } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.resetMotivationCostAccumulator();
+  core.addMotivationCostEntry(5, 10);
+  const line = readMotivationCost(core).lines[0];
+  assert.equal(line.quantity, 10);
+  assert.equal(line.spend, 10 * line.unitCost);
+});
+
+test("readMotivationEvaluation reports strategic reasoning for strategy_focused", async () => {
+  const { createCore, readMotivationEvaluation } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(11, 1, 0, 0);
+  core.evaluateMotivations();
+  const evaluation = readMotivationEvaluation(core);
+  assert.equal(evaluation.cognitionName, "strategy_focused");
+  assert.equal(evaluation.reasoningClassName, "strategic");
+});
+
+test("readMotivationEvaluation combines stealthy and defending flags", async () => {
+  const { createCore, readMotivationEvaluation } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(7, 1, 0, 0);
+  core.addMotivationEvaluationEntry(6, 1, 0, 0);
+  core.evaluateMotivations();
+  const evaluation = readMotivationEvaluation(core);
+  assert.ok(evaluation.flagNames.includes("prefersStealth"));
+  assert.ok(evaluation.flagNames.includes("prefersCover"));
+  assert.equal(evaluation.combatName, "defending");
+});
+
+test("readMotivationEvaluation with user_controlled alone keeps neutral axes", async () => {
+  const { createCore, readMotivationEvaluation } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.resetMotivationEvaluation();
+  core.addMotivationEvaluationEntry(12, 1, 0, 0);
+  core.evaluateMotivations();
+  const evaluation = readMotivationEvaluation(core);
+  assert.equal(evaluation.mobilityName, "stationary");
+  assert.equal(evaluation.combatName, "none");
+  assert.equal(evaluation.cognitionName, "none");
+  assert.equal(evaluation.reasoningClassName, "instinctual");
+});
+
+test("motivation code maps cover every core kind code", async () => {
+  const { createCore, MOTIVATION_KIND_BY_CODE } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  for (let kind = 1; kind <= core.getMotivationKindCount(); kind += 1) {
+    assert.equal(typeof MOTIVATION_KIND_BY_CODE[kind], "string", `kind ${kind} missing name`);
+  }
+});
+
+test("readMotivationCost reset clears previous accumulations", async () => {
+  const { createCore, readMotivationCost } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.resetMotivationCostAccumulator();
+  core.addMotivationCostEntry(5, 3);
+  assert.equal(readMotivationCost(core).lines.length, 1);
+  core.resetMotivationCostAccumulator();
+  const cost = readMotivationCost(core);
+  assert.equal(cost.total, 0);
+  assert.deepEqual(cost.lines, []);
+});
+
+test("core motivation codebook functions are callable through createCore", async () => {
+  const { createCore } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  [
+    "getMotivationKindCount",
+    "getMotivationFamily",
+    "getMotivationExclusiveGroup",
+    "motivationKindsConflict",
+    "getMotivationPatternCount",
+    "getMotivationPatternCodeAt",
+    "getDefaultMotivationPattern",
+    "getMotivationTier",
+    "getMotivationDefaultUnitCost",
+    "normalizeMotivationIntensity",
+    "getMotivationProfileCost",
+    "getMotivationDefaultDesignCost",
+    "getMotivationDefaultFlagMask",
+    "getMotivationFlagCount",
+  ].forEach((name) => assert.equal(typeof core[name], "function", `${name} export`));
+});

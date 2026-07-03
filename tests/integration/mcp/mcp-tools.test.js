@@ -744,12 +744,10 @@ test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a
   }
 });
 
-// ## TODO: Test Permutations
-//
-// 1. mcp tick: ak_tick_forward at maxTick returns ok=false with a stable boundary error
-// 2. mcp tick: ak_tick_backward at tick 0 returns ok=false with a stable error
-// 3. mcp tick: ak_show_state without any prior forward returns tick=0 and null tickFrame
-// 4. mcp tick: ak_tick_forward with a non-existent runId returns ok=false with a path error
-// 5. mcp tick: ak_show_state with a non-existent runId returns ok=false
-// 6. mcp tick: interleaved forward/state calls on the same runId maintain cursor consistency
-// 7. mcp tick: ak_show_state ascii field is a non-empty string
+test.skip("mcp tick ak_tick_forward at maxTick returns ok:false with stable boundary error", () => {});
+test.skip("mcp tick ak_tick_backward at tick 0 returns ok:false with stable boundary error", () => {});
+test.skip("mcp tick ak_show_state before forward returns tick 0 and null tickFrame", () => {});
+test.skip("mcp tick ak_tick_forward with non-existent runId returns ok:false path error", () => {});
+test.skip("mcp tick ak_show_state with non-existent runId returns ok:false", () => {});
+test.skip("mcp tick interleaved forward and state calls maintain cursor consistency", () => {});
+test.skip("mcp tick ak_show_state ascii field is non-empty", () => {});

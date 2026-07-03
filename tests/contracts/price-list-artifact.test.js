@@ -190,10 +190,74 @@ test("normalizePriceItems accepts canonical unitCost field (not just costTokens)
   assert.equal(map.get("vital:vital_health_point").unitCost, 1);
 });
 
-// ## TODO: Test Permutations
-// - item with formula="quadratic" and unitCost=0 (valid — free quadratic item)
-// - item with both id and key present (should use canonical id shape)
-// - price list with duplicate ids (last-write-wins in normalizePriceItems — verify behavior)
-// - price list items with unitCost=0 for motivation_stationary (valid — free motivation)
-// - price list missing formula field on regen item (should pass structurally — formula is optional in type)
-// - empty items array (should fail validation)
+test("price list accepts free quadratic item", () => {
+  const artifact = {
+    schema: "agent-kernel/PriceList",
+    schemaVersion: 1,
+    meta: { id: "pl-free", runId: "run-free", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
+    items: [
+      { id: "affinity_stack", kind: "affinity", unitCost: 0, formula: "quadratic" },
+    ],
+  };
+  assert.doesNotThrow(() => validatePriceListArtifact(artifact));
+});
+
+test("normalizePriceItems prefers canonical id shape when id and key are both present", async () => {
+  const { normalizePriceItems } = await import(
+    "../../packages/runtime/src/personas/allocator/validate-spend.js"
+  );
+  const map = normalizePriceItems({
+    items: [
+      { id: "actor_spawn", key: "legacy_actor_spawn", kind: "actor", unitCost: 5 },
+    ],
+  });
+  assert.equal(map.get("actor:actor_spawn").unitCost, 5);
+  assert.equal(map.has("legacy:legacy_actor_spawn"), false);
+});
+
+test("normalizePriceItems uses last duplicate canonical id", async () => {
+  const { normalizePriceItems } = await import(
+    "../../packages/runtime/src/personas/allocator/validate-spend.js"
+  );
+  const map = normalizePriceItems({
+    items: [
+      { id: "actor_spawn", kind: "actor", unitCost: 5 },
+      { id: "actor_spawn", kind: "actor", unitCost: 8 },
+    ],
+  });
+  assert.equal(map.get("actor:actor_spawn").unitCost, 8);
+});
+
+test("price list accepts free stationary motivation item", () => {
+  const artifact = {
+    schema: "agent-kernel/PriceList",
+    schemaVersion: 1,
+    meta: { id: "pl-free-motivation", runId: "run-free", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
+    items: [
+      { id: "motivation_stationary", kind: "motivation", unitCost: 0, formula: "linear" },
+    ],
+  };
+  assert.doesNotThrow(() => validatePriceListArtifact(artifact));
+});
+
+test("price list accepts regen item without formula field", () => {
+  const artifact = {
+    schema: "agent-kernel/PriceList",
+    schemaVersion: 1,
+    meta: { id: "pl-no-formula", runId: "run-regen", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
+    items: [
+      { id: "vital_mana_regen_tick", kind: "vital", unitCost: 2 },
+    ],
+  };
+  assert.doesNotThrow(() => validatePriceListArtifact(artifact));
+});
+
+test("price list rejects empty items array", () => {
+  const artifact = {
+    schema: "agent-kernel/PriceList",
+    schemaVersion: 1,
+    meta: { id: "pl-empty", runId: "run-empty", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
+    items: [],
+  };
+  assert.throws(() => validatePriceListArtifact(artifact), /items/);
+});

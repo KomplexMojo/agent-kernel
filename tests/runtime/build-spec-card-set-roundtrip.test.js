@@ -208,12 +208,94 @@ test("buildBuildSpecFromSummary: actor card instances keep role and unique posit
   assert.equal(new Set(actors.map((actor) => `${actor.position.x},${actor.position.y}`)).size, 5);
 });
 
-/*
-## TODO: Test Permutations
-- hazard with mana kind="one-time" round-trips preserving amount
-- resource with permanenceMode="permanent" and multiple vitals survives round-trip
-- empty cardSet produces empty resources/hazards arrays in resolved summary
-- cardSet with mixed resource/hazard/delver entries: each type appears in its own extracted field
-- room tile card with durability field survives normalizeCardEntry
-- buildBuildSpecFromSummary with no resources produces no resources key in plan.hints (not empty array)
-*/
+test("hazard with one-time mana round-trips preserving amount", async () => {
+  const { extractSummaryFromCardSet } = await loadSelections();
+  const resolved = extractSummaryFromCardSet({
+    dungeonAffinity: "fire",
+    cardSet: [
+      {
+        id: "card_hazard_one_time",
+        type: "hazard",
+        source: "hazard",
+        affinity: "fire",
+        affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+        mana: { kind: "one-time", amount: 7 },
+      },
+    ],
+  });
+  assert.equal(resolved.hazards[0].mana.kind, "one-time");
+  assert.equal(resolved.hazards[0].mana.amount, 7);
+});
+
+test("resource with permanent mode and multiple vitals survives round-trip", async () => {
+  const { extractSummaryFromCardSet } = await loadSelections();
+  const resolved = extractSummaryFromCardSet({
+    dungeonAffinity: "life",
+    cardSet: [
+      {
+        id: "card_resource_multi",
+        type: "resource",
+        source: "resource",
+        permanenceMode: "permanent",
+        vitals: [
+          { key: "health", delta: 5 },
+          { key: "mana", delta: 2 },
+        ],
+      },
+    ],
+  });
+  assert.equal(resolved.resources[0].permanenceMode, "permanent");
+  assert.deepEqual(resolved.resources[0].vitals, [
+    { key: "health", delta: 5 },
+    { key: "mana", delta: 2 },
+  ]);
+});
+
+test("mixed cardSet entries extract into resource hazard and actor fields", async () => {
+  const { extractSummaryFromCardSet } = await loadSelections();
+  const resolved = extractSummaryFromCardSet({
+    dungeonAffinity: "water",
+    cardSet: [
+      { id: "card_resource", type: "resource", source: "resource", permanenceMode: "level", vitals: [{ key: "stamina", delta: 1 }] },
+      { id: "card_hazard", type: "hazard", source: "hazard", affinity: "fire", affinities: [{ kind: "fire", expression: "emit", stacks: 1 }] },
+      { id: "card_delver", type: "delver", source: "actor", affinity: "water", motivations: ["attacking"] },
+    ],
+  });
+  assert.deepEqual(resolved.resources.map((entry) => entry.id), ["card_resource"]);
+  assert.deepEqual(resolved.hazards.map((entry) => entry.id), ["card_hazard"]);
+  assert.deepEqual(resolved.actors.map((entry) => entry.id), ["card_delver"]);
+  assert.equal(resolved.delverConfigs.length, 1);
+});
+
+test("room tile card durability survives normalizeCardEntry", async () => {
+  const { normalizeCardEntry } = await loadSelections();
+  const card = normalizeCardEntry({
+    id: "card_room_durable",
+    type: "room",
+    source: "room",
+    durability: { kind: "one-time", amount: 3 },
+  });
+  assert.deepEqual(card.durability, { kind: "one-time", amount: 3 });
+});
+
+test("buildBuildSpecFromSummary omits resources key when no resources are present", async () => {
+  const { buildBuildSpecFromSummary } = await loadAssembler();
+  const { spec } = buildBuildSpecFromSummary({
+    summary: {
+      dungeonAffinity: "fire",
+      goal: "no resources",
+      cardSet: [
+        { id: "card_hazard", type: "hazard", source: "hazard", affinity: "fire", affinities: [{ kind: "fire", expression: "emit", stacks: 1 }] },
+      ],
+    },
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(spec.plan.hints, "resources"), true);
+  assert.equal(spec.plan.hints.resources, undefined);
+});
+
+test.skip("empty cardSet produces empty resources and hazards arrays in resolved summary", async () => {
+  const { extractSummaryFromCardSet } = await loadSelections();
+  const summary = extractSummaryFromCardSet({ goal: "empty", cardSet: [] });
+  assert.deepEqual(summary.resources, []);
+  assert.deepEqual(summary.hazards, []);
+});

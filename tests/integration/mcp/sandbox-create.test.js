@@ -442,17 +442,15 @@ test("mcp ak_sandbox_create rejects budget receipt with missing lineItems array"
   }
 });
 
-/* ## TODO: Test Permutations
- * - budget receipt with partial status (ok: true)
- * - budget receipt with remaining === 0 (ok: true — zero remaining but not denied)
- * - custom runId is reflected in sandboxId and session meta
- * - custom createdAt is reflected in session meta
- * - outDir defaults to artifacts/sandbox/<runId> when not provided
- * - entity categories as empty array (no entityCategories key in result)
- * - entity categories with invalid value (should be ignored by handler or cause validation error)
- * - budget artifact with negative tokens (ok: false, budgetInsufficient: true)
- * - budget artifact with missing budget.tokens field (ok: false, budgetInsufficient: true)
- * - sandbox-session.json schema validates against SANDBOX_SESSION_SCHEMA
- * - budgetReceiptRef in written session matches loaded receipt meta.id when using budget receipt
- * - budgetReceiptRef in written session has a synthetic id when using budget artifact
- */
+test.skip("mcp ak_sandbox_create accepts partial budget receipt status", () => {});
+test.skip("mcp ak_sandbox_create accepts approved receipt with remaining zero", () => {});
+test.skip("mcp ak_sandbox_create reflects custom runId in sandboxId and session meta", () => {});
+test.skip("mcp ak_sandbox_create reflects custom createdAt in session meta", () => {});
+test.skip("mcp ak_sandbox_create defaults outDir to artifacts/sandbox/<runId>", () => {});
+test.skip("mcp ak_sandbox_create with empty entityCategories omits entityCategories from result", () => {});
+test.skip("mcp ak_sandbox_create handles invalid entityCategories deterministically", () => {});
+test.skip("mcp ak_sandbox_create with negative budget tokens returns budgetInsufficient", () => {});
+test.skip("mcp ak_sandbox_create with missing budget.tokens returns budgetInsufficient", () => {});
+test.skip("mcp ak_sandbox_create writes sandbox-session.json valid against SANDBOX_SESSION_SCHEMA", () => {});
+test.skip("mcp ak_sandbox_create budgetReceiptRef matches loaded receipt meta.id", () => {});
+test.skip("mcp ak_sandbox_create budgetReceiptRef has synthetic id when using budget artifact", () => {});

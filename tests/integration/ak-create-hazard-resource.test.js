@@ -317,13 +317,99 @@ test("ak create --resource rejects invalid vital key in V3 spec", () => {
   );
 });
 
-/*
-## TODO: Test Permutations
-- hazard with no mana field defaults to zero one-time mana (not an error)
-- hazard with multiple affinities via repeated flag should be rejected (exactly 1)
-- resource V3 with multi-vital spec (e.g. vital=health;delta=5;vital=mana;delta=2) should aggregate correctly
-- resource V3 missing vital field should be rejected
-- resource V3 with negative delta should be accepted
-- dry-run for V2 hazard should not write any files but should exit 0
-- dry-run for V3 resource with invalid permanenceMode should exit non-zero even without writing files
-*/
+test("ak create --hazard with no mana defaults to zero one-time mana", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-default-mana-"));
+  runCliOk([
+    "create",
+    "--hazard",
+    "affinity=fire;expression=emit;proximityRadius=1",
+    "--run-id",
+    "run_hazard_default_mana",
+    "--created-at",
+    "2026-04-18T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const artifact = readJson(join(outDir, "hazard-1.json"));
+  assert.deepEqual(artifact.mana, { kind: "one-time", amount: 0 });
+});
+
+test.skip("ak create --hazard rejects multiple affinities on one hazard by documented exactly-one-affinity GAP", () => {});
+
+test.skip("ak create --resource aggregates repeated V3 vital entries by documented multi-vital GAP", () => {});
+
+test("ak create --resource V3 missing vital field is rejected", () => {
+  const result = runCli([
+    "create",
+    "--resource",
+    "permanenceMode=consumable;delta=5",
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.ok(
+    result.stderr.includes("vital") || result.stdout.includes("vital"),
+    "error should mention vital",
+  );
+});
+
+test("ak create --resource V3 with negative delta is accepted", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-v3-negative-"));
+  runCliOk([
+    "create",
+    "--resource",
+    "permanenceMode=level;vital=health;delta=-5",
+    "--run-id",
+    "run_resource_v3_negative",
+    "--created-at",
+    "2026-04-18T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const artifact = readJson(join(outDir, "resource-1.json"));
+  assert.equal(artifact.schemaVersion, 3);
+  assert.deepEqual(artifact.vitals[0], { key: "health", delta: -5 });
+});
+
+test("ak create --dry-run for V2 hazard exits 0 without writing files", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-dry-run-"));
+  const result = runCli([
+    "create",
+    "--hazard",
+    "affinity=fire;expression=emit;proximityRadius=1",
+    "--run-id",
+    "run_hazard_dry_run",
+    "--created-at",
+    "2026-04-18T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+    "--dry-run",
+  ]);
+
+  assert.equal(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.dryRun, true);
+  assert.equal(existsSync(join(outDir, "hazard-1.json")), false);
+  assert.equal(existsSync(join(outDir, "spec.json")), false);
+});
+
+test.skip("ak create --dry-run for V3 resource with invalid permanenceMode exits non-zero without writing files", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-dry-run-invalid-"));
+  const result = runCli([
+    "create",
+    "--resource",
+    "permanenceMode=temporary;vital=health;delta=5",
+    "--out-dir",
+    outDir,
+    "--dry-run",
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.ok(
+    result.stderr.includes("permanenceMode") || result.stdout.includes("permanenceMode"),
+    "error should mention permanenceMode",
+  );
+  assert.equal(existsSync(join(outDir, "resource-1.json")), false);
+});

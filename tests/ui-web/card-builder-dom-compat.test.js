@@ -188,7 +188,6 @@ test("DOM builder and headless controller publish the same spec text from an equ
   assert.deepEqual(stripIds(controller.serializeCards()), stripIds(guidance.serializeCards()));
 });
 
-// ## TODO: Test Permutations
 test("DOM builder and headless controller match for a single-room card set", () => {
   const { guidance } = createDomGuidance();
   const controller = createCardBuilderController();

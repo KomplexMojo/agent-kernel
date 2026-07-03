@@ -432,18 +432,16 @@ test("deferred tick controls not exposed in tools/list", async () => {
   }
 });
 
-/* ## TODO: Test Permutations
- * - forward then backward then forward — cursor is idempotent across round-trips
- * - advance to maxTick via repeated forward calls — every step ok: true
- * - rewind from maxTick to 0 via repeated backward calls — every step ok: true
- * - ak_show_state at each tick from 0 to maxTick — tickFrame present for tick > 0
- * - ak_tick_forward with invalid runId — ok: false with error
- * - ak_tick_backward with invalid runId — ok: false with error
- * - ak_show_state with invalid runId — ok: false with error
- * - sandbox run with multiple placed entities (delver + warden + hazard) — run succeeds
- * - sandbox run with no placed actors — run completes with 0 accepted actions per tick
- * - ak_show_state ascii visualization on sandbox run — ascii grid returned
- * - run-summary.json metrics.ticks matches actual tick count in tick-frames.json
- * - AK_ARTIFACTS_DIR isolation: two concurrent sandbox runs in separate dirs do not interfere
- * - sandbox run with actions file (ak_sandbox_move output) — run respects action sequence
- */
+test.skip("mcp sandbox tick forward backward forward keeps cursor idempotent", () => {});
+test.skip("mcp sandbox tick advances to maxTick with every forward step ok:true", () => {});
+test.skip("mcp sandbox tick rewinds from maxTick to 0 with every backward step ok:true", () => {});
+test.skip("mcp ak_show_state at each tick has tickFrame for tick greater than zero", () => {});
+test.skip("mcp ak_tick_forward with invalid runId returns ok:false with error", () => {});
+test.skip("mcp ak_tick_backward with invalid runId returns ok:false with error", () => {});
+test.skip("mcp ak_show_state with invalid runId returns ok:false with error", () => {});
+test.skip("mcp sandbox run with delver warden and hazard succeeds", () => {});
+test.skip("mcp sandbox run with no placed actors completes with zero accepted actions per tick", () => {});
+test.skip("mcp ak_show_state ascii visualization on sandbox run returns ascii grid", () => {});
+test.skip("mcp sandbox run-summary metrics ticks matches tick-frames length", () => {});
+test.skip("mcp AK_ARTIFACTS_DIR isolation keeps concurrent sandbox runs separate", () => {});
+test.skip("mcp sandbox run with actions file respects ak_sandbox_move sequence", () => {});

@@ -132,7 +132,68 @@ test("domain constants and resource bundle assets use the game element registry"
   });
 });
 
-// ## TODO: Test Permutations
-// - registry entries with missing generated image resource should fail validation
-// - legacy v1 ResourceBundle specs should include old affinity/motivation/expression asset IDs
-// - duplicated registry asset IDs should be rejected before ResourceBundle construction
+test("resource bundle validation rejects visual assets missing generated image resource", async () => {
+  const {
+    createDefaultResourceBundleArtifact,
+    validateResourceBundleArtifact,
+  } = await import("../../packages/runtime/src/render/resource-bundle.js");
+  const bundle = createDefaultResourceBundleArtifact({
+    createMeta: ({ producedBy = "test", runId = "registry" } = {}) => ({
+      id: `${producedBy}_${runId}`,
+      runId,
+      createdAt: "2000-01-01T00:00:00.000Z",
+      producedBy,
+    }),
+    emitVisualAssets: true,
+  });
+  const broken = {
+    ...bundle,
+    assets: bundle.assets.map((asset, index) => index === 0
+      ? { ...asset, dataUri: "", relativePath: "" }
+      : asset),
+  };
+  const validation = validateResourceBundleArtifact(broken);
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join("\n"), /dataUri/);
+  assert.match(validation.errors.join("\n"), /relativePath/);
+});
+
+test("legacy v1 resource bundle specs include old affinity motivation and expression asset ids", async () => {
+  const {
+    GAME_AFFINITY_EXPRESSIONS,
+    GAME_AFFINITY_KINDS,
+    GAME_MOTIVATION_KINDS,
+    getResourceBundleAssetSpecs,
+  } = await import("../../packages/runtime/src/contracts/game-elements.js");
+  const ids = new Set(getResourceBundleAssetSpecs({ emitVisualAssets: false }).map((spec) => spec.id));
+  GAME_AFFINITY_KINDS.forEach((kind) => assert.equal(ids.has(`affinity.${kind}`), true));
+  GAME_MOTIVATION_KINDS.forEach((kind) => assert.equal(ids.has(`motivation.${kind}`), true));
+  GAME_AFFINITY_EXPRESSIONS.forEach((expression) => assert.equal(ids.has(`expression.${expression}`), true));
+});
+
+test("resource bundle validation rejects duplicated asset ids", async () => {
+  const {
+    createDefaultResourceBundleArtifact,
+    validateResourceBundleArtifact,
+  } = await import("../../packages/runtime/src/render/resource-bundle.js");
+  const bundle = createDefaultResourceBundleArtifact({
+    createMeta: ({ producedBy = "test", runId = "registry" } = {}) => ({
+      id: `${producedBy}_${runId}`,
+      runId,
+      createdAt: "2000-01-01T00:00:00.000Z",
+      producedBy,
+    }),
+    emitVisualAssets: true,
+  });
+  const duplicated = {
+    ...bundle,
+    assets: [
+      bundle.assets[0],
+      { ...bundle.assets[1], id: bundle.assets[0].id },
+      ...bundle.assets.slice(2),
+    ],
+  };
+  const validation = validateResourceBundleArtifact(duplicated);
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join("\n"), /unique/);
+});

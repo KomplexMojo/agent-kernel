@@ -397,9 +397,8 @@ test("clicking a shelved card in the deck group pulls it back to the editor", as
   expect(activeTypeAfter).toBe("room");
 });
 
-// ## TODO: Test Permutations
-// - Re-render cycle with affinity-kind payload after type is set
-// - Over-budget scenario: fill card to budget limit, verify status reflects over-budget
-// - Canvas resize: resize viewport, verify canvas width updates on next render
-// - Dispose + remount: call dispose(), remount, verify canvas re-appears
-// - select_card intent with unknown id returns ok:false and leaves state unchanged
+test.skip("phaser frame re-render cycle supports affinity-kind payload after type is set", async () => {});
+test.skip("phaser frame over-budget card scenario updates status", async () => {});
+test.skip("phaser frame canvas resize updates width on next render", async () => {});
+test.skip("phaser frame dispose and remount recreates canvas", async () => {});
+test.skip("phaser frame select_card unknown id returns ok:false and preserves state", async () => {});

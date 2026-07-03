@@ -237,14 +237,166 @@ assert.equal(AFFINITY_EXPRESSION_TO_CODE.draw, 4);
 console.log("configurator-affinity-interaction: all assertions passed");
 });
 
-// ## TODO: Test Permutations
-// - [ ] All 10 affinity kinds same-kind interaction: verify relationship = "same"
-// - [ ] All 5 opposite pairs: verify interaction cancellation stacks correct
-// - [ ] All 4 expressions × 4 expressions cross-expression: verify resolves non-null
-// - [ ] Stack asymmetry: source > target and source < target for opposite kinds
-// - [ ] Stacks = 0 or negative: verify defaults to 1
-// - [ ] resolveNetPressureFromCore with single non-zero kind (no opposite present): verify passthrough
-// - [ ] resolveNetPressureFromCore: JS resolveNetPressure parity for 10 random baseByKind inputs
-// - [ ] resolveRelationshipFromCore: all 100 kind×kind pairs categorized correctly
-// - [ ] Sequential calls: verify last-result state resets between calls
-// - [ ] Large stacks (100+): verify cancellation arithmetic correct
+test("affinity interaction delegation permutations", async () => {
+const { createCore } = await import("../../packages/core-ts/src/index.ts");
+const {
+  AFFINITY_KIND_TO_CODE,
+  AFFINITY_EXPRESSION_TO_CODE,
+  resolveAffinityInteractionFromCore,
+  resolveNetPressureFromCore,
+  resolveRelationshipFromCore,
+} = await import("../../packages/runtime/src/personas/configurator/affinity-interaction-core.js");
+
+const core = createCore();
+core.init(0);
+const kinds = Object.keys(AFFINITY_KIND_TO_CODE);
+const expressions = Object.keys(AFFINITY_EXPRESSION_TO_CODE);
+const oppositePairs = [
+  ["fire", "water"],
+  ["earth", "wind"],
+  ["life", "decay"],
+  ["corrode", "fortify"],
+  ["light", "dark"],
+];
+const oppositeMap = new Map(oppositePairs.flatMap(([a, b]) => [[a, b], [b, a]]));
+const expectedNetPressure = (baseByKind) => {
+  const netByKind = {};
+  const cancellations = [];
+  const visited = new Set();
+  for (const kind of kinds) {
+    if (visited.has(kind)) continue;
+    const opposite = oppositeMap.get(kind);
+    if (!opposite || visited.has(opposite)) {
+      netByKind[kind] = baseByKind[kind] || 0;
+      visited.add(kind);
+      continue;
+    }
+    const sourceStacks = baseByKind[kind] || 0;
+    const oppositeStacks = baseByKind[opposite] || 0;
+    const canceled = Math.min(sourceStacks, oppositeStacks);
+    netByKind[kind] = sourceStacks - canceled;
+    netByKind[opposite] = oppositeStacks - canceled;
+    if (canceled > 0) {
+      cancellations.push({ kind, opposite, sourceStacks, oppositeStacks, canceled });
+    }
+    visited.add(kind);
+    visited.add(opposite);
+  }
+  return { netByKind, cancellations };
+};
+
+for (const kind of kinds) {
+  const result = resolveAffinityInteractionFromCore(
+    core,
+    { kind, expression: "push", stacks: 2 },
+    { kind, expression: "push", stacks: 1 },
+  );
+  assert.ok(result !== null, `${kind} same-kind resolves`);
+  assert.equal(result.relationshipName, "same", `${kind}/${kind} relationship`);
+}
+
+for (const [sourceKind, targetKind] of oppositePairs) {
+  const result = resolveAffinityInteractionFromCore(
+    core,
+    { kind: sourceKind, expression: "push", stacks: 5 },
+    { kind: targetKind, expression: "push", stacks: 3 },
+  );
+  assert.ok(result !== null, `${sourceKind}/${targetKind} resolves`);
+  assert.equal(result.relationshipName, "opposite");
+  assert.equal(result.canceledStacks, 3);
+  assert.equal(result.netSourceStacks, 2);
+  assert.equal(result.netTargetStacks, 0);
+}
+
+for (const sourceExpression of expressions) {
+  for (const targetExpression of expressions) {
+    const result = resolveAffinityInteractionFromCore(
+      core,
+      { kind: "fire", expression: sourceExpression, stacks: 1 },
+      { kind: "water", expression: targetExpression, stacks: 1 },
+    );
+    assert.ok(result !== null, `${sourceExpression}/${targetExpression} resolves`);
+    assert.equal(result.relationshipName, "opposite");
+  }
+}
+
+{
+  const sourceWins = resolveAffinityInteractionFromCore(
+    core,
+    { kind: "fire", expression: "push", stacks: 4 },
+    { kind: "water", expression: "push", stacks: 1 },
+  );
+  assert.equal(sourceWins.canceledStacks, 1);
+  assert.equal(sourceWins.netSourceStacks, 3);
+  assert.equal(sourceWins.netTargetStacks, 0);
+
+  const targetWins = resolveAffinityInteractionFromCore(
+    core,
+    { kind: "fire", expression: "push", stacks: 1 },
+    { kind: "water", expression: "push", stacks: 4 },
+  );
+  assert.equal(targetWins.canceledStacks, 1);
+  assert.equal(targetWins.netSourceStacks, 0);
+  assert.equal(targetWins.netTargetStacks, 3);
+}
+
+{
+  const result = resolveAffinityInteractionFromCore(
+    core,
+    { kind: "fire", expression: "push", stacks: 0 },
+    { kind: "water", expression: "push", stacks: -2 },
+  );
+  assert.equal(result.canceledStacks, 1);
+  assert.equal(result.netSourceStacks, 0);
+  assert.equal(result.netTargetStacks, 0);
+}
+
+{
+  const { netByKind, cancellations } = resolveNetPressureFromCore(core, { fire: 7 });
+  assert.equal(netByKind.fire, 7);
+  assert.equal(netByKind.water, 0);
+  assert.equal(cancellations.length, 0);
+}
+
+const pressureFixtures = [
+  { fire: 3, water: 1 },
+  { fire: 0, water: 5, earth: 2 },
+  { earth: 9, wind: 4, life: 2, decay: 2 },
+  { corrode: 6, fortify: 1, light: 8, dark: 3 },
+  { fire: 1, water: 1, earth: 1, wind: 1, life: 1, decay: 1 },
+  { fire: 10, water: 0, dark: 10 },
+  { life: 0, decay: 7, corrode: 2, fortify: 9 },
+  { wind: 12, earth: 5, light: 0, dark: 2 },
+  { fire: 4, water: 9, earth: 8, wind: 1, life: 3 },
+  { corrode: 0, fortify: 0, light: 11, dark: 11 },
+];
+for (const fixture of pressureFixtures) {
+  assert.deepEqual(resolveNetPressureFromCore(core, fixture), expectedNetPressure(fixture));
+}
+
+for (const sourceKind of kinds) {
+  for (const targetKind of kinds) {
+    const expected = sourceKind === targetKind
+      ? "same"
+      : oppositeMap.get(sourceKind) === targetKind
+        ? "opposite"
+        : "neutral";
+    assert.equal(resolveRelationshipFromCore(core, sourceKind, targetKind), expected, `${sourceKind}/${targetKind}`);
+  }
+}
+
+assert.equal(resolveRelationshipFromCore(core, "fire", "fire"), "same");
+assert.equal(resolveRelationshipFromCore(core, "fire", "earth"), "neutral");
+assert.equal(resolveRelationshipFromCore(core, "fire", "water"), "opposite");
+
+{
+  const result = resolveAffinityInteractionFromCore(
+    core,
+    { kind: "fire", expression: "push", stacks: 250 },
+    { kind: "water", expression: "push", stacks: 125 },
+  );
+  assert.equal(result.canceledStacks, 125);
+  assert.equal(result.netSourceStacks, 125);
+  assert.equal(result.netTargetStacks, 0);
+}
+});

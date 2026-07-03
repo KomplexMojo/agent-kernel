@@ -1209,22 +1209,19 @@ test("VSR-04: scenario 53 CLI output then tick-navigable via MCP handlers", asyn
   }
 }, 60_000);
 
-/*
-## TODO: Test Permutations
-- S1: ak_sandbox_create with budget artifact path (alternative to budgetReceipt)
-- S1: ak_sandbox_create with zero-token budget artifact returns budgetInsufficient
-- S1: ak_sandbox_create with malformed receipt JSON returns structured error
-- S2: ak_sandbox_place replaces existing actor at same id (idempotent upsert)
-- S2: ak_sandbox_place at (0,0) — corner position valid placement
-- S2: ak_sandbox_place hazard with proximityRadius trait
-- S3: ak_sandbox_move northeast diagonal updates position by (+1,-1)
-- S3: ak_sandbox_move with sufficient stamina deducts stamina and reports remainder
-- S3: ak_sandbox_move appends correctly to existing action sequence (multi-actor interleave)
-- T1: ak_tick_forward with visualization="ascii" returns visualization.ascii block
-- T2: ak_tick_backward with visualization="ascii" returns visualization.ascii block
-- T3: ak_show_state at tick N returns tickFrame with correct acceptedActions
-- INT: place warden with stationary motivation, forward 10 ticks, verify warden position unchanged in tick frames
-- INT: scenario 27 (opposed fire/water) replay → sandbox session → place both delver types → tick navigate
-- VSR: scenario 46 (large dark maze) CLI create verifies multi-room actor placement
-- VSR: scenario 03 (denied layout) CLI create exits non-zero for denied budget
-*/
+test.skip("S1 ak_sandbox_create accepts budget artifact path as alternative to budgetReceipt", () => {});
+test.skip("S1 ak_sandbox_create with zero-token budget artifact returns budgetInsufficient", () => {});
+test.skip("S1 ak_sandbox_create with malformed receipt JSON returns structured error", () => {});
+test.skip("S2 ak_sandbox_place replaces existing actor at same id as idempotent upsert", () => {});
+test.skip("S2 ak_sandbox_place at corner position 0,0 is valid placement", () => {});
+test.skip("S2 ak_sandbox_place hazard preserves proximityRadius trait", () => {});
+test.skip("S3 ak_sandbox_move northeast diagonal updates position by +1,-1", () => {});
+test.skip("S3 ak_sandbox_move with sufficient stamina deducts stamina and reports remainder", () => {});
+test.skip("S3 ak_sandbox_move appends to existing multi-actor action sequence", () => {});
+test.skip("T1 ak_tick_forward with visualization ascii returns visualization ascii block", () => {});
+test.skip("T2 ak_tick_backward with visualization ascii returns visualization ascii block", () => {});
+test.skip("T3 ak_show_state at tick N returns tickFrame with correct acceptedActions", () => {});
+test.skip("INT stationary warden remains in place after 10 ticks", () => {});
+test.skip("INT scenario 27 opposed fire water replay supports sandbox tick navigation", () => {});
+test.skip("VSR scenario 46 large dark maze CLI create verifies multi-room actor placement", () => {});
+test.skip("VSR scenario 03 denied layout CLI create exits non-zero for denied budget", () => {});

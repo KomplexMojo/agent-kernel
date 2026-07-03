@@ -123,7 +123,10 @@ async function buildSpecThroughDiagnostics(page, spec) {
 }
 
 async function loadBuiltBundleIntoGameplay(page, bundle) {
-  const loaded = await page.evaluate((payload) => window.__ak_loadGameplayBundle(payload), bundle);
+  const loaded = await page.evaluate(
+    (payload) => window.__ak_loadGameplayBundle(payload, { targetTab: "gameplay" }),
+    bundle,
+  );
   expect(loaded).toBe(true);
   await expect(page.locator('[data-tab-panel="gameplay"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator("#gameplay-status")).toContainText("Run loaded.", { timeout: 20_000 });
@@ -201,7 +204,7 @@ test("gameplay panel is not visible before Gameplay is opened", async ({ page })
 test("clicking Auto-generate fills the dungeon configuration without opening Gameplay", async ({ page }) => {
   await page.goto(baseUrl);
 
-  await page.locator('[data-tab="design"]').click();
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "design");
   await expect(page.locator('[data-tab-panel="design"]').first()).toBeVisible();
 
   await page.locator("#design-auto-generate").click();
@@ -222,10 +225,10 @@ test("opening Gameplay auto-generates and applies the dungeon without page reloa
   let navigated = false;
   page.on("framenavigated", () => { navigated = true; });
 
-  await page.locator('[data-tab="design"]').click();
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "design");
   await expect(page.locator('[data-tab-panel="design"]').first()).toBeVisible();
 
-  await page.locator('[data-tab="gameplay"]').click();
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "gameplay");
 
   await expect(page.locator('[data-tab-panel="gameplay"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-tab-panel="design"]').first()).not.toBeVisible();
@@ -241,7 +244,7 @@ test("opening Gameplay auto-generates and applies the dungeon without page reloa
 
 test("Gameplay camera controls zoom and refit the Phaser surface", async ({ page }) => {
   await page.goto(baseUrl);
-  await page.locator('[data-tab="gameplay"]').click();
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "gameplay");
   const stage = page.locator("[data-gameplay-phaser-stage]");
   await expect(page.locator("#gameplay-phaser-host canvas")).toBeVisible({ timeout: 20_000 });
   await expect(stage).toHaveAttribute("data-gameplay-camera-zoom", /\d/);
@@ -259,9 +262,11 @@ test("Gameplay camera controls zoom and refit the Phaser surface", async ({ page
 
 test("Design tab is visible from the gameplay panel", async ({ page }) => {
   await page.goto(baseUrl);
-  await page.locator('[data-tab="gameplay"]').click();
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "gameplay");
   await expect(page.locator('[data-tab-panel="gameplay"]')).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('[data-tab="design"]')).toBeVisible();
+  // The HTML tab bar is intentionally hidden once the Phaser frame mounts (tabs are
+  // Phaser-native now); the button still exists in the DOM.
+  await expect(page.locator('[data-tab="design"]')).toBeAttached();
 });
 
 test("preview bundle launches a visible Phaser gameplay canvas and inspector", async ({ page }) => {
@@ -345,14 +350,14 @@ test("Design navigation from active gameplay respects discard confirmation", asy
     expect(dialog.message()).toBe("Discard current run and return to design?");
     await dialog.dismiss();
   });
-  await page.locator('[data-tab="design"]').click();
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "design");
   await expect(page.locator('[data-tab-panel="gameplay"]')).toBeVisible();
 
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toBe("Discard current run and return to design?");
     await dialog.accept();
   });
-  await page.locator('[data-tab="design"]').click();
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "design");
   await expect(page.locator('[data-tab-panel="design"]').first()).toBeVisible();
   await expect(page.locator('[data-tab-panel="gameplay"]')).not.toBeVisible();
 });
@@ -462,11 +467,8 @@ test("Actor Inspector and gameplay controls remain visible after Player Panel op
   await expect(page.locator("#gameplay-step-forward")).toBeVisible();
 });
 
-/*
-## TODO: Test Permutations
-- launching gameplay with a room-only preview bundle shows a launch guard error
-- clicking the Phaser canvas selects the actor visible at that tile
-- a large level still fits the Gameplay viewport without horizontal page overflow
-- Z key with no actor selected does not open Player Panel (dataset stays false)
-- Player Panel opened then closed does not break camera zoom controls
-*/
+test.skip("gameplay launch with room-only preview bundle shows launch guard error", async () => {});
+test.skip("gameplay Phaser canvas click selects actor visible at that tile", async () => {});
+test.skip("gameplay large level fits viewport without horizontal page overflow", async () => {});
+test.skip("gameplay Z key with no actor selected does not open Player Panel", async () => {});
+test.skip("gameplay Player Panel open close cycle preserves camera zoom controls", async () => {});

@@ -431,12 +431,11 @@ test("mcp ak_show_state ascii at tick 2 after rewind matches direct forward repl
   }
 });
 
-// ## TODO: Test Permutations
-// - Permutation: ak_tick_forward with missing runId argument — MCP returns a structured error, not a server crash.
-// - Permutation: ak_tick_forward on an unknown runId — ok:false with error matching /not found/i.
-// - Permutation: ak_tick_backward on an unknown runId — ok:false with error matching /not found/i.
-// - Permutation: ak_show_state with missing cursor but valid run — should default to tick 0 without error.
-// - Permutation: ak_tick_forward on a run with maxTick 1 — first call succeeds (tick 1), second returns ok:false.
-// - Permutation: ak_show_state called before any forward on a brand-new run — tick 0, ok:true.
-// - Permutation: interleaved forward/backward sequence of 10 steps — final tick matches expected value, no cursor corruption.
-// - Permutation: ak_show_state after backward to tick 0 — ascii matches initial layout, same as state before any forward.
+test.skip("mcp ak_tick_forward with missing runId returns structured error without server crash", () => {});
+test.skip("mcp ak_tick_forward on unknown runId returns ok:false with not found error", () => {});
+test.skip("mcp ak_tick_backward on unknown runId returns ok:false with not found error", () => {});
+test.skip("mcp ak_show_state with missing cursor defaults valid run to tick 0", () => {});
+test.skip("mcp ak_tick_forward on maxTick 1 succeeds once then returns ok:false", () => {});
+test.skip("mcp ak_show_state before any forward returns tick 0 ok:true", () => {});
+test.skip("mcp interleaved forward backward sequence preserves final cursor", () => {});
+test.skip("mcp ak_show_state after backward to tick 0 matches initial ascii layout", () => {});

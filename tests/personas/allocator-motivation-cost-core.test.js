@@ -124,12 +124,77 @@ assert.equal(MOTIVATION_KIND_TO_CODE.user_controlled, 12);
 console.log("allocator-motivation-cost: all assertions passed");
 });
 
-// ## TODO: Test Permutations
-// - [ ] All 12 motivation kinds with intensity 1: verify core-ts == JS default cost
-// - [ ] All 12 kinds with intensity 10 (max): verify core-ts == JS
-// - [ ] Mixed string + object motivations: verify core-ts == JS
-// - [ ] Duplicate kinds: verify each counted separately
-// - [ ] Invalid kind names: verify skipped in core-ts and JS
-// - [ ] Sequential calls: verify accumulator resets correctly
-// - [ ] Control tier (user_controlled): verify cost = 10
-// - [ ] calculateMotivationStackCostFromCore with priceMap is not supported: document gap
+test("motivation cost delegation permutations", async () => {
+const { createCore } = await import("../../packages/core-ts/src/index.ts");
+const {
+  calculateMotivationStackCost,
+  calculateMotivationStackCostFromCore,
+  MOTIVATION_KIND_TO_CODE,
+  DEFAULT_MOTIVATION_COSTS,
+} = await import("../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
+
+const core = createCore();
+core.init(0);
+const kinds = Object.keys(MOTIVATION_KIND_TO_CODE);
+
+for (const kind of kinds) {
+  const motivations = [{ kind, intensity: 1 }];
+  assert.deepEqual(
+    calculateMotivationStackCostFromCore(core, motivations),
+    calculateMotivationStackCost(motivations),
+    `${kind} intensity 1 matches JS`,
+  );
+}
+
+for (const kind of kinds) {
+  const motivations = [{ kind, intensity: 10 }];
+  assert.deepEqual(
+    calculateMotivationStackCostFromCore(core, motivations),
+    calculateMotivationStackCost(motivations),
+    `${kind} intensity 10 matches JS`,
+  );
+}
+
+{
+  const mixedForCore = ["reflexive", { kind: "attacking", intensity: 2 }];
+  const normalizedForJs = [{ kind: "reflexive", intensity: 1 }, { kind: "attacking", intensity: 2 }];
+  assert.deepEqual(
+    calculateMotivationStackCostFromCore(core, mixedForCore),
+    calculateMotivationStackCost(normalizedForJs),
+  );
+}
+
+{
+  const motivations = [{ kind: "attacking", intensity: 1 }, { kind: "attacking", intensity: 2 }];
+  const result = calculateMotivationStackCostFromCore(core, motivations);
+  assert.equal(result.cost, DEFAULT_MOTIVATION_COSTS.attacking * 3);
+  assert.equal(result.lineItems.length, 2);
+  assert.deepEqual(result.lineItems.map((line) => line.quantity), [1, 2]);
+}
+
+{
+  const motivations = [{ kind: "invalid", intensity: 99 }, "also_invalid"];
+  assert.deepEqual(calculateMotivationStackCostFromCore(core, motivations), { cost: 0, lineItems: [] });
+  assert.deepEqual(calculateMotivationStackCost(motivations), { cost: 0, lineItems: [] });
+}
+
+calculateMotivationStackCostFromCore(core, [{ kind: "strategy_focused", intensity: 10 }]);
+const resetResult = calculateMotivationStackCostFromCore(core, [{ kind: "random", intensity: 1 }]);
+assert.equal(resetResult.cost, DEFAULT_MOTIVATION_COSTS.random);
+assert.equal(resetResult.lineItems.length, 1);
+assert.equal(resetResult.lineItems[0].motivationKind, "random");
+
+{
+  const result = calculateMotivationStackCostFromCore(core, [{ kind: "user_controlled", intensity: 1 }]);
+  assert.equal(result.cost, 10);
+  assert.equal(result.lineItems[0].unitCostTokens, 10);
+}
+
+{
+  const priceMap = new Map([["motivation:motivation_attacking", 999]]);
+  const jsOverride = calculateMotivationStackCost([{ kind: "attacking", intensity: 1 }], priceMap);
+  const coreDefault = calculateMotivationStackCostFromCore(core, [{ kind: "attacking", intensity: 1 }], priceMap);
+  assert.equal(jsOverride.cost, 999);
+  assert.equal(coreDefault.cost, DEFAULT_MOTIVATION_COSTS.attacking);
+}
+});

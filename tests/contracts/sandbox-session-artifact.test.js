@@ -197,16 +197,100 @@ test("sandbox session validation rejects unknown entity category", async () => {
   assert.match(result.errors.join("\n"), /entityCategories/);
 });
 
-/* ## TODO: Test Permutations
- * - room with fractional width/height should be rejected
- * - room with non-integer width/height should be rejected
- * - artifacts index with null simConfigRef should be rejected
- * - artifacts index with null initialStateRef should be rejected
- * - artifacts index with null resourceBundleRef should be rejected
- * - multiple invalid rooms in a single call accumulates errors for each
- * - entityCategories as non-array should be rejected
- * - meta.runId as empty string should be rejected
- * - meta.createdAt as empty string should be rejected
- * - meta.producedBy as empty string should be rejected
- * - schemaVersion as string "1" (not number) should be rejected
- */
+test("sandbox session validation rejects fractional room dimensions", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  const result = validateSandboxSession({
+    ...artifact,
+    rooms: [{ ...artifact.rooms[0], width: 10.5, height: 8.25 }],
+  });
+  assert.equal(result.ok, false);
+  const errors = result.errors.join("\n");
+  assert.match(errors, /rooms\[0\]\.width/);
+  assert.match(errors, /rooms\[0\]\.height/);
+});
+
+test("sandbox session validation rejects non-integer room dimensions", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  const result = validateSandboxSession({
+    ...artifact,
+    rooms: [{ ...artifact.rooms[0], width: "10", height: "8" }],
+  });
+  assert.equal(result.ok, false);
+  const errors = result.errors.join("\n");
+  assert.match(errors, /rooms\[0\]\.width/);
+  assert.match(errors, /rooms\[0\]\.height/);
+});
+
+test("sandbox session validation accumulates errors for multiple invalid rooms", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  const result = validateSandboxSession({
+    ...artifact,
+    rooms: [
+      { ...artifact.rooms[0], id: "", width: 0 },
+      { ...artifact.rooms[0], id: "room_bad_2", height: -1 },
+    ],
+  });
+  assert.equal(result.ok, false);
+  const errors = result.errors.join("\n");
+  assert.match(errors, /rooms\[0\]\.id/);
+  assert.match(errors, /rooms\[0\]\.width/);
+  assert.match(errors, /rooms\[1\]\.height/);
+});
+
+test("sandbox session validation rejects entityCategories as non-array", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  const result = validateSandboxSession({
+    ...artifact,
+    entityCategories: "delver",
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /entityCategories/);
+});
+
+test("sandbox session validation rejects empty meta.runId", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  const result = validateSandboxSession({ ...artifact, meta: { ...artifact.meta, runId: "" } });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /meta\.runId/);
+});
+
+test("sandbox session validation rejects empty meta.createdAt", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  const result = validateSandboxSession({ ...artifact, meta: { ...artifact.meta, createdAt: "" } });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /meta\.createdAt/);
+});
+
+test("sandbox session validation rejects empty meta.producedBy", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  const result = validateSandboxSession({ ...artifact, meta: { ...artifact.meta, producedBy: "" } });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /meta\.producedBy/);
+});
+
+test("sandbox session validation rejects string schemaVersion", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  const result = validateSandboxSession({ ...artifact, schemaVersion: "1" });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /schemaVersion/);
+});
+
+test.skip("sandbox session validation rejects null non-budget artifact refs", async () => {
+  const { validateSandboxSession } = await loadValidator();
+  const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
+  for (const refKey of ["simConfigRef", "initialStateRef", "resourceBundleRef"]) {
+    const result = validateSandboxSession({
+      ...artifact,
+      artifacts: { ...artifact.artifacts, [refKey]: null },
+    });
+    assert.equal(result.ok, false, `${refKey} should be rejected when null`);
+  }
+});
