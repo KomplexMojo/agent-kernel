@@ -11,7 +11,7 @@ function wait(ms) {
 }
 
 function parseServeUrl(output) {
-  const match = output.match(/Serving UI at:\s+(http:\/\/localhost:\d+\/packages\/ui-web\/index\.html)/);
+  const match = output.match(/Serving UI at:\s+(http:\/\/localhost:\d+\/packages\/ui-web\/index(?:_c)?\.html)/);
   return match ? match[1] : null;
 }
 
@@ -53,6 +53,11 @@ export async function startServeUi({ port = 0 } = {}) {
         reject(new Error(`Timed out waiting for serve:ui URL:\n${output}`));
       }
     }, 50);
+  }).catch(async (error) => {
+    // A failed startup must not leak the spawned server; orphans hold
+    // ports 8001+ and starve every subsequent Playwright run.
+    await stopProcess(proc);
+    throw error;
   });
 
   const healthUrl = new URL("/health", url);
@@ -68,6 +73,7 @@ export async function startServeUi({ port = 0 } = {}) {
     await wait(50);
   }
 
+  await stopProcess(proc);
   throw new Error(`Timed out waiting for serve:ui health readiness:\n${output}`);
 }
 
