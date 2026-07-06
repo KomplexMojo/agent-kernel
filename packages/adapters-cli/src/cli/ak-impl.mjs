@@ -2452,6 +2452,36 @@ async function summarizeBuildLikeOutput({
   });
 }
 
+const GAMEPLAY_BUNDLE_SCHEMA = "agent-kernel/GameplayBundle";
+
+// Assemble a post-run agent-kernel/GameplayBundle by merging the resolved
+// SimConfig/InitialState artifacts that `run` writes with the tick frames it
+// recorded. Matches the shape produced by
+// packages/runtime/src/runner/core-facade.js compileScenarioPlaybackBundle
+// ({ schema, schemaVersion, meta, artifacts: [simConfig, initialState], spec, tickFrames })
+// so the UI's window.__ak_loadGameplayBundle / sandbox-bridge-client can consume
+// it unchanged. Unlike compileScenarioPlaybackBundle (which re-runs the
+// simulation itself), this reuses the tick frames already produced by `run`
+// rather than re-executing the sim.
+function buildGameplayBundleFromRunArtifacts({ runId, createdAt, simConfig, initialState, tickFrames, spec } = {}) {
+  if (!simConfig || !initialState || !Array.isArray(tickFrames)) {
+    return null;
+  }
+  return {
+    schema: GAMEPLAY_BUNDLE_SCHEMA,
+    schemaVersion: 1,
+    meta: {
+      id: runId || simConfig?.meta?.runId || initialState?.meta?.runId || "run",
+      runId: runId || simConfig?.meta?.runId || initialState?.meta?.runId || "run",
+      createdAt: createdAt || new Date().toISOString(),
+      producedBy: "cli-run",
+    },
+    artifacts: [simConfig, initialState],
+    ...(spec ? { spec } : {}),
+    tickFrames,
+  };
+}
+
 async function summarizeRunOutput({ outDir, args } = {}) {
   const runSummary = await readJsonIfExists(join(outDir, "run-summary.json"));
   const resolvedSimConfigPath = join(outDir, "resolved-sim-config.json");
@@ -2479,10 +2509,61 @@ async function summarizeRunOutput({ outDir, args } = {}) {
   if (existsSync(resolvedInitialStatePath)) {
     artifactPaths.resolved_initial_state = resolvedInitialStatePath;
   }
+
+  // M7 gap 3: stitch a post-run agent-kernel/GameplayBundle from the artifacts
+  // this run just (re)wrote so ak_push_to_ui has something to deliver to the UI.
+  const runId = runSummary?.meta?.runId || simConfig?.meta?.runId || initialState?.meta?.runId || "";
+  const tickFrames = await readJsonIfExists(artifactPaths.tick_frames);
+  // When the run's inputs came from an ak_create outDir, that directory holds
+  // the pre-run preview bundle.json ({ spec, schemas, artifacts } — no
+  // schema/schemaVersion/tickFrames). Carry its spec/schemas and any artifacts
+  // that the run does not supersede (e.g. ResourceBundleArtifact) into the
+  // post-run bundle, and upgrade that sibling bundle.json in place so the
+  // create outDir also ends up holding a loadable playback bundle.
+  const sourceSimConfigPath = resolvePath(args["sim-config"]);
+  const createBundlePath = sourceSimConfigPath ? join(dirname(sourceSimConfigPath), "bundle.json") : null;
+  const createBundle = createBundlePath && createBundlePath !== join(outDir, "bundle.json")
+    ? await readJsonIfExists(createBundlePath)
+    : null;
+  // Only stitch when the run's inputs came from an authored create outDir
+  // (identified by its pre-run bundle.json sibling). Fixture-driven runs stay
+  // bundle-free so CLI run output remains artifact-for-artifact equivalent to
+  // the browser host's run output (tests/integration/ui-cli-equivalence.test.js).
+  const bundle = createBundle && typeof createBundle === "object"
+    ? buildGameplayBundleFromRunArtifacts({
+      runId,
+      createdAt: runSummary?.meta?.createdAt,
+      simConfig,
+      initialState,
+      tickFrames: Array.isArray(tickFrames) ? tickFrames : null,
+      spec: createBundle.spec,
+    })
+    : null;
+  if (bundle) {
+    const SUPERSEDED_BY_RUN = new Set([
+      simConfig?.schema,
+      initialState?.schema,
+    ]);
+    const carriedArtifacts = Array.isArray(createBundle.artifacts)
+      ? createBundle.artifacts.filter((artifact) => artifact?.schema && !SUPERSEDED_BY_RUN.has(artifact.schema))
+      : [];
+    if (carriedArtifacts.length > 0) {
+      bundle.artifacts = [...bundle.artifacts, ...carriedArtifacts];
+    }
+    if (createBundle.schemas !== undefined) {
+      bundle.schemas = createBundle.schemas;
+    }
+    const bundlePath = join(outDir, "bundle.json");
+    await writeJson(bundlePath, bundle);
+    artifactPaths.bundle = bundlePath;
+    await writeJson(createBundlePath, bundle);
+    artifactPaths.create_bundle = createBundlePath;
+  }
+
   return {
     ok: true,
     command: "run",
-    runId: runSummary?.meta?.runId || simConfig?.meta?.runId || initialState?.meta?.runId || "",
+    runId,
     outDir,
     actorIds: deriveActorIds(initialState),
     roomIds: deriveRoomIds(simConfig),
@@ -3971,17 +4052,42 @@ function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps,
   // +4 = 2 walls + 2 padding so the clamp in readRoomSettings allows the full room size
   const profileGridSide = profileMinSize + 4;
 
+  // Grid capacity must also scale with the TOTAL requested room count, not just a single
+  // room's size profile. level-layout.js's placeRooms() lays candidate rooms out in a
+  // roughly-square grid of surface slots (buildRoomSurfaceSlots); if the interior is only
+  // just big enough for one room of roomMaxSize, additional rooms silently fail to place
+  // and orchestrateBuild returns fewer rooms than requested (confirmed: a 15x15 grid with
+  // roomCount=5/roomMinSize=roomMaxSize=5 deterministically yields only 4 placed rooms).
+  // Size the grid so a sqrt(roomCount) x sqrt(roomCount) arrangement of roomMaxSize rooms
+  // (plus 1-tile spacing per room and a 4-tile wall/padding border) always fits. Only
+  // applies when more than one room is requested — profileGridSide already sizes the
+  // single-room case correctly, and widening it here would shift absolute tile
+  // coordinates that other authoring flags (e.g. --trap x=..;y=..) depend on.
+  const requestedRoomCount = rooms.reduce((sum, entry) => {
+    const count = Number.isInteger(entry?.value?.count) && entry.value.count > 0 ? entry.value.count : 1;
+    return sum + count;
+  }, 0);
+  const roomCapacitySide = requestedRoomCount > 1
+    ? (() => {
+      const columns = Math.ceil(Math.sqrt(requestedRoomCount));
+      const gridRows = Math.max(1, Math.ceil(requestedRoomCount / columns));
+      return Math.max(columns, gridRows) * (sizeProfile.roomMaxSize + 1) + 4;
+    })()
+    : 0;
+
   const width = Math.max(
     Number.isInteger(levelGen?.width) ? levelGen.width : 0,
     walkableSide,
     trapWidth,
     profileGridSide,
+    roomCapacitySide,
   );
   const height = Math.max(
     Number.isInteger(levelGen?.height) ? levelGen.height : 0,
     walkableSide,
     trapHeight,
     profileGridSide,
+    roomCapacitySide,
   );
   const shape = levelGen?.shape && typeof levelGen.shape === "object" && !Array.isArray(levelGen.shape)
     ? { ...levelGen.shape }
@@ -4703,6 +4809,59 @@ function buildArtifactRefs(entries) {
     schema: entry.schema,
     schemaVersion: entry.schemaVersion,
   }));
+}
+
+// Extract the primary motivation string from a parsed delver/warden card's
+// `motivations` array. Delver cards append a synthetic "user_controlled" tag
+// (see parseDelverSpec) alongside the actual requested motivation, so that
+// tag must be excluded when resolving the single motivation.kind value the
+// runtime persona layer reads (resolveActorMotivationKind expects
+// actor.motivation.kind — see packages/runtime/src/personas/actor/controller.js).
+function resolvePrimaryCardMotivation(card) {
+  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
+  return motivations.find((entry) => entry && entry !== "user_controlled") || null;
+}
+
+// ak_create/ak_configure accept --delver/--warden "motivation=<kind>" but
+// orchestrateBuild (packages/runtime) does not carry that value through onto
+// the actor records it writes into InitialStateArtifact — it is only used
+// authoring-side for cost calculation (hasNonStationaryMobilityMotivation /
+// requiresMovementStamina). Patch `motivation: { kind }` onto each actor here,
+// matched by archetype + base-id prefix back to the parsed CLI card that
+// produced it. InitialStateArtifactV1.actors entries are not a closed/enumerated
+// key set (packages/runtime/src/contracts/artifacts.ts), so adding this field
+// does not require a schemaVersion bump.
+function applyMotivationToInitialStateActors(initialState, { parsedDelvers = [], parsedWardens = [] } = {}) {
+  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
+  if (actors.length === 0) {
+    return;
+  }
+
+  const cardsByArchetype = {
+    delver: parsedDelvers.map((entry) => ({
+      baseId: entry?.value?.id,
+      motivation: resolvePrimaryCardMotivation(entry?.value),
+    })).filter((entry) => isNonEmptyString(entry.baseId) && isNonEmptyString(entry.motivation)),
+    warden: parsedWardens.map((entry) => ({
+      baseId: entry?.value?.id,
+      motivation: resolvePrimaryCardMotivation(entry?.value),
+    })).filter((entry) => isNonEmptyString(entry.baseId) && isNonEmptyString(entry.motivation)),
+  };
+
+  if (cardsByArchetype.delver.length === 0 && cardsByArchetype.warden.length === 0) {
+    return;
+  }
+
+  actors.forEach((actor) => {
+    const cards = cardsByArchetype[actor?.archetype];
+    if (!cards || cards.length === 0) {
+      return;
+    }
+    const match = cards.find((card) => actor.id === card.baseId || actor.id.startsWith(`${card.baseId}-`));
+    if (match) {
+      actor.motivation = { kind: match.motivation };
+    }
+  });
 }
 
 function attachMixedRoomAssembliesToBuildResult(buildResult) {
@@ -5516,6 +5675,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     producedBy: `cli-${commandName}`,
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
+  applyMotivationToInitialStateActors(buildResult.initialState, { parsedDelvers, parsedWardens });
 
   if (args["dry-run"]) {
     emitJsonStdout(buildDryRunSuccess({
