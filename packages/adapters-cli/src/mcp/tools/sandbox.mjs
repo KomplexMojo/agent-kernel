@@ -19,6 +19,7 @@ import {
 } from "../../../../runtime/src/contracts/sandbox-session.mjs";
 import { createDefaultResourceBundleArtifact } from "../../../../runtime/src/render/resource-bundle.js";
 import {
+  booleanSchema,
   createHandlerTool,
   integerSchema,
   pathSchema,
@@ -26,6 +27,7 @@ import {
   stringSchema,
   withCommonOutput,
 } from "./shared.mjs";
+import { getSandboxBridgeState, pushGameplayBundle } from "../bridge-server.mjs";
 
 // ---------------------------------------------------------------------------
 // Local I/O helpers (self-contained — no dependency on ak-impl.mjs)
@@ -935,6 +937,148 @@ export async function executeSandboxMove({
 }
 
 // ---------------------------------------------------------------------------
+// ak_push_to_ui — M7 gap 4: deliver a create+run GameplayBundle to the UI (M8 bridge)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
+
+function makePushMessageId() {
+  return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * Push a compiled agent-kernel/GameplayBundle to the sandbox WS bridge so a
+ * connected browser UI (packages/ui-web/src/sandbox-bridge-client.js) loads
+ * it into the gameplay Phaser surface.
+ *
+ * Accepts either:
+ *   - `bundle`: an inline GameplayBundle object, or
+ *   - `bundlePath`: an explicit path to a GameplayBundle JSON file, or
+ *   - `outDir`: a run/create outDir containing bundle.json (the shape written
+ *     by `run` per the M7 gap-3 stitching step, or by `create` pre-run).
+ *
+ * @param {object} options
+ * @param {object} [options.bundle]
+ * @param {string} [options.bundlePath]
+ * @param {string} [options.outDir]
+ * @param {string} [options.targetTab]      "design" | "gameplay" (default "gameplay").
+ * @param {boolean} [options.requireClient] Fail if no browser UI is connected (default true).
+ * @param {string} [options.correlationId]
+ * @returns {Promise<object>}
+ */
+export async function executePushToUi({
+  bundle: inlineBundle,
+  bundlePath,
+  outDir,
+  targetTab = "gameplay",
+  requireClient = true,
+  correlationId,
+} = {}) {
+  let bundle = inlineBundle;
+
+  if (!bundle) {
+    const resolvedBundlePath = isNonEmptyString(bundlePath)
+      ? resolve(bundlePath)
+      : isNonEmptyString(outDir)
+        ? join(resolve(outDir), "bundle.json")
+        : null;
+    if (!resolvedBundlePath) {
+      return {
+        ok: false,
+        command: "push-to-ui",
+        error: "ak_push_to_ui requires one of bundle, bundlePath, or outDir.",
+      };
+    }
+    if (!existsSync(resolvedBundlePath)) {
+      return {
+        ok: false,
+        command: "push-to-ui",
+        error: `No bundle found at ${resolvedBundlePath}.`,
+        bundleNotFound: true,
+      };
+    }
+    try {
+      bundle = await readJson(resolvedBundlePath);
+    } catch (err) {
+      return {
+        ok: false,
+        command: "push-to-ui",
+        error: `Cannot read bundle: ${err.message}`,
+      };
+    }
+  }
+
+  if (!bundle || typeof bundle !== "object" || !Array.isArray(bundle.artifacts)) {
+    return {
+      ok: false,
+      command: "push-to-ui",
+      error: "Bundle must be an agent-kernel/GameplayBundle object with an artifacts[] array.",
+      invalidBundle: true,
+    };
+  }
+
+  const state = getSandboxBridgeState();
+
+  if (state.startFailed) {
+    return {
+      ok: false,
+      command: "push-to-ui",
+      error: "SANDBOX_BRIDGE_START_FAILED",
+      message: `The sandbox bridge server failed to start (port may be in use). Check port ${DEFAULT_BRIDGE_PORT}.`,
+      bridge: { port: DEFAULT_BRIDGE_PORT, connectedClients: 0, startFailed: true },
+    };
+  }
+
+  if (requireClient && state.connectedClients === 0) {
+    return {
+      ok: false,
+      command: "push-to-ui",
+      error: "SANDBOX_UI_NOT_CONNECTED",
+      message:
+        "No browser UI is connected to the sandbox bridge. " +
+        "Open the UI dev server and ensure the bridge client is running, or set requireClient: false to pre-stage the bundle.",
+      bridge: { port: DEFAULT_BRIDGE_PORT, connectedClients: 0 },
+    };
+  }
+
+  const messageId = makePushMessageId();
+  // D4 (sandbox-bridge-client.js handleBundle): targetTab lives at the envelope
+  // root, not inside payload.
+  const envelope = {
+    type: "ak.gameplayBundle.v1",
+    id: messageId,
+    ...(correlationId ? { correlationId } : {}),
+    createdAt: new Date().toISOString(),
+    targetTab,
+    payload: {
+      bundle,
+      source: { tool: "ak_push_to_ui" },
+    },
+  };
+
+  const { deliveredClientIds, timedOutClientIds } = await pushGameplayBundle(envelope);
+
+  return {
+    ok: true,
+    command: "push-to-ui",
+    ...(correlationId ? { correlationId } : {}),
+    targetTab,
+    bridge: {
+      port: DEFAULT_BRIDGE_PORT,
+      connectedClients: state.connectedClients,
+      deliveredClientIds,
+      timedOutClientIds,
+    },
+    bundleSummary: {
+      schema: bundle.schema,
+      schemaVersion: bundle.schemaVersion,
+      artifactCount: bundle.artifacts.length,
+      tickFrameCount: Array.isArray(bundle.tickFrames) ? bundle.tickFrames.length : 0,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // MCP tool definition
 // ---------------------------------------------------------------------------
 
@@ -1060,6 +1204,51 @@ export const sandboxTools = [
         actorId: isNonEmptyString(args.actorId) ? args.actorId : undefined,
         direction: isNonEmptyString(args.direction) ? args.direction : undefined,
         actionsOut: isNonEmptyString(args.actionsOut) ? args.actionsOut : undefined,
+      }),
+  }),
+
+  createHandlerTool({
+    name: "ak_push_to_ui",
+    description:
+      "Deliver a compiled agent-kernel/GameplayBundle (produced by ak_create + ak_run) to the " +
+      "connected browser UI via the sandbox WebSocket bridge, so the Phaser gameplay surface can " +
+      "load and play back the run. Accepts an explicit bundlePath, an outDir containing bundle.json " +
+      "(the shape ak_run writes after M7 stitching), or an inline bundle object. " +
+      "Returns ok: false with bundleNotFound: true when no bundle is found at the resolved path, " +
+      "SANDBOX_UI_NOT_CONNECTED when no browser UI is connected and requireClient is true, and " +
+      "SANDBOX_BRIDGE_START_FAILED when the bridge server failed to start.",
+    inputSchema: {
+      properties: {
+        outDir: pathSchema(
+          "Run or create outDir containing bundle.json. Used when bundle/bundlePath are omitted.",
+        ),
+        bundlePath: pathSchema("Explicit path to an agent-kernel/GameplayBundle JSON file."),
+        bundle: {
+          type: "object",
+          additionalProperties: true,
+          description: "Inline agent-kernel/GameplayBundle object, taking precedence over bundlePath/outDir.",
+        },
+        targetTab: {
+          type: "string",
+          enum: ["design", "gameplay"],
+          description: "Which UI tab to activate after loading. Defaults to 'gameplay'.",
+          default: "gameplay",
+        },
+        requireClient: booleanSchema(
+          "When true (default), fail immediately if no browser UI is connected. " +
+            "When false, push and store the bundle for replay when the UI connects.",
+        ),
+        correlationId: stringSchema("Optional caller-supplied correlation ID echoed back in the result."),
+      },
+    },
+    handler: (args) =>
+      executePushToUi({
+        bundle: args.bundle && typeof args.bundle === "object" ? args.bundle : undefined,
+        bundlePath: isNonEmptyString(args.bundlePath) ? args.bundlePath : undefined,
+        outDir: isNonEmptyString(args.outDir) ? args.outDir : undefined,
+        targetTab: args.targetTab === "design" ? "design" : "gameplay",
+        requireClient: args.requireClient === false ? false : true,
+        correlationId: isNonEmptyString(args.correlationId) ? args.correlationId : undefined,
       }),
   }),
 ];
