@@ -829,7 +829,116 @@ function resolveNearestHostile(view, actorId) {
  *   stationary                     → wait (no action)
  *   any        + no hostile        → existing exit pathfinding
  */
-function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig }) {
+// ── M3: Random motivation helpers ──────────────────────────────────────────
+//
+// Deterministic, seed-derived pseudo-random selection — never Math.random(),
+// never a clock read. The RNG is a pure function of (seed, actorId, tick):
+// same inputs always produce the same output, independent of instance or
+// call history, satisfying both the "identical seed -> identical trajectory"
+// and "no shared mutable RNG state" requirements.
+
+function resolveActorRandomSeed(view, actorId, payload, personaSeed) {
+  if (view?.actors && Array.isArray(view.actors)) {
+    const self = view.actors.find((a) => a && a.id === actorId);
+    if (self?.motivation?.seed !== undefined && self.motivation.seed !== null) {
+      return self.motivation.seed;
+    }
+  }
+  const configActors = payload?.initialState?.actors;
+  if (Array.isArray(configActors)) {
+    const configActor = configActors.find((a) => a && a.id === actorId);
+    if (configActor?.motivation?.seed !== undefined && configActor.motivation.seed !== null) {
+      return configActor.motivation.seed;
+    }
+  }
+  if (payload?.seed !== undefined && payload?.seed !== null) return payload.seed;
+  if (personaSeed !== undefined && personaSeed !== null) return personaSeed;
+  return 0;
+}
+
+/** Deterministic 32-bit hash of a seed/actorId/tick tuple (no Math.random, no clock). */
+function hashRandomInputs(seed, actorId, tick) {
+  const text = `${String(seed)}:${String(actorId)}:${String(Number.isFinite(tick) ? tick : 0)}`;
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  // Final mix (mulberry32-style) so nearby hashes decorrelate before use.
+  hash ^= hash << 13;
+  hash ^= hash >>> 17;
+  hash ^= hash << 5;
+  return hash >>> 0;
+}
+
+/** Pure deterministic RNG value in [0, 1) derived from seed + actorId + tick + salt. */
+function deterministicRandom(seed, actorId, tick, salt = 0) {
+  const hashed = hashRandomInputs(seed, actorId, (Number.isFinite(tick) ? tick : 0) * 2654435761 + salt);
+  return hashed / 4294967296;
+}
+
+function isOccupied(position, view, actorId) {
+  if (!view?.actors || !Array.isArray(view.actors)) return false;
+  return view.actors.some(
+    (other) => other && other.id !== actorId && other.position
+      && other.position.x === position.x && other.position.y === position.y,
+  );
+}
+
+function isReserved(position, reservedTargets) {
+  if (!Array.isArray(reservedTargets) || reservedTargets.length === 0) return false;
+  return reservedTargets.some((target) => target && target.x === position.x && target.y === position.y);
+}
+
+/**
+ * Random motivation: choose among legal adjacent walkable, unoccupied tiles
+ * using a deterministic seed-derived RNG. If the first choice is blocked,
+ * bounce to another legal candidate (deterministically re-ordered, not
+ * re-rolled with fresh entropy). If no legal adjacent tile exists, wait.
+ *
+ * `payload.reservedTargets` (array of {x,y}) carries move targets already
+ * claimed by other actors earlier in the same DECIDE phase — the runtime
+ * advances the actor persona once per actor per tick (see
+ * packages/runtime/src/runner/runtime-fsm.mjs), so without this, two
+ * actors evaluated in the same tick could both choose an identical
+ * currently-unoccupied tile before core state is updated at APPLY time.
+ */
+function buildRandomMoveProposals({ observation, payload, lastBaseTiles, lastSimConfig, personaSeed }) {
+  const view = resolveObservationView(observation);
+  const actorId = payload?.actorId;
+  const actor = resolveActor(view, actorId, observation);
+  if (!actor?.position) return [{ kind: "wait", params: { reason: "random" } }];
+
+  const baseTiles = resolveBaseTiles(payload, view, lastBaseTiles, lastSimConfig);
+  const tileKinds = resolveTileKinds(view, payload);
+  const reservedTargets = payload?.reservedTargets;
+  const candidates = buildAdjacentMoveProposals({ actor, tileKinds, baseTiles })
+    .filter((proposal) => !isOccupied(proposal.params.to, view, actorId))
+    .filter((proposal) => !isReserved(proposal.params.to, reservedTargets));
+
+  if (candidates.length === 0) {
+    return [{ kind: "wait", params: { reason: "random" } }];
+  }
+
+  const seed = resolveActorRandomSeed(view, actorId, payload, personaSeed);
+  const roll = deterministicRandom(seed, actorId, payload?.tick, 0);
+  const index = Math.floor(roll * candidates.length) % candidates.length;
+  const chosen = candidates[index];
+
+  return [
+    {
+      kind: "move",
+      params: {
+        direction: chosen.params.direction,
+        from: chosen.params.from,
+        to: chosen.params.to,
+        reason: "random",
+      },
+    },
+  ];
+}
+
+function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig, personaSeed }) {
   const view = resolveObservationView(observation);
   if (!view) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
 
@@ -838,12 +947,18 @@ function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimC
   if (!actor?.position) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
 
   const motivationKind = resolveActorMotivationKind(view, actorId, payload);
-  const hostile = resolveNearestHostile(view, actorId);
 
   // Stationary: never propose movement
   if (motivationKind === "stationary") {
     return [];
   }
+
+  // Random: seed-derived deterministic movement to a legal adjacent tile
+  if (motivationKind === "random") {
+    return buildRandomMoveProposals({ observation, payload, lastBaseTiles, lastSimConfig, personaSeed });
+  }
+
+  const hostile = resolveNearestHostile(view, actorId);
 
   if (hostile) {
     const adjacent = hostile.distance <= 1;
@@ -891,7 +1006,7 @@ function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimC
   return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
 }
 
-export function createActorPersona({ initialState = ActorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createActorPersona({ initialState = ActorStates.IDLE, clock = () => new Date().toISOString(), seed: personaSeed } = {}) {
   const fsm = createActorStateMachine({ initialState, clock });
   let lastObservation = null;
   let lastBaseTiles = null;
@@ -928,7 +1043,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock = ()
     }
 
     const shouldEmitActions = event === "propose";
-    const derivedProposals = shouldEmitActions ? buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig }) : [];
+    const derivedProposals = shouldEmitActions ? buildMotivatedProposals({ observation, payload: { ...payload, tick }, lastBaseTiles, lastSimConfig, personaSeed }) : [];
     const proposals = Array.isArray(payload.proposals) && payload.proposals.length > 0 ? payload.proposals : derivedProposals;
     const budgetReceipt = payload.budgetReceipt || payload.budget?.receipt || payload.budget?.receiptArtifact || null;
     const budgetAllocation = payload.budgetAllocation || payload.budget?.allocation || null;

@@ -410,54 +410,13 @@ function requireHostFunction(host, name) {
 }
 
 function createCommandRuntimeCore() {
-  const core = createCore();
-  return {
-    init: core.init,
-    step: core.step,
-    applyAction: core.applyAction,
-    getCounter: core.getCounter,
-    configureGrid: core.configureGrid,
-    setTileAt: core.setTileAt,
-    spawnActorAt: core.spawnActorAt,
-    setActorVital: core.setActorVital,
-    setBudget: core.setBudget,
-    getBudget: core.getBudget,
-    getBudgetUsage: core.getBudgetUsage,
-    getEffectCount: core.getEffectCount,
-    getEffectKind: core.getEffectKind,
-    getEffectValue: core.getEffectValue,
-    clearEffects: core.clearEffects,
-    version: core.version,
-    // Observation functions — required by canReadObservation() so the runtime-fsm
-    // can provide actor positions and tile data to the actor persona's buildMoveProposal.
-    getMapWidth: core.getMapWidth,
-    getMapHeight: core.getMapHeight,
-    getActorX: core.getActorX,
-    getActorY: core.getActorY,
-    getActorKind: core.getActorKind,
-    getActorVitalCurrent: core.getActorVitalCurrent,
-    getActorVitalMax: core.getActorVitalMax,
-    getActorVitalRegen: core.getActorVitalRegen,
-    getTileActorKind: core.getTileActorKind,
-    getCurrentTick: core.getCurrentTick,
-    // Additional helpers used by readObservation and renderBaseTiles
-    getActorCount: core.getActorCount,
-    getActorId: core.getActorId,
-    getActorHp: core.getActorHp,
-    getActorMaxHp: core.getActorMaxHp,
-    getActorPlacementCount: core.getActorPlacementCount,
-    getAffinityEffectCount: core.getAffinityEffectCount,
-    getAffinityFieldIntensityAt: core.getAffinityFieldIntensityAt,
-    getAffinityFieldExpressionAt: core.getAffinityFieldExpressionAt,
-    armStaticTrapAt: core.armStaticTrapAt,
-    destroyBarrierAt: core.destroyBarrierAt,
-    raiseBarrierAt: core.raiseBarrierAt,
-    // Required by canRenderBaseTiles() so baseTiles string grid is available
-    // for pathfinding (findExitFromTiles / isPassable) in buildMoveProposal.
-    renderBaseCellChar: core.renderBaseCellChar,
-    // Required by applyActionsToCore "missing_move_exports" check before applyMoveAction.
-    setMoveAction: core.setMoveAction,
-  };
+  // Expose the FULL core surface. This used to be a hand-picked subset, but
+  // the runtime's capability checks (canReadObservation, canApplyActorPlacements,
+  // applyActionsToCore, ...) silently degrade to legacy single-actor paths when
+  // a probed function is missing — the subset caused two such silent
+  // degradations as the runtime grew. The command kernel has no reason to see
+  // less of the core than the playback runtime does.
+  return createCore();
 }
 
 async function captureAdapterPayload({ capture, index, baseDir, spec, producedBy, allowNetwork, host }) {

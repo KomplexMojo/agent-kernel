@@ -680,7 +680,7 @@ export function createFsmRuntime({
     }
   }
 
-  function buildPersonaPayloads({ phase, observation, phaseInputs = {}, actions = [], emittedEffects = [], fulfilledEffects = [] } = {}) {
+  function buildPersonaPayloads({ phase, observation, phaseInputs = {}, actions = [], emittedEffects = [], fulfilledEffects = [], actorId, reservedTargets } = {}) {
     const overrides = normalizePersonaPayloadsMap(phaseInputs.personaPayloads || phaseInputs.inputs);
     const actorOverrides = overrides.actor || {};
     const annotatorOverrides = overrides.annotator || {};
@@ -717,9 +717,10 @@ export function createFsmRuntime({
 
     const actorPayload = {
       ...base,
-      actorId: primaryActorId,
+      actorId: actorId || primaryActorId,
       observation,
       baseTiles,
+      ...(Array.isArray(reservedTargets) && reservedTargets.length > 0 ? { reservedTargets } : {}),
       ...actorOverrides,
     };
 
@@ -1097,6 +1098,14 @@ export function createFsmRuntime({
       const sortedActorIds = actorIdMap.size > 0
         ? Array.from(actorIdMap.entries()).sort((a, b) => a[1] - b[1]).map(([id]) => id)
         : [];
+      // Deterministic decide-phase iteration order: initialState.actors array
+      // order (filtered to actors the core actually tracks), not the
+      // alphabetically-sorted numeric-index order used for core observation
+      // labeling above. Every tracked actor must get a chance to propose an
+      // action each tick — see tests/runtime/multi-actor-orchestration.test.js.
+      const decideActorIds = Array.isArray(initialState?.actors)
+        ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id))
+        : sortedActorIds;
       const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutTraps, sortedActorIds);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
@@ -1136,41 +1145,95 @@ export function createFsmRuntime({
         solverFulfilled: observeRecord.solverFulfilled,
       });
 
-      const decidePersonaPayloads = buildPersonaPayloads({
-        phase: TickPhases.DECIDE,
-        observation,
-        phaseInputs: stepOptions,
-      });
-      const decideInputs = {
-        personaTick: tick,
-        personaEvents: buildPersonaEvents({
+      // Advance the actor persona once per tracked actor (deterministic
+      // initialState order) so every actor gets a chance to propose a
+      // move/wait action each tick, not just initialState.actors[0]. Only
+      // the first pass transitions the shared tick-phase FSM
+      // (OBSERVE -> DECIDE); subsequent passes redispatch within the same
+      // DECIDE phase. Non-actor personas receive no event override on
+      // repeat passes, so collectPhaseRecord() treats them as pure view()
+      // reads (see packages/runtime/src/personas/_shared/tick-orchestrator.mts).
+      const decideActorIterationIds = decideActorIds.length > 0 ? decideActorIds : [primaryActorId];
+      const actions = [];
+      let decideRecord = null;
+      let decidePersonaPayloads = null;
+      for (let i = 0; i < decideActorIterationIds.length; i += 1) {
+        const actorId = decideActorIterationIds[i];
+        // Targets already claimed by actors decided earlier in this same
+        // tick, so two actors can't both propose a move onto the same
+        // currently-unoccupied tile before core state updates at APPLY time.
+        const reservedTargets = actions
+          .filter((a) => a?.kind === "move" && a.params?.to)
+          .map((a) => ({ x: a.params.to.x, y: a.params.to.y }));
+        decidePersonaPayloads = buildPersonaPayloads({
           phase: TickPhases.DECIDE,
+          observation,
           phaseInputs: stepOptions,
-          personaPayloads: decidePersonaPayloads,
-        }),
-        personaPayloads: decidePersonaPayloads,
-      };
-      const decideRecord = await orchestrator.stepPhase("decide", decideInputs);
-      const actorState = decideRecord.personaViews?.actor?.state;
-      if (actorState === "proposing" || actorState === "deciding") {
-        const cooldownRecord = await orchestrator.dispatchPhase({
-          phase: TickPhases.DECIDE,
-          event: "cooldown",
-          payload: {
-            personaTick: tick,
-            personaEvents: { actor: "cooldown" },
-            personaPayloads: decideInputs.personaPayloads,
-          },
+          actorId,
+          reservedTargets,
         });
-        decideRecord.personaViews = cooldownRecord.personaViews;
+        const decideInputs = {
+          personaTick: tick,
+          personaEvents: buildPersonaEvents({
+            phase: TickPhases.DECIDE,
+            phaseInputs: stepOptions,
+            personaPayloads: decidePersonaPayloads,
+          }),
+          personaPayloads: decidePersonaPayloads,
+        };
+        let record;
+        if (i === 0) {
+          record = await orchestrator.stepPhase("decide", decideInputs);
+        } else {
+          // The actor persona is a single shared FSM instance (cooldown after
+          // the previous actor's turn only accepts "observe"). Recycle it
+          // through observe -> decide before this actor's propose/cooldown.
+          // personaEvents scopes these transitions to the actor persona only;
+          // every other persona sees no override and is treated as a pure
+          // view() read (see tick-orchestrator.mts collectPhaseRecord()).
+          await orchestrator.dispatchPhase({
+            phase: TickPhases.DECIDE,
+            event: "observe",
+            payload: {
+              personaTick: tick,
+              personaEvents: { actor: "observe" },
+              personaPayloads: decidePersonaPayloads,
+            },
+          });
+          record = await orchestrator.dispatchPhase({
+            phase: TickPhases.DECIDE,
+            event: "decide",
+            payload: {
+              personaTick: tick,
+              personaEvents: { actor: ["decide", "propose"] },
+              personaPayloads: decidePersonaPayloads,
+            },
+          });
+        }
+        const actorState = record.personaViews?.actor?.state;
+        if (actorState === "proposing" || actorState === "deciding") {
+          const cooldownRecord = await orchestrator.dispatchPhase({
+            phase: TickPhases.DECIDE,
+            event: "cooldown",
+            payload: {
+              personaTick: tick,
+              personaEvents: { actor: "cooldown" },
+              personaPayloads: decideInputs.personaPayloads,
+            },
+          });
+          record.personaViews = cooldownRecord.personaViews;
+        }
+        if (Array.isArray(record.actions) && record.actions.length) {
+          actions.push(...record.actions);
+        }
+        decideRecord = record;
       }
-      const actions = Array.isArray(decideRecord.actions) ? decideRecord.actions : [];
 
       applyPersonaArtifacts(decideRecord);
       recordTickFrame({
         phaseDetail: TickPhases.DECIDE,
         personaViews: decideRecord.personaViews,
-        personaActions: decideRecord.actions,
+        personaActions: actions,
         personaEffects: decideRecord.effects,
         personaArtifacts: decideRecord.artifacts,
         telemetry: decideRecord.telemetry,
