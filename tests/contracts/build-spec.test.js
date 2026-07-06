@@ -182,14 +182,89 @@ test("room tile actor config rejects affinity expressions", async () => {
   assert.match(result.errors.join("\n"), /affinityExpression/);
 });
 
-/*
-## TODO: Test Permutations
-- room tile with invalid affinity kind (e.g. "thunder") should be invalid
-- room tile with affinityStacks=-1 should be invalid
-- room tile with affinityStacks=0 should be valid (zero stacks is valid)
-- room tile with durability kind="one-time" should be valid
-- room tile with region field should be invalid
-- room tile with no optional fields (bare schema/schemaVersion/meta) should be valid
-- room tile with motivation="stationary" should be valid
-- room tile with all forbidden vitals simultaneously should report all errors
-*/
+test("room tile actor config rejects invalid affinity kind", async () => {
+  const { validateRoomTileActorConfig } = await loadValidator();
+  const result = validateRoomTileActorConfig({
+    schema: "agent-kernel/RoomTileActorConfig",
+    schemaVersion: 1,
+    meta: BASE_META,
+    affinity: "thunder",
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /affinity/);
+});
+
+test("room tile actor config rejects negative affinity stacks", async () => {
+  const { validateRoomTileActorConfig } = await loadValidator();
+  const result = validateRoomTileActorConfig({
+    schema: "agent-kernel/RoomTileActorConfig",
+    schemaVersion: 1,
+    meta: BASE_META,
+    affinityStacks: -1,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /affinityStacks/);
+});
+
+test("room tile actor config accepts zero affinity stacks", async () => {
+  const { validateRoomTileActorConfig } = await loadValidator();
+  const result = validateRoomTileActorConfig({
+    schema: "agent-kernel/RoomTileActorConfig",
+    schemaVersion: 1,
+    meta: BASE_META,
+    affinity: "dark",
+    affinityStacks: 0,
+  });
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+});
+
+test("room tile actor config accepts one-time durability", async () => {
+  const { validateRoomTileActorConfig } = await loadValidator();
+  const result = validateRoomTileActorConfig({
+    schema: "agent-kernel/RoomTileActorConfig",
+    schemaVersion: 1,
+    meta: BASE_META,
+    durability: { kind: "one-time", amount: 1 },
+  });
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+});
+
+test("room tile actor config rejects region field", async () => {
+  const { validateRoomTileActorConfig } = await loadValidator();
+  const result = validateRoomTileActorConfig({
+    schema: "agent-kernel/RoomTileActorConfig",
+    schemaVersion: 1,
+    meta: BASE_META,
+    region: "north",
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /region/);
+});
+
+test("room tile actor config accepts stationary motivation", async () => {
+  const { validateRoomTileActorConfig } = await loadValidator();
+  const result = validateRoomTileActorConfig({
+    schema: "agent-kernel/RoomTileActorConfig",
+    schemaVersion: 1,
+    meta: BASE_META,
+    motivation: "stationary",
+  });
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+});
+
+test("room tile actor config reports all forbidden vital errors", async () => {
+  const { validateRoomTileActorConfig } = await loadValidator();
+  const result = validateRoomTileActorConfig({
+    schema: "agent-kernel/RoomTileActorConfig",
+    schemaVersion: 1,
+    meta: BASE_META,
+    health: { kind: "regen", current: 1, max: 1, regen: 0 },
+    mana: { kind: "regen", current: 1, max: 1, regen: 0 },
+    stamina: { kind: "regen", current: 1, max: 1, regen: 0 },
+  });
+  assert.equal(result.ok, false);
+  const errors = result.errors.join("\n");
+  assert.match(errors, /health/);
+  assert.match(errors, /mana/);
+  assert.match(errors, /stamina/);
+});

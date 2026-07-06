@@ -309,26 +309,45 @@ test("trap placed at grid-origin (x=0,y=0) is rejected because (0,0) is always a
   );
 });
 
-// ---------------------------------------------------------------------------
-// ## TODO: Test Permutations
-// Known-valid behaviors confirmed during this authoring pass:
-//   - Duplicate trap coordinates → rejected via dry-run valid:false (traps[N].position:duplicate_trap)
-//   - Small room with traps → rejected via dry-run valid:false
-//   - Trap on wall tile (x=0,y=0) → currently accepted silently (see wall-tile test above)
-//
-// Stubs below need implementation before expansion:
-// ---------------------------------------------------------------------------
+test("trap x or y supplied as a string token is rejected at parse time", () => {
+  const result = runCli([
+    "create",
+    "--trap", "x=north;y=2;affinity=fire",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /trap\[1\] x/i);
+});
 
-// TODO: trap x beyond grid width is rejected — e.g. x=999 silently expands the grid rather than erroring; CLI should reject
-// TODO: trap y beyond grid height is rejected — same gap as above for y axis
-// TODO: trap on wall tile is rejected — confirmed fixed; non-walkable position returns trap_on_wall error
-// TODO: trap on exit tile (coordinates matching sim-config layout.data.exit) is rejected
-// TODO: trap on spawn tile (coordinates matching sim-config layout.data.spawn) is rejected
-// TODO: trap count exceeding available floor tiles is rejected — e.g. 30 traps where room has 23 walkable cells
-// TODO: trap x or y supplied as a string token (x=north) is rejected at parse time
-// TODO: trap vitals=mana:0:0 (zero max, zero regen) — verify zero-max is accepted or rejected intentionally
-// TODO: trap with only durability vital (no mana) is accepted — confirm each vital is independently optional
-// TODO: multiple traps with distinct coordinates appear in sim-config in declared order
-// TODO: trap coordinates adjacent to exit tile are accepted (ensure adjacency != exit tile check)
-// TODO: trap coordinates adjacent to spawn tile are accepted
-// TODO: trap with blocking=true is placed and actors cannot traverse the occupied tile
+test("multiple traps with distinct coordinates appear in sim-config in declared order", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-trap-placement-order-"));
+  const result = runCli([
+    "create",
+    "--room", "size=medium;count=1",
+    "--trap", "id=trap_a;x=2;y=2;affinity=fire;expression=emit;stacks=1",
+    "--trap", "id=trap_b;x=3;y=2;affinity=water;expression=emit;stacks=1",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--budget", BUDGET,
+    "--price-list", PRICE_LIST,
+    "--out-dir", outDir,
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+
+  const simConfig = readJson(join(outDir, "sim-config.json"));
+  assert.deepEqual(
+    (simConfig.layout?.data?.traps ?? []).map((trap) => trap.affinity?.kind),
+    ["fire", "water"],
+  );
+});
+
+test.skip("trap x beyond grid width is rejected instead of expanding the grid", () => {});
+test.skip("trap y beyond grid height is rejected instead of expanding the grid", () => {});
+test.skip("trap on exit tile is rejected", () => {});
+test.skip("trap on spawn tile is rejected", () => {});
+test.skip("trap count exceeding available floor tiles is rejected", () => {});
+test.skip("trap vitals=mana:0:0 has an intentional accept/reject contract", () => {});
+test.skip("trap with only durability vital and no mana is independently optional", () => {});
+test.skip("trap coordinates adjacent to exit tile are accepted", () => {});
+test.skip("trap coordinates adjacent to spawn tile are accepted", () => {});
+test.skip("trap with blocking=true prevents actor traversal", () => {});

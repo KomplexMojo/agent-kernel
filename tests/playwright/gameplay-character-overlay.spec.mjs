@@ -91,7 +91,10 @@ async function buildSpecThroughDiagnostics(page, spec) {
 }
 
 async function loadBuiltBundleIntoGameplay(page, bundle) {
-  const loaded = await page.evaluate((payload) => window.__ak_loadGameplayBundle(payload), bundle);
+  const loaded = await page.evaluate(
+    (payload) => window.__ak_loadGameplayBundle(payload, { targetTab: "gameplay" }),
+    bundle,
+  );
   expect(loaded).toBe(true);
   await expect(page.locator('[data-tab-panel="gameplay"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator("#gameplay-status")).toContainText("Run loaded.", { timeout: 20_000 });
@@ -246,13 +249,10 @@ test("actor inspector is accessible after closing overlay", async ({ page }) => 
   await expect(page.locator("#actor-inspector")).toBeVisible();
 });
 
-/*
-## TODO: Test Permutations
-- Z key with no actor selected does not open overlay
-- Opening overlay on a very narrow viewport (320px width)
-- Opening overlay on a very wide viewport (1920px width)
-- Repeated open/close cycles do not leak DOM containers
-- Camera pan after overlay close still works correctly
-- Overlay does not shift position on window resize
-- Overlay depth is above quick-view tooltip if both are somehow active
-*/
+test.skip("character overlay Z key with no actor selected does not open overlay", async () => {});
+test.skip("character overlay opens on 320px narrow viewport", async () => {});
+test.skip("character overlay opens on 1920px wide viewport", async () => {});
+test.skip("character overlay repeated open close cycles do not leak DOM containers", async () => {});
+test.skip("character overlay camera pan after close still works", async () => {});
+test.skip("character overlay does not shift position on window resize", async () => {});
+test.skip("character overlay depth is above quick-view tooltip", async () => {});

@@ -101,7 +101,6 @@ test("ingestion accepts the existing gameplay artifacts without schema changes",
   assert.equal(loadRunCall.bundle, bundle);
 });
 
-// ## TODO: Test Permutations
 test("ingestion routes a summary payload to loadSummary on the card builder surface", async () => {
   const { cardBuilder, gameplay, calls } = createFakeSurfaces();
   const ingestion = createPhaserSurfaceIngestion({ cardBuilder, gameplay });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
   buildSummaryFromCardSet,
+  calculateCardValue,
   createDesignCard,
   dropPropertyOnCard,
 } from "../../packages/runtime/src/commands/card-authoring.js";
@@ -61,7 +62,59 @@ test("ui design-guidance facade re-exports runtime authoring functions", async (
   assert.equal(ui.buildSummaryFromCardSet, runtime.buildSummaryFromCardSet);
 });
 
-// ## TODO: Test Permutations
-// - resource card property updates should preserve budget ceilings and permanent multipliers
-// - hazard cards should keep mana and durability normalization stable through facade imports
-// - empty and duplicate card ids should remain deterministic after controller-level id assignment
+test("resource card property updates preserve budget ceilings and permanent multipliers", () => {
+  const resource = createDesignCard({
+    id: "resource_authoring",
+    type: "resource",
+    affinity: "life",
+    resourceVitals: { mana: { delta: 4, regen: 2 } },
+    permanent: true,
+    budgetCeiling: 100,
+  });
+
+  const beforeValue = calculateCardValue(resource);
+  const result = dropPropertyOnCard(resource, { group: "affinities", value: "light" });
+  const afterValue = calculateCardValue(result.card);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.card.permanent, true);
+  assert.equal(result.card.budgetCeiling, 100);
+  assert.equal(beforeValue.unitTokens, 100);
+  assert.equal(afterValue.unitTokens, 100);
+  assert.ok(afterValue.lineItems.some((item) => item.id === "resource_mana_delta" && item.unitCostTokens === 40));
+});
+
+test("hazard cards keep mana and durability normalization stable through facade imports", async () => {
+  const ui = await import("../../packages/ui-web/src/design-guidance.js");
+  const hazard = ui.createDesignCard({
+    id: "hazard_authoring",
+    type: "hazard",
+    affinity: "fire",
+    expressions: ["draw"],
+    mana: { kind: "regen", current: 2, max: 7, regen: 3 },
+    durability: { kind: "one-time", amount: 4 },
+    tokenHint: 75,
+  });
+
+  const runtimeHazard = createDesignCard(hazard);
+
+  assert.deepEqual(runtimeHazard.mana, { kind: "regen", current: 2, max: 7, regen: 3 });
+  assert.deepEqual(runtimeHazard.durability, { kind: "one-time", amount: 4 });
+  assert.equal(runtimeHazard.expressions[0], "draw");
+  assert.equal(calculateCardValue(runtimeHazard).unitTokens, 75);
+});
+
+test("empty and duplicate card ids keep summary generation deterministic", () => {
+  const explicitDuplicateA = createDesignCard({ id: "duplicate_card", type: "room", roomSize: "small", count: 1 });
+  const explicitDuplicateB = createDesignCard({ id: "duplicate_card", type: "warden", affinity: "dark", count: 1 });
+  const generated = createDesignCard({ id: "", type: "resource", resourceVitals: { health: { delta: 1, regen: 0 } } });
+
+  const first = buildSummaryFromCardSet({ cards: [explicitDuplicateA, explicitDuplicateB, generated], budgetTokens: 500 });
+  const second = buildSummaryFromCardSet({ cards: [explicitDuplicateA, explicitDuplicateB, generated], budgetTokens: 500 });
+
+  assert.match(generated.id, /^G-[A-Z0-9]{6}$/);
+  assert.deepEqual(first.summary, second.summary);
+  assert.deepEqual(first.cards.map((card) => card.id), second.cards.map((card) => card.id));
+  assert.equal(first.cards.filter((card) => card.id === "duplicate_card").length, 1);
+  assert.equal(new Set(first.cards.map((card) => card.id)).size, first.cards.length);
+});

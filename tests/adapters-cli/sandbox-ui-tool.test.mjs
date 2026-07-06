@@ -110,11 +110,8 @@ test("ak_sandbox_push_ui tool compiles and pre-stages bundle when requireClient:
   assert.deepEqual(result.bridge.timedOutClientIds, []);
 });
 
-/*
-## TODO: Test Permutations
-- Bridge startup failure: mock port in use, assert SANDBOX_BRIDGE_START_FAILED error from tool
-- AK_SANDBOX_BRIDGE_PORT env var forwarded to browser: serve-ui.mjs injects correct port into HTML
-- Bundle round-trip: connect mock browser client, push bundle, verify client receives exact artifacts[]
-- targetTab: "design" → loadGameplayBundle called with { targetTab: "design" }
-- targetTab: "gameplay" → loadGameplayBundle called with { targetTab: "gameplay" }
-*/
+test.skip("ak_sandbox_push_ui reports SANDBOX_BRIDGE_START_FAILED when bridge startup port is occupied", () => {});
+test.skip("serve-ui forwards AK_SANDBOX_BRIDGE_PORT into browser HTML", () => {});
+test.skip("ak_sandbox_push_ui sends exact artifacts array to a connected browser client", () => {});
+test.skip("ak_sandbox_push_ui targetTab design calls loadGameplayBundle with design target", () => {});
+test.skip("ak_sandbox_push_ui targetTab gameplay calls loadGameplayBundle with gameplay target", () => {});

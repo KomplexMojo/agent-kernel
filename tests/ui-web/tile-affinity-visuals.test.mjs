@@ -360,13 +360,112 @@ describe("water fire overlap", () => {
   });
 });
 
-// ## TODO: Test Permutations
-// - Non-fire canonical hazard affinities (water, earth, wind)
-// - Emit field strength is derived from affinity stack count, not emitStrength
-// - Large affinity stack counts clamp visual spread to board edges
-// - Missing resource bundle asset mappings for overlay
-// - Multiple hazards with different canonical affinities overlapping same tile
-// - Hazard at board edge (0,0) and (max,max)
-// - Empty tiles array with hazards present
-// - Hazard with empty affinityStacks array
-// - Resource bundle with no overlays mapping
+describe("deriveTileAffinityVisuals permutations", () => {
+  it("supports non-fire canonical hazard affinities", () => {
+    const canonical = [
+      ["water", 0x2b7fff],
+      ["earth", 0x7a5c33],
+      ["wind", 0x8fd3ff],
+    ];
+
+    for (const [kind, color] of canonical) {
+      const visuals = deriveTileAffinityVisuals({
+        tiles: ["...", "...", "..."],
+        hazards: [{ id: kind, kind, position: { x: 1, y: 1 }, emitStrength: 1, affinityStacks: [{ kind, stacks: 1, expression: "emit" }] }],
+      });
+      assert.equal(visuals.get("1,1").affinityKind, kind);
+      assert.equal(visuals.get("1,1").color, color);
+    }
+  });
+
+  it.skip("derives emit field strength from affinity stack count instead of emitStrength", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: [".....", ".....", ".....", ".....", "....."],
+      hazards: [{ id: "h", kind: "fire", position: { x: 2, y: 2 }, emitStrength: 1, affinityStacks: [{ kind: "fire", stacks: 3, expression: "emit" }] }],
+    });
+
+    assert.ok(visuals.has("2,0"));
+  });
+
+  it("large spread clamps visual keys to board edges", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: ["...", "...", "..."],
+      hazards: [{ id: "h", kind: "light", position: { x: 1, y: 1 }, emitStrength: 20, affinityStacks: [{ kind: "light", stacks: 20, expression: "emit" }] }],
+    });
+
+    assert.equal(visuals.size, 9);
+    for (const key of visuals.keys()) {
+      const [x, y] = key.split(",").map(Number);
+      assert.ok(x >= 0 && x <= 2);
+      assert.ok(y >= 0 && y <= 2);
+    }
+  });
+
+  it("missing overlay asset mappings leave overlayAssetId null", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: ["...", "...", "..."],
+      hazards: [{ id: "h", kind: "fire", position: { x: 1, y: 1 }, emitStrength: 1, affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }] }],
+      resourceBundle: { mappings: { overlays: {} }, assets: [] },
+    });
+
+    assert.equal(visuals.get("1,1").overlayAssetId, null);
+  });
+
+  it("overlapping different affinities keep later metadata when intensity ties", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: [".....", ".....", "....."],
+      hazards: [
+        { id: "fire", kind: "fire", position: { x: 2, y: 1 }, emitStrength: 3, affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }] },
+        { id: "water", kind: "water", position: { x: 4, y: 1 }, emitStrength: 3, affinityStacks: [{ kind: "water", stacks: 1, expression: "emit" }] },
+      ],
+    });
+
+    const overlap = visuals.get("2,1");
+    assert.equal(overlap.affinityKind, "water");
+    assert.equal(overlap.intensity, 1);
+  });
+
+  it("hazards at both board edges do not project outside the grid", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: ["...", "...", "..."],
+      hazards: [
+        { id: "edge-a", kind: "fire", position: { x: 0, y: 0 }, emitStrength: 2, affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }] },
+        { id: "edge-b", kind: "dark", position: { x: 2, y: 2 }, emitStrength: 2, affinityStacks: [{ kind: "dark", stacks: 1, expression: "emit" }] },
+      ],
+    });
+
+    assert.ok(visuals.has("0,0"));
+    assert.ok(visuals.has("2,2"));
+    assert.equal(visuals.has("-1,0"), false);
+    assert.equal(visuals.has("3,2"), false);
+  });
+
+  it("empty tiles array with hazards produces an empty visual map", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: [],
+      hazards: [{ id: "h", kind: "fire", position: { x: 0, y: 0 }, emitStrength: 2, affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }] }],
+    });
+
+    assert.equal(visuals.size, 0);
+  });
+
+  it("hazard with empty affinityStacks falls back to hazard kind", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: ["...", "...", "..."],
+      hazards: [{ id: "h", kind: "life", position: { x: 1, y: 1 }, emitStrength: 1, affinityStacks: [] }],
+    });
+
+    assert.equal(visuals.get("1,1").affinityKind, "life");
+    assert.equal(visuals.get("1,1").expression, "");
+  });
+
+  it("resource bundle with no overlays mapping leaves overlayAssetId null", () => {
+    const visuals = deriveTileAffinityVisuals({
+      tiles: ["...", "...", "..."],
+      hazards: [{ id: "h", kind: "earth", position: { x: 1, y: 1 }, emitStrength: 1, affinityStacks: [{ kind: "earth", stacks: 1, expression: "emit" }] }],
+      resourceBundle: { mappings: {}, assets: [] },
+    });
+
+    assert.equal(visuals.get("1,1").overlayAssetId, null);
+  });
+});

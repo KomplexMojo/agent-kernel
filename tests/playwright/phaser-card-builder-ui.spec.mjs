@@ -360,11 +360,10 @@ test("shelf shows per-type group budget info accessible via getShelfBudget()", a
   expect(shelfBudget.room).toHaveProperty("remainingTokens");
 });
 
-// ## TODO: Test Permutations
-// - Expression chips enabled only after an affinity is applied on the active card
-// - Clicking an applied affinity in the editor zone removes it from the card
-// - Room size chip cycles through small → medium → large on repeated click
-// - Editor card_header label updates after type drop (shows new type and cost)
-// - Shelf group headers appear even when the group is empty
-// - Multiple cards of different types shelved → each appears in correct group
-// - getBudgetInfo().allocated object has per-type breakdown (room, delver, warden, hazard, resource)
+test.skip("card builder expression chips are enabled only after affinity is applied", async () => {});
+test.skip("card builder clicking applied affinity removes it from editor card", async () => {});
+test.skip("card builder room size chip cycles small medium large on repeated click", async () => {});
+test.skip("card builder card_header label updates after type drop with type and cost", async () => {});
+test.skip("card builder shelf group headers appear when group is empty", async () => {});
+test.skip("card builder multiple shelved cards appear in correct groups", async () => {});
+test.skip("card builder getBudgetInfo allocated object has per-type breakdown", async () => {});

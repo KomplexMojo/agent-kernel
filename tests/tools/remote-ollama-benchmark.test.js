@@ -120,8 +120,93 @@ test("remote ollama mac external host flag overrides the configured WAN host", (
   assert.doesNotMatch(result.stdout, /154\.5\.75\.3/);
 });
 
-// ## TODO: Test Permutations
-// - model with no configured profiles should be skipped from generated specs
-// - named effort should resolve from config benchmark defaults
-// - failed runs should not appear in recommended standard settings
-// - --no-reset should dry-run with resetProfiles false
+test("hardware benchmark skips models with no configured profiles", () => {
+  const config = {
+    profiles: {
+      primary: { name: "primary", port: 11434 },
+    },
+    models: {
+      runnable: { profiles: ["primary"] },
+      unconfigured: {},
+    },
+    benchmark: {
+      defaultContexts: [4096],
+      defaultEfforts: [{ name: "standard", numPredict: 4096 }],
+      defaultScenarios: ["vitest-generation"],
+    },
+  };
+  const plan = buildHardwareBenchmarkSpecs(config, {
+    models: ["runnable", "unconfigured"],
+  });
+  assert.deepEqual(plan.specs.map((spec) => spec.model), ["runnable"]);
+});
+
+test("hardware benchmark resolves named effort from configured defaults", () => {
+  const config = loadConfig(ROOT);
+  const plan = buildHardwareBenchmarkSpecs(config, {
+    models: ["qwen2.5-coder:7b"],
+    contexts: [8192],
+    efforts: ["high"],
+    scenarioNames: ["vitest-generation"],
+  });
+  assert.ok(plan.specs.length > 0, "expected at least one benchmark spec");
+  for (const spec of plan.specs) {
+    assert.equal(spec.effortName, "high");
+    assert.equal(spec.numPredict, 8192);
+  }
+});
+
+test("hardware benchmark recommendations exclude failed runs", () => {
+  const recommendations = summarizeRecommendations([
+    {
+      ok: false,
+      profile: "primary",
+      model: "failed-high-score",
+      context: 32768,
+      effortName: "high",
+      numPredict: 8192,
+      scenario: "vitest-generation",
+      score: { score: 100 },
+      timings: { tokensPerSecond: 100 },
+    },
+    {
+      ok: true,
+      profile: "primary",
+      model: "successful",
+      context: 8192,
+      effortName: "standard",
+      numPredict: 4096,
+      scenario: "vitest-generation",
+      score: { score: 70 },
+      timings: { tokensPerSecond: 10 },
+    },
+  ]);
+  assert.equal(recommendations.ranked.length, 1);
+  assert.equal(recommendations.byProfile[0].model, "successful");
+});
+
+test("hardware benchmark dry run honors no-reset flag", () => {
+  const result = spawnSync(process.execPath, [
+    MAC_SCRIPT,
+    "dry-run",
+    "benchmark-hardware",
+    "--route",
+    "internal",
+    "--models",
+    "qwen3-coder:30b",
+    "--contexts",
+    "8192",
+    "--efforts",
+    "high",
+    "--scenarios",
+    "vitest-generation",
+    "--no-reset",
+  ], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.resetProfiles, false);
+});

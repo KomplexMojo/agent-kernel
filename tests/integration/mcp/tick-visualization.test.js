@@ -295,13 +295,10 @@ test("ak_show_state with unknown visualization value returns ok:false with struc
   }
 });
 
-/*
-## TODO: Test Permutations
-- ak_show_state without visualization arg returns no visualization field (backward compat)
-- ak_show_state at tick 0 with visualization:ascii returns ok:true with ascii snapshot for initial state
-- ak_show_state at tick 0 with visualization:image returns visualizationDataUri or null gracefully
-- ak_tick_forward at maxTick boundary with visualization:ascii still returns ok:false boundary error
-- ak_tick_backward at tick 0 with visualization:ascii still returns ok:false boundary error
-- ak_show_state with visualization:ascii and missing core-ts returns ok:true with best-effort ascii
-- ak_tick_forward with visualization:ascii for multiple successive calls produces different actorDetail positions
-*/
+test.skip("mcp ak_show_state without visualization arg returns no visualization field", () => {});
+test.skip("mcp ak_show_state at tick 0 with visualization ascii returns initial ascii snapshot", () => {});
+test.skip("mcp ak_show_state at tick 0 with visualization image returns data URI or null gracefully", () => {});
+test.skip("mcp ak_tick_forward at maxTick with visualization ascii returns boundary ok:false", () => {});
+test.skip("mcp ak_tick_backward at tick 0 with visualization ascii returns boundary ok:false", () => {});
+test.skip("mcp ak_show_state visualization ascii with missing core-ts returns best-effort ascii", () => {});
+test.skip("mcp ak_tick_forward visualization ascii successive calls report different actor positions", () => {});

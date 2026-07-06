@@ -221,7 +221,6 @@ test("renderer emits only allowed UI intent kinds", async () => {
   renderer.dispose();
 });
 
-// ## TODO: Test Permutations
 test("drop_chip with an unknown catalog value leaves the card unchanged and reports status", async () => {
   const records = {};
   const controller = createCardBuilderController();

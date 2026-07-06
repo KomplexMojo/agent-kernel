@@ -11,6 +11,11 @@ function pixel(pixels: Uint8ClampedArray, x: number, y: number) {
   return [pixels[index], pixels[index + 1], pixels[index + 2], pixels[index + 3]];
 }
 
+function pixelAt(pixels: Uint8ClampedArray, width: number, x: number, y: number) {
+  const index = (y * width + x) * 4;
+  return [pixels[index], pixels[index + 1], pixels[index + 2], pixels[index + 3]];
+}
+
 function luminance([r, g, b]: number[]) {
   return r + g + b;
 }
@@ -143,7 +148,58 @@ test("composer normalizes primary affinity from actor configuration", () => {
   assert.equal(state.motivation, "defending");
 });
 
-// ## TODO: Test Permutations
-// - actors with traits.affinities fallback but no actor.affinities should choose the first trait key deterministically
-// - actor vitals with zero max should clamp to a safe default instead of producing NaN pixels
-// - 32x32 and 16x16 composition should retain non-transparent expression and vital pixels
+test("composer uses first traits.affinities key when actor affinities are absent", () => {
+  const state = normalizeActorMedallionState({
+    role: "delver",
+    traits: {
+      affinities: {
+        "life:draw": 2,
+        "fire:push": 1,
+      },
+    },
+  });
+
+  assert.equal(state.affinity, "life");
+  assert.equal(state.expression, "draw");
+});
+
+test("composer clamps zero-max vitals to finite safe defaults", () => {
+  const state = normalizeActorMedallionState({
+    role: "delver",
+    affinities: [{ kind: "life", expression: "emit" }],
+    vitals: {
+      health: { current: 0, max: 0 },
+      mana: { current: 0, max: 0 },
+    },
+  });
+  assert.equal(Number.isFinite(state.vitals.health.fraction), true);
+  assert.equal(state.vitals.health.max, 1);
+  assert.equal(state.vitals.health.fraction, 0);
+
+  const pixels = composeActorMedallion({
+    size,
+    actor: {
+      role: "delver",
+      affinities: [{ kind: "life", expression: "emit" }],
+      vitals: { health: { current: 0, max: 0 } },
+    },
+  });
+  assert.equal([...pixels].some((value) => Number.isNaN(value)), false);
+});
+
+test("composer retains expression and vital pixels at 32x32 and 16x16", () => {
+  for (const smallSize of [32, 16]) {
+    const pixels = composeActorMedallion({
+      size: smallSize,
+      actor: {
+        role: "delver",
+        affinities: [{ kind: "fire", expression: "emit" }],
+        vitals: { health: { current: 1, max: 1 } },
+      },
+    });
+    assert.equal(pixels.length, smallSize * smallSize * 4);
+    assert.ok(pixelAt(pixels, smallSize, 0, 0)[3] > 0, `${smallSize}px emit corner should be non-transparent`);
+    assert.ok(pixelAt(pixels, smallSize, smallSize - 1, Math.floor(smallSize / 2))[3] > 0,
+      `${smallSize}px health bar should be non-transparent`);
+  }
+});

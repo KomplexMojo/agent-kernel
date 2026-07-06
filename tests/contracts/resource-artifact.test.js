@@ -134,13 +134,102 @@ test("RESOURCE_PERMANENCE_MODES exports all three modes", async () => {
   assert.ok(RESOURCE_PERMANENCE_MODES.includes("permanent"));
 });
 
-/*
-## TODO: Test Permutations
-- resource V3 with empty vitals array should be invalid
-- resource V3 with invalid vital key (e.g. "durability") should be invalid
-- resource V3 with missing permanenceMode should be invalid
-- resource V3 with mana vital + permanenceMode="consumable" should apply only current stat delta
-- resource V3 with permanenceMode="permanent" should be distinguishable from V2 permanent:true
-- resource V2 backward-compat: existing permanent:true fixture still validates as V2
-- resource V1 backward-compat: existing tier/stat/delta/dropRate fixture still validates as V1
-*/
+test("resource artifact V3 rejects empty vitals array", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const result = validate({
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: [],
+    permanenceMode: "consumable",
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /vitals/);
+});
+
+test("resource artifact V3 rejects invalid vital key", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const result = validate({
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: [{ key: "durability", delta: 1 }],
+    permanenceMode: "consumable",
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /vitals\[0\]\.key/);
+});
+
+test("resource artifact V3 rejects missing permanenceMode", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const result = validate({
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: BASE_VITALS,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /permanenceMode/);
+});
+
+test("resource artifact V3 accepts consumable mana vital delta", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const artifact = {
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: [{ key: "mana", delta: 2 }],
+    permanenceMode: "consumable",
+  };
+  const result = validate(artifact);
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+  assert.deepEqual(artifact.vitals, [{ key: "mana", delta: 2 }]);
+});
+
+test("resource artifact V3 permanent mode is distinct from V2 permanent boolean", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const v3 = {
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 3,
+    meta: BASE_META,
+    vitals: BASE_VITALS,
+    permanenceMode: "permanent",
+  };
+  const v2 = {
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 2,
+    meta: BASE_META,
+    vitals: BASE_VITALS,
+    permanent: true,
+  };
+  assert.equal(validate(v3).ok, true);
+  assert.equal(validate(v2).ok, true);
+  assert.equal("permanenceMode" in v3, true);
+  assert.equal("permanent" in v3, false);
+  assert.equal("permanent" in v2, true);
+  assert.equal("permanenceMode" in v2, false);
+});
+
+test("resource artifact V2 permanent fixture remains valid", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const artifact = readFixture("resource-artifact-v1-rare-regen.json");
+  const result = validate(artifact);
+  assert.equal(artifact.schemaVersion, 2);
+  assert.equal(artifact.permanent, true);
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+});
+
+test("resource artifact V1 tier/stat fixture remains valid", async () => {
+  const { validateResourceArtifact: validate } = await loadValidator();
+  const artifact = {
+    schema: "agent-kernel/ResourceArtifact",
+    schemaVersion: 1,
+    meta: BASE_META,
+    tier: "level",
+    stat: "vitalMax",
+    delta: 1,
+    dropRate: 1,
+  };
+  const result = validate(artifact);
+  assert.equal(result.ok, true, `Expected ok:true, got: ${result.errors.join("; ")}`);
+});

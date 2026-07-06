@@ -107,12 +107,63 @@ test("ROOM_TILE_VITAL_KEYS exports durability only", async () => {
   assert.ok(!ROOM_TILE_VITAL_KEYS.includes("stamina"), "must not include stamina");
 });
 
-/*
-## TODO: Test Permutations
-- hazard V2 with missing mana field should be invalid
-- hazard V2 with mana kind="one-time" (not regen) should be valid
-- hazard V2 with invalid affinity kind should be invalid
-- hazard V2 with expression="draw" should be valid (all expressions allowed)
-- HAZARD_VITAL_KEYS length is exactly 1
-- ROOM_TILE_VITAL_KEYS length is exactly 1
-*/
+test("hazard artifact V2 rejects missing mana field", async () => {
+  const { validateHazardArtifact } = await loadValidator();
+  const result = validateHazardArtifact({
+    schema: "agent-kernel/HazardArtifact",
+    schemaVersion: 2,
+    meta: BASE_META,
+    affinity: "fire",
+    expression: "emit",
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /mana/);
+});
+
+test("hazard artifact V2 accepts one-time mana", async () => {
+  const { validateHazardArtifact } = await loadValidator();
+  const result = validateHazardArtifact({
+    schema: "agent-kernel/HazardArtifact",
+    schemaVersion: 2,
+    meta: BASE_META,
+    affinity: "fire",
+    expression: "emit",
+    mana: { kind: "one-time", amount: 2 },
+  });
+  assert.equal(result.ok, true, `Expected ok:true, got errors: ${result.errors.join("; ")}`);
+});
+
+test("hazard artifact V2 rejects invalid affinity kind", async () => {
+  const { validateHazardArtifact } = await loadValidator();
+  const result = validateHazardArtifact({
+    schema: "agent-kernel/HazardArtifact",
+    schemaVersion: 2,
+    meta: BASE_META,
+    affinity: "thunder",
+    expression: "emit",
+    mana: { kind: "regen", current: 4, max: 4, regen: 1 },
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /affinity/);
+});
+
+test("hazard artifact V2 accepts draw expression", async () => {
+  const { validateHazardArtifact } = await loadValidator();
+  const result = validateHazardArtifact({
+    schema: "agent-kernel/HazardArtifact",
+    schemaVersion: 2,
+    meta: BASE_META,
+    affinity: "water",
+    expression: "draw",
+    mana: { kind: "regen", current: 4, max: 4, regen: 1 },
+  });
+  assert.equal(result.ok, true, `Expected ok:true, got errors: ${result.errors.join("; ")}`);
+});
+
+test("hazard and room tile vital key exports are singleton lists", async () => {
+  const { HAZARD_VITAL_KEYS, ROOM_TILE_VITAL_KEYS } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
+  );
+  assert.equal(HAZARD_VITAL_KEYS.length, 1);
+  assert.equal(ROOM_TILE_VITAL_KEYS.length, 1);
+});

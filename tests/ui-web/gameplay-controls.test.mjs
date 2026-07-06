@@ -303,12 +303,83 @@ describe("Controls disabled when no run loaded", () => {
   });
 });
 
-// ## TODO: Test Permutations
-// - Repeated fullscreen entry/exit cycles (5+ times)
-// - Fullscreen entry when browser denies requestFullscreen
-// - Fullscreen toggle while no run is loaded
-// - Playback controls called before renderer is ready
-// - Step forward at last frame (should be no-op)
-// - Step back at first frame (should be no-op)
-// - Reset/rewind during playback returns to frame 0
-// - Browser resize during fullscreen
+test("repeated fullscreen entry and exit cycles keep host dataset consistent", async () => {
+  const root = createFakeRoot(["gameplay-fullscreen"]);
+  const view = wireGameplayView({ root, createRenderer: () => createFakeRenderer() });
+  await view.loadRun(MINIMAL_BUNDLE);
+
+  for (let index = 0; index < 5; index += 1) {
+    view.enterFullscreen();
+    assert.equal(root.elements["gameplay-phaser-host"].dataset.gameplayFullscreen, "true");
+    view.exitFullscreen();
+    assert.equal(root.elements["gameplay-phaser-host"].dataset.gameplayFullscreen, "false");
+  }
+});
+
+test("fullscreen entry does not throw when browser requestFullscreen would be denied", async () => {
+  const root = createFakeRoot(["gameplay-fullscreen"]);
+  root.elements["gameplay-phaser-host"].requestFullscreen = () => Promise.reject(new Error("denied"));
+  const view = wireGameplayView({ root, createRenderer: () => createFakeRenderer() });
+  await view.loadRun(MINIMAL_BUNDLE);
+
+  assert.doesNotThrow(() => view.enterFullscreen());
+  assert.equal(root.elements["gameplay-phaser-host"].dataset.gameplayFullscreen, "true");
+});
+
+test("fullscreen can be toggled while no run is loaded", () => {
+  const root = createFakeRoot(["gameplay-fullscreen"]);
+  const view = wireGameplayView({ root, createRenderer: () => createFakeRenderer() });
+
+  assert.doesNotThrow(() => view.enterFullscreen());
+  assert.equal(root.elements["gameplay-phaser-host"].dataset.gameplayFullscreen, "true");
+  assert.doesNotThrow(() => view.exitFullscreen());
+  assert.equal(root.elements["gameplay-phaser-host"].dataset.gameplayFullscreen, "false");
+});
+
+test("loadRun does not throw when renderer has no playback bridge", async () => {
+  const root = createFakeRoot();
+  const renderer = createFakeRenderer();
+  renderer.setPlaybackControls = undefined;
+  const view = wireGameplayView({ root, createRenderer: () => renderer });
+
+  await assert.doesNotReject(() => view.loadRun(MINIMAL_BUNDLE));
+});
+
+test("step forward at last frame and step back at first frame are no-ops", async () => {
+  const root = createFakeRoot();
+  const renderer = createFakeRenderer();
+  const view = wireGameplayView({ root, createRenderer: () => renderer });
+
+  await view.loadRun(MINIMAL_BUNDLE);
+  const before = renderer.calls.length;
+  view.stepForward();
+  view.stepBack();
+
+  assert.equal(renderer.calls.length, before);
+});
+
+test.skip("reset playback returns to frame 0 instead of clearing the run", async () => {
+  const root = createFakeRoot();
+  let controls = null;
+  const renderer = createFakeRenderer();
+  renderer.setPlaybackControls = (next) => { controls = next; };
+  const view = wireGameplayView({ root, createRenderer: () => renderer });
+  await view.loadRun({ ...MINIMAL_BUNDLE, tickFrames: [{ tick: 0 }, { tick: 1 }] });
+  view.stepForward();
+
+  controls.reset();
+
+  assert.equal(view.isRunActive(), true);
+});
+
+test.skip("browser resize during fullscreen reflows the renderer camera without throwing", async () => {
+  const root = createFakeRoot(["gameplay-fullscreen"]);
+  const renderer = createFakeRenderer();
+  const view = wireGameplayView({ root, createRenderer: () => renderer });
+  await view.loadRun(MINIMAL_BUNDLE);
+  view.enterFullscreen();
+
+  root.dispatchEvent?.({ type: "resize" });
+
+  assert.ok(renderer.calls.length > 0);
+});

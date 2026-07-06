@@ -111,7 +111,6 @@ test("frame view keeps the gameplay bundle load entry point working", async () =
   frame.dispose?.();
 });
 
-// ## TODO: Test Permutations
 test("mount called twice does not duplicate surface hosts", () => {
   const { root, mount } = createFrameRoot();
   const frame = createPhaserFrameView({ root, loadPhaser: async () => ({}) });

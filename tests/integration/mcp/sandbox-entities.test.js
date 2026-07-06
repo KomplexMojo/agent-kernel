@@ -543,21 +543,19 @@ test("mcp ak_sandbox_place does not write artifact files when session validation
   }
 });
 
-/* ## TODO: Test Permutations
- * - place entity at position (0,0) — boundary corner, allowed
- * - place entity at position (9,9) — max valid position in 10x10, allowed
- * - place entity at x=10 in 10x10 room — out of bounds, rejected
- * - replace existing actor by id — second placement with same id overwrites position
- * - spec with missing x or y — rejected with validation error
- * - spec with non-integer x or y — rejected with validation error
- * - spec with missing id — rejected or auto-generated
- * - entityType not in allowed set — rejected with structured error
- * - missing session path — rejected with structured error
- * - session file does not exist — rejected with structured error
- * - place entity in session with non-default room dimensions (20x15)
- * - InitialState actor has correct archetype field matching entityType
- * - written SimConfig has correct grid dimensions from session room
- * - written SimConfig layout is a valid grid with walls on border
- * - written ResourceBundle has schemaVersion 2
- * - malformed spec string (no semicolons) — uses spec as-is or rejects
- */
+test.skip("mcp ak_sandbox_place allows boundary corner position 0,0", () => {});
+test.skip("mcp ak_sandbox_place allows max valid position 9,9 in 10x10", () => {});
+test.skip("mcp ak_sandbox_place rejects x=10 in 10x10 as out of bounds", () => {});
+test.skip("mcp ak_sandbox_place replaces existing actor by id with new position", () => {});
+test.skip("mcp ak_sandbox_place rejects spec missing x or y", () => {});
+test.skip("mcp ak_sandbox_place rejects non-integer x or y", () => {});
+test.skip("mcp ak_sandbox_place handles missing id deterministically", () => {});
+test.skip("mcp ak_sandbox_place rejects unsupported entityType with structured error", () => {});
+test.skip("mcp ak_sandbox_place rejects missing session path with structured error", () => {});
+test.skip("mcp ak_sandbox_place rejects non-existent session file with structured error", () => {});
+test.skip("mcp ak_sandbox_place supports non-default room dimensions 20x15", () => {});
+test.skip("mcp ak_sandbox_place writes InitialState actor archetype matching entityType", () => {});
+test.skip("mcp ak_sandbox_place writes SimConfig dimensions from session room", () => {});
+test.skip("mcp ak_sandbox_place writes valid grid with walls on border", () => {});
+test.skip("mcp ak_sandbox_place writes ResourceBundle schemaVersion 2", () => {});
+test.skip("mcp ak_sandbox_place handles malformed spec string deterministically", () => {});

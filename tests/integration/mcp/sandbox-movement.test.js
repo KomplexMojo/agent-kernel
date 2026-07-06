@@ -918,27 +918,25 @@ test("mcp ak_sandbox_move rejects actor with string position coordinates", async
   }
 });
 
-/* ## TODO: Test Permutations
- * - move south from (2,2) → (2,3), floor tile, succeeds
- * - move west from (2,2) → (1,2), floor tile, succeeds
- * - move north from (2,2) → (2,1), floor tile, succeeds
- * - move southeast from (2,2) → (3,3), floor tile, succeeds; direction enum value 3
- * - move southwest from (2,2) → (1,3), floor tile, succeeds; direction enum value 5
- * - move west from (1,1) → (0,1), wall tile, blockedByWall: true
- * - move south from (1,8) in 10x10 → (1,9), wall tile, blockedByWall: true
- * - move east from (8,8) → (9,8), wall tile, blockedByWall: true
- * - move southeast from (8,8) → (9,9), wall corner, blockedByWall: true
- * - three consecutive moves produce 3 actions with ticks 1,2,3
- * - actionsOut in a directory that does not yet exist — auto-created
- * - move with actorId that exists but has no position field — error
- * - direction "NORTH" (uppercase) — should normalise and succeed
- * - direction "northeast" — not in cardinal set, rejected
- * - missing actorId argument — rejected with validation error
- * - missing direction argument — rejected with validation error
- * - missing actionsOut argument — rejected with validation error
- * - actionsOut path with pre-existing non-ActionSequence JSON — handled gracefully
- * - action sequence simConfigRef matches session's simConfigRef
- * - action sequence initialStateRef matches session's initialStateRef
- * - 10x10 grid: move to every interior floor tile succeeds
- * - custom room dimensions (5x5): actor at (1,1) moves east to (2,1)
- */
+test.skip("mcp ak_sandbox_move south from 2,2 to 2,3 floor succeeds", () => {});
+test.skip("mcp ak_sandbox_move west from 2,2 to 1,2 floor succeeds", () => {});
+test.skip("mcp ak_sandbox_move north from 2,2 to 2,1 floor succeeds", () => {});
+test.skip("mcp ak_sandbox_move southeast from 2,2 to 3,3 succeeds with direction enum 3", () => {});
+test.skip("mcp ak_sandbox_move southwest from 2,2 to 1,3 succeeds with direction enum 5", () => {});
+test.skip("mcp ak_sandbox_move west from 1,1 to wall reports blockedByWall", () => {});
+test.skip("mcp ak_sandbox_move south from 1,8 to wall reports blockedByWall", () => {});
+test.skip("mcp ak_sandbox_move east from 8,8 to wall reports blockedByWall", () => {});
+test.skip("mcp ak_sandbox_move southeast from 8,8 to wall corner reports blockedByWall", () => {});
+test.skip("mcp ak_sandbox_move three consecutive moves produce actions with ticks 1,2,3", () => {});
+test.skip("mcp ak_sandbox_move auto-creates missing actionsOut directory", () => {});
+test.skip("mcp ak_sandbox_move actor with no position field returns error", () => {});
+test.skip("mcp ak_sandbox_move uppercase NORTH normalizes and succeeds", () => {});
+test.skip("mcp ak_sandbox_move northeast is rejected outside cardinal set", () => {});
+test.skip("mcp ak_sandbox_move missing actorId is rejected with validation error", () => {});
+test.skip("mcp ak_sandbox_move missing direction is rejected with validation error", () => {});
+test.skip("mcp ak_sandbox_move missing actionsOut is rejected with validation error", () => {});
+test.skip("mcp ak_sandbox_move pre-existing non-ActionSequence JSON is handled gracefully", () => {});
+test.skip("mcp ak_sandbox_move action sequence simConfigRef matches session", () => {});
+test.skip("mcp ak_sandbox_move action sequence initialStateRef matches session", () => {});
+test.skip("mcp ak_sandbox_move succeeds for every interior floor tile in 10x10 grid", () => {});
+test.skip("mcp ak_sandbox_move supports custom 5x5 room dimensions", () => {});

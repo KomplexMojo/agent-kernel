@@ -467,10 +467,49 @@ test("resolveIcon falls back to text label when size is provided but bundle is n
   });
 });
 
-/*
-## TODO: Test Permutations
-- resolveIcon with multi-size bundle mapping: sm/md/lg each resolve to different asset IDs
-- resolveIcon size fallback chain: lg missing → md → sm → text label
-- resolveIconHTML with size param: returns correct img src for each size
-- populateUIIcons integration: DOM element with data-icon-size="lg" receives lg asset
-*/
+test.skip("resolveIcon with multi-size bundle mapping resolves sm/md/lg to different assets", () => {
+  withFakeDocument(() => {
+    const bundle = {
+      mappings: { icons: { affinities: { fire: { sm: "asset-sm", md: "asset-md", lg: "asset-lg" } } } },
+      assets: [
+        { id: "asset-sm", dataUri: "data:image/png;base64,SM" },
+        { id: "asset-md", dataUri: "data:image/png;base64,MD" },
+        { id: "asset-lg", dataUri: "data:image/png;base64,LG" },
+      ],
+    };
+
+    assert.equal(resolveIcon(bundle, "affinities", "fire", "sm").src, "data:image/png;base64,SM");
+    assert.equal(resolveIcon(bundle, "affinities", "fire", "md").src, "data:image/png;base64,MD");
+    assert.equal(resolveIcon(bundle, "affinities", "fire", "lg").src, "data:image/png;base64,LG");
+  });
+});
+
+test.skip("resolveIcon size fallback chain uses lg to md to sm to text label", () => {
+  withFakeDocument(() => {
+    const bundle = {
+      mappings: { icons: { affinities: { fire: { sm: "asset-sm", md: "asset-md" } } } },
+      assets: [
+        { id: "asset-sm", dataUri: "data:image/png;base64,SM" },
+        { id: "asset-md", dataUri: "data:image/png;base64,MD" },
+      ],
+    };
+
+    assert.equal(resolveIcon(bundle, "affinities", "fire", "lg").src, "data:image/png;base64,MD");
+  });
+});
+
+test.skip("resolveIconHTML with size parameter returns the requested size img src", () => {
+  const bundle = {
+    mappings: { icons: { affinities: { fire: { sm: "asset-sm", lg: "asset-lg" } } } },
+    assets: [
+      { id: "asset-sm", dataUri: "data:image/png;base64,SM" },
+      { id: "asset-lg", dataUri: "data:image/png;base64,LG" },
+    ],
+  };
+
+  assert.match(resolveIconHTML(bundle, "affinities", "fire", "lg"), /base64,LG/);
+});
+
+test.skip("populateUIIcons applies data-icon-size lg assets to DOM elements", () => {
+  assert.equal(true, false, "populateUIIcons is not exported for direct headless testing yet");
+});

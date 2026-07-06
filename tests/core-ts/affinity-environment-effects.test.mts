@@ -223,13 +223,145 @@ describe("core-ts affinity field buffers", () => {
   });
 });
 
-// ## TODO: Test Permutations
-// - Field spread: all 4 expressions x stacks 1..5 verify correct radius and intensity pattern
-// - Manhattan distance correctness: verify cells at exact boundary (d=radius) get intensity 0 or near-0
-// - All 10 affinity kinds: arm one trap of each kind, compute, verify kind isolation
-// - Overlapping same-kind: 3+ traps overlapping, verify max-intensity selection across all overlap cells
-// - Mixed expression overlap: fire push + fire emit on adjacent cells, verify expression recorded correctly
-// - Large grid stress: 20x20 grid with 10 traps, verify no abort and correct field shape
-// - Non-floor tiles block traps: wall/barrier cells cannot arm traps (existing behavior preserved)
-// - Disarm then recompute: arm trap, compute, disarm trap, recompute, verify field is cleared
-// - Zero stacks or zero mana traps rejected: armStaticTrapAt returns 0 for invalid params
+describe("core-ts static trap affinity permutations", () => {
+  test("all 4 expressions across stacks 1 through 5 project bounded fields", () => {
+    for (let expression = 1; expression <= 4; expression += 1) {
+      for (let stacks = 1; stacks <= 5; stacks += 1) {
+        const core = createCore();
+        const FIRE = 1;
+        call(core.configureGrid, 17, 17);
+        setAllFloors(core, 17, 17);
+        expect(call(core.armStaticTrapAt, 8, 8, FIRE, expression, stacks, 10)).toBe(1);
+        expect(call(core.computeStaticTrapAffinityField)).toBe(1);
+
+        const radius = call(core.computeAffinityRadius, expression, stacks) as number;
+        expect(radius).toBeGreaterThanOrEqual(1);
+        expect(call(core.getAffinityFieldIntensityAt, 8, 8, FIRE)).toBe(1);
+        expect(call(core.getAffinityFieldExpressionAt, 8, 8, FIRE)).toBe(expression);
+        expect(call(core.getAffinityFieldStacksAt, 8, 8, FIRE)).toBe(stacks);
+        expect(call(core.getAffinityFieldIntensityAt, 8 - radius - 1, 8, FIRE)).toBe(0);
+        expect(call(core.getAffinityFieldIntensityAt, 8, 8 + radius + 1, FIRE)).toBe(0);
+      }
+    }
+  });
+
+  test("manhattan-distance boundaries are symmetric and stop beyond radius", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 11, 11);
+    setAllFloors(core, 11, 11);
+    expect(call(core.armStaticTrapAt, 5, 5, FIRE, EMIT, 3, 10)).toBe(1);
+    call(core.computeStaticTrapAffinityField);
+
+    const radius = call(core.computeAffinityRadius, EMIT, 3) as number;
+    const boundary = call(core.getAffinityFieldIntensityAt, 5 - radius, 5, FIRE) as number;
+    expect(boundary).toBeGreaterThanOrEqual(0);
+    expect(call(core.getAffinityFieldIntensityAt, 5 + radius, 5, FIRE)).toBeCloseTo(boundary, 10);
+    expect(call(core.getAffinityFieldIntensityAt, 5, 5 - radius, FIRE)).toBeCloseTo(boundary, 10);
+    expect(call(core.getAffinityFieldIntensityAt, 5, 5 + radius, FIRE)).toBeCloseTo(boundary, 10);
+    expect(call(core.getAffinityFieldIntensityAt, 5 - radius - 1, 5, FIRE)).toBe(0);
+  });
+
+  test("all 10 affinity kinds project isolated static-trap channels", () => {
+    const core = createCore();
+    const EMIT = 3;
+    call(core.configureGrid, 12, 3);
+    setAllFloors(core, 12, 3);
+
+    for (let kind = 1; kind <= 10; kind += 1) {
+      expect(call(core.armStaticTrapAt, kind, 1, kind, EMIT, 1, 5)).toBe(1);
+    }
+    expect(call(core.computeStaticTrapAffinityField)).toBe(10);
+
+    for (let kind = 1; kind <= 10; kind += 1) {
+      expect(call(core.getAffinityFieldIntensityAt, kind, 1, kind)).toBe(1);
+      const otherKind = kind === 10 ? 1 : kind + 1;
+      expect(call(core.getAffinityFieldIntensityAt, kind, 1, otherKind)).toBe(0);
+    }
+  });
+
+  test("3 same-kind overlapping traps aggregate intensity and preserve highest-stack metadata", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 9, 5);
+    setAllFloors(core, 9, 5);
+
+    expect(call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 5)).toBe(1);
+    expect(call(core.armStaticTrapAt, 4, 2, FIRE, EMIT, 3, 5)).toBe(1);
+    expect(call(core.armStaticTrapAt, 6, 2, FIRE, EMIT, 5, 5)).toBe(1);
+    call(core.computeStaticTrapAffinityField);
+
+    expect(call(core.getAffinityFieldContributionCountAt, 4, 2, FIRE)).toBe(3);
+    expect(call(core.getAffinityFieldIntensityAt, 4, 2, FIRE)).toBeGreaterThan(1);
+    expect(call(core.getAffinityFieldStacksAt, 4, 2, FIRE)).toBe(5);
+    expect(call(core.getAffinityFieldIntensityAt, 3, 2, FIRE)).toBeGreaterThan(0);
+  });
+
+  test("mixed fire push and emit overlap keeps the strongest expression metadata", () => {
+    const core = createCore();
+    const FIRE = 1, PUSH = 1, EMIT = 3;
+    call(core.configureGrid, 7, 5);
+    setAllFloors(core, 7, 5);
+
+    expect(call(core.armStaticTrapAt, 2, 2, FIRE, PUSH, 2, 5)).toBe(1);
+    expect(call(core.armStaticTrapAt, 3, 2, FIRE, EMIT, 2, 5)).toBe(1);
+    call(core.computeStaticTrapAffinityField);
+
+    expect(call(core.getAffinityFieldExpressionAt, 2, 2, FIRE)).toBe(PUSH);
+    expect(call(core.getAffinityFieldExpressionAt, 3, 2, FIRE)).toBe(EMIT);
+    expect(call(core.getAffinityFieldContributionCountAt, 3, 2, FIRE)).toBeGreaterThanOrEqual(1);
+  });
+
+  test("20x20 grid with 10 traps computes expected static field count", () => {
+    const core = createCore();
+    const EMIT = 3;
+    call(core.configureGrid, 20, 20);
+    setAllFloors(core, 20, 20);
+
+    for (let index = 0; index < 10; index += 1) {
+      expect(call(core.armStaticTrapAt, 1 + index * 2, 1 + (index % 5) * 3, (index % 10) + 1, EMIT, (index % 5) + 1, 10)).toBe(1);
+    }
+    expect(call(core.computeStaticTrapAffinityField)).toBe(10);
+    expect(call(core.getAffinityFieldIntensityAt, 1, 1, 1)).toBe(1);
+    expect(call(core.getAffinityFieldIntensityAt, 19, 19, 1)).toBeGreaterThanOrEqual(0);
+  });
+
+  test("non-floor wall and barrier cells cannot arm traps", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 5, 5);
+    setAllFloors(core, 5, 5);
+    call(core.setTileAt, 1, 1, 2);
+    call(core.setTileAt, 3, 3, 4);
+
+    expect(call(core.armStaticTrapAt, 1, 1, FIRE, EMIT, 1, 5)).toBe(0);
+    expect(call(core.armStaticTrapAt, 3, 3, FIRE, EMIT, 1, 5)).toBe(0);
+    expect(call(core.getStaticTrapCount)).toBe(0);
+  });
+
+  test("disarm plus explicit clear and recompute removes prior field values", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 5, 5);
+    setAllFloors(core, 5, 5);
+    expect(call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 5)).toBe(1);
+    call(core.computeStaticTrapAffinityField);
+    expect(call(core.getAffinityFieldIntensityAt, 2, 2, FIRE)).toBe(1);
+
+    expect(call(core.disarmStaticTrapAt, 2, 2)).toBe(1);
+    call(core.clearAffinityField);
+    expect(call(core.computeStaticTrapAffinityField)).toBe(0);
+    expect(call(core.getAffinityFieldIntensityAt, 2, 2, FIRE)).toBe(0);
+  });
+
+  test("zero stacks or zero mana traps are rejected", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 5, 5);
+    setAllFloors(core, 5, 5);
+
+    expect(call(core.armStaticTrapAt, 1, 1, FIRE, EMIT, 0, 5)).toBe(0);
+    expect(call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 0)).toBe(0);
+    expect(call(core.getStaticTrapCount)).toBe(0);
+  });
+});

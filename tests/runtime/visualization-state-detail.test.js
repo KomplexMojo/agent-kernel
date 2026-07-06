@@ -225,14 +225,127 @@ test("createVisualizationSnapshot at tick 0 returns ascii with initial positions
   assert.ok(typeof snap.ascii === "string", "ascii must be present even at tick 0");
 });
 
-/*
-## TODO: Test Permutations
-- createVisualizationSnapshot with no traps in simConfig produces empty hazards layer (all spaces)
-- createVisualizationSnapshot with no resources in simConfig produces empty resources layer
-- createVisualizationSnapshot with null tickFrame at tick > 0 falls back to initial-state positions
-- createVisualizationSnapshot in image mode returns visualizationDataUri and no layers object
-- actorDetails for a warden with motivation=stationary correctly reflects stationary
-- actorDetails affinities include stacks and expression fields from initialState
-- actorDetails vitals include stamina and mana fields when present
-- createVisualizationSnapshot with simConfig missing traps/resources field does not throw
-*/
+test("createVisualizationSnapshot with no traps produces empty hazards layer", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 1,
+    runId: "run_viz",
+    simConfig: { ...SIM_CONFIG, traps: [] },
+    initialState: INITIAL_STATE,
+    tickFrame: TICK_FRAME,
+  });
+  assert.doesNotMatch(snap.layers.hazards, /H/);
+  assert.equal(snap.layers.hazards.replace(/\n/g, "").trim(), "");
+});
+
+test("createVisualizationSnapshot with no resources produces empty resources layer", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 1,
+    runId: "run_viz",
+    simConfig: { ...SIM_CONFIG, resources: [] },
+    initialState: INITIAL_STATE,
+    tickFrame: TICK_FRAME,
+  });
+  assert.doesNotMatch(snap.layers.resources, /R/);
+  assert.equal(snap.layers.resources.replace(/\n/g, "").trim(), "");
+});
+
+test("createVisualizationSnapshot with null tickFrame at tick greater than zero uses initial positions", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 3,
+    runId: "run_viz",
+    simConfig: SIM_CONFIG,
+    initialState: INITIAL_STATE,
+    tickFrame: null,
+  });
+  const delverRow = snap.layers.delvers.split("\n")[1];
+  assert.notEqual(delverRow[1], " ", "delver should remain at initial x=1");
+  assert.equal(delverRow[2], " ", "delver should not use tick-frame x=2 without a tickFrame");
+});
+
+test("createVisualizationSnapshot in image mode returns visualizationDataUri field and no layers", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const snap = await createVisualizationSnapshot({
+    mode: "image",
+    tick: 1,
+    runId: "run_viz",
+    simConfig: SIM_CONFIG,
+    initialState: INITIAL_STATE,
+    tickFrame: TICK_FRAME,
+  });
+  assert.equal(snap.mode, "image");
+  assert.ok(Object.prototype.hasOwnProperty.call(snap, "visualizationDataUri"));
+  assert.equal(Object.prototype.hasOwnProperty.call(snap, "layers"), false);
+});
+
+test("actorDetails for stationary warden reflects motivation", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 1,
+    runId: "run_viz",
+    simConfig: SIM_CONFIG,
+    initialState: INITIAL_STATE,
+    tickFrame: TICK_FRAME,
+  });
+  const warden = snap.actorDetails.find((actor) => actor.id === "actor_warden_1");
+  assert.ok(warden, "warden actor detail must exist");
+  assert.equal(warden.kind, "warden");
+  assert.equal(warden.motivation, "stationary");
+});
+
+test("actorDetails affinities preserve stacks and expression fields", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 1,
+    runId: "run_viz",
+    simConfig: SIM_CONFIG,
+    initialState: INITIAL_STATE,
+    tickFrame: TICK_FRAME,
+  });
+  const delver = snap.actorDetails.find((actor) => actor.id === "actor_delver_1");
+  assert.deepEqual(delver.affinities[0], { name: "fire", stacks: 2, expression: "emit" });
+});
+
+test("actorDetails vitals include stamina and mana when present", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const initialState = {
+    ...INITIAL_STATE,
+    actors: INITIAL_STATE.actors.map((actor) => actor.id === "actor_delver_1"
+      ? { ...actor, vitals: { ...actor.vitals, mana: { current: 3, max: 5, regen: 1 } } }
+      : actor),
+  };
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 1,
+    runId: "run_viz",
+    simConfig: SIM_CONFIG,
+    initialState,
+    tickFrame: TICK_FRAME,
+  });
+  const delver = snap.actorDetails.find((actor) => actor.id === "actor_delver_1");
+  assert.ok(delver.vitals.stamina, "stamina vital must be present");
+  assert.ok(delver.vitals.mana, "mana vital must be present");
+});
+
+test("createVisualizationSnapshot tolerates missing traps and resources fields", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const { traps, resources, ...simConfig } = SIM_CONFIG;
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 1,
+    runId: "run_viz",
+    simConfig,
+    initialState: INITIAL_STATE,
+    tickFrame: TICK_FRAME,
+  });
+  assert.equal(snap.mode, "ascii");
+  assert.equal(snap.layers.hazards.replace(/\n/g, "").trim(), "");
+  assert.equal(snap.layers.resources.replace(/\n/g, "").trim(), "");
+});

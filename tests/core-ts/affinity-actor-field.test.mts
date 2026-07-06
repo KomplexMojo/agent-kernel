@@ -274,14 +274,168 @@ describe("core-ts actor affinity lifecycle", () => {
   });
 });
 
-// ## TODO: Test Permutations
-// - All 10 affinity kinds: set actor affinity for each kind, compute field, verify kind isolation
-// - All 4 expressions: set actor affinity for each expression, verify radius and intensity pattern
-// - Stacks 1..5: verify radius scales correctly for each stack count
-// - Multiple actors same kind: two actors same affinity kind, verify max-intensity overlap
-// - Actor at grid edge: actor at (0,0) with stacks=2, verify no out-of-bounds
-// - Large grid stress: 20x20 grid with 10 actors each with affinity, verify no abort
-// - Mixed trap+actor same cell: trap and actor on same tile, verify combined contribution count
-// - Actor moves then recompute: move actor, recompute field, verify field follows actor position
-// - Clear actor affinity: set affinity then overwrite with different kind, verify old kind cleared
-// - computeAffinityField returns correct total when some actors lack affinity
+describe("core-ts actor affinity permutations", () => {
+  test("all 10 affinity kinds project isolated actor fields", () => {
+    const core = createCore();
+    const EMIT = 3;
+    call(core.configureGrid, 7, 7);
+    setAllFloors(core, 7, 7);
+    placeActor(core, 10, 3, 3);
+
+    for (let kind = 1; kind <= 10; kind += 1) {
+      call(core.clearAffinityField);
+      call(core.setMotivatedActorAffinity, 0, kind, EMIT, 1);
+      expect(call(core.computeActorAffinityField)).toBe(1);
+      expect(call(core.getAffinityFieldIntensityAt, 3, 3, kind)).toBe(1);
+      const otherKind = kind === 10 ? 1 : kind + 1;
+      expect(call(core.getAffinityFieldIntensityAt, 3, 3, otherKind)).toBe(0);
+    }
+  });
+
+  test("all 4 expressions project expected radius and intensity shape", () => {
+    const core = createCore();
+    const FIRE = 1;
+    call(core.configureGrid, 11, 11);
+    setAllFloors(core, 11, 11);
+    placeActor(core, 10, 5, 5);
+
+    for (let expression = 1; expression <= 4; expression += 1) {
+      call(core.clearAffinityField);
+      call(core.setMotivatedActorAffinity, 0, FIRE, expression, 2);
+      call(core.computeActorAffinityField);
+      const radius = call(core.computeAffinityRadius, expression, 2) as number;
+      expect(call(core.getAffinityFieldIntensityAt, 5, 5, FIRE)).toBe(1);
+      expect(call(core.getAffinityFieldExpressionAt, 5, 5, FIRE)).toBe(expression);
+      expect(call(core.getAffinityFieldIntensityAt, 5 - radius - 1, 5, FIRE)).toBe(0);
+      if (expression === 4) {
+        expect(call(core.getAffinityFieldIntensityAt, 5 - radius, 5, FIRE)).toBe(1);
+      }
+    }
+  });
+
+  test("emit stacks 1 through 5 scale radius monotonically", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 15, 15);
+    setAllFloors(core, 15, 15);
+    placeActor(core, 10, 7, 7);
+
+    let previousRadius = 0;
+    for (let stacks = 1; stacks <= 5; stacks += 1) {
+      call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, stacks);
+      call(core.computeActorAffinityField);
+      const radius = call(core.computeAffinityRadius, EMIT, stacks) as number;
+      expect(radius).toBeGreaterThan(previousRadius);
+      expect(call(core.getAffinityFieldIntensityAt, 7 - radius, 7, FIRE)).toBeGreaterThan(0);
+      expect(call(core.getAffinityFieldIntensityAt, 7 - radius - 1, 7, FIRE)).toBe(0);
+      previousRadius = radius;
+    }
+  });
+
+  test("multiple actors with same affinity use max intensity in overlap", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 9, 5);
+    setAllFloors(core, 9, 5);
+    placeActors(core, [
+      [10, 1, 2],
+      [20, 5, 2],
+    ]);
+    call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 1);
+    call(core.setMotivatedActorAffinity, 1, FIRE, EMIT, 3);
+    call(core.computeActorAffinityField);
+    expect(call(core.getAffinityFieldContributionCountAt, 3, 2, FIRE)).toBe(2);
+    expect(call(core.getAffinityFieldStacksAt, 3, 2, FIRE)).toBe(3);
+    expect(call(core.getAffinityFieldIntensityAt, 3, 2, FIRE)).toBeGreaterThan(0.5);
+  });
+
+  test("actor at grid edge projects without out-of-bounds effects", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 5, 5);
+    setAllFloors(core, 5, 5);
+    placeActor(core, 10, 0, 0);
+    call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 2);
+    expect(call(core.computeActorAffinityField)).toBe(1);
+    expect(call(core.getAffinityFieldIntensityAt, 0, 0, FIRE)).toBe(1);
+    expect(call(core.getAffinityFieldIntensityAt, -1, 0, FIRE)).toBe(0);
+  });
+
+  test("20x20 grid with 10 actor affinity sources computes without aborting", () => {
+    const core = createCore();
+    const EMIT = 3;
+    call(core.configureGrid, 20, 20);
+    setAllFloors(core, 20, 20);
+    const actors = Array.from({ length: 10 }, (_, index) => [
+      100 + index,
+      1 + index,
+      1 + index,
+    ] as [number, number, number]);
+    placeActors(core, actors);
+    actors.forEach((_, index) => {
+      call(core.setMotivatedActorAffinity, index, (index % 10) + 1, EMIT, (index % 3) + 1);
+    });
+    expect(call(core.computeActorAffinityField)).toBe(10);
+  });
+
+  test("trap and actor on same tile combine contributions", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 7, 7);
+    setAllFloors(core, 7, 7);
+    call(core.armStaticTrapAt, 3, 3, FIRE, EMIT, 1, 5);
+    placeActor(core, 10, 3, 3);
+    call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 2);
+    expect(call(core.computeAffinityField)).toBe(2);
+    expect(call(core.getAffinityFieldContributionCountAt, 3, 3, FIRE)).toBeGreaterThanOrEqual(2);
+  });
+
+  test("actor field follows actor position after movement and recompute", () => {
+    const core = createCore();
+    const FIRE = 1, EMIT = 3;
+    call(core.configureGrid, 7, 7);
+    setAllFloors(core, 7, 7);
+    placeActor(core, 10, 2, 2);
+    call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 1);
+    call(core.computeActorAffinityField);
+    expect(call(core.getAffinityFieldIntensityAt, 2, 2, FIRE)).toBe(1);
+
+    placeActor(core, 10, 4, 4);
+    call(core.clearAffinityField);
+    call(core.computeActorAffinityField);
+    expect(call(core.getAffinityFieldIntensityAt, 2, 2, FIRE)).toBe(0);
+    expect(call(core.getAffinityFieldIntensityAt, 4, 4, FIRE)).toBe(1);
+  });
+
+  test("overwriting actor affinity clears the old kind on recompute", () => {
+    const core = createCore();
+    const FIRE = 1, WATER = 2, EMIT = 3;
+    call(core.configureGrid, 7, 7);
+    setAllFloors(core, 7, 7);
+    placeActor(core, 10, 3, 3);
+    call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 1);
+    call(core.computeActorAffinityField);
+    expect(call(core.getAffinityFieldIntensityAt, 3, 3, FIRE)).toBe(1);
+
+    call(core.setMotivatedActorAffinity, 0, WATER, EMIT, 1);
+    call(core.clearAffinityField);
+    call(core.computeActorAffinityField);
+    expect(call(core.getAffinityFieldIntensityAt, 3, 3, FIRE)).toBe(0);
+    expect(call(core.getAffinityFieldIntensityAt, 3, 3, WATER)).toBe(1);
+  });
+
+  test("computeAffinityField total excludes actors without affinity", () => {
+    const core = createCore();
+    const FIRE = 1, WATER = 2, EMIT = 3;
+    call(core.configureGrid, 9, 9);
+    setAllFloors(core, 9, 9);
+    placeActors(core, [
+      [10, 2, 2],
+      [20, 4, 4],
+      [30, 6, 6],
+    ]);
+    call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 1);
+    call(core.setMotivatedActorAffinity, 2, WATER, EMIT, 1);
+    expect(call(core.computeAffinityField)).toBe(2);
+  });
+});

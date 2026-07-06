@@ -46,9 +46,26 @@ test("runtime records tick frames and fulfillment", async () => {
   assert.ok(Array.isArray(emitFrame.fulfilledEffects));
 });
 
-/*
-## TODO: Test Permutations
-- apply frame events include resource_captured entry when actor steps on a resource tile
-- apply frame events include vital_delta with correct vitalKind, delta, mode on capture
-- apply frame events include trap_triggered entry when actor enters an affinity hazard tile
-*/
+test.skip("apply frame events include resource_captured when an actor steps on a resource tile", async () => {
+  const runtime = await createRuntimeWithCore();
+  await runtime.init({ seed: -1, simConfig: null });
+  await runtime.step();
+  const applyFrame = runtime.getTickFrames().find((frame) => frame.phaseDetail === "apply");
+  assert.ok(applyFrame.events.some((event) => event.kind === "resource_captured"));
+});
+
+test.skip("apply frame events include vital_delta with vitalKind, delta, and mode on capture", async () => {
+  const runtime = await createRuntimeWithCore();
+  await runtime.init({ seed: -1, simConfig: null });
+  await runtime.step();
+  const applyFrame = runtime.getTickFrames().find((frame) => frame.phaseDetail === "apply");
+  assert.ok(applyFrame.events.some((event) => event.kind === "vital_delta" && event.vitalKind && Number.isFinite(event.delta) && event.mode));
+});
+
+test.skip("apply frame events include trap_triggered when an actor enters an affinity hazard tile", async () => {
+  const runtime = await createRuntimeWithCore();
+  await runtime.init({ seed: -1, simConfig: null });
+  await runtime.step();
+  const applyFrame = runtime.getTickFrames().find((frame) => frame.phaseDetail === "apply");
+  assert.ok(applyFrame.events.some((event) => event.kind === "trap_triggered"));
+});

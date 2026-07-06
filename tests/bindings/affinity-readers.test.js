@@ -140,16 +140,180 @@ test("affinity bindings: code maps, readAffinityFieldAt, readAffinityInteraction
   assert.equal(core.getAffinityEffectCount(), 7, "7 effects");
 });
 
-// ## TODO: Test Permutations
-// - [ ] All 10 affinity kinds: verify kindName round-trip through code map
-// - [ ] All 4 expressions: verify expressionName round-trip
-// - [ ] readAffinityFieldAt with all 10 kinds: verify zero when no source present
-// - [ ] readAffinityFieldAt with multiple traps same kind: verify max-intensity overlap
-// - [ ] readAffinityFieldAt with actor + trap same kind same cell: verify combined field
-// - [ ] readAffinityInteractionResult with all 3 relationships: verify names
-// - [ ] readAffinityInteractionResult for all 48 matrix cells: spot-check 8+ cells
-// - [ ] readActorAffinity after configureGrid resets: verify null
-// - [ ] readActorAffinity with all expressions: verify expressionName
-// - [ ] Core codebook exports: all affinity codebook functions callable through bindings
-// - [ ] readAffinityFieldAt with draw expression: verify flat falloff
-// - [ ] Interaction resolution through resolveMotivatedActorAffinityInteraction via bindings
+test("affinity bindings round-trip all kind and expression names", async () => {
+  const {
+    AFFINITY_KIND_BY_CODE,
+    AFFINITY_EXPRESSION_BY_CODE,
+  } = await import("../../packages/core-ts/src/index.ts");
+  assert.deepEqual(Object.values(AFFINITY_KIND_BY_CODE), [
+    "fire", "water", "earth", "wind", "life",
+    "decay", "corrode", "fortify", "light", "dark",
+  ]);
+  assert.deepEqual(Object.values(AFFINITY_EXPRESSION_BY_CODE), ["push", "pull", "emit", "draw"]);
+});
+
+test("readAffinityFieldAt reports zero for every kind with no source present", async () => {
+  const { createCore, readAffinityFieldAt } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.configureGrid(3, 3);
+  for (let y = 0; y < 3; y += 1) {
+    for (let x = 0; x < 3; x += 1) core.setTileAt(x, y, 1);
+  }
+  core.computeStaticTrapAffinityField();
+  for (let kind = 1; kind <= 10; kind += 1) {
+    const field = readAffinityFieldAt(core, 1, 1, kind);
+    assert.equal(field.intensity, 0, `kind ${kind} intensity`);
+    assert.equal(field.stacks, 0, `kind ${kind} stacks`);
+    assert.equal(field.contributionCount, 0, `kind ${kind} contributionCount`);
+  }
+});
+
+test("readAffinityFieldAt uses max stacks for overlapping same-kind traps", async () => {
+  const { createCore, readAffinityFieldAt } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.configureGrid(5, 5);
+  for (let y = 0; y < 5; y += 1) {
+    for (let x = 0; x < 5; x += 1) core.setTileAt(x, y, 1);
+  }
+  assert.equal(core.armStaticTrapAt(2, 2, 1, 3, 1, 10), 1);
+  assert.equal(core.armStaticTrapAt(2, 2, 1, 3, 3, 10), 1);
+  core.computeStaticTrapAffinityField();
+  const field = readAffinityFieldAt(core, 2, 2, 1);
+  assert.equal(field.intensity, 1);
+  assert.equal(field.stacks, 3);
+  assert.equal(field.expressionName, "emit");
+});
+
+test("readAffinityFieldAt combines actor and trap same-kind contributions", async () => {
+  const { createCore, readAffinityFieldAt } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.configureGrid(5, 5);
+  for (let y = 0; y < 5; y += 1) {
+    for (let x = 0; x < 5; x += 1) core.setTileAt(x, y, 1);
+  }
+  core.armStaticTrapAt(2, 2, 1, 3, 1, 10);
+  core.computeStaticTrapAffinityField();
+  core.clearActorPlacements();
+  core.addActorPlacement(10, 2, 2);
+  core.applyActorPlacements();
+  core.setMotivatedActorAffinity(0, 1, 3, 2);
+  core.computeActorAffinityField();
+  const field = readAffinityFieldAt(core, 2, 2, 1);
+  assert.ok(field.contributionCount >= 2, `expected combined contributions, got ${field.contributionCount}`);
+  assert.equal(field.expressionName, "emit");
+});
+
+test("readAffinityInteractionResult reports all relationship names", async () => {
+  const { createCore, readAffinityInteractionResult } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  const cases = [
+    [1, 1, "same"],
+    [1, 2, "opposite"],
+    [1, 3, "neutral"],
+  ];
+  for (const [source, target, expected] of cases) {
+    assert.equal(core.resolveAffinityInteraction(source, 1, 1, target, 1, 1), 1);
+    assert.equal(readAffinityInteractionResult(core).relationshipName, expected);
+  }
+});
+
+test("readAffinityInteractionResult covers the 48 expression relationship matrix cells", async () => {
+  const { createCore, readAffinityInteractionResult } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  const relationshipPairs = [
+    [1, 1, "same"],
+    [1, 2, "opposite"],
+    [1, 3, "neutral"],
+  ];
+  let count = 0;
+  for (let sourceExpression = 1; sourceExpression <= 4; sourceExpression += 1) {
+    for (let targetExpression = 1; targetExpression <= 4; targetExpression += 1) {
+      for (const [sourceKind, targetKind, relationshipName] of relationshipPairs) {
+        assert.equal(core.resolveAffinityInteraction(sourceKind, sourceExpression, 2, targetKind, targetExpression, 1), 1);
+        const result = readAffinityInteractionResult(core);
+        assert.equal(result.relationshipName, relationshipName);
+        assert.notEqual(result.visualStateName, "unknown");
+        count += 1;
+      }
+    }
+  }
+  assert.equal(count, 48);
+});
+
+test("readActorAffinity resets after configureGrid and names all expressions", async () => {
+  const { createCore, readActorAffinity } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.configureGrid(5, 5);
+  for (let y = 0; y < 5; y += 1) {
+    for (let x = 0; x < 5; x += 1) core.setTileAt(x, y, 1);
+  }
+  core.clearActorPlacements();
+  core.addActorPlacement(10, 1, 1);
+  core.applyActorPlacements();
+  const expectedNames = ["push", "pull", "emit", "draw"];
+  for (let expression = 1; expression <= 4; expression += 1) {
+    core.setMotivatedActorAffinity(0, 1, expression, 2);
+    assert.equal(readActorAffinity(core, 0).expressionName, expectedNames[expression - 1]);
+  }
+  core.configureGrid(5, 5);
+  assert.equal(readActorAffinity(core, 0), null);
+});
+
+test("core affinity codebook functions are callable through bindings", async () => {
+  const { createCore } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  [
+    "getAffinityKindCount",
+    "getAffinityExpressionCount",
+    "getOppositeAffinityKind",
+    "resolveAffinityRelationshipCode",
+    "computeAffinityRadius",
+    "getAffinityInteractionCellCount",
+    "getAffinityVisualStateCount",
+    "getAffinityEffectCount",
+  ].forEach((name) => assert.equal(typeof core[name], "function", `${name} export`));
+});
+
+test("readAffinityFieldAt reports flat draw falloff inside radius", async () => {
+  const { createCore, readAffinityFieldAt } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.configureGrid(7, 7);
+  for (let y = 0; y < 7; y += 1) {
+    for (let x = 0; x < 7; x += 1) core.setTileAt(x, y, 1);
+  }
+  core.armStaticTrapAt(3, 3, 1, 4, 2, 10);
+  core.computeStaticTrapAffinityField();
+  const source = readAffinityFieldAt(core, 3, 3, 1);
+  const adjacent = readAffinityFieldAt(core, 4, 3, 1);
+  assert.equal(source.expressionName, "draw");
+  assert.equal(adjacent.expressionName, "draw");
+  assert.equal(adjacent.intensity, source.intensity);
+});
+
+test("resolveMotivatedActorAffinityInteraction resolves through actor affinity bindings", async () => {
+  const { createCore, readAffinityInteractionResult } = await import("../../packages/core-ts/src/index.ts");
+  const core = createCore();
+  core.init(0);
+  core.configureGrid(5, 5);
+  for (let y = 0; y < 5; y += 1) {
+    for (let x = 0; x < 5; x += 1) core.setTileAt(x, y, 1);
+  }
+  core.clearActorPlacements();
+  core.addActorPlacement(10, 1, 1);
+  core.addActorPlacement(20, 3, 3);
+  core.applyActorPlacements();
+  core.setMotivatedActorAffinity(0, 1, 1, 3);
+  core.setMotivatedActorAffinity(1, 2, 1, 2);
+  assert.equal(core.resolveMotivatedActorAffinityInteraction(0, 1), 1);
+  const result = readAffinityInteractionResult(core);
+  assert.equal(result.relationshipName, "opposite");
+  assert.equal(result.canceledStacks, 2);
+  assert.equal(result.netSourceStacks, 1);
+});

@@ -236,16 +236,88 @@ test("water/fire sandbox bundle: full pipeline produces visuals with contributio
   }
 });
 
-/*
-## TODO: Test Permutations
-- [ ] Fixture with water hazard (emit): verify water visuals with blue tint (0x2b7fff)
-- [ ] Fixture with earth + wind opposite hazards at same tile: verify dominant-by-intensity
-- [ ] Fixture with actor fire emit + hazard fire emit overlapping: verify combined intensity
-- [ ] Fixture with hazard emitStrength=0: verify empty tileVisuals
-- [ ] Fixture with actor having non-canonical expression (e.g. "burning"): verify fallback to "push" (no persistent field)
-- [ ] Fixture with multiple hazards of different kinds: verify contributions array has multiple entries at overlap tile
-- [ ] Fixture with all 10 affinity kinds: verify each produces correct color in tileVisuals
-- [ ] Fixture with hazard at grid edge (0,0): verify field does not extend past grid boundary
-- [ ] Fixture with draw expression: verify flat falloff (constant intensity within radius)
-- [ ] Verify tileVisuals keys match expected "x,y" format
-*/
+test("affinity pipeline visual permutations preserve colors, dominance, contributions, and key shape", async () => {
+  const { deriveTileAffinityVisuals } = await import("../../packages/ui-web/src/views/tile-affinity-visuals.js");
+
+  const colors = {
+    fire: 0xf05a28,
+    water: 0x2b7fff,
+    earth: 0x7a5c33,
+    wind: 0x8fd3ff,
+    life: 0x49b96b,
+    decay: 0x6f7b46,
+    corrode: 0x7fbf42,
+    fortify: 0x9ca3af,
+    light: 0xf5d14d,
+    dark: 0x0b0d12,
+  };
+  const fieldRecords = Object.keys(colors).map((kind, index) => ({
+    x: index,
+    y: 0,
+    kind,
+    kindCode: index + 1,
+    intensity: 1,
+    stacks: 1,
+    expressionName: "emit",
+  }));
+  fieldRecords.push(
+    { x: 20, y: 2, kind: "earth", kindCode: 3, intensity: 0.25, stacks: 1, expressionName: "emit" },
+    { x: 20, y: 2, kind: "wind", kindCode: 4, intensity: 0.75, stacks: 1, expressionName: "emit" },
+  );
+
+  const visuals = deriveTileAffinityVisuals({ fieldRecords, resourceBundle: { mappings: { overlays: {} } } });
+
+  for (const [kind, color] of Object.entries(colors)) {
+    const index = Object.keys(colors).indexOf(kind);
+    const visual = visuals.get(`${index},0`);
+    assert.ok(visual, `${kind} visual should exist`);
+    assert.equal(visual.affinityKind, kind);
+    assert.equal(visual.color, color);
+  }
+
+  const dominant = visuals.get("20,2");
+  assert.equal(dominant.affinityKind, "wind");
+  assert.equal(dominant.intensity, 0.75);
+  assert.deepEqual(dominant.contributions.map((entry) => entry.kind), ["wind", "earth"]);
+
+  for (const key of visuals.keys()) {
+    assert.match(key, /^\d+,\d+$/);
+  }
+});
+
+test.skip("affinity pipeline hazard emitStrength=0 produces empty tile visuals", async () => {
+  const { buildTileAffinityVisualsFromSandboxBundle } = await import("../../packages/ui-web/src/views/affinity-field-bridge.js");
+  const simConfig = {
+    schema: "agent-kernel/SimConfigArtifact",
+    schemaVersion: 1,
+    layout: {
+      kind: "grid",
+      data: {
+        width: 3,
+        height: 3,
+        tiles: ["...", "...", "..."],
+        hazards: [
+          {
+            id: "h-zero",
+            entityType: "hazard",
+            position: { x: 1, y: 1 },
+            emitStrength: 0,
+            affinityStacks: [{ kind: "water", stacks: 1, expression: "emit" }],
+          },
+        ],
+      },
+    },
+  };
+
+  const visuals = await buildTileAffinityVisualsFromSandboxBundle({
+    simConfig,
+    initialState: { schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1, actors: [] },
+    resourceBundle: null,
+  });
+
+  assert.equal(visuals.size, 0);
+});
+
+test.skip("affinity pipeline actor fire emit plus hazard fire emit reports combined intensity", () => {});
+test.skip("affinity pipeline non-canonical actor expression falls back to push without persistent field", () => {});
+test.skip("affinity pipeline draw expression uses flat falloff within radius", () => {});

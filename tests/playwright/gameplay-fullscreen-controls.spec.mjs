@@ -90,12 +90,9 @@ test("after exiting fullscreen, gameplay panel is visible and actor-inspector is
   await expect(page.locator("#actor-inspector")).toBeVisible({ timeout: 5_000 });
 });
 
-/*
-## TODO: Test Permutations
-- Fullscreen entry and exit while a run is actively loaded with actors on the board
-- Repeated fullscreen toggles (3+ cycles) do not break camera controls
-- Fullscreen button has appropriate aria-label for accessibility
-- Fullscreen mode on a narrow viewport (<768px) does not overflow
-- Tab switching away from gameplay while in fullscreen exits fullscreen
-- Browser back/forward navigation while in fullscreen exits fullscreen gracefully
-*/
+test.skip("fullscreen entry and exit works while a run with actors is loaded", async () => {});
+test.skip("repeated fullscreen toggles do not break camera controls", async () => {});
+test.skip("fullscreen button has accessible aria-label", async () => {});
+test.skip("fullscreen mode on narrow viewport does not overflow", async () => {});
+test.skip("switching away from gameplay exits fullscreen", async () => {});
+test.skip("browser history navigation exits fullscreen gracefully", async () => {});
