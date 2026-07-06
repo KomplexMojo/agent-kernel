@@ -219,12 +219,14 @@ export function wireGameplayView({
       actorInspector.setRunning?.(true);
     }
 
-    void renderer.renderRun(frames[0]);
+    void renderer.renderRun(frames[0], { tickIndex: currentFrameIndex });
     renderer.setPlaybackControls?.({
       stepBack: () => stepBack(),
       stepForward: () => stepForward(),
       togglePlay: () => {},
       reset: () => clear(),
+      jumpToStart: () => runToStart(),
+      jumpToEnd: () => runToEnd(),
     });
     updateStepButtons();
     onRunLoaded?.(bundle);
@@ -248,7 +250,7 @@ export function wireGameplayView({
     if (!isRunActive() || currentFrameIndex >= frames.length - 1) return;
     currentFrameIndex++;
     const frame = frames[currentFrameIndex];
-    void renderer.renderFrame(frame);
+    void renderer.renderFrame(frame, { tickIndex: currentFrameIndex });
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
   }
@@ -257,7 +259,7 @@ export function wireGameplayView({
     if (!isRunActive() || currentFrameIndex <= 0) return;
     currentFrameIndex--;
     const frame = frames[currentFrameIndex];
-    void renderer.renderFrame(frame);
+    void renderer.renderFrame(frame, { tickIndex: currentFrameIndex });
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
   }
@@ -272,10 +274,23 @@ export function wireGameplayView({
     if (!isRunActive() || frames.length === 0) return;
     currentFrameIndex = frames.length - 1;
     const frame = frames[currentFrameIndex];
-    void renderer.renderFrame(frame);
+    void renderer.renderFrame(frame, { tickIndex: currentFrameIndex });
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
     setStatus(`Run completed at tick ${currentFrameIndex}.`);
+  }
+
+  /**
+   * Run To Start — jump cursor to the first frame (tick 0) and render it.
+   * Mirrors runToEnd(): UI-only playback-cursor reset, no re-simulation.
+   */
+  function runToStart() {
+    if (!isRunActive() || frames.length === 0) return;
+    currentFrameIndex = 0;
+    const frame = frames[currentFrameIndex];
+    void renderer.renderFrame(frame, { tickIndex: currentFrameIndex });
+    updateStepButtons();
+    actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
   }
 
   function selectEntity(position) {
@@ -412,6 +427,7 @@ export function wireGameplayView({
     stepForward,
     stepBack,
     runToEnd,
+    runToStart,
     dispose,
     isRunActive,
     clear,
