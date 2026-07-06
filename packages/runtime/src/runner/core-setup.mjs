@@ -308,22 +308,27 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
     && typeof core.validateActorPlacement === "function";
 
   if (supportsMulti) {
+    const multiResult = (() => {
     core.clearActorPlacements();
     const positions = [];
     for (let index = 0; index < actors.length; index += 1) {
       const actor = actors[index];
       const position = resolvePoint(actor.position) || (index === 0 && spawn ? { ...spawn } : null);
       if (!position) {
-        return { ok: false, reason: "missing_position" };
+        // Non-primary actors without positions only ever existed in states
+        // authored for the legacy spawn path (which ignores them entirely).
+        return { ok: false, reason: index > 0 ? "legacy_fallback" : "missing_position" };
       }
       positions.push(position);
       core.addActorPlacement(index + 1, position.x, position.y);
     }
-    const placementError = core.validateActorPlacement();
+    // Seeding mode: an initial state may seat actors on the spawn/exit tiles
+    // at tick 0 (bounds/walkability/collision checks still apply).
+    const placementError = core.validateActorPlacement(true);
     if (Number.isFinite(placementError) && placementError !== 0) {
       return { ok: false, reason: "invalid_actor_placement", error: placementError };
     }
-    const applyError = core.applyActorPlacements();
+    const applyError = core.applyActorPlacements(true);
     if (Number.isFinite(applyError) && applyError !== 0) {
       return { ok: false, reason: "invalid_actor_placement", error: applyError };
     }
@@ -368,6 +373,19 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
       }
     }
     return { ok: true, actorId: primary.id, position: positions[0], actorCount: actors.length };
+    })();
+    // Single-actor states whose placement the strict validator rejects (e.g.
+    // older fixtures that seat the actor on the spawn tile) historically ran
+    // through the legacy spawn path below, which does not validate placement.
+    // Preserve that behavior by falling through for them; multi-actor states
+    // with invalid placements must keep failing loudly — the legacy path can
+    // only spawn one actor and would silently drop the rest.
+    const fallBackToLegacy = multiResult?.reason === "legacy_fallback"
+      || (multiResult?.reason === "invalid_actor_placement" && actors.length === 1);
+    if (!fallBackToLegacy) {
+      return multiResult;
+    }
+    core.clearActorPlacements();
   }
 
   if (typeof core.spawnActorAt !== "function" || typeof core.setActorVital !== "function") {
