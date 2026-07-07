@@ -300,6 +300,17 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
     return { ok: false, reason: "missing_actors" };
   }
 
+  const seenIds = new Set();
+  for (const actor of actors) {
+    const id = String(actor?.id || "");
+    if (seenIds.has(id)) {
+      // A shared id makes action attribution ambiguous; two id-less actors
+      // collide the same way but the root cause is the missing id.
+      return { ok: false, reason: id === "" ? "missing_actor_id" : "duplicate_actor_id", actorId: id };
+    }
+    seenIds.add(id);
+  }
+
   const primary = actors[0];
   const supportsMulti = typeof core.applyActorPlacements === "function"
     && typeof core.setMotivatedActorVital === "function"

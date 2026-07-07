@@ -330,49 +330,24 @@ test("long run (TICK_COUNT * 5) does not silently drop later actors", async () =
   }
 });
 
-test.skip("duplicate actor id must be rejected at initial-state application (IMPLEMENTATION GAP: currently causes action amplification)", async () => {
-  // Contract intent: duplicate ids should be rejected when the initial state
-  // is applied. Current implementation accepts them AND amplifies actions —
-  // measured 12 accepted move/wait actions per tick for a twice-placed id on
-  // the execute/apply frame alone (verified 2026-07-06); the per-actor DECIDE
-  // loop compounds proposals when ids collide. Skipped rather than pinned:
-  // the amplified count is an accident of the loop, not behavior worth
-  // locking in. Unskip once applyInitialStateToCore rejects duplicate ids
-  // (tracked as a follow-up task); the try/catch below then passes.
+test("duplicate actor id is rejected at initial-state application", async () => {
+  // Duplicate ids make action attribution ambiguous and used to amplify
+  // accepted actions (measured 12 move/wait actions per tick for a
+  // twice-placed id, verified 2026-07-06). applyInitialStateToCore now
+  // rejects the state with reason "duplicate_actor_id" before placement.
   const actors = [
     buildActor({ id: "dup_actor", archetype: "delver", position: { x: 1, y: 1 } }),
     buildActor({ id: "dup_actor", archetype: "warden", position: { x: 7, y: 7 } }),
     buildActor({ id: "warden_ok", archetype: "warden", position: { x: 7, y: 1 } }),
   ];
-  let frames;
-  try {
-    ({ frames } = await runRuntimeScenario({
+  await assert.rejects(
+    runRuntimeScenario({
       initialState: buildStateWithActors(actors),
       ticks: TICK_COUNT,
       seed: 0,
-    }));
-  } catch (error) {
-    // A future duplicate-id guard that rejects outright also satisfies intent.
-    assert.ok(error instanceof Error);
-    return;
-  }
-  // acceptedActions echo across a tick's phase frames — count only the
-  // execute/apply frame so each accepted action is counted once.
-  const perTick = new Map();
-  for (const frame of frames) {
-    if (frame?.phase !== "execute" || frame?.phaseDetail !== "apply") continue;
-    for (const action of Array.isArray(frame?.acceptedActions) ? frame.acceptedActions : []) {
-      if (action?.actorId !== "dup_actor" || (action.kind !== "move" && action.kind !== "wait")) continue;
-      perTick.set(action.tick, (perTick.get(action.tick) || 0) + 1);
-    }
-  }
-  assert.ok(perTick.size > 0, "duplicated-id actors must still act somewhere in the run");
-  for (const [tick, count] of perTick.entries()) {
-    assert.ok(
-      count <= 2,
-      `tick ${tick}: ${count} accepted move/wait actions for the duplicated id — more than its two placements`,
-    );
-  }
+    }),
+    /duplicate_actor_id/,
+  );
 });
 
 test("cross-check: delver + 3 wardens roster shape agrees with the integration suite's coverage expectations", async () => {
