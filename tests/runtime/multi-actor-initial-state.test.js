@@ -52,3 +52,27 @@ test("runtime loads multi-actor initial state into core", async () => {
   assert.equal(core.getActorX(), 2);
   assert.equal(core.getActorY(), 1);
 });
+
+test("runtime init rejects initial state with duplicate actor ids", async () => {
+  const { createRuntime } = await import(
+    "../../packages/runtime/src/runner/runtime.js"
+  );
+  const { createCore } = await import(
+    "../../packages/core-ts/src/index.ts"
+  );
+
+  const core = createCore();
+
+  const simConfig = JSON.parse(
+    readFileSync(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"), "utf8"),
+  );
+  const initialState = JSON.parse(
+    readFileSync(resolve(ROOT, "tests/fixtures/artifacts/invalid/initial-state-artifact-v1-duplicate-actor-id.json"), "utf8"),
+  );
+
+  const runtime = createRuntime({ core, adapters: {} });
+  await assert.rejects(
+    runtime.init({ seed: 0, simConfig, initialState }),
+    /duplicate_actor_id/,
+  );
+});
