@@ -50,7 +50,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 ## Motivation And Action Flow
 
-- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.js`.
+- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.mts` (`controller.js` is a thin runtime re-export of it).
 - `buildMotivatedProposals()` reads `motivation.kind` from the observation actor record or `payload.initialState.actors`. It uses `resolveNearestHostile()` to choose the closest other actor by Chebyshev distance.
 - Current simple motivation kinds are `attacking`, `defending`, `stationary`, and `random`: attacking actors attack adjacent hostiles or pursue distant hostiles, defending actors attack adjacent hostiles or hold position when distant, stationary actors emit no movement proposal, and random actors move to a seed-derived legal adjacent tile.
 - `random` movement is deterministic pseudo-random: the choice derives from `seed:actorId:tick` (FNV/mulberry), never `Math.random()`, and synthesizes a `wait` when no legal adjacent tile exists. Replays of the same seed produce identical movement.
