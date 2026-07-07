@@ -204,7 +204,9 @@ Inputs/outputs:
 The canonical motivation-sandbox fixture is
 `tests/fixtures/scenarios/delver-warden-battle-v1-basic.json`. Its `cliEquivalent`
 documents the matching `create` invocation and the motivation kinds currently used by
-the sandbox path: `attacking`, `defending`, and `stationary`.
+the sandbox path: `attacking`, `defending`, and `stationary`. Authored actors also
+accept `motivation=random` (deterministic seed-derived movement), which `create`
+persists into the emitted initial state.
 
 ```bash
 ak.mjs create --room "size=medium;count=1" --delver "count=1;affinity=fire;motivation=attacking;vitals=health:10:10:0,mana:10:10:0,stamina:10:10:0" --warden "count=1;affinity=dark;motivation=defending;vitals=health:6:6:0,mana:6:6:0,stamina:6:6:0"
@@ -393,6 +395,15 @@ artifact plus a `SolverResult` using a stubbed/fixture-driven solver adapter (no
 ### `run`
 Execute a configured simulation run using captured artifacts, emitting TickFrame and
 effect logs plus a minimal RunSummary artifact.
+
+When the run's inputs come from an authored `create` outDir (identified by the sibling
+pre-run `bundle.json` next to `--sim-config`), `run` also stitches a post-run
+`agent-kernel/GameplayBundle` from the resolved artifacts and recorded tick frames. It
+writes that bundle to `bundle.json` in the run outDir, upgrades the create outDir's
+`bundle.json` in place to the same loadable playback shape, and reports both under
+`artifactPaths.bundle` and `artifactPaths.create_bundle`. Fixture-driven runs stay
+bundle-free so CLI run output remains artifact-for-artifact equivalent to the browser
+host's run output. The stitched bundle is what `ak_push_to_ui` delivers to the UI.
 
 ### `configurator`
 Build `SimConfigArtifact` + `InitialStateArtifact` outputs from deterministic configurator inputs.
@@ -683,6 +694,25 @@ pnpm run demo:cli -- /tmp/agent-kernel-demo
 - `log`/`telemetry` effects include severity/tags/personaRef for UI/CLI inspection.
 
 Inspect the emitted artifacts in your chosen `--out-dir` or `artifacts/demo-bundle` to see these shapes. Examples align with `tests/fixtures/adapters/effects-routing.json`.
+
+## MCP sandbox bridge (`ak_push_to_ui`)
+
+The MCP server's `ak_push_to_ui` tool delivers an `agent-kernel/GameplayBundle` to a
+connected browser UI over the sandbox WebSocket bridge
+(`packages/adapters-cli/src/mcp/bridge-server.mjs`), so an agent can author with
+`ak_create`, execute with `ak_run`, and load the result into the gameplay surface
+without manual file handoff.
+
+- Bundle source (one of): inline `bundle`, an explicit `bundlePath`, or an `outDir`
+  containing `bundle.json` (the shape written by `run`'s post-run stitching or by
+  `create` pre-run).
+- `targetTab`: `"design"` or `"gameplay"` (default `"gameplay"`).
+- `requireClient` (default `true`): fail if no browser UI is connected; the browser side
+  is `packages/ui-web/src/sandbox-bridge-client.js`.
+- Bridge port: `38487` by default, overridable with `AK_SANDBOX_BRIDGE_PORT`.
+- Failure results are structured: missing bundle sources, invalid bundle shape, bridge
+  start failure (`SANDBOX_BRIDGE_START_FAILED`), and no-connected-client cases each
+  return `ok: false` with a specific reason rather than throwing.
 
 ## Architectural Intent
 
