@@ -221,7 +221,18 @@ globalThis.__ak_loadGameplayBundle = async (bundle, { targetTab = "design" } = {
     }
   }
   const ALLOWED_TABS = new Set(["design", "gameplay", "preview"]);
-  openTab(ALLOWED_TABS.has(targetTab) ? targetTab : "design");
+  // Opening the gameplay tab normally re-generates a run from the design
+  // (launchGameplayRun below), which would clobber the bundle we just loaded
+  // explicitly — scenario injection and the MCP bridge both land here. Hold
+  // gameplayRunPending across the tab switch so the onChange guard skips the
+  // auto-generate for this navigation only.
+  const wasPending = gameplayRunPending;
+  gameplayRunPending = true;
+  try {
+    openTab(ALLOWED_TABS.has(targetTab) ? targetTab : "design");
+  } finally {
+    gameplayRunPending = wasPending;
+  }
   return true;
 };
 
@@ -294,6 +305,10 @@ function summarizePreviewError(result) {
 
 async function launchGameplayRun({ autoGenerate = false } = {}) {
   if (!diagnosticsView) return;
+  // Capture the navigation generation at entry — the awaits below yield, and
+  // a user navigating away mid-launch must invalidate this build's completion.
+  // Capturing later (as before) missed navigations during the publish await.
+  const launchGeneration = tabGeneration;
 
   // In index_c.html the Phaser card builder is the live design state; designView reads
   // from DOM elements that don't exist there, so designView.getCards() is always empty.
@@ -341,7 +356,7 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
     }
     lastGameplaySpecText = built.specText;
     gameplayRunPending = true;
-    pendingGameplayGeneration = tabGeneration;
+    pendingGameplayGeneration = launchGeneration;
     buildResult = await diagnosticsView.runBuildWithSpec(built.specText);
   } else if (designView) {
     const published = await designView.publishPreviewSpec({
@@ -357,7 +372,7 @@ async function launchGameplayRun({ autoGenerate = false } = {}) {
       lastGameplaySpecText = published.specText;
     }
     gameplayRunPending = true;
-    pendingGameplayGeneration = tabGeneration;
+    pendingGameplayGeneration = launchGeneration;
     buildResult = await diagnosticsView.runBuild();
   } else {
     return { ok: false, reason: "no_spec_source" };
@@ -466,14 +481,32 @@ if (document.querySelector("#phaser-frame-root")) {
 // Keyboard events bypass Phaser's InputManager/hit-zone testing entirely, so this
 // works reliably even when canvas-based nav buttons don't (destroy/recreate timing,
 // camera-transform hit-testing, etc).
+// Screen navigation lives on Cmd/Ctrl+brackets and Ctrl+digits so it can
+// never collide with game-surface bindings: bare keys belong to the game
+// (movement, actions), Cmd+arrows to tick playback, Cmd+[/] to screen
+// back/forward, Ctrl+digit to direct screen jumps. Cmd+digit is off-limits —
+// Chrome reserves it for browser-tab switching and pages cannot intercept it.
 document.addEventListener("keydown", (event) => {
-  if (!(event.metaKey || event.ctrlKey)) return;
-  if (event.key === "ArrowRight") {
-    event.preventDefault();
-    navigateScreens("forward");
-  } else if (event.key === "ArrowLeft") {
-    event.preventDefault();
-    navigateScreens("back");
+  if (event.metaKey || event.ctrlKey) {
+    if (event.key === "]") {
+      event.preventDefault();
+      navigateScreens("forward");
+      return;
+    }
+    if (event.key === "[") {
+      event.preventDefault();
+      navigateScreens("back");
+      return;
+    }
+  }
+  if (event.ctrlKey && !event.metaKey) {
+    if (event.key === "1") {
+      event.preventDefault();
+      tabs?.setActive("design");
+    } else if (event.key === "2") {
+      event.preventDefault();
+      tabs?.setActive("gameplay");
+    }
   }
 });
 

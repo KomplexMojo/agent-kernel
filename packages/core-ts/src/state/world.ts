@@ -982,7 +982,10 @@ export function createWorldState() {
 
     getActorPlacementCount: () => placementActorCount,
 
-    validateActorPlacement(): number {
+    // allowReservedTiles: run-seeding mode — an initial state may legitimately
+    // seat an actor on the spawn (or exit) tile at tick 0. Authoring-time
+    // placement keeps the strict default, which reserves those tiles.
+    validateActorPlacement(allowReservedTiles: boolean = false): number {
       const count = getPlacementCount();
       if (count <= 0) return ValidationError.None;
       if (placementActorOverflow || count > maxMotivatedActors)
@@ -997,8 +1000,9 @@ export function createWorldState() {
         const px = getPlacementX(i);
         const py = getPlacementY(i);
         if (
-          (spawnX >= 0 && spawnY >= 0 && px === spawnX && py === spawnY) ||
-          (exitX >= 0 && exitY >= 0 && px === exitX && py === exitY)
+          !allowReservedTiles &&
+          ((spawnX >= 0 && spawnY >= 0 && px === spawnX && py === spawnY) ||
+            (exitX >= 0 && exitY >= 0 && px === exitX && py === exitY))
         )
           return ValidationError.ActorBlocked;
         if (!isWalkableActorKindLocal(getTileActorKindAt(px, py)))
@@ -1011,12 +1015,12 @@ export function createWorldState() {
       return ValidationError.None;
     },
 
-    applyActorPlacements(): number {
+    applyActorPlacements(allowReservedTiles: boolean = false): number {
       const count = getPlacementCount();
       if (count <= 0) return ValidationError.None;
       if (placementActorOverflow || count > maxMotivatedActors)
         return ValidationError.TooManyActors;
-      const error = this.validateActorPlacement();
+      const error = this.validateActorPlacement(allowReservedTiles);
       if (error !== ValidationError.None) return error;
       motivatedActorCount = count;
       activeMotivatedActorIndex = 0;

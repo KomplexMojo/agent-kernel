@@ -6,7 +6,7 @@ test("served ui exposes gameplay step controls and removes legacy runtime moveme
 
   try {
     await page.goto(served.url);
-    await page.locator('[data-tab="gameplay"]').click();
+    await page.evaluate((id) => window.__ak_setActiveTab(id), "gameplay");
 
     await expect(page.locator('[data-tab-panel="gameplay"]')).toBeVisible();
     await expect(page.locator("#gameplay-step-back")).toBeVisible();

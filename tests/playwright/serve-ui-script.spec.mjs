@@ -22,8 +22,11 @@ test("nav exposes only Design and Gameplay tab buttons", async ({ page }) => {
     await page.goto(served.url);
     const tabButtons = page.locator("[data-tab]");
     await expect(tabButtons).toHaveCount(2);
-    await expect(page.locator('[data-tab="design"]')).toBeVisible();
-    await expect(page.locator('[data-tab="gameplay"]')).toBeVisible();
+    // The HTML tab bar is intentionally hidden once the Phaser frame mounts (tabs are
+    // Phaser-native now); the buttons still exist in the DOM, so assert attachment
+    // rather than visibility.
+    await expect(page.locator('[data-tab="design"]')).toBeAttached();
+    await expect(page.locator('[data-tab="gameplay"]')).toBeAttached();
     await expect(page.locator('[data-tab="preview"]')).toHaveCount(0);
     await expect(page.locator('[data-tab="simulation"]')).toHaveCount(0);
     await expect(page.locator('[data-tab="diagnostics"]')).toHaveCount(0);
@@ -87,7 +90,9 @@ test("actor inspector is hidden on design tab and visible on preview tab after b
 
   try {
     await page.goto(served.url);
-    await expect(page.locator('[data-tab="design"]')).toBeVisible();
+    // The HTML tab bar is intentionally hidden once the Phaser frame mounts (tabs are
+    // Phaser-native now); the button still exists in the DOM.
+    await expect(page.locator('[data-tab="design"]')).toBeAttached();
     await expect(page.locator("#actor-inspector")).not.toBeVisible();
 
     await page.setInputFiles("#bundle-file", bundlePath);

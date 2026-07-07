@@ -155,6 +155,8 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   let selectedActorKey = null;
   let playerPanelContainer = null;
   let playerPanelOpen = false;
+  let playbackControls = null;
+  let keydownHandler = null;
   let cameraState = {
     worldWidth: 1,
     worldHeight: 1,
@@ -379,8 +381,31 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       const zoomFactor = deltaY > 0 ? 1 / CAMERA_ZOOM_STEP : CAMERA_ZOOM_STEP;
       applyCameraZoom(cameraState.zoom * zoomFactor, { centerX: pointer.worldX, centerY: pointer.worldY });
     });
-    scene.input.keyboard?.on?.("keydown", (event) => {
+    // Keyboard goes through a window-level DOM listener rather than
+    // scene.input.keyboard: Phaser v4 does not expose the v3 keyboard plugin
+    // on the scene, so that binding never fires (silently, via the optional
+    // chain). The listener only acts while the gameplay stage is visible and
+    // the user is not typing in a form field.
+    keydownHandler = (event) => {
+      if (!stageEl || stageEl.offsetParent === null) return;
+      const target = event?.target;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
       const key = String(event?.key || "").toLowerCase();
+
+      if (event?.metaKey) {
+        // Cmd+Arrow drives tick-playback navigation instead of camera pan —
+        // plain arrows (no modifier) remain reserved for camera pan / future
+        // direct player movement, handled in the branch below. Auto-repeat
+        // is ignored so one press moves the cursor exactly one step.
+        if (event.repeat) { event.preventDefault?.(); return; }
+        if (key === "arrowright") { event.preventDefault?.(); playbackControls?.stepForward?.(); }
+        if (key === "arrowleft") { event.preventDefault?.(); playbackControls?.stepBack?.(); }
+        if (key === "arrowdown") { event.preventDefault?.(); playbackControls?.jumpToEnd?.(); }
+        if (key === "arrowup") { event.preventDefault?.(); playbackControls?.jumpToStart?.(); }
+        return;
+      }
+
       const amount = 48;
       if (key === "arrowup" || key === "w") panCameraBy(0, amount);
       if (key === "arrowdown" || key === "s") panCameraBy(0, -amount);
@@ -392,7 +417,18 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       if (ACTOR_CONTROL_KEYS.has(key)) {
         onKeyPress?.({ key });
       }
-    });
+    };
+    // Bind exactly one keyboard seam — binding both double-steps every press.
+    // In the browser the window listener is authoritative (Phaser's scene
+    // keyboard delivers duplicate keydowns for a single press under v4).
+    // In Node test environments there is no window listener, so the
+    // fixture-based unit tests drive input through their fake scenes.
+    if (typeof globalThis.addEventListener === "function") {
+      globalThis.addEventListener("keydown", keydownHandler);
+    } else {
+      scene.input.keyboard?.on?.("keydown", keydownHandler);
+      keydownHandler = null;
+    }
     inputBound = true;
   }
 
@@ -796,7 +832,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return { ok: true };
   }
 
-  async function drawBoard(boardState, { resetCamera = false } = {}) {
+  async function drawBoard(boardState, { resetCamera = false, tickIndex = null } = {}) {
     const ready = await ensureGame(boardState);
     if (!ready?.ok || !scene) return ready;
 
@@ -829,6 +865,9 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       stageEl.dataset.gameplayDelvers = String(delverCount);
       stageEl.dataset.gameplayWardens = String(wardenCount);
       stageEl.dataset.gameplayActorPositions = JSON.stringify(diagnostics);
+      if (Number.isInteger(tickIndex)) {
+        stageEl.dataset.gameplayCurrentTick = String(tickIndex);
+      }
     }
     configureCamera({ resetView: resetCamera || worldChanged, focusBoardState: boardState });
 
@@ -980,11 +1019,14 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       container = nextContainer || container;
       stageEl = ensureGameplayStageElement(container);
     },
-    async renderRun(boardState) {
-      return drawBoard(boardState, { resetCamera: true });
+    async renderRun(boardState, { tickIndex = null } = {}) {
+      return drawBoard(boardState, { resetCamera: true, tickIndex });
     },
-    async renderFrame(boardState) {
-      return drawBoard(boardState);
+    async renderFrame(boardState, { tickIndex = null } = {}) {
+      return drawBoard(boardState, { tickIndex });
+    },
+    setPlaybackControls(controls) {
+      playbackControls = controls || null;
     },
     zoomIn() {
       return applyCameraZoom(cameraState.zoom * CAMERA_ZOOM_STEP);
@@ -1032,6 +1074,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       sceneReady = null;
       inputBound = false;
       lastHoverTile = null;
+      if (keydownHandler) {
+        globalThis.removeEventListener?.("keydown", keydownHandler);
+        keydownHandler = null;
+      }
     },
   };
 }

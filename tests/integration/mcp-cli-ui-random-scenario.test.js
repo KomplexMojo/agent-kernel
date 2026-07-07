@@ -135,7 +135,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     }
   });
 
-  test.skip("ak_create MCP tool produces sim-config + initial-state with 1 delver, 10 wardens, motivation.kind random", async () => {
+  test("ak_create MCP tool produces sim-config + initial-state with 1 delver, 10 wardens, motivation.kind random", async () => {
     const { ak_impl, authoringToolsModule } = await loadModules();
     const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
@@ -336,7 +336,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     }
   });
 
-  test.skip("bundle produced from the create+run outDir matches the agent-kernel/GameplayBundle shape expected by __ak_loadGameplayBundle (M7 stitching gap)", async () => {
+  test("bundle produced from the create+run outDir matches the agent-kernel/GameplayBundle shape expected by __ak_loadGameplayBundle (M7 stitching gap)", async () => {
     const { ak_impl, authoringToolsModule, simulationToolsModule } = await loadModules();
     const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
     const runTool = findTool(simulationToolsModule.simulationTools, "ak_run");
@@ -408,7 +408,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     }
   });
 
-  test.skip("no ak_push_to_ui MCP tool exists yet to deliver the bundle over the sandbox bridge (M7 gap)", async () => {
+  test("no ak_push_to_ui MCP tool exists yet to deliver the bundle over the sandbox bridge (M7 gap)", async () => {
     // sandboxTools currently exposes ak_sandbox_create / ak_sandbox_place /
     // ak_sandbox_move only (packages/adapters-cli/src/mcp/tools/sandbox.mjs) —
     // none of these push a compiled GameplayBundle over the WS bridge
