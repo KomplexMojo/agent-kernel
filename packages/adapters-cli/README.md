@@ -709,6 +709,11 @@ without manual file handoff.
 - `targetTab`: `"design"` or `"gameplay"` (default `"gameplay"`).
 - `requireClient` (default `true`): fail if no browser UI is connected; the browser side
   is `packages/ui-web/src/sandbox-bridge-client.js`.
+- `openBrowser` (default `false`): serve the canonical `index_c.html` via
+  `scripts/serve-ui.mjs` (only when nothing answers `/health`), open the default browser,
+  and pre-stage the bundle so the UI loads it on connect. Implies `requireClient: false`.
+  UI host/port come from `AK_UI_HOST` / `AK_UI_PORT` (default `127.0.0.1:8001`);
+  `AK_DISABLE_UI_LAUNCH=1` skips the side effects.
 - Bridge port: `38487` by default, overridable with `AK_SANDBOX_BRIDGE_PORT`.
 - Failure results are structured: missing bundle sources, invalid bundle shape, bridge
   start failure (`SANDBOX_BRIDGE_START_FAILED`), and no-connected-client cases each
