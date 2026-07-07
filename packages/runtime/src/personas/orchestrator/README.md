@@ -8,6 +8,16 @@ This document defines the Orchestrator as a **runtime integration role**. Planni
 
 ---
 
+## At a Glance
+
+| Area | Orchestrator responsibility |
+| --- | --- |
+| Owns | External request intake, adapter selection, deferred side-effect coordination |
+| Does not own | Planning decisions, configuration assembly, action choice, or core state |
+| Primary inputs | UI/CLI/API requests, prompts, adapter payloads, deferred effects |
+| Primary outputs | Normalized request envelopes, captured external inputs, post-run side effects |
+| Boundary | Interacts with the outside world around execution, not inside deterministic core execution |
+
 ## Persona Scope
 
 The Orchestrator persona is responsible for **managing external interaction**, not for deciding what the simulation should do internally.

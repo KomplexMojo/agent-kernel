@@ -14,6 +14,16 @@ This document focuses on the **Actor persona** as a decision-making and behavior
 
 ---
 
+## At a Glance
+
+| Area | Actor responsibility |
+| --- | --- |
+| Owns | Intent selection and action proposals for actors |
+| Does not own | Rule legality, state mutation, IO, or artifact persistence |
+| Primary inputs | Observations, motivations, candidate actions, runtime-decision context |
+| Primary outputs | Proposed actions and runtime-decision request artifacts |
+| Boundary | `core-ts` remains authoritative for accepted/rejected outcomes |
+
 ## Persona Scope
 
 The Actor persona is responsible for **deciding what to do**, not for enforcing what happens.

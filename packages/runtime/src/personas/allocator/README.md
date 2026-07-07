@@ -8,6 +8,16 @@ This document defines the Allocator as a **policy and coordination role**. Detai
 
 ---
 
+## At a Glance
+
+| Area | Allocator responsibility |
+| --- | --- |
+| Owns | Budgets, price lists, spend proposals, allocation decisions, receipts |
+| Does not own | Simulation state mutation, action legality, or direct resource deduction |
+| Primary inputs | Budget artifacts, price lists, proposed actor/layout/action costs |
+| Primary outputs | Budget receipts, approval/rejection decisions, reconciliation signals |
+| Boundary | `core-ts` enforces provided caps; Allocator defines policy |
+
 ## Persona Scope
 
 The Allocator persona is responsible for **deciding whether proposed activity is affordable**, not for enforcing the effects of that activity.

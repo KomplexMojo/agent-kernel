@@ -12,6 +12,16 @@
 
 The server is a thin adapter over the CLI command surface in `packages/adapters-cli/src/cli/ak-impl.mjs`. Each MCP tool maps to one CLI command, translates JSON input into CLI flags, executes the command, and returns structured JSON back to the client.
 
+## Mental Model
+
+The MCP server is the structured-tool version of `ak.mjs`. It does not create a separate runtime path:
+
+```text
+MCP client -> agent-kernel-cli MCP server -> adapters-cli command -> runtime -> core-ts
+```
+
+Use MCP when a harness can call tools directly and needs JSON-shaped inputs and outputs. Use the CLI when you are manually debugging, scripting outside an MCP client, or want to inspect raw stdout/stderr behavior.
+
 Use the MCP server when your harness can call tools directly and you want:
 
 - structured JSON inputs instead of shell-escaped flags
@@ -25,6 +35,18 @@ Use the CLI directly when you want:
 - manual debugging with stdout/stderr
 - shell pipelines or scripting outside an MCP client
 - to inspect raw command behavior without MCP wrapping
+
+## Workflow Map
+
+| Workflow | MCP tools | Typical result |
+| --- | --- | --- |
+| Author content | `ak_create`, `ak_configure`, `ak_room_plan`, `ak_delver_plan`, `ak_warden_plan` | BuildSpec, bundle, manifest, runtime inputs |
+| Build and execute | `ak_build`, `ak_configurator`, `ak_run`, `ak_replay`, `ak_budget`, `ak_scenario` | Run artifacts, TickFrames, budget receipts |
+| Inspect outputs | `ak_show`, `ak_diff`, `ak_runs_list`, `ak_inspect`, `ak_narrate`, `ak_schemas` | Summaries, schema catalog, narrative output |
+| LLM planning | `ak_llm`, `ak_ollama`, `ak_llm_plan` | Captured LLM responses and generated artifacts |
+| External adapters | `ak_ipfs`, `ak_ipfs_publish`, `ak_ipfs_load`, `ak_blockchain`, `ak_blockchain_mint`, `ak_blockchain_load` | Adapter response artifacts |
+
+The most common agent loop is: `ak_create` or `ak_llm_plan` -> `ak_run` -> `ak_show`/`ak_inspect` -> `ak_narrate` or `ak_diff`.
 
 ## Quick Start
 

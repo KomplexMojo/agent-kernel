@@ -8,6 +8,16 @@ This document defines the Configurator as a **runtime composition and validation
 
 ---
 
+## At a Glance
+
+| Area | Configurator responsibility |
+| --- | --- |
+| Owns | Building coherent executable configuration artifacts |
+| Does not own | Runtime conflict resolution, tick execution, or simulation rule outcomes |
+| Primary inputs | Director plans, level-gen inputs, actor payloads, budget receipts |
+| Primary outputs | `SimConfigArtifact`, `InitialStateArtifact`, spend proposals, resource bundles |
+| Boundary | Prepares startup state; `core-ts` enforces rules after execution begins |
+
 ## Persona Scope
 
 The Configurator persona is responsible for **deciding how a simulation is set up**, not for enforcing what happens once it runs.

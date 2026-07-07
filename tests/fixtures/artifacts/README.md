@@ -4,6 +4,12 @@ These JSON files are minimal, schema-valid artifacts used by tests to validate
 loading, serialization, and cross-artifact wiring. Each file contains a single
 artifact and should stay stable unless the schema version changes.
 
+## How to use these fixtures
+
+Use these files when a test needs canonical artifact input or a stable expected shape. Prefer adding the smallest fixture that demonstrates the schema edge, and keep negative cases under `tests/fixtures/artifacts/invalid`.
+
+When a schema changes, update the fixture and the tests in the same change so the contract remains auditable.
+
 General rules:
 - Each file uses schemaVersion 1 and includes required meta where applicable.
 - References (intent/plan/budget/simConfig) point to other fixture ids.

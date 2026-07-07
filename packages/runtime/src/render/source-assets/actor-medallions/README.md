@@ -2,6 +2,10 @@
 
 These are checked-in source contact sheets for the actor medallion sprite pipeline.
 
+## How these assets fit
+
+The source sheets are design inputs for generated review/runtime assets. Runtime rendering composes medallions through deterministic RGBA buffer logic; image decoding and PNG writing stay in the asset-generation CLI.
+
 - `approved-affinity-sprite-sheet.png` is a repo-local copy derived from the approved skill reference at `/Users/darren/.codex/skills/ak-sprite-art-director/assets/approved-affinity-sprite-sheet.png`. Do not overwrite the original skill reference.
 - `frame-template-components.png`, `actor-symbol-components.png`, and `motivation-symbol-components.png` are source contact sheets used by `tools/visual-assets/generate-actor-medallion-assets.mts`.
 - Runtime composition is pure RGBA buffer logic in `packages/runtime/src/render/actor-medallion-composer.ts`; PNG decoding and writing stays in the generation CLI.

@@ -2,6 +2,10 @@
 
 Deterministic, fixture-friendly solver adapter used by the CLI `solve` command. No real IO or process spawn.
 
+## How it fits
+
+This adapter represents the solver port for CLI workflows without depending on a live solver process. It lets tests, demos, and early integration paths exercise solver-shaped artifacts while preserving deterministic output.
+
 ## Behavior
 - `createSolverAdapter({ fixturePath })` returns an adapter with `solve(request)`.
 - If `fixturePath` is provided, the adapter returns the parsed JSON fixture as the SolverResult.

@@ -7,6 +7,25 @@ This package makes the MacBook the control/client machine and the Ubuntu box the
 - Default architecture: `Mac Claude CLI -> selected remote Ollama endpoint`.
 - Optional project workflow: Ubuntu can keep a git checkout synced, snapshot dirty work, pull from `origin/main`, and push `HEAD` back to `main` when explicitly invoked.
 
+## What this tool is for
+
+Use this tool when local agent workflows should spend inference work on the Ubuntu GPU machine while the Mac keeps control of prompts, tunnels, benchmarks, and result files. It manages three concerns in one place:
+
+- starting/stopping profile-specific Ollama instances on Ubuntu;
+- opening safe SSH-tunnel routes from the Mac;
+- running local or remote benchmark/control commands with consistent environment variables.
+
+## Common tasks
+
+| Need | Command family |
+| --- | --- |
+| Check remote Ollama state | `status`, `ps`, `logs`, `telemetry`, `doctor` |
+| Start or restart a profile | `start`, `restart`, `stop`, `dry-run start` |
+| Run Claude/Codex-side work through remote Ollama | `claude`, `run-local`, `use-remote-ollama` |
+| Run commands on Ubuntu | `exec` |
+| Benchmark models or tool-call generation | `benchmark`, `benchmark-matrix`, `benchmark-hardware`, `run-content-gen` |
+| Keep the remote checkout safe | `project-safety-check`, `project-sync`, `project-push-main` |
+
 ## Profiles
 
 Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `agent-kernel` repo. From this tool directory, the relative path is `config/llm-profiles.json`.
@@ -264,6 +283,7 @@ Results are written locally under `results/<timestamp>-<scenario>/` as `runs.jso
   --models qwen2.5-coder:14b,qwen2.5-coder:7b,qwen3-coder:30b \
   --contexts 4096,8192,16384,32768 \
   --scenario vitest-generation
+```
 
 Use the hardware benchmark when you want standard settings for the installed
 model catalog. It reads `config/models.json`, runs 30B models only on `dual`,
@@ -296,6 +316,7 @@ section: `defaultScenarios`, `defaultContexts`, and `defaultEfforts`. Use
 `--no-reset` only when you intentionally want the command to fail instead of
 restarting an already-running profile.
 
+```bash
 ./bin/remote-ollama-mac benchmark \
   --profile dual \
   --model GLM-4.7-Flash:latest \

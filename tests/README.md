@@ -4,6 +4,12 @@
 
 This file is the entry point for **low-complexity test work** delegated to a local model, typically Ollama launched through the Claude Code harness.
 
+## Mental Model
+
+The test suite protects deterministic behavior. Tests should prove that artifact contracts, adapters, runtime personas, UI surfaces, and `core-ts` rules behave as specified against stable fixtures.
+
+Benchmarks are separate. They measure LLM tool-call quality and stress behavior; they do not replace correctness tests.
+
 The goal is not to invent tests from raw prose. The goal is to:
 
 1. discover an existing test pattern
@@ -17,6 +23,15 @@ The goal is not to invent tests from raw prose. The goal is to:
 - Ollama or another local/cheap model running through the Claude harness
 - Claude Code when delegating low-risk test expansion work
 - Codex when it needs a repo-local test authoring reference
+
+## Where Tests Live
+
+- `tests/core-ts/`: pure deterministic core behavior.
+- `tests/runtime/` and `tests/personas/`: runtime contracts, command kernel behavior, persona transitions.
+- `tests/adapters-cli/`, `tests/adapters-web/`, `tests/adapters-test/`: adapter-level behavior.
+- `tests/integration/`: cross-package and MCP/CLI/UI flows.
+- `tests/ui-web/` and `tests/playwright/`: browser/UI behavior.
+- `tests/fixtures/`: shared deterministic input and expected-output artifacts.
 
 ## Default Rule
 
