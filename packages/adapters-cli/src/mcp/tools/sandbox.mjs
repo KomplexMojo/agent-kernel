@@ -10,9 +10,11 @@
  *   Reuses the existing session's room dimensions for bounds checking.
  */
 
+import { spawn } from "node:child_process";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   validateSandboxSession,
   SANDBOX_SESSION_SCHEMA,
@@ -942,8 +944,69 @@ export async function executeSandboxMove({
 
 const DEFAULT_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
 
+// Canonical UI entry served for the bridge workflow. index.html / index_l.html
+// remain available via serve-ui.mjs --entry but are not the default.
+const UI_ENTRY = "index_c.html";
+// sandbox.mjs lives at packages/adapters-cli/src/mcp/tools/ — five levels below the repo root.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
+
 function makePushMessageId() {
   return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function canonicalUiUrl() {
+  const host = process.env.AK_UI_HOST || "127.0.0.1";
+  const port = Number(process.env.AK_UI_PORT) || 8001;
+  return `http://${host}:${port}/packages/ui-web/${UI_ENTRY}`;
+}
+
+function platformOpenCommand(url) {
+  if (process.platform === "darwin") return ["open", [url]];
+  if (process.platform === "win32") return ["cmd", ["/c", "start", "", url]];
+  return ["xdg-open", [url]];
+}
+
+/**
+ * Best-effort: ensure the canonical UI is being served and open it in the default
+ * browser. Side effects are skipped when AK_DISABLE_UI_LAUNCH=1 (tests, headless CI).
+ * Always returns the canonical URL so callers can surface it regardless.
+ */
+async function launchCanonicalUi() {
+  const url = canonicalUiUrl();
+  const out = { url, entry: UI_ENTRY, opened: false, serverSpawned: false };
+  if (process.env.AK_DISABLE_UI_LAUNCH === "1") return out;
+
+  // Spawn serve-ui on the canonical entry only if nothing is answering /health.
+  try {
+    const health = await fetch(new URL("/health", url)).catch(() => null);
+    if (!health || !health.ok) {
+      const child = spawn(
+        process.execPath,
+        ["scripts/serve-ui.mjs", "--entry", UI_ENTRY],
+        {
+          cwd: REPO_ROOT,
+          env: { ...process.env, PORT: String(Number(process.env.AK_UI_PORT) || 8001) },
+          stdio: "ignore",
+          detached: true,
+        },
+      );
+      child.unref();
+      out.serverSpawned = true;
+    }
+  } catch {
+    /* best-effort — a failed probe/spawn must not fail the push */
+  }
+
+  // Open the default browser at the canonical URL.
+  try {
+    const [cmd, args] = platformOpenCommand(url);
+    const child = spawn(cmd, args, { stdio: "ignore", detached: true });
+    child.unref();
+    out.opened = true;
+  } catch {
+    out.opened = false;
+  }
+  return out;
 }
 
 /**
@@ -963,6 +1026,8 @@ function makePushMessageId() {
  * @param {string} [options.outDir]
  * @param {string} [options.targetTab]      "design" | "gameplay" (default "gameplay").
  * @param {boolean} [options.requireClient] Fail if no browser UI is connected (default true).
+ * @param {boolean} [options.openBrowser]   Serve + open the canonical UI and pre-stage the
+ *                                          bundle (implies requireClient: false, default false).
  * @param {string} [options.correlationId]
  * @returns {Promise<object>}
  */
@@ -972,8 +1037,12 @@ export async function executePushToUi({
   outDir,
   targetTab = "gameplay",
   requireClient = true,
+  openBrowser = false,
   correlationId,
 } = {}) {
+  if (openBrowser) {
+    requireClient = false;
+  }
   let bundle = inlineBundle;
 
   if (!bundle) {
@@ -1041,6 +1110,11 @@ export async function executePushToUi({
     };
   }
 
+  // Launch after all bundle/bridge validation so a bad request never spawns
+  // a server or browser, but before the push so the pre-staged bundle replays
+  // as soon as the freshly opened UI connects.
+  const ui = openBrowser ? await launchCanonicalUi() : null;
+
   const messageId = makePushMessageId();
   // D4 (sandbox-bridge-client.js handleBundle): targetTab lives at the envelope
   // root, not inside payload.
@@ -1062,6 +1136,7 @@ export async function executePushToUi({
     ok: true,
     command: "push-to-ui",
     ...(correlationId ? { correlationId } : {}),
+    ...(ui ? { ui } : {}),
     targetTab,
     bridge: {
       port: DEFAULT_BRIDGE_PORT,
@@ -1238,6 +1313,11 @@ export const sandboxTools = [
           "When true (default), fail immediately if no browser UI is connected. " +
             "When false, push and store the bundle for replay when the UI connects.",
         ),
+        openBrowser: booleanSchema(
+          "When true, serve the canonical index_c.html UI (if not already up) and open it in the " +
+            "default browser, then pre-stage the bundle so it loads as soon as the UI connects. " +
+            "Implies requireClient: false. Defaults to false.",
+        ),
         correlationId: stringSchema("Optional caller-supplied correlation ID echoed back in the result."),
       },
     },
@@ -1248,6 +1328,7 @@ export const sandboxTools = [
         outDir: isNonEmptyString(args.outDir) ? args.outDir : undefined,
         targetTab: args.targetTab === "design" ? "design" : "gameplay",
         requireClient: args.requireClient === false ? false : true,
+        openBrowser: args.openBrowser === true,
         correlationId: isNonEmptyString(args.correlationId) ? args.correlationId : undefined,
       }),
   }),
