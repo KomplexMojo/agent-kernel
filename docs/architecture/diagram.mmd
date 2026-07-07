@@ -8,7 +8,9 @@ flowchart LR
     GameplaySurface["gameplay surface\ncreateGameplayPhaserRenderer"]
     PhaserIngestion["phaser-surface-ingestion"]
     ScenarioLoader["scenario-loader + preview-view"]
+    BridgeClient["sandbox-bridge-client"]
     CLI["CLI (ak.mjs)"]
+    MCP["MCP server (ak_* tools)"]
   end
 
   subgraph Runtime["Runtime (TypeScript)"]
@@ -39,6 +41,7 @@ flowchart LR
     ACli["adapters-cli"]
     ATest["adapters-test"]
     Z3Adapter["Z3-shaped solver adapter\n(adapters-test)"]
+    BridgeServer["sandbox bridge server (WS)\n(adapters-cli)"]
   end
 
   subgraph External["External Services"]
@@ -60,6 +63,10 @@ flowchart LR
   ScenarioLoader --> CoreFacade
   UIWeb --> ScenarioLoader
   CLI --> ACli
+  MCP --> ACli
+  MCP -- "ak_push_to_ui\nGameplayBundle" --> BridgeServer
+  BridgeServer -- "WebSocket" --> BridgeClient
+  BridgeClient -- "__ak_loadGameplayBundle" --> GameplaySurface
   AWeb --> CommandKernel
   ACli --> CommandKernel
   CommandKernel --> CardAuthoring
