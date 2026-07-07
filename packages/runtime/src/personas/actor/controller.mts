@@ -38,7 +38,7 @@ function isObject(value) {
 function isMotivatedKind(kind) {
   if (typeof kind === "number") return kind === MOTIVATED_KIND;
   // The actor contract only uses "stationary" | "ambulatory".
-  // "ambulatory" means the actor CAN move and should have its proposals accepted.
+  // "ambulatory" actors CAN move and should have their proposals accepted.
   // Treat both "motivated" (legacy) and "ambulatory" as proposal-eligible.
   if (typeof kind === "string") {
     const k = kind.toLowerCase();
@@ -438,6 +438,24 @@ function resolveHazards(payload, view) {
   return hazards;
 }
 
+function extractMotivationGoals(configuredActor) {
+  const motivations = configuredActor?.motivations || configuredActor?.traits?.motivations;
+  if (!Array.isArray(motivations)) return [];
+  const goals = [];
+  for (const entry of motivations) {
+    if (!entry || typeof entry !== "object") continue;
+    if (!entry.goal || typeof entry.goal !== "object") continue;
+    const goal = { kind: entry.kind };
+    if (typeof entry.goal.type === "string") goal.type = entry.goal.type;
+    if (typeof entry.goal.objective === "string") goal.objective = entry.goal.objective;
+    if (entry.goal.params && typeof entry.goal.params === "object") {
+      goal.params = { ...entry.goal.params };
+    }
+    goals.push(goal);
+  }
+  return goals;
+}
+
 function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }) {
   const objectives = {};
   const role = typeof configuredActor?.role === "string" && configuredActor.role.trim()
@@ -454,6 +472,10 @@ function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }
   }
   if (exit) {
     objectives.exit = { ...exit };
+  }
+  const goals = extractMotivationGoals(configuredActor);
+  if (goals.length > 0) {
+    objectives.goals = goals;
   }
   return Object.keys(objectives).length > 0 ? objectives : undefined;
 }
@@ -749,8 +771,18 @@ function buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig 
 
 // ── M5: Simple motivation helpers ──────────────────────────────────────────
 
-const DEFAULT_ATTACK_DAMAGE = 2;
+const DEFAULT_ATTACK_DAMAGE = 2; // M1 contract: fixed deterministic damage
 
+/**
+ * Read the motivation kind string from the self-actor in the observation view.
+ * Returns null if not found.
+ */
+/**
+ * Resolve the motivation.kind for the actor.
+ * Checks (in order):
+ *   1. observation view actors (motivation set inline, e.g. in tests)
+ *   2. payload.initialState.actors (runtime path — motivation stored in config, not core)
+ */
 function resolveActorMotivationKind(view, actorId, payload) {
   if (view?.actors && Array.isArray(view.actors)) {
     const self = view.actors.find((a) => a && a.id === actorId);
@@ -764,10 +796,15 @@ function resolveActorMotivationKind(view, actorId, payload) {
   return null;
 }
 
+/**
+ * Find the nearest hostile actor (any actor other than self) by Chebyshev
+ * distance. Returns { actor, distance } or null if no others exist.
+ */
 function resolveNearestHostile(view, actorId) {
   if (!view?.actors || !Array.isArray(view.actors)) return null;
   const selfActor = view.actors.find((a) => a && a.id === actorId);
   if (!selfActor?.position) return null;
+
   let nearest = null;
   let nearestDist = Infinity;
   for (const other of view.actors) {
@@ -784,6 +821,18 @@ function resolveNearestHostile(view, actorId) {
   return nearest;
 }
 
+/**
+ * Motivation-aware proposal builder. Routes to attack or hostile pursuit
+ * before falling back to the existing exit pathfinding.
+ *
+ * Rules (from M1 contract):
+ *   attacking  + adjacent hostile  → attack
+ *   attacking  + non-adjacent      → move toward hostile
+ *   defending  + adjacent hostile  → attack
+ *   defending  + non-adjacent      → wait (no action)
+ *   stationary                     → wait (no action)
+ *   any        + no hostile        → existing exit pathfinding
+ */
 // ── M3: Random motivation helpers ──────────────────────────────────────────
 //
 // Deterministic, seed-derived pseudo-random selection — never Math.random(),
@@ -896,28 +945,44 @@ function buildRandomMoveProposals({ observation, payload, lastBaseTiles, lastSim
 function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig, personaSeed }) {
   const view = resolveObservationView(observation);
   if (!view) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+
   const actorId = payload?.actorId;
   const actor = resolveActor(view, actorId, observation);
   if (!actor?.position) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+
   const motivationKind = resolveActorMotivationKind(view, actorId, payload);
-  if (motivationKind === "stationary") return [];
+
+  // Stationary: never propose movement
+  if (motivationKind === "stationary") {
+    return [];
+  }
+
+  // Random: seed-derived deterministic movement to a legal adjacent tile
   if (motivationKind === "random") {
     return buildRandomMoveProposals({ observation, payload, lastBaseTiles, lastSimConfig, personaSeed });
   }
+
   const hostile = resolveNearestHostile(view, actorId);
+
   if (hostile) {
     const adjacent = hostile.distance <= 1;
+
+    // Adjacent hostile + attacking or defending → attack
     if (adjacent && (motivationKind === "attacking" || motivationKind === "defending")) {
-      return [{
-        kind: "attack",
-        params: {
-          targetId: hostile.actor.id,
-          attackerPosition: { ...actor.position },
-          targetPosition: { ...hostile.actor.position },
-          damage: DEFAULT_ATTACK_DAMAGE,
+      return [
+        {
+          kind: "attack",
+          params: {
+            targetId: hostile.actor.id,
+            attackerPosition: { ...actor.position },
+            targetPosition: { ...hostile.actor.position },
+            damage: DEFAULT_ATTACK_DAMAGE,
+          },
         },
-      }];
+      ];
     }
+
+    // Non-adjacent + attacking → move toward hostile
     if (!adjacent && motivationKind === "attacking") {
       const baseTiles = resolveBaseTiles(payload, view, lastBaseTiles, lastSimConfig);
       const tileKinds = resolveTileKinds(view, payload);
@@ -926,12 +991,22 @@ function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimC
         const from = path[0];
         const to = path[1];
         const delta = { dx: to.x - from.x, dy: to.y - from.y };
-        const direction = DEFAULT_DELTAS.find((e) => e.dx === delta.dx && e.dy === delta.dy)?.direction;
-        if (direction) return [{ kind: "move", params: { direction, from, to } }];
+        const direction = DEFAULT_DELTAS.find(
+          (e) => e.dx === delta.dx && e.dy === delta.dy,
+        )?.direction;
+        if (direction) {
+          return [{ kind: "move", params: { direction, from, to } }];
+        }
       }
     }
-    if (!adjacent && motivationKind === "defending") return [];
+
+    // Non-adjacent + defending → hold position (no action)
+    if (!adjacent && motivationKind === "defending") {
+      return [];
+    }
   }
+
+  // Fallback: existing exit pathfinding
   return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
 }
 

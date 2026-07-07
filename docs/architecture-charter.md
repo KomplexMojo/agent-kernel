@@ -50,7 +50,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 ## Motivation And Action Flow
 
-- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.js`.
+- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.mts` (`controller.js` is a thin runtime re-export of it).
 - `buildMotivatedProposals()` reads `motivation.kind` from the observation actor record or `payload.initialState.actors`. It uses `resolveNearestHostile()` to choose the closest other actor by Chebyshev distance.
 - Current simple motivation kinds are `attacking`, `defending`, and `stationary`: attacking actors attack adjacent hostiles or pursue distant hostiles, defending actors attack adjacent hostiles or hold position when distant, and stationary actors emit no movement proposal.
 - Complex motivation is opt-in. Actors with runtime decisioning enabled, for example `runtimeDecisioning: { enabled: true, mode: "solver", preferred: "solver", targetAdapter: "z3" }`, emit a `solver_request` effect instead of directly returning a concrete action.
