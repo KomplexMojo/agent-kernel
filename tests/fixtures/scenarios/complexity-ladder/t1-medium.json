@@ -5,7 +5,7 @@
   "budgetTokens": 1200,
   "createArgs": [
     "--room", "size=medium;count=2",
-    "--trap", "x=3;y=3;affinity=fire;expression=emit;stacks=2",
+    "--trap", "x=7;y=8;affinity=fire;expression=emit;stacks=2",
     "--delver", "count=2;affinity=water;motivation=exploring;affinities=water:pull:1",
     "--warden", "count=2;affinity=dark;motivation=defending",
     "--hazard", "affinity=light;expression=emit;proximityRadius=2;mana=regen:3:3:1",

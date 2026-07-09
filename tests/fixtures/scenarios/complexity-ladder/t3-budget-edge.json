@@ -1,7 +1,7 @@
 {
   "id": "t3-budget-edge",
   "tier": "budget-edge",
-  "description": "Budget saturation: large rooms and a heavy actor roster squeezed into a tiny budget. The allocator degrades gracefully (scales actor vitals/affinities to fit) rather than over-spending. Asserts the deterministic feasible outcome and that the budget receipt respects the cap.",
+  "description": "Budget saturation: large rooms and a heavy actor roster squeezed into a tiny budget. Hard-budget requests with explicit affinities cannot be silently degraded, so create must fail deterministically with insufficient_budget naming the blocking constraints (no overspend, no partial build).",
   "budgetTokens": 5,
   "createArgs": [
     "--room", "size=large;count=3",
@@ -9,5 +9,5 @@
     "--warden", "count=10;affinity=corrode;motivation=defending;affinities=corrode:emit:3",
     "--budget-tokens", "5"
   ],
-  "expect": { "ok": true, "runnable": true, "budgetCapTokens": 5, "budgetStatus": "denied", "budgetOverspent": true }
+  "expect": { "ok": false, "errorIncludes": "insufficient_budget" }
 }

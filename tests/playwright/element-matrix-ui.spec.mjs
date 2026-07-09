@@ -114,6 +114,9 @@ async function buildThroughDiagnostics(page, spec) {
 async function loadIntoGameplay(page, bundle) {
   const loaded = await page.evaluate((payload) => window.__ak_loadGameplayBundle(payload), bundle);
   expect(loaded).toBe(true);
+  // Direct __ak_loadGameplayBundle calls do not switch screens (only the
+  // sandbox bridge's targetTab does); activate gameplay explicitly.
+  await page.evaluate((id) => window.__ak_setActiveTab(id), "gameplay");
   await expect(page.locator('[data-tab-panel="gameplay"]')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("#gameplay-status")).toContainText("Run loaded.", { timeout: 30_000 });
   await expect(page.locator("#gameplay-phaser-host canvas")).toBeVisible({ timeout: 30_000 });
@@ -132,7 +135,10 @@ test.afterAll(async () => {
 test("index_c shell mounts the Phaser design surface and workflow tabs", async ({ page }) => {
   const errors = attachConsoleGuard(page);
   await page.goto(baseUrl);
-  await expect(page.locator('[data-tab="design"]')).toBeVisible();
+  // Screen navigation is keyboard-driven (Cmd+[/], Ctrl+digits): the tab
+  // buttons stay in the DOM for state but are not visible controls.
+  await expect(page.locator(".workspace")).toHaveAttribute("data-active-tab", "design");
+  await expect(page.locator('[data-tab="design"]')).toBeAttached();
   await expect(page.locator('[data-tab="gameplay"]')).toBeAttached();
   await expect(page.locator("#phaser-frame-root")).toBeVisible();
   expect(errors, errors.join("\n")).toEqual([]);

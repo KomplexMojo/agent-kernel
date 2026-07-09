@@ -30,7 +30,12 @@ describe("complexity ladder (author -> build -> run)", () => {
       ]);
 
       expect(create.json.ok, JSON.stringify(create.json.errors || create.json.error)).toBe(tier.expect.ok);
-      if (!tier.expect.ok) return;
+      if (!tier.expect.ok) {
+        if (tier.expect.errorIncludes) {
+          expect(String(create.json.error)).toContain(tier.expect.errorIncludes);
+        }
+        return;
+      }
 
       const state = readJsonIfExists(join(outDir, "initial-state.json"));
       const spec = readJsonIfExists(join(outDir, "spec.json"));

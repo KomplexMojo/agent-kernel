@@ -709,6 +709,10 @@ const LADDER_TIERS = ladderReaddir(LADDER_DIR)
   .map((f) => JSON.parse(readFileSync(join(LADDER_DIR, f), "utf8")));
 
 for (const tier of LADDER_TIERS) {
+  // Tiers that expect authoring to fail (e.g. t3's deterministic
+  // insufficient_budget rejection) produce no spec to build on either path;
+  // the failure contract itself is asserted in complexity-ladder.test.mjs.
+  if (tier.expect?.ok === false) continue;
   test(`UI<->CLI build parity for complexity ladder ${tier.id}`, async () => {
     // Author the BuildSpec under the gitignored artifacts/ tree so both the
     // ROOT-relative fixture fetch (browser adapter) and the CLI can read it.
