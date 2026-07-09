@@ -1,0 +1,14 @@
+{
+  "id": "t0-smoke",
+  "tier": "smoke",
+  "description": "Sanity floor: one medium room, one trap, one delver, one warden, low budget.",
+  "budgetTokens": 500,
+  "createArgs": [
+    "--room", "size=medium;count=1",
+    "--trap", "x=3;y=3;affinity=dark;expression=emit;stacks=2",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--warden", "count=1;affinity=corrode;motivation=defending",
+    "--budget-tokens", "500"
+  ],
+  "expect": { "ok": true, "runnable": true, "minActors": 2 }
+}

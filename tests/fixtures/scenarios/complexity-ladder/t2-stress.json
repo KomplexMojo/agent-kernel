@@ -1,0 +1,28 @@
+{
+  "id": "t2-stress",
+  "tier": "stress",
+  "description": "Max breadth / high token cost: three large rooms, floor tiles, every affinity carried on a hazard cycling all four expressions, multi-affinity delvers/wardens, both resource tiers, high budget.",
+  "budgetTokens": 6000,
+  "createArgs": [
+    "--room", "size=large;count=3",
+    "--floor-tile", "count=40",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=water;expression=push;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=earth;expression=pull;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=wind;expression=draw;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=life;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=decay;expression=push;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=corrode;expression=pull;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=fortify;expression=draw;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=light;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=dark;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "--delver", "count=3;affinity=fire;motivation=attacking;affinities=fire:push:2,light:emit:1",
+    "--delver", "count=2;affinity=water;motivation=exploring;affinities=water:pull:2",
+    "--warden", "count=3;affinity=corrode;motivation=defending;affinities=corrode:emit:2",
+    "--warden", "count=2;affinity=earth;motivation=patrolling",
+    "--resource", "tier=permanent;stat=vitalMax;delta=10;dropRate=5",
+    "--resource", "tier=level;stat=vitalRegen;delta=2;dropRate=15",
+    "--budget-tokens", "6000"
+  ],
+  "expect": { "ok": true, "runnable": true, "minActors": 10, "minHazards": 10, "minResources": 2 }
+}

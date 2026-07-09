@@ -692,3 +692,69 @@ test("browser host inspect artifacts are equivalent to Node CLI output", async (
     normalizeArtifacts(cliArtifacts),
   );
 });
+
+// ---------------------------------------------------------------------------
+// UI <-> CLI parity across the complexity ladder (see plan: cuddly-noodling-gizmo).
+// For each tier fixture we author a BuildSpec via the CLI `create`, then build
+// that spec two ways — Node CLI `build` and the in-process cli-worker adapter
+// (the same path the browser uses) — and assert the produced artifacts are
+// identical after normalizing generated ids/timestamps. This is the core
+// "same input -> same output" guarantee for complex, high-token-cost levels.
+// ---------------------------------------------------------------------------
+const { readdirSync: ladderReaddir, rmSync: ladderRmSync } = require("node:fs");
+const LADDER_DIR = resolve(ROOT, "tests/fixtures/scenarios/complexity-ladder");
+const LADDER_TIERS = ladderReaddir(LADDER_DIR)
+  .filter((f) => f.endsWith(".json"))
+  .sort()
+  .map((f) => JSON.parse(readFileSync(join(LADDER_DIR, f), "utf8")));
+
+for (const tier of LADDER_TIERS) {
+  // Tiers that expect authoring to fail (e.g. t3's deterministic
+  // insufficient_budget rejection) produce no spec to build on either path;
+  // the failure contract itself is asserted in complexity-ladder.test.mjs.
+  if (tier.expect?.ok === false) continue;
+  test(`UI<->CLI build parity for complexity ladder ${tier.id}`, async () => {
+    // Author the BuildSpec under the gitignored artifacts/ tree so both the
+    // ROOT-relative fixture fetch (browser adapter) and the CLI can read it.
+    // The whole artifacts/parity root is removed in `finally` so the repo tree
+    // stays clean (tests in this file run sequentially — no cross-tier race).
+    const parityRoot = resolve(ROOT, "artifacts", "parity");
+    const specDir = join(parityRoot, tier.id);
+    try {
+      runCli([
+        "create",
+        ...tier.createArgs,
+        "--run-id",
+        `run_parity_${tier.id}`,
+        "--created-at",
+        "2026-04-14T00:00:00.000Z",
+        "--out-dir",
+        specDir,
+      ]);
+      const specAbsPath = join(specDir, "spec.json");
+      const specRootRelPath = `/artifacts/parity/${tier.id}/spec.json`;
+
+      const cliBuildOut = mkdtempSync(join(os.tmpdir(), `agent-kernel-parity-${tier.id}-`));
+      runCli(["build", "--spec", specAbsPath, "--out-dir", cliBuildOut]);
+      const cliArtifacts = collectJsonArtifacts(cliBuildOut);
+
+      const adapter = await createBrowserAdapter();
+      const browserResult = await adapter.build({
+        specPath: specRootRelPath,
+        outDir: `/artifacts/parity/${tier.id}/build`,
+      });
+
+      assert.deepEqual(
+        normalizeArtifacts(browserResult.artifacts),
+        normalizeArtifacts(cliArtifacts),
+      );
+    } finally {
+      ladderRmSync(parityRoot, { recursive: true, force: true });
+    }
+  });
+}
+
+// ## TODO: Test Permutations
+// - Per-element parity: author each affinity/expression/motivation/vital both ways and assert build parity.
+// - Run-stage parity across the ladder (adapter.run vs CLI run) on the built sim-config/initial-state.
+// - Parity under setup-mode=user vs auto for actor vital authoring.
