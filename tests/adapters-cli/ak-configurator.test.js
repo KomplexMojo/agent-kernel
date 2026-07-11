@@ -70,6 +70,10 @@ test("cli configurator builds sim config and initial state artifacts", () => {
 
   assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
   assert.equal(simConfig.schemaVersion, 1);
+  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  // Fixture snapshot regenerated: authored trap (2,2) maps into room R1 at (1,1) -> absolute (3,3);
+  // spawn/exit shifted because the trap tile is excluded from spawn/exit candidates. Verified: trap
+  // tile is floor, inside R1, kinds[3][3] === 2 (KIND_TRAP), spawn/exit reachable.
   assert.deepEqual(simConfig.layout, expectedSim.layout);
   assert.equal(simConfig.seed, expectedSim.seed);
   assert.deepEqual(simConfig.planRef, expectedSim.planRef);

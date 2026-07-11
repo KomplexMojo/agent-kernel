@@ -29,16 +29,18 @@ function resolveHazards(layoutData) {
   return [...explicit, ...fromTraps.filter((t) => !seen.has(`${t.position.x},${t.position.y}`))];
 }
 
-function buildEntityIndex(bundle) {
-  const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
+// Build a position-keyed index for a given set of actors plus the bundle's
+// (immobile) hazards/resources. `actors` should be the CURRENT-TICK actor
+// records (e.g. frame.observation.actors) so the index reflects playback
+// state rather than always the tick-0 InitialStateArtifact snapshot.
+function buildEntityIndex(bundle, actors) {
   const simConfig = findArtifact(bundle, SIM_CONFIG_SCHEMA);
   const layoutData = simConfig?.layout?.data || {};
-  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
   const hazards = resolveHazards(layoutData);
   const resources = Array.isArray(layoutData.resources) ? layoutData.resources : [];
   const index = new Map();
   [
-    ...actors.map((entity) => ({ ...entity, entityType: entity?.entityType || "actor" })),
+    ...(Array.isArray(actors) ? actors : []).map((entity) => ({ ...entity, entityType: entity?.entityType || "actor" })),
     ...hazards.map((entity) => ({ ...entity, entityType: entity?.entityType || "hazard" })),
     ...resources.map((entity) => ({ ...entity, entityType: entity?.entityType || "resource" })),
   ].forEach((entity) => {
@@ -200,14 +202,27 @@ export function wireGameplayView({
     return activeBundle !== null;
   }
 
+  // Rebuild entityIndex from the CURRENT frame's actors so selection APIs
+  // always resolve against the current playback tick, not the static
+  // tick-0 InitialStateArtifact. Hazards/resources are immobile so they are
+  // re-derived from the bundle's layout each time (cheap, no mutation risk).
+  function syncEntityIndex() {
+    const frame = frames[currentFrameIndex];
+    entityIndex = buildEntityIndex(activeBundle, frame?.observation?.actors);
+    if (selectedEntity?.id) {
+      const refreshed = [...entityIndex.values()].find((e) => e.id === selectedEntity.id) ?? null;
+      if (refreshed) selectedEntity = refreshed;
+    }
+  }
+
   async function loadRun(bundle) {
     if (!bundle) return;
     activeBundle = bundle;
-    entityIndex = buildEntityIndex(bundle);
     selectedEntity = null;
     const initialFrame = await buildBoardState(bundle, { buildTileVisualsFn: buildTileAffinityVisualsFromBundleFn });
     frames = buildTickBoardStates(initialFrame, bundle.tickFrames);
     currentFrameIndex = 0;
+    syncEntityIndex();
     setStatus("Run loaded.");
 
     if (actorInspector) {
@@ -251,6 +266,7 @@ export function wireGameplayView({
     currentFrameIndex++;
     const frame = frames[currentFrameIndex];
     void renderer.renderFrame(frame, { tickIndex: currentFrameIndex });
+    syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
   }
@@ -260,6 +276,7 @@ export function wireGameplayView({
     currentFrameIndex--;
     const frame = frames[currentFrameIndex];
     void renderer.renderFrame(frame, { tickIndex: currentFrameIndex });
+    syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
   }
@@ -275,6 +292,7 @@ export function wireGameplayView({
     currentFrameIndex = frames.length - 1;
     const frame = frames[currentFrameIndex];
     void renderer.renderFrame(frame, { tickIndex: currentFrameIndex });
+    syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
     setStatus(`Run completed at tick ${currentFrameIndex}.`);
@@ -289,6 +307,7 @@ export function wireGameplayView({
     currentFrameIndex = 0;
     const frame = frames[currentFrameIndex];
     void renderer.renderFrame(frame, { tickIndex: currentFrameIndex });
+    syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
   }

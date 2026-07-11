@@ -9,6 +9,12 @@ const ROOM_PLACEMENT_PADDING = 1;
 const ROOM_PLACEMENT_ATTEMPTS = 40;
 const ROOM_SURFACE_PLACEMENT_ATTEMPTS = 12;
 const TARGET_ROOM_WALKABLE_SHARE = 0.85;
+// Smallest number of walkable tiles a declared room needs to hold a distinct
+// entrance point, an exit/passage point, and at least one connective/standing
+// tile — independent of the room's footprint size (small/medium/large all
+// place a room capable of holding this many tiles; see I4 minimum-viable-
+// interior rejection in generateGridLayoutFromInput).
+const MIN_VIABLE_ROOM_INTERIOR_TILES = 3;
 
 const KIND_STATIONARY = 0;
 const KIND_BARRIER = 1;
@@ -318,6 +324,101 @@ function reconcileConnectedWalkableTiles({
   if (!mask[anchorCell.y][anchorCell.x]) {
     mask[anchorCell.y][anchorCell.x] = true;
   }
+
+  // Preserved positions (e.g. trap tiles) are force-selected below as extra
+  // BFS seeds, but a multi-source frontier expansion does not guarantee the
+  // final selection is one connected region — the anchor's growing frontier
+  // can hit `target` before ever reaching a distant preserved cell, leaving
+  // it selected but isolated. Walk the mask as it stands now (still fully
+  // carved for any room, since this runs before pruning) to find an
+  // already-walkable path from the anchor to each preserved cell, and fold
+  // that path into `preserve` so the budget accounting and BFS below treat
+  // it as already-connected floor. Only existing walkable cells are used, so
+  // this can never carve floor outside a room's carved interior.
+  const findWalkablePath = (start, end) => {
+    const startKey = `${start.x},${start.y}`;
+    const endKey = `${end.x},${end.y}`;
+    if (startKey === endKey) return [{ x: start.x, y: start.y }];
+    const queue = [{ x: start.x, y: start.y }];
+    const visited = new Set([startKey]);
+    const previous = new Map();
+    let head = 0;
+    while (head < queue.length) {
+      const current = queue[head];
+      head += 1;
+      const currentKey = `${current.x},${current.y}`;
+      if (currentKey === endKey) break;
+      for (const delta of NEIGHBORS) {
+        const nx = current.x + delta.dx;
+        const ny = current.y + delta.dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        if (!mask[ny]?.[nx]) continue;
+        if (!isEligible(nx, ny)) continue;
+        const key = `${nx},${ny}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
+        previous.set(key, current);
+        queue.push({ x: nx, y: ny });
+      }
+    }
+    if (!visited.has(endKey)) return null;
+    const path = [];
+    let cursor = { x: end.x, y: end.y };
+    let cursorKey = endKey;
+    while (cursor) {
+      path.push(cursor);
+      if (cursorKey === startKey) break;
+      const parent = previous.get(cursorKey);
+      if (!parent) return null;
+      cursor = parent;
+      cursorKey = `${cursor.x},${cursor.y}`;
+    }
+    path.reverse();
+    return path;
+  };
+
+  // preserve entries are processed in priority order — earlier entries (e.g.
+  // spawn, trap positions passed in by the caller) are never dropped even if
+  // budget is tight; later entries (e.g. I4's soft multi-room anchors, added
+  // after the caller's required preserve list) are truncated first if the
+  // fully path-folded preserve set would exceed `target`, so a tight budget
+  // degrades multi-room coverage gracefully instead of silently overshooting
+  // the exact-total contract enforced by generateGridLayoutFromInput.
+  // findWalkablePath returns anchor-first, so keeping only a connected
+  // prefix of a path (rather than all-or-nothing) still leaves every
+  // pre-selected cell reachable from the anchor — it just means the path
+  // stops short of a low-priority point instead of jumping straight to an
+  // unreachable orphan.
+  const preserveWithPaths = [];
+  const seenPreserve = new Set();
+  let preserveBudget = target;
+  const pushWithinBudget = (points) => {
+    for (const point of points) {
+      if (preserveBudget <= 0) return;
+      const key = `${point.x},${point.y}`;
+      if (seenPreserve.has(key)) continue;
+      seenPreserve.add(key);
+      preserveWithPaths.push(point);
+      preserveBudget -= 1;
+    }
+  };
+  for (const pos of preserve) {
+    if (!pos || !isEligible(pos.x, pos.y) || preserveBudget <= 0) continue;
+    if (pos.x === anchorCell.x && pos.y === anchorCell.y) {
+      pushWithinBudget([pos]);
+      continue;
+    }
+    const path = findWalkablePath(anchorCell, pos);
+    if (Array.isArray(path)) {
+      // path[0] is the anchor itself; walking it in order keeps every
+      // pushed cell connected to the anchor even if we run out of budget
+      // before reaching `pos`.
+      pushWithinBudget(path);
+    } else {
+      pushWithinBudget([pos]);
+    }
+  }
+  preserve = preserveWithPaths;
 
   const selected = new Uint8Array(totalCells);
   const queuedWalkable = new Uint8Array(totalCells);
@@ -703,6 +804,12 @@ function readRoomSettings(levelGen) {
     roomPadding: targetDensity > 0.62 ? 0 : ROOM_PLACEMENT_PADDING,
     preferLargeRooms: true,
     preferIrregular: true,
+    // With an explicit floorTile budget every corridor tile is paid for out
+    // of the walkable target (see distributeWalkableTilesAcrossRooms), so
+    // rooms are placed compactly around the grid center instead of being
+    // spread across the surface — long corridors would silently eat the
+    // budget that authored content (hazards, actors) needs as room floor.
+    compactPlacement: true,
   };
 }
 
@@ -850,10 +957,32 @@ function placeRoomInSlot(mask, slot, roomId, rng, settings) {
     const maxX = slot.endX - roomWidth + 1;
     const maxY = slot.endY - roomHeight + 1;
     if (maxX < slot.startX || maxY < slot.startY) continue;
+    let roomX;
+    let roomY;
+    if (settings.compactPlacement) {
+      // Compact mode (explicit floorTile budget): hug the grid center within
+      // the slot so inter-room corridors stay as short as possible — every
+      // corridor tile is paid for out of the walkable budget. The clamp is
+      // inset by roomPadding so rooms in adjacent slots keep the required
+      // gap instead of colliding at the shared slot boundary (which would
+      // punt them to random fallback placement).
+      const pad = settings.roomPadding ?? 0;
+      const centerX = Math.floor((mask[0].length - roomWidth) / 2);
+      const centerY = Math.floor((mask.length - roomHeight) / 2);
+      const loX = Math.min(slot.startX + pad, maxX);
+      const hiX = Math.max(maxX - pad, slot.startX);
+      const loY = Math.min(slot.startY + pad, maxY);
+      const hiY = Math.max(maxY - pad, slot.startY);
+      roomX = clampInt(centerX, Math.min(loX, hiX), Math.max(loX, hiX));
+      roomY = clampInt(centerY, Math.min(loY, hiY), Math.max(loY, hiY));
+    } else {
+      roomX = randomIntBetween(rng, slot.startX, maxX);
+      roomY = randomIntBetween(rng, slot.startY, maxY);
+    }
     const room = {
       id: `R${roomId}`,
-      x: randomIntBetween(rng, slot.startX, maxX),
-      y: randomIntBetween(rng, slot.startY, maxY),
+      x: roomX,
+      y: roomY,
       width: roomWidth,
       height: roomHeight,
     };
@@ -876,11 +1005,30 @@ function placeRooms(mask, rng, settings) {
     roomPadding = ROOM_PLACEMENT_PADDING,
     preferLargeRooms = false,
     preferIrregular = true,
+    compactPlacement = false,
   } = settings;
   const bounds = resolveInteriorBounds(width, height);
 
   const slots = buildRoomSurfaceSlots(width, height, roomCount);
-  shuffleInPlace(slots, rng);
+  if (compactPlacement) {
+    // Deterministic centermost-first ordering: with an explicit floorTile
+    // budget, rooms cluster around the grid center so the connectivity
+    // backbone (paid out of the budget) stays short. Ties break by slot
+    // position for reproducibility.
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const slotDistance = (slot) => (
+      Math.abs(((slot.startX + slot.endX) / 2) - centerX)
+      + Math.abs(((slot.startY + slot.endY) / 2) - centerY)
+    );
+    slots.sort((a, b) => (
+      (slotDistance(a) - slotDistance(b))
+      || (a.startY - b.startY)
+      || (a.startX - b.startX)
+    ));
+  } else {
+    shuffleInPlace(slots, rng);
+  }
   for (let i = 0; i < slots.length && rooms.length < roomCount; i += 1) {
     const room = placeRoomInSlot(mask, slots[i], rooms.length + 1, rng, {
       roomMinSize,
@@ -888,6 +1036,7 @@ function placeRooms(mask, rng, settings) {
       roomPadding,
       preferLargeRooms,
       preferIrregular,
+      compactPlacement,
     });
     if (!room) continue;
     rooms.push(room);
@@ -1317,6 +1466,51 @@ function isTrapCell(trapIndex, x, y) {
   return trapIndex.has(`${x},${y}`);
 }
 
+// Authored trap x/y are room-relative (offsets into a target room's carved
+// interior), not absolute grid coordinates. Spec strings carry no room field,
+// so room assignment uses the simplest deterministic rule available: every
+// trap maps into the FIRST declared room (rooms[0], i.e. room declaration
+// order), matching how a single-room level already behaves and keeping
+// multi-room placement predictable for a given input+seed. When no rooms
+// exist (e.g. roomless/legacy callers), coordinates are treated as absolute,
+// preserving prior behavior for that case.
+// Returns { mapped, errors } — errors are structured {field, code, detail}
+// entries for coordinates that exceed the target room's interior bounds.
+function mapTrapsToRooms(traps = [], rooms = []) {
+  if (!Array.isArray(traps) || traps.length === 0) {
+    return { mapped: [], errors: [] };
+  }
+  if (!Array.isArray(rooms) || rooms.length === 0) {
+    return { mapped: traps.map((trap) => ({ ...trap })), errors: [] };
+  }
+  const targetRoom = rooms[0];
+  const errors = [];
+  const mapped = traps.map((trap, idx) => {
+    const relX = trap.x;
+    const relY = trap.y;
+    if (relX < 0 || relY < 0 || relX >= targetRoom.width || relY >= targetRoom.height) {
+      errors.push({
+        field: `traps[${idx}].position`,
+        code: "trap_outside_room",
+        detail: {
+          x: relX,
+          y: relY,
+          roomId: roomIdAt(targetRoom, 0),
+          roomWidth: targetRoom.width,
+          roomHeight: targetRoom.height,
+        },
+      });
+      return trap;
+    }
+    return {
+      ...trap,
+      x: targetRoom.x + relX,
+      y: targetRoom.y + relY,
+    };
+  });
+  return { mapped, errors };
+}
+
 function applyTrapBlocking(mask, traps = []) {
   for (const trap of traps) {
     if (!trap?.blocking) continue;
@@ -1461,6 +1655,399 @@ function selectClosestToRoomCenter(cells, room) {
   return best;
 }
 
+// I4 fix: when a create request declares multiple rooms plus a floorTile
+// budget (walkableTilesTarget), the budget is DISTRIBUTED across every
+// declared room instead of acting as a single global carve cap (which
+// previously let one room drain the whole budget while later rooms stayed
+// declared + billed but 100% wall — see
+// tests/integration/create-multi-room-carving.test.js).
+//
+// Distribution rule (deterministic, O(grid area) overall — this also runs at
+// 550k-walkable-tile scale, so no per-room flood fills over the whole grid
+// and no string-keyed sets on hot paths):
+//   1. Connectivity backbone first: rooms are chained in room-center order
+//      (x, then y — the same order corridor carving uses) and each
+//      consecutive pair is joined door-to-door with an L-shaped path (BFS
+//      fallback over eligible cells only when the straight path is blocked).
+//      Like the reconcile expansion phase, the backbone may carve eligible
+//      wall cells, so it takes the shortest connection rather than paying
+//      for a detour through pre-carved corridors. Non-blocking trap
+//      positions are tethered to the backbone inside their room (M3
+//      contract). Backbone pieces inside one room are linked by an in-room
+//      BFS so the whole backbone is one connected component.
+//   2. Every room is guaranteed MIN_VIABLE_ROOM_INTERIOR_TILES of floor;
+//      backbone cells inside a room count toward that minimum, so only the
+//      shortfall is reserved. The rest of the budget is split evenly:
+//      floor(distributable / roomCount) each, remainder to earliest rooms.
+//      Shares grow by BFS inside each room from its backbone cells.
+//   3. A room too small to absorb its share spills the leftover to the next
+//      rooms; any final leftover fills connected eligible cells anywhere via
+//      one global BFS, so the total always equals walkableTilesTarget and
+//      the target_mismatch contract in generateGridLayoutFromInput holds.
+//
+// Returns { ok: true } after mutating mask in place, or
+// { ok: false, error } when the budget cannot cover the backbone plus a
+// minimum viable interior per room (the caller rejects with a structured
+// floor_tile_budget_insufficient error instead of silently under-carving).
+function distributeWalkableTilesAcrossRooms({
+  mask,
+  targetWalkableTiles,
+  rooms,
+  blockedIndex = null,
+  trapIndex = null,
+  preserve = [],
+} = {}) {
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  if (width <= 0 || !Array.isArray(rooms) || rooms.length < 2) return { ok: true };
+  const area = width * height;
+  const toIndex = (x, y) => (y * width) + x;
+
+  // Blocked cells (blocking traps) as a typed array — the index is tiny, but
+  // eligibility is checked O(area) times and string keys would dominate.
+  const blocked = new Uint8Array(area);
+  if (blockedIndex) {
+    for (const key of blockedIndex) {
+      const [x, y] = String(key).split(",").map(Number);
+      if (Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < width && y < height) {
+        blocked[toIndex(x, y)] = 1;
+      }
+    }
+  }
+  const isEligible = (x, y) => (
+    isInteriorCell(x, y, width, height) && !blocked[toIndex(x, y)]
+  );
+
+  let capacity = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (isEligible(x, y)) capacity += 1;
+    }
+  }
+  const target = Math.min(targetWalkableTiles, capacity);
+  if (target <= 0) return { ok: true };
+
+  // Cell -> room lookup (rooms never overlap; later rooms win ties).
+  const roomIdx = new Int32Array(area).fill(-1);
+  rooms.forEach((room, i) => {
+    const endY = Math.min(height, room.y + room.height);
+    const endX = Math.min(width, room.x + room.width);
+    for (let y = Math.max(0, room.y); y < endY; y += 1) {
+      for (let x = Math.max(0, room.x); x < endX; x += 1) {
+        roomIdx[toIndex(x, y)] = i;
+      }
+    }
+  });
+
+  const selected = new Uint8Array(area);
+  let selectedCount = 0;
+  const backboneInRoom = new Array(rooms.length).fill(0);
+  const addCell = (x, y) => {
+    if (!isEligible(x, y)) return;
+    const idx = toIndex(x, y);
+    if (selected[idx]) return;
+    selected[idx] = 1;
+    selectedCount += 1;
+    const r = roomIdx[idx];
+    if (r >= 0) backboneInRoom[r] += 1;
+  };
+
+  // BFS over eligible cells (walkable or not) from `sources` to the nearest
+  // cell satisfying `isTarget`; used only as a fallback for blocked straight
+  // paths and for small in-room links, so it stays off the hot path.
+  const parent = new Int32Array(area);
+  const visitedStamp = new Int32Array(area);
+  let stamp = 0;
+  const bfsPath = (sources, isTarget) => {
+    stamp += 1;
+    const queue = [];
+    for (const source of sources) {
+      if (!isEligible(source.x, source.y)) continue;
+      const idx = toIndex(source.x, source.y);
+      if (visitedStamp[idx] === stamp) continue;
+      visitedStamp[idx] = stamp;
+      parent[idx] = -1;
+      if (isTarget(source.x, source.y)) return [{ x: source.x, y: source.y }];
+      queue.push(idx);
+    }
+    let head = 0;
+    let foundIdx = -1;
+    while (head < queue.length && foundIdx < 0) {
+      const currentIdx = queue[head];
+      head += 1;
+      const cx = currentIdx % width;
+      const cy = (currentIdx - cx) / width;
+      for (const delta of NEIGHBORS) {
+        const nx = cx + delta.dx;
+        const ny = cy + delta.dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        if (!isEligible(nx, ny)) continue;
+        const nIdx = toIndex(nx, ny);
+        if (visitedStamp[nIdx] === stamp) continue;
+        visitedStamp[nIdx] = stamp;
+        parent[nIdx] = currentIdx;
+        if (isTarget(nx, ny)) {
+          foundIdx = nIdx;
+          break;
+        }
+        queue.push(nIdx);
+      }
+    }
+    if (foundIdx < 0) return null;
+    const path = [];
+    let cursor = foundIdx;
+    while (cursor >= 0) {
+      const x = cursor % width;
+      path.push({ x, y: (cursor - x) / width });
+      cursor = parent[cursor];
+    }
+    path.reverse();
+    return path;
+  };
+
+  // 1. Chain rooms in center order with door-to-door L-paths.
+  const order = rooms
+    .map((room, i) => ({ i, c: roomCenter(room) }))
+    .sort((a, b) => (a.c.x - b.c.x) || (a.c.y - b.c.y) || (a.i - b.i));
+  const clampToRoom = (room, point) => ({
+    x: Math.min(room.x + room.width - 1, Math.max(room.x, point.x)),
+    y: Math.min(room.y + room.height - 1, Math.max(room.y, point.y)),
+  });
+  const lPath = (from, to) => {
+    const cells = [{ x: from.x, y: from.y }];
+    let { x, y } = from;
+    while (x !== to.x) {
+      x += Math.sign(to.x - x);
+      cells.push({ x, y });
+    }
+    while (y !== to.y) {
+      y += Math.sign(to.y - y);
+      cells.push({ x, y });
+    }
+    return cells;
+  };
+
+  // No standalone seed cell: the first door-to-door path below already puts
+  // a backbone cell in the first room. Seeding its center as well would cost
+  // the center cell plus an in-room link to the door — pure budget overhead
+  // (enough to push tight-but-viable budgets like t2-stress into rejection).
+  for (let k = 1; k < order.length; k += 1) {
+    const roomA = rooms[order[k - 1].i];
+    const roomB = rooms[order[k].i];
+    const doorA = clampToRoom(roomA, roomCenter(roomB));
+    const doorB = clampToRoom(roomB, doorA);
+    let cells = lPath(doorA, doorB);
+    if (cells.some((p) => !isEligible(p.x, p.y))) {
+      cells = bfsPath([doorA], (x, y) => x === doorB.x && y === doorB.y)
+        || cells.filter((p) => isEligible(p.x, p.y));
+    }
+    cells.forEach((p) => addCell(p.x, p.y));
+  }
+
+  // Tether preserved (non-blocking trap) positions so M3's trap contract
+  // holds under distribution. The pre-reconciliation spawn is deliberately
+  // NOT tethered: spawn is re-picked from the carved rooms afterwards
+  // (pickSpawnExitFromRooms), so preserving the pre-pick would only burn
+  // budget on a corridor to a soon-to-be-discarded cell.
+  (Array.isArray(preserve) ? preserve : []).forEach((point) => {
+    if (!point || !isEligible(point.x, point.y)) return;
+    if (selected[toIndex(point.x, point.y)]) return;
+    const path = bfsPath([point], (x, y) => selected[toIndex(x, y)] === 1);
+    if (Array.isArray(path)) {
+      path.forEach((p) => addCell(p.x, p.y));
+    } else {
+      addCell(point.x, point.y);
+    }
+  });
+
+  // Link backbone pieces that landed in the same room (e.g. the doors of the
+  // previous and next chain hop, or a trap tether) with in-room paths so the
+  // backbone stays one connected component. Rooms are small, so these BFS
+  // runs are bounded by room area, not grid area.
+  rooms.forEach((room) => {
+    const pieces = [];
+    const endY = Math.min(height, room.y + room.height);
+    const endX = Math.min(width, room.x + room.width);
+    for (let y = Math.max(0, room.y); y < endY; y += 1) {
+      for (let x = Math.max(0, room.x); x < endX; x += 1) {
+        if (selected[toIndex(x, y)]) pieces.push({ x, y });
+      }
+    }
+    if (pieces.length < 2) return;
+    const hub = pieces[0];
+    for (let p = 1; p < pieces.length; p += 1) {
+      const piece = pieces[p];
+      if (Math.abs(piece.x - hub.x) + Math.abs(piece.y - hub.y) <= 1) continue;
+      // bfsPath prefers in-room routes (they are shortest) but may route
+      // around a blocked interior; either way every path cell joins the
+      // backbone so the pieces end up connected.
+      const path = bfsPath(
+        [hub],
+        (x, y) => x === piece.x && y === piece.y,
+      );
+      if (Array.isArray(path)) {
+        path.forEach((point) => addCell(point.x, point.y));
+      }
+    }
+  });
+
+  // 2. Reject when the backbone plus a minimum viable interior per room
+  //    cannot fit in the budget — no distribution could keep every declared
+  //    room playable and connected. Backbone cells inside a room count
+  //    toward that room's minimum, so only each room's shortfall is
+  //    reserved.
+  const backboneCount = selectedCount;
+  const remaining = target - backboneCount;
+  const minRequired = minimumViableFloorBudget(rooms.length);
+  const roomShortfalls = backboneInRoom.map(
+    (count) => Math.max(0, MIN_VIABLE_ROOM_INTERIOR_TILES - count),
+  );
+  const totalShortfall = roomShortfalls.reduce((sum, value) => sum + value, 0);
+  if (target < minRequired || remaining < totalShortfall) {
+    return {
+      ok: false,
+      error: {
+        field: "floorTile.count",
+        code: "floor_tile_budget_insufficient",
+        detail: {
+          target: targetWalkableTiles,
+          roomCount: rooms.length,
+          minPerRoom: MIN_VIABLE_ROOM_INTERIOR_TILES,
+          required: Math.max(minRequired, backboneCount + totalShortfall),
+          connectivityBackbone: backboneCount,
+        },
+      },
+    };
+  }
+
+  // 3. Guaranteed minimum first, then even split of the rest, remainder to
+  //    earliest rooms. Each share grows by BFS inside its room from the
+  //    room's backbone cells; growth is bounded by room area.
+  const distributable = remaining - totalShortfall;
+  const base = Math.floor(distributable / rooms.length);
+  let extra = distributable % rooms.length;
+  let carry = 0;
+  for (let i = 0; i < rooms.length; i += 1) {
+    let share = roomShortfalls[i] + base + (extra > 0 ? 1 : 0);
+    if (extra > 0) extra -= 1;
+    share += carry;
+    carry = 0;
+    const room = rooms[i];
+    const startY = Math.max(0, room.y);
+    const startX = Math.max(0, room.x);
+    const endY = Math.min(height, room.y + room.height);
+    const endX = Math.min(width, room.x + room.width);
+    const inRect = (x, y) => x >= startX && x < endX && y >= startY && y < endY;
+    stamp += 1;
+    const queue = [];
+    // Grow only from cells already in the selected backbone — seeding an
+    // unselected cell would grow a floating blob disconnected from it.
+    for (let y = startY; y < endY; y += 1) {
+      for (let x = startX; x < endX; x += 1) {
+        const idx = toIndex(x, y);
+        if (selected[idx] && visitedStamp[idx] !== stamp) {
+          visitedStamp[idx] = stamp;
+          queue.push(idx);
+        }
+      }
+    }
+    let added = 0;
+    if (queue.length === 0) {
+      // Pathologically unreachable room (eligible cells split by blocking
+      // traps): still give it floor rather than leaving it 100% wall — the
+      // carve-every-room contract outranks connectivity in this corner. The
+      // seed counts against the room's share so the exact total still holds.
+      for (let y = startY; y < endY && queue.length === 0; y += 1) {
+        for (let x = startX; x < endX; x += 1) {
+          if (!isEligible(x, y)) continue;
+          addCell(x, y);
+          added += 1;
+          const idx = toIndex(x, y);
+          visitedStamp[idx] = stamp;
+          queue.push(idx);
+          break;
+        }
+      }
+    }
+    let head = 0;
+    while (head < queue.length && added < share) {
+      const currentIdx = queue[head];
+      head += 1;
+      const cx = currentIdx % width;
+      const cy = (currentIdx - cx) / width;
+      for (const delta of NEIGHBORS) {
+        const nx = cx + delta.dx;
+        const ny = cy + delta.dy;
+        if (!inRect(nx, ny) || !isEligible(nx, ny)) continue;
+        const nIdx = toIndex(nx, ny);
+        if (visitedStamp[nIdx] === stamp) continue;
+        visitedStamp[nIdx] = stamp;
+        if (!selected[nIdx]) {
+          if (added >= share) continue;
+          selected[nIdx] = 1;
+          selectedCount += 1;
+          added += 1;
+        }
+        queue.push(nIdx);
+      }
+    }
+    carry = share - added;
+  }
+
+  // 4. One global connected fill for any leftover, so the exact-total
+  //    contract always holds when capacity allows. Single BFS over eligible
+  //    cells seeded from the whole selection — O(area).
+  if (selectedCount < target) {
+    stamp += 1;
+    const queue = [];
+    for (let idx = 0; idx < area; idx += 1) {
+      if (selected[idx]) {
+        visitedStamp[idx] = stamp;
+        queue.push(idx);
+      }
+    }
+    let head = 0;
+    while (head < queue.length && selectedCount < target) {
+      const currentIdx = queue[head];
+      head += 1;
+      const cx = currentIdx % width;
+      const cy = (currentIdx - cx) / width;
+      for (const delta of NEIGHBORS) {
+        const nx = cx + delta.dx;
+        const ny = cy + delta.dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        if (!isEligible(nx, ny)) continue;
+        const nIdx = toIndex(nx, ny);
+        if (visitedStamp[nIdx] === stamp) continue;
+        visitedStamp[nIdx] = stamp;
+        if (selectedCount < target && !selected[nIdx]) {
+          selected[nIdx] = 1;
+          selectedCount += 1;
+        }
+        queue.push(nIdx);
+      }
+    }
+  }
+
+  // 5. Write the selection back: eligible cells are walkable iff selected.
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isEligible(x, y)) continue;
+      mask[y][x] = selected[toIndex(x, y)] === 1;
+    }
+  }
+  return { ok: true };
+}
+
+// Minimum floorTile budget required to give every declared room at least
+// MIN_VIABLE_ROOM_INTERIOR_TILES walkable tiles (entrance + exit + one
+// connective/standing tile). Below this, no distribution can carve every
+// declared room without leaving one below a playable minimum, so the request
+// must be rejected with a structured error rather than silently under-carved.
+function minimumViableFloorBudget(roomCount) {
+  return Math.max(0, roomCount) * MIN_VIABLE_ROOM_INTERIOR_TILES;
+}
+
 function selectBestExitCell(cells, spawn, { distances = null, minDistance = 0 } = {}) {
   if (!Array.isArray(cells) || cells.length === 0 || !spawn) return null;
   let best = null;
@@ -1578,11 +2165,24 @@ function pickSpawnExitFromRooms(mask, levelGen, trapIndex, rooms) {
   };
 }
 
-function pickSpawn(mask, levelGen, rng, trapIndex) {
+function pickSpawn(mask, levelGen, rng, trapIndex, preferredRoom = null) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
-  const cells = collectWalkable(mask, trapIndex);
+  let cells = collectWalkable(mask, trapIndex);
   const fallbackCells = cells.length ? cells : collectWalkable(mask, null);
+  // When traps are mapped into a specific room, bias the pre-reconciliation
+  // anchor spawn to land inside that same room. reconcileWalkableTiles later
+  // grows a single connected component from this anchor while force-including
+  // preserved trap positions — if the anchor starts outside the trap's room,
+  // the preserved trap cells and the anchor's growing region can end up in
+  // two disjoint components. Rooms are fully carved at this point, so any
+  // in-room anchor is trivially connected to any in-room trap.
+  if (preferredRoom) {
+    const inRoom = cells.filter((cell) => pointInRoom(preferredRoom, cell));
+    if (inRoom.length > 0) {
+      cells = inRoom;
+    }
+  }
   const spawnCandidates = filterEdgeCandidates(cells, width, height, levelGen.spawn.edgeBias);
   return pickCandidate(spawnCandidates, rng) || cells[0] || fallbackCells[0] || { x: 0, y: 0 };
 }
@@ -1781,7 +2381,7 @@ function computeConnectivity(mask, rooms, spawn, exit) {
   };
 }
 
-function buildTiles(mask, spawn, exit) {
+function buildTiles(mask, spawn, exit, trapIndex = null) {
   const tiles = [];
   for (let y = 0; y < mask.length; y += 1) {
     let row = "";
@@ -1790,7 +2390,13 @@ function buildTiles(mask, spawn, exit) {
         row += "S";
       } else if (exit.x === x && exit.y === y) {
         row += "E";
-      } else if (mask[y][x]) {
+      } else if (mask[y][x] || isTrapCell(trapIndex, x, y)) {
+        // A blocking trap occupies floor — it blocks movement (see `kinds`/
+        // KIND_TRAP and layout.traps[].blocking), but the tile itself is not
+        // a wall. applyTrapBlocking() clears the mask cell for blocking traps
+        // so movement code treats it as non-walkable; rendering must not
+        // reintroduce a wall there or trap_on_wall validation trips on a
+        // trap's own tile.
         row += ".";
       } else {
         row += "#";
@@ -1843,7 +2449,13 @@ export function generateGridLayout(levelGen) {
   const seed = Number.isFinite(levelGen.seed) ? levelGen.seed : 0;
   const rng = createRng(seed);
   const { mask, rooms } = generateMask(levelGen, rng);
-  const traps = Array.isArray(levelGen.traps) ? levelGen.traps : [];
+  const rawTraps = Array.isArray(levelGen.traps) ? levelGen.traps : [];
+  // Authored trap x/y are room-relative; map them into the target room's
+  // interior now, before any carving/validation reads trap.x/trap.y. Traps
+  // whose coordinates exceed their room's interior are dropped here and
+  // reported via trapMappingErrors so the caller can reject with a
+  // structured error instead of carving floor outside declared rooms.
+  const { mapped: traps, errors: trapMappingErrors } = mapTrapsToRooms(rawTraps, rooms);
   applyTrapBlocking(mask, traps);
   const blockingTrapIndex = buildBlockingTrapIndex(traps);
   const walkableTilesTarget = resolveWalkableTilesTarget(levelGen);
@@ -1852,10 +2464,14 @@ export function generateGridLayout(levelGen) {
 
   ensureWalkable(mask);
   const trapIndex = buildTrapIndex(traps);
+  // Traps map into rooms[0] (see mapTrapsToRooms); bias the reconciliation
+  // anchor to that same room so the connected-tiles pass below can't strand
+  // preserved trap positions in a component the anchor never reaches.
+  const trapAnchorRoom = traps.length > 0 && rooms.length > 0 ? rooms[0] : null;
 
   let spawn = null;
   if (requiresConnectedWalkable) {
-    spawn = pickSpawn(mask, levelGen, rng, trapIndex);
+    spawn = pickSpawn(mask, levelGen, rng, trapIndex, trapAnchorRoom);
     // When an explicit walkable target is set, connected reconciliation will build
     // a single connected component from spawn. Avoid the expensive pre-pass.
     if (!walkableTilesTarget) {
@@ -1865,18 +2481,63 @@ export function generateGridLayout(levelGen) {
 
   const currentWalkableTiles = countWalkableMask(mask);
 
-  if (walkableTilesTarget && currentWalkableTiles !== walkableTilesTarget) {
+  // I4: multiple declared rooms plus a floorTile budget must distribute the
+  // budget across every room rather than letting a single-anchor carve drain
+  // it inside one room, leaving later rooms declared + billed but 100% wall.
+  // Below MIN_VIABLE_ROOM_INTERIOR_TILES per room (plus the connectivity
+  // backbone joining the rooms), no distribution can keep every room
+  // playable, so report a structured error instead of silently under-carving;
+  // generateGridLayoutFromInput turns this into a rejection.
+  let floorBudgetErrors = [];
+  if (walkableTilesTarget && rooms.length > 1) {
+    const required = minimumViableFloorBudget(rooms.length);
+    if (walkableTilesTarget < required) {
+      floorBudgetErrors = [
+        {
+          field: "floorTile.count",
+          code: "floor_tile_budget_insufficient",
+          detail: {
+            target: walkableTilesTarget,
+            roomCount: rooms.length,
+            minPerRoom: MIN_VIABLE_ROOM_INTERIOR_TILES,
+            required,
+          },
+        },
+      ];
+    }
+  }
+
+  if (floorBudgetErrors.length === 0 && walkableTilesTarget && currentWalkableTiles !== walkableTilesTarget) {
     const nonBlockingTrapPositions = traps
       .filter((t) => !t.blocking)
       .map((t) => ({ x: t.x, y: t.y }));
-    reconcileWalkableTiles({
-      mask,
-      targetWalkableTiles: walkableTilesTarget,
-      blockedIndex: blockingTrapIndex,
-      requireConnected: requiresConnectedWalkable,
-      anchor: spawn,
-      preserve: spawn ? [spawn, ...nonBlockingTrapPositions] : nonBlockingTrapPositions,
-    });
+    if (requiresConnectedWalkable && rooms.length > 1) {
+      // Multi-room + explicit floor budget: distribute the budget across
+      // every declared room (backbone + even split, see
+      // distributeWalkableTilesAcrossRooms) instead of growing a single
+      // connected component from spawn, which drained the whole budget
+      // inside the spawn's room.
+      const distribution = distributeWalkableTilesAcrossRooms({
+        mask,
+        targetWalkableTiles: walkableTilesTarget,
+        rooms,
+        blockedIndex: blockingTrapIndex,
+        trapIndex,
+        preserve: nonBlockingTrapPositions,
+      });
+      if (!distribution.ok) {
+        floorBudgetErrors = [distribution.error];
+      }
+    } else {
+      reconcileWalkableTiles({
+        mask,
+        targetWalkableTiles: walkableTilesTarget,
+        blockedIndex: blockingTrapIndex,
+        requireConnected: requiresConnectedWalkable,
+        anchor: spawn,
+        preserve: spawn ? [spawn, ...nonBlockingTrapPositions] : nonBlockingTrapPositions,
+      });
+    }
   }
   // When walkableTilesTarget is set, reconcileConnectedWalkableTiles already
   // built a connected component from spawn — a second connectivity pass would
@@ -1906,7 +2567,7 @@ export function generateGridLayout(levelGen) {
   const layout = {
     width: levelGen.width,
     height: levelGen.height,
-    tiles: buildTiles(mask, spawn, exit),
+    tiles: buildTiles(mask, spawn, exit, trapIndex),
     kinds: buildKinds(mask, trapIndex),
     legend: buildLegend(),
     render: { ...DEFAULT_RENDER },
@@ -1932,16 +2593,42 @@ export function generateGridLayout(levelGen) {
   if (traps.length > 0) {
     layout.traps = traps.map((trap) => ({ ...trap }));
   }
+  if (trapMappingErrors.length > 0) {
+    // Non-enumerable so JSON.stringify(layout) / normal consumers stay
+    // unaffected; generateGridLayoutFromInput reads this to reject the
+    // request instead of returning a layout with traps outside every room.
+    Object.defineProperty(layout, "_trapMappingErrors", {
+      value: trapMappingErrors,
+      enumerable: false,
+    });
+  }
+  if (floorBudgetErrors.length > 0) {
+    // Same pattern as _trapMappingErrors: non-enumerable so normal consumers
+    // are unaffected; generateGridLayoutFromInput reads this to reject
+    // requests whose floorTile budget can't cover every declared room's
+    // minimum viable interior (I4).
+    Object.defineProperty(layout, "_floorBudgetErrors", {
+      value: floorBudgetErrors,
+      enumerable: false,
+    });
+  }
   return layout;
 }
 
 function countLayoutWalkableTiles(layout) {
   if (!Array.isArray(layout?.tiles)) return 0;
+  // Blocking traps render as floor glyphs (buildTiles) but their mask cell is
+  // cleared by applyTrapBlocking — they are not movement-walkable and must not
+  // count toward the walkableTilesTarget floor budget.
+  const blockedTrapCells = new Set();
+  for (const trap of Array.isArray(layout.traps) ? layout.traps : []) {
+    if (trap?.blocking) blockedTrapCells.add(`${trap.x},${trap.y}`);
+  }
   let count = 0;
   for (let y = 0; y < layout.tiles.length; y += 1) {
     const row = String(layout.tiles[y] || "");
     for (let x = 0; x < row.length; x += 1) {
-      if (row[x] !== "#") count += 1;
+      if (row[x] !== "#" && !blockedTrapCells.has(`${x},${y}`)) count += 1;
     }
   }
   return count;
@@ -1953,6 +2640,14 @@ export function generateGridLayoutFromInput(input) {
     return normalized;
   }
   const layout = generateGridLayout(normalized.value);
+
+  if (Array.isArray(layout._trapMappingErrors) && layout._trapMappingErrors.length > 0) {
+    return { ok: false, errors: layout._trapMappingErrors, warnings: normalized.warnings, value: null };
+  }
+
+  if (Array.isArray(layout._floorBudgetErrors) && layout._floorBudgetErrors.length > 0) {
+    return { ok: false, errors: layout._floorBudgetErrors, warnings: normalized.warnings, value: null };
+  }
 
   if (Array.isArray(layout.traps) && layout.traps.length > 0 && Array.isArray(layout.tiles)) {
     const wallTrapErrors = [];
@@ -1968,6 +2663,34 @@ export function generateGridLayoutFromInput(input) {
     });
     if (wallTrapErrors.length > 0) {
       return { ok: false, errors: wallTrapErrors, warnings: normalized.warnings, value: null };
+    }
+  }
+
+  // Universal placement invariant (hard rule): every positioned element must
+  // sit on a walkable tile — nothing may exist inside a wall. Traps are
+  // covered above with their dedicated code; hazards and resources are
+  // generator-placed and hold this by construction, so this check is a
+  // defense-in-depth guard against placement regressions.
+  if (Array.isArray(layout.tiles)) {
+    const wallElementErrors = [];
+    for (const kind of ["hazards", "resources"]) {
+      const elements = Array.isArray(layout[kind]) ? layout[kind] : [];
+      elements.forEach((element, idx) => {
+        const x = element?.position?.x ?? element?.x;
+        const y = element?.position?.y ?? element?.y;
+        if (!Number.isInteger(x) || !Number.isInteger(y)) return;
+        const row = layout.tiles[y];
+        if (typeof row === "string" && row[x] === "#") {
+          wallElementErrors.push({
+            field: `${kind}[${idx}].position`,
+            code: "element_on_wall",
+            detail: { x, y, id: element.id },
+          });
+        }
+      });
+    }
+    if (wallElementErrors.length > 0) {
+      return { ok: false, errors: wallElementErrors, warnings: normalized.warnings, value: null };
     }
   }
 

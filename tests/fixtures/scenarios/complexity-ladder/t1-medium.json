@@ -1,11 +1,11 @@
 {
   "id": "t1-medium",
   "tier": "medium",
-  "description": "Breadth start: two medium rooms, a trap, mixed-motivation delvers/wardens, one hazard, multi-affinity loadout.",
+  "description": "Breadth start: two medium rooms, a trap, mixed-motivation delvers/wardens, one hazard, multi-affinity loadout. Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); (7,8) exceeded a medium room's interior, replaced with in-room offset (3,4).",
   "budgetTokens": 1200,
   "createArgs": [
     "--room", "size=medium;count=2",
-    "--trap", "x=7;y=8;affinity=fire;expression=emit;stacks=2",
+    "--trap", "x=3;y=4;affinity=fire;expression=emit;stacks=2",
     "--delver", "count=2;affinity=water;motivation=exploring;affinities=water:pull:1",
     "--warden", "count=2;affinity=dark;motivation=defending",
     "--hazard", "affinity=light;expression=emit;proximityRadius=2;mana=regen:3:3:1",

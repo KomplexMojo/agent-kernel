@@ -176,12 +176,19 @@ function normalizePoolWeights(poolWeights) {
     errors.push({ field: "poolWeights", code: "invalid_pool_weight_total" });
   }
 
-  const positivePools = normalized.filter((pool) => pool.weight > 0);
-  const resourceOnlyExplicit = callerProvidedExplicit
-    && positivePools.length === 1
-    && positivePools[0].id === "resources";
+  // Resources are not gated by hazard/warden presence (rooms carry no affinity of
+  // their own — see this file's DEFAULT_DUNGEON_SUB_POOLS note). When the caller
+  // explicitly selected pools and simply didn't request any hazards or wardens,
+  // both land at weight 0; the resources-vs-(hazards+wardens) cap below must not
+  // punish that by zeroing out an explicitly funded resources pool. This also
+  // covers the resources-only case (hazards and wardens are 0 there too).
+  const byId = new Map(normalized.map((pool) => [pool.id, pool]));
+  const resourcesExplicitUncapped = callerProvidedExplicit
+    && (byId.get("resources")?.weight || 0) > 0
+    && (byId.get("hazards")?.weight || 0) === 0
+    && (byId.get("wardens")?.weight || 0) === 0;
 
-  return { pools: normalized, errors, resourceOnlyExplicit };
+  return { pools: normalized, errors, resourcesExplicitUncapped };
 }
 
 export function computeBudgetPools({ budgetTokens, policy = {}, dungeonPct, delverPct, poolWeights } = {}) {
@@ -195,8 +202,12 @@ export function computeBudgetPools({ budgetTokens, policy = {}, dungeonPct, delv
 
   let pools = allocatePools({ tokens: availableTokens, pools: normalized.pools });
 
-  // Apply resource cap: resources must not exceed hazards + wardens (excess → rooms)
-  if (!normalized.resourceOnlyExplicit) {
+  // Apply resource cap: resources must not exceed hazards + wardens (excess → rooms).
+  // Skipped when the caller explicitly selected pools and simply didn't request any
+  // hazards/wardens — that's an unrequested category, not a deliberate zero allocation,
+  // and must not gate an explicitly funded resources pool (resources have no hazard
+  // dependency; rooms carry no affinity of their own).
+  if (!normalized.resourcesExplicitUncapped) {
     pools = applyResourceCap(pools);
   }
 

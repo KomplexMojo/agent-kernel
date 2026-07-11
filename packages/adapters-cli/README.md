@@ -199,6 +199,15 @@ Inputs/outputs:
   the command fails validation.
 - `--floor-tile` format: `count=<n>[;id=<id>]`
 - `--trap` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
+  Trap `x`/`y` are room-relative offsets into the first declared room's interior.
+  Level generation maps them to absolute grid coordinates; persisted
+  `sim-config.json` traps carry the mapped absolute coordinates. Coordinates
+  outside the room interior are rejected with a structured `trap_outside_room`
+  error. `blocking=true` traps are valid on floor tiles and do not count toward
+  the `--floor-tile` walkable target.
+- In multi-room requests, the `--floor-tile` budget is distributed across all
+  declared rooms. Budgets below the minimum viable interior per room are
+  rejected instead of leaving declared rooms uncarved.
 - `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
 - `--resource` format: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>]`, or legacy `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`

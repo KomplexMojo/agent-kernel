@@ -154,9 +154,11 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   assert.equal(spec.configurator.inputs.levelGen.traps[0].id, "trap_fire");
 
   assert.ok(Array.isArray(simConfig.layout.data.traps));
+  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  // Authored (2,2) maps into room R1 at (1,1): absolute = (1+2, 1+2) = (3,3).
   assert.ok(simConfig.layout.data.traps.some((entry) => (
-    entry.x === 2
-    && entry.y === 2
+    entry.x === 3
+    && entry.y === 3
     && entry.affinity?.kind === "fire"
     && entry.affinity?.expression === "push"
     && entry.affinity?.stacks === 2

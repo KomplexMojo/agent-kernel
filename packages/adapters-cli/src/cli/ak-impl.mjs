@@ -4035,8 +4035,12 @@ function resolveRoomSizeProfile(rooms) {
 function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps, rooms }) {
   const blockingTrapCount = traps.reduce((sum, trap) => sum + (trap.blocking === true ? 1 : 0), 0);
   const walkableTarget = Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0 ? walkableTilesTarget : 0;
-  const trapWidth = traps.reduce((max, trap) => Math.max(max, trap.x + 3), 5);
-  const trapHeight = traps.reduce((max, trap) => Math.max(max, trap.y + 3), 5);
+  // Authored trap x/y are room-relative (mapped into a room's interior by
+  // level-layout.js's mapTrapsToRooms), not absolute grid coordinates, so
+  // they must not drive grid sizing here — doing so previously let e.g.
+  // trap x=99;y=99 silently inflate the grid to 102x102 to contain a raw
+  // coordinate. Out-of-bounds room-relative traps are now rejected with a
+  // structured error by the layout layer instead.
   const requestedWalkable = walkableTarget + blockingTrapCount;
   const walkableSide = requestedWalkable > 0
     ? Math.max(5, Math.ceil(Math.sqrt(Math.ceil(requestedWalkable / 0.5))) + 2)
@@ -4078,14 +4082,12 @@ function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps,
   const width = Math.max(
     Number.isInteger(levelGen?.width) ? levelGen.width : 0,
     walkableSide,
-    trapWidth,
     profileGridSide,
     roomCapacitySide,
   );
   const height = Math.max(
     Number.isInteger(levelGen?.height) ? levelGen.height : 0,
     walkableSide,
-    trapHeight,
     profileGridSide,
     roomCapacitySide,
   );
@@ -5295,17 +5297,13 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .filter(Boolean)
     .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
 
-  // Reject small rooms when traps or hazards are present — they compress entrance, exit,
-  // and item tiles into too few walkable cells. Medium (roomMinSize=5) is the minimum.
-  if (parsedTraps.length > 0 || parsedHazards.length > 0) {
-    parsedRooms.forEach((entry, i) => {
-      if (!entry.sizeFlexible && entry.value?.size === "small") {
-        throw new Error(
-          `room[${i + 1}] size=small is too small to fit entrance, exit, and ${parsedTraps.length + parsedHazards.length} hazard(s) without compression. Use size=medium or size=large.`,
-        );
-      }
-    });
-  }
+  // No size=small precheck for traps or hazards: size=small generates the identical
+  // grid/room geometry size=medium does (ensureAuthoringLevelGenCapacity bumps
+  // roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when traps are present), so rejecting
+  // small rooms contradicts the geometry the generator actually produces. Trap
+  // placement is validated against the real generated room: room-relative
+  // coordinates that exceed the room's interior are rejected with a structured
+  // trap_outside_room error by the level-gen layer (level-layout.js).
 
   if (
     parsedRooms.length === 0

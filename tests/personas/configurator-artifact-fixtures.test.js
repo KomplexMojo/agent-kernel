@@ -17,7 +17,9 @@ test("configurator artifact fixtures include traps and affinity traits", () => {
     expression: "push",
     stacks: 2,
   });
-  assert.equal(simConfig.layout.data.kinds[2][2], 2);
+  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  // The regenerated fixture maps the authored trap (2,2) into room R1 at (1,1) -> absolute (3,3).
+  assert.equal(simConfig.layout.data.kinds[3][3], 2);
 
   assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
   assert.equal(initialState.schemaVersion, 1);
