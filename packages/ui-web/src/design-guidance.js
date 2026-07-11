@@ -817,7 +817,18 @@ export function wireDesignGuidance({
     return { ok: true, skippedMint: true };
   }
 
-  function pullCardToEditor(cardId) {
+  // `keepShelved`: non-destructive-when-orphaning variant used by
+  // programmatic/auto-focus callers (card-builder-controller.js, on behalf of
+  // main.js's post-bundle-load auto-focus — see U2/M9 pinned defect). When
+  // set, and there's no active card to auto-stash back in the pulled card's
+  // place, a freshly-id'd shelf copy is pushed so the card stays visible and
+  // itemized (allocation ledger, spend totals) on the shelf while it's also
+  // open in the editor. Default (false) preserves the exact original
+  // behavior relied on by genuine user-driven pulls (shelf click, drag-drop)
+  // in design-view.js and the Phaser card builder's own click/drop handlers,
+  // where removing the card from the shelf while it's being edited is the
+  // intended UX.
+  function pullCardToEditor(cardId, { keepShelved = false } = {}) {
     const index = state.cards.findIndex((card) => card.id === cardId);
     if (index < 0) return false;
     const active = createDesignCard(state.activeCard || {});
@@ -839,6 +850,12 @@ export function wireDesignGuidance({
     const [card] = state.cards.splice(index, 1);
     if (willAutoStash) {
       state.cards.push(createDesignCard({ ...active, flipped: false }));
+    } else if (keepShelved) {
+      // Mint a fresh id for the shelf copy (rather than reusing card.id) so
+      // normalizeCardIdentifiers doesn't treat it as a collision with the
+      // editor's copy and reassign the *editor* card a new id out from under
+      // the caller — callers expect getActiveCard().id to remain cardId.
+      state.cards.push(createDesignCard({ ...card, id: "", flipped: false }));
     }
     state.activeCard = createDesignCard({ ...card, flipped: false });
     recompute();

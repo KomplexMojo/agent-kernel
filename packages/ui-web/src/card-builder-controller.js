@@ -96,7 +96,14 @@ export function createCardBuilderController({ llmConfig = {} } = {}) {
     adjustRoomShape: (cardId) => guidance.cycleRoomShape(cardId),
     setRoomShape: (cardId, shape) => guidance.setRoomShape(cardId, shape),
     stashActiveCard: guidance.stashActiveCard,
-    pullCardToEditor: guidance.pullCardToEditor,
+    // U2/M9 fix: focusing a shelved card into the editor from this surface
+    // (used by main.js's post-bundle-load auto-focus and by the Phaser
+    // renderer's shelf-click/drag interactions) must not silently drop the
+    // card from the shelf's inventory/budget itemization. Pass keepShelved so
+    // design-guidance keeps a shelf copy when there's no active card to swap
+    // back in its place. design-view.js's legacy DOM surface calls
+    // guidance.pullCardToEditor directly and is unaffected by this default.
+    pullCardToEditor: (cardId) => guidance.pullCardToEditor(cardId, { keepShelved: true }),
     setCards: guidance.setCards,
     loadState: guidance.loadState,
     loadBuildSpec,

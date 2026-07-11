@@ -165,11 +165,15 @@ test("trap vital with wrong part count (only two parts) is rejected at parse tim
 });
 
 // ---------------------------------------------------------------------------
-// Size-constraint rejections — caught at the authoring stage (already gated)
+// Size behavior — small generates medium-identical geometry, so traps are accepted
 // ---------------------------------------------------------------------------
 
-test("trap on a small room is rejected with a clear size error", () => {
-  // create --dry-run always exits 0 but returns valid:false + errors when validation fails.
+test("trap on a small room succeeds and maps into the room interior exactly like medium", () => {
+  // Updated 2026-07-10: the size=small trap precheck was removed (M3, alongside the room-relative
+  // coordinate adjudication) — size=small generates the identical grid/room geometry size=medium
+  // does when traps are present (roomMinSize is bumped to fit them), so the old blanket rejection
+  // contradicted the generated geometry. Formerly this test pinned that rejection.
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-trap-placement-small-"));
   const result = runCli([
     "create",
     "--room", "size=small;count=1",
@@ -178,15 +182,17 @@ test("trap on a small room is rejected with a clear size error", () => {
     "--budget-tokens", "1000",
     "--budget", BUDGET,
     "--price-list", PRICE_LIST,
-    "--dry-run",
+    "--out-dir", outDir,
   ]);
-  assert.equal(result.status, 0);
-  const dryRun = JSON.parse((result.stdout || "").trim());
-  assert.equal(dryRun.valid, false, "dry-run should report invalid");
-  assert.ok(
-    dryRun.errors.some((e) => /size=small is too small/i.test(e)),
-    `expected small-room error in dry-run errors: ${JSON.stringify(dryRun.errors)}`,
-  );
+  assert.equal(result.status, 0, `small room + trap must succeed like medium: ${result.stderr}`);
+  const layout = readJson(join(outDir, "sim-config.json")).layout?.data ?? {};
+  const fireTrap = (layout.traps ?? []).find((t) => t.affinity?.kind === "fire");
+  const room = (layout.rooms ?? [])[0];
+  assert.ok(fireTrap, "fire trap should be present in sim-config");
+  assert.ok(room, "layout should declare a room");
+  assert.equal(fireTrap.x, room.x + 2, "trap x should be room.x + authored relative x");
+  assert.equal(fireTrap.y, room.y + 2, "trap y should be room.y + authored relative y");
+  assert.notEqual(layout.tiles?.[fireTrap.y]?.[fireTrap.x], "#", "mapped trap tile must be floor, not wall");
 });
 
 // ---------------------------------------------------------------------------
@@ -244,9 +250,10 @@ test("trap vitals accept both max:regen and current:max:regen formats", () => {
 // Placement behavior — document what the CLI currently does so gaps are visible
 // ---------------------------------------------------------------------------
 
-test("trap coordinates are preserved as-is in sim-config (floor-tile trap ends on expected cell)", () => {
-  // A trap at (2,2) in a medium-or-larger room where (2,2) is a floor tile.
-  // Verifies the coordinate round-trip: parsed x/y appear unchanged in sim-config.
+test("authored room-relative trap coordinates are mapped to absolute room-interior coordinates in sim-config", () => {
+  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  // A trap authored at (2,2) is an offset into the target room's interior (traps map into the
+  // first declared room): stored absolute x/y must equal room.x + 2, room.y + 2 and land on floor.
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-trap-placement-roundtrip-"));
   const result = runCli([
     "create",
@@ -262,11 +269,16 @@ test("trap coordinates are preserved as-is in sim-config (floor-tile trap ends o
     throw new Error(`Expected success, got: ${result.stderr}`);
   }
   const simConfig = readJson(join(outDir, "sim-config.json"));
-  const traps = simConfig.layout?.data?.traps ?? [];
+  const layout = simConfig.layout?.data ?? {};
+  const traps = layout.traps ?? [];
+  const rooms = layout.rooms ?? [];
   const fireTrap = traps.find((t) => t.affinity?.kind === "fire");
   assert.ok(fireTrap, "fire trap should be present in sim-config");
-  assert.equal(fireTrap.x, 2, "trap x should match the requested coordinate");
-  assert.equal(fireTrap.y, 2, "trap y should match the requested coordinate");
+  assert.ok(rooms.length >= 1, "layout should declare at least one room");
+  const room = rooms[0];
+  assert.equal(fireTrap.x, room.x + 2, "trap x should be room.x + authored relative x");
+  assert.equal(fireTrap.y, room.y + 2, "trap y should be room.y + authored relative y");
+  assert.notEqual(layout.tiles?.[fireTrap.y]?.[fireTrap.x], "#", "mapped trap tile must be floor, not wall");
 });
 
 test("two traps at the same coordinate are rejected with a duplicate position error", () => {
@@ -290,7 +302,11 @@ test("two traps at the same coordinate are rejected with a duplicate position er
   );
 });
 
-test("trap placed at grid-origin (x=0,y=0) is rejected because (0,0) is always a wall tile", () => {
+test("trap authored at room-relative (0,0) maps onto the room's top-left interior floor tile", () => {
+  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  // (0,0) used to be the grid border and was rejected trap_on_wall; it is now a valid room-relative
+  // offset mapping to (room.x, room.y), which is carved floor inside the room.
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-trap-placement-origin-"));
   const result = runCli([
     "create",
     "--room", "size=medium;count=1",
@@ -299,13 +315,38 @@ test("trap placed at grid-origin (x=0,y=0) is rejected because (0,0) is always a
     "--budget-tokens", "1000",
     "--budget", BUDGET,
     "--price-list", PRICE_LIST,
-    "--out-dir", mkdtempSync(join(os.tmpdir(), "ak-trap-placement-wall-")),
+    "--out-dir", outDir,
   ]);
-  assert.notEqual(result.status, 0, "trap on wall tile (0,0) must be rejected");
+  assert.equal(result.status, 0, `trap at room-relative (0,0) must be accepted: ${result.stderr}`);
+  const layout = readJson(join(outDir, "sim-config.json")).layout?.data ?? {};
+  const fireTrap = (layout.traps ?? []).find((t) => t.affinity?.kind === "fire");
+  const room = (layout.rooms ?? [])[0];
+  assert.ok(fireTrap, "fire trap should be present in sim-config");
+  assert.ok(room, "layout should declare a room");
+  assert.equal(fireTrap.x, room.x, "relative (0,0) maps to the room's top-left x");
+  assert.equal(fireTrap.y, room.y, "relative (0,0) maps to the room's top-left y");
+  assert.notEqual(layout.tiles?.[fireTrap.y]?.[fireTrap.x], "#", "mapped trap tile must be floor, not wall");
+});
+
+test("trap with room-relative coords exceeding the room interior is rejected with trap_outside_room", () => {
+  // Updated 2026-07-10 (M3): replacement rejection case for the removed grid-border rejection above.
+  // A medium room's interior is 5x5, so relative (8,8) exceeds it (while staying inside the 9x9 grid,
+  // which keeps this a room-bounds rejection rather than a grid out_of_bounds one).
+  const result = runCli([
+    "create",
+    "--room", "size=medium;count=1",
+    "--trap", "x=8;y=8;affinity=fire;expression=emit;stacks=1",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--budget", BUDGET,
+    "--price-list", PRICE_LIST,
+    "--out-dir", mkdtempSync(join(os.tmpdir(), "ak-trap-placement-oob-")),
+  ]);
+  assert.notEqual(result.status, 0, "trap coords beyond the room interior must be rejected");
   const output = JSON.parse((result.stdout || result.stderr || "").trim().split("\n").pop());
   assert.ok(
-    /trap_on_wall|out_of_bounds/i.test(JSON.stringify(output)),
-    `expected trap_on_wall or out_of_bounds error: ${JSON.stringify(output)}`,
+    /trap_outside_room/i.test(JSON.stringify(output)),
+    `expected trap_outside_room error: ${JSON.stringify(output)}`,
   );
 });
 

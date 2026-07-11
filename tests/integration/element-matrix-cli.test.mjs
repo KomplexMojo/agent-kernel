@@ -224,13 +224,18 @@ describe("negative cases fail deterministically", () => {
     expect(run.json.errors?.length || run.json.error).toBeTruthy();
   });
 
-  test("small room too small for entrance+exit+hazard is rejected", () => {
+  test("trap coordinates beyond the small room's interior are rejected", () => {
+    // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3) and the size=small trap
+    // precheck removed — small generates medium-identical geometry, so small+in-room-trap now
+    // succeeds. Formerly this test pinned the blanket small-room rejection; the deterministic
+    // negative case is now a room-relative offset exceeding the room's 5x5 interior.
     const run = runCreate([
       "--room", "size=small;count=1",
-      "--trap", "x=3;y=3;affinity=dark;expression=emit;stacks=1",
+      "--trap", "x=8;y=8;affinity=dark;expression=emit;stacks=1",
       "--budget-tokens", "300",
     ]);
     expect(run.json.ok).toBe(false);
+    expect(String(run.json.error)).toContain("trap_outside_room");
   });
 });
 

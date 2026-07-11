@@ -9,6 +9,8 @@ import { resolve, join } from "node:path";
 
 import { ROOT, runAk, makeOutDir, readJsonIfExists } from "../helpers/ak-cli.mjs";
 
+// Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+// The t1-medium fixture's trap spec was corrected to an in-room offset (same trap count/affinity).
 const LADDER_DIR = resolve(ROOT, "tests/fixtures/scenarios/complexity-ladder");
 
 function loadTiers() {

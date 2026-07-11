@@ -52,7 +52,21 @@ test("cli run writes affinity summary", (t) => {
   assert.equal(summary.schema, "agent-kernel/AffinitySummary");
   assert.equal(summary.schemaVersion, 1);
   assert.deepEqual(summary.actors, expected.actors);
-  assert.deepEqual(summary.traps, expected.traps);
+
+  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  // The regenerated sim-config fixture stores the MAPPED absolute trap position (room R1 at (1,1) +
+  // authored (2,2) = (3,3)); `run` reports that stored position as-is. The shared affinity fixture's
+  // literal (2,2) stays untouched for its direct-resolution consumers, so translate here.
+  const simTrap = JSON.parse(readFileSync(SIM_CONFIG, "utf8")).layout.data.traps[0];
+  const expectedTraps = expected.traps.map((trap) => ({
+    ...trap,
+    position: { x: simTrap.x, y: simTrap.y },
+    resolvedEffects: trap.resolvedEffects.map((effect) => ({
+      ...effect,
+      sourceId: `${simTrap.x},${simTrap.y}`,
+    })),
+  }));
+  assert.deepEqual(summary.traps, expectedTraps);
 });
 
 test("cli run rejects affinity summary without presets or loadouts", (t) => {

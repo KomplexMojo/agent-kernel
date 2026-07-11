@@ -702,6 +702,9 @@ test("browser host inspect artifacts are equivalent to Node CLI output", async (
 // "same input -> same output" guarantee for complex, high-token-cost levels.
 // ---------------------------------------------------------------------------
 const { readdirSync: ladderReaddir, rmSync: ladderRmSync } = require("node:fs");
+// Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+// The shared t1-medium fixture's trap spec was corrected to an in-room offset (same trap count/affinity),
+// keeping this parity suite aligned with complexity-ladder.test.mjs.
 const LADDER_DIR = resolve(ROOT, "tests/fixtures/scenarios/complexity-ladder");
 const LADDER_TIERS = ladderReaddir(LADDER_DIR)
   .filter((f) => f.endsWith(".json"))

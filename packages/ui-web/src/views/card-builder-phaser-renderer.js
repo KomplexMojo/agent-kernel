@@ -1404,16 +1404,32 @@ export function createCardBuilderPhaserRenderer({
   // ---------------------------------------------------------------------------
 
   // "design" mode hosts the full card builder at a stable, wide 1440×860
-  // resolution (FIT). "shelf" mode hosts only the narrow inventory rail used
-  // alongside the gameplay board — FIT would preserve the wide design aspect
-  // and letterbox down to a sliver of the tall, narrow rail container.
-  // Mutating a live ScaleManager's mode proved unreliable: autoCenter's
-  // margin math, displaySize's aspectMode lock, and parentSize's caching
-  // each independently keep reapplying stale state from whichever mode was
-  // active before the switch, fighting an in-place RESIZE/FIT toggle no
-  // matter how many of those pieces get reset alongside scaleMode. A freshly
-  // constructed Phaser.Game has none of that leftover state, so the mode is
-  // applied by destroying and recreating the Game instead.
+  // resolution (FIT/CENTER_BOTH). "shelf" mode hosts only the narrow
+  // inventory rail used alongside the gameplay board (RESIZE/NO_CENTER) —
+  // FIT would preserve the wide design aspect and letterbox down to a
+  // sliver of the tall, narrow rail container.
+  //
+  // M12 (U3 churn fix): the mode switch is applied to the live game by
+  // reconfiguring its Scale Manager in place instead of destroying and
+  // recreating the whole Phaser.Game (which cost a full WebGL/texture/scene
+  // teardown + reboot on every design<->gameplay tab switch). Phaser 4.1.0
+  // has no public setScaleMode(), but each piece of leftover state that made
+  // a naive in-place flip look unreliable is directly settable:
+  //   - displaySize aspect lock: ScaleManager.boot() calls
+  //     displaySize.setAspectMode(scaleMode) for FIT but leaves it NONE for
+  //     RESIZE — flip it explicitly via setAspectMode().
+  //   - autoCenter margins: updateCenter() early-returns on NO_CENTER
+  //     without clearing FIT's marginLeft/marginTop — zero them explicitly.
+  //   - canvas CSS size: FIT's updateScale() branch sets style.width/height;
+  //     RESIZE's branch never touches style — clear them explicitly.
+  //   - parentSize caching: re-read via getParentBounds() after the tab
+  //     switch's CSS grid layout settles (waitForStableSize / rAF), and
+  //     ScaleManager.step() keeps polling parent bounds afterwards.
+  // Nothing in the real design<->shelf flip changes the renderer type or the
+  // canvas element, so no aspect of the switch requires a rebuild.
+  // recreateGame() is retained ONLY as a fallback for scale managers that
+  // lack this Phaser 4 API surface (e.g. injected test stubs) — see
+  // canReconfigureScaleInPlace().
   let gameMode = null;
 
   // Polls clientWidth/clientHeight across animation frames until two
@@ -1486,6 +1502,8 @@ export function createCardBuilderPhaserRenderer({
     });
   }
 
+  // FALLBACK ONLY (see applyRenderMode): full destroy + rebuild. In-place
+  // scale reconfiguration is the normal mode-switch path since M12.
   async function recreateGame(mode) {
     const applyRecreate = async (width, height) => {
       if (game?.destroy) game.destroy(true);
@@ -1506,6 +1524,107 @@ export function createCardBuilderPhaserRenderer({
       await new Promise((resolve) => requestAnimationFrame(resolve));
       await applyRecreate(DESIGN_WIDTH, DESIGN_HEIGHT);
     }
+  }
+
+  // The in-place path needs the real Phaser 4 ScaleManager surface. Injected
+  // test doubles (and any hypothetical scale manager without these methods)
+  // fall back to recreateGame. In a real browser this check always passes —
+  // the design<->shelf switch never changes renderer type or canvas, so
+  // there is no production aspect that genuinely requires a rebuild.
+  function canReconfigureScaleInPlace() {
+    const sc = game?.scale;
+    const Scale = phaserRef?.Scale;
+    return Boolean(
+      sc &&
+      typeof sc.refresh === "function" &&
+      typeof sc.getParentBounds === "function" &&
+      typeof sc.setGameSize === "function" &&
+      typeof sc.displaySize?.setAspectMode === "function" &&
+      sc.canvas?.style &&
+      Scale &&
+      Number.isFinite(Scale.FIT) &&
+      Number.isFinite(Scale.RESIZE),
+    );
+  }
+
+  // Flip the live game's Scale Manager between the two mode profiles,
+  // clearing the per-mode state that would otherwise leak across the switch
+  // (see the M12 comment above gameMode).
+  function reconfigureScaleInPlace(mode) {
+    const sc = game.scale;
+    const Scale = phaserRef.Scale;
+    const style = sc.canvas.style;
+    if (mode === "shelf") {
+      sc.scaleMode = Scale.RESIZE;
+      sc.autoCenter = Scale.NO_CENTER;
+      // RESIZE boots with an unlocked (NONE) display size — undo FIT's
+      // aspect lock so the canvas can track the narrow rail freely.
+      sc.displaySize.setAspectMode(Scale.NONE ?? 0);
+      // updateCenter() will no longer run (NO_CENTER) — drop FIT's centering
+      // margins; RESIZE's updateScale never writes style.width/height, so
+      // FIT's CSS size must be cleared or it keeps stretching the canvas.
+      style.marginLeft = "0px";
+      style.marginTop = "0px";
+      style.width = "";
+      style.height = "";
+      sc.getParentBounds();
+      // updateScale()'s RESIZE branch derives gameSize/baseSize/displaySize
+      // and the canvas attributes from the fresh parent bounds.
+      sc.refresh();
+    } else {
+      sc.scaleMode = Scale.FIT;
+      sc.autoCenter = Scale.CENTER_BOTH;
+      // Re-apply the aspect lock FIT normally gets at boot.
+      sc.displaySize.setAspectMode(Scale.FIT);
+      sc.getParentBounds();
+      // Restores the fixed design resolution (gameSize/baseSize/canvas
+      // attributes) and FIT aspect ratio, then refreshes: updateScale()'s
+      // FIT branch recomputes style.width/height and updateCenter()
+      // recomputes the centering margins.
+      sc.setGameSize(DESIGN_WIDTH, DESIGN_HEIGHT);
+    }
+    gameMode = mode;
+  }
+
+  async function applyRenderMode(mode) {
+    // Serialize behind whatever boot/mode-switch is already in flight; a
+    // newer setRenderMode call supersedes this one (renderMode moved on).
+    const prior = sceneReady;
+    if (prior) {
+      try { await prior; } catch { /* prior boot failure — proceed */ }
+    }
+    if (mode !== renderMode) return;
+    if (!game || gameMode === mode) return;
+    if (!canReconfigureScaleInPlace()) {
+      await recreateGame(mode);
+      return;
+    }
+    // Let the tab switch's CSS grid layout settle before reading parent
+    // bounds (same timing recreateGame used).
+    if (mode === "shelf") {
+      await new Promise((resolve) => { waitForStableSize(stageEl, () => resolve()); });
+    } else {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    if (mode !== renderMode) return;
+    reconfigureScaleInPlace(mode);
+    void render();
+    // autoCenter margins depend on the canvas's own settled layout — keep
+    // refreshing + rendering until its on-screen position stops moving,
+    // mirroring the post-boot settle loop in createGame.
+    const sc = game.scale;
+    const settleUntilStable = (prevTop, attempt = 0) => {
+      requestAnimationFrame(() => {
+        if (mode !== renderMode) return;
+        sc?.refresh?.();
+        void render();
+        const top = sc?.canvas?.getBoundingClientRect?.().top ?? 0;
+        if (top !== prevTop && attempt < 15) {
+          settleUntilStable(top, attempt + 1);
+        }
+      });
+    };
+    settleUntilStable(NaN);
   }
 
   function mount(host) {
@@ -1669,7 +1788,8 @@ export function createCardBuilderPhaserRenderer({
     setRenderMode: (mode) => {
       renderMode = mode;
       if (gameMode !== null && mode !== gameMode) {
-        sceneReady = recreateGame(mode);
+        // In-place scale reconfiguration (M12) — no game teardown/reboot.
+        sceneReady = applyRenderMode(mode);
       }
       void render();
     },
