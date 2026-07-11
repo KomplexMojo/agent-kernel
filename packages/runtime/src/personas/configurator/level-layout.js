@@ -2666,6 +2666,34 @@ export function generateGridLayoutFromInput(input) {
     }
   }
 
+  // Universal placement invariant (hard rule): every positioned element must
+  // sit on a walkable tile — nothing may exist inside a wall. Traps are
+  // covered above with their dedicated code; hazards and resources are
+  // generator-placed and hold this by construction, so this check is a
+  // defense-in-depth guard against placement regressions.
+  if (Array.isArray(layout.tiles)) {
+    const wallElementErrors = [];
+    for (const kind of ["hazards", "resources"]) {
+      const elements = Array.isArray(layout[kind]) ? layout[kind] : [];
+      elements.forEach((element, idx) => {
+        const x = element?.position?.x ?? element?.x;
+        const y = element?.position?.y ?? element?.y;
+        if (!Number.isInteger(x) || !Number.isInteger(y)) return;
+        const row = layout.tiles[y];
+        if (typeof row === "string" && row[x] === "#") {
+          wallElementErrors.push({
+            field: `${kind}[${idx}].position`,
+            code: "element_on_wall",
+            detail: { x, y, id: element.id },
+          });
+        }
+      });
+    }
+    if (wallElementErrors.length > 0) {
+      return { ok: false, errors: wallElementErrors, warnings: normalized.warnings, value: null };
+    }
+  }
+
   const walkableTilesTarget = resolveWalkableTilesTarget(normalized.value);
   if (walkableTilesTarget !== null) {
     const walkableTiles = countLayoutWalkableTiles(layout);
