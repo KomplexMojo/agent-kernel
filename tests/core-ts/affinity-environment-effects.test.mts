@@ -17,8 +17,8 @@ function setAllFloors(core: ReturnType<typeof createCore>, w: number, h: number)
   }
 }
 
-describe("core-ts barriers and static traps", () => {
-  test("raises/destroys barriers and arms/disarms static traps", () => {
+describe("core-ts barriers and static hazards", () => {
+  test("raises/destroys barriers and arms/disarms static hazards", () => {
     const core = createCore();
     call(core.configureGrid, 4, 4);
     setAllFloors(core, 4, 4);
@@ -31,19 +31,19 @@ describe("core-ts barriers and static traps", () => {
     expect(call(core.raiseBarrierAt, 1, 1)).toBe(1);
     expect(call(core.getTileActorKind, 1, 1)).toBe(1); // Barrier kind
 
-    expect(call(core.armStaticTrapAt, 2, 2, 1, 1, 2, 5)).toBe(1);
-    expect(call(core.getStaticTrapCount)).toBe(1);
-    expect(call(core.getStaticTrapAffinityAt, 2, 2)).toBe(1);
-    expect(call(core.getStaticTrapExpressionAt, 2, 2)).toBe(1);
-    expect(call(core.getStaticTrapStacksAt, 2, 2)).toBe(2);
-    expect(call(core.getStaticTrapManaReserveAt, 2, 2)).toBe(5);
+    expect(call(core.armStaticHazardAt, 2, 2, 1, 1, 2, 5)).toBe(1);
+    expect(call(core.getStaticHazardCount)).toBe(1);
+    expect(call(core.getStaticHazardAffinityAt, 2, 2)).toBe(1);
+    expect(call(core.getStaticHazardExpressionAt, 2, 2)).toBe(1);
+    expect(call(core.getStaticHazardStacksAt, 2, 2)).toBe(2);
+    expect(call(core.getStaticHazardManaReserveAt, 2, 2)).toBe(5);
 
-    // Traps only arm on floor tiles — barrier tile should fail
-    expect(call(core.armStaticTrapAt, 1, 1, 2, 3, 3, 4)).toBe(0);
-    expect(call(core.getStaticTrapCount)).toBe(1);
+    // Hazards only arm on floor tiles — barrier tile should fail
+    expect(call(core.armStaticHazardAt, 1, 1, 2, 3, 3, 4)).toBe(0);
+    expect(call(core.getStaticHazardCount)).toBe(1);
 
-    expect(call(core.disarmStaticTrapAt, 2, 2)).toBe(1);
-    expect(call(core.getStaticTrapCount)).toBe(0);
+    expect(call(core.disarmStaticHazardAt, 2, 2)).toBe(1);
+    expect(call(core.getStaticHazardCount)).toBe(0);
   });
 });
 
@@ -54,9 +54,9 @@ describe("core-ts affinity field buffers", () => {
     call(core.configureGrid, 5, 5);
     setAllFloors(core, 5, 5);
 
-    // Arm a trap and compute so fields are populated
-    call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 5);
-    call(core.computeStaticTrapAffinityField);
+    // Arm a hazard and compute so fields are populated
+    call(core.armStaticHazardAt, 2, 2, FIRE, EMIT, 1, 5);
+    call(core.computeStaticHazardAffinityField);
     expect(call(core.getAffinityFieldIntensityAt, 2, 2, FIRE)).toBe(1.0);
 
     // Clear and verify zeros
@@ -67,7 +67,7 @@ describe("core-ts affinity field buffers", () => {
     expect(call(core.getAffinityFieldContributionCountAt, 2, 2, FIRE)).toBe(0);
   });
 
-  test("computeStaticTrapAffinityField: fire emit stacks=1 on 5x5 grid", () => {
+  test("computeStaticHazardAffinityField: fire emit stacks=1 on 5x5 grid", () => {
     const core = createCore();
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 5, 5);
@@ -75,8 +75,8 @@ describe("core-ts affinity field buffers", () => {
 
     // Fire emit at (2,2), stacks=1, mana=5
     // emit stacks=1: radius = floor(1.0 + 1.0 * 1) = 2
-    call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 5);
-    const projected = call(core.computeStaticTrapAffinityField);
+    call(core.armStaticHazardAt, 2, 2, FIRE, EMIT, 1, 5);
+    const projected = call(core.computeStaticHazardAffinityField);
     expect(projected).toBe(1);
 
     // Source tile (d=0): intensity 1.0
@@ -104,7 +104,7 @@ describe("core-ts affinity field buffers", () => {
     expect(call(core.getAffinityFieldIntensityAt, 2, 2, 2)).toBe(0.0);
   });
 
-  test("per-kind channels: fire and water traps produce independent fields", () => {
+  test("per-kind channels: fire and water hazards produce independent fields", () => {
     const core = createCore();
     const FIRE = 1, WATER = 2, EMIT = 3;
     call(core.configureGrid, 9, 5);
@@ -112,9 +112,9 @@ describe("core-ts affinity field buffers", () => {
 
     // Fire emit at (1,2), water emit at (7,2), both stacks=1 (radius=2)
     // Far enough apart that fields don't overlap (distance=6 > 2*radius=4)
-    call(core.armStaticTrapAt, 1, 2, FIRE, EMIT, 1, 5);
-    call(core.armStaticTrapAt, 7, 2, WATER, EMIT, 1, 5);
-    call(core.computeStaticTrapAffinityField);
+    call(core.armStaticHazardAt, 1, 2, FIRE, EMIT, 1, 5);
+    call(core.armStaticHazardAt, 7, 2, WATER, EMIT, 1, 5);
+    call(core.computeStaticHazardAffinityField);
 
     // (1,2) is source for fire only
     expect(call(core.getAffinityFieldIntensityAt, 1, 2, FIRE)).toBe(1.0);
@@ -140,14 +140,14 @@ describe("core-ts affinity field buffers", () => {
     call(core.configureGrid, 7, 5);
     setAllFloors(core, 7, 5);
 
-    // Two fire emit traps: (1,2) stacks=1 and (5,2) stacks=2
-    call(core.armStaticTrapAt, 1, 2, FIRE, EMIT, 1, 5);
-    call(core.armStaticTrapAt, 5, 2, FIRE, EMIT, 2, 5);
-    call(core.computeStaticTrapAffinityField);
+    // Two fire emit hazards: (1,2) stacks=1 and (5,2) stacks=2
+    call(core.armStaticHazardAt, 1, 2, FIRE, EMIT, 1, 5);
+    call(core.armStaticHazardAt, 5, 2, FIRE, EMIT, 2, 5);
+    call(core.computeStaticHazardAffinityField);
 
-    // (3,2) is d=2 from trap1 (within radius=2) and d=2 from trap2 (within radius=3)
-    // trap1 intensity at d=2: 0.5
-    // trap2 intensity at d=2 stacks=2: higher
+    // (3,2) is d=2 from hazard1 (within radius=2) and d=2 from hazard2 (within radius=3)
+    // hazard1 intensity at d=2: 0.5
+    // hazard2 intensity at d=2 stacks=2: higher
     // max wins
     const fieldIntensity = call(core.getAffinityFieldIntensityAt, 3, 2, FIRE) as number;
     expect(fieldIntensity).toBeGreaterThan(0.5);
@@ -155,7 +155,7 @@ describe("core-ts affinity field buffers", () => {
     // Contribution count should be 2
     expect(call(core.getAffinityFieldContributionCountAt, 3, 2, FIRE)).toBe(2);
 
-    // Stacks should be from the higher-intensity trap (stacks=2)
+    // Stacks should be from the higher-intensity hazard (stacks=2)
     expect(call(core.getAffinityFieldStacksAt, 3, 2, FIRE)).toBe(2);
   });
 
@@ -182,8 +182,8 @@ describe("core-ts affinity field buffers", () => {
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 5, 5);
     setAllFloors(core, 5, 5);
-    call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 5);
-    call(core.computeStaticTrapAffinityField);
+    call(core.armStaticHazardAt, 2, 2, FIRE, EMIT, 1, 5);
+    call(core.computeStaticHazardAffinityField);
     expect(call(core.getAffinityFieldIntensityAt, 2, 2, FIRE)).toBe(1.0);
 
     // Reconfigure to smaller grid — fields must be zeroed
@@ -193,37 +193,37 @@ describe("core-ts affinity field buffers", () => {
     expect(call(core.getAffinityFieldContributionCountAt, 1, 1, FIRE)).toBe(0);
   });
 
-  test("computeStaticTrapAffinityField returns trap count", () => {
+  test("computeStaticHazardAffinityField returns hazard count", () => {
     const core = createCore();
     call(core.configureGrid, 5, 5);
     setAllFloors(core, 5, 5);
 
-    // No traps -> returns 0
-    expect(call(core.computeStaticTrapAffinityField)).toBe(0);
+    // No hazards -> returns 0
+    expect(call(core.computeStaticHazardAffinityField)).toBe(0);
 
-    // Two traps -> returns 2
-    call(core.armStaticTrapAt, 1, 1, 1, 3, 1, 5);
-    call(core.armStaticTrapAt, 3, 3, 2, 3, 1, 5);
-    expect(call(core.computeStaticTrapAffinityField)).toBe(2);
+    // Two hazards -> returns 2
+    call(core.armStaticHazardAt, 1, 1, 1, 3, 1, 5);
+    call(core.armStaticHazardAt, 3, 3, 2, 3, 1, 5);
+    expect(call(core.computeStaticHazardAffinityField)).toBe(2);
   });
 
-  test("existing trap behavior unchanged after field addition", () => {
+  test("existing hazard behavior unchanged after field addition", () => {
     const core = createCore();
     call(core.configureGrid, 4, 4);
     setAllFloors(core, 4, 4);
 
-    expect(call(core.armStaticTrapAt, 2, 2, 1, 1, 2, 5)).toBe(1);
-    expect(call(core.getStaticTrapCount)).toBe(1);
-    expect(call(core.getStaticTrapAffinityAt, 2, 2)).toBe(1);
-    expect(call(core.getStaticTrapExpressionAt, 2, 2)).toBe(1);
-    expect(call(core.getStaticTrapStacksAt, 2, 2)).toBe(2);
-    expect(call(core.getStaticTrapManaReserveAt, 2, 2)).toBe(5);
-    expect(call(core.disarmStaticTrapAt, 2, 2)).toBe(1);
-    expect(call(core.getStaticTrapCount)).toBe(0);
+    expect(call(core.armStaticHazardAt, 2, 2, 1, 1, 2, 5)).toBe(1);
+    expect(call(core.getStaticHazardCount)).toBe(1);
+    expect(call(core.getStaticHazardAffinityAt, 2, 2)).toBe(1);
+    expect(call(core.getStaticHazardExpressionAt, 2, 2)).toBe(1);
+    expect(call(core.getStaticHazardStacksAt, 2, 2)).toBe(2);
+    expect(call(core.getStaticHazardManaReserveAt, 2, 2)).toBe(5);
+    expect(call(core.disarmStaticHazardAt, 2, 2)).toBe(1);
+    expect(call(core.getStaticHazardCount)).toBe(0);
   });
 });
 
-describe("core-ts static trap affinity permutations", () => {
+describe("core-ts static hazard affinity permutations", () => {
   test("all 4 expressions across stacks 1 through 5 project bounded fields", () => {
     for (let expression = 1; expression <= 4; expression += 1) {
       for (let stacks = 1; stacks <= 5; stacks += 1) {
@@ -231,8 +231,8 @@ describe("core-ts static trap affinity permutations", () => {
         const FIRE = 1;
         call(core.configureGrid, 17, 17);
         setAllFloors(core, 17, 17);
-        expect(call(core.armStaticTrapAt, 8, 8, FIRE, expression, stacks, 10)).toBe(1);
-        expect(call(core.computeStaticTrapAffinityField)).toBe(1);
+        expect(call(core.armStaticHazardAt, 8, 8, FIRE, expression, stacks, 10)).toBe(1);
+        expect(call(core.computeStaticHazardAffinityField)).toBe(1);
 
         const radius = call(core.computeAffinityRadius, expression, stacks) as number;
         expect(radius).toBeGreaterThanOrEqual(1);
@@ -250,8 +250,8 @@ describe("core-ts static trap affinity permutations", () => {
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 11, 11);
     setAllFloors(core, 11, 11);
-    expect(call(core.armStaticTrapAt, 5, 5, FIRE, EMIT, 3, 10)).toBe(1);
-    call(core.computeStaticTrapAffinityField);
+    expect(call(core.armStaticHazardAt, 5, 5, FIRE, EMIT, 3, 10)).toBe(1);
+    call(core.computeStaticHazardAffinityField);
 
     const radius = call(core.computeAffinityRadius, EMIT, 3) as number;
     const boundary = call(core.getAffinityFieldIntensityAt, 5 - radius, 5, FIRE) as number;
@@ -262,16 +262,16 @@ describe("core-ts static trap affinity permutations", () => {
     expect(call(core.getAffinityFieldIntensityAt, 5 - radius - 1, 5, FIRE)).toBe(0);
   });
 
-  test("all 10 affinity kinds project isolated static-trap channels", () => {
+  test("all 10 affinity kinds project isolated static-hazard channels", () => {
     const core = createCore();
     const EMIT = 3;
     call(core.configureGrid, 12, 3);
     setAllFloors(core, 12, 3);
 
     for (let kind = 1; kind <= 10; kind += 1) {
-      expect(call(core.armStaticTrapAt, kind, 1, kind, EMIT, 1, 5)).toBe(1);
+      expect(call(core.armStaticHazardAt, kind, 1, kind, EMIT, 1, 5)).toBe(1);
     }
-    expect(call(core.computeStaticTrapAffinityField)).toBe(10);
+    expect(call(core.computeStaticHazardAffinityField)).toBe(10);
 
     for (let kind = 1; kind <= 10; kind += 1) {
       expect(call(core.getAffinityFieldIntensityAt, kind, 1, kind)).toBe(1);
@@ -280,16 +280,16 @@ describe("core-ts static trap affinity permutations", () => {
     }
   });
 
-  test("3 same-kind overlapping traps aggregate intensity and preserve highest-stack metadata", () => {
+  test("3 same-kind overlapping hazards aggregate intensity and preserve highest-stack metadata", () => {
     const core = createCore();
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 9, 5);
     setAllFloors(core, 9, 5);
 
-    expect(call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 5)).toBe(1);
-    expect(call(core.armStaticTrapAt, 4, 2, FIRE, EMIT, 3, 5)).toBe(1);
-    expect(call(core.armStaticTrapAt, 6, 2, FIRE, EMIT, 5, 5)).toBe(1);
-    call(core.computeStaticTrapAffinityField);
+    expect(call(core.armStaticHazardAt, 2, 2, FIRE, EMIT, 1, 5)).toBe(1);
+    expect(call(core.armStaticHazardAt, 4, 2, FIRE, EMIT, 3, 5)).toBe(1);
+    expect(call(core.armStaticHazardAt, 6, 2, FIRE, EMIT, 5, 5)).toBe(1);
+    call(core.computeStaticHazardAffinityField);
 
     expect(call(core.getAffinityFieldContributionCountAt, 4, 2, FIRE)).toBe(3);
     expect(call(core.getAffinityFieldIntensityAt, 4, 2, FIRE)).toBeGreaterThan(1);
@@ -303,30 +303,30 @@ describe("core-ts static trap affinity permutations", () => {
     call(core.configureGrid, 7, 5);
     setAllFloors(core, 7, 5);
 
-    expect(call(core.armStaticTrapAt, 2, 2, FIRE, PUSH, 2, 5)).toBe(1);
-    expect(call(core.armStaticTrapAt, 3, 2, FIRE, EMIT, 2, 5)).toBe(1);
-    call(core.computeStaticTrapAffinityField);
+    expect(call(core.armStaticHazardAt, 2, 2, FIRE, PUSH, 2, 5)).toBe(1);
+    expect(call(core.armStaticHazardAt, 3, 2, FIRE, EMIT, 2, 5)).toBe(1);
+    call(core.computeStaticHazardAffinityField);
 
     expect(call(core.getAffinityFieldExpressionAt, 2, 2, FIRE)).toBe(PUSH);
     expect(call(core.getAffinityFieldExpressionAt, 3, 2, FIRE)).toBe(EMIT);
     expect(call(core.getAffinityFieldContributionCountAt, 3, 2, FIRE)).toBeGreaterThanOrEqual(1);
   });
 
-  test("20x20 grid with 10 traps computes expected static field count", () => {
+  test("20x20 grid with 10 hazards computes expected static field count", () => {
     const core = createCore();
     const EMIT = 3;
     call(core.configureGrid, 20, 20);
     setAllFloors(core, 20, 20);
 
     for (let index = 0; index < 10; index += 1) {
-      expect(call(core.armStaticTrapAt, 1 + index * 2, 1 + (index % 5) * 3, (index % 10) + 1, EMIT, (index % 5) + 1, 10)).toBe(1);
+      expect(call(core.armStaticHazardAt, 1 + index * 2, 1 + (index % 5) * 3, (index % 10) + 1, EMIT, (index % 5) + 1, 10)).toBe(1);
     }
-    expect(call(core.computeStaticTrapAffinityField)).toBe(10);
+    expect(call(core.computeStaticHazardAffinityField)).toBe(10);
     expect(call(core.getAffinityFieldIntensityAt, 1, 1, 1)).toBe(1);
     expect(call(core.getAffinityFieldIntensityAt, 19, 19, 1)).toBeGreaterThanOrEqual(0);
   });
 
-  test("non-floor wall and barrier cells cannot arm traps", () => {
+  test("non-floor wall and barrier cells cannot arm hazards", () => {
     const core = createCore();
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 5, 5);
@@ -334,9 +334,9 @@ describe("core-ts static trap affinity permutations", () => {
     call(core.setTileAt, 1, 1, 2);
     call(core.setTileAt, 3, 3, 4);
 
-    expect(call(core.armStaticTrapAt, 1, 1, FIRE, EMIT, 1, 5)).toBe(0);
-    expect(call(core.armStaticTrapAt, 3, 3, FIRE, EMIT, 1, 5)).toBe(0);
-    expect(call(core.getStaticTrapCount)).toBe(0);
+    expect(call(core.armStaticHazardAt, 1, 1, FIRE, EMIT, 1, 5)).toBe(0);
+    expect(call(core.armStaticHazardAt, 3, 3, FIRE, EMIT, 1, 5)).toBe(0);
+    expect(call(core.getStaticHazardCount)).toBe(0);
   });
 
   test("disarm plus explicit clear and recompute removes prior field values", () => {
@@ -344,24 +344,26 @@ describe("core-ts static trap affinity permutations", () => {
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 5, 5);
     setAllFloors(core, 5, 5);
-    expect(call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 5)).toBe(1);
-    call(core.computeStaticTrapAffinityField);
+    expect(call(core.armStaticHazardAt, 2, 2, FIRE, EMIT, 1, 5)).toBe(1);
+    call(core.computeStaticHazardAffinityField);
     expect(call(core.getAffinityFieldIntensityAt, 2, 2, FIRE)).toBe(1);
 
-    expect(call(core.disarmStaticTrapAt, 2, 2)).toBe(1);
+    expect(call(core.disarmStaticHazardAt, 2, 2)).toBe(1);
     call(core.clearAffinityField);
-    expect(call(core.computeStaticTrapAffinityField)).toBe(0);
+    expect(call(core.computeStaticHazardAffinityField)).toBe(0);
     expect(call(core.getAffinityFieldIntensityAt, 2, 2, FIRE)).toBe(0);
   });
 
-  test("zero stacks or zero mana traps are rejected", () => {
+  test("zero stacks are rejected, while zero mana hazards are represented but inactive", () => {
     const core = createCore();
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 5, 5);
     setAllFloors(core, 5, 5);
 
-    expect(call(core.armStaticTrapAt, 1, 1, FIRE, EMIT, 0, 5)).toBe(0);
-    expect(call(core.armStaticTrapAt, 2, 2, FIRE, EMIT, 1, 0)).toBe(0);
-    expect(call(core.getStaticTrapCount)).toBe(0);
+    expect(call(core.armStaticHazardAt, 1, 1, FIRE, EMIT, 0, 5)).toBe(0);
+    expect(call(core.armStaticHazardAt, 2, 2, FIRE, EMIT, 1, 0)).toBe(1);
+    expect(call(core.getStaticHazardCount)).toBe(1);
+    expect(call(core.computeStaticHazardAffinityField)).toBe(0);
+    expect(call(core.getAffinityFieldStacksAt, 2, 2, FIRE)).toBe(0);
   });
 });

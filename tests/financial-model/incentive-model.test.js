@@ -78,7 +78,6 @@ const report = buildScenarioSpendReport({ budgetTokens: 10000 });
 
 assert.equal(report.categories.rooms.target, 4400);
 assert.equal(report.categories.floor_tiles.target, 4400);
-assert.equal(report.categories.traps.target, 4400);
 assert.equal(report.categories.delvers.target, 2000);
 assert.equal(report.categories.wardens.target, 1600);
 assert.equal(report.categories.hazards.target, 1200);

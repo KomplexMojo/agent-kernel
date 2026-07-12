@@ -300,7 +300,23 @@ export function buildBuildSpecFromSummary({
         affinity: entry.affinity,
         expression: entry.expression,
         proximityRadius: entry.proximityRadius,
-        mana: entry.mana ? { ...entry.mana } : undefined,
+        ...(Array.isArray(entry.affinityStacks)
+          ? { affinityStacks: entry.affinityStacks.map((affinity) => ({ ...affinity })) }
+          : {}),
+        ...(entry.vitals && typeof entry.vitals === "object"
+          ? {
+            vitals: {
+              ...(entry.vitals.mana ? { mana: { ...entry.vitals.mana } } : {}),
+              ...(entry.vitals.durability ? { durability: { ...entry.vitals.durability } } : {}),
+            },
+          }
+          : {}),
+        ...(entry.mana
+          ? { mana: { ...entry.mana } }
+          : (entry.vitals?.mana ? { mana: { ...entry.vitals.mana } } : {})),
+        ...(entry.durability
+          ? { durability: { ...entry.durability } }
+          : (entry.vitals?.durability ? { durability: { ...entry.vitals.durability } } : {})),
       }))
     : [];
   const resources = Array.isArray(resolvedSummary?.resources)

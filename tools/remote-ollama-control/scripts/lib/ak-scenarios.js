@@ -89,7 +89,7 @@ const SCENARIO_BUDGETS = {
   20: 3000, 21: 5000, 22: 5000, 23: 5000,
   24: 2500, 25: 2000, 26: 3000,
   27: 3000, 28: 3500, 29: 3000, 30: 3000,
-  // Complex tier — focused actor / trap / hazard tests
+  // Complex tier — focused actor and hazard tests
   31: 3500, 32: 3500, 33: 3500, 34: 3500,
   35: 5000, 36: 3500, 37: 3500, 38: 5000,
   39: 3500, 40: 3500, 41: 3500, 42: 3500,

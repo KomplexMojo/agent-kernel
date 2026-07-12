@@ -41,7 +41,7 @@ describe("core-ts vital constants permutations", () => {
   test("all persona vital references are subsets of VitalKind keys", async () => {
     const {
       VITAL_KEYS,
-      TRAP_VITAL_KEYS,
+      HAZARD_VITAL_KEYS,
       DELVER_VITAL_KEYS,
       WARDEN_VITAL_KEYS,
       RESOURCE_VITAL_KEYS,
@@ -52,7 +52,7 @@ describe("core-ts vital constants permutations", () => {
     );
 
     for (const subset of [
-      TRAP_VITAL_KEYS,
+      HAZARD_VITAL_KEYS,
       DELVER_VITAL_KEYS,
       WARDEN_VITAL_KEYS,
       RESOURCE_VITAL_KEYS,

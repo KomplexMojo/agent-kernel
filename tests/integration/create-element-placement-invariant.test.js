@@ -3,15 +3,15 @@
  * 2026-07-11): NOTHING may exist outside a room or hallway — equivalently,
  * there must be a walkable tile under EVERY positioned game element.
  *
- * Coverage: layout.data.traps / hazards / resources, layout.data.spawn / exit,
+ * Coverage: layout.data.hazards / resources, layout.data.spawn / exit,
  * and every actor position in InitialStateArtifact, across representative
  * create shapes (single room, multi-room + floorTile budget, resource-heavy,
- * benchmark scenario 51's small-room + blocking-traps shape).
+ * benchmark scenario 51's small-room + blocking-hazards shape).
  *
  * Note the deliberate formulation: hallway/corridor tiles are walkable floor
  * OUTSIDE declared room rectangles, so the invariant is "walkable tile under
- * the element", not "inside a room rectangle". Traps carry the stricter
- * in-room contract separately (create-trap-room-containment.test.js).
+ * the element", not "inside a room rectangle". Hazards carry the stricter
+ * in-room contract separately (create-hazard-room-containment.test.js).
  *
  * GROUND TRUTH at authoring time: this invariant already holds by
  * construction (0 violations across 92 hazard/resource placements in the
@@ -99,7 +99,7 @@ function assertPlacementInvariant(createDir, label) {
   const layoutData = JSON.parse(readFileSync(join(createDir, "sim-config.json"), "utf8")).layout.data;
   let checked = 0;
 
-  for (const kind of ["traps", "hazards", "resources"]) {
+  for (const kind of ["hazards", "resources"]) {
     for (const [i, element] of (layoutData[kind] ?? []).entries()) {
       const pos = positionOf(element);
       assert.ok(pos, `${label}: ${kind}[${i}] (${element.id ?? "?"}) must carry an integer position`);
@@ -140,23 +140,25 @@ function assertPlacementInvariant(createDir, label) {
 
 const SHAPES = [
   {
-    name: "single room with trap, hazard, and delver",
-    minElements: 5, // trap + hazard + spawn + exit + delver
+    name: "single room with positioned and auto-placed hazards, plus a delver",
+    minElements: 5, // two hazards + spawn + exit + delver
     args: {
       room: ["size=medium;count=1"],
-      trap: ["x=2;y=2;affinity=earth;expression=emit;stacks=1;blocking=false"],
-      hazard: ["id=h1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1"],
+      hazard: [
+        "x=2;y=2;affinity=earth;expression=emit;stacks=1;blocking=false",
+        "id=h1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1",
+      ],
       delver: ["count=1;affinity=fire;motivation=exploring"],
       budgetTokens: 2500,
     },
   },
   {
-    name: "multi-room with floorTile budget and traps (I3/I4 shape)",
-    minElements: 4, // 2 traps + spawn + exit
+    name: "multi-room with floorTile budget and hazards (I3/I4 shape)",
+    minElements: 4, // 2 hazards + spawn + exit
     args: {
       room: ["count=2;size=large"],
       floorTile: ["count=32"],
-      trap: [
+      hazard: [
         "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false",
         "x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false",
       ],
@@ -183,11 +185,11 @@ const SHAPES = [
     },
   },
   {
-    name: "small room with blocking traps and stationary wardens (scenario 51 shape)",
-    minElements: 7, // 2 traps + spawn + exit + delver + 2 wardens
+    name: "small room with blocking hazards and stationary wardens (scenario 51 shape)",
+    minElements: 7, // 2 hazards + spawn + exit + delver + 2 wardens
     args: {
       room: ["size=small;count=1"],
-      trap: [
+      hazard: [
         "x=2;y=1;affinity=fire;expression=emit;stacks=3;blocking=true",
         "x=4;y=1;affinity=dark;expression=emit;stacks=2;blocking=true",
       ],

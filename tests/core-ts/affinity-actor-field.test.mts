@@ -191,14 +191,14 @@ describe("core-ts actor affinity field projection", () => {
 });
 
 describe("core-ts combined field (computeAffinityField)", () => {
-  test("combines traps and actors", () => {
+  test("combines hazards and actors", () => {
     const core = createCore();
     const FIRE = 1, WATER = 2, EMIT = 3;
     call(core.configureGrid, 11, 5);
     setAllFloors(core, 11, 5);
 
-    // Fire trap at (1,2) stacks=1
-    call(core.armStaticTrapAt, 1, 2, FIRE, EMIT, 1, 5);
+    // Fire hazard at (1,2) stacks=1
+    call(core.armStaticHazardAt, 1, 2, FIRE, EMIT, 1, 5);
 
     // Water actor at (9,2) stacks=1
     placeActor(core, 10, 9, 2);
@@ -207,20 +207,20 @@ describe("core-ts combined field (computeAffinityField)", () => {
     const total = call(core.computeAffinityField);
     expect(total).toBe(2);
 
-    // Fire from trap
+    // Fire from hazard
     expect(call(core.getAffinityFieldIntensityAt, 1, 2, FIRE)).toBe(1.0);
     // Water from actor
     expect(call(core.getAffinityFieldIntensityAt, 9, 2, WATER)).toBe(1.0);
   });
 
-  test("same-kind overlap between trap and actor uses max", () => {
+  test("same-kind overlap between hazard and actor uses max", () => {
     const core = createCore();
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 7, 5);
     setAllFloors(core, 7, 5);
 
-    // Fire trap at (1,2) stacks=1 (radius=2)
-    call(core.armStaticTrapAt, 1, 2, FIRE, EMIT, 1, 5);
+    // Fire hazard at (1,2) stacks=1 (radius=2)
+    call(core.armStaticHazardAt, 1, 2, FIRE, EMIT, 1, 5);
 
     // Fire actor at (5,2) stacks=2 (radius=3)
     placeActor(core, 10, 5, 2);
@@ -228,11 +228,11 @@ describe("core-ts combined field (computeAffinityField)", () => {
 
     call(core.computeAffinityField);
 
-    // (3,2): d=2 from trap (within radius=2), d=2 from actor (within radius=3)
+    // (3,2): d=2 from hazard (within radius=2), d=2 from actor (within radius=3)
     const overlap = call(core.getAffinityFieldIntensityAt, 3, 2, FIRE) as number;
     expect(overlap).toBeGreaterThan(0.5);
 
-    // Contribution count = 2 (both trap and actor)
+    // Contribution count = 2 (both hazard and actor)
     expect(call(core.getAffinityFieldContributionCountAt, 3, 2, FIRE)).toBe(2);
   });
 });
@@ -378,12 +378,12 @@ describe("core-ts actor affinity permutations", () => {
     expect(call(core.computeActorAffinityField)).toBe(10);
   });
 
-  test("trap and actor on same tile combine contributions", () => {
+  test("hazard and actor on same tile combine contributions", () => {
     const core = createCore();
     const FIRE = 1, EMIT = 3;
     call(core.configureGrid, 7, 7);
     setAllFloors(core, 7, 7);
-    call(core.armStaticTrapAt, 3, 3, FIRE, EMIT, 1, 5);
+    call(core.armStaticHazardAt, 3, 3, FIRE, EMIT, 1, 5);
     placeActor(core, 10, 3, 3);
     call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 2);
     expect(call(core.computeAffinityField)).toBe(2);

@@ -10,7 +10,7 @@
           "tiles": ["XXXXX", "X...X", "X...X", "X...X", "XXXXX"],
           "hazards": [
             {
-              "id": "fire-trap-1",
+              "id": "fire-hazard-1",
               "entityType": "hazard",
               "kind": "fire",
               "position": { "x": 2, "y": 2 },

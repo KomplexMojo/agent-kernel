@@ -404,7 +404,7 @@ function resolveHazards(payload, view) {
   const hazards = [];
   const seen = new Set();
 
-  function addHazard(entry, fallbackKind = "hazard") {
+  function addHazard(entry) {
     if (!entry || typeof entry !== "object") return;
     const position = isObject(entry.position)
       ? { ...entry.position }
@@ -412,7 +412,7 @@ function resolveHazards(payload, view) {
         ? { x: entry.x, y: entry.y }
         : null;
     if (!position) return;
-    const kind = typeof entry.kind === "string" && entry.kind.trim() ? entry.kind.trim() : fallbackKind;
+    const kind = "hazard";
     const id = typeof entry.id === "string" && entry.id.trim()
       ? entry.id.trim()
       : `${kind}_${position.x}_${position.y}`;
@@ -420,20 +420,35 @@ function resolveHazards(payload, view) {
     if (seen.has(key)) return;
     seen.add(key);
     const next = { id, kind, position };
-    if (typeof entry.expression === "string" && entry.expression.trim()) next.expression = entry.expression.trim();
-    if (typeof entry.affinity === "string" && entry.affinity.trim()) next.affinity = entry.affinity.trim();
-    if (Number.isFinite(entry.stacks)) next.stacks = Math.max(1, Math.trunc(entry.stacks));
+    const affinity = typeof entry.affinity === "string" && entry.affinity.trim()
+      ? entry.affinity.trim()
+      : typeof entry.affinity?.kind === "string" && entry.affinity.kind.trim()
+        ? entry.affinity.kind.trim()
+        : null;
+    const expression = typeof entry.expression === "string" && entry.expression.trim()
+      ? entry.expression.trim()
+      : typeof entry.affinity?.expression === "string" && entry.affinity.expression.trim()
+        ? entry.affinity.expression.trim()
+        : null;
+    const stacks = Number.isFinite(entry.stacks)
+      ? entry.stacks
+      : Number.isFinite(entry.affinity?.stacks)
+        ? entry.affinity.stacks
+        : null;
+    if (expression) next.expression = expression;
+    if (affinity) next.affinity = affinity;
+    if (Number.isFinite(stacks)) next.stacks = Math.max(1, Math.trunc(stacks));
     hazards.push(next);
   }
 
-  const affinityTraps = Array.isArray(payload?.affinityEffects?.traps) ? payload.affinityEffects.traps : [];
-  affinityTraps.forEach((entry) => addHazard(entry, "trap"));
-
-  const viewTraps = Array.isArray(view?.traps) ? view.traps : [];
-  viewTraps.forEach((entry) => addHazard(entry, "trap"));
-
   const explicitHazards = Array.isArray(payload?.hazards) ? payload.hazards : [];
-  explicitHazards.forEach((entry) => addHazard(entry, "hazard"));
+  explicitHazards.forEach((entry) => addHazard(entry));
+
+  const viewHazards = Array.isArray(view?.hazards) ? view.hazards : [];
+  viewHazards.forEach((entry) => addHazard(entry));
+
+  const affinityHazards = Array.isArray(payload?.affinityEffects?.hazards) ? payload.affinityEffects.hazards : [];
+  affinityHazards.forEach((entry) => addHazard(entry));
 
   return hazards;
 }

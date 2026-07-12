@@ -33,7 +33,7 @@ const BUILD_SPEC = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-basic.j
 const BUDGET = resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json");
 const PRICE_LIST = resolve(ROOT, "tests/fixtures/artifacts/price-list-artifact-v1-basic.json");
 const BUDGET_RECEIPT = resolve(ROOT, "tests/fixtures/artifacts/budget-receipt-artifact-v1-basic.json");
-const LEVEL_GEN = resolve(ROOT, "tests/fixtures/configurator/level-gen-input-v1-trap.json");
+const LEVEL_GEN = resolve(ROOT, "tests/fixtures/configurator/level-gen-input-v1-hazard.json");
 const ACTORS = resolve(ROOT, "tests/fixtures/configurator/actors-v1-affinity-base.json");
 const LLM_FIXTURE = resolve(ROOT, "tests/fixtures/adapters/llm-generate.json");
 const IPFS_FIXTURE = resolve(ROOT, "tests/fixtures/adapters/ipfs-price-list.json");
@@ -43,7 +43,7 @@ const BLOCKCHAIN_BALANCE = resolve(ROOT, "tests/fixtures/adapters/blockchain-bal
 const BLOCKCHAIN_MINT = resolve(ROOT, "tests/fixtures/adapters/blockchain-mint.json");
 const BLOCKCHAIN_LOAD = resolve(ROOT, "tests/fixtures/adapters/blockchain-load.json");
 const CARD_CONFIG = resolve(ROOT, "tests/fixtures/adapters/card-config-delver.json");
-const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json");
+const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
 const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json");
 
 class McpServerHarness {
@@ -692,7 +692,7 @@ test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a
   const createOut = cliSpawn([
     "create",
     "--room", "size=medium;count=1",
-    "--trap", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
+    "--hazard", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
     "--resource", "tier=level;stat=vitalMax;delta=10;dropRate=50",
     "--delver", "count=1;affinity=fire;motivation=attacking",
     "--warden", "count=1;affinity=dark;motivation=defending",

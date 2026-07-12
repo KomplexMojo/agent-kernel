@@ -134,7 +134,7 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
     inputs.affinityPresets = presetsArtifact;
     inputs.affinityLoadouts = loadoutsArtifact;
     if (inputs.levelGen && typeof inputs.levelGen === "object") {
-      inputs.levelGen.traps = [
+      inputs.levelGen.hazards = [
         {
           x: 1,
           y: 1,

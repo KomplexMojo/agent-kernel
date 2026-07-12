@@ -1525,7 +1525,7 @@ const AFFINITY_BOARD_STATE = {
     ],
     hazards: [
       {
-        id: "fire-trap-1",
+        id: "fire-hazard-1",
         kind: "fire",
         position: { x: 2, y: 2 },
         emitStrength: 3,

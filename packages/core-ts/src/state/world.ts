@@ -1,9 +1,13 @@
-// World state — grid, tiles, actors, motivated actors, traps, resources, affinity field.
+// World state — grid, tiles, actors, motivated actors, hazards, resources, affinity field.
 // Ported from packages/core-ts/src/state/world.ts (1618 lines).
 // No IO, no imports outside core-ts.
 
 import { ValidationError } from "../validate/inputs.ts";
-import { isValidAffinityKind, isValidAffinityExpression } from "./affinity.ts";
+import {
+  getOppositeAffinityKind,
+  isValidAffinityKind,
+  isValidAffinityExpression,
+} from "./affinity.ts";
 import { computeAffinityRadius, computeAffinityIntensity } from "./affinity-spatial.ts";
 import { VitalKind } from "./vitals.ts";
 
@@ -37,7 +41,7 @@ const BARRIER_DURABILITY_DEFAULT = 3;
 const DEFAULT_MOVEMENT_COST = 1;
 const DEFAULT_ACTION_COST_MANA = 0;
 const DEFAULT_ACTION_COST_STAMINA = 0;
-const STATIC_TRAP_NONE = 0;
+const STATIC_HAZARD_NONE = 0;
 const RESOURCE_VITAL_NONE = -1;
 const AFFINITY_KIND_COUNT = 10;
 
@@ -68,17 +72,17 @@ export function createWorldState() {
   let tileActorDurabilityByIndex = new Int32Array(0);
   let tileActorCount = 0;
 
-  // ── Static traps ──
-  let staticTrapAffinityByCell = new Int32Array(0);
-  let staticTrapExpressionByCell = new Int32Array(0);
-  let staticTrapStacksByCell = new Int32Array(0);
-  let staticTrapManaReserveByCell = new Int32Array(0);
-  let staticTrapManaMaxByCell = new Int32Array(0);
-  let staticTrapManaRegenByCell = new Int32Array(0);
-  let staticTrapDurabilityCurrentByCell = new Int32Array(0);
-  let staticTrapDurabilityMaxByCell = new Int32Array(0);
-  let staticTrapDurabilityRegenByCell = new Int32Array(0);
-  let staticTrapCount = 0;
+  // ── Static hazards ──
+  let staticHazardAffinityByCell = new Int32Array(0);
+  let staticHazardExpressionByCell = new Int32Array(0);
+  let staticHazardStacksByCell = new Int32Array(0);
+  let staticHazardManaReserveByCell = new Int32Array(0);
+  let staticHazardManaMaxByCell = new Int32Array(0);
+  let staticHazardManaRegenByCell = new Int32Array(0);
+  let staticHazardDurabilityCurrentByCell = new Int32Array(0);
+  let staticHazardDurabilityMaxByCell = new Int32Array(0);
+  let staticHazardDurabilityRegenByCell = new Int32Array(0);
+  let staticHazardCount = 0;
 
   // ── Resources ──
   let resourceVitalKindByCell = new Int32Array(0);
@@ -170,15 +174,15 @@ export function createWorldState() {
     tileActorKindByIndex = new Uint8Array(cellCount);
     tileActorIdByIndex = new Int32Array(cellCount);
     tileActorDurabilityByIndex = new Int32Array(cellCount);
-    staticTrapAffinityByCell = new Int32Array(cellCount);
-    staticTrapExpressionByCell = new Int32Array(cellCount);
-    staticTrapStacksByCell = new Int32Array(cellCount);
-    staticTrapManaReserveByCell = new Int32Array(cellCount);
-    staticTrapManaMaxByCell = new Int32Array(cellCount);
-    staticTrapManaRegenByCell = new Int32Array(cellCount);
-    staticTrapDurabilityCurrentByCell = new Int32Array(cellCount);
-    staticTrapDurabilityMaxByCell = new Int32Array(cellCount);
-    staticTrapDurabilityRegenByCell = new Int32Array(cellCount);
+    staticHazardAffinityByCell = new Int32Array(cellCount);
+    staticHazardExpressionByCell = new Int32Array(cellCount);
+    staticHazardStacksByCell = new Int32Array(cellCount);
+    staticHazardManaReserveByCell = new Int32Array(cellCount);
+    staticHazardManaMaxByCell = new Int32Array(cellCount);
+    staticHazardManaRegenByCell = new Int32Array(cellCount);
+    staticHazardDurabilityCurrentByCell = new Int32Array(cellCount);
+    staticHazardDurabilityMaxByCell = new Int32Array(cellCount);
+    staticHazardDurabilityRegenByCell = new Int32Array(cellCount);
     resourceVitalKindByCell = new Int32Array(cellCount);
     resourceDeltaByCell = new Int32Array(cellCount);
     resourceModeByCell = new Int32Array(cellCount);
@@ -276,38 +280,38 @@ export function createWorldState() {
     tileActorCount = index;
   }
 
-  // ── Static trap helpers ──
+  // ── Static hazard helpers ──
 
-  function hasStaticTrapAtIndex(index: number): boolean {
-    return staticTrapAffinityByCell[index] !== STATIC_TRAP_NONE;
+  function hasStaticHazardAtIndex(index: number): boolean {
+    return staticHazardAffinityByCell[index] !== STATIC_HAZARD_NONE;
   }
 
-  function clearStaticTrapAtIndex(index: number): void {
-    if (hasStaticTrapAtIndex(index) && staticTrapCount > 0) {
-      staticTrapCount--;
+  function clearStaticHazardAtIndex(index: number): void {
+    if (hasStaticHazardAtIndex(index) && staticHazardCount > 0) {
+      staticHazardCount--;
     }
-    staticTrapAffinityByCell[index] = STATIC_TRAP_NONE;
-    staticTrapExpressionByCell[index] = 0;
-    staticTrapStacksByCell[index] = 0;
-    staticTrapManaReserveByCell[index] = 0;
-    staticTrapManaMaxByCell[index] = 0;
-    staticTrapManaRegenByCell[index] = 0;
-    staticTrapDurabilityCurrentByCell[index] = 0;
-    staticTrapDurabilityMaxByCell[index] = 0;
-    staticTrapDurabilityRegenByCell[index] = 0;
+    staticHazardAffinityByCell[index] = STATIC_HAZARD_NONE;
+    staticHazardExpressionByCell[index] = 0;
+    staticHazardStacksByCell[index] = 0;
+    staticHazardManaReserveByCell[index] = 0;
+    staticHazardManaMaxByCell[index] = 0;
+    staticHazardManaRegenByCell[index] = 0;
+    staticHazardDurabilityCurrentByCell[index] = 0;
+    staticHazardDurabilityMaxByCell[index] = 0;
+    staticHazardDurabilityRegenByCell[index] = 0;
   }
 
-  function clearStaticTraps(): void {
-    staticTrapCount = 0;
-    staticTrapAffinityByCell.fill(STATIC_TRAP_NONE);
-    staticTrapExpressionByCell.fill(0);
-    staticTrapStacksByCell.fill(0);
-    staticTrapManaReserveByCell.fill(0);
-    staticTrapManaMaxByCell.fill(0);
-    staticTrapManaRegenByCell.fill(0);
-    staticTrapDurabilityCurrentByCell.fill(0);
-    staticTrapDurabilityMaxByCell.fill(0);
-    staticTrapDurabilityRegenByCell.fill(0);
+  function clearStaticHazards(): void {
+    staticHazardCount = 0;
+    staticHazardAffinityByCell.fill(STATIC_HAZARD_NONE);
+    staticHazardExpressionByCell.fill(0);
+    staticHazardStacksByCell.fill(0);
+    staticHazardManaReserveByCell.fill(0);
+    staticHazardManaMaxByCell.fill(0);
+    staticHazardManaRegenByCell.fill(0);
+    staticHazardDurabilityCurrentByCell.fill(0);
+    staticHazardDurabilityMaxByCell.fill(0);
+    staticHazardDurabilityRegenByCell.fill(0);
   }
 
   // ── Resource helpers ──
@@ -517,13 +521,67 @@ export function createWorldState() {
     }
   }
 
+  function applyOppositeAffinityFieldCancellation(): number {
+    let canceledCells = 0;
+    for (let ci = 0; ci < cellCount; ci++) {
+      const x = ci % width;
+      const y = Math.trunc(ci / width);
+      for (let kind = 1; kind <= AFFINITY_KIND_COUNT; kind++) {
+        const opposite = getOppositeAffinityKind(kind);
+        if (opposite <= kind) continue;
+
+        const sourceIndex = fieldIndexFor(x, y, kind);
+        const targetIndex = fieldIndexFor(x, y, opposite);
+        const sourceStacks = affinityFieldStacks[sourceIndex];
+        const targetStacks = affinityFieldStacks[targetIndex];
+        const sourceIntensity = affinityFieldIntensity[sourceIndex];
+        const targetIntensity = affinityFieldIntensity[targetIndex];
+        if (sourceStacks <= 0 || targetStacks <= 0) continue;
+        if (sourceIntensity <= 0 || targetIntensity <= 0) continue;
+        if (
+          affinityFieldContribCount[sourceIndex] <= 0 ||
+          affinityFieldContribCount[targetIndex] <= 0
+        ) {
+          continue;
+        }
+
+        // Projected intensity already encodes distance falloff. Cancel it at
+        // the overlap point rather than canceling whole source stacks, so a
+        // nearby opposite field cannot erase a hazard at its own origin.
+        const netSourceIntensity = Math.max(0, sourceIntensity - targetIntensity);
+        const netTargetIntensity = Math.max(0, targetIntensity - sourceIntensity);
+        const sourceCanceled = netSourceIntensity === 0;
+        const targetCanceled = netTargetIntensity === 0;
+
+        affinityFieldIntensity[sourceIndex] = netSourceIntensity;
+        affinityFieldIntensity[targetIndex] = netTargetIntensity;
+        if (sourceCanceled) {
+          affinityFieldStacks[sourceIndex] = 0;
+          affinityFieldExpression[sourceIndex] = 0;
+        } else if (targetCanceled) {
+          affinityFieldStacks[sourceIndex] =
+            sourceStacks > targetStacks ? sourceStacks - targetStacks : sourceStacks;
+        }
+        if (targetCanceled) {
+          affinityFieldStacks[targetIndex] = 0;
+          affinityFieldExpression[targetIndex] = 0;
+        } else if (sourceCanceled) {
+          affinityFieldStacks[targetIndex] =
+            targetStacks > sourceStacks ? targetStacks - sourceStacks : targetStacks;
+        }
+        canceledCells++;
+      }
+    }
+    return canceledCells;
+  }
+
   // ── Tile placement (private) ──
 
   function setTile(x: number, y: number, tile: number): void {
     if (!withinBounds(x, y)) return;
     const idx = indexFor(x, y);
     tiles[idx] = tile;
-    if (tile !== Tile.Floor) clearStaticTrapAtIndex(idx);
+    if (tile !== Tile.Floor) clearStaticHazardAtIndex(idx);
     setTileActorKindAtIndex(idx, actorKindForTile(tile));
     setTileDurabilityAtIndex(idx, durabilityForTile(tile));
     if (tile === Tile.Spawn) {
@@ -557,7 +615,7 @@ export function createWorldState() {
     currentTick = 0;
     fillTiles(Tile.Wall);
     clearTileActorState();
-    clearStaticTraps();
+    clearStaticHazards();
     clearResources();
     clearAffinityFieldArrays();
     resetActorPlacementsState();
@@ -600,25 +658,25 @@ export function createWorldState() {
         );
       }
     }
-    // Per-trap mana and durability regen (independent of actor regen)
-    if (staticTrapCount > 0) {
+    // Per-hazard mana and durability regen (independent of actor regen)
+    if (staticHazardCount > 0) {
       const cellCount = width * height;
       for (let idx = 0; idx < cellCount; idx++) {
-        if (staticTrapAffinityByCell[idx] === STATIC_TRAP_NONE) continue;
-        const manaRegen = staticTrapManaRegenByCell[idx];
+        if (staticHazardAffinityByCell[idx] === STATIC_HAZARD_NONE) continue;
+        const manaRegen = staticHazardManaRegenByCell[idx];
         if (manaRegen > 0) {
-          const manaMax = staticTrapManaMaxByCell[idx];
-          const manaCur = staticTrapManaReserveByCell[idx];
+          const manaMax = staticHazardManaMaxByCell[idx];
+          const manaCur = staticHazardManaReserveByCell[idx];
           if (manaCur < manaMax) {
-            staticTrapManaReserveByCell[idx] = Math.min(manaMax, manaCur + manaRegen);
+            staticHazardManaReserveByCell[idx] = Math.min(manaMax, manaCur + manaRegen);
           }
         }
-        const durRegen = staticTrapDurabilityRegenByCell[idx];
+        const durRegen = staticHazardDurabilityRegenByCell[idx];
         if (durRegen > 0) {
-          const durMax = staticTrapDurabilityMaxByCell[idx];
-          const durCur = staticTrapDurabilityCurrentByCell[idx];
+          const durMax = staticHazardDurabilityMaxByCell[idx];
+          const durCur = staticHazardDurabilityCurrentByCell[idx];
           if (durCur < durMax) {
-            staticTrapDurabilityCurrentByCell[idx] = Math.min(durMax, durCur + durRegen);
+            staticHazardDurabilityCurrentByCell[idx] = Math.min(durMax, durCur + durRegen);
           }
         }
       }
@@ -1160,9 +1218,9 @@ export function createWorldState() {
       return 1;
     },
 
-    // ── Static traps ──
+    // ── Static hazards ──
 
-    armStaticTrapAt(
+    armStaticHazardAt(
       x: number,
       y: number,
       affinityKind: number,
@@ -1177,90 +1235,91 @@ export function createWorldState() {
     ): number {
       if (!withinBounds(x, y)) return 0;
       if (affinityKind <= 0 || expression <= 0) return 0;
-      if (stacks <= 0 || manaReserve <= 0) return 0;
+      if (stacks <= 0 || manaReserve < 0) return 0;
       if (getTileLocal(x, y) !== Tile.Floor) return 0;
       const idx = indexFor(x, y);
-      if (!hasStaticTrapAtIndex(idx)) staticTrapCount++;
-      staticTrapAffinityByCell[idx] = affinityKind;
-      staticTrapExpressionByCell[idx] = expression;
-      staticTrapStacksByCell[idx] = stacks;
-      staticTrapManaReserveByCell[idx] = manaReserve;
-      staticTrapManaMaxByCell[idx] = manaMaxOpt < 0 ? manaReserve : Math.max(0, manaMaxOpt);
-      staticTrapManaRegenByCell[idx] = Math.max(0, manaRegenOpt);
-      staticTrapDurabilityCurrentByCell[idx] = Math.max(0, durabilityCurrentOpt);
-      staticTrapDurabilityMaxByCell[idx] = Math.max(0, durabilityMaxOpt);
-      staticTrapDurabilityRegenByCell[idx] = Math.max(0, durabilityRegenOpt);
+      if (!hasStaticHazardAtIndex(idx)) staticHazardCount++;
+      staticHazardAffinityByCell[idx] = affinityKind;
+      staticHazardExpressionByCell[idx] = expression;
+      staticHazardStacksByCell[idx] = stacks;
+      const manaMax = manaMaxOpt < 0 ? manaReserve : Math.max(0, manaMaxOpt);
+      staticHazardManaReserveByCell[idx] = Math.min(Math.max(0, manaReserve), manaMax);
+      staticHazardManaMaxByCell[idx] = manaMax;
+      staticHazardManaRegenByCell[idx] = Math.max(0, manaRegenOpt);
+      staticHazardDurabilityCurrentByCell[idx] = Math.max(0, durabilityCurrentOpt);
+      staticHazardDurabilityMaxByCell[idx] = Math.max(0, durabilityMaxOpt);
+      staticHazardDurabilityRegenByCell[idx] = Math.max(0, durabilityRegenOpt);
       return 1;
     },
 
-    disarmStaticTrapAt(x: number, y: number): number {
+    disarmStaticHazardAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
       const idx = indexFor(x, y);
-      if (!hasStaticTrapAtIndex(idx)) return 0;
-      clearStaticTrapAtIndex(idx);
+      if (!hasStaticHazardAtIndex(idx)) return 0;
+      clearStaticHazardAtIndex(idx);
       return 1;
     },
 
-    getStaticTrapCount: () => staticTrapCount,
+    getStaticHazardCount: () => staticHazardCount,
 
-    getStaticTrapAffinityAt(x: number, y: number): number {
-      if (!withinBounds(x, y)) return STATIC_TRAP_NONE;
-      return staticTrapAffinityByCell[indexFor(x, y)];
+    getStaticHazardAffinityAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return STATIC_HAZARD_NONE;
+      return staticHazardAffinityByCell[indexFor(x, y)];
     },
 
-    getStaticTrapExpressionAt(x: number, y: number): number {
+    getStaticHazardExpressionAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return staticTrapExpressionByCell[indexFor(x, y)];
+      return staticHazardExpressionByCell[indexFor(x, y)];
     },
 
-    getStaticTrapStacksAt(x: number, y: number): number {
+    getStaticHazardStacksAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return staticTrapStacksByCell[indexFor(x, y)];
+      return staticHazardStacksByCell[indexFor(x, y)];
     },
 
-    getStaticTrapManaReserveAt(x: number, y: number): number {
+    getStaticHazardManaReserveAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return staticTrapManaReserveByCell[indexFor(x, y)];
+      return staticHazardManaReserveByCell[indexFor(x, y)];
     },
 
-    getStaticTrapManaMaxAt(x: number, y: number): number {
+    getStaticHazardManaMaxAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return staticTrapManaMaxByCell[indexFor(x, y)];
+      return staticHazardManaMaxByCell[indexFor(x, y)];
     },
 
-    getStaticTrapManaRegenAt(x: number, y: number): number {
+    getStaticHazardManaRegenAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return staticTrapManaRegenByCell[indexFor(x, y)];
+      return staticHazardManaRegenByCell[indexFor(x, y)];
     },
 
-    setStaticTrapManaCurrentAt(x: number, y: number, current: number): number {
+    setStaticHazardManaCurrentAt(x: number, y: number, current: number): number {
       if (!withinBounds(x, y)) return 0;
       const idx = indexFor(x, y);
-      if (!hasStaticTrapAtIndex(idx)) return 0;
-      staticTrapManaReserveByCell[idx] = Math.max(0, current);
+      if (!hasStaticHazardAtIndex(idx)) return 0;
+      staticHazardManaReserveByCell[idx] = Math.max(0, current);
       return 1;
     },
 
-    getStaticTrapDurabilityAt(x: number, y: number): number {
+    getStaticHazardDurabilityAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return staticTrapDurabilityCurrentByCell[indexFor(x, y)];
+      return staticHazardDurabilityCurrentByCell[indexFor(x, y)];
     },
 
-    getStaticTrapDurabilityMaxAt(x: number, y: number): number {
+    getStaticHazardDurabilityMaxAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return staticTrapDurabilityMaxByCell[indexFor(x, y)];
+      return staticHazardDurabilityMaxByCell[indexFor(x, y)];
     },
 
-    getStaticTrapDurabilityRegenAt(x: number, y: number): number {
+    getStaticHazardDurabilityRegenAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return staticTrapDurabilityRegenByCell[indexFor(x, y)];
+      return staticHazardDurabilityRegenByCell[indexFor(x, y)];
     },
 
-    setStaticTrapDurabilityCurrentAt(x: number, y: number, current: number): number {
+    setStaticHazardDurabilityCurrentAt(x: number, y: number, current: number): number {
       if (!withinBounds(x, y)) return 0;
       const idx = indexFor(x, y);
-      if (!hasStaticTrapAtIndex(idx)) return 0;
-      staticTrapDurabilityCurrentByCell[idx] = Math.max(0, current);
+      if (!hasStaticHazardAtIndex(idx)) return 0;
+      staticHazardDurabilityCurrentByCell[idx] = Math.max(0, current);
       return 1;
     },
 
@@ -1323,20 +1382,22 @@ export function createWorldState() {
       return affinityFieldContribCount[fieldIndexFor(x, y, kind)];
     },
 
-    computeStaticTrapAffinityField(): number {
+    computeStaticHazardAffinityField(): number {
       clearAffinityFieldArrays();
       let count = 0;
       for (let ci = 0; ci < cellCount; ci++) {
-        const kind = staticTrapAffinityByCell[ci];
-        if (kind === STATIC_TRAP_NONE) continue;
-        const expression = staticTrapExpressionByCell[ci];
-        const stacks = staticTrapStacksByCell[ci];
+        const kind = staticHazardAffinityByCell[ci];
+        if (kind === STATIC_HAZARD_NONE) continue;
+        if (staticHazardManaReserveByCell[ci] <= 0) continue;
+        const expression = staticHazardExpressionByCell[ci];
+        const stacks = staticHazardStacksByCell[ci];
         if (!isValidAffinityExpression(expression) || stacks <= 0) continue;
-        const trapX = ci % width;
-        const trapY = Math.trunc(ci / width);
-        projectAffinitySource(trapX, trapY, kind, expression, stacks);
+        const hazardX = ci % width;
+        const hazardY = Math.trunc(ci / width);
+        projectAffinitySource(hazardX, hazardY, kind, expression, stacks);
         count++;
       }
+      applyOppositeAffinityFieldCancellation();
       return count;
     },
 
@@ -1357,6 +1418,7 @@ export function createWorldState() {
         );
         count++;
       }
+      applyOppositeAffinityFieldCancellation();
       return count;
     },
 
@@ -1364,14 +1426,15 @@ export function createWorldState() {
       clearAffinityFieldArrays();
       let totalSources = 0;
       for (let ci = 0; ci < cellCount; ci++) {
-        const kind = staticTrapAffinityByCell[ci];
-        if (kind === STATIC_TRAP_NONE) continue;
-        const expression = staticTrapExpressionByCell[ci];
-        const stacks = staticTrapStacksByCell[ci];
+        const kind = staticHazardAffinityByCell[ci];
+        if (kind === STATIC_HAZARD_NONE) continue;
+        if (staticHazardManaReserveByCell[ci] <= 0) continue;
+        const expression = staticHazardExpressionByCell[ci];
+        const stacks = staticHazardStacksByCell[ci];
         if (!isValidAffinityExpression(expression) || stacks <= 0) continue;
-        const trapX = ci % width;
-        const trapY = Math.trunc(ci / width);
-        projectAffinitySource(trapX, trapY, kind, expression, stacks);
+        const hazardX = ci % width;
+        const hazardY = Math.trunc(ci / width);
+        projectAffinitySource(hazardX, hazardY, kind, expression, stacks);
         totalSources++;
       }
       totalSources += this.computeActorAffinityField();

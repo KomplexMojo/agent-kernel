@@ -6,7 +6,7 @@
 // a missing case becomes a failing test, never silent drift.
 //
 // "Code is Law": these tests assert what the CLI actually does. Where the
-// design intent is undecided (trap projection/draw policy), we capture the
+// design intent is undecided (hazard projection/draw policy), we capture the
 // CLI's real accept/reject as `pending` rather than asserting validity.
 import { describe, test, expect } from "vitest";
 import { join } from "node:path";
@@ -42,22 +42,22 @@ function requestObjects(spec) {
 }
 
 // ---------------------------------------------------------------------------
-// Affinities — author one trap (emit) per affinity; assert it round-trips into
-// sim-config.layout.data.traps[].affinity.kind.
+// Affinities — author one hazard (emit) per affinity; assert it round-trips into
+// sim-config.layout.data.hazards[].affinity.kind.
 // ---------------------------------------------------------------------------
-describe("affinity kinds (trap, emit)", () => {
+describe("affinity kinds (hazard, emit)", () => {
   for (const affinity of GAME_AFFINITY_KINDS) {
-    test(`affinity=${affinity} round-trips onto a trap`, () => {
+    test(`affinity=${affinity} round-trips onto a hazard`, () => {
       const run = runCreate([
         "--room", "size=medium;count=1",
-        "--trap", `x=3;y=3;affinity=${affinity};expression=emit;stacks=2`,
+        "--hazard", `x=3;y=3;affinity=${affinity};expression=emit;stacks=2`,
         "--budget-tokens", "300",
       ]);
       expect(run.json.ok, JSON.stringify(run.json.errors || run.json.error)).toBe(true);
       const sim = run.read("sim-config.json");
-      const traps = sim?.layout?.data?.traps ?? [];
-      expect(traps.length).toBeGreaterThan(0);
-      expect(traps.some((t) => t.affinity?.kind === affinity)).toBe(true);
+      const hazards = sim?.layout?.data?.hazards ?? [];
+      expect(hazards.length).toBeGreaterThan(0);
+      expect(hazards.some((t) => t.affinity?.kind === affinity)).toBe(true);
     });
   }
 });
@@ -66,7 +66,7 @@ describe("affinity kinds (trap, emit)", () => {
 // Affinity expressions — author one hazard per expression; assert round-trip
 // into spec.configurator.inputs.levelGen.hazards[].expression. Hazards are the
 // stable carrier for expression (actor affinities collapse to stacks-only in
-// initial-state, and trap projection policy is still an open design question).
+// initial-state, and hazard projection policy is still an open design question).
 // ---------------------------------------------------------------------------
 describe("affinity expressions (hazard)", () => {
   for (const expression of GAME_AFFINITY_EXPRESSIONS) {
@@ -83,16 +83,16 @@ describe("affinity expressions (hazard)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Trap projection / draw policy — OPEN DESIGN QUESTION.
+// Hazard projection / draw policy — OPEN DESIGN QUESTION.
 // We do NOT assert validity; we record the CLI's actual behavior so the matrix
 // stays honest. If the policy is later decided, promote these to hard asserts.
 // ---------------------------------------------------------------------------
-describe("trap expression policy (pending — records actual behavior)", () => {
+describe("hazard expression policy (pending — records actual behavior)", () => {
   for (const expression of GAME_AFFINITY_EXPRESSIONS) {
-    test(`trap expression=${expression} — captured`, () => {
+    test(`hazard expression=${expression} — captured`, () => {
       const run = runCreate([
         "--room", "size=medium;count=1",
-        "--trap", `x=3;y=3;affinity=dark;expression=${expression};stacks=1`,
+        "--hazard", `x=3;y=3;affinity=dark;expression=${expression};stacks=1`,
         "--budget-tokens", "300",
       ]);
       // Deterministic outcome either way: ok true, or false with reasons.
@@ -217,31 +217,31 @@ describe("negative cases fail deterministically", () => {
   test("unknown affinity kind is rejected", () => {
     const run = runCreate([
       "--room", "size=medium;count=1",
-      "--trap", "x=3;y=3;affinity=plasma;expression=emit;stacks=1",
+      "--hazard", "x=3;y=3;affinity=plasma;expression=emit;stacks=1",
       "--budget-tokens", "300",
     ]);
     expect(run.json.ok).toBe(false);
     expect(run.json.errors?.length || run.json.error).toBeTruthy();
   });
 
-  test("trap coordinates beyond the small room's interior are rejected", () => {
-    // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3) and the size=small trap
-    // precheck removed — small generates medium-identical geometry, so small+in-room-trap now
+  test("hazard coordinates beyond the small room's interior are rejected", () => {
+    // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3) and the size=small hazard
+    // precheck removed — small generates medium-identical geometry, so small+in-room-hazard now
     // succeeds. Formerly this test pinned the blanket small-room rejection; the deterministic
     // negative case is now a room-relative offset exceeding the room's 5x5 interior.
     const run = runCreate([
       "--room", "size=small;count=1",
-      "--trap", "x=8;y=8;affinity=dark;expression=emit;stacks=1",
+      "--hazard", "x=8;y=8;affinity=dark;expression=emit;stacks=1",
       "--budget-tokens", "300",
     ]);
     expect(run.json.ok).toBe(false);
-    expect(String(run.json.error)).toContain("trap_outside_room");
+    expect(String(run.json.error)).toContain("hazard_outside_room");
   });
 });
 
 // ## TODO: Test Permutations
 // - Affinity opposites: assert opposite-pair interactions (fire/water, light/dark, …) survive create+run.
-// - Per-expression trap targetType defaults (push→enemy, pull→self, emit→area, draw→self).
+// - Per-expression hazard targetType defaults (push→enemy, pull→self, emit→area, draw→self).
 // - Motivation × archetype matrix (each motivation on both delver and warden, incl. stationary vs ambulatory vital constraints).
 // - Vital regen/max round-trip under setup-mode=user vs auto.
 // - Hazard mana one-time vs regen variants across every affinity.

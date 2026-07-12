@@ -20,11 +20,11 @@ function collectWalkablePositions(layout) {
   if (!data) return [];
 
   const walkable = [];
-  const traps = Array.isArray(data.traps) ? data.traps : [];
-  const blockingTraps = new Set(
-    traps
-      .filter((trap) => trap && trap.blocking === true)
-      .map((trap) => `${trap.x},${trap.y}`),
+  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
+  const blockingHazards = new Set(
+    hazards
+      .filter((hazard) => hazard && hazard.blocking === true)
+      .map((hazard) => `${hazard.x},${hazard.y}`),
   );
 
   if (Array.isArray(data.kinds)) {
@@ -33,7 +33,7 @@ function collectWalkablePositions(layout) {
       for (let x = 0; x < row.length; x += 1) {
         const kind = row[x];
         if (kind === 1) continue;
-        if (kind === 2 && blockingTraps.has(`${x},${y}`)) continue;
+        if (kind === 2 && blockingHazards.has(`${x},${y}`)) continue;
         walkable.push({ x, y });
       }
     }
@@ -105,11 +105,11 @@ function collectFloorPositions(layout) {
   if (!data) return [];
 
   const floors = [];
-  const traps = Array.isArray(data.traps) ? data.traps : [];
-  const blockingTraps = new Set(
-    traps
-      .filter((trap) => trap && trap.blocking === true)
-      .map((trap) => `${trap.x},${trap.y}`),
+  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
+  const blockingHazards = new Set(
+    hazards
+      .filter((hazard) => hazard && hazard.blocking === true)
+      .map((hazard) => `${hazard.x},${hazard.y}`),
   );
 
   if (Array.isArray(data.kinds)) {
@@ -118,7 +118,7 @@ function collectFloorPositions(layout) {
       for (let x = 0; x < row.length; x += 1) {
         const kind = row[x];
         if (kind !== 0) continue;
-        if (blockingTraps.has(`${x},${y}`)) continue;
+        if (blockingHazards.has(`${x},${y}`)) continue;
         floors.push({ x, y });
       }
     }

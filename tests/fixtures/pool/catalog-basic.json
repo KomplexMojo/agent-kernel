@@ -33,11 +33,11 @@
     {
       "id": "actor_patrolling_wind_80",
       "type": "actor",
-      "subType": "trap",
+      "subType": "hazard",
       "motivation": "patrolling",
       "affinity": "wind",
       "cost": 80,
-      "tags": ["trap"],
+      "tags": ["hazard"],
       "meta": { "mobility": false }
     }
   ]

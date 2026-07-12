@@ -1,24 +1,24 @@
 /**
  * M3c — Hazard Durability + Destruction: failing tests
  *
- * Static traps gain a durability vital (current / max / regen).
+ * Static hazards gain a durability vital (current / max / regen).
  * Durability-routing affinities (Earth, Corrode, Fortify) applied via
  * `applyAffinityDamageToHazard` drain or buff hazard durability.
- * When durability reaches 0 the trap is destroyed (disarmed).
+ * When durability reaches 0 the hazard is destroyed (disarmed).
  *
  * Design choices encoded here:
- *   - `armStaticTrapAt` gains three optional trailing params for durability:
- *       armStaticTrapAt(x, y, kind, expr, stacks, mana, durCurrent?, durMax?, durRegen?)
- *   - durabilityMax == 0 → "immortal" trap; durability damage is rejected (0)
+ *   - `armStaticHazardAt` gains three optional trailing params for durability:
+ *       armStaticHazardAt(x, y, kind, expr, stacks, mana, durCurrent?, durMax?, durRegen?)
+ *   - durabilityMax == 0 → "immortal" hazard; durability damage is rejected (0)
  *   - `applyAffinityDamageToHazard(attackerIndex, hazardX, hazardY, kind, expr, stacks)`
  *       routes only affinities that target VitalKind.Durability; others return 0
  *   - Push/Pull enforce Chebyshev range ≤ stacks from attacker to (hazardX, hazardY)
  *
  * Tests MUST FAIL until M3c implements:
- *   1. Per-trap durability arrays in `packages/core-ts/src/state/world.ts`
- *   2. `armStaticTrapAt` extended with optional durability params
- *   3. Getters: `getStaticTrapDurabilityAt`, `getStaticTrapDurabilityMaxAt`,
- *      `getStaticTrapDurabilityRegenAt`
+ *   1. Per-hazard durability arrays in `packages/core-ts/src/state/world.ts`
+ *   2. `armStaticHazardAt` extended with optional durability params
+ *   3. Getters: `getStaticHazardDurabilityAt`, `getStaticHazardDurabilityMaxAt`,
+ *      `getStaticHazardDurabilityRegenAt`
  *   4. `applyAffinityDamageToHazard` in `packages/core-ts/src/rules/affinity-damage.ts`
  *   5. All new symbols wired into `createCore()` with `CORE_API_KEYS` alphabetical
  */
@@ -65,32 +65,32 @@ function buildActorWorld(
   return core;
 }
 
-/** 7×7 world with actor at actorXY and a trap at trapXY with given durability config. */
-function buildActorTrapWorld(
+/** 7×7 world with actor at actorXY and a hazard at hazardXY with given durability config. */
+function buildActorHazardWorld(
   actorXY: [number, number],
-  trapXY: [number, number],
-  trapKind: number,
-  trapExpr: number,
-  trapStacks: number,
-  trapMana: number,
+  hazardXY: [number, number],
+  hazardKind: number,
+  hazardExpr: number,
+  hazardStacks: number,
+  hazardMana: number,
   durCurrent: number,
   durMax: number,
   durRegen: number,
 ): Core {
   const core = buildActorWorld(actorXY);
   call(
-    core.armStaticTrapAt,
-    ...trapXY, trapKind, trapExpr, trapStacks, trapMana,
+    core.armStaticHazardAt,
+    ...hazardXY, hazardKind, hazardExpr, hazardStacks, hazardMana,
     durCurrent, durMax, durRegen,
   );
   return core;
 }
 
-/** Also builds two actor world with a trap (for regression testing). */
-function buildTwoActorTrapWorld(
+/** Also builds two actor world with a hazard (for regression testing). */
+function buildTwoActorHazardWorld(
   attackerXY: [number, number] = [1, 1],
   defenderXY: [number, number] = [2, 1],
-  trapXY: [number, number] = [3, 1],
+  hazardXY: [number, number] = [3, 1],
 ): Core {
   const core = createCore();
   call(core.configureGrid, 7, 7);
@@ -108,8 +108,8 @@ function buildTwoActorTrapWorld(
     call(core.setMotivatedActorVital, idx, VitalKind.Stamina,    10, 10, 0);
     call(core.setMotivatedActorVital, idx, VitalKind.Durability,  5,  5, 0);
   }
-  // Trap with durability 6/6
-  call(core.armStaticTrapAt, ...trapXY,
+  // Hazard with durability 6/6
+  call(core.armStaticHazardAt, ...hazardXY,
     AffinityKind.Corrode, AffinityExpression.Push, 1, 5,
     6, 6, 0,
   );
@@ -117,19 +117,19 @@ function buildTwoActorTrapWorld(
 }
 
 function durOf(core: Core, x: number, y: number): number {
-  return call(core.getStaticTrapDurabilityAt, x, y) as number;
+  return call(core.getStaticHazardDurabilityAt, x, y) as number;
 }
 
 function durMaxOf(core: Core, x: number, y: number): number {
-  return call(core.getStaticTrapDurabilityMaxAt, x, y) as number;
+  return call(core.getStaticHazardDurabilityMaxAt, x, y) as number;
 }
 
 function durRegenOf(core: Core, x: number, y: number): number {
-  return call(core.getStaticTrapDurabilityRegenAt, x, y) as number;
+  return call(core.getStaticHazardDurabilityRegenAt, x, y) as number;
 }
 
-function trapExists(core: Core, x: number, y: number): boolean {
-  return (call(core.getStaticTrapAffinityAt, x, y) as number) > 0;
+function hazardExists(core: Core, x: number, y: number): boolean {
+  return (call(core.getStaticHazardAffinityAt, x, y) as number) > 0;
 }
 
 function actorDurOf(core: Core, idx: number): number {
@@ -141,19 +141,19 @@ function actorDurOf(core: Core, idx: number): number {
 // ---------------------------------------------------------------------------
 
 describe("M3c API surface", () => {
-  test("getStaticTrapDurabilityAt is exported from createCore()", () => {
+  test("getStaticHazardDurabilityAt is exported from createCore()", () => {
     const core = createCore();
-    expect(typeof (core as Record<string, unknown>).getStaticTrapDurabilityAt).toBe("function");
+    expect(typeof (core as Record<string, unknown>).getStaticHazardDurabilityAt).toBe("function");
   });
 
-  test("getStaticTrapDurabilityMaxAt is exported from createCore()", () => {
+  test("getStaticHazardDurabilityMaxAt is exported from createCore()", () => {
     const core = createCore();
-    expect(typeof (core as Record<string, unknown>).getStaticTrapDurabilityMaxAt).toBe("function");
+    expect(typeof (core as Record<string, unknown>).getStaticHazardDurabilityMaxAt).toBe("function");
   });
 
-  test("getStaticTrapDurabilityRegenAt is exported from createCore()", () => {
+  test("getStaticHazardDurabilityRegenAt is exported from createCore()", () => {
     const core = createCore();
-    expect(typeof (core as Record<string, unknown>).getStaticTrapDurabilityRegenAt).toBe("function");
+    expect(typeof (core as Record<string, unknown>).getStaticHazardDurabilityRegenAt).toBe("function");
   });
 
   test("applyAffinityDamageToHazard is exported from createCore()", () => {
@@ -166,10 +166,10 @@ describe("M3c API surface", () => {
 // Spawn-time durability configuration
 // ---------------------------------------------------------------------------
 
-describe("armStaticTrapAt: durability configuration", () => {
+describe("armStaticHazardAt: durability configuration", () => {
   test("arm with (5, 5, 0) → getters return correct values", () => {
     const core = buildActorWorld([1, 1]);
-    call(core.armStaticTrapAt, 2, 1,
+    call(core.armStaticHazardAt, 2, 1,
       AffinityKind.Fire, AffinityExpression.Emit, 1, 5,
       5, 5, 0,
     );
@@ -180,7 +180,7 @@ describe("armStaticTrapAt: durability configuration", () => {
 
   test("arm with (3, 10, 1) → getters return correct values", () => {
     const core = buildActorWorld([1, 1]);
-    call(core.armStaticTrapAt, 2, 1,
+    call(core.armStaticHazardAt, 2, 1,
       AffinityKind.Corrode, AffinityExpression.Push, 2, 4,
       3, 10, 1,
     );
@@ -189,9 +189,9 @@ describe("armStaticTrapAt: durability configuration", () => {
     expect(durRegenOf(core, 2, 1)).toBe(1);
   });
 
-  test("arm with (0, 0, 0) → immortal trap; getters return 0/0/0", () => {
+  test("arm with (0, 0, 0) → immortal hazard; getters return 0/0/0", () => {
     const core = buildActorWorld([1, 1]);
-    call(core.armStaticTrapAt, 2, 1,
+    call(core.armStaticHazardAt, 2, 1,
       AffinityKind.Fire, AffinityExpression.Emit, 1, 3,
       0, 0, 0,
     );
@@ -203,25 +203,25 @@ describe("armStaticTrapAt: durability configuration", () => {
   test("arm without durability params (legacy 6-arg call) → durability defaults to 0/0/0", () => {
     const core = buildActorWorld([1, 1]);
     // Original 6-arg call — must still work (no breaking change)
-    call(core.armStaticTrapAt, 2, 1,
+    call(core.armStaticHazardAt, 2, 1,
       AffinityKind.Fire, AffinityExpression.Emit, 1, 5,
     );
     expect(durOf(core, 2, 1)).toBe(0);
     expect(durMaxOf(core, 2, 1)).toBe(0);
   });
 
-  test("getStaticTrapDurabilityAt returns 0 for a cell with no trap", () => {
+  test("getStaticHazardDurabilityAt returns 0 for a cell with no hazard", () => {
     const core = buildActorWorld([1, 1]);
     expect(durOf(core, 4, 4)).toBe(0);
   });
 
   test("disarm clears durability getters", () => {
     const core = buildActorWorld([1, 1]);
-    call(core.armStaticTrapAt, 2, 1,
+    call(core.armStaticHazardAt, 2, 1,
       AffinityKind.Fire, AffinityExpression.Emit, 1, 5,
       8, 8, 1,
     );
-    call(core.disarmStaticTrapAt, 2, 1);
+    call(core.disarmStaticHazardAt, 2, 1);
     expect(durOf(core, 2, 1)).toBe(0);
     expect(durMaxOf(core, 2, 1)).toBe(0);
   });
@@ -233,8 +233,8 @@ describe("armStaticTrapAt: durability configuration", () => {
 
 describe("applyAffinityDamageToHazard: durability drain (Corrode+Push)", () => {
   test("Corrode+Push at stacks=1 drains hazard durability by 2", () => {
-    // actor at (1,1), trap at (2,1), durability 6/6, Corrode push range=1
-    const core = buildActorTrapWorld(
+    // actor at (1,1), hazard at (2,1), durability 6/6, Corrode push range=1
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       6, 6, 0,
@@ -248,7 +248,7 @@ describe("applyAffinityDamageToHazard: durability drain (Corrode+Push)", () => {
   });
 
   test("Corrode+Push at stacks=2 drains durability by 4", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       10, 10, 0,
@@ -261,7 +261,7 @@ describe("applyAffinityDamageToHazard: durability drain (Corrode+Push)", () => {
   });
 
   test("Corrode+Pull BUFFS hazard durability (sign-reversed)", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       3, 10, 0,
@@ -274,7 +274,7 @@ describe("applyAffinityDamageToHazard: durability drain (Corrode+Push)", () => {
   });
 
   test("Fortify+Push buffs hazard durability by 2 per stack", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       2, 10, 0,
@@ -287,7 +287,7 @@ describe("applyAffinityDamageToHazard: durability drain (Corrode+Push)", () => {
   });
 
   test("buff clamps at durabilityMax", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       9, 10, 0,
@@ -305,9 +305,9 @@ describe("applyAffinityDamageToHazard: durability drain (Corrode+Push)", () => {
 // ---------------------------------------------------------------------------
 
 describe("applyAffinityDamageToHazard: destruction (durability reaches 0)", () => {
-  test("lethal Corrode+Push destroys the trap (durability to 0 → disarmed)", () => {
-    // trap durability 3/3, Corrode+Push stacks=2 → -4 → clamp to 0 → destroyed
-    const core = buildActorTrapWorld(
+  test("lethal Corrode+Push destroys the hazard (durability to 0 → disarmed)", () => {
+    // hazard durability 3/3, Corrode+Push stacks=2 → -4 → clamp to 0 → destroyed
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       3, 3, 0,
@@ -316,11 +316,11 @@ describe("applyAffinityDamageToHazard: destruction (durability reaches 0)", () =
       (core as Record<string, unknown>).applyAffinityDamageToHazard,
       0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 2,
     );
-    expect(trapExists(core, 2, 1)).toBe(false); // trap disarmed
+    expect(hazardExists(core, 2, 1)).toBe(false); // hazard disarmed
   });
 
   test("after destruction, durability getters return 0", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Fire, AffinityExpression.Emit, 1, 5,
       2, 2, 0,
@@ -334,7 +334,7 @@ describe("applyAffinityDamageToHazard: destruction (durability reaches 0)", () =
   });
 
   test("subsequent operation against destroyed cell is rejected (0)", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       1, 1, 0,
@@ -352,8 +352,8 @@ describe("applyAffinityDamageToHazard: destruction (durability reaches 0)", () =
     expect(result).toBe(0);
   });
 
-  test("non-lethal hit leaves trap armed", () => {
-    const core = buildActorTrapWorld(
+  test("non-lethal hit leaves hazard armed", () => {
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       5, 5, 0,
@@ -362,19 +362,19 @@ describe("applyAffinityDamageToHazard: destruction (durability reaches 0)", () =
       (core as Record<string, unknown>).applyAffinityDamageToHazard,
       0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1, // -2 → durability 3
     );
-    expect(trapExists(core, 2, 1)).toBe(true);
+    expect(hazardExists(core, 2, 1)).toBe(true);
     expect(durOf(core, 2, 1)).toBe(3);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Immortal trap (durabilityMax == 0)
+// Immortal hazard (durabilityMax == 0)
 // ---------------------------------------------------------------------------
 
-describe("applyAffinityDamageToHazard: immortal trap (durabilityMax == 0)", () => {
-  test("Corrode+Push against immortal trap (max=0) is rejected (0)", () => {
+describe("applyAffinityDamageToHazard: immortal hazard (durabilityMax == 0)", () => {
+  test("Corrode+Push against immortal hazard (max=0) is rejected (0)", () => {
     // arm with (0,0,0) durability — immortal
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Push, 1, 5,
       0, 0, 0,
@@ -384,18 +384,18 @@ describe("applyAffinityDamageToHazard: immortal trap (durabilityMax == 0)", () =
       0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1,
     );
     expect(result).toBe(0);
-    expect(trapExists(core, 2, 1)).toBe(true); // still armed
+    expect(hazardExists(core, 2, 1)).toBe(true); // still armed
   });
 
-  test("legacy-armed trap (no durability params) is also immortal", () => {
+  test("legacy-armed hazard (no durability params) is also immortal", () => {
     const core = buildActorWorld([1, 1]);
-    call(core.armStaticTrapAt, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1, 5);
+    call(core.armStaticHazardAt, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1, 5);
     const result = call(
       (core as Record<string, unknown>).applyAffinityDamageToHazard,
       0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1,
     );
     expect(result).toBe(0);
-    expect(trapExists(core, 2, 1)).toBe(true);
+    expect(hazardExists(core, 2, 1)).toBe(true);
   });
 });
 
@@ -404,8 +404,8 @@ describe("applyAffinityDamageToHazard: immortal trap (durabilityMax == 0)", () =
 // ---------------------------------------------------------------------------
 
 describe("applyAffinityDamageToHazard: range semantics", () => {
-  test("Push at stacks=1 accepted when trap is 1 tile away (Chebyshev = 1)", () => {
-    const core = buildActorTrapWorld(
+  test("Push at stacks=1 accepted when hazard is 1 tile away (Chebyshev = 1)", () => {
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Push, 1, 5,
       4, 4, 0,
@@ -417,8 +417,8 @@ describe("applyAffinityDamageToHazard: range semantics", () => {
     expect(result).not.toBe(0);
   });
 
-  test("Push at stacks=1 rejected when trap is 2 tiles away", () => {
-    const core = buildActorTrapWorld(
+  test("Push at stacks=1 rejected when hazard is 2 tiles away", () => {
+    const core = buildActorHazardWorld(
       [1, 1], [3, 1],
       AffinityKind.Corrode, AffinityExpression.Push, 1, 5,
       4, 4, 0,
@@ -432,8 +432,8 @@ describe("applyAffinityDamageToHazard: range semantics", () => {
   });
 
   test("Emit has no range constraint", () => {
-    // actor at (1,1), trap at (5,5), Chebyshev = 4, Emit ignores range
-    const core = buildActorTrapWorld(
+    // actor at (1,1), hazard at (5,5), Chebyshev = 4, Emit ignores range
+    const core = buildActorHazardWorld(
       [1, 1], [5, 5],
       AffinityKind.Corrode, AffinityExpression.Emit, 1, 5,
       6, 6, 0,
@@ -453,7 +453,7 @@ describe("applyAffinityDamageToHazard: range semantics", () => {
 
 describe("applyAffinityDamageToHazard: routing isolation", () => {
   test("Fire+Push (routes to Health) targeting hazard is rejected (0) — hazards have no Health", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Fire, AffinityExpression.Emit, 1, 5,
       4, 4, 0,
@@ -467,16 +467,16 @@ describe("applyAffinityDamageToHazard: routing isolation", () => {
   });
 
   test("applyAffinityDamage (actor target) Corrode+Push still drains actor durability, not hazard", () => {
-    const core = buildTwoActorTrapWorld([1, 1], [2, 1], [3, 1]);
-    const trapDurBefore = durOf(core, 3, 1);
+    const core = buildTwoActorHazardWorld([1, 1], [2, 1], [3, 1]);
+    const hazardDurBefore = durOf(core, 3, 1);
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1, AffinityKind.Corrode, AffinityExpression.Push, 1,
     );
     // Actor 1's durability is drained
     expect(actorDurOf(core, 1)).toBe(3); // 5 - 2
-    // Trap durability is untouched
-    expect(durOf(core, 3, 1)).toBe(trapDurBefore);
+    // Hazard durability is untouched
+    expect(durOf(core, 3, 1)).toBe(hazardDurBefore);
   });
 });
 
@@ -486,7 +486,7 @@ describe("applyAffinityDamageToHazard: routing isolation", () => {
 
 describe("applyAffinityDamageToHazard: rejection cases", () => {
   test("invalid attacker index → 0", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Push, 1, 5, 6, 6, 0,
     );
     expect(call(
@@ -496,7 +496,7 @@ describe("applyAffinityDamageToHazard: rejection cases", () => {
   });
 
   test("invalid affinity kind → 0", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Push, 1, 5, 6, 6, 0,
     );
     expect(call(
@@ -506,7 +506,7 @@ describe("applyAffinityDamageToHazard: rejection cases", () => {
   });
 
   test("invalid expression → 0", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Push, 1, 5, 6, 6, 0,
     );
     expect(call(
@@ -516,7 +516,7 @@ describe("applyAffinityDamageToHazard: rejection cases", () => {
   });
 
   test("zero stacks → 0", () => {
-    const core = buildActorTrapWorld(
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Push, 1, 5, 6, 6, 0,
     );
     expect(call(
@@ -525,7 +525,7 @@ describe("applyAffinityDamageToHazard: rejection cases", () => {
     )).toBe(0);
   });
 
-  test("no trap at target cell → 0", () => {
+  test("no hazard at target cell → 0", () => {
     const core = buildActorWorld([1, 1]);
     expect(call(
       (core as Record<string, unknown>).applyAffinityDamageToHazard,
@@ -540,7 +540,7 @@ describe("applyAffinityDamageToHazard: rejection cases", () => {
 
 describe("M3c: prior milestone non-regression", () => {
   test("applyAttack still works and is unaffected by hazard durability changes", () => {
-    const core = buildTwoActorTrapWorld([1, 1], [2, 1], [3, 1]);
+    const core = buildTwoActorHazardWorld([1, 1], [2, 1], [3, 1]);
     const result = call(
       (core as Record<string, unknown>).applyAttack,
       0, 1, 3,
@@ -550,7 +550,7 @@ describe("M3c: prior milestone non-regression", () => {
   });
 
   test("applyAffinityDamage (actor target) still passes all existing matrix routing", () => {
-    const core = buildTwoActorTrapWorld([1, 1], [2, 1], [3, 1]);
+    const core = buildTwoActorHazardWorld([1, 1], [2, 1], [3, 1]);
     call(
       (core as Record<string, unknown>).applyAffinityDamage,
       0, 1, AffinityKind.Fire, AffinityExpression.Push, 1,
@@ -558,8 +558,8 @@ describe("M3c: prior milestone non-regression", () => {
     expect(call(core.getMotivatedActorVitalCurrentByIndex, 1, VitalKind.Health)).toBe(8); // -2
   });
 
-  test("applyAffinityPullFromHazard (M3b) drains trap mana to 0, structure preserved", () => {
-    const core = buildActorTrapWorld(
+  test("applyAffinityPullFromHazard (M3b) drains hazard mana to 0, structure preserved", () => {
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Fire, AffinityExpression.Emit, 1, 6,
       0, 0, 0,
@@ -569,8 +569,8 @@ describe("M3c: prior milestone non-regression", () => {
       0, 2, 1, AffinityKind.Fire, 1,
     );
     expect(result).not.toBe(0);
-    expect(call(core.getStaticTrapManaReserveAt, 2, 1)).toBe(0); // mana drained
-    expect(trapExists(core, 2, 1)).toBe(true);                   // structure intact
+    expect(call(core.getStaticHazardManaReserveAt, 2, 1)).toBe(0); // mana drained
+    expect(hazardExists(core, 2, 1)).toBe(true);                   // structure intact
   });
 });
 
@@ -578,9 +578,9 @@ describe("M3c: prior milestone non-regression", () => {
 // M3d regression — durability regen and destroyed-is-terminal
 // ---------------------------------------------------------------------------
 
-describe("M3d regression: trap durability regen via advanceTick", () => {
-  test("partially damaged trap with durRegen=1 heals back each tick", () => {
-    const core = buildActorTrapWorld(
+describe("M3d regression: hazard durability regen via advanceTick", () => {
+  test("partially damaged hazard with durRegen=1 heals back each tick", () => {
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Push, 1, 5,
       3, 8, 1, // durCurrent=3, durMax=8, durRegen=1
@@ -593,8 +593,8 @@ describe("M3d regression: trap durability regen via advanceTick", () => {
     expect(durOf(core, 2, 1)).toBe(5);
   });
 
-  test("destroyed trap (durability → 0) stays destroyed across many ticks", () => {
-    const core = buildActorTrapWorld(
+  test("destroyed hazard (durability → 0) stays destroyed across many ticks", () => {
+    const core = buildActorHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Corrode, AffinityExpression.Push, 1, 5,
       1, 1, 2, // durability: current=1, max=1, regen=2 (would regen if not terminal)
@@ -602,9 +602,9 @@ describe("M3d regression: trap durability regen via advanceTick", () => {
     call((core as Record<string, unknown>).applyAffinityDamageToHazard,
       0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1,
     );
-    expect(trapExists(core, 2, 1)).toBe(false);
+    expect(hazardExists(core, 2, 1)).toBe(false);
     for (let i = 0; i < 5; i++) call(core.advanceTick);
-    expect(trapExists(core, 2, 1)).toBe(false);
+    expect(hazardExists(core, 2, 1)).toBe(false);
     expect(durOf(core, 2, 1)).toBe(0);
   });
 });
@@ -613,7 +613,7 @@ describe("M3d regression: trap durability regen via advanceTick", () => {
 // Permutations: all 3 durability affinities × 4 expressions — routing and sign
 // ---------------------------------------------------------------------------
 
-describe("permutations: all 3 durability affinities × 4 expressions route correctly to trap durability", () => {
+describe("permutations: all 3 durability affinities × 4 expressions route correctly to hazard durability", () => {
   // Durability polarity: Earth=+1, Corrode=−1, Fortify=+1
   const DUR_ROUTE = [
     { kind: AffinityKind.Earth,   polarity: +1 },
@@ -625,14 +625,14 @@ describe("permutations: all 3 durability affinities × 4 expressions route corre
     AffinityExpression.Emit, AffinityExpression.Draw,
   ];
 
-  test("each (durability-affinity × expression) changes trap durability by the matrix-predicted amount", () => {
-    // Actor at (1,1), trap at (2,1); distance=1 satisfies Push/Pull range for stacks=1
+  test("each (durability-affinity × expression) changes hazard durability by the matrix-predicted amount", () => {
+    // Actor at (1,1), hazard at (2,1); distance=1 satisfies Push/Pull range for stacks=1
     const DUR_START = 5;
     const DUR_MAX = 10;
 
     for (const { kind, polarity } of DUR_ROUTE) {
       for (const expr of ALL_EXPRS) {
-        const core = buildActorTrapWorld([1, 1], [2, 1], kind, AffinityExpression.Emit, 1, 4, DUR_START, DUR_MAX, 0);
+        const core = buildActorHazardWorld([1, 1], [2, 1], kind, AffinityExpression.Emit, 1, 4, DUR_START, DUR_MAX, 0);
         const base = (expr === AffinityExpression.Push || expr === AffinityExpression.Pull) ? 2 : 1;
         const sign = (expr === AffinityExpression.Pull || expr === AffinityExpression.Draw) ? -polarity : polarity;
         const effect = sign * base;
@@ -644,9 +644,9 @@ describe("permutations: all 3 durability affinities × 4 expressions route corre
         ) as number;
 
         if (expectedDur === 0) {
-          // Destruction case: trap no longer exists
+          // Destruction case: hazard no longer exists
           expect(result).not.toBe(0);
-          expect(trapExists(core, 2, 1)).toBe(false);
+          expect(hazardExists(core, 2, 1)).toBe(false);
         } else {
           expect(result).not.toBe(0);
           expect(durOf(core, 2, 1)).toBe(expectedDur);
@@ -662,17 +662,17 @@ describe("permutations: all 3 durability affinities × 4 expressions route corre
 
 describe("permutations: drain sequence — destruction happens on the hit that reaches 0, not before", () => {
   test("Corrode+Push: durability 6 → 4 → 2 → destroyed on third hit (not on the second)", () => {
-    const core = buildActorTrapWorld([1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 6, 6, 0);
+    const core = buildActorHazardWorld([1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 6, 6, 0);
     call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1);
-    expect(trapExists(core, 2, 1)).toBe(true);
+    expect(hazardExists(core, 2, 1)).toBe(true);
     expect(durOf(core, 2, 1)).toBe(4);
 
     call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1);
-    expect(trapExists(core, 2, 1)).toBe(true);
+    expect(hazardExists(core, 2, 1)).toBe(true);
     expect(durOf(core, 2, 1)).toBe(2);
 
     call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1);
-    expect(trapExists(core, 2, 1)).toBe(false); // destroyed on the third hit
+    expect(hazardExists(core, 2, 1)).toBe(false); // destroyed on the third hit
   });
 });
 
@@ -683,7 +683,7 @@ describe("permutations: drain sequence — destruction happens on the hit that r
 describe("permutations: Fortify+Push repairs durability but clamps at durabilityMax", () => {
   test("partial Corrode drain then Fortify repair — durability clamped at max, does not overflow", () => {
     // Start dur 6/8; Corrode-2 → 4; then Fortify+Push×3 buffs by +6 → clamped at 8
-    const core = buildActorTrapWorld([1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 6, 8, 0);
+    const core = buildActorHazardWorld([1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 6, 8, 0);
     call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1);
     expect(durOf(core, 2, 1)).toBe(4);
 
@@ -699,10 +699,10 @@ describe("permutations: Fortify+Push repairs durability but clamps at durability
 
 describe("permutations: magnitude scales linearly with stacks for durability affinities", () => {
   for (const stacks of [1, 2, 3, 4, 5]) {
-    test(`Earth+Emit at stacks=${stacks} increases trap durability by ${stacks}`, () => {
+    test(`Earth+Emit at stacks=${stacks} increases hazard durability by ${stacks}`, () => {
       const DUR_START = 5;
       const DUR_MAX = 20; // large enough to never clamp for stacks=1..5
-      const core = buildActorTrapWorld([1, 1], [2, 1], AffinityKind.Earth, AffinityExpression.Emit, 1, 4, DUR_START, DUR_MAX, 0);
+      const core = buildActorHazardWorld([1, 1], [2, 1], AffinityKind.Earth, AffinityExpression.Emit, 1, 4, DUR_START, DUR_MAX, 0);
       call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 2, 1, AffinityKind.Earth, AffinityExpression.Emit, stacks);
       expect(durOf(core, 2, 1)).toBe(DUR_START + stacks); // Emit base=1 × stacks
     });
@@ -710,10 +710,10 @@ describe("permutations: magnitude scales linearly with stacks for durability aff
 });
 
 // ---------------------------------------------------------------------------
-// Permutations: non-durability affinities return 0 and leave trap unchanged
+// Permutations: non-durability affinities return 0 and leave hazard unchanged
 // ---------------------------------------------------------------------------
 
-describe("permutations: non-durability affinities return 0 and do not affect trap durability", () => {
+describe("permutations: non-durability affinities return 0 and do not affect hazard durability", () => {
   const NON_DUR_KINDS = [
     AffinityKind.Fire, AffinityKind.Water, AffinityKind.Wind,
     AffinityKind.Life, AffinityKind.Decay, AffinityKind.Light, AffinityKind.Dark,
@@ -721,7 +721,7 @@ describe("permutations: non-durability affinities return 0 and do not affect tra
 
   test("all 7 non-durability affinities return 0 from applyAffinityDamageToHazard with Push", () => {
     for (const kind of NON_DUR_KINDS) {
-      const core = buildActorTrapWorld([1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 6, 6, 0);
+      const core = buildActorHazardWorld([1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 6, 6, 0);
       const durBefore = durOf(core, 2, 1);
       const result = call(
         (core as Record<string, unknown>).applyAffinityDamageToHazard,
@@ -738,17 +738,17 @@ describe("permutations: non-durability affinities return 0 and do not affect tra
 // ---------------------------------------------------------------------------
 
 describe("permutations: applyAffinityDamageToHazard and getters work at grid boundary cells", () => {
-  test("trap at (1,1) — minimum walkable corner — is hit and durability changes correctly", () => {
+  test("hazard at (1,1) — minimum walkable corner — is hit and durability changes correctly", () => {
     const core = buildActorWorld([2, 1]);
-    call(core.armStaticTrapAt, 1, 1, AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 6, 6, 0);
+    call(core.armStaticHazardAt, 1, 1, AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 6, 6, 0);
     call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 1, 1, AffinityKind.Corrode, AffinityExpression.Push, 1);
     expect(durOf(core, 1, 1)).toBe(4);
   });
 
-  test("trap at (5,5) — maximum walkable corner — is hit and durability changes correctly", () => {
+  test("hazard at (5,5) — maximum walkable corner — is hit and durability changes correctly", () => {
     const core = buildActorWorld([1, 1]);
     // Use Emit (no range constraint) since actor at (1,1) is 4 tiles from (5,5)
-    call(core.armStaticTrapAt, 5, 5, AffinityKind.Earth, AffinityExpression.Emit, 1, 4, 3, 10, 0);
+    call(core.armStaticHazardAt, 5, 5, AffinityKind.Earth, AffinityExpression.Emit, 1, 4, 3, 10, 0);
     call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 5, 5, AffinityKind.Earth, AffinityExpression.Emit, 1);
     expect(durOf(core, 5, 5)).toBe(4); // Earth+Emit+stacks=1: effect=+1, 3+1=4
   });
@@ -758,28 +758,28 @@ describe("permutations: applyAffinityDamageToHazard and getters work at grid bou
 // Permutations: re-arm after destruction resets durability to new values
 // ---------------------------------------------------------------------------
 
-describe("permutations: re-arming a destroyed trap starts with the newly-specified durability", () => {
-  test("trap destroyed by Corrode drain; re-armed on same cell with new durability=8/8 resets cleanly", () => {
-    const core = buildActorTrapWorld([1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 2, 2, 0);
+describe("permutations: re-arming a destroyed hazard starts with the newly-specified durability", () => {
+  test("hazard destroyed by Corrode drain; re-armed on same cell with new durability=8/8 resets cleanly", () => {
+    const core = buildActorHazardWorld([1, 1], [2, 1], AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 2, 2, 0);
     call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1);
-    expect(trapExists(core, 2, 1)).toBe(false);
+    expect(hazardExists(core, 2, 1)).toBe(false);
 
-    call(core.armStaticTrapAt, 2, 1, AffinityKind.Earth, AffinityExpression.Emit, 1, 4, 8, 8, 0);
-    expect(trapExists(core, 2, 1)).toBe(true);
+    call(core.armStaticHazardAt, 2, 1, AffinityKind.Earth, AffinityExpression.Emit, 1, 4, 8, 8, 0);
+    expect(hazardExists(core, 2, 1)).toBe(true);
     expect(durOf(core, 2, 1)).toBe(8);
     expect(durMaxOf(core, 2, 1)).toBe(8);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Permutations: multiple traps on the grid — only the targeted cell is affected
+// Permutations: multiple hazards on the grid — only the targeted cell is affected
 // ---------------------------------------------------------------------------
 
-describe("permutations: applyAffinityDamageToHazard only modifies the targeted trap cell", () => {
-  test("damaging trap at (2,1) does not change durability of trap at (4,1)", () => {
+describe("permutations: applyAffinityDamageToHazard only modifies the targeted hazard cell", () => {
+  test("damaging hazard at (2,1) does not change durability of hazard at (4,1)", () => {
     const core = buildActorWorld([1, 1]);
-    call(core.armStaticTrapAt, 2, 1, AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 8, 8, 0);
-    call(core.armStaticTrapAt, 4, 1, AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 8, 8, 0);
+    call(core.armStaticHazardAt, 2, 1, AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 8, 8, 0);
+    call(core.armStaticHazardAt, 4, 1, AffinityKind.Corrode, AffinityExpression.Emit, 1, 4, 8, 8, 0);
 
     call((core as Record<string, unknown>).applyAffinityDamageToHazard, 0, 2, 1, AffinityKind.Corrode, AffinityExpression.Push, 1);
 

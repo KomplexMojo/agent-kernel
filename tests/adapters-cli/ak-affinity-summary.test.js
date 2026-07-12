@@ -8,7 +8,7 @@ const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const PRESETS = resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json");
 const LOADOUTS = resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json");
-const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json");
+const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
 const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json");
 const AFFINITY_FIXTURE = resolve(ROOT, "tests/fixtures/personas/affinity-resolution-v1-basic.json");
 
@@ -53,20 +53,20 @@ test("cli run writes affinity summary", (t) => {
   assert.equal(summary.schemaVersion, 1);
   assert.deepEqual(summary.actors, expected.actors);
 
-  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
-  // The regenerated sim-config fixture stores the MAPPED absolute trap position (room R1 at (1,1) +
+  // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  // The regenerated sim-config fixture stores the MAPPED absolute hazard position (room R1 at (1,1) +
   // authored (2,2) = (3,3)); `run` reports that stored position as-is. The shared affinity fixture's
   // literal (2,2) stays untouched for its direct-resolution consumers, so translate here.
-  const simTrap = JSON.parse(readFileSync(SIM_CONFIG, "utf8")).layout.data.traps[0];
-  const expectedTraps = expected.traps.map((trap) => ({
-    ...trap,
-    position: { x: simTrap.x, y: simTrap.y },
-    resolvedEffects: trap.resolvedEffects.map((effect) => ({
+  const simHazard = JSON.parse(readFileSync(SIM_CONFIG, "utf8")).layout.data.hazards[0];
+  const expectedHazards = expected.hazards.map((hazard) => ({
+    ...hazard,
+    position: { x: simHazard.x, y: simHazard.y },
+    resolvedEffects: hazard.resolvedEffects.map((effect) => ({
       ...effect,
-      sourceId: `${simTrap.x},${simTrap.y}`,
+      sourceId: `${simHazard.x},${simHazard.y}`,
     })),
   }));
-  assert.deepEqual(summary.traps, expectedTraps);
+  assert.deepEqual(summary.hazards, expectedHazards);
 });
 
 test("cli run rejects affinity summary without presets or loadouts", (t) => {

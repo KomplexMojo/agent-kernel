@@ -31,7 +31,7 @@ test("serialized runtime aura data is consumed by preview focus bounds", () => {
   const bounds = computePreviewFocusBounds({
     boardWidth: 7,
     boardHeight: 7,
-    observation: { actors: [], traps: [], auras },
+    observation: { actors: [], hazards: [], auras },
   });
 
   assert.ok(bounds);
@@ -42,7 +42,7 @@ test("serialized runtime aura data is consumed by preview focus bounds", () => {
 test("serialized aura records expose tooltip-ready production fields", () => {
   const auraMap = computeAuraMap([
     {
-      id: "trap_dark_emit",
+      id: "hazard_dark_emit",
       x: 2,
       y: 2,
       affinities: [{ kind: "dark", expression: "emit", stacks: 1 }],
@@ -60,5 +60,5 @@ test("serialized aura records expose tooltip-ready production fields", () => {
   assert.ok(Array.isArray(aura.layers));
   assert.ok(Array.isArray(aura.sourceEffects));
   assert.ok(Array.isArray(aura.targetEffects));
-  assert.ok(aura.layers.some((layer) => layer.actorId === "trap_dark_emit"));
+  assert.ok(aura.layers.some((layer) => layer.actorId === "hazard_dark_emit"));
 });

@@ -6,7 +6,7 @@ const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
 const CATEGORY_POOL_IDS = Object.freeze({
   rooms: "rooms",
   floor_tiles: "rooms",
-  traps: "rooms",
+  hazards: "rooms",
   hazards: "hazards",
   resources: "resources",
   delvers: "delver",

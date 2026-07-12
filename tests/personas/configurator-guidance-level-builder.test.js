@@ -53,13 +53,13 @@ assert.equal(fromTiles.image.pixelFormat, "rgba8");
 const fromAffinityTiles = buildLevelRenderArtifactsFromTiles(["..."], {
   includeAscii: true,
   includeImage: true,
-  floorAffinityTraps: [
+  floorAffinityHazards: [
     { x: 0, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 1 } },
     { x: 1, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 1, roomStacks: 3 } },
   ],
 });
 assert.equal(fromAffinityTiles.ok, true);
-// With spreading: trap at [1,0] has roomStacks:3 which spreads to neighbors [0,0] and [2,0] with stacks:2
+// With spreading: hazard at [1,0] has roomStacks:3 which spreads to neighbors [0,0] and [2,0] with stacks:2
 // [0,0]: direct stacks 1 is overridden by spread stacks 2 → 'F'
 // [1,0]: direct stacks 3 (from roomStacks) → 'F'
 // [2,0]: spread stacks 2 → 'F'
@@ -97,36 +97,36 @@ highBudgetShapes.forEach((shape, index) => {
 
 });
 
-test("mixed-affinity floor resolution is invariant to trap ordering (permutation test)", async () => {const {
+test("mixed-affinity floor resolution is invariant to hazard ordering (permutation test)", async () => {const {
   buildLevelRenderArtifactsFromTiles,
 } = await import("../../packages/runtime/src/personas/configurator/guidance-level-builder.js");
 
-// Three traps at the same cell (1,0) with equal stacks but different affinities.
+// Three hazards at the same cell (1,0) with equal stacks but different affinities.
 // The tie-break rule uses AFFINITY_RENDER_ORDER index, so "fire" (index 0) should
 // always win over "water" (index 1) and "earth" (index 2) when stacks are equal.
-const baseTrap = (kind) => ({
+const baseHazard = (kind) => ({
   x: 1, y: 0,
   affinity: { kind, expression: "emit", targetType: "floor", stacks: 2 },
 });
 
-const trapSets = [
-  [baseTrap("fire"), baseTrap("water"), baseTrap("earth")],
-  [baseTrap("water"), baseTrap("fire"), baseTrap("earth")],
-  [baseTrap("earth"), baseTrap("water"), baseTrap("fire")],
-  [baseTrap("earth"), baseTrap("fire"), baseTrap("water")],
-  [baseTrap("water"), baseTrap("earth"), baseTrap("fire")],
-  [baseTrap("fire"), baseTrap("earth"), baseTrap("water")],
+const hazardSets = [
+  [baseHazard("fire"), baseHazard("water"), baseHazard("earth")],
+  [baseHazard("water"), baseHazard("fire"), baseHazard("earth")],
+  [baseHazard("earth"), baseHazard("water"), baseHazard("fire")],
+  [baseHazard("earth"), baseHazard("fire"), baseHazard("water")],
+  [baseHazard("water"), baseHazard("earth"), baseHazard("fire")],
+  [baseHazard("fire"), baseHazard("earth"), baseHazard("water")],
 ];
 
 const tiles = ["..."];
 let referenceAscii = null;
 let referencePixels = null;
 
-trapSets.forEach((traps, permIndex) => {
+hazardSets.forEach((hazards, permIndex) => {
   const result = buildLevelRenderArtifactsFromTiles(tiles, {
     includeAscii: true,
     includeImage: true,
-    floorAffinityTraps: traps,
+    floorAffinityHazards: hazards,
   });
   assert.equal(result.ok, true, "permutation " + permIndex + " should succeed");
 
@@ -150,8 +150,8 @@ trapSets.forEach((traps, permIndex) => {
 });
 
 // Also verify a second cell with different stacks to ensure higher-stacks still wins
-// regardless of ordering. Place a stacks=3 water trap and a stacks=2 fire trap at (0,0).
-const mixedStackTraps = [
+// regardless of ordering. Place a stacks=3 water hazard and a stacks=2 fire hazard at (0,0).
+const mixedStackHazards = [
   [
     { x: 0, y: 0, affinity: { kind: "fire", expression: "emit", targetType: "floor", stacks: 2 } },
     { x: 0, y: 0, affinity: { kind: "water", expression: "emit", targetType: "floor", stacks: 3 } },
@@ -165,11 +165,11 @@ const mixedStackTraps = [
 let refStackAscii = null;
 let refStackPixel = null;
 
-mixedStackTraps.forEach((traps, permIndex) => {
+mixedStackHazards.forEach((hazards, permIndex) => {
   const result = buildLevelRenderArtifactsFromTiles(tiles, {
     includeAscii: true,
     includeImage: true,
-    floorAffinityTraps: traps,
+    floorAffinityHazards: hazards,
   });
   assert.equal(result.ok, true);
   // Water at stacks=3 should win (higher stacks). Uppercase "W"

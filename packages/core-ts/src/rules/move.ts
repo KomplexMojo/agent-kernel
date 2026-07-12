@@ -18,11 +18,11 @@ export const ResourceMode = {
   Permanent: 2,
 } as const;
 
-const STATIC_TRAP_EMIT_EXPRESSION = 3;
+const STATIC_HAZARD_EMIT_EXPRESSION = 3;
 const STACK_ONE_EMIT_POWER = 10;
-const INVALID_TRAP_TARGET_VITAL = -1;
-const TRAP_TARGET_VITAL_BY_AFFINITY = Object.freeze([
-  INVALID_TRAP_TARGET_VITAL,
+const INVALID_HAZARD_TARGET_VITAL = -1;
+const HAZARD_TARGET_VITAL_BY_AFFINITY = Object.freeze([
+  INVALID_HAZARD_TARGET_VITAL,
   VitalKind.Health,
   VitalKind.Health,
   VitalKind.Stamina,
@@ -52,10 +52,10 @@ export interface MoveWorld {
   getActorVitalCurrent(vitalKind: number): number;
   getActorVitalMax(vitalKind: number): number;
   getActorVitalRegen(vitalKind: number): number;
-  getStaticTrapAffinityAt(x: number, y: number): number;
-  getStaticTrapExpressionAt(x: number, y: number): number;
-  getStaticTrapManaReserveAt(x: number, y: number): number;
-  getStaticTrapStacksAt(x: number, y: number): number;
+  getStaticHazardAffinityAt(x: number, y: number): number;
+  getStaticHazardExpressionAt(x: number, y: number): number;
+  getStaticHazardManaReserveAt(x: number, y: number): number;
+  getStaticHazardStacksAt(x: number, y: number): number;
   getActorX(): number;
   getActorY(): number;
   getCurrentTick(): number;
@@ -85,17 +85,17 @@ function createBlankMove(): MoveAction {
   };
 }
 
-function resolveTrapTargetVital(affinityKind: number): number {
+function resolveHazardTargetVital(affinityKind: number): number {
   if (
     affinityKind < 0 ||
-    affinityKind >= TRAP_TARGET_VITAL_BY_AFFINITY.length
+    affinityKind >= HAZARD_TARGET_VITAL_BY_AFFINITY.length
   ) {
-    return INVALID_TRAP_TARGET_VITAL;
+    return INVALID_HAZARD_TARGET_VITAL;
   }
-  return TRAP_TARGET_VITAL_BY_AFFINITY[affinityKind];
+  return HAZARD_TARGET_VITAL_BY_AFFINITY[affinityKind];
 }
 
-export function computeTrapDamage(stacks: number, manaReserve: number): number {
+export function computeHazardDamage(stacks: number, manaReserve: number): number {
   if (stacks <= 0 || manaReserve <= 0) return 0;
   const scaled = (STACK_ONE_EMIT_POWER * stacks * manaReserve) / 100;
   return scaled > 0 ? scaled : 1;
@@ -104,17 +104,17 @@ export function computeTrapDamage(stacks: number, manaReserve: number): number {
 export function createMoveRules(world: MoveWorld) {
   let pendingMove = createBlankMove();
 
-  function applyStaticTrapDamageAt(x: number, y: number): void {
-    const expression = world.getStaticTrapExpressionAt(x, y);
-    if (expression !== STATIC_TRAP_EMIT_EXPRESSION) return;
+  function applyStaticHazardDamageAt(x: number, y: number): void {
+    const expression = world.getStaticHazardExpressionAt(x, y);
+    if (expression !== STATIC_HAZARD_EMIT_EXPRESSION) return;
 
-    const affinityKind = world.getStaticTrapAffinityAt(x, y);
-    const targetVital = resolveTrapTargetVital(affinityKind);
+    const affinityKind = world.getStaticHazardAffinityAt(x, y);
+    const targetVital = resolveHazardTargetVital(affinityKind);
     if (targetVital < 0) return;
 
-    const stacks = world.getStaticTrapStacksAt(x, y);
-    const manaReserve = world.getStaticTrapManaReserveAt(x, y);
-    const damage = computeTrapDamage(stacks, manaReserve);
+    const stacks = world.getStaticHazardStacksAt(x, y);
+    const manaReserve = world.getStaticHazardManaReserveAt(x, y);
+    const damage = computeHazardDamage(stacks, manaReserve);
     if (damage <= 0) return;
 
     const current = world.getActorVitalCurrent(targetVital);
@@ -238,7 +238,7 @@ export function createMoveRules(world: MoveWorld) {
   }
 
   function applyTileEntryEffects(x: number, y: number): void {
-    applyStaticTrapDamageAt(x, y);
+    applyStaticHazardDamageAt(x, y);
     applyResourceCaptureAt(x, y);
   }
 

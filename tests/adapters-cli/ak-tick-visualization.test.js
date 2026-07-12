@@ -47,8 +47,8 @@ function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
         legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
       },
     },
-    traps: [
-      { id: "trap_1", x: 2, y: 1, affinity: "fire", expression: "emit", stacks: 3, blocking: false },
+    hazards: [
+      { id: "hazard_1", x: 2, y: 1, affinity: "fire", expression: "emit", stacks: 3, blocking: false },
     ],
     resources: [
       { id: "resource_1", x: 4, y: 1, tier: "level", stat: "vitalMax", delta: 10, dropRate: 50 },

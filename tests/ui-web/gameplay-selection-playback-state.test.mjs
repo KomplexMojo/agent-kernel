@@ -75,7 +75,7 @@ function buildBundle() {
         spawn: { x: 4, y: 3 },
         exit: { x: 0, y: 0 },
         rooms: [],
-        traps: [],
+        hazards: [],
       },
     },
   };

@@ -9,7 +9,7 @@ test("runtime applies moderator affinity environment actions to core", async () 
   );
 
   const setTiles = [];
-  const armedTraps = [];
+  const armedHazards = [];
 
   const core = {
     init() {},
@@ -34,8 +34,8 @@ test("runtime applies moderator affinity environment actions to core", async () 
     setTileAt(x, y, tile) {
       setTiles.push({ x, y, tile });
     },
-    armStaticTrapAt(x, y, affinityKind, expression, stacks, manaReserve) {
-      armedTraps.push({ x, y, affinityKind, expression, stacks, manaReserve });
+    armStaticHazardAt(x, y, affinityKind, expression, stacks, manaReserve) {
+      armedHazards.push({ x, y, affinityKind, expression, stacks, manaReserve });
       return 1;
     },
   };
@@ -68,9 +68,9 @@ test("runtime applies moderator affinity environment actions to core", async () 
               targetType: "barrier",
             },
             {
-              id: "water:emit:floor:arm_static_trap",
+              id: "water:emit:floor:arm_static_hazard",
               category: "environment",
-              operation: "arm_static_trap",
+              operation: "arm_static_hazard",
               sourceType: "actor",
               kind: "water",
               expression: "emit",
@@ -88,6 +88,6 @@ test("runtime applies moderator affinity environment actions to core", async () 
 
   assert.equal(setTiles.length, 1);
   assert.deepEqual(setTiles[0], { x: 1, y: 0, tile: 1 });
-  assert.equal(armedTraps.length, 1);
-  assert.deepEqual(armedTraps[0], { x: 1, y: 1, affinityKind: 2, expression: 3, stacks: 3, manaReserve: 2 });
+  assert.equal(armedHazards.length, 1);
+  assert.deepEqual(armedHazards[0], { x: 1, y: 1, affinityKind: 2, expression: 3, stacks: 3, manaReserve: 2 });
 });

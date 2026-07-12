@@ -62,7 +62,7 @@ import {
   DEFAULT_ROOM_CARD_AFFINITY,
   DEFAULT_VITALS,
   LLM_REPAIR_TEXT,
-  TRAP_VITAL_KEYS,
+  HAZARD_VITAL_KEYS,
   VITAL_KEYS,
   appendLlmPromptSuffix,
   buildLlmActorConfigPromptTemplate,
@@ -133,8 +133,8 @@ function usage() {
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
-  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--trap "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
+  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]" [--hazard "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} resource-plan --resource "permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>" [--resource "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
@@ -174,14 +174,14 @@ Options:
   --text          Freeform text for llm-plan; when no fixture is provided, CLI falls back to the default stub summary fixture
   --dungeon-affinity Dungeon affinity for plan summary defaults
   --budget-tokens Hard budget cap in tokens. If freeform text also states a budget, they must match.
-  --dungeon-budget-tokens Separate hard budget cap for dungeon-side objects (rooms, tiles, traps, hazards).
+  --dungeon-budget-tokens Separate hard budget cap for dungeon-side objects (rooms, tiles, placedHazards, hazards).
   --delver-budget-tokens  Separate hard budget cap for delver-side objects (delvers, wardens).
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
   --resource      Resource artifact spec for create/configure/resource-plan (repeatable): permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>] or legacy tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
-  --trap          Trap spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
-  --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --trap/--hazard placement)
+  --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
+  --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
   --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]]
                     where <expression> is push|pull (spatial) or emit|draw (field)
@@ -226,7 +226,7 @@ function parseArgs(argv) {
     "budget-pool",
     "room",
     "floor-tile",
-    "trap",
+    "hazard",
     "hazard",
     "resource",
     "file",
@@ -702,7 +702,7 @@ function parseRoomSpec(value, roomIndex) {
     const key = segment.slice(0, separator).trim().toLowerCase();
     const fieldValue = segment.slice(separator + 1).trim();
     if (key === "affinity" || key === "affinities") {
-      throw new Error(`room[${roomIndex}] field "${key}" is not supported — rooms are generic containers; use --trap or --hazard to place affinity in a room.`);
+      throw new Error(`room[${roomIndex}] field "${key}" is not supported — rooms are generic containers; use --hazard to place affinity in a room.`);
     }
     if (!allowedFields.has(key)) {
       throw new Error(`room[${roomIndex}] field "${key}" is not supported.`);
@@ -789,7 +789,7 @@ function parseFloorTileSpecs(rawFloorTiles) {
   return values.map((value, index) => parseFloorTileSpec(value, index + 1));
 }
 
-function parseTrapVitals(value, trapIndex) {
+function parsePlacedHazardVitals(value, hazardIndex) {
   if (!isNonEmptyString(value)) {
     return undefined;
   }
@@ -805,27 +805,27 @@ function parseTrapVitals(value, trapIndex) {
   entries.forEach((entry, index) => {
     const parts = entry.split(":").map((part) => part.trim());
     if (parts.length !== 3 && parts.length !== 4) {
-      throw new Error(`trap[${trapIndex}] vital[${index + 1}] must be vital:max:regen or vital:current:max:regen.`);
+      throw new Error(`hazard[${hazardIndex}] vital[${index + 1}] must be vital:max:regen or vital:current:max:regen.`);
     }
     const vital = String(parts[0] || "").toLowerCase();
-    if (!TRAP_VITAL_KEYS.includes(vital)) {
-      throw new Error(`trap[${trapIndex}] vital[${index + 1}] has invalid vital kind "${parts[0]}".`);
+    if (!HAZARD_VITAL_KEYS.includes(vital)) {
+      throw new Error(`hazard[${hazardIndex}] vital[${index + 1}] has invalid vital kind "${parts[0]}".`);
     }
 
     let current;
     let max;
     let regen;
     if (parts.length === 3) {
-      max = parseNonNegativeIntStrict(parts[1], `trap[${trapIndex}] vital[${index + 1}] max`);
-      regen = parseNonNegativeIntStrict(parts[2], `trap[${trapIndex}] vital[${index + 1}] regen`);
+      max = parseNonNegativeIntStrict(parts[1], `hazard[${hazardIndex}] vital[${index + 1}] max`);
+      regen = parseNonNegativeIntStrict(parts[2], `hazard[${hazardIndex}] vital[${index + 1}] regen`);
       current = max;
     } else {
-      current = parseNonNegativeIntStrict(parts[1], `trap[${trapIndex}] vital[${index + 1}] current`);
-      max = parseNonNegativeIntStrict(parts[2], `trap[${trapIndex}] vital[${index + 1}] max`);
-      regen = parseNonNegativeIntStrict(parts[3], `trap[${trapIndex}] vital[${index + 1}] regen`);
+      current = parseNonNegativeIntStrict(parts[1], `hazard[${hazardIndex}] vital[${index + 1}] current`);
+      max = parseNonNegativeIntStrict(parts[2], `hazard[${hazardIndex}] vital[${index + 1}] max`);
+      regen = parseNonNegativeIntStrict(parts[3], `hazard[${hazardIndex}] vital[${index + 1}] regen`);
     }
     if (current > max) {
-      throw new Error(`trap[${trapIndex}] vital[${index + 1}] current cannot exceed max.`);
+      throw new Error(`hazard[${hazardIndex}] vital[${index + 1}] current cannot exceed max.`);
     }
     vitals[vital] = { current, max, regen };
   });
@@ -840,73 +840,73 @@ function parseBooleanStrict(value, label) {
   throw new Error(`${label} must be true or false.`);
 }
 
-function parseTrapSpec(value, trapIndex) {
+function parsePlacedHazardSpec(value, hazardIndex) {
   const raw = String(value || "").trim();
   if (!raw) {
-    throw new Error(`trap[${trapIndex}] requires a non-empty spec.`);
+    throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
 
   const allowedFields = new Set(["id", "x", "y", "affinity", "expression", "stacks", "blocking", "vitals"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
-    throw new Error(`trap[${trapIndex}] requires at least one field.`);
+    throw new Error(`hazard[${hazardIndex}] requires at least one field.`);
   }
 
   segments.forEach((segment) => {
     if (!segment.includes("=")) {
-      throw new Error(`trap[${trapIndex}] segment "${segment}" is invalid; expected key=value.`);
+      throw new Error(`hazard[${hazardIndex}] segment "${segment}" is invalid; expected key=value.`);
     }
     const separator = segment.indexOf("=");
     const key = segment.slice(0, separator).trim().toLowerCase();
     const fieldValue = segment.slice(separator + 1).trim();
     if (!allowedFields.has(key)) {
-      throw new Error(`trap[${trapIndex}] field "${key}" is not supported.`);
+      throw new Error(`hazard[${hazardIndex}] field "${key}" is not supported.`);
     }
     if (!fieldValue) {
-      throw new Error(`trap[${trapIndex}] field "${key}" requires a value.`);
+      throw new Error(`hazard[${hazardIndex}] field "${key}" requires a value.`);
     }
     fields.set(key, fieldValue);
   });
 
   const affinity = String(fields.get("affinity") || "").trim().toLowerCase();
   if (!ALLOWED_AFFINITIES.includes(affinity)) {
-    throw new Error(`trap[${trapIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
+    throw new Error(`hazard[${hazardIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
   const expression = String(fields.get("expression") || "emit").trim().toLowerCase();
   if (!ALLOWED_AFFINITY_EXPRESSIONS.includes(expression)) {
-    throw new Error(`trap[${trapIndex}] expression must be one of: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}.`);
+    throw new Error(`hazard[${hazardIndex}] expression must be one of: ${ALLOWED_AFFINITY_EXPRESSIONS.join(", ")}.`);
   }
 
   return {
     id: isNonEmptyString(fields.get("id"))
       ? String(fields.get("id")).trim()
-      : `trap_${trapIndex}`,
-    x: parseNonNegativeIntStrict(fields.get("x"), `trap[${trapIndex}] x`),
-    y: parseNonNegativeIntStrict(fields.get("y"), `trap[${trapIndex}] y`),
+      : `hazard_${hazardIndex}`,
+    x: parseNonNegativeIntStrict(fields.get("x"), `hazard[${hazardIndex}] x`),
+    y: parseNonNegativeIntStrict(fields.get("y"), `hazard[${hazardIndex}] y`),
     blocking: fields.has("blocking")
-      ? parseBooleanStrict(fields.get("blocking"), `trap[${trapIndex}] blocking`)
+      ? parseBooleanStrict(fields.get("blocking"), `hazard[${hazardIndex}] blocking`)
       : false,
     affinity: {
       kind: affinity,
       expression,
       stacks: fields.has("stacks")
-        ? parsePositiveIntStrict(fields.get("stacks"), `trap[${trapIndex}] stacks`)
+        ? parsePositiveIntStrict(fields.get("stacks"), `hazard[${hazardIndex}] stacks`)
         : 1,
       targetType: "floor",
     },
-    vitals: parseTrapVitals(fields.get("vitals"), trapIndex),
+    vitals: parsePlacedHazardVitals(fields.get("vitals"), hazardIndex),
   };
 }
 
-function parseTrapSpecs(rawTraps) {
-  const values = normalizeList(rawTraps)
+function parsePlacedHazardSpecs(rawHazards) {
+  const values = normalizeList(rawHazards)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean);
   if (values.length === 0) {
     return [];
   }
-  return values.map((value, index) => parseTrapSpec(value, index + 1));
+  return values.map((value, index) => parsePlacedHazardSpec(value, index + 1));
 }
 
 function parseHazardVitalSpec(value, field, hazardIndex) {
@@ -930,13 +930,74 @@ function parseHazardVitalSpec(value, field, hazardIndex) {
   throw new Error(`hazard[${hazardIndex}] ${field} must be one-time:<amount> or regen:<current>:<max>:<regen>.`);
 }
 
+function placementVitalToHazardVital(vital) {
+  if (!vital || typeof vital !== "object") {
+    return undefined;
+  }
+  const current = Number.isFinite(vital.current) ? vital.current : 0;
+  const max = Number.isFinite(vital.max) ? vital.max : current;
+  const regen = Number.isFinite(vital.regen) ? vital.regen : 0;
+  return { kind: "regen", current, max, regen };
+}
+
+function buildCanonicalHazard({
+  id,
+  affinity,
+  expression,
+  stacks = 1,
+  proximityRadius = 0,
+  mana,
+  durability,
+  x,
+  y,
+  blocking,
+} = {}) {
+  const resolvedStacks = Number.isInteger(stacks) && stacks > 0 ? stacks : 1;
+  return {
+    id,
+    affinity,
+    expression,
+    proximityRadius,
+    affinityStacks: [{
+      kind: affinity,
+      expression,
+      stacks: resolvedStacks,
+      targetType: "floor",
+    }],
+    vitals: {
+      mana: mana || { kind: "one-time", amount: 0 },
+      durability: durability || { kind: "one-time", amount: 1 },
+    },
+    ...(x !== undefined ? { x } : {}),
+    ...(y !== undefined ? { y } : {}),
+    ...(blocking !== undefined ? { blocking: blocking === true } : {}),
+    _schemaVersion: 3,
+  };
+}
+
+function canonicalizePlacedHazard(hazard, hazardIndex) {
+  const affinity = hazard?.affinity || {};
+  const id = isNonEmptyString(hazard?.id) ? hazard.id : `hazard_${hazardIndex}`;
+  return buildCanonicalHazard({
+    id,
+    affinity: affinity.kind,
+    expression: affinity.expression || "emit",
+    stacks: affinity.stacks,
+    proximityRadius: 0,
+    mana: placementVitalToHazardVital(hazard?.vitals?.mana),
+    durability: placementVitalToHazardVital(hazard?.vitals?.durability),
+    x: hazard?.x,
+    y: hazard?.y,
+    blocking: hazard?.blocking,
+  });
+}
+
 function parseHazardSpec(value, hazardIndex) {
   const raw = String(value || "").trim();
   if (!raw) {
     throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
-  // durability is not in allowedFields — hazards have mana only (schemaVersion 2)
-  const allowedFields = new Set(["id", "affinity", "expression", "proximityRadius", "mana"]);
+  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "proximityRadius", "mana", "durability"]);
   const fields = new Map();
   const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -949,9 +1010,6 @@ function parseHazardSpec(value, hazardIndex) {
     const eqIdx = segment.indexOf("=");
     const key = segment.slice(0, eqIdx).trim();
     const val = segment.slice(eqIdx + 1).trim();
-    if (key === "durability") {
-      throw new Error(`hazard[${hazardIndex}] durability is not allowed — hazards have mana only.`);
-    }
     if (!allowedFields.has(key)) {
       throw new Error(`hazard[${hazardIndex}] field "${key}" is not supported.`);
     }
@@ -969,14 +1027,22 @@ function parseHazardSpec(value, hazardIndex) {
   if (!fields.has("proximityRadius")) {
     throw new Error(`hazard[${hazardIndex}] proximityRadius is required.`);
   }
-  return {
+  const affinity = fields.get("affinity");
+  const expression = fields.get("expression");
+  const stacks = fields.has("stacks")
+    ? parsePositiveIntStrict(fields.get("stacks"), `hazard[${hazardIndex}] stacks`)
+    : 1;
+  return buildCanonicalHazard({
     id: fields.has("id") ? fields.get("id") : `hazard_${hazardIndex}`,
-    affinity: fields.get("affinity"),
-    expression: fields.get("expression"),
+    affinity,
+    expression,
+    stacks,
     proximityRadius: parseNonNegativeIntStrict(fields.get("proximityRadius"), `hazard[${hazardIndex}] proximityRadius`),
     mana: parseHazardVitalSpec(fields.get("mana"), "mana", hazardIndex),
-    _schemaVersion: 2,
-  };
+    durability: fields.has("durability")
+      ? parseHazardVitalSpec(fields.get("durability"), "durability", hazardIndex)
+      : undefined,
+  });
 }
 
 function parseHazardSpecs(rawHazards) {
@@ -990,6 +1056,14 @@ function parseHazardSpecs(rawHazards) {
     prompt: value,
     value: parseHazardSpec(value, index + 1),
   }));
+}
+
+function parseAuthoringHazardSpec(value, hazardIndex) {
+  const raw = String(value || "").trim();
+  const hasPlacementFields = /(?:^|;)\s*(?:x|y|blocking|vitals)\s*=/i.test(raw);
+  return hasPlacementFields
+    ? canonicalizePlacedHazard(parsePlacedHazardSpec(raw, hazardIndex), hazardIndex)
+    : parseHazardSpec(raw, hazardIndex);
 }
 
 const RESOURCE_ALLOWED_TIERS = new Set(["level", "permanent"]);
@@ -3826,7 +3900,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     "text",
     "room",
     "floor-tile",
-    "trap",
+    "hazard",
     "hazard",
     "resource",
     "delver",
@@ -3859,7 +3933,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --trap, --hazard, --resource, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -3912,9 +3986,9 @@ function makeAgentCommandRoutes(kind) {
       return [
         { target: "build_spec_configurator", path: "configurator.inputs.levelGen.walkableTilesTarget", legacyFlow: "configurator" },
       ];
-    case "trap":
+    case "hazard":
       return [
-        { target: "build_spec_configurator", path: "configurator.inputs.levelGen.traps", legacyFlow: "configurator" },
+        { target: "build_spec_configurator", path: "configurator.inputs.levelGen.placedHazards", legacyFlow: "configurator" },
       ];
     case "hazard":
       return [
@@ -4008,7 +4082,7 @@ function deriveGoalForAgentCommand({ action, goal, objects }) {
   return `${action === "configure" ? "Configure" : "Author"} ${labels.join(", ")} into a playable dungeon bundle.`;
 }
 
-// Minimum room dimensions when traps/hazards occupy floor tiles alongside entrance + exit.
+// Minimum room dimensions when placedHazards/hazards occupy floor tiles alongside entrance + exit.
 // A room smaller than medium (roomMinSize=5) compresses all elements into too few walkable cells.
 const MIN_ROOM_SIZE_WITH_ITEMS = 5;
 const MIN_ROOM_MAX_SIZE_WITH_ITEMS = 8;
@@ -4032,16 +4106,16 @@ function resolveRoomSizeProfile(rooms) {
   return ROOM_SIZE_PROFILES[best] || ROOM_SIZE_PROFILES.medium;
 }
 
-function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps, rooms }) {
-  const blockingTrapCount = traps.reduce((sum, trap) => sum + (trap.blocking === true ? 1 : 0), 0);
+function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, placedHazards, rooms }) {
+  const blockingHazardCount = placedHazards.reduce((sum, hazard) => sum + (hazard.blocking === true ? 1 : 0), 0);
   const walkableTarget = Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0 ? walkableTilesTarget : 0;
-  // Authored trap x/y are room-relative (mapped into a room's interior by
-  // level-layout.js's mapTrapsToRooms), not absolute grid coordinates, so
+  // Authored hazard x/y are room-relative (mapped into a room's interior by
+  // level-layout.js's mapHazardsToRooms), not absolute grid coordinates, so
   // they must not drive grid sizing here — doing so previously let e.g.
-  // trap x=99;y=99 silently inflate the grid to 102x102 to contain a raw
-  // coordinate. Out-of-bounds room-relative traps are now rejected with a
+  // hazard x=99;y=99 silently inflate the grid to 102x102 to contain a raw
+  // coordinate. Out-of-bounds room-relative placedHazards are now rejected with a
   // structured error by the layout layer instead.
-  const requestedWalkable = walkableTarget + blockingTrapCount;
+  const requestedWalkable = walkableTarget + blockingHazardCount;
   const walkableSide = requestedWalkable > 0
     ? Math.max(5, Math.ceil(Math.sqrt(Math.ceil(requestedWalkable / 0.5))) + 2)
     : 5;
@@ -4050,7 +4124,7 @@ function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps,
   // level-layout.js clamps roomMinSize to (min(width,height) - 2), so the grid must be at
   // least (roomMinSize + 4) on each side for the profile to take effect.
   const sizeProfile = resolveRoomSizeProfile(rooms);
-  const profileMinSize = traps.length > 0
+  const profileMinSize = placedHazards.length > 0
     ? Math.max(MIN_ROOM_SIZE_WITH_ITEMS, sizeProfile.roomMinSize)
     : sizeProfile.roomMinSize;
   // +4 = 2 walls + 2 padding so the clamp in readRoomSettings allows the full room size
@@ -4066,7 +4140,7 @@ function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps,
   // (plus 1-tile spacing per room and a 4-tile wall/padding border) always fits. Only
   // applies when more than one room is requested — profileGridSide already sizes the
   // single-room case correctly, and widening it here would shift absolute tile
-  // coordinates that other authoring flags (e.g. --trap x=..;y=..) depend on.
+  // coordinates that other authoring flags (e.g. --hazard x=..;y=..) depend on.
   const requestedRoomCount = rooms.reduce((sum, entry) => {
     const count = Number.isInteger(entry?.value?.count) && entry.value.count > 0 ? entry.value.count : 1;
     return sum + count;
@@ -4097,13 +4171,13 @@ function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, traps,
   if (!Number.isInteger(shape.roomCount) || shape.roomCount <= 0) {
     shape.roomCount = 1;
   }
-  // When traps are present, enforce the requested room-size profile (at least medium) to avoid
+  // When placedHazards are present, enforce the requested room-size profile (at least medium) to avoid
   // compressing entrance, exit, and hazard tiles into an unusably small floor area.
   const minRoomSize = profileMinSize;
   if (!Number.isInteger(shape.roomMinSize) || shape.roomMinSize < minRoomSize) {
     shape.roomMinSize = minRoomSize;
   }
-  const minRoomMax = traps.length > 0
+  const minRoomMax = placedHazards.length > 0
     ? Math.max(shape.roomMinSize, sizeProfile.roomMaxSize)
     : Math.max(shape.roomMinSize, 3);
   if (!Number.isInteger(shape.roomMaxSize) || shape.roomMaxSize < minRoomMax) {
@@ -4234,7 +4308,7 @@ function buildCostSummary(budgetReceipt, spendProposal, outDir) {
 async function writeHazardArtifactFiles({ parsedHazards = [], outDir, runId, createdAt, producedBy } = {}) {
   for (let i = 0; i < parsedHazards.length; i += 1) {
     const h = parsedHazards[i].value;
-    const hazardVersion = h._schemaVersion ?? 2;
+    const hazardVersion = h._schemaVersion ?? 3;
     const hazardArtifact = {
       schema: "agent-kernel/HazardArtifact",
       schemaVersion: hazardVersion,
@@ -4246,9 +4320,20 @@ async function writeHazardArtifactFiles({ parsedHazards = [], outDir, runId, cre
       },
       affinity: h.affinity,
       expression: h.expression,
-      proximityRadius: h.proximityRadius,
-      mana: { ...h.mana },
-      ...(hazardVersion === 1 && h.durability ? { durability: { ...h.durability } } : {}),
+      ...(hazardVersion === 3
+        ? {
+          proximityRadius: h.proximityRadius,
+          affinityStacks: h.affinityStacks.map((entry) => ({ ...entry })),
+          vitals: {
+            mana: { ...h.vitals.mana },
+            durability: { ...h.vitals.durability },
+          },
+        }
+        : {
+          proximityRadius: h.proximityRadius,
+          mana: { ...h.mana },
+          ...(hazardVersion === 1 && h.durability ? { durability: { ...h.durability } } : {}),
+        }),
     };
     await writeJson(join(outDir, `hazard-${i + 1}.json`), hazardArtifact);
   }
@@ -4294,14 +4379,14 @@ const AUTHORING_POOL_WEIGHT_DEFAULTS = Object.freeze({
 function buildPoolWeightsForAuthoredKinds({
   rooms = [],
   floorTiles = [],
-  traps = [],
+  placedHazards = [],
   hazards = [],
   resources = [],
   delvers = [],
   wardens = [],
 } = {}) {
   const weights = [];
-  if (rooms.length > 0 || floorTiles.length > 0 || traps.length > 0) {
+  if (rooms.length > 0 || floorTiles.length > 0 || placedHazards.length > 0) {
     weights.push({ id: "rooms", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.rooms });
   }
   if (hazards.length > 0) weights.push({ id: "hazards", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.hazards });
@@ -4321,7 +4406,7 @@ function buildPoolWeightsForSummary(summary = {}) {
     ...cards.filter((entry) => entry?.type === "room" || entry?.source === "room"),
   ];
   const floorTiles = layout && Number.isInteger(layout.floorTiles) ? [layout] : [];
-  const traps = layout && Array.isArray(layout.traps) ? layout.traps : [];
+  const placedHazards = layout && Array.isArray(layout.placedHazards) ? layout.placedHazards : [];
   const hazards = [
     ...(Array.isArray(summary.hazards) ? summary.hazards : []),
     ...cards.filter((entry) => entry?.type === "hazard" || entry?.source === "hazard"),
@@ -4346,7 +4431,7 @@ function buildPoolWeightsForSummary(summary = {}) {
       return role.includes("warden") || role.includes("defend") || role.includes("stationary");
     }),
   ];
-  return buildPoolWeightsForAuthoredKinds({ rooms, floorTiles, traps, hazards, resources, delvers, wardens });
+  return buildPoolWeightsForAuthoredKinds({ rooms, floorTiles, placedHazards, hazards, resources, delvers, wardens });
 }
 
 async function validateRunDryRun(args) {
@@ -5276,14 +5361,21 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
     .map((value, index) => ({ prompt: value, value: parseFloorTileSpec(value, index + 1) }));
-  const parsedTraps = normalizeList(args.trap)
-    .map((entry) => String(entry || "").trim())
-    .filter(Boolean)
-    .map((value, index) => ({ prompt: value, value: parseTrapSpec(value, index + 1) }));
   const parsedHazards = normalizeList(args.hazard)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
-    .map((value, index) => ({ prompt: value, value: parseHazardSpec(value, index + 1) }));
+    .map((value, index) => ({ prompt: value, value: parseAuthoringHazardSpec(value, index + 1) }));
+  const canonicalHazardEntries = parsedHazards;
+  const occupiedHazardPositions = new Set();
+  for (const entry of canonicalHazardEntries) {
+    const hazard = entry.value;
+    if (!Number.isFinite(hazard?.x) || !Number.isFinite(hazard?.y)) continue;
+    const positionKey = `${hazard.x},${hazard.y}`;
+    if (occupiedHazardPositions.has(positionKey)) {
+      throw new Error(`duplicate_hazard: multiple hazards occupy room-relative position (${positionKey})`);
+    }
+    occupiedHazardPositions.add(positionKey);
+  }
   const parsedResources = normalizeList(args.resource)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
@@ -5297,24 +5389,23 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .filter(Boolean)
     .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
 
-  // No size=small precheck for traps or hazards: size=small generates the identical
+  // No size=small precheck for placed hazards: size=small generates the identical
   // grid/room geometry size=medium does (ensureAuthoringLevelGenCapacity bumps
-  // roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when traps are present), so rejecting
-  // small rooms contradicts the geometry the generator actually produces. Trap
+  // roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when placedHazards are present), so rejecting
+  // small rooms contradicts the geometry the generator actually produces. Hazard
   // placement is validated against the real generated room: room-relative
   // coordinates that exceed the room's interior are rejected with a structured
-  // trap_outside_room error by the level-gen layer (level-layout.js).
+  // hazard_outside_room error by the level-gen layer (level-layout.js).
 
   if (
     parsedRooms.length === 0
     && parsedFloorTiles.length === 0
-    && parsedTraps.length === 0
     && parsedHazards.length === 0
     && parsedResources.length === 0
     && parsedDelvers.length === 0
     && parsedWardens.length === 0
   ) {
-    throw new Error(`${commandName} requires at least one authored object via --room, --floor-tile, --trap, --hazard, --resource, --delver, or --warden.`);
+    throw new Error(`${commandName} requires at least one authored object via --room, --floor-tile, --hazard, --resource, --delver, or --warden.`);
   }
 
   const textVitalScope = parsedDelvers.length > 0 && parsedWardens.length === 0
@@ -5345,7 +5436,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
 
   if (hasSplitBudget) {
     // Split-budget feasibility: check dungeon and delver sides independently.
-    if (Number.isInteger(resolvedDungeonBudgetTokens) && parsedFloorTiles.length === 0 && parsedTraps.length === 0) {
+    if (Number.isInteger(resolvedDungeonBudgetTokens) && parsedFloorTiles.length === 0 && parsedHazards.length === 0) {
       ensureBudgetedFulfillmentFeasible({
         commandName,
         budgetTokens: resolvedDungeonBudgetTokens,
@@ -5374,7 +5465,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   } else if (
     Number.isInteger(resolvedBudgetTokens)
     && parsedFloorTiles.length === 0
-    && parsedTraps.length === 0
+    && parsedHazards.length === 0
     && parsedHazards.length === 0
     && parsedResources.length === 0
   ) {
@@ -5397,7 +5488,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   let fulfilled;
   if (hasSplitBudget) {
     // Split-budget fulfillment: maximize each side against its own budget.
-    const dungeonFulfilled = (shouldMaximizeSpend && parsedFloorTiles.length === 0 && parsedTraps.length === 0)
+    const dungeonFulfilled = (shouldMaximizeSpend && parsedFloorTiles.length === 0 && parsedHazards.length === 0)
       ? applyBudgetCappedFulfillment({
         rooms: parsedRooms,
         delvers: [],
@@ -5424,7 +5515,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     fulfilled = (
       shouldMaximizeSpend
       && parsedFloorTiles.length === 0
-      && parsedTraps.length === 0
+      && parsedHazards.length === 0
       && parsedHazards.length === 0
       && parsedResources.length === 0
       && parsedWardens.length === 0
@@ -5451,8 +5542,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
       objects: [
         ...parsedRooms.map((entry) => ({ kind: "room" })),
         ...parsedFloorTiles.map((entry) => ({ kind: "floor_tile" })),
-        ...parsedTraps.map((entry) => ({ kind: "trap" })),
-        ...parsedHazards.map((entry) => ({ kind: "hazard" })),
+        ...canonicalHazardEntries.map((entry) => ({ kind: "hazard" })),
         ...parsedResources.map((entry) => ({ kind: "resource" })),
         ...parsedDelvers.map((entry) => ({ kind: "delver" })),
         ...parsedWardens.map((entry) => ({ kind: "warden" })),
@@ -5464,14 +5554,14 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     poolWeights: buildPoolWeightsForAuthoredKinds({
       rooms: fulfilled.rooms,
       floorTiles: parsedFloorTiles,
-      traps: parsedTraps,
       hazards: parsedHazards,
+      hazards: canonicalHazardEntries,
       resources: parsedResources,
       delvers: fulfilled.delvers,
       wardens: parsedWardens,
     }),
   };
-  if (parsedRooms.length === 0 && parsedFloorTiles.length === 0 && parsedTraps.length === 0) {
+  if (parsedRooms.length === 0 && parsedFloorTiles.length === 0 && parsedHazards.length === 0) {
     summary.budgetScaffold = true;
   }
   if (resolvedBudgetTokens !== undefined) {
@@ -5497,34 +5587,30 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   }
 
   const walkableTilesTarget = parsedFloorTiles.reduce((sum, entry) => sum + entry.value.count, 0);
-  const traps = parsedTraps.map((entry) => entry.value);
+  const placedHazards = canonicalHazardEntries
+    .map((entry) => entry.value)
+    .filter((entry) => entry.x !== undefined && entry.y !== undefined);
   const levelGen = ensureAuthoringLevelGenCapacity(
     built.spec.configurator?.inputs?.levelGen || {},
-    { walkableTilesTarget, traps, rooms: parsedRooms },
+    { walkableTilesTarget, placedHazards, rooms: parsedRooms },
   );
   if (walkableTilesTarget > 0) {
     levelGen.walkableTilesTarget = walkableTilesTarget;
   }
-  if (traps.length > 0) {
-    levelGen.traps = traps.map((entry) => ({
-      id: entry.id,
-      x: entry.x,
-      y: entry.y,
-      blocking: entry.blocking,
-      affinity: { ...entry.affinity },
-      vitals: entry.vitals ? { ...entry.vitals } : undefined,
-    }));
-  }
-  const hazards = parsedHazards.map((entry) => entry.value);
-  if (hazards.length > 0) {
-    levelGen.hazards = hazards.map((entry) => ({
-      id: entry.id,
-      affinity: entry.affinity,
-      expression: entry.expression,
-      proximityRadius: entry.proximityRadius,
-      mana: { ...entry.mana },
-      ...(entry.durability ? { durability: { ...entry.durability } } : {}),
-    }));
+  if (canonicalHazardEntries.length > 0) {
+    levelGen.hazards = canonicalHazardEntries.map(({ value: entry }) => {
+      if (entry.x === undefined || entry.y === undefined) {
+        return { ...entry };
+      }
+      return {
+        id: entry.id,
+        x: entry.x,
+        y: entry.y,
+        blocking: entry.blocking === true,
+        affinity: { ...entry.affinityStacks[0] },
+        vitals: { ...entry.vitals },
+      };
+    });
   }
   built.spec.configurator.inputs.levelGen = levelGen;
 
@@ -5573,18 +5659,6 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
         count: entry.value.count,
       },
     })),
-    ...parsedTraps.map((entry) => ({
-      kind: "trap",
-      prompt: entry.prompt,
-      id: entry.value.id,
-      attributes: {
-        x: entry.value.x,
-        y: entry.value.y,
-        blocking: entry.value.blocking,
-        affinity: entry.value.affinity,
-        vitals: entry.value.vitals,
-      },
-    })),
     ...parsedHazards.map((entry) => ({
       kind: "hazard",
       prompt: entry.prompt,
@@ -5593,8 +5667,8 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
         affinity: entry.value.affinity,
         expression: entry.value.expression,
         proximityRadius: entry.value.proximityRadius,
-        mana: entry.value.mana,
-        durability: entry.value.durability,
+        affinityStacks: entry.value.affinityStacks,
+        vitals: entry.value.vitals,
       },
     })),
     ...parsedResources.map((entry) => ({
@@ -5702,7 +5776,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   });
 
   await writeHazardArtifactFiles({
-    parsedHazards,
+    parsedHazards: canonicalHazardEntries,
     outDir,
     runId,
     createdAt,

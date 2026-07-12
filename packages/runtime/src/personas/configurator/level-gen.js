@@ -4,12 +4,12 @@ import {
   AFFINITY_KINDS,
   AFFINITY_TARGET_TYPES,
   DEFAULT_AFFINITY_EXPRESSION,
-  TRAP_VITAL_KEYS,
+  HAZARD_VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
 
-const DEFAULT_TRAP_EXPRESSION = DEFAULT_AFFINITY_EXPRESSION;
-const DEFAULT_TRAP_STACKS = 1;
-const DEFAULT_TRAP_BLOCKING = false;
+const DEFAULT_HAZARD_EXPRESSION = DEFAULT_AFFINITY_EXPRESSION;
+const DEFAULT_HAZARD_STACKS = 1;
+const DEFAULT_HAZARD_BLOCKING = false;
 const LEVEL_PATTERN_TYPES = Object.freeze(["none", "grid", "diagonal_grid", "concentric_circles"]);
 
 function normalizePatternType(rawPattern, errors) {
@@ -112,79 +112,80 @@ function clampOptionalInt(value, field, min, max, warnings, errors, defaultValue
   return value;
 }
 
-function normalizeTrapList(traps, width, height, errors) {
-  if (traps === undefined) return [];
-  if (!Array.isArray(traps)) {
-    pushError(errors, "traps", "invalid_list");
+function normalizeHazardList(hazards, width, height, errors) {
+  if (hazards === undefined) return [];
+  if (!Array.isArray(hazards)) {
+    pushError(errors, "hazards", "invalid_list");
     return [];
   }
-  const seen = new Set();
+  const seen = new Map();
   const normalized = [];
-  traps.forEach((trap, index) => {
-    const base = `traps[${index}]`;
-    if (!isPlainObject(trap)) {
-      pushError(errors, base, "invalid_trap");
+  hazards.forEach((hazard, index) => {
+    const base = `hazards[${index}]`;
+    if (!isPlainObject(hazard)) {
+      pushError(errors, base, "invalid_hazard");
       return;
     }
-    if (!isInteger(trap.x) || !isInteger(trap.y)) {
+    if (!isInteger(hazard.x) || !isInteger(hazard.y)) {
       pushError(errors, `${base}.position`, "invalid_position");
       return;
     }
-    if (trap.x < 0 || trap.y < 0 || trap.x >= width || trap.y >= height) {
+    if (hazard.x < 0 || hazard.y < 0 || hazard.x >= width || hazard.y >= height) {
       pushError(errors, `${base}.position`, "out_of_bounds");
       return;
     }
-    const key = `${trap.x},${trap.y}`;
+    const key = `${hazard.x},${hazard.y}`;
+    const id = typeof hazard.id === "string" && hazard.id.trim() ? hazard.id.trim() : "";
     if (seen.has(key)) {
-      pushError(errors, `${base}.position`, "duplicate_trap");
       return;
     }
-    seen.add(key);
+    seen.set(key, id);
 
-    const blocking = trap.blocking === undefined ? DEFAULT_TRAP_BLOCKING : trap.blocking;
+    const blocking = hazard.blocking === undefined ? DEFAULT_HAZARD_BLOCKING : hazard.blocking;
     if (typeof blocking !== "boolean") {
       pushError(errors, `${base}.blocking`, "invalid_boolean");
     }
 
-    if (!isPlainObject(trap.affinity)) {
+    if (!isPlainObject(hazard.affinity)) {
       pushError(errors, `${base}.affinity`, "invalid_affinity");
       return;
     }
-    if (!AFFINITY_KINDS.includes(trap.affinity.kind)) {
+    if (!AFFINITY_KINDS.includes(hazard.affinity.kind)) {
       pushError(errors, `${base}.affinity.kind`, "invalid_kind");
     }
-    const expression = trap.affinity.expression ?? DEFAULT_TRAP_EXPRESSION;
+    const expression = hazard.affinity.expression ?? DEFAULT_HAZARD_EXPRESSION;
     if (!AFFINITY_EXPRESSIONS.includes(expression)) {
       pushError(errors, `${base}.affinity.expression`, "invalid_expression");
     }
-    const stacks = trap.affinity.stacks ?? DEFAULT_TRAP_STACKS;
+    const stacks = hazard.affinity.stacks ?? DEFAULT_HAZARD_STACKS;
     if (!isInteger(stacks) || stacks < 1) {
       pushError(errors, `${base}.affinity.stacks`, "invalid_stacks");
     }
-    const targetTypeProvided = trap.affinity.targetType !== undefined;
-    const targetType = targetTypeProvided ? trap.affinity.targetType : undefined;
+    const targetTypeProvided = hazard.affinity.targetType !== undefined;
+    const targetType = targetTypeProvided ? hazard.affinity.targetType : undefined;
     if (targetTypeProvided && !AFFINITY_TARGET_TYPES.includes(targetType)) {
       pushError(errors, `${base}.affinity.targetType`, "invalid_target_type");
     }
 
-    if (trap.vitals && !isPlainObject(trap.vitals)) {
+    if (hazard.vitals && !isPlainObject(hazard.vitals)) {
       pushError(errors, `${base}.vitals`, "invalid_vitals");
     }
-    if (trap.vitals && Object.keys(trap.vitals).some((key) => !TRAP_VITAL_KEYS.includes(key))) {
-      pushError(errors, `${base}.vitals`, "invalid_trap_vitals");
+    if (hazard.vitals && Object.keys(hazard.vitals).some((key) => !HAZARD_VITAL_KEYS.includes(key))) {
+      pushError(errors, `${base}.vitals`, "invalid_hazard_vitals");
     }
 
     normalized.push({
-      x: trap.x,
-      y: trap.y,
-      blocking: typeof blocking === "boolean" ? blocking : DEFAULT_TRAP_BLOCKING,
+      ...(id ? { id } : {}),
+      x: hazard.x,
+      y: hazard.y,
+      blocking: typeof blocking === "boolean" ? blocking : DEFAULT_HAZARD_BLOCKING,
       affinity: {
-        kind: trap.affinity.kind,
-        expression: AFFINITY_EXPRESSIONS.includes(expression) ? expression : DEFAULT_TRAP_EXPRESSION,
-        stacks: isInteger(stacks) && stacks > 0 ? stacks : DEFAULT_TRAP_STACKS,
+        kind: hazard.affinity.kind,
+        expression: AFFINITY_EXPRESSIONS.includes(expression) ? expression : DEFAULT_HAZARD_EXPRESSION,
+        stacks: isInteger(stacks) && stacks > 0 ? stacks : DEFAULT_HAZARD_STACKS,
         targetType: AFFINITY_TARGET_TYPES.includes(targetType) ? targetType : undefined,
       },
-      vitals: trap.vitals ? trap.vitals : undefined,
+      vitals: hazard.vitals ? hazard.vitals : undefined,
     });
   });
   return normalized;
@@ -328,13 +329,13 @@ export function normalizeLevelGenInput(input = {}) {
     LEVEL_GEN_DEFAULTS.requirePath,
   );
 
-  const traps = width && height ? normalizeTrapList(input.traps, width, height, errors) : [];
+  const hazards = width && height ? normalizeHazardList(input.hazards, width, height, errors) : [];
   let availableWalkableTiles = null;
   if (width && height && walkableTilesTarget !== undefined) {
     const hasBorder = width > 2 && height > 2;
     const maxWalkableTiles = hasBorder ? (width - 2) * (height - 2) : width * height;
-    const blockingTrapCount = traps.reduce((sum, trap) => sum + (trap?.blocking ? 1 : 0), 0);
-    availableWalkableTiles = Math.max(0, maxWalkableTiles - blockingTrapCount);
+    const blockingHazardCount = hazards.reduce((sum, hazard) => sum + (hazard?.blocking ? 1 : 0), 0);
+    availableWalkableTiles = Math.max(0, maxWalkableTiles - blockingHazardCount);
     if (walkableTilesTarget > availableWalkableTiles) {
       pushError(errors, "walkableTilesTarget", "exceeds_walkable_capacity");
     }
@@ -366,7 +367,7 @@ export function normalizeLevelGenInput(input = {}) {
     spawn: { edgeBias: spawnEdgeBias, minDistance: spawnMinDistance },
     exit: { edgeBias: exitEdgeBias, minDistance: exitMinDistance },
     connectivity: { requirePath },
-    traps,
+    hazards,
   };
   if (walkableTilesTarget !== undefined) value.walkableTilesTarget = walkableTilesTarget;
   if (seed !== undefined) value.seed = seed;

@@ -256,13 +256,13 @@ test("renderBoardWithResourceBundle applies formula-driven affinity overlays to 
     "###",
   ];
 
-  const base = await renderBoardWithResourceBundle({ tiles, actors: [], floorAffinityTraps: [] });
+  const base = await renderBoardWithResourceBundle({ tiles, actors: [], floorAffinityHazards: [] });
   assert.equal(base.ok, true);
 
   const affected = await renderBoardWithResourceBundle({
     tiles,
     actors: [],
-    floorAffinityTraps: [
+    floorAffinityHazards: [
       { position: { x: 1, y: 1 }, affinity: { kind: "fire", expression: "emit", stacks: 3 } },
     ],
   });
@@ -314,7 +314,7 @@ test("renderBoardWithResourceBundle tints floor tiles when affinities are presen
   const tinted = await renderBoardWithResourceBundle({
     tiles,
     resourceBundle: bundle,
-    floorAffinityTraps: [
+    floorAffinityHazards: [
       { x: 0, y: 0, affinity: { kind: "fire", stacks: 2 } },
     ],
   });
@@ -341,7 +341,7 @@ test("renderBoardWithResourceBundle tints floor tiles when affinities are presen
   assert.equal(tileChanged(base, tinted, 0, 0), true, "affinity overlay should change source floor tile pixels");
 });
 
-test("renderBoardWithResourceBundle tints floor tiles for observation-style traps", async () => {
+test("renderBoardWithResourceBundle tints floor tiles for observation-style hazards", async () => {
   const {
     createDefaultResourceBundleArtifact,
     renderBoardWithResourceBundle,
@@ -366,7 +366,7 @@ test("renderBoardWithResourceBundle tints floor tiles for observation-style trap
   const tinted = await renderBoardWithResourceBundle({
     tiles,
     resourceBundle: bundle,
-    floorAffinityTraps: [
+    floorAffinityHazards: [
       {
         position: { x: 1, y: 0 },
         affinities: [{ kind: "water", stacks: 3, targetType: "floor" }],
@@ -393,5 +393,5 @@ test("renderBoardWithResourceBundle tints floor tiles for observation-style trap
     return false;
   }
 
-  assert.equal(tileChanged(base, tinted, 1, 0), true, "observation-style trap should change source floor tile pixels");
+  assert.equal(tileChanged(base, tinted, 1, 0), true, "observation-style hazard should change source floor tile pixels");
 });

@@ -32,49 +32,49 @@ export interface LevelGenConnectivityInput {
   requirePath?: boolean;
 }
 
-export type TrapAffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
-export type TrapAffinityExpression = "push" | "pull" | "emit" | "draw";
-export type TrapAffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
+export type HazardAffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
+export type HazardAffinityExpression = "push" | "pull" | "emit" | "draw";
+export type HazardAffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 
-export interface LevelGenTrapAffinityInput {
-  kind: TrapAffinityKind;
-  expression?: TrapAffinityExpression;
+export interface LevelGenHazardAffinityInput {
+  kind: HazardAffinityKind;
+  expression?: HazardAffinityExpression;
   stacks?: number;
-  targetType?: TrapAffinityTargetType;
+  targetType?: HazardAffinityTargetType;
 }
 
-export interface LevelGenTrapVitalInput {
+export interface LevelGenHazardVitalInput {
   current: number;
   max: number;
   regen: number;
 }
 
-export interface LevelGenTrapVitalsInput {
-  mana?: LevelGenTrapVitalInput;
-  durability?: LevelGenTrapVitalInput;
+export interface LevelGenHazardVitalsInput {
+  mana?: LevelGenHazardVitalInput;
+  durability?: LevelGenHazardVitalInput;
 }
 
-export interface LevelGenTrapInput {
+export interface LevelGenHazardInput {
   x: number;
   y: number;
   blocking?: boolean;
-  affinity: LevelGenTrapAffinityInput;
-  vitals?: LevelGenTrapVitalsInput;
+  affinity: LevelGenHazardAffinityInput;
+  vitals?: LevelGenHazardVitalsInput;
 }
 
-export interface NormalizedLevelGenTrapAffinityInput {
-  kind: TrapAffinityKind;
-  expression: TrapAffinityExpression;
+export interface NormalizedLevelGenHazardAffinityInput {
+  kind: HazardAffinityKind;
+  expression: HazardAffinityExpression;
   stacks: number;
-  targetType: TrapAffinityTargetType;
+  targetType: HazardAffinityTargetType;
 }
 
-export interface NormalizedLevelGenTrapInput {
+export interface NormalizedLevelGenHazardInput {
   x: number;
   y: number;
   blocking: boolean;
-  affinity: NormalizedLevelGenTrapAffinityInput;
-  vitals?: LevelGenTrapVitalsInput;
+  affinity: NormalizedLevelGenHazardAffinityInput;
+  vitals?: LevelGenHazardVitalsInput;
 }
 
 export interface LevelGenInput {
@@ -87,7 +87,7 @@ export interface LevelGenInput {
   spawn?: LevelGenConstraintInput;
   exit?: LevelGenConstraintInput;
   connectivity?: LevelGenConnectivityInput;
-  traps?: LevelGenTrapInput[];
+  hazards?: LevelGenHazardInput[];
 }
 
 export interface NormalizedLevelGenInput {
@@ -100,7 +100,7 @@ export interface NormalizedLevelGenInput {
   spawn: Required<LevelGenConstraintInput>;
   exit: Required<LevelGenConstraintInput>;
   connectivity: Required<LevelGenConnectivityInput>;
-  traps: NormalizedLevelGenTrapInput[];
+  hazards: NormalizedLevelGenHazardInput[];
 }
 
 export interface ConfiguratorInputs {

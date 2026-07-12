@@ -113,10 +113,10 @@ describe("core-ts affinity codebook", () => {
     expect(call(core.affinityExpressionAllowsEnvironmentMutation, AffinityExpression.Draw)).toBe(
       false,
     );
-    expect(call(core.affinityExpressionAllowsTrapArming, AffinityExpression.Push)).toBe(
+    expect(call(core.affinityExpressionAllowsHazardArming, AffinityExpression.Push)).toBe(
       true,
     );
-    expect(call(core.affinityExpressionAllowsTrapArming, AffinityExpression.Draw)).toBe(
+    expect(call(core.affinityExpressionAllowsHazardArming, AffinityExpression.Draw)).toBe(
       false,
     );
     expect(call(core.affinityExpressionIsPersistentField, AffinityExpression.Push)).toBe(
@@ -185,7 +185,7 @@ describe("core-ts affinity codebook permutations", () => {
     const core = createCore();
     expect(call(core.affinityExpressionAllowsEnvironmentMutation, 0)).toBe(false);
     expect(call(core.affinityExpressionAllowsEnvironmentMutation, 5)).toBe(false);
-    expect(call(core.affinityExpressionAllowsTrapArming, 0)).toBe(false);
+    expect(call(core.affinityExpressionAllowsHazardArming, 0)).toBe(false);
     expect(call(core.affinityExpressionIsPersistentField, 0)).toBe(false);
   });
 

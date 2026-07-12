@@ -85,28 +85,28 @@ describe("core-ts world state", () => {
     expect(call(core.getActorVitalCurrent, 0)).toBe(9); // 8 + 1 regen
   });
 
-  test("armStaticTrapAt and trap getters", () => {
+  test("armStaticHazardAt and hazard getters", () => {
     const core = createCore();
     call(core.configureGrid, 5, 5);
     call(core.setTileAt, 2, 2, 1); // Floor
 
-    expect(call(core.armStaticTrapAt, 2, 2, 1, 3, 2, 100)).toBe(1);
-    expect(call(core.getStaticTrapAffinityAt, 2, 2)).toBe(1);
-    expect(call(core.getStaticTrapExpressionAt, 2, 2)).toBe(3);
-    expect(call(core.getStaticTrapStacksAt, 2, 2)).toBe(2);
-    expect(call(core.getStaticTrapManaReserveAt, 2, 2)).toBe(100);
-    expect(call(core.getStaticTrapCount)).toBe(1);
+    expect(call(core.armStaticHazardAt, 2, 2, 1, 3, 2, 100)).toBe(1);
+    expect(call(core.getStaticHazardAffinityAt, 2, 2)).toBe(1);
+    expect(call(core.getStaticHazardExpressionAt, 2, 2)).toBe(3);
+    expect(call(core.getStaticHazardStacksAt, 2, 2)).toBe(2);
+    expect(call(core.getStaticHazardManaReserveAt, 2, 2)).toBe(100);
+    expect(call(core.getStaticHazardCount)).toBe(1);
   });
 
-  test("disarmStaticTrapAt clears trap", () => {
+  test("disarmStaticHazardAt clears hazard", () => {
     const core = createCore();
     call(core.configureGrid, 5, 5);
     call(core.setTileAt, 2, 2, 1);
-    call(core.armStaticTrapAt, 2, 2, 1, 3, 2, 100);
+    call(core.armStaticHazardAt, 2, 2, 1, 3, 2, 100);
 
-    expect(call(core.disarmStaticTrapAt, 2, 2)).toBe(1);
-    expect(call(core.getStaticTrapAffinityAt, 2, 2)).toBe(0);
-    expect(call(core.getStaticTrapCount)).toBe(0);
+    expect(call(core.disarmStaticHazardAt, 2, 2)).toBe(1);
+    expect(call(core.getStaticHazardAffinityAt, 2, 2)).toBe(0);
+    expect(call(core.getStaticHazardCount)).toBe(0);
   });
 
   test("raiseBarrierAt and destroyBarrierAt", () => {

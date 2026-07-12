@@ -54,7 +54,10 @@ export function readCoreAffinityFieldRecords(core, { width = 0, height = 0 } = {
     for (let x = 0; x < maxX; x += 1) {
       for (const kindCode of ALL_AFFINITY_KIND_CODES) {
         const field = readAffinityFieldAt(core, x, y, kindCode);
-        if (field.intensity > 0) {
+        // A fully cancelled cell has zero net intensity but still carries
+        // contributions. Preserve those records so the presentation layer can
+        // expose the cancellation zone instead of treating it as untouched.
+        if (field.intensity > 0 || field.contributionCount > 0) {
           records.push({
             x,
             y,

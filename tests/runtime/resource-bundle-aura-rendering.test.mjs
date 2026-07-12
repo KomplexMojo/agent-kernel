@@ -15,7 +15,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
         "...",
       ],
       actors: [],
-      floorAffinityTraps: [],
+      floorAffinityHazards: [],
     });
 
     assert.equal(result.ok, true);
@@ -32,7 +32,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
         "...",
       ],
       actors: [],
-      floorAffinityTraps: [],
+      floorAffinityHazards: [],
       observation: { auras: [] },
     });
 
@@ -48,7 +48,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
         "...",
       ],
       actors: [],
-      floorAffinityTraps: [],
+      floorAffinityHazards: [],
       observation: {
         auras: [
           {
@@ -82,7 +82,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
     assert.ok(r > 0, "red channel should be > 0 for fire affinity");
   });
 
-  it("does not override trap tiles with aura rendering", async () => {
+  it("does not override hazard tiles with aura rendering", async () => {
     const result = await renderBoardWithResourceBundle({
       tiles: [
         "...",
@@ -90,7 +90,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
         "...",
       ],
       actors: [],
-      floorAffinityTraps: [
+      floorAffinityHazards: [
         {
           position: { x: 1, y: 1 },
           affinity: { kind: "water", stacks: 3 },
@@ -111,7 +111,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
     });
 
     assert.equal(result.ok, true);
-    // The trap should take priority, aura should be skipped
+    // The hazard should take priority, aura should be skipped
     // This is a visual test - we verify the code path doesn't crash
     assert.ok(result.pixels instanceof Uint8ClampedArray);
   });
@@ -125,7 +125,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
           "...",
         ],
         actors: [],
-        floorAffinityTraps: [],
+        floorAffinityHazards: [],
         observation: {
           auras: [
             {
@@ -153,7 +153,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
         "...",
       ],
       actors: [],
-      floorAffinityTraps: [],
+      floorAffinityHazards: [],
       observation: {
         auras: [
           { x: 0, y: 0, affinityKind: "fire", visualState: "emit", intensity: 0.5, stacks: 1 },
@@ -173,7 +173,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
         "...",
       ],
       actors: [],
-      floorAffinityTraps: [],
+      floorAffinityHazards: [],
       observation: {
         auras: [
           {
@@ -201,7 +201,7 @@ describe("renderBoardWithResourceBundle - aura rendering", () => {
         "BBB",
       ],
       actors: [],
-      floorAffinityTraps: [],
+      floorAffinityHazards: [],
       observation: {
         auras: [
           { x: 0, y: 0, affinityKind: "fire", visualState: "emit", intensity: 0.8, stacks: 2 }, // wall

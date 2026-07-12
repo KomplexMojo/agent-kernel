@@ -21,8 +21,8 @@
     "affinity": "fire",
     "motivation": "defending"
   },
-  "trap": {
-    "id": "trap_1",
+  "hazard": {
+    "id": "hazard_1",
     "x": 3,
     "y": 2,
     "affinity": "dark",

@@ -267,9 +267,9 @@ li[data-level="warn"] { border-color: var(--accent); color: var(--accent-strong)
 .design-card-vital-controls { display: grid; grid-template-columns: 24px auto 24px; gap: 4px; align-items: center; }
 .design-card-vital-controls button { min-width: 24px; height: 24px; padding: 0; }
 .design-card-vital-value { min-width: 40px; text-align: center; font-size: 0.72rem; color: var(--muted); font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
-.design-card-trap-mana-controls { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 4px; justify-self: end; min-width: max-content; }
-.design-card-trap-mana-controls .design-card-vital-value { min-width: 28px; }
-.design-card-trap-mana-controls button { min-width: 24px; height: 24px; padding: 0; }
+.design-card-hazard-mana-controls { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 4px; justify-self: end; min-width: max-content; }
+.design-card-hazard-mana-controls .design-card-vital-value { min-width: 28px; }
+.design-card-hazard-mana-controls button { min-width: 24px; height: 24px; padding: 0; }
 .design-card-controls { display: flex; flex-wrap: wrap; gap: 8px; }
 .design-card-controls button { padding: 5px 8px; }
 .design-card-receipt { display: grid; gap: 4px; font-size: 0.76rem; line-height: 1.3; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }

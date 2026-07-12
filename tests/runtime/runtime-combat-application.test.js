@@ -45,7 +45,7 @@ function makeCombatSimConfig() {
         spawn: { x: 0, y: 2 },
         exit: { x: 4, y: 2 },
         rooms: [{ id: "R1", x: 0, y: 2, width: 5, height: 1 }],
-        traps: [],
+        hazards: [],
       },
     },
   };

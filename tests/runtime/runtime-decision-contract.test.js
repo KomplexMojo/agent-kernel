@@ -13,7 +13,7 @@ test("buildRuntimeDecisionEnvelope normalizes actor context and candidate action
     tick: 3,
     actor: { id: "actor_1", role: "delver" },
     visibleActors: [{ id: "def_1", role: "warden" }],
-    hazards: [{ kind: "trap", position: { x: 1, y: 2 } }],
+    hazards: [{ kind: "hazard", position: { x: 1, y: 2 } }],
     candidateActions: [
       {
         id: "move_north",

@@ -181,7 +181,7 @@ test("sandbox session accepts entityCategories listing launch types", async () =
   const artifact = readFixture("sandbox-session-artifact-v1-default-room.json");
   const result = validateSandboxSession({
     ...artifact,
-    entityCategories: ["delver", "warden", "hazard", "resource", "trap"],
+    entityCategories: ["delver", "warden", "hazard", "resource"],
   });
   assert.equal(result.ok, true);
 });

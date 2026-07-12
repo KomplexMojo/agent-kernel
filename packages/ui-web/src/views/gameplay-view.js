@@ -11,22 +11,18 @@ function findArtifact(bundle, schema) {
 }
 
 function resolveHazards(layoutData) {
-  const explicit = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
-  const fromTraps = Array.isArray(layoutData.traps)
-    ? layoutData.traps
-        .filter((t) => t != null && t.x != null && t.y != null)
-        .map((t) => ({
-          ...t,
-          position: { x: t.x, y: t.y },
-          entityType: "hazard",
-          emitStrength: t.affinity?.stacks ?? 0,
-          affinityStacks: t.affinity
-            ? [{ kind: t.affinity.kind, expression: t.affinity.expression }]
-            : [],
-        }))
-    : [];
-  const seen = new Set(explicit.map((h) => `${h.position?.x},${h.position?.y}`));
-  return [...explicit, ...fromTraps.filter((t) => !seen.has(`${t.position.x},${t.position.y}`))];
+  const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+  return hazards.map((hazard) => ({
+    ...hazard,
+    position: hazard.position || { x: hazard.x, y: hazard.y },
+    entityType: "hazard",
+    emitStrength: hazard.emitStrength ?? hazard.affinity?.stacks ?? 0,
+    affinityStacks: Array.isArray(hazard.affinityStacks)
+      ? hazard.affinityStacks
+      : hazard.affinity
+        ? [{ kind: hazard.affinity.kind, expression: hazard.affinity.expression }]
+        : [],
+  }));
 }
 
 // Build a position-keyed index for a given set of actors plus the bundle's

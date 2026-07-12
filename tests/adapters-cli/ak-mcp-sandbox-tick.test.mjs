@@ -166,7 +166,7 @@ function mcpPayloadToCliArgs(payload, outDir) {
   for (const room of (payload.room ?? [])) args.push("--room", room);
   for (const delver of (payload.delver ?? [])) args.push("--delver", delver);
   for (const warden of (payload.warden ?? [])) args.push("--warden", warden);
-  for (const trap of (payload.trap ?? [])) args.push("--trap", trap);
+  for (const hazard of (payload.hazard ?? [])) args.push("--hazard", hazard);
   for (const resource of (payload.resource ?? [])) args.push("--resource", resource);
   return args;
 }
@@ -339,26 +339,26 @@ test("S2-02: ak_sandbox_place places a warden", async () => {
   assert.deepEqual(result.position, { x: 7, y: 7 });
 });
 
-test("S2-03: ak_sandbox_place places a fire trap", async () => {
+test("S2-03: ak_sandbox_place places a fire hazard", async () => {
   const { executeSandboxPlace } = await import(
     "../../packages/adapters-cli/src/mcp/tools/sandbox.mjs?t=" + Date.now()
   );
-  const outDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-place-trap-"));
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-place-hazard-"));
   const sessionPath = await createSession(outDir);
 
   const result = await executeSandboxPlace({
     session: sessionPath,
-    entityType: "trap",
-    spec: "id=trap_fire;x=3;y=1;affinity=fire;expression=emit;stacks=3;blocking=false",
+    entityType: "hazard",
+    spec: "id=hazard_fire;x=3;y=1;affinity=fire;expression=emit;stacks=3;blocking=false",
   });
 
   assert.equal(result.ok, true, `expected ok:true but got: ${result.error}`);
   const state = readJson(result.initialStatePath);
-  const trap = state.actors.find((a) => a.id === "trap_fire");
-  assert.ok(trap, "trap must appear in InitialState");
-  assert.equal(trap.traits?.affinity, "fire");
-  assert.equal(trap.traits?.stacks, 3);
-  assert.equal(trap.traits?.blocking, false);
+  const hazard = state.actors.find((a) => a.id === "hazard_fire");
+  assert.ok(hazard, "hazard must appear in InitialState");
+  assert.equal(hazard.traits?.affinity, "fire");
+  assert.equal(hazard.traits?.stacks, 3);
+  assert.equal(hazard.traits?.blocking, false);
 });
 
 test("S2-04: ak_sandbox_place places a level resource pickup", async () => {
@@ -878,7 +878,7 @@ test("T3-03: ak_show_state after forward+backward returns state of the rewound t
 /**
  * Full path that matches scenario 53 (Create Tick Session Ready Dungeon):
  *   1. Create a sandbox session
- *   2. Place an exploring delver, a stationary warden, and a fire trap
+ *   2. Place an exploring delver, a stationary warden, and a fire hazard
  *   3. Scaffold tick frames for the session run
  *   4. Navigate forward through ticks, verify cursor position
  *   5. Navigate backward, verify cursor returns to correct tick
@@ -924,12 +924,12 @@ test("INT-01: sandbox session → place entities → navigate 5 ticks forward th
   });
   assert.equal(wardenResult.ok, true, `place warden failed: ${wardenResult.error}`);
 
-  const trapResult = await executeSandboxPlace({
+  const hazardResult = await executeSandboxPlace({
     session: sessionPath,
-    entityType: "trap",
-    spec: "id=trap_fire_1;x=3;y=1;affinity=fire;expression=emit;stacks=3;blocking=false",
+    entityType: "hazard",
+    spec: "id=hazard_fire_1;x=3;y=1;affinity=fire;expression=emit;stacks=3;blocking=false",
   });
-  assert.equal(trapResult.ok, true, `place trap failed: ${trapResult.error}`);
+  assert.equal(hazardResult.ok, true, `place hazard failed: ${hazardResult.error}`);
 
   const resourceResult = await executeSandboxPlace({
     session: sessionPath,
@@ -1128,7 +1128,7 @@ test("VSR-03: scenario 53 (tick session ready dungeon) CLI create writes all cor
 
   const initialState = readJson(join(outDir, "initial-state.json"));
   assert.ok(Array.isArray(initialState.actors) && initialState.actors.length > 0,
-    "scenario 53 must produce actors (delver + warden + trap + resource)");
+    "scenario 53 must produce actors (delver + warden + hazard + resource)");
 });
 
 test("VSR-04: scenario 53 CLI output then tick-navigable via MCP handlers", async () => {

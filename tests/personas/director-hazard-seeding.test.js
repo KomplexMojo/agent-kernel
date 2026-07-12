@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 
 
 
-test("director emits hazard_proposal effects for affinity-tagged rooms on ingest_intent", async () => {
+test("director emits hazard_proposal effects from explicit room hazard hints on ingest_intent", async () => {
 const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.js");
 
 const CLOCK = "2025-01-01T00:00:00.000Z";
@@ -20,7 +20,7 @@ persona.advance({ phase: "decide", event: "bootstrap", payload: {
   }
 }, tick: 0 });
 
-// Ingest an intent that has a fire-affinity room
+// Ingest an intent that has an explicit room hazard affinity hint.
 const intentEnvelope = {
   schema: "agent-kernel/IntentEnvelope",
   schemaVersion: 1,
@@ -48,7 +48,7 @@ const result = persona.advance({
 
 assert.equal(result.state, "draft_plan", "state should be draft_plan after ingest_intent");
 
-// Should have exactly one hazard_proposal effect (only the fire room has affinity)
+// Should have exactly one hazard_proposal effect from the explicit fire hazard hint.
 const hazardEffects = result.effects.filter((e) => e.kind === "hazard_proposal");
 assert.equal(hazardEffects.length, 1, "should emit one hazard_proposal for the fire room");
 
@@ -64,8 +64,8 @@ assert.equal(proposal.budgetCeiling, 440, "budgetCeiling should be 440 (44% of 1
 assert.ok(proposal.planRef, "proposal should carry a planRef");
 assert.equal(proposal.planRef.schema, "agent-kernel/PlanArtifact");
 
-// Non-affinity room (rest, no affinity) should NOT produce a hazard proposal
-assert.equal(hazardEffects.filter((e) => e.roomIndex === 1).length, 0, "rest room with no affinity should not produce a proposal");
+// Room without a hazard affinity hint should NOT produce a hazard proposal.
+assert.equal(hazardEffects.filter((e) => e.roomIndex === 1).length, 0, "rest room without a hazard affinity hint should not produce a proposal");
 });
 
 
@@ -102,5 +102,24 @@ const result = persona.advance({
 });
 
 const hazardEffects = result.effects.filter((e) => e.kind === "hazard_proposal");
-assert.equal(hazardEffects.length, 0, "no hazard proposals when no rooms have affinities");
+assert.equal(hazardEffects.length, 0, "no hazard proposals when no rooms have hazard affinity hints");
+});
+
+
+test("hazard room labels derive from contained hazards rather than room affinity", async () => {
+const { summarizeMixedRoomAssemblies } = await import("../../packages/runtime/src/build/mixed-room-summary.js");
+
+const [room] = summarizeMixedRoomAssemblies([
+  {
+    id: "R-director-label",
+    affinity: "water",
+    mixedRoomComposition: {
+      hazards: [{ id: "H-fire", affinity: "fire" }],
+    },
+  },
+]);
+
+assert.equal(room.affinityRoomLabel, "fire affinity room");
+assert.deepEqual(room.hazardAffinityKinds, ["fire"]);
+assert.equal(room.roomAffinity, undefined);
 });

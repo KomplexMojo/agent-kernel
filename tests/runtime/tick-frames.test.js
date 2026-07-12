@@ -62,10 +62,10 @@ test.skip("apply frame events include vital_delta with vitalKind, delta, and mod
   assert.ok(applyFrame.events.some((event) => event.kind === "vital_delta" && event.vitalKind && Number.isFinite(event.delta) && event.mode));
 });
 
-test.skip("apply frame events include trap_triggered when an actor enters an affinity hazard tile", async () => {
+test.skip("apply frame events include hazard_triggered when an actor enters an affinity hazard tile", async () => {
   const runtime = await createRuntimeWithCore();
   await runtime.init({ seed: -1, simConfig: null });
   await runtime.step();
   const applyFrame = runtime.getTickFrames().find((frame) => frame.phaseDetail === "apply");
-  assert.ok(applyFrame.events.some((event) => event.kind === "trap_triggered"));
+  assert.ok(applyFrame.events.some((event) => event.kind === "hazard_triggered"));
 });

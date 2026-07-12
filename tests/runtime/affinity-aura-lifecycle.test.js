@@ -54,7 +54,7 @@ test("attaches aura data to observation after readObservation call", async () =>
   }
 });
 
-test("computes auras from traps with affinities", async () => {
+test("computes auras from hazards with affinities", async () => {
   const [bindings, auraMod, spatialMod, domainMod] = await Promise.all([
     import("../../packages/core-ts/src/index.ts"),
     import("../../packages/runtime/src/render/affinity-aura.js"),
@@ -75,7 +75,7 @@ test("computes auras from traps with affinities", async () => {
   const observation = {
     tick: 0,
     actors: [],
-    traps: [
+    hazards: [
       {
         position: { x: 5, y: 5 },
         affinities: [
@@ -90,15 +90,15 @@ test("computes auras from traps with affinities", async () => {
   };
 
   const actors = Array.isArray(observation.actors) ? observation.actors : [];
-  const traps = Array.isArray(observation.traps) ? observation.traps : [];
-  const trapActors = traps.map((trap, index) => ({
-    id: `trap_${index}`,
-    x: trap.position?.x ?? 0,
-    y: trap.position?.y ?? 0,
-    affinities: trap.affinities || [],
+  const hazards = Array.isArray(observation.hazards) ? observation.hazards : [];
+  const hazardActors = hazards.map((hazard, index) => ({
+    id: `hazard_${index}`,
+    x: hazard.position?.x ?? 0,
+    y: hazard.position?.y ?? 0,
+    affinities: hazard.affinities || [],
   }));
 
-  const allActors = [...actors, ...trapActors];
+  const allActors = [...actors, ...hazardActors];
   const auraMap = computeAuraMap(allActors, baseTiles, {
     affinityOpposites: AFFINITY_OPPOSITES,
     weights: SPATIAL_WEIGHTS,
@@ -111,6 +111,6 @@ test("computes auras from traps with affinities", async () => {
     const firstAura = serializedAuras[0];
     assert.ok(firstAura.layers.length > 0, "aura should have at least one layer");
     const layer = firstAura.layers.find((entry) => entry.kind === "dark" && entry.expression === "emit");
-    assert.ok(layer, "should have a dark emit aura layer from the trap");
+    assert.ok(layer, "should have a dark emit aura layer from the hazard");
   }
 });

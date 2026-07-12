@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 
-test("readObservation includes static traps exposed directly by core", async () => {
+test("readObservation includes static hazards exposed directly by core", async () => {
   const { readObservation } = await import(
     "../../packages/core-ts/src/index.ts"
   );
@@ -17,18 +17,18 @@ test("readObservation includes static traps exposed directly by core", async () 
     getTileActorKind(x, y) { return x === 0 && y === 0 ? 1 : 0; },
     getCurrentTick() { return 0; },
     getTileActorCount() { return 0; },
-    getStaticTrapAffinityAt(x, y) { return x === 1 && y === 1 ? 1 : 0; },
-    getStaticTrapExpressionAt() { return 3; },
-    getStaticTrapStacksAt() { return 2; },
-    getStaticTrapManaReserveAt() { return 5; },
+    getStaticHazardAffinityAt(x, y) { return x === 1 && y === 1 ? 1 : 0; },
+    getStaticHazardExpressionAt() { return 3; },
+    getStaticHazardStacksAt() { return 2; },
+    getStaticHazardManaReserveAt() { return 5; },
   };
 
   const obs = readObservation(core, { actorIdLabel: "actor_mvp" });
-  assert.ok(Array.isArray(obs.traps));
-  assert.equal(obs.traps.length, 1);
-  assert.deepEqual(obs.traps[0].position, { x: 1, y: 1 });
-  assert.equal(obs.traps[0].manaReserve, 5);
-  assert.deepEqual(obs.traps[0].affinities, [
+  assert.ok(Array.isArray(obs.hazards));
+  assert.equal(obs.hazards.length, 1);
+  assert.deepEqual(obs.hazards[0].position, { x: 1, y: 1 });
+  assert.equal(obs.hazards[0].manaReserve, 5);
+  assert.deepEqual(obs.hazards[0].affinities, [
     { kind: "fire", expression: "emit", stacks: 2, targetType: "floor" },
   ]);
 });

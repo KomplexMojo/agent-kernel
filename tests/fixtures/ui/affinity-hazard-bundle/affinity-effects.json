@@ -28,7 +28,7 @@
       "affinityStacks": { "decay:emit": 1 }
     }
   ],
-  "traps": [
+  "hazards": [
     {
       "position": { "x": 2, "y": 2 },
       "vitals": {

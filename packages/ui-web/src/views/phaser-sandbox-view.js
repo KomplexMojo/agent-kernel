@@ -4,7 +4,7 @@
 //   - Convert a sandbox bundle { simConfig, initialState, resourceBundle? } into
 //     the boardState format expected by the renderer.
 //   - Partition actors by archetype: delver/warden → observation.actors,
-//     hazard/trap → observation.hazards, resource → observation.resources.
+//     hazard → observation.hazards, resource → observation.resources.
 //   - Forward arrow-key and WASD "keydown" events as movement intents via
 //     onMovementIntent({ direction }) without implementing game rules.
 //
@@ -52,7 +52,7 @@ function sandboxBundleToBoardState(bundle) {
 
   for (const actor of (initialState?.actors || [])) {
     const archetype = String(actor?.archetype || "");
-    if (archetype === "hazard" || archetype === "trap") {
+    if (archetype === "hazard") {
       hazards.push(actor);
     } else if (archetype === "resource") {
       resources.push(actor);

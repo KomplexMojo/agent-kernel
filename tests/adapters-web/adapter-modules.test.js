@@ -128,7 +128,7 @@ test("level builder adapter supports in-process and worker-backed requests", asy
     renderOptions: {
       includeAscii: true,
       includeImage: true,
-      floorAffinityTraps: [
+      floorAffinityHazards: [
         { x: 0, y: 0, affinity: { kind: "water", targetType: "floor", stacks: 1 } },
         { x: 1, y: 0, affinity: { kind: "water", targetType: "floor", stacks: 1, roomStacks: 3 } },
       ],

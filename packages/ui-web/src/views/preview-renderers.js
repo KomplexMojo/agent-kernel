@@ -128,10 +128,10 @@ export function computePreviewFocusBounds(previewState = {}) {
     }
   });
 
-  const traps = Array.isArray(previewState?.floorAffinityTraps) ? previewState.floorAffinityTraps : [];
-  traps.forEach((trap) => {
-    if (Number.isFinite(trap?.position?.x) && Number.isFinite(trap?.position?.y)) {
-      points.push({ x: trap.position.x, y: trap.position.y });
+  const hazards = Array.isArray(previewState?.floorAffinityHazards) ? previewState.floorAffinityHazards : [];
+  hazards.forEach((hazard) => {
+    if (Number.isFinite(hazard?.position?.x) && Number.isFinite(hazard?.position?.y)) {
+      points.push({ x: hazard.position.x, y: hazard.position.y });
     }
   });
 
@@ -242,7 +242,7 @@ function resolveTileAsset(resourceBundle, symbol) {
   return findAsset(resourceBundle, mappings[tileSymbolToType(symbol)]);
 }
 
-function resolveTrapAsset(resourceBundle) {
+function resolveHazardAsset(resourceBundle) {
   return findAsset(resourceBundle, resourceBundle?.mappings?.items?.hazard);
 }
 
@@ -308,7 +308,7 @@ export function createCanvasPreviewRenderer({
         canvas: mountedCanvas,
         tiles: previewState?.tiles || [],
         actors: previewState?.actors || [],
-        floorAffinityTraps: previewState?.floorAffinityTraps || [],
+        floorAffinityHazards: previewState?.floorAffinityHazards || [],
         bundle: previewState?.bundle || null,
         observation: previewState?.observation || null,
       });
@@ -538,7 +538,7 @@ export function createPhaserPreviewRenderer({
     currentRenderRoot = scene.add.container(0, 0);
     const resourceBundle = previewState?.resourceBundle || resolveResourceBundle(previewState?.bundle);
     const { tileWidth, tileHeight } = currentBoardMetrics;
-    const trapPositions = new Set();
+    const hazardPositions = new Set();
 
     const tiles = Array.isArray(previewState?.tiles) ? previewState.tiles : [];
     for (let y = currentFocusBounds.minY; y <= currentFocusBounds.maxY; y += 1) {
@@ -580,20 +580,20 @@ export function createPhaserPreviewRenderer({
       currentRenderRoot.add(overlay);
     });
 
-    const trapAsset = resolveTrapAsset(resourceBundle);
-    const trapTextureKey = await ensureTexture(scene, trapAsset);
-    const traps = Array.isArray(previewState?.floorAffinityTraps) ? previewState.floorAffinityTraps : [];
-    traps.forEach((trap) => {
-      const x = Number.isFinite(trap?.position?.x) ? trap.position.x : null;
-      const y = Number.isFinite(trap?.position?.y) ? trap.position.y : null;
+    const hazardAsset = resolveHazardAsset(resourceBundle);
+    const hazardTextureKey = await ensureTexture(scene, hazardAsset);
+    const hazards = Array.isArray(previewState?.floorAffinityHazards) ? previewState.floorAffinityHazards : [];
+    hazards.forEach((hazard) => {
+      const x = Number.isFinite(hazard?.position?.x) ? hazard.position.x : null;
+      const y = Number.isFinite(hazard?.position?.y) ? hazard.position.y : null;
       if (x === null || y === null || !isPointInBounds(x, y, currentFocusBounds)) return;
-      trapPositions.add(`${x},${y}`);
+      hazardPositions.add(`${x},${y}`);
       const { centerX, centerY } = projectBoardPointToFocus(x, y, currentFocusBounds, tileWidth, tileHeight);
-      const tintHex = AFFINITY_COLOR_HEX[trap?.affinity?.kind] || "#ffb9a8";
+      const tintHex = AFFINITY_COLOR_HEX[hazard?.affinity?.kind] || "#ffb9a8";
       const tint = Number.parseInt(tintHex.replace("#", ""), 16);
       let node = null;
-      if (trapTextureKey) {
-        node = scene.add.image(centerX, centerY, trapTextureKey).setDisplaySize(tileWidth * 0.72, tileHeight * 0.72).setTint(tint);
+      if (hazardTextureKey) {
+        node = scene.add.image(centerX, centerY, hazardTextureKey).setDisplaySize(tileWidth * 0.72, tileHeight * 0.72).setTint(tint);
       } else {
         node = scene.add.rectangle(centerX, centerY, tileWidth * 0.48, tileHeight * 0.48, tint, 0.92).setAngle(45);
       }
@@ -625,7 +625,7 @@ export function createPhaserPreviewRenderer({
         }).setOrigin(0.5);
         currentRenderRoot.add(label);
       }
-      node.setDepth?.(trapPositions.has(`${x},${y}`) ? 26 : 24);
+      node.setDepth?.(hazardPositions.has(`${x},${y}`) ? 26 : 24);
       currentRenderRoot.add(node);
     }
 

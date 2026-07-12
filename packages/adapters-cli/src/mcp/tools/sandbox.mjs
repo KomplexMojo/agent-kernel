@@ -260,7 +260,7 @@ export async function executeSandboxCreate({
 // ---------------------------------------------------------------------------
 
 const AMBULATORY_ENTITY_TYPES = new Set(["delver", "warden"]);
-const ALLOWED_ENTITY_TYPES = new Set(["delver", "warden", "hazard", "trap", "resource"]);
+const ALLOWED_ENTITY_TYPES = new Set(["delver", "warden", "hazard", "resource"]);
 
 /**
  * Parse a semicolon-delimited spec string into a key-value object.
@@ -377,7 +377,7 @@ function buildActorFromEntitySpec(entityType, spec, position) {
   if (spec.expression) traits.expression = spec.expression;
   // Ambulatory-specific
   if (spec.motivation) traits.motivation = spec.motivation;
-  // Hazard / trap
+  // Hazard / hazard
   if (spec.stacks !== undefined) traits.stacks = Number(spec.stacks);
   if (spec.proximityRadius !== undefined) traits.proximityRadius = Number(spec.proximityRadius);
   if (spec.blocking !== undefined) traits.blocking = spec.blocking === "true" || spec.blocking === "1";
@@ -438,7 +438,7 @@ function buildActorFromEntitySpec(entityType, spec, position) {
  *
  * @param {object} options
  * @param {string} options.session      Absolute path to sandbox-session.json.
- * @param {string} options.entityType   Entity type (delver|warden|hazard|trap|resource).
+ * @param {string} options.entityType   Entity type (delver|warden|hazard|resource).
  * @param {string} options.spec         Semicolon-delimited spec string.
  * @returns {Promise<object>}
  */
@@ -1181,7 +1181,7 @@ export const sandboxTools = [
         height: integerSchema("Default room height in tiles (default: 10).", { minimum: 1 }),
         entityCategories: stringArraySchema(
           "Entity categories to enable in this sandbox session " +
-            "(allowed: delver, warden, hazard, trap, resource).",
+            "(allowed: delver, warden, hazard, resource).",
         ),
       }),
     },
@@ -1204,7 +1204,7 @@ export const sandboxTools = [
       "Place and configure an entity in an existing Phaser sandbox session. " +
       "Builds or updates the canonical SimConfig, InitialState, and ResourceBundle artifacts " +
       "referenced by the sandbox session. Reuses existing authoring rules for entity normalization. " +
-      "Supported entity types: delver, warden, hazard, trap, resource. " +
+      "Supported entity types: delver, warden, hazard, resource. " +
       "The spec parameter uses semicolon-delimited key=value pairs (e.g. id=hazard_fire;x=4;y=4;affinity=fire;expression=emit;stacks=2). " +
       "Returns ok: false with outOfBounds: true when position exceeds room dimensions.",
     inputSchema: {
@@ -1213,7 +1213,7 @@ export const sandboxTools = [
         session: pathSchema("Absolute path to the sandbox-session.json file created by ak_sandbox_create."),
         entityType: {
           type: "string",
-          enum: ["delver", "warden", "hazard", "trap", "resource"],
+          enum: ["delver", "warden", "hazard", "resource"],
           description: "Entity category to place in the sandbox.",
         },
         spec: {
@@ -1223,7 +1223,7 @@ export const sandboxTools = [
             "Semicolon-delimited entity spec (e.g. id=delver_1;x=1;y=1;affinity=water;motivation=exploring). " +
             "Required fields: id, x, y. Entity-type-specific fields: " +
             "delver/warden — affinity, motivation; " +
-            "hazard/trap — affinity, expression, stacks, [proximityRadius], [blocking]; " +
+            "hazard — affinity, expression, stacks, [proximityRadius], [blocking]; " +
             "resource — tier, stat, delta, dropRate.",
         },
       },

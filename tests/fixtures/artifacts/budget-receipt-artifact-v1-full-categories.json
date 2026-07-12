@@ -23,7 +23,7 @@
   "lineItems": [
     { "id": "room-1", "kind": "layout", "quantity": 1, "unitCost": 50, "totalCost": 50, "status": "approved" },
     { "id": "tile-1", "kind": "tile", "quantity": 4, "unitCost": 1, "totalCost": 4, "status": "approved" },
-    { "id": "trap-1", "kind": "trap", "quantity": 1, "unitCost": 10, "totalCost": 10, "status": "approved" },
+    { "id": "hazard-1", "kind": "hazard", "quantity": 1, "unitCost": 10, "totalCost": 10, "status": "approved" },
     { "id": "hazard-1", "kind": "hazard", "quantity": 1, "unitCost": 20, "totalCost": 20, "status": "approved" },
     { "id": "resource-1", "kind": "resource", "quantity": 1, "unitCost": 15, "totalCost": 15, "status": "approved" },
     { "id": "delver-1", "kind": "actor", "quantity": 1, "unitCost": 30, "totalCost": 30, "status": "approved" },
@@ -38,7 +38,7 @@
     "categories": {
       "rooms":       { "actual": 50, "target": 100, "usagePercent": 50 },
       "floor_tiles": { "actual": 4,  "target": 20,  "usagePercent": 20 },
-      "traps":       { "actual": 10, "target": 30,  "usagePercent": 33.3 },
+      "hazards":       { "actual": 10, "target": 30,  "usagePercent": 33.3 },
       "hazards":     { "actual": 20, "target": 40,  "usagePercent": 50 },
       "resources":   { "actual": 15, "target": 30,  "usagePercent": 50 },
       "delvers":     { "actual": 30, "target": 100, "usagePercent": 30 },

@@ -520,332 +520,332 @@
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_1",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_10",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_10",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_11",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_11",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_12",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_12",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_13",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_13",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_14",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_14",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_15",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_15",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_16",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_16",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_17",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_17",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_18",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_18",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_19",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_19",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_2",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_2",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_20",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_20",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_21",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_21",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_22",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_22",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_23",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_23",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_24",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_24",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_25",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_25",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_26",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_26",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_27",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_27",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_28",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_28",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_29",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_29",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_3",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_3",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_30",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_30",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_4",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_4",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_5",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_5",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_6",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_6",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_7",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_7",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_8",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_8",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_9",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_9",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     }

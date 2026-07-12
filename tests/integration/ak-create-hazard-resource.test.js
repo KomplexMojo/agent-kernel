@@ -27,12 +27,12 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
-test("ak create --hazard produces V2 hazard artifact and wires levelGen.hazards", () => {
+test("ak create --hazard produces V3 hazard artifact and wires canonical levelGen.hazards", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-"));
   runCliOk([
     "create",
     "--hazard",
-    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "affinity=fire;expression=emit;stacks=2;proximityRadius=2;mana=regen:4:4:1;durability=regen:6:6:0",
     "--run-id",
     "run_hazard_test",
     "--created-at",
@@ -48,11 +48,18 @@ test("ak create --hazard produces V2 hazard artifact and wires levelGen.hazards"
   assert.equal(hazards[0].affinity, "fire");
   assert.equal(hazards[0].expression, "emit");
   assert.equal(hazards[0].proximityRadius, 2);
-  assert.equal(hazards[0].mana.kind, "regen");
-  assert.equal(hazards[0].mana.current, 4);
-  assert.equal(hazards[0].mana.max, 4);
-  assert.equal(hazards[0].mana.regen, 1);
-  assert.equal(hazards[0].durability, undefined, "V2 hazard must not have durability");
+  assert.deepEqual(hazards[0].affinityStacks, [{
+    kind: "fire",
+    expression: "emit",
+    stacks: 2,
+    targetType: "floor",
+  }]);
+  assert.equal(hazards[0].vitals.mana.kind, "regen");
+  assert.equal(hazards[0].vitals.mana.current, 4);
+  assert.equal(hazards[0].vitals.mana.max, 4);
+  assert.equal(hazards[0].vitals.mana.regen, 1);
+  assert.equal(hazards[0].vitals.durability.kind, "regen");
+  assert.equal(hazards[0].vitals.durability.max, 6);
 
   // Verify request artifact has hazard object
   const request = spec.authoring?.request;
@@ -60,29 +67,34 @@ test("ak create --hazard produces V2 hazard artifact and wires levelGen.hazards"
   const hazardReq = request.objects?.find((o) => o.kind === "hazard");
   assert.ok(hazardReq, "request should include a hazard object");
   assert.equal(hazardReq.attributes.affinity, "fire");
+  assert.equal(hazardReq.attributes.affinityStacks[0].stacks, 2);
+  assert.equal(hazardReq.attributes.vitals.durability.max, 6);
 
-  // Verify HazardArtifact file was written as V2
+  // Verify HazardArtifact file was written as canonical V3
   const hazardArtifactPath = join(outDir, "hazard-1.json");
   assert.ok(existsSync(hazardArtifactPath), "hazard-1.json should exist");
 
   const hazardArtifact = readJson(hazardArtifactPath);
   assert.equal(hazardArtifact.schema, "agent-kernel/HazardArtifact");
-  assert.equal(hazardArtifact.schemaVersion, 2, "should emit schemaVersion 2");
+  assert.equal(hazardArtifact.schemaVersion, 3, "should emit schemaVersion 3");
   assert.ok(hazardArtifact.meta && typeof hazardArtifact.meta.id === "string", "meta.id should be a string");
   assert.equal(hazardArtifact.meta.runId, "run_hazard_test");
   assert.equal(hazardArtifact.affinity, "fire");
   assert.equal(hazardArtifact.expression, "emit");
   assert.equal(hazardArtifact.proximityRadius, 2);
-  assert.equal(hazardArtifact.mana.kind, "regen");
-  assert.equal(hazardArtifact.durability, undefined, "V2 artifact must not have durability field");
+  assert.equal(hazardArtifact.affinityStacks[0].stacks, 2);
+  assert.equal(hazardArtifact.vitals.mana.kind, "regen");
+  assert.equal(hazardArtifact.vitals.durability.kind, "regen");
+  assert.equal(hazardArtifact.mana, undefined, "V3 artifact must use vitals.mana");
+  assert.equal(hazardArtifact.durability, undefined, "V3 artifact must use vitals.durability");
 });
 
-test("ak create --hazard one-time mana produces V2 artifact", () => {
+test("ak create --hazard one-time mana and durability produces V3 artifact", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-onetime-"));
   runCliOk([
     "create",
     "--hazard",
-    "affinity=water;expression=pull;proximityRadius=1;mana=one-time:3",
+    "affinity=water;expression=pull;proximityRadius=1;mana=one-time:3;durability=one-time:2",
     "--run-id",
     "run_hazard_onetime",
     "--created-at",
@@ -93,12 +105,13 @@ test("ak create --hazard one-time mana produces V2 artifact", () => {
 
   const hazardArtifact = readJson(join(outDir, "hazard-1.json"));
   assert.equal(hazardArtifact.schema, "agent-kernel/HazardArtifact");
-  assert.equal(hazardArtifact.schemaVersion, 2);
+  assert.equal(hazardArtifact.schemaVersion, 3);
   assert.equal(hazardArtifact.affinity, "water");
   assert.equal(hazardArtifact.expression, "pull");
-  assert.equal(hazardArtifact.mana.kind, "one-time");
-  assert.equal(hazardArtifact.mana.amount, 3);
-  assert.equal(hazardArtifact.durability, undefined, "V2 must not have durability");
+  assert.equal(hazardArtifact.vitals.mana.kind, "one-time");
+  assert.equal(hazardArtifact.vitals.mana.amount, 3);
+  assert.equal(hazardArtifact.vitals.durability.kind, "one-time");
+  assert.equal(hazardArtifact.vitals.durability.amount, 2);
 });
 
 test("ak create --resource produces resource artifact and wires configurator.inputs.resources", () => {
@@ -209,20 +222,20 @@ test("ak create --resource rejects missing dropRate", () => {
 
 // --- M2: enforce per-type actor constraints at CLI authoring time ---
 
-test("ak create --hazard rejects durability field (hazards have mana only)", () => {
+test("ak create --hazard rejects invalid durability regen shape", () => {
   const result = runCli([
     "create",
     "--hazard",
-    "affinity=fire;expression=emit;proximityRadius=1;durability=one-time:1",
+    "affinity=fire;expression=emit;proximityRadius=1;durability=regen:5:4:0",
   ]);
-  assert.notEqual(result.status, 0, "should fail when durability is supplied to a hazard");
+  assert.notEqual(result.status, 0, "should fail when durability current exceeds max");
   assert.ok(
     result.stderr.includes("durability") || result.stdout.includes("durability"),
     "error should mention durability",
   );
 });
 
-test("ak create --hazard emits V2 artifact without durability", () => {
+test("ak create --hazard emits V3 artifact with default durability", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-v2-"));
   runCliOk([
     "create",
@@ -234,10 +247,10 @@ test("ak create --hazard emits V2 artifact without durability", () => {
   ]);
   const artifact = readJson(join(outDir, "hazard-1.json"));
   assert.equal(artifact.schema, "agent-kernel/HazardArtifact");
-  assert.equal(artifact.schemaVersion, 2, "should emit schemaVersion 2");
+  assert.equal(artifact.schemaVersion, 3, "should emit schemaVersion 3");
   assert.equal(artifact.affinity, "fire");
-  assert.equal(artifact.mana.kind, "regen");
-  assert.equal(artifact.durability, undefined, "V2 artifact must not have durability field");
+  assert.equal(artifact.vitals.mana.kind, "regen");
+  assert.deepEqual(artifact.vitals.durability, { kind: "one-time", amount: 1 });
 });
 
 test("ak create --resource accepts permanenceMode=consumable and emits V3 artifact", () => {
@@ -332,7 +345,40 @@ test("ak create --hazard with no mana defaults to zero one-time mana", () => {
   ]);
 
   const artifact = readJson(join(outDir, "hazard-1.json"));
-  assert.deepEqual(artifact.mana, { kind: "one-time", amount: 0 });
+  assert.deepEqual(artifact.vitals.mana, { kind: "one-time", amount: 0 });
+});
+
+test("ak create --hazard emits canonical hazard public objects", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-canonical-"));
+  runCliOk([
+    "create",
+    "--hazard",
+    "id=fire_hazard;x=0;y=0;affinity=fire;expression=emit;stacks=2;vitals=mana:4:1,durability:6:0",
+    "--run-id",
+    "run_hazard_canonical",
+    "--created-at",
+    "2026-07-11T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const objects = spec.authoring?.request?.objects || [];
+  assert.ok(objects.every((entry) => entry.kind !== "hazard" || entry.id === "fire_hazard"));
+  const hazardReq = objects.find((entry) => entry.kind === "hazard" && entry.id === "fire_hazard");
+  assert.ok(hazardReq, "--hazard should emit a public hazard object");
+  assert.equal(hazardReq.attributes.legacyAlias, undefined);
+  assert.equal(hazardReq.attributes.affinityStacks[0].stacks, 2);
+  assert.equal(hazardReq.attributes.vitals.mana.max, 4);
+  assert.equal(hazardReq.attributes.vitals.durability.max, 6);
+
+  const artifact = readJson(join(outDir, "hazard-1.json"));
+  assert.equal(artifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.meta.id, "fire_hazard");
+  assert.equal(artifact.affinity, "fire");
+  assert.equal(artifact.vitals.mana.max, 4);
+  assert.equal(existsSync(join(outDir, "hazard-1.json")), true, "canonical hazard artifact should be emitted");
 });
 
 test.skip("ak create --hazard rejects multiple affinities on one hazard by documented exactly-one-affinity GAP", () => {});
@@ -372,7 +418,7 @@ test("ak create --resource V3 with negative delta is accepted", () => {
   assert.deepEqual(artifact.vitals[0], { key: "health", delta: -5 });
 });
 
-test("ak create --dry-run for V2 hazard exits 0 without writing files", () => {
+test("ak create --dry-run for V3 hazard exits 0 without writing files", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-dry-run-"));
   const result = runCli([
     "create",
@@ -413,3 +459,8 @@ test.skip("ak create --dry-run for V3 resource with invalid permanenceMode exits
   );
   assert.equal(existsSync(join(outDir, "resource-1.json")), false);
 });
+
+// ## TODO: Test Permutations
+// - `--hazard` using the minimum valid hazard spec should emit one V3 hazard artifact.
+// - duplicate `--hazard` ids should either fail deterministically or produce documented artifact ordering.
+// - hazard V3 with omitted durability should retain the default one-time durability vital.

@@ -89,15 +89,15 @@ function resolveTileCode(char, legend) {
   return TILE_CHAR_TO_CODE[char] ?? TILE_CODES.wall;
 }
 
-function buildTrapIndex(traps) {
-  if (!Array.isArray(traps)) return null;
+function buildHazardIndex(hazards) {
+  if (!Array.isArray(hazards)) return null;
   const index = new Map();
-  traps.forEach((trap) => {
-    if (!trap || typeof trap !== "object") return;
-    const x = toInt(trap.x);
-    const y = toInt(trap.y);
+  hazards.forEach((hazard) => {
+    if (!hazard || typeof hazard !== "object") return;
+    const x = toInt(hazard.position?.x ?? hazard.x);
+    const y = toInt(hazard.position?.y ?? hazard.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    index.set(`${x},${y}`, trap.blocking === true);
+    index.set(`${x},${y}`, hazard.blocking === true);
   });
   return index;
 }
@@ -107,7 +107,7 @@ function buildTileGrid(layoutData, dimensions) {
   const tilesInput = Array.isArray(layoutData.tiles) ? layoutData.tiles : null;
   const kindsInput = Array.isArray(layoutData.kinds) ? layoutData.kinds : null;
   const legend = layoutData.legend || null;
-  const trapIndex = buildTrapIndex(layoutData.traps);
+  const hazardIndex = buildHazardIndex(layoutData.hazards);
   const grid = [];
 
   for (let y = 0; y < height; y += 1) {
@@ -125,7 +125,7 @@ function buildTileGrid(layoutData, dimensions) {
         if (kind === 1) {
           code = TILE_CODES.barrier;
         } else if (kind === 2) {
-          const blocking = trapIndex?.get(`${x},${y}`) === true;
+          const blocking = hazardIndex?.get(`${x},${y}`) === true;
           code = blocking ? TILE_CODES.barrier : TILE_CODES.floor;
         } else if (kind === 0) {
           code = TILE_CODES.floor;
@@ -200,60 +200,62 @@ function normalizeCapabilities(capabilities) {
   };
 }
 
-function armStaticTrapsFromLayout(core, layoutData = {}) {
-  if (typeof core?.armStaticTrapAt !== "function") {
+function normalizeVitalRecord(vital, fallbackCurrent) {
+  const entry = vital && typeof vital === "object" ? vital : {};
+  const fallback = Number.isFinite(fallbackCurrent) ? fallbackCurrent : 0;
+  if (entry.kind === "one-time" && Number.isFinite(toInt(entry.amount))) {
+    const amount = Math.max(0, toInt(entry.amount));
+    return { current: amount, max: amount, regen: 0 };
+  }
+  const current = Number.isFinite(toInt(entry.current)) ? toInt(entry.current) : fallback;
+  const max = Number.isFinite(toInt(entry.max)) ? toInt(entry.max) : current;
+  const regen = Number.isFinite(toInt(entry.regen)) ? toInt(entry.regen) : 0;
+  return {
+    current: Math.max(0, current),
+    max: Math.max(0, max),
+    regen: Math.max(0, regen),
+  };
+}
+
+function armStaticHazardsFromLayout(core, layoutData = {}) {
+  if (typeof core?.armStaticHazardAt !== "function") {
     return;
   }
-  const traps = Array.isArray(layoutData?.traps) ? layoutData.traps : [];
-  traps.forEach((trap) => {
-    if (!trap || typeof trap !== "object") return;
-    const x = toInt(trap.x);
-    const y = toInt(trap.y);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    const kind = typeof trap.affinity?.kind === "string" ? trap.affinity.kind : "";
-    const expression = typeof trap.affinity?.expression === "string" ? trap.affinity.expression : "push";
-    const stacks = toInt(trap.affinity?.stacks);
-    const manaFromVitals = toInt(trap.vitals?.mana?.current);
-    const manaReserve = Number.isFinite(manaFromVitals) && manaFromVitals > 0
-      ? manaFromVitals
-      : stacks * 3;
-    const affinityKind = AFFINITY_KIND_CODES[kind];
-    const affinityExpression = AFFINITY_EXPRESSION_CODES[expression];
-    if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) return;
-    if (!Number.isFinite(stacks) || stacks <= 0) return;
-    if (trap.blocking === true) return;
-    core.armStaticTrapAt(x, y, affinityKind, affinityExpression, stacks, manaReserve);
-  });
-
-  // Also arm hazards from layout.data.hazards
   const hazards = Array.isArray(layoutData?.hazards) ? layoutData.hazards : [];
   hazards.forEach((hazard) => {
     if (!hazard || typeof hazard !== "object") return;
-    // Hazards use position.x/y (not flat x/y)
-    const pos = hazard.position;
-    const x = toInt(pos?.x);
-    const y = toInt(pos?.y);
+    const x = toInt(hazard.position?.x ?? hazard.x);
+    const y = toInt(hazard.position?.y ?? hazard.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    // Resolve affinity from affinityStacks[0]
+    if (hazard.blocking === true) return;
     const affinityEntry = Array.isArray(hazard.affinityStacks) && hazard.affinityStacks.length > 0
       ? hazard.affinityStacks[0]
-      : null;
-    if (!affinityEntry || typeof affinityEntry !== "object") return;
-    const kind = typeof affinityEntry.kind === "string" ? affinityEntry.kind : "";
-    const rawExpression = typeof affinityEntry.expression === "string" ? affinityEntry.expression : "push";
-    // Normalize expression: fall back to "push" if not a canonical expression
+      : hazard.affinity && typeof hazard.affinity === "object"
+        ? hazard.affinity
+        : { kind: hazard.affinity, expression: hazard.expression, stacks: hazard.stacks };
+    const kind = typeof affinityEntry?.kind === "string" ? affinityEntry.kind : "";
+    const rawExpression = typeof affinityEntry?.expression === "string" ? affinityEntry.expression : "push";
     const expression = AFFINITY_EXPRESSION_CODES[rawExpression] ? rawExpression : "push";
-    const stacks = toInt(affinityEntry.stacks);
+    const stacks = toInt(affinityEntry?.stacks);
     const affinityKind = AFFINITY_KIND_CODES[kind];
     const affinityExpression = AFFINITY_EXPRESSION_CODES[expression];
     if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) return;
     if (!Number.isFinite(stacks) || stacks <= 0) return;
-    // Mana reserve: prefer vitals.mana.current, fall back to stacks * 3
-    const manaFromVitals = toInt(hazard.vitals?.mana?.current);
-    const manaReserve = Number.isFinite(manaFromVitals) && manaFromVitals > 0
-      ? manaFromVitals
-      : stacks * 3;
-    core.armStaticTrapAt(x, y, affinityKind, affinityExpression, stacks, manaReserve);
+    const mana = normalizeVitalRecord(hazard.vitals?.mana, stacks * 3);
+    const durability = normalizeVitalRecord(hazard.vitals?.durability, 0);
+    core.armStaticHazardAt(
+      x,
+      y,
+      affinityKind,
+      affinityExpression,
+      stacks,
+      mana.current,
+      durability.current,
+      durability.max,
+      durability.regen,
+      mana.max,
+      mana.regen,
+    );
   });
 }
 
@@ -283,7 +285,7 @@ export function applySimConfigToCore(core, simConfig) {
   if (Number.isFinite(tileError) && tileError !== 0) {
     return { ok: false, reason: "invalid_layout_tiles", error: tileError };
   }
-  armStaticTrapsFromLayout(core, layout.data);
+  armStaticHazardsFromLayout(core, layout.data);
 
   return { ok: true, dimensions, spawn, exit };
 }
@@ -438,7 +440,7 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
 export function initializeCoreFromArtifacts(core, { simConfig, initialState } = {}) {
   const layoutResult = applySimConfigToCore(core, simConfig);
   const actorResult = applyInitialStateToCore(core, initialState, { spawn: layoutResult.spawn });
-  // Compute combined affinity field after both layout traps/hazards and actor affinities are set
+  // Compute combined affinity field after layout hazards and actor affinities are set.
   if (typeof core?.computeAffinityField === "function") {
     core.computeAffinityField();
   }

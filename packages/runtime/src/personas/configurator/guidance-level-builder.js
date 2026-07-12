@@ -76,12 +76,12 @@ function affinityOrder(kind) {
   return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
 }
 
-function resolveTrapAffinityEntry(trap = null) {
-  if (!trap || typeof trap !== "object") return null;
-  const candidates = Array.isArray(trap.affinities)
-    ? trap.affinities
-    : trap.affinity && typeof trap.affinity === "object"
-      ? [trap.affinity]
+function resolveHazardAffinityEntry(hazard = null) {
+  if (!hazard || typeof hazard !== "object") return null;
+  const candidates = Array.isArray(hazard.affinities)
+    ? hazard.affinities
+    : hazard.affinity && typeof hazard.affinity === "object"
+      ? [hazard.affinity]
       : [];
   const valid = candidates
     .map((entry) => {
@@ -102,10 +102,10 @@ function resolveTrapAffinityEntry(trap = null) {
   return pool[0];
 }
 
-function resolveTrapPosition(trap) {
-  if (!trap || typeof trap !== "object") return null;
-  const x = Number(trap?.position?.x ?? trap?.x);
-  const y = Number(trap?.position?.y ?? trap?.y);
+function resolveHazardPosition(hazard) {
+  if (!hazard || typeof hazard !== "object") return null;
+  const x = Number(hazard?.position?.x ?? hazard?.x);
+  const y = Number(hazard?.position?.y ?? hazard?.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   return { x: Math.floor(x), y: Math.floor(y) };
 }
@@ -161,7 +161,7 @@ function spreadAffinityToNeighbors(index, originX, originY, affinity, bounds) {
   }
 }
 
-function buildFloorAffinityByCell({ width, height, floorAffinityCells = null, floorAffinityTraps = null } = {}) {
+function buildFloorAffinityByCell({ width, height, floorAffinityCells = null, floorAffinityHazards = null } = {}) {
   const index = new Map();
   if (Array.isArray(floorAffinityCells)) {
     floorAffinityCells.forEach((entry) => {
@@ -173,10 +173,10 @@ function buildFloorAffinityByCell({ width, height, floorAffinityCells = null, fl
       upsertAffinityCell(index, Math.floor(x), Math.floor(y), { kind, stacks }, { width, height });
     });
   }
-  if (Array.isArray(floorAffinityTraps)) {
-    floorAffinityTraps.forEach((trap) => {
-      const position = resolveTrapPosition(trap);
-      const affinity = resolveTrapAffinityEntry(trap);
+  if (Array.isArray(floorAffinityHazards)) {
+    floorAffinityHazards.forEach((hazard) => {
+      const position = resolveHazardPosition(hazard);
+      const affinity = resolveHazardAffinityEntry(hazard);
       if (!position || !affinity) return;
       upsertAffinityCell(index, position.x, position.y, affinity, { width, height });
       if (affinity.stacks > 1) {
@@ -357,7 +357,7 @@ export function buildLevelRenderArtifactsFromTiles(
     includeImage = true,
     palette = null,
     floorAffinityCells = null,
-    floorAffinityTraps = null,
+    floorAffinityHazards = null,
   } = {},
 ) {
   const normalized = normalizeTiles(tiles);
@@ -368,7 +368,7 @@ export function buildLevelRenderArtifactsFromTiles(
     width: normalized.width,
     height: normalized.height,
     floorAffinityCells,
-    floorAffinityTraps,
+    floorAffinityHazards,
   });
   const result = {
     ok: true,
@@ -434,7 +434,7 @@ export function buildLevelPreviewFromLevelGen(
     includeImage = true,
     palette = null,
     floorAffinityCells = null,
-    floorAffinityTraps = null,
+    floorAffinityHazards = null,
   } = {},
 ) {
   if (!levelGen || typeof levelGen !== "object") {
@@ -467,7 +467,7 @@ export function buildLevelPreviewFromLevelGen(
     includeImage,
     palette,
     floorAffinityCells,
-    floorAffinityTraps: Array.isArray(floorAffinityTraps) ? floorAffinityTraps : generated.value?.traps,
+    floorAffinityHazards: Array.isArray(floorAffinityHazards) ? floorAffinityHazards : generated.value?.hazards,
   });
   if (!rendered.ok) {
     return rendered;
@@ -485,7 +485,7 @@ export function buildLevelPreviewFromGuidanceSummary(
     includeImage = true,
     palette = null,
     floorAffinityCells = null,
-    floorAffinityTraps = null,
+    floorAffinityHazards = null,
   } = {},
 ) {
   if (!summary || typeof summary !== "object") {
@@ -500,6 +500,6 @@ export function buildLevelPreviewFromGuidanceSummary(
     includeImage,
     palette,
     floorAffinityCells,
-    floorAffinityTraps,
+    floorAffinityHazards,
   });
 }

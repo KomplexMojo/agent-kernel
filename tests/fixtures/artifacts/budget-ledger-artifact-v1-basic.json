@@ -27,8 +27,8 @@
       "totalCost": 0
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 2,
       "unitCost": 0,
       "totalCost": 0

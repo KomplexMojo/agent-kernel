@@ -6,7 +6,6 @@ const ROOT = resolve(__dirname, "../..");
 const SOURCE_BACKED_SCENARIO_CATEGORIES = [
   "rooms",
   "floor_tiles",
-  "traps",
   "hazards",
   "resources",
   "delvers",

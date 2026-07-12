@@ -156,7 +156,7 @@ async function buildPngDataUri(simConfig, initialState, tickFrame, runDir) {
   const result = await renderBoardWithResourceBundle({
     tiles,
     actors: renderActors,
-    floorAffinityTraps: simConfig.traps || simConfig.layout?.data?.traps || [],
+    floorAffinityHazards: simConfig.hazards || simConfig.layout?.data?.hazards || [],
     resourceBundle,
   });
   if (!result.ok) return null;

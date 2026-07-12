@@ -19,7 +19,7 @@ const result = resolveAffinityEffects({
   presets: presetResult.value.presets,
   loadouts: loadoutResult.value.loadouts,
   baseVitalsByActorId: fixture.input.baseVitalsByActorId,
-  traps: fixture.input.traps,
+  hazards: fixture.input.hazards,
 });
 
 assert.deepEqual(result, fixture.expected);
@@ -27,7 +27,7 @@ const second = resolveAffinityEffects({
   presets: presetResult.value.presets,
   loadouts: loadoutResult.value.loadouts,
   baseVitalsByActorId: fixture.input.baseVitalsByActorId,
-  traps: fixture.input.traps,
+  hazards: fixture.input.hazards,
 });
 assert.deepEqual(second, fixture.expected);
 });

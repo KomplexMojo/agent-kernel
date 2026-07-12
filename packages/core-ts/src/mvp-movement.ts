@@ -56,61 +56,61 @@ function cloneResolvedEffects(effects) {
     .map((entry) => ({ ...entry }));
 }
 
-function collectCoreStaticTraps(core, width, height) {
-  if (typeof core?.getStaticTrapAffinityAt !== "function") return [];
-  const traps = [];
+function collectCoreStaticHazards(core, width, height) {
+  if (typeof core?.getStaticHazardAffinityAt !== "function") return [];
+  const hazards = [];
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const affinityCode = core.getStaticTrapAffinityAt(x, y);
+      const affinityCode = core.getStaticHazardAffinityAt(x, y);
       if (!Number.isFinite(affinityCode) || affinityCode <= 0) continue;
-      const expressionCode = typeof core.getStaticTrapExpressionAt === "function"
-        ? core.getStaticTrapExpressionAt(x, y)
+      const expressionCode = typeof core.getStaticHazardExpressionAt === "function"
+        ? core.getStaticHazardExpressionAt(x, y)
         : 0;
       const kind = AFFINITY_KIND_BY_CODE[affinityCode] || "unknown";
       const expression = AFFINITY_EXPRESSION_BY_CODE[expressionCode] || "push";
-      const stacks = typeof core.getStaticTrapStacksAt === "function"
-        ? core.getStaticTrapStacksAt(x, y)
+      const stacks = typeof core.getStaticHazardStacksAt === "function"
+        ? core.getStaticHazardStacksAt(x, y)
         : 1;
-      const manaReserve = typeof core.getStaticTrapManaReserveAt === "function"
-        ? core.getStaticTrapManaReserveAt(x, y)
+      const manaReserve = typeof core.getStaticHazardManaReserveAt === "function"
+        ? core.getStaticHazardManaReserveAt(x, y)
         : 0;
-      traps.push({
+      hazards.push({
         position: { x, y },
         affinities: [{ kind, expression, stacks, targetType: "floor" }],
         manaReserve,
       });
     }
   }
-  return traps;
+  return hazards;
 }
 
-function mergeTrapLists(primary = [], secondary = []) {
+function mergeHazardLists(primary = [], secondary = []) {
   const merged = new Map();
-  const toKey = (trap) => {
-    const x = trap?.position?.x;
-    const y = trap?.position?.y;
+  const toKey = (hazard) => {
+    const x = hazard?.position?.x;
+    const y = hazard?.position?.y;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
     return `${x},${y}`;
   };
-  primary.forEach((trap) => {
-    const key = toKey(trap);
+  primary.forEach((hazard) => {
+    const key = toKey(hazard);
     if (!key) return;
-    merged.set(key, trap);
+    merged.set(key, hazard);
   });
-  secondary.forEach((trap) => {
-    const key = toKey(trap);
+  secondary.forEach((hazard) => {
+    const key = toKey(hazard);
     if (!key) return;
     const prior = merged.get(key);
     if (!prior) {
-      merged.set(key, trap);
+      merged.set(key, hazard);
       return;
     }
     merged.set(key, {
       ...prior,
-      ...trap,
+      ...hazard,
       affinities: Array.isArray(prior.affinities) && prior.affinities.length
         ? prior.affinities
-        : (trap.affinities || []),
+        : (hazard.affinities || []),
     });
   });
   return Array.from(merged.values())
@@ -362,43 +362,43 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
       });
     }
   }
-  const affinityTrapList = Array.isArray(affinityEffects?.traps) && affinityEffects.traps.length > 0
-    ? affinityEffects.traps
-      .map((trap) => {
-        const position = trap.position || (Number.isFinite(trap.x) && Number.isFinite(trap.y) ? { x: trap.x, y: trap.y } : null);
-        const trapTargets = trap.affinityTargets || null;
-        const trapStacks = trap.affinityStacks || null;
-        const trapAffinities = trap.affinities
-          ? trap.affinities.map((affinity) => ({ ...affinity }))
-          : trap.affinity
-            ? [{ ...trap.affinity }]
-            : trapTargets
-              ? Object.keys(trapTargets)
+  const affinityHazardList = Array.isArray(affinityEffects?.hazards) && affinityEffects.hazards.length > 0
+    ? affinityEffects.hazards
+      .map((hazard) => {
+        const position = hazard.position || (Number.isFinite(hazard.x) && Number.isFinite(hazard.y) ? { x: hazard.x, y: hazard.y } : null);
+        const hazardTargets = hazard.affinityTargets || null;
+        const hazardStacks = hazard.affinityStacks || null;
+        const hazardAffinities = hazard.affinities
+          ? hazard.affinities.map((affinity) => ({ ...affinity }))
+          : hazard.affinity
+            ? [{ ...hazard.affinity }]
+            : hazardTargets
+              ? Object.keys(hazardTargets)
                 .sort()
                 .map((key) => {
                   const [kind, expression, targetType] = key.split(":");
-                  return { kind, expression, targetType, stacks: trapTargets[key] };
+                  return { kind, expression, targetType, stacks: hazardTargets[key] };
                 })
-              : trapStacks
-                ? Object.keys(trapStacks)
+              : hazardStacks
+                ? Object.keys(hazardStacks)
                   .sort()
                   .map((key) => {
                     const [kind, expression] = key.split(":");
-                    return { kind, expression, stacks: trapStacks[key] };
+                    return { kind, expression, stacks: hazardStacks[key] };
                   })
                 : [];
         return {
           position,
-          vitals: trap.vitals ? { ...trap.vitals } : undefined,
-          abilities: Array.isArray(trap.abilities) ? trap.abilities.map((ability) => ({ ...ability })) : [],
-          resolvedEffects: cloneResolvedEffects(trap.resolvedEffects),
-          affinities: trapAffinities,
+          vitals: hazard.vitals ? { ...hazard.vitals } : undefined,
+          abilities: Array.isArray(hazard.abilities) ? hazard.abilities.map((ability) => ({ ...ability })) : [],
+          resolvedEffects: cloneResolvedEffects(hazard.resolvedEffects),
+          affinities: hazardAffinities,
         };
       })
       .sort((a, b) => (a.position?.y ?? 0) - (b.position?.y ?? 0) || (a.position?.x ?? 0) - (b.position?.x ?? 0))
     : [];
-  const coreTrapList = collectCoreStaticTraps(core, width, height);
-  const mergedTraps = mergeTrapLists(affinityTrapList, coreTrapList);
+  const coreHazardList = collectCoreStaticHazards(core, width, height);
+  const mergedHazards = mergeHazardLists(affinityHazardList, coreHazardList);
 
   return {
     tick: core.getCurrentTick(),
@@ -416,6 +416,6 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
       height,
       kinds,
     },
-    traps: mergedTraps.length > 0 ? mergedTraps : undefined,
+    hazards: mergedHazards.length > 0 ? mergedHazards : undefined,
   };
 }

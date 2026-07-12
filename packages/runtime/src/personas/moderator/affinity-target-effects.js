@@ -148,9 +148,9 @@ function buildEnvironmentEffects({
 
   if (targetType === "floor" && manaReserve > 0) {
     effects.push({
-      id: `${kind}:${expression}:${targetType}:arm_static_trap`,
+      id: `${kind}:${expression}:${targetType}:arm_static_hazard`,
       category: "environment",
-      operation: "arm_static_trap",
+      operation: "arm_static_hazard",
       sourceType,
       sourceId,
       kind,
@@ -315,7 +315,7 @@ function buildActionFromEffect({ effect, actorId, position, observation, tick })
       params: { ...target },
     };
   }
-  if (effect.operation === "arm_static_trap") {
+  if (effect.operation === "arm_static_hazard") {
     const target = isFloorTile(observation, position.x, position.y)
       ? { x: position.x, y: position.y }
       : findAdjacent(position, (x, y) => isFloorTile(observation, x, y));
@@ -325,7 +325,7 @@ function buildActionFromEffect({ effect, actorId, position, observation, tick })
       schemaVersion: 1,
       actorId,
       tick,
-      kind: "arm_static_trap",
+      kind: "arm_static_hazard",
       params: {
         ...target,
         kind: effect.kind,

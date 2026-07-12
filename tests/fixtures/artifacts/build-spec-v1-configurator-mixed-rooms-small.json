@@ -49,7 +49,7 @@
       },
       "cardSet": [
         {
-          "id": "neutral_room_with_localized_traps",
+          "id": "neutral_room_with_localized_hazards",
           "type": "room",
           "source": "room",
           "count": 1,

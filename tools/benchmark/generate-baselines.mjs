@@ -54,19 +54,19 @@ const cases = [
     floorTile: ["count=12"],
   },
   {
-    title: "Create Emit Trap Room",
-    task: "create a small fire trap room with floor tiles and one non-blocking emit trap",
+    title: "Create Emit Hazard Room",
+    task: "create a small fire hazard room with floor tiles and one non-blocking emit hazard",
     room: ["size=small;count=1"],
     floorTile: ["count=16"],
-    trap: ["x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false"],
+    hazard: ["x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false"],
     dungeonAffinity: "fire",
   },
   {
-    title: "Create Dark Obscuring Trap",
-    task: "create a small room with a dark emit trap strong enough to test darkness stack handling",
+    title: "Create Dark Obscuring Hazard",
+    task: "create a small room with a dark emit hazard strong enough to test darkness stack handling",
     room: ["size=small;count=1;affinities=dark:emit:1"],
     floorTile: ["count=16"],
-    trap: ["x=2;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"],
+    hazard: ["x=2;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"],
     dungeonAffinity: "dark",
   },
   {
@@ -91,19 +91,19 @@ const cases = [
   },
   {
     title: "Create Delver Versus Warden Arena",
-    task: "create a medium arena with one fire Delver, one dark Warden, and a dark emit trap",
+    task: "create a medium arena with one fire Delver, one dark Warden, and a dark emit hazard",
     room: ["size=medium;count=1;affinities=dark:emit:1"],
     floorTile: ["count=20"],
-    trap: ["x=3;y=3;affinity=dark;expression=emit;stacks=1;blocking=false"],
+    hazard: ["x=3;y=3;affinity=dark;expression=emit;stacks=1;blocking=false"],
     delver: ["count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:9:1,stamina:6:1,mana:4:1"],
     warden: ["count=1;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:11:1,stamina:4:1,mana:4:1,durability:6:0"],
   },
   {
     title: "Create Fire Trial Room",
-    task: "create a large fire trial room with two emit traps and a water Delver counter-pick",
+    task: "create a large fire trial room with two emit hazards and a water Delver counter-pick",
     room: ["size=large;count=1;affinities=fire:emit:2"],
     floorTile: ["count=24"],
-    trap: [
+    hazard: [
       "x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false",
       "x=4;y=4;affinity=fire;expression=emit;stacks=2;blocking=false",
     ],
@@ -121,10 +121,10 @@ const cases = [
   },
   {
     title: "Create Earth Barrier Ambush",
-    task: "create an earth ambush room with an earth emit trap and a fortify Warden",
+    task: "create an earth ambush room with an earth emit hazard and a fortify Warden",
     room: ["size=medium;count=1;affinities=earth:emit:2"],
     floorTile: ["count=18"],
-    trap: ["x=3;y=2;affinity=earth;expression=emit;stacks=2;blocking=true"],
+    hazard: ["x=3;y=2;affinity=earth;expression=emit;stacks=2;blocking=true"],
     warden: ["count=1;affinity=fortify;motivation=defending;affinities=fortify:emit:2;vitals=health:13:1,stamina:4:1,mana:3:1,durability:8:0"],
     dungeonAffinity: "earth",
   },
@@ -167,19 +167,19 @@ const cases = [
   },
   {
     title: "Create Fortify Guard Post",
-    task: "create a fortify guard post with a blocking fortify emit trap and one defensive Warden",
+    task: "create a fortify guard post with a blocking fortify emit hazard and one defensive Warden",
     room: ["size=medium;count=1;affinities=fortify:emit:2"],
     floorTile: ["count=18"],
-    trap: ["x=2;y=4;affinity=fortify;expression=emit;stacks=2;blocking=true;vitals=mana:4:1,durability:6:0"],
+    hazard: ["x=2;y=4;affinity=fortify;expression=emit;stacks=2;blocking=true;vitals=mana:4:1,durability:6:0"],
     warden: ["count=1;affinity=fortify;motivation=defending;affinities=fortify:emit:2;vitals=health:12:1,stamina:4:1,mana:4:1,durability:8:0"],
     dungeonAffinity: "fortify",
   },
   {
     title: "Create Light Scout Entry",
-    task: "create a light scout entry room that counters a dark trap",
+    task: "create a light scout entry room that counters a dark hazard",
     room: ["size=small;count=1;affinities=light:emit:1"],
     floorTile: ["count=12"],
-    trap: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
+    hazard: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
     delver: ["count=1;affinity=light;motivation=exploring;affinities=light:emit:1;vitals=health:8:1,stamina:7:1,mana:5:1"],
     dungeonAffinity: "light",
   },
@@ -188,7 +188,7 @@ const cases = [
     task: "create a dark sentinel room with a stationary dark Warden and darkness pressure",
     room: ["size=small;count=1;affinities=dark:emit:2"],
     floorTile: ["count=12"],
-    trap: ["x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"],
+    hazard: ["x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"],
     warden: ["count=1;affinity=dark;motivation=stationary;affinities=dark:emit:3;vitals=health:11:0,stamina:3:0,mana:5:1,durability:6:0"],
     dungeonAffinity: "dark",
   },
@@ -224,18 +224,18 @@ const cases = [
     task: "create a large boss room with light Delver pressure against a strategy-focused dark Warden",
     room: ["size=large;count=1;affinities=dark:emit:3,light:emit:1"],
     floorTile: ["count=28"],
-    trap: ["x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"],
+    hazard: ["x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"],
     hazard: ["affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"],
     delver: ["count=1;affinity=light;motivation=attacking;affinities=light:emit:2;vitals=health:10:1,stamina:7:1,mana:6:1"],
     warden: ["count=1;affinity=dark;motivation=strategy_focused;affinities=dark:emit:3,decay:emit:1;vitals=health:16:1,stamina:5:1,mana:7:1,durability:9:0"],
     dungeonAffinity: "dark",
   },
   {
-    title: "Create Trap Gauntlet",
-    task: "create a gauntlet with four non-blocking emit traps and one stealth Delver",
+    title: "Create Hazard Gauntlet",
+    task: "create a gauntlet with four non-blocking emit hazards and one stealth Delver",
     room: ["size=large;count=2;affinities=fire:emit:1,dark:emit:1"],
     floorTile: ["count=32"],
-    trap: [
+    hazard: [
       "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false",
       "x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false",
       "x=3;y=3;affinity=decay;expression=emit;stacks=1;blocking=false",
@@ -273,7 +273,7 @@ const cases = [
     task: "create a room that pits fire attack pressure against water sustain",
     room: ["size=medium;count=1;affinities=fire:emit:1,water:emit:1"],
     floorTile: ["count=20"],
-    trap: ["x=2;y=2;affinity=fire;expression=emit;stacks=2;blocking=false"],
+    hazard: ["x=2;y=2;affinity=fire;expression=emit;stacks=2;blocking=false"],
     delver: ["count=1;affinity=water;motivation=exploring;affinities=water:draw:2;vitals=health:8:1,stamina:6:1,mana:6:1"],
     warden: ["count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:10:1,stamina:5:1,mana:5:1,durability:5:0"],
   },
@@ -299,7 +299,7 @@ const cases = [
     task: "create a room that tests light visibility against dark obscuring pressure",
     room: ["size=medium;count=1;affinities=light:emit:1,dark:emit:2"],
     floorTile: ["count=20"],
-    trap: ["x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"],
+    hazard: ["x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"],
     delver: ["count=1;affinity=light;motivation=exploring;affinities=light:emit:2;vitals=health:8:1,stamina:7:1,mana:6:1"],
     warden: ["count=1;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:11:1,stamina:4:1,mana:5:1,durability:6:0"],
   },
@@ -313,10 +313,10 @@ const cases = [
   },
   {
     title: "Create Stationary Puzzle Room",
-    task: "create a stationary puzzle room with one trap and two stationary Wardens",
+    task: "create a stationary puzzle room with one hazard and two stationary Wardens",
     room: ["size=medium;count=1;affinities=fortify:emit:1"],
     floorTile: ["count=18"],
-    trap: ["x=2;y=3;affinity=fortify;expression=emit;stacks=1;blocking=true"],
+    hazard: ["x=2;y=3;affinity=fortify;expression=emit;stacks=1;blocking=true"],
     warden: ["count=2;affinity=fortify;motivation=stationary;affinities=fortify:emit:1;vitals=health:10:0,stamina:3:0,mana:3:1,durability:7:0"],
     dungeonAffinity: "fortify",
   },
@@ -325,7 +325,7 @@ const cases = [
     task: "create a dark infiltration room with stealth Delver and patrolling Warden",
     room: ["size=medium;count=1;affinities=dark:emit:2"],
     floorTile: ["count=18"],
-    trap: ["x=3;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
+    hazard: ["x=3;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
     delver: ["count=1;affinity=dark;motivation=stealthy;affinities=dark:emit:1;vitals=health:7:1,stamina:8:1,mana:4:1"],
     warden: ["count=1;affinity=light;motivation=patrolling;affinities=light:emit:1;vitals=health:10:1,stamina:6:1,mana:4:1,durability:4:0"],
   },
@@ -405,20 +405,20 @@ const cases = [
     ],
   },
   {
-    title: "Create Blocking Trap Choke",
-    task: "create a choke room with a blocking trap and one patrolling Warden",
+    title: "Create Blocking Hazard Choke",
+    task: "create a choke room with a blocking hazard and one patrolling Warden",
     room: ["size=medium;count=1;affinities=earth:emit:1"],
     floorTile: ["count=18"],
-    trap: ["x=2;y=2;affinity=earth;expression=emit;stacks=2;blocking=true;vitals=mana:4:1,durability:8:0"],
+    hazard: ["x=2;y=2;affinity=earth;expression=emit;stacks=2;blocking=true;vitals=mana:4:1,durability:8:0"],
     delver: ["count=1;affinity=wind;motivation=exploring;affinities=wind:push:1;vitals=health:8:1,stamina:8:1,mana:4:1"],
     warden: ["count=1;affinity=earth;motivation=patrolling;affinities=earth:pull:1;vitals=health:11:1,stamina:5:1,mana:4:1,durability:5:0"],
   },
   {
-    title: "Create Nonblocking Trap Field",
-    task: "create a trap field with three non-blocking emit traps and a light scout",
+    title: "Create Nonblocking Hazard Field",
+    task: "create a hazard field with three non-blocking emit hazards and a light scout",
     room: ["size=large;count=1;affinities=dark:emit:1"],
     floorTile: ["count=28"],
-    trap: [
+    hazard: [
       "x=1;y=2;affinity=dark;expression=emit;stacks=1;blocking=false",
       "x=2;y=3;affinity=fire;expression=emit;stacks=1;blocking=false",
       "x=3;y=4;affinity=corrode;expression=emit;stacks=1;blocking=false",
@@ -426,11 +426,11 @@ const cases = [
     delver: ["count=1;affinity=light;motivation=exploring;affinities=light:emit:1;vitals=health:8:1,stamina:7:1,mana:5:1"],
   },
   {
-    title: "Create Trap Vital Budget Test",
-    task: "create a trap with explicit mana and durability vitals so the cost receipt shows trap vital spend",
+    title: "Create Hazard Vital Budget Test",
+    task: "create a hazard with explicit mana and durability vitals so the cost receipt shows hazard vital spend",
     room: ["size=small;count=1;affinities=fire:emit:1"],
     floorTile: ["count=14"],
-    trap: ["x=2;y=2;affinity=fire;expression=emit;stacks=2;blocking=false;vitals=mana:6:2,durability:9:0"],
+    hazard: ["x=2;y=2;affinity=fire;expression=emit;stacks=2;blocking=false;vitals=mana:6:2,durability:9:0"],
     dungeonAffinity: "fire",
   },
   {
@@ -451,19 +451,19 @@ const cases = [
   },
   {
     title: "Create Multi Room Warden Route",
-    task: "create three connected rooms with patrolling Wardens and a trap checkpoint",
+    task: "create three connected rooms with patrolling Wardens and a hazard checkpoint",
     room: ["size=medium;count=3;affinities=earth:emit:1"],
     floorTile: ["count=36"],
-    trap: ["x=3;y=3;affinity=earth;expression=emit;stacks=1;blocking=true"],
+    hazard: ["x=3;y=3;affinity=earth;expression=emit;stacks=1;blocking=true"],
     warden: ["count=2;affinity=earth;motivation=patrolling;affinities=earth:pull:1;vitals=health:10:1,stamina:6:1,mana:4:1,durability:5:0"],
     dungeonAffinity: "earth",
   },
   {
     title: "Create Multi Room Balanced Encounter",
-    task: "create three rooms with two Delvers, two Wardens, and a balanced light-dark trap mix",
+    task: "create three rooms with two Delvers, two Wardens, and a balanced light-dark hazard mix",
     room: ["size=medium;count=3;affinities=light:emit:1,dark:emit:1"],
     floorTile: ["count=36"],
-    trap: [
+    hazard: [
       "x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false",
       "x=4;y=3;affinity=light;expression=emit;stacks=1;blocking=false",
     ],
@@ -478,10 +478,10 @@ const cases = [
   },
   {
     title: "Create Large Dark Maze",
-    task: "create a large dark maze-style level baseline with multiple dark traps and one light scout",
+    task: "create a large dark maze-style level baseline with multiple dark hazards and one light scout",
     room: ["size=large;count=3;affinities=dark:emit:3"],
     floorTile: ["count=45"],
-    trap: [
+    hazard: [
       "x=1;y=1;affinity=dark;expression=emit;stacks=2;blocking=false",
       "x=2;y=4;affinity=dark;expression=emit;stacks=2;blocking=false",
       "x=4;y=2;affinity=dark;expression=emit;stacks=2;blocking=false",
@@ -492,10 +492,10 @@ const cases = [
   },
   {
     title: "Create Large Fire Arena",
-    task: "create a large fire arena with fire traps, a water Delver, and a fire Warden",
+    task: "create a large fire arena with fire hazards, a water Delver, and a fire Warden",
     room: ["size=large;count=2;affinities=fire:emit:2"],
     floorTile: ["count=40"],
-    trap: [
+    hazard: [
       "x=2;y=2;affinity=fire;expression=emit;stacks=2;blocking=false",
       "x=4;y=4;affinity=fire;expression=emit;stacks=2;blocking=false",
     ],
@@ -523,10 +523,10 @@ const cases = [
   },
   {
     title: "Create Cross Affinity Dungeon",
-    task: "create a dungeon that includes every affinity family at least once across rooms, traps, hazards, and actors",
+    task: "create a dungeon that includes every affinity family at least once across hazards and actors",
     room: ["size=large;count=2;affinities=fire:emit:1,water:emit:1,earth:emit:1,wind:emit:1,life:emit:1,decay:emit:1,light:emit:1,dark:emit:1"],
     floorTile: ["count=40"],
-    trap: [
+    hazard: [
       "x=1;y=1;affinity=corrode;expression=emit;stacks=1;blocking=false",
       "x=2;y=2;affinity=fortify;expression=emit;stacks=1;blocking=true",
     ],
@@ -561,10 +561,10 @@ const cases = [
   },
   {
     title: "Create Full Evaluation Dungeon",
-    task: "create a full evaluation dungeon with multiple rooms, traps, hazards, resources, Delvers, and Wardens",
+    task: "create a full evaluation dungeon with multiple rooms, hazards, resources, Delvers, and Wardens",
     room: ["size=large;count=3;affinities=fire:emit:1,water:emit:1,earth:emit:1,dark:emit:2"],
     floorTile: ["count=48"],
-    trap: [
+    hazard: [
       "x=1;y=1;affinity=fire;expression=emit;stacks=2;blocking=false",
       "x=2;y=2;affinity=earth;expression=emit;stacks=2;blocking=true",
       "x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false",
@@ -590,12 +590,12 @@ const cases = [
     ],
   },
   {
-    title: "Create Stationary Warden Trap Room",
-    task: "create a puzzle-style trap room where wardens hold stationary positions guarding trap zones, with blocking traps at key choke points and an exploring Delver",
+    title: "Create Stationary Warden Hazard Room",
+    task: "create a puzzle-style hazard room where wardens hold stationary positions guarding hazard zones, with blocking hazards at key choke points and an exploring Delver",
     budgetMode: "constrained",
     budgetTokens: 500,
     room: ["size=medium;count=1"],
-    trap: [
+    hazard: [
       "x=2;y=1;affinity=fire;expression=emit;stacks=3;blocking=true",
       "x=4;y=1;affinity=dark;expression=emit;stacks=2;blocking=true",
     ],
@@ -607,11 +607,11 @@ const cases = [
   },
   {
     title: "Create Resource Capture Dungeon",
-    task: "create a resource-capture dungeon where a Delver collects level-up resources while avoiding fire traps guarded by a defending Warden",
+    task: "create a resource-capture dungeon where a Delver collects level-up resources while avoiding fire hazards guarded by a defending Warden",
     budgetMode: "constrained",
     budgetTokens: 600,
     room: ["size=medium;count=1"],
-    trap: [
+    hazard: [
       "x=3;y=1;affinity=fire;expression=emit;stacks=2;blocking=false",
       "x=5;y=1;affinity=earth;expression=emit;stacks=1;blocking=false",
     ],
@@ -624,11 +624,11 @@ const cases = [
   },
   {
     title: "Create Tick Session Ready Dungeon",
-    task: "create a tick-session-ready dungeon with an exploring Delver, a stationary Warden, a fire trap emitting affinity stacks, and a level resource pickup",
+    task: "create a tick-session-ready dungeon with an exploring Delver, a stationary Warden, a fire hazard emitting affinity stacks, and a level resource pickup",
     budgetMode: "constrained",
     budgetTokens: 500,
     room: ["size=medium;count=1"],
-    trap: ["x=3;y=1;affinity=fire;expression=emit;stacks=3;blocking=false"],
+    hazard: ["x=3;y=1;affinity=fire;expression=emit;stacks=3;blocking=false"],
     resource: ["tier=level;stat=vitalMax;delta=10;dropRate=50"],
     delver: ["count=1;affinity=fire;motivation=exploring"],
     warden: ["count=1;affinity=dark;motivation=stationary"],
@@ -727,12 +727,12 @@ const cases = [
     warden: ["count=1;affinity=fortify;motivation=stationary"],
   },
   {
-    title: "Constrained Trap Defense Room",
-    task: "create a base room with one exploring delver, one defending warden, and a single basic trap",
+    title: "Constrained Hazard Defense Room",
+    task: "create a base room with one exploring delver, one defending warden, and a single basic hazard",
     budgetMode: "constrained",
     budgetTokens: 400,
     room: ["size=medium;count=1"],
-    trap: ["x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false"],
+    hazard: ["x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false"],
     delver: ["count=1;affinity=water;motivation=exploring"],
     warden: ["count=1;affinity=fire;motivation=defending"],
   },
@@ -797,8 +797,8 @@ function forceMediumRoomSpec(spec) {
 function normalizeForCodeLaw(testCase) {
   const convertedHazards = [];
   const normalizationNotes = [];
-  const hasExplicitTrapOrHazard = (testCase.trap || []).length > 0 || (testCase.hazard || []).length > 0;
-  const trap = (testCase.trap || []).slice();
+  const authoredHazards = (testCase.hazard || []).slice();
+  const hasExplicitHazard = authoredHazards.length > 0;
   let room = (testCase.room || []).map((spec, roomIndex) => {
     const segments = String(spec).split(";").map((segment) => segment.trim()).filter(Boolean);
     const kept = [];
@@ -807,8 +807,8 @@ function normalizeForCodeLaw(testCase) {
         kept.push(segment);
         continue;
       }
-      if (hasExplicitTrapOrHazard) {
-        normalizationNotes.push(`Dropped unsupported room affinity field for room ${roomIndex + 1}; explicit trap/hazard specs carry affinity pressure in current create.`);
+      if (hasExplicitHazard) {
+        normalizationNotes.push(`Dropped unsupported room affinity field for room ${roomIndex + 1}; explicit hazard specs carry affinity pressure in current create.`);
         continue;
       }
       const rawAffinities = segment.slice("affinities=".length);
@@ -826,10 +826,10 @@ function normalizeForCodeLaw(testCase) {
     }
     return kept.join(";");
   });
-  const hasTrapOrHazard = hasExplicitTrapOrHazard || convertedHazards.length > 0;
-  if (hasTrapOrHazard && room.some(hasSizeSmall)) {
+  const hasHazard = hasExplicitHazard || convertedHazards.length > 0;
+  if (hasHazard && room.some(hasSizeSmall)) {
     room = room.map((spec) => (hasSizeSmall(spec) ? forceMediumRoomSpec(spec) : spec));
-    normalizationNotes.push("Upgraded size=small room to size=medium because current create rejects small rooms containing traps or hazards.");
+    normalizationNotes.push("Upgraded size=small room to size=medium for stable benchmark capacity with hazards.");
   }
   const task = normalizationNotes.some((note) => note.includes("size=medium"))
     ? String(testCase.task || "").replace(/\bsmall\b/g, "medium")
@@ -838,8 +838,9 @@ function normalizeForCodeLaw(testCase) {
     ...testCase,
     task,
     room,
-    ...(trap.length > 0 ? { trap } : {}),
-    ...(convertedHazards.length > 0 ? { hazard: [...(testCase.hazard || []), ...convertedHazards] } : {}),
+    ...([...authoredHazards, ...convertedHazards].length > 0
+      ? { hazard: [...authoredHazards, ...convertedHazards] }
+      : {}),
     ...(normalizationNotes.length > 0 ? { normalizationNotes } : {}),
   };
 }
@@ -885,7 +886,7 @@ function objectRows(testCase) {
   for (const [label, field] of [
     ["Room", "room"],
     ["Floor tile", "floorTile"],
-    ["Trap", "trap"],
+    ["Hazard", "hazard"],
     ["Hazard", "hazard"],
     ["Resource", "resource"],
     ["Delver", "delver"],
@@ -944,7 +945,7 @@ function promptFor(testCase) {
     "Using the agent-kernel skill and the agent-kernel MCP,",
     `${testCase.task}.`,
     `${budgetClause} prefer MCP tools over shell commands, emit intermediates,`,
-    "remember that create/ak_create room specs are generic so affinity pressure belongs in traps or hazards,",
+    "remember that create/ak_create room specs are generic so affinity pressure belongs in hazards,",
     "and report generated artifact paths plus budget receipt cost details.",
   ].join(" ");
 }
@@ -968,7 +969,6 @@ function argsFor(testCase, runId, outDir) {
   if (testCase.dungeonAffinity) args.push("--dungeon-affinity", testCase.dungeonAffinity);
   pushSpecs(args, "--room", testCase.room);
   pushSpecs(args, "--floor-tile", testCase.floorTile);
-  pushSpecs(args, "--trap", testCase.trap);
   pushSpecs(args, "--hazard", testCase.hazard);
   pushSpecs(args, "--resource", testCase.resource);
   pushSpecs(args, "--delver", testCase.delver);
@@ -999,7 +999,6 @@ function renderNote({ index, testCase, runId, outDir, result, receipt, jsonFiles
     ...(testCase.dungeonAffinity ? { dungeonAffinity: testCase.dungeonAffinity } : {}),
     ...(testCase.room ? { room: testCase.room } : {}),
     ...(testCase.floorTile ? { floorTile: testCase.floorTile } : {}),
-    ...(testCase.trap ? { trap: testCase.trap } : {}),
     ...(testCase.hazard ? { hazard: testCase.hazard } : {}),
     ...(testCase.resource ? { resource: testCase.resource } : {}),
     ...(testCase.delver ? { delver: testCase.delver } : {}),

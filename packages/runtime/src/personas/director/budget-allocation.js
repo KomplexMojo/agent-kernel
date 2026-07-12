@@ -16,7 +16,7 @@ export const DEFAULT_DELVER_PCT = 0.20;
  * rooms=55%, hazards=15%, wardens=20%, resources=10%
  */
 export const DEFAULT_DUNGEON_SUB_POOLS = Object.freeze([
-  { id: "rooms", weight: 0.55, notes: "Rooms / layout / traps (55% of dungeon)" },
+  { id: "rooms", weight: 0.55, notes: "Rooms / layout / hazards (55% of dungeon)" },
   { id: "hazards", weight: 0.15, notes: "Hazard elements (15% of dungeon)" },
   { id: "wardens", weight: 0.20, notes: "Warden actors (20% of dungeon)" },
   { id: "resources", weight: 0.10, notes: "Resource drops (10% of dungeon)" },
@@ -43,7 +43,7 @@ export const TARGET_DELVER_WARDEN_RATIO = 0.8;
  * resources: 0.10*0.80=0.08, delver: 0.20
  */
 const DEFAULT_POOLS = Object.freeze([
-  { id: "rooms", weight: 0.44, notes: "Rooms / layout / traps" },
+  { id: "rooms", weight: 0.44, notes: "Rooms / layout / hazards" },
   { id: "hazards", weight: 0.12, notes: "Hazard elements" },
   { id: "wardens", weight: 0.16, notes: "Warden actors" },
   { id: "resources", weight: 0.08, notes: "Resource drops" },
