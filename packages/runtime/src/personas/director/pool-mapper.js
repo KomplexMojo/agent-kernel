@@ -31,8 +31,12 @@ function snapSelection({ entries, motivation, affinity, tokenHint }) {
   };
 }
 
+function deriveIdStem({ motivation, affinity, cost }) {
+  return `actor_${motivation}_${affinity}_${cost}`;
+}
+
 function deriveId({ motivation, affinity, cost, index }) {
-  return `actor_${motivation}_${affinity}_${cost}_${index + 1}`;
+  return `${deriveIdStem({ motivation, affinity, cost })}_${index + 1}`;
 }
 
 function normalizePickAffinities(pick) {
@@ -73,6 +77,7 @@ export function mapSummaryToPool({ summary, catalog }) {
   }
 
   const selections = [];
+  const nextInstanceIndexByStem = new Map();
 
   const applyPick = (pick, kind) => {
     const affinities = normalizePickAffinities(pick);
@@ -91,6 +96,41 @@ export function mapSummaryToPool({ summary, catalog }) {
       });
       return;
     }
+    const stem = deriveIdStem({
+      motivation: applied.motivation,
+      affinity: applied.affinity,
+      cost: applied.cost,
+    });
+    const indexKey = `${kind}:${stem}`;
+    const startIndex = nextInstanceIndexByStem.get(indexKey) || 0;
+    const instances = Array.from({ length: pick.count }, (_, idx) => {
+      const instance = {
+        id: deriveId({
+          motivation: applied.motivation,
+          affinity: applied.affinity,
+          cost: applied.cost,
+          index: startIndex + idx,
+        }),
+        baseId: applied.id,
+        subType: applied.subType,
+        motivation: applied.motivation,
+        affinity: applied.affinity,
+        cost: applied.cost,
+      };
+      if (affinities.length > 0) {
+        instance.affinities = affinities.map((entry) => ({ ...entry }));
+      }
+      if (pick.actorType === "delver" || pick.actorType === "warden") {
+        instance.actorType = pick.actorType;
+      }
+      if (typeof pick.setupMode === "string" && pick.setupMode.trim()) {
+        instance.setupMode = pick.setupMode.trim();
+      }
+      const copiedVitals = copyActorVitals(pick?.vitals);
+      if (copiedVitals) instance.vitals = copiedVitals;
+      return instance;
+    });
+    nextInstanceIndexByStem.set(indexKey, startIndex + instances.length);
     selections.push({
       kind,
       requested: pick,
@@ -106,28 +146,7 @@ export function mapSummaryToPool({ summary, catalog }) {
         reason: receipt.reason,
         count: pick.count,
       },
-      instances: Array.from({ length: pick.count }, (_, idx) => {
-        const instance = {
-          id: deriveId({ motivation: applied.motivation, affinity: applied.affinity, cost: applied.cost, index: idx }),
-          baseId: applied.id,
-          subType: applied.subType,
-          motivation: applied.motivation,
-          affinity: applied.affinity,
-          cost: applied.cost,
-        };
-        if (affinities.length > 0) {
-          instance.affinities = affinities.map((entry) => ({ ...entry }));
-        }
-        if (pick.actorType === "delver" || pick.actorType === "warden") {
-          instance.actorType = pick.actorType;
-        }
-        if (typeof pick.setupMode === "string" && pick.setupMode.trim()) {
-          instance.setupMode = pick.setupMode.trim();
-        }
-        const copiedVitals = copyActorVitals(pick?.vitals);
-        if (copiedVitals) instance.vitals = copiedVitals;
-        return instance;
-      }),
+      instances,
     });
   };
 
