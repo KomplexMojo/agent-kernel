@@ -58,6 +58,18 @@ function sortedById(list) {
   return list.slice().sort((a, b) => String(a?.id || "").localeCompare(String(b?.id || "")));
 }
 
+function assertUniqueActorIds(actors) {
+  const seenIds = new Set();
+  actors.forEach((actor) => {
+    const id = String(actor?.id || "");
+    if (seenIds.has(id)) {
+      const reason = id === "" ? "missing_actor_id" : "duplicate_actor_id";
+      throw new Error(id === "" ? reason : `${reason}: ${id}`);
+    }
+    seenIds.add(id);
+  });
+}
+
 function buildResolvedTraits(actorTraits, resolved) {
   const traits = { ...(actorTraits || {}) };
   if (resolved?.affinityStacks) {
@@ -104,6 +116,7 @@ export function buildSimConfigArtifact({
 }
 
 export function buildInitialStateArtifact({ meta, simConfigRef, actors = [], resolvedEffects = {} } = {}) {
+  assertUniqueActorIds(Array.isArray(actors) ? actors : []);
   const resolvedByActor = new Map();
   if (Array.isArray(resolvedEffects.actors)) {
     resolvedEffects.actors.forEach((entry) => {

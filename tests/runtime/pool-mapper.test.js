@@ -62,3 +62,29 @@ test("mapSummaryToPool snaps arbitrary token hints down deterministically", asyn
   assert.equal(sel.applied.cost, 120); // snap down from 175 to nearest <=
   assert.equal(sel.receipt.status, "downTiered");
 });
+
+test("mapSummaryToPool keeps IDs unique across separate picks for the same catalog entry", async () => {
+  const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
+  const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
+  const summary = {
+    actors: [
+      { motivation: "stationary", affinity: "fire", count: 1 },
+      { motivation: "stationary", affinity: "fire", count: 2 },
+    ],
+  };
+
+  const result = mapSummaryToPool({ summary, catalog });
+  assert.equal(result.ok, true);
+  assert.deepEqual(
+    result.selections.flatMap((selection) => selection.instances.map((instance) => instance.id)),
+    [
+      "actor_stationary_fire_200_1",
+      "actor_stationary_fire_200_2",
+      "actor_stationary_fire_200_3",
+    ],
+  );
+});
+
+// ## TODO: Test Permutations
+// - repeated picks separated by a different catalog entry should continue the original ID sequence
+// - distinct catalog entries with the same motivation, affinity, and cost should still receive unique IDs
