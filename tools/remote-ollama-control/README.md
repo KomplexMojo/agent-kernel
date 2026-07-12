@@ -286,9 +286,10 @@ Local mode rejects remote-only flags rather than silently ignoring them. `--prof
 
 The MacBook has far less VRAM/unified memory headroom than the dual-GPU Ubuntu box, so keep local models small:
 
-- **Default: a ~9B model** (e.g. `qwen3.5:9b`). This is the everyday local coding model — it stays responsive and leaves memory for the editor and browser.
-- **Occasional: a ~14B model** for a harder one-off task when you can spare the memory and tolerate slower tokens.
-- **Avoid ~33B models during normal development.** They fit only by heavy swapping/offload on the Mac and will stall interactive work. Save 30B+ for the remote `dual` profile.
+- **Default: a code-specialized ~7B model** (e.g. `qwen2.5-coder:7b`). Fastest generation of the local set (~27 tok/s measured on this Mac) and emits code directly, so it fits tight `num_predict` budgets. This is the everyday local coding model — it stays responsive and leaves memory for the editor and browser.
+- **Occasional: a ~14B coder** (e.g. `qwen2.5-coder:14b`) for a harder one-off task when you can spare the memory and tolerate slower tokens (~14 tok/s).
+- **Reasoning ~9B models (e.g. `qwen3.5:9b`) need a large token budget.** They stream their answer through a separate reasoning/`thinking` channel, so under a small `num_predict` cap they can burn the whole budget thinking and return an *empty* completion. If you use one, raise `num_predict` substantially; for constrained/offline coding a `qwen2.5-coder` model is the safer default.
+- **Avoid ~33B models during normal development** (e.g. `deepseek-coder:33b`, ~6–7 tok/s here — 2–4× slower). They fit only by heavy swapping/offload on the Mac and will stall interactive work. Save 30B+ for the remote `dual` profile.
 
 This mirrors the local-test-gen harness, which already defaults to `localhost:11434`; `--local` reuses that same service and default port.
 
