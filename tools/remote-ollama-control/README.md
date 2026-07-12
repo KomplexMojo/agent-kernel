@@ -22,6 +22,7 @@ Use this tool when local agent workflows should spend inference work on the Ubun
 | Check remote Ollama state | `status`, `ps`, `logs`, `telemetry`, `doctor` |
 | Start or restart a profile | `start`, `restart`, `stop`, `dry-run start` |
 | Run Claude/Codex-side work through remote Ollama | `claude`, `run-local`, `use-remote-ollama` |
+| Run Claude/Codex-side work offline on the Mac's own Ollama | `claude --local`, `run-local --local`, `print-env --local` |
 | Run commands on Ubuntu | `exec` |
 | Benchmark models or tool-call generation | `benchmark`, `benchmark-matrix`, `benchmark-hardware`, `run-content-gen` |
 | Keep the remote checkout safe | `project-safety-check`, `project-sync`, `project-push-main` |
@@ -253,6 +254,44 @@ For a persistent shell environment, source `use-remote-ollama`, then run tools t
 source ./scripts/use-remote-ollama dual external qwen3-coder:30b
 node ~/.claude/skills/local-test-gen/scripts/main.mjs --model "$OLLAMA_MODEL"
 ```
+
+## Local Mac Ollama (Offline / Low Bandwidth)
+
+Use `--local` to run constrained coding work against the MacBook's **own** Ollama service instead of the Ubuntu GPU box. This is the mode for working offline, on a metered/low-bandwidth link, or with the lid closing on travel where the SSH tunnel to `darren-llm` is unavailable or too slow. It keeps the same ergonomics as the remote route.
+
+`--local` is supported for `claude`, `run-local`, and `print-env`:
+
+```bash
+./bin/remote-ollama-mac claude --local --model qwen3.5:9b
+./bin/remote-ollama-mac run-local --local --model qwen3.5:9b -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --dry-run
+./bin/remote-ollama-mac print-env --local --model qwen3.5:9b
+```
+
+What local mode does:
+
+- Resolves the endpoint from `LLM_LOCAL_OLLAMA_HOST` (default `http://127.0.0.1:11434`) — no profile, route, or WAN host is consulted.
+- Bypasses SSH tunnels, remote profile status/lifecycle calls, and remote telemetry entirely.
+- Before a non-dry-run `claude`/`run-local`, verifies the local endpoint (`GET /api/version`) and the selected model (`POST /api/show`) using the same Ollama-compatible checks as the remote path. If Ollama isn't running you get a clear error pointing at `ollama serve` / `LLM_LOCAL_OLLAMA_HOST`.
+- Passes the standard client environment to the launched tool: `OLLAMA_HOST`, `OLLAMA_MODEL`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` (defaults to `ollama`), and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`.
+
+Point it at a non-default local endpoint (e.g. a second Ollama on another port) with the env var:
+
+```bash
+LLM_LOCAL_OLLAMA_HOST=http://127.0.0.1:11435 ./bin/remote-ollama-mac claude --local --model qwen3.5:9b
+```
+
+Local mode rejects remote-only flags rather than silently ignoring them. `--profile`, `--route`, `--tunnel`, `--direct`, `--external-host`, and `--local-port` all error when combined with `--local`, because none of them apply when the endpoint comes from `LLM_LOCAL_OLLAMA_HOST`.
+
+### Model recommendation for the Mac
+
+The MacBook has far less VRAM/unified memory headroom than the dual-GPU Ubuntu box, so keep local models small:
+
+- **Default: a code-specialized ~7B model** (e.g. `qwen2.5-coder:7b`). Fastest generation of the local set (~27 tok/s measured on this Mac) and emits code directly, so it fits tight `num_predict` budgets. This is the everyday local coding model — it stays responsive and leaves memory for the editor and browser.
+- **Occasional: a ~14B coder** (e.g. `qwen2.5-coder:14b`) for a harder one-off task when you can spare the memory and tolerate slower tokens (~14 tok/s).
+- **Reasoning ~9B models (e.g. `qwen3.5:9b`) need a large token budget.** They stream their answer through a separate reasoning/`thinking` channel, so under a small `num_predict` cap they can burn the whole budget thinking and return an *empty* completion. If you use one, raise `num_predict` substantially; for constrained/offline coding a `qwen2.5-coder` model is the safer default.
+- **Avoid ~33B models during normal development** (e.g. `deepseek-coder:33b`, ~6–7 tok/s here — 2–4× slower). They fit only by heavy swapping/offload on the Mac and will stall interactive work. Save 30B+ for the remote `dual` profile.
+
+This mirrors the local-test-gen harness, which already defaults to `localhost:11434`; `--local` reuses that same service and default port.
 
 ## Remote Command Execution
 

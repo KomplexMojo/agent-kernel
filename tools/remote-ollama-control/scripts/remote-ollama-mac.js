@@ -28,7 +28,10 @@ function usage() {
   remote-ollama-mac telemetry [--profile NAME]
   remote-ollama-mac doctor --profile NAME [--model MODEL] [--route internal|external] [--direct] [--json]
   remote-ollama-mac claude --profile NAME [--model MODEL] [--direct] [-- CLAUDE_ARGS...]
+  remote-ollama-mac claude --local [--model MODEL] [-- CLAUDE_ARGS...]
   remote-ollama-mac run-local --profile NAME [--model MODEL] [--direct] -- COMMAND [ARGS...]
+  remote-ollama-mac run-local --local [--model MODEL] -- COMMAND [ARGS...]
+  remote-ollama-mac print-env --local [--model MODEL]
   remote-ollama-mac exec [--route internal|external] -- COMMAND [ARGS...]
   remote-ollama-mac smoke-test --profile NAME --model MODEL [--prompt TEXT] [--require-gpu]
   remote-ollama-mac benchmark --profile NAME --model MODEL --context N --num-predict N --scenario NAME
@@ -42,6 +45,7 @@ function usage() {
 
 Common options:
   --external-host HOST   Override LLM_EXTERNAL_HOST for this invocation.
+  --local                Drive this Mac's own Ollama (valid only for claude, run-local, print-env).
 
 Profiles: ${Object.keys(config.profiles).join(', ')}
 `);
@@ -78,6 +82,8 @@ function parseArgs(argv) {
     dryRun: false,
     tunnel: false,
     direct: false,
+    local: false,
+    explicitFlags: new Set(),
     requireGpu: false,
     localPort: null,
     route: config.host.defaultRoute,
@@ -121,10 +127,14 @@ function parseArgs(argv) {
       break;
     } else if (arg === '--dry-run') {
       options.dryRun = true;
+    } else if (arg === '--local') {
+      options.local = true;
     } else if (arg === '--tunnel') {
       options.tunnel = true;
+      options.explicitFlags.add(arg);
     } else if (arg === '--direct') {
       options.direct = true;
+      options.explicitFlags.add(arg);
     } else if (arg === '--require-gpu') {
       options.requireGpu = true;
     } else if (arg === '--json') {
@@ -140,15 +150,19 @@ function parseArgs(argv) {
       options.isolateProfiles = false;
     } else if (arg === '--local-port') {
       options.localPort = readPositiveNumber(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--route') {
       options.route = readOptionValue(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--external-host') {
       options.externalHost = readOptionValue(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--profile') {
       options.profile = readOptionValue(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--profiles') {
       options.profiles = parseList(readOptionValue(args, index, arg));
@@ -211,6 +225,19 @@ function parseArgs(argv) {
   return options;
 }
 
+function validateLocalMode(options) {
+  if (!options.local) return;
+  if (!['claude', 'run-local', 'print-env'].includes(options.command)) {
+    fail('--local is only supported for claude, run-local, and print-env');
+  }
+  const conflicts = ['--profile', '--route', '--tunnel', '--direct', '--external-host', '--local-port'];
+  for (const flag of conflicts) {
+    if (options.explicitFlags.has(flag)) {
+      fail(`--local cannot be combined with ${flag} (remote-only). In local mode the endpoint comes from LLM_LOCAL_OLLAMA_HOST.`);
+    }
+  }
+}
+
 function applyHostOverrides(options) {
   if (!options.externalHost) {
     return;
@@ -231,6 +258,9 @@ function defaultLocalPort(profile) {
 }
 
 function clientEndpoint(profile, options) {
+  if (options.local) {
+    return config.local.host;
+  }
   if (options.tunnel || !options.direct) {
     return `http://127.0.0.1:${options.localPort || defaultLocalPort(profile)}`;
   }
@@ -306,6 +336,16 @@ function runProfileCommand(command, options) {
 }
 
 function printEnv(options) {
+  if (options.local) {
+    const endpoint = clientEndpoint(null, options);
+    const model = options.model || config.local.model;
+    process.stdout.write(`export OLLAMA_HOST=${shellQuote(endpoint)}\n`);
+    process.stdout.write(`export OLLAMA_MODEL=${shellQuote(model)}\n`);
+    process.stdout.write(`export ANTHROPIC_BASE_URL=${shellQuote(endpoint)}\n`);
+    process.stdout.write(`export ANTHROPIC_AUTH_TOKEN=${shellQuote(process.env.ANTHROPIC_AUTH_TOKEN || 'ollama')}\n`);
+    process.stdout.write('export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1\n');
+    return;
+  }
   const profile = getProfile(config, options.profile || 'primary');
   const model = options.model || profile.defaultModel || '';
   const endpoint = clientEndpoint(profile, options);
@@ -334,9 +374,32 @@ function localHardwareEnv(endpoint, profile, model, options) {
   };
 }
 
+function localModeEnv(endpoint, model) {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('REMOTE_OLLAMA_')) delete env[key];
+  }
+  env.OLLAMA_HOST = endpoint;
+  env.OLLAMA_MODEL = model || '';
+  env.ANTHROPIC_BASE_URL = endpoint;
+  env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN || 'ollama';
+  env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
+  return env;
+}
+
+async function assertLocalEndpointReachable(endpoint) {
+  const status = await health(endpoint);
+  if (!status.ok) {
+    throw new Error(
+      `Local Ollama endpoint ${endpoint} is not reachable: ${status.error}. ` +
+      `Start Ollama (e.g. 'ollama serve') or set LLM_LOCAL_OLLAMA_HOST to the right address.`
+    );
+  }
+}
+
 async function runClaude(options) {
-  const profile = getProfile(config, options.profile || 'primary');
-  const model = options.model || profile.defaultModel;
+  const profile = options.local ? null : getProfile(config, options.profile || 'primary');
+  const model = options.local ? (options.model || config.local.model) : (options.model || profile.defaultModel);
   const endpoint = clientEndpoint(profile, options);
   const claudeCmd = process.env.CLAUDE_CMD || 'claude';
   const useTunnel = !options.direct;
@@ -348,10 +411,25 @@ async function runClaude(options) {
 
   if (options.dryRun) {
     process.stdout.write(`OLLAMA_HOST=${shellQuote(endpoint)} ANTHROPIC_BASE_URL=${shellQuote(endpoint)} ANTHROPIC_AUTH_TOKEN=${shellQuote(process.env.ANTHROPIC_AUTH_TOKEN || 'ollama')} ${displayCommand(claudeCmd, args)}\n`);
-    if (useTunnel) {
+    if (!options.local && useTunnel) {
       process.stdout.write(`Tunnel: ${displayCommand('ssh', tunnelArgs(options, profile))}\n`);
     }
     return;
+  }
+
+  if (options.local) {
+    await assertLocalEndpointReachable(endpoint);
+    process.stdout.write(`Local Ollama endpoint healthy: ${endpoint}\n`);
+    await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+
+    const result = spawnSync(claudeCmd, args, {
+      stdio: 'inherit',
+      env: localModeEnv(endpoint, model)
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    process.exit(result.status === null ? 1 : result.status);
   }
 
   const remoteStatus = remoteProfileStatus(options.route, profile.name);
@@ -865,17 +943,32 @@ async function runLocalCommand(options) {
     fail('run-local requires a command after --, for example: remote-ollama-mac run-local --profile dual -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --dry-run');
   }
 
-  const profile = getProfile(config, options.profile || 'primary');
-  const model = options.model || profile.defaultModel || '';
+  const profile = options.local ? null : getProfile(config, options.profile || 'primary');
+  const model = options.local ? (options.model || config.local.model) : (options.model || profile.defaultModel || '');
   const endpoint = clientEndpoint(profile, options);
   const useTunnel = !options.direct;
 
   if (options.dryRun) {
     process.stdout.write(`OLLAMA_HOST=${shellQuote(endpoint)} OLLAMA_MODEL=${shellQuote(model)} ${displayCommand(options.extra[0], options.extra.slice(1))}\n`);
-    if (useTunnel) {
+    if (!options.local && useTunnel) {
       process.stdout.write(`Tunnel: ${displayCommand('ssh', tunnelArgs(options, profile))}\n`);
     }
     return;
+  }
+
+  if (options.local) {
+    await assertLocalEndpointReachable(endpoint);
+    process.stdout.write(`Local Ollama endpoint healthy: ${endpoint}\n`);
+    await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+
+    const result = spawnSync(options.extra[0], options.extra.slice(1), {
+      stdio: 'inherit',
+      env: localModeEnv(endpoint, model)
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    process.exit(result.status === null ? 1 : result.status);
   }
 
   const remoteStatus = remoteProfileStatus(options.route, profile.name, Math.min(options.timeoutMs, 45000));
@@ -1261,6 +1354,7 @@ async function runContentGen(options) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  validateLocalMode(options);
   applyHostOverrides(options);
 
   if (options.command === 'help') {
