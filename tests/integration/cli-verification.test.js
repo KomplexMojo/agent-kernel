@@ -203,11 +203,11 @@ test("show without --run-id exits non-zero with a stable argument error", () => 
 test("cli verification ring: 10-tick full dungeon demo with tick session navigation", (t) => {
   const workDir = makeWorkDir("agent-kernel-10tick-demo-");
 
-  // Step 1: create — full dungeon with trap, resource, delver, and warden.
+  // Step 1: create — full dungeon with hazard, resource, delver, and warden.
   runCliOk([
     "create",
     "--room", "size=medium;count=1",
-    "--trap", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
+    "--hazard", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
     "--resource", "tier=level;stat=vitalMax;delta=10;dropRate=50",
     "--delver", "count=1;affinity=fire;motivation=attacking",
     "--warden", "count=1;affinity=dark;motivation=defending",
@@ -264,7 +264,7 @@ test("cli verification ring: 10-tick full dungeon demo with tick session navigat
 test.skip("10-tick ring tick forward past maxTick returns ok:false with stable boundary error", () => {});
 test.skip("10-tick ring tick backward at tick 0 returns ok:false with stable boundary error", () => {});
 test.skip("10-tick ring tick state before forward returns tick 0 and null tickFrame", () => {});
-test.skip("10-tick ring create with hazard but no explicit trap still produces valid sim-config", () => {});
+test.skip("10-tick ring create with an auto-placed hazard still produces valid sim-config", () => {});
 test.skip("10-tick ring run ticks=1 then tick forward advances to maxTick boundary", () => {});
 test.skip("10-tick ring create and run with permanent resource surfaces resource events in tick frames", () => {});
 test.skip("10-tick ring replaying 10-tick run produces identical frame count", () => {});

@@ -52,7 +52,7 @@ General rules:
 ## Configurator (Affinities + Layouts)
 - affinity-presets-artifact-v1-basic.json: affinity preset catalog with kind/expression effects.
 - actor-loadouts-artifact-v1-basic.json: actor loadouts referencing affinity presets and stacks.
-- sim-config-artifact-v1-configurator-trap.json: grid layout with kinds and trap metadata.
+- sim-config-artifact-v1-configurator-hazard.json: grid layout with kinds and hazard metadata.
 - initial-state-artifact-v1-affinity-base.json: base vitals for affinity resolution before applying presets.
 - initial-state-artifact-v1-configurator-affinity.json: actors seeded with affinity traits and abilities.
 

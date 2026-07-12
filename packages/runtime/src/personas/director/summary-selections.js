@@ -48,8 +48,8 @@ function normalizeAffinityEntries(
           expression,
           stacks: normalizePositiveInt(entry?.stacks, 1),
         };
-        if (entry?.trapVitals && typeof entry.trapVitals === "object") {
-          normalized.trapVitals = entry.trapVitals;
+        if (entry?.hazardVitals && typeof entry.hazardVitals === "object") {
+          normalized.hazardVitals = entry.hazardVitals;
         }
         return normalized;
       })

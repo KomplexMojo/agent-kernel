@@ -20,7 +20,7 @@ Start with the workflow map below, then jump to the command family you need. The
 
 | Need | Start with | Produces |
 | --- | --- | --- |
-| Author a room, delver, warden, trap, hazard, or resource | `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan` | `spec.json`, `bundle.json`, `sim-config.json`, `initial-state.json` |
+| Author a room, delver, warden, hazard, or resource | `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan` | `spec.json`, `bundle.json`, `sim-config.json`, `initial-state.json` |
 | Build from an existing BuildSpec | `build` | Canonical persisted handoff artifacts |
 | Run or replay deterministic simulation artifacts | `run`, `replay` | TickFrames, effects log, run summary |
 | Inspect prior outputs | `show`, `diff`, `runs list`, `inspect`, `narrate` | Structured summaries and narrative artifacts |
@@ -72,7 +72,7 @@ Notes:
 
 Error shape:
 ```json
-{"ok":false,"command":"create","error":"create requires at least one authored object via --room, --floor-tile, --trap, --delver, or --warden."}
+{"ok":false,"command":"create","error":"create requires at least one authored object via --room, --floor-tile, --hazard, --delver, or --warden."}
 ```
 
 Errors still exit non-zero.
@@ -189,8 +189,11 @@ These commands do not replace `room-plan`, `hazard-plan`, `resource-plan`,
 `delver-plan`, `warden-plan`, `build`, or `configurator`; they provide a
 single multi-object entrypoint for automation callers.
 
+`--hazard` is the canonical affinity-danger input. CLI output uses
+`HazardArtifact` and `hazard` terminology throughout.
+
 Inputs/outputs:
-- Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--trap`, `--hazard`,
+- Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--hazard`,
   `--resource`, `--delver`, and `--warden`, optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard
   `--run-id`, `--created-at`, `--out-dir`.
@@ -198,12 +201,12 @@ Inputs/outputs:
   `budget <N> tokens`, and/or `--budget` supplies `budget.tokens`, all values must agree or
   the command fails validation.
 - `--floor-tile` format: `count=<n>[;id=<id>]`
-- `--trap` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
-  Trap `x`/`y` are room-relative offsets into the first declared room's interior.
+- Positioned `--hazard` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
+  Hazard `x`/`y` are room-relative offsets into the first declared room's interior.
   Level generation maps them to absolute grid coordinates; persisted
-  `sim-config.json` traps carry the mapped absolute coordinates. Coordinates
-  outside the room interior are rejected with a structured `trap_outside_room`
-  error. `blocking=true` traps are valid on floor tiles and do not count toward
+  `sim-config.json` hazards carry the mapped absolute coordinates. Coordinates
+  outside the room interior are rejected with a structured `hazard_outside_room`
+  error. `blocking=true` hazards are valid on floor tiles and do not count toward
   the `--floor-tile` walkable target.
 - In multi-room requests, the `--floor-tile` budget is distributed across all
   declared rooms. Budgets below the minimum viable interior per room are
@@ -381,8 +384,7 @@ Top-level shape:
 Canonical object taxonomy:
 - `room`: authored room cards and room-level composition hints. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
 - `floor_tile`: authored floor/wall/barrier tile intent. Default compile target is `build_spec_configurator`.
-- `trap`: authored trap placement or trap-affinity intent. Default compile target is `build_spec_configurator`.
-- `hazard`: authored hazard cards and hazard-level affinity/vital spend. Default compile target is `build_spec_configurator`.
+- `hazard`: authored hazard placement, affinity/vital intent, and hazard-level spend. Default compile target is `build_spec_configurator`.
 - `resource`: authored resource reward cards. Default compile target is `build_spec_configurator`.
 - `delver`: authored player-facing actor cards. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
 - `warden`: authored opposing actor cards. Default compile targets are `build_spec_plan` and `build_spec_configurator`.
@@ -401,8 +403,8 @@ Current compatibility rules:
 - `delver-plan` remains the direct additive authoring path for `delver` requests and compatible `shared_config` hints.
 - `warden-plan` remains the direct additive authoring path for `warden` requests and compatible `shared_config` hints.
 - `build --spec` remains the generic entry point once an agent command has been compiled to `BuildSpec`.
-- `configurator` remains the direct entry point for deterministic `levelGen`, `actors`, trap placement, hazard placement, resource drops, and tile-shape payloads.
-- `floor_tile` and richer `trap` requests are intentionally mapped as `build_spec_configurator` work first; when an authored request cannot be represented by current configurator inputs, it must declare `artifact_extension` instead of inventing an unversioned side channel.
+- `configurator` remains the direct entry point for deterministic `levelGen`, `actors`, hazard placement, resource drops, and tile-shape payloads.
+- `floor_tile` and richer `hazard` requests are intentionally mapped as `build_spec_configurator` work first; when an authored request cannot be represented by current configurator inputs, it must declare `artifact_extension` instead of inventing an unversioned side channel.
 
 Build inputs/outputs:
 - Input: `--spec path` (BuildSpec JSON, schema `agent-kernel/BuildSpec`).
@@ -469,8 +471,8 @@ node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_loop_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_text_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
-node packages/adapters-cli/src/cli/ak.mjs create --text "Create a fire room with a trap, one delver, and one warden." --room "size=large;count=1;affinities=fire:emit:3" --floor-tile "count=18" --trap "x=2;y=2;affinity=fire;expression=push;stacks=2" --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" --warden "count=1;affinity=fire;motivation=defending" --run-id run_create_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/create_demo
-node packages/adapters-cli/src/cli/ak.mjs configure --text "Configure the trap layout for the room." --room "size=small;count=1" --trap "id=trap_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1" --run-id run_configure_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/configure_demo
+node packages/adapters-cli/src/cli/ak.mjs create --text "Create a fire room with a hazard, one delver, and one warden." --room "size=large;count=1;affinities=fire:emit:3" --floor-tile "count=18" --hazard "x=2;y=2;affinity=fire;expression=push;stacks=2" --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" --warden "count=1;affinity=fire;motivation=defending" --run-id run_create_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/create_demo
+node packages/adapters-cli/src/cli/ak.mjs configure --text "Configure the hazard layout for the room." --room "size=small;count=1" --hazard "id=hazard_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1" --run-id run_configure_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/configure_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1" --run-id run_room_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1;affinities=fire:emit:2" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_budget_demo
 node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --run-id run_hazard_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/hazard_plan_demo
@@ -490,7 +492,7 @@ node packages/adapters-cli/src/cli/ak.mjs run --from-run run_fixture --ticks 5 -
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --out-dir path/to/out
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
 node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --tick-frames path/to/tick-frames.json
 node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
@@ -543,7 +545,7 @@ node packages/adapters-cli/src/cli/ak.mjs resource-plan --resource "permanenceMo
 node packages/adapters-cli/src/cli/ak.mjs delver-plan --delver "count=1;affinity=fire" --run-id run_delver_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity=dark" --run-id run_warden_plan_fixture --created-at 2025-01-01T00:00:00Z
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
 ```
 
 ## Agent workflow recipes
@@ -572,10 +574,10 @@ Use this when an agent wants one additive command that emits a playable bundle w
 
 ```
 node packages/adapters-cli/src/cli/ak.mjs create \
-  --text "Create a fire room with a trap, one delver, and one warden." \
+  --text "Create a fire room with a hazard, one delver, and one warden." \
   --room "size=large;count=1;affinities=fire:emit:3" \
   --floor-tile "count=18" \
-  --trap "x=2;y=2;affinity=fire;expression=push;stacks=2" \
+  --hazard "x=2;y=2;affinity=fire;expression=push;stacks=2" \
   --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" \
   --warden "count=1;affinity=fire;motivation=defending" \
   --run-id run_create_demo \
@@ -649,12 +651,12 @@ Expected outputs (defaults when `--out-dir` is set):
 When overrides are provided, `run` writes `resolved-sim-config.json` and
 `resolved-initial-state.json` to the output directory for inspection.
 
-## Configurator artifacts (affinities + traps)
+## Configurator artifacts (affinities + hazards)
 
 Configurator artifacts are affinity-only (no martial weapons). Affinity kinds:
 fire, water, earth, wind, life, decay, corrode, fortify, light, dark. Expressions: push, pull, emit.
 
-Example `SimConfigArtifact.layout.data` snippet with traps:
+Example `SimConfigArtifact.layout.data` snippet with hazards:
 ```json
 {
   "layout": {
@@ -662,7 +664,7 @@ Example `SimConfigArtifact.layout.data` snippet with traps:
     "data": {
       "tiles": ["#####", "#.S.#", "#..E#", "#...#", "#####"],
       "kinds": [[1,1,1,1,1],[1,0,0,0,1],[1,0,2,0,1],[1,0,0,0,1],[1,1,1,1,1]],
-      "traps": [
+      "hazards": [
         { "x": 2, "y": 2, "blocking": false, "affinity": { "kind": "fire", "expression": "push", "stacks": 2 } }
       ]
     }
@@ -692,7 +694,7 @@ Affinity summary output (resolved from presets + loadouts):
 
 Example:
 ```
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
 ```
 Expected outputs in `--out-dir`:
 - `affinity-summary.json`
@@ -706,7 +708,7 @@ Configurator command (artifact builder):
 
 Example:
 ```
-node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen tests/fixtures/configurator/level-gen-input-v1-trap.json --actors tests/fixtures/configurator/actors-v1-affinity-base.json --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --out-dir artifacts/configurator_demo
+node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen tests/fixtures/configurator/level-gen-input-v1-hazard.json --actors tests/fixtures/configurator/actors-v1-affinity-base.json --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --out-dir artifacts/configurator_demo
 ```
 
 ## Demo bundle script

@@ -15,7 +15,7 @@ const effects = resolveAffinityTargetEffectsForList(
 const ids = effects.map((entry) => entry.id);
 assert.ok(ids.includes("earth:pull:floor:vital"));
 assert.ok(ids.includes("earth:pull:floor:raise_barrier"));
-assert.ok(ids.includes("earth:pull:floor:arm_static_trap"));
+assert.ok(ids.includes("earth:pull:floor:arm_static_hazard"));
 assert.ok(ids.includes("water:emit:area:destroy_barrier"));
 assert.ok(ids.includes("life:pull:self:vital"));
 
@@ -24,7 +24,7 @@ assert.equal(vital.targetVital, "stamina");
 assert.equal(vital.potency, 3);
 });
 
-test("moderator planner derives deterministic barrier and trap actions", async () => {const { planModeratorAffinityActions } = await import("../../packages/runtime/src/personas/moderator/affinity-target-effects.js");
+test("moderator planner derives deterministic barrier and hazard actions", async () => {const { planModeratorAffinityActions } = await import("../../packages/runtime/src/personas/moderator/affinity-target-effects.js");
 
 const observation = {
   actors: [{ id: "A-2RB89Z", position: { x: 1, y: 1 } }],
@@ -55,9 +55,9 @@ const affinityEffects = {
           targetType: "barrier",
         },
         {
-          id: "water:emit:floor:arm_static_trap",
+          id: "water:emit:floor:arm_static_hazard",
           category: "environment",
-          operation: "arm_static_trap",
+          operation: "arm_static_hazard",
           sourceType: "actor",
           kind: "water",
           expression: "emit",
@@ -74,7 +74,7 @@ const actions = planModeratorAffinityActions({ observation, affinityEffects, tic
 assert.equal(actions.length, 2);
 assert.equal(actions[0].kind, "destroy_barrier");
 assert.deepEqual(actions[0].params, { x: 1, y: 0 });
-assert.equal(actions[1].kind, "arm_static_trap");
+assert.equal(actions[1].kind, "arm_static_hazard");
 assert.equal(actions[1].params.x, 1);
 assert.equal(actions[1].params.y, 1);
 assert.equal(actions[1].params.kind, "water");

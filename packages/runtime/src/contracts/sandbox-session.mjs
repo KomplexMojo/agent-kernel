@@ -17,7 +17,7 @@ const SUPPORTED_ENTITY_CATEGORIES = new Set([
   "delver",
   "warden",
   "hazard",
-  "trap",
+  "hazard",
   "resource",
 ]);
 

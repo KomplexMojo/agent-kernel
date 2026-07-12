@@ -58,12 +58,14 @@ test("cli hazard-plan authors hazards directly from hazard flags", () => {
   assert.equal(hazards.length, 1);
   assert.equal(hazards[0].affinity, "fire");
   assert.equal(hazards[0].expression, "emit");
-  assert.equal(hazards[0].mana.regen, 1);
+  assert.equal(hazards[0].vitals.mana.regen, 1);
+  assert.equal(hazards[0].vitals.durability.kind, "one-time");
   assert.deepEqual(spec.intent.hints.poolWeights, [{ id: "hazards", weight: 1 }]);
 
   const artifact = readJson(join(outDir, "hazard-1.json"));
   assert.equal(artifact.schema, "agent-kernel/HazardArtifact");
-  assert.equal(artifact.schemaVersion, 2);
+  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.vitals.mana.regen, 1);
   assert.equal(artifact.meta.producedBy, "cli-hazard-plan");
 });
 
@@ -100,7 +102,7 @@ test("cli hazard-plan rejects insufficient hard budget", () => {
     "--hazard",
     "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1",
     "--budget-tokens",
-    "10",
+    "4",
     "--run-id",
     "run_hazard_plan_budget_fail",
     "--created-at",
@@ -189,3 +191,8 @@ test("cli resource-plan writes resource-only receipt categories and rejects low 
   assert.match(`${result.stdout}\n${result.stderr}`, /Budget receipt denied|budget/i);
   assert.equal(existsSync(join(failDir, "budget-receipt.json")), false);
 });
+
+// ## TODO: Test Permutations
+// - hazard-plan with omitted durability should emit default V3 durability.
+// - hazard-plan with invalid mana regen current greater than max should fail before writing artifacts.
+// - hazard-plan with multiple hazard affinities should preserve one artifact per hazard input.

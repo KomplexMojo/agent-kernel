@@ -51,16 +51,16 @@ function collectRoomPressureSources(rooms = []) {
   return [];
 }
 
-function collectTrapPressureSources(traps = []) {
+function collectHazardPressureSources(hazards = []) {
   const sources = [];
-  if (!Array.isArray(traps)) return sources;
-  traps.forEach((trap, index) => {
-    if (!trap || typeof trap !== "object") return;
+  if (!Array.isArray(hazards)) return sources;
+  hazards.forEach((hazard, index) => {
+    if (!hazard || typeof hazard !== "object") return;
     const source = {
-      kind: "trap",
-      id: Number.isFinite(trap.x) && Number.isFinite(trap.y) ? `${trap.x},${trap.y}` : `trap_${index + 1}`,
+      kind: "hazard",
+      id: Number.isFinite(hazard.x) && Number.isFinite(hazard.y) ? `${hazard.x},${hazard.y}` : `hazard_${index + 1}`,
     };
-    const normalized = normalizeAffinitySourceEntry(trap.affinity, source);
+    const normalized = normalizeAffinitySourceEntry(hazard.affinity, source);
     if (normalized) sources.push(normalized);
   });
   return sources;
@@ -113,11 +113,11 @@ function resolveNetPressure(baseByKind = {}) {
 
 export function buildAmbientAffinityPressure({
   rooms = [],
-  traps = [],
+  hazards = [],
 } = {}) {
   const roomSources = collectRoomPressureSources(rooms);
-  const trapSources = collectTrapPressureSources(traps);
-  const sourceEntries = roomSources.concat(trapSources);
+  const hazardSources = collectHazardPressureSources(hazards);
+  const sourceEntries = roomSources.concat(hazardSources);
   const baseByKind = addBasePressure(buildZeroByKind(), sourceEntries);
   const { netByKind, cancellations } = resolveNetPressure(baseByKind);
   return {
@@ -127,4 +127,3 @@ export function buildAmbientAffinityPressure({
     cancellations,
   };
 }
-

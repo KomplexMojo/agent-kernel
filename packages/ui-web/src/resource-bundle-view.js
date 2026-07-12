@@ -58,7 +58,7 @@ export async function renderBundleBoardToCanvas({
   canvas,
   tiles = [],
   actors = [],
-  floorAffinityTraps = [],
+  floorAffinityHazards = [],
   bundle = null,
   observation = null,
 } = {}) {
@@ -66,7 +66,7 @@ export async function renderBundleBoardToCanvas({
   const rendered = await renderBoardWithResourceBundle({
     tiles,
     actors,
-    floorAffinityTraps,
+    floorAffinityHazards,
     resourceBundle,
     loadAssetPixels: loadAssetPixelsFromDataUri,
     observation,

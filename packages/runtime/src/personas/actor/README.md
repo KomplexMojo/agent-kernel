@@ -5,9 +5,9 @@ Actors are the foundational building blocks of the simulation.
 An **actor** represents any entity that exists in the world. One concept, with clear subtypes:
 
 - **Static actors** (walls, floors, tiles, barriers): durability only, no other vitals, typically `canMove=false`. These build rooms/layout and can optionally gain duration/mobility if you want dynamic restructuring.
-- **Dynamic actors** (dungeon-controlled interactors): anything the dungeon spawns that can act—monsters and traps.
+- **Dynamic actors** (dungeon-controlled interactors): anything the dungeon spawns that can act—monsters and hazards.
   - Monsters: may have all vitals, one or more affinities, and multiple motivations (including movement).
-  - Traps: durability + mana; may have motivations like `attacking`/`defending` but no movement motivations; `canMove=false`.
+  - Hazards: durability + mana; may have motivations like `attacking`/`defending` but no movement motivations; `canMove=false`.
 - **Player-controlled dynamic actors** (introduced later): configured by the player and directly controlled. These will require streamed simulation playback—regenerating one step at a time based on user actions—to keep determinism and replay intact.
 
 This document focuses on the **Actor persona** as a decision-making and behavior construct. Detailed simulation rules and physics are documented separately in the `core-ts` README.

@@ -162,7 +162,7 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
 }
 
 /**
- * Compute default trap vitals based on affinity expression and stacks.
+ * Compute default hazard vitals based on affinity expression and stacks.
  *
  * For persistent expressions (emit/draw):
  *   - Mana pool: 3x per-tick upkeep (allows running 3 ticks without regen)
@@ -178,7 +178,7 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
  * @param {number} stacks - stack count >= 1
  * @returns {{ mana: { current: number, max: number, regen: number }, durability: { current: number, max: number, regen: number } }}
  */
-function computeTrapVitals(expression, stacks) {
+function computeHazardVitals(expression, stacks) {
   const s = Number.isInteger(stacks) && stacks >= 1 ? stacks : 1;
 
   if (expression === "emit" || expression === "draw") {
@@ -221,39 +221,39 @@ function computeTrapVitals(expression, stacks) {
   };
 }
 
-function selectPresetForTrap(trap, presets) {
-  const matches = presets.filter((preset) => preset.kind === trap.affinity.kind && preset.expression === trap.affinity.expression);
+function selectPresetForHazard(hazard, presets) {
+  const matches = presets.filter((preset) => preset.kind === hazard.affinity.kind && preset.expression === hazard.affinity.expression);
   if (matches.length === 0) return null;
   return matches.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))[0];
 }
 
-function resolveTrapEffects(trap, presets) {
+function resolveHazardEffects(hazard, presets) {
   // Start with provided vitals, or compute defaults based on expression + stacks
   let baseVitals;
-  if (trap.vitals && (trap.vitals.mana || trap.vitals.durability || trap.vitals.health || trap.vitals.stamina)) {
-    baseVitals = ensureVitals(trap.vitals);
+  if (hazard.vitals && (hazard.vitals.mana || hazard.vitals.durability || hazard.vitals.health || hazard.vitals.stamina)) {
+    baseVitals = ensureVitals(hazard.vitals);
   } else {
     // No vitals provided: compute defaults from expression and stacks
-    const computed = computeTrapVitals(trap.affinity.expression, trap.affinity.stacks);
+    const computed = computeHazardVitals(hazard.affinity.expression, hazard.affinity.stacks);
     baseVitals = ensureVitals(computed);
   }
 
   const abilities = [];
   const affinityStacks = {};
   const affinityTargets = {};
-  const expression = trap.affinity.expression;
-  const trapTargetType = trap.affinity.targetType || "floor";
+  const expression = hazard.affinity.expression;
+  const hazardTargetType = hazard.affinity.targetType || "floor";
   const targetType = normalizeAffinityTargetType(
-    trapTargetType,
+    hazardTargetType,
     expression || DEFAULT_AFFINITY_EXPRESSION,
   );
-  addAffinityStack(affinityStacks, trap.affinity.kind, expression, trap.affinity.stacks);
-  addAffinityTargetStack(affinityTargets, trap.affinity.kind, expression, targetType, trap.affinity.stacks);
+  addAffinityStack(affinityStacks, hazard.affinity.kind, expression, hazard.affinity.stacks);
+  addAffinityTargetStack(affinityTargets, hazard.affinity.kind, expression, targetType, hazard.affinity.stacks);
 
-  const preset = selectPresetForTrap(trap, presets);
+  const preset = selectPresetForHazard(hazard, presets);
   if (preset) {
     const allowHealth = preset.kind === "life" || preset.kind === "decay";
-    const updatedVitals = applyPresetToVitals(baseVitals, preset, trap.affinity.stacks, {
+    const updatedVitals = applyPresetToVitals(baseVitals, preset, hazard.affinity.stacks, {
       health: allowHealth,
       stamina: false,
     });
@@ -262,27 +262,27 @@ function resolveTrapEffects(trap, presets) {
     });
     const presetAbilities = resolvePresetAbilities(preset);
     presetAbilities.forEach((ability) => {
-      abilities.push(resolveAbility(ability, preset, trap.affinity.stacks));
+      abilities.push(resolveAbility(ability, preset, hazard.affinity.stacks));
     });
   }
 
   const resolvedEffects = resolveAffinityTargetEffectsForEntry(
     {
-      kind: trap.affinity.kind,
+      kind: hazard.affinity.kind,
       expression,
-      stacks: trap.affinity.stacks,
+      stacks: hazard.affinity.stacks,
       targetType,
     },
     {
-      sourceType: "trap",
-      sourceId: `${trap.x},${trap.y}`,
+      sourceType: "hazard",
+      sourceId: `${hazard.x},${hazard.y}`,
       manaReserve: baseVitals?.mana?.current || 0,
     },
   );
   resolvedEffects.sort((a, b) => String(a.id || "").localeCompare(String(b.id || "")));
 
   return {
-    position: { x: trap.x, y: trap.y },
+    position: { x: hazard.x, y: hazard.y },
     vitals: baseVitals,
     abilities,
     affinityStacks,
@@ -291,7 +291,7 @@ function resolveTrapEffects(trap, presets) {
   };
 }
 
-export function resolveAffinityEffects({ presets = [], loadouts = [], baseVitalsByActorId = {}, traps = [] } = {}) {
+export function resolveAffinityEffects({ presets = [], loadouts = [], baseVitalsByActorId = {}, hazards = [] } = {}) {
   const presetIndex = new Map();
   presets.forEach((preset) => {
     if (preset && preset.id) {
@@ -314,9 +314,9 @@ export function resolveAffinityEffects({ presets = [], loadouts = [], baseVitals
     })
     .sort((a, b) => String(a.actorId).localeCompare(String(b.actorId)));
 
-  const trapResults = (Array.isArray(traps) ? traps : [])
-    .map((trap) => resolveTrapEffects(trap, presets))
+  const hazardResults = (Array.isArray(hazards) ? hazards : [])
+    .map((hazard) => resolveHazardEffects(hazard, presets))
     .sort((a, b) => (a.position.y - b.position.y) || (a.position.x - b.position.x));
 
-  return { actors, traps: trapResults };
+  return { actors, hazards: hazardResults };
 }

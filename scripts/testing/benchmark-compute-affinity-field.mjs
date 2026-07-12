@@ -43,7 +43,7 @@ function configureBenchmarkCore() {
     const x = 1 + ((i * 13) % Math.max(1, WIDTH - 2));
     const y = 1 + ((i * 5) % Math.max(1, HEIGHT - 2));
     const kind = ((i + 3) % 10) + 1;
-    call(core.armStaticTrapAt, x, y, kind, 3, (i % 3) + 1, 5);
+    call(core.armStaticHazardAt, x, y, kind, 3, (i % 3) + 1, 5);
   }
 
   return core;

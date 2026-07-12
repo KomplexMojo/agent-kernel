@@ -160,7 +160,7 @@ describe("deriveTileAffinityVisuals", () => {
   it("handles multiple hazards with overlapping fields", () => {
     const twoHazards = [
       {
-        id: "fire-trap-1",
+        id: "fire-hazard-1",
         entityType: "hazard",
         kind: "fire",
         position: { x: 1, y: 2 },
@@ -168,7 +168,7 @@ describe("deriveTileAffinityVisuals", () => {
         affinityStacks: [{ kind: "fire", stacks: 1, expression: "burning" }],
       },
       {
-        id: "fire-trap-2",
+        id: "fire-hazard-2",
         entityType: "hazard",
         kind: "fire",
         position: { x: 3, y: 2 },
@@ -194,7 +194,7 @@ describe("deriveTileAffinityVisuals", () => {
   it("handles zero emitStrength as no spread", () => {
     const zeroEmit = [
       {
-        id: "fire-trap-1",
+        id: "fire-hazard-1",
         entityType: "hazard",
         kind: "fire",
         position: { x: 2, y: 2 },

@@ -1,23 +1,14 @@
 /**
  * Hazard-free rooms are first-class (developer adjudication, 2026-07-11):
- * rooms are generic containers — affinity belongs to hazards/traps, NOT to
- * rooms (legacy "room affinity" idea retired). A room with no hazard must be
+ * rooms are generic containers — affinity belongs to hazards, NOT to rooms.
+ * A room with no hazard must be
  * fully authorable, including with resources.
  *
  * GROUND TRUTH (direct invocation, 2026-07-11):
  *   - room alone: ok
  *   - room + delver (no hazard): ok
- *   - room + non-blocking trap (no hazard): ok
- *   - room + resource (NO hazard): DENIED —
- *     "Budget receipt denied: status=denied; deniedLines=resource:resource_level:resources;
- *      deniedPools=resources:N/0"
- *     The budget splitter allocates a ZERO resources pool unless a hazard is
- *     present in the request; adding a hazard to the identical request makes
- *     the same resource lines approve. Every canonical benchmark resource
- *     scenario happens to carry a hazard, so this was never exercised.
- *   Suspect area: pool weight profiles in
- *   packages/runtime/src/personas/director/budget-allocation.js (profile
- *   selection / weight table keyed on hazard presence).
+ *   - room + non-blocking hazard: ok
+ *   - room + resource (no hazard): ok
  *
  * Seam driven (same seam the MCP server uses):
  *   packages/adapters-cli/src/mcp/tools/authoring.mjs ak_create buildArgs
@@ -124,16 +115,16 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
     assert.equal(result.ok, true, `room + actors without hazard must create: ${result.error}`);
   });
 
-  test("a room with a trap and no hazard creates successfully (contract pin — passes today)", async () => {
-    const result = await createShape(outDir, "trap", {
+  test("a room with a non-blocking hazard creates successfully", async () => {
+    const result = await createShape(outDir, "hazard", {
       room: ["size=medium;count=1"],
-      trap: ["x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false"],
+      hazard: ["x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false"],
       budgetTokens: 2500,
     });
-    assert.equal(result.ok, true, `room + trap without hazard must create: ${result.error}`);
+    assert.equal(result.ok, true, `room + non-blocking hazard must create: ${result.error}`);
   });
 
-  test("a room with resources and NO hazard creates with approved resource lines (FAILS today)", async () => {
+  test("a room with resources and no hazard creates with approved resource lines", async () => {
     const result = await createShape(outDir, "resources", {
       room: ["size=medium;count=1"],
       resource: RESOURCE_SPECS,
@@ -142,10 +133,7 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
     assert.equal(
       result.ok,
       true,
-      `room + resources without hazard must create — got error: ${result.error} ` +
-        "(the budget splitter allocates a zero resources pool unless a hazard is present; " +
-        "rooms are generic containers with no affinity of their own, so hazard presence must " +
-        "not gate resource authorability)",
+      `room + resources without hazard must create — got error: ${result.error}`,
     );
 
     const receipt = JSON.parse(readFileSync(join(outDir, "resources", "budget-receipt.json"), "utf8"));
@@ -188,6 +176,6 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
 
 // ## TODO: Test Permutations
 test.skip("hazard-free multi-room dungeon with resources in each room creates approved", () => {});
-test.skip("hazard-free room with resources + traps + actors approves all pools", () => {});
+test.skip("hazard-free room with resources + hazards + actors approves all pools", () => {});
 test.skip("resource-only request without a room uses the default layout and approves", () => {});
 test.skip("benchmark scenario 26 shape minus its hazard still approves all resource lines", () => {});

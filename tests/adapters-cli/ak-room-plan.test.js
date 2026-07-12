@@ -80,7 +80,7 @@ test("cli room-plan authors room cards directly from room flags", async () => {
   const room = cards[0];
   assert.equal(room.roomSize, "large");
   assert.equal(room.count, 2);
-  assert.deepEqual(listAffinityTuples(room), [], "rooms carry no affinities — affinity comes from traps/hazards");
+  assert.deepEqual(listAffinityTuples(room), [], "rooms carry no affinities — affinity comes from hazards");
 });
 
 test("cli room-plan produces a generic room card with no affinity tuples", async () => {
@@ -168,7 +168,7 @@ test("cli room-plan writes budget receipt with room layout spend only — no aff
     },
     items: [
       { id: "layout_grid_7x7", kind: "layout", costTokens: 11 },
-      { id: "trap_basic", kind: "trap", costTokens: 2 },
+      { id: "hazard_basic", kind: "hazard", costTokens: 2 },
     ],
   }, null, 2));
 
@@ -224,7 +224,7 @@ test("cli room-plan rejects affinity field — rooms are generic containers", as
     "size=small;affinities=fire:emit:2",
   ]);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /not supported.*trap.*hazard/i);
+  assert.match(result.stderr, /not supported.*--hazard/i);
 });
 
 test("cli room-plan requires --budget and --price-list together", async () => {

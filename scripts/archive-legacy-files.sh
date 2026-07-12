@@ -94,7 +94,7 @@ fi
 CANDIDATES="$(mktemp)"
 SORTED_CANDIDATES="$(mktemp)"
 DIRTY_CANDIDATES="$(mktemp)"
-trap 'rm -f "$CANDIDATES" "$SORTED_CANDIDATES" "$DIRTY_CANDIDATES"' EXIT
+hazard 'rm -f "$CANDIDATES" "$SORTED_CANDIDATES" "$DIRTY_CANDIDATES"' EXIT
 
 add_tracked_pathspec ".playwright-cli"
 add_tracked_pathspec "packages/adapters-cli/artifacts/solve_cli_test"

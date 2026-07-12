@@ -95,9 +95,9 @@ const AK_CREATE_TOOL = {
   function: {
     name: 'ak_create',
     description:
-      'Create agent-kernel game elements (delvers, wardens, rooms, traps, hazards, resources) ' +
+      'Create agent-kernel game elements (delvers, wardens, rooms, hazards, resources) ' +
       'for a dungeon scenario. Rooms are generic containers — affinity pressure belongs in ' +
-      'traps or hazards, not in room specs.',
+      'hazards, not in room specs.',
     parameters: {
       type: 'object',
       required: ['text', 'budgetTokens', 'runId', 'outDir'],
@@ -153,9 +153,9 @@ const AK_CREATE_TOOL = {
             required: ['count']
           }
         },
-        trap: {
+        hazard: {
           type: 'array',
-          description: 'Traps to place.',
+          description: 'Hazards to place.',
           items: {
             type: 'object',
             properties: {

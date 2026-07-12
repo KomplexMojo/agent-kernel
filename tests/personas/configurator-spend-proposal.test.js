@@ -22,7 +22,7 @@ test("configurator builds spend proposals and validates receipts", async () => {
     "../../packages/runtime/src/personas/configurator/spend-proposal.js"
   );
 
-  const basicLayout = { width: 9, height: 9, traps: [{ x: 2, y: 2 }] };
+  const basicLayout = { width: 9, height: 9, hazards: [{ x: 2, y: 2 }] };
   const basicActors = [{ id: "actor_one" }, { id: "actor_two" }];
 
   const builtProposal = buildSpendProposal({
@@ -48,7 +48,7 @@ test("configurator builds spend proposals and validates receipts", async () => {
   const overBudgetLayout = {
     width: 9,
     height: 9,
-    traps: Array.from({ length: 30 }, (_, idx) => ({ x: idx, y: idx })),
+    hazards: Array.from({ length: 30 }, (_, idx) => ({ x: idx, y: idx })),
   };
   const overBudgetActors = Array.from({ length: 50 }, (_, idx) => ({ id: `actor_${idx}` }));
 
@@ -167,10 +167,8 @@ test("configurator accounts for hazards and UI-authored resources", async () => 
       hazards: [
         {
           id: "hazard_fire",
-          affinity: "fire",
-          expression: "emit",
-          stacks: 2,
-          mana: { current: 3, max: 3, regen: 1 },
+          affinity: { kind: "fire", expression: "emit", stacks: 2 },
+          vitals: { mana: { current: 3, max: 3, regen: 1 } },
         },
       ],
     },
@@ -188,7 +186,7 @@ test("configurator accounts for hazards and UI-authored resources", async () => 
   });
 
   const byId = new Map(proposal.items.map((item) => [`${item.subjectRef?.id}:${item.id}`, item]));
-  assert.equal(byId.get("hazard_fire:hazard_base").category, "hazards");
+  assert.equal(byId.get("hazard_fire:hazard_basic").category, "hazards");
   assert.equal(byId.get("hazard_fire:vital_mana_point").quantity, 3);
   assert.equal(byId.get("hazard_fire:affinity_stack").quantity, 2);
   assert.equal(byId.get("ui_resource:resource_permanent").category, "resources");

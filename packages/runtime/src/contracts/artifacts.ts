@@ -173,7 +173,7 @@ export type AgentCommandAction = "author" | "configure";
 export type AgentCommandObjectKind =
   | "room"
   | "floor_tile"
-  | "trap"
+  | "hazard"
   | "hazard"
   | "resource"
   | "delver"
@@ -360,8 +360,8 @@ export interface BuildSpecAdapterCaptureV1 {
 
 export interface BuildSpecRoomHintV1 {
   affinity?: string;
-  trap?: string;
-  trapAffinity?: string;
+  hazard?: string;
+  hazardAffinity?: string;
 }
 
 export interface BuildSpecActorHintV1 {
@@ -380,7 +380,7 @@ export interface BuildSpecActorGroupHintV1 {
 
 export interface BuildSpecAgentHintsV1 extends Record<string, unknown> {
   budgetTokens?: number;
-  /** Optional separate budget cap for dungeon-side objects (rooms, tiles, traps, hazards). */
+  /** Optional separate budget cap for dungeon-side objects (rooms, tiles, hazards). */
   dungeonBudgetTokens?: number;
   /** Optional separate budget cap for delver-side objects (delvers, wardens). */
   delverBudgetTokens?: number;
@@ -714,7 +714,7 @@ export interface BudgetReceiptArtifactV1 {
     categories: {
       rooms: ScenarioCategorySpend;
       floor_tiles: ScenarioCategorySpend;
-      traps: ScenarioCategorySpend;
+      hazards: ScenarioCategorySpend;
       hazards: ScenarioCategorySpend;
       resources: ScenarioCategorySpend;
       delvers: ScenarioCategorySpend;
@@ -780,7 +780,7 @@ export type BudgetLedgerArtifact = BudgetLedgerArtifactV1;
 export type SpendProposalCategory =
   | "rooms"
   | "floor_tiles"
-  | "traps"
+  | "hazards"
   | "hazards"
   | "resources"
   | "delvers"
@@ -1076,7 +1076,7 @@ export interface AffinityResolvedEffectV1 {
   id: string;
   category: "vital" | "environment";
   operation: string;
-  sourceType: "actor" | "trap" | "static_trap";
+  sourceType: "actor" | "hazard" | "static_hazard";
   sourceId?: string;
   kind: AffinityKind;
   expression: AffinityExpression;
@@ -1117,7 +1117,7 @@ export interface AffinitySummaryActorV1 {
   resolvedEffects?: AffinityResolvedEffectV1[];
 }
 
-export interface AffinitySummaryTrapV1 {
+export interface AffinitySummaryHazardV1 {
   position: { x: number; y: number };
   vitals: {
     health: VitalRecordV1;
@@ -1140,7 +1140,7 @@ export interface AffinitySummaryV1 {
   simConfigRef?: ArtifactRef;
   initialStateRef?: ArtifactRef;
   actors: AffinitySummaryActorV1[];
-  traps: AffinitySummaryTrapV1[];
+  hazards: AffinitySummaryHazardV1[];
 }
 
 export type AffinitySummary = AffinitySummaryV1;
@@ -1295,8 +1295,8 @@ export interface ActionV1 {
     | "defer_request"
     | "destroy_barrier"
     | "raise_barrier"
-    | "arm_static_trap"
-    | "disarm_static_trap"
+    | "arm_static_hazard"
+    | "disarm_static_hazard"
     | "custom";
 
   /**
@@ -1846,7 +1846,7 @@ export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2 | Resourc
 
 export const HAZARD_ARTIFACT_SCHEMA = "agent-kernel/HazardArtifact";
 
-export type HazardVitalKind = "mana" | "durability"; // V1 only; V2 restricts to "mana"
+export type HazardVitalKind = "mana" | "durability";
 
 export interface HazardVitalOneTimeV1 {
   kind: "one-time";
@@ -1872,7 +1872,7 @@ export interface HazardArtifactV1 {
   durability: HazardVitalV1;
 }
 
-/** V2: durability removed — hazards have mana + mana regen only. */
+/** V2: legacy mana-only hazard artifact. */
 export interface HazardArtifactV2 {
   schema: typeof HAZARD_ARTIFACT_SCHEMA;
   schemaVersion: 2;
@@ -1882,7 +1882,31 @@ export interface HazardArtifactV2 {
   mana: HazardVitalV1;
 }
 
-export type HazardArtifact = HazardArtifactV1 | HazardArtifactV2;
+export interface HazardAffinityStackV3 {
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  stacks: number;
+  targetType?: AffinityTargetType;
+}
+
+export interface HazardVitalsV3 {
+  mana: HazardVitalV1;
+  durability: HazardVitalV1;
+}
+
+/** V3: canonical public hazard artifact. Hazard remains only an input alias. */
+export interface HazardArtifactV3 {
+  schema: typeof HAZARD_ARTIFACT_SCHEMA;
+  schemaVersion: 3;
+  meta: ArtifactMeta;
+  affinity: AffinityKind;
+  expression: AffinityExpression;
+  affinityStacks: HazardAffinityStackV3[];
+  vitals: HazardVitalsV3;
+  proximityRadius?: number;
+}
+
+export type HazardArtifact = HazardArtifactV1 | HazardArtifactV2 | HazardArtifactV3;
 
 // -------------------------
 // RoomTileActorConfig
@@ -1972,7 +1996,7 @@ export interface SandboxArtifactIndexV1 {
  * Supported entity categories for the sandbox at launch.
  * Future entity kinds may be added as the sandbox surface evolves.
  */
-export type SandboxEntityCategory = "delver" | "warden" | "hazard" | "trap" | "resource";
+export type SandboxEntityCategory = "delver" | "warden" | "hazard" | "hazard" | "resource";
 
 /**
  * Session envelope for a standalone Phaser sandbox.

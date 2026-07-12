@@ -1,0 +1,31 @@
+{
+  "schema": "agent-kernel/HazardArtifact",
+  "schemaVersion": 3,
+  "meta": {
+    "id": "hazard_invalid_durability_regen",
+    "runId": "run_hazard_test",
+    "createdAt": "2026-07-11T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "affinity": "water",
+  "expression": "pull",
+  "affinityStacks": [
+    {
+      "kind": "water",
+      "expression": "pull",
+      "stacks": 1
+    }
+  ],
+  "vitals": {
+    "mana": {
+      "kind": "one-time",
+      "amount": 3
+    },
+    "durability": {
+      "kind": "regen",
+      "current": 6,
+      "max": 6,
+      "regen": -1
+    }
+  }
+}

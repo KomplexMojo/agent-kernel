@@ -16,7 +16,7 @@ import {
 const REPORT_CATEGORIES = Object.freeze([
   "rooms",
   "floor_tiles",
-  "traps",
+  "hazards",
   "hazards",
   "resources",
   "delvers",
@@ -27,7 +27,7 @@ const REPORT_CATEGORIES = Object.freeze([
 const CATEGORY_POOL_IDS = Object.freeze({
   rooms: "rooms",
   floor_tiles: "rooms",
-  traps: "rooms",
+  hazards: "rooms",
   hazards: "hazards",
   resources: "resources",
   delvers: "delver",
@@ -70,7 +70,7 @@ function buildCategoryTargets({ budgetTokens, allocation } = {}) {
   const fallback = {
     rooms: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
     floor_tiles: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
-    traps: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
+    hazards: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
     hazards: Math.round((REFERENCE_TARGETS.hazards || 0) * fallbackScale),
     resources: Math.round(REFERENCE_TARGETS.resources * fallbackScale),
     delvers: Math.round(REFERENCE_TARGETS.delvers * fallbackScale),
@@ -98,7 +98,7 @@ function buildLegacyCategorySpend({ roomsSpend, delverSpend, wardenSpend, resour
   return {
     rooms: normalizeSpend(roomsSpend),
     floor_tiles: 0,
-    traps: 0,
+    hazards: 0,
     hazards: 0,
     resources: normalizeSpend(resourcesSpend),
     delvers: normalizeSpend(delverSpend),
@@ -132,7 +132,7 @@ function buildCategory(actual, target) {
  * Build a scenario-level spend report (design §14).
  *
  * @param {Object} options
- * @param {number} options.roomsSpend - Actual rooms/layout/trap spend.
+ * @param {number} options.roomsSpend - Actual rooms/layout/hazard spend.
  * @param {number} options.delverSpend - Actual delver spend.
  * @param {number} options.wardenSpend - Actual warden spend.
  * @param {number} [options.budgetTokens] - Total scenario budget (defaults to REFERENCE_BUDGET_TOKENS).
@@ -159,7 +159,7 @@ export function buildScenarioSpendReport({
     lineItems,
     categorySpend,
   });
-  spend.rooms += spend.floor_tiles + spend.traps + spend.shared_system;
+  spend.rooms += spend.floor_tiles + spend.hazards + spend.shared_system;
   const totalSpend = Array.isArray(lineItems)
     ? lineItems.reduce((sum, item) => sum + normalizeSpend(item.totalCost), 0)
     : spend.rooms + spend.hazards + spend.resources + spend.delvers + spend.wardens;

@@ -289,18 +289,18 @@ test("renders hazard archetype from sandbox bundle", async () => {
   view.dispose();
 });
 
-test("renders trap and resource archetypes from sandbox bundle", async () => {
+test("renders hazard and resource archetypes from sandbox bundle", async () => {
   const records = {};
   const view = createPhaserSandboxView({
     loadPhaser: async () => createFakePhaser(records),
   });
   view.mount(makeContainer());
 
-  const bundle = await loadBundle(); // contains trap_1 and res_1
+  const bundle = await loadBundle(); // contains hazard_1 and res_1
   await view.renderBundle(bundle);
 
   // Full fixture has 5 entities — shape count must reflect all of them
-  // (tiles + actors + hazards/traps + resources).
+  // (tiles + actors + hazards + resources).
   const totalShapes = records.rectangles.length + records.circles.length;
   assert.ok(
     totalShapes >= 5,

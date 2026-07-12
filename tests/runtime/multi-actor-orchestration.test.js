@@ -52,7 +52,7 @@ function buildSimConfig({ width = 9, height = 9 } = {}) {
         spawn: { x: Math.floor(width / 2) - 1, y: Math.floor(height / 2) },
         exit: { x: Math.floor(width / 2) + 1, y: Math.floor(height / 2) },
         rooms: [{ id: "R1", x: 0, y: 0, width, height }],
-        traps: [],
+        hazards: [],
       },
     },
   };

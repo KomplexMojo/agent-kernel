@@ -51,16 +51,16 @@ type WorldLike = {
   getMotivatedActorAffinityKindByIndex(index: number): number;
   getMotivatedActorAffinityExpressionByIndex(index: number): number;
   clearMotivatedActorAffinity(index: number): number;
-  // M3b: static trap access for hazard pulls
-  getStaticTrapAffinityAt(x: number, y: number): number;
-  getStaticTrapExpressionAt(x: number, y: number): number;
-  getStaticTrapManaReserveAt(x: number, y: number): number;
-  setStaticTrapManaCurrentAt(x: number, y: number, current: number): number;
-  disarmStaticTrapAt(x: number, y: number): number;
+  // M3b: static hazard access for hazard pulls
+  getStaticHazardAffinityAt(x: number, y: number): number;
+  getStaticHazardExpressionAt(x: number, y: number): number;
+  getStaticHazardManaReserveAt(x: number, y: number): number;
+  setStaticHazardManaCurrentAt(x: number, y: number, current: number): number;
+  disarmStaticHazardAt(x: number, y: number): number;
   // M3c: hazard durability
-  getStaticTrapDurabilityAt(x: number, y: number): number;
-  getStaticTrapDurabilityMaxAt(x: number, y: number): number;
-  setStaticTrapDurabilityCurrentAt(x: number, y: number, current: number): number;
+  getStaticHazardDurabilityAt(x: number, y: number): number;
+  getStaticHazardDurabilityMaxAt(x: number, y: number): number;
+  setStaticHazardDurabilityCurrentAt(x: number, y: number, current: number): number;
 };
 
 export function createAffinityDamageRules(world: WorldLike) {
@@ -181,15 +181,15 @@ export function createAffinityDamageRules(world: WorldLike) {
   }
 
   /**
-   * Pull from a static trap hazard at (hazardX, hazardY).
+   * Pull from a static hazard at (hazardX, hazardY).
    *
    * Accepted when:
    *   - attackerIndex is valid
-   *   - affinityKind is valid and matches the trap's kind
+   *   - affinityKind is valid and matches the hazard's kind
    *   - stacks > 0
-   *   - A trap exists at (hazardX, hazardY) with expression Emit or Push
+   *   - A hazard exists at (hazardX, hazardY) with expression Emit or Push
    *
-   * On acceptance: trap is disarmed and its mana is transferred to the attacker
+   * On acceptance: hazard is disarmed and its mana is transferred to the attacker
    * (clamped to attacker's remaining mana capacity). Returns 1.
    * Returns 0 on any rejection.
    */
@@ -205,40 +205,40 @@ export function createAffinityDamageRules(world: WorldLike) {
     if (!isValidAffinityKind(affinityKind)) return 0;
     if (!Number.isInteger(stacks) || stacks <= 0) return 0;
 
-    const trapKind = world.getStaticTrapAffinityAt(hazardX, hazardY);
-    if (trapKind !== affinityKind) return 0;
+    const hazardKind = world.getStaticHazardAffinityAt(hazardX, hazardY);
+    if (hazardKind !== affinityKind) return 0;
 
-    const trapExpr = world.getStaticTrapExpressionAt(hazardX, hazardY);
+    const hazardExpr = world.getStaticHazardExpressionAt(hazardX, hazardY);
     if (
-      trapExpr !== AffinityExpression.Emit &&
-      trapExpr !== AffinityExpression.Push
+      hazardExpr !== AffinityExpression.Emit &&
+      hazardExpr !== AffinityExpression.Push
     ) return 0;
 
-    const trapMana = world.getStaticTrapManaReserveAt(hazardX, hazardY);
-    if (trapMana <= 0) return 0; // nothing to neutralize
+    const hazardMana = world.getStaticHazardManaReserveAt(hazardX, hazardY);
+    if (hazardMana <= 0) return 0; // nothing to neutralize
 
-    // Drain mana to 0 but keep the trap structure so it can regen (M3d)
-    world.setStaticTrapManaCurrentAt(hazardX, hazardY, 0);
+    // Drain mana to 0 but keep the hazard structure so it can regen (M3d)
+    world.setStaticHazardManaCurrentAt(hazardX, hazardY, 0);
 
     const attackerMana  = world.getMotivatedActorVitalCurrentByIndex(attackerIndex, VitalKind.Mana);
     const attackerMax   = world.getMotivatedActorVitalMaxByIndex(attackerIndex,     VitalKind.Mana);
     const attackerRegen = world.getMotivatedActorVitalRegenByIndex(attackerIndex,   VitalKind.Mana);
 
     const capacity = attackerMax - attackerMana;
-    const transfer = Math.min(trapMana, capacity);
+    const transfer = Math.min(hazardMana, capacity);
     world.setMotivatedActorVital(attackerIndex, VitalKind.Mana, attackerMana + transfer, attackerMax, attackerRegen);
     return 1;
   }
 
   /**
-   * Apply a matrix-routed affinity effect to a static trap's durability vital.
+   * Apply a matrix-routed affinity effect to a static hazard's durability vital.
    *
    * Only affinities whose primary vital is VitalKind.Durability (Earth, Corrode,
    * Fortify) are routed; all others return 0 — hazards have no Health/Mana/Stamina.
    *
-   * Traps armed with durabilityMax == 0 are immortal; damage is rejected (0).
+   * Hazards armed with durabilityMax == 0 are immortal; damage is rejected (0).
    *
-   * When durability reaches 0 the trap is destroyed via disarmStaticTrapAt.
+   * When durability reaches 0 the hazard is destroyed via disarmStaticHazardAt.
    *
    * @returns 0 on rejection, 1 on acceptance
    */
@@ -256,15 +256,15 @@ export function createAffinityDamageRules(world: WorldLike) {
     if (!isValidAffinityExpression(expression)) return 0;
     if (!Number.isInteger(stacks) || stacks <= 0) return 0;
 
-    // Reject if no trap at target cell
-    if (world.getStaticTrapAffinityAt(hazardX, hazardY) === 0) return 0;
+    // Reject if no hazard at target cell
+    if (world.getStaticHazardAffinityAt(hazardX, hazardY) === 0) return 0;
 
     // Only durability-routing affinities affect hazards
     const effect = getAffinityVitalEffect(affinityKind, expression, VitalKind.Durability, stacks);
     if (effect === 0) return 0;
 
-    // Immortal trap guard
-    const durMax = world.getStaticTrapDurabilityMaxAt(hazardX, hazardY);
+    // Immortal hazard guard
+    const durMax = world.getStaticHazardDurabilityMaxAt(hazardX, hazardY);
     if (durMax === 0) return 0;
 
     // Range check for Push/Pull
@@ -275,12 +275,12 @@ export function createAffinityDamageRules(world: WorldLike) {
       if (chebyshev > stacks) return 0;
     }
 
-    const current = world.getStaticTrapDurabilityAt(hazardX, hazardY);
+    const current = world.getStaticHazardDurabilityAt(hazardX, hazardY);
     const next = Math.max(0, Math.min(durMax, current + effect));
     if (next === 0) {
-      world.disarmStaticTrapAt(hazardX, hazardY);
+      world.disarmStaticHazardAt(hazardX, hazardY);
     } else {
-      world.setStaticTrapDurabilityCurrentAt(hazardX, hazardY, next);
+      world.setStaticHazardDurabilityCurrentAt(hazardX, hazardY, next);
     }
     return 1;
   }

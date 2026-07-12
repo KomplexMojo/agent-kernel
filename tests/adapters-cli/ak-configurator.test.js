@@ -7,7 +7,7 @@ const os = require("node:os");
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 
-const LEVEL_GEN = resolve(ROOT, "tests/fixtures/configurator/level-gen-input-v1-trap.json");
+const LEVEL_GEN = resolve(ROOT, "tests/fixtures/configurator/level-gen-input-v1-hazard.json");
 const ACTORS = resolve(ROOT, "tests/fixtures/configurator/actors-v1-affinity-base.json");
 const PRESETS = resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json");
 const LOADOUTS = resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json");
@@ -15,7 +15,7 @@ const PLAN = resolve(ROOT, "tests/fixtures/artifacts/plan-artifact-v1-basic.json
 const BUDGET = resolve(ROOT, "tests/fixtures/artifacts/budget-receipt-artifact-v1-basic.json");
 const BUDGET_ARTIFACT = resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json");
 const PRICE_LIST = resolve(ROOT, "tests/fixtures/artifacts/price-list-artifact-v1-basic.json");
-const EXPECTED_SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json");
+const EXPECTED_SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
 const EXPECTED_INITIAL = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json");
 const INVALID_LEVEL_GEN = resolve(
   ROOT,
@@ -60,7 +60,7 @@ test("cli configurator builds sim config and initial state artifacts", () => {
     "--out-dir",
     outDir,
     "--run-id",
-    "run_configurator_trap",
+    "run_configurator_hazard",
   ]);
 
   const simConfig = readJson(join(outDir, "sim-config.json"));
@@ -70,10 +70,10 @@ test("cli configurator builds sim config and initial state artifacts", () => {
 
   assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
   assert.equal(simConfig.schemaVersion, 1);
-  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
-  // Fixture snapshot regenerated: authored trap (2,2) maps into room R1 at (1,1) -> absolute (3,3);
-  // spawn/exit shifted because the trap tile is excluded from spawn/exit candidates. Verified: trap
-  // tile is floor, inside R1, kinds[3][3] === 2 (KIND_TRAP), spawn/exit reachable.
+  // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  // Fixture snapshot regenerated: authored hazard (2,2) maps into room R1 at (1,1) -> absolute (3,3);
+  // spawn/exit shifted because the hazard tile is excluded from spawn/exit candidates. Verified: hazard
+  // tile is floor, inside R1, kinds[3][3] === 2 (KIND_HAZARD), spawn/exit reachable.
   assert.deepEqual(simConfig.layout, expectedSim.layout);
   assert.equal(simConfig.seed, expectedSim.seed);
   assert.deepEqual(simConfig.planRef, expectedSim.planRef);
@@ -117,7 +117,7 @@ test("cli configurator emits a budget receipt from budget inputs", () => {
   assert.equal(receipt.schema, "agent-kernel/BudgetReceiptArtifact");
   assert.equal(receipt.schemaVersion, 1);
   assert.equal(receipt.status, "partial");
-  assert.equal(receipt.totalCost, 20); // actor health(16) + actor mana(1) + trap mana(3)
+  assert.equal(receipt.totalCost, 20); // actor health(16) + actor mana(1) + hazard mana(3)
   assert.equal(receipt.remaining, 980);
   assert.equal(receipt.meta.runId, "run_configurator_budget");
   assert.deepEqual(simConfig.budgetReceiptRef, {
@@ -143,7 +143,7 @@ test("cli configurator emits a budget receipt from budget inputs", () => {
   const manaLines = receipt.lineItems.filter((item) => item.id === "vital_mana_point");
   assert.ok(manaLines.length > 0);
   assert.ok(manaLines.every((item) => item.unitCost === 1));
-  assert.equal(manaLines.reduce((sum, item) => sum + item.totalCost, 0), 4); // actor mana(1) + trap mana.max(3)
+  assert.equal(manaLines.reduce((sum, item) => sum + item.totalCost, 0), 4); // actor mana(1) + hazard mana.max(3)
   assert.ok(manaLines.every((item) => item.status === "approved"));
 });
 

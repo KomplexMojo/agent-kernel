@@ -19,11 +19,11 @@
         "rooms": [
           {
             "affinity": "fire",
-            "trap": "fire"
+            "hazard": "fire"
           },
           {
             "affinity": "water",
-            "trap": "water"
+            "hazard": "water"
           }
         ]
       }

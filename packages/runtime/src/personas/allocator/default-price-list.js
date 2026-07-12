@@ -55,8 +55,8 @@ const DEFAULT_ITEMS = [
   { id: "tile_floor",   kind: "tile", unitCost: 1, formula: "linear", description: "One floor tile" },
   { id: "tile_hallway", kind: "tile", unitCost: 3, formula: "linear", description: "One hallway tile (more complex pathing)" },
 
-  // --- Traps ---
-  { id: "trap_basic", kind: "trap", unitCost: 5, formula: "linear", description: "Basic trap placement" },
+  // --- Hazards ---
+  { id: "hazard_basic", kind: "hazard", unitCost: 5, formula: "linear", description: "Basic hazard placement" },
 
   // --- Hazards (mana-powered; base cost excludes mana vital which is priced separately) ---
   { id: "hazard_base", kind: "hazard", unitCost: 10, formula: "linear", description: "Base hazard instantiation cost" },

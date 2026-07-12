@@ -4,7 +4,7 @@ const DEFAULT_TOKEN_SPEND = Object.freeze({
   defaultTiles: 0,
   localizedTiles: 0,
   roomWideOverlay: 0,
-  localizedTraps: 0,
+  localizedHazards: 0,
   total: 0,
 });
 
@@ -62,25 +62,34 @@ function normalizeOverlay(input) {
   return overlay;
 }
 
-function normalizeLocalizedTraps(input) {
+function normalizeLocalizedHazards(input) {
   if (!Array.isArray(input)) return [];
   return input
     .filter((entry) => isObject(entry))
     .map((entry, index) => {
       const affinity = isObject(entry.affinity) ? entry.affinity : {};
+      const rawKind = isNonEmptyString(entry.affinity)
+        ? entry.affinity
+        : isNonEmptyString(entry.kind)
+          ? entry.kind
+          : isNonEmptyString(affinity.kind)
+            ? affinity.kind
+            : isNonEmptyString(entry.affinities?.[0]?.kind)
+              ? entry.affinities[0].kind
+              : "";
       return {
-        id: isNonEmptyString(entry.id) ? entry.id.trim() : `trap_${index + 1}`,
+        id: isNonEmptyString(entry.id) ? entry.id.trim() : `hazard_${index + 1}`,
         x: toNonNegativeInt(entry.x, 0),
         y: toNonNegativeInt(entry.y, 0),
         blocking: entry.blocking === true,
         tokenCost: toNonNegativeInt(entry.tokenCost, 0),
         affinity: {
-          kind: isNonEmptyString(affinity.kind) ? affinity.kind.trim().toLowerCase() : "none",
+          kind: isNonEmptyString(rawKind) ? rawKind.trim().toLowerCase() : "none",
           expression: isNonEmptyString(affinity.expression) ? affinity.expression.trim().toLowerCase() : "emit",
           stacks: toPositiveInt(affinity.stacks, 1),
         },
       };
-    });
+  });
 }
 
 function normalizeLocalizedTiles(input, defaultTileTokenCost) {
@@ -95,15 +104,15 @@ function normalizeLocalizedTiles(input, defaultTileTokenCost) {
     }));
 }
 
-function deriveCompositionProfile({ roomWideOverlay, localizedTiles, localizedTraps }) {
-  if (roomWideOverlay && localizedTraps.length > 0) {
+function deriveCompositionProfile({ roomWideOverlay, localizedTiles, localizedHazards }) {
+  if (roomWideOverlay && localizedHazards.length > 0) {
     return "room_overlay_dominant_with_localized_variation";
   }
   if (roomWideOverlay) {
     return "room_overlay_dominant";
   }
-  if (localizedTraps.length > 0) {
-    return "neutral_with_localized_traps";
+  if (localizedHazards.length > 0) {
+    return "neutral_with_localized_hazards";
   }
   if (localizedTiles.length > 0) {
     return "mixed_composition";
@@ -111,15 +120,15 @@ function deriveCompositionProfile({ roomWideOverlay, localizedTiles, localizedTr
   return "mixed_composition";
 }
 
-function deriveDominantInvestment({ roomWideOverlay, localizedTiles, localizedTraps, tokenSpend }) {
-  if (roomWideOverlay && localizedTraps.length > 0) {
+function deriveDominantInvestment({ roomWideOverlay, localizedTiles, localizedHazards, tokenSpend }) {
+  if (roomWideOverlay && localizedHazards.length > 0) {
     return "room_wide_overlay";
   }
   if (roomWideOverlay) {
     return "room_wide_overlay";
   }
-  if (localizedTraps.length > 0) {
-    return "localized_traps";
+  if (localizedHazards.length > 0) {
+    return "localized_hazards";
   }
   if (localizedTiles.length > 0) {
     return "localized_tiles";
@@ -151,6 +160,13 @@ function resolveBaseComposition(room) {
   if (isObject(room?.mixedRoomComposition)) {
     return room.mixedRoomComposition;
   }
+  if (
+    Array.isArray(room?.hazards)
+    || Array.isArray(room?.localizedHazards)
+    || Array.isArray(room?.localizedHazards)
+  ) {
+    return {};
+  }
   if (isNonEmptyString(room?.templateId)) {
     return MIXED_ROOM_TEMPLATE_MAP.get(room.templateId.trim()) || null;
   }
@@ -164,16 +180,16 @@ function resolveTokenSpend({
   defaultTileTokenCost,
   localizedTiles,
   roomWideOverlay,
-  localizedTraps,
+  localizedHazards,
 }) {
   const fallback = {
     defaultTiles: Math.max(0, width) * Math.max(0, height) * defaultTileTokenCost,
     localizedTiles: localizedTiles.reduce((sum, entry) => sum + toNonNegativeInt(entry.tokenCost, 0), 0),
     roomWideOverlay: roomWideOverlay ? toNonNegativeInt(roomWideOverlay.tokenCost, 0) : 0,
-    localizedTraps: localizedTraps.reduce((sum, entry) => sum + toNonNegativeInt(entry.tokenCost, 0), 0),
+    localizedHazards: localizedHazards.reduce((sum, entry) => sum + toNonNegativeInt(entry.tokenCost, 0), 0),
     total: 0,
   };
-  fallback.total = fallback.defaultTiles + fallback.localizedTiles + fallback.roomWideOverlay + fallback.localizedTraps;
+  fallback.total = fallback.defaultTiles + fallback.localizedTiles + fallback.roomWideOverlay + fallback.localizedHazards;
 
   const spend = isObject(composition?.tokenSpend) ? composition.tokenSpend : null;
   if (!spend) return fallback;
@@ -182,7 +198,7 @@ function resolveTokenSpend({
     defaultTiles: toNonNegativeInt(spend.defaultTiles, fallback.defaultTiles),
     localizedTiles: toNonNegativeInt(spend.localizedTiles, fallback.localizedTiles),
     roomWideOverlay: toNonNegativeInt(spend.roomWideOverlay, fallback.roomWideOverlay),
-    localizedTraps: toNonNegativeInt(spend.localizedTraps, fallback.localizedTraps),
+    localizedHazards: toNonNegativeInt(spend.localizedHazards, fallback.localizedHazards),
     total: toNonNegativeInt(spend.total, 0),
   };
   if (normalized.total <= 0) {
@@ -190,23 +206,57 @@ function resolveTokenSpend({
       normalized.defaultTiles
       + normalized.localizedTiles
       + normalized.roomWideOverlay
-      + normalized.localizedTraps
+      + normalized.localizedHazards
     );
   }
   return normalized;
 }
 
-function collectAffinityKinds({ roomWideOverlay, localizedTraps }) {
+function collectAffinityKinds({ roomWideOverlay, localizedHazards }) {
   const kinds = new Set();
   if (roomWideOverlay?.kind) {
     kinds.add(roomWideOverlay.kind);
   }
-  localizedTraps.forEach((trap) => {
-    if (isNonEmptyString(trap?.affinity?.kind)) {
-      kinds.add(trap.affinity.kind.trim().toLowerCase());
+  localizedHazards.forEach((hazard) => {
+    if (isNonEmptyString(hazard?.affinity?.kind)) {
+      kinds.add(hazard.affinity.kind.trim().toLowerCase());
     }
   });
   return Array.from(kinds.values()).sort((a, b) => a.localeCompare(b));
+}
+
+function collectHazardsForRoom(room, composition, localizedHazards) {
+  const roomLocalizedHazards = normalizeLocalizedHazards(room?.localizedHazards);
+  return [
+    ...normalizeLocalizedHazards(composition?.localizedHazards),
+    ...normalizeLocalizedHazards(composition?.hazards),
+    ...normalizeLocalizedHazards(room?.localizedHazards),
+    ...normalizeLocalizedHazards(room?.hazards),
+    ...[...localizedHazards, ...roomLocalizedHazards].map((hazard) => ({
+      id: hazard.id,
+      affinity: {
+        kind: isNonEmptyString(hazard?.affinity?.kind) ? hazard.affinity.kind.trim().toLowerCase() : "",
+      },
+    })),
+  ];
+}
+
+function affinityDisplayName(kind) {
+  return kind === "corrode" ? "corrosion" : kind;
+}
+
+function deriveHazardAffinityRoomLabel(hazards) {
+  if (!Array.isArray(hazards) || hazards.length === 0) {
+    return { label: "unlabeled room", kinds: [] };
+  }
+  const kinds = hazards
+    .map((hazard) => (isNonEmptyString(hazard?.affinity?.kind) ? hazard.affinity.kind.trim().toLowerCase() : ""))
+    .filter((kind) => kind.length > 0);
+  const uniqueKinds = Array.from(new Set(kinds)).sort((a, b) => a.localeCompare(b));
+  if (uniqueKinds.length === 1 && kinds.length === hazards.length) {
+    return { label: `${affinityDisplayName(uniqueKinds[0])} affinity room`, kinds: uniqueKinds };
+  }
+  return { label: "mixed affinity room", kinds: uniqueKinds };
 }
 
 function summarizeRoom(room, index) {
@@ -219,7 +269,9 @@ function summarizeRoom(room, index) {
   const defaultTileTokenCost = toPositiveInt(composition?.defaultTileTokenCost, 1);
   const roomWideOverlay = normalizeOverlay(composition.roomWideOverlay);
   const localizedTiles = normalizeLocalizedTiles(composition.localizedTiles, defaultTileTokenCost);
-  const localizedTraps = normalizeLocalizedTraps(composition.localizedTraps);
+  const compositionHazards = normalizeLocalizedHazards(composition.localizedHazards);
+  const localizedHazards = collectHazardsForRoom(room, composition, compositionHazards);
+  const hazardAffinitySummary = deriveHazardAffinityRoomLabel(localizedHazards);
 
   const tokenSpend = resolveTokenSpend({
     composition,
@@ -228,7 +280,7 @@ function summarizeRoom(room, index) {
     defaultTileTokenCost,
     localizedTiles,
     roomWideOverlay,
-    localizedTraps,
+    localizedHazards,
   });
 
   return {
@@ -237,14 +289,16 @@ function summarizeRoom(room, index) {
     templateInstanceId: resolveTemplateInstanceId(room, composition, templateId, index),
     compositionProfile: isNonEmptyString(composition.compositionProfile)
       ? composition.compositionProfile.trim()
-      : deriveCompositionProfile({ roomWideOverlay, localizedTiles, localizedTraps }),
+      : deriveCompositionProfile({ roomWideOverlay, localizedTiles, localizedHazards }),
     dominantInvestment: isNonEmptyString(composition.dominantInvestment)
       ? composition.dominantInvestment.trim()
-      : deriveDominantInvestment({ roomWideOverlay, localizedTiles, localizedTraps, tokenSpend }),
+      : deriveDominantInvestment({ roomWideOverlay, localizedTiles, localizedHazards, tokenSpend }),
     localizedTileCount: localizedTiles.length,
-    localizedTrapCount: localizedTraps.length,
+    localizedHazardCount: localizedHazards.length,
     roomWideOverlay,
-    affinityKinds: collectAffinityKinds({ roomWideOverlay, localizedTraps }),
+    affinityKinds: collectAffinityKinds({ roomWideOverlay, localizedHazards }),
+    hazardAffinityKinds: hazardAffinitySummary.kinds,
+    affinityRoomLabel: hazardAffinitySummary.label,
     tokenSpend,
   };
 }
@@ -263,9 +317,11 @@ export function summarizeMixedRoomAssemblies(rooms) {
       compositionProfile: entry.compositionProfile,
       dominantInvestment: entry.dominantInvestment,
       localizedTileCount: entry.localizedTileCount,
-      localizedTrapCount: entry.localizedTrapCount,
+      localizedHazardCount: entry.localizedHazardCount,
       roomWideOverlay: entry.roomWideOverlay,
       affinityKinds: Array.isArray(entry.affinityKinds) ? entry.affinityKinds : [],
+      hazardAffinityKinds: Array.isArray(entry.hazardAffinityKinds) ? entry.hazardAffinityKinds : [],
+      affinityRoomLabel: isNonEmptyString(entry.affinityRoomLabel) ? entry.affinityRoomLabel : "unlabeled room",
       tokenSpend: {
         ...DEFAULT_TOKEN_SPEND,
         ...(isObject(entry.tokenSpend) ? entry.tokenSpend : null),
@@ -279,10 +335,10 @@ function formatTokenSpend(tokenSpend) {
     defaultTiles: toNonNegativeInt(spend.defaultTiles, 0),
     localizedTiles: toNonNegativeInt(spend.localizedTiles, 0),
     roomWideOverlay: toNonNegativeInt(spend.roomWideOverlay, 0),
-    localizedTraps: toNonNegativeInt(spend.localizedTraps, 0),
+    localizedHazards: toNonNegativeInt(spend.localizedHazards, 0),
     total: toNonNegativeInt(spend.total, 0),
   };
-  return `defaultTiles:${normalized.defaultTiles},localizedTiles:${normalized.localizedTiles},roomWideOverlay:${normalized.roomWideOverlay},localizedTraps:${normalized.localizedTraps},total:${normalized.total}`;
+  return `defaultTiles:${normalized.defaultTiles},localizedTiles:${normalized.localizedTiles},roomWideOverlay:${normalized.roomWideOverlay},localizedHazards:${normalized.localizedHazards},total:${normalized.total}`;
 }
 
 export function formatMixedRoomAssembliesCliLines(assemblies) {
@@ -295,8 +351,11 @@ export function formatMixedRoomAssembliesCliLines(assemblies) {
     const surfaceAffinities = Array.isArray(entry?.affinityKinds) && entry.affinityKinds.length > 0
       ? entry.affinityKinds.join(",")
       : "none";
+    const roomLabel = isNonEmptyString(entry?.affinityRoomLabel)
+      ? entry.affinityRoomLabel
+      : "unlabeled room";
     lines.push(
-      `mixed-room: template=${entry.templateId} roomId=${entry.roomId} profile=${entry.compositionProfile} dominant=${entry.dominantInvestment} surfaceAffinities=${surfaceAffinities} tokenSpend=${formatTokenSpend(entry.tokenSpend)}`,
+      `mixed-room: template=${entry.templateId} roomId=${entry.roomId} label="${roomLabel}" profile=${entry.compositionProfile} dominant=${entry.dominantInvestment} surfaceAffinities=${surfaceAffinities} tokenSpend=${formatTokenSpend(entry.tokenSpend)}`,
     );
   });
   return lines;

@@ -308,7 +308,7 @@ test("browser host configurator artifacts are equivalent to Node CLI output", as
   runCli([
     "configurator",
     "--level-gen",
-    "tests/fixtures/configurator/level-gen-input-v1-trap.json",
+    "tests/fixtures/configurator/level-gen-input-v1-hazard.json",
     "--actors",
     "tests/fixtures/configurator/actors-v1-affinity-base.json",
     "--budget",
@@ -324,7 +324,7 @@ test("browser host configurator artifacts are equivalent to Node CLI output", as
   const cliArtifacts = collectJsonArtifacts(outDir);
   const adapter = await createBrowserAdapter();
   const browserResult = await adapter.configurator({
-    levelGenPath: "/tests/fixtures/configurator/level-gen-input-v1-trap.json",
+    levelGenPath: "/tests/fixtures/configurator/level-gen-input-v1-hazard.json",
     actorsPath: "/tests/fixtures/configurator/actors-v1-affinity-base.json",
     budgetPath: "/tests/fixtures/artifacts/budget-artifact-v1-basic.json",
     priceListPath: "/tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
@@ -559,7 +559,7 @@ test("browser host run artifacts are equivalent to Node CLI output", async () =>
   runCli([
     "run",
     "--sim-config",
-    "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json",
+    "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json",
     "--initial-state",
     "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
     "--ticks",
@@ -583,7 +583,7 @@ test("browser host run artifacts are equivalent to Node CLI output", async () =>
   const cliArtifacts = collectJsonArtifacts(outDir);
   const adapter = await createBrowserAdapter();
   const browserResult = await adapter.run({
-    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json",
+    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json",
     initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
     ticks: 0,    outDir: "/artifacts/equivalence/run",
     affinityPresetsPath: "/tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
@@ -702,8 +702,8 @@ test("browser host inspect artifacts are equivalent to Node CLI output", async (
 // "same input -> same output" guarantee for complex, high-token-cost levels.
 // ---------------------------------------------------------------------------
 const { readdirSync: ladderReaddir, rmSync: ladderRmSync } = require("node:fs");
-// Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
-// The shared t1-medium fixture's trap spec was corrected to an in-room offset (same trap count/affinity),
+// Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+// The shared t1-medium fixture's hazard spec was corrected to an in-room offset (same hazard count/affinity),
 // keeping this parity suite aligned with complexity-ladder.test.mjs.
 const LADDER_DIR = resolve(ROOT, "tests/fixtures/scenarios/complexity-ladder");
 const LADDER_TIERS = ladderReaddir(LADDER_DIR)

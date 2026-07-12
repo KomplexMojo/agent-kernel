@@ -50,7 +50,7 @@ Needs your call before any edit.
 
 **Root cause (verified):**
 - `buildSpendItems` emits `layout_grid_${w}x${h}` — `packages/runtime/src/personas/configurator/spend-proposal.js:115-117`.
-- The default price list has no `layout` entry (vitals/affinity/motivation/tile/trap/hazard/resource
+- The default price list has no `layout` entry (vitals/affinity/motivation/tile/hazard/resource
   only) — `packages/runtime/src/personas/allocator/default-price-list.js` (confirmed: no `layout` id).
 - `validateSpendProposal` denies any unknown price id — `packages/runtime/src/personas/allocator/validate-spend.js:90-104`.
 
@@ -85,25 +85,25 @@ same cost function instead of its private quadratic logic in `budget-maximizer.j
 
 ---
 
-## D4 — Blocking traps are accepted by the parser but rejected by layout
+## D4 — Blocking hazards are accepted by the parser but rejected by layout
 
-**Symptom:** every `blocking=true` trap placement fails downstream with `trap_on_wall`; the generator
-had to emit all benchmark traps as `blocking=false`.
+**Symptom:** every `blocking=true` hazard placement fails downstream with `hazard_on_wall`; the generator
+had to emit all benchmark hazards as `blocking=false`.
 
 **Root cause (verified):**
-- `parseTrapSpec` accepts + parses `blocking` — `packages/adapters-cli/src/cli/ak-impl.mjs:847,885-887`.
-- Level layout turns blocking trap cells into non-walkable cells
-  (`packages/runtime/src/personas/configurator/level-layout.js:1320-1325`), applied before trap
+- `parseHazardSpec` accepts + parses `blocking` — `packages/adapters-cli/src/cli/ak-impl.mjs:847,885-887`.
+- Level layout turns blocking hazard cells into non-walkable cells
+  (`packages/runtime/src/personas/configurator/level-layout.js:1320-1325`), applied before hazard
   validation (`:1847`).
-- The same cell is then reported `trap_on_wall` (`:1957-1965`).
+- The same cell is then reported `hazard_on_wall` (`:1957-1965`).
 
 **Fix:** pick one contract and enforce it end to end.
-- **(A) Support blocking traps:** exempt blocking-trap cells from the `trap_on_wall` check (a trap
+- **(A) Support blocking hazards:** exempt blocking-hazard cells from the `hazard_on_wall` check (a hazard
   *is* the wall here), so the accepted spec actually works.
-- **(B) Reject early:** if blocking traps are unsupported, reject in `parseTrapSpec` with a clear
+- **(B) Reject early:** if blocking hazards are unsupported, reject in `parseHazardSpec` with a clear
   error instead of accepting then failing deep in layout.
 
-**Recommendation:** (A) — the feature is half-built and benchmark scenarios (39 "Blocking Trap
+**Recommendation:** (A) — the feature is half-built and benchmark scenarios (39 "Blocking Hazard
 Choke") want it. If product says no, do (B) so the failure is honest and immediate.
 
 ---
@@ -111,7 +111,7 @@ Choke") want it. If product says no, do (B) so the failure is honest and immedia
 ## Sequencing
 
 1. **Resolve D1 decision** (A vs B) — it gates D3 and the benchmark's vital assertions.
-2. D2 (additive, isolated) and D4 (localized to trap/layout) — independent, can land first.
+2. D2 (additive, isolated) and D4 (localized to hazard/layout) — independent, can land first.
 3. D3 (cost-model unification) — land with D1 so the cost model changes once.
 4. After fixes: remove the matching normalizations in `generate-baselines.mjs` (room affinity →
    hazard, small-room upgrade, blocking→nonblocking) so the suite again tests original intent, then

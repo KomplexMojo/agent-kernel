@@ -388,7 +388,7 @@ export function wirePreviewView({
         initialState,
         tiles: previewTiles,
         actors: sortActors(observation?.actors),
-        floorAffinityTraps: Array.isArray(simConfig?.layout?.data?.traps) ? simConfig.layout.data.traps : [],
+        floorAffinityHazards: Array.isArray(simConfig?.layout?.data?.hazards) ? simConfig.layout.data.hazards : [],
         observation,
         boardWidth: previewTiles.reduce((max, row) => Math.max(max, String(row || "").length), 0),
         boardHeight: previewTiles.length,

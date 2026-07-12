@@ -3,12 +3,12 @@
   "schemaVersion": 1,
   "meta": {
     "id": "build_spec_configurator",
-    "runId": "run_configurator_trap",
+    "runId": "run_configurator_hazard",
     "createdAt": "2026-03-22T00:00:00.000Z",
     "source": "cli-agent"
   },
   "intent": {
-    "goal": "Build configurator artifacts from trap fixtures.",
+    "goal": "Build configurator artifacts from hazard fixtures.",
     "hints": {
       "budgetTokens": 100,
       "levelSize": "small",
@@ -45,7 +45,7 @@
         "connectivity": {
           "requirePath": true
         },
-        "traps": [
+        "hazards": [
           {
             "x": 2,
             "y": 2,

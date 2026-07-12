@@ -23,7 +23,7 @@ function buildMultiTickBundle() {
         spawn: { x: 0, y: 0 },
         exit: { x: 4, y: 0 },
         rooms: [],
-        traps: [],
+        hazards: [],
       },
     },
   };

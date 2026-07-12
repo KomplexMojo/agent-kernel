@@ -72,8 +72,8 @@ async function generateTierLayout(options = {}) {
       corridorWidth: spec.corridorWidth,
     },
   };
-  if (Array.isArray(options.traps)) {
-    input.traps = options.traps;
+  if (Array.isArray(options.hazards)) {
+    input.hazards = options.hazards;
   }
   return generateGridLayoutFromInput(input);
 }

@@ -2,7 +2,7 @@ import { AFFINITY_KINDS } from "./affinity-loadouts.js";
 import { MOTIVATION_KINDS } from "./motivation-loadouts.js";
 
 const TYPE = "actor";
-const SUB_TYPES = Object.freeze(["static", "dynamic", "trap"]);
+const SUB_TYPES = Object.freeze(["static", "dynamic", "hazard"]);
 
 function addError(errors, field, code) {
   errors.push({ field, code });

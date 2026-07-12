@@ -2,7 +2,7 @@ export const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
 export const BUILD_SPEC_SCHEMA_VERSION = 1;
 export const AGENT_COMMAND_REQUEST_SCHEMA = "agent-kernel/AgentCommandRequestArtifact";
 export const HAZARD_ARTIFACT_SCHEMA = "agent-kernel/HazardArtifact";
-export const HAZARD_ARTIFACT_SCHEMA_VERSION = 1;
+export const HAZARD_ARTIFACT_SCHEMA_VERSION = 3;
 export const RESOURCE_ARTIFACT_SCHEMA = "agent-kernel/ResourceArtifact";
 export const RESOURCE_ARTIFACT_SCHEMA_VERSION = 1;
 
@@ -13,7 +13,7 @@ const AGENT_COMMAND_ACTIONS = new Set(["author", "configure"]);
 const AGENT_COMMAND_OBJECT_KINDS = new Set([
   "room",
   "floor_tile",
-  "trap",
+  "hazard",
   "hazard",
   "resource",
   "delver",
@@ -143,8 +143,8 @@ function validateRoomHints(value, path, errors) {
       return;
     }
     validateOptionalString(room.affinity, `${basePath}.affinity`, errors);
-    validateOptionalString(room.trap, `${basePath}.trap`, errors);
-    validateOptionalString(room.trapAffinity, `${basePath}.trapAffinity`, errors);
+    validateOptionalString(room.hazard, `${basePath}.hazard`, errors);
+    validateOptionalString(room.hazardAffinity, `${basePath}.hazardAffinity`, errors);
   });
 }
 
@@ -580,6 +580,38 @@ function validateHazardVital(vital, path, errors) {
   }
 }
 
+function validateHazardAffinityStacks(value, path, errors) {
+  if (!Array.isArray(value) || value.length === 0) {
+    addError(errors, path, "expected non-empty array");
+    return;
+  }
+  value.forEach((entry, index) => {
+    const basePath = `${path}[${index}]`;
+    if (!isObject(entry)) {
+      addError(errors, basePath, "expected object");
+      return;
+    }
+    if (!HAZARD_ALLOWED_AFFINITIES.has(entry.kind)) {
+      addError(errors, `${basePath}.kind`, `expected one of: ${[...HAZARD_ALLOWED_AFFINITIES].join(", ")}`);
+    }
+    if (!HAZARD_ALLOWED_EXPRESSIONS.has(entry.expression)) {
+      addError(errors, `${basePath}.expression`, `expected one of: ${[...HAZARD_ALLOWED_EXPRESSIONS].join(", ")}`);
+    }
+    if (!Number.isInteger(entry.stacks) || entry.stacks <= 0) {
+      addError(errors, `${basePath}.stacks`, "expected positive integer");
+    }
+  });
+}
+
+function validateHazardVitals(value, path, errors) {
+  if (!isObject(value)) {
+    addError(errors, path, "expected object");
+    return;
+  }
+  validateHazardVital(value.mana, `${path}.mana`, errors);
+  validateHazardVital(value.durability, `${path}.durability`, errors);
+}
+
 export function validateHazardArtifact(artifact) {
   const errors = [];
   if (!isObject(artifact)) {
@@ -589,8 +621,8 @@ export function validateHazardArtifact(artifact) {
     addError(errors, "schema", `expected ${HAZARD_ARTIFACT_SCHEMA}`);
   }
   const version = artifact.schemaVersion;
-  if (version !== 1 && version !== 2) {
-    addError(errors, "schemaVersion", "expected 1 or 2");
+  if (version !== 1 && version !== 2 && version !== 3) {
+    addError(errors, "schemaVersion", "expected 1, 2, or 3");
   }
   validateArtifactMeta(artifact.meta, "meta", errors);
   if (!HAZARD_ALLOWED_AFFINITIES.has(artifact.affinity)) {
@@ -599,11 +631,22 @@ export function validateHazardArtifact(artifact) {
   if (!HAZARD_ALLOWED_EXPRESSIONS.has(artifact.expression)) {
     addError(errors, "expression", `expected one of: ${[...HAZARD_ALLOWED_EXPRESSIONS].join(", ")}`);
   }
-  validateHazardVital(artifact.mana, "mana", errors);
+  if (version !== 3) {
+    validateHazardVital(artifact.mana, "mana", errors);
+  }
   if (version === 1) {
     validateHazardVital(artifact.durability, "durability", errors);
   } else if (version === 2 && artifact.durability !== undefined) {
     addError(errors, "durability", "not allowed on hazard V2 — hazards have mana only");
+  } else if (version === 3) {
+    validateHazardAffinityStacks(artifact.affinityStacks, "affinityStacks", errors);
+    validateHazardVitals(artifact.vitals, "vitals", errors);
+    if (artifact.mana !== undefined) {
+      addError(errors, "mana", "use vitals.mana on hazard V3");
+    }
+    if (artifact.durability !== undefined) {
+      addError(errors, "durability", "use vitals.durability on hazard V3");
+    }
   }
   return { ok: errors.length === 0, errors };
 }
@@ -863,4 +906,3 @@ export function validateBuildSpec(spec) {
 
   return { ok: errors.length === 0, errors };
 }
-

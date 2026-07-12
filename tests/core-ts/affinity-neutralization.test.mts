@@ -9,7 +9,7 @@
  *   - Actor target  : `applyAffinityDamage(attacker, target, kind, Pull, stacks)`
  *                     detects target's active affinity internally.
  *   - Hazard target : `applyAffinityPullFromHazard(attacker, x, y, kind, stacks)`
- *                     new function; reads the static trap at (x, y).
+ *                     new function; reads the static hazard at (x, y).
  *
  * Mana transfer contract:
  *   - Attacker gains min(sourceMana, maxMana - currentMana) of the attacker
@@ -85,15 +85,15 @@ function buildTwoActorWorld(
 }
 
 /**
- * Build a world with one actor (index 0) and one static trap at (trapX, trapY).
+ * Build a world with one actor (index 0) and one static hazard at (hazardX, hazardY).
  */
-function buildTrapWorld(
+function buildHazardWorld(
   actorXY: [number, number] = [1, 1],
-  trapXY: [number, number] = [3, 1],
-  trapKind: number = AffinityKind.Fire,
-  trapExpression: number = AffinityExpression.Emit,
-  trapStacks: number = 2,
-  trapMana: number = 8,
+  hazardXY: [number, number] = [3, 1],
+  hazardKind: number = AffinityKind.Fire,
+  hazardExpression: number = AffinityExpression.Emit,
+  hazardStacks: number = 2,
+  hazardMana: number = 8,
   actorManaMax: number = 10,
   actorManaCurrent: number = 2,
 ): Core {
@@ -112,7 +112,7 @@ function buildTrapWorld(
   call(core.setMotivatedActorVital, 0, VitalKind.Stamina,    10, 10, 0);
   call(core.setMotivatedActorVital, 0, VitalKind.Durability,  5,  5, 0);
 
-  call(core.armStaticTrapAt, ...trapXY, trapKind, trapExpression, trapStacks, trapMana);
+  call(core.armStaticHazardAt, ...hazardXY, hazardKind, hazardExpression, hazardStacks, hazardMana);
   return core;
 }
 
@@ -124,13 +124,13 @@ function affinityExprOf(core: Core, actorIdx: number): number {
   return call(core.getMotivatedActorAffinityExpressionByIndex, actorIdx) as number;
 }
 
-function trapManaOf(core: Core, x: number, y: number): number {
-  return call(core.getStaticTrapManaReserveAt, x, y) as number;
+function hazardManaOf(core: Core, x: number, y: number): number {
+  return call(core.getStaticHazardManaReserveAt, x, y) as number;
 }
 
-function trapExistsAt(core: Core, x: number, y: number): boolean {
-  // armStaticTrapAt stores affinity > 0; 0 means no trap
-  return (call(core.getStaticTrapAffinityAt, x, y) as number) > 0;
+function hazardExistsAt(core: Core, x: number, y: number): boolean {
+  // armStaticHazardAt stores affinity > 0; 0 means no hazard
+  return (call(core.getStaticHazardAffinityAt, x, y) as number) > 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,9 +284,9 @@ describe("applyAffinityDamage: non-matching Pull uses matrix (no neutralization)
 // ---------------------------------------------------------------------------
 
 describe("applyAffinityPullFromHazard: hazard neutralization", () => {
-  test("Fire+Pull vs Fire+Emit hazard → trap mana drained to 0, structure preserved, mana transferred to actor", () => {
-    // actor at (1,1), trap at (3,1), actor mana=2/10, trap mana=8
-    const core = buildTrapWorld(
+  test("Fire+Pull vs Fire+Emit hazard → hazard mana drained to 0, structure preserved, mana transferred to actor", () => {
+    // actor at (1,1), hazard at (3,1), actor mana=2/10, hazard mana=8
+    const core = buildHazardWorld(
       [1, 1], [3, 1],
       AffinityKind.Fire, AffinityExpression.Emit,
       2, 8, // stacks=2, mana=8
@@ -299,14 +299,14 @@ describe("applyAffinityPullFromHazard: hazard neutralization", () => {
     );
 
     expect(result).not.toBe(0);                   // accepted
-    expect(trapManaOf(core, 3, 1)).toBe(0);        // mana fully drained
-    expect(trapExistsAt(core, 3, 1)).toBe(true);   // trap structure preserved (can regen)
+    expect(hazardManaOf(core, 3, 1)).toBe(0);        // mana fully drained
+    expect(hazardExistsAt(core, 3, 1)).toBe(true);   // hazard structure preserved (can regen)
     // Transfer: min(8, 10-2=8) = 8 → attacker mana = 2 + 8 = 10
     expect(manaOf(core, 0)).toBe(10);
   });
 
-  test("Fire+Pull vs Fire+Push hazard → also neutralizes (Push traps are neutralizable)", () => {
-    const core = buildTrapWorld(
+  test("Fire+Pull vs Fire+Push hazard → also neutralizes (Push hazards are neutralizable)", () => {
+    const core = buildHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Fire, AffinityExpression.Push,
       2, 5,
@@ -317,13 +317,13 @@ describe("applyAffinityPullFromHazard: hazard neutralization", () => {
       0, 2, 1, AffinityKind.Fire, 1,
     );
     expect(result).not.toBe(0);
-    expect(trapManaOf(core, 2, 1)).toBe(0);       // mana drained
-    expect(trapExistsAt(core, 2, 1)).toBe(true);  // structure preserved
+    expect(hazardManaOf(core, 2, 1)).toBe(0);       // mana drained
+    expect(hazardExistsAt(core, 2, 1)).toBe(true);  // structure preserved
   });
 
-  test("mana excess is discarded when trap mana > attacker capacity", () => {
-    // actor: current=8, max=10 → capacity=2; trap mana=6 → transfer 2, discard 4
-    const core = buildTrapWorld(
+  test("mana excess is discarded when hazard mana > attacker capacity", () => {
+    // actor: current=8, max=10 → capacity=2; hazard mana=6 → transfer 2, discard 4
+    const core = buildHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Dark, AffinityExpression.Emit,
       1, 6,
@@ -336,24 +336,24 @@ describe("applyAffinityPullFromHazard: hazard neutralization", () => {
     expect(manaOf(core, 0)).toBe(10); // 8 + min(6, 2) = 8 + 2 = 10
   });
 
-  test("trap with zero mana (after drain) is rejected on second pull — nothing to neutralize", () => {
-    // armStaticTrapAt rejects manaReserve <= 0, so create a world with a valid trap
+  test("hazard with zero mana (after drain) is rejected on second pull — nothing to neutralize", () => {
+    // armStaticHazardAt rejects manaReserve <= 0, so create a world with a valid hazard
     // then verify zero-mana path via mana already drained in a prior call
-    const core = buildTrapWorld(
+    const core = buildHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Fire, AffinityExpression.Emit,
       1, 1, // mana=1 (minimum valid arm)
       10, 0,
     );
-    // First pull drains the 1 mana; trap structure remains
+    // First pull drains the 1 mana; hazard structure remains
     call(
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       0, 2, 1, AffinityKind.Fire, 1,
     );
-    expect(trapManaOf(core, 2, 1)).toBe(0);       // mana drained
-    expect(trapExistsAt(core, 2, 1)).toBe(true);  // structure present
+    expect(hazardManaOf(core, 2, 1)).toBe(0);       // mana drained
+    expect(hazardExistsAt(core, 2, 1)).toBe(true);  // structure present
 
-    // Second pull on the zero-mana trap should be rejected
+    // Second pull on the zero-mana hazard should be rejected
     const result2 = call(
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       0, 2, 1, AffinityKind.Fire, 1,
@@ -362,7 +362,7 @@ describe("applyAffinityPullFromHazard: hazard neutralization", () => {
   });
 
   test("non-matching hazard affinity (Fire+Pull vs Water+Emit) → rejected (0)", () => {
-    const core = buildTrapWorld(
+    const core = buildHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Water, AffinityExpression.Emit,
       2, 8,
@@ -373,17 +373,17 @@ describe("applyAffinityPullFromHazard: hazard neutralization", () => {
       0, 2, 1, AffinityKind.Fire, 1,
     );
     expect(result).toBe(0);
-    expect(trapExistsAt(core, 2, 1)).toBe(true);  // trap still armed
-    expect(trapManaOf(core, 2, 1)).toBe(8);        // mana untouched
+    expect(hazardExistsAt(core, 2, 1)).toBe(true);  // hazard still armed
+    expect(hazardManaOf(core, 2, 1)).toBe(8);        // mana untouched
   });
 
   test("no hazard at target cell → rejected (0)", () => {
-    const core = buildTrapWorld(
+    const core = buildHazardWorld(
       [1, 1], [2, 1],
       AffinityKind.Fire, AffinityExpression.Emit,
       2, 8,
     );
-    // Pull at (4,1) which has no trap
+    // Pull at (4,1) which has no hazard
     const result = call(
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       0, 4, 1, AffinityKind.Fire, 1,
@@ -392,7 +392,7 @@ describe("applyAffinityPullFromHazard: hazard neutralization", () => {
   });
 
   test("invalid attacker index → rejected (0)", () => {
-    const core = buildTrapWorld([1, 1], [2, 1]);
+    const core = buildHazardWorld([1, 1], [2, 1]);
     const result = call(
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       99, 2, 1, AffinityKind.Fire, 1,
@@ -401,7 +401,7 @@ describe("applyAffinityPullFromHazard: hazard neutralization", () => {
   });
 
   test("invalid affinity kind → rejected (0)", () => {
-    const core = buildTrapWorld([1, 1], [2, 1]);
+    const core = buildHazardWorld([1, 1], [2, 1]);
     const result = call(
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       0, 2, 1, 99, 1,
@@ -410,7 +410,7 @@ describe("applyAffinityPullFromHazard: hazard neutralization", () => {
   });
 
   test("zero stacks → rejected (0)", () => {
-    const core = buildTrapWorld([1, 1], [2, 1]);
+    const core = buildHazardWorld([1, 1], [2, 1]);
     const result = call(
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       0, 2, 1, AffinityKind.Fire, 0,
@@ -462,12 +462,12 @@ describe("M3b: applyAttack PR #42 non-regression", () => {
 });
 
 // ---------------------------------------------------------------------------
-// M3d regression — neutralised trap regens mana and comes back online
+// M3d regression — neutralised hazard regens mana and comes back online
 // ---------------------------------------------------------------------------
 
-describe("M3d regression: neutralised trap mana regen via advanceTick", () => {
+describe("M3d regression: neutralised hazard mana regen via advanceTick", () => {
   test("neutralised hazard with manaRegen=1 recovers mana over ticks", () => {
-    // Build a world with one actor and a Fire+Emit trap that has manaRegen=1
+    // Build a world with one actor and a Fire+Emit hazard that has manaRegen=1
     const core = createCore();
     call(core.configureGrid, 7, 7);
     for (let y = 1; y <= 5; y++) {
@@ -479,8 +479,8 @@ describe("M3d regression: neutralised trap mana regen via advanceTick", () => {
     call(core.applyActorPlacements);
     call(core.setMotivatedActorVital, 0, VitalKind.Mana, 0, 10, 0);
 
-    // armStaticTrapAt with manaMax=4, manaRegen=1 (new M3d params at positions 10,11)
-    call(core.armStaticTrapAt, 2, 1,
+    // armStaticHazardAt with manaMax=4, manaRegen=1 (new M3d params at positions 10,11)
+    call(core.armStaticHazardAt, 2, 1,
       AffinityKind.Fire, AffinityExpression.Emit, 1, 4,
       0, 0, 0,   // durability: immortal
       4, 1,      // manaMax=4, manaRegen=1
@@ -491,15 +491,15 @@ describe("M3d regression: neutralised trap mana regen via advanceTick", () => {
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       0, 2, 1, AffinityKind.Fire, 1,
     );
-    expect(trapManaOf(core, 2, 1)).toBe(0);       // drained
-    expect(trapExistsAt(core, 2, 1)).toBe(true);  // structure intact
+    expect(hazardManaOf(core, 2, 1)).toBe(0);       // drained
+    expect(hazardExistsAt(core, 2, 1)).toBe(true);  // structure intact
 
     // Regen: needs 4 ticks at regen=1 to reach max=4
     for (let t = 1; t <= 4; t++) {
       call(core.advanceTick);
-      expect(trapManaOf(core, 2, 1)).toBe(t);
+      expect(hazardManaOf(core, 2, 1)).toBe(t);
     }
-    expect(trapManaOf(core, 2, 1)).toBe(4); // back to max
+    expect(hazardManaOf(core, 2, 1)).toBe(4); // back to max
   });
 });
 
@@ -610,23 +610,23 @@ describe("permutations: attacker at max mana — transfer=0 but neutralization i
 });
 
 // ---------------------------------------------------------------------------
-// Permutations: applyAffinityPullFromHazard — all 10 kinds vs matching Emit trap
+// Permutations: applyAffinityPullFromHazard — all 10 kinds vs matching Emit hazard
 // ---------------------------------------------------------------------------
 
-describe("permutations: applyAffinityPullFromHazard — all 10 AffinityKind values vs matching Emit trap", () => {
-  test("each kind: trap mana drained to 0, structure intact, mana transferred to attacker", () => {
+describe("permutations: applyAffinityPullFromHazard — all 10 AffinityKind values vs matching Emit hazard", () => {
+  test("each kind: hazard mana drained to 0, structure intact, mana transferred to attacker", () => {
     const ALL_KINDS = [
       AffinityKind.Fire, AffinityKind.Water, AffinityKind.Earth, AffinityKind.Wind,
       AffinityKind.Life, AffinityKind.Decay, AffinityKind.Corrode, AffinityKind.Fortify,
       AffinityKind.Light, AffinityKind.Dark,
     ];
-    const TRAP_MANA = 4;
+    const HAZARD_MANA = 4;
     const ATTACKER_MANA_START = 2;
     const ATTACKER_MANA_MAX = 10;
 
     for (const kind of ALL_KINDS) {
-      const core = buildTrapWorld(
-        [1, 1], [3, 1], kind, AffinityExpression.Emit, 1, TRAP_MANA,
+      const core = buildHazardWorld(
+        [1, 1], [3, 1], kind, AffinityExpression.Emit, 1, HAZARD_MANA,
         ATTACKER_MANA_MAX, ATTACKER_MANA_START,
       );
       const result = call(
@@ -634,9 +634,9 @@ describe("permutations: applyAffinityPullFromHazard — all 10 AffinityKind valu
         0, 3, 1, kind, 1,
       ) as number;
       expect(result).not.toBe(0);                          // accepted
-      expect(trapManaOf(core, 3, 1)).toBe(0);             // mana drained
-      expect(trapExistsAt(core, 3, 1)).toBe(true);        // structure intact
-      expect(manaOf(core, 0)).toBe(ATTACKER_MANA_START + Math.min(TRAP_MANA, ATTACKER_MANA_MAX - ATTACKER_MANA_START));
+      expect(hazardManaOf(core, 3, 1)).toBe(0);             // mana drained
+      expect(hazardExistsAt(core, 3, 1)).toBe(true);        // structure intact
+      expect(manaOf(core, 0)).toBe(ATTACKER_MANA_START + Math.min(HAZARD_MANA, ATTACKER_MANA_MAX - ATTACKER_MANA_START));
     }
   });
 });
@@ -646,35 +646,35 @@ describe("permutations: applyAffinityPullFromHazard — all 10 AffinityKind valu
 // ---------------------------------------------------------------------------
 
 describe("permutations: applyAffinityPullFromHazard at grid boundary cells", () => {
-  test("trap at (1,1) — minimum corner of walkable area — is pulled successfully", () => {
-    const core = buildTrapWorld([2, 1], [1, 1], AffinityKind.Fire, AffinityExpression.Emit, 1, 5, 10, 2);
+  test("hazard at (1,1) — minimum corner of walkable area — is pulled successfully", () => {
+    const core = buildHazardWorld([2, 1], [1, 1], AffinityKind.Fire, AffinityExpression.Emit, 1, 5, 10, 2);
     const result = call(
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       0, 1, 1, AffinityKind.Fire, 1,
     ) as number;
     expect(result).not.toBe(0);
-    expect(trapManaOf(core, 1, 1)).toBe(0);
-    expect(trapExistsAt(core, 1, 1)).toBe(true);
+    expect(hazardManaOf(core, 1, 1)).toBe(0);
+    expect(hazardExistsAt(core, 1, 1)).toBe(true);
   });
 
-  test("trap at (5,5) — maximum corner of walkable area — is pulled successfully", () => {
-    const core = buildTrapWorld([1, 1], [5, 5], AffinityKind.Dark, AffinityExpression.Emit, 1, 3, 10, 0);
+  test("hazard at (5,5) — maximum corner of walkable area — is pulled successfully", () => {
+    const core = buildHazardWorld([1, 1], [5, 5], AffinityKind.Dark, AffinityExpression.Emit, 1, 3, 10, 0);
     const result = call(
       (core as Record<string, unknown>).applyAffinityPullFromHazard,
       0, 5, 5, AffinityKind.Dark, 1,
     ) as number;
     expect(result).not.toBe(0);
-    expect(trapManaOf(core, 5, 5)).toBe(0);
-    expect(trapExistsAt(core, 5, 5)).toBe(true);
+    expect(hazardManaOf(core, 5, 5)).toBe(0);
+    expect(hazardExistsAt(core, 5, 5)).toBe(true);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Permutations: sequential neutralization — two traps pulled in sequence
+// Permutations: sequential neutralization — two hazards pulled in sequence
 // ---------------------------------------------------------------------------
 
-describe("permutations: sequential applyAffinityPullFromHazard on two traps accumulates mana", () => {
-  test("pulling two Fire traps in sequence: both drained, attacker gains from both (capped at max)", () => {
+describe("permutations: sequential applyAffinityPullFromHazard on two hazards accumulates mana", () => {
+  test("pulling two Fire hazards in sequence: both drained, attacker gains from both (capped at max)", () => {
     const core = createCore();
     call(core.configureGrid, 7, 7);
     for (let y = 1; y <= 5; y++) {
@@ -684,18 +684,18 @@ describe("permutations: sequential applyAffinityPullFromHazard on two traps accu
     call(core.applyActorPlacements);
     call(core.setMotivatedActorVital, 0, VitalKind.Mana, 0, 10, 0);
 
-    call(core.armStaticTrapAt, 3, 1, AffinityKind.Fire, AffinityExpression.Emit, 1, 3);
-    call(core.armStaticTrapAt, 4, 1, AffinityKind.Fire, AffinityExpression.Emit, 1, 3);
+    call(core.armStaticHazardAt, 3, 1, AffinityKind.Fire, AffinityExpression.Emit, 1, 3);
+    call(core.armStaticHazardAt, 4, 1, AffinityKind.Fire, AffinityExpression.Emit, 1, 3);
 
     call((core as Record<string, unknown>).applyAffinityPullFromHazard, 0, 3, 1, AffinityKind.Fire, 1);
     expect(manaOf(core, 0)).toBe(3);
-    expect(trapManaOf(core, 3, 1)).toBe(0);
-    expect(trapExistsAt(core, 3, 1)).toBe(true);
+    expect(hazardManaOf(core, 3, 1)).toBe(0);
+    expect(hazardExistsAt(core, 3, 1)).toBe(true);
 
     call((core as Record<string, unknown>).applyAffinityPullFromHazard, 0, 4, 1, AffinityKind.Fire, 1);
     expect(manaOf(core, 0)).toBe(6);
-    expect(trapManaOf(core, 4, 1)).toBe(0);
-    expect(trapExistsAt(core, 4, 1)).toBe(true);
+    expect(hazardManaOf(core, 4, 1)).toBe(0);
+    expect(hazardExistsAt(core, 4, 1)).toBe(true);
   });
 });
 
@@ -704,19 +704,19 @@ describe("permutations: sequential applyAffinityPullFromHazard on two traps accu
 // ---------------------------------------------------------------------------
 
 describe("permutations: stacks parameter does not affect mana transfer magnitude in applyAffinityPullFromHazard", () => {
-  test("stacks=5 yields the same mana transfer as stacks=1 for the same trap", () => {
-    const TRAP_MANA = 6;
+  test("stacks=5 yields the same mana transfer as stacks=1 for the same hazard", () => {
+    const HAZARD_MANA = 6;
     const ATTACKER_MAX = 10;
 
-    const core1 = buildTrapWorld([1, 1], [3, 1], AffinityKind.Water, AffinityExpression.Emit, 1, TRAP_MANA, ATTACKER_MAX, 0);
+    const core1 = buildHazardWorld([1, 1], [3, 1], AffinityKind.Water, AffinityExpression.Emit, 1, HAZARD_MANA, ATTACKER_MAX, 0);
     call((core1 as Record<string, unknown>).applyAffinityPullFromHazard, 0, 3, 1, AffinityKind.Water, 1);
     const manaAfterStacks1 = manaOf(core1, 0);
 
-    const core5 = buildTrapWorld([1, 1], [3, 1], AffinityKind.Water, AffinityExpression.Emit, 1, TRAP_MANA, ATTACKER_MAX, 0);
+    const core5 = buildHazardWorld([1, 1], [3, 1], AffinityKind.Water, AffinityExpression.Emit, 1, HAZARD_MANA, ATTACKER_MAX, 0);
     call((core5 as Record<string, unknown>).applyAffinityPullFromHazard, 0, 3, 1, AffinityKind.Water, 5);
     const manaAfterStacks5 = manaOf(core5, 0);
 
     expect(manaAfterStacks1).toBe(manaAfterStacks5);
-    expect(manaAfterStacks5).toBe(TRAP_MANA); // full transfer fits
+    expect(manaAfterStacks5).toBe(HAZARD_MANA); // full transfer fits
   });
 });

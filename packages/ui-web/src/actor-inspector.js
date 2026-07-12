@@ -400,15 +400,15 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
   const layoutData = simConfig?.layout?.data || {};
   const runtimeHazards = Array.isArray(layoutData.hazards)
     ? layoutData.hazards
-    : Array.isArray(layoutData.traps) ? layoutData.traps : [];
+    : [];
   const runtimeResources = Array.isArray(layoutData.resources) ? layoutData.resources : [];
 
   runtimeHazards.forEach((hazard) => {
     const id = normalizeName(hazard?.id, `hazard-${groups.hazard.length + 1}`);
-    const trapAffinity = hazard?.affinity;
-    const affinity = trapAffinity?.kind || "";
-    const affinities = trapAffinity?.kind
-      ? [{ kind: trapAffinity.kind, expression: trapAffinity.expression || "", stacks: trapAffinity.stacks || 1 }]
+    const hazardAffinity = hazard?.affinity;
+    const affinity = hazardAffinity?.kind || "";
+    const affinities = hazardAffinity?.kind
+      ? [{ kind: hazardAffinity.kind, expression: hazardAffinity.expression || "", stacks: hazardAffinity.stacks || 1 }]
       : [];
     const position = hazard?.position
       || (hazard?.x != null && hazard?.y != null ? { x: hazard.x, y: hazard.y } : null);
@@ -653,28 +653,28 @@ function buildRowMeta(entity, liveActor) {
   return "";
 }
 
-function resolveEntityAffinities(entity, liveActor, traps = []) {
-  if (entity?.type === "room" && Array.isArray(traps) && traps.length > 0) {
+function resolveEntityAffinities(entity, liveActor, hazards = []) {
+  if (entity?.type === "room" && Array.isArray(hazards) && hazards.length > 0) {
     const roomBounds = normalizeRoomBounds(entity?.runtimeRoom);
     if (roomBounds) {
-      const roomTraps = traps.filter((trap) => {
-        const tx = Number(trap?.x);
-        const ty = Number(trap?.y);
+      const roomHazards = hazards.filter((hazard) => {
+        const tx = Number(hazard?.x);
+        const ty = Number(hazard?.y);
         return Number.isFinite(tx) && Number.isFinite(ty)
           && tx >= roomBounds.x && tx < roomBounds.x + roomBounds.width
           && ty >= roomBounds.y && ty < roomBounds.y + roomBounds.height;
       });
-      if (roomTraps.length > 0) {
-        return roomTraps
-          .map((trap) => {
-            const aff = trap?.affinity;
+      if (roomHazards.length > 0) {
+        return roomHazards
+          .map((hazard) => {
+            const aff = hazard?.affinity;
             if (!aff || typeof aff !== "object") return null;
             return {
               kind: normalizeName(aff?.kind).toLowerCase(),
               expression: normalizeName(aff?.expression, "emit").toLowerCase(),
               stacks: Math.max(1, readPositiveInt(aff?.stacks, 1)),
               targetType: normalizeName(aff?.targetType).toLowerCase(),
-              trapVitals: normalizeVitals(trap?.vitals),
+              hazardVitals: normalizeVitals(hazard?.vitals),
             };
           })
           .filter(Boolean);
@@ -842,8 +842,8 @@ export function createActorInspector({
       if (preview) {
         preview.className = "design-card-group-preview";
         const liveActor = getLiveActor(entity);
-        const traps = simConfig?.layout?.data?.traps || [];
-        const affinities = resolveEntityAffinities(entity, liveActor, traps);
+        const hazards = simConfig?.layout?.data?.hazards || [];
+        const affinities = resolveEntityAffinities(entity, liveActor, hazards);
         const motivations = Array.isArray(entity?.card?.motivations) ? entity.card.motivations : [];
 
         const chips = [
@@ -914,8 +914,8 @@ export function createActorInspector({
     }
 
     const liveActor = getLiveActor(entity);
-    const traps = simConfig?.layout?.data?.traps || [];
-    const affinities = resolveEntityAffinities(entity, liveActor, traps);
+    const hazards = simConfig?.layout?.data?.hazards || [];
+    const affinities = resolveEntityAffinities(entity, liveActor, hazards);
     const vitals = resolveEntityVitals(entity, liveActor);
     const totalValue = resolveEntityValue(entity, liveActor);
     const motivations = Array.isArray(entity?.card?.motivations) ? entity.card.motivations : [];
@@ -1025,11 +1025,11 @@ export function createActorInspector({
             row.append(stack);
           }
 
-          if (entry.trapVitals?.mana) {
+          if (entry.hazardVitals?.mana) {
             const manaChip = createDomElement(row, "span");
             if (manaChip) {
               manaChip.className = "simulation-inspector-affinity-mana";
-              const mana = entry.trapVitals.mana;
+              const mana = entry.hazardVitals.mana;
               const manaIcon = iconForVital("mana", resourceBundle);
               let manaText = `${mana.current}/${mana.max}`;
               if (mana.regen > 0) {

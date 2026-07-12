@@ -22,7 +22,7 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Canonical simulation state and legal state transitions.
 - Pure validation and deterministic rule enforcement.
 - Data-only effects with deterministic ids/requestIds and adapter hints.
-- Affinity system: 10-kind codebook, spatial formulas, interaction matrix, static trap and actor field computation.
+- Affinity system: 10-kind codebook, spatial formulas, interaction matrix, static hazard and actor field computation.
 - Motivation system: 12-kind codebook, cost formulas, behavior flags, and profile derivation.
 - Render buffers and observations derived from canonical state.
 
@@ -77,13 +77,16 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 - The `ak_push_to_ui` MCP tool delivers an `agent-kernel/GameplayBundle` to a connected browser UI over the sandbox WebSocket bridge (`packages/adapters-cli/src/mcp/bridge-server.mjs`, default port 38487, override with `AK_SANDBOX_BRIDGE_PORT`).
 - The tool accepts an inline `bundle`, a `bundlePath`, or an `outDir` containing `bundle.json`; the browser side is `packages/ui-web/src/sandbox-bridge-client.js`, which loads the bundle into the gameplay Phaser surface via `window.__ak_loadGameplayBundle`.
-- `openBrowser: true` lets the MCP bootstrap the whole loop: it serves the canonical `index_c.html` via `scripts/serve-ui.mjs` when nothing answers `/health`, opens the default browser, and pre-stages the bundle for the bridge's replay window so the freshly opened UI loads it on connect.
+- `openBrowser: true` lets the MCP bootshazard the whole loop: it serves the canonical `index_c.html` via `scripts/serve-ui.mjs` when nothing answers `/health`, opens the default browser, and pre-stages the bundle for the bridge's replay window so the freshly opened UI loads it on connect.
 - CLI `run` stitches a post-run `GameplayBundle` (`bundle.json`) only when its inputs came from an authored `create` outDir; fixture-driven runs stay bundle-free so CLI output remains artifact-for-artifact equivalent to the browser host's run output.
 - The bridge is an adapter-layer concern: bundle assembly reuses runtime contracts, and no bridge or WebSocket code lives in `runtime` or `core-ts`.
 
 ## Affinity Visualization
 
 - `core-ts` affinity field buffers are the canonical source for tile affinity visualization.
+- A hazard is the canonical game element for an affinity danger: it has affinity, expression, stacks, and mana/durability vitals. Hazard is the only public and internal term; no alternate alias or separate concept remains.
+- A zero-mana hazard remains in state but contributes no active danger field until mana regenerates; zero durability removes it. Opposed hazard fields, including fire and water, resolve deterministically to a net/cancelled overlap zone in `core-ts`.
+- Room affinity wording is derived from the hazards contained in a room. It is a descriptive label (for example, `corrosion affinity room` or `mixed affinity room`), never a room-level affinity property.
 - Runtime facades assemble UI-facing tile visuals from core field records and resource bundles.
 - `packages/runtime/src/render/affinity-aura.js` and `observation.auras` are retained only as compatibility output for existing renderers/tests. New preview or gameplay surfaces must not recompute JS aura fallbacks in `ui-web`.
 

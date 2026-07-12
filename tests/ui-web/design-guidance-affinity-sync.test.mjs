@@ -29,7 +29,7 @@ test("room cards carry no affinities — they are generic containers", () => {
   assert.deepEqual(roomCard.expressions, [], "rooms must have no expressions");
 });
 
-test("room cards have no default affinity stacks — affinity comes from traps/hazards", () => {
+test("room cards have no default affinity stacks — affinity comes from hazards", () => {
   const roomCard = createDesignCard({ type: "room", roomSize: "medium" });
   assert.deepEqual(roomCard.affinities, [], "rooms must not have default affinity stacks");
 });

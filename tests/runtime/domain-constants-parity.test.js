@@ -30,16 +30,16 @@ test("affinity and expression type unions stay aligned with shared runtime const
   const affinityKinds = parseStringUnion(artifactsSource, "AffinityKind");
   const affinityExpressions = parseStringUnion(artifactsSource, "AffinityExpression");
   const affinityTargetTypes = parseStringUnion(artifactsSource, "AffinityTargetType");
-  const trapAffinityKinds = parseStringUnion(configuratorSource, "TrapAffinityKind");
-  const trapAffinityExpressions = parseStringUnion(configuratorSource, "TrapAffinityExpression");
-  const trapAffinityTargetTypes = parseStringUnion(configuratorSource, "TrapAffinityTargetType");
+  const hazardAffinityKinds = parseStringUnion(configuratorSource, "HazardAffinityKind");
+  const hazardAffinityExpressions = parseStringUnion(configuratorSource, "HazardAffinityExpression");
+  const hazardAffinityTargetTypes = parseStringUnion(configuratorSource, "HazardAffinityTargetType");
 
   assert.deepEqual(affinityKinds, Array.from(AFFINITY_KINDS));
   assert.deepEqual(affinityExpressions, Array.from(AFFINITY_EXPRESSIONS));
   assert.deepEqual(affinityTargetTypes, Array.from(AFFINITY_TARGET_TYPES));
-  assert.deepEqual(trapAffinityKinds, Array.from(AFFINITY_KINDS));
-  assert.deepEqual(trapAffinityExpressions, Array.from(AFFINITY_EXPRESSIONS));
-  assert.deepEqual(trapAffinityTargetTypes, Array.from(AFFINITY_TARGET_TYPES));
+  assert.deepEqual(hazardAffinityKinds, Array.from(AFFINITY_KINDS));
+  assert.deepEqual(hazardAffinityExpressions, Array.from(AFFINITY_EXPRESSIONS));
+  assert.deepEqual(hazardAffinityTargetTypes, Array.from(AFFINITY_TARGET_TYPES));
   AFFINITY_KINDS.forEach((kind) => {
     const opposite = AFFINITY_OPPOSITES[kind];
     assert.ok(AFFINITY_KINDS.includes(opposite), `opposite for ${kind} must be a known affinity`);

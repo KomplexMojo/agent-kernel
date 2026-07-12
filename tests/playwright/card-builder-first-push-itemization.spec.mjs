@@ -86,7 +86,7 @@ function buildDelverOnlyBundle() {
         spawn: { x: 0, y: 0 },
         exit: { x: 3, y: 3 },
         rooms: [],
-        traps: [],
+        hazards: [],
       },
     },
   };

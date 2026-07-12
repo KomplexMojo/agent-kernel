@@ -28,10 +28,10 @@
       "status": "approved"
     },
     {
-      "id": "trap-1",
-      "kind": "trap",
+      "id": "hazard-1",
+      "kind": "hazard",
       "quantity": 1,
-      "category": "traps",
+      "category": "hazards",
       "unitCost": 10,
       "totalCost": 10,
       "status": "approved"

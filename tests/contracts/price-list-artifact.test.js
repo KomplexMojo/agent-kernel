@@ -99,7 +99,7 @@ const REQUIRED_STRUCTURE_IDS = [
 const REQUIRED_ACTOR_IDS = ["actor_spawn"];
 
 const REQUIRED_ENTITY_IDS = [
-  "trap_basic",
+  "hazard_basic",
   "hazard_base",
   "resource_base",
 ];
@@ -158,7 +158,7 @@ test("price list canonical fixture covers motivations", () => {
   }
 });
 
-test("price list canonical fixture covers floor tiles, actors, traps, hazards, resources", () => {
+test("price list canonical fixture covers floor tiles, actors, hazards, and resources", () => {
   const fixture = readFixture("price-list-artifact-v1-canonical.json");
   const ids = priceListIds(fixture);
   for (const id of [...REQUIRED_STRUCTURE_IDS, ...REQUIRED_ACTOR_IDS, ...REQUIRED_ENTITY_IDS]) {

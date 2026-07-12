@@ -119,7 +119,7 @@ Scenario E: Level building with durable, immobile tiles and barriers
 
 Note: Fog tiles can be priced via atomic items (mana, regen, affinity stacks, expression). A persona (e.g., Director or Configurator) should compute the composite cost for a fog tile profile rather than adding a bespoke price list entry.
 
-Note: Sensing can be modeled as an affinity kind with mana drain; externalize (push) enables long-range fog piercing, localized (emit) extends local visibility radius, and internalized (pull) can represent self-focused detection (e.g., trap awareness within normal sight). Composite costs should be derived from atomic affinity + expression + mana/regen pricing.
+Note: Sensing can be modeled as an affinity kind with mana drain; externalize (push) enables long-range fog piercing, localized (emit) extends local visibility radius, and internalized (pull) can represent self-focused detection (e.g., hazard awareness within normal sight). Composite costs should be derived from atomic affinity + expression + mana/regen pricing.
 
 ---
 

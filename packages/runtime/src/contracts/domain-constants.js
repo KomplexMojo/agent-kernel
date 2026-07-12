@@ -30,7 +30,7 @@ export const AFFINITY_EXPRESSION_PROFILES = Object.freeze({
     polarity: "outward",
     vitalOperation: "apply_vital_affinity",
     allowsEnvironmentMutation: true,
-    allowsTrapArming: true,
+    allowsHazardArming: true,
   }),
   pull: Object.freeze({
     id: "pull",
@@ -39,7 +39,7 @@ export const AFFINITY_EXPRESSION_PROFILES = Object.freeze({
     polarity: "inward",
     vitalOperation: "apply_vital_affinity",
     allowsEnvironmentMutation: true,
-    allowsTrapArming: true,
+    allowsHazardArming: true,
   }),
   emit: Object.freeze({
     id: "emit",
@@ -48,7 +48,7 @@ export const AFFINITY_EXPRESSION_PROFILES = Object.freeze({
     polarity: "outward",
     vitalOperation: "apply_vital_affinity",
     allowsEnvironmentMutation: true,
-    allowsTrapArming: true,
+    allowsHazardArming: true,
   }),
   draw: Object.freeze({
     id: "draw",
@@ -57,7 +57,7 @@ export const AFFINITY_EXPRESSION_PROFILES = Object.freeze({
     polarity: "inward",
     vitalOperation: "draw_vital_affinity",
     allowsEnvironmentMutation: false,
-    allowsTrapArming: false,
+    allowsHazardArming: false,
   }),
 });
 export const AFFINITY_OPPOSITES = Object.freeze({
@@ -102,10 +102,9 @@ export const PHI4_OLLAMA_OPTIONS = Object.freeze({
 });
 
 export const VITAL_KEYS = GAME_VITAL_KEYS;
-export const TRAP_VITAL_KEYS = Object.freeze(["mana", "durability"]);
 
 // Per-actor-type vital constraints
-export const HAZARD_VITAL_KEYS = Object.freeze(["mana"]);
+export const HAZARD_VITAL_KEYS = Object.freeze(["mana", "durability"]);
 export const ROOM_TILE_VITAL_KEYS = Object.freeze(["durability"]);
 export const DELVER_VITAL_KEYS = VITAL_KEYS;
 export const WARDEN_VITAL_KEYS = VITAL_KEYS;
@@ -412,7 +411,7 @@ export function buildLlmActorConfigPromptTemplate({
     "Warden viability guardrails:",
     "If you include affinities or stacks, include vitals with mana > 0 and mana regen > 0.",
     "For non-stationary wardens, require stamina regen > 0.",
-    "Stationary/trap-like wardens may use zero regen.",
+    "Stationary/hazard-like wardens may use zero regen.",
     "Place stationary wardens at chokepoints (narrow halls, doors, key junctions).",
     "Ensure wardens have non-trivial health (current/max >= 6).",
     "Keep affinity stacks modest (1-3) unless mana and regen are higher.",

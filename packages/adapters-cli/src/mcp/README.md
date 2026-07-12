@@ -231,8 +231,8 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 
 | Tool name | Group | Description | Key input parameters |
 | --- | --- | --- | --- |
-| ak_create | Authoring | Create authored build artifacts from freeform and structured object specs. | text, room[], floorTile[], trap[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList, dryRun |
-| ak_configure | Authoring | Configure authored build artifacts from freeform and structured object specs. | text, room[], floorTile[], trap[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| ak_create | Authoring | Create authored build artifacts from freeform and structured object specs. | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList, dryRun |
+| ak_configure | Authoring | Configure authored build artifacts from freeform and structured object specs. | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_room_plan | Authoring | Build a room-only authoring plan. | room[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_delver_plan | Authoring | Build a delver-only authoring plan. | delver[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_warden_plan | Authoring | Build a warden-only authoring plan. | warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
@@ -287,7 +287,7 @@ Schema:
 | text | string | no | Freeform authoring text |
 | room | string[] | no | Room authoring specs |
 | floorTile | string[] | no | Floor tile specs |
-| trap | string[] | no | Trap specs |
+| hazard | string[] | no | Hazard specs |
 | delver | string[] | no | Delver specs |
 | warden | string[] | no | Warden specs |
 | goal | string | no | Goal text override |
@@ -341,7 +341,7 @@ Schema:
 | text | string | no |
 | room | string[] | no |
 | floorTile | string[] | no |
-| trap | string[] | no |
+| hazard | string[] | no |
 | delver | string[] | no |
 | warden | string[] | no |
 | goal | string | no |
@@ -358,7 +358,7 @@ Example call:
 ```json
 {
   "room": ["size=small;count=2;affinities=dark:emit:2"],
-  "trap": ["x=2;y=3;affinity=fire;stacks=1"],
+  "hazard": ["x=2;y=3;affinity=fire;stacks=1"],
   "runId": "run_configure_rooms",
   "outDir": "/tmp/agent-kernel/configure"
 }
@@ -630,7 +630,7 @@ Example call:
 
 ```json
 {
-  "simConfig": "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json",
+  "simConfig": "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json",
   "initialState": "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
   "ticks": 4,
   "seed": 0,
@@ -807,7 +807,7 @@ Example call:
 
 ```json
 {
-  "text": "A dark dungeon with one fire delver and one trap.",
+  "text": "A dark dungeon with one fire delver and one hazard.",
   "catalog": "tests/fixtures/e2e/e2e-catalog-v1-basic.json",
   "fixture": "tests/fixtures/adapters/llm-generate-summary.json",
   "model": "fixture",

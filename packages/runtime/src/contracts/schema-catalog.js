@@ -138,7 +138,7 @@ const CATALOG = [
     schema: "agent-kernel/AffinitySummary",
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.OBSERVABILITY,
-    description: "Resolved affinity/trap summary.",
+    description: "Resolved affinity/hazard summary.",
   },
   {
     schema: "agent-kernel/ActorState",

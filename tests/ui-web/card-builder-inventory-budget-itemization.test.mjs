@@ -83,7 +83,7 @@
  *       records 82 spent" mentioned in the live session is a completely
  *       separate legacy DOM debug panel (packages/ui-web/src/budget-panels.js)
  *       that is NOT the Phaser "INVENTORY" shelf under test here.
- *   (b) bundle-content dependent (delver-only has no rooms/traps) — PARTIALLY
+ *   (b) bundle-content dependent (delver-only has no rooms/hazards) — PARTIALLY
  *       CONFIRMED but the true discriminator is narrower than "no rooms":
  *       the defect is "the auto-pulled firstActor card was the only card in
  *       its own type bucket", which a delver-only scenario always satisfies.

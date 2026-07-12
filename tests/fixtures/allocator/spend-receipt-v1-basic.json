@@ -67,16 +67,16 @@
       }
     },
     {
-      "id": "trap_basic",
-      "kind": "trap",
+      "id": "hazard_basic",
+      "kind": "hazard",
       "quantity": 1,
       "unitCost": 0,
       "totalCost": 0,
       "status": "denied",
-      "category": "traps",
+      "category": "hazards",
       "subjectRef": {
-        "id": "trap_1",
-        "schema": "agent-kernel/TrapArtifact",
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
     }

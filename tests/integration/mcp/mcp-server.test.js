@@ -9,7 +9,7 @@ const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
 
 const E2E_SCENARIO = resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json");
 const LLM_FIXTURE = resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary.json");
-const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json");
+const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
 const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json");
 
 class McpServerHarness {
@@ -206,7 +206,7 @@ test("mcp authoring tools expose the current full scenario schema", async () => 
       const properties = tool.inputSchema?.properties || {};
       assert.ok(properties.room);
       assert.ok(properties.floorTile);
-      assert.ok(properties.trap);
+      assert.ok(properties.hazard);
       assert.ok(properties.hazard);
       assert.ok(properties.resource);
       assert.ok(properties.delver);
@@ -324,10 +324,10 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
     const createResult = await harness.callTool("ak_create", {
       runId,
       createdAt: "2026-04-19T00:00:00.000Z",
-      text: "Create a full playable dungeon scenario with room layout, traps, hazards, resources, delvers, and a warden under a total budget of 2000 tokens.",
+      text: "Create a full playable dungeon scenario with room layout, hazards, resources, delvers, and a warden under a total budget of 2000 tokens.",
       room: ["size=medium;count=1"],
       floorTile: ["count=12"],
-      trap: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
+      hazard: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
       hazard: ["affinity=dark;expression=emit;proximityRadius=1;mana=one-time:1"],
       resource: ["permanenceMode=consumable;vital=health;delta=2"],
       delver: ["count=1;affinity=fire;motivation=attacking"],

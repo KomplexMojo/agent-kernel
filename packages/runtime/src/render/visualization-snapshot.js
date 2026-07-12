@@ -128,8 +128,8 @@ export async function createVisualizationSnapshot({
   const delverRows = buildBlankGrid(width, height);
   const wardenRows = buildBlankGrid(width, height);
 
-  for (const trap of (simConfig.traps || [])) {
-    markPosition(hazardRows, trap.x, trap.y, "H");
+  for (const hazard of (simConfig.hazards || [])) {
+    markPosition(hazardRows, hazard.x, hazard.y, "H");
   }
 
   for (const resource of (simConfig.resources || [])) {

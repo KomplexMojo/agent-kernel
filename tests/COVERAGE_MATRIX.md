@@ -31,14 +31,14 @@ Legend: ✅ asserted · 🟡 covered indirectly (build/render only) · ⏳ pendi
 ### Affinities (10) — `fire water earth wind life decay corrode fortify light dark`
 | | L1 (CLI) | L2 (UI) | L3 (parity) |
 |---|---|---|---|
-| each kind on a trap (emit) | ✅ round-trips to `sim-config.layout.data.traps[].affinity.kind` | 🟡 via hazards in full-breadth build | ✅ ladder build parity |
+| each kind on a hazard (emit) | ✅ round-trips to `sim-config.layout.data.hazards[].affinity.kind` | 🟡 via hazards in full-breadth build | ✅ ladder build parity |
 | each kind on a hazard | ✅ (expression block) | ✅ all 10 in full-breadth gameplay render | ✅ |
 
 ### Affinity expressions (4) — `push pull emit draw`
 | | L1 (CLI) | L2 (UI) | L3 (parity) |
 |---|---|---|---|
 | each on a hazard | ✅ round-trips to `spec…levelGen.hazards[].expression` | ✅ cycled across hazards | ✅ |
-| each on a trap | ⏳ **pending** — open design question (trap projection/draw policy); test records the CLI's *actual* accept/reject, does not assert validity | — | — |
+| each on a hazard | ⏳ **pending** — open design question (hazard projection/draw policy); test records the CLI's *actual* accept/reject, does not assert validity | — | — |
 
 ### Motivations (12) — `random stationary exploring patrolling attacking defending stealthy friendly reflexive goal_oriented strategy_focused user_controlled`
 | | L1 (CLI) | L2 (UI) | L3 (parity) |
@@ -56,10 +56,10 @@ Legend: ✅ asserted · 🟡 covered indirectly (build/render only) · ⏳ pendi
 | sizes scale grid | ✅ `small ≤ medium < large` (small==medium currently — code is law) | 🟡 multi-room render | ✅ |
 | floor tiles | 🟡 ladder T2 (`--floor-tile`) | 🟡 | ✅ |
 
-### Traps / Hazards / Resources
+### Hazards / Hazards / Resources
 | | L1 (CLI) | L2 (UI) | L3 (parity) |
 |---|---|---|---|
-| trap placement + affinity payload | ✅ `layout.data.traps[]` | 🟡 | ✅ |
+| hazard placement + affinity payload | ✅ `layout.data.hazards[]` | 🟡 | ✅ |
 | hazard (V2, mana, proximity) | ✅ `spec…levelGen.hazards[]` + `hazard-N.json` | ✅ 10 hazards render | ✅ |
 | resource tiers `level` / `permanent` | ✅ `spec…resources[]` + `resource-N.json` | ✅ both tiers in build | ✅ |
 | resource `consumable` | ✅ **rejected** by V3 spec (negative) | — | — |
@@ -67,7 +67,7 @@ Legend: ✅ asserted · 🟡 covered indirectly (build/render only) · ⏳ pendi
 ### Complexity ladder
 | Tier | Intent | Status |
 |---|---|---|
-| T0 smoke | 1 room/trap/delver/warden | ✅ create + run + UI gameplay |
+| T0 smoke | 1 room/hazard/delver/warden | ✅ create + run + UI gameplay |
 | T1 medium | multi-room, mixed motivations, hazard | ✅ create + run |
 | **T2 stress** | **every affinity × all 4 expressions on hazards, multi-affinity actors, both resource tiers, 3 large rooms, budget 6000** | ✅ create + run + UI full-breadth render + parity |
 | T3 budget-edge | tiny budget + heavy roster | ✅ allocator degrades gracefully; `budget-receipt.status == "denied"`, `remaining < 0` |
@@ -78,6 +78,6 @@ Legend: ✅ asserted · 🟡 covered indirectly (build/render only) · ⏳ pendi
 - Resource `consumable` tier → rejected by V3 spec (L1).
 
 ## Open questions / follow-ups
-- **Trap projection/draw policy** (`KNOWN_ISSUES.md`): whether `push`/`pull`/`draw` are valid trap expressions is undecided. L1 records actual behavior as `pending`; promote to hard asserts once decided.
+- **Hazard projection/draw policy** (`KNOWN_ISSUES.md`): whether `push`/`pull`/`draw` are valid hazard expressions is undecided. L1 records actual behavior as `pending`; promote to hard asserts once decided.
 - Per-element UI assertions currently rely on the diagnostics build path; driving the Phaser card-builder affordances per element + status-rail token attribution is captured in each suite's `## TODO: Test Permutations`.
 - Hard `insufficient_budget` / `conflicting_requirements` (vs graceful degradation) needs a supplied `--budget` artifact — tracked in the ladder TODO.

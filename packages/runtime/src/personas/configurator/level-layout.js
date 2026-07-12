@@ -18,7 +18,7 @@ const MIN_VIABLE_ROOM_INTERIOR_TILES = 3;
 
 const KIND_STATIONARY = 0;
 const KIND_BARRIER = 1;
-const KIND_TRAP = 2;
+const KIND_HAZARD = 2;
 
 const NEIGHBORS = Object.freeze([
   { dx: 0, dy: -1 },
@@ -325,7 +325,7 @@ function reconcileConnectedWalkableTiles({
     mask[anchorCell.y][anchorCell.x] = true;
   }
 
-  // Preserved positions (e.g. trap tiles) are force-selected below as extra
+  // Preserved positions (e.g. hazard tiles) are force-selected below as extra
   // BFS seeds, but a multi-source frontier expansion does not guarantee the
   // final selection is one connected region — the anchor's growing frontier
   // can hit `target` before ever reaching a distant preserved cell, leaving
@@ -378,7 +378,7 @@ function reconcileConnectedWalkableTiles({
   };
 
   // preserve entries are processed in priority order — earlier entries (e.g.
-  // spawn, trap positions passed in by the caller) are never dropped even if
+  // spawn, hazard positions passed in by the caller) are never dropped even if
   // budget is tight; later entries (e.g. I4's soft multi-room anchors, added
   // after the caller's required preserve list) are truncated first if the
   // fully path-folded preserve set would exceed `target`, so a tight budget
@@ -1443,55 +1443,55 @@ function ensureWalkable(mask) {
   }
 }
 
-function buildTrapIndex(traps = []) {
+function buildHazardIndex(hazards = []) {
   const index = new Set();
-  for (const trap of traps) {
-    if (!trap) continue;
-    index.add(`${trap.x},${trap.y}`);
+  for (const hazard of hazards) {
+    if (!hazard) continue;
+    index.add(`${hazard.x},${hazard.y}`);
   }
   return index;
 }
 
-function buildBlockingTrapIndex(traps = []) {
+function buildBlockingHazardIndex(hazards = []) {
   const index = new Set();
-  for (const trap of traps) {
-    if (!trap?.blocking) continue;
-    index.add(`${trap.x},${trap.y}`);
+  for (const hazard of hazards) {
+    if (!hazard?.blocking) continue;
+    index.add(`${hazard.x},${hazard.y}`);
   }
   return index;
 }
 
-function isTrapCell(trapIndex, x, y) {
-  if (!trapIndex) return false;
-  return trapIndex.has(`${x},${y}`);
+function isHazardCell(hazardIndex, x, y) {
+  if (!hazardIndex) return false;
+  return hazardIndex.has(`${x},${y}`);
 }
 
-// Authored trap x/y are room-relative (offsets into a target room's carved
+// Authored hazard x/y are room-relative (offsets into a target room's carved
 // interior), not absolute grid coordinates. Spec strings carry no room field,
 // so room assignment uses the simplest deterministic rule available: every
-// trap maps into the FIRST declared room (rooms[0], i.e. room declaration
+// hazard maps into the FIRST declared room (rooms[0], i.e. room declaration
 // order), matching how a single-room level already behaves and keeping
 // multi-room placement predictable for a given input+seed. When no rooms
 // exist (e.g. roomless/legacy callers), coordinates are treated as absolute,
 // preserving prior behavior for that case.
 // Returns { mapped, errors } — errors are structured {field, code, detail}
 // entries for coordinates that exceed the target room's interior bounds.
-function mapTrapsToRooms(traps = [], rooms = []) {
-  if (!Array.isArray(traps) || traps.length === 0) {
+function mapHazardsToRooms(hazards = [], rooms = []) {
+  if (!Array.isArray(hazards) || hazards.length === 0) {
     return { mapped: [], errors: [] };
   }
   if (!Array.isArray(rooms) || rooms.length === 0) {
-    return { mapped: traps.map((trap) => ({ ...trap })), errors: [] };
+    return { mapped: hazards.map((hazard) => ({ ...hazard })), errors: [] };
   }
   const targetRoom = rooms[0];
   const errors = [];
-  const mapped = traps.map((trap, idx) => {
-    const relX = trap.x;
-    const relY = trap.y;
+  const mapped = hazards.map((hazard, idx) => {
+    const relX = hazard.x;
+    const relY = hazard.y;
     if (relX < 0 || relY < 0 || relX >= targetRoom.width || relY >= targetRoom.height) {
       errors.push({
-        field: `traps[${idx}].position`,
-        code: "trap_outside_room",
+        field: `hazards[${idx}].position`,
+        code: "hazard_outside_room",
         detail: {
           x: relX,
           y: relY,
@@ -1500,10 +1500,10 @@ function mapTrapsToRooms(traps = [], rooms = []) {
           roomHeight: targetRoom.height,
         },
       });
-      return trap;
+      return hazard;
     }
     return {
-      ...trap,
+      ...hazard,
       x: targetRoom.x + relX,
       y: targetRoom.y + relY,
     };
@@ -1511,20 +1511,20 @@ function mapTrapsToRooms(traps = [], rooms = []) {
   return { mapped, errors };
 }
 
-function applyTrapBlocking(mask, traps = []) {
-  for (const trap of traps) {
-    if (!trap?.blocking) continue;
-    if (mask[trap.y] && typeof mask[trap.y][trap.x] === "boolean") {
-      mask[trap.y][trap.x] = false;
+function applyHazardBlocking(mask, hazards = []) {
+  for (const hazard of hazards) {
+    if (!hazard?.blocking) continue;
+    if (mask[hazard.y] && typeof mask[hazard.y][hazard.x] === "boolean") {
+      mask[hazard.y][hazard.x] = false;
     }
   }
 }
 
-function collectWalkable(mask, trapIndex) {
+function collectWalkable(mask, hazardIndex) {
   const cells = [];
   for (let y = 0; y < mask.length; y += 1) {
     for (let x = 0; x < mask[y].length; x += 1) {
-      if (mask[y][x] && !isTrapCell(trapIndex, x, y)) {
+      if (mask[y][x] && !isHazardCell(hazardIndex, x, y)) {
         cells.push({ x, y });
       }
     }
@@ -1614,7 +1614,7 @@ function findRoomIndexForPoint(rooms, point) {
   return -1;
 }
 
-function collectWalkableInRoom(mask, room, trapIndex) {
+function collectWalkableInRoom(mask, room, hazardIndex) {
   if (!room) return [];
   const cells = [];
   const startY = Math.max(0, room.y);
@@ -1625,7 +1625,7 @@ function collectWalkableInRoom(mask, room, trapIndex) {
   for (let y = startY; y <= endY; y += 1) {
     for (let x = startX; x <= endX; x += 1) {
       if (!mask[y]?.[x]) continue;
-      if (isTrapCell(trapIndex, x, y)) continue;
+      if (isHazardCell(hazardIndex, x, y)) continue;
       cells.push({ x, y });
     }
   }
@@ -1671,7 +1671,7 @@ function selectClosestToRoomCenter(cells, room) {
 //      fallback over eligible cells only when the straight path is blocked).
 //      Like the reconcile expansion phase, the backbone may carve eligible
 //      wall cells, so it takes the shortest connection rather than paying
-//      for a detour through pre-carved corridors. Non-blocking trap
+//      for a detour through pre-carved corridors. Non-blocking hazard
 //      positions are tethered to the backbone inside their room (M3
 //      contract). Backbone pieces inside one room are linked by an in-room
 //      BFS so the whole backbone is one connected component.
@@ -1694,7 +1694,7 @@ function distributeWalkableTilesAcrossRooms({
   targetWalkableTiles,
   rooms,
   blockedIndex = null,
-  trapIndex = null,
+  hazardIndex = null,
   preserve = [],
 } = {}) {
   const height = mask.length;
@@ -1703,7 +1703,7 @@ function distributeWalkableTilesAcrossRooms({
   const area = width * height;
   const toIndex = (x, y) => (y * width) + x;
 
-  // Blocked cells (blocking traps) as a typed array — the index is tiny, but
+  // Blocked cells (blocking hazards) as a typed array — the index is tiny, but
   // eligibility is checked O(area) times and string keys would dominate.
   const blocked = new Uint8Array(area);
   if (blockedIndex) {
@@ -1844,7 +1844,7 @@ function distributeWalkableTilesAcrossRooms({
     cells.forEach((p) => addCell(p.x, p.y));
   }
 
-  // Tether preserved (non-blocking trap) positions so M3's trap contract
+  // Tether preserved (non-blocking hazard) positions so M3's hazard contract
   // holds under distribution. The pre-reconciliation spawn is deliberately
   // NOT tethered: spawn is re-picked from the carved rooms afterwards
   // (pickSpawnExitFromRooms), so preserving the pre-pick would only burn
@@ -1861,7 +1861,7 @@ function distributeWalkableTilesAcrossRooms({
   });
 
   // Link backbone pieces that landed in the same room (e.g. the doors of the
-  // previous and next chain hop, or a trap tether) with in-room paths so the
+  // previous and next chain hop, or a hazard tether) with in-room paths so the
   // backbone stays one connected component. Rooms are small, so these BFS
   // runs are bounded by room area, not grid area.
   rooms.forEach((room) => {
@@ -1954,7 +1954,7 @@ function distributeWalkableTilesAcrossRooms({
     let added = 0;
     if (queue.length === 0) {
       // Pathologically unreachable room (eligible cells split by blocking
-      // traps): still give it floor rather than leaving it 100% wall — the
+      // hazards): still give it floor rather than leaving it 100% wall — the
       // carve-every-room contract outranks connectivity in this corner. The
       // seed counts against the room's share so the exact total still holds.
       for (let y = startY; y < endY && queue.length === 0; y += 1) {
@@ -2134,9 +2134,9 @@ function pickRoomPairWithGreatestDeltas(rooms, roomWalkable) {
   };
 }
 
-function pickSpawnExitFromRooms(mask, levelGen, trapIndex, rooms) {
+function pickSpawnExitFromRooms(mask, levelGen, hazardIndex, rooms) {
   if (!Array.isArray(rooms) || rooms.length === 0) return null;
-  const roomWalkable = rooms.map((room) => collectWalkableInRoom(mask, room, trapIndex));
+  const roomWalkable = rooms.map((room) => collectWalkableInRoom(mask, room, hazardIndex));
   const pair = pickRoomPairWithGreatestDeltas(rooms, roomWalkable);
   if (!pair) return null;
 
@@ -2165,18 +2165,18 @@ function pickSpawnExitFromRooms(mask, levelGen, trapIndex, rooms) {
   };
 }
 
-function pickSpawn(mask, levelGen, rng, trapIndex, preferredRoom = null) {
+function pickSpawn(mask, levelGen, rng, hazardIndex, preferredRoom = null) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
-  let cells = collectWalkable(mask, trapIndex);
+  let cells = collectWalkable(mask, hazardIndex);
   const fallbackCells = cells.length ? cells : collectWalkable(mask, null);
-  // When traps are mapped into a specific room, bias the pre-reconciliation
+  // When hazards are mapped into a specific room, bias the pre-reconciliation
   // anchor spawn to land inside that same room. reconcileWalkableTiles later
   // grows a single connected component from this anchor while force-including
-  // preserved trap positions — if the anchor starts outside the trap's room,
-  // the preserved trap cells and the anchor's growing region can end up in
+  // preserved hazard positions — if the anchor starts outside the hazard's room,
+  // the preserved hazard cells and the anchor's growing region can end up in
   // two disjoint components. Rooms are fully carved at this point, so any
-  // in-room anchor is trivially connected to any in-room trap.
+  // in-room anchor is trivially connected to any in-room hazard.
   if (preferredRoom) {
     const inRoom = cells.filter((cell) => pointInRoom(preferredRoom, cell));
     if (inRoom.length > 0) {
@@ -2187,10 +2187,10 @@ function pickSpawn(mask, levelGen, rng, trapIndex, preferredRoom = null) {
   return pickCandidate(spawnCandidates, rng) || cells[0] || fallbackCells[0] || { x: 0, y: 0 };
 }
 
-function pickExit(mask, levelGen, rng, trapIndex, spawn) {
+function pickExit(mask, levelGen, rng, hazardIndex, spawn) {
   const height = mask.length;
   const width = mask[0]?.length || 0;
-  const cells = collectWalkable(mask, trapIndex);
+  const cells = collectWalkable(mask, hazardIndex);
   const fallbackCells = cells.length ? cells : collectWalkable(mask, null);
   const requirePath = levelGen.connectivity?.requirePath;
   const distances = requirePath ? distanceFrom(mask, spawn) : null;
@@ -2381,7 +2381,7 @@ function computeConnectivity(mask, rooms, spawn, exit) {
   };
 }
 
-function buildTiles(mask, spawn, exit, trapIndex = null) {
+function buildTiles(mask, spawn, exit, hazardIndex = null) {
   const tiles = [];
   for (let y = 0; y < mask.length; y += 1) {
     let row = "";
@@ -2390,13 +2390,13 @@ function buildTiles(mask, spawn, exit, trapIndex = null) {
         row += "S";
       } else if (exit.x === x && exit.y === y) {
         row += "E";
-      } else if (mask[y][x] || isTrapCell(trapIndex, x, y)) {
-        // A blocking trap occupies floor — it blocks movement (see `kinds`/
-        // KIND_TRAP and layout.traps[].blocking), but the tile itself is not
-        // a wall. applyTrapBlocking() clears the mask cell for blocking traps
+      } else if (mask[y][x] || isHazardCell(hazardIndex, x, y)) {
+        // A blocking hazard occupies floor — it blocks movement (see `kinds`/
+        // KIND_HAZARD and layout.hazards[].blocking), but the tile itself is not
+        // a wall. applyHazardBlocking() clears the mask cell for blocking hazards
         // so movement code treats it as non-walkable; rendering must not
-        // reintroduce a wall there or trap_on_wall validation trips on a
-        // trap's own tile.
+        // reintroduce a wall there or hazard_on_wall validation trips on a
+        // hazard's own tile.
         row += ".";
       } else {
         row += "#";
@@ -2417,14 +2417,14 @@ function buildLegend() {
   };
 }
 
-function buildKinds(mask, trapIndex) {
+function buildKinds(mask, hazardIndex) {
   const kinds = [];
   for (let y = 0; y < mask.length; y += 1) {
     const row = [];
     for (let x = 0; x < mask[y].length; x += 1) {
       let kind = mask[y][x] ? KIND_STATIONARY : KIND_BARRIER;
-      if (isTrapCell(trapIndex, x, y)) {
-        kind = KIND_TRAP;
+      if (isHazardCell(hazardIndex, x, y)) {
+        kind = KIND_HAZARD;
       }
       row.push(kind);
     }
@@ -2449,33 +2449,33 @@ export function generateGridLayout(levelGen) {
   const seed = Number.isFinite(levelGen.seed) ? levelGen.seed : 0;
   const rng = createRng(seed);
   const { mask, rooms } = generateMask(levelGen, rng);
-  const rawTraps = Array.isArray(levelGen.traps) ? levelGen.traps : [];
-  // Authored trap x/y are room-relative; map them into the target room's
-  // interior now, before any carving/validation reads trap.x/trap.y. Traps
+  const rawHazards = Array.isArray(levelGen.hazards) ? levelGen.hazards : [];
+  // Authored hazard x/y are room-relative; map them into the target room's
+  // interior now, before any carving/validation reads hazard.x/hazard.y. Hazards
   // whose coordinates exceed their room's interior are dropped here and
-  // reported via trapMappingErrors so the caller can reject with a
+  // reported via hazardMappingErrors so the caller can reject with a
   // structured error instead of carving floor outside declared rooms.
-  const { mapped: traps, errors: trapMappingErrors } = mapTrapsToRooms(rawTraps, rooms);
-  applyTrapBlocking(mask, traps);
-  const blockingTrapIndex = buildBlockingTrapIndex(traps);
+  const { mapped: hazards, errors: hazardMappingErrors } = mapHazardsToRooms(rawHazards, rooms);
+  applyHazardBlocking(mask, hazards);
+  const blockingHazardIndex = buildBlockingHazardIndex(hazards);
   const walkableTilesTarget = resolveWalkableTilesTarget(levelGen);
   const requiresConnectedWalkable = Boolean(levelGen.connectivity?.requirePath);
   const corridorWidth = resolveCorridorWidth(levelGen);
 
   ensureWalkable(mask);
-  const trapIndex = buildTrapIndex(traps);
-  // Traps map into rooms[0] (see mapTrapsToRooms); bias the reconciliation
+  const hazardIndex = buildHazardIndex(hazards);
+  // Hazards map into rooms[0] (see mapHazardsToRooms); bias the reconciliation
   // anchor to that same room so the connected-tiles pass below can't strand
-  // preserved trap positions in a component the anchor never reaches.
-  const trapAnchorRoom = traps.length > 0 && rooms.length > 0 ? rooms[0] : null;
+  // preserved hazard positions in a component the anchor never reaches.
+  const hazardAnchorRoom = hazards.length > 0 && rooms.length > 0 ? rooms[0] : null;
 
   let spawn = null;
   if (requiresConnectedWalkable) {
-    spawn = pickSpawn(mask, levelGen, rng, trapIndex, trapAnchorRoom);
+    spawn = pickSpawn(mask, levelGen, rng, hazardIndex, hazardAnchorRoom);
     // When an explicit walkable target is set, connected reconciliation will build
     // a single connected component from spawn. Avoid the expensive pre-pass.
     if (!walkableTilesTarget) {
-      ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingTrapIndex);
+      ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingHazardIndex);
     }
   }
 
@@ -2508,7 +2508,7 @@ export function generateGridLayout(levelGen) {
   }
 
   if (floorBudgetErrors.length === 0 && walkableTilesTarget && currentWalkableTiles !== walkableTilesTarget) {
-    const nonBlockingTrapPositions = traps
+    const nonBlockingHazardPositions = hazards
       .filter((t) => !t.blocking)
       .map((t) => ({ x: t.x, y: t.y }));
     if (requiresConnectedWalkable && rooms.length > 1) {
@@ -2521,9 +2521,9 @@ export function generateGridLayout(levelGen) {
         mask,
         targetWalkableTiles: walkableTilesTarget,
         rooms,
-        blockedIndex: blockingTrapIndex,
-        trapIndex,
-        preserve: nonBlockingTrapPositions,
+        blockedIndex: blockingHazardIndex,
+        hazardIndex,
+        preserve: nonBlockingHazardPositions,
       });
       if (!distribution.ok) {
         floorBudgetErrors = [distribution.error];
@@ -2532,10 +2532,10 @@ export function generateGridLayout(levelGen) {
       reconcileWalkableTiles({
         mask,
         targetWalkableTiles: walkableTilesTarget,
-        blockedIndex: blockingTrapIndex,
+        blockedIndex: blockingHazardIndex,
         requireConnected: requiresConnectedWalkable,
         anchor: spawn,
-        preserve: spawn ? [spawn, ...nonBlockingTrapPositions] : nonBlockingTrapPositions,
+        preserve: spawn ? [spawn, ...nonBlockingHazardPositions] : nonBlockingHazardPositions,
       });
     }
   }
@@ -2543,16 +2543,16 @@ export function generateGridLayout(levelGen) {
   // built a connected component from spawn — a second connectivity pass would
   // add cells and break the tile-count contract.
   if (requiresConnectedWalkable && spawn && mask[spawn.y]?.[spawn.x] && !walkableTilesTarget) {
-    ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingTrapIndex);
+    ensureConnectedToSpawn(mask, spawn, corridorWidth, blockingHazardIndex);
   }
 
   ensureWalkable(mask);
-  const roomPlacement = pickSpawnExitFromRooms(mask, levelGen, trapIndex, rooms);
+  const roomPlacement = pickSpawnExitFromRooms(mask, levelGen, hazardIndex, rooms);
   if (roomPlacement?.spawn) {
     spawn = roomPlacement.spawn;
   }
-  if (!spawn || !mask[spawn.y]?.[spawn.x] || isTrapCell(trapIndex, spawn.x, spawn.y)) {
-    spawn = pickSpawn(mask, levelGen, rng, trapIndex);
+  if (!spawn || !mask[spawn.y]?.[spawn.x] || isHazardCell(hazardIndex, spawn.x, spawn.y)) {
+    spawn = pickSpawn(mask, levelGen, rng, hazardIndex);
   }
 
   let exit = roomPlacement?.exit || null;
@@ -2560,15 +2560,15 @@ export function generateGridLayout(levelGen) {
     !exit
     || (exit.x === spawn.x && exit.y === spawn.y)
     || !mask[exit.y]?.[exit.x]
-    || isTrapCell(trapIndex, exit.x, exit.y)
+    || isHazardCell(hazardIndex, exit.x, exit.y)
   ) {
-    exit = pickExit(mask, levelGen, rng, trapIndex, spawn);
+    exit = pickExit(mask, levelGen, rng, hazardIndex, spawn);
   }
   const layout = {
     width: levelGen.width,
     height: levelGen.height,
-    tiles: buildTiles(mask, spawn, exit, trapIndex),
-    kinds: buildKinds(mask, trapIndex),
+    tiles: buildTiles(mask, spawn, exit, hazardIndex),
+    kinds: buildKinds(mask, hazardIndex),
     legend: buildLegend(),
     render: { ...DEFAULT_RENDER },
     spawn,
@@ -2590,20 +2590,20 @@ export function generateGridLayout(levelGen) {
       layout.connectivity = connectivity;
     }
   }
-  if (traps.length > 0) {
-    layout.traps = traps.map((trap) => ({ ...trap }));
+  if (hazards.length > 0) {
+    layout.hazards = hazards.map((hazard) => ({ ...hazard }));
   }
-  if (trapMappingErrors.length > 0) {
+  if (hazardMappingErrors.length > 0) {
     // Non-enumerable so JSON.stringify(layout) / normal consumers stay
     // unaffected; generateGridLayoutFromInput reads this to reject the
-    // request instead of returning a layout with traps outside every room.
-    Object.defineProperty(layout, "_trapMappingErrors", {
-      value: trapMappingErrors,
+    // request instead of returning a layout with hazards outside every room.
+    Object.defineProperty(layout, "_hazardMappingErrors", {
+      value: hazardMappingErrors,
       enumerable: false,
     });
   }
   if (floorBudgetErrors.length > 0) {
-    // Same pattern as _trapMappingErrors: non-enumerable so normal consumers
+    // Same pattern as _hazardMappingErrors: non-enumerable so normal consumers
     // are unaffected; generateGridLayoutFromInput reads this to reject
     // requests whose floorTile budget can't cover every declared room's
     // minimum viable interior (I4).
@@ -2617,18 +2617,18 @@ export function generateGridLayout(levelGen) {
 
 function countLayoutWalkableTiles(layout) {
   if (!Array.isArray(layout?.tiles)) return 0;
-  // Blocking traps render as floor glyphs (buildTiles) but their mask cell is
-  // cleared by applyTrapBlocking — they are not movement-walkable and must not
+  // Blocking hazards render as floor glyphs (buildTiles) but their mask cell is
+  // cleared by applyHazardBlocking — they are not movement-walkable and must not
   // count toward the walkableTilesTarget floor budget.
-  const blockedTrapCells = new Set();
-  for (const trap of Array.isArray(layout.traps) ? layout.traps : []) {
-    if (trap?.blocking) blockedTrapCells.add(`${trap.x},${trap.y}`);
+  const blockedHazardCells = new Set();
+  for (const hazard of Array.isArray(layout.hazards) ? layout.hazards : []) {
+    if (hazard?.blocking) blockedHazardCells.add(`${hazard.x},${hazard.y}`);
   }
   let count = 0;
   for (let y = 0; y < layout.tiles.length; y += 1) {
     const row = String(layout.tiles[y] || "");
     for (let x = 0; x < row.length; x += 1) {
-      if (row[x] !== "#" && !blockedTrapCells.has(`${x},${y}`)) count += 1;
+      if (row[x] !== "#" && !blockedHazardCells.has(`${x},${y}`)) count += 1;
     }
   }
   return count;
@@ -2641,33 +2641,33 @@ export function generateGridLayoutFromInput(input) {
   }
   const layout = generateGridLayout(normalized.value);
 
-  if (Array.isArray(layout._trapMappingErrors) && layout._trapMappingErrors.length > 0) {
-    return { ok: false, errors: layout._trapMappingErrors, warnings: normalized.warnings, value: null };
+  if (Array.isArray(layout._hazardMappingErrors) && layout._hazardMappingErrors.length > 0) {
+    return { ok: false, errors: layout._hazardMappingErrors, warnings: normalized.warnings, value: null };
   }
 
   if (Array.isArray(layout._floorBudgetErrors) && layout._floorBudgetErrors.length > 0) {
     return { ok: false, errors: layout._floorBudgetErrors, warnings: normalized.warnings, value: null };
   }
 
-  if (Array.isArray(layout.traps) && layout.traps.length > 0 && Array.isArray(layout.tiles)) {
-    const wallTrapErrors = [];
-    layout.traps.forEach((trap, idx) => {
-      const row = layout.tiles[trap.y];
-      if (typeof row === "string" && row[trap.x] === "#") {
-        wallTrapErrors.push({
-          field: `traps[${idx}].position`,
-          code: "trap_on_wall",
-          detail: { x: trap.x, y: trap.y, affinity: trap.affinity?.kind },
+  if (Array.isArray(layout.hazards) && layout.hazards.length > 0 && Array.isArray(layout.tiles)) {
+    const wallHazardErrors = [];
+    layout.hazards.forEach((hazard, idx) => {
+      const row = layout.tiles[hazard.y];
+      if (typeof row === "string" && row[hazard.x] === "#") {
+        wallHazardErrors.push({
+          field: `hazards[${idx}].position`,
+          code: "hazard_on_wall",
+          detail: { x: hazard.x, y: hazard.y, affinity: hazard.affinity?.kind },
         });
       }
     });
-    if (wallTrapErrors.length > 0) {
-      return { ok: false, errors: wallTrapErrors, warnings: normalized.warnings, value: null };
+    if (wallHazardErrors.length > 0) {
+      return { ok: false, errors: wallHazardErrors, warnings: normalized.warnings, value: null };
     }
   }
 
   // Universal placement invariant (hard rule): every positioned element must
-  // sit on a walkable tile — nothing may exist inside a wall. Traps are
+  // sit on a walkable tile — nothing may exist inside a wall. Hazards are
   // covered above with their dedicated code; hazards and resources are
   // generator-placed and hold this by construction, so this check is a
   // defense-in-depth guard against placement regressions.

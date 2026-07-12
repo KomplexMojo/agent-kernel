@@ -50,9 +50,9 @@
         "traits": { "affinity": "fire", "expression": "emit", "stacks": 2 }
       },
       {
-        "id": "trap_1",
+        "id": "hazard_1",
         "kind": "stationary",
-        "archetype": "trap",
+        "archetype": "hazard",
         "position": { "x": 1, "y": 3 },
         "traits": { "affinity": "dark", "expression": "emit", "stacks": 1 }
       },

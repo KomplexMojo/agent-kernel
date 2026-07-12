@@ -18,7 +18,6 @@ function cloneLayoutData(layout) {
     bounds,
     rooms,
     connectivity,
-    traps,
     hazards,
     resources,
   } = layout;
@@ -44,9 +43,6 @@ function cloneLayoutData(layout) {
   }
   if (connectivity && typeof connectivity === "object") {
     data.connectivity = { ...connectivity };
-  }
-  if (Array.isArray(traps) && traps.length > 0) {
-    data.traps = traps.map((trap) => ({ ...trap }));
   }
   if (Array.isArray(hazards) && hazards.length > 0) {
     data.hazards = hazards.map((hazard) => ({ ...hazard }));

@@ -93,7 +93,7 @@ function buildSummaryPoolWeights(summary = {}) {
     && (
       Number.isInteger(layout.floorTiles)
       || Number.isInteger(layout.hallwayTiles)
-      || (Array.isArray(layout.traps) && layout.traps.length > 0)
+      || (Array.isArray(layout.hazards) && layout.hazards.length > 0)
     );
   const rooms = [
     ...(Array.isArray(summary.rooms) ? summary.rooms : []),
@@ -1038,12 +1038,12 @@ export function createCommandKernel(host = {}) {
       : null;
     let affinitySummary = null;
     if (wantsAffinitySummary) {
-      const traps = simConfig?.layout?.data?.traps;
+      const hazards = simConfig?.layout?.data?.hazards;
       const resolved = resolveAffinityEffects({
         presets: affinityPresets?.presets,
         loadouts: affinityLoadouts?.loadouts,
         baseVitalsByActorId: baseVitalsFromActors(initialState?.actors),
-        traps: Array.isArray(traps) ? traps : [],
+        hazards: Array.isArray(hazards) ? hazards : [],
       });
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
@@ -1054,7 +1054,7 @@ export function createCommandKernel(host = {}) {
         simConfigRef: toRef(simConfig),
         initialStateRef: toRef(initialState),
         actors: resolved.actors,
-        traps: resolved.traps,
+        hazards: resolved.hazards,
       };
     }
 
@@ -1327,7 +1327,7 @@ export function createCommandKernel(host = {}) {
         presets: affinityPresets.presets,
         loadouts: affinityLoadouts.loadouts,
         baseVitalsByActorId,
-        traps: Array.isArray(layout.traps) ? layout.traps : [],
+        hazards: Array.isArray(layout.hazards) ? layout.hazards : [],
       })
       : {};
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;

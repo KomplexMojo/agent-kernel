@@ -169,12 +169,12 @@ assert.equal(concentric.value.shape.patternLineWidth, 1);
 assert.equal(concentric.value.shape.patternInfillPercent, 55);
 });
 
-test("normalizeLevelGenInput validates optional trap target types", async () => {const { normalizeLevelGenInput } = await import("../../packages/runtime/src/personas/configurator/level-gen.js");
+test("normalizeLevelGenInput validates optional hazard target types", async () => {const { normalizeLevelGenInput } = await import("../../packages/runtime/src/personas/configurator/level-gen.js");
 
 const valid = normalizeLevelGenInput({
   width: 8,
   height: 8,
-  traps: [
+  hazards: [
     {
       x: 1,
       y: 1,
@@ -183,12 +183,12 @@ const valid = normalizeLevelGenInput({
   ],
 });
 assert.equal(valid.ok, true);
-assert.equal(valid.value.traps[0].affinity.targetType, "floor");
+assert.equal(valid.value.hazards[0].affinity.targetType, "floor");
 
 const invalid = normalizeLevelGenInput({
   width: 8,
   height: 8,
-  traps: [
+  hazards: [
     {
       x: 1,
       y: 1,

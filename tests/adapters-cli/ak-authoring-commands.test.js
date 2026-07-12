@@ -53,7 +53,7 @@ test("cli help documents generic create and configure authoring commands", () =>
   assert.match(result.stdout, /\bhazard-plan\b/);
   assert.match(result.stdout, /\bresource-plan\b/);
   assert.match(result.stdout, /--floor-tile/);
-  assert.match(result.stdout, /--trap/);
+  assert.match(result.stdout, /--hazard/);
   assert.match(result.stdout, /--hazard/);
   assert.match(result.stdout, /--resource/);
   assert.match(result.stdout, /goals=max_mana/);
@@ -76,13 +76,13 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   const result = runCliOk([
     "create",
     "--text",
-    "Create a fire room with a trap, one delver, and one warden. Total budget 1200 tokens.",
+    "Create a fire room with a hazard, one delver, and one warden. Total budget 1200 tokens.",
     "--room",
     "size=large;count=1",
     "--floor-tile",
     "count=18",
-    "--trap",
-    "id=trap_fire;x=2;y=2;affinity=fire;expression=push;stacks=2;blocking=false;vitals=mana:3:1,durability:4:0",
+    "--hazard",
+    "id=hazard_fire;x=2;y=2;affinity=fire;expression=push;stacks=2;blocking=false;vitals=mana:3:1,durability:4:0",
     "--delver",
     "id=ember_delver;count=1;affinity=fire;motivation=attacking;setup-mode=user;goals=max_mana:high,mana_regen:high",
     "--warden",
@@ -133,13 +133,13 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
 
   assert.equal(request.schema, "agent-kernel/AgentCommandRequestArtifact");
   assert.equal(request.command.action, "author");
-  assert.equal(request.command.text, "Create a fire room with a trap, one delver, and one warden. Total budget 1200 tokens.");
+  assert.equal(request.command.text, "Create a fire room with a hazard, one delver, and one warden. Total budget 1200 tokens.");
   assert.deepEqual(
     request.objects.map((entry) => entry.kind),
-    ["room", "floor_tile", "trap", "delver", "warden", "shared_config"],
+    ["room", "floor_tile", "hazard", "delver", "warden", "shared_config"],
   );
 
-  assert.deepEqual(spec.authoring.objectKinds, ["room", "floor_tile", "trap", "delver", "warden", "shared_config"]);
+  assert.deepEqual(spec.authoring.objectKinds, ["room", "floor_tile", "hazard", "delver", "warden", "shared_config"]);
   assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 1200);
   assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag", "budget_artifact"]);
   assert.equal(request.sharedConfig.optimizationGoals, undefined);
@@ -150,13 +150,13 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   assert.ok(delverRequest.optimizationGoals.some((entry) => entry.kind === "maximize_vital_max" && entry.vital === "mana"));
   assert.ok(delverRequest.optimizationGoals.some((entry) => entry.kind === "maximize_vital_regen" && entry.vital === "mana"));
   assert.equal(spec.configurator.inputs.levelGen.walkableTilesTarget, 18);
-  assert.equal(spec.configurator.inputs.levelGen.traps.length, 1);
-  assert.equal(spec.configurator.inputs.levelGen.traps[0].id, "trap_fire");
+  assert.equal(spec.configurator.inputs.levelGen.hazards.length, 1);
+  assert.equal(spec.configurator.inputs.levelGen.hazards[0].id, "hazard_fire");
 
-  assert.ok(Array.isArray(simConfig.layout.data.traps));
-  // Updated 2026-07-10: trap coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
+  assert.ok(Array.isArray(simConfig.layout.data.hazards));
+  // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
   // Authored (2,2) maps into room R1 at (1,1): absolute = (1+2, 1+2) = (3,3).
-  assert.ok(simConfig.layout.data.traps.some((entry) => (
+  assert.ok(simConfig.layout.data.hazards.some((entry) => (
     entry.x === 3
     && entry.y === 3
     && entry.affinity?.kind === "fire"
@@ -279,11 +279,11 @@ test("cli configure preserves generic parsing but records configure action", () 
   const result = runCliOk([
     "configure",
     "--text",
-    "Configure the existing trap layout for a fire room.",
+    "Configure the existing hazard layout for a fire room.",
     "--room",
     "size=medium;count=1",
-    "--trap",
-    "id=trap_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1",
+    "--hazard",
+    "id=hazard_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1",
     "--run-id",
     "run_configure_authoring",
     "--created-at",
@@ -297,7 +297,7 @@ test("cli configure preserves generic parsing but records configure action", () 
   const request = spec.authoring.request;
   assert.equal(request.command.action, "configure");
   assert.equal(spec.authoring.request.command.action, "configure");
-  assert.ok(spec.authoring.objectKinds.includes("trap"));
+  assert.ok(spec.authoring.objectKinds.includes("hazard"));
   assert.equal(summary.preview.ready, true);
   assert.equal(summary.preview.bundlePath, join(outDir, "bundle.json"));
   assert.equal(summary.preview.resourceBundlePath, join(outDir, "resource-bundle.json"));
@@ -305,14 +305,14 @@ test("cli configure preserves generic parsing but records configure action", () 
   assert.equal(summary.preview.runReady, false);
 });
 
-test("cli create rejects invalid trap expressions deterministically", () => {
+test("cli create rejects invalid hazard expressions deterministically", () => {
   const result = runCli([
     "create",
-    "--trap",
+    "--hazard",
     "x=1;y=1;affinity=fire;expression=explode",
   ]);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /trap\[1\] expression must be one of/i);
+  assert.match(result.stderr, /hazard\[1\] expression must be one of/i);
 });
 
 test("cli create rejects conflicting hard budget inputs", () => {
@@ -454,3 +454,7 @@ test("cli delver-plan rejects conflicting hard requirements with deterministic e
   assert.match(result.stderr, /delver\[1\] movement requires stamina\.regen >= 1/i);
   assert.equal(existsSync(join(outDir, "bundle.json")), false);
 });
+
+// ## TODO: Test Permutations
+// - positioned and auto-placed `--hazard` specs supplied together should produce only public hazard object kinds.
+// - configure with an invalid hazard vital should fail before artifact emission.

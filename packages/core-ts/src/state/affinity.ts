@@ -134,7 +134,7 @@ export function affinityExpressionAllowsEnvironmentMutation(
   return expression !== AffinityExpression.Draw;
 }
 
-export function affinityExpressionAllowsTrapArming(
+export function affinityExpressionAllowsHazardArming(
   expression: number,
 ): boolean {
   if (!isValidAffinityExpression(expression)) return false;

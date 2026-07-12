@@ -75,7 +75,7 @@ test("build spec validation rejects incomplete agent authoring compilation rules
   const spec = readFixture("invalid/build-spec-v1-agent-authoring-missing-compilation-rule.json");
   const result = validateBuildSpec(spec);
   assert.equal(result.ok, false);
-  assert.match(result.errors.join("\n"), /missing compilation rule for trap/);
+  assert.match(result.errors.join("\n"), /missing compilation rule for hazard/);
 });
 
 test("build spec validation rejects invalid authoring optimization goals", async () => {

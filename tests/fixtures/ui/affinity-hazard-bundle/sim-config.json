@@ -2,8 +2,8 @@
   "schema": "agent-kernel/SimConfigArtifact",
   "schemaVersion": 1,
   "meta": {
-    "id": "sim_config_configurator_trap",
-    "runId": "run_configurator_trap",
+    "id": "sim_config_configurator_hazard",
+    "runId": "run_configurator_hazard",
     "createdAt": "2025-01-01T00:00:00.000Z",
     "producedBy": "fixture"
   },
@@ -55,7 +55,7 @@
       "spawn": { "x": 2, "y": 1 },
       "exit": { "x": 3, "y": 2 },
       "bounds": "walls_block_movement",
-      "traps": [
+      "hazards": [
         {
           "x": 2,
           "y": 2,

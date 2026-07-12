@@ -15,7 +15,7 @@ function captureObservationPersona(captured) {
   };
 }
 
-test("runtime observation enriches static traps with vitals from sim config layout", async () => {
+test("runtime observation enriches static hazards with vitals from sim config layout", async () => {
   const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
@@ -29,14 +29,14 @@ test("runtime observation enriches static traps with vitals from sim config layo
   const simConfig = {
     schema: "agent-kernel/SimConfigArtifact",
     schemaVersion: 1,
-    meta: { id: "sim_trap_vitals", runId: "run_trap_vitals", createdAt: "2026-06-11T00:00:00.000Z", producedBy: "test" },
+    meta: { id: "sim_hazard_vitals", runId: "run_hazard_vitals", createdAt: "2026-06-11T00:00:00.000Z", producedBy: "test" },
     layout: {
       kind: "grid",
       data: {
         width: 5,
         height: 5,
         tiles: [".....", ".....", ".....", ".....", "....."],
-        traps: [
+        hazards: [
           {
             x: 1,
             y: 1,
@@ -67,10 +67,10 @@ test("runtime observation enriches static traps with vitals from sim config layo
 
   assert.ok(observations.length > 0);
   const observation = observations[0];
-  assert.ok(Array.isArray(observation.traps));
-  const trapAtOneOne = observation.traps.find((trap) => trap.position?.x === 1 && trap.position?.y === 1);
-  const trapAtThreeTwo = observation.traps.find((trap) => trap.position?.x === 3 && trap.position?.y === 2);
+  assert.ok(Array.isArray(observation.hazards));
+  const hazardAtOneOne = observation.hazards.find((hazard) => hazard.position?.x === 1 && hazard.position?.y === 1);
+  const hazardAtThreeTwo = observation.hazards.find((hazard) => hazard.position?.x === 3 && hazard.position?.y === 2);
 
-  assert.deepEqual(trapAtOneOne.vitals, simConfig.layout.data.traps[0].vitals);
-  assert.deepEqual(trapAtThreeTwo.vitals, simConfig.layout.data.traps[1].vitals);
+  assert.deepEqual(hazardAtOneOne.vitals, simConfig.layout.data.hazards[0].vitals);
+  assert.deepEqual(hazardAtThreeTwo.vitals, simConfig.layout.data.hazards[1].vitals);
 });

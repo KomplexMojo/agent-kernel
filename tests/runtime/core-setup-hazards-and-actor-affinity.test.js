@@ -31,8 +31,32 @@ function createArmingCore(armed) {
   return {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt(x, y, kind, expression, stacks, manaReserve) {
-      armed.push({ x, y, kind, expression, stacks, manaReserve });
+    armStaticHazardAt(
+      x,
+      y,
+      kind,
+      expression,
+      stacks,
+      manaReserve,
+      durabilityCurrent,
+      durabilityMax,
+      durabilityRegen,
+      manaMax,
+      manaRegen,
+    ) {
+      armed.push({
+        x,
+        y,
+        kind,
+        expression,
+        stacks,
+        manaReserve,
+        durabilityCurrent,
+        durabilityMax,
+        durabilityRegen,
+        manaMax,
+        manaRegen,
+      });
       return 1;
     },
   };
@@ -42,7 +66,7 @@ function createActorAffinityCore(affinityWrites, computeCalls = null) {
   return {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt() { return 1; },
+    armStaticHazardAt() { return 1; },
     clearActorPlacements() {},
     addActorPlacement() {},
     validateActorPlacement() { return 0; },
@@ -91,7 +115,7 @@ test("applySimConfigToCore arms hazards from layout.data.hazards", async () => {
   const core = {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt(x, y, kind, expression, stacks, manaReserve) {
+    armStaticHazardAt(x, y, kind, expression, stacks, manaReserve) {
       armed.push({ x, y, kind, expression, stacks, manaReserve });
       return 1;
     },
@@ -137,7 +161,7 @@ test("applySimConfigToCore normalizes hazards with position.x/y (not flat x/y)",
   const core = {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt(x, y, kind, expression, stacks, manaReserve) {
+    armStaticHazardAt(x, y, kind, expression, stacks, manaReserve) {
       armed.push({ x, y, kind, expression, stacks, manaReserve });
       return 1;
     },
@@ -173,13 +197,46 @@ test("applySimConfigToCore normalizes hazards with position.x/y (not flat x/y)",
   assert.equal(armed[0].manaReserve, 5, "mana from vitals");
 });
 
-test("applySimConfigToCore arms both traps and hazards", async () => {
+test("applySimConfigToCore preserves one-time hazard mana and durability", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const armed = [];
+  const core = createArmingCore(armed);
+
+  const result = applySimConfigToCore(core, createGridSimConfig({
+    hazards: [{
+      id: "one-time-hazard",
+      position: { x: 2, y: 3 },
+      affinityStacks: [{ kind: "fire", stacks: 2, expression: "emit" }],
+      vitals: {
+        mana: { kind: "one-time", amount: 3 },
+        durability: { kind: "one-time", amount: 7 },
+      },
+    }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(armed, [{
+    x: 2,
+    y: 3,
+    kind: AFFINITY_KIND_CODES.fire,
+    expression: AFFINITY_EXPRESSION_CODES.emit,
+    stacks: 2,
+    manaReserve: 3,
+    durabilityCurrent: 7,
+    durabilityMax: 7,
+    durabilityRegen: 0,
+    manaMax: 3,
+    manaRegen: 0,
+  }]);
+});
+
+test("applySimConfigToCore arms every hazard representation", async () => {
   const { applySimConfigToCore } = await loadSetupModule();
   const armed = [];
   const core = {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt(x, y, kind, expression, stacks, manaReserve) {
+    armStaticHazardAt(x, y, kind, expression, stacks, manaReserve) {
       armed.push({ x, y, kind, expression, stacks, manaReserve });
       return 1;
     },
@@ -192,7 +249,7 @@ test("applySimConfigToCore arms both traps and hazards", async () => {
         width: 6,
         height: 6,
         tiles: ["......", "......", "......", "......", "......", "......"],
-        traps: [
+        hazards: [
           {
             x: 1,
             y: 1,
@@ -200,8 +257,6 @@ test("applySimConfigToCore arms both traps and hazards", async () => {
             affinity: { kind: "earth", expression: "emit", stacks: 3 },
             vitals: { mana: { current: 4, max: 4, regen: 1 } },
           },
-        ],
-        hazards: [
           {
             id: "h1",
             position: { x: 3, y: 3 },
@@ -215,8 +270,8 @@ test("applySimConfigToCore arms both traps and hazards", async () => {
 
   const result = applySimConfigToCore(core, simConfig);
   assert.equal(result.ok, true);
-  assert.equal(armed.length, 2, "both trap and hazard armed");
-  assert.equal(armed[0].x, 1, "trap at 1,1");
+  assert.equal(armed.length, 2, "both hazards armed");
+  assert.equal(armed[0].x, 1, "hazard at 1,1");
   assert.equal(armed[1].x, 3, "hazard at 3,3");
 });
 
@@ -226,7 +281,7 @@ test("applySimConfigToCore skips hazards with invalid/missing affinity", async (
   const core = {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt(x, y, kind, expression, stacks, manaReserve) {
+    armStaticHazardAt(x, y, kind, expression, stacks, manaReserve) {
       armed.push({ x, y, kind, expression, stacks, manaReserve });
       return 1;
     },
@@ -260,7 +315,7 @@ test("applySimConfigToCore normalizes non-canonical hazard expression to push", 
   const core = {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt(x, y, kind, expression, stacks, manaReserve) {
+    armStaticHazardAt(x, y, kind, expression, stacks, manaReserve) {
       armed.push({ x, y, kind, expression, stacks, manaReserve });
       return 1;
     },
@@ -397,7 +452,7 @@ test("initializeCoreFromArtifacts calls computeAffinityField when available", as
   const core = {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt() { return 1; },
+    armStaticHazardAt() { return 1; },
     clearActorPlacements() {},
     addActorPlacement() {},
     validateActorPlacement() { return 0; },
@@ -488,7 +543,7 @@ test("applySimConfigToCore maps all hazard affinity expressions to core codes", 
   );
 });
 
-test("applySimConfigToCore prefers hazard vitals.mana and falls back to stacks", async () => {
+test("applySimConfigToCore prefers hazard vitals.mana current and falls back to stacks", async () => {
   const { applySimConfigToCore } = await loadSetupModule();
   const armed = [];
   const hazards = [
@@ -510,6 +565,40 @@ test("applySimConfigToCore prefers hazard vitals.mana and falls back to stacks",
   assert.equal(result.ok, true);
   assert.equal(armed[0].manaReserve, 9);
   assert.equal(armed[1].manaReserve, 12);
+});
+
+test("applySimConfigToCore passes full canonical hazard vitals to core arming", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const armed = [];
+  const hazards = [
+    {
+      id: "disabled-regenerating-hazard",
+      position: { x: 1, y: 1 },
+      affinityStacks: [{ kind: "corrode", stacks: 3, expression: "emit" }],
+      vitals: {
+        mana: { current: 0, max: 7, regen: 2 },
+        durability: { current: 4, max: 9, regen: 1 },
+      },
+    },
+  ];
+
+  const result = applySimConfigToCore(createArmingCore(armed), createGridSimConfig({ hazards }));
+
+  assert.equal(result.ok, true);
+  assert.equal(armed.length, 1);
+  assert.deepEqual(armed[0], {
+    x: 1,
+    y: 1,
+    kind: AFFINITY_KIND_CODES.corrode,
+    expression: AFFINITY_EXPRESSION_CODES.emit,
+    stacks: 3,
+    manaReserve: 0,
+    durabilityCurrent: 4,
+    durabilityMax: 9,
+    durabilityRegen: 1,
+    manaMax: 7,
+    manaRegen: 2,
+  });
 });
 
 test("applySimConfigToCore uses affinity stacks rather than hazard emitStrength", async () => {

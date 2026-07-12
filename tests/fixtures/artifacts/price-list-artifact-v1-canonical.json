@@ -43,7 +43,7 @@
     { "id": "tile_floor",   "kind": "tile", "unitCost": 1, "formula": "linear", "description": "One floor tile" },
     { "id": "tile_hallway", "kind": "tile", "unitCost": 3, "formula": "linear", "description": "One hallway tile" },
 
-    { "id": "trap_basic",  "kind": "trap",     "unitCost": 5,  "formula": "linear", "description": "Basic trap placement" },
+    { "id": "hazard_basic",  "kind": "hazard",     "unitCost": 5,  "formula": "linear", "description": "Basic hazard placement" },
     { "id": "hazard_base", "kind": "hazard",   "unitCost": 10, "formula": "linear", "description": "Base hazard instantiation cost" },
 
     { "id": "resource_base",      "kind": "resource", "unitCost": 1,  "formula": "linear", "description": "Consumable resource — costs same as its vital grant value" },

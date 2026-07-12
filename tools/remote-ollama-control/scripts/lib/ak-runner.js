@@ -117,7 +117,7 @@ function normalizeEntitySpec(key, spec) {
 
 // Normalize all entity array fields in toolArgs.
 function normalizeToolArgs(toolArgs) {
-  const ENTITY_KEYS = ['room', 'floorTile', 'trap', 'hazard', 'resource', 'delver', 'warden'];
+  const ENTITY_KEYS = ['room', 'floorTile', 'hazard', 'resource', 'delver', 'warden'];
   const out = { ...toolArgs };
   for (const key of ENTITY_KEYS) {
     out[key] = toArray(out[key]).map((spec) => normalizeEntitySpec(key, spec));
@@ -135,7 +135,7 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     'You are an agent-kernel dungeon designer. When given a dungeon creation request, ' +
     'call the ak_create tool with appropriate parameters. Use the exact prompt text as ' +
     `the text parameter. Set budgetTokens to ${budget}. Always set emitIntermediates ` +
-    'to true. Rooms are generic containers — affinity pressure belongs in traps or hazards. ' +
+    'to true. Rooms are generic containers — affinity pressure belongs in hazards. ' +
     'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.';
 
   const chatBody = {

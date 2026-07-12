@@ -81,7 +81,7 @@
         "durability": { "current": 0, "max": 0, "regen": 0 }
       }
     },
-    "traps": [
+    "hazards": [
       {
         "x": 2,
         "y": 2,
@@ -168,7 +168,7 @@
         ]
       }
     ],
-    "traps": [
+    "hazards": [
       {
         "position": { "x": 2, "y": 2 },
         "vitals": {
@@ -184,10 +184,10 @@
         "affinityTargets": { "fire:push:floor": 2 },
         "resolvedEffects": [
           {
-            "id": "fire:push:floor:arm_static_trap",
+            "id": "fire:push:floor:arm_static_hazard",
             "category": "environment",
-            "operation": "arm_static_trap",
-            "sourceType": "trap",
+            "operation": "arm_static_hazard",
+            "sourceType": "hazard",
             "sourceId": "2,2",
             "kind": "fire",
             "expression": "push",
@@ -199,7 +199,7 @@
             "id": "fire:push:floor:vital",
             "category": "vital",
             "operation": "apply_vital_affinity",
-            "sourceType": "trap",
+            "sourceType": "hazard",
             "sourceId": "2,2",
             "kind": "fire",
             "expression": "push",

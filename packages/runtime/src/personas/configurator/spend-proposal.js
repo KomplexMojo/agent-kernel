@@ -187,10 +187,11 @@ function extractResourcePriceEntries(resource) {
   return [];
 }
 
-function buildSpendItems({ layoutData, actors, traps, resources }) {
+function buildSpendItems({ layoutData, actors, hazards, resources }) {
   const counts = new Map();
-  const trapArray = Array.isArray(traps) ? traps : [];
-  const hazardArray = Array.isArray(layoutData?.hazards) ? layoutData.hazards : [];
+  const hazardArray = Array.isArray(hazards) && hazards.length > 0
+    ? hazards
+    : Array.isArray(layoutData?.hazards) ? layoutData.hazards : [];
   const resourceArray = [
     ...(Array.isArray(resources) ? resources : []),
     ...(Array.isArray(layoutData?.resources) ? layoutData.resources : []),
@@ -214,18 +215,18 @@ function buildSpendItems({ layoutData, actors, traps, resources }) {
     });
   }
 
-  if (trapArray.length > 0) {
-    trapArray.forEach((trap, index) => {
-      accumulateItem(counts, "trap_basic", "trap", 1, {
-        category: "traps",
-        subjectRef: buildSubjectRef(trap?.id || `trap_${index + 1}`, "agent-kernel/TrapArtifact"),
+  if (hazardArray.length > 0) {
+    hazardArray.forEach((hazard, index) => {
+      accumulateItem(counts, "hazard_basic", "hazard", 1, {
+        category: "hazards",
+        subjectRef: buildSubjectRef(hazard?.id || `hazard_${index + 1}`, "agent-kernel/HazardArtifact"),
       });
     });
   }
 
-  trapArray.forEach((trap, index) => {
-    const subjectRef = buildSubjectRef(trap?.id || `trap_${index + 1}`, "agent-kernel/TrapArtifact");
-    const vitals = trap?.vitals;
+  hazardArray.forEach((hazard, index) => {
+    const subjectRef = buildSubjectRef(hazard?.id || `hazard_${index + 1}`, "agent-kernel/HazardArtifact");
+    const vitals = hazard?.vitals;
     if (vitals && typeof vitals === "object") {
       Object.keys(vitals).forEach((key) => {
         const vital = vitals[key];
@@ -236,44 +237,17 @@ function buildSpendItems({ layoutData, actors, traps, resources }) {
             ? vital.current
             : 0;
         const regen = Number.isInteger(vital.regen) ? vital.regen : 0;
-        accumulateItem(counts, `vital_${key}_point`, "vital", max, { category: "traps", subjectRef });
-        accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category: "traps", subjectRef });
+        accumulateItem(counts, `vital_${key}_point`, "vital", max, { category: "hazards", subjectRef });
+        accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category: "hazards", subjectRef });
       });
     }
-    const affinity = trap?.affinity;
+    const affinity = hazard?.affinity;
     if (affinity && typeof affinity === "object") {
       const stacks = Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
       const expressionId = AFFINITY_EXPRESSION_IDS[affinity.expression];
       if (expressionId) {
-        accumulateItem(counts, expressionId, "affinity", stacks, { category: "traps", subjectRef });
+        accumulateItem(counts, expressionId, "affinity", stacks, { category: "hazards", subjectRef });
       }
-      accumulateItem(counts, "affinity_stack", "affinity", stacks, { category: "traps", subjectRef });
-    }
-  });
-
-  hazardArray.forEach((hazard, index) => {
-    const subjectRef = buildSubjectRef(hazard?.id || `hazard_${index + 1}`, "agent-kernel/HazardArtifact");
-    accumulateItem(counts, "hazard_base", "hazard", 1, { category: "hazards", subjectRef });
-    const mana = hazard?.mana;
-    if (mana && typeof mana === "object") {
-      const max = Number.isInteger(mana.max)
-        ? mana.max
-        : Number.isInteger(mana.current)
-          ? mana.current
-          : Number.isInteger(mana.amount)
-            ? mana.amount
-            : 0;
-      const regen = Number.isInteger(mana.regen) ? mana.regen : 0;
-      accumulateItem(counts, "vital_mana_point", "vital", max, { category: "hazards", subjectRef });
-      accumulateItem(counts, "vital_mana_regen_tick", "vital", regen, { category: "hazards", subjectRef });
-    }
-    const expression = hazard?.expression || hazard?.affinities?.[0]?.expression;
-    const stacks = Number.isInteger(hazard?.stacks) && hazard.stacks > 0 ? hazard.stacks : 1;
-    const expressionId = AFFINITY_EXPRESSION_IDS[expression];
-    if (expressionId) {
-      accumulateItem(counts, expressionId, "affinity", stacks, { category: "hazards", subjectRef });
-    }
-    if (typeof hazard?.affinity === "string" || expressionId) {
       accumulateItem(counts, "affinity_stack", "affinity", stacks, { category: "hazards", subjectRef });
     }
   });
@@ -339,15 +313,15 @@ function buildSpendItems({ layoutData, actors, traps, resources }) {
   });
 }
 
-export function buildSpendProposal({ meta, layout, actors, traps, resources } = {}) {
+export function buildSpendProposal({ meta, layout, actors, hazards, resources } = {}) {
   const layoutData = readLayoutData(layout);
-  const trapArray = Array.isArray(traps) ? traps
-    : Array.isArray(layoutData?.traps) ? layoutData.traps
+  const hazardArray = Array.isArray(hazards) ? hazards
+    : Array.isArray(layoutData?.hazards) ? layoutData.hazards
     : [];
   const resourceArray = Array.isArray(resources) && resources.length > 0
     ? resources
     : Array.isArray(layoutData?.resources) ? layoutData.resources : [];
-  const items = buildSpendItems({ layoutData, actors, traps: trapArray, resources: resourceArray });
+  const items = buildSpendItems({ layoutData, actors, hazards: hazardArray, resources: resourceArray });
 
   return {
     schema: SPEND_PROPOSAL_SCHEMA,
@@ -362,13 +336,13 @@ export function evaluateConfiguratorSpend({
   priceList,
   layout,
   actors,
-  traps,
+  hazards,
   resources,
   allocation,
   proposalMeta,
   receiptMeta,
 } = {}) {
-  const proposal = buildSpendProposal({ meta: proposalMeta, layout, actors, traps, resources });
+  const proposal = buildSpendProposal({ meta: proposalMeta, layout, actors, hazards, resources });
   const proposalRef = proposal?.meta?.id
     ? { id: proposal.meta.id, schema: proposal.schema, schemaVersion: proposal.schemaVersion }
     : undefined;

@@ -933,14 +933,14 @@ function affinityPriority(kind) {
   return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
 }
 
-function normalizeTrapPosition(trap) {
-  const x = Number(trap?.position?.x ?? trap?.x);
-  const y = Number(trap?.position?.y ?? trap?.y);
+function normalizeHazardPosition(hazard) {
+  const x = Number(hazard?.position?.x ?? hazard?.x);
+  const y = Number(hazard?.position?.y ?? hazard?.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   return { x: Math.floor(x), y: Math.floor(y) };
 }
 
-function normalizeTrapAffinityEntry(entry) {
+function normalizeHazardAffinityEntry(entry) {
   if (!entry || typeof entry !== "object") return null;
   const kind = typeof entry.kind === "string" ? entry.kind.trim().toLowerCase() : "";
   if (!kind || !AFFINITY_COLOR_HEX[kind]) return null;
@@ -952,16 +952,16 @@ function normalizeTrapAffinityEntry(entry) {
   return { kind, expression, stacks, targetType };
 }
 
-function collectTrapAffinities(trap) {
+function collectHazardAffinities(hazard) {
   const candidates = [];
-  if (trap?.affinity && typeof trap.affinity === "object") {
-    candidates.push(trap.affinity);
+  if (hazard?.affinity && typeof hazard.affinity === "object") {
+    candidates.push(hazard.affinity);
   }
-  if (Array.isArray(trap?.affinities)) {
-    candidates.push(...trap.affinities);
+  if (Array.isArray(hazard?.affinities)) {
+    candidates.push(...hazard.affinities);
   }
-  if (trap?.affinityTargets && typeof trap.affinityTargets === "object") {
-    Object.entries(trap.affinityTargets).forEach(([key, stacks]) => {
+  if (hazard?.affinityTargets && typeof hazard.affinityTargets === "object") {
+    Object.entries(hazard.affinityTargets).forEach(([key, stacks]) => {
       const parts = String(key).split(":");
       const kind = parts[0];
       const expression = parts[1] || "";
@@ -969,8 +969,8 @@ function collectTrapAffinities(trap) {
       candidates.push({ kind, expression, stacks, targetType });
     });
   }
-  if (trap?.affinityStacks && typeof trap.affinityStacks === "object") {
-    Object.entries(trap.affinityStacks).forEach(([key, stacks]) => {
+  if (hazard?.affinityStacks && typeof hazard.affinityStacks === "object") {
+    Object.entries(hazard.affinityStacks).forEach(([key, stacks]) => {
       const parts = String(key).split(":");
       const kind = parts[0];
       const expression = parts[1] || "";
@@ -978,7 +978,7 @@ function collectTrapAffinities(trap) {
     });
   }
   return candidates
-    .map(normalizeTrapAffinityEntry)
+    .map(normalizeHazardAffinityEntry)
     .filter(Boolean)
     .sort((a, b) => {
       // Prefer floor target, then higher stacks, then defined render order.
@@ -990,13 +990,13 @@ function collectTrapAffinities(trap) {
     });
 }
 
-function buildFloorAffinityMap(floorAffinityTraps = []) {
+function buildFloorAffinityMap(floorAffinityHazards = []) {
   const map = new Map();
-  if (!Array.isArray(floorAffinityTraps)) return map;
-  floorAffinityTraps.forEach((trap) => {
-    const position = normalizeTrapPosition(trap);
+  if (!Array.isArray(floorAffinityHazards)) return map;
+  floorAffinityHazards.forEach((hazard) => {
+    const position = normalizeHazardPosition(hazard);
     if (!position) return;
-    const affinities = collectTrapAffinities(trap);
+    const affinities = collectHazardAffinities(hazard);
     const affinity = affinities.length > 0 ? affinities[0] : null;
     if (!affinity) return;
     const key = `${position.x},${position.y}`;
@@ -1038,14 +1038,14 @@ function computeProjectionAlpha(distance, affinity) {
   return computeTileAlpha(distance + buffer, affinity?.stacks || 1, expression, SPATIAL_WEIGHTS);
 }
 
-function buildTileAffinityProjectionMap(floorAffinityTraps = [], tiles = [], widthTiles = 0, heightTiles = 0) {
+function buildTileAffinityProjectionMap(floorAffinityHazards = [], tiles = [], widthTiles = 0, heightTiles = 0) {
   const map = new Map();
-  if (!Array.isArray(floorAffinityTraps)) return map;
+  if (!Array.isArray(floorAffinityHazards)) return map;
 
-  floorAffinityTraps.forEach((trap) => {
-    const position = normalizeTrapPosition(trap);
+  floorAffinityHazards.forEach((hazard) => {
+    const position = normalizeHazardPosition(hazard);
     if (!position) return;
-    const affinities = collectTrapAffinities(trap);
+    const affinities = collectHazardAffinities(hazard);
     affinities.forEach((affinity) => {
       for (let y = 0; y < heightTiles; y += 1) {
         const row = String(tiles[y] || "").padEnd(widthTiles, "#");
@@ -1117,7 +1117,7 @@ function resolveOverlayAssetIds(bundle, actor) {
 export async function renderBoardWithResourceBundle({
   tiles = [],
   actors = [],
-  floorAffinityTraps = [],
+  floorAffinityHazards = [],
   resourceBundle,
   loadAssetPixels,
   observation,
@@ -1143,8 +1143,8 @@ export async function renderBoardWithResourceBundle({
   const height = heightTiles * tileHeight;
   const pixels = createPixelBuffer(width, height);
   const spriteCache = new Map();
-  const sourceAffinityMap = buildFloorAffinityMap(floorAffinityTraps);
-  const tileAffinityProjectionMap = buildTileAffinityProjectionMap(floorAffinityTraps, tiles, widthTiles, heightTiles);
+  const sourceAffinityMap = buildFloorAffinityMap(floorAffinityHazards);
+  const tileAffinityProjectionMap = buildTileAffinityProjectionMap(floorAffinityHazards, tiles, widthTiles, heightTiles);
 
   async function getSprite(assetId) {
     if (spriteCache.has(assetId)) return spriteCache.get(assetId);
@@ -1182,7 +1182,7 @@ export async function renderBoardWithResourceBundle({
     }
   }
 
-  // Aura rendering pass (after trap tinting, before actors)
+  // Aura rendering pass (after hazard tinting, before actors)
   if (observation?.auras && Array.isArray(observation.auras)) {
     const auraIndex = new Map();
     observation.auras.forEach((auraData) => {
@@ -1196,10 +1196,10 @@ export async function renderBoardWithResourceBundle({
         const char = row[x] || "#";
         const semantic = inferTileSemantic(char);
 
-        // Observation auras render on floor tiles; authored trap/source tiles keep their stronger authored overlay.
+        // Observation auras render on floor tiles; authored hazard/source tiles keep their stronger authored overlay.
         if (semantic !== "floor") continue;
-        const hasTrap = sourceAffinityMap.has(`${x},${y}`);
-        if (hasTrap) continue;
+        const hasHazard = sourceAffinityMap.has(`${x},${y}`);
+        if (hasHazard) continue;
 
         const auraData = auraIndex.get(`${x},${y}`);
         if (!auraData) continue;

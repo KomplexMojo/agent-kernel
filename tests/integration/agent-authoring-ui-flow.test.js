@@ -298,12 +298,12 @@ test("mixed-object create bundle survives the CLI -> Diagnostics -> injected Pre
   runCliOk([
     "create",
     "--text",
-    "Create a fire room with a trap, one delver, and one warden.",
+    "Create a fire room with a hazard, one delver, and one warden.",
     "--room",
     "size=large;count=1",
     "--floor-tile",
     "count=18",
-    "--trap",
+    "--hazard",
     "x=5;y=3;affinity=fire;expression=push;stacks=2",
     "--delver",
     "id=ember_delver;count=1;affinity=fire;motivation=attacking;setup-mode=user",
@@ -338,7 +338,7 @@ test("mixed-object create bundle survives the CLI -> Diagnostics -> injected Pre
   assert.deepEqual(normalizedSpec.authoring.objectKinds, [
     "room",
     "floor_tile",
-    "trap",
+    "hazard",
     "delver",
     "warden",
     "shared_config",
@@ -419,3 +419,7 @@ test("room-only create bundle still previews the generated room image and remain
   assert.equal(runResult.reason, "missing_required_types");
   assert.match(elements["#preview-status"].textContent, /Missing: delver, warden/i);
 }));
+
+// ## TODO: Test Permutations
+// - mixed positioned and auto-placed hazards should show only public hazard kinds in preview metadata.
+// - layout-only preview should remain unchanged when no hazard is present.

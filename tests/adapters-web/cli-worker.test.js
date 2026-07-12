@@ -67,7 +67,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
   assert.ok(buildResult.manifest.artifacts.some((entry) => entry.path === "resource-bundle.json"));
 
   const configuratorResult = await adapter.configurator({
-    levelGenPath: "/tests/fixtures/configurator/level-gen-input-v1-trap.json",
+    levelGenPath: "/tests/fixtures/configurator/level-gen-input-v1-hazard.json",
     actorsPath: "/tests/fixtures/configurator/actors-v1-affinity-base.json",
     budgetPath: "/tests/fixtures/artifacts/budget-artifact-v1-basic.json",
     priceListPath: "/tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
@@ -208,7 +208,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
   assert.ok(solveResult.artifacts["solver-result.json"]);
 
   const runResult = await adapter.run({
-    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json",
+    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json",
     initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
     ticks: 0,
     outDir: "/artifacts/browser/run",
@@ -231,7 +231,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
   assert.ok(runResult.artifacts["inspect-summary.json"] === undefined);
 
   const replayResult = await adapter.replay({
-    simConfigJson: runResult.resolvedSimConfig || runResult.artifacts["resolved-sim-config.json"] || loadJson("tests/fixtures/artifacts/sim-config-artifact-v1-configurator-trap.json"),
+    simConfigJson: runResult.resolvedSimConfig || runResult.artifacts["resolved-sim-config.json"] || loadJson("tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json"),
     initialStateJson: runResult.resolvedInitialState || runResult.artifacts["resolved-initial-state.json"] || loadJson("tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json"),
     tickFramesJson: runResult.tickFrames,
     ticks: 0,

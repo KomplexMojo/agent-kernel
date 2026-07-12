@@ -49,9 +49,9 @@ test("affinity bindings: code maps, readAffinityFieldAt, readAffinityInteraction
       core.setTileAt(x, y, 1);
     }
   }
-  core.armStaticTrapAt(2, 2, 1, 3, 2, 10); // fire emit stacks=2
+  core.armStaticHazardAt(2, 2, 1, 3, 2, 10); // fire emit stacks=2
 
-  core.computeStaticTrapAffinityField();
+  core.computeStaticHazardAffinityField();
 
   // Source tile (2,2) should have full intensity for fire (kind=1)
   const srcField = readAffinityFieldAt(core, 2, 2, 1);
@@ -160,7 +160,7 @@ test("readAffinityFieldAt reports zero for every kind with no source present", a
   for (let y = 0; y < 3; y += 1) {
     for (let x = 0; x < 3; x += 1) core.setTileAt(x, y, 1);
   }
-  core.computeStaticTrapAffinityField();
+  core.computeStaticHazardAffinityField();
   for (let kind = 1; kind <= 10; kind += 1) {
     const field = readAffinityFieldAt(core, 1, 1, kind);
     assert.equal(field.intensity, 0, `kind ${kind} intensity`);
@@ -169,7 +169,7 @@ test("readAffinityFieldAt reports zero for every kind with no source present", a
   }
 });
 
-test("readAffinityFieldAt uses max stacks for overlapping same-kind traps", async () => {
+test("readAffinityFieldAt uses max stacks for overlapping same-kind hazards", async () => {
   const { createCore, readAffinityFieldAt } = await import("../../packages/core-ts/src/index.ts");
   const core = createCore();
   core.init(0);
@@ -177,16 +177,16 @@ test("readAffinityFieldAt uses max stacks for overlapping same-kind traps", asyn
   for (let y = 0; y < 5; y += 1) {
     for (let x = 0; x < 5; x += 1) core.setTileAt(x, y, 1);
   }
-  assert.equal(core.armStaticTrapAt(2, 2, 1, 3, 1, 10), 1);
-  assert.equal(core.armStaticTrapAt(2, 2, 1, 3, 3, 10), 1);
-  core.computeStaticTrapAffinityField();
+  assert.equal(core.armStaticHazardAt(2, 2, 1, 3, 1, 10), 1);
+  assert.equal(core.armStaticHazardAt(2, 2, 1, 3, 3, 10), 1);
+  core.computeStaticHazardAffinityField();
   const field = readAffinityFieldAt(core, 2, 2, 1);
   assert.equal(field.intensity, 1);
   assert.equal(field.stacks, 3);
   assert.equal(field.expressionName, "emit");
 });
 
-test("readAffinityFieldAt combines actor and trap same-kind contributions", async () => {
+test("readAffinityFieldAt combines actor and hazard same-kind contributions", async () => {
   const { createCore, readAffinityFieldAt } = await import("../../packages/core-ts/src/index.ts");
   const core = createCore();
   core.init(0);
@@ -194,8 +194,8 @@ test("readAffinityFieldAt combines actor and trap same-kind contributions", asyn
   for (let y = 0; y < 5; y += 1) {
     for (let x = 0; x < 5; x += 1) core.setTileAt(x, y, 1);
   }
-  core.armStaticTrapAt(2, 2, 1, 3, 1, 10);
-  core.computeStaticTrapAffinityField();
+  core.armStaticHazardAt(2, 2, 1, 3, 1, 10);
+  core.computeStaticHazardAffinityField();
   core.clearActorPlacements();
   core.addActorPlacement(10, 2, 2);
   core.applyActorPlacements();
@@ -288,8 +288,8 @@ test("readAffinityFieldAt reports flat draw falloff inside radius", async () => 
   for (let y = 0; y < 7; y += 1) {
     for (let x = 0; x < 7; x += 1) core.setTileAt(x, y, 1);
   }
-  core.armStaticTrapAt(3, 3, 1, 4, 2, 10);
-  core.computeStaticTrapAffinityField();
+  core.armStaticHazardAt(3, 3, 1, 4, 2, 10);
+  core.computeStaticHazardAffinityField();
   const source = readAffinityFieldAt(core, 3, 3, 1);
   const adjacent = readAffinityFieldAt(core, 4, 3, 1);
   assert.equal(source.expressionName, "draw");

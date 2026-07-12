@@ -28,7 +28,7 @@
       "rooms": [
         {
           "affinity": "fire",
-          "trapAffinity": "fire"
+          "hazardAffinity": "fire"
         }
       ],
       "actors": [

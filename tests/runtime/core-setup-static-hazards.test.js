@@ -7,13 +7,13 @@ function loadSetupModule() {
   return coreSetupModulePromise;
 }
 
-test("applySimConfigToCore arms non-blocking static traps with mana reserve", async () => {
+test("applySimConfigToCore arms non-blocking static hazards with mana reserve", async () => {
   const { applySimConfigToCore } = await loadSetupModule();
   const armed = [];
   const core = {
     configureGrid() { return 0; },
     setTileAt() {},
-    armStaticTrapAt(x, y, kind, expression, stacks, manaReserve) {
+    armStaticHazardAt(x, y, kind, expression, stacks, manaReserve) {
       armed.push({ x, y, kind, expression, stacks, manaReserve });
       return 1;
     },
@@ -26,7 +26,7 @@ test("applySimConfigToCore arms non-blocking static traps with mana reserve", as
         width: 4,
         height: 4,
         tiles: ["....", "....", "....", "...."],
-        traps: [
+        hazards: [
           {
             x: 1,
             y: 1,

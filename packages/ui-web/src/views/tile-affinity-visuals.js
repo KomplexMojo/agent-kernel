@@ -50,7 +50,8 @@ function resolveOverlayAssetId(kind, resourceBundle) {
  *
  * fieldRecords is an array of { x, y, kind, kindCode, intensity, stacks,
  * expression, expressionName, contributionCount } — one entry per
- * (tile, affinityKind) pair where intensity > 0.
+ * (tile, affinityKind) pair where there is positive intensity or an
+ * observable cancelled contribution.
  *
  * @param {Array} fieldRecords
  * @param {object} resourceBundle
@@ -66,7 +67,8 @@ function deriveFromFieldRecords(fieldRecords, resourceBundle) {
     if (!record || typeof record !== "object") continue;
     const { x, y, kind, intensity } = record;
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-    if (!Number.isFinite(intensity) || intensity <= 0) continue;
+    if (!Number.isFinite(intensity)) continue;
+    if (intensity <= 0 && !(Number(record.contributionCount) > 0)) continue;
     const key = `${x},${y}`;
     let group = byTile.get(key);
     if (!group) {

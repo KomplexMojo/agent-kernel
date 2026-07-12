@@ -13,7 +13,7 @@
   "authoring": {
     "objectKinds": [
       "room",
-      "trap"
+      "hazard"
     ],
     "request": {
       "schema": "agent-kernel/AgentCommandRequestArtifact",
@@ -26,7 +26,7 @@
       },
       "command": {
         "action": "author",
-        "text": "Create a trapped room.",
+        "text": "Create a hazardous room.",
         "source": "cli-agent",
         "taxonomyVersion": 1
       },
@@ -36,8 +36,8 @@
           "prompt": "one room"
         },
         {
-          "kind": "trap",
-          "prompt": "one fire trap"
+          "kind": "hazard",
+          "prompt": "one fire hazard"
         }
       ],
       "compilation": {

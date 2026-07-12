@@ -1,5 +1,5 @@
 /**
- * I3 — explicit trap coordinates land outside every declared room, carving
+ * I3 — explicit hazard coordinates land outside every declared room, carving
  * stray floor in the void: failing base tests (interface-testing benchmark
  * sweep, 2026-07-09).
  *
@@ -9,24 +9,24 @@
  *
  * GROUND TRUTH (confirmed by direct invocation during test authoring, and
  * rendered visually by index_c.html via ak_push_to_ui):
- *   - Benchmark scenario 24 ("Trap Gauntlet": 2 rooms + 4 non-blocking traps
- *     at (1,1),(2,2),(3,3),(4,4)) produces a 30x30 grid where all 4 traps sit
+ *   - Benchmark scenario 24 ("Hazard Gauntlet": 2 rooms + 4 non-blocking hazards
+ *     at (1,1),(2,2),(3,3),(4,4)) produces a 30x30 grid where all 4 hazards sit
  *     on a disconnected diagonal of carved floor in the top-left corner —
  *     outside both declared rooms and unreachable from spawn. The UI renders
- *     floating trap icons in the void.
- *   - A trap at (0,0) IS rejected as trap_on_wall, so raw coordinates are
+ *     floating hazard icons in the void.
+ *   - A hazard at (0,0) IS rejected as hazard_on_wall, so raw coordinates are
  *     validated against the pre-carve border only: they are neither translated
  *     into room space nor validated against the final generated geometry.
- *   ADJUDICATED CONTRACT (developer decision, 2026-07-09): authored trap x/y
+ *   ADJUDICATED CONTRACT (developer decision, 2026-07-09): authored hazard x/y
  *   are ROOM-RELATIVE. The generator maps them into the target room's
  *   interior, rejects coordinates exceeding the room's bounds with a
  *   structured error, never carves floor outside declared rooms, and
  *   validates the mapped in-room tile after carving. The assertions below are
  *   outcome-level (on-floor, in-room, reachable) so they hold regardless of
- *   which room a trap is mapped into.
- *   ADDITIONAL GROUND TRUTH: a trap at raw (99,99) on a size=medium room
+ *   which room a hazard is mapped into.
+ *   ADDITIONAL GROUND TRUTH: a hazard at raw (99,99) on a size=medium room
  *   today succeeds and silently inflates the grid to 102x102 to contain the
- *   coordinate — grid size is driven by raw trap coords. Under the adjudicated
+ *   coordinate — grid size is driven by raw hazard coords. Under the adjudicated
  *   contract that request must instead be rejected as out of the room's
  *   bounds (see the second test).
  *
@@ -126,25 +126,25 @@ afterAll(() => {
   rmSync(permutationOutDir, { recursive: true, force: true });
 });
 
-describe("create trap room containment (I3: explicit trap coords escape the level)", () => {
+describe("create hazard room containment (I3: explicit hazard coords escape the level)", () => {
   let outDir;
 
   beforeAll(() => {
-    outDir = mkdtempSync(join(os.tmpdir(), "ak-i3-trap-containment-"));
+    outDir = mkdtempSync(join(os.tmpdir(), "ak-i3-hazard-containment-"));
   });
 
   afterAll(() => {
     rmSync(outDir, { recursive: true, force: true });
   });
 
-  test("every authored trap lands inside a declared room and reachable from spawn (FAILS today)", async () => {
+  test("every authored hazard lands inside a declared room and reachable from spawn (FAILS today)", async () => {
     const { ak_impl, authoringToolsModule } = await loadModules();
     const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
-    // Scenario-24-shaped request: multi-room level with explicit trap coords.
-    // The floorTile spec is load-bearing: WITHOUT it the same trap coordinates
-    // are rejected as trap_on_wall (the border is uncarved), and WITH it the
-    // generator carves floor underneath the raw trap coordinates in the void —
+    // Scenario-24-shaped request: multi-room level with explicit hazard coords.
+    // The floorTile spec is load-bearing: WITHOUT it the same hazard coordinates
+    // are rejected as hazard_on_wall (the border is uncarved), and WITH it the
+    // generator carves floor underneath the raw hazard coordinates in the void —
     // confirming coordinates are stamped, not mapped into room space.
     const dir = join(outDir, "gauntlet");
     const result = await runCliCommand(
@@ -153,12 +153,12 @@ describe("create trap room containment (I3: explicit trap coords escape the leve
       createTool.buildArgs({
         room: ["count=2;size=large"],
         floorTile: ["count=32"],
-        trap: [
+        hazard: [
           "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false",
           "x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false",
         ],
         budgetTokens: 2500,
-        runId: "i3_trap_containment",
+        runId: "i3_hazard_containment",
         outDir: dir,
       }),
     );
@@ -166,40 +166,40 @@ describe("create trap room containment (I3: explicit trap coords escape the leve
 
     const layoutData = JSON.parse(readFileSync(join(dir, "sim-config.json"), "utf8")).layout.data;
     const rooms = layoutData.rooms ?? [];
-    const traps = layoutData.traps ?? [];
-    assert.equal(traps.length, 2, `expected 2 traps in sim-config, got ${traps.length}`);
+    const hazards = layoutData.hazards ?? [];
+    assert.equal(hazards.length, 2, `expected 2 hazards in sim-config, got ${hazards.length}`);
     assert.ok(rooms.length >= 1, "expected declared rooms in layout.data.rooms");
 
     const spawn = layoutData.spawn;
     assert.ok(Number.isInteger(spawn?.x), `layout must declare an integer spawn, got ${JSON.stringify(spawn)}`);
     const reachable = reachableFrom(layoutData, spawn);
 
-    for (const [i, trap] of traps.entries()) {
+    for (const [i, hazard] of hazards.entries()) {
       assert.ok(
-        floorAt(layoutData, trap.x, trap.y),
-        `trap[${i}] @(${trap.x},${trap.y}) must be on a floor tile of the final grid`,
+        floorAt(layoutData, hazard.x, hazard.y),
+        `hazard[${i}] @(${hazard.x},${hazard.y}) must be on a floor tile of the final grid`,
       );
       assert.ok(
-        inAnyRoom(rooms, trap.x, trap.y),
-        `trap[${i}] @(${trap.x},${trap.y}) must lie inside a declared room — today raw authored ` +
+        inAnyRoom(rooms, hazard.x, hazard.y),
+        `hazard[${i}] @(${hazard.x},${hazard.y}) must lie inside a declared room — today raw authored ` +
           `coordinates are stamped onto the grid unmapped (rooms: ${JSON.stringify(rooms.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.width, h: r.height })))}), ` +
           "carving stray floor in the void (benchmark scenarios 24/45/46/47)",
       );
       assert.ok(
-        reachable.has(`${trap.x},${trap.y}`),
-        `trap[${i}] @(${trap.x},${trap.y}) must be reachable from spawn (${spawn.x},${spawn.y}) — ` +
-          "an unreachable trap can never trigger and violates the authored intent",
+        reachable.has(`${hazard.x},${hazard.y}`),
+        `hazard[${i}] @(${hazard.x},${hazard.y}) must be reachable from spawn (${spawn.x},${spawn.y}) — ` +
+          "an unreachable hazard can never trigger and violates the authored intent",
       );
     }
   });
 
-  test("trap coordinates exceeding the room's interior are rejected with a structured error (FAILS today)", async () => {
+  test("hazard coordinates exceeding the room's interior are rejected with a structured error (FAILS today)", async () => {
     const { ak_impl, authoringToolsModule } = await loadModules();
     const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
     // GROUND TRUTH: today this SUCCEEDS and silently inflates the grid to
     // 102x102 so the raw coordinate fits — the level dimensions are driven by
-    // unvalidated trap coords. Under the adjudicated room-relative contract a
+    // unvalidated hazard coords. Under the adjudicated room-relative contract a
     // coordinate that exceeds every declared room's interior must be a
     // structured rejection, never a silent grid inflation.
     const dir = join(outDir, "oob");
@@ -209,16 +209,16 @@ describe("create trap room containment (I3: explicit trap coords escape the leve
       createTool.buildArgs({
         room: ["size=medium;count=1"],
         floorTile: ["count=20"],
-        trap: ["x=99;y=99;affinity=fire;expression=emit;stacks=1;blocking=false"],
+        hazard: ["x=99;y=99;affinity=fire;expression=emit;stacks=1;blocking=false"],
         budgetTokens: 2000,
-        runId: "i3_trap_oob",
+        runId: "i3_hazard_oob",
         outDir: dir,
       }),
     );
     assert.equal(
       result.ok,
       false,
-      "a trap at room-relative (99,99) exceeds a medium room's interior and must be rejected " +
+      "a hazard at room-relative (99,99) exceeds a medium room's interior and must be rejected " +
         "with a structured error — today create succeeds and inflates the grid to 102x102 " +
         "to contain the raw coordinate",
     );
@@ -226,29 +226,29 @@ describe("create trap room containment (I3: explicit trap coords escape the leve
 });
 
 // ## TODO: Test Permutations (expanded 2026-07-11 — M5)
-test("i3 trap coords beyond grid bounds are rejected with a structured error", async () => {
+test("i3 hazard coords beyond grid bounds are rejected with a structured error", async () => {
   const { ak_impl, authoringToolsModule } = await loadModules();
   const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
-  const dir = join(permutationOutDir, "oob-trap");
+  const dir = join(permutationOutDir, "oob-hazard");
   const result = await runCliCommand(
     ak_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
       floorTile: ["count=20"],
-      trap: ["x=99;y=99;affinity=fire;expression=emit;stacks=1;blocking=false"],
+      hazard: ["x=99;y=99;affinity=fire;expression=emit;stacks=1;blocking=false"],
       budgetTokens: 2000,
-      runId: "i3_trap_oob",
+      runId: "i3_hazard_oob",
       outDir: dir,
     }),
   );
 
-  assert.equal(result.ok, false, "a trap at (99,99) must be rejected");
-  assert.match(result.error, /out_of_bounds/, "current rejection path is traps[0].position:out_of_bounds");
+  assert.equal(result.ok, false, "a hazard at (99,99) must be rejected");
+  assert.match(result.error, /out_of_bounds/, "current rejection path is hazards[0].position:out_of_bounds");
 });
 
-test("i3 single-room level maps trap coords into the carved interior", async () => {
+test("i3 single-room level maps hazard coords into the carved interior", async () => {
   const { ak_impl, authoringToolsModule } = await loadModules();
   const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
@@ -258,51 +258,51 @@ test("i3 single-room level maps trap coords into the carved interior", async () 
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
-      trap: ["x=1;y=1;affinity=earth;expression=emit;stacks=2;blocking=false"],
+      hazard: ["x=1;y=1;affinity=earth;expression=emit;stacks=2;blocking=false"],
       budgetTokens: 1500,
       runId: "i3_single_room_mapping",
       outDir: dir,
     }),
   );
-  assert.equal(result.ok, true, `single-room trap mapping must succeed: ${result.error}`);
+  assert.equal(result.ok, true, `single-room hazard mapping must succeed: ${result.error}`);
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   const room = layoutData.rooms?.[0];
-  const trap = layoutData.traps?.[0];
+  const hazard = layoutData.hazards?.[0];
   assert.ok(room, "expected one declared room");
-  assert.ok(trap, "expected one mapped trap");
-  assert.ok(floorAt(layoutData, trap.x, trap.y), "mapped trap should land on a floor tile");
+  assert.ok(hazard, "expected one mapped hazard");
+  assert.ok(floorAt(layoutData, hazard.x, hazard.y), "mapped hazard should land on a floor tile");
   assert.ok(
-    inAnyRoom([room], trap.x, trap.y),
-    `mapped trap should land inside the declared room, got (${trap.x},${trap.y}) in ${JSON.stringify(room)}`,
+    inAnyRoom([room], hazard.x, hazard.y),
+    `mapped hazard should land inside the declared room, got (${hazard.x},${hazard.y}) in ${JSON.stringify(room)}`,
   );
 });
 
-test("i3 traps at the same coordinate are rejected, not stacked silently", async () => {
+test("i3 hazards at the same coordinate are rejected, not stacked silently", async () => {
   const { ak_impl, authoringToolsModule } = await loadModules();
   const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
-  const dir = join(permutationOutDir, "duplicate-traps");
+  const dir = join(permutationOutDir, "duplicate-hazards");
   const result = await runCliCommand(
     ak_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["size=medium;count=1"],
-      trap: [
+      hazard: [
         "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false",
         "x=1;y=1;affinity=water;expression=emit;stacks=2;blocking=false",
       ],
       budgetTokens: 1500,
-      runId: "i3_duplicate_traps",
+      runId: "i3_duplicate_hazards",
       outDir: dir,
     }),
   );
 
-  assert.equal(result.ok, false, "duplicate trap coordinates should be rejected");
-  assert.match(result.error, /duplicate_trap/, "current behavior rejects duplicates explicitly");
+  assert.equal(result.ok, false, "duplicate hazard coordinates should be rejected");
+  assert.match(result.error, /duplicate_hazard/, "current behavior rejects duplicates explicitly");
 });
 
-test("i3 hazard positions obey the same room-containment contract as traps", async () => {
+test("i3 positioned and auto-placed hazards obey the same room-containment contract", async () => {
   const { ak_impl, authoringToolsModule } = await loadModules();
   const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
@@ -313,20 +313,22 @@ test("i3 hazard positions obey the same room-containment contract as traps", asy
     createTool.buildArgs({
       room: ["count=2;size=large"],
       floorTile: ["count=32"],
-      trap: ["x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false"],
-      hazard: ["affinity=fire;expression=emit;proximityRadius=1;mana=regen:2:2:1"],
+      hazard: [
+        "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false",
+        "affinity=fire;expression=emit;proximityRadius=1;mana=regen:2:2:1",
+      ],
       budgetTokens: 2500,
       runId: "i3_hazard_containment",
       outDir: dir,
     }),
   );
-  assert.equal(result.ok, true, `mixed trap/hazard create must succeed: ${result.error}`);
+  assert.equal(result.ok, true, `mixed hazard placement create must succeed: ${result.error}`);
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   const rooms = layoutData.rooms ?? [];
-  for (const trap of layoutData.traps ?? []) {
-    assert.ok(floorAt(layoutData, trap.x, trap.y), `trap @(${trap.x},${trap.y}) must sit on floor`);
-    assert.ok(inAnyRoom(rooms, trap.x, trap.y), `trap @(${trap.x},${trap.y}) must stay inside a declared room`);
+  for (const hazard of layoutData.hazards ?? []) {
+    assert.ok(floorAt(layoutData, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must sit on floor`);
+    assert.ok(inAnyRoom(rooms, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must stay inside a declared room`);
   }
   for (const hazard of layoutData.hazards ?? []) {
     assert.ok(floorAt(layoutData, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must sit on floor`);
@@ -334,26 +336,26 @@ test("i3 hazard positions obey the same room-containment contract as traps", asy
   }
 });
 
-test("i3 push_to_ui bundle renders every trap inside a room outline", async () => {
+test("i3 push_to_ui bundle renders every hazard inside a room outline", async () => {
   // The create-time bundle is the artifact the UI pipeline consumes here, so
-  // this pins the same room-contained trap geometry on the bundle/manifest
+  // this pins the same room-contained hazard geometry on the bundle/manifest
   // side rather than inventing a separate render-only seam.
   const { ak_impl, authoringToolsModule } = await loadModules();
   const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
-  const dir = join(permutationOutDir, "bundle-traps");
+  const dir = join(permutationOutDir, "bundle-hazards");
   const result = await runCliCommand(
     ak_impl.executeCommand,
     createTool.command,
     createTool.buildArgs({
       room: ["count=2;size=large"],
       floorTile: ["count=32"],
-      trap: [
+      hazard: [
         "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false",
         "x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false",
       ],
       budgetTokens: 2500,
-      runId: "i3_bundle_traps",
+      runId: "i3_bundle_hazards",
       outDir: dir,
     }),
   );
@@ -370,8 +372,8 @@ test("i3 push_to_ui bundle renders every trap inside a room outline", async () =
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   const rooms = layoutData.rooms ?? [];
-  for (const trap of layoutData.traps ?? []) {
-    assert.ok(floorAt(layoutData, trap.x, trap.y), `trap @(${trap.x},${trap.y}) must remain on floor in the bundle payload`);
-    assert.ok(inAnyRoom(rooms, trap.x, trap.y), `trap @(${trap.x},${trap.y}) must remain inside a room outline`);
+  for (const hazard of layoutData.hazards ?? []) {
+    assert.ok(floorAt(layoutData, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must remain on floor in the bundle payload`);
+    assert.ok(inAnyRoom(rooms, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must remain inside a room outline`);
   }
 });

@@ -1,6 +1,6 @@
 import {
   affinityExpressionAllowsEnvironmentMutation,
-  affinityExpressionAllowsTrapArming,
+  affinityExpressionAllowsHazardArming,
   affinityExpressionIsPersistentField,
   getAffinityExpressionCount,
   getAffinityKindCount,
@@ -62,7 +62,7 @@ export const CORE_API_KEYS = [
   "addMotivationEvaluationEntry",
   "advanceTick",
   "affinityExpressionAllowsEnvironmentMutation",
-  "affinityExpressionAllowsTrapArming",
+  "affinityExpressionAllowsHazardArming",
   "affinityExpressionIsPersistentField",
   "applyAction",
   "applyActorPlacements",
@@ -70,7 +70,7 @@ export const CORE_API_KEYS = [
   "applyAffinityDamageToHazard",
   "applyAffinityPullFromHazard",
   "applyAttack",
-  "armStaticTrapAt",
+  "armStaticHazardAt",
   "clearActorPlacements",
   "clearAffinityField",
   "clearEffects",
@@ -80,10 +80,10 @@ export const CORE_API_KEYS = [
   "computeAffinityManaCost",
   "computeAffinityPotency",
   "computeAffinityRadius",
-  "computeStaticTrapAffinityField",
+  "computeStaticHazardAffinityField",
   "configureGrid",
   "destroyBarrierAt",
-  "disarmStaticTrapAt",
+  "disarmStaticHazardAt",
   "evaluateMotivations",
   "getActorActionCostMana",
   "getActorActionCostStamina",
@@ -176,16 +176,16 @@ export const CORE_API_KEYS = [
   "getMotivationProfileCost",
   "getMotivationTier",
   "getOppositeAffinityKind",
-  "getStaticTrapAffinityAt",
-  "getStaticTrapCount",
-  "getStaticTrapDurabilityAt",
-  "getStaticTrapDurabilityMaxAt",
-  "getStaticTrapDurabilityRegenAt",
-  "getStaticTrapExpressionAt",
-  "getStaticTrapManaMaxAt",
-  "getStaticTrapManaRegenAt",
-  "getStaticTrapManaReserveAt",
-  "getStaticTrapStacksAt",
+  "getStaticHazardAffinityAt",
+  "getStaticHazardCount",
+  "getStaticHazardDurabilityAt",
+  "getStaticHazardDurabilityMaxAt",
+  "getStaticHazardDurabilityRegenAt",
+  "getStaticHazardExpressionAt",
+  "getStaticHazardManaMaxAt",
+  "getStaticHazardManaRegenAt",
+  "getStaticHazardManaReserveAt",
+  "getStaticHazardStacksAt",
   "getTileActorCount",
   "getTileActorDurability",
   "getTileActorDurabilityByIndex",
@@ -408,8 +408,8 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
     getDefaultAffinityTargetType as CoreFunction;
   core.affinityExpressionAllowsEnvironmentMutation =
     affinityExpressionAllowsEnvironmentMutation as CoreFunction;
-  core.affinityExpressionAllowsTrapArming =
-    affinityExpressionAllowsTrapArming as CoreFunction;
+  core.affinityExpressionAllowsHazardArming =
+    affinityExpressionAllowsHazardArming as CoreFunction;
   core.affinityExpressionIsPersistentField =
     affinityExpressionIsPersistentField as CoreFunction;
   core.computeAffinityRadius = computeAffinityRadius as CoreFunction;
@@ -557,24 +557,24 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getTileActorDurability = world.getTileActorDurability.bind(world) as CoreFunction;
   core.raiseBarrierAt = world.raiseBarrierAt as CoreFunction;
   core.destroyBarrierAt = world.destroyBarrierAt as CoreFunction;
-  core.armStaticTrapAt = world.armStaticTrapAt as CoreFunction;
-  core.disarmStaticTrapAt = world.disarmStaticTrapAt as CoreFunction;
-  core.getStaticTrapCount = world.getStaticTrapCount as CoreFunction;
-  core.getStaticTrapAffinityAt = world.getStaticTrapAffinityAt as CoreFunction;
-  core.getStaticTrapDurabilityAt = world.getStaticTrapDurabilityAt as CoreFunction;
-  core.getStaticTrapDurabilityMaxAt = world.getStaticTrapDurabilityMaxAt as CoreFunction;
-  core.getStaticTrapDurabilityRegenAt = world.getStaticTrapDurabilityRegenAt as CoreFunction;
-  core.getStaticTrapExpressionAt = world.getStaticTrapExpressionAt as CoreFunction;
-  core.getStaticTrapManaMaxAt = world.getStaticTrapManaMaxAt as CoreFunction;
-  core.getStaticTrapManaRegenAt = world.getStaticTrapManaRegenAt as CoreFunction;
-  core.getStaticTrapManaReserveAt = world.getStaticTrapManaReserveAt as CoreFunction;
-  core.getStaticTrapStacksAt = world.getStaticTrapStacksAt as CoreFunction;
+  core.armStaticHazardAt = world.armStaticHazardAt as CoreFunction;
+  core.disarmStaticHazardAt = world.disarmStaticHazardAt as CoreFunction;
+  core.getStaticHazardCount = world.getStaticHazardCount as CoreFunction;
+  core.getStaticHazardAffinityAt = world.getStaticHazardAffinityAt as CoreFunction;
+  core.getStaticHazardDurabilityAt = world.getStaticHazardDurabilityAt as CoreFunction;
+  core.getStaticHazardDurabilityMaxAt = world.getStaticHazardDurabilityMaxAt as CoreFunction;
+  core.getStaticHazardDurabilityRegenAt = world.getStaticHazardDurabilityRegenAt as CoreFunction;
+  core.getStaticHazardExpressionAt = world.getStaticHazardExpressionAt as CoreFunction;
+  core.getStaticHazardManaMaxAt = world.getStaticHazardManaMaxAt as CoreFunction;
+  core.getStaticHazardManaRegenAt = world.getStaticHazardManaRegenAt as CoreFunction;
+  core.getStaticHazardManaReserveAt = world.getStaticHazardManaReserveAt as CoreFunction;
+  core.getStaticHazardStacksAt = world.getStaticHazardStacksAt as CoreFunction;
   core.clearAffinityField = world.clearAffinityField as CoreFunction;
   core.getAffinityFieldIntensityAt = world.getAffinityFieldIntensityAt as CoreFunction;
   core.getAffinityFieldStacksAt = world.getAffinityFieldStacksAt as CoreFunction;
   core.getAffinityFieldExpressionAt = world.getAffinityFieldExpressionAt as CoreFunction;
   core.getAffinityFieldContributionCountAt = world.getAffinityFieldContributionCountAt as CoreFunction;
-  core.computeStaticTrapAffinityField = world.computeStaticTrapAffinityField as CoreFunction;
+  core.computeStaticHazardAffinityField = world.computeStaticHazardAffinityField as CoreFunction;
   core.computeActorAffinityField = world.computeActorAffinityField as CoreFunction;
   core.computeAffinityField = world.computeAffinityField.bind(world) as CoreFunction;
   core.setMotivatedActorAffinity = world.setMotivatedActorAffinity as CoreFunction;

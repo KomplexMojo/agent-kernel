@@ -1,0 +1,33 @@
+{
+  "schema": "agent-kernel/HazardArtifact",
+  "schemaVersion": 3,
+  "meta": {
+    "id": "hazard_canonical",
+    "runId": "run_hazard_test",
+    "createdAt": "2026-07-11T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "affinity": "fire",
+  "expression": "emit",
+  "affinityStacks": [
+    {
+      "kind": "fire",
+      "expression": "emit",
+      "stacks": 2,
+      "targetType": "floor"
+    }
+  ],
+  "vitals": {
+    "mana": {
+      "kind": "regen",
+      "current": 4,
+      "max": 4,
+      "regen": 1
+    },
+    "durability": {
+      "kind": "one-time",
+      "amount": 6
+    }
+  },
+  "proximityRadius": 2
+}

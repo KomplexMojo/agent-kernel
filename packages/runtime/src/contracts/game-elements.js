@@ -387,7 +387,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
       defaultColor: GAME_COLOR_PALETTE.items.hazard,
       assetId: "item.hazard",
       assetKind: "item",
-      description: "Static danger source, trap, or hostile environmental object.",
+      description: "Static danger source, hazard, or hostile environmental object.",
     }),
     element({
       group: "items",

@@ -18,7 +18,7 @@
   "connectivity": {
     "requirePath": true
   },
-  "traps": [
+  "hazards": [
     {
       "x": 2,
       "y": 2,

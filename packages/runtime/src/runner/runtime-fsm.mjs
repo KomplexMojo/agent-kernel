@@ -202,46 +202,46 @@ function resolveBaseTiles(simConfig, core) {
   return null;
 }
 
-function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutTraps = [], actorIds = []) {
+function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutHazards = [], actorIds = []) {
   if (!core || !canReadObservation(core)) return null;
   try {
     const observation = readObservation(core, { actorIdLabel, affinityEffects, actorIds });
 
-    // Enrich observation traps with full vitals from layout
-    if (observation && Array.isArray(observation.traps) && Array.isArray(layoutTraps)) {
-      const trapVitalsByPosition = new Map();
-      layoutTraps.forEach((layoutTrap) => {
-        if (layoutTrap?.position?.x != null && layoutTrap?.position?.y != null) {
-          const key = `${layoutTrap.position.x},${layoutTrap.position.y}`;
-          trapVitalsByPosition.set(key, layoutTrap.vitals);
-        } else if (layoutTrap?.x != null && layoutTrap?.y != null) {
-          const key = `${layoutTrap.x},${layoutTrap.y}`;
-          trapVitalsByPosition.set(key, layoutTrap.vitals);
+    // Enrich observation hazards with full vitals from layout
+    if (observation && Array.isArray(observation.hazards) && Array.isArray(layoutHazards)) {
+      const hazardVitalsByPosition = new Map();
+      layoutHazards.forEach((layoutHazard) => {
+        if (layoutHazard?.position?.x != null && layoutHazard?.position?.y != null) {
+          const key = `${layoutHazard.position.x},${layoutHazard.position.y}`;
+          hazardVitalsByPosition.set(key, layoutHazard.vitals);
+        } else if (layoutHazard?.x != null && layoutHazard?.y != null) {
+          const key = `${layoutHazard.x},${layoutHazard.y}`;
+          hazardVitalsByPosition.set(key, layoutHazard.vitals);
         }
       });
 
-      observation.traps = observation.traps.map((trap) => {
-        const key = `${trap.position?.x ?? 0},${trap.position?.y ?? 0}`;
-        const vitals = trapVitalsByPosition.get(key);
-        return vitals ? { ...trap, vitals } : trap;
+      observation.hazards = observation.hazards.map((hazard) => {
+        const key = `${hazard.position?.x ?? 0},${hazard.position?.y ?? 0}`;
+        const vitals = hazardVitalsByPosition.get(key);
+        return vitals ? { ...hazard, vitals } : hazard;
       });
     }
 
     // Compatibility only: existing renderers/tests still consume observation.auras.
     // New tile visuals should come from core affinity field records.
-    if (observation && baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.traps))) {
+    if (observation && baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.hazards))) {
       const actors = Array.isArray(observation.actors) ? observation.actors : [];
-      const traps = Array.isArray(observation.traps) ? observation.traps : [];
+      const hazards = Array.isArray(observation.hazards) ? observation.hazards : [];
 
-      // Convert traps to pseudo-actors for the compatibility aura projection.
-      const trapActors = traps.map((trap, index) => ({
-        id: `trap_${index}`,
-        x: trap.position?.x ?? 0,
-        y: trap.position?.y ?? 0,
-        affinities: trap.affinities || [],
+      // Convert hazards to pseudo-actors for the compatibility aura projection.
+      const hazardActors = hazards.map((hazard, index) => ({
+        id: `hazard_${index}`,
+        x: hazard.position?.x ?? 0,
+        y: hazard.position?.y ?? 0,
+        affinities: hazard.affinities || [],
       }));
 
-      const allActors = [...actors, ...trapActors];
+      const allActors = [...actors, ...hazardActors];
       const auraMap = computeAuraMap(allActors, baseTiles, {
         affinityOpposites: AFFINITY_OPPOSITES,
         weights: SPATIAL_WEIGHTS,
@@ -526,7 +526,7 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
         direct: { kind: "raise_barrier", x, y },
       };
     }
-    case "arm_static_trap": {
+    case "arm_static_hazard": {
       const x = toInt(params.x);
       const y = toInt(params.y);
       const kind = typeof params.kind === "string" ? params.kind.toLowerCase() : "";
@@ -539,19 +539,19 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
         return { ok: false, reason: "missing_target_position" };
       }
       if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) {
-        return { ok: false, reason: "invalid_affinity_trap_spec" };
+        return { ok: false, reason: "invalid_affinity_hazard_spec" };
       }
       if (!Number.isFinite(stacks) || stacks <= 0 || !Number.isFinite(manaReserve) || manaReserve <= 0) {
-        return { ok: false, reason: "invalid_static_trap_costs" };
+        return { ok: false, reason: "invalid_static_hazard_costs" };
       }
-      if (typeof core?.armStaticTrapAt !== "function") {
-        return { ok: false, reason: "missing_armStaticTrapAt" };
+      if (typeof core?.armStaticHazardAt !== "function") {
+        return { ok: false, reason: "missing_armStaticHazardAt" };
       }
       return {
         ok: true,
         action: { ...action, tick: actionTick },
         direct: {
-          kind: "arm_static_trap",
+          kind: "arm_static_hazard",
           x,
           y,
           affinityKind,
@@ -561,19 +561,19 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
         },
       };
     }
-    case "disarm_static_trap": {
+    case "disarm_static_hazard": {
       const x = toInt(params.x);
       const y = toInt(params.y);
       if (!Number.isFinite(x) || !Number.isFinite(y)) {
         return { ok: false, reason: "missing_target_position" };
       }
-      if (typeof core?.disarmStaticTrapAt !== "function") {
-        return { ok: false, reason: "missing_disarmStaticTrapAt" };
+      if (typeof core?.disarmStaticHazardAt !== "function") {
+        return { ok: false, reason: "missing_disarmStaticHazardAt" };
       }
       return {
         ok: true,
         action: { ...action, tick: actionTick },
-        direct: { kind: "disarm_static_trap", x, y },
+        direct: { kind: "disarm_static_hazard", x, y },
       };
     }
     default:
@@ -937,8 +937,8 @@ export function createFsmRuntime({
           acceptedActions.push(adaptation.action);
           continue;
         }
-        if (directive.kind === "arm_static_trap") {
-          const armed = core.armStaticTrapAt(
+        if (directive.kind === "arm_static_hazard") {
+          const armed = core.armStaticHazardAt(
             directive.x,
             directive.y,
             directive.affinityKind,
@@ -947,14 +947,14 @@ export function createFsmRuntime({
             directive.manaReserve,
           );
           if (Number.isFinite(armed) && armed === 0) {
-            preCoreRejections.push({ action, reason: "arm_static_trap_rejected" });
+            preCoreRejections.push({ action, reason: "arm_static_hazard_rejected" });
             continue;
           }
           acceptedActions.push(adaptation.action);
           continue;
         }
-        if (directive.kind === "disarm_static_trap") {
-          core.disarmStaticTrapAt(directive.x, directive.y);
+        if (directive.kind === "disarm_static_hazard") {
+          core.disarmStaticHazardAt(directive.x, directive.y);
           acceptedActions.push(adaptation.action);
           continue;
         }
@@ -1092,7 +1092,7 @@ export function createFsmRuntime({
       }
 
       const currentPhase = orchestrator.view().phase;
-      const layoutTraps = simConfig?.layout?.data?.traps || [];
+      const layoutHazards = simConfig?.layout?.data?.hazards || [];
       // Build sorted actor ID list so readObservation labels all actors by their original IDs.
       // actorIdMap maps id → 1-based numeric index; sort by index to get core ordering.
       const sortedActorIds = actorIdMap.size > 0
@@ -1106,7 +1106,7 @@ export function createFsmRuntime({
       const decideActorIds = Array.isArray(initialState?.actors)
         ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id))
         : sortedActorIds;
-      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutTraps, sortedActorIds);
+      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedActorIds);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,

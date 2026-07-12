@@ -60,7 +60,7 @@ test("actor persona emits runtime-decision solver requests from live observation
         "..E",
       ],
       affinityEffects: {
-        traps: [{ id: "trap_1", kind: "trap", position: { x: 0, y: 1 }, affinity: "fire", expression: "emit", stacks: 1 }],
+        hazards: [{ id: "hazard_1", kind: "hazard", position: { x: 0, y: 1 }, affinity: "fire", expression: "emit", stacks: 1 }],
       },
     },
     tick: 2,
@@ -78,6 +78,15 @@ test("actor persona emits runtime-decision solver requests from live observation
       actorId,
       initialState,
       runId: "run_actor_runtime_decision",
+      hazards: [
+        {
+          id: "hazard_1_secondary",
+          kind: "hazard",
+          x: 2,
+          y: 2,
+          affinity: { kind: "water", expression: "emit", stacks: 2 },
+        },
+      ],
     },
     tick: 3,
   });
@@ -91,7 +100,17 @@ test("actor persona emits runtime-decision solver requests from live observation
   assert.equal(envelope.actor.id, actorId);
   assert.equal(envelope.providerPolicy.preferred, "solver");
   assert.equal(envelope.visibleActors.length, 2);
-  assert.equal(envelope.hazards.length, 1);
+  assert.equal(envelope.hazards.length, 2);
+  assert.deepEqual(envelope.hazards.map((entry) => entry.kind), ["hazard", "hazard"]);
+  assert.ok(envelope.hazards.every((entry) => entry.kind === "hazard"));
+  assert.deepEqual(envelope.hazards.find((entry) => entry.id === "hazard_1_secondary"), {
+    id: "hazard_1_secondary",
+    kind: "hazard",
+    position: { x: 2, y: 2 },
+    expression: "emit",
+    affinity: "water",
+    stacks: 2,
+  });
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_east"));
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_northeast"));
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "wait_here"));

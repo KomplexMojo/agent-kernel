@@ -54,9 +54,9 @@ The generator normalizes a few authored specs to stay valid under the current `c
 records each normalization in the affected scenario note:
 
 - Room `affinities=` fields are no longer accepted → converted to hazards (or dropped when explicit
-  trap/hazard objects already carry the affinity pressure).
-- `size=small` rooms containing traps/hazards are upgraded to `medium`.
-- `blocking=true` traps are emitted as `blocking=false` (see `REMEDIATION_PLAN.md` deficiency #4).
+  hazard objects already carry the affinity pressure).
+- `size=small` rooms containing hazards are upgraded to `medium`.
+- `blocking=true` hazards are emitted as `blocking=false` (see `REMEDIATION_PLAN.md` deficiency #4).
 
 When the deficiencies in `REMEDIATION_PLAN.md` are fixed, remove the corresponding normalization so
 the benchmark again exercises the original authored intent.

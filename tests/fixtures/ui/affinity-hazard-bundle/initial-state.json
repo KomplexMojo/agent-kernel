@@ -3,12 +3,12 @@
   "schemaVersion": 1,
   "meta": {
     "id": "initial_state_configurator_affinity",
-    "runId": "run_configurator_trap",
+    "runId": "run_configurator_hazard",
     "createdAt": "2025-01-01T00:00:00.000Z",
     "producedBy": "fixture"
   },
   "simConfigRef": {
-    "id": "sim_config_configurator_trap",
+    "id": "sim_config_configurator_hazard",
     "schema": "agent-kernel/SimConfigArtifact",
     "schemaVersion": 1
   },

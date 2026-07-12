@@ -281,11 +281,11 @@ function collectWalkablePositions(layout) {
   if (!data) return [];
 
   const walkable = [];
-  const traps = Array.isArray(data.traps) ? data.traps : [];
-  const blockingTraps = new Set(
-    traps
-      .filter((trap) => trap && trap.blocking === true)
-      .map((trap) => `${trap.x},${trap.y}`),
+  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
+  const blockingHazards = new Set(
+    hazards
+      .filter((hazard) => hazard && hazard.blocking === true)
+      .map((hazard) => `${hazard.x},${hazard.y}`),
   );
 
   if (Array.isArray(data.kinds)) {
@@ -294,7 +294,7 @@ function collectWalkablePositions(layout) {
       for (let x = 0; x < row.length; x += 1) {
         const kind = row[x];
         if (kind === 1) continue;
-        if (kind === 2 && blockingTraps.has(`${x},${y}`)) continue;
+        if (kind === 2 && blockingHazards.has(`${x},${y}`)) continue;
         walkable.push({ x, y });
       }
     }
@@ -320,7 +320,6 @@ function collectWalkablePositions(layout) {
 
 function collectReservedPlacementKeys(layout, {
   includeSpawnExit = true,
-  includeTraps = true,
   includeHazards = true,
   includeResources = true,
 } = {}) {
@@ -334,9 +333,6 @@ function collectReservedPlacementKeys(layout, {
   if (includeSpawnExit) {
     addPoint(data.spawn || layout?.spawn);
     addPoint(data.exit || layout?.exit);
-  }
-  if (includeTraps && Array.isArray(data.traps)) {
-    data.traps.forEach(addPoint);
   }
   if (includeHazards && Array.isArray(data.hazards)) {
     data.hazards.forEach(addPoint);
@@ -389,8 +385,7 @@ function placeLayoutObjects({ layout, hazards = [], resources = [] } = {}) {
   if (!layout) return;
   const occupied = collectReservedPlacementKeys(layout, {
     includeSpawnExit: true,
-    includeTraps: true,
-    includeHazards: false,
+    includeHazards: true,
     includeResources: false,
   });
   const placedHazards = assignPositionedLayoutObjects({
@@ -405,7 +400,10 @@ function placeLayoutObjects({ layout, hazards = [], resources = [] } = {}) {
     kind: "resource",
     occupied,
   });
-  if (placedHazards.length > 0) layout.hazards = placedHazards;
+  if (placedHazards.length > 0) {
+    const existingHazards = Array.isArray(layout.hazards) ? layout.hazards : [];
+    layout.hazards = [...existingHazards, ...placedHazards];
+  }
   if (placedResources.length > 0) layout.resources = placedResources;
 }
 
@@ -534,14 +532,14 @@ function normalizeNonNegativeInt(value, fallback = 0) {
   return normalized >= 0 ? normalized : fallback;
 }
 
-function normalizeRoomAffinityEntries(room, traps, { fallbackAffinity = "" } = {}) {
+function normalizeRoomAffinityEntries(room, hazards, { fallbackAffinity = "" } = {}) {
   const byKind = new Map();
-  const roomTraps = Array.isArray(traps)
-    ? traps.filter((trap) => trap && roomContainsPoint(room, { x: trap.x, y: trap.y }))
+  const roomHazards = Array.isArray(hazards)
+    ? hazards.filter((hazard) => hazard && roomContainsPoint(room, { x: hazard.x, y: hazard.y }))
     : [];
 
-  roomTraps.forEach((trap) => {
-    const affinity = trap?.affinity;
+  roomHazards.forEach((hazard) => {
+    const affinity = hazard?.affinity;
     if (!affinity) return;
     const kind = normalizeAffinityKind(affinity.kind);
     if (!kind) return;
@@ -638,16 +636,16 @@ function normalizeMixedRoomLocalizedTiles(localizedTiles, defaultTileTokenCost) 
     }));
 }
 
-function normalizeMixedRoomLocalizedTraps(localizedTraps) {
-  if (!Array.isArray(localizedTraps)) return [];
-  return localizedTraps
+function normalizeMixedRoomLocalizedHazards(localizedHazards) {
+  if (!Array.isArray(localizedHazards)) return [];
+  return localizedHazards
     .map((entry, index) => {
       if (!entry || typeof entry !== "object") return null;
       const affinityKind = normalizeAffinityKind(entry?.affinity?.kind);
       if (!affinityKind) return null;
       const stacks = Math.max(1, normalizePositiveInt(entry?.affinity?.stacks, 1));
       return {
-        id: typeof entry.id === "string" && entry.id.trim() ? entry.id.trim() : `trap_${index + 1}`,
+        id: typeof entry.id === "string" && entry.id.trim() ? entry.id.trim() : `hazard_${index + 1}`,
         x: normalizeNonNegativeInt(entry.x, 0),
         y: normalizeNonNegativeInt(entry.y, 0),
         blocking: entry.blocking === true,
@@ -666,15 +664,15 @@ function normalizeMixedRoomLocalizedTraps(localizedTraps) {
     .filter(Boolean);
 }
 
-function deriveMixedRoomCompositionProfile({ roomWideOverlay, localizedTiles, localizedTraps }) {
-  if (roomWideOverlay && localizedTraps.length > 0) {
+function deriveMixedRoomCompositionProfile({ roomWideOverlay, localizedTiles, localizedHazards }) {
+  if (roomWideOverlay && localizedHazards.length > 0) {
     return "room_overlay_dominant_with_localized_variation";
   }
   if (roomWideOverlay) {
     return "room_overlay_dominant";
   }
-  if (localizedTraps.length > 0) {
-    return "neutral_with_localized_traps";
+  if (localizedHazards.length > 0) {
+    return "neutral_with_localized_hazards";
   }
   if (localizedTiles.length > 0) {
     return "mixed_composition";
@@ -682,15 +680,15 @@ function deriveMixedRoomCompositionProfile({ roomWideOverlay, localizedTiles, lo
   return "mixed_composition";
 }
 
-function deriveMixedRoomDominantInvestment({ roomWideOverlay, localizedTiles, localizedTraps, tokenSpend }) {
-  if (roomWideOverlay && localizedTraps.length > 0) {
+function deriveMixedRoomDominantInvestment({ roomWideOverlay, localizedTiles, localizedHazards, tokenSpend }) {
+  if (roomWideOverlay && localizedHazards.length > 0) {
     return "room_wide_overlay";
   }
   if (roomWideOverlay) {
     return "room_wide_overlay";
   }
-  if (localizedTraps.length > 0) {
-    return "localized_traps";
+  if (localizedHazards.length > 0) {
+    return "localized_hazards";
   }
   if (localizedTiles.length > 0) {
     return "localized_tiles";
@@ -707,29 +705,29 @@ function buildMixedRoomComposition({ room, templateId, templateInstanceId, templ
   const defaultTileTokenCost = Math.max(1, normalizePositiveInt(template?.defaultTileTokenCost, 1));
   const roomWideOverlay = normalizeMixedRoomOverlay(template?.roomWideOverlay);
   const localizedTiles = normalizeMixedRoomLocalizedTiles(template?.localizedTiles, defaultTileTokenCost);
-  const localizedTraps = normalizeMixedRoomLocalizedTraps(template?.localizedTraps);
+  const localizedHazards = normalizeMixedRoomLocalizedHazards(template?.localizedHazards);
   const tokenSpend = {
     defaultTiles: roomWidth * roomHeight * defaultTileTokenCost,
     localizedTiles: localizedTiles.reduce((sum, tile) => sum + normalizeNonNegativeInt(tile?.tokenCost, 0), 0),
     roomWideOverlay: roomWideOverlay ? normalizeNonNegativeInt(roomWideOverlay.tokenCost, 0) : 0,
-    localizedTraps: localizedTraps.reduce((sum, trap) => sum + normalizeNonNegativeInt(trap?.tokenCost, 0), 0),
+    localizedHazards: localizedHazards.reduce((sum, hazard) => sum + normalizeNonNegativeInt(hazard?.tokenCost, 0), 0),
     total: 0,
   };
   tokenSpend.total = (
     tokenSpend.defaultTiles
     + tokenSpend.localizedTiles
     + tokenSpend.roomWideOverlay
-    + tokenSpend.localizedTraps
+    + tokenSpend.localizedHazards
   );
   const compositionProfile = deriveMixedRoomCompositionProfile({
     roomWideOverlay,
     localizedTiles,
-    localizedTraps,
+    localizedHazards,
   });
   const dominantInvestment = deriveMixedRoomDominantInvestment({
     roomWideOverlay,
     localizedTiles,
-    localizedTraps,
+    localizedHazards,
     tokenSpend,
   });
   return {
@@ -740,12 +738,12 @@ function buildMixedRoomComposition({ room, templateId, templateInstanceId, templ
     defaultTileTokenCost,
     localizedTiles,
     roomWideOverlay,
-    localizedTraps,
+    localizedHazards,
     tokenSpend,
   };
 }
 
-function collectMixedRoomTemplateTraps({
+function collectMixedRoomTemplateHazards({
   room,
   roomIndex,
   templateId,
@@ -755,37 +753,37 @@ function collectMixedRoomTemplateTraps({
   spawnKey,
   exitKey,
 }) {
-  const localizedTraps = Array.isArray(composition?.localizedTraps) ? composition.localizedTraps : [];
+  const localizedHazards = Array.isArray(composition?.localizedHazards) ? composition.localizedHazards : [];
   const roomId = resolveRoomId(room, roomIndex);
   const generated = [];
-  localizedTraps.forEach((trap) => {
-    const x = room.x + trap.x;
-    const y = room.y + trap.y;
+  localizedHazards.forEach((hazard) => {
+    const x = room.x + hazard.x;
+    const y = room.y + hazard.y;
     const point = { x, y };
     if (!roomContainsPoint(room, point)) return;
     const key = `${x},${y}`;
     if (key === spawnKey || key === exitKey || occupied.has(key)) return;
-    const reserve = normalizeNonNegativeInt(trap.manaReserve, 0);
+    const reserve = normalizeNonNegativeInt(hazard.manaReserve, 0);
     generated.push({
-      id: trap.id,
+      id: hazard.id,
       x,
       y,
-      blocking: trap.blocking === true,
+      blocking: hazard.blocking === true,
       source: "mixed_room_template",
       roomId,
       templateId,
       templateInstanceId,
       affinity: {
-        kind: trap.affinity.kind,
-        expression: trap.affinity.expression,
-        stacks: trap.affinity.stacks,
+        kind: hazard.affinity.kind,
+        expression: hazard.affinity.expression,
+        stacks: hazard.affinity.stacks,
         targetType: "floor",
       },
       vitals: {
         mana: {
           current: reserve,
           max: reserve,
-          regen: normalizeNonNegativeInt(trap.manaRegen, 0),
+          regen: normalizeNonNegativeInt(hazard.manaRegen, 0),
         },
       },
     });
@@ -831,7 +829,7 @@ function augmentLayoutWithRoomAffinityEffects(
   } = {},
 ) {
   if (!layout || !Array.isArray(layout.rooms) || layout.rooms.length === 0) {
-    return { layout, generatedTrapCount: 0 };
+    return { layout, generatedHazardCount: 0 };
   }
 
   const templateMap = buildMixedRoomTemplateMap(affinityRules || resolveAffinityRules());
@@ -841,7 +839,7 @@ function augmentLayoutWithRoomAffinityEffects(
     profiles = buildCardAffinityProfiles(cardSet);
   }
   if (profiles.length === 0) {
-    return { layout, generatedTrapCount: 0 };
+    return { layout, generatedHazardCount: 0 };
   }
 
   const normalizedSeed = Number.isFinite(seed) ? Math.floor(seed) : 0;
@@ -849,13 +847,13 @@ function augmentLayoutWithRoomAffinityEffects(
   const roomOrder = shuffleWithRng(layout.rooms.map((_, index) => index), assignmentRng);
   const nextRooms = layout.rooms.map((room) => ({ ...room }));
 
-  // Room affinity metadata removed - traps carry affinity configuration
+  // Room affinity metadata removed - hazards carry affinity configuration
 
-  const existingTraps = Array.isArray(layout.traps) ? layout.traps.map((trap) => ({ ...trap })) : [];
+  const existingHazards = Array.isArray(layout.hazards) ? layout.hazards.map((hazard) => ({ ...hazard })) : [];
   const occupied = new Set(
-    existingTraps
-      .filter((trap) => Number.isFinite(trap?.x) && Number.isFinite(trap?.y))
-      .map((trap) => `${trap.x},${trap.y}`),
+    existingHazards
+      .filter((hazard) => Number.isFinite(hazard?.x) && Number.isFinite(hazard?.y))
+      .map((hazard) => `${hazard.x},${hazard.y}`),
   );
   const spawnKey = Number.isFinite(layout?.spawn?.x) && Number.isFinite(layout?.spawn?.y)
     ? `${layout.spawn.x},${layout.spawn.y}`
@@ -863,7 +861,7 @@ function augmentLayoutWithRoomAffinityEffects(
   const exitKey = Number.isFinite(layout?.exit?.x) && Number.isFinite(layout?.exit?.y)
     ? `${layout.exit.x},${layout.exit.y}`
     : "";
-  const generatedTraps = [];
+  const generatedHazards = [];
 
   const fallbackAffinityKind = normalizeAffinityKind(fallbackAffinity);
 
@@ -895,14 +893,14 @@ function augmentLayoutWithRoomAffinityEffects(
         if (candidates.length === 0) return;
         const chosen = candidates[Math.floor(assignmentRng() * candidates.length)];
 
-        // Compute trap vitals using cost model formulas
+        // Compute hazard vitals using cost model formulas
         // emit upkeep = 2 + stacks
         const upkeep = computeInternalManaUpkeep(stacks);
         const manaPool = upkeep * 3; // 3 ticks worth
         const manaRegen = upkeep; // Sustain indefinitely
         const durability = stacks * 5; // Structural integrity
 
-        generatedTraps.push({
+        generatedHazards.push({
           id: `${kind}_emit_${roomIndex}`,
           x: chosen.x,
           y: chosen.y,
@@ -934,7 +932,7 @@ function augmentLayoutWithRoomAffinityEffects(
     };
 
     nextRooms[roomIndex] = nextRoom;
-    generatedTraps.push(...collectMixedRoomTemplateTraps({
+    generatedHazards.push(...collectMixedRoomTemplateHazards({
       room: nextRoom,
       roomIndex,
       templateId: profile.templateId,
@@ -947,13 +945,13 @@ function augmentLayoutWithRoomAffinityEffects(
   });
 
   layout.rooms = nextRooms;
-  if (generatedTraps.length > 0 || existingTraps.length > 0) {
-    layout.traps = [...existingTraps, ...generatedTraps];
+  if (generatedHazards.length > 0 || existingHazards.length > 0) {
+    layout.hazards = [...existingHazards, ...generatedHazards];
   }
 
   return {
     layout,
-    generatedTrapCount: generatedTraps.length,
+    generatedHazardCount: generatedHazards.length,
   };
 }
 
@@ -1130,12 +1128,12 @@ function deriveRoomPlacementContext({ data, walkable } = {}) {
   if (entryRoomWalkable.length === 0 || exitRoomWalkable.length === 0) return null;
 
   const allRoomsWalkable = uniquePositions(roomWalkableByIndex.flatMap((roomWalkable) => roomWalkable || []));
-  const traps = Array.isArray(data?.traps) ? data.traps : [];
+  const hazards = Array.isArray(data?.hazards) ? data.hazards : [];
   const roomAffinityWalkableByKind = {};
   rooms.forEach((room, index) => {
     const roomWalkable = uniquePositions(roomWalkableByIndex[index] || []);
     if (roomWalkable.length === 0) return;
-    const affinities = normalizeRoomAffinityEntries(room, traps);
+    const affinities = normalizeRoomAffinityEntries(room, hazards);
     if (affinities.length === 0) return;
     affinities.forEach((entry) => {
       const key = entry.kind;
@@ -1394,7 +1392,17 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       throw new Error("configurator inputs require actors when levelGen is provided.");
     }
 
-    const layoutResult = generateGridLayoutFromInput(levelGenInput);
+    const authoredHazards = Array.isArray(levelGenInput.hazards) ? levelGenInput.hazards : [];
+    const positionedHazards = authoredHazards.filter(
+      (hazard) => Number.isFinite(hazard?.x) && Number.isFinite(hazard?.y),
+    );
+    const unpositionedHazards = authoredHazards.filter(
+      (hazard) => !Number.isFinite(hazard?.x) || !Number.isFinite(hazard?.y),
+    );
+    const layoutResult = generateGridLayoutFromInput({
+      ...levelGenInput,
+      hazards: positionedHazards,
+    });
     if (!layoutResult.ok) {
       const details = layoutResult.errors.map((err) => `${err.field}:${err.code}`).join(", ");
       throw new Error(`level-gen input invalid: ${details}`);
@@ -1447,7 +1455,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
     });
     placeLayoutObjects({
       layout,
-      hazards: Array.isArray(levelGenInput?.hazards) ? levelGenInput.hazards : [],
+      hazards: unpositionedHazards,
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
     });
     const baseVitalsByActorId = Object.fromEntries(
@@ -1462,7 +1470,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         loadouts: affinityLoadouts.loadouts,
         baseVitalsByActorId,
         rooms: Array.isArray(layout.rooms) ? layout.rooms : [],
-        traps: Array.isArray(layout.traps) ? layout.traps : [],
+        hazards: Array.isArray(layout.hazards) ? layout.hazards : [],
         affinityRules,
       });
     }
@@ -1575,7 +1583,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
     if (affinityPresets && affinityLoadouts) {
       const ambientPressure = buildAmbientAffinityPressure({
         rooms: Array.isArray(layout.rooms) ? layout.rooms : [],
-        traps: Array.isArray(layout.traps) ? layout.traps : [],
+        hazards: Array.isArray(layout.hazards) ? layout.hazards : [],
       });
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
@@ -1587,7 +1595,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         simConfigRef: toRef(simConfig),
         initialStateRef: toRef(initialState),
         actors: resolvedEffects.actors || [],
-        traps: resolvedEffects.traps || [],
+        hazards: resolvedEffects.hazards || [],
         ambientPressure,
       };
     }

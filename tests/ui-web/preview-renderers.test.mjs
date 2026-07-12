@@ -264,7 +264,7 @@ test("preview renderer storage normalizes invalid values and persists valid sele
   assert.equal(storage.getItem(PREVIEW_RENDERER_STORAGE_KEY), "phaser");
 });
 
-test("computePreviewFocusBounds prefers occupied content across tiles, actors, traps, and auras", () => {
+test("computePreviewFocusBounds prefers occupied content across tiles, actors, hazards, and auras", () => {
   const bounds = computePreviewFocusBounds({
     tiles: [
       "XXXXXXXXXX",
@@ -277,7 +277,7 @@ test("computePreviewFocusBounds prefers occupied content across tiles, actors, t
     actors: [
       { position: { x: 8, y: 4 } },
     ],
-    floorAffinityTraps: [
+    floorAffinityHazards: [
       { position: { x: 7, y: 1 } },
     ],
     observation: {
@@ -358,7 +358,7 @@ test("canvas preview renderer crops to focus bounds and remaps click coordinates
   const result = await renderer.renderPreview({
     tiles: Array.from({ length: 10 }, () => "XXXXXXXXXX"),
     actors: [{ position: { x: 5, y: 6 } }],
-    floorAffinityTraps: [],
+    floorAffinityHazards: [],
     observation: { auras: [] },
   });
 
@@ -462,7 +462,7 @@ test("phaser preview renderer draws the cropped focus window in local coordinate
         "XXXXXXXXXX",
       ],
       actors: [{ id: "delver-1", position: { x: 4, y: 5 } }],
-      floorAffinityTraps: [],
+      floorAffinityHazards: [],
       observation: { auras: [] },
     });
 

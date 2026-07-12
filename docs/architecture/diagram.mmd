@@ -29,7 +29,7 @@ flowchart LR
   subgraph Core["core-ts"]
     CoreEngine["deterministic state + rules + effects + render buffers"]
     CombatCore["core.applyAttack"]
-    AffinityCore["affinity fields + interaction matrix"]
+    AffinityCore["hazard affinity fields + interaction/cancellation matrix"]
     MotivationCore["motivation costs + behavior profiles"]
     CoreEngine --- AffinityCore
     CoreEngine --- MotivationCore

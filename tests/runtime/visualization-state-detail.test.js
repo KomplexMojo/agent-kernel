@@ -28,8 +28,8 @@ const SIM_CONFIG = {
       legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
     },
   },
-  traps: [
-    { id: "trap_1", x: 2, y: 1, affinity: "fire", expression: "emit", stacks: 3, blocking: false },
+  hazards: [
+    { id: "hazard_1", x: 2, y: 1, affinity: "fire", expression: "emit", stacks: 3, blocking: false },
   ],
   resources: [
     { id: "resource_1", x: 4, y: 1, tier: "level", stat: "vitalMax", delta: 10, dropRate: 50 },
@@ -137,9 +137,9 @@ test("ascii detail renderer marks hazard position in hazards layer", async () =>
     initialState: INITIAL_STATE,
     tickFrame: TICK_FRAME,
   });
-  // trap at x=2, y=1 in a 7-wide grid; hazard row is row index 1 (y=1)
+  // hazard at x=2, y=1 in a 7-wide grid; hazard row is row index 1 (y=1)
   const hazardRow = snap.layers.hazards.split("\n")[1];
-  assert.notEqual(hazardRow[2], " ", "hazards layer must mark trap position at x=2 with a non-space character");
+  assert.notEqual(hazardRow[2], " ", "hazards layer must mark hazard position at x=2 with a non-space character");
 });
 
 test("ascii detail renderer marks resource position in resources layer", async () => {
@@ -225,13 +225,13 @@ test("createVisualizationSnapshot at tick 0 returns ascii with initial positions
   assert.ok(typeof snap.ascii === "string", "ascii must be present even at tick 0");
 });
 
-test("createVisualizationSnapshot with no traps produces empty hazards layer", async () => {
+test("createVisualizationSnapshot with no hazards produces empty hazards layer", async () => {
   const { createVisualizationSnapshot } = await loadVisualizationModule();
   const snap = await createVisualizationSnapshot({
     mode: "ascii",
     tick: 1,
     runId: "run_viz",
-    simConfig: { ...SIM_CONFIG, traps: [] },
+    simConfig: { ...SIM_CONFIG, hazards: [] },
     initialState: INITIAL_STATE,
     tickFrame: TICK_FRAME,
   });
@@ -334,9 +334,9 @@ test("actorDetails vitals include stamina and mana when present", async () => {
   assert.ok(delver.vitals.mana, "mana vital must be present");
 });
 
-test("createVisualizationSnapshot tolerates missing traps and resources fields", async () => {
+test("createVisualizationSnapshot tolerates missing hazards and resources fields", async () => {
   const { createVisualizationSnapshot } = await loadVisualizationModule();
-  const { traps, resources, ...simConfig } = SIM_CONFIG;
+  const { hazards, resources, ...simConfig } = SIM_CONFIG;
   const snap = await createVisualizationSnapshot({
     mode: "ascii",
     tick: 1,

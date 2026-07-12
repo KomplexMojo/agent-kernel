@@ -5,7 +5,7 @@
 //
 // Placement rules tested:
 //   - Valid hazard placement → ok: true, sim-config.json + initial-state.json written
-//   - Valid delver, warden, trap, resource placement → ok: true
+//   - Valid delver, warden, hazard, resource placement → ok: true
 //   - Session artifacts index updated with simConfigRef, initialStateRef, resourceBundleRef
 //   - Out-of-bounds position (x=999,y=999 in 10x10 room) → ok: false, outOfBounds: true
 //   - Multiple placements accumulate actors in InitialState
@@ -271,11 +271,11 @@ test("mcp ak_sandbox_place places a warden entity", async () => {
   }
 });
 
-test("mcp ak_sandbox_place places a trap entity", async () => {
+test("mcp ak_sandbox_place places a hazard entity", async () => {
   const harness = new McpServerHarness();
   try {
     await harness.initialize();
-    const outDir = makeTempDir("agent-kernel-sandbox-place-trap-");
+    const outDir = makeTempDir("agent-kernel-sandbox-place-hazard-");
 
     const createResult = await harness.callTool("ak_sandbox_create", {
       budgetReceipt: BUDGET_RECEIPT_APPROVED,
@@ -285,12 +285,12 @@ test("mcp ak_sandbox_place places a trap entity", async () => {
     const sessionPath = join(createResult.outDir, "sandbox-session.json");
     const result = await harness.callTool("ak_sandbox_place", {
       session: sessionPath,
-      entityType: "trap",
-      spec: "id=trap_1;x=3;y=2;affinity=dark;expression=emit;stacks=1;blocking=false",
+      entityType: "hazard",
+      spec: "id=hazard_1;x=3;y=2;affinity=dark;expression=emit;stacks=1;blocking=false",
     });
 
-    assert.equal(result.entityType, "trap");
-    assert.equal(result.entityId, "trap_1");
+    assert.equal(result.entityType, "hazard");
+    assert.equal(result.entityId, "hazard_1");
   } finally {
     await harness.close();
   }
