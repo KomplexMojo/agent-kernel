@@ -115,6 +115,10 @@ function loadConfig(rootDir = ROOT_DIR) {
     profiles,
     models: modelsJson.models || {},
     benchmark: modelsJson.benchmark || {},
+    local: {
+      host: env.LLM_LOCAL_OLLAMA_HOST || 'http://127.0.0.1:11434',
+      model: env.LLM_LOCAL_OLLAMA_MODEL || ''
+    },
     host: {
       remoteUser: env.LLM_REMOTE_USER || 'darren',
       internalHost: env.LLM_INTERNAL_HOST || '192.168.1.143',
