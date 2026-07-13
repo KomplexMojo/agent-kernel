@@ -100,7 +100,7 @@ const AK_CREATE_TOOL = {
       'hazards, not in room specs.',
     parameters: {
       type: 'object',
-      required: ['text', 'budgetTokens', 'runId', 'outDir'],
+      required: ['text', 'runId', 'outDir'],
       properties: {
         text: {
           type: 'string',
@@ -108,7 +108,7 @@ const AK_CREATE_TOOL = {
         },
         budgetTokens: {
           type: 'integer',
-          description: 'Hard budget cap in tokens (typically 1500).',
+          description: 'Hard budget cap in tokens. Only set this when the request names an explicit token budget; omit it for unconstrained authoring.',
           minimum: 1
         },
         runId: {
@@ -155,29 +155,22 @@ const AK_CREATE_TOOL = {
         },
         hazard: {
           type: 'array',
-          description: 'Hazards to place.',
-          items: {
-            type: 'object',
-            properties: {
-              x: { type: 'integer', description: 'Grid x coordinate' },
-              y: { type: 'integer', description: 'Grid y coordinate' },
-              affinity: { type: 'string', enum: AFFINITY_ENUM },
-              expression: { type: 'string', enum: EXPRESSION_ENUM },
-              stacks: { type: 'integer', minimum: 1 },
-              blocking: { type: 'boolean', default: false }
-            },
-            required: ['x', 'y', 'affinity']
-          }
-        },
-        hazard: {
-          type: 'array',
-          description: 'Hazard zones.',
+          description: 'Hazard zones. Placement is proximity-based — hazards have no coordinates.',
           items: {
             type: 'object',
             properties: {
               affinity: { type: 'string', enum: AFFINITY_ENUM },
               expression: { type: 'string', enum: EXPRESSION_ENUM },
-              proximityRadius: { type: 'integer', minimum: 1 }
+              proximityRadius: { type: 'integer', minimum: 1, description: 'Tiles around the hazard its affinity pressure reaches' },
+              stacks: { type: 'integer', minimum: 1, default: 1 },
+              mana: {
+                type: 'string',
+                description: 'Optional mana vital as "one-time:<amount>" or "regen:<current>:<max>:<regen>", e.g. "regen:4:4:1"'
+              },
+              durability: {
+                type: 'string',
+                description: 'Optional durability vital, same format as mana'
+              }
             },
             required: ['affinity', 'expression', 'proximityRadius']
           }
