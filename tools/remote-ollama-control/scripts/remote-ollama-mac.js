@@ -41,6 +41,7 @@ function usage() {
   remote-ollama-mac project-sync [--branch main]
   remote-ollama-mac project-push-main [--branch main]
   remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route internal|external] [--no-start] [--no-reset] [--dry-run]
+  remote-ollama-mac run-content-gen --local --model MODEL [--runs N] [--scenario-ids 1,3,5] [--dry-run]
   remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
 
 Common options:
@@ -227,14 +228,17 @@ function parseArgs(argv) {
 
 function validateLocalMode(options) {
   if (!options.local) return;
-  if (!['claude', 'run-local', 'print-env'].includes(options.command)) {
-    fail('--local is only supported for claude, run-local, and print-env');
+  if (!['claude', 'run-local', 'print-env', 'run-content-gen'].includes(options.command)) {
+    fail('--local is only supported for claude, run-local, print-env, and run-content-gen');
   }
   const conflicts = ['--profile', '--route', '--tunnel', '--direct', '--external-host', '--local-port'];
   for (const flag of conflicts) {
     if (options.explicitFlags.has(flag)) {
       fail(`--local cannot be combined with ${flag} (remote-only). In local mode the endpoint comes from LLM_LOCAL_OLLAMA_HOST.`);
     }
+  }
+  if (options.command === 'run-content-gen' && options.profiles.length > 0) {
+    fail('--local cannot be combined with --profiles (remote-only). In local mode there is a single local endpoint.');
   }
 }
 
@@ -1212,9 +1216,9 @@ async function runContentGen(options) {
     fail('No scenarios found. Check LLM_AK_VAULT_DIR or --scenario-ids.');
   }
 
-  const profileNames = options.profiles.length > 0
-    ? options.profiles
-    : ['dual'];
+  const profileNames = options.local
+    ? ['local']
+    : (options.profiles.length > 0 ? options.profiles : ['dual']);
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const resultDir = path.join(config.host.resultsDir, `${timestamp}-content-gen`);
@@ -1244,24 +1248,27 @@ async function runContentGen(options) {
 
   try {
     for (const profileName of profileNames) {
-      const profile = getProfile(config, profileName);
-      const model = options.model || profile.defaultModel;
-      const endpoint = clientEndpoint(profile, options);
-      endpoints.set(profile.name, endpoint);
+      const profile = options.local ? null : getProfile(config, profileName);
+      const model = options.model || (options.local ? config.local.model : profile.defaultModel);
+      if (options.local && !model) {
+        fail('--local requires --model (or LLM_LOCAL_OLLAMA_MODEL) since there is no default local model.');
+      }
+      const endpoint = options.local ? config.local.host : clientEndpoint(profile, options);
+      endpoints.set(profileName, endpoint);
 
-      if (!options.direct) {
-        tunnels.set(profile.name, await openBenchmarkTunnel(options, profile, endpoint));
+      if (!options.local && !options.direct) {
+        tunnels.set(profileName, await openBenchmarkTunnel(options, profile, endpoint));
       }
 
-      if (options.startProfiles) {
+      if (!options.local && options.startProfiles) {
         const command = options.resetProfiles ? 'restart' : 'start';
-        process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profile.name} with ${model}\n`);
-        runRemote(config, options.route, [command, '--profile', profile.name, '--model', model], {
+        process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profileName} with ${model}\n`);
+        runRemote(config, options.route, [command, '--profile', profileName, '--model', model], {
           timeoutMs: options.timeoutMs
         });
       }
 
-      await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnels.get(profile.name));
+      await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnels.get(profileName));
       process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
       await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
 
@@ -1272,7 +1279,7 @@ async function runContentGen(options) {
           const runId = [
             'cg',
             String(runIndex).padStart(4, '0'),
-            profile.name,
+            profileName,
             `s${String(scenario.index).padStart(2, '0')}`,
             `r${repeat + 1}`
           ].join('-');
@@ -1280,7 +1287,7 @@ async function runContentGen(options) {
           fs.mkdirSync(runOutDir, { recursive: true });
 
           process.stdout.write(
-            `[${runIndex}] ${profile.name} | scenario ${String(scenario.index).padStart(2, '0')} ${scenario.title} | run ${repeat + 1}/${options.runs}\n`
+            `[${runIndex}] ${profileName} | scenario ${String(scenario.index).padStart(2, '0')} ${scenario.title} | run ${repeat + 1}/${options.runs}\n`
           );
 
           let runResult;
@@ -1304,7 +1311,7 @@ async function runContentGen(options) {
           const record = {
             runId,
             timestamp: new Date().toISOString(),
-            profile: profile.name,
+            profile: profileName,
             model,
             scenarioIndex: scenario.index,
             scenarioTitle: scenario.title,

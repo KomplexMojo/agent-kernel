@@ -126,13 +126,19 @@ function scoreRun(runResult, scenario, refSpecPath, refReceiptPath) {
     breakdown.affinityMatch = finalAffinityScore;
   }
 
-  // Budget delta: 10 pts
+  // Budget delta: 10 pts. Only meaningful for budget-constrained scenarios;
+  // unconstrained runs spend whatever their content requires, so comparing
+  // spend against the reference would punish legitimate variation — award
+  // the component whenever a spend was recorded.
   const genReceiptPath = runResult.outDir ? path.join(runResult.outDir, 'budget-receipt.json') : null;
   const genReceipt = genReceiptPath ? readJson(genReceiptPath) : null;
   const refReceipt = refReceiptPath ? readJson(refReceiptPath) : null;
   const genSpend = genReceipt?.totalCost ?? null;
   const refSpend = refReceipt?.totalCost ?? null;
-  if (genSpend !== null && refSpend !== null && refSpend > 0) {
+  if (scenario?.budgetMode !== 'constrained') {
+    breakdown.budgetDelta = genSpend !== null && genSpend > 0 ? 10 : 0;
+    points += breakdown.budgetDelta;
+  } else if (genSpend !== null && refSpend !== null && refSpend > 0) {
     const delta = Math.abs(genSpend - refSpend) / refSpend;
     const budgetScore = Math.round(10 * Math.max(0, 1 - delta / 0.8));
     points += budgetScore;

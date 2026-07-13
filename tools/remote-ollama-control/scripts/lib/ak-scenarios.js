@@ -76,34 +76,17 @@ function scenarioTier(index) {
   return 'complex';
 }
 
-// Per-scenario budget caps. Simple scenarios (1-9) use the 1500-token default.
-// Affinity scenarios scale to 5000; complex multi-room and full-dungeon scenarios
-// reach up to 10000, giving the kernel room to produce richer content.
-const SCENARIO_BUDGETS = {
-  // Simple tier — single/multi-entity scenarios where rich specs exceed 1500
-  1: 2000, 6: 2500, 7: 2000, 9: 2000,
-  //  # Affinity tier — single-element rooms and small encounters
-  10: 2000, 11: 2000, 12: 2000, 13: 2000, 14: 2500,
-  15: 2000, 16: 2000, 17: 2000, 18: 2000, 19: 2500,
-  // Affinity tier — multi-actor and opposed-affinity rooms
-  20: 3000, 21: 5000, 22: 5000, 23: 5000,
-  24: 2500, 25: 2000, 26: 3000,
-  27: 3000, 28: 3500, 29: 3000, 30: 3000,
-  // Complex tier — focused actor and hazard tests
-  31: 3500, 32: 3500, 33: 3500, 34: 3500,
-  35: 5000, 36: 3500, 37: 3500, 38: 5000,
-  39: 3500, 40: 3500, 41: 3500, 42: 3500,
-  // Complex tier — multi-room and large dungeons
-  43: 7500, 44: 7500, 45: 7500,
-  46: 7500, 47: 7500,
-  48: 10000, 49: 10000, 50: 10000,
-  // M3-M6 scenarios — stationary motivation, resources, tick session, mixed motivations
-  51: 3500, 52: 4000, 53: 3500, 54: 5000,
-};
-const DEFAULT_BUDGET = 1500;
+// Baselines generated with a budgetTokens at or above this sentinel are
+// budget-UNCONSTRAINED (generate-baselines.mjs uses a non-binding 1M ceiling);
+// anything below it is an explicit budget-test with a tight, feasible cap.
+const UNCONSTRAINED_SENTINEL = 1_000_000;
 
-function scenarioBudget(index) {
-  return SCENARIO_BUDGETS[index] ?? DEFAULT_BUDGET;
+function scenarioBudgetMode(payload) {
+  const budgetTokens = payload?.budgetTokens;
+  if (Number.isInteger(budgetTokens) && budgetTokens < UNCONSTRAINED_SENTINEL) {
+    return { budgetMode: 'constrained', budget: budgetTokens };
+  }
+  return { budgetMode: 'unconstrained', budget: null };
 }
 
 function loadScenarios(vaultDir) {
@@ -125,10 +108,12 @@ function loadScenarios(vaultDir) {
     const noteText = fs.readFileSync(row.notePath, 'utf8');
     const prompt = extractPrompt(noteText);
     const payload = extractMcpPayload(noteText);
+    const { budgetMode, budget } = scenarioBudgetMode(payload);
     scenarios.push({
       ...row,
-      tier: scenarioTier(row.index),
-      budget: scenarioBudget(row.index),
+      tier: budgetMode === 'constrained' ? 'constrained' : scenarioTier(row.index),
+      budgetMode,
+      budget,
       prompt,
       payload
     });
@@ -137,9 +122,7 @@ function loadScenarios(vaultDir) {
 }
 
 module.exports = {
-  DEFAULT_BUDGET,
   DEFAULT_VAULT_DIR,
   loadScenarios,
   resolveVaultDir,
-  scenarioBudget,
 };

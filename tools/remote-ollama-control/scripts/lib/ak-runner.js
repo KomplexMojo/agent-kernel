@@ -105,10 +105,15 @@ function normalizeEntitySpec(key, spec) {
     }
   }
 
-  // Strip model-invented fields that hazards don't support
+  // Strip model-invented fields that hazards don't support. Coordinates and
+  // blocking are stripped too: benchmark hazards are proximity-based, which
+  // makes the old trap_outside_room failure class structurally impossible.
   if (key === 'hazard') {
-    for (const f of ['manaDrain', 'healthDrain', 'staminaDrain', 'damage', 'effect', 'duration']) {
+    for (const f of ['manaDrain', 'healthDrain', 'staminaDrain', 'damage', 'effect', 'duration', 'x', 'y', 'blocking', 'vitals']) {
       delete out[f];
+    }
+    if (out.proximityRadius == null) {
+      out.proximityRadius = 2;
     }
   }
 
@@ -130,12 +135,16 @@ function normalizeToolArgs(toolArgs) {
 async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000) {
   const { buildArgv, authoringSpec } = await getMcpBuildTools();
 
-  const budget = scenario.budget ?? 1500;
+  const constrained = scenario.budgetMode === 'constrained' && Number.isInteger(scenario.budget);
+  const budgetInstruction = constrained
+    ? `Set budgetTokens to ${scenario.budget}. `
+    : 'Omit budgetTokens — the budget is unconstrained. ';
   const systemPrompt =
     'You are an agent-kernel dungeon designer. When given a dungeon creation request, ' +
     'call the ak_create tool with appropriate parameters. Use the exact prompt text as ' +
-    `the text parameter. Set budgetTokens to ${budget}. Always set emitIntermediates ` +
+    `the text parameter. ${budgetInstruction}Always set emitIntermediates ` +
     'to true. Rooms are generic containers — affinity pressure belongs in hazards. ' +
+    'Hazards are placed by proximityRadius, never by coordinates. ' +
     'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.';
 
   const chatBody = {
@@ -149,7 +158,9 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     tool_choice: 'required',
     stream: false,
     temperature: 0.1,
-    max_tokens: budget <= 2000 ? 2048 : budget <= 5000 ? 4096 : 8192
+    // Output-length cap for the LLM call — unrelated to the authoring budget.
+    // Constrained scenarios are minimal specs; unconstrained ones can get large.
+    max_tokens: constrained ? 4096 : 8192
   };
 
   const llmStarted = Date.now();
@@ -195,14 +206,18 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   fs.mkdirSync(effectiveOutDir, { recursive: true });
 
   // Normalize Ollama quirks, then build argv via the shared MCP translation layer.
-  // budgetTokens is always enforced from the scenario definition — the model's value is ignored.
+  // The scenario definition decides the budget, not the model: constrained scenarios
+  // enforce their budgetTokens, unconstrained ones run with no budget at all.
   const normalizedArgs = normalizeToolArgs({
     ...toolArgs,
-    budgetTokens: budget,
+    budgetTokens: constrained ? scenario.budget : undefined,
     outDir: effectiveOutDir,
     runId,
     emitIntermediates: true,
   });
+  if (!constrained) {
+    delete normalizedArgs.budgetTokens;
+  }
   const cliArgs = buildArgv(normalizedArgs, authoringSpec);
 
   const execStarted = Date.now();
