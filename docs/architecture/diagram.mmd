@@ -17,6 +17,7 @@ flowchart LR
     CommandKernel["shared command kernel"]
     CardAuthoring["card-authoring commands\nnormalize cards + apply properties"]
     RuntimePorts["runtime runner + ports"]
+    AdaptiveRunner["adaptive-workflow control plane\nrunAdaptiveWorkflow + injected ports"]
     CoreFacade["core-facade + core-setup\npreview/playback helpers"]
     TickOrch["tick orchestrator"]
     Personas["personas"]
@@ -64,6 +65,7 @@ flowchart LR
   UIWeb --> ScenarioLoader
   CLI --> ACli
   MCP --> ACli
+  ACli -- "ak workflow / ak_workflow_*\nmodel + store + exec ports" --> AdaptiveRunner
   MCP -- "ak_push_to_ui\nGameplayBundle" --> BridgeServer
   BridgeServer -- "WebSocket" --> BridgeClient
   BridgeClient -- "__ak_loadGameplayBundle" --> GameplaySurface

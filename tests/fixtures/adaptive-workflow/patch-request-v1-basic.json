@@ -1,0 +1,14 @@
+{
+  "schema": "agent-kernel/AdaptiveWorkflowPatchRequest",
+  "schemaVersion": 1,
+  "meta": { "id": "patch-basic", "runId": "run-repair", "createdAt": "2026-07-13T00:00:00.000Z", "producedBy": "adaptive-workflow" },
+  "requestId": "patch-basic",
+  "runId": "run-repair",
+  "phase": "repair",
+  "kind": "semantic_patch",
+  "targetRef": { "id": "configuration_002", "schema": "agent-kernel/AdaptiveWorkflowConfiguration", "schemaVersion": 1 },
+  "reason": { "summary": "repair invalid room count" },
+  "operations": [{ "op": "replace", "path": "/rooms/0/count", "value": 2 }],
+  "immutablePaths": ["/schema", "/schemaVersion", "/meta/id", "/meta/runId", "/meta/createdAt", "/refs/replayResponseRefs", "/idempotency/sideEffectKeys", "/events"],
+  "affectedValidators": ["rooms"]
+}
