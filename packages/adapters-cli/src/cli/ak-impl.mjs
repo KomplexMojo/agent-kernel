@@ -5,6 +5,14 @@ import { fileURLToPath } from "node:url";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
 import { createLlmAdapter } from "../adapters/llm/index.js";
+import { createFilesystemWorkflowStore } from "../adapters/adaptive-workflow/filesystem-store.js";
+import { createRuntimeProfileAdapter } from "../adapters/adaptive-workflow/runtime-profile.js";
+import { createControlledExecutionAdapter } from "../adapters/adaptive-workflow/controlled-execution.js";
+import { createGameplayBridgeOperation } from "../adapters/adaptive-workflow/gameplay-bridge.js";
+import { runAdaptiveWorkflow } from "../../../runtime/src/adaptive-workflow/runner.js";
+import { createReplayEnvelope, createReplayModelAdapter } from "../../../runtime/src/adaptive-workflow/replay.js";
+import { createStrategyPolicyV1 } from "../../../runtime/src/adaptive-workflow/strategy-policy.js";
+import { createDeclaredModelCapabilityV1 } from "../../../runtime/src/adaptive-workflow/profiles.js";
 import {
   buildBuildArtifacts,
   buildBuildManifestEntries,
@@ -116,6 +124,7 @@ function usage() {
   node ${rel} build --spec path [--out-dir dir] [--emit-intermediates]
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
+  node ${rel} workflow <run|status|replay|cancel|validate> [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path] [--dry-run]
   node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
   node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
@@ -2313,6 +2322,7 @@ const STRUCTURED_STDOUT_COMMANDS = new Set([
   "sandbox-create",
   "sandbox-place",
   "sandbox-move",
+  "workflow",
 ]);
 
 const RUN_INDEX_INPUT_FILES = Object.freeze([
@@ -6919,6 +6929,155 @@ async function sandboxMoveCommand(argv) {
   }
 }
 
+const WORKFLOW_ACTIONS = new Set(["run", "status", "replay", "cancel", "validate"]);
+const WORKFLOW_FLAGS = new Set(["input", "objective", "out-dir", "policy", "runtime-profile", "dry-run", "replay", "cancel", "run-id", "created-at", "base-url", "model", "reason", "max-model-attempts", "push-ui", "require-client", "help"]);
+
+async function workflowCommand(argv) {
+  let [action, ...flags] = argv;
+  if (!action || action === "--help" || action === "-h") { console.log(usage()); return; }
+  assertUniqueWorkflowFlags(flags);
+  const args = parseArgs(flags);
+  if (args.help) { console.log(usage()); return; }
+  assertWorkflowArgs(args);
+  if (args.replay && args.cancel) throw new Error("workflow replay and cancel flags cannot be combined");
+  if (action !== "run" && (args.replay || args.cancel)) throw new Error(`workflow ${action} cannot use replay or cancel compatibility flags`);
+  if (["status", "replay", "cancel"].includes(action) && ["input", "objective", "policy", "runtime-profile", "dry-run", "model", "max-model-attempts"].some((key) => args[key] !== undefined)) throw new Error(`workflow ${action} received run-only arguments`);
+  if (action === "run" && (args.replay || args.cancel) && ["input", "objective", "policy", "runtime-profile", "dry-run", "model", "max-model-attempts"].some((key) => args[key] !== undefined)) throw new Error("workflow compatibility action received run-only arguments");
+  if (action === "run" && args.replay && (args["out-dir"] || args.reason)) throw new Error("workflow run --replay received conflicting arguments");
+  if (action === "run" && args.cancel && args["run-id"]) throw new Error("workflow run --cancel cannot also use --run-id");
+  if (action === "run" && args.replay) { action = "replay"; args["out-dir"] = args.replay; }
+  if (action === "run" && args.cancel) { action = "cancel"; args["run-id"] = args.cancel; }
+  if (!WORKFLOW_ACTIONS.has(action)) throw new Error(`Unknown workflow action: ${action}`);
+  if (action === "validate" || (action === "run" && args["dry-run"])) {
+    const input = await resolveWorkflowInput(args);
+    emitJsonStdout({ ok: true, command: "workflow", action: action === "validate" ? "validate" : "run", valid: true, dryRun: Boolean(args["dry-run"]), runId: input.runId, outDir: resolvePath(args["out-dir"]) });
+    return;
+  }
+  const outDir = resolvePath(args["out-dir"]);
+  if (!outDir) throw new Error(`workflow ${action} requires --out-dir <dir>`);
+  if (action === "status") return workflowStatus({ args, outDir });
+  if (action === "cancel") return workflowCancel({ args, outDir });
+  if (action === "replay") return workflowReplay({ args, outDir });
+  return workflowRun({ args, outDir });
+}
+
+async function resolveWorkflowInput(args) {
+  if (args.input && args.objective) throw new Error("workflow accepts either --objective or --input, not both");
+  const input = args.input ? await readJson(resolvePath(args.input)) : {};
+  if (args.input && (input.schema !== "agent-kernel/AdaptiveWorkflowCliRunInput" || input.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowCliRunInput");
+  validateWorkflowInputFields(input, args);
+  const objective = args.objective || input.objective;
+  if (!isNonEmptyString(objective)) throw new Error("workflow requires --objective <text> or --input <path>");
+  const runId = args["run-id"] || input.runId || makeId("workflow");
+  const createdAt = args["created-at"] || input.createdAt || new Date().toISOString();
+  const clock = () => createdAt;
+  const runtimeProfile = await createRuntimeProfileAdapter({ clock }).snapshot({ path: resolvePath(args["runtime-profile"]), runId });
+  const rawPolicy = args.policy ? await readJson(resolvePath(args.policy)) : undefined;
+  if (rawPolicy && (rawPolicy.schema !== "agent-kernel/AdaptiveWorkflowStrategyPolicy" || rawPolicy.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowStrategyPolicy");
+  assertNoSensitiveFields(rawPolicy, "workflow policy");
+  const policy = rawPolicy ? createStrategyPolicyV1(rawPolicy) : undefined;
+  const model = args.model || input.model || DEFAULT_LLM_MODEL;
+  if (!isNonEmptyString(model)) throw new Error("workflow model must be a non-empty string");
+  assertNoSensitiveFields(input.declaredCapability, "workflow declared capability");
+  const declaredCapability = createDeclaredModelCapabilityV1(input.declaredCapability || { schemaVersion: 1, providerId: "ollama", modelId: model, source: "declared", contextWindowTokens: 128000, maxOutputTokens: 4096, supports: { textGeneration: true, structuredOutput: true, streaming: false } });
+  return { input, objective, runId, createdAt, clock, runtimeProfile, policy, model, declaredCapability };
+}
+
+function workflowValidator(requiredKeys = []) {
+  return { id: "cli-workflow-contract", version: 1, validate(value) {
+    const missing = !value || typeof value !== "object" || Array.isArray(value) ? ["/"] : requiredKeys.filter((key) => !Object.prototype.hasOwnProperty.call(value, key)).map((key) => `/${key}`);
+    return missing.length ? { ok: false, issues: missing.map((path) => ({ path, code: "workflow_output_invalid", message: "Required workflow output is missing" })) } : { ok: true };
+  } };
+}
+
+function workflowExecution({ operationId, counter, pushUi = false, store, requireClient = false } = {}) {
+  if (pushUi) {
+    const gameplay = createGameplayBridgeOperation({
+      assembleSpec: buildBuildSpecFromSummary,
+      compile: compileBuildSpecToGameplayBundle,
+      requireClient,
+      onBundle: store ? async (bundle) => { await store.writeArtifact("bundle.json", bundle); } : undefined,
+    });
+    return createControlledExecutionAdapter({ operationId: "gameplay_bridge", operations: { gameplay_bridge: async (request) => { counter.count += 1; return gameplay(request); } } });
+  }
+  if (!operationId) return undefined;
+  return createControlledExecutionAdapter({ operationId, operations: { record: ({ runId, selectedStrategy }) => {
+    counter.count += 1;
+    return { schema: "agent-kernel/AdaptiveWorkflowExecutionReceipt", schemaVersion: 1, runId, operation: "record", strategyId: selectedStrategy.strategyId };
+  } } });
+}
+
+async function workflowRun({ args, outDir }) {
+  const resolved = await resolveWorkflowInput(args);
+  await assertWorkflowOutDirAvailable(outDir);
+  const store = await createFilesystemWorkflowStore({ root: outDir });
+  const counter = { count: 0 }; const operationId = resolved.input.executionOperation;
+  const idempotencyKey = resolved.input.idempotencyKey || `${resolved.runId}:execution:${operationId || "none"}`;
+  const attemptInput = args["max-model-attempts"] ?? resolved.input.maxModelAttempts;
+  const maxModelAttempts = attemptInput === undefined ? 2 : parsePositiveIntStrict(String(attemptInput), "workflow --max-model-attempts");
+  const request = { schema: "agent-kernel/AdaptiveWorkflowCliRequest", schemaVersion: 1, runId: resolved.runId, createdAt: resolved.createdAt, objective: resolved.objective, model: resolved.model, declaredCapability: resolved.declaredCapability, requiredKeys: resolved.input.requiredKeys || [], idempotencyKey, ...(resolved.policy ? { policy: resolved.policy } : {}), ...(operationId ? { executionOperation: operationId } : {}) };
+  await store.writeArtifact("runtime-profile.json", resolved.runtimeProfile);
+  await store.writeArtifact("request.json", request);
+  const result = await runAdaptiveWorkflow({
+    objective: resolved.objective, runId: resolved.runId, declaredCapability: resolved.declaredCapability, runtimeProfile: resolved.runtimeProfile, policy: resolved.policy, model: resolved.model,
+    maxModelAttempts, idempotencyKey,
+    ports: { model: createLlmAdapter({ baseUrl: args["base-url"], fixture: resolved.input.modelResponse }), validator: [workflowValidator(resolved.input.requiredKeys)], persistence: store, execution: workflowExecution({ operationId, counter, pushUi: args["push-ui"] === true || args["push-ui"] === "true", store, requireClient: args["require-client"] === true || args["require-client"] === "true" }), clock: resolved.clock, runtimeProfile: resolved.runtimeProfile },
+    cancelRequested: () => existsSync(join(outDir, "cancel-request.json")),
+  });
+  await writeWorkflowArtifacts(store, result, resolved.runtimeProfile, request);
+  emitJsonStdout({ ok: result.outcome === "complete", command: "workflow", action: "run", runId: resolved.runId, outDir, outcome: result.outcome, phase: result.state.phase, executionCalls: counter.count });
+  if (result.outcome !== "complete") process.exitCode = 1;
+}
+
+async function workflowStatus({ args, outDir }) {
+  const store = await createFilesystemWorkflowStore({ root: outDir, create: false }); const state = await loadWorkflowState(store, args["run-id"]);
+  emitJsonStdout({ ok: true, command: "workflow", action: "status", runId: state.runId, phase: state.phase, updatedAt: state.updatedAt, cancellation: state.cancellation });
+}
+
+async function workflowCancel({ args, outDir }) {
+  const store = await createFilesystemWorkflowStore({ root: outDir, create: false }); const state = await loadWorkflowState(store, args["run-id"]);
+  const terminal = ["complete", "failed", "cancelled"].includes(state.phase);
+  if (!terminal) await store.writeArtifact("cancel-request.json", { runId: state.runId, requestedAt: new Date().toISOString(), reason: args.reason || "cancelled by CLI" });
+  emitJsonStdout({ ok: true, command: "workflow", action: "cancel", runId: state.runId, requested: !terminal, terminal, phase: state.phase });
+}
+
+async function workflowReplay({ args, outDir }) {
+  const store = await createFilesystemWorkflowStore({ root: outDir, create: false }); const source = await loadWorkflowState(store, args["run-id"]);
+  const request = await store.readArtifact("request.json"); const runtimeProfile = await store.readArtifact("runtime-profile.json");
+  if (request.runId !== source.runId || runtimeProfile.meta?.runId !== source.runId) throw new Error("workflow replay run-id does not match its durable output directory");
+  const counter = { count: 0 }; const envelope = createReplayEnvelope({ state: source });
+  const replayPersistence = Object.freeze({ ...store, save: async (_runId, state) => JSON.parse(JSON.stringify(state)), putContent: (value) => store.referenceContent(value) });
+  const result = await runAdaptiveWorkflow({ objective: request.objective, runId: source.runId, declaredCapability: request.declaredCapability, runtimeProfile, policy: request.policy, model: request.model, idempotencyKey: request.idempotencyKey,
+    ports: { model: createReplayModelAdapter({ store, envelope }), validator: [workflowValidator(request.requiredKeys)], persistence: replayPersistence, clock: () => request.createdAt, runtimeProfile } });
+  await store.writeArtifact("replay-state.json", result.state); await store.writeArtifact("replay-validation.json", result.validation); await store.writeArtifact("replay-events.json", result.events);
+  emitJsonStdout({ ok: result.outcome === "complete", command: "workflow", action: "replay", runId: source.runId, outDir, outcome: result.outcome, phase: result.state.phase, liveModelCalls: 0, liveExecutionCalls: counter.count });
+  if (result.outcome !== "complete") process.exitCode = 1;
+}
+
+async function writeWorkflowArtifacts(store, result, runtimeProfile, request) {
+  await store.writeArtifact("runtime-profile.json", runtimeProfile);
+  await store.writeArtifact("selected-strategy.json", result.selectedStrategy);
+  await store.writeArtifact("validation.json", result.validation);
+  await store.writeArtifact("events.json", result.events);
+  if (request) await store.writeArtifact("request.json", request);
+}
+
+function assertWorkflowArgs(args) {
+  const unknown = Object.keys(args).filter((key) => key !== "_" && !WORKFLOW_FLAGS.has(key));
+  if (unknown.length || args._.length) throw new Error(`Unknown workflow arguments: ${[...unknown.map((key) => `--${key}`), ...args._].join(", ")}`);
+}
+
+function assertUniqueWorkflowFlags(flags) { const seen = new Set(); for (const flag of flags) { if (!flag.startsWith("--")) continue; const key = flag.slice(2).split("=", 1)[0]; if (seen.has(key)) throw new Error(`Duplicate workflow argument: --${key}`); seen.add(key); } }
+function assertNoSensitiveFields(value, label) { if (!value || typeof value !== "object") return; for (const [key, nested] of Object.entries(value)) { if (/^(api[-_]?key|secret([-_]?key)?|password|passwd|passphrase|credentials?|authorization|auth([-_]?token)?|(access|refresh|bearer|id|session)[-_]?token|token|client[-_]?secret|private[-_]?key|access[-_]?key)$/i.test(key)) throw new Error(`${label} contains credential fields`); assertNoSensitiveFields(nested, label); } }
+function validateWorkflowInputFields(input, args) {
+  if (input.requiredKeys !== undefined && (!Array.isArray(input.requiredKeys) || !input.requiredKeys.every(isNonEmptyString))) throw new Error("workflow requiredKeys must be an array of strings");
+  if (input.executionOperation !== undefined && input.executionOperation !== "record") throw new Error("workflow executionOperation is not allowed");
+  if (input.modelResponse !== undefined && (!input.modelResponse || typeof input.modelResponse !== "object" || !isNonEmptyString(input.modelResponse.response))) throw new Error("workflow modelResponse fixture is invalid");
+  const attempts = args["max-model-attempts"] ?? input.maxModelAttempts; if (attempts !== undefined) parsePositiveIntStrict(String(attempts), "workflow --max-model-attempts");
+}
+async function assertWorkflowOutDirAvailable(outDir) { try { if ((await readdir(outDir)).length) throw new Error("workflow output directory must be empty"); } catch (error) { if (error?.code !== "ENOENT") throw error; } }
+async function loadWorkflowState(store, runId) { const found = await store.load(runId); if (!found) throw new Error("workflow durable state not found or run-id mismatch"); return found; }
+
 export const COMMANDS = {
   build: buildCommand,
   schemas: schemasCommand,
@@ -6953,6 +7112,7 @@ export const COMMANDS = {
   "sandbox-create": sandboxCreateCommand,
   "sandbox-place": sandboxPlaceCommand,
   "sandbox-move": sandboxMoveCommand,
+  workflow: workflowCommand,
 };
 
 /**

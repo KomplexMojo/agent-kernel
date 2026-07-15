@@ -55,6 +55,16 @@ export interface ArtifactRef {
   schemaVersion: number;
 }
 
+export type ContentAddressAlgorithm = "sha256" | "sha512" | "blake3";
+
+/** Content-addressed payload reference. Adapters own storage and retrieval. */
+export interface ContentAddressedRefV1 {
+  algorithm: ContentAddressAlgorithm;
+  digest: string;
+  bytes?: number;
+  mediaType?: string;
+}
+
 /**
  * Lightweight cost traceability context attached to ArtifactMeta.
  * Every generated artifact may carry this to link back to the canonical
@@ -79,6 +89,268 @@ export interface ArtifactCostContextV1 {
 }
 
 export type Phase = "intake" | "plan" | "allocate" | "configure" | "execute" | "annotate" | "publish";
+
+// -------------------------
+// AdaptiveWorkflowAgent contracts
+// -------------------------
+
+export const ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA = "agent-kernel/AdaptiveWorkflowRunState";
+export const ADAPTIVE_WORKFLOW_POLICY_SCHEMA = "agent-kernel/AdaptiveWorkflowPolicy";
+export const ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA = "agent-kernel/AdaptiveWorkflowRuntimeProfile";
+export const ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA = "agent-kernel/AdaptiveWorkflowValidationResult";
+export const ADAPTIVE_WORKFLOW_FAILURE_SCHEMA = "agent-kernel/AdaptiveWorkflowFailure";
+export const ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchRequest";
+export const ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchReceipt";
+export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionEvent";
+export const ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA = "agent-kernel/AdaptiveWorkflowRunRecord";
+
+export type AdaptiveWorkflowPhase =
+  | "intake"
+  | "plan"
+  | "configure"
+  | "validate"
+  | "execute"
+  | "verify"
+  | "repair"
+  | "escalate"
+  | "complete"
+  | "failed"
+  | "cancelled";
+
+export type AdaptiveWorkflowFailureCategory =
+  | "model_transport"
+  | "model_contract"
+  | "validation"
+  | "execution"
+  | "infrastructure"
+  | "persistence"
+  | "cancellation"
+  | "budget_exhaustion";
+
+export type AdaptiveWorkflowValidationOutcome = "passed" | "failed" | "warning" | "skipped";
+export type AdaptiveWorkflowValidationSeverity = "info" | "warning" | "error";
+export type AdaptiveWorkflowExecutionEventKind =
+  | "phase_transition"
+  | "model_request"
+  | "model_response"
+  | "validation"
+  | "repair"
+  | "side_effect"
+  | "timeout"
+  | "cancellation"
+  | "recovery"
+  | "replay";
+export type AdaptiveWorkflowPatchKind = "syntax_repair" | "semantic_patch" | "normalization";
+export type AdaptiveWorkflowPatchOperation = "add" | "replace" | "remove";
+
+export interface AdaptiveWorkflowValidationIssueV1 {
+  code: string;
+  message: string;
+  severity: AdaptiveWorkflowValidationSeverity;
+  path?: string;
+  validatorId?: string;
+}
+
+export interface AdaptiveWorkflowValidationResultV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  validatorId: string;
+  validatorVersion: string;
+  stage: AdaptiveWorkflowPhase;
+  outcome: AdaptiveWorkflowValidationOutcome;
+  issues: AdaptiveWorkflowValidationIssueV1[];
+  checkedRefs?: ArtifactRef[];
+  affectedPaths?: string[];
+}
+
+export interface AdaptiveWorkflowFailureV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_FAILURE_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  category: AdaptiveWorkflowFailureCategory;
+  code: string;
+  message: string;
+  retryable: boolean;
+  phase: AdaptiveWorkflowPhase;
+  timeoutMs?: number;
+  source?: string;
+  validationResultRef?: ArtifactRef;
+  causeRef?: ArtifactRef | ContentAddressedRefV1;
+}
+
+export interface AdaptiveWorkflowPolicyV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_POLICY_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  policyVersion: string;
+  maxRetries: {
+    modelTransport: number;
+    modelContract: number;
+    validation: number;
+    execution: number;
+    persistence: number;
+  };
+  timeoutMs: {
+    model: number;
+    validation: number;
+    execution: number;
+    persistence: number;
+  };
+  duplicateSideEffectPolicy: "return_existing" | "fail";
+  replay: {
+    requireRecordedModelResponses: boolean;
+    requirePromptHashes: boolean;
+  };
+  cancellation: {
+    terminalPhase: "cancelled";
+  };
+  immutablePatchPaths: string[];
+}
+
+export interface AdaptiveWorkflowRuntimeProfileV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  profileVersion: string;
+  capturedAt: IsoUtcTimestamp;
+  source: "declared" | "probed" | "fixture";
+  capabilities: {
+    providerIds?: string[];
+    maxContextTokens?: number;
+    maxConcurrency?: number;
+    supportsReplay?: boolean;
+    supportsCancellation?: boolean;
+  };
+  refs?: {
+    benchmarkEvidenceRefs?: ArtifactRef[];
+  };
+}
+
+export interface AdaptiveWorkflowExecutionEventV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  eventId: string;
+  runId: string;
+  phase: AdaptiveWorkflowPhase;
+  kind: AdaptiveWorkflowExecutionEventKind;
+  occurredAt: IsoUtcTimestamp;
+  idempotencyKey?: string;
+  promptHash?: ContentAddressedRefV1;
+  responseRef?: ArtifactRef | ContentAddressedRefV1;
+  artifactRefs?: ArtifactRef[];
+  validationResultRef?: ArtifactRef;
+  failureRef?: ArtifactRef;
+  details?: Record<string, unknown>;
+}
+
+export interface AdaptiveWorkflowPatchOperationV1 {
+  op: AdaptiveWorkflowPatchOperation;
+  path: string;
+  value?: unknown;
+}
+
+export interface AdaptiveWorkflowPatchRequestV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  requestId: string;
+  runId: string;
+  phase: AdaptiveWorkflowPhase;
+  kind: AdaptiveWorkflowPatchKind;
+  targetRef: ArtifactRef;
+  reason: {
+    failureRef?: ArtifactRef;
+    validationResultRef?: ArtifactRef;
+    summary: string;
+  };
+  operations: AdaptiveWorkflowPatchOperationV1[];
+  immutablePaths: string[];
+  affectedValidators: string[];
+}
+
+export interface AdaptiveWorkflowPatchReceiptV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  requestRef: ArtifactRef;
+  accepted: boolean;
+  appliedOperations: AdaptiveWorkflowPatchOperationV1[];
+  rejectedOperations: Array<{
+    operation: AdaptiveWorkflowPatchOperationV1;
+    code: string;
+    message: string;
+  }>;
+  rerunValidatorIds: string[];
+  resultRef?: ArtifactRef;
+}
+
+export interface AdaptiveWorkflowRunStateV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  stateVersion: string;
+  runId: string;
+  phase: AdaptiveWorkflowPhase;
+  policyRef: ArtifactRef;
+  runtimeProfileRef?: ArtifactRef;
+  selectedStrategyRef?: ArtifactRef;
+  objective?: {
+    text: string;
+    intakeRef?: ArtifactRef;
+  };
+  refs: {
+    planRef?: ArtifactRef;
+    configurationRef?: ArtifactRef;
+    validationResultRefs: ArtifactRef[];
+    failureRefs: ArtifactRef[];
+    replayResponseRefs: Array<ArtifactRef | ContentAddressedRefV1>;
+    patchReceiptRefs: ArtifactRef[];
+  };
+  counters: {
+    modelTransportRetries: number;
+    modelContractRetries: number;
+    validationRetries: number;
+    executionRetries: number;
+    persistenceRetries: number;
+    repairAttempts: number;
+  };
+  cancellation: {
+    requested: boolean;
+    requestedAt?: IsoUtcTimestamp;
+    reason?: string;
+  };
+  idempotency: {
+    sideEffectKeys: string[];
+  };
+  events: AdaptiveWorkflowExecutionEventV1[];
+  updatedAt: IsoUtcTimestamp;
+}
+
+export interface AdaptiveWorkflowRunRecordV1 {
+  schema: typeof ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  runId: string;
+  stateRef: ArtifactRef;
+  policyRef: ArtifactRef;
+  runtimeProfileRef?: ArtifactRef;
+  finalPhase: AdaptiveWorkflowPhase;
+  events: AdaptiveWorkflowExecutionEventV1[];
+  promptRefs?: Array<ArtifactRef | ContentAddressedRefV1>;
+  responseRefs?: Array<ArtifactRef | ContentAddressedRefV1>;
+  validationResultRefs: ArtifactRef[];
+  failureRefs: ArtifactRef[];
+  executionResultRefs?: ArtifactRef[];
+  tokenUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    toolTokens?: number;
+    totalTokens?: number;
+  };
+  latencyMs?: number;
+}
 
 // -------------------------
 // Visualization snapshot

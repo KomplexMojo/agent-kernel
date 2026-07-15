@@ -21,6 +21,7 @@ When older notes disagree with the charter or vision contract, the charter and v
 - `docs/architecture-charter.md` — Ports & Adapters rules and dependency direction.
 - `docs/architecture/diagram.mmd` — Mermaid architecture overview.
 - `docs/architecture/persona-state-machines.md` — deterministic persona FSM rules and state sets.
+- `docs/adaptive-workflow.md` — the `AdaptiveWorkflowAgent` durable control plane: architecture, state-machine flow, model/runtime profiles, strategy rules, extension points, benchmarks, and failed-run diagnosis.
 
 ## Current Execution Model
 

@@ -77,6 +77,41 @@ Error shape:
 
 Errors still exit non-zero.
 
+### `workflow`
+Runs the `AdaptiveWorkflowAgent` durable control plane. Subcommands:
+`ak workflow <run|status|replay|cancel|validate>`.
+
+```
+ak workflow run      [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path] [--dry-run]
+ak workflow validate [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path]
+ak workflow status   --out-dir dir | --run-id id
+ak workflow replay   --out-dir dir [--base-url url]
+ak workflow cancel   --out-dir dir | --cancel runId [--reason text]
+```
+
+- **run** selects a strategy, runs the matching LLM seam, and reaches `complete`
+  only after the domain `validate` and `verify` gates pass. It persists durable
+  state, runtime profile, selected strategy, validation, events, request, and
+  content/idempotency records under `--out-dir` (a temp dir if omitted).
+  Non-`complete` outcomes exit non-zero. Credential-shaped config is rejected
+  before any output directory is created.
+- **validate** / **`--dry-run`** validate input, policy, model capability, and
+  runtime profile with **no** model/execution call and **no** output directory.
+- **replay** re-runs deterministically from recorded model responses — no live
+  model or execution call — preserves source state, and writes only `replay-*`
+  sidecars. It cannot recreate missing durable content/idempotency records.
+- **status** reads durable state; **cancel** writes a checkpoint for an active
+  run and is non-mutating (terminal) for an already-finished run.
+- `--input` and `--objective` are mutually exclusive; `--replay`/`--cancel`
+  conflict with each other and with run-only flags and fail deterministically.
+- Controlled execution is injection-only and allowlisted: recursive workflow and
+  shell operations are blocked. No secrets are logged or persisted.
+
+Offline **benchmark evidence** (content-gen `summary.md`) can be loaded via
+`adapters/adaptive-workflow/benchmark-evidence-loader.js` and only affects
+routing through an explicit, versioned `promoteBenchmarkPolicy(...)` call — never
+automatically. See [`docs/adaptive-workflow.md`](../../docs/adaptive-workflow.md).
+
 ### `build`
 Agent-only builder that consumes a single JSON build spec and emits the canonical persisted
 handoff for downstream personas. By default it writes `spec.json`, the budget triplet when

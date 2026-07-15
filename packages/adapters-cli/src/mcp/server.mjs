@@ -3,7 +3,7 @@ import { join } from "node:path";
 import os from "node:os";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import {
   executeCommand,
   resolveFromRunArtifactPathsFromCommandOutDirs,
@@ -17,6 +17,7 @@ import { simulationTools } from "./tools/simulation.mjs";
 import { testingTools } from "./tools/testing.mjs";
 import { tickTools } from "./tools/tick.mjs";
 import { sandboxTools } from "./tools/sandbox.mjs";
+import { adaptiveWorkflowResources, adaptiveWorkflowTools, assertAdaptiveWorkflowArgs, readAdaptiveWorkflowResource } from "./adaptive-workflow-tools.mjs";
 
 const SERVER_NAME = "agent-kernel-cli";
 const SERVER_VERSION = "1.0.0";
@@ -29,11 +30,13 @@ const TOOL_DEFINITIONS = [
   ...testingTools,
   ...tickTools,
   ...sandboxTools,
+  ...adaptiveWorkflowTools,
 ];
 
 const TOOL_MAP = new Map(TOOL_DEFINITIONS.map((tool) => [tool.name, tool]));
 const SESSION_TEMP_ROOT = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-"));
 const REMEMBERED_RUNS = new Map();
+const MCP_REQUESTS = new Map();
 
 let commandQueue = Promise.resolve();
 
@@ -72,12 +75,26 @@ function normalizeNonEmptyString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
+function pruneMcpRequests() {
+  while (MCP_REQUESTS.size > 128) { const settled = Array.from(MCP_REQUESTS).find(([, entry]) => entry.settled); if (!settled) return; MCP_REQUESTS.delete(settled[0]); }
+}
+
 function getCommandOutDirEntries(runId) {
   const record = REMEMBERED_RUNS.get(runId);
   if (!record) {
     return [];
   }
   return Array.from(record.commands.entries()).map(([command, outDir]) => ({ command, outDir }));
+}
+
+function workflowRunSummaries() {
+  return Array.from(REMEMBERED_RUNS.values()).filter((record) => record.commands.has("workflow")).map((record) => ({ runId: record.runId, outDir: record.commands.get("workflow") })).sort((left, right) => left.runId.localeCompare(right.runId));
 }
 
 function rememberRunArtifacts({ tool, args, result }) {
@@ -108,6 +125,7 @@ function resolveDefaultOutDir(tool, args) {
     return null;
   }
   const runId = normalizeNonEmptyString(args?.runId);
+  if (tool.command === "workflow" && tool.workflowAction !== "run") return null;
   if (tool.command === "scenario" && runId) {
     return join(SESSION_TEMP_ROOT, runId);
   }
@@ -119,6 +137,11 @@ function resolveDefaultOutDir(tool, args) {
 
 async function maybeResolveRememberedInputs(tool, rawArgs) {
   const args = { ...rawArgs };
+  if (tool.command === "workflow" && tool.workflowAction !== "run" && normalizeNonEmptyString(args.runId) && !normalizeNonEmptyString(args.outDir)) {
+    const outDir = REMEMBERED_RUNS.get(args.runId)?.commands.get("workflow");
+    if (!outDir) throw new Error(`Unknown remembered workflow run id: ${args.runId}`);
+    args.outDir = outDir;
+  }
   if (
     tool.command === "run"
     && normalizeNonEmptyString(args.fromRun)
@@ -188,6 +211,7 @@ async function invokeCliTool(tool, args) {
   const originalConsoleError = console.error;
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  const originalExitCode = process.exitCode;
 
   const captureWrite = (chunks) => (chunk, encoding, callback) => {
     const text = Buffer.isBuffer(chunk) ? chunk.toString(typeof encoding === "string" ? encoding : "utf8") : String(chunk);
@@ -216,6 +240,7 @@ async function invokeCliTool(tool, args) {
     console.error = originalConsoleError;
     process.stdout.write = originalStdoutWrite;
     process.stderr.write = originalStderrWrite;
+    process.exitCode = originalExitCode;
   }
 
   const stdoutText = captureText(stdoutChunks);
@@ -271,26 +296,27 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   },
 );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+server.setRequestHandler(ListToolsRequestSchema, async () => enqueueCommand(() => ({
   tools: TOOL_DEFINITIONS.map(({ name, description, inputSchema }) => ({
     name,
     description,
     inputSchema,
   })),
+})));
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => enqueueCommand(() => ({ resources: adaptiveWorkflowResources })));
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => enqueueCommand(() => {
+  const value = readAdaptiveWorkflowResource(request.params.uri, workflowRunSummaries());
+  return { contents: [{ uri: request.params.uri, mimeType: "application/json", text: JSON.stringify(value, null, 2) }] };
 }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const tool = TOOL_MAP.get(request.params.name);
-  if (!tool) {
-    throw new Error(`Unknown tool: ${request.params.name}`);
-  }
-
-  const requestedArgs = request.params.arguments ?? {};
-  const rememberedResult = await enqueueCommand(() => maybeHandleRememberedTool(tool, requestedArgs));
+async function executeToolRequest(tool, requestedArgs) {
+  const rememberedResult = await maybeHandleRememberedTool(tool, requestedArgs);
   if (rememberedResult) {
     return {
       content: [
@@ -303,13 +329,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 
-  const preparedArgs = await enqueueCommand(() => maybeResolveRememberedInputs(tool, requestedArgs));
+  const preparedArgs = await maybeResolveRememberedInputs(tool, requestedArgs);
   const defaultedOutDir = resolveDefaultOutDir(tool, preparedArgs);
   if (defaultedOutDir) {
     preparedArgs.outDir = defaultedOutDir;
   }
 
-  const result = await enqueueCommand(() => invokeCliTool(tool, preparedArgs));
+  const result = await invokeCliTool(tool, preparedArgs);
   const remembered = rememberRunArtifacts({ tool, args: preparedArgs, result });
   annotateArtifactLocation(result, {
     requestedArgs,
@@ -326,7 +352,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     ],
     structuredContent: result,
   };
-});
+}
+
+async function handleToolRequest(request, extra) {
+  const tool = TOOL_MAP.get(request.params.name);
+  if (!tool) throw new Error(`Unknown tool: ${request.params.name}`);
+  const requestedArgs = request.params.arguments ?? {};
+  if (extra?.requestId === undefined) {
+    if (tool.command === "workflow") assertAdaptiveWorkflowArgs(tool, requestedArgs);
+    return executeToolRequest(tool, requestedArgs);
+  }
+  const key = `${typeof extra.requestId}:${String(extra.requestId)}`; const signature = canonicalJson({ name: tool.name, arguments: requestedArgs }); const cached = MCP_REQUESTS.get(key);
+  if (cached) { if (cached.signature !== signature) throw new Error(`MCP request id conflict: ${key}`); return cached.promise; }
+  const entry = { signature, settled: false, promise: null };
+  entry.promise = (async () => { if (tool.command === "workflow") assertAdaptiveWorkflowArgs(tool, requestedArgs); return executeToolRequest(tool, requestedArgs); })().finally(() => { entry.settled = true; pruneMcpRequests(); }); MCP_REQUESTS.set(key, entry); pruneMcpRequests();
+  return entry.promise;
+}
+
+server.setRequestHandler(CallToolRequestSchema, async (request, extra) => enqueueCommand(() => handleToolRequest(request, extra)));
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

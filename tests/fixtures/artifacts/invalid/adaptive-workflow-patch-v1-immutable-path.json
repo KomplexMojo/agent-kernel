@@ -1,0 +1,14 @@
+{
+  "schema": "agent-kernel/AdaptiveWorkflowPatchRequest",
+  "schemaVersion": 1,
+  "meta": { "id": "patch-invalid", "runId": "run-repair", "createdAt": "2026-07-13T00:00:00.000Z", "producedBy": "adaptive-workflow" },
+  "requestId": "patch-invalid",
+  "runId": "run-repair",
+  "phase": "repair",
+  "kind": "semantic_patch",
+  "targetRef": { "id": "configuration", "schema": "agent-kernel/AdaptiveWorkflowConfiguration", "schemaVersion": 1 },
+  "reason": { "summary": "attempt immutable mutation" },
+  "operations": [{ "op": "replace", "path": "/meta", "value": {} }],
+  "immutablePaths": ["/schema", "/schemaVersion", "/meta/id", "/meta/runId", "/meta/createdAt", "/refs/replayResponseRefs", "/idempotency/sideEffectKeys", "/events"],
+  "affectedValidators": ["schema"]
+}

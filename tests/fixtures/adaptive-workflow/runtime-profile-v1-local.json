@@ -1,0 +1,20 @@
+{
+  "schema": "agent-kernel/AdaptiveWorkflowRuntimeProfile",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "runtime-profile-local",
+    "runId": "run_strategy_policy",
+    "createdAt": "2026-07-12T00:00:00.000Z",
+    "producedBy": "test"
+  },
+  "profileVersion": "runtime-profile-v1",
+  "capturedAt": "2026-07-12T00:00:00.000Z",
+  "source": "probed",
+  "capabilities": {
+    "providerIds": ["fixture-provider"],
+    "maxContextTokens": 32000,
+    "maxConcurrency": 1,
+    "supportsReplay": true,
+    "supportsCancellation": true
+  }
+}

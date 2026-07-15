@@ -1,29 +1,20 @@
 import { DEFAULT_LLM_BASE_URL } from "../../../../runtime/src/contracts/domain-constants.js";
-
-export function createLlmAdapter({ baseUrl = DEFAULT_LLM_BASE_URL, fetchFn = globalThis.fetch } = {}) {
+import { createOllamaModelAdapter } from "../model/ollama.js";
+export function createLlmAdapter({ baseUrl = DEFAULT_LLM_BASE_URL, fetchFn = globalThis.fetch, fixture } = {}) {
+  if (fixture !== undefined) {
+    const response = JSON.parse(JSON.stringify(fixture));
+    return { generate: async () => JSON.parse(JSON.stringify(response)) };
+  }
   if (!fetchFn) {
     throw new Error("LLM adapter requires a fetch implementation.");
   }
-
+  const adapter = createOllamaModelAdapter({ fetchFn, config: { baseUrl } });
   async function generate({ model, prompt, options = {}, stream = false, format } = {}) {
     if (!model || !prompt) {
       throw new Error("LLM generate requires model and prompt.");
     }
-    const payload = { model, prompt, options, stream };
-    if (format) {
-      payload.format = format;
-    }
-    const response = await fetchFn(`${baseUrl}/api/generate`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      throw new Error(`LLM request failed: ${response.status} ${response.statusText}`);
-    }
-    return response.json();
+    return adapter.generateRawOllama({ model, prompt, options, stream, format });
   }
-
   return {
     generate,
   };

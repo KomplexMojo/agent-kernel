@@ -37,6 +37,15 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - UI-facing core access facades for preview/playback setup. Browser UI code must
   call runtime helpers rather than importing `core-ts` directly.
 
+## AdaptiveWorkflowAgent Control Plane
+
+- `AdaptiveWorkflowAgent` (`packages/runtime/src/adaptive-workflow/*`) is a durable, deterministic **application control plane**, not a persona. It coordinates an objective through intake, planning, configuration, validation, execution, verification, repair, escalation, and completion by reusing the existing Orchestrator LLM seams (`runLlmSession`, `runLlmBudgetLoop`) and command kernel.
+- The Orchestrator **persona** is unchanged and remains the tick/persona boundary guardian. `AdaptiveWorkflowAgent` does not rename, absorb, or broaden it.
+- Dependency direction is preserved: the runner and its contracts, validators, strategy policy, repair controller, and replay envelopes live in `runtime`. All model, hardware-probe, persistence, CLI-execution, and MCP-transport IO lives behind injected ports fulfilled by adapters. The runtime layer imports no adapter, MCP, `node:fs`, `node:child_process`, or `node:crypto` module.
+- The LLM proposes plans, configurations, and repairs but is never the authority on validity or completion. Deterministic validators own the `validate` and `verify` gates; a model can never mark a workflow complete.
+- Model, MCP, and CLI calls are mockable; deterministic tests use fixtures and never hit a live service. Benchmark measurements are offline evidence only and cannot rewrite routing policy without an explicit, versioned promotion.
+- CLI (`ak workflow …`) and MCP (`ak_workflow_*`) surfaces are additive; existing commands and tools are unchanged. See [`adaptive-workflow.md`](adaptive-workflow.md).
+
 ## Builder Port
 
 Heavy level synthesis runs behind a builder adapter. UI code hands off summaries, normalized `levelGen`, or direct tile rows to that adapter instead of synthesizing layouts on the main thread.
