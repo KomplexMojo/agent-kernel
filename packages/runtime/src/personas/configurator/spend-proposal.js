@@ -157,6 +157,55 @@ function extractMotivations(actor) {
   return value || [];
 }
 
+const RESOURCE_AFFINITY_EXPRESSION_IDS = Object.freeze({
+  push: "resource_affinity_expression_externalize",
+  pull: "resource_affinity_expression_internalize",
+  emit: "resource_affinity_expression_localized",
+  draw: "resource_affinity_expression_sustain",
+});
+
+/**
+ * Prices the payloads a resource hands to whoever walks over it.
+ *
+ * These are the resource_* price ids, which carry the free-floating premium — a
+ * resource grants power to any taker, unlike a hazard, which only threatens.
+ *
+ * The vital DELTA is deliberately absent here: it is already charged by
+ * resource_base/level/permanent below, and charging it again would double-bill.
+ * What was previously charged NOTHING, and is charged here, is the affinity payload
+ * and the vital regen.
+ */
+function extractResourceGrantPriceEntries(resource) {
+  const entries = [];
+
+  const affinity = resource?.affinity;
+  if (affinity && typeof affinity === "object") {
+    const stacks = Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
+    entries.push({ priceId: "resource_affinity_base", quantity: 1 });
+    entries.push({ priceId: "resource_affinity_stack", quantity: stacks });
+    const expressionId = RESOURCE_AFFINITY_EXPRESSION_IDS[affinity.expression];
+    if (expressionId) entries.push({ priceId: expressionId, quantity: 1 });
+    const mana = Number.isFinite(affinity.mana) ? Math.abs(affinity.mana) : 0;
+    if (mana > 0) entries.push({ priceId: "resource_vital_mana_point", quantity: mana });
+    // Quadratic at the price list — this is what makes permanence expensive, and
+    // therefore what makes permanent resources naturally scarce within a budget.
+    const manaRegen = Number.isFinite(affinity.manaRegen) ? affinity.manaRegen : 0;
+    if (manaRegen > 0) {
+      entries.push({ priceId: "resource_vital_mana_regen_tick", quantity: manaRegen });
+    }
+  }
+
+  const vitals = Array.isArray(resource?.vitals) ? resource.vitals : [];
+  vitals.forEach((vital) => {
+    const regen = Number.isFinite(vital?.regen) ? vital.regen : 0;
+    if (regen > 0 && typeof vital?.key === "string") {
+      entries.push({ priceId: `resource_vital_${vital.key}_regen_tick`, quantity: regen });
+    }
+  });
+
+  return entries;
+}
+
 function extractResourcePriceEntries(resource) {
   // V3: { permanenceMode, vitals: [{ key, delta }] }
   if (resource?.permanenceMode && Array.isArray(resource.vitals)) {
@@ -256,6 +305,10 @@ function buildSpendItems({ layoutData, actors, hazards, resources }) {
     resourceArray.forEach((resource, index) => {
       const subjectRef = buildSubjectRef(resource?.id || `resource_${index + 1}`, "agent-kernel/ResourceArtifact");
       extractResourcePriceEntries(resource).forEach(({ priceId, quantity }) => {
+        accumulateItem(counts, priceId, "resource", Math.floor(quantity), { category: "resources", subjectRef });
+      });
+      // Affinity payload + vital regen: previously charged nothing at all.
+      extractResourceGrantPriceEntries(resource).forEach(({ priceId, quantity }) => {
         accumulateItem(counts, priceId, "resource", Math.floor(quantity), { category: "resources", subjectRef });
       });
     });

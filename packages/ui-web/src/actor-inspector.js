@@ -707,12 +707,71 @@ function resolveEntityValue(entity, liveActor) {
   return runtimeCost;
 }
 
+/**
+ * Summarizes an actor's affinity grants into one entry per kind.
+ *
+ * An actor's magnitude for a kind is the sum of its contributing grants, so the
+ * inspector must also show how much of that total is perishable — "water+3" means
+ * something different when 2 of those stacks disappear once a pool drains.
+ *
+ * Categories are derived exactly as core derives them, keyed on manaMax, so the UI
+ * cannot disagree with the simulation:
+ *   manaMax === 0              → innate, always contributes
+ *   manaMax > 0, manaRegen 0   → temporary, contributes while mana > 0
+ *   manaMax > 0, manaRegen > 0 → permanent, refills; contributes while mana > 0
+ *
+ * manaMax is what separates a drained temporary grant from an innate one — both sit
+ * at mana 0, but only the innate one still grants its stacks.
+ *
+ * @param {Object} actor - actor with an `affinities` grant list
+ * @returns {Array<{kind, stacks, permanentStacks, temporaryStacks, temporaryMana}>}
+ */
+function summarizeActorAffinityGrants(actor) {
+  const byKind = new Map();
+  const grants = Array.isArray(actor?.affinities) ? actor.affinities : [];
+
+  grants.forEach((grant) => {
+    const kind = normalizeName(grant?.kind).toLowerCase();
+    if (!kind) return;
+    const stacks = readPositiveInt(grant?.stacks, 0);
+    if (stacks <= 0) return;
+
+    const hasPool = Number.isFinite(grant?.manaMax) && grant.manaMax > 0;
+    const mana = Number.isFinite(grant?.mana) ? grant.mana : 0;
+    const manaRegen = Number.isFinite(grant?.manaRegen) ? grant.manaRegen : 0;
+    // A pooled grant sitting at zero mana is represented but projects nothing.
+    const contributes = !hasPool || mana > 0;
+    const perishable = hasPool && manaRegen === 0;
+
+    const entry = byKind.get(kind) || {
+      kind,
+      stacks: 0,
+      permanentStacks: 0,
+      temporaryStacks: 0,
+      temporaryMana: 0,
+    };
+    if (contributes) {
+      entry.stacks += stacks;
+      if (perishable) {
+        entry.temporaryStacks += stacks;
+        entry.temporaryMana += mana;
+      } else {
+        entry.permanentStacks += stacks;
+      }
+    }
+    byKind.set(kind, entry);
+  });
+
+  return [...byKind.values()].sort((a, b) => a.kind.localeCompare(b.kind));
+}
+
 export {
   deriveTemplateInstanceId,
   formatActorProfile,
   formatActorCapabilities,
   formatActorConstraints,
   formatActorLiveState,
+  summarizeActorAffinityGrants,
 };
 
 export function createActorInspector({

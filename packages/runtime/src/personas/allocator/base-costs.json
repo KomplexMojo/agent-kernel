@@ -1,0 +1,54 @@
+{
+  "_comment": "Base costs ONLY — tunable data. The formulas that consume these (linear vs quadratic, and the resource free-floating premium) live in code in default-price-list.js. Edit the numbers here; do not add logic.",
+  "_baseUnit": "1 point of max health = 1 token",
+  "vitals": {
+    "vital_health_point": 1,
+    "vital_mana_point": 1,
+    "vital_stamina_point": 1,
+    "vital_durability_point": 1
+  },
+  "regen": {
+    "vital_health_regen_tick": 1,
+    "vital_mana_regen_tick": 1,
+    "vital_stamina_regen_tick": 1,
+    "vital_durability_regen_tick": 1
+  },
+  "affinity": {
+    "affinity_stack": 1,
+    "affinity_base": 10,
+    "affinity_expression_externalize": 35,
+    "affinity_expression_internalize": 35,
+    "affinity_expression_localized": 25,
+    "affinity_expression_sustain": 25
+  },
+  "motivation": {
+    "motivation_stationary": 0,
+    "motivation_random": 1,
+    "motivation_exploring": 2,
+    "motivation_patrolling": 3,
+    "motivation_attacking": 3,
+    "motivation_defending": 2,
+    "motivation_stealthy": 4,
+    "motivation_friendly": 1,
+    "motivation_reflexive": 1,
+    "motivation_goal_oriented": 5,
+    "motivation_strategy_focused": 10
+  },
+  "actor": {
+    "actor_spawn": 5
+  },
+  "tile": {
+    "tile_floor": 1,
+    "tile_hallway": 3
+  },
+  "hazard": {
+    "hazard_basic": 5,
+    "hazard_base": 10
+  },
+  "resource": {
+    "resource_base": 1,
+    "resource_level": 5,
+    "resource_permanent": 10
+  },
+  "freeFloatingPremium": 1.5
+}

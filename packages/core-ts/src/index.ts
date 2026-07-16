@@ -147,8 +147,16 @@ export const CORE_API_KEYS = [
   "getMotivatedActorActionCostManaByIndex",
   "getMotivatedActorActionCostStaminaByIndex",
   "getMotivatedActorAffinityExpressionByIndex",
+  "getMotivatedActorAffinityGrantCountByIndex",
+  "getMotivatedActorAffinityGrantExpressionAt",
+  "getMotivatedActorAffinityGrantKindAt",
+  "getMotivatedActorAffinityGrantManaAt",
+  "getMotivatedActorAffinityGrantManaMaxAt",
+  "getMotivatedActorAffinityGrantManaRegenAt",
+  "getMotivatedActorAffinityGrantStacksAt",
   "getMotivatedActorAffinityKindByIndex",
   "getMotivatedActorAffinityStacksByIndex",
+  "getMotivatedActorAffinityStacksForKind",
   "getMotivatedActorCount",
   "getMotivatedActorIdByIndex",
   "getMotivatedActorMovementCostByIndex",
@@ -176,6 +184,15 @@ export const CORE_API_KEYS = [
   "getMotivationProfileCost",
   "getMotivationTier",
   "getOppositeAffinityKind",
+  "getResourceAffinityExpressionAt",
+  "getResourceAffinityKindAt",
+  "getResourceAffinityStacksAt",
+  "getResourceDeltaAt",
+  "getResourceManaAt",
+  "getResourceManaRegenAt",
+  "getResourceModeAt",
+  "getResourceVitalKindAt",
+  "getResourceVitalRegenAt",
   "getStaticHazardAffinityAt",
   "getStaticHazardCount",
   "getStaticHazardDurabilityAt",
@@ -196,6 +213,8 @@ export const CORE_API_KEYS = [
   "getTileActorKindByIndex",
   "getTileActorXByIndex",
   "getTileActorYByIndex",
+  "grantMotivatedActorAffinity",
+  "hasResourceAt",
   "init",
   "loadMvpBarrierScenario",
   "loadMvpScenario",
@@ -203,8 +222,11 @@ export const CORE_API_KEYS = [
   "memory",
   "motivationKindsConflict",
   "normalizeMotivationIntensity",
+  "placeAffinityResourceAt",
+  "placeResourceAt",
   "prepareTileBuffer",
   "raiseBarrierAt",
+  "removeResourceAt",
   "renderBaseCellChar",
   "renderCellChar",
   "resetMotivationCostAccumulator",
@@ -229,6 +251,7 @@ export const CORE_API_KEYS = [
   "setSpawnPosition",
   "setTileAt",
   "spawnActorAt",
+  "spendMotivatedActorAffinityMana",
   "step",
   "validateActorCapabilities",
   "validateActorPlacement",
@@ -581,6 +604,30 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getMotivatedActorAffinityKindByIndex = world.getMotivatedActorAffinityKindByIndex as CoreFunction;
   core.getMotivatedActorAffinityExpressionByIndex = world.getMotivatedActorAffinityExpressionByIndex as CoreFunction;
   core.getMotivatedActorAffinityStacksByIndex = world.getMotivatedActorAffinityStacksByIndex as CoreFunction;
+  core.grantMotivatedActorAffinity = world.grantMotivatedActorAffinity as CoreFunction;
+  core.spendMotivatedActorAffinityMana = world.spendMotivatedActorAffinityMana as CoreFunction;
+  core.getMotivatedActorAffinityStacksForKind = world.getMotivatedActorAffinityStacksForKind as CoreFunction;
+  core.getMotivatedActorAffinityGrantCountByIndex = world.getMotivatedActorAffinityGrantCountByIndex as CoreFunction;
+  core.getMotivatedActorAffinityGrantKindAt = world.getMotivatedActorAffinityGrantKindAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantExpressionAt = world.getMotivatedActorAffinityGrantExpressionAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantStacksAt = world.getMotivatedActorAffinityGrantStacksAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantManaAt = world.getMotivatedActorAffinityGrantManaAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantManaMaxAt = world.getMotivatedActorAffinityGrantManaMaxAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantManaRegenAt = world.getMotivatedActorAffinityGrantManaRegenAt as CoreFunction;
+
+  core.hasResourceAt = world.hasResourceAt.bind(world) as CoreFunction;
+  core.placeResourceAt = world.placeResourceAt.bind(world) as CoreFunction;
+  core.placeAffinityResourceAt = world.placeAffinityResourceAt.bind(world) as CoreFunction;
+  core.removeResourceAt = world.removeResourceAt.bind(world) as CoreFunction;
+  core.getResourceVitalKindAt = world.getResourceVitalKindAt as CoreFunction;
+  core.getResourceDeltaAt = world.getResourceDeltaAt as CoreFunction;
+  core.getResourceModeAt = world.getResourceModeAt as CoreFunction;
+  core.getResourceAffinityKindAt = world.getResourceAffinityKindAt as CoreFunction;
+  core.getResourceAffinityExpressionAt = world.getResourceAffinityExpressionAt as CoreFunction;
+  core.getResourceAffinityStacksAt = world.getResourceAffinityStacksAt as CoreFunction;
+  core.getResourceManaAt = world.getResourceManaAt as CoreFunction;
+  core.getResourceManaRegenAt = world.getResourceManaRegenAt as CoreFunction;
+  core.getResourceVitalRegenAt = world.getResourceVitalRegenAt as CoreFunction;
 
   core.init = ((seed: number) => {
     effects.clearEffects();

@@ -188,7 +188,16 @@ Options:
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
-  --resource      Resource artifact spec for create/configure/resource-plan (repeatable): permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>] or legacy tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
+  --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
+                  Vital payload:   permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]
+                  permanenceMode governs delta only (consumable raises current, level/permanent raise max).
+                  regen is a third, independent grant: the actor permanently gains that regen rate on top
+                  of the delta. delta may be omitted when regen is given (a regen-only resource).
+                  Affinity payload: affinity=<fire|water|earth|wind|life|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]
+                  Both payloads may be combined in one spec. manaRegen defaults to 0, which grants the
+                  affinity temporarily until its mana is spent; manaRegen>0 refills the pool, making the
+                  granted affinity permanent (and costing 5*manaRegen^2 more tokens to author).
+                  Legacy: tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
@@ -1081,6 +1090,55 @@ const RESOURCE_ALLOWED_STATS = new Set([
 ]);
 const RESOURCE_ALLOWED_PERMANENCE_MODES = new Set(["consumable", "level", "permanent"]);
 const RESOURCE_ALLOWED_VITAL_KEYS = new Set(["health", "mana", "stamina"]);
+const RESOURCE_ALLOWED_AFFINITY_KINDS = new Set([
+  "fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark",
+]);
+const RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS = new Set(["push", "pull", "emit", "draw"]);
+
+function readResourceInt(fields, key, resourceIndex, { required = false, min = 0 } = {}) {
+  if (!fields.has(key)) {
+    if (required) {
+      throw new Error(`resource[${resourceIndex}] ${key} is required for an affinity payload.`);
+    }
+    return 0;
+  }
+  const raw = fields.get(key);
+  const value = Number(raw);
+  if (!Number.isInteger(value)) {
+    throw new Error(`resource[${resourceIndex}] ${key} must be an integer; got "${raw}".`);
+  }
+  if (value < min) {
+    throw new Error(`resource[${resourceIndex}] ${key} must be >= ${min}; got ${value}.`);
+  }
+  return value;
+}
+
+/**
+ * Parses the affinity payload of a resource spec.
+ *
+ * manaRegen is what makes the granted affinity permanent — there is no tier field.
+ * It defaults to 0, which yields a temporary grant that ends when its mana runs out.
+ */
+function parseResourceAffinityPayload(fields, resourceIndex) {
+  const kind = fields.get("affinity");
+  if (!RESOURCE_ALLOWED_AFFINITY_KINDS.has(kind)) {
+    throw new Error(`resource[${resourceIndex}] affinity must be one of: ${[...RESOURCE_ALLOWED_AFFINITY_KINDS].join(", ")}.`);
+  }
+  const expression = fields.get("expression");
+  if (!expression) {
+    throw new Error(`resource[${resourceIndex}] expression is required for an affinity payload.`);
+  }
+  if (!RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS.has(expression)) {
+    throw new Error(`resource[${resourceIndex}] expression must be one of: ${[...RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS].join(", ")}.`);
+  }
+  const stacks = readResourceInt(fields, "stacks", resourceIndex, { required: true, min: 1 });
+  const mana = readResourceInt(fields, "mana", resourceIndex, { required: true, min: 0 });
+  const manaRegen = readResourceInt(fields, "manaRegen", resourceIndex, { min: 0 });
+  if (manaRegen > 0 && mana <= 0) {
+    throw new Error(`resource[${resourceIndex}] manaRegen requires mana > 0 — regen would refill nothing.`);
+  }
+  return { kind, expression, stacks, mana, manaRegen };
+}
 
 function parseResourceSpec(value, resourceIndex) {
   const raw = String(value || "").trim();
@@ -1096,12 +1154,16 @@ function parseResourceSpec(value, resourceIndex) {
   // Detect schema version from first key seen
   const isV3 = segments.some((seg) => {
     const key = seg.split("=")[0].trim();
-    return key === "permanenceMode" || key === "vital";
+    return key === "permanenceMode" || key === "vital" || key === "affinity";
   });
 
   if (isV3) {
-    // V3: permanenceMode + vital + delta
-    const allowedFields = new Set(["id", "permanenceMode", "vital", "delta"]);
+    // V3: a vital payload (permanenceMode + vital + delta), an affinity payload
+    // (affinity + expression + stacks + mana [+ manaRegen]), or both.
+    const allowedFields = new Set([
+      "id", "permanenceMode", "vital", "delta", "regen",
+      "affinity", "expression", "stacks", "mana", "manaRegen",
+    ]);
     segments.forEach((segment) => {
       if (!segment.includes("=")) {
         throw new Error(`resource[${resourceIndex}] segment "${segment}" is invalid; expected key=value.`);
@@ -1117,27 +1179,57 @@ function parseResourceSpec(value, resourceIndex) {
       }
       fields.set(key, val);
     });
-    const permanenceMode = fields.get("permanenceMode");
-    if (!RESOURCE_ALLOWED_PERMANENCE_MODES.has(permanenceMode)) {
-      throw new Error(`resource[${resourceIndex}] permanenceMode must be one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}.`);
+
+    const hasVitalPayload = fields.has("permanenceMode") || fields.has("vital")
+      || fields.has("delta") || fields.has("regen");
+    const hasAffinityPayload = fields.has("affinity");
+    if (!hasVitalPayload && !hasAffinityPayload) {
+      throw new Error(`resource[${resourceIndex}] requires a vital payload, an affinity payload, or both.`);
     }
-    const vitalKey = fields.get("vital");
-    if (!vitalKey || !RESOURCE_ALLOWED_VITAL_KEYS.has(vitalKey)) {
-      throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}.`);
+
+    let vitals = [];
+    let permanenceMode = "consumable";
+    if (hasVitalPayload) {
+      permanenceMode = fields.get("permanenceMode");
+      if (!RESOURCE_ALLOWED_PERMANENCE_MODES.has(permanenceMode)) {
+        throw new Error(`resource[${resourceIndex}] permanenceMode must be one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}.`);
+      }
+      const vitalKey = fields.get("vital");
+      if (!vitalKey || !RESOURCE_ALLOWED_VITAL_KEYS.has(vitalKey)) {
+        throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}.`);
+      }
+      // delta is optional once regen is present: a regen-only resource is legal.
+      if (!fields.has("delta") && !fields.has("regen")) {
+        throw new Error(`resource[${resourceIndex}] delta is required unless regen is given.`);
+      }
+      let delta = 0;
+      if (fields.has("delta")) {
+        delta = Number(fields.get("delta"));
+        if (!Number.isFinite(delta)) {
+          throw new Error(`resource[${resourceIndex}] delta must be a number.`);
+        }
+      }
+      // regen is a third, independent grant — permanenceMode governs delta only.
+      // Omitted when absent so existing vital-only artifacts stay byte-identical
+      // (ResourceVitalGrant.regen is optional).
+      const vitalGrant = { key: vitalKey, delta };
+      if (fields.has("regen")) {
+        vitalGrant.regen = readResourceInt(fields, "regen", resourceIndex, { min: 0 });
+      }
+      vitals = [vitalGrant];
     }
-    if (!fields.has("delta")) {
-      throw new Error(`resource[${resourceIndex}] delta is required.`);
-    }
-    const delta = Number(fields.get("delta"));
-    if (!Number.isFinite(delta)) {
-      throw new Error(`resource[${resourceIndex}] delta must be a number.`);
-    }
-    return {
+
+    const parsed = {
       id: fields.has("id") ? fields.get("id") : `resource_${resourceIndex}`,
       permanenceMode,
-      vitals: [{ key: vitalKey, delta }],
+      vitals,
       _schemaVersion: 3,
     };
+
+    if (hasAffinityPayload) {
+      parsed.affinity = parseResourceAffinityPayload(fields, resourceIndex);
+    }
+    return parsed;
   }
 
   // V1 (backward compat): tier + stat + delta + dropRate
@@ -4363,6 +4455,7 @@ async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId,
         vitals: r.vitals,
         permanenceMode: r.permanenceMode,
       };
+      if (r.affinity) resourceArtifact.affinity = r.affinity;
     } else {
       resourceArtifact = {
         schema: "agent-kernel/ResourceArtifact",

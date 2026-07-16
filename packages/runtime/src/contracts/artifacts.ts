@@ -2102,12 +2102,34 @@ export interface ResourceArtifactV2 {
 export type ResourcePermanenceMode = "consumable" | "level" | "permanent";
 
 /** V3: replaces `permanent: boolean` with explicit three-way permanenceMode. */
+/**
+ * The affinity a resource grants to whichever actor passes over it.
+ *
+ * `manaRegen` is the only thing that distinguishes a permanent grant from a
+ * temporary one — regen refills the pool, so the affinity never expires. There is
+ * deliberately no tier or permanence flag here: `manaRegen > 0` is the single
+ * source of truth. Note this is orthogonal to `permanenceMode`, which governs the
+ * VITAL payload (current vs max).
+ */
+export interface ResourceAffinityGrant {
+  kind: string;
+  expression: string;
+  stacks: number;
+  /** Mana pool the grant carries. Drained to 0 with no regen, the grant is lost. */
+  mana: number;
+  /** Refill per tick. > 0 makes the granted affinity permanent. */
+  manaRegen: number;
+}
+
 export interface ResourceArtifactV3 {
   schema: typeof RESOURCE_ARTIFACT_SCHEMA;
   schemaVersion: 3;
   meta: ArtifactMeta;
+  /** Vital payload. Empty for an affinity-only resource; always present. */
   vitals: ResourceVitalGrant[];
   permanenceMode: ResourcePermanenceMode;
+  /** Optional affinity payload — additive, so V3 readers are unaffected. */
+  affinity?: ResourceAffinityGrant;
 }
 
 export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2 | ResourceArtifactV3;

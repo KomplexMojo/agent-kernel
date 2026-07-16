@@ -326,6 +326,10 @@ export function buildBuildSpecFromSummary({
         id: entry.id,
         permanenceMode: entry.permanenceMode,
         vitals: Array.isArray(entry.vitals) ? entry.vitals.map((v) => ({ ...v })) : undefined,
+        // The affinity payload must survive into the spec or it never reaches the
+        // budget: this normalizer is an allowlist, and anything absent here is
+        // silently dropped between authoring and the spend proposal.
+        affinity: entry.affinity && typeof entry.affinity === "object" ? { ...entry.affinity } : undefined,
         resourceVitals: entry.resourceVitals && typeof entry.resourceVitals === "object" ? { ...entry.resourceVitals } : undefined,
         permanent: entry.permanent === true,
         tier: entry.tier,

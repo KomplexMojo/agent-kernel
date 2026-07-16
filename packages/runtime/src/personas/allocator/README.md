@@ -34,6 +34,41 @@ The simulation core (`core-ts`) remains responsible for applying costs to state 
 
 ## Responsibilities
 
+### The base-cost standard: numbers in JSON, formulas in code
+
+**Every element with a token cost follows this split, without exception.**
+
+| | Where | What |
+|---|---|---|
+| **Data** | `base-costs.json` | Base cost per price id. Numbers only. Tunable — edit this to reprice the game. |
+| **Logic** | `default-price-list.js` | Which ids scale quadratically (`QUADRATIC_IDS`), and the resource free-floating premium (`buildResourceItems`). |
+
+A base cost must never appear in JavaScript. If it does, the JSON stops being the single source of
+truth and the two drift silently — nothing fails, the numbers just quietly disagree.
+`tests/runtime/base-cost-standard.test.js` fails the build if a literal `unitCost` reappears in the
+price-list code, if a cost value in the JSON is anything but a number, or if an emitted item is not
+backed by the JSON.
+
+Adding a priced element:
+1. Add its base cost to `base-costs.json` (number only).
+2. Add a description to `DESCRIPTIONS` in `default-price-list.js`.
+3. If it scales quadratically, add its id to `QUADRATIC_IDS`. Otherwise it is linear by default.
+4. Do **not** write the number anywhere in code.
+
+Formulas applied to each item (`validate-spend.js` / `budget-ledger.js`):
+- `linear` — `totalCost = unitCost × quantity`
+- `quadratic` — `totalCost = unitCost × quantity²`
+
+Resource items (`resource_*`) are **derived in code** from the ids they mirror at
+`round(freeFloatingPremium × base)`, inheriting the mirrored id's linear/quadratic shape — the
+premium changes price, never scaling. Hazards pay no premium: a hazard threatens, a resource grants.
+
+> **Known divergence.** `configurator/cost-model.js` holds a second set of cost constants in code
+> that disagrees with this price list on nearly every value (vital points `2·H` vs `1`, regen
+> `12·Rh²` vs `n²`, affinity base `30` vs `10`, stacks `Σ(10+8(n-1)²)` vs `n²`). **The price list is
+> what actually charges the budget; `cost-model.js` charges nobody.** It predates this standard and
+> has not been migrated. Do not treat it as authoritative, and do not add costs to it.
+
 ### Budget Policy and Cost Modeling
 The Allocator defines and applies:
 - Global purses or run-level budgets.
