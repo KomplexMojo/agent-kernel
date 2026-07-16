@@ -32,7 +32,8 @@
     "motivation_friendly": 1,
     "motivation_reflexive": 1,
     "motivation_goal_oriented": 5,
-    "motivation_strategy_focused": 10
+    "motivation_strategy_focused": 10,
+    "motivation_user_controlled": 10
   },
   "actor": {
     "actor_spawn": 5

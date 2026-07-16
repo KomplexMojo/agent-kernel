@@ -63,6 +63,24 @@ Resource items (`resource_*`) are **derived in code** from the ids they mirror a
 `round(freeFloatingPremium × base)`, inheriting the mirrored id's linear/quadratic shape — the
 premium changes price, never scaling. Hazards pay no premium: a hazard threatens, a resource grants.
 
+> **Known bug — the motivation fallback silently overcharges.** `resolveMotivationUnitCost` consults
+> the price list first and, on a miss, falls back to `DEFAULT_MOTIVATION_COSTS`. The two disagree by
+> up to 12× (list `exploring = 2`, fallback `25`). A caller holding a price map without motivation
+> entries is charged the fallback with **no error and no warning**. This fires in production today:
+> the budget maximizer charges 25 for `attacking`, which the list prices at 3 — an ~8× overcharge
+> that silently costs a delver ~18 tokens of mana.
+>
+> The right contract is to reject an incomplete price list. It is not yet implemented because doing
+> so changes what the maximizer can afford (`mana.max` 29 → 47), which needs its own milestone and a
+> benchmark re-baseline. The fix order is: give the maximizer a complete price map so `attacking`
+> resolves to 3, *then* reject incomplete lists. Pinned by
+> `tests/personas/motivation-price-fallback-strict.test.js`.
+
+> **Known dead code.** `calculateMotivationStackCostFromCore` and core-ts's entire motivation cost
+> surface (`SIMPLE_COST`/`ADVANCED_COST`/`CONTROL_COST`, the accumulator, `getMotivationProfileCost`)
+> have **zero production consumers** — only that one function reaches them, and nothing calls it
+> outside its own module and a test. Do not build on this path; it charges nobody.
+
 > **Known divergence.** `configurator/cost-model.js` holds a second set of cost constants in code
 > that disagrees with this price list on nearly every value (vital points `2·H` vs `1`, regen
 > `12·Rh²` vs `n²`, affinity base `30` vs `10`, stacks `Σ(10+8(n-1)²)` vs `n²`). **The price list is
