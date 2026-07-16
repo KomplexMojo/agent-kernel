@@ -123,6 +123,8 @@ function loadScenarios(vaultDir) {
 
 module.exports = {
   DEFAULT_VAULT_DIR,
+  UNCONSTRAINED_SENTINEL,
   loadScenarios,
   resolveVaultDir,
+  scenarioBudgetMode,
 };
