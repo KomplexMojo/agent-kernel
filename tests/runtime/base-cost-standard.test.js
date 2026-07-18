@@ -107,9 +107,13 @@ test("hazards pay no free-floating premium", async () => {
 // KNOWN DIVERGENCE — documented deliberately so it cannot be forgotten.
 //
 // cost-model.js holds a SECOND set of base costs in code that disagrees with the
-// price list on nearly every value. The price list is what actually charges the
-// budget; cost-model.js charges nobody. This test pins the divergence so it is
-// visible and cannot silently widen — it is NOT an endorsement.
+// price list on nearly every value — and it DOES charge live paths: spend-proposal's
+// calculateActorConfigurationUnitCost (card authoring, selection-spend, the CLI
+// delver-card maximizer) uses its constants as silent fallbacks, and uses
+// COST_DEFAULTS.affinityBaseCost + computeCumulativeStackCost unconditionally,
+// never consulting the price list for actor affinity base/stacks. This test pins
+// the divergence so it is visible and cannot silently widen — NOT an endorsement.
+// See allocator/README.md "Known divergence" and local-codex/Plan.md M18–M21.
 // ---------------------------------------------------------------------------
 
 test("cost-model.js diverges from the price list — pinned, not endorsed", async () => {

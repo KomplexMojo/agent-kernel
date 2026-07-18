@@ -1,0 +1,150 @@
+{
+  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "golden_g2_budget_receipt",
+    "runId": "golden_g2",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "budgetRef": {
+    "id": "budget_golden_g2",
+    "schema": "agent-kernel/BudgetArtifact",
+    "schemaVersion": 1
+  },
+  "priceListRef": {
+    "id": "golden_g2_default_price_list",
+    "schema": "agent-kernel/PriceList",
+    "schemaVersion": 1
+  },
+  "proposalRef": {
+    "id": "golden_g2_spend_proposal",
+    "schema": "agent-kernel/SpendProposal",
+    "schemaVersion": 1
+  },
+  "allocationRef": {
+    "id": "golden_g2_budget_allocation",
+    "schema": "agent-kernel/BudgetAllocationArtifact",
+    "schemaVersion": 1
+  },
+  "status": "approved",
+  "totalCost": 132,
+  "remaining": 4868,
+  "lineItems": [
+    {
+      "id": "resource_permanent",
+      "kind": "resource",
+      "quantity": 10,
+      "unitCost": 10,
+      "totalCost": 100,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_2",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_health_regen_tick",
+      "kind": "resource",
+      "quantity": 4,
+      "unitCost": 2,
+      "totalCost": 32,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_2",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    }
+  ],
+  "poolStatuses": [
+    {
+      "id": "rooms",
+      "capTokens": 0,
+      "spentTokens": 0,
+      "remainingTokens": 0,
+      "status": "approved"
+    },
+    {
+      "id": "hazards",
+      "capTokens": 0,
+      "spentTokens": 0,
+      "remainingTokens": 0,
+      "status": "approved"
+    },
+    {
+      "id": "wardens",
+      "capTokens": 0,
+      "spentTokens": 0,
+      "remainingTokens": 0,
+      "status": "approved"
+    },
+    {
+      "id": "resources",
+      "capTokens": 5000,
+      "spentTokens": 132,
+      "remainingTokens": 4868,
+      "status": "approved"
+    },
+    {
+      "id": "delver",
+      "capTokens": 0,
+      "spentTokens": 0,
+      "remainingTokens": 0,
+      "status": "approved"
+    }
+  ],
+  "scenarioSpendReport": {
+    "budget": 5000,
+    "totalSpend": 132,
+    "remainingBudget": 4868,
+    "overBudget": false,
+    "categories": {
+      "rooms": {
+        "actual": 0,
+        "target": 0,
+        "usagePercent": 0
+      },
+      "floor_tiles": {
+        "actual": 0,
+        "target": 0,
+        "usagePercent": 0
+      },
+      "hazards": {
+        "actual": 0,
+        "target": 0,
+        "usagePercent": 0
+      },
+      "resources": {
+        "actual": 132,
+        "target": 5000,
+        "usagePercent": 3
+      },
+      "delvers": {
+        "actual": 0,
+        "target": 0,
+        "usagePercent": 0
+      },
+      "wardens": {
+        "actual": 0,
+        "target": 0,
+        "usagePercent": 0
+      },
+      "shared_system": {
+        "actual": 0,
+        "target": 0,
+        "usagePercent": 0
+      }
+    },
+    "totalBudgetUsagePercent": 3,
+    "incentive": {
+      "actualRatio": 0,
+      "targetRatio": 0.8,
+      "mismatch": 0.8,
+      "multiplier": 0
+    }
+  }
+}

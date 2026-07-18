@@ -1,0 +1,347 @@
+{
+  "schema": "agent-kernel/PriceList",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "golden_g4_default_price_list",
+    "runId": "golden_g4",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-resource-plan"
+  },
+  "items": [
+    {
+      "id": "vital_health_point",
+      "kind": "vital",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "1 point of max health (base unit: 1 health = 1 token)"
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "1 point of max mana"
+    },
+    {
+      "id": "vital_stamina_point",
+      "kind": "vital",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "1 point of max stamina"
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "1 point of max durability"
+    },
+    {
+      "id": "vital_health_regen_tick",
+      "kind": "vital",
+      "unitCost": 1,
+      "formula": "quadratic",
+      "description": "Health regen rate — n regen/tick costs n² tokens"
+    },
+    {
+      "id": "vital_mana_regen_tick",
+      "kind": "vital",
+      "unitCost": 1,
+      "formula": "quadratic",
+      "description": "Mana regen rate — n regen/tick costs n² tokens"
+    },
+    {
+      "id": "vital_stamina_regen_tick",
+      "kind": "vital",
+      "unitCost": 1,
+      "formula": "quadratic",
+      "description": "Stamina regen rate — n regen/tick costs n² tokens"
+    },
+    {
+      "id": "vital_durability_regen_tick",
+      "kind": "vital",
+      "unitCost": 1,
+      "formula": "quadratic",
+      "description": "Durability regen rate — n regen/tick costs n² tokens"
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "unitCost": 1,
+      "formula": "quadratic",
+      "description": "Affinity stack — n stacks costs n² tokens"
+    },
+    {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "unitCost": 10,
+      "formula": "linear",
+      "description": "Base cost to add any affinity kind"
+    },
+    {
+      "id": "affinity_expression_externalize",
+      "kind": "affinity",
+      "unitCost": 35,
+      "formula": "linear",
+      "description": "External expression (push/pull)"
+    },
+    {
+      "id": "affinity_expression_internalize",
+      "kind": "affinity",
+      "unitCost": 35,
+      "formula": "linear",
+      "description": "External expression (internalize/pull)"
+    },
+    {
+      "id": "affinity_expression_localized",
+      "kind": "affinity",
+      "unitCost": 25,
+      "formula": "linear",
+      "description": "Internal expression (emit/localized)"
+    },
+    {
+      "id": "affinity_expression_sustain",
+      "kind": "affinity",
+      "unitCost": 25,
+      "formula": "linear",
+      "description": "Internal expression (draw/sustain)"
+    },
+    {
+      "id": "motivation_stationary",
+      "kind": "motivation",
+      "unitCost": 0,
+      "formula": "linear",
+      "description": "Stationary — no movement cost"
+    },
+    {
+      "id": "motivation_random",
+      "kind": "motivation",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "Random movement"
+    },
+    {
+      "id": "motivation_exploring",
+      "kind": "motivation",
+      "unitCost": 2,
+      "formula": "linear",
+      "description": "Exploring"
+    },
+    {
+      "id": "motivation_patrolling",
+      "kind": "motivation",
+      "unitCost": 3,
+      "formula": "linear",
+      "description": "Patrolling"
+    },
+    {
+      "id": "motivation_attacking",
+      "kind": "motivation",
+      "unitCost": 3,
+      "formula": "linear",
+      "description": "Attacking posture"
+    },
+    {
+      "id": "motivation_defending",
+      "kind": "motivation",
+      "unitCost": 2,
+      "formula": "linear",
+      "description": "Defending posture"
+    },
+    {
+      "id": "motivation_stealthy",
+      "kind": "motivation",
+      "unitCost": 4,
+      "formula": "linear",
+      "description": "Stealthy posture"
+    },
+    {
+      "id": "motivation_friendly",
+      "kind": "motivation",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "Friendly posture"
+    },
+    {
+      "id": "motivation_reflexive",
+      "kind": "motivation",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "Reflexive cognition"
+    },
+    {
+      "id": "motivation_goal_oriented",
+      "kind": "motivation",
+      "unitCost": 5,
+      "formula": "linear",
+      "description": "Goal-oriented cognition"
+    },
+    {
+      "id": "motivation_strategy_focused",
+      "kind": "motivation",
+      "unitCost": 10,
+      "formula": "linear",
+      "description": "Strategy-focused cognition"
+    },
+    {
+      "id": "motivation_user_controlled",
+      "kind": "motivation",
+      "unitCost": 10,
+      "formula": "linear"
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "unitCost": 5,
+      "formula": "linear",
+      "description": "Spawn one actor (delver or warden)"
+    },
+    {
+      "id": "tile_floor",
+      "kind": "tile",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "One floor tile"
+    },
+    {
+      "id": "tile_hallway",
+      "kind": "tile",
+      "unitCost": 3,
+      "formula": "linear",
+      "description": "One hallway tile (more complex pathing)"
+    },
+    {
+      "id": "hazard_basic",
+      "kind": "hazard",
+      "unitCost": 5,
+      "formula": "linear",
+      "description": "Basic hazard placement"
+    },
+    {
+      "id": "hazard_base",
+      "kind": "hazard",
+      "unitCost": 10,
+      "formula": "linear",
+      "description": "Base hazard instantiation cost"
+    },
+    {
+      "id": "resource_base",
+      "kind": "resource",
+      "unitCost": 1,
+      "formula": "linear",
+      "description": "Consumable resource — costs same as its vital grant value"
+    },
+    {
+      "id": "resource_level",
+      "kind": "resource",
+      "unitCost": 5,
+      "formula": "linear",
+      "description": "Level-scoped resource — 5× vital grant value"
+    },
+    {
+      "id": "resource_permanent",
+      "kind": "resource",
+      "unitCost": 10,
+      "formula": "linear",
+      "description": "Permanent resource — 10× vital grant value"
+    },
+    {
+      "id": "resource_affinity_stack",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "quadratic",
+      "description": "Affinity stack — n stacks costs n² tokens — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "resource_affinity_base",
+      "kind": "resource",
+      "unitCost": 15,
+      "formula": "linear",
+      "description": "Base cost to add any affinity kind — free-floating resource (1.5× 10, rounded)"
+    },
+    {
+      "id": "resource_affinity_expression_externalize",
+      "kind": "resource",
+      "unitCost": 53,
+      "formula": "linear",
+      "description": "External expression (push/pull) — free-floating resource (1.5× 35, rounded)"
+    },
+    {
+      "id": "resource_affinity_expression_internalize",
+      "kind": "resource",
+      "unitCost": 53,
+      "formula": "linear",
+      "description": "External expression (internalize/pull) — free-floating resource (1.5× 35, rounded)"
+    },
+    {
+      "id": "resource_affinity_expression_localized",
+      "kind": "resource",
+      "unitCost": 38,
+      "formula": "linear",
+      "description": "Internal expression (emit/localized) — free-floating resource (1.5× 25, rounded)"
+    },
+    {
+      "id": "resource_affinity_expression_sustain",
+      "kind": "resource",
+      "unitCost": 38,
+      "formula": "linear",
+      "description": "Internal expression (draw/sustain) — free-floating resource (1.5× 25, rounded)"
+    },
+    {
+      "id": "resource_vital_health_point",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "linear",
+      "description": "1 point of max health (base unit: 1 health = 1 token) — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "resource_vital_mana_point",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "linear",
+      "description": "1 point of max mana — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "resource_vital_stamina_point",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "linear",
+      "description": "1 point of max stamina — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "resource_vital_durability_point",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "linear",
+      "description": "1 point of max durability — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "resource_vital_health_regen_tick",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "quadratic",
+      "description": "Health regen rate — n regen/tick costs n² tokens — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "resource_vital_mana_regen_tick",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "quadratic",
+      "description": "Mana regen rate — n regen/tick costs n² tokens — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "resource_vital_stamina_regen_tick",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "quadratic",
+      "description": "Stamina regen rate — n regen/tick costs n² tokens — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "resource_vital_durability_regen_tick",
+      "kind": "resource",
+      "unitCost": 2,
+      "formula": "quadratic",
+      "description": "Durability regen rate — n regen/tick costs n² tokens — free-floating resource (1.5× 1, rounded)"
+    }
+  ]
+}

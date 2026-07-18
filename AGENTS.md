@@ -24,7 +24,7 @@ Steps 4–6 are cheap (seconds). Never skip them to save time — a stale graph 
 
 | Agent | Model / Effort | Responsibility |
 |-------|---------------|----------------|
-| **Codex** | gpt-5.4 / high | Ideation, plan authoring, adversarial verification |
+| **Codex** | gpt-5.4 / high | Ideation, plan authoring, adversarial verification, **implementation of well-specified mechanical milestones** |
 | **Claude Opus** | claude-opus-4-7 / high | Orchestration — split plans into milestones, assign to agents |
 | **Claude Sonnet** | claude-sonnet-4-6 / high | Implementation — all production code and architecture refactors |
 | **Claude Sonnet** | claude-sonnet-4-6 / medium | Base test authoring — writes test files with TODO permutation stubs |
@@ -85,11 +85,18 @@ Before opening implementation files or proposing edits, Claude should cite the C
 
 ---
 
-## Codex — ideation, planning, adversarial verification
+## Codex — ideation, planning, adversarial verification, mechanical implementation
 
 - Produces `local-codex/Plan.md` from a prompt or spec.
 - Runs adversarial review on completed diffs to stress-test design decisions.
-- Does **not** write production code or tests.
+- **Implements well-specified mechanical milestones** (decided 2026-07-18 for the Persona
+  Enforcement Program): call-site threading behind an already-designed controller API, lint/guard
+  sweeps, bulk test migration to the persona naming scheme, and characterization tests written to
+  an explicit spec. The milestone spec must name target files, the exact API to call, validation
+  commands, and a stop condition; Claude verifies Codex output against the validation commands
+  before it counts as done.
+- Does **not** design persona controller APIs, change artifact schemas, or make pricing-policy
+  decisions — those stay with Claude, with escalation to the maintainer per `CLAUDE.md`.
 
 ## Claude Opus — orchestration
 
@@ -186,6 +193,11 @@ Before opening implementation files or proposing edits, Claude should cite the C
 - Use fixture-based tests for deterministic behavior.
 - Add negative fixtures under `tests/fixtures/artifacts/invalid` when adding validation.
 - Base tests are Claude Sonnet/medium's output. Permutations are Ollama's output.
+- **Persona alignment (enforced, per the charter's Persona Model):** persona behavior tests live
+  in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*`. New tests for persona-owned
+  logic go there, not in `tests/runtime/`. A test that asserts only a state label is legacy;
+  legacy tests are removed per migration phase, only after a behavior test replaces them —
+  never before (they are the safety net until then).
 
 ## Benchmark strategy
 
@@ -212,6 +224,7 @@ Benchmarking is distinct from testing. Tests verify correctness; benchmarks veri
 - Dependency direction: adapters/ui → runtime → core-ts. No inversions.
 - No `core-ts` IO or forbidden imports.
 - Personas are pure FSMs: `view()` + `advance(event, payload)`, clock injected, context serializable.
+- Persona boundary respected: no imports of persona internals from outside the persona's directory (controllers/persona.js only); no domain logic in glue code (kernel, card-authoring, orchestrate-build, adapters).
 - All boundary-crossing data uses a versioned artifact schema from `contracts/artifacts.ts`.
 - New files placed in the correct package (see file placement rules above).
 - Base test file present and includes `## TODO: Test Permutations` stubs (or Ollama has already expanded them).

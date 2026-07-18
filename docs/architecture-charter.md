@@ -8,6 +8,62 @@
 - **Runtime personas**: long-lived controllers that coordinate planning, tick phases, action ordering, telemetry, and adapter interaction.
 - **Adapters/UI**: host-specific IO and presentation. They call runtime or consume artifacts; they do not own simulation rules.
 
+## Persona Model — ENFORCED
+
+The persona model is the primary unit of comprehension for this project. Every piece of domain
+logic belongs to exactly one persona; if the maintainer cannot say which persona a behavior
+belongs to and why, the code is in the wrong place. All other runtime code — the command kernel,
+card-authoring, orchestrate-build, the tick runner — is **glue**: it sequences persona calls and
+moves artifacts between them, and it must not contain domain decisions of its own.
+
+| Persona | What it does | Why it exists |
+|---|---|---|
+| **Orchestrator** | Owns every external interaction seam: LLM sessions, budget loops, prompt contracts, workflow coordination. | So no other persona (and no adapter) talks to the outside world about intent. |
+| **Director** | Translates intent into structure: IntentEnvelope → PlanArtifact → BuildSpec. | So "what the user asked for" has one interpreter. |
+| **Configurator** | Assembles, validates, and locks configurations: levels, actors, cards, pools, feasibility. | So a locked config has one producer and one meaning. |
+| **Allocator** | The economy. Owns price lists, base costs, all pricing formulas, spend validation, budget maximization, receipts, and reconciliation. | So every token cost in the system has one author and receipts are auditable. |
+| **Actor** | Proposes actions for simulated agents from observations, motivations, and solver/LLM decisions. | So agent behavior is deterministic, replayable, and separately testable. |
+| **Moderator** | Controls the tick: ordering, pausing, affinity resolution, effect fulfillment. | So tick semantics are policy, not accidents of the runner loop. |
+| **Annotator** | Captures and normalizes telemetry: TelemetryRecords, RunSummaries, spend/ledger events. | So observability is a contract, not scattered console writes. |
+
+**Enforcement rules (blocking on every diff):**
+
+1. **Controller-only boundary.** Code outside a persona's directory may import only that persona's
+   `controller.js`/`controller.mts` (or `persona.js`). Importing a persona's internal modules
+   (`validate-spend.js`, `cost-model.js`, `llm-session.js`, …) from outside its directory is a
+   violation. Adapters never import persona internals.
+2. **Personas own logic; glue owns sequence.** A conditional that encodes a domain rule (a price,
+   a validation, an ordering policy) belongs inside a persona. Glue may branch only on artifact
+   shape and persona results.
+3. **Two planes, same personas.** The simulation tick (observe→decide→emit phases) and the build
+   pipeline are both persona rounds. A build runs Director → Configurator → Allocator → Annotator;
+   receipts come from the Allocator, telemetry from the Annotator.
+4. **Pure FSMs.** `view()` + `advance(event, payload)`, clock injected, context serializable,
+   effects returned as data. A persona state must gate real behavior — a state that nothing
+   consults is a defect, not a feature.
+5. **Cross-persona interaction** happens through versioned artifacts (`contracts/artifacts.ts`),
+   persona events, or effects — never lateral imports of another persona's internals.
+6. **Tests align to personas.** Persona behavior tests live in `tests/personas/<persona>/` and are
+   named `<persona>-<behavior>.test.*`. A test that asserts only a state label (not behavior the
+   state gates) is a legacy test and must be replaced, not extended.
+
+**Migration status:** enforcement is being phased in per `local-codex/Plan.md` (Persona
+Enforcement Program). Until a phase lands, its violations are documented debt, not license.
+
+## Economy — Allocator Authority
+
+- There is **one price model**, owned by the Allocator. Base cost numbers live in
+  `personas/allocator/base-costs.json` (data, tunable); formulas — linear/quadratic shaping and
+  the free-floating resource premium — live in Allocator code. A base cost literal in any other
+  file is a violation.
+- Every priced element (vitals, regen, affinity, motivations, tiles, hazards, resources, actors)
+  is charged through the Allocator's price list. Silent fallbacks to alternate cost tables are
+  forbidden: an incomplete price list is a structured error, never a quiet default.
+- Receipts (`BudgetReceiptArtifact`) are issued only by the Allocator and are the audit trail for
+  every spend. Budget maximization ("spend the rest") is Allocator policy, not adapter code.
+- `core-ts` may hold invariant enforcement only (caps, spend accounting) fed by Allocator-provided
+  data — never prices, tiers, or policy.
+
 ## Dependency Direction
 
 ```text
@@ -23,7 +79,9 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Pure validation and deterministic rule enforcement.
 - Data-only effects with deterministic ids/requestIds and adapter hints.
 - Affinity system: 10-kind codebook, spatial formulas, interaction matrix, static hazard and actor field computation.
-- Motivation system: 12-kind codebook, cost formulas, behavior flags, and profile derivation.
+- Motivation system: 12-kind codebook, behavior flags, and profile derivation. (Motivation
+  *pricing* is Allocator policy, not core; core enforces only invariant budget rules — caps and
+  spend accounting — when provided by the Allocator.)
 - Render buffers and observations derived from canonical state.
 
 ## Runtime Responsibilities
@@ -31,7 +89,9 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Tick FSM and persona orchestration.
 - Action proposal, ordering, replay, and telemetry capture.
 - Artifact normalization and schema boundary enforcement.
-- Card-authoring semantics: card normalization, property application, budget receipts, and summary construction live in `packages/runtime/src/commands/card-authoring.js`.
+- Card-authoring glue: card normalization and property application live in
+  `packages/runtime/src/commands/card-authoring.js`. Budget receipts are issued by the
+  **Allocator persona**; card-authoring requests them, it does not compute them.
 - Solver/external fact request routing through ports.
 - UI-facing visualization assembly from core outputs and resource bundles.
 - UI-facing core access facades for preview/playback setup. Browser UI code must

@@ -2,7 +2,9 @@
 
 Guidance for Claude Code (claude.ai/code) in this repository.
 
-Claude is the **orchestration and implementation engine**. Codex drives ideation and adversarial verification. GitHub Copilot owns documentation and commits.
+Claude is the **orchestration and implementation engine**. Codex drives ideation, adversarial verification, and mechanical implementation from complete milestone specs. GitHub Copilot owns documentation and commits.
+
+**The persona model is enforced** (charter → "Persona Model — ENFORCED"): all domain logic lives in one of the seven personas; everything else is glue; external code imports persona controllers only. The Allocator alone owns pricing.
 
 > **Model names, not versions.** This file names model *tiers* (Opus, Sonnet, Haiku, GPT-5) rather than dated IDs, which churn. Use the latest release in each tier; pick the exact ID with `/model` or the API.
 
@@ -26,6 +28,7 @@ Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form �
 |------|-------|-----------|
 | Ideation, plan authoring | **Codex** (GPT-5, high) | `/codex:review` |
 | Adversarial plan / code verification | **Codex** (GPT-5, high) | `/codex:adversarial-review` |
+| Mechanical implementation from a complete milestone spec | **Codex** (GPT-5, high) | `/codex:rescue` |
 | Orchestration — split plans, assign milestones | **Claude Opus** (high) | Direct |
 | Implementation — write / refactor code | **Claude Sonnet** (high) | Direct |
 | Author base tests (with TODO permutation stubs) | **Claude Sonnet** (medium) | Direct |
@@ -36,7 +39,7 @@ Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form �
 
 All agents have live MCP access to CodeContextGraph. Name the query used when handing off or justifying a target area.
 
-- **Codex** — ideation, plan authoring (`local-codex/Plan.md` → `~/vault/plans/active/Plan.md`), adversarial review. Every adversarial review answers: (1) **Correctness** — does the diff satisfy the milestone spec? (2) **Simplicity** — is it 3× more complex than the simplest solution? If so, give a specific rewrite. Codex writes no production code or tests.
+- **Codex** — ideation, plan authoring (`local-codex/Plan.md` → `~/vault/plans/active/Plan.md`), adversarial review, and **mechanical implementation** (since 2026-07-18): call-site threading behind an already-designed controller API, guard/lint sweeps, bulk test migration, characterization tests to an explicit spec. Requires a complete milestone spec (target files, exact API, validation commands, stop condition); Claude verifies output against the validation commands. Codex does NOT design persona APIs, change artifact schemas, or decide pricing policy. Every adversarial review answers: (1) **Correctness** — does the diff satisfy the milestone spec? (2) **Simplicity** — is it 3× more complex than the simplest solution? If so, give a specific rewrite.
 - **Claude** — before any milestone code: state assumptions, surface ambiguity (stop and ask rather than guess), present tradeoffs if a simpler path exists. Implementation order: (1) failing tests + `## TODO: Test Permutations` stubs → (2) production code → (3) hand stubs to Ollama.
 - **Ollama** — expands `## TODO: Test Permutations` stubs in place via `/ollama-test-permutations`. Read `tests/README.md` first. Not for architecture, enforcement review, or persona FSM design.
 - **GitHub Copilot** — commit messages, PRs, and updates to `docs/architecture-charter.md`, `docs/architecture/diagram.mmd`, `docs/README.md`, `packages/adapters-cli/README.md`, and any README the work touches. No production code or tests.
@@ -151,11 +154,11 @@ Run on every diff. **Fix failures — don't just flag them.**
 
 **Architecture** — dependency flows only adapters/ui → runtime → core-ts · `core-ts` has no IO and no outside imports · all external IO behind an adapter · no adapter code in `runtime`/`core-ts`.
 
-**Personas** — pure FSM (`view()` + `advance`) · clock injected · context serializable · effects returned as data · new persona folders include `controller.mts`, `state-machine.mts`, `contracts.ts`.
+**Personas** — pure FSM (`view()` + `advance`) · clock injected · context serializable · effects returned as data · new persona folders include `controller.mts`, `state-machine.mts`, `contracts.ts` · no imports of persona internals from outside the persona directory (controllers only) · no domain logic in glue (kernel, card-authoring, orchestrate-build, adapters) · persona states must gate real behavior — label-only states are defects · all pricing goes through the Allocator (base costs in `base-costs.json`, formulas in Allocator code, no silent fallbacks).
 
 **Artifacts** — boundary data uses an `artifacts.ts` schema · `schema`/`schemaVersion`/`meta` present · no field-name conflicts with existing contracts.
 
-**Tests** — failing tests written *before* production code · new behavior covered under `tests/` · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff.
+**Tests** — failing tests written *before* production code · new behavior covered under `tests/` · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff · persona behavior tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · label-only persona tests are legacy: replace with behavior tests, then remove (never remove first).
 
 **Benchmarks** — if `ak_create` tool schema, CLI arg mapping, or entity normalization changed, run `run-content-gen --runs 3 --route external` before merging · pass bar ≥ 99 % exec ok, avg score ≥ 75 (document any regression in the PR) · results stay out of git.
 

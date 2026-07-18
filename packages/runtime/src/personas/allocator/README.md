@@ -76,16 +76,32 @@ premium changes price, never scaling. Hazards pay no premium: a hazard threatens
 > resolves to 3, *then* reject incomplete lists. Pinned by
 > `tests/personas/motivation-price-fallback-strict.test.js`.
 
+> **Known bug — `ak create` does not charge affinity-only resources.** Found 2026-07-18 while
+> building P0.2 goldens: `create` charges an affinity-only resource **zero tokens** (empty receipt)
+> while `resource-plan` charges the identical payload 538. The two commands assemble spend
+> proposals through different glue paths and only resource-plan's extracts the affinity payload.
+> Pinned by `tests/personas/allocator/allocator-golden-receipts.test.js` (g2 vs g4). Fix lands in
+> the Persona Enforcement Program P1 (single Allocator entry point) — do not spot-patch the create
+> path separately; that would add a sixth divergence.
+>
 > **Known dead code.** `calculateMotivationStackCostFromCore` and core-ts's entire motivation cost
 > surface (`SIMPLE_COST`/`ADVANCED_COST`/`CONTROL_COST`, the accumulator, `getMotivationProfileCost`)
 > have **zero production consumers** — only that one function reaches them, and nothing calls it
 > outside its own module and a test. Do not build on this path; it charges nobody.
 
-> **Known divergence.** `configurator/cost-model.js` holds a second set of cost constants in code
-> that disagrees with this price list on nearly every value (vital points `2·H` vs `1`, regen
-> `12·Rh²` vs `n²`, affinity base `30` vs `10`, stacks `Σ(10+8(n-1)²)` vs `n²`). **The price list is
-> what actually charges the budget; `cost-model.js` charges nobody.** It predates this standard and
-> has not been migrated. Do not treat it as authoritative, and do not add costs to it.
+> **Known divergence — `configurator/cost-model.js` DOES charge live paths.** (An earlier revision
+> of this note claimed it charges nobody; that was wrong.) It holds a second set of cost constants
+> that disagree with this price list on nearly every value (vital points `2·H` vs `1`, regen
+> `12·R²` vs `n²`, affinity base `30` vs `10`, stacks `Σ(10+8(n-1)²)` vs `n²`), and those constants
+> reach real receipts through `spend-proposal.js#calculateActorConfigurationUnitCost` — used by
+> card authoring, `selection-spend.js`, and the CLI delver-card maximizer. Inside that function:
+> vital points and expression costs consult the price list first and silently fall back to
+> cost-model constants; **affinity base + stacks never consult the price list at all** (always
+> `30 + Σ(10+8(n-1)²)`); regen is linear when the list has an entry but quadratic
+> (`REGEN_COST_COEFFICIENT · R²`) on a miss. `budget-maximizer.js` prices regen exclusively from
+> `REGEN_COST_COEFFICIENT`, never from the list. So an actor's affinity and a resource's affinity
+> are charged by two different models today. Unification is planned work (see
+> `local-codex/Plan.md` M18–M21); until then do not add costs to `cost-model.js`.
 
 ### Budget Policy and Cost Modeling
 The Allocator defines and applies:

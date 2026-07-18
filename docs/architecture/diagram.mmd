@@ -20,7 +20,13 @@ flowchart LR
     AdaptiveRunner["adaptive-workflow control plane\nrunAdaptiveWorkflow + injected ports"]
     CoreFacade["core-facade + core-setup\npreview/playback helpers"]
     TickOrch["tick orchestrator"]
-    Personas["personas"]
+    Personas["personas (7 FSMs — enforced boundary:\nexternal code imports controllers only)"]
+    OrchestratorPersona["orchestrator persona\nLLM sessions + budget loops"]
+    DirectorPersona["director persona\nintent -> PlanArtifact -> BuildSpec"]
+    ConfiguratorPersona["configurator persona\nassemble + validate + lock config"]
+    AllocatorPersona["allocator persona\nTHE economy: price list, spend\nvalidation, maximization, receipts"]
+    ModeratorPersona["moderator persona\ntick control + affinity resolution"]
+    AnnotatorPersona["annotator persona\ntelemetry + run summaries"]
     ActorPersona["actor persona\nbuildMotivatedProposals"]
     RuntimeFSM["runtime-fsm\nadaptActionToCore"]
     SolverPort["createSolverPort"]
@@ -31,7 +37,7 @@ flowchart LR
     CoreEngine["deterministic state + rules + effects + render buffers"]
     CombatCore["core.applyAttack"]
     AffinityCore["hazard affinity fields + interaction/cancellation matrix"]
-    MotivationCore["motivation costs + behavior profiles"]
+    MotivationCore["motivation behavior profiles\n(pricing is Allocator policy)"]
     CoreEngine --- AffinityCore
     CoreEngine --- MotivationCore
     CoreEngine --- CombatCore
@@ -79,6 +85,19 @@ flowchart LR
   TickOrch --> Personas
   RuntimePorts --> CoreEngine
   Personas --> ActorPersona
+  Personas --> OrchestratorPersona
+  Personas --> DirectorPersona
+  Personas --> ConfiguratorPersona
+  Personas --> AllocatorPersona
+  Personas --> ModeratorPersona
+  Personas --> AnnotatorPersona
+  %% Build plane is a persona round (enforced target model)
+  CommandKernel -- "build round" --> DirectorPersona
+  DirectorPersona -- "BuildSpec" --> ConfiguratorPersona
+  ConfiguratorPersona -- "spend proposal" --> AllocatorPersona
+  AllocatorPersona -- "BudgetReceiptArtifact" --> AnnotatorPersona
+  CardAuthoring -- "price/receipt requests" --> AllocatorPersona
+  ModeratorPersona -- "affinity actions +\ntick control" --> RuntimeFSM
   ActorPersona -- "attack action" --> RuntimeFSM
   RuntimeFSM -- "apply_attack directive" --> CombatCore
   ActorPersona -- "solver_request effect" --> RuntimeFSM

@@ -1,0 +1,18 @@
+{
+  "schema": "agent-kernel/ResourceArtifact",
+  "schemaVersion": 3,
+  "meta": {
+    "id": "resource_2",
+    "runId": "golden_g2",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "vitals": [
+    {
+      "key": "health",
+      "delta": 5,
+      "regen": 2
+    }
+  ],
+  "permanenceMode": "permanent"
+}
