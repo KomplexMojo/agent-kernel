@@ -51,3 +51,72 @@ export interface AllocatorAdvanceResult extends AllocatorView {
   effects: unknown[];
   telemetry: unknown;
 }
+
+// ── Service surface (P1.1) — the single entry point for pricing and spend ──
+// Charter: "Economy — Allocator Authority". State-gated: registerBudget
+// (idle→budgeting) before validateSpend (→allocating) before updateLedger
+// (→monitoring). Pricing is read-only policy, available in any state.
+
+export interface PriceListItem {
+  id: string;
+  kind: string;
+  unitCost: number;
+  formula?: "linear" | "quadratic";
+  description?: string;
+}
+
+export interface MotivationQuote {
+  cost: number;
+  lineItems: Array<{
+    category: "motivation";
+    id: string;
+    motivationKind: string;
+    family: string | null;
+    label: string;
+    quantity: number;
+    unitCostTokens: number;
+    spendTokens: number;
+  }>;
+}
+
+export interface AllocatorPricingSurface {
+  priceList(): unknown;
+  priceMap(): Map<string, PriceListItem>;
+  unitCosts(): Map<string, number>;
+  quoteMotivations(motivations: Array<{ kind: string; intensity?: number }>): MotivationQuote;
+}
+
+export interface SpendValidationResult {
+  receipt: {
+    schema: "agent-kernel/BudgetReceiptArtifact";
+    schemaVersion: 1;
+    status: "approved" | "partial" | "denied";
+    totalCost: number;
+    remaining: number;
+    lineItems: unknown[];
+    [key: string]: unknown;
+  };
+  errors?: string[];
+}
+
+/** Thrown (code "allocator_state") when a spend operation is attempted in a state that does not permit it. */
+export interface AllocatorStateErrorShape extends Error {
+  code: "allocator_state";
+}
+
+export interface AllocatorServiceSurface {
+  pricing: AllocatorPricingSurface;
+  registerBudget(budget: unknown): { state: AllocatorState };
+  validateSpend(args: {
+    proposal: SpendProposal;
+    allocation?: unknown;
+    meta?: unknown;
+    budgetRef?: unknown;
+    priceListRef?: unknown;
+    proposalRef?: unknown;
+  }): SpendValidationResult;
+  evaluateLayoutSpend(args: Record<string, unknown>): unknown;
+  evaluateRoomCardLayoutSpend(args: Record<string, unknown>): unknown;
+  updateLedger(args: Record<string, unknown>): unknown;
+  scenarioSpendReport(args: Record<string, unknown>): unknown;
+}

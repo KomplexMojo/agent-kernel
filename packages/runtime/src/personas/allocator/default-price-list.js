@@ -148,14 +148,16 @@ const DEFAULT_ITEMS = [
  * Returns a fresh default PriceList artifact.
  * The caller may override meta fields; items are canonical and must not be mutated.
  */
-export function buildDefaultPriceList({ meta } = {}) {
+export function buildDefaultPriceList({ meta, createdAt } = {}) {
   return {
     schema: PRICE_LIST_SCHEMA,
     schemaVersion: 1,
     meta: meta || {
       id: "default-price-list-v1",
       runId: "system",
-      createdAt: new Date().toISOString(),
+      // Callers with an injected clock (the Allocator persona) pass createdAt;
+      // the wall-clock default remains only for legacy direct callers.
+      createdAt: createdAt || new Date().toISOString(),
       producedBy: "allocator",
       note: "Canonical default price list. Base unit: 1 health point = 1 token.",
     },

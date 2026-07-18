@@ -1,14 +1,17 @@
 import { createAllocatorStateMachine, AllocatorStates } from "./state-machine.mts";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
+import { attachAllocatorServices } from "./allocator-services.js";
 
 export const allocatorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
-export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock = () => new Date().toISOString(), priceList } = {}) {
   const fsm = createAllocatorStateMachine({ initialState, clock });
+  const services = attachAllocatorServices({ fsm, priceList, clock });
 
   function view() {
-    return fsm.view();
+    const snapshot = fsm.view();
+    return { ...snapshot, context: { ...snapshot.context, ...services.serviceContext() } };
   }
 
   function advance({ phase, event, payload = {}, tick } = {}) {
@@ -92,5 +95,12 @@ export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, cl
     subscribePhases: allocatorSubscribePhases,
     advance,
     view,
+    pricing: services.pricing,
+    registerBudget: services.registerBudget,
+    validateSpend: services.validateSpend,
+    evaluateLayoutSpend: services.evaluateLayoutSpend,
+    evaluateRoomCardLayoutSpend: services.evaluateRoomCardLayoutSpend,
+    updateLedger: services.updateLedger,
+    scenarioSpendReport: services.scenarioSpendReport,
   };
 }
