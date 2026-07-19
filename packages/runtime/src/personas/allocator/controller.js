@@ -5,9 +5,9 @@ import { attachAllocatorServices } from "./allocator-services.js";
 
 export const allocatorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
-export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock = () => new Date().toISOString(), priceList } = {}) {
+export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock = () => new Date().toISOString(), priceList, priceListMeta } = {}) {
   const fsm = createAllocatorStateMachine({ initialState, clock });
-  const services = attachAllocatorServices({ fsm, priceList, clock });
+  const services = attachAllocatorServices({ fsm, priceList, priceListMeta, clock });
 
   function view() {
     const snapshot = fsm.view();

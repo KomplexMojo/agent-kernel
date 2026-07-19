@@ -32,7 +32,7 @@ export class AllocatorStateError extends Error {
   }
 }
 
-export function attachAllocatorServices({ fsm, priceList, clock } = {}) {
+export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock } = {}) {
   let resolvedPriceList = null;
   let registeredBudget = null;
   let receiptCount = 0;
@@ -53,9 +53,14 @@ export function attachAllocatorServices({ fsm, priceList, clock } = {}) {
   function getPriceList() {
     if (!resolvedPriceList) {
       // The injected persona clock stamps the artifact — persona code never
-      // reads the wall clock (charter: clock injected).
+      // reads the wall clock (charter: clock injected). Glue that owns a
+      // run-scoped meta (runId/createdAt) passes priceListMeta so the emitted
+      // PriceList artifact stays deterministic per run.
       resolvedPriceList = priceList
-        || buildDefaultPriceList(typeof clock === "function" ? { createdAt: clock() } : {});
+        || buildDefaultPriceList({
+          meta: priceListMeta,
+          ...(typeof clock === "function" ? { createdAt: clock() } : {}),
+        });
     }
     return resolvedPriceList;
   }

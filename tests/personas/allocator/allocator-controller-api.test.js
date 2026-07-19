@@ -64,6 +64,12 @@ test("pricing.priceList() is the default list stamped by the INJECTED clock, nev
   assert.equal(a.pricing.unitCosts().get("actor:actor_spawn"), 5);
 });
 
+test("pricing honors caller-supplied priceListMeta (run-scoped determinism for glue)", async () => {
+  const meta = { id: "run-price-list", runId: "run_42", createdAt: "2026-07-18T00:00:00.000Z", producedBy: "allocator" };
+  const a = await makeAllocator({ priceListMeta: meta });
+  assert.deepEqual(a.pricing.priceList().meta, meta);
+});
+
 test("pricing honors an injected price list", async () => {
   const custom = {
     schema: "agent-kernel/PriceList",
