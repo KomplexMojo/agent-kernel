@@ -9,8 +9,7 @@ import {
   VITAL_KEYS,
   normalizeVitals as normalizeDomainVitals,
 } from "../contracts/domain-constants.js";
-import { evaluateRoomCardLayoutSpend } from "../personas/allocator/layout-spend.js";
-import { normalizePriceItems } from "../personas/allocator/validate-spend.js";
+import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
@@ -37,6 +36,8 @@ import {
 const ROOM_AFFINITY_STACK_COST_FACTOR = 0.1;
 
 const DEFAULT_LEVEL_BUDGET_TOKENS = 2500;
+
+const allocatorFor = (priceList) => createAllocatorPersona({ priceList });
 
 const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
 
@@ -1167,13 +1168,14 @@ function buildCardReceipt(card, { unitTokens, totalTokens, lineItems: inputLineI
 
 function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
   // Accept both canonical PriceListItemLegacyV1 (`unitCost`) and legacy PriceListItemTokenV1
-  // (`costTokens`) shapes via normalizePriceItems (BUG-2 fix).
+  // (`costTokens`) shapes via the Allocator pricing surface (BUG-2 fix).
+  const allocator = allocatorFor(priceList);
   const priceMap = new Map(
-    Array.from(normalizePriceItems(priceList))
+    Array.from(priceList ? allocator.pricing.priceMap() : new Map())
       .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
       .map(([key, entry]) => [key, entry.unitCost]),
   );
-  const spend = evaluateRoomCardLayoutSpend({
+  const spend = allocator.evaluateRoomCardLayoutSpend({
     cardSet: [{ ...card, count: 1, type: "room" }],
     budgetTokens: undefined,
     priceList,
@@ -1214,9 +1216,10 @@ function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
 
 function calculateActorCardUnitValue(card, { priceList } = {}) {
   // Accept both canonical PriceListItemLegacyV1 (`unitCost`) and legacy PriceListItemTokenV1
-  // (`costTokens`) shapes via normalizePriceItems (BUG-2 fix).
+  // (`costTokens`) shapes via the Allocator pricing surface (BUG-2 fix).
+  const allocator = allocatorFor(priceList);
   const priceMap = new Map(
-    Array.from(normalizePriceItems(priceList))
+    Array.from(priceList ? allocator.pricing.priceMap() : new Map())
       .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
       .map(([key, entry]) => [key, entry.unitCost]),
   );
@@ -1313,7 +1316,8 @@ function calculateCardValue(card, { tileCosts, priceList } = {}) {
 
 function enrichCardsWithBudget(cards, { budgetTokens, tileCosts, priceList } = {}) {
   const normalizedCards = normalizeDesignCardSet(cards);
-  const roomBudget = evaluateRoomCardLayoutSpend({
+  const allocator = allocatorFor(priceList);
+  const roomBudget = allocator.evaluateRoomCardLayoutSpend({
     cardSet: normalizedCards,
     budgetTokens,
     priceList,

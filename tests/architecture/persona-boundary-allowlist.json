@@ -1,10 +1,6 @@
 [
   {
     "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
-    "to": "packages/runtime/src/personas/allocator/validate-spend.js"
-  },
-  {
-    "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
     "to": "packages/runtime/src/personas/configurator/card-model.js"
   },
   {
@@ -38,14 +34,6 @@
   {
     "from": "packages/runtime/src/build/mixed-room-summary.js",
     "to": "packages/runtime/src/personas/configurator/affinity-rules.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/allocator/default-price-list.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/allocator/incentive-model.js"
   },
   {
     "from": "packages/runtime/src/build/orchestrate-build.js",
@@ -86,14 +74,6 @@
   {
     "from": "packages/runtime/src/build/orchestrate-build.js",
     "to": "packages/runtime/src/personas/director/budget-allocation.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/card-authoring.js",
-    "to": "packages/runtime/src/personas/allocator/layout-spend.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/card-authoring.js",
-    "to": "packages/runtime/src/personas/allocator/validate-spend.js"
   },
   {
     "from": "packages/runtime/src/commands/kernel.js",

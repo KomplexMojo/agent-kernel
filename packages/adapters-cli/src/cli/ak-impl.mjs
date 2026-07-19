@@ -31,7 +31,7 @@ import {
   calculateRoomCardUnitCost,
 } from "../../../runtime/src/personas/configurator/spend-proposal.js";
 import { validateAffinityPrereqs } from "../../../runtime/src/personas/configurator/cost-model.js";
-import { buildPriceMap } from "../../../runtime/src/personas/allocator/validate-spend.js";
+import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
 import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
@@ -102,6 +102,11 @@ const SCHEMAS = Object.freeze({
   affinitySummary: "agent-kernel/AffinitySummary",
   capturedInput: "agent-kernel/CapturedInputArtifact",
 });
+
+const allocatorUnitCosts = (priceList) =>
+  priceList
+    ? createAllocatorPersona({ priceList }).pricing.unitCosts()
+    : new Map();
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 const DEFAULT_RUNS_DIR = "runs";
@@ -1717,7 +1722,7 @@ function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact) {
 function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) {
   const candidateCard = buildMinimumRequiredDelverCard(entry.value);
   const count = Number.isInteger(candidateCard?.count) && candidateCard.count > 0 ? candidateCard.count : 1;
-  const priceMap = buildPriceMap(priceListArtifact);
+  const priceMap = allocatorUnitCosts(priceListArtifact);
   const totalCost = calculateDelverCardUnitCost(candidateCard, priceMap) * count;
   const requirementParts = [];
   if (Array.isArray(candidateCard?.affinities) && candidateCard.affinities.length > 0) {
@@ -1740,7 +1745,7 @@ function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) 
 function assessBudgetedWardenRequirement(entry, wardenIndex, priceListArtifact) {
   const card = entry?.value && typeof entry.value === "object" ? entry.value : {};
   const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
-  const priceMap = buildPriceMap(priceListArtifact);
+  const priceMap = allocatorUnitCosts(priceListArtifact);
   const totalCost = calculateDelverCardUnitCost(card, priceMap) * count;
   const requirementParts = [];
   if (Array.isArray(card?.affinities) && card.affinities.length > 0) {
@@ -1875,7 +1880,7 @@ function maximizeBudgetCappedDelverCard(card, {
     return card;
   }
 
-  const priceMap = buildPriceMap(priceListArtifact);
+  const priceMap = allocatorUnitCosts(priceListArtifact);
   const goals = resolveDelverGoalOrder(optimizationGoals);
   const baseVitals = cloneVitals(card?.vitals);
   const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
@@ -2024,7 +2029,7 @@ function applyBudgetCappedFulfillment({
     value: entry?.value && typeof entry.value === "object" ? { ...entry.value } : entry?.value,
     optimizationGoals: Array.isArray(entry?.optimizationGoals) ? entry.optimizationGoals.slice() : [],
   }));
-  const priceMap = buildPriceMap(priceListArtifact);
+  const priceMap = allocatorUnitCosts(priceListArtifact);
 
   const calculateCurrentTotal = () => {
     const roomTotal = nextRooms.reduce((sum, entry) => sum + calculateRoomCardUnitCost({

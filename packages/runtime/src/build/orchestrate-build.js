@@ -7,11 +7,10 @@ import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../persona
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
 import { maximizeActorBudget } from "../personas/configurator/budget-maximizer.js";
-import { buildDefaultPriceList } from "../personas/allocator/default-price-list.js";
+import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { buildBudgetAllocation } from "../personas/director/budget-allocation.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
-import { buildScenarioSpendReport } from "../personas/allocator/incentive-model.js";
 import { computeInternalManaUpkeep } from "../personas/configurator/cost-model.js";
 import {
   DEFAULT_ROOM_CARD_AFFINITY,
@@ -58,7 +57,7 @@ function toRef(artifact) {
 }
 
 function mergePriceListWithDefaults(priceList, { meta } = {}) {
-  const defaults = buildDefaultPriceList({ meta });
+  const defaults = createAllocatorPersona({ priceListMeta: meta }).pricing.priceList();
   if (!priceList) return defaults;
   const itemsByKey = new Map();
   defaults.items.forEach((item) => {
@@ -1539,7 +1538,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       });
       spendProposal = spendResult.proposal;
       budgetReceipt = spendResult.receipt;
-      budgetReceipt.scenarioSpendReport = buildScenarioSpendReport({
+      budgetReceipt.scenarioSpendReport = createAllocatorPersona().scenarioSpendReport({
         lineItems: budgetReceipt.lineItems,
         allocation: budgetAllocation,
         budgetTokens: mapped.budget.budget?.budget?.tokens,
