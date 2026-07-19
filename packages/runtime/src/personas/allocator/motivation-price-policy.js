@@ -25,9 +25,11 @@ export const MOTIVATION_FAMILIES = Object.freeze({
   control: Object.freeze(["user_controlled"]),
 });
 
+import BASE_COSTS from "./base-costs.json" with { type: "json" };
+
 /**
  * Motivation tier classification (design §6.6).
- * Simple motivations cost 25 tokens; advanced motivations cost 50 tokens.
+ * Tier prices live in base-costs.json (motivationFallback group).
  */
 export const MOTIVATION_TIER = Object.freeze({
   // Simple motivations (25 tokens)
@@ -47,11 +49,11 @@ export const MOTIVATION_TIER = Object.freeze({
   strategy_focused: "advanced",
 });
 
-/** Simple motivation flat cost (design §6.6). */
-export const SIMPLE_MOTIVATION_COST = 25;
+/** Simple motivation flat cost (design §6.6) — number lives in base-costs.json. */
+export const SIMPLE_MOTIVATION_COST = BASE_COSTS.motivationFallback.fallback_simple;
 
-/** Advanced motivation flat cost (design §6.6). */
-export const ADVANCED_MOTIVATION_COST = 50;
+/** Advanced motivation flat cost (design §6.6) — number lives in base-costs.json. */
+export const ADVANCED_MOTIVATION_COST = BASE_COSTS.motivationFallback.fallback_advanced;
 
 /**
  * Default per-kind cost in tokens (design §6.6).
@@ -74,7 +76,7 @@ export const DEFAULT_MOTIVATION_COSTS = Object.freeze({
   reflexive: SIMPLE_MOTIVATION_COST,
   goal_oriented: ADVANCED_MOTIVATION_COST,
   strategy_focused: ADVANCED_MOTIVATION_COST,
-  user_controlled: 10,
+  user_controlled: BASE_COSTS.motivationFallback.fallback_user_controlled,
 });
 
 /**
@@ -196,11 +198,10 @@ export function buildMotivationPriceListItems() {
   }));
 }
 
-// ── core-delegated cost computation ──
-
 /**
  * Reverse map: motivation kind string → core-ts code (1-based).
- * Matches MOTIVATION_KIND_BY_CODE in core-ts.
+ * Matches MOTIVATION_KIND_BY_CODE in core-ts. This is codebook data (live
+ * consumer: configurator/motivation-evaluation-core.js), not pricing.
  */
 export const MOTIVATION_KIND_TO_CODE = Object.freeze({
   random: 1,
@@ -217,70 +218,8 @@ export const MOTIVATION_KIND_TO_CODE = Object.freeze({
   user_controlled: 12,
 });
 
-/**
- * Calculate motivation stack cost using the core cost accumulator.
- *
- * Delegates to the core codebook for unit cost resolution, ensuring the
- * runtime matches core-ts exactly. Returns the same shape as
- * calculateMotivationStackCost for drop-in substitution.
- *
- * Does NOT support PriceList overrides — when overrides are needed,
- * use the JS-based calculateMotivationStackCost instead.
- *
- * @param {object} core - Core object from core-ts.
- * @param {Array<{kind:string, intensity?:number}|string>} motivations
- * @returns {{cost:number, lineItems:Array}}
- */
-export function calculateMotivationStackCostFromCore(core, motivations) {
-  const lineItems = [];
-
-  if (!core || typeof core.resetMotivationCostAccumulator !== "function") {
-    return { cost: 0, lineItems };
-  }
-  if (!Array.isArray(motivations) || motivations.length === 0) {
-    return { cost: 0, lineItems };
-  }
-
-  core.resetMotivationCostAccumulator();
-
-  const entries = [];
-  for (const entry of motivations) {
-    const kind = typeof entry === "string" ? entry : entry?.kind;
-    if (typeof kind !== "string") continue;
-    const code = MOTIVATION_KIND_TO_CODE[kind];
-    if (!code) continue;
-    const intensity = typeof entry === "object" && Number.isInteger(entry.intensity) && entry.intensity > 0
-      ? entry.intensity
-      : 1;
-    core.addMotivationCostEntry(code, intensity);
-    entries.push({ kind, code, intensity });
-  }
-
-  const total = core.getMotivationCostTotal();
-  const lineCount = core.getMotivationCostLineCount();
-
-  for (let i = 0; i < lineCount; i += 1) {
-    const lineKindCode = core.getMotivationCostLineKind(i);
-    const quantity = core.getMotivationCostLineQuantity(i);
-    const unitCost = core.getMotivationCostLineUnitCost(i);
-    const spend = core.getMotivationCostLineSpend(i);
-
-    // Find the matching entry to get the string kind name
-    const matched = entries.find((e) => e.code === lineKindCode);
-    const kindName = matched?.kind || "unknown";
-    const priceId = MOTIVATION_PRICE_IDS[kindName];
-
-    lineItems.push({
-      category: "motivation",
-      id: priceId || `motivation_${kindName}`,
-      motivationKind: kindName,
-      family: resolveMotivationFamily(kindName),
-      label: `motivation:${kindName}`,
-      quantity,
-      unitCostTokens: unitCost,
-      spendTokens: spend,
-    });
-  }
-
-  return { cost: total, lineItems };
-}
+// calculateMotivationStackCostFromCore was deleted in P1.2 (Persona
+// Enforcement Program): it was the ONLY reachable path into core-ts's
+// motivation cost surface, and nothing outside its own module ever called it.
+// Core's cost accumulator went with it. Pricing resolves exclusively through
+// calculateMotivationStackCost above.

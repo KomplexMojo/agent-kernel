@@ -84,10 +84,15 @@ premium changes price, never scaling. Hazards pay no premium: a hazard threatens
 > the Persona Enforcement Program P1 (single Allocator entry point) — do not spot-patch the create
 > path separately; that would add a sixth divergence.
 >
-> **Known dead code.** `calculateMotivationStackCostFromCore` and core-ts's entire motivation cost
-> surface (`SIMPLE_COST`/`ADVANCED_COST`/`CONTROL_COST`, the accumulator, `getMotivationProfileCost`)
-> have **zero production consumers** — only that one function reaches them, and nothing calls it
-> outside its own module and a test. Do not build on this path; it charges nobody.
+> **Dead code DELETED (P1.2, 2026-07-18).** `calculateMotivationStackCostFromCore` and core-ts's
+> entire motivation cost surface (unit/profile/design cost lookups, the cost accumulator,
+> `readMotivationCost`) had zero production consumers and are gone. Pricing is Allocator policy;
+> core keeps only the codebook (kinds, families, tiers, flags) and the evaluation accumulator.
+> The remaining in-code cost tables (`cost-model.js`, `DEFAULT_MOTIVATION_COSTS`) now source their
+> numbers from `base-costs.json` (`actorModel` / `motivationFallback` groups) — same values, one
+> home — until P1.4 unifies the models themselves. Note: a THIRD motivation price table exists in
+> `configurator/motivation-rules.js` (`profileCosts`: exploring 1, attacking 5, strategy 20…),
+> embedded in the behavior-rules document — P1.4 must reconcile all three.
 
 > **Known divergence — `configurator/cost-model.js` DOES charge live paths.** (An earlier revision
 > of this note claimed it charges nobody; that was wrong.) It holds a second set of cost constants

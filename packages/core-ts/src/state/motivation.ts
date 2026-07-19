@@ -123,7 +123,9 @@ export function getDefaultMotivationPattern(kind: number): number {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// §2 Motivation tier classification and default costs
+// §2 Motivation tier classification
+// (Tier PRICES were deleted in P1.2 — pricing is Allocator policy, not core.
+//  Core keeps only the classification, which behavior code may consult.)
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const MotivationTier = {
@@ -131,10 +133,6 @@ export const MotivationTier = {
   Advanced: 1,
   Control: 2,
 } as const;
-
-const SIMPLE_COST = 25;
-const ADVANCED_COST = 50;
-const CONTROL_COST = 10;
 
 // Indexed by kind code (1-based). Index 0 is sentinel.
 const TIER_TABLE: readonly number[] = Object.freeze([
@@ -153,17 +151,6 @@ const TIER_TABLE: readonly number[] = Object.freeze([
   MotivationTier.Control,      // 12: UserControlled
 ]);
 
-function deriveCost(tier: number): number {
-  if (tier === MotivationTier.Simple) return SIMPLE_COST;
-  if (tier === MotivationTier.Advanced) return ADVANCED_COST;
-  if (tier === MotivationTier.Control) return CONTROL_COST;
-  return 0;
-}
-
-const COST_TABLE: readonly number[] = Object.freeze(
-  TIER_TABLE.map((tier) => (tier < 0 ? 0 : deriveCost(tier))),
-);
-
 // ── Intensity normalization ──
 
 const INTENSITY_MIN = 1;
@@ -175,16 +162,11 @@ export function normalizeMotivationIntensity(raw: number): number {
   return raw;
 }
 
-// ── Tier and default cost lookups ──
+// ── Tier lookup ──
 
 export function getMotivationTier(kind: number): number {
   if (!isValidMotivationKind(kind)) return -1;
   return TIER_TABLE[kind];
-}
-
-export function getMotivationDefaultUnitCost(kind: number): number {
-  if (!isValidMotivationKind(kind)) return 0;
-  return COST_TABLE[kind];
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -279,43 +261,9 @@ const DEFAULT_FLAG_MASK: readonly number[] = Object.freeze([
   MotivationFlag.CanMove,                                      // 12: UserControlled
 ]);
 
-const DEFAULT_DESIGN_COST: readonly number[] = Object.freeze([
-  0,  // 0: sentinel
-  0,  // 1: Random
-  0,  // 2: Stationary
-  0,  // 3: Exploring
-  0,  // 4: Patrolling
-  0,  // 5: Attacking
-  0,  // 6: Defending
-  0,  // 7: Stealthy
-  0,  // 8: Friendly
-  1,  // 9: Reflexive
-  5,  // 10: GoalOriented
-  20, // 11: StrategyFocused
-  0,  // 12: UserControlled
-]);
-
-// ── Profile cost lookup ──
-// mobility: stationary=0, exploring=1, patrolling=2
-// combat: none=0, attacking=5, defending=4
-// cognition: none=0, reflexive=1, goal_oriented=5, strategy_focused=20
-
-const MOBILITY_COST: readonly number[] = Object.freeze([0, 1, 2]);
-const COMBAT_COST: readonly number[] = Object.freeze([0, 5, 4]);
-const COGNITION_COST: readonly number[] = Object.freeze([0, 1, 5, 20]);
-
-export function getMotivationProfileCost(kind: number): number {
-  if (!isValidMotivationKind(kind)) return -1;
-  const mob = PROFILE_MOBILITY[kind];
-  const com = PROFILE_COMBAT[kind];
-  const cog = PROFILE_COGNITION[kind];
-  return MOBILITY_COST[mob] + COMBAT_COST[com] + COGNITION_COST[cog];
-}
-
-export function getMotivationDefaultDesignCost(kind: number): number {
-  if (!isValidMotivationKind(kind)) return 0;
-  return DEFAULT_DESIGN_COST[kind];
-}
+// (Profile-cost and design-cost lookups were deleted in P1.2 — pricing is
+//  Allocator policy, not core. The profile AXES above remain: they drive the
+//  evaluation accumulator, which is behavior.)
 
 export function getMotivationDefaultFlagMask(kind: number): number {
   if (!isValidMotivationKind(kind)) return 0;
@@ -331,57 +279,15 @@ function reasoningClassFromCognition(cognition: number): number {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// §3 & §5 Closure-based state: cost accumulator + evaluation accumulator
+// §5 Closure-based state: evaluation accumulator
 // Created per createCore() instance via createMotivationState()
+// (The §3 cost accumulator was deleted in P1.2 — it had zero production
+//  consumers, and pricing is Allocator policy, not core.)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const MAX_COST_LINES = 12;
 const MAX_EVAL_ENTRIES = 12;
 
 export function createMotivationState() {
-  // ── Cost accumulator ──
-  let costLineCount = 0;
-  let costTotal = 0;
-  const costLineKinds = new Int32Array(MAX_COST_LINES);
-  const costLineFamilies = new Int32Array(MAX_COST_LINES).fill(-1);
-  const costLineQuantities = new Int32Array(MAX_COST_LINES);
-  const costLineUnitCosts = new Int32Array(MAX_COST_LINES);
-  const costLineSpends = new Int32Array(MAX_COST_LINES);
-
-  function resetMotivationCostAccumulator(): number {
-    costLineCount = 0;
-    costTotal = 0;
-    for (let i = 0; i < MAX_COST_LINES; i++) {
-      costLineKinds[i] = 0;
-      costLineFamilies[i] = -1;
-      costLineQuantities[i] = 0;
-      costLineUnitCosts[i] = 0;
-      costLineSpends[i] = 0;
-    }
-    return 1;
-  }
-
-  function addMotivationCostEntry(kind: number, rawIntensity: number): number {
-    if (!isValidMotivationKind(kind)) return 0;
-    if (costLineCount >= MAX_COST_LINES) return 0;
-
-    const intensity = normalizeMotivationIntensity(rawIntensity);
-    const unitCost = getMotivationDefaultUnitCost(kind);
-    const spend = unitCost * intensity;
-    const family = getMotivationFamily(kind);
-
-    const idx = costLineCount;
-    costLineKinds[idx] = kind;
-    costLineFamilies[idx] = family;
-    costLineQuantities[idx] = intensity;
-    costLineUnitCosts[idx] = unitCost;
-    costLineSpends[idx] = spend;
-
-    costLineCount += 1;
-    costTotal += spend;
-    return 1;
-  }
-
   // ── Evaluation accumulator ──
   let evalEntryCount = 0;
   let evalMobilityTier = 0;
@@ -430,21 +336,6 @@ export function createMotivationState() {
   }
 
   return {
-    // Cost accumulator
-    resetMotivationCostAccumulator,
-    addMotivationCostEntry,
-    getMotivationCostTotal: () => costTotal,
-    getMotivationCostLineCount: () => costLineCount,
-    getMotivationCostLineKind: (index: number) =>
-      index < 0 || index >= costLineCount ? 0 : costLineKinds[index],
-    getMotivationCostLineFamily: (index: number) =>
-      index < 0 || index >= costLineCount ? -1 : costLineFamilies[index],
-    getMotivationCostLineQuantity: (index: number) =>
-      index < 0 || index >= costLineCount ? 0 : costLineQuantities[index],
-    getMotivationCostLineUnitCost: (index: number) =>
-      index < 0 || index >= costLineCount ? 0 : costLineUnitCosts[index],
-    getMotivationCostLineSpend: (index: number) =>
-      index < 0 || index >= costLineCount ? 0 : costLineSpends[index],
     // Evaluation accumulator
     resetMotivationEvaluation,
     addMotivationEvaluationEntry,

@@ -51,5 +51,29 @@
     "resource_level": 5,
     "resource_permanent": 10
   },
+  "_actorModelNote": "actorModel = the legacy actor-attached cost model (design §6–§8), consumed by configurator/cost-model.js. It deliberately DIVERGES from the price-list groups above until P1.4 unifies pricing — values must stay identical to their pre-migration literals. Formulas (quadratic regen, Σ(base + coeff·(n-1)²) stacks) stay in code.",
+  "actorModel": {
+    "vital_max_health": 2,
+    "vital_max_mana": 2,
+    "vital_max_stamina": 1,
+    "vital_max_durability": 2,
+    "regen_coeff_health": 12,
+    "regen_coeff_mana": 5,
+    "regen_coeff_stamina": 4,
+    "regen_coeff_durability": 10,
+    "tokens_per_vital": 1,
+    "tokens_per_regen": 2,
+    "affinity_base_attached": 30,
+    "affinity_stack_base": 10,
+    "affinity_stack_quad_coeff": 8,
+    "expression_external": 35,
+    "expression_internal": 25
+  },
+  "_motivationFallbackNote": "motivationFallback = DEFAULT_MOTIVATION_COSTS tier prices (design §6.6) used when a price map lacks motivation entries. These are the numbers behind the pinned silent-overcharge bug; P1.4 eliminates the fallback entirely.",
+  "motivationFallback": {
+    "fallback_simple": 25,
+    "fallback_advanced": 50,
+    "fallback_user_controlled": 10
+  },
   "freeFloatingPremium": 1.5
 }

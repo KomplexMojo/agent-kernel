@@ -83,6 +83,9 @@ function itemFrom(id, unitCost, description) {
 }
 
 const GROUP_BY_ID = {};
+// The JSON groups that ARE the price list. Other groups in base-costs.json
+// (actorModel, motivationFallback) hold numbers for models consumed elsewhere
+// (cost-model.js, motivation-price-policy.js) and must NOT become list items.
 const KIND_BY_GROUP = {
   vitals: "vital",
   regen: "vital",
@@ -94,7 +97,7 @@ const KIND_BY_GROUP = {
   resource: "resource",
 };
 for (const [group, entries] of Object.entries(BASE_COSTS)) {
-  if (group.startsWith("_") || typeof entries !== "object") continue;
+  if (!(group in KIND_BY_GROUP) || typeof entries !== "object") continue;
   for (const id of Object.keys(entries)) GROUP_BY_ID[id] = group;
 }
 
@@ -137,7 +140,7 @@ function buildResourceItems() {
 
 const DEFAULT_ITEMS = [
   ...Object.entries(BASE_COSTS)
-    .filter(([group, entries]) => !group.startsWith("_") && typeof entries === "object")
+    .filter(([group, entries]) => group in KIND_BY_GROUP && typeof entries === "object")
     .flatMap(([, entries]) =>
       Object.entries(entries).map(([id, unitCost]) => itemFrom(id, unitCost, DESCRIPTIONS[id])),
     ),

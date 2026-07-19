@@ -35,16 +35,13 @@ import { createEffectState } from "./state/effects.ts";
 import {
   createMotivationState,
   getDefaultMotivationPattern,
-  getMotivationDefaultDesignCost,
   getMotivationDefaultFlagMask,
-  getMotivationDefaultUnitCost,
   getMotivationExclusiveGroup,
   getMotivationFamily,
   getMotivationFlagCount,
   getMotivationKindCount,
   getMotivationPatternCodeAt,
   getMotivationPatternCount,
-  getMotivationProfileCost,
   getMotivationTier,
   motivationKindsConflict,
   normalizeMotivationIntensity,
@@ -58,7 +55,6 @@ export * from "./mvp-movement.ts";
 
 export const CORE_API_KEYS = [
   "addActorPlacement",
-  "addMotivationCostEntry",
   "addMotivationEvaluationEntry",
   "advanceTick",
   "affinityExpressionAllowsEnvironmentMutation",
@@ -165,23 +161,13 @@ export const CORE_API_KEYS = [
   "getMotivatedActorVitalRegenByIndex",
   "getMotivatedActorXByIndex",
   "getMotivatedActorYByIndex",
-  "getMotivationCostLineCount",
-  "getMotivationCostLineFamily",
-  "getMotivationCostLineKind",
-  "getMotivationCostLineQuantity",
-  "getMotivationCostLineSpend",
-  "getMotivationCostLineUnitCost",
-  "getMotivationCostTotal",
-  "getMotivationDefaultDesignCost",
   "getMotivationDefaultFlagMask",
-  "getMotivationDefaultUnitCost",
   "getMotivationExclusiveGroup",
   "getMotivationFamily",
   "getMotivationFlagCount",
   "getMotivationKindCount",
   "getMotivationPatternCodeAt",
   "getMotivationPatternCount",
-  "getMotivationProfileCost",
   "getMotivationTier",
   "getOppositeAffinityKind",
   "getResourceAffinityExpressionAt",
@@ -229,7 +215,6 @@ export const CORE_API_KEYS = [
   "removeResourceAt",
   "renderBaseCellChar",
   "renderCellChar",
-  "resetMotivationCostAccumulator",
   "resetMotivationEvaluation",
   "resolveAffinityInteraction",
   "resolveAffinityMergedStacks",
@@ -489,23 +474,11 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getMotivationPatternCodeAt = getMotivationPatternCodeAt as CoreFunction;
   core.getDefaultMotivationPattern = getDefaultMotivationPattern as CoreFunction;
   core.getMotivationTier = getMotivationTier as CoreFunction;
-  core.getMotivationDefaultUnitCost = getMotivationDefaultUnitCost as CoreFunction;
   core.normalizeMotivationIntensity = normalizeMotivationIntensity as CoreFunction;
-  core.getMotivationProfileCost = getMotivationProfileCost as CoreFunction;
-  core.getMotivationDefaultDesignCost = getMotivationDefaultDesignCost as CoreFunction;
   core.getMotivationDefaultFlagMask = getMotivationDefaultFlagMask as CoreFunction;
   core.getMotivationFlagCount = getMotivationFlagCount as CoreFunction;
 
   // Motivation state (per-instance)
-  core.resetMotivationCostAccumulator = motivation.resetMotivationCostAccumulator as CoreFunction;
-  core.addMotivationCostEntry = motivation.addMotivationCostEntry as CoreFunction;
-  core.getMotivationCostTotal = motivation.getMotivationCostTotal as CoreFunction;
-  core.getMotivationCostLineCount = motivation.getMotivationCostLineCount as CoreFunction;
-  core.getMotivationCostLineKind = motivation.getMotivationCostLineKind as CoreFunction;
-  core.getMotivationCostLineFamily = motivation.getMotivationCostLineFamily as CoreFunction;
-  core.getMotivationCostLineQuantity = motivation.getMotivationCostLineQuantity as CoreFunction;
-  core.getMotivationCostLineUnitCost = motivation.getMotivationCostLineUnitCost as CoreFunction;
-  core.getMotivationCostLineSpend = motivation.getMotivationCostLineSpend as CoreFunction;
   core.resetMotivationEvaluation = motivation.resetMotivationEvaluation as CoreFunction;
   core.addMotivationEvaluationEntry = motivation.addMotivationEvaluationEntry as CoreFunction;
   core.evaluateMotivations = motivation.evaluateMotivations as CoreFunction;

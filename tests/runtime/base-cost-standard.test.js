@@ -116,6 +116,41 @@ test("hazards pay no free-floating premium", async () => {
 // See allocator/README.md "Known divergence" and local-codex/Plan.md M18–M21.
 // ---------------------------------------------------------------------------
 
+test("P1.2: cost-model.js numbers are sourced from base-costs.json (actorModel group)", async () => {
+  const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
+  const cm = await import("../../packages/runtime/src/personas/configurator/cost-model.js");
+  const am = base.actorModel;
+  assert.deepEqual(cm.VITAL_MAX_COST_MULTIPLIER, {
+    health: am.vital_max_health,
+    mana: am.vital_max_mana,
+    stamina: am.vital_max_stamina,
+    durability: am.vital_max_durability,
+  });
+  assert.deepEqual(cm.REGEN_COST_COEFFICIENT, {
+    health: am.regen_coeff_health,
+    mana: am.regen_coeff_mana,
+    stamina: am.regen_coeff_stamina,
+    durability: am.regen_coeff_durability,
+  });
+  assert.equal(cm.COST_DEFAULTS.affinityBaseCost, am.affinity_base_attached);
+  assert.equal(cm.COST_DEFAULTS.externalExpressionCost, am.expression_external);
+  assert.equal(cm.COST_DEFAULTS.internalExpressionCost, am.expression_internal);
+  // Formula stays in code; its base numbers come from the JSON.
+  assert.equal(cm.computeStackCost(1), am.affinity_stack_base);
+  assert.equal(cm.computeStackCost(3), am.affinity_stack_base + am.affinity_stack_quad_coeff * 4);
+});
+
+test("P1.2: motivation fallback tiers are sourced from base-costs.json (motivationFallback group)", async () => {
+  const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
+  const mp = await import("../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
+  assert.equal(mp.SIMPLE_MOTIVATION_COST, base.motivationFallback.fallback_simple);
+  assert.equal(mp.ADVANCED_MOTIVATION_COST, base.motivationFallback.fallback_advanced);
+  assert.equal(mp.DEFAULT_MOTIVATION_COSTS.user_controlled, base.motivationFallback.fallback_user_controlled);
+  const cm = await import("../../packages/runtime/src/personas/configurator/cost-model.js");
+  assert.equal(cm.COST_DEFAULTS.simpleMotivationCost, base.motivationFallback.fallback_simple);
+  assert.equal(cm.COST_DEFAULTS.advancedMotivationCost, base.motivationFallback.fallback_advanced);
+});
+
 test("cost-model.js diverges from the price list — pinned, not endorsed", async () => {
   const { COST_DEFAULTS } = await import("../../packages/runtime/src/personas/configurator/cost-model.js");
   const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));

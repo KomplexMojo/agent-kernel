@@ -1,16 +1,24 @@
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
+import BASE_COSTS from "../allocator/base-costs.json" with { type: "json" };
 
 const REGEN_KEYS = Object.freeze([...VITAL_KEYS]);
+
+// Base-cost standard: NUMBERS live in base-costs.json (actorModel /
+// motivationFallback groups), FORMULAS live here. This module still encodes a
+// price model that DIVERGES from the Allocator price list — see the charter's
+// "Economy — Allocator Authority" and Plan.md P1.4 for the unification.
+const ACTOR_MODEL = BASE_COSTS.actorModel;
+const MOTIVATION_FALLBACK = BASE_COSTS.motivationFallback;
 
 /**
  * Per-vital max cost multipliers (design §7):
  *   health: 2H, mana: 2M, stamina: S, durability: 2D
  */
 const VITAL_MAX_COST_MULTIPLIER = Object.freeze({
-  health: 2,
-  mana: 2,
-  stamina: 1,
-  durability: 2,
+  health: ACTOR_MODEL.vital_max_health,
+  mana: ACTOR_MODEL.vital_max_mana,
+  stamina: ACTOR_MODEL.vital_max_stamina,
+  durability: ACTOR_MODEL.vital_max_durability,
 });
 
 /**
@@ -18,32 +26,33 @@ const VITAL_MAX_COST_MULTIPLIER = Object.freeze({
  *   health: 12·R², mana: 5·R², stamina: 4·R², durability: 10·R²
  */
 const REGEN_COST_COEFFICIENT = Object.freeze({
-  health: 12,
-  mana: 5,
-  stamina: 4,
-  durability: 10,
+  health: ACTOR_MODEL.regen_coeff_health,
+  mana: ACTOR_MODEL.regen_coeff_mana,
+  stamina: ACTOR_MODEL.regen_coeff_stamina,
+  durability: ACTOR_MODEL.regen_coeff_durability,
 });
 
 const COST_DEFAULTS = Object.freeze({
   /** @deprecated Use VITAL_MAX_COST_MULTIPLIER per-vital instead. */
-  tokensPerVital: 1,
+  tokensPerVital: ACTOR_MODEL.tokens_per_vital,
   /** @deprecated Use REGEN_COST_COEFFICIENT per-vital instead. */
-  tokensPerRegen: 2,
-  affinityBaseCost: 30,
+  tokensPerRegen: ACTOR_MODEL.tokens_per_regen,
+  affinityBaseCost: ACTOR_MODEL.affinity_base_attached,
   /**
-   * Affinity stack cost formula: 10 + 8·(n-1)² per stack n (design §6.2).
+   * Affinity stack cost formula: base + coeff·(n-1)² per stack n (design §6.2).
    * affinityStackExponent is kept for legacy callers but the canonical
-   * formula is now computeStackCost().
+   * formula is now computeStackCost(). The exponent is formula shape, not a
+   * price, so it stays in code.
    */
   affinityStackExponent: 2,
   /** Build-time cost for external expressions (push/pull) (design §6.4). */
-  externalExpressionCost: 35,
+  externalExpressionCost: ACTOR_MODEL.expression_external,
   /** Build-time cost for internal expressions (emit/draw) (design §6.4). */
-  internalExpressionCost: 25,
+  internalExpressionCost: ACTOR_MODEL.expression_internal,
   /** Flat cost for a simple motivation (design §6.6). */
-  simpleMotivationCost: 25,
+  simpleMotivationCost: MOTIVATION_FALLBACK.fallback_simple,
   /** Flat cost for an advanced motivation (design §6.6). */
-  advancedMotivationCost: 50,
+  advancedMotivationCost: MOTIVATION_FALLBACK.fallback_advanced,
 });
 
 const COST_FORMULAS = Object.freeze({
@@ -63,7 +72,7 @@ const COST_FORMULAS = Object.freeze({
  */
 export function computeStackCost(n) {
   if (!Number.isInteger(n) || n < 1) return 0;
-  return 10 + 8 * Math.pow(n - 1, 2);
+  return ACTOR_MODEL.affinity_stack_base + ACTOR_MODEL.affinity_stack_quad_coeff * Math.pow(n - 1, 2);
 }
 
 /**

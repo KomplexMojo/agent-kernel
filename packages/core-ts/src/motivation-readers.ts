@@ -65,32 +65,8 @@ export const MOTIVATION_FLAG_NAMES = Object.freeze({
 });
 
 // Readers: extract structured JS objects from core last-result getters.
-
-/**
- * Read the motivation cost accumulator state from core state.
- * Call after resetMotivationCostAccumulator + addMotivationCostEntry calls.
- * Returns { total, lines[] } where each line has kind, kindName, family,
- * familyName, quantity, unitCost, spend.
- */
-export function readMotivationCost(core) {
-  const total = core.getMotivationCostTotal();
-  const lineCount = core.getMotivationCostLineCount();
-  const lines = [];
-  for (let i = 0; i < lineCount; i += 1) {
-    const kind = core.getMotivationCostLineKind(i);
-    const family = core.getMotivationCostLineFamily(i);
-    lines.push({
-      kind,
-      kindName: MOTIVATION_KIND_BY_CODE[kind] || "unknown",
-      family,
-      familyName: MOTIVATION_FAMILY_BY_CODE[family] || "unknown",
-      quantity: core.getMotivationCostLineQuantity(i),
-      unitCost: core.getMotivationCostLineUnitCost(i),
-      spend: core.getMotivationCostLineSpend(i),
-    });
-  }
-  return { total, lines };
-}
+// (readMotivationCost was deleted in P1.2 with core's cost accumulator —
+//  pricing is Allocator policy, not core.)
 
 /**
  * Read the motivation evaluation result from core state.
