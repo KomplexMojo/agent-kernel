@@ -1,6 +1,20 @@
 const MAX_BUDGET_CATEGORIES = 8;
 const UNLIMITED_CAP = -1;
 
+/**
+ * Canonical budget category codebook. **Core owns these ids** (maintainer
+ * decision 2026-07-20); runtime maps human-facing names onto them and must
+ * never invent its own numbering.
+ *
+ * `Default` is every action that is not an external request — moves, logs,
+ * telemetry, counters. It is deliberately NOT called "movement": core charges
+ * far more than movement to it.
+ */
+export const BudgetCategory = {
+  Default: 0,
+  Effects: 1,
+} as const;
+
 export function createBudgetState() {
   const caps = new Int32Array(MAX_BUDGET_CATEGORIES);
   const spent = new Int32Array(MAX_BUDGET_CATEGORIES);

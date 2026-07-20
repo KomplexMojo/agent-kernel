@@ -29,7 +29,7 @@ import {
   getAffinityVisualStateCount,
   resolveAffinityMergedStacks,
 } from "./state/affinity-spatial.ts";
-import { createBudgetState } from "./state/budget.ts";
+import { createBudgetState, BudgetCategory } from "./state/budget.ts";
 import { createCounterState } from "./state/counter.ts";
 import { createEffectState } from "./state/effects.ts";
 import {
@@ -49,6 +49,7 @@ import {
 import { createWorldState } from "./state/world.ts";
 import { ActionKind, validateAction, validateSeed, ValidationError } from "./validate/inputs.ts";
 
+export { BudgetCategory } from "./state/budget.ts";
 export * from "./affinity-readers.ts";
 export * from "./motivation-readers.ts";
 export * from "./mvp-movement.ts";
@@ -253,8 +254,10 @@ function notImplemented(name: string): CoreFunction {
   };
 }
 
-const DEFAULT_BUDGET_CATEGORY = 0;
-const EFFECT_BUDGET_CATEGORY = 1;
+// Core owns the budget category ids; the codebook lives with the budget state
+// so runtime can import it rather than duplicating the numbering.
+const DEFAULT_BUDGET_CATEGORY = BudgetCategory.Default;
+const EFFECT_BUDGET_CATEGORY = BudgetCategory.Effects;
 const REQUEST_DETAIL_MASK = 0xff;
 
 function encodeRequestPayload(seq: number, detail: number): number {
