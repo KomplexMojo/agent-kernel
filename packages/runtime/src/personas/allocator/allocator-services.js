@@ -17,6 +17,7 @@
  * Shared by controller.js and controller.mts so the two entry points cannot
  * drift.
  */
+import BASE_COSTS from "./base-costs.json" with { type: "json" };
 import { buildDefaultPriceList } from "./default-price-list.js";
 import { normalizePriceItems, buildPriceMap, validateSpendProposal } from "./validate-spend.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
@@ -75,6 +76,16 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
     /** Motivation stack quote against the persona's own price map. */
     quoteMotivations: (motivations) =>
       calculateMotivationStackCost(motivations, buildPriceMap(getPriceList())),
+    /**
+     * Runtime action costs charged against core's per-run budget ledger.
+     * Distinct from the authoring price list: these are the per-action units
+     * core charges while a simulation runs. Names, not core action codes —
+     * runtime maps them onto core's ActionKind codebook.
+     */
+    actionBudgetCosts: () => ({
+      default: BASE_COSTS.actionBudget.action_default,
+      requestSolver: BASE_COSTS.actionBudget.action_request_solver,
+    }),
   };
 
   function registerBudget(budget) {

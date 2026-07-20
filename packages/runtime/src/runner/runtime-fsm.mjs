@@ -1,4 +1,4 @@
-import { applyBudgetCaps } from "../ports/budget.js";
+import { applyBudgetCaps, applyActionBudgetCosts } from "../ports/budget.js";
 import * as effects from "../ports/effects.js";
 import { createSolverPort } from "../ports/solver.js";
 import { createTickOrchestrator } from "../personas/_shared/tick-orchestrator.mts";
@@ -1053,6 +1053,8 @@ export function createFsmRuntime({
 
       baseTiles = resolveBaseTiles(simConfig, core);
       applyBudgetCaps(core, simConfig);
+      // Action costs are Allocator policy; core enforces but must not price.
+      applyActionBudgetCosts(core, createAllocatorPersona().pricing.actionBudgetCosts());
 
       ensureOrchestrator();
 

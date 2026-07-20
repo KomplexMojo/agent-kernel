@@ -50,6 +50,8 @@ import { createWorldState } from "./state/world.ts";
 import { ActionKind, validateAction, validateSeed, ValidationError } from "./validate/inputs.ts";
 
 export { BudgetCategory } from "./state/budget.ts";
+// Core owns the action codebook; runtime maps names onto these codes.
+export { ActionKind } from "./validate/inputs.ts";
 export * from "./affinity-readers.ts";
 export * from "./motivation-readers.ts";
 export * from "./mvp-movement.ts";
@@ -222,6 +224,7 @@ export const CORE_API_KEYS = [
   "resolveAffinityRelationshipCode",
   "resolveAffinityStackCancellation",
   "resolveMotivatedActorAffinityInteraction",
+  "setActionBudgetCost",
   "setActiveMotivatedActor",
   "setActorActionCostMana",
   "setActorActionCostStamina",
@@ -313,7 +316,9 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
     const budgetCategory = kind === ActionKind.RequestExternalFact || kind === ActionKind.RequestSolver
       ? EFFECT_BUDGET_CATEGORY
       : DEFAULT_BUDGET_CATEGORY;
-    const budgetCost = kind === ActionKind.RequestSolver ? 2 : 1;
+    // Cost is Allocator policy, injected via setActionBudgetCost; core only
+    // enforces. Defaults to 1 unit per action when nothing injected.
+    const budgetCost = budget.getActionCost(kind);
     const nextSpent = budget.chargeBudget(budgetCategory, budgetCost);
     emitBudgetEffects(budgetCategory, nextSpent);
   }
@@ -397,6 +402,7 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.version = () => 1;
   core.getCounter = counter.getCounterValue as CoreFunction;
   core.setBudget = budget.setBudgetCap as CoreFunction;
+  core.setActionBudgetCost = budget.setActionCost as CoreFunction;
   core.getBudget = budget.getBudgetCap as CoreFunction;
   core.getBudgetUsage = budget.getBudgetSpent as CoreFunction;
   core.getEffectCount = effects.getEffectCount as CoreFunction;
