@@ -4,6 +4,11 @@ const assert = require("node:assert/strict");
 
 test("motivation costs flow through calculateActorConfigurationUnitCost", async () => {
 const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/configurator/spend-proposal.js");
+const { buildDefaultPriceList } = await import("../../packages/runtime/src/personas/allocator/default-price-list.js");
+const { normalizePriceItems } = await import("../../packages/runtime/src/personas/allocator/validate-spend.js");
+const defaultPriceMap = normalizePriceItems(
+  buildDefaultPriceList({ createdAt: "2026-07-20T00:00:00.000Z" }),
+);
 
 // ── motivation costs are included in actor configuration cost ──
 {
@@ -17,11 +22,10 @@ const { calculateActorConfigurationUnitCost } = await import("../../packages/run
     affinities: [],
     motivations: ["reflexive"],
   };
-  const result = calculateActorConfigurationUnitCost({ entry, priceMap: new Map() });
+  const result = calculateActorConfigurationUnitCost({ entry, priceMap: defaultPriceMap });
   assert.ok(result.cost > 0, "cost should be positive");
   assert.ok(result.detail.motivationCost > 0, "motivationCost should be reported");
-  // reflexive = simple tier = 25 tokens (design §6.6)
-  assert.equal(result.detail.motivationCost, 25);
+  assert.equal(result.detail.motivationCost, 1);
   const motivationLineItems = result.detail.lineItems.filter((li) => li.category === "motivation");
   assert.equal(motivationLineItems.length, 1);
   assert.equal(motivationLineItems[0].id, "motivation_reflexive");
@@ -33,7 +37,7 @@ const { calculateActorConfigurationUnitCost } = await import("../../packages/run
     vitals: { health: { max: 10 } },
     affinities: [],
   };
-  const result = calculateActorConfigurationUnitCost({ entry, priceMap: new Map() });
+  const result = calculateActorConfigurationUnitCost({ entry, priceMap: defaultPriceMap });
   assert.equal(result.detail.motivationCost, 0);
 }
 
@@ -44,14 +48,14 @@ const { calculateActorConfigurationUnitCost } = await import("../../packages/run
     affinities: [],
     motivations: ["random", "attacking", "goal_oriented"],
   };
-  const result = calculateActorConfigurationUnitCost({ entry, priceMap: new Map() });
-  // random(25) + attacking(25) + goal_oriented(50) = 100
-  assert.equal(result.detail.motivationCost, 100);
+  const result = calculateActorConfigurationUnitCost({ entry, priceMap: defaultPriceMap });
+  // random(1) + attacking(3) + goal_oriented(5) = 9
+  assert.equal(result.detail.motivationCost, 9);
 }
 
 // ── motivation cost uses priceMap when available ──
 {
-  const priceMap = new Map();
+  const priceMap = new Map(defaultPriceMap);
   priceMap.set("motivation:motivation_reflexive", 50);
   const entry = {
     vitals: { health: { max: 1 } },
@@ -69,9 +73,9 @@ const { calculateActorConfigurationUnitCost } = await import("../../packages/run
     affinities: [],
     motivations: [{ kind: "strategy_focused", intensity: 2 }],
   };
-  const result = calculateActorConfigurationUnitCost({ entry, priceMap: new Map() });
-  // strategy_focused(50) * intensity(2) = 100
-  assert.equal(result.detail.motivationCost, 100);
+  const result = calculateActorConfigurationUnitCost({ entry, priceMap: defaultPriceMap });
+  // strategy_focused(10) * intensity(2) = 20
+  assert.equal(result.detail.motivationCost, 20);
 }
 
 // ── motivation cost preserves legacy cognition ordering ──
@@ -79,12 +83,22 @@ const { calculateActorConfigurationUnitCost } = await import("../../packages/run
   const reflexiveEntry = { vitals: { health: { max: 1 } }, motivations: ["reflexive"] };
   const goalEntry = { vitals: { health: { max: 1 } }, motivations: ["goal_oriented"] };
   const strategyEntry = { vitals: { health: { max: 1 } }, motivations: ["strategy_focused"] };
-  const pm = new Map();
+  const pm = defaultPriceMap;
   const r1 = calculateActorConfigurationUnitCost({ entry: reflexiveEntry, priceMap: pm });
   const r2 = calculateActorConfigurationUnitCost({ entry: goalEntry, priceMap: pm });
   const r3 = calculateActorConfigurationUnitCost({ entry: strategyEntry, priceMap: pm });
   assert.ok(r1.detail.motivationCost < r2.detail.motivationCost, "reflexive < goal_oriented");
-  // goal_oriented and strategy_focused are both advanced tier (50 tokens each)
-  assert.ok(r2.detail.motivationCost <= r3.detail.motivationCost, "goal_oriented <= strategy_focused");
+  assert.ok(r2.detail.motivationCost < r3.detail.motivationCost, "goal_oriented < strategy_focused");
+}
+
+// An incomplete map reports the missing entries instead of falling back.
+{
+  const result = calculateActorConfigurationUnitCost({
+    entry: { vitals: { health: { max: 1 } }, motivations: ["reflexive"] },
+    priceMap: new Map(),
+  });
+  assert.equal(result.cost, 0);
+  assert.ok(result.errors?.some((entry) => entry.includes("vital_health_point")));
+  assert.ok(result.errors?.some((entry) => entry.includes("motivation_reflexive")));
 }
 });

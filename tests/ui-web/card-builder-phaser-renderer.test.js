@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { createCardBuilderController } from "../../packages/ui-web/src/card-builder-controller.js";
+import { buildDefaultPriceList } from "../../packages/runtime/src/personas/allocator/default-price-list.js";
 // M5 target module — does not exist yet. These tests are the implementation contract.
 import {
   createCardBuilderPhaserRenderer,
   CARD_BUILDER_UI_INTENTS,
 } from "../../packages/ui-web/src/views/card-builder-phaser-renderer.js";
+
+const defaultPriceList = buildDefaultPriceList({ createdAt: "2026-07-20T00:00:00.000Z" });
 
 function createFakePhaser(records = {}) {
   records.rectangles = [];
@@ -314,7 +317,7 @@ test("move_card_between_groups intent stashes the active card to the target grou
 
 test("render after a count adjustment reflects the new receipt totals in the snapshot", async () => {
   const records = {};
-  const controller = createCardBuilderController();
+  const controller = createCardBuilderController({ llmConfig: { priceList: defaultPriceList } });
   controller.applyPropertyDrop(controller.getActiveCard().id, { group: "type", value: "delver" });
   const beforeTotal = controller.getActiveCard().tokenReceipt.tokenTotals.total;
   const renderer = createCardBuilderPhaserRenderer({

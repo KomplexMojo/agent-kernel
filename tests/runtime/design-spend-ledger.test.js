@@ -37,13 +37,13 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
     },
   });
 
-  // Design-aligned costs: vitals 2×4+2×2+1×1+2×1=15, regen 12×1²+5×1²=17, affinity 30+28+35=93 → 125/unit × 2 = 250
-  assert.equal(ledger.totalSpentTokens, 520);
-  assert.equal(ledger.remainingTokens, 480);
+  // P1.4 unified list: vitals 4+2+1+1=8, regen 1²+1²=2, affinity 10+2²+35=49 → 59/unit × 2 = 118
+  assert.equal(ledger.totalSpentTokens, 388);
+  assert.equal(ledger.remainingTokens, 612);
   assert.equal(ledger.overBudget, false);
   assert.equal(ledger.categories.levelConfig.spentTokens, 110);
   assert.equal(ledger.categories.actorBase.spentTokens, 160);
-  assert.equal(ledger.categories.actorConfiguration.spentTokens, 250);
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 118);
   assert.ok(ledger.lineItems.some((entry) => entry.category === "levelConfig"));
   assert.ok(ledger.lineItems.some((entry) => entry.category === "actorBase"));
   assert.ok(ledger.lineItems.some((entry) => entry.category === "actorConfiguration"));
@@ -99,6 +99,7 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
       items: [
         { id: "vital_health_point", kind: "vital", costTokens: 1 },
         { id: "vital_health_regen_tick", kind: "vital", costTokens: 4 },
+        { id: "affinity_base", kind: "affinity", costTokens: 8 },
         { id: "affinity_stack", kind: "affinity", costTokens: 6 },
         { id: "affinity_expression_externalize", kind: "affinity", costTokens: 7 },
       ],
@@ -107,9 +108,10 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
 
   const configLine = ledger.lineItems.find((entry) => entry.category === "actorConfiguration");
   assert.ok(configLine);
-  // vitals 30×1=30, regen 3×4=12, affinity 30+28+7=65 → 107/unit × 3 = 321
-  assert.equal(configLine.unitCostTokens, 107);
-  assert.equal(configLine.spendTokens, 321);
+  // P1.4: custom items without a formula price linearly.
+  // vitals 30×1=30, regen 3×4=12, affinity base 8 + stacks 2×6 + push 7 = 27 → 69/unit × 3 = 207
+  assert.equal(configLine.unitCostTokens, 69);
+  assert.equal(configLine.spendTokens, 207);
   assert.equal(configLine.detail.vitalPoints, 30);
   assert.equal(configLine.detail.regenPoints, 3);
   assert.equal(configLine.detail.affinityStacks, 2);
@@ -170,10 +172,10 @@ test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by coun
   });
 
   assert.equal(ledger.categories.actorBase.spentTokens, 69300);
-  // Design-aligned: vitals 2×10+2×5+1×8+2×6=50, regen 12+5+16=33, affinity 30+28+35=93 → 176/unit × 9 = 1584
-  assert.equal(ledger.categories.actorConfiguration.spentTokens, 1584);
-  assert.equal(ledger.totalSpentTokens, 70884);
-  assert.equal(ledger.remainingTokens, 6116);
+  // P1.4 unified list: vitals 10+5+8+6=29, regen 1²+1²+2²=6, affinity 10+2²+35=49 → 84/unit × 9 = 756
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 756);
+  assert.equal(ledger.totalSpentTokens, 70056);
+  assert.equal(ledger.remainingTokens, 6944);
   assert.equal(ledger.overBudget, false);
 });
 

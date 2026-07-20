@@ -1,13 +1,8 @@
-import { buildPriceMap, validateSpendProposal } from "../allocator/validate-spend.js";
+import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "../allocator/validate-spend.js";
+import { createAllocatorPersona } from "../allocator/persona.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
-import {
-  COST_DEFAULTS,
-  VITAL_MAX_COST_MULTIPLIER,
-  REGEN_COST_COEFFICIENT,
-  computeCumulativeStackCost,
-} from "./cost-model.js";
 import { extractSummaryFromCardSet } from "../director/summary-selections.js";
 import { normalizeCardType } from "./card-model.js";
 import { calculateMotivationStackCost } from "../allocator/motivation-price-policy.js";
@@ -336,12 +331,21 @@ function buildSpendItems({ layoutData, actors, hazards, resources }) {
 
       const affinities = extractAffinities(actor);
       if (affinities.length > 0) {
-        const totalStacks = affinities.reduce((sum, entry) => sum + entry.stacks, 0);
-        accumulateItem(counts, "affinity_stack", "affinity", totalStacks, { category, subjectRef });
+        // P1.4 unified model, mirroring the resource branch: base ×1 +
+        // stacks (quadratic via the list formula) + expression ×1, per
+        // affinity entry. The old itemization omitted the base and charged
+        // the expression ×stacks — a fourth divergent affinity model, caught
+        // by Codex's rulebook derivation during the P1.4 sweep.
+        // Caveat: accumulateItem merges quantities per (id, subject), so a
+        // multi-affinity actor quadratics on summed stacks; single-affinity
+        // actors (the norm) price identically to
+        // calculateActorConfigurationUnitCost.
         affinities.forEach((entry) => {
+          accumulateItem(counts, "affinity_base", "affinity", 1, { category, subjectRef });
+          accumulateItem(counts, "affinity_stack", "affinity", entry.stacks, { category, subjectRef });
           const expressionId = AFFINITY_EXPRESSION_IDS[entry.expression];
           if (!expressionId) return;
-          accumulateItem(counts, expressionId, "affinity", entry.stacks, { category, subjectRef });
+          accumulateItem(counts, expressionId, "affinity", 1, { category, subjectRef });
         });
       }
 
@@ -456,12 +460,6 @@ function scaleTokenCost(value, scale = 1) {
   return scaled > 0 ? scaled : 1;
 }
 
-function resolveUnitCost({ priceMap, kind, id, fallback }) {
-  const fromPriceList = priceMap.get(`${kind}:${id}`);
-  if (Number.isFinite(fromPriceList) && fromPriceList >= 0) return fromPriceList;
-  return Number.isFinite(fallback) && fallback >= 0 ? fallback : 0;
-}
-
 function normalizeAffinityEntriesForCost(entry) {
   if (!Array.isArray(entry?.affinities)) return [];
   return entry.affinities
@@ -476,6 +474,20 @@ function normalizeAffinityEntriesForCost(entry) {
     .filter(Boolean);
 }
 
+// P1.4: read a price entry from either map shape — an item object
+// (normalizePriceItems) or a bare unitCost number (buildPriceMap). Items are
+// canonical because they carry the formula; numbers are treated as linear.
+function readPriceEntry(priceMap, kind, id) {
+  const raw = priceMap?.get?.(`${kind}:${id}`);
+  if (raw && typeof raw === "object" && Number.isFinite(raw.unitCost) && raw.unitCost >= 0) {
+    return raw;
+  }
+  if (Number.isFinite(raw) && raw >= 0) {
+    return { id, kind, unitCost: raw, formula: "linear" };
+  }
+  return null;
+}
+
 export function calculateActorConfigurationUnitCost({
   entry,
   priceMap,
@@ -485,101 +497,77 @@ export function calculateActorConfigurationUnitCost({
   const affinities = normalizeAffinityEntriesForCost(entry);
   const affinityCostScale = normalizeCostScale(pricing?.affinityCostScale, 1);
   const lineItems = [];
+  const errors = [];
 
-  // Vital max costs: per-vital multiplier (design §7)
-  // health: 2H, mana: 2M, stamina: S, durability: 2D
+  const requireEntry = (kind, id) => {
+    const item = readPriceEntry(priceMap, kind, id);
+    if (!item) errors.push(`"${id}" has no price list entry (expected ${kind}:${id})`);
+    return item;
+  };
+
+  // Vital max points — linear per the price list.
   let vitalPoints = 0;
   let vitalCost = 0;
   VITAL_KEYS.forEach((key) => {
     const quantity = normalizePositiveInt(vitals[key], 0);
     if (quantity <= 0) return;
     vitalPoints += quantity;
-    const id = VITAL_POINT_IDS[key];
-    const priceListUnit = resolveUnitCost({
-      priceMap,
-      kind: "vital",
-      id,
-      fallback: null,
-    });
-    // Use price list override if available, otherwise per-vital design multiplier
-    const unit = Number.isFinite(priceListUnit) && priceListUnit > 0
-      ? priceListUnit
-      : VITAL_MAX_COST_MULTIPLIER[key];
-    const spendTokens = quantity * unit;
+    const item = requireEntry("vital", VITAL_POINT_IDS[key]);
+    if (!item) return;
+    const spendTokens = calculatePriceTotal(item, quantity);
     vitalCost += spendTokens;
     lineItems.push({
       category: "vital",
-      id,
+      id: item.id,
       label: `${key} max`,
       quantity,
-      unitCostTokens: unit,
+      unitCostTokens: item.unitCost,
       spendTokens,
     });
   });
 
-  // Regen costs: quadratic per-vital (design §8)
-  // health: 12·R², mana: 5·R², stamina: 4·R², durability: 10·R²
+  // Regen — the price list's formula applies (quadratic on the default list).
   let regenPoints = 0;
   let regenCost = 0;
   VITAL_KEYS.forEach((key) => {
     const quantity = normalizePositiveInt(regen[key], 0);
     if (quantity <= 0) return;
     regenPoints += quantity;
-    const id = VITAL_REGEN_IDS[key];
-    const priceListUnit = resolveUnitCost({
-      priceMap,
-      kind: "vital",
-      id,
-      fallback: null,
-    });
-    let spendTokens;
-    if (Number.isFinite(priceListUnit) && priceListUnit > 0) {
-      // Price list override: linear
-      spendTokens = quantity * priceListUnit;
-    } else {
-      // Design formula: coefficient × R² (quadratic)
-      const coeff = REGEN_COST_COEFFICIENT[key];
-      spendTokens = coeff * quantity * quantity;
-    }
+    const item = requireEntry("vital", VITAL_REGEN_IDS[key]);
+    if (!item) return;
+    const spendTokens = calculatePriceTotal(item, quantity);
     regenCost += spendTokens;
     lineItems.push({
       category: "vital",
-      id,
+      id: item.id,
       label: `${key} regen`,
       quantity,
-      unitCostTokens: spendTokens,
+      unitCostTokens: item.unitCost,
       spendTokens,
     });
   });
 
-  // Affinity costs: base (30) + cumulative stack cost + expression cost (design §6)
+  // Affinity — base + stacks (list formula, quadratic) + expression, all from
+  // the price list. affinityCostScale (room cards) applies to base+stacks and
+  // to the expression, mirroring the pre-P1.4 scaling seams.
   let affinityStacks = 0;
   let affinityCost = 0;
-  const affinityBaseCost = pricing.affinityBaseCost ?? COST_DEFAULTS.affinityBaseCost;
   affinities.forEach((affinity) => {
     const stacks = affinity.stacks;
     affinityStacks += stacks;
 
-    // Affinity base (30) + cumulative stack cost Σ(10 + 8·(n-1)²)
-    const basePlusStack = affinityBaseCost + computeCumulativeStackCost(stacks);
-    let scaledBasePlusStack = scaleTokenCost(basePlusStack, affinityCostScale);
-
-    // Expression cost: external (push/pull) = 35, internal (emit/draw) = 25
+    const baseItem = requireEntry("affinity", "affinity_base");
+    const stackItem = requireEntry("affinity", "affinity_stack");
     const expressionId = AFFINITY_EXPRESSION_IDS[affinity.expression];
-    let expressionCost = 0;
-    if (expressionId) {
-      const isExternal = affinity.expression === "push" || affinity.expression === "pull";
-      const exprFallback = isExternal
-        ? COST_DEFAULTS.externalExpressionCost
-        : COST_DEFAULTS.internalExpressionCost;
-      const exprUnit = resolveUnitCost({
-        priceMap,
-        kind: "affinity",
-        id: expressionId,
-        fallback: exprFallback,
-      });
-      expressionCost = scaleTokenCost(exprUnit, affinityCostScale);
-    }
+    const exprItem = expressionId ? requireEntry("affinity", expressionId) : null;
+    if (!baseItem || !stackItem || (expressionId && !exprItem)) return;
+
+    const basePlusStack =
+      calculatePriceTotal(baseItem, 1) + calculatePriceTotal(stackItem, stacks);
+    const scaledBasePlusStack = scaleTokenCost(basePlusStack, affinityCostScale);
+    const expressionCost = exprItem
+      ? scaleTokenCost(calculatePriceTotal(exprItem, 1), affinityCostScale)
+      : 0;
 
     affinityCost += scaledBasePlusStack + expressionCost;
     lineItems.push({
@@ -596,6 +584,7 @@ export function calculateActorConfigurationUnitCost({
   const motivationResult = calculateMotivationStackCost(motivations, priceMap);
   const motivationCost = motivationResult.cost;
   lineItems.push(...motivationResult.lineItems);
+  if (Array.isArray(motivationResult.errors)) errors.push(...motivationResult.errors);
 
   const cost = vitalCost + regenCost + affinityCost + motivationCost;
   return {
@@ -606,9 +595,10 @@ export function calculateActorConfigurationUnitCost({
       affinityStacks,
       motivationCost,
       affinityCostScale,
-      pricingSource: priceMap.size > 0 ? "price-list" : "fallback",
+      pricingSource: "price-list",
       lineItems,
     },
+    ...(errors.length ? { errors } : {}),
   };
 }
 
@@ -746,7 +736,13 @@ export function buildDesignSpendLedger({
     warnings.push(...layoutResult.warnings);
   }
   const entries = asActorEntries({ actorSet, summary: resolvedSummary });
-  const priceMap = buildPriceMap(priceList);
+  // P1.4: an absent price list means the DEFAULT list (item map, so the
+  // list's quadratic formulas apply) — an empty map would zero every config
+  // charge under the fail-loud contract. Caller-provided lists are
+  // normalized to items; entries without a formula price linearly.
+  const priceMap = priceList
+    ? normalizePriceItems(priceList)
+    : createAllocatorPersona().pricing.priceMap();
   const lineItems = [];
 
   let levelConfigSpent = normalizePositiveInt(layoutResult?.spentTokens, 0);

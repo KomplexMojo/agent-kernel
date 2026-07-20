@@ -163,6 +163,24 @@ test("cli llm-plan budget loop writes feasibility warnings into telemetry", () =
 
 test("cli llm-plan budget loop honors custom budget pools", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-pools-"));
+  const fixturePath = join(outDir, "budget-loop-single-actor.json");
+  const fixture = JSON.parse(readFileSync(
+    resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary-budget-loop.json"),
+    "utf8",
+  ));
+  const actorResponse = JSON.parse(fixture.responses[1].response);
+  actorResponse.actors[0].count = 1;
+  fixture.responses[1].response = JSON.stringify(actorResponse);
+  const finalResponse = JSON.parse(fixture.responses[2].response);
+  finalResponse.actors = [{
+    ...finalResponse.actors[0],
+    motivation: "defending",
+    affinity: "earth",
+    count: 1,
+  }];
+  finalResponse.stop = "done";
+  fixture.responses[2].response = JSON.stringify(finalResponse);
+  writeFileSync(fixturePath, JSON.stringify(fixture, null, 2));
   runCli(
     [
       "llm-plan",
@@ -171,7 +189,7 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
       "--model",
       "fixture",
       "--fixture",
-      "tests/fixtures/adapters/llm-generate-summary-budget-loop.json",
+      fixturePath,
       "--budget-loop",
       "--budget-pool",
       "delver=0",

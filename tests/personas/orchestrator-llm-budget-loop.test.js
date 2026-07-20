@@ -1,12 +1,17 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { readFixture } = require("../helpers/fixtures");
 
 
 const catalogPath = resolve(__dirname, "../fixtures/pool/catalog-basic.json");
 const catalogFixture = JSON.parse(readFileSync(catalogPath, "utf8"));
-const tilePriceList = readFixture("price-list-artifact-v1-tiles.json");
+
+async function canonicalPriceList() {
+  const { buildDefaultPriceList } = await import(
+    "../../packages/runtime/src/personas/allocator/default-price-list.js"
+  );
+  return buildDefaultPriceList({ createdAt: "2026-07-20T00:00:00.000Z" });
+}
 
 
 test("orchestrator budget loop sequences layout then actors", async () => {
@@ -59,12 +64,13 @@ const result = await runLlmBudgetLoop({
   adapter,
   model: "fixture",
   catalog: catalogFixture,
+  priceList: await canonicalPriceList(),
   goal: "Budget loop test",
   budgetTokens: 320,
   poolWeights: [
     { id: "delver", weight: 0 },
-    { id: "rooms", weight: 0.7 },
-    { id: "wardens", weight: 0.3 },
+    { id: "rooms", weight: 0.6 },
+    { id: "wardens", weight: 0.4 },
     { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop",
@@ -79,8 +85,14 @@ assert.equal(result.summary.roomDesign.rooms.length, 2);
 assert.equal(result.summary.roomDesign.connections.length, 1);
 assert.equal(result.summary.roomDesign.hallways, "Single spine hallway.");
 assert.equal(result.summary.actors.length, 1);
-assert.equal(result.remainingBudgetTokens, 99);
-assert.equal(result.stopReason, "done");
+// Layout 100 + actor base 80 + vitals/regen/motivation (18 + 2 + 3) = 203.
+assert.equal(result.remainingBudgetTokens, 117);
+// P1.4: under unified list prices, 117 remaining still affords catalog
+// entries, so resolveStopReason correctly IGNORES the LLM's premature "done"
+// (ignoreDoneIfBudgetRemains) and the single allowed actor round exhausts —
+// stopReason stays null by design. Pre-P1.4 prices made 117 unaffordable,
+// which is why "done" used to be accepted.
+assert.equal(result.stopReason, null);
 assert.ok(result.trace[0].startedAt);
 assert.ok(result.trace[0].endedAt);
 assert.equal(typeof result.trace[0].durationMs, "number");
@@ -128,17 +140,18 @@ const result = await runLlmBudgetLoop({
   adapter,
   model: "fixture",
   catalog: catalogFixture,
-  priceList: tilePriceList,
+  priceList: await canonicalPriceList(),
   goal: "Budget loop with tile costs",
   budgetTokens: 100,
   poolWeights: [
     { id: "delver", weight: 0 },
-    { id: "rooms", weight: 0.5 },
-    { id: "wardens", weight: 0.5 },
+    { id: "rooms", weight: 1 },
+    { id: "wardens", weight: 0 },
     { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_tiles",
   clock: () => "2025-01-01T00:00:00Z",
+  maxActorRounds: 0,
 });
 
 assert.equal(result.ok, true);
@@ -191,12 +204,13 @@ const result = await runLlmBudgetLoop({
   adapter,
   model: "phi4",
   catalog: catalogFixture,
+  priceList: await canonicalPriceList(),
   goal: "Phi4 options",
   budgetTokens: 300,
   poolWeights: [
     { id: "delver", weight: 0 },
-    { id: "rooms", weight: 0.7 },
-    { id: "wardens", weight: 0.3 },
+    { id: "rooms", weight: 0.6 },
+    { id: "wardens", weight: 0.4 },
     { id: "resources", weight: 0 },
   ],
   runId: "run_budget_loop_phi4_options",
@@ -255,6 +269,7 @@ const result = await runLlmBudgetLoop({
   adapter,
   model: "phi4",
   catalog: catalogFixture,
+  priceList: await canonicalPriceList(),
   goal: "Auto-fit over budget layout",
   budgetTokens: 1000,
   poolWeights: [
@@ -319,6 +334,7 @@ const result = await runLlmBudgetLoop({
   adapter,
   model: "fixture",
   catalog: catalogFixture,
+  priceList: await canonicalPriceList(),
   goal: "Fallback unmatched defender pair",
   budgetTokens: 500,
   poolWeights: [

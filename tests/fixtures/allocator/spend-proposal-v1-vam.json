@@ -19,9 +19,19 @@
       }
     },
     {
-      "id": "affinity_expression_externalize",
+      "id": "affinity_base",
       "kind": "affinity",
       "quantity": 2,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_externalize",
+      "kind": "affinity",
+      "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
         "schema": "agent-kernel/ActorArtifact",

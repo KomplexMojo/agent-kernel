@@ -20,6 +20,17 @@
       }
     },
     {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "affinity_expression_externalize",
       "kind": "affinity",
       "quantity": 1,

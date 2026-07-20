@@ -140,12 +140,14 @@ test("P1.2: cost-model.js numbers are sourced from base-costs.json (actorModel g
   assert.equal(cm.computeStackCost(3), am.affinity_stack_base + am.affinity_stack_quad_coeff * 4);
 });
 
-test("P1.2: motivation fallback tiers are sourced from base-costs.json (motivationFallback group)", async () => {
-  const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
+test("P1.4: the motivation policy carries NO cost constants — fail-loud, list-only", async () => {
   const mp = await import("../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
-  assert.equal(mp.SIMPLE_MOTIVATION_COST, base.motivationFallback.fallback_simple);
-  assert.equal(mp.ADVANCED_MOTIVATION_COST, base.motivationFallback.fallback_advanced);
-  assert.equal(mp.DEFAULT_MOTIVATION_COSTS.user_controlled, base.motivationFallback.fallback_user_controlled);
+  assert.equal(mp.DEFAULT_MOTIVATION_COSTS, undefined, "fallback table deleted in P1.4");
+  assert.equal(mp.SIMPLE_MOTIVATION_COST, undefined);
+  assert.equal(mp.ADVANCED_MOTIVATION_COST, undefined);
+  assert.equal(mp.buildMotivationPriceListItems, undefined, "seeded wrong numbers; deleted");
+  // cost-model's legacy fields still source from the JSON until it dissolves.
+  const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
   const cm = await import("../../packages/runtime/src/personas/configurator/cost-model.js");
   assert.equal(cm.COST_DEFAULTS.simpleMotivationCost, base.motivationFallback.fallback_simple);
   assert.equal(cm.COST_DEFAULTS.advancedMotivationCost, base.motivationFallback.fallback_advanced);

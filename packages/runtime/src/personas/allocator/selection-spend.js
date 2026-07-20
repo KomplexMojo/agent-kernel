@@ -27,8 +27,25 @@ function resolveActorCostEntry(selection) {
     : null;
   const vitals = requested?.vitals || firstInstance?.vitals;
   const affinities = Array.isArray(requested?.affinities) ? requested.affinities : firstInstance?.affinities;
-  if (!vitals && !Array.isArray(affinities)) return null;
-  return { vitals, affinities };
+  // P1.4: motivations are priced configuration too — omitting them
+  // undercharged every selected actor by its motivation stack (found by the
+  // Codex sweep's rulebook derivation: patrolling actor 3 tokens short).
+  // Selections carry either a motivations array or the catalog's singular
+  // `motivation` kind string; normalize both into the array shape
+  // extractMotivations understands.
+  let motivations = Array.isArray(requested?.motivations)
+    ? requested.motivations
+    : Array.isArray(firstInstance?.motivations)
+      ? firstInstance.motivations
+      : undefined;
+  if (!motivations) {
+    const singular = requested?.motivation ?? firstInstance?.motivation;
+    if (typeof singular === "string" && singular) {
+      motivations = [{ kind: singular }];
+    }
+  }
+  if (!vitals && !Array.isArray(affinities) && !Array.isArray(motivations)) return null;
+  return { vitals, affinities, motivations };
 }
 
 function deriveSelectionCost(selection, priceMap) {

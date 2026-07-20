@@ -186,8 +186,11 @@ test("cli warden-plan supports advanced affinities, vitals, and receipt accounti
   assert.equal(receipt.status, "approved");
   assert.equal(receipt.lineItems.some((item) => item.category === "wardens"), true);
   assert.equal(receipt.lineItems.some((item) => item.category === "delvers"), false);
+  // P1.4 unified itemization: base ×1 and expression ×1 per affinity entry
+  // (dark/emit/4 + earth/pull/1); stacks merge to 5.
+  assert.equal(byId.get("affinity_base")?.quantity, 2);
   assert.equal(byId.get("affinity_stack")?.quantity, 5);
-  assert.equal(byId.get("affinity_expression_localized")?.quantity, 4);
+  assert.equal(byId.get("affinity_expression_localized")?.quantity, 1);
   assert.equal(byId.get("affinity_expression_internalize")?.quantity, 1);
   assert.equal(byId.get("vital_health_point")?.quantity, 15);
   assert.equal(byId.get("vital_stamina_regen_tick")?.quantity, 1);

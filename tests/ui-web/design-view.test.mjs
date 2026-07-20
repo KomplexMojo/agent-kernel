@@ -13,6 +13,9 @@ import {
 } from "../../packages/ui-web/src/design-guidance.js";
 import { wireDesignView } from "../../packages/ui-web/src/views/design-view.js";
 import { buildSpecFromSummaryFlow as buildSpecFromSummaryViaCommandHost } from "../../packages/runtime/src/commands/ui-flow.js";
+import { buildDefaultPriceList } from "../../packages/runtime/src/personas/allocator/default-price-list.js";
+
+const defaultPriceList = buildDefaultPriceList({ createdAt: "2026-07-20T00:00:00.000Z" });
 
 function selectorToDatasetKey(key) {
   return String(key).replace(/-([a-z])/g, (_, char) => char.toUpperCase());
@@ -410,11 +413,19 @@ test("card values update across room, delver, and warden cards", () => {
     affinities: [{ kind: "earth", expression: "emit", stacks: 1 }],
   });
 
-  const initial = buildSummaryFromCardSet({ cards: [room, delver, warden], budgetTokens: 4000 });
+  const initial = buildSummaryFromCardSet({
+    cards: [room, delver, warden],
+    budgetTokens: 4000,
+    priceList: defaultPriceList,
+  });
   const attackerInitialValue = cardById(initial.cards, "atk").cardValue.totalTokens;
 
   const withAffinity = dropPropertyOnCard(delver, { group: "affinities", value: "water" }).card;
-  const updated = buildSummaryFromCardSet({ cards: [room, withAffinity, warden], budgetTokens: 4000 });
+  const updated = buildSummaryFromCardSet({
+    cards: [room, withAffinity, warden],
+    budgetTokens: 4000,
+    priceList: defaultPriceList,
+  });
   const attackerUpdatedValue = cardById(updated.cards, "atk").cardValue.totalTokens;
 
   assert.ok(cardById(initial.cards, "room").cardValue.totalTokens > 0);
@@ -487,6 +498,7 @@ test("wireDesignView refreshes design rail and card icons from the resource bund
 test("wireDesignGuidance uses single active card editor with vitals and stash/pull flow", () => {
   const { elements } = createRootElements();
   const guidance = wireDesignGuidance({
+    llmConfig: { priceList: defaultPriceList },
     elements: {
       statusEl: elements["#design-guidance-status"],
       leftRailType: elements["#design-property-group-type"],
@@ -745,6 +757,7 @@ test("wireDesignGuidance shows default help text until a drop error occurs", () 
 test("wireDesignGuidance auto-generates cards to fill the remaining per-type allocation", () => {
   const { elements } = createRootElements();
   const guidance = wireDesignGuidance({
+    llmConfig: { priceList: defaultPriceList },
     elements: {
       statusEl: elements["#design-guidance-status"],
       leftRailType: elements["#design-property-group-type"],
@@ -796,6 +809,7 @@ test("wireDesignGuidance auto-generates cards to fill the remaining per-type all
 test("wireDesignGuidance auto-generate tops up remaining allocation without replacing existing cards", () => {
   const { elements } = createRootElements();
   const guidance = wireDesignGuidance({
+    llmConfig: { priceList: defaultPriceList },
     elements: {
       statusEl: elements["#design-guidance-status"],
       leftRailType: elements["#design-property-group-type"],
@@ -1139,6 +1153,7 @@ test("wireDesignGuidance configuration spend helper uses total room allocation f
 test("wireDesignGuidance applies card count multiplier to vitality token updates", () => {
   const { elements } = createRootElements();
   const guidance = wireDesignGuidance({
+    llmConfig: { priceList: defaultPriceList },
     elements: {
       statusEl: elements["#design-guidance-status"],
       leftRailType: elements["#design-property-group-type"],
@@ -1188,7 +1203,8 @@ test("wireDesignGuidance applies card count multiplier to vitality token updates
   assert.ok(spendAfter);
 
   assert.equal(updated.count, 2);
-  assert.equal(spendAfter.spent - spendBefore.spent, 40);
+  // Ten health points × 1 token × two wardens.
+  assert.equal(spendAfter.spent - spendBefore.spent, 20);
   assert.equal(spendBefore.allocated, spendAfter.allocated);
 });
 
@@ -1299,6 +1315,7 @@ test("wireDesignView auto-generate button fills all dungeon card groups without 
   const { root, elements } = createRootElements();
   const view = wireDesignView({
     root,
+    llmConfig: { priceList: defaultPriceList },
     commandHost: {
       async buildSpecFromSummary(payload) {
         return buildSpecFromSummaryViaCommandHost(payload);

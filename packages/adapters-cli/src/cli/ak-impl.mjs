@@ -103,10 +103,12 @@ const SCHEMAS = Object.freeze({
   capturedInput: "agent-kernel/CapturedInputArtifact",
 });
 
-const allocatorUnitCosts = (priceList) =>
-  priceList
-    ? createAllocatorPersona({ priceList }).pricing.unitCosts()
-    : new Map();
+// P1.4: an absent price list means the DEFAULT list, never an empty map — an
+// empty map made every motivation resolve to the silent 25-token fallback,
+// starving maximized delvers (the pinned attacking-25-vs-3 bug). Item maps
+// (not bare numbers) so the list's formulas (quadratic regen) apply.
+const allocatorPriceItems = (priceList) =>
+  createAllocatorPersona(priceList ? { priceList } : {}).pricing.priceMap();
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 const DEFAULT_RUNS_DIR = "runs";
@@ -1722,7 +1724,7 @@ function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact) {
 function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) {
   const candidateCard = buildMinimumRequiredDelverCard(entry.value);
   const count = Number.isInteger(candidateCard?.count) && candidateCard.count > 0 ? candidateCard.count : 1;
-  const priceMap = allocatorUnitCosts(priceListArtifact);
+  const priceMap = allocatorPriceItems(priceListArtifact);
   const totalCost = calculateDelverCardUnitCost(candidateCard, priceMap) * count;
   const requirementParts = [];
   if (Array.isArray(candidateCard?.affinities) && candidateCard.affinities.length > 0) {
@@ -1745,7 +1747,7 @@ function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) 
 function assessBudgetedWardenRequirement(entry, wardenIndex, priceListArtifact) {
   const card = entry?.value && typeof entry.value === "object" ? entry.value : {};
   const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
-  const priceMap = allocatorUnitCosts(priceListArtifact);
+  const priceMap = allocatorPriceItems(priceListArtifact);
   const totalCost = calculateDelverCardUnitCost(card, priceMap) * count;
   const requirementParts = [];
   if (Array.isArray(card?.affinities) && card.affinities.length > 0) {
@@ -1880,7 +1882,7 @@ function maximizeBudgetCappedDelverCard(card, {
     return card;
   }
 
-  const priceMap = allocatorUnitCosts(priceListArtifact);
+  const priceMap = allocatorPriceItems(priceListArtifact);
   const goals = resolveDelverGoalOrder(optimizationGoals);
   const baseVitals = cloneVitals(card?.vitals);
   const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
@@ -2029,7 +2031,7 @@ function applyBudgetCappedFulfillment({
     value: entry?.value && typeof entry.value === "object" ? { ...entry.value } : entry?.value,
     optimizationGoals: Array.isArray(entry?.optimizationGoals) ? entry.optimizationGoals.slice() : [],
   }));
-  const priceMap = allocatorUnitCosts(priceListArtifact);
+  const priceMap = allocatorPriceItems(priceListArtifact);
 
   const calculateCurrentTotal = () => {
     const roomTotal = nextRooms.reduce((sum, entry) => sum + calculateRoomCardUnitCost({

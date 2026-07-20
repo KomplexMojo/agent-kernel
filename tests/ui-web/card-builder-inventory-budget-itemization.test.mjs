@@ -99,6 +99,13 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { createCardBuilderController } from "../../packages/ui-web/src/card-builder-controller.js";
+import { buildDefaultPriceList } from "../../packages/runtime/src/personas/allocator/default-price-list.js";
+
+const defaultPriceList = buildDefaultPriceList({ createdAt: "2026-07-20T00:00:00.000Z" });
+
+function createPricedController() {
+  return createCardBuilderController({ llmConfig: { priceList: defaultPriceList } });
+}
 
 function delverCardEntry(overrides = {}) {
   return {
@@ -186,7 +193,7 @@ function simulateLoadGameplayBundlePostIngest(ctrl) {
 }
 
 test("PINNED DEFECT: delver-only bundle itemizes zero used tokens after the auto-pull-to-editor step", async () => {
-  const ctrl = createCardBuilderController({ llmConfig: {} });
+  const ctrl = createPricedController();
   const spec = buildSpecFromCards([delverCardEntry()], {
     runId: "pinned_delver_only",
     poolWeights: [{ id: "delver", weight: 0.2 }],
@@ -230,7 +237,7 @@ test("PINNED DEFECT: delver-only bundle itemizes zero used tokens after the auto
 });
 
 test("PINNED DEFECT: room+delver+warden bundle still zeroes the auto-pulled actor's own bucket", async () => {
-  const ctrl = createCardBuilderController({ llmConfig: {} });
+  const ctrl = createPricedController();
   const spec = buildSpecFromCards(
     [roomCardEntry(), delverCardEntry({ affinity: "water", affinities: [{ kind: "water", expression: "push", stacks: 1 }] }), wardenCardEntry()],
     {
@@ -277,7 +284,7 @@ test("PINNED DEFECT: room+delver+warden bundle still zeroes the auto-pulled acto
 });
 
 test("sanity: warden-only bundle (firstActor = warden) reproduces the same zero-itemization defect", async () => {
-  const ctrl = createCardBuilderController({ llmConfig: {} });
+  const ctrl = createPricedController();
   const spec = buildSpecFromCards([wardenCardEntry()], {
     runId: "pinned_warden_only",
     poolWeights: [{ id: "wardens", weight: 0.2 }],
