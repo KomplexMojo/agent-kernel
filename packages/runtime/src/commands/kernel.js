@@ -3,8 +3,7 @@ import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from 
 import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { buildManualMoveAction } from "./manual-movement.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
-import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
-import { mapSummaryToPool } from "../personas/director/pool-mapper.js";
+import { createDirectorPersona } from "../personas/director/persona.js";
 import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { createCore } from "../../../core-ts/src/index.ts";
@@ -1880,6 +1879,22 @@ export function createCommandKernel(host = {}) {
     let budgetPoolBudgets = null;
     let budgetPoolPolicy = null;
 
+    // Open the Director's build round (P2.1b). Translation — pool mapping and
+    // BuildSpec assembly — runs through the persona controller, not direct
+    // imports of its internals. The IntentEnvelope is synthesized here at the
+    // CLI boundary (its intended origin per the artifact contract); the
+    // Director structures it into a PlanArtifact. beginBuild must precede the
+    // first mapPool/assembleBuildSpec, which are FSM-gated behind a plan.
+    const director = createDirectorPersona({ clock: () => createdAt });
+    const intentEnvelope = {
+      schema: SCHEMAS.intent,
+      schemaVersion: 1,
+      meta: { id: `intent_${runId}`, runId, createdAt, producedBy: "cli" },
+      source: "cli",
+      intent: { goal: isNonEmptyString(goal) ? goal : `build ${runId}` },
+    };
+    director.beginBuild(intentEnvelope, { runId });
+
     if (adapterFlowEnabled) {
       if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
         throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
@@ -1974,7 +1989,7 @@ export function createCommandKernel(host = {}) {
         summary = session.summary;
         capture = session.capture;
 
-        let mapped = mapSummaryToPool({ summary, catalog });
+        let mapped = director.mapPool({ summary, catalog });
         let actorInstances = countInstances(mapped.selections, "actor");
         if (actorInstances === 0) {
           const missingSelections = summarizeMissingSelections(mapped.selections);
@@ -2010,7 +2025,7 @@ export function createCommandKernel(host = {}) {
 
           summary = session.summary;
           capture = session.capture;
-          mapped = mapSummaryToPool({ summary, catalog });
+          mapped = director.mapPool({ summary, catalog });
           actorInstances = countInstances(mapped.selections, "actor");
           if (actorInstances === 0) {
             const finalMissing = summarizeMissingSelections(mapped.selections);
@@ -2061,7 +2076,7 @@ export function createCommandKernel(host = {}) {
       }
     }
 
-    const buildSpecResult = buildBuildSpecFromSummary({
+    const buildSpecResult = director.assembleBuildSpec({
       summary: summaryForSpec,
       catalog,
       selections: mappedSelections || undefined,

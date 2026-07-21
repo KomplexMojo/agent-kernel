@@ -93,14 +93,6 @@
   },
   {
     "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/director/buildspec-assembler.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/director/pool-mapper.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
     "to": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
   },
   {
