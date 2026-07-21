@@ -2,6 +2,7 @@ import { createDirectorStateMachine, DirectorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { computeBudgetPools } from "./budget-allocation.js";
+import { attachDirectorServices } from "./director-services.js";
 
 const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
 const INTENT_SCHEMA = "agent-kernel/IntentEnvelope";
@@ -196,8 +197,25 @@ export const directorSubscribePhases = Object.freeze([TickPhases.DECIDE]);
 export function createDirectorPersona({ initialState = DirectorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
   const fsm = createDirectorStateMachine({ initialState, clock });
 
+  // Shared by both planes: resolve the plan for this event, then move the FSM.
+  function advanceWithPlan(event, payload = {}, tick) {
+    const resolved = resolvePlanArtifact({ event, payload, tick, clock });
+    const payloadWithPlan = resolved.planRef
+      ? { ...payload, planRef: resolved.planRef, planArtifact: resolved.planArtifact, intentRef: resolved.intentRef ?? payload.intentRef }
+      : payload;
+    const result = fsm.advance(event, payloadWithPlan);
+    return { result, resolved, payloadWithPlan, planArtifact: resolved.planArtifact };
+  }
+
+  const services = attachDirectorServices({
+    fsm,
+    advanceWithPlan: (event, payload) => advanceWithPlan(event, payload),
+    clock,
+  });
+
   function view() {
-    return fsm.view();
+    const snapshot = fsm.view();
+    return { ...snapshot, context: { ...snapshot.context, ...services.serviceContext() } };
   }
 
   function advance({ phase, event, payload = {}, tick } = {}) {
@@ -209,11 +227,7 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
       const snapshot = view();
       return { ...snapshot, actions: [], effects: [], artifacts: [], telemetry: null };
     }
-    const resolved = resolvePlanArtifact({ event, payload, tick, clock });
-    const payloadWithPlan = resolved.planRef
-      ? { ...payload, planRef: resolved.planRef, planArtifact: resolved.planArtifact, intentRef: resolved.intentRef ?? payload.intentRef }
-      : payload;
-    const result = fsm.advance(event, payloadWithPlan);
+    const { result, resolved, payloadWithPlan } = advanceWithPlan(event, payload, tick);
     const effects = [];
     const artifacts = [];
     const solverEffect = buildSolverRequestEffect({
@@ -259,5 +273,9 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     advance,
     view,
     subscribePhases: directorSubscribePhases,
+    beginBuild: services.beginBuild,
+    currentPlan: services.currentPlan,
+    mapPool: services.mapPool,
+    assembleBuildSpec: services.assembleBuildSpec,
   };
 }
