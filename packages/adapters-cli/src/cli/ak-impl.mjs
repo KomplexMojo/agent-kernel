@@ -20,7 +20,7 @@ import {
   createCommandKernel,
 } from "../../../runtime/src/commands/kernel.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
-import { applyAuthoringSection, attachMixedRoomAssembliesToBuildResult } from "../../../runtime/src/build/authoring-build.js";
+import { attachMixedRoomAssembliesToBuildResult } from "../../../runtime/src/build/authoring-build.js";
 import { formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
@@ -5792,28 +5792,20 @@ async function roomPlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-room-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`room-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["room"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
-  }), "room-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-room-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "room-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   emitJsonStdout(await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -5895,28 +5887,20 @@ async function hazardPlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-hazard-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`hazard-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["hazard"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
-  }), "hazard-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-hazard-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "hazard-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   const stdoutSummary = await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -6006,28 +5990,20 @@ async function resourcePlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-resource-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`resource-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["resource"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
-  }), "resource-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-resource-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "resource-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   const stdoutSummary = await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -6151,29 +6127,21 @@ async function delverPlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-delver-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`delver-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["delver"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
     objectOptimizationGoals: delverOptimizationGoals,
-  }), "delver-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-delver-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "delver-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   emitJsonStdout(await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -6271,29 +6239,21 @@ async function wardenPlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-warden-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`warden-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["warden"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
     objectOptimizationGoals: textVitalGoals,
-  }), "warden-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-warden-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "warden-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   emitJsonStdout(await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,

@@ -1,13 +1,16 @@
 /**
- * Authoring build pipeline — the runtime-owned domain build behind the CLI's
- * create/configure commands (P2.3.2).
+ * Authored build pipelines — the runtime-owned domain builds behind the CLI's
+ * authoring commands. Two entry points over a shared Director-routed spine:
+ *   - runAuthoringBuild  (create/configure, P2.3.2): adds Configurator input prep
+ *     (grid sizing, hazard placement, resource mapping, maximize flag) and actor
+ *     motivation patching.
+ *   - runPlanBuild        (*-plan commands, P2.3.3): the plain build with neither.
  *
- * ak_create / ak_configure previously reimplemented the runtime build pipeline
- * inline in the adapter (ak-impl.mjs agentAuthoringCommand): assemble the
- * BuildSpec → Configurator input prep → orchestrateBuild → post-process. That
- * is the same pipeline the kernel already owns for llm-plan. This module hosts
- * it so the CLI keeps only arg parsing, maximize, summary/request assembly, and
- * host IO; the domain build runs here.
+ * ak-impl previously reimplemented these pipelines inline (agentAuthoringCommand
+ * and the five *-plan handlers): assemble the BuildSpec → [Configurator prep] →
+ * orchestrateBuild → post-process. That is the same pipeline the kernel already
+ * owns for llm-plan. This module hosts it so the CLI keeps only arg parsing,
+ * maximize, summary/request assembly, and host IO; the domain build runs here.
  *
  * Translation runs through the Director controller (never its buildspec-assembler
  * internal): the IntentEnvelope is synthesized at this boundary and the build
@@ -15,11 +18,10 @@
  * llm-plan path does (P2.1b). No persona-internal import, so no new boundary
  * violation.
  *
- * The three post-processors moved here from the adapter. applyAuthoringSection
- * and attachMixedRoomAssembliesToBuildResult are still called by the CLI's
- * *-plan commands, so they are exported for the adapter to import until P2.3.3
- * threads those commands too; applyMotivationToInitialStateActors was
- * authoring-only and is now internal to this pipeline.
+ * The three post-processors moved here from the adapter. attachMixedRoomAssembliesToBuildResult
+ * is also exported because the adapter's logMixedRoomAssembliesFromBuildResult still
+ * calls it; applyAuthoringSection and applyMotivationToInitialStateActors are internal
+ * to these pipelines.
  */
 import { validateBuildSpec } from "../contracts/build-spec.js";
 import { summarizeMixedRoomAssemblies } from "./mixed-room-summary.js";
@@ -113,10 +115,78 @@ export function applyMotivationToInitialStateActors(initialState, { parsedDelver
 }
 
 /**
- * The authoring domain build. Input is the CLI's assembled, wide bag; the CLI
- * retains parse/maximize/summary+request construction and all writing (plus the
- * dry-run branch — "don't write, emit summary" is a decision on the returned
- * buildResult, so no dryRun flag is needed here).
+ * Assemble a BuildSpec through the Director controller — the spine shared by the
+ * authoring build (create/configure) and the plain *-plan builds. Synthesize the
+ * IntentEnvelope at this boundary, open the build round with beginBuild, then
+ * assembleBuildSpec (which fronts buildspec-assembler; the spec is identical to a
+ * direct call — the FSM advance and a discarded draft plan are the only added
+ * effects). Mirrors the kernel's llm-plan path (P2.1b). Throws on failure.
+ */
+function assembleSpecThroughDirector({ summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact }) {
+  const source = `cli-${commandName}`;
+  const director = createDirectorPersona({ clock: () => createdAt });
+  const intentEnvelope = {
+    schema: INTENT_ENVELOPE_SCHEMA,
+    schemaVersion: 1,
+    meta: { id: `intent_${runId}`, runId, createdAt, producedBy: "cli" },
+    source,
+    intent: { goal: isNonEmptyString(summary?.goal) ? summary.goal : `author ${runId}` },
+  };
+  director.beginBuild(intentEnvelope, { runId });
+  const built = director.assembleBuildSpec({
+    summary,
+    runId,
+    createdAt,
+    source,
+    budgetArtifact: budgetArtifact || undefined,
+    priceListArtifact: priceListArtifact || undefined,
+  });
+  if (!built.ok || !built.spec) {
+    throw new Error(`${commandName} build spec failed: ${built.errors.join("; ")}`);
+  }
+  return built.spec;
+}
+
+/**
+ * The plain authored build behind the *-plan commands (room/hazard/resource/
+ * delver/warden-plan): Director-routed spec assembly → authoring section →
+ * orchestrateBuild → mixed-room post-process. No Configurator input prep and no
+ * motivation patching — those are authoring-only (create/configure). The CLI
+ * keeps per-entity summary + authoring-section assembly and all writing.
+ *
+ * @returns {{ spec: object, buildResult: object, requestArtifact: (object|null) }}
+ */
+export async function runPlanBuild(input = {}) {
+  const {
+    summary,
+    authoring,
+    requestArtifact = null,
+    commandName,
+    runId,
+    createdAt,
+    budgetArtifact = null,
+    priceListArtifact = null,
+  } = input;
+
+  const spec = assembleSpecThroughDirector({ summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact });
+  applyAuthoringSection(spec, authoring, commandName);
+
+  const buildResult = await orchestrateBuild({
+    spec,
+    producedBy: `cli-${commandName}`,
+  });
+  attachMixedRoomAssembliesToBuildResult(buildResult);
+
+  return { spec: buildResult.spec, buildResult, requestArtifact };
+}
+
+/**
+ * The authoring domain build (create/configure). Adds Configurator input prep
+ * (grid sizing, hazard placement, resource mapping, maximize flag) and actor
+ * motivation patching around the shared Director-routed spine. Input is the CLI's
+ * assembled, wide bag; the CLI retains parse/maximize/summary+request construction
+ * and all writing (plus the dry-run branch — "don't write, emit summary" is a
+ * decision on the returned buildResult, so no dryRun flag is needed here).
  *
  * @returns {{ spec: object, buildResult: object, requestArtifact: (object|null) }}
  */
@@ -139,55 +209,30 @@ export async function runAuthoringBuild(input = {}) {
     parsedWardens = [],
   } = input;
 
-  const source = `cli-${commandName}`;
-
-  // Open the Director's build round: synthesize the IntentEnvelope at this
-  // boundary, then assemble the BuildSpec through the controller (assembleBuildSpec
-  // fronts buildspec-assembler; the spec is identical to a direct call, the FSM
-  // advance is the only added effect). Mirrors the kernel's llm-plan path (P2.1b).
-  const director = createDirectorPersona({ clock: () => createdAt });
-  const intentEnvelope = {
-    schema: INTENT_ENVELOPE_SCHEMA,
-    schemaVersion: 1,
-    meta: { id: `intent_${runId}`, runId, createdAt, producedBy: "cli" },
-    source,
-    intent: { goal: isNonEmptyString(summary?.goal) ? summary.goal : `author ${runId}` },
-  };
-  director.beginBuild(intentEnvelope, { runId });
-  const built = director.assembleBuildSpec({
-    summary,
-    runId,
-    createdAt,
-    source,
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok || !built.spec) {
-    throw new Error(`${commandName} build spec failed: ${built.errors.join("; ")}`);
-  }
+  const spec = assembleSpecThroughDirector({ summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact });
 
   // Configurator owns input preparation (P2.2/P2.3.1): grid sizing, hazard
   // placement, and resource mapping run behind the persona's CONFIG-plane surface.
   const configurator = createConfiguratorPersona();
-  configurator.provideConfig(built.spec.configurator?.inputs || {});
-  built.spec.configurator.inputs.levelGen = configurator.prepareLevelGen({
-    existingLevelGen: built.spec.configurator?.inputs?.levelGen || {},
+  configurator.provideConfig(spec.configurator?.inputs || {});
+  spec.configurator.inputs.levelGen = configurator.prepareLevelGen({
+    existingLevelGen: spec.configurator?.inputs?.levelGen || {},
     rooms,
     floorTiles,
     hazards,
   });
   if (maximizeBudget) {
-    built.spec.configurator.inputs.maximizeBudget = true;
+    spec.configurator.inputs.maximizeBudget = true;
   }
   if (Array.isArray(resources) && resources.length > 0) {
-    built.spec.configurator.inputs.resources = configurator.mapResources(resources);
+    spec.configurator.inputs.resources = configurator.mapResources(resources);
   }
 
-  applyAuthoringSection(built.spec, authoring, commandName);
+  applyAuthoringSection(spec, authoring, commandName);
 
   const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: source,
+    spec,
+    producedBy: `cli-${commandName}`,
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
   applyMotivationToInitialStateActors(buildResult.initialState, { parsedDelvers, parsedWardens });

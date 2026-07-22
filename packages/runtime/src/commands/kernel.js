@@ -1,5 +1,5 @@
 import { orchestrateBuild } from "../build/orchestrate-build.js";
-import { runAuthoringBuild } from "../build/authoring-build.js";
+import { runAuthoringBuild, runPlanBuild } from "../build/authoring-build.js";
 import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { buildManualMoveAction } from "./manual-movement.js";
@@ -2195,6 +2195,14 @@ export function createCommandKernel(host = {}) {
     return runAuthoringBuild(input);
   }
 
+  // Plain authored build (P2.3.3): the *-plan commands' build pipeline
+  // (room/hazard/resource/delver/warden-plan) — Director-routed spec assembly,
+  // no Configurator input prep or motivation patching. Thin pass-through, same
+  // as authoringBuild.
+  async function planBuild(input) {
+    return runPlanBuild(input);
+  }
+
   return {
     solve,
     build,
@@ -2212,6 +2220,7 @@ export function createCommandKernel(host = {}) {
     llm,
     llmPlan,
     authoringBuild,
+    planBuild,
     manualMove,
   };
 }
