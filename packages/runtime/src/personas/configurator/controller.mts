@@ -1,14 +1,17 @@
 import { createConfiguratorStateMachine, ConfiguratorStates } from "./state-machine.mts";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
+import { attachConfiguratorServices } from "./configurator-services.js";
 
 export const configuratorSubscribePhases = Object.freeze([TickPhases.INIT, TickPhases.OBSERVE]);
 
 export function createConfiguratorPersona({ initialState = ConfiguratorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
   const fsm = createConfiguratorStateMachine({ initialState, clock });
+  const services = attachConfiguratorServices({ fsm });
 
   function view() {
-    return fsm.view();
+    const snapshot = fsm.view();
+    return { ...snapshot, context: { ...snapshot.context, ...services.serviceContext() } };
   }
 
   function advance({ phase, event, payload = {}, tick } = {}) {
@@ -42,5 +45,10 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     subscribePhases: configuratorSubscribePhases,
     advance,
     view,
+    provideConfig: services.provideConfig,
+    prepareLevelGen: services.prepareLevelGen,
+    mapResources: services.mapResources,
+    validate: services.validate,
+    lock: services.lock,
   };
 }
