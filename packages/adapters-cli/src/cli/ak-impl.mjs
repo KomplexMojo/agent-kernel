@@ -26,6 +26,7 @@ import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtim
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
 import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
+import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
 import {
   calculateActorConfigurationUnitCost,
   calculateRoomCardUnitCost,
@@ -4191,117 +4192,9 @@ function deriveGoalForAgentCommand({ action, goal, objects }) {
   return `${action === "configure" ? "Configure" : "Author"} ${labels.join(", ")} into a playable dungeon bundle.`;
 }
 
-// Minimum room dimensions when placedHazards/hazards occupy floor tiles alongside entrance + exit.
-// A room smaller than medium (roomMinSize=5) compresses all elements into too few walkable cells.
-const MIN_ROOM_SIZE_WITH_ITEMS = 5;
-const MIN_ROOM_MAX_SIZE_WITH_ITEMS = 8;
-
-// Room size profiles: map CLI size token → { roomMinSize, roomMaxSize }
-const ROOM_SIZE_PROFILES = {
-  small:  { roomMinSize: 3,  roomMaxSize: 5  },
-  medium: { roomMinSize: 5,  roomMaxSize: 8  },
-  large:  { roomMinSize: 8,  roomMaxSize: 12 },
-};
-
-// Pick the largest profile requested by any room in parsedRooms.
-// Falls back to medium when no rooms are present.
-function resolveRoomSizeProfile(rooms) {
-  const order = ["small", "medium", "large"];
-  let best = "medium";
-  for (const entry of (rooms || [])) {
-    const size = String(entry?.value?.size || entry?.value?.roomSize || "medium").toLowerCase();
-    if (order.indexOf(size) > order.indexOf(best)) best = size;
-  }
-  return ROOM_SIZE_PROFILES[best] || ROOM_SIZE_PROFILES.medium;
-}
-
-function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, placedHazards, rooms }) {
-  const blockingHazardCount = placedHazards.reduce((sum, hazard) => sum + (hazard.blocking === true ? 1 : 0), 0);
-  const walkableTarget = Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0 ? walkableTilesTarget : 0;
-  // Authored hazard x/y are room-relative (mapped into a room's interior by
-  // level-layout.js's mapHazardsToRooms), not absolute grid coordinates, so
-  // they must not drive grid sizing here — doing so previously let e.g.
-  // hazard x=99;y=99 silently inflate the grid to 102x102 to contain a raw
-  // coordinate. Out-of-bounds room-relative placedHazards are now rejected with a
-  // structured error by the layout layer instead.
-  const requestedWalkable = walkableTarget + blockingHazardCount;
-  const walkableSide = requestedWalkable > 0
-    ? Math.max(5, Math.ceil(Math.sqrt(Math.ceil(requestedWalkable / 0.5))) + 2)
-    : 5;
-
-  // Resolve the room-size profile early so we can size the grid to fit it.
-  // level-layout.js clamps roomMinSize to (min(width,height) - 2), so the grid must be at
-  // least (roomMinSize + 4) on each side for the profile to take effect.
-  const sizeProfile = resolveRoomSizeProfile(rooms);
-  const profileMinSize = placedHazards.length > 0
-    ? Math.max(MIN_ROOM_SIZE_WITH_ITEMS, sizeProfile.roomMinSize)
-    : sizeProfile.roomMinSize;
-  // +4 = 2 walls + 2 padding so the clamp in readRoomSettings allows the full room size
-  const profileGridSide = profileMinSize + 4;
-
-  // Grid capacity must also scale with the TOTAL requested room count, not just a single
-  // room's size profile. level-layout.js's placeRooms() lays candidate rooms out in a
-  // roughly-square grid of surface slots (buildRoomSurfaceSlots); if the interior is only
-  // just big enough for one room of roomMaxSize, additional rooms silently fail to place
-  // and orchestrateBuild returns fewer rooms than requested (confirmed: a 15x15 grid with
-  // roomCount=5/roomMinSize=roomMaxSize=5 deterministically yields only 4 placed rooms).
-  // Size the grid so a sqrt(roomCount) x sqrt(roomCount) arrangement of roomMaxSize rooms
-  // (plus 1-tile spacing per room and a 4-tile wall/padding border) always fits. Only
-  // applies when more than one room is requested — profileGridSide already sizes the
-  // single-room case correctly, and widening it here would shift absolute tile
-  // coordinates that other authoring flags (e.g. --hazard x=..;y=..) depend on.
-  const requestedRoomCount = rooms.reduce((sum, entry) => {
-    const count = Number.isInteger(entry?.value?.count) && entry.value.count > 0 ? entry.value.count : 1;
-    return sum + count;
-  }, 0);
-  const roomCapacitySide = requestedRoomCount > 1
-    ? (() => {
-      const columns = Math.ceil(Math.sqrt(requestedRoomCount));
-      const gridRows = Math.max(1, Math.ceil(requestedRoomCount / columns));
-      return Math.max(columns, gridRows) * (sizeProfile.roomMaxSize + 1) + 4;
-    })()
-    : 0;
-
-  const width = Math.max(
-    Number.isInteger(levelGen?.width) ? levelGen.width : 0,
-    walkableSide,
-    profileGridSide,
-    roomCapacitySide,
-  );
-  const height = Math.max(
-    Number.isInteger(levelGen?.height) ? levelGen.height : 0,
-    walkableSide,
-    profileGridSide,
-    roomCapacitySide,
-  );
-  const shape = levelGen?.shape && typeof levelGen.shape === "object" && !Array.isArray(levelGen.shape)
-    ? { ...levelGen.shape }
-    : {};
-  if (!Number.isInteger(shape.roomCount) || shape.roomCount <= 0) {
-    shape.roomCount = 1;
-  }
-  // When placedHazards are present, enforce the requested room-size profile (at least medium) to avoid
-  // compressing entrance, exit, and hazard tiles into an unusably small floor area.
-  const minRoomSize = profileMinSize;
-  if (!Number.isInteger(shape.roomMinSize) || shape.roomMinSize < minRoomSize) {
-    shape.roomMinSize = minRoomSize;
-  }
-  const minRoomMax = placedHazards.length > 0
-    ? Math.max(shape.roomMinSize, sizeProfile.roomMaxSize)
-    : Math.max(shape.roomMinSize, 3);
-  if (!Number.isInteger(shape.roomMaxSize) || shape.roomMaxSize < minRoomMax) {
-    shape.roomMaxSize = minRoomMax;
-  }
-  if (!Number.isInteger(shape.corridorWidth) || shape.corridorWidth <= 0) {
-    shape.corridorWidth = 1;
-  }
-  return {
-    ...levelGen,
-    width,
-    height,
-    shape,
-  };
-}
+// Configurator input preparation (grid sizing, room-size profiles, hazard
+// capacity) moved to personas/configurator/input-preparation.js in P2.2 and is
+// consumed here through the Configurator persona surface (P2.3.1).
 
 async function writeBuildOutputs({
   outDir,
@@ -5500,7 +5393,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
 
   // No size=small precheck for placed hazards: size=small generates the identical
-  // grid/room geometry size=medium does (ensureAuthoringLevelGenCapacity bumps
+  // grid/room geometry size=medium does (the Configurator's input preparation bumps
   // roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when placedHazards are present), so rejecting
   // small rooms contradicts the geometry the generator actually produces. Hazard
   // placement is validated against the real generated room: room-relative
@@ -5696,33 +5589,17 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     throw new Error(`${commandName} build spec failed: ${built.errors.join("; ")}`);
   }
 
-  const walkableTilesTarget = parsedFloorTiles.reduce((sum, entry) => sum + entry.value.count, 0);
-  const placedHazards = canonicalHazardEntries
-    .map((entry) => entry.value)
-    .filter((entry) => entry.x !== undefined && entry.y !== undefined);
-  const levelGen = ensureAuthoringLevelGenCapacity(
-    built.spec.configurator?.inputs?.levelGen || {},
-    { walkableTilesTarget, placedHazards, rooms: parsedRooms },
-  );
-  if (walkableTilesTarget > 0) {
-    levelGen.walkableTilesTarget = walkableTilesTarget;
-  }
-  if (canonicalHazardEntries.length > 0) {
-    levelGen.hazards = canonicalHazardEntries.map(({ value: entry }) => {
-      if (entry.x === undefined || entry.y === undefined) {
-        return { ...entry };
-      }
-      return {
-        id: entry.id,
-        x: entry.x,
-        y: entry.y,
-        blocking: entry.blocking === true,
-        affinity: { ...entry.affinityStacks[0] },
-        vitals: { ...entry.vitals },
-      };
-    });
-  }
-  built.spec.configurator.inputs.levelGen = levelGen;
+  // Configurator owns input preparation (P2.2/P2.3.1): grid sizing, hazard
+  // placement, and resource mapping run behind the persona's CONFIG-plane
+  // surface instead of inline here.
+  const configurator = createConfiguratorPersona();
+  configurator.provideConfig(built.spec.configurator?.inputs || {});
+  built.spec.configurator.inputs.levelGen = configurator.prepareLevelGen({
+    existingLevelGen: built.spec.configurator?.inputs?.levelGen || {},
+    rooms: parsedRooms,
+    floorTiles: parsedFloorTiles,
+    hazards: canonicalHazardEntries,
+  });
 
   if (sharedOptimizationGoals.some((entry) => entry.kind === "maximize_budget_spend")) {
     built.spec.configurator.inputs.maximizeBudget = true;
@@ -5730,12 +5607,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
 
   const resources = parsedResources.map((entry) => entry.value);
   if (resources.length > 0) {
-    built.spec.configurator.inputs.resources = resources.map((entry) => {
-      if (entry._schemaVersion === 3) {
-        return { id: entry.id, permanenceMode: entry.permanenceMode, vitals: entry.vitals };
-      }
-      return { id: entry.id, tier: entry.tier, stat: entry.stat, delta: entry.delta, dropRate: entry.dropRate };
-    });
+    built.spec.configurator.inputs.resources = configurator.mapResources(resources);
   }
 
   const sharedConfig = {
