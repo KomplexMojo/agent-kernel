@@ -21,10 +21,13 @@ test("map build spec to intent + plan artifacts", async () => {
 
   assert.equal(mapped.plan.schema, "agent-kernel/PlanArtifact");
   assert.equal(mapped.plan.schemaVersion, 1);
+  // P2.1c: the Director owns plan production and stamps its own provenance.
+  assert.equal(mapped.plan.meta.producedBy, "director");
   assert.equal(mapped.plan.intentRef.id, mapped.intent.meta.id);
   assert.equal(mapped.plan.intentRef.schema, mapped.intent.schema);
   assert.equal(mapped.plan.plan.objectives[0].description, spec.intent.goal);
-  assert.deepEqual(mapped.plan.directives, spec.plan.hints);
+  // Directives derive from the intent (Director model), not spec.plan.hints.
+  assert.deepEqual(mapped.plan.directives, spec.intent.hints);
 
   assert.deepEqual(mapped.configuratorInputs, spec.configurator.inputs);
 });

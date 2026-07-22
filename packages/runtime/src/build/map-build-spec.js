@@ -1,8 +1,8 @@
 import { validateBuildSpec } from "../contracts/build-spec.js";
+import { createDirectorPersona } from "../personas/director/persona.js";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
-  plan: "agent-kernel/PlanArtifact",
 });
 
 function buildMeta(spec, producedBy, suffix) {
@@ -30,31 +30,26 @@ function buildIntent(spec, producedBy) {
   };
 }
 
-function buildPlan(spec, producedBy, intent) {
-  const plan = {
-    schema: SCHEMAS.plan,
-    schemaVersion: 1,
-    meta: buildMeta(spec, producedBy, "plan"),
-    intentRef: {
-      id: intent.meta.id,
-      schema: intent.schema,
-      schemaVersion: intent.schemaVersion,
-    },
-    plan: {
-      objectives: [
-        {
-          id: "objective_1",
-          description: spec.intent.goal,
-          priority: 1,
-        },
-      ],
-    },
-  };
-
-  if (spec.plan?.hints) {
-    plan.directives = spec.plan.hints;
-  }
-
+/**
+ * The PlanArtifact is persona-owned: the Director translates an IntentEnvelope
+ * into a plan (charter — "Persona Model — ENFORCED", Director row). This glue
+ * only unpacks boundary data (the IntentEnvelope) and hands it to the Director,
+ * which stamps its own provenance (meta.producedBy "director") and derives
+ * directives/theme from the intent. The plan is a build-plane product, so we
+ * spin up a single-round persona per spec; the round's plan is all we need.
+ *
+ * The plan id, however, keeps the glue scheme (`${specId}_plan`) rather than
+ * the Director's native `plan_${runId}_N`. That id is the only part of the plan
+ * that reaches default output — sim-config.json embeds planRef = toRef(plan) —
+ * so pinning it keeps the goldens byte-identical while producedBy still
+ * announces the Director as producer (maintainer decision 2026-07-22). The
+ * plan's other Director-derived fields live only in the emit-intermediates
+ * plan.json, which has no goldens and no downstream consumer beyond toRef.
+ */
+function buildPlan(spec, intent) {
+  const director = createDirectorPersona({ clock: () => spec.meta.createdAt });
+  const plan = director.beginBuild(intent, { runId: spec.meta.runId }).planArtifact;
+  plan.meta.id = `${spec.meta.id}_plan`;
   return plan;
 }
 
@@ -83,7 +78,7 @@ export function mapBuildSpecToArtifacts(spec, { producedBy } = {}) {
 
   const finalProducer = producedBy || "cli-build";
   const intent = buildIntent(spec, finalProducer);
-  const plan = buildPlan(spec, finalProducer, intent);
+  const plan = buildPlan(spec, intent);
   const budget = mapBudget(spec);
 
   return {
