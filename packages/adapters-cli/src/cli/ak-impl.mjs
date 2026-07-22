@@ -20,13 +20,13 @@ import {
   createCommandKernel,
 } from "../../../runtime/src/commands/kernel.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
-import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
+import { applyAuthoringSection, attachMixedRoomAssembliesToBuildResult } from "../../../runtime/src/build/authoring-build.js";
+import { formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
 import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
-import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
 import {
   calculateActorConfigurationUnitCost,
   calculateRoomCardUnitCost,
@@ -578,17 +578,6 @@ function buildAuthoringSection({
     authoring.optimizationGoals = aggregatedGoals;
   }
   return authoring;
-}
-
-function applyAuthoringSection(spec, authoring, commandName) {
-  if (!authoring) {
-    return;
-  }
-  spec.authoring = authoring;
-  const validation = validateBuildSpec(spec);
-  if (!validation.ok) {
-    throw new Error(`${commandName} build spec failed: ${validation.errors.join("; ")}`);
-  }
 }
 
 function parsePositiveIntStrict(value, label) {
@@ -4901,70 +4890,6 @@ function buildArtifactRefs(entries) {
   }));
 }
 
-// Extract the primary motivation string from a parsed delver/warden card's
-// `motivations` array. Delver cards append a synthetic "user_controlled" tag
-// (see parseDelverSpec) alongside the actual requested motivation, so that
-// tag must be excluded when resolving the single motivation.kind value the
-// runtime persona layer reads (resolveActorMotivationKind expects
-// actor.motivation.kind — see packages/runtime/src/personas/actor/controller.js).
-function resolvePrimaryCardMotivation(card) {
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  return motivations.find((entry) => entry && entry !== "user_controlled") || null;
-}
-
-// ak_create/ak_configure accept --delver/--warden "motivation=<kind>" but
-// orchestrateBuild (packages/runtime) does not carry that value through onto
-// the actor records it writes into InitialStateArtifact — it is only used
-// authoring-side for cost calculation (hasNonStationaryMobilityMotivation /
-// requiresMovementStamina). Patch `motivation: { kind }` onto each actor here,
-// matched by archetype + base-id prefix back to the parsed CLI card that
-// produced it. InitialStateArtifactV1.actors entries are not a closed/enumerated
-// key set (packages/runtime/src/contracts/artifacts.ts), so adding this field
-// does not require a schemaVersion bump.
-function applyMotivationToInitialStateActors(initialState, { parsedDelvers = [], parsedWardens = [] } = {}) {
-  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
-  if (actors.length === 0) {
-    return;
-  }
-
-  const cardsByArchetype = {
-    delver: parsedDelvers.map((entry) => ({
-      baseId: entry?.value?.id,
-      motivation: resolvePrimaryCardMotivation(entry?.value),
-    })).filter((entry) => isNonEmptyString(entry.baseId) && isNonEmptyString(entry.motivation)),
-    warden: parsedWardens.map((entry) => ({
-      baseId: entry?.value?.id,
-      motivation: resolvePrimaryCardMotivation(entry?.value),
-    })).filter((entry) => isNonEmptyString(entry.baseId) && isNonEmptyString(entry.motivation)),
-  };
-
-  if (cardsByArchetype.delver.length === 0 && cardsByArchetype.warden.length === 0) {
-    return;
-  }
-
-  actors.forEach((actor) => {
-    const cards = cardsByArchetype[actor?.archetype];
-    if (!cards || cards.length === 0) {
-      return;
-    }
-    const match = cards.find((card) => actor.id === card.baseId || actor.id.startsWith(`${card.baseId}-`));
-    if (match) {
-      actor.motivation = { kind: match.motivation };
-    }
-  });
-}
-
-function attachMixedRoomAssembliesToBuildResult(buildResult) {
-  const assemblies = summarizeMixedRoomAssemblies(buildResult?.simConfig?.layout?.data?.rooms);
-  if (buildResult?.affinitySummary && typeof buildResult.affinitySummary === "object") {
-    buildResult.affinitySummary = {
-      ...buildResult.affinitySummary,
-      mixedRoomAssemblies: assemblies,
-    };
-  }
-  return assemblies;
-}
-
 function logMixedRoomAssembliesFromBuildResult(buildResult) {
   const assemblies = attachMixedRoomAssembliesToBuildResult(buildResult);
   formatMixedRoomAssembliesCliLines(assemblies).forEach((line) => {
@@ -5577,39 +5502,6 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     summary.delverBudgetTokens = delverBudgetTokensFlag;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: `cli-${commandName}`,
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok || !built.spec) {
-    throw new Error(`${commandName} build spec failed: ${built.errors.join("; ")}`);
-  }
-
-  // Configurator owns input preparation (P2.2/P2.3.1): grid sizing, hazard
-  // placement, and resource mapping run behind the persona's CONFIG-plane
-  // surface instead of inline here.
-  const configurator = createConfiguratorPersona();
-  configurator.provideConfig(built.spec.configurator?.inputs || {});
-  built.spec.configurator.inputs.levelGen = configurator.prepareLevelGen({
-    existingLevelGen: built.spec.configurator?.inputs?.levelGen || {},
-    rooms: parsedRooms,
-    floorTiles: parsedFloorTiles,
-    hazards: canonicalHazardEntries,
-  });
-
-  if (sharedOptimizationGoals.some((entry) => entry.kind === "maximize_budget_spend")) {
-    built.spec.configurator.inputs.maximizeBudget = true;
-  }
-
-  const resources = parsedResources.map((entry) => entry.value);
-  if (resources.length > 0) {
-    built.spec.configurator.inputs.resources = configurator.mapResources(resources);
-  }
-
   const sharedConfig = {
     dungeonAffinity,
     budgetTokens: resolvedBudgetTokens,
@@ -5716,20 +5608,35 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     objectRequests,
     sharedConfig,
   });
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: Array.from(new Set(objectRequests.map((entry) => entry.kind))),
     request: requestArtifact,
     constraints: authoringConstraints,
     sharedOptimizationGoals,
     objectOptimizationGoals: objectRequests.flatMap((entry) => entry.optimizationGoals || []),
-  }), commandName);
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: `cli-${commandName}`,
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
-  applyMotivationToInitialStateActors(buildResult.initialState, { parsedDelvers, parsedWardens });
+
+  // Authoring domain build runs in the kernel (P2.3.2): assemble the BuildSpec
+  // through the Director controller, Configurator input prep, orchestrateBuild,
+  // and post-process. The CLI keeps parse/maximize/summary+request assembly
+  // (above) and all writing (below, including the dry-run branch).
+  const { buildResult } = await commandKernel.authoringBuild({
+    summary,
+    authoring,
+    requestArtifact,
+    commandName,
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+    rooms: parsedRooms,
+    floorTiles: parsedFloorTiles,
+    hazards: canonicalHazardEntries,
+    resources: parsedResources.map((entry) => entry.value),
+    maximizeBudget: shouldMaximizeSpend,
+    parsedDelvers,
+    parsedWardens,
+  });
 
   if (args["dry-run"]) {
     emitJsonStdout(buildDryRunSuccess({

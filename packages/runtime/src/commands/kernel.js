@@ -1,4 +1,5 @@
 import { orchestrateBuild } from "../build/orchestrate-build.js";
+import { runAuthoringBuild } from "../build/authoring-build.js";
 import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { buildManualMoveAction } from "./manual-movement.js";
@@ -2185,6 +2186,15 @@ export function createCommandKernel(host = {}) {
     });
   }
 
+  // Authoring build (P2.3.2): the create/configure domain build pipeline the
+  // CLI previously reimplemented inline. Needs no host IO of its own — the CLI
+  // keeps parse/maximize/summary+request assembly and all writing — so this is a
+  // thin pass-through to the runtime pipeline (routes translation through the
+  // Director controller, like llmPlan).
+  async function authoringBuild(input) {
+    return runAuthoringBuild(input);
+  }
+
   return {
     solve,
     build,
@@ -2201,6 +2211,7 @@ export function createCommandKernel(host = {}) {
     blockchainLoad,
     llm,
     llmPlan,
+    authoringBuild,
     manualMove,
   };
 }
