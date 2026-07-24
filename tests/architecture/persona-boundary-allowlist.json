@@ -9,6 +9,10 @@
   },
   {
     "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
+    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
+  },
+  {
+    "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
     "to": "packages/runtime/src/personas/director/buildspec-assembler.js"
   },
   {
@@ -22,6 +26,18 @@
   {
     "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
     "to": "packages/runtime/src/personas/orchestrator/llm-session.js"
+  },
+  {
+    "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
+    "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
+  },
+  {
+    "from": "packages/adapters-web/src/adapters/level-builder/index.js",
+    "to": "packages/runtime/src/personas/configurator/guidance-level-builder.js"
+  },
+  {
+    "from": "packages/adapters-web/src/adapters/level-builder/worker.js",
+    "to": "packages/runtime/src/personas/configurator/guidance-level-builder.js"
   },
   {
     "from": "packages/runtime/src/adaptive-workflow/llm-seams.js",
@@ -76,6 +92,22 @@
     "to": "packages/runtime/src/personas/director/budget-allocation.js"
   },
   {
+    "from": "packages/runtime/src/commands/card-authoring.js",
+    "to": "packages/runtime/src/personas/configurator/card-model.js"
+  },
+  {
+    "from": "packages/runtime/src/commands/card-authoring.js",
+    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
+  },
+  {
+    "from": "packages/runtime/src/commands/card-authoring.js",
+    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
+  },
+  {
+    "from": "packages/runtime/src/commands/card-authoring.js",
+    "to": "packages/runtime/src/personas/director/summary-selections.js"
+  },
+  {
     "from": "packages/runtime/src/commands/kernel.js",
     "to": "packages/runtime/src/personas/configurator/affinity-effects.js"
   },
@@ -100,6 +132,10 @@
     "to": "packages/runtime/src/personas/orchestrator/llm-session.js"
   },
   {
+    "from": "packages/runtime/src/commands/kernel.js",
+    "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
+  },
+  {
     "from": "packages/runtime/src/commands/ui-flow.js",
     "to": "packages/runtime/src/personas/director/budget-enforcer.js"
   },
@@ -120,12 +156,20 @@
     "to": "packages/runtime/src/personas/orchestrator/llm-capture.js"
   },
   {
+    "from": "packages/runtime/src/personas/allocator/incentive-model.js",
+    "to": "packages/runtime/src/personas/director/budget-allocation.js"
+  },
+  {
     "from": "packages/runtime/src/personas/allocator/layout-spend.js",
     "to": "packages/runtime/src/personas/configurator/card-model.js"
   },
   {
     "from": "packages/runtime/src/personas/allocator/selection-spend.js",
     "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
+  },
+  {
+    "from": "packages/runtime/src/personas/configurator/affinity-effects.js",
+    "to": "packages/runtime/src/personas/moderator/affinity-target-effects.js"
   },
   {
     "from": "packages/runtime/src/personas/configurator/budget-maximizer.js",
@@ -165,11 +209,19 @@
   },
   {
     "from": "packages/runtime/src/personas/director/summary-selections.js",
+    "to": "packages/runtime/src/personas/configurator/card-model.js"
+  },
+  {
+    "from": "packages/runtime/src/personas/director/summary-selections.js",
     "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
   },
   {
     "from": "packages/runtime/src/personas/orchestrator/budget-inputs.js",
     "to": "packages/runtime/src/personas/allocator/default-price-list.js"
+  },
+  {
+    "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    "to": "packages/runtime/src/personas/allocator/layout-spend.js"
   },
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
@@ -213,11 +265,23 @@
   },
   {
     "from": "packages/ui-web/src/design-guidance.js",
+    "to": "packages/runtime/src/personas/configurator/card-model.js"
+  },
+  {
+    "from": "packages/ui-web/src/design-guidance.js",
+    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
+  },
+  {
+    "from": "packages/ui-web/src/design-guidance.js",
     "to": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
   },
   {
     "from": "packages/ui-web/src/design-guidance.js",
     "to": "packages/runtime/src/personas/orchestrator/llm-session.js"
+  },
+  {
+    "from": "packages/ui-web/src/llm-trace-panel.js",
+    "to": "packages/runtime/src/personas/annotator/llm-trace.js"
   },
   {
     "from": "packages/ui-web/src/pool-flow.js",

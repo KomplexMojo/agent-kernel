@@ -55,14 +55,41 @@ function allPackageSourceFiles() {
 
 function importSpecifiers(source) {
   const specifiers = [];
-  for (const line of source.split(/\r?\n/)) {
-    if (/^\s*(?:\/\/|\/\*|\*)/.test(line)) continue;
+  const lines = source.split(/\r?\n/);
+  const fromSpecifier = /\bfrom\s*["']([^"']+)["']/;
+  // Statement forms whose trailing `from "..."` we care about: every `import`,
+  // plus re-exports (`export {`, `export *`, `export type {`). This gate
+  // deliberately excludes `export function|const|class|default|…` so brace
+  // counting below never wanders into a declaration body.
+  const importStatement = /^\s*(?:import\b|export\s+(?:type\s+)?[*{])/;
 
-    const staticImport = line.match(/^\s*(?:import|export)\b.*?\bfrom\s*["']([^"']+)["']/);
-    if (staticImport) specifiers.push(staticImport[1]);
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (/^\s*(?:\/\/|\/\*|\*)/.test(line)) continue;
 
     const requireCall = /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g;
     for (const match of line.matchAll(requireCall)) specifiers.push(match[1]);
+
+    if (!importStatement.test(line)) continue;
+
+    // A named import/export list can wrap across lines, leaving the trailing
+    // `from "..."` on the closing-brace line — where the old line-anchored
+    // regex could not see it. Collapse continuation lines (an open `{` not yet
+    // balanced) into one logical statement before matching the specifier.
+    let statement = line;
+    let end = i;
+    while (
+      !fromSpecifier.test(statement) &&
+      (statement.match(/\{/g) || []).length > (statement.match(/\}/g) || []).length &&
+      end + 1 < lines.length
+    ) {
+      end += 1;
+      statement += ` ${lines[end]}`;
+    }
+
+    const staticImport = statement.match(fromSpecifier);
+    if (staticImport) specifiers.push(staticImport[1]);
+    i = end;
   }
   return specifiers;
 }
