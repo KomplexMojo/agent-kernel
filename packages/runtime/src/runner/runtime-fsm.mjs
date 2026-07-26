@@ -1093,6 +1093,17 @@ export function createFsmRuntime({
         ensureOrchestrator();
       }
 
+      // Moderator "pausing" must gate real tick advancement, not just record a
+      // label (charter: label-only states are defects). A tick already in
+      // flight when pause is requested still completes this call; only a call
+      // that BEGINS already-paused is refused. "resume" (any of the aliases
+      // buildPersonaEvents accepts) unblocks within the same call.
+      const moderatorState = orchestrator.view().personaStates?.moderator?.state;
+      const requestedControlEvent = stepOptions.controlEvent || stepOptions.control || stepOptions.moderatorEvent;
+      if (moderatorState === "pausing" && requestedControlEvent !== "resume") {
+        return core.getCounter ? core.getCounter() : null;
+      }
+
       const currentPhase = orchestrator.view().phase;
       const layoutHazards = simConfig?.layout?.data?.hazards || [];
       // Build sorted actor ID list so readObservation labels all actors by their original IDs.
