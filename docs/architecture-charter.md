@@ -23,21 +23,38 @@ moves artifacts between them, and it must not contain domain decisions of its ow
 | **Configurator** | Assembles, validates, and locks configurations: levels, actors, cards, pools, feasibility. | So a locked config has one producer and one meaning. |
 | **Allocator** | The economy. Owns price lists, base costs, all pricing formulas, spend validation, budget maximization, receipts, and reconciliation. | So every token cost in the system has one author and receipts are auditable. |
 | **Actor** | Proposes actions for simulated agents from observations, motivations, and solver/LLM decisions. | So agent behavior is deterministic, replayable, and separately testable. |
-| **Moderator** | Controls the tick: ordering, pausing, affinity resolution, effect fulfillment. | So tick semantics are policy, not accidents of the runner loop. |
-| **Annotator** | Captures and normalizes telemetry: TelemetryRecords, RunSummaries, spend/ledger events. | So observability is a contract, not scattered console writes. |
+| **Moderator** | Controls the tick: ordering, affinity resolution, effect fulfillment, and pausing — `pausing` is a real gate that refuses to advance `step()`, not a label. | So tick semantics are policy, not accidents of the runner loop. |
+| **Annotator** | Captures and normalizes run observability: per-tick TelemetryRecords and the end-of-run RunSummary (including its derived `outcome`). Build-scope `telemetry.json` and spend/ledger normalization are **not** yet its own — see rule 3 and the Plan's P3.3. | So observability is a contract, not scattered console writes. |
 
 **Enforcement rules (blocking on every diff):**
 
 1. **Controller-only boundary.** Code outside a persona's directory may import only that persona's
-   `controller.js`/`controller.mts` (or `persona.js`). Importing a persona's internal modules
-   (`validate-spend.js`, `cost-model.js`, `llm-session.js`, …) from outside its directory is a
-   violation. Adapters never import persona internals.
+   `controller.js`, `persona.js`, or `contracts.ts` (`controller.mts` resolves to the same module —
+   see rule 7). Importing a persona's internal modules (`validate-spend.js`, `cost-model.js`,
+   `llm-session.js`, …) from outside its directory is a violation. Adapters never import persona
+   internals. Enforced by `tests/architecture/persona-boundary.test.js`, which fails on any NEW
+   violation; `persona-boundary-allowlist.json` records today's known debt and must only shrink.
 2. **Personas own logic; glue owns sequence.** A conditional that encodes a domain rule (a price,
    a validation, an ordering policy) belongs inside a persona. Glue may branch only on artifact
    shape and persona results.
 3. **Two planes, same personas.** The simulation tick (observe→decide→emit phases) and the build
-   pipeline are both persona rounds. A build runs Director → Configurator → Allocator → Annotator;
-   receipts come from the Allocator, telemetry from the Annotator.
+   pipeline are both persona rounds.
+   - **Build plane (today):** Director (IntentEnvelope → PlanArtifact → BuildSpec) → Configurator
+     (level-gen sizing, resource mapping, validation) → Allocator (feasibility, budget maximization,
+     receipts). Receipts come from the Allocator.
+   - **Tick plane:** Moderator gates advancement, Actor proposes, Allocator prices, Annotator
+     summarizes the run.
+   - **Known gap (not license).** The Annotator persona is fully implemented and live *in the tick
+     plane* — it cycles idle→recording→summarizing every tick and emits `TelemetryRecord`s plus the
+     end-of-run `RunSummary`. It is simply **absent from the build plane**, because `build`/`llm-plan`
+     run no tick at all and the Annotator subscribes only to the EMIT/SUMMARIZE tick phases. So
+     build-scope `telemetry.json` is produced by glue (`build/telemetry.js`) — a structural
+     consequence, not a missing persona. The actual defect is narrower:
+     `build/orchestrate-build.js` stamps `producedBy: "annotator"` on the affinity-summary artifact
+     the persona never touched, and glue must never claim persona provenance it did not earn. Open
+     decision: whether build-scope telemetry should be Annotator-owned at all (it would require
+     giving authoring builds a persona round), or whether that glue provenance label is simply wrong
+     and should read `cli-build`.
 4. **Pure FSMs.** `view()` + `advance(event, payload)`, clock injected, context serializable,
    effects returned as data. A persona state must gate real behavior — a state that nothing
    consults is a defect, not a feature.
@@ -46,9 +63,21 @@ moves artifacts between them, and it must not contain domain decisions of its ow
 6. **Tests align to personas.** Persona behavior tests live in `tests/personas/<persona>/` and are
    named `<persona>-<behavior>.test.*`. A test that asserts only a state label (not behavior the
    state gates) is a legacy test and must be replaced, not extended.
+7. **One implementation per module — `.js` is canonical.** Persona controllers and state machines
+   are plain `.js`. The matching `.mts` files are 1-line re-export shims retained only for existing
+   importers. **Never put code in a `.mts`**: it is a re-export, so anything added there silently
+   never runs. Two full copies of a module must never exist — that arrangement previously drifted
+   undetected (director/controller by ~100 lines, allocator/controller by 2), which is why the old
+   "apply every edit to both files" rule was retired rather than restated.
 
-**Migration status:** enforcement is being phased in per `local-codex/Plan.md` (Persona
-Enforcement Program). Until a phase lands, its violations are documented debt, not license.
+**Migration status:** enforcement is being phased in per `local-codex/Plan.md` (Persona Enforcement
+Program). Until a phase lands, its violations are documented debt, **not license** — new code is held
+to the full rules above regardless of phase. Landed so far: the Allocator is the sole pricing
+authority (Phase 1); the Director owns PlanArtifact production and the Configurator owns build-input
+preparation, with the CLI reduced to a thin shell over the command kernel (Phase 2); the Moderator's
+pause gate and the Annotator's RunSummary are real behavior (Phase 3, in progress). Still open: the
+Orchestrator inversion (Phase 4) and the enforcement flip that empties the boundary allowlist
+(Phase 5). Consult the Plan for current state rather than assuming this paragraph is fresh.
 
 ## Economy — Allocator Authority
 
@@ -119,7 +148,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 ## Motivation And Action Flow
 
-- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.mts` (`controller.js` is a thin runtime re-export of it).
+- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.js` (`controller.mts` is a thin re-export of it).
 - `buildMotivatedProposals()` reads `motivation.kind` from the observation actor record or `payload.initialState.actors`. It uses `resolveNearestHostile()` to choose the closest other actor by Chebyshev distance.
 - Current simple motivation kinds are `attacking`, `defending`, `stationary`, and `random`: attacking actors attack adjacent hostiles or pursue distant hostiles, defending actors attack adjacent hostiles or hold position when distant, stationary actors emit no movement proposal, and random actors move to a seed-derived legal adjacent tile.
 - `random` movement is deterministic pseudo-random: the choice derives from `seed:actorId:tick` (FNV/mulberry), never `Math.random()`, and synthesizes a `wait` when no legal adjacent tile exists. Replays of the same seed produce identical movement.

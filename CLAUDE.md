@@ -2,7 +2,7 @@
 
 Guidance for Claude Code (claude.ai/code) in this repository.
 
-Claude is the **orchestration and implementation engine**. Codex drives ideation, adversarial verification, and mechanical implementation from complete milestone specs. GitHub Copilot owns documentation and commits.
+Claude is the **orchestration, implementation, and documentation engine**. Codex drives ideation, adversarial verification, and mechanical implementation from complete milestone specs.
 
 **The persona model is enforced** (charter → "Persona Model — ENFORCED"): all domain logic lives in one of the seven personas; everything else is glue; external code imports persona controllers only. The Allocator alone owns pricing.
 
@@ -35,14 +35,19 @@ Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form �
 | Expand test permutations from TODO stubs | **Ollama** (local) | `/ollama-test-permutations` |
 | Summarize / classify / extract structured data | **Ollama** (local) | `local_*` via MCP |
 | Content-gen benchmark — permutation + stress of the tool-call surface | **Remote Ollama** (dual GPU) | `run-content-gen` |
-| Commit messages, PRs, architecture / design / README docs | **GitHub Copilot** | `gh` CLI + Copilot agent |
+| Descriptive docs — package / persona READMEs, `docs/README.md`, `docs/readme-index.md`, CLI README | **Claude Sonnet** (medium) | Direct |
+| Normative docs — `docs/architecture-charter.md`, `docs/vision-contract.md`, `docs/architecture/diagram.mmd` | **Claude Opus** (high) | Direct |
+| Commit messages, PRs | **Claude Sonnet** (medium) | Direct + `gh` CLI |
 
 All agents have live MCP access to CodeContextGraph. Name the query used when handing off or justifying a target area.
 
 - **Codex** — ideation, plan authoring (`local-codex/Plan.md` → `~/vault/plans/active/Plan.md`), adversarial review, and **mechanical implementation** (since 2026-07-18): call-site threading behind an already-designed controller API, guard/lint sweeps, bulk test migration, characterization tests to an explicit spec. Requires a complete milestone spec (target files, exact API, validation commands, stop condition); Claude verifies output against the validation commands. Codex does NOT design persona APIs, change artifact schemas, or decide pricing policy. Every adversarial review answers: (1) **Correctness** — does the diff satisfy the milestone spec? (2) **Simplicity** — is it 3× more complex than the simplest solution? If so, give a specific rewrite.
 - **Claude** — before any milestone code: state assumptions, surface ambiguity (stop and ask rather than guess), present tradeoffs if a simpler path exists. Implementation order: (1) failing tests + `## TODO: Test Permutations` stubs → (2) production code → (3) hand stubs to Ollama.
 - **Ollama** — expands `## TODO: Test Permutations` stubs in place via `/ollama-test-permutations`. Read `tests/README.md` first. Not for architecture, enforcement review, or persona FSM design.
-- **GitHub Copilot** — commit messages, PRs, and updates to `docs/architecture-charter.md`, `docs/architecture/diagram.mmd`, `docs/README.md`, `packages/adapters-cli/README.md`, and any README the work touches. No production code or tests.
+- **Documentation (Claude, since 2026-07-27 — replaces GitHub Copilot).** Docs are written by the agent that made the change, in the **same diff** as the code: it already holds the context, and a stale doc is a live hazard, not a cosmetic debt (7 persona READMEs asserted `.mts` was the canonical source long after `.js` became it — anyone following them would have edited a re-export shim and their change would silently never run). Two tiers by stakes:
+  - **Descriptive docs → Sonnet (medium).** Package/persona READMEs, `docs/README.md`, `docs/readme-index.md`, `packages/adapters-cli/README.md`. The content follows from a diff that already exists; the work is accuracy and concision, not design — the same tier as authoring base tests. Whoever changes behavior updates these in the same diff.
+  - **Normative docs → Opus (high).** `docs/architecture-charter.md`, `docs/vision-contract.md`, `docs/architecture/diagram.mmd`. These are architectural **law**: every future agent obeys them, they encode decisions rather than describe code, and an error propagates silently across every later milestone. Same tier as orchestration. Charter/vision edits still require maintainer sign-off (see Refactoring and Escalation).
+  - **Commit messages and PRs → Sonnet (medium).** Commit or push only when the maintainer asks.
 
 ---
 
@@ -166,7 +171,7 @@ Run on every diff. **Fix failures — don't just flag them.**
 
 **File placement** — runtime `packages/runtime/src/` · core `packages/core-ts/src/` · web adapters `packages/adapters-web/src/adapters/` · CLI `packages/adapters-cli/src/` · tests `tests/**` (fixtures `tests/fixtures/**`).
 
-**Documentation (Copilot, same PR)** — architecture boundaries changed → `docs/architecture-charter.md` + `docs/architecture/diagram.mmd` · CLI flags/behavior changed → `packages/adapters-cli/README.md`.
+**Documentation (Claude, same diff)** — architecture boundaries changed → `docs/architecture-charter.md` + `docs/architecture/diagram.mmd` (Opus, high) · CLI flags/behavior changed → `packages/adapters-cli/README.md` (Sonnet, medium) · a module's canonical file/entry point moved or a persona surface changed → that persona's / package's `README.md` (Sonnet, medium). A README that now contradicts the code is a **blocking** defect, not a follow-up: fix it in the diff that made it wrong.
 
 ---
 
