@@ -1,11 +1,13 @@
 import { createAnnotatorStateMachine, AnnotatorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildTelemetry } from "../_shared/persona-helpers.mts";
+import { attachAnnotatorServices } from "./annotator-services.js";
 
 export const annotatorSubscribePhases = Object.freeze([TickPhases.EMIT, TickPhases.SUMMARIZE]);
 
 export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
   const fsm = createAnnotatorStateMachine({ initialState, clock });
+  const services = attachAnnotatorServices();
 
   function view() {
     return fsm.view();
@@ -40,5 +42,7 @@ export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, cl
     subscribePhases: annotatorSubscribePhases,
     advance,
     view,
+    summarizeRun: services.summarizeRun,
+    classifyRunOutcome: services.classifyRunOutcome,
   };
 }

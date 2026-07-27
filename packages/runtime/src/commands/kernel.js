@@ -5,6 +5,7 @@ import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { buildManualMoveAction } from "./manual-movement.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
+import { createAnnotatorPersona } from "../personas/annotator/persona.js";
 import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { createCore } from "../../../core-ts/src/index.ts";
@@ -1079,18 +1080,16 @@ export function createCommandKernel(host = {}) {
     const tickFrames = runtime.getTickFrames();
     const effectLog = runtime.getEffectLog();
     const runtimeDecisionCaptures = summarizeRuntimeDecisionCaptures(tickFrames).captures;
-    const runSummary = {
-      schema: SCHEMAS.runSummary,
-      schemaVersion: 1,
-      meta: createMeta({ producedBy: "cli-run", runId }),
+    // P3.2: the Annotator owns the run summary (artifacts.ts: "Run-level summary
+    // emitted by Annotator at end of run"). It derives a REAL outcome from the
+    // collected frames/effects — this was hardcoded "unknown" on every run before.
+    const runSummary = createAnnotatorPersona().summarizeRun({
+      tickFrames,
+      effectLog,
+      ticksRequested: ticks,
+      meta: createMeta({ producedBy: "annotator", runId }),
       simConfigRef: toRef(simConfig),
-      outcome: "unknown",
-      metrics: {
-        ticks,
-        frames: tickFrames.length,
-        effects: effectLog.length,
-      },
-    };
+    });
 
     await writeJson(join(outDir, "tick-frames.json"), tickFrames);
     await writeJson(join(outDir, "effects-log.json"), effectLog);
