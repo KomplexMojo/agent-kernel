@@ -18,7 +18,8 @@ Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form �
 4. `pnpm run test` — confirm no pre-existing failures
 5. `bash scripts/setup/agent-context.sh` — refresh branch-local Graphify + `local-codex/CodeContext.md`
 6. Start CodeContextGraph watch (`mcp__CodeGraphContext__watch_directory` on repo root)
-7. Read `local-codex/CodeContext.md`, then the Graphify report it names
+7. `bash scripts/setup/graph-sanity-check.sh` — **prove the graph is trustworthy before relying on it.** A non-zero exit means structural answers may be confidently wrong; verify by reading files until the index is repaired (see "Code Navigation")
+8. Read `local-codex/CodeContext.md`, then the Graphify report it names
 
 ---
 
@@ -65,7 +66,9 @@ All agents have live MCP access to CodeContextGraph. Name the query used when ha
 - **Read `local-codex/CodeContext.md` first** — it names the branch-local Graphify mirror under `~/vault/codex-context/`. Then use CodeContextGraph for all structural lookups.
 - **Graph before grep:** query CodeContextGraph before any `grep`/`rg`/`find`/`Glob`. Text search is only for literal content (README prose, fixture strings, exact commands) — not code discovery. Before any text search, name the MCP query already tried and why it was insufficient.
 - **Failure policy:** if CodeContextGraph is unavailable or insufficient, stop and report which query was attempted, what was missing, and what decision is blocked. Do not silently fall back to filesystem search.
-- **Re-run `/graphify` only for:** post-milestone docs passes, onboarding a new agent, or a major structural refactor. CodeContextGraph updates incrementally on every save.
+- **An EMPTY graph result is not evidence of absence.** The graph indexes only what `IGNORE_DIRS` permits, and it answers out-of-scope queries with `success: true` and zero rows — a confident wrong answer. PT.1 (2026-07-28) found `build` in `IGNORE_DIRS`, which hid all of `packages/runtime/src/build/` and made `find_callers("buildBuildTelemetryRecord")` report **0 callers when there are 5**. Before concluding "no callers" / "dead code" / "no importers", confirm the defining file is indexed. **Run `bash scripts/setup/graph-sanity-check.sh` at session start** — it asserts the build plane and tests are present, no worktree copies pollute results, and the known-caller canary holds. Non-zero exit means verify structural claims by reading files.
+- **The graph does NOT update on its own unless auto-watch is on.** `ENABLE_AUTO_WATCH` was `false`, so no watch ran and the index reflected whenever it was last built (the earlier claim that it "updates incrementally on every save" was false). It is now `true`; `list_watched_paths` returning empty means the watch is not running — start it with `watch_directory` on the repo root.
+- **Re-run `/graphify` only for:** post-milestone docs passes, onboarding a new agent, or a major structural refactor.
 
 **Codex handoffs:** run `bash scripts/setup/agent-context.sh` to write `local-codex/CodeContext.md` and mirror Graphify. Then query live CodeContextGraph for repo stats, package dependency summary, milestone entry points, and top-10 complexity hotspots; cite the queries before opening any file. After a large refactor, run `mcp__CodeGraphContext__add_package_to_graph` to force a full re-scan.
 

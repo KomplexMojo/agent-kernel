@@ -14,9 +14,12 @@ Every agent that writes code must complete this checklist at the start of each s
 | 3. Tests baseline | `pnpm run test` | No pre-existing failures before changes begin |
 | 4. Agent context refresh | `bash scripts/setup/agent-context.sh` | Branch-local Graphify + CodeContext snapshot refreshed and mirrored |
 | 5. CodeContextGraph watch | `mcp__CodeGraphContext__watch_directory` on repo root | Structural graph live-watching; picks up M1+ contract changes |
-| 6. Orient from graphify | Read `local-codex/CodeContext.md`, then the mirrored Graphify report it names | High-level semantic map loaded before structural queries |
+| 6. **Graph sanity check** | `bash scripts/setup/graph-sanity-check.sh` | **The graph is COMPLETE, not just reachable.** Asserts the build plane + tests are indexed, no worktree copies pollute results, and the known-caller canary holds |
+| 7. Orient from graphify | Read `local-codex/CodeContext.md`, then the mirrored Graphify report it names | High-level semantic map loaded before structural queries |
 
-Steps 4–6 are cheap (seconds). Never skip them to save time — a stale graph produces wrong answers that cost far more to untangle.
+Steps 4–7 are cheap (seconds). Never skip them to save time — a stale graph produces wrong answers that cost far more to untangle.
+
+**Step 6 is not ceremony.** Until PT.1 (2026-07-28) the graph silently excluded every file under `packages/runtime/src/build/` because `IGNORE_DIRS` contained `build`, so structural queries about the build plane returned `success: true` with zero rows. `find_callers("buildBuildTelemetryRecord")` answered **0 callers when there are 5** — an answer that would have "proved" a live function dead. If step 6 exits non-zero, treat every graph answer as a hint and verify by reading files.
 
 ---
 
@@ -72,6 +75,8 @@ The watch is active on `/Users/darren/Documents/GitHub/agent-kernel` — the gra
 **All agents with MCP access (Claude, Ollama, Codex):** query the graph directly. Do not use `grep`, `rg`, `find`, or `Glob` for codebase navigation or structural questions while CodeContextGraph is available. Codex has `codegraphcontext` registered in its own MCP config (`codex mcp list`) and can query the graph during tasks.
 
 **Failure policy:** if CodeContextGraph is unavailable, stale, or returns insufficient structural results, stop and report the MCP issue explicitly. Do not silently fall back to filesystem search for code discovery.
+
+**Empty is not absent.** The graph's most dangerous failure is not an error — it is `success: true` with zero rows for code it never indexed. Before acting on a negative result ("no callers", "dead code", "nothing imports this"), confirm the defining file is in the graph; a one-line check is `MATCH (f:File) WHERE f.path CONTAINS '<file>' RETURN count(*)`. Scope is governed by `IGNORE_DIRS` in `mcp.json` / `~/.claude.json` / `~/.codegraphcontext/.env` — **all three must agree**, since they share one FalkorDB and whichever client indexes last wins. Current scope: `packages/**` and `tests/**` indexed; `docs`, `tools`, `scripts`, `coverage`, `graphify-out`, `artifacts`, `local-codex`, `.claude` excluded.
 
 **Narrow exception:** text search is allowed only for exact literal/content matching that the graph does not model well, such as README prose, fixture strings, or known error text. Before doing that, the agent must name the MCP query it already tried and why the graph was insufficient for that specific content lookup.
 
