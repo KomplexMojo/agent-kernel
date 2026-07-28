@@ -4,7 +4,7 @@
  * The Allocator controller becomes the single entry point for pricing and
  * spend decisions (charter: "Economy — Allocator Authority"). This is the API
  * P1.3 threads every call site through. Internals (validate-spend, layout-spend,
- * motivation-price-policy, default-price-list, budget-ledger, incentive-model)
+ * motivation-price-policy, default-price-list, incentive-model)
  * become private to the persona.
  *
  * Design rules under test:
@@ -141,7 +141,7 @@ test("a denied proposal still returns a receipt (denial IS a decision) and stays
   assert.equal(a.view().state, "allocating");
 });
 
-// ── Layout + ledger + report passthroughs ──
+// ── Layout + report passthroughs, and FSM transitions ──
 
 test("evaluateRoomCardLayoutSpend works through the controller with the persona's price list", async () => {
   const a = await makeAllocator();
@@ -152,14 +152,19 @@ test("evaluateRoomCardLayoutSpend works through the controller with the persona'
   assert.ok(Number.isFinite(result.spentTokens));
 });
 
-test("updateLedger requires an issued receipt state and advances allocating→monitoring", async () => {
+// Replaces the deleted updateLedger test (P3.3 removed the never-wired BudgetLedgerArtifact).
+// That test was the only unit coverage of allocating→monitoring, so the transition is re-covered
+// here through the route production actually uses: the tick loop sends the "monitor" event
+// (runtime-fsm.mjs:822), NOT a ledger update. Keeping this prevents `monitoring` from quietly
+// becoming an unexercised state — which the charter treats as a defect in its own right.
+test("allocating→monitoring advances on the tick-plane monitor event", async () => {
   const a = await makeAllocator();
-  assert.throws(() => a.updateLedger({}), (err) => err.code === "allocator_state");
   a.registerBudget(BUDGET);
-  const { receipt } = a.validateSpend({ proposal: PROPOSAL });
-  const ledger = a.updateLedger({ receipt });
+  a.validateSpend({ proposal: PROPOSAL });
+  assert.equal(a.view().state, "allocating");
+
+  a.advance({ phase: "observe", event: "monitor", payload: {}, tick: 1 });
   assert.equal(a.view().state, "monitoring");
-  assert.ok(ledger);
 });
 
 // ── Determinism and serialization ──

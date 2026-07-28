@@ -97,12 +97,6 @@ const CATALOG = [
     description: "Allocator pool allocation output.",
   },
   {
-    schema: "agent-kernel/BudgetLedgerArtifact",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.OBSERVABILITY,
-    description: "Budget ledger of spend events.",
-  },
-  {
     schema: "agent-kernel/ExecutionPolicy",
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.SUPPORTING_INPUT,

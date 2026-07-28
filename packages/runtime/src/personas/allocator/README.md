@@ -55,7 +55,7 @@ Adding a priced element:
 3. If it scales quadratically, add its id to `QUADRATIC_IDS`. Otherwise it is linear by default.
 4. Do **not** write the number anywhere in code.
 
-Formulas applied to each item (`validate-spend.js` / `budget-ledger.js`):
+Formulas applied to each item (`validate-spend.js`):
 - `linear` — `totalCost = unitCost × quantity`
 - `quadratic` — `totalCost = unitCost × quantity²`
 

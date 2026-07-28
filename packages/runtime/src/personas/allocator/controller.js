@@ -100,7 +100,6 @@ export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, cl
     validateSpend: services.validateSpend,
     evaluateLayoutSpend: services.evaluateLayoutSpend,
     evaluateRoomCardLayoutSpend: services.evaluateRoomCardLayoutSpend,
-    updateLedger: services.updateLedger,
     scenarioSpendReport: services.scenarioSpendReport,
     assessFeasibility: services.assessFeasibility,
     maximizeFulfillment: services.maximizeFulfillment,

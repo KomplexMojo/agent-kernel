@@ -12,8 +12,8 @@
  * same state machine, so an assembly round is visible in view() exactly like a
  * tick round.
  *
- * State gating mirrors the Allocator's registerBudget → validateSpend →
- * updateLedger and the Director's beginBuild → mapPool → assembleBuildSpec:
+ * State gating mirrors the Allocator's registerBudget → validateSpend and the
+ * Director's beginBuild → mapPool → assembleBuildSpec:
  *   provideConfig(config)      uninitialized → pending_config
  *   prepareLevelGen(...)       requires a config (pending_config | configured)
  *   mapResources(...)          requires a config (pending_config | configured)

@@ -12,8 +12,8 @@
  * the same state machine, so a build round is visible in view() exactly like
  * a tick round.
  *
- * State gating mirrors the Allocator's registerBudget → validateSpend →
- * updateLedger progression:
+ * State gating mirrors the Allocator's registerBudget → validateSpend
+ * progression:
  *   beginBuild(intent)  uninitialized → intake → draft_plan  (emits the plan)
  *   mapPool(...)        requires a plan
  *   assembleBuildSpec() requires a plan; completes the round → ready

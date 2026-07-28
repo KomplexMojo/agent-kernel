@@ -4,15 +4,16 @@
  * This is the single entry point for pricing and spend decisions (charter:
  * "Economy — Allocator Authority"). The sibling modules it fronts
  * (validate-spend, layout-spend, motivation-price-policy, default-price-list,
- * budget-ledger, incentive-model) are persona internals: nothing outside
+ * incentive-model, budget-fulfillment) are persona internals: nothing outside
  * personas/allocator/ may import them directly (tests/architecture/
  * persona-boundary.test.js enforces this; the allowlist shrinks as call sites
  * migrate in P1.3).
  *
  * State gating: pricing is read-only policy and available in any state; spend
  * decisions require the FSM round — registerBudget (idle→budgeting) before
- * validateSpend (→allocating) before updateLedger (→monitoring). The states
- * gate real behavior; a receipt cannot exist without a registered budget.
+ * validateSpend (→allocating); the tick loop then drives allocating→monitoring
+ * with the "monitor" event. The states gate real behavior; a receipt cannot
+ * exist without a registered budget.
  *
  * Shared by controller.js and controller.mts so the two entry points cannot
  * drift.
@@ -22,7 +23,6 @@ import { buildDefaultPriceList } from "./default-price-list.js";
 import { normalizePriceItems, buildPriceMap, validateSpendProposal } from "./validate-spend.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { calculateMotivationStackCost } from "./motivation-price-policy.js";
-import { updateBudgetLedger } from "./budget-ledger.js";
 import { buildScenarioSpendReport } from "./incentive-model.js";
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 
@@ -124,14 +124,6 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
     return evaluateRoomCardLayoutSpend({ priceList: getPriceList(), ...args });
   }
 
-  function updateLedger(args = {}) {
-    requireState(["allocating", "monitoring"], "update the ledger");
-    if (currentState() === "allocating") {
-      fsm.advance("monitor", {});
-    }
-    return updateBudgetLedger(args);
-  }
-
   function scenarioSpendReport(args = {}) {
     return buildScenarioSpendReport(args);
   }
@@ -165,7 +157,6 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
     validateSpend,
     evaluateLayoutSpend: boundEvaluateLayoutSpend,
     evaluateRoomCardLayoutSpend: boundEvaluateRoomCardLayoutSpend,
-    updateLedger,
     scenarioSpendReport,
     assessFeasibility,
     maximizeFulfillment,

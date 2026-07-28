@@ -54,8 +54,9 @@ export interface AllocatorAdvanceResult extends AllocatorView {
 
 // ── Service surface (P1.1) — the single entry point for pricing and spend ──
 // Charter: "Economy — Allocator Authority". State-gated: registerBudget
-// (idle→budgeting) before validateSpend (→allocating) before updateLedger
-// (→monitoring). Pricing is read-only policy, available in any state.
+// (idle→budgeting) before validateSpend (→allocating). The tick loop then
+// drives allocating→monitoring with the "monitor" event. Pricing is read-only
+// policy, available in any state.
 
 export interface PriceListItem {
   id: string;
@@ -117,6 +118,5 @@ export interface AllocatorServiceSurface {
   }): SpendValidationResult;
   evaluateLayoutSpend(args: Record<string, unknown>): unknown;
   evaluateRoomCardLayoutSpend(args: Record<string, unknown>): unknown;
-  updateLedger(args: Record<string, unknown>): unknown;
   scenarioSpendReport(args: Record<string, unknown>): unknown;
 }

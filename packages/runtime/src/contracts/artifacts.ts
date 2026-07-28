@@ -848,7 +848,6 @@ export const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifac
 export const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 export const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 export const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
-export const BUDGET_LEDGER_ARTIFACT_SCHEMA = "agent-kernel/BudgetLedgerArtifact";
 
 export interface BudgetCategoryCaps {
   /**
@@ -1028,26 +1027,6 @@ export interface BudgetAllocationArtifactV1 {
 }
 
 export type BudgetAllocationArtifact = BudgetAllocationArtifactV1;
-
-export interface BudgetSpendEventV1 {
-  id: string;
-  kind: string;
-  quantity: number;
-  unitCost: number;
-  totalCost: number;
-}
-
-export interface BudgetLedgerArtifactV1 {
-  schema: typeof BUDGET_LEDGER_ARTIFACT_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-  budgetRef: ArtifactRef;
-  receiptRef?: ArtifactRef;
-  remaining: number;
-  spendEvents: BudgetSpendEventV1[];
-}
-
-export type BudgetLedgerArtifact = BudgetLedgerArtifactV1;
 
 export type SpendProposalCategory =
   | "rooms"
