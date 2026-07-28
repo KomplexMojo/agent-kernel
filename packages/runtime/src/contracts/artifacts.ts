@@ -1829,8 +1829,20 @@ export const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
 export const NARRATIVE_ARTIFACT_SCHEMA = "agent-kernel/NarrativeArtifact";
 
 /**
- * Canonical telemetry record emitted by Annotator. These can be streamed or stored.
+ * Canonical telemetry record. These can be streamed or stored.
  * Telemetry must never affect simulation outcomes.
+ *
+ * PRODUCER DEPENDS ON PLANE (corrected 2026-07-28, P3.4/D2a — the previous blanket claim
+ * "emitted by Annotator" was inaccurate for build scope and sent P3.2 down a wrong premise):
+ * - TICK/RUN scope (`run`, `replay`) — emitted by the **Annotator**, which subscribes to the
+ *   EMIT and SUMMARIZE tick phases. This is the persona-owned case.
+ * - BUILD scope (`build`, `llm-plan`) — produced by GLUE (`build/telemetry.js`,
+ *   `buildBuildTelemetryRecord`), stamped with the caller's `producedBy` (e.g. "cli-build").
+ *   Builds run no tick at all, so the Annotator structurally cannot participate; giving build
+ *   telemetry a persona producer would require inventing a fake tick round for authoring builds.
+ *   That was considered and REJECTED (maintainer, 2026-07-26/28).
+ * Do not "fix" a build-scope record to claim Annotator provenance — check which plane it came
+ * from first.
  */
 export interface TelemetryRecordV1 {
   schema: typeof TELEMETRY_RECORD_SCHEMA;

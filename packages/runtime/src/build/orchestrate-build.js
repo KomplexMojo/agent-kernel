@@ -1587,7 +1587,10 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
         schemaVersion: 1,
-        meta: createBuildMeta(spec, "annotator", "affinity_summary"),
+        // Builds run NO tick, and the Annotator subscribes only to the EMIT/SUMMARIZE tick
+        // phases — so it cannot have produced this. Stamp the real caller, as every sibling
+        // artifact here does; glue must not claim persona provenance it did not earn (P3.4).
+        meta: createBuildMeta(spec, producedBy, "affinity_summary"),
         presetsRef: toRef(affinityPresets),
         loadoutsRef: toRef(affinityLoadouts),
         affinityRulesRef: affinityRules ? toRef(affinityRules) : undefined,

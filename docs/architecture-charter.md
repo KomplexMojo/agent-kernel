@@ -44,17 +44,24 @@ moves artifacts between them, and it must not contain domain decisions of its ow
      receipts). Receipts come from the Allocator.
    - **Tick plane:** Moderator gates advancement, Actor proposes, Allocator prices, Annotator
      summarizes the run.
-   - **Known gap (not license).** The Annotator persona is fully implemented and live *in the tick
-     plane* — it cycles idle→recording→summarizing every tick and emits `TelemetryRecord`s plus the
-     end-of-run `RunSummary`. It is simply **absent from the build plane**, because `build`/`llm-plan`
-     run no tick at all and the Annotator subscribes only to the EMIT/SUMMARIZE tick phases. So
-     build-scope `telemetry.json` is produced by glue (`build/telemetry.js`) — a structural
-     consequence, not a missing persona. The actual defect is narrower:
-     `build/orchestrate-build.js` stamps `producedBy: "annotator"` on the affinity-summary artifact
-     the persona never touched, and glue must never claim persona provenance it did not earn. Open
-     decision: whether build-scope telemetry should be Annotator-owned at all (it would require
-     giving authoring builds a persona round), or whether that glue provenance label is simply wrong
-     and should read `cli-build`.
+   - **Not a gap — a plane boundary (settled 2026-07-28, P3.4).** The Annotator persona is fully
+     implemented and live *in the tick plane* — it cycles idle→recording→summarizing every tick and
+     emits `TelemetryRecord`s plus the end-of-run `RunSummary`. It is **absent from the build plane**
+     because `build`/`llm-plan` run no tick at all and the Annotator subscribes only to the
+     EMIT/SUMMARIZE tick phases. Build-scope `telemetry.json` therefore comes from glue
+     (`build/telemetry.js`): a structural consequence, not a missing persona.
+     **RESOLVED:** the real defect was the false label — `build/orchestrate-build.js` stamped
+     `producedBy: "annotator"` on an affinity-summary artifact the persona never touched. It now
+     stamps the caller's `producedBy` (e.g. `cli-build`), matching every sibling build artifact, and
+     `tests/runtime/build/build-provenance.test.js` is a standing guard against any build-plane glue
+     hardcoding a persona name. The open decision is closed: build-scope telemetry stays glue-owned,
+     and the `TelemetryRecord` contract comment now states producer-by-plane explicitly. Giving
+     authoring builds a persona round was considered and rejected as a category error.
+   - **The rule this leaves behind:** glue must never claim persona provenance it did not earn.
+     Provenance is legitimate only where the persona actually ran — so `producedBy: "annotator"` on
+     the run summary (routed through the Annotator controller) and `producedBy: "moderator"` on tick
+     frames are correct, while the same labels on any build artifact are not. Check the plane before
+     assigning a producer.
 4. **Pure FSMs.** `view()` + `advance(event, payload)`, clock injected, context serializable,
    effects returned as data. A persona state must gate real behavior — a state that nothing
    consults is a defect, not a feature.
