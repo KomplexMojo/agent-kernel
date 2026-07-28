@@ -55,12 +55,6 @@ const CATALOG = [
     fields: ["meta", "intentRef", "plan", "directives"],
   },
   {
-    schema: "agent-kernel/BudgetReceipt",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.COMPATIBILITY,
-    description: "Legacy budget policy receipt retained for compatibility; live build/runtime flows use BudgetReceiptArtifact.",
-  },
-  {
     schema: "agent-kernel/BudgetArtifact",
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.SUPPORTING_INPUT,

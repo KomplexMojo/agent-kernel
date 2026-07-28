@@ -841,7 +841,6 @@ export interface HazardProposalEffect {
 // Budgeting (Director/Configurator/Actor → Allocator)
 // -------------------------
 
-export const BUDGET_RECEIPT_SCHEMA = "agent-kernel/BudgetReceipt";
 export const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 export const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
 export const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
@@ -855,41 +854,6 @@ export interface BudgetCategoryCaps {
    */
   caps: Record<string, number>;
 }
-
-export interface BudgetReceiptV1 {
-  schema: typeof BUDGET_RECEIPT_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-
-  /** Reference to the request being answered. */
-  requestRef: ArtifactRef;
-
-  /** Decision outcome. */
-  decision: "approved" | "rejected" | "approved_with_constraints";
-
-  /** Effective caps/limits to be enforced downstream (policy-free enforcement happens in `core-ts`). */
-  effectiveCaps: BudgetCategoryCaps;
-
-  /**
-   * Additional hard constraints/limits (counts, sizes, horizons) expressed as numbers.
-   * Configurator should embed these into executable configuration.
-   */
-  limits?: Record<string, number>;
-
-  /** Diagnostics for rejection or constrained approvals. */
-  diagnostics?: {
-    reasons: string[];
-    suggestions?: Array<{
-      key: string;
-      /** Suggested new value for the proposal key. */
-      value: number;
-      note?: string;
-    }>;
-  };
-}
-
-/** Legacy receipt contract retained for compatibility with older fixtures and refs. */
-export type BudgetReceipt = BudgetReceiptV1;
 
 // -------------------------
 // Token budgets (Orchestrator → Director → Configurator → Allocator)

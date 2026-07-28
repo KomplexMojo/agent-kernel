@@ -8,7 +8,11 @@ export const RESOURCE_ARTIFACT_SCHEMA_VERSION = 1;
 
 const BUDGET_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
-const BUDGET_RECEIPT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
+// Named for what it actually is. This was `BUDGET_RECEIPT_SCHEMA`, colliding with the
+// artifacts.ts export of that name whose value was the DIFFERENT (now retired, PA.3)
+// "agent-kernel/BudgetReceipt". Importing the real export here would have silently
+// validated against the wrong schema.
+const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
 const AGENT_COMMAND_ACTIONS = new Set(["author", "configure"]);
 const AGENT_COMMAND_OBJECT_KINDS = new Set([
   "room",
@@ -870,7 +874,7 @@ export function validateBuildSpec(spec) {
         validateInlineArtifact(spec.budget.priceList, "budget.priceList", PRICE_LIST_SCHEMA, errors);
       }
       if (spec.budget.receipt !== undefined) {
-        validateInlineArtifact(spec.budget.receipt, "budget.receipt", BUDGET_RECEIPT_SCHEMA, errors);
+        validateInlineArtifact(spec.budget.receipt, "budget.receipt", BUDGET_RECEIPT_ARTIFACT_SCHEMA, errors);
       }
     }
   }

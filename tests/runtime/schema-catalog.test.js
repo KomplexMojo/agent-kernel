@@ -38,18 +38,26 @@ test("schema catalog includes core runtime schemas", async () => {
     assert.equal(resolved?.category, SCHEMA_CATEGORIES.CANONICAL_RUNTIME_HANDOFF);
   });
 
-  assert.equal(
-    byKey.get("agent-kernel/BudgetReceipt@1")?.category,
-    SCHEMA_CATEGORIES.COMPATIBILITY,
+  // The LIVE receipt contract. PA.3 retired the legacy `agent-kernel/BudgetReceipt`,
+  // so BudgetReceiptArtifact is now the only receipt schema.
+  assert.ok(
+    byKey.get("agent-kernel/BudgetReceiptArtifact@1"),
+    "BudgetReceiptArtifact is the canonical receipt contract and must stay catalogued",
   );
-  // PA.1 dropped Observation and DebugDump (no producer, no consumer). Snapshot remains
-  // EXPERIMENTAL pending PA.4, which is gated on a TickFrameV1 field decision.
+
+  // Snapshot remains EXPERIMENTAL pending PA.4, which is gated on a TickFrameV1 field decision.
   ["agent-kernel/Snapshot@1"].forEach((key) => {
     assert.equal(byKey.get(key)?.category, SCHEMA_CATEGORIES.EXPERIMENTAL);
   });
 
-  // Dropped schemas must stay out of the catalog.
-  ["agent-kernel/Observation@1", "agent-kernel/DebugDump@1", "agent-kernel/BudgetRequest@1"].forEach((key) => {
+  // Dropped schemas must stay out of the catalog (PA.1-PA.3).
+  [
+    "agent-kernel/Observation@1",
+    "agent-kernel/DebugDump@1",
+    "agent-kernel/BudgetRequest@1",
+    "agent-kernel/ActorState@1",
+    "agent-kernel/BudgetReceipt@1",
+  ].forEach((key) => {
     assert.equal(byKey.get(key), undefined, `${key} was dropped and must not reappear in the catalog`);
   });
 });
