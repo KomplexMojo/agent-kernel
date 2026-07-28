@@ -129,12 +129,6 @@ const CATALOG = [
     description: "Resolved affinity/hazard summary.",
   },
   {
-    schema: "agent-kernel/ActorState",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.EXPERIMENTAL,
-    description: "Experimental actor-state contract retained for fixtures and contract exploration.",
-  },
-  {
     schema: "agent-kernel/SolverRequest",
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.INTERMEDIATE,

@@ -1369,10 +1369,12 @@ export interface AffinitySummaryV1 {
 export type AffinitySummary = AffinitySummaryV1;
 
 // -------------------------
-// Core Actor State (core-ts)
+// Actor vital/capability records (shared by the live actor-carrying schemas)
+//
+// PA.2 retired the `agent-kernel/ActorState` artifact — it had no producer and no
+// consumer. These two record types are NOT dead: they are the field types used by
+// InitialStateArtifact actors and the other live actor-carrying contracts below.
 // -------------------------
-
-export const ACTOR_STATE_SCHEMA = "agent-kernel/ActorState";
 
 export interface VitalRecordV1 {
   current: number;
@@ -1385,25 +1387,6 @@ export interface CapabilityRecordV1 {
   actionCostMana?: number;
   actionCostStamina?: number;
 }
-
-export interface ActorStateV1 {
-  schema: typeof ACTOR_STATE_SCHEMA;
-  schemaVersion: 1;
-  actor: {
-    id: string;
-    kind: "stationary" | "barrier" | "motivated";
-    position: { x: number; y: number };
-    vitals: {
-      health: VitalRecordV1;
-      mana: VitalRecordV1;
-      stamina: VitalRecordV1;
-      durability: VitalRecordV1;
-    };
-    capabilities?: CapabilityRecordV1;
-  };
-}
-
-export type ActorState = ActorStateV1;
 
 // -------------------------
 // Solver artifacts (runtime adapters)
