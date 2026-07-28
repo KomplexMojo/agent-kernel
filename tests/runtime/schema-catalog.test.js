@@ -45,18 +45,18 @@ test("schema catalog includes core runtime schemas", async () => {
     "BudgetReceiptArtifact is the canonical receipt contract and must stay catalogued",
   );
 
-  // Snapshot remains EXPERIMENTAL pending PA.4, which is gated on a TickFrameV1 field decision.
-  ["agent-kernel/Snapshot@1"].forEach((key) => {
-    assert.equal(byKey.get(key)?.category, SCHEMA_CATEGORIES.EXPERIMENTAL);
-  });
-
-  // Dropped schemas must stay out of the catalog (PA.1-PA.3).
+  // Dropped schemas must stay out of the catalog (PA.1-PA.4). Every one of these had no
+  // production producer and no consumer; re-adding one should fail loudly rather than
+  // quietly regrow the surface PA exists to shrink.
   [
     "agent-kernel/Observation@1",
     "agent-kernel/DebugDump@1",
     "agent-kernel/BudgetRequest@1",
     "agent-kernel/ActorState@1",
     "agent-kernel/BudgetReceipt@1",
+    "agent-kernel/Event@1",
+    "agent-kernel/Snapshot@1",
+    "agent-kernel/BudgetLedgerArtifact@1",
   ].forEach((key) => {
     assert.equal(byKey.get(key), undefined, `${key} was dropped and must not reappear in the catalog`);
   });

@@ -93,8 +93,8 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
       ],
       emittedEvents: [
         {
-          schema: "agent-kernel/Event",
-          schemaVersion: 1,
+          // PA.4 retired the agent-kernel/Event envelope; events are a plain shape on
+          // TickFrame.emittedEvents. Narration reads kind/actorId/data only.
           tick: 1,
           kind: "actor_moved",
           actorId: "actor_1",
@@ -143,8 +143,6 @@ test("cli narrate writes a turn-by-turn narrative artifact", () => {
       ],
       emittedEvents: [
         {
-          schema: "agent-kernel/Event",
-          schemaVersion: 1,
           tick: 2,
           kind: "actor_blocked",
           actorId: "actor_1",

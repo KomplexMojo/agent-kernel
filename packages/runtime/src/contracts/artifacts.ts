@@ -1412,12 +1412,10 @@ export type SolverResult = SolverResultV1;
 // -------------------------
 
 export const ACTION_SCHEMA = "agent-kernel/Action";
-export const EVENT_SCHEMA = "agent-kernel/Event";
 export const EFFECT_SCHEMA = "agent-kernel/Effect";
 
 /** Effect fulfillment category used by the Moderator to route effects deterministically. */
 export type EffectFulfillment = "deterministic" | "deferred";
-export const SNAPSHOT_SCHEMA = "agent-kernel/Snapshot";
 
 export const TICK_FRAME_SCHEMA = "agent-kernel/TickFrame";
 
@@ -1492,10 +1490,14 @@ export interface ActionV1 {
  * - Breaking changes require a schemaVersion bump.
  * - Do not embed internal memory layouts.
  */
+/**
+ * NOT a standalone artifact (PA.4, 2026-07-28). `agent-kernel/Event` was retired — nothing
+ * ever produced or consumed an Event artifact. This shape survives because it is the element
+ * type of `TickFrameV1.emittedEvents`, which IS live: ak-impl.mjs reads it when narrating a
+ * run. Consumers use `kind`, `actorId`, `targetActorId`, `targetId` and `data` — never a
+ * schema envelope — so the envelope was removed rather than versioned.
+ */
 export interface EventV1 {
-  schema: typeof EVENT_SCHEMA;
-  schemaVersion: 1;
-
   tick: number;
 
   /** Stable event kind. */
@@ -1608,10 +1610,14 @@ export interface EffectV1 {
  * - Breaking changes require a schemaVersion bump.
  * - Do not embed internal memory layouts.
  */
+/**
+ * NOT a standalone artifact (PA.4, 2026-07-28). `agent-kernel/Snapshot` was retired — it had
+ * no producer and no consumer. This shape survives only as the type of the optional
+ * `TickFrameV1.emittedSnapshot` field, which no producer populates today. `BudgetLedgerViewV1`
+ * below is retained for the same reason and is unrelated to the deleted BudgetLedgerArtifact
+ * (P3.3) despite the similar name.
+ */
 export interface SnapshotV1 {
-  schema: typeof SNAPSHOT_SCHEMA;
-  schemaVersion: 1;
-
   tick: number;
 
   /** Reference to the config this snapshot belongs to. */

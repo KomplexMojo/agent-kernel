@@ -141,22 +141,10 @@ const CATALOG = [
     description: "Core action proposal.",
   },
   {
-    schema: "agent-kernel/Event",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.INTERMEDIATE,
-    description: "Core event record.",
-  },
-  {
     schema: "agent-kernel/Effect",
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.INTERMEDIATE,
     description: "Core effect record.",
-  },
-  {
-    schema: "agent-kernel/Snapshot",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.EXPERIMENTAL,
-    description: "Experimental snapshot contract retained for fixtures and inspector experiments.",
   },
   {
     schema: "agent-kernel/TickFrame",
