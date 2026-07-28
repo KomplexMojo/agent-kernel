@@ -27,14 +27,23 @@ Steps 4–7 are cheap (seconds). Never skip them to save time — a stale graph 
 
 | Agent | Model / Effort | Responsibility |
 |-------|---------------|----------------|
-| **Codex** | gpt-5.4 / high | Ideation, plan authoring, adversarial verification, **implementation of well-specified mechanical milestones** |
-| **Claude Opus** | claude-opus-4-7 / high | Orchestration — split plans into milestones, assign to agents |
-| **Claude Sonnet** | claude-sonnet-4-6 / high | Implementation — all production code and architecture refactors |
-| **Claude Sonnet** | claude-sonnet-4-6 / medium | Base test authoring — writes test files with TODO permutation stubs |
+| **Codex** | GPT-5 tier / high | Ideation, plan authoring, adversarial verification, **implementation of well-specified mechanical milestones** |
+| **Claude Opus** | Opus tier / high | Orchestration — split plans into milestones, assign to agents |
+| **Claude Sonnet** | Sonnet tier / high | Implementation — all production code and architecture refactors |
+| **Claude Sonnet** | Sonnet tier / medium | Base test authoring — writes test files with TODO permutation stubs |
 | **Ollama** (local model) | local / — | Test permutation expansion from TODO stubs, artifact summarization, schema classification |
 | **Remote Ollama** (GPU node) | qwen3-coder:30b-a3b-q4_K_M / — | Content-gen benchmark — permutation + stress testing of the LLM tool-call surface via `run-content-gen` |
 | **Claude Sonnet** | Sonnet tier / medium | Descriptive docs — package / persona READMEs, `docs/README.md`, `docs/readme-index.md`, CLI README — plus commit messages and PR authoring |
 | **Claude Opus** | Opus tier / high | Normative docs — `docs/architecture-charter.md`, `docs/vision-contract.md`, `docs/architecture/diagram.mmd` (architectural law; maintainer sign-off still required) |
+
+> **Model names, not versions.** This table names model *tiers* (Opus, Sonnet, Haiku, GPT-5), never dated
+> IDs — those churn, and a pinned ID goes stale silently while still looking authoritative. Use the latest
+> release in each tier; pick the exact ID with `/model` or the API. **The effort level (high / medium) is
+> the load-bearing part of each row** and must be preserved when a tier is updated. `CLAUDE.md` states the
+> same policy; the two files must agree.
+>
+> The one deliberate exception is the Remote Ollama row: `qwen3-coder:30b-a3b-q4_K_M` is pinned on purpose
+> because the content-gen benchmark baseline is only comparable against that exact model.
 
 Claude's full enforcement rules are in `CLAUDE.md`. Read it to understand what will be changed and why.
 
