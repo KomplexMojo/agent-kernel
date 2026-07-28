@@ -55,12 +55,6 @@ const CATALOG = [
     fields: ["meta", "intentRef", "plan", "directives"],
   },
   {
-    schema: "agent-kernel/BudgetRequest",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.EXPERIMENTAL,
-    description: "Experimental allocator policy request contract retained for fixtures and compatibility review.",
-  },
-  {
     schema: "agent-kernel/BudgetReceipt",
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.COMPATIBILITY,
@@ -159,12 +153,6 @@ const CATALOG = [
     description: "Core action proposal.",
   },
   {
-    schema: "agent-kernel/Observation",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.EXPERIMENTAL,
-    description: "Experimental observation contract; live bindings expose observations without persisting this schema.",
-  },
-  {
     schema: "agent-kernel/Event",
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.INTERMEDIATE,
@@ -181,12 +169,6 @@ const CATALOG = [
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.EXPERIMENTAL,
     description: "Experimental snapshot contract retained for fixtures and inspector experiments.",
-  },
-  {
-    schema: "agent-kernel/DebugDump",
-    schemaVersion: 1,
-    category: SCHEMA_CATEGORIES.EXPERIMENTAL,
-    description: "Debug-only dump artifact retained for manual diagnostics.",
   },
   {
     schema: "agent-kernel/TickFrame",

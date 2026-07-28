@@ -841,7 +841,6 @@ export interface HazardProposalEffect {
 // Budgeting (Director/Configurator/Actor → Allocator)
 // -------------------------
 
-export const BUDGET_REQUEST_SCHEMA = "agent-kernel/BudgetRequest";
 export const BUDGET_RECEIPT_SCHEMA = "agent-kernel/BudgetReceipt";
 export const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 export const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
@@ -855,32 +854,6 @@ export interface BudgetCategoryCaps {
    * Canonical location for caps is SimConfigArtifactV1.constraints.categoryCaps.
    */
   caps: Record<string, number>;
-}
-
-/**
- * Legacy request contract for budget evaluation.
- * Live build/runtime flows use BudgetArtifact + PriceList + BudgetReceiptArtifact,
- * but this schema is retained for compatibility and fixture coverage.
- */
-export interface BudgetRequestV1 {
-  schema: typeof BUDGET_REQUEST_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-
-  /** The plan being evaluated (if applicable). */
-  planRef?: ArtifactRef;
-
-  /**
-   * Proposed complexity inputs. Keep numeric where possible so evaluation is deterministic.
-   * Examples: actorCount, layoutComplexity, maxMotivationsPerActor, solverDepth.
-   */
-  proposal: Record<string, number>;
-
-  /** Optional requested caps (Allocator may accept/override). */
-  requestedCaps?: BudgetCategoryCaps;
-
-  /** Optional rationale for trace/debug. */
-  rationale?: string;
 }
 
 export interface BudgetReceiptV1 {
@@ -915,7 +888,6 @@ export interface BudgetReceiptV1 {
   };
 }
 
-export type BudgetRequest = BudgetRequestV1;
 /** Legacy receipt contract retained for compatibility with older fixtures and refs. */
 export type BudgetReceipt = BudgetReceiptV1;
 
@@ -1493,14 +1465,12 @@ export type SolverResult = SolverResultV1;
 // -------------------------
 
 export const ACTION_SCHEMA = "agent-kernel/Action";
-export const OBSERVATION_SCHEMA = "agent-kernel/Observation";
 export const EVENT_SCHEMA = "agent-kernel/Event";
 export const EFFECT_SCHEMA = "agent-kernel/Effect";
 
 /** Effect fulfillment category used by the Moderator to route effects deterministically. */
 export type EffectFulfillment = "deterministic" | "deferred";
 export const SNAPSHOT_SCHEMA = "agent-kernel/Snapshot";
-export const DEBUG_DUMP_SCHEMA = "agent-kernel/DebugDump";
 
 export const TICK_FRAME_SCHEMA = "agent-kernel/TickFrame";
 
@@ -1566,20 +1536,6 @@ export interface ActionV1 {
  * - Breaking changes require a schemaVersion bump.
  * - Do not embed internal memory layouts.
  */
-export interface ObservationV1 {
-  schema: typeof OBSERVATION_SCHEMA;
-  schemaVersion: 1;
-
-  actorId: string;
-  tick: number;
-
-  /**
-   * Minimal world view. Keep generic; do not leak internal core state layouts.
-   * Consider versioning snapshots separately if you need richer inspector views.
-   */
-  view: Record<string, unknown>;
-}
-
 /**
  * Facts emitted by `core-ts` after applying actions (or advancing ticks).
  * Annotator consumes these as read-only inputs.
@@ -1722,23 +1678,6 @@ export interface SnapshotV1 {
 }
 
 /**
- * Debug-only full state dump. Not stable and not guaranteed for determinism or replay.
- * Use for troubleshooting only; do not depend on this in UI or runtime logic.
- */
-export interface DebugDumpV1 {
-  schema: typeof DEBUG_DUMP_SCHEMA;
-  schemaVersion: 1;
-
-  tick: number;
-
-  /** Full internal state; format is intentionally opaque and unstable. */
-  state: Record<string, unknown>;
-
-  /** Explicit warning to prevent misuse. */
-  warning: "debug_only_not_for_replay";
-}
-
-/**
  * Moderator-owned execution frame for a single tick/step.
  * This makes execution sequencing and pre-core rejections explicit and replayable.
  */
@@ -1789,14 +1728,12 @@ export interface TickFrameV1 {
 }
 
 export type Action = ActionV1;
-export type Observation = ObservationV1;
 export type Event = EventV1;
 export type BudgetEventData = BudgetEventDataV1;
 export type BudgetLedgerView = BudgetLedgerViewV1;
 export type Effect = EffectV1;
 export type EffectFulfillmentRecord = EffectFulfillmentRecordV1;
 export type Snapshot = SnapshotV1;
-export type DebugDump = DebugDumpV1;
 export type TickFrame = TickFrameV1;
 
 // -------------------------

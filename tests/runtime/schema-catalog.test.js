@@ -42,7 +42,14 @@ test("schema catalog includes core runtime schemas", async () => {
     byKey.get("agent-kernel/BudgetReceipt@1")?.category,
     SCHEMA_CATEGORIES.COMPATIBILITY,
   );
-  ["agent-kernel/Observation@1", "agent-kernel/Snapshot@1", "agent-kernel/DebugDump@1"].forEach((key) => {
+  // PA.1 dropped Observation and DebugDump (no producer, no consumer). Snapshot remains
+  // EXPERIMENTAL pending PA.4, which is gated on a TickFrameV1 field decision.
+  ["agent-kernel/Snapshot@1"].forEach((key) => {
     assert.equal(byKey.get(key)?.category, SCHEMA_CATEGORIES.EXPERIMENTAL);
+  });
+
+  // Dropped schemas must stay out of the catalog.
+  ["agent-kernel/Observation@1", "agent-kernel/DebugDump@1", "agent-kernel/BudgetRequest@1"].forEach((key) => {
+    assert.equal(byKey.get(key), undefined, `${key} was dropped and must not reappear in the catalog`);
   });
 });
