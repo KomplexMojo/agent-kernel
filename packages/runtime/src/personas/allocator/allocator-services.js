@@ -24,6 +24,7 @@ import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend
 import { calculateMotivationStackCost } from "./motivation-price-policy.js";
 import { updateBudgetLedger } from "./budget-ledger.js";
 import { buildScenarioSpendReport } from "./incentive-model.js";
+import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 
 export class AllocatorStateError extends Error {
   constructor(message) {
@@ -135,6 +136,20 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
     return buildScenarioSpendReport(args);
   }
 
+  // Budget maximization + feasibility (charter: "budget maximization is Allocator
+  // policy"). Read-only policy over the caller-supplied budget/price args — like
+  // pricing.*, available in any FSM state and NOT gated behind registerBudget:
+  // the budget is a per-call argument (split-budget authoring assesses/maximizes
+  // twice with two different budgets in one command), not persona state, and
+  // neither issues receipts nor mutates the ledger.
+  function assessFeasibility(args = {}) {
+    return ensureBudgetedFulfillmentFeasible(args);
+  }
+
+  function maximizeFulfillment(args = {}) {
+    return applyBudgetCappedFulfillment(args);
+  }
+
   /** Serializable service-side context merged into the persona view. */
   function serviceContext() {
     return {
@@ -152,6 +167,8 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
     evaluateRoomCardLayoutSpend: boundEvaluateRoomCardLayoutSpend,
     updateLedger,
     scenarioSpendReport,
+    assessFeasibility,
+    maximizeFulfillment,
     serviceContext,
   };
 }

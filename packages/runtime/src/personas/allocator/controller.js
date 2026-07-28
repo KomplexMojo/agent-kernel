@@ -102,5 +102,7 @@ export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, cl
     evaluateRoomCardLayoutSpend: services.evaluateRoomCardLayoutSpend,
     updateLedger: services.updateLedger,
     scenarioSpendReport: services.scenarioSpendReport,
+    assessFeasibility: services.assessFeasibility,
+    maximizeFulfillment: services.maximizeFulfillment,
   };
 }

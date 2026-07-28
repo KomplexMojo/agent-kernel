@@ -5,14 +5,6 @@
   },
   {
     "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
-    "to": "packages/runtime/src/personas/configurator/cost-model.js"
-  },
-  {
-    "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
-    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
-  },
-  {
-    "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
     "to": "packages/runtime/src/personas/director/buildspec-assembler.js"
   },
   {
@@ -154,6 +146,18 @@
   {
     "from": "packages/runtime/src/personas/_shared/tick-orchestrator.mts",
     "to": "packages/runtime/src/personas/orchestrator/llm-capture.js"
+  },
+  {
+    "from": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
+    "to": "packages/runtime/src/personas/configurator/card-model.js"
+  },
+  {
+    "from": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
+    "to": "packages/runtime/src/personas/configurator/cost-model.js"
+  },
+  {
+    "from": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
+    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
   },
   {
     "from": "packages/runtime/src/personas/allocator/incentive-model.js",
