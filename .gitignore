@@ -8,8 +8,14 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs
+# NOTE: `build/` matches ANY directory of that name at any depth, and this repo keeps real
+# SOURCE and TESTS in directories called `build`. Every such directory needs an explicit
+# negation or its contents silently never get committed — `tests/runtime/build/` sat untracked
+# from 2026-04-22 until 2026-07-28 for exactly this reason, so those tests ran locally but were
+# absent from the repo and from CI. Add a negation here when introducing another `build/` dir.
 build/
 !packages/runtime/src/build/
+!tests/runtime/build/
 dist/
 coverage/
 *.wasm
