@@ -13,13 +13,12 @@ Every agent that writes code must complete this checklist at the start of each s
 | 2. Dependencies | `pnpm install --frozen-lockfile` | All packages match lockfile |
 | 3. Tests baseline | `pnpm run test` | No pre-existing failures before changes begin |
 | 4. Agent context refresh | `bash scripts/setup/agent-context.sh` | Branch-local Graphify + CodeContext snapshot refreshed and mirrored |
-| 5. CodeContextGraph watch | `mcp__CodeGraphContext__watch_directory` on repo root | Structural graph live-watching; picks up M1+ contract changes |
-| 6. **Graph sanity check** | `bash scripts/setup/graph-sanity-check.sh` | **The graph is COMPLETE, not just reachable.** Asserts the build plane + tests are indexed, no worktree copies pollute results, and the known-caller canary holds |
-| 7. Orient from graphify | Read `local-codex/CodeContext.md`, then the mirrored Graphify report it names | High-level semantic map loaded before structural queries |
+| 5. Serena reachable | Any `mcp__serena__*` tool responds | Structural queries available (live LSP — nothing to index, watch, or canary-check) |
+| 6. Orient from graphify | Read `local-codex/CodeContext.md`, then the mirrored Graphify report it names | High-level semantic map loaded before structural queries |
 
-Steps 4–7 are cheap (seconds). Never skip them to save time — a stale graph produces wrong answers that cost far more to untangle.
+Steps 4–6 are cheap (seconds). Never skip them to save time.
 
-**Step 6 is not ceremony.** Until PT.1 (2026-07-28) the graph silently excluded every file under `packages/runtime/src/build/` because `IGNORE_DIRS` contained `build`, so structural queries about the build plane returned `success: true` with zero rows. `find_callers("buildBuildTelemetryRecord")` answered **0 callers when there are 5** — an answer that would have "proved" a live function dead. If step 6 exits non-zero, treat every graph answer as a hint and verify by reading files.
+> Historical note: steps 5–6 used to be "start the CodeContextGraph watch" and "run graph-sanity-check.sh". CodeGraphContext was retired 2026-07-28 after its persistent index went stale-but-confident twice (PT.1's `IGNORE_DIRS` build-plane blindness, then a skipped re-index that dropped all of `tests/`). Serena's language-server answers are computed live from the working tree, so that failure class — and the canary apparatus that guarded it — is gone.
 
 ---
 
@@ -31,8 +30,11 @@ Steps 4–7 are cheap (seconds). Never skip them to save time — a stale graph 
 | **Claude Opus** | Opus tier / high | Orchestration — split plans into milestones, assign to agents |
 | **Claude Sonnet** | Sonnet tier / high | Implementation — all production code and architecture refactors |
 | **Claude Sonnet** | Sonnet tier / medium | Base test authoring — writes test files with TODO permutation stubs |
-| **Ollama** (local model) | local / — | Test permutation expansion from TODO stubs, artifact summarization, schema classification |
+| **Ollama** (local model) | local / — | Test permutation expansion from TODO stubs (`/local-test-gen`), artifact summarization, schema classification (`local_*` MCP) |
 | **Remote Ollama** (GPU node) | qwen3-coder:30b-a3b-q4_K_M / — | Content-gen benchmark — permutation + stress testing of the LLM tool-call surface via `run-content-gen` |
+| **fast-pass** (subagent) | Haiku (pinned in `.claude/agents/fast-pass.md`) | Test-suite failure detection via Vitest JSON reporter; returns structured failure list; tools: Bash, Read only |
+| **fix-pass** (subagent) | Opus (pinned in `.claude/agents/fix-pass.md`) | Failure diagnosis + minimal fixes; queries Serena on architectural categories; escalates boundary changes; full tools |
+| **codex-reviewer** (subagent) | Sonnet | Review-only wrapper around the Codex adversarial flow; tools: Read, Glob, Grep, Bash — **no Edit/Write** |
 | **Claude Sonnet** | Sonnet tier / medium | Descriptive docs — package / persona READMEs, `docs/README.md`, `docs/readme-index.md`, CLI README — plus commit messages and PR authoring |
 | **Claude Opus** | Opus tier / high | Normative docs — `docs/architecture-charter.md`, `docs/vision-contract.md`, `docs/architecture/diagram.mmd` (architectural law; maintainer sign-off still required) |
 
@@ -56,11 +58,11 @@ Codex (ideation/plan)
     ↓
 Claude Opus (orchestrate: milestone split + agent assignment)
     ↓  ← generates local-codex/CodeContext.md snapshot before each Codex handoff
-Claude Sonnet/high (implement)  ← queries CodeContextGraph via MCP; no grep/find
+Claude Sonnet/high (implement)  ← queries Serena MCP for structural lookups
     ↓
 Claude Sonnet/medium (write base tests + TODO permutation stubs)
     ↓
-Ollama (expand permutations in place via /ollama-test-permutations)   ← unit/integration correctness
+Ollama (expand permutations in place via /local-test-gen)   ← unit/integration correctness
     ↓
 Remote Ollama GPU (run-content-gen benchmark)  ← LLM tool-call permutation + stress; gated on ak_create changes
     ↓
@@ -76,32 +78,31 @@ so anyone following them would have edited a re-export shim and their change wou
 - **Tests** (`pnpm run test`) — deterministic correctness: does the code behave as specified? Vitest + Playwright, fixture-backed, no external services.
 - **Benchmarks** (`run-content-gen`) — LLM tool-call surface under load: does the model produce valid tool calls for all 50 scenario permutations across tiers? Runs on the remote GPU node; measures exec success rate and scenario score. Not a substitute for tests and not run on every commit — only when the `ak_create` schema, CLI arg mapping, or entity normalization changes.
 
-## CodeContextGraph — shared code understanding
+## Serena — shared structural code understanding
 
-CodeContextGraph (MCP) is the single source of truth for code structure and dependencies.
-The watch is active on `/Users/darren/Documents/GitHub/agent-kernel` — the graph updates automatically on every file save.
+Serena (MCP, language-server-backed) answers structural questions — definitions, callers, references, file symbol maps — **live from the working tree**. There is no persistent index, so there is no rebuild to schedule and no watch to keep alive.
 
-**All agents with MCP access (Claude, Ollama, Codex):** query the graph directly. Do not use `grep`, `rg`, `find`, or `Glob` for codebase navigation or structural questions while CodeContextGraph is available. Codex has `codegraphcontext` registered in its own MCP config (`codex mcp list`) and can query the graph during tasks.
+**There is still a scope to audit — it is `.gitignore`.** Serena runs with `ignore_all_files_in_gitignore: true`, and it does not honor re-inclusion negations the way git does, so an ignore rule written for build output can hide real source. That is exactly what happened on 2026-07-28: the bare `build/` rule hid `packages/runtime/src/build/` and `tests/runtime/build/`, and `find_symbol` answered with test-local import consts instead of the definition. **An empty or thin result is still not proof of absence** — confirm the defining file is visible (`get_symbols_overview` on it) before concluding "no callers" or "dead code". The ignore scope is read at activation, so `.gitignore` edits need an MCP restart.
 
-**Failure policy:** if CodeContextGraph is unavailable, stale, or returns insufficient structural results, stop and report the MCP issue explicitly. Do not silently fall back to filesystem search for code discovery.
+**Scope:** Serena is for relational/structural queries (`find_symbol`, `find_referencing_symbols`, `find_declaration`, `find_implementations`, `get_symbols_overview`). `grep`/`rg` are legitimate for literal text — prose, fixture strings, exact error messages — and for pattern search, which Serena does not offer; no prior-query justification is required.
 
-**Empty is not absent.** The graph's most dangerous failure is not an error — it is `success: true` with zero rows for code it never indexed. Before acting on a negative result ("no callers", "dead code", "nothing imports this"), confirm the defining file is in the graph; a one-line check is `MATCH (f:File) WHERE f.path CONTAINS '<file>' RETURN count(*)`. Scope is governed by `IGNORE_DIRS` in `mcp.json` / `~/.claude.json` / `~/.codegraphcontext/.env` — **all three must agree**, since they share one FalkorDB and whichever client indexes last wins. Current scope: `packages/**` and `tests/**` indexed; `docs`, `tools`, `scripts`, `coverage`, `graphify-out`, `artifacts`, `local-codex`, `.claude` excluded.
+**Failure policy:** if Serena is unavailable, say so explicitly and fall back to reading files; do not guess structure from filenames.
 
-**Narrow exception:** text search is allowed only for exact literal/content matching that the graph does not model well, such as README prose, fixture strings, or known error text. Before doing that, the agent must name the MCP query it already tried and why the graph was insufficient for that specific content lookup.
-
-**Documentation agents:** since documentation moved to Claude (2026-07-27), every agent that writes docs has live MCP access — verify a claim against the graph (or the file itself) before writing it down. `local-codex/CodeContext.md`, the snapshot generated by `scripts/setup/agent-context.sh`, remains the cold-start context for Codex handoffs.
+**Documentation agents:** verify a claim against Serena (or the file itself) before writing it down. `local-codex/CodeContext.md`, the snapshot generated by `scripts/setup/agent-context.sh`, remains the cold-start context for Codex handoffs.
 
 ### Snapshot generation (before each Codex handoff)
 
-Run `bash scripts/setup/agent-context.sh` before every Codex task. This writes a fresh `local-codex/CodeContext.md` and mirrors branch-local Graphify output under `~/vault/codex-context/agent-kernel/worktrees/<id>/`. Codex reads the snapshot first, then queries the live graph for detail. Do not reuse a snapshot from a prior milestone; the graph may have changed.
+Run `bash scripts/setup/agent-context.sh` before every Codex task. This writes a fresh `local-codex/CodeContext.md` and mirrors branch-local Graphify output under `~/vault/codex-context/agent-kernel/worktrees/<id>/`. Codex reads the snapshot first, then verifies detail against the live tree. Do not reuse a snapshot from a prior milestone.
 
-```
-mcp__CodeGraphContext__get_repository_stats        → file/function/module counts
-mcp__CodeGraphContext__analyze_code_relationships  → package-level import graph
-mcp__CodeGraphContext__find_most_complex_functions → top 10 complexity hotspots
-```
+## Subagent roster (`.claude/agents/`)
 
-Before opening implementation files or proposing edits, Claude should cite the CodeContextGraph query or queries it used to locate the target area. This keeps MCP-first navigation auditable during handoffs.
+| Subagent | Model | Scope | Tools |
+|---|---|---|---|
+| `fast-pass` | Haiku 4.5 (pinned) | Run Vitest via JSON reporter; return structured failure list `{test, file, category, message}`; never edits | Bash, Read |
+| `fix-pass` | Opus 5 (pinned) | Diagnose + fix categorized failures; Serena lookups on Dependency Inversion / Effect Routing; escalates boundary changes to the maintainer | full |
+| `codex-reviewer` | Sonnet | Run Codex adversarial review via the plugin runtime; verify claims; relay verdict; review-only | Read, Glob, Grep, Bash (no Edit/Write) |
+
+Orchestration recipe: `.claude/skills/tiered-test-optimizer/SKILL.md`. Escalations from `fix-pass` go to the maintainer verbatim; the orchestrator never approves boundary changes itself.
 
 ---
 
@@ -152,7 +153,7 @@ Before opening implementation files or proposing edits, Claude should cite the C
 
 ## Ollama — test permutation expansion
 
-- Triggered by `/ollama-test-permutations` skill, launched via Claude Code harness.
+- Triggered by `/local-test-gen` (repo-owned skill, `.claude/skills/local-test-gen/`), launched via Claude Code harness. Auto-detects the warm Ollama model; remote GPU runs go through `remote-ollama-mac run-local --profile dual`.
 - Reads `## TODO: Test Permutations` stubs and generates concrete test cases in place.
 - Must read `tests/README.md` before expanding permutations or building bounded CLI-option matrices.
 - Should use the test-harness MCP to discover patterns, scaffold or insert cases, and run narrow scopes.
@@ -247,7 +248,7 @@ Benchmarking is distinct from testing. Tests verify correctness; benchmarks veri
 
 ## Pre-handoff checklist (before commit)
 
-- `local-codex/CodeContext.md` regenerated from CodeContextGraph before this Codex task started.
+- `local-codex/CodeContext.md` regenerated via `agent-context.sh` before this Codex task started.
 - Requirements → tests → code traceable in the diff.
 - Dependency direction: adapters/ui → runtime → core-ts. No inversions.
 - No `core-ts` IO or forbidden imports.

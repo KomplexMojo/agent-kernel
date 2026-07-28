@@ -17,9 +17,8 @@ Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form �
 3. `pnpm install --frozen-lockfile` — confirm lockfile match
 4. `pnpm run test` — confirm no pre-existing failures
 5. `bash scripts/setup/agent-context.sh` — refresh branch-local Graphify + `local-codex/CodeContext.md`
-6. Start CodeContextGraph watch (`mcp__CodeGraphContext__watch_directory` on repo root)
-7. `bash scripts/setup/graph-sanity-check.sh` — **prove the graph is trustworthy before relying on it.** A non-zero exit means structural answers may be confidently wrong; verify by reading files until the index is repaired (see "Code Navigation")
-8. Read `local-codex/CodeContext.md`, then the Graphify report it names
+6. Confirm the Serena MCP is connected (any `mcp__serena__*` tool responds). Serena answers structural queries live from the language server — there is no index to build, watch, or sanity-check
+7. Read `local-codex/CodeContext.md`, then the Graphify report it names
 
 ---
 
@@ -33,18 +32,22 @@ Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form �
 | Orchestration — split plans, assign milestones | **Claude Opus** (high) | Direct |
 | Implementation — write / refactor code | **Claude Sonnet** (high) | Direct |
 | Author base tests (with TODO permutation stubs) | **Claude Sonnet** (medium) | Direct |
-| Expand test permutations from TODO stubs | **Ollama** (local) | `/ollama-test-permutations` |
+| Test-suite failure detection (structured JSON, no log dumps) | **Claude Haiku** (`fast-pass` subagent) | `/tiered-test-optimizer` |
+| Test-failure diagnosis + fix | **Claude Opus** (`fix-pass` subagent) | `/tiered-test-optimizer` |
+| Adversarial-review relay (review-only, no Edit/Write) | **Claude Sonnet** (`codex-reviewer` subagent) | wraps `/codex:adversarial-review` |
+| Expand test permutations from TODO stubs | **Ollama** (local) | `/local-test-gen` |
 | Summarize / classify / extract structured data | **Ollama** (local) | `local_*` via MCP |
 | Content-gen benchmark — permutation + stress of the tool-call surface | **Remote Ollama** (dual GPU) | `run-content-gen` |
 | Descriptive docs — package / persona READMEs, `docs/README.md`, `docs/readme-index.md`, CLI README | **Claude Sonnet** (medium) | Direct |
 | Normative docs — `docs/architecture-charter.md`, `docs/vision-contract.md`, `docs/architecture/diagram.mmd` | **Claude Opus** (high) | Direct |
 | Commit messages, PRs | **Claude Sonnet** (medium) | Direct + `gh` CLI |
 
-All agents have live MCP access to CodeContextGraph. Name the query used when handing off or justifying a target area.
+Structural code questions go through the **Serena MCP** (live language-server answers). The **Ollama tier is strategic, not legacy**: local Ollama (via `local_*` MCP tools and `/local-test-gen`) is the no-cost path for decomposable subtasks; the remote dual-GPU box runs the content-gen benchmark and heavy batch work. Subagents cannot run on Ollama models, so the low-cost tier stays skill/MCP-mediated by design.
 
 - **Codex** — ideation, plan authoring (`local-codex/Plan.md` → `~/vault/plans/active/Plan.md`), adversarial review, and **mechanical implementation** (since 2026-07-18): call-site threading behind an already-designed controller API, guard/lint sweeps, bulk test migration, characterization tests to an explicit spec. Requires a complete milestone spec (target files, exact API, validation commands, stop condition); Claude verifies output against the validation commands. Codex does NOT design persona APIs, change artifact schemas, or decide pricing policy. Every adversarial review answers: (1) **Correctness** — does the diff satisfy the milestone spec? (2) **Simplicity** — is it 3× more complex than the simplest solution? If so, give a specific rewrite.
 - **Claude** — before any milestone code: state assumptions, surface ambiguity (stop and ask rather than guess), present tradeoffs if a simpler path exists. Implementation order: (1) failing tests + `## TODO: Test Permutations` stubs → (2) production code → (3) hand stubs to Ollama.
-- **Ollama** — expands `## TODO: Test Permutations` stubs in place via `/ollama-test-permutations`. Read `tests/README.md` first. Not for architecture, enforcement review, or persona FSM design.
+- **Ollama** — expands `## TODO: Test Permutations` stubs in place via `/local-test-gen` (auto-detects the warm model; `--model` to override; remote GPU via `remote-ollama-mac run-local`). Read `tests/README.md` first. Not for architecture, enforcement review, or persona FSM design.
+- **Subagents** (`.claude/agents/`) — `fast-pass` (Haiku, detection-only, structured Vitest JSON), `fix-pass` (Opus, diagnosis + minimal fixes, queries Serena on architectural categories, escalates boundary changes), `codex-reviewer` (Sonnet, review-only wrapper around the Codex adversarial flow). Roster details in `AGENTS.md`.
 - **Documentation (Claude, since 2026-07-27 — replaces GitHub Copilot).** Docs are written by the agent that made the change, in the **same diff** as the code: it already holds the context, and a stale doc is a live hazard, not a cosmetic debt (7 persona READMEs asserted `.mts` was the canonical source long after `.js` became it — anyone following them would have edited a re-export shim and their change would silently never run). Two tiers by stakes:
   - **Descriptive docs → Sonnet (medium).** Package/persona READMEs, `docs/README.md`, `docs/readme-index.md`, `packages/adapters-cli/README.md`. The content follows from a diff that already exists; the work is accuracy and concision, not design — the same tier as authoring base tests. Whoever changes behavior updates these in the same diff.
   - **Normative docs → Opus (high).** `docs/architecture-charter.md`, `docs/vision-contract.md`, `docs/architecture/diagram.mmd`. These are architectural **law**: every future agent obeys them, they encode decisions rather than describe code, and an error propagates silently across every later milestone. Same tier as orchestration. Charter/vision edits still require maintainer sign-off (see Refactoring and Escalation).
@@ -52,25 +55,26 @@ All agents have live MCP access to CodeContextGraph. Name the query used when ha
 
 ---
 
-## Code Navigation — CodeContextGraph vs graphify
+## Code Navigation — Serena (structural) vs graphify (conceptual) vs grep (literal)
+
+Serena replaced CodeGraphContext on 2026-07-28. It wraps the live language server — answers are computed on demand from current file state, so the *index* staleness class (dead watches, a rebuild that silently drops a directory, sanity canaries) no longer exists.
+
+⚠️ **Scope blindness does still exist, and it bit on day one.** Serena runs with `ignore_all_files_in_gitignore: true` (`.serena/project.yml`), so anything `.gitignore` excludes is invisible to it — and it does not honor re-inclusion negations the way git does. `.gitignore`'s bare `build/` rule (retired WASM output) therefore hid all of `packages/runtime/src/build/` and `tests/runtime/build/`, so `find_symbol("orchestrateBuild")` returned 18 test-local import consts and **never the definition**. Same blind spot PT.1 found in CodeGraphContext's `IGNORE_DIRS`, different tool. Fixed by deleting the rule. Two things to carry forward: `find_referencing_symbols` errors loudly on an ignored path but **`find_symbol` does not** — it just returns the wrong rows; and Serena reads the ignore scope **at project activation**, so a `.gitignore` change needs an MCP server restart before it takes effect.
 
 | Question | Use |
 |---|---|
-| Where is function X defined? | CodeContextGraph `find_code` |
-| What does module Y import? | CodeContextGraph `analyze_code_relationships` |
-| Which files are riskiest to touch? | CodeContextGraph `find_most_complex_functions` |
-| Find unused code | CodeContextGraph `find_dead_code` |
-| Repo-wide file / function counts | CodeContextGraph `get_repository_stats` |
+| Where is symbol X defined? | Serena `find_symbol` |
+| Who calls / imports X? (port → adapter, blast radius) | Serena `find_referencing_symbols` |
+| What's in this file? | Serena `get_symbols_overview` |
+| What implements this interface / where is it declared? | Serena `find_implementations` / `find_declaration` |
 | How do concepts cluster? / High-level orientation | graphify wiki (`graphify-out/wiki/index.md`) |
+| Literal text: prose, fixture strings, exact commands/messages | `grep`/`rg` — no justification needed |
 
-- **Read `local-codex/CodeContext.md` first** — it names the branch-local Graphify mirror under `~/vault/codex-context/`. Then use CodeContextGraph for all structural lookups.
-- **Graph before grep:** query CodeContextGraph before any `grep`/`rg`/`find`/`Glob`. Text search is only for literal content (README prose, fixture strings, exact commands) — not code discovery. Before any text search, name the MCP query already tried and why it was insufficient.
-- **Failure policy:** if CodeContextGraph is unavailable or insufficient, stop and report which query was attempted, what was missing, and what decision is blocked. Do not silently fall back to filesystem search.
-- **An EMPTY graph result is not evidence of absence.** The graph indexes only what `IGNORE_DIRS` permits, and it answers out-of-scope queries with `success: true` and zero rows — a confident wrong answer. PT.1 (2026-07-28) found `build` in `IGNORE_DIRS`, which hid all of `packages/runtime/src/build/` and made `find_callers("buildBuildTelemetryRecord")` report **0 callers when there are 5**. Before concluding "no callers" / "dead code" / "no importers", confirm the defining file is indexed. **Run `bash scripts/setup/graph-sanity-check.sh` at session start** — it asserts the build plane and tests are present, no worktree copies pollute results, and the known-caller canary holds. Non-zero exit means verify structural claims by reading files.
-- **The graph does NOT update on its own unless auto-watch is on.** `ENABLE_AUTO_WATCH` was `false`, so no watch ran and the index reflected whenever it was last built (the earlier claim that it "updates incrementally on every save" was false). It is now `true`; `list_watched_paths` returning empty means the watch is not running — start it with `watch_directory` on the repo root.
+- **Scope:** Serena is for relational/structural queries only. grep is legitimate for literal content and needs no prior MCP query — the old "name the query you tried first" rule is retired.
+- **Failure policy:** if Serena is unavailable, say so and fall back to reading files — don't guess structure from filenames.
 - **Re-run `/graphify` only for:** post-milestone docs passes, onboarding a new agent, or a major structural refactor.
 
-**Codex handoffs:** run `bash scripts/setup/agent-context.sh` to write `local-codex/CodeContext.md` and mirror Graphify. Then query live CodeContextGraph for repo stats, package dependency summary, milestone entry points, and top-10 complexity hotspots; cite the queries before opening any file. After a large refactor, run `mcp__CodeGraphContext__add_package_to_graph` to force a full re-scan.
+**Codex handoffs:** run `bash scripts/setup/agent-context.sh` to write `local-codex/CodeContext.md` and mirror Graphify. Codex reads the snapshot, then verifies structural claims against its own tooling; Claude cites Serena queries when justifying a target area.
 
 ---
 
@@ -79,6 +83,7 @@ All agents have live MCP access to CodeContextGraph. Name the query used when ha
 ```bash
 pnpm install                                          # Install dependencies
 pnpm run test                                         # Vitest suite
+pnpm run test -- --reporter=json --outputFile=<f>     # Structured results (what fast-pass uses)
 pnpm run test:vitest -- tests/<path>/<name>.test.js   # Single Vitest file
 pnpm run test:playwright -- tests/playwright/<name>.spec.mjs
 pnpm run serve:ui                                     # UI dev server :8001

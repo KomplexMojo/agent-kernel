@@ -19,7 +19,7 @@ Non-load-bearing knowledge for this project lives in an Obsidian vault outside t
 
 - All code (`packages/`)
 - The architecture charter, vision contract, runbooks, reference handout (under `docs/`)
-- Live code-structure graphs (`graphify-out/`, CodeGraphContext MCP)
+- Live code-structure tooling (`graphify-out/`, Serena MCP)
 - CLAUDE.md, AGENTS.md, README.md, RUNME.MD
 
 ## Setup

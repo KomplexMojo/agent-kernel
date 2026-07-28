@@ -6,7 +6,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -re '.tool_input.command' 2>/dev/null | grep -qE '(^| )(grep|rg|find)( |$)' && printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"CODE DISCOVERY via grep/rg/find detected. CLAUDE.md rule: Graph before grep. Use CodeContextGraph MCP tools instead: 1) ToolSearch with query=select:mcp__CodeGraphContext__find_code,mcp__CodeGraphContext__analyze_code_relationships 2) Call find_code or analyze_code_relationships. Only use grep for literal content (README prose, fixture strings), not code discovery.\"}}' || true"
+            "command": "cmd=$(jq -re '.tool_input.command' 2>/dev/null) && printf '%s' \"$cmd\" | grep -qE '(^| )(grep|rg)( |$)' && printf '%s' \"$cmd\" | grep -q 'packages/' && printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"Structural lookup? Serena MCP (find_symbol, find_referencing_symbols) answers callers/definitions/references live from the language server. grep is fine for literal text (prose, fixture strings, exact messages).\"}}' || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pat=$(jq -re '.tool_input.pattern' 2>/dev/null) && printf '%s' \"$pat\" | grep -qE '^[A-Za-z_][A-Za-z0-9_]{3,}$' && printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"That pattern looks like a symbol name. Serena MCP find_symbol / find_referencing_symbols gives definitions and callers with LSP precision. grep stays right for literal text.\"}}' || true"
           }
         ]
       }
