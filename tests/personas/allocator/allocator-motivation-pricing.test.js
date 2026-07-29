@@ -18,7 +18,14 @@ async function load() {
 }
 
 test("families and price ids cover all 12 kinds; family resolution intact", async () => {
-  const { MOTIVATION_FAMILIES, MOTIVATION_PRICE_IDS, resolveMotivationFamily } = await load();
+  const { MOTIVATION_PRICE_IDS, resolveMotivationFamily } = await load();
+  // MOTIVATION_FAMILIES comes from contracts/domain-constants.js (P5.1 D2). The
+  // Allocator used to hand-maintain its own byte-identical copy; the G2 single-origin
+  // guard found it. Reading the canonical value here is the point of the test — it
+  // proves the Allocator's price ids cover the real vocabulary, not its own copy of it.
+  const { MOTIVATION_FAMILIES } = await import(
+    "../../../packages/runtime/src/contracts/domain-constants.js"
+  );
   const allKinds = [
     ...MOTIVATION_FAMILIES.mobility,
     ...MOTIVATION_FAMILIES.posture,

@@ -19,7 +19,7 @@ import {
   buildRoomDesignFromRoomCards,
   deriveLayoutFromRoomCards,
 } from "../configurator/card-model.js";
-import { normalizeMotivationKindList } from "../configurator/motivation-loadouts.js";
+import { coerceMotivationKinds } from "../../contracts/domain-constants.js";
 
 function normalizePositiveInt(value, fallback = 1) {
   const num = Number(value);
@@ -144,10 +144,7 @@ function normalizeMotivationKinds(value, fallback) {
     : typeof fallback === "string" && fallback.trim()
       ? [fallback.trim()]
       : [];
-  return normalizeMotivationKindList(raw, {
-    allowEmpty: true,
-    fieldBase: "motivations",
-  }).value;
+  return coerceMotivationKinds(raw, { allowEmpty: true });
 }
 
 function isAttackingMotivation(value) {

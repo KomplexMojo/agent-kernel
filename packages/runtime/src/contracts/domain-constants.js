@@ -2,6 +2,7 @@ import {
   GAME_AFFINITY_EXPRESSIONS,
   GAME_AFFINITY_KINDS,
   GAME_MOTIVATION_DISPLAY_GROUPS,
+  GAME_MOTIVATION_FAMILIES,
   GAME_MOTIVATION_KINDS,
   GAME_VITAL_KEYS,
 } from "./game-elements.js";
@@ -90,6 +91,101 @@ export const DEFAULT_DELVER_SETUP_MODE = DELVER_SETUP_MODES[0];
 // boundary crossings existed purely because of the renaming.
 export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS;
 export const MOTIVATION_DISPLAY_GROUPS = GAME_MOTIVATION_DISPLAY_GROUPS;
+export const MOTIVATION_FAMILIES = GAME_MOTIVATION_FAMILIES;
+
+// Mutual exclusivity is a DERIVED property of the vocabulary: pick two kinds from
+// one family and they conflict. `control` (user_controlled) is deliberately absent
+// — it coexists with any other kind, which is what lets delver cards carry it as a
+// synthetic extra tag.
+export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
+  Object.freeze({ id: "mobility", kinds: MOTIVATION_FAMILIES.mobility }),
+  Object.freeze({ id: "posture", kinds: MOTIVATION_FAMILIES.posture }),
+  Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
+]);
+
+const MOTIVATION_EXCLUSIVE_GROUP_BY_KIND = Object.freeze(
+  MOTIVATION_EXCLUSIVE_GROUPS.reduce((acc, group) => {
+    group.kinds.forEach((kind) => {
+      acc[kind] = group;
+    });
+    return acc;
+  }, {}),
+);
+
+/** Canonicalize one motivation kind, or null if it is not in the vocabulary. */
+export function normalizeMotivationKind(raw) {
+  if (typeof raw !== "string") return null;
+  const normalized = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (MOTIVATION_KINDS.includes(normalized)) return normalized;
+  return null;
+}
+
+export function getMotivationExclusiveGroup(kind) {
+  const normalized = normalizeMotivationKind(kind);
+  if (!normalized) return null;
+  return MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized] || null;
+}
+
+/** The kinds that cannot coexist with `kind` (its family, minus itself). */
+export function getConflictingMotivationKinds(kind) {
+  const normalized = normalizeMotivationKind(kind);
+  if (!normalized) return [];
+  const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized];
+  if (!group) return [];
+  return group.kinds.filter((entry) => entry !== normalized);
+}
+
+/**
+ * Best-effort coercion of user-ish input into a clean motivation-kind list:
+ * canonicalize, drop unknown kinds, dedupe, first-wins on an intra-family
+ * conflict, and apply `fallback` if nothing survives.
+ *
+ * **This is the SALVAGING form — it never reports why anything was dropped.**
+ * It exists because that is what all three cross-boundary callers were already
+ * doing: card-authoring, director/summary-selections and ui-web/actor-inspector
+ * each called the Configurator's `normalizeMotivationKindList` and used only
+ * `.value`, discarding `ok`/`errors`/`warnings` (P5.1 D2, decision D-n). Ingesting
+ * loose input is not a persona decision, so it lives here.
+ *
+ * The REJECTING form — structured errors for a caller that should refuse invalid
+ * input — stays with the Configurator as `normalizeMotivationKindList`, because
+ * "is this configuration valid?" is that persona's chartered call.
+ * `tests/runtime/motivation-coercion-agreement.test.js` pins the two forms to the
+ * same `value` so this split cannot become another "two codebooks, one concept".
+ */
+export function coerceMotivationKinds(input, { fallback = "", allowEmpty = false } = {}) {
+  if (input === undefined) {
+    const fallbackKind = normalizeMotivationKind(fallback);
+    return allowEmpty || !fallbackKind ? [] : [fallbackKind];
+  }
+
+  const list = Array.isArray(input) ? input : typeof input === "string" ? [input] : null;
+  if (!list) return [];
+
+  const value = [];
+  const seen = new Set();
+  const selectedGroupKinds = new Map();
+  for (const entry of list) {
+    const kind = normalizeMotivationKind(entry);
+    if (!kind) continue;
+    if (seen.has(kind)) continue;
+    const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[kind];
+    if (group) {
+      const selectedKind = selectedGroupKinds.get(group.id);
+      if (selectedKind && selectedKind !== kind) continue;
+      selectedGroupKinds.set(group.id, kind);
+    }
+    seen.add(kind);
+    value.push(kind);
+  }
+
+  if (value.length === 0 && !allowEmpty) {
+    const fallbackKind = normalizeMotivationKind(fallback);
+    if (fallbackKind) value.push(fallbackKind);
+  }
+
+  return value;
+}
 
 // Motivation kind -> core-ts code (1-based); the reverse of core-ts's
 // MOTIVATION_KIND_BY_CODE. Moved from personas/allocator/motivation-price-policy.js,

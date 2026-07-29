@@ -28,7 +28,7 @@ const PRICE_OR_BUDGET_CONSTANT = new RegExp(
 // that persona's own concern, and they read through contracts now rather than
 // through another persona.
 const SHARED_VOCABULARY_DECLARATION = new RegExp(
-  String.raw`^(?:export\s+)?(?:const\s+(?:MOTIVATION_KINDS|MOTIVATION_DISPLAY_GROUPS|MOTIVATION_KIND_TO_CODE|CARD_TYPE_IDS|ROOM_CARD_SIZE_IDS|DEFAULT_ROOM_CARD_SIZE)\b|function\s+(?:normalizeCardType|normalizeRoomCardSize|normalizeCardCount)\b)`,
+  String.raw`^(?:export\s+)?(?:const\s+(?:MOTIVATION_KINDS|MOTIVATION_DISPLAY_GROUPS|MOTIVATION_KIND_TO_CODE|MOTIVATION_FAMILIES|MOTIVATION_EXCLUSIVE_GROUPS|CARD_TYPE_IDS|ROOM_CARD_SIZE_IDS|DEFAULT_ROOM_CARD_SIZE)\b|function\s+(?:normalizeCardType|normalizeRoomCardSize|normalizeCardCount|normalizeMotivationKind|getMotivationExclusiveGroup|getConflictingMotivationKinds|coerceMotivationKinds)\b)`,
   "gim",
 );
 

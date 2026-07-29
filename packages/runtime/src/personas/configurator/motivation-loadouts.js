@@ -1,22 +1,29 @@
+/**
+ * Configurator motivation loadouts — artifact-level normalization of authored
+ * motivations, and the persona's REJECTING validation surface.
+ *
+ * The motivation VOCABULARY (kinds, families, exclusivity, display groups) and its
+ * pure lookups live in `contracts/domain-constants.js` (P5.1 D1/D2, decision D-n).
+ * Two reasons they are not here:
+ *   - This file used to re-alias GAME_MOTIVATION_KINDS as MOTIVATION_KINDS, making
+ *     it the middle hop of a four-name chain and forcing every outside consumer to
+ *     import a persona internal to read a shared vocabulary.
+ *   - Exclusivity is DERIVED from the families, not authored by this persona.
+ *
+ * What stays: `normalizeMotivationKindList` and `normalizeMotivations`, the forms
+ * that report *why* input was refused. The salvaging counterpart is
+ * `coerceMotivationKinds` in contracts — all three cross-boundary callers used only
+ * `.value` and discarded `ok`/`errors`/`warnings`, so ingesting loose input was never
+ * a Configurator decision. "Is this configuration valid?" still is.
+ */
+import { GAME_MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
 import {
-  GAME_MOTIVATION_FAMILIES,
-  GAME_MOTIVATION_KIND_IDS,
-} from "../../contracts/game-elements.js";
-// MOTIVATION_KINDS and MOTIVATION_DISPLAY_GROUPS now live in
-// contracts/domain-constants.js and are no longer re-aliased here (P5.1 D1).
-// This file used to declare its own aliases of the GAME_* values, which made it
-// the middle hop of a three-name chain (GAME_MOTIVATION_KINDS -> MOTIVATION_KINDS
-// -> ALLOWED_MOTIVATIONS) and forced every consumer outside the Configurator to
-// import a persona internal just to read a shared vocabulary. Import them from
-// contracts, not from here.
-import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
+  getMotivationExclusiveGroup,
+  MOTIVATION_FAMILIES,
+  MOTIVATION_KINDS,
+  normalizeMotivationKind,
+} from "../../contracts/domain-constants.js";
 
-export const MOTIVATION_FAMILIES = GAME_MOTIVATION_FAMILIES;
-export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
-  Object.freeze({ id: "mobility", kinds: MOTIVATION_FAMILIES.mobility }),
-  Object.freeze({ id: "posture", kinds: MOTIVATION_FAMILIES.posture }),
-  Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
-]);
 export const MOTIVATION_PATTERNS = Object.freeze({
   patrolling: Object.freeze(["loop", "ping_pong", "random_walk"]),
   attacking: Object.freeze(["melee", "ranged", "mixed"]),
@@ -45,40 +52,26 @@ export const MOTIVATION_KIND_IDS = GAME_MOTIVATION_KIND_IDS;
 
 const MOTIVATION_FLAG_KEYS = Object.freeze(["canMove", "prefersStealth", "prefersCover", "aggroRangeBoost"]);
 const MOTIVATION_MAX_INTENSITY = 10;
-const MOTIVATION_EXCLUSIVE_GROUP_BY_KIND = Object.freeze(
-  MOTIVATION_EXCLUSIVE_GROUPS.reduce((acc, group) => {
-    group.kinds.forEach((kind) => {
-      acc[kind] = group;
-    });
-    return acc;
-  }, {}),
-);
 
 function addError(errors, field, code) {
   errors.push({ field, code });
 }
 
-export function normalizeMotivationKind(raw) {
-  if (typeof raw !== "string") return null;
-  const normalized = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (MOTIVATION_KINDS.includes(normalized)) return normalized;
-  return null;
-}
-
-export function getMotivationExclusiveGroup(kind) {
-  const normalized = normalizeMotivationKind(kind);
-  if (!normalized) return null;
-  return MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized] || null;
-}
-
-export function getConflictingMotivationKinds(kind) {
-  const normalized = normalizeMotivationKind(kind);
-  if (!normalized) return [];
-  const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized];
-  if (!group) return [];
-  return group.kinds.filter((entry) => entry !== normalized);
-}
-
+/**
+ * The REJECTING form of motivation-list normalization: same `value` as
+ * `coerceMotivationKinds` in contracts, plus the structured reasons anything was
+ * dropped (`invalid_list`, `invalid_kind`, `conflicting_kind`).
+ *
+ * ⚠️ **NO PRODUCTION CONSUMER TODAY.** The three call sites that used to import this
+ * across a persona boundary took only `.value` and threw the errors away, so they now
+ * call `coerceMotivationKinds` directly. That means invalid or intra-family-conflicting
+ * motivations are currently coerced silently in production rather than refused — the
+ * same silent-fallback defect class as CR.1's `DEFAULT_ACTION_COST` and PX.3's default
+ * clock. **Whether they SHOULD be refused is an open behavior decision** (it touches the
+ * `ak_create` authoring path, so it is benchmark-relevant); this function is the seam
+ * that decision would use. It is kept, not deleted, for that reason — and flagged here
+ * rather than left looking load-bearing.
+ */
 export function normalizeMotivationKindList(input, { fieldBase = "motivations", fallback = "", allowEmpty = false } = {}) {
   const errors = [];
   const warnings = [];
@@ -108,7 +101,7 @@ export function normalizeMotivationKindList(input, { fieldBase = "motivations", 
       return;
     }
     if (seen.has(kind)) return;
-    const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[kind];
+    const group = getMotivationExclusiveGroup(kind);
     if (group) {
       const selectedKind = selectedGroupKinds.get(group.id);
       if (selectedKind && selectedKind !== kind) {
@@ -310,7 +303,7 @@ export function normalizeMotivations(input, fieldBase = "motivations") {
   list.forEach((entry, index) => {
     const normalized = normalizeMotivation(entry, `${fieldBase}[${index}]`, errors);
     if (normalized) {
-      const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized.kind];
+      const group = getMotivationExclusiveGroup(normalized.kind);
       if (group) {
         const selectedKind = selectedGroupKinds.get(group.id);
         if (selectedKind && selectedKind !== normalized.kind) {

@@ -1,5 +1,5 @@
 import { VITAL_KEYS } from "../../runtime/src/contracts/domain-constants.js";
-import { normalizeMotivationKindList } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
+import { coerceMotivationKinds } from "../../runtime/src/contracts/domain-constants.js";
 import { calculateCardValue } from "./design-guidance.js";
 import { collectBuildSpecCardSet } from "./build-spec-ui.js";
 import { resolveIconHTML } from "./icon-resolver.js";
@@ -205,10 +205,7 @@ function normalizeMotivations(card, fallbackType = "defender") {
   const source = Array.isArray(card?.motivations) ? card.motivations : [];
   const fallback = normalizeName(card?.motivation || card?.role)
     || (fallbackType === "attacker" ? "attacking" : "defending");
-  return normalizeMotivationKindList(source.length > 0 ? source : fallback, {
-    fallback,
-    fieldBase: "motivations",
-  }).value;
+  return coerceMotivationKinds(source.length > 0 ? source : fallback, { fallback });
 }
 
 function sortById(list = [], key = "id") {

@@ -85,10 +85,6 @@
   },
   {
     "from": "packages/runtime/src/commands/card-authoring.js",
-    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/card-authoring.js",
     "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
   },
   {
@@ -204,10 +200,6 @@
     "to": "packages/runtime/src/personas/configurator/card-model.js"
   },
   {
-    "from": "packages/runtime/src/personas/director/summary-selections.js",
-    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
-  },
-  {
     "from": "packages/runtime/src/personas/orchestrator/budget-inputs.js",
     "to": "packages/runtime/src/personas/allocator/default-price-list.js"
   },
@@ -246,10 +238,6 @@
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-session.js",
     "to": "packages/runtime/src/personas/director/summary-selections.js"
-  },
-  {
-    "from": "packages/ui-web/src/actor-inspector.js",
-    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
   },
   {
     "from": "packages/ui-web/src/design-guidance.js",

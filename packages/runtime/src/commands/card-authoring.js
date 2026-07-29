@@ -15,15 +15,13 @@ import {
   buildDesignSpendLedger,
 } from "../personas/configurator/spend-proposal.js";
 import {
-  getConflictingMotivationKinds,
-  normalizeMotivationKindList,
-} from "../personas/configurator/motivation-loadouts.js";
-import {
   buildCardSetFromSummary,
   extractSummaryFromCardSet,
   normalizeCardEntry,
 } from "../personas/director/summary-selections.js";
 import {
+  coerceMotivationKinds,
+  getConflictingMotivationKinds,
   normalizeCardCount,
   normalizeCardType,
   normalizeRoomCardSize,
@@ -136,17 +134,11 @@ function normalizeExpression(value, fallback = DEFAULT_AFFINITY_EXPRESSION) {
 }
 
 function normalizeMotivationList(values, fallback = "defending") {
-  return normalizeMotivationKindList(values, {
-    fallback,
-    fieldBase: "motivations",
-  }).value;
+  return coerceMotivationKinds(values, { fallback });
 }
 
 function normalizeMotivationListAllowEmpty(values) {
-  return normalizeMotivationKindList(values, {
-    allowEmpty: true,
-    fieldBase: "motivations",
-  }).value;
+  return coerceMotivationKinds(values, { allowEmpty: true });
 }
 
 function findMotivationConflict(currentMotivations = [], nextMotivation = "") {

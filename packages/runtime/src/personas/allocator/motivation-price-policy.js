@@ -11,19 +11,15 @@
  * Legacy cognition ordering preserved:
  *   reflexive (1) < goal_oriented (5) < strategy_focused (10)
  */
+import { MOTIVATION_FAMILIES } from "../../contracts/domain-constants.js";
 
-/**
- * Motivation families and the kinds they contain.
- * The family grouping mirrors the canonical vocabulary, but the
- * source-of-truth for which kinds exist lives in motivation-loadouts.js.
- * This module only cares about pricing.
- */
-export const MOTIVATION_FAMILIES = Object.freeze({
-  mobility: Object.freeze(["random", "stationary", "exploring", "patrolling"]),
-  posture: Object.freeze(["attacking", "defending", "stealthy", "friendly"]),
-  cognition: Object.freeze(["reflexive", "goal_oriented", "strategy_focused"]),
-  control: Object.freeze(["user_controlled"]),
-});
+// Motivation families come from contracts/domain-constants.js. This module used to
+// hand-maintain its OWN copy — byte-identical, but a real duplicate rather than an
+// alias, so it could silently diverge — and its comment named
+// motivation-loadouts.js as the source of truth, which was itself only an alias of
+// contracts/game-elements.js. Found by the G2 single-origin guard the moment its
+// pattern was broadened (P5.1 D2), not by reading. Where a guard can enumerate,
+// prefer it to reading.
 
 /**
  * Motivation tier classification (design §6.6). Classification only — tier
