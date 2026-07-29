@@ -24,7 +24,40 @@ moves artifacts between them, and it must not contain domain decisions of its ow
 | **Allocator** | The economy. Owns price lists, base costs, all pricing formulas, spend validation, budget maximization, receipts, and reconciliation. | So every token cost in the system has one author and receipts are auditable. |
 | **Actor** | Proposes actions for simulated agents from observations, motivations, and solver/LLM decisions. | So agent behavior is deterministic, replayable, and separately testable. |
 | **Moderator** | Controls the tick: ordering, affinity resolution, effect fulfillment, and pausing — `pausing` is a real gate that refuses to advance `step()`, not a label. | So tick semantics are policy, not accidents of the runner loop. |
-| **Annotator** | Captures and normalizes run observability: per-tick TelemetryRecords and the end-of-run RunSummary (including its derived `outcome`). Build-scope `telemetry.json` and spend/ledger normalization are **not** yet its own — see rule 3 and the Plan's P3.3. | So observability is a contract, not scattered console writes. |
+| **Annotator** | Captures and normalizes run observability: per-tick TelemetryRecords and the end-of-run RunSummary (including its derived `outcome`). Build-scope `telemetry.json` is **not** its own and never will be — see rule 3 (plane boundary). Spend auditing is likewise **not** Annotator work: it is settled Allocator territory via `scenarioSpendReport` (Plan P3.3, which deleted the never-wired budget ledger rather than routing it here). ⚠️ The RunSummary is currently stamped by an Annotator instance that never observed the run — an **A5** violation, Plan CR.8. | So observability is a contract, not scattered console writes. |
+
+### Ownership — what "belongs to a persona" means (A1–A5)
+
+*Adopted 2026-07-29. The sentence "every piece of domain logic belongs to exactly one persona" was
+found to be satisfiable by a **façade**: route the call through the persona, let it stamp the result,
+keep the decision in glue. An adversarial review found eight such violations **under a fully green test
+suite**, because every gate the project had was an **output** gate — goldens, schemas, integration
+results — and a façade produces byte-identical output by construction. A1–A5 replace the ambiguous
+sentence with a testable definition.*
+
+**A persona OWNS a behavior if and only if all five hold. Fewer than five is a figurehead, not an owner.**
+
+| # | Criterion | Obligation | Violated when |
+|---|---|---|---|
+| **A1** | **Sole implementation** | The logic exists in exactly ONE place, inside the owning persona. | The same decision has a second origin — another persona, glue, or core. |
+| **A2** | **Necessary path** | Production **cannot** produce the outcome without invoking the persona. | The persona can be neutered and production still works. |
+| **A3** | **Real gate** | The persona's FSM state determines whether and how the behavior happens. | The same call in two different states does the same thing. |
+| **A4** | **Serializable decision** | The decision is a pure function of (serialized state, event, payload). | Hidden instance state changes the outcome; replay diverges. |
+| **A5** | **Honest provenance** | An artifact naming the persona was produced by an instance that actually performed the round. | The stamp is applied by an instance that did no work. |
+
+**A2 is load-bearing.** It is the only criterion no output test can satisfy vacuously, and it is what
+"not a figurehead" actually means. A behavior whose ownership cannot be demonstrated by A2 is not owned,
+however cleanly it is routed.
+
+**Consequences for review.** "The call goes through the controller" is *not* evidence of ownership —
+it establishes routing (structure) and says nothing about authority (semantics). Ask instead: if this
+persona were removed, would production break? If the answer is no, the diff does not satisfy this charter
+regardless of how it is layered.
+
+**Enforcement.** Each criterion has a mechanical gate family, specified in the Plan's test architecture:
+G1 CLI-differential/ablation (A2) · G2 single-origin guards (A1) · G3 state-gate tests (A3) ·
+G4 serialization-equivalence (A4) · G5 provenance-lineage (A5). **A chartered behavior with no G1 test is
+not owned**, and a milestone closes when its G1 test flips red→green — not when its call sites are threaded.
 
 **Enforcement rules (blocking on every diff):**
 
@@ -34,6 +67,11 @@ moves artifacts between them, and it must not contain domain decisions of its ow
    `llm-session.js`, …) from outside its directory is a violation. Adapters never import persona
    internals. Enforced by `tests/architecture/persona-boundary.test.js`, which fails on any NEW
    violation; `persona-boundary-allowlist.json` records today's known debt and must only shrink.
+   **TARGET DECIDED 2026-07-29: the allowlist goes to ZERO — no exceptions, including persona→persona.**
+   An internal import bypasses the controller, so the persona's FSM never runs: that is an **A2**
+   violation by definition. Each of the 74 current entries needs an explicit disposition — thread it
+   through a controller or artifact exchange, or delete the dependency. **Silent allowlist membership is
+   not a disposition.** The guard becomes a hard error once the list is empty (Phase 5).
 2. **Personas own logic; glue owns sequence.** A conditional that encodes a domain rule (a price,
    a validation, an ordering policy) belongs inside a persona. Glue may branch only on artifact
    shape and persona results.
@@ -64,12 +102,27 @@ moves artifacts between them, and it must not contain domain decisions of its ow
      assigning a producer.
 4. **Pure FSMs.** `view()` + `advance(event, payload)`, clock injected, context serializable,
    effects returned as data. A persona state must gate real behavior — a state that nothing
-   consults is a defect, not a feature.
+   consults is a defect, not a feature (**A3**). "Context serializable" is **A4** and is stronger than
+   it reads: any value that influences the next decision must be *in* the serialized context. State
+   held in a factory closure and omitted from `view()` breaks replay — two instances with identical
+   serialized state can then produce different outcomes — and is a violation even though nothing
+   mutates a class instance.
+   ⚠️ **A4 is currently UNVERIFIABLE, and that is itself an open defect (Plan PX.4).** Serializable is
+   not the same as restorable: every persona factory accepts `{ initialState, clock }` — a state *label* —
+   while `view()` returns `{ state, context }`, and no factory accepts a context. **A persona's serialized
+   output cannot be fed back in**, so "the decision is a pure function of serialized state" cannot be
+   tested today. A `restore(view)` capability is owed on the persona contract; until it exists, treat A4
+   as an obligation on new code that cannot yet be mechanically enforced.
 5. **Cross-persona interaction** happens through versioned artifacts (`contracts/artifacts.ts`),
    persona events, or effects — never lateral imports of another persona's internals.
-6. **Tests align to personas.** Persona behavior tests live in `tests/personas/<persona>/` and are
-   named `<persona>-<behavior>.test.*`. A test that asserts only a state label (not behavior the
-   state gates) is a legacy test and must be replaced, not extended.
+6. **Tests align to personas, and must test authority — not routing.** Persona behavior tests live in
+   `tests/personas/<persona>/` and are named `<persona>-<behavior>.test.*`. A test that asserts only a
+   state label (not behavior the state gates) is a legacy test and must be replaced, not extended.
+   **This is not a stylistic preference.** The `<persona>-state-machine` / `<persona>-persona-phase`
+   families assert `result.state === expected` and `context.lastEvent === event` — they verify that a
+   *label changed*, so "persona tests pass" has never implied "personas decide". Every new persona
+   behavior needs a gate from the A1–A5 families above; **G1 (does production break without this
+   persona?) is the acceptance criterion**, and byte-identical goldens are not evidence of ownership.
 7. **One implementation per module — `.js` is canonical.** Persona controllers and state machines
    are plain `.js`. The matching `.mts` files are 1-line re-export shims retained only for existing
    importers. **Never put code in a `.mts`**: it is a re-export, so anything added there silently
@@ -79,12 +132,31 @@ moves artifacts between them, and it must not contain domain decisions of its ow
 
 **Migration status:** enforcement is being phased in per `local-codex/Plan.md` (Persona Enforcement
 Program). Until a phase lands, its violations are documented debt, **not license** — new code is held
-to the full rules above regardless of phase. Landed so far: the Allocator is the sole pricing
-authority (Phase 1); the Director owns PlanArtifact production and the Configurator owns build-input
-preparation, with the CLI reduced to a thin shell over the command kernel (Phase 2); the Moderator's
-pause gate and the Annotator's RunSummary are real behavior (Phase 3, in progress). Still open: the
-Orchestrator inversion (Phase 4) and the enforcement flip that empties the boundary allowlist
-(Phase 5). Consult the Plan for current state rather than assuming this paragraph is fresh.
+to the full rules above regardless of phase.
+
+⚠️ **CORRECTED 2026-07-29 — this paragraph previously overstated what had landed, and the overstatement
+is exactly the failure A1–A5 exist to prevent.** An adversarial review of the whole program (verdict
+NO-SHIP, 8 findings, `local-codex/Plan.md` CR.1–CR.8, plus CR.9 found separately) established that
+several phases achieved **structural** routing without **semantic** authority:
+
+- **Phase 1 — the Allocator is NOT yet the sole pricing authority.** Economic values still have three
+  origins: pool-split constants inside the *Director's* directory, card-cost constants in glue
+  (`commands/card-authoring.js`), and a silent `DEFAULT_ACTION_COST` fallback in `core-ts` (**A1**).
+- **Phase 2 — the Configurator assembles, but does not validate or lock.** `validate()`/`lock()`
+  perform no schema check and no freeze, and the production authoring path never calls them
+  (**A2 + A3**). The Director's persisted PlanArtifact is reconstructed *after* the spec is built by a
+  second Director instance; the plan that actually ran is discarded (**A2 + A5**).
+- **Phase 3 — real, with two gaps.** The Moderator's pause gate genuinely gates, but tick *ordering*
+  and *effect fulfilment* — also chartered to it — remain in the runner (**A1 + A2**). The RunSummary's
+  derived `outcome` is real, but it is stamped by a freshly created Annotator that never observed the
+  run (**A5**).
+- **Also open:** the Actor holds decision-relevant state in a closure absent from `view()` (**A4**) and
+  applies budget admissibility that is Allocator policy (**A1**); the Allocator authors and grows card
+  configurations, which is Configurator work (**A1**, see the Economy section).
+
+Still open by design: the Orchestrator inversion (Phase 4) and the enforcement flip that empties the
+boundary allowlist to zero (Phase 5). **Consult the Plan for current state; do not treat any claim in
+this paragraph as evidence that a behavior is owned — require its G1 test.**
 
 ## Economy — Allocator Authority
 
@@ -97,6 +169,19 @@ Orchestrator inversion (Phase 4) and the enforcement flip that empties the bound
   forbidden: an incomplete price list is a structured error, never a quiet default.
 - Receipts (`BudgetReceiptArtifact`) are issued only by the Allocator and are the audit trail for
   every spend. Budget maximization ("spend the rest") is Allocator policy, not adapter code.
+- **The Allocator JUDGES; it does not AUTHOR (decided 2026-07-29, not yet implemented — Plan CR.9).**
+  Pricing authority does not extend to building the thing being priced. Today
+  `personas/allocator/budget-fulfillment.js` constructs and grows cards (`buildMinimumRequiredDelverCard`,
+  `fillFlexibleDelverVitals`, `maximize*Card`) and encodes configuration *validity* rules such as "a
+  mobility motivation requires stamina" — all of which is Configurator work, and is the reason the
+  Allocator imports Configurator internals at all. The import is the symptom; the mis-assignment is the
+  cause. **Target protocol:** the Configurator assembles a candidate configuration; the Allocator prices
+  it against the price list and returns *approve* or *reject with a structured reason*; the Configurator
+  revises. Maximization becomes a bounded, deterministic negotiation rather than a monolith inside the
+  Allocator. The exchange is by versioned artifact (rule 5), so the Allocator reads published artifact
+  fields and never Configurator functions — which is what allows the boundary allowlist to reach zero
+  without a carve-out. This **supersedes** the P2.3.4 D1 decision ("Configurator keeps costing, Allocator
+  consults"): D1 asked who owns *costing* when the real seam is who *authors* versus who *judges*.
 - `core-ts` may hold invariant enforcement only (caps, spend accounting) fed by Allocator-provided
   data — never prices, tiers, or policy.
 
