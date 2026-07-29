@@ -2,9 +2,8 @@ import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePri
 import { createAllocatorPersona } from "../allocator/persona.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
 import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
-import { VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
 import { extractSummaryFromCardSet } from "../director/summary-selections.js";
-import { normalizeCardType } from "./card-model.js";
 import { calculateMotivationStackCost } from "../allocator/motivation-price-policy.js";
 
 const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";

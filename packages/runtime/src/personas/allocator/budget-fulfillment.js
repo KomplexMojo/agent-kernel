@@ -17,10 +17,14 @@
  * are the parity gate). Exposed to the CLI only through allocator-services.js →
  * the persona controller; nothing outside personas/allocator/ imports this file.
  */
-import { VITAL_KEYS, DEFAULT_VITALS, DEFAULT_ROOM_AFFINITY_EXPRESSION } from "../../contracts/domain-constants.js";
+import {
+  DEFAULT_ROOM_AFFINITY_EXPRESSION,
+  DEFAULT_VITALS,
+  ROOM_CARD_SIZE_IDS,
+  VITAL_KEYS,
+} from "../../contracts/domain-constants.js";
 import { calculateActorConfigurationUnitCost, calculateRoomCardUnitCost } from "../configurator/spend-proposal.js";
 import { validateAffinityPrereqs } from "../configurator/cost-model.js";
-import { ROOM_CARD_SIZE_IDS } from "../configurator/card-model.js";
 import { normalizePriceItems } from "./validate-spend.js";
 import { buildDefaultPriceList } from "./default-price-list.js";
 

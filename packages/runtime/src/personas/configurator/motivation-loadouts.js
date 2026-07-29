@@ -1,18 +1,22 @@
 import {
-  GAME_MOTIVATION_DISPLAY_GROUPS,
   GAME_MOTIVATION_FAMILIES,
   GAME_MOTIVATION_KIND_IDS,
-  GAME_MOTIVATION_KINDS,
 } from "../../contracts/game-elements.js";
+// MOTIVATION_KINDS and MOTIVATION_DISPLAY_GROUPS now live in
+// contracts/domain-constants.js and are no longer re-aliased here (P5.1 D1).
+// This file used to declare its own aliases of the GAME_* values, which made it
+// the middle hop of a three-name chain (GAME_MOTIVATION_KINDS -> MOTIVATION_KINDS
+// -> ALLOWED_MOTIVATIONS) and forced every consumer outside the Configurator to
+// import a persona internal just to read a shared vocabulary. Import them from
+// contracts, not from here.
+import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
 
 export const MOTIVATION_FAMILIES = GAME_MOTIVATION_FAMILIES;
-export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS;
 export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
   Object.freeze({ id: "mobility", kinds: MOTIVATION_FAMILIES.mobility }),
   Object.freeze({ id: "posture", kinds: MOTIVATION_FAMILIES.posture }),
   Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
 ]);
-export const MOTIVATION_DISPLAY_GROUPS = GAME_MOTIVATION_DISPLAY_GROUPS;
 export const MOTIVATION_PATTERNS = Object.freeze({
   patrolling: Object.freeze(["loop", "ping_pong", "random_walk"]),
   attacking: Object.freeze(["melee", "ranged", "mixed"]),

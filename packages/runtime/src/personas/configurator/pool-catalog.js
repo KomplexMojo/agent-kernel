@@ -1,5 +1,5 @@
 import { AFFINITY_KINDS } from "./affinity-loadouts.js";
-import { MOTIVATION_KINDS } from "./motivation-loadouts.js";
+import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
 
 const TYPE = "actor";
 const SUB_TYPES = Object.freeze(["static", "dynamic", "hazard"]);

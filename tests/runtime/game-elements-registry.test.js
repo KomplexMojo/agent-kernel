@@ -97,13 +97,15 @@ test("domain constants and resource bundle assets use the game element registry"
     GAME_MOTIVATION_KINDS,
     getResourceBundleAssetSpecs,
   } = await import("../../packages/runtime/src/contracts/game-elements.js");
+  // MOTIVATION_KINDS is imported from domain-constants alongside the affinity
+  // vocabulary. It used to be imported from personas/configurator/motivation-loadouts.js
+  // — this test encoded the inconsistency P5.1 D1 removed: shared game vocabulary
+  // reached through a persona internal while its affinity siblings did not.
   const {
     AFFINITY_EXPRESSIONS,
     AFFINITY_KINDS,
-  } = await import("../../packages/runtime/src/contracts/domain-constants.js");
-  const {
     MOTIVATION_KINDS,
-  } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
+  } = await import("../../packages/runtime/src/contracts/domain-constants.js");
   const {
     createDefaultResourceBundleArtifact,
     validateResourceBundleArtifact,

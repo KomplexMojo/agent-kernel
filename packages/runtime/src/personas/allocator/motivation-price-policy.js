@@ -167,25 +167,13 @@ export function calculateMotivationStackCost(motivations, priceMap) {
 // canonical price list (2/3/…). The default price list in
 // default-price-list.js already carries every motivation entry.
 
-/**
- * Reverse map: motivation kind string → core-ts code (1-based).
- * Matches MOTIVATION_KIND_BY_CODE in core-ts. This is codebook data (live
- * consumer: configurator/motivation-evaluation-core.js), not pricing.
- */
-export const MOTIVATION_KIND_TO_CODE = Object.freeze({
-  random: 1,
-  stationary: 2,
-  exploring: 3,
-  patrolling: 4,
-  attacking: 5,
-  defending: 6,
-  stealthy: 7,
-  friendly: 8,
-  reflexive: 9,
-  goal_oriented: 10,
-  strategy_focused: 11,
-  user_controlled: 12,
-});
+// MOTIVATION_KIND_TO_CODE moved to contracts/domain-constants.js (P5.1 D1).
+// The comment that used to sit here said it plainly — "this is codebook data
+// (live consumer: configurator/motivation-evaluation-core.js), not pricing" — so
+// it had no business in the Allocator, and the Configurator had to cross a
+// persona boundary to read it. It is now DERIVED from GAME_MOTIVATION_KINDS
+// order rather than hand-listed, which was verified to produce a byte-identical
+// map and retires 12 pairs that had to stay in sync with an array by convention.
 
 // calculateMotivationStackCostFromCore was deleted in P1.2 (Persona
 // Enforcement Program): it was the ONLY reachable path into core-ts's

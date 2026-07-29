@@ -17,11 +17,9 @@ import { resolveIconHTML } from "./icon-resolver.js";
 import {
   MOTIVATION_DISPLAY_GROUPS,
   MOTIVATION_KINDS,
-} from "../../runtime/src/personas/configurator/motivation-loadouts.js";
-import {
-  normalizeCardType,
   normalizeCardCount,
-} from "../../runtime/src/personas/configurator/card-model.js";
+  normalizeCardType,
+} from "../../runtime/src/contracts/domain-constants.js";
 import {
   BUDGET_BUCKET_ORDER,
   CARD_PROPERTY_GROUP_ORDER,

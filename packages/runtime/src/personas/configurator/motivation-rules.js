@@ -1,7 +1,8 @@
-import {
-  GAME_MOTIVATION_KIND_IDS,
-  GAME_MOTIVATION_KINDS,
-} from "../../contracts/game-elements.js";
+import { GAME_MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
+// MOTIVATION_KINDS comes from contracts/domain-constants.js. This file used to
+// declare `export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS` — a FOURTH
+// name for one value (see P5.1 D1), exported but never imported by anything.
+import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
 
 export const BEHAVIOR_COMPLEXITY_CLASSES = Object.freeze(["instinctual", "tactical", "strategic"]);
 
@@ -46,7 +47,6 @@ export const MOTIVATION_PROFILE_ITEM_IDS = Object.freeze({
 });
 
 export const MOTIVATION_FLAG_KEYS = Object.freeze(Object.keys(DEFAULT_MOTIVATION_FLAGS));
-export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS;
 
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));

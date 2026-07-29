@@ -8,7 +8,7 @@
  * validation and normalization. This module is the evaluation shortcut
  * when a core implementation is available.
  */
-import { MOTIVATION_KIND_TO_CODE } from "../allocator/motivation-price-policy.js";
+import { MOTIVATION_KIND_TO_CODE } from "../../contracts/domain-constants.js";
 import { MOTIVATION_PATTERNS } from "./motivation-loadouts.js";
 
 // ── Conversion helpers ──

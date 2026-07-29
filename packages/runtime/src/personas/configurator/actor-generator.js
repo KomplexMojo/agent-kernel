@@ -1,6 +1,5 @@
 import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS } from "./affinity-loadouts.js";
-import { MOTIVATION_KINDS } from "./motivation-loadouts.js";
-import { DEFAULT_VITALS, VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { DEFAULT_VITALS, MOTIVATION_KINDS, VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 const DEFAULT_KIND = "ambulatory";
 const DEFAULT_EDGE_PADDING = 1;

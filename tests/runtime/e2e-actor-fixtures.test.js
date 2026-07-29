@@ -22,7 +22,7 @@ test("e2e actor fixtures include deterministic, varied actor sets", async () => 
     "../../packages/runtime/src/contracts/domain-constants.js"
   );
   const { MOTIVATION_KINDS } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   const files = readdirSync(FIXTURES_DIR)

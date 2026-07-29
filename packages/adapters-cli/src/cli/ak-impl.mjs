@@ -26,7 +26,7 @@ import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
 import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
-import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
+import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/contracts/domain-constants.js";
 import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
 import {
   ALLOWED_AFFINITIES,

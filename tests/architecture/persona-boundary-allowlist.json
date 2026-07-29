@@ -1,10 +1,6 @@
 [
   {
     "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
-    "to": "packages/runtime/src/personas/configurator/card-model.js"
-  },
-  {
-    "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
     "to": "packages/runtime/src/personas/director/buildspec-assembler.js"
   },
   {
@@ -149,10 +145,6 @@
   },
   {
     "from": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
-    "to": "packages/runtime/src/personas/configurator/card-model.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
     "to": "packages/runtime/src/personas/configurator/cost-model.js"
   },
   {
@@ -186,10 +178,6 @@
   {
     "from": "packages/runtime/src/personas/configurator/guidance-level-builder.js",
     "to": "packages/runtime/src/personas/director/buildspec-assembler.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/configurator/motivation-evaluation-core.js",
-    "to": "packages/runtime/src/personas/allocator/motivation-price-policy.js"
   },
   {
     "from": "packages/runtime/src/personas/configurator/spend-proposal.js",
@@ -260,19 +248,7 @@
     "to": "packages/runtime/src/personas/director/summary-selections.js"
   },
   {
-    "from": "packages/runtime/src/personas/orchestrator/prompt-contract.js",
-    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
-  },
-  {
     "from": "packages/ui-web/src/actor-inspector.js",
-    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
-  },
-  {
-    "from": "packages/ui-web/src/design-guidance.js",
-    "to": "packages/runtime/src/personas/configurator/card-model.js"
-  },
-  {
-    "from": "packages/ui-web/src/design-guidance.js",
     "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
   },
   {

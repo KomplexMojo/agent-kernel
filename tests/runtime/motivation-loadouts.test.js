@@ -45,10 +45,12 @@ test("normalizeMotivations surfaces invalid kinds/patterns and clamps intensity"
 
 test("normalizeMotivations rejects contradictory motivations from the same exclusive group", async () => {
   const {
-    MOTIVATION_DISPLAY_GROUPS,
     getConflictingMotivationKinds,
     normalizeMotivations,
   } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
+  const { MOTIVATION_DISPLAY_GROUPS } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
+  );
 
   const postureGroup = MOTIVATION_DISPLAY_GROUPS.find((group) => group.id === "posture_attacking_defending");
   assert.ok(postureGroup);
@@ -73,8 +75,11 @@ test("normalizeMotivations rejects contradictory motivations from the same exclu
 });
 
 test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
-  const { MOTIVATION_FAMILIES, MOTIVATION_KINDS } = await import(
+  const { MOTIVATION_FAMILIES } = await import(
     "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+  );
+  const { MOTIVATION_KINDS } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   assert.deepEqual(MOTIVATION_FAMILIES.mobility, ["random", "stationary", "exploring", "patrolling"]);
@@ -103,8 +108,11 @@ test("user_controlled composes outside posture and mobility exclusivity", async 
 });
 
 test("stealthy and friendly are valid motivation kinds", async () => {
-  const { normalizeMotivationKind, MOTIVATION_KINDS } = await import(
+  const { normalizeMotivationKind } = await import(
     "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+  );
+  const { MOTIVATION_KINDS } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   assert.ok(MOTIVATION_KINDS.includes("stealthy"));

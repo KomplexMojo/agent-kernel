@@ -24,12 +24,17 @@ import {
   normalizeCardEntry,
 } from "../personas/director/summary-selections.js";
 import {
-  normalizeCardType,
   normalizeCardCount,
+  normalizeCardType,
   normalizeRoomCardSize,
+} from "../contracts/domain-constants.js";
+// The derive*/build* helpers remain Configurator level-geometry logic; only the
+// card TYPE/SIZE vocabulary moved to contracts (P5.1 D1). This import is still an
+// allowlisted boundary crossing (disposition D6 — it needs a controller method).
+import {
+  buildRoomDesignFromRoomCards,
   deriveLayoutFromRoomCards,
   deriveLevelGenFromRoomCards,
-  buildRoomDesignFromRoomCards,
 } from "../personas/configurator/card-model.js";
 
 // Removed from domain-constants in cost refactor (046f786); kept local to preserve display scale.

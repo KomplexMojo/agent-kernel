@@ -7,14 +7,17 @@ import {
   DEFAULT_ROOM_CARD_AFFINITY,
   DEFAULT_VITALS,
   VITAL_KEYS,
-  normalizeVitals as normalizeDomainVitals,
-} from "../../contracts/domain-constants.js";
-import {
-  buildRoomDesignFromRoomCards,
-  deriveLayoutFromRoomCards,
   normalizeCardCount,
   normalizeCardType,
   normalizeRoomCardSize,
+  normalizeVitals as normalizeDomainVitals,
+} from "../../contracts/domain-constants.js";
+// buildRoomDesignFromRoomCards/deriveLayoutFromRoomCards are Configurator
+// level-geometry logic, not vocabulary — this crossing stays (disposition D8: it
+// is one leg of the Director<->Configurator cycle and needs an ownership call).
+import {
+  buildRoomDesignFromRoomCards,
+  deriveLayoutFromRoomCards,
 } from "../configurator/card-model.js";
 import { normalizeMotivationKindList } from "../configurator/motivation-loadouts.js";
 

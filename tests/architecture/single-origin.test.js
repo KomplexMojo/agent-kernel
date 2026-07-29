@@ -14,7 +14,31 @@ const PRICE_OR_BUDGET_CONSTANT = new RegExp(
   "gim",
 );
 
+// Shared game vocabulary (motivation + card type/size) and its normalizers.
+// P5.1 D1 collapsed an alias chain in which ONE value wore FOUR names across two
+// personas: GAME_MOTIVATION_KINDS (contracts) was re-declared as MOTIVATION_KINDS
+// in BOTH configurator/motivation-loadouts.js AND configurator/motivation-rules.js,
+// then again as ALLOWED_MOTIVATIONS in orchestrator/prompt-contract.js. Every
+// consumer outside the Configurator had to import a persona internal to read a
+// vocabulary that was never the Configurator's to own. This guard is LIVE (not
+// skipped): the crossings are gone, so any new declaration is a regression.
+//
+// Deliberately NOT matched: orchestrator/prompt-contract.js's ALLOWED_* names.
+// Those restate a vocabulary as "values valid in an LLM prompt contract", which is
+// that persona's own concern, and they read through contracts now rather than
+// through another persona.
+const SHARED_VOCABULARY_DECLARATION = new RegExp(
+  String.raw`^(?:export\s+)?(?:const\s+(?:MOTIVATION_KINDS|MOTIVATION_DISPLAY_GROUPS|MOTIVATION_KIND_TO_CODE|CARD_TYPE_IDS|ROOM_CARD_SIZE_IDS|DEFAULT_ROOM_CARD_SIZE)\b|function\s+(?:normalizeCardType|normalizeRoomCardSize|normalizeCardCount)\b)`,
+  "gim",
+);
+
 const SINGLE_ORIGIN_GUARDS = [
+  {
+    concept: "shared game vocabulary (motivation + card type/size)",
+    canonicalHome: ["packages/runtime/src/contracts"],
+    forbiddenPattern: SHARED_VOCABULARY_DECLARATION,
+    scope: "packages/runtime/src",
+  },
   {
     concept: "EffectKind",
     canonicalHome: "packages/core-ts/src/ports/effects.ts",

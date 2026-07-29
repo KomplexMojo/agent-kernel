@@ -1,6 +1,8 @@
 import {
   GAME_AFFINITY_EXPRESSIONS,
   GAME_AFFINITY_KINDS,
+  GAME_MOTIVATION_DISPLAY_GROUPS,
+  GAME_MOTIVATION_KINDS,
   GAME_VITAL_KEYS,
 } from "./game-elements.js";
 
@@ -75,6 +77,73 @@ export const AFFINITY_OPPOSITES = Object.freeze({
 export const ROOM_AFFINITY_EMIT_PERCENT_PER_STACK = 10;
 export const DELVER_SETUP_MODES = Object.freeze(["auto", "user", "hybrid"]);
 export const DEFAULT_DELVER_SETUP_MODE = DELVER_SETUP_MODES[0];
+
+// ── Motivation vocabulary (P5.1 D1: promoted out of personas/) ──────────────
+// These are the runtime-facing names for the game-elements motivation registry,
+// exactly as AFFINITY_KINDS is for GAME_AFFINITY_KINDS above.
+//
+// They previously lived in personas/configurator/motivation-loadouts.js, which
+// created a three-hop alias chain — GAME_MOTIVATION_KINDS -> MOTIVATION_KINDS
+// (Configurator) -> ALLOWED_MOTIVATIONS (Orchestrator prompt-contract) -> glue —
+// so one value wore three names across two personas and every consumer outside
+// the Configurator had to reach into it. Neither persona added anything; the
+// boundary crossings existed purely because of the renaming.
+export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS;
+export const MOTIVATION_DISPLAY_GROUPS = GAME_MOTIVATION_DISPLAY_GROUPS;
+
+// Motivation kind -> core-ts code (1-based); the reverse of core-ts's
+// MOTIVATION_KIND_BY_CODE. Moved from personas/allocator/motivation-price-policy.js,
+// whose own comment already said "this is codebook data … not pricing" — it had
+// no business in the Allocator, and the Configurator had to cross a persona
+// boundary to read it.
+export const MOTIVATION_KIND_TO_CODE = Object.freeze(
+  GAME_MOTIVATION_KINDS.reduce((acc, kind, index) => {
+    acc[kind] = index + 1;
+    return acc;
+  }, {}),
+);
+
+// ── Card vocabulary (P5.1 D1: promoted out of personas/configurator/) ───────
+// Type/size identifiers and their normalizers. The SIZE->LAYOUT table
+// (roomFloorTiles/roomMinSize/…) deliberately stays in the Configurator: those
+// are level-geometry decisions, not vocabulary.
+export const CARD_TYPE_IDS = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
+export const ROOM_CARD_SIZE_IDS = Object.freeze(["small", "medium", "large"]);
+export const DEFAULT_ROOM_CARD_SIZE = "medium";
+
+/**
+ * Coerce a value to a positive integer, accepting numeric strings.
+ *
+ * Moved verbatim from card-model.js. **NOT interchangeable with this module's
+ * private `asPositiveInt()`**, which rejects numeric STRINGS outright
+ * (`Number.isFinite("3")` is false). Card counts and grid dimensions arrive from
+ * CLI text, so the coercing form is required — swapping them would silently make
+ * every string-valued count fall back to its default.
+ */
+export function coercePositiveInt(value, fallback = 1) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.max(1, Math.floor(parsed));
+}
+
+/** Canonicalize a card type to a domain term ("attacker" -> "delver"). */
+export function normalizeCardType(value) {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "attacker") return "delver";
+  if (normalized === "defender") return "warden";
+  return CARD_TYPE_IDS.includes(normalized) ? normalized : "";
+}
+
+export function normalizeRoomCardSize(value) {
+  if (typeof value !== "string") return DEFAULT_ROOM_CARD_SIZE;
+  const normalized = value.trim().toLowerCase();
+  return ROOM_CARD_SIZE_IDS.includes(normalized) ? normalized : DEFAULT_ROOM_CARD_SIZE;
+}
+
+export function normalizeCardCount(value, fallback = 1) {
+  return coercePositiveInt(value, fallback);
+}
 export const DEFAULT_LLM_MODEL = "phi4";
 export const DEFAULT_LLM_BASE_URL = "http://localhost:11434";
 export const DEFAULT_LLM_CONTEXT_WINDOW_TOKENS = 256000;

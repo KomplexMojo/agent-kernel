@@ -6,10 +6,10 @@ import {
   DEFAULT_DELVER_SETUP_MODE,
   LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
   DEFAULT_VITALS,
+  MOTIVATION_KINDS,
   VITAL_KEYS,
   normalizeVitals as normalizeDomainVitals,
 } from "../../contracts/domain-constants.js";
-import { MOTIVATION_KINDS } from "../configurator/motivation-loadouts.js";
 
 export const ALLOWED_AFFINITIES = AFFINITY_KINDS;
 export const ALLOWED_AFFINITY_EXPRESSIONS = AFFINITY_EXPRESSIONS;
