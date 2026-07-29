@@ -95,6 +95,38 @@ Instead, it supplies:
 - Subscribed tick phases: init, observe.
 - Outputs: configuration artifacts/refs (data-only); no IO or runtime mutation.
 
+### CONFIG-plane service surface
+
+Two planes, one persona: the tick plane drives the FSM via `advance()` in init/observe;
+the CONFIG plane uses the service surface below. Both move the same state machine.
+
+| Call | Requires state | Effect |
+|---|---|---|
+| `provideConfig(config, {configRef})` | uninitialized | Takes a **serializable copy** of the config → pending_config |
+| `prepareLevelGen({existingLevelGen, rooms, floorTiles, hazards})` | pending_config \| configured | Sizes the grid, attaches hazards, records the result on the persona's config |
+| `mapResources(resources)` | pending_config \| configured | Maps authored resources to the input shape, records the result |
+| `validate()` | pending_config | Runs `config-validation.js`; **throws `ConfiguratorValidationError` (`code: "configurator_invalid"`, `.errors[]`) on a malformed config without moving the FSM** → configured |
+| `lock()` | configured | Publishes a deep-frozen, versioned snapshot → locked; returns `{state, config, version}` |
+| `lockedConfig()` | any | The published snapshot, or `null` before `lock()` |
+
+`validate()` and `lock()` were label-only until CR.2 (2026-07-29): both were
+`requireState` + `fsm.advance`, and the production authoring path
+(`build/authoring-build.js`) called neither, so a malformed `levelGen` or resource
+list reached `orchestrateBuild` untouched. `runAuthoringBuild` now validates and
+locks before the build proceeds — a config the Configurator rejects fails the build.
+
+Validation is **permissive on presence, strict on type**: production emits partial
+shapes that are legitimate (the `resource-plan-g4` golden carries
+`shape: { roomCount: 1 }` with no roomMinSize/roomMaxSize/corridorWidth), so every
+field is optional and checked only when present. The one cross-field invariant is
+`roomMinSize <= roomMaxSize`.
+
+The locked snapshot is **not** what `orchestrateBuild` consumes. `orchestrateBuild`
+still writes `affinityRules`, `motivationRules` and `actors` back into
+`spec.configurator.inputs`, so the spec remains the mutable working document and the
+snapshot is the record of what the Configurator approved. Making the locked artifact
+the consumed input requires removing those write-backs — CR.3's scope, not CR.2's.
+
 `core-ts` enforces all rules and transitions based on the provided configuration.
 
 ---

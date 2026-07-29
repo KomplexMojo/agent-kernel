@@ -228,6 +228,23 @@ export async function runAuthoringBuild(input = {}) {
     spec.configurator.inputs.resources = configurator.mapResources(resources);
   }
 
+  // CR.2 — the Configurator must actually validate and lock before the build
+  // proceeds. This path previously called provideConfig/prepareLevelGen/
+  // mapResources and then went straight to orchestrateBuild, so `validate` and
+  // `lock` were states nothing ever entered: a malformed levelGen or resource
+  // list reached the build untouched. Now a config the Configurator rejects
+  // fails the build (A2 — production cannot produce the outcome without the
+  // owning persona), and lockedConfig() is the record of what it approved.
+  //
+  // The locked snapshot is deliberately NOT threaded into orchestrateBuild:
+  // orchestrateBuild still writes affinityRules/motivationRules/actors back
+  // into spec.configurator.inputs (orchestrate-build.js ~1441/1521/1560), so
+  // the spec stays the mutable working document. Making the locked artifact the
+  // thing orchestrateBuild consumes requires removing those write-backs, which
+  // is CR.3's territory, not CR.2's.
+  configurator.validate();
+  configurator.lock();
+
   applyAuthoringSection(spec, authoring, commandName);
 
   const buildResult = await orchestrateBuild({

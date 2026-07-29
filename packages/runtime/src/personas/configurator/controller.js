@@ -50,5 +50,6 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     mapResources: services.mapResources,
     validate: services.validate,
     lock: services.lock,
+    lockedConfig: services.lockedConfig,
   };
 }
