@@ -69,9 +69,17 @@ not owned**, and a milestone closes when its G1 test flips red→green — not w
    violation; `persona-boundary-allowlist.json` records today's known debt and must only shrink.
    **TARGET DECIDED 2026-07-29: the allowlist goes to ZERO — no exceptions, including persona→persona.**
    An internal import bypasses the controller, so the persona's FSM never runs: that is an **A2**
-   violation by definition. Each of the 74 current entries needs an explicit disposition — thread it
-   through a controller or artifact exchange, or delete the dependency. **Silent allowlist membership is
-   not a disposition.** The guard becomes a hard error once the list is empty (Phase 5).
+   violation by definition. Every entry needs an explicit disposition — thread it through a controller
+   or artifact exchange, or delete the dependency. **Silent allowlist membership is not a disposition.**
+   The guard becomes a hard error once the list is empty (Phase 5).
+   All entries now carry one: dispositions live in `local-codex/allowlist-dispositions.md`, which is the
+   working checklist and is regenerated from the allowlist itself. **Do not cite an entry count here** —
+   it changes as the list shrinks (it was 74 when the target was set); read
+   `jq length tests/architecture/persona-boundary-allowlist.json` instead.
+   **Two facts that shape the remaining work.** Only **2** of the original 74 crossings imported a symbol
+   that already had a public-surface equivalent, so "thread it through a controller" is a design task per
+   entry, not a re-point. And roughly **40%** are owned by CR.1/CR.4/CR.9 rather than by Phase 5 — the
+   list largely empties as those land, which is why the enforcement flip depends on the economy work.
 2. **Personas own logic; glue owns sequence.** A conditional that encodes a domain rule (a price,
    a validation, an ordering policy) belongs inside a persona. Glue may branch only on artifact
    shape and persona results.
