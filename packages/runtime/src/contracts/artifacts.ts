@@ -104,6 +104,117 @@ export const ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWork
 export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionEvent";
 export const ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA = "agent-kernel/AdaptiveWorkflowRunRecord";
 
+// -------------------------
+// Persona CLI invocation contracts (DECISION D-j)
+// -------------------------
+// The in/out envelope for `ak-persona <name> --in <spec.json> --out <result.json>`:
+// artifact in, artifact out, one process. This is the contract the G1
+// CLI-differential tests diff against — capture what the production path handed a
+// persona, run the persona standalone on the same input, and compare. A mismatch
+// means glue computed a different answer than the owning persona would have.
+//
+// The pair maps 1:1 onto the existing `advance({phase, event, payload, tick})`
+// signature, so adding the CLI required no persona code changes.
+
+export const PERSONA_INVOCATION_SCHEMA = "agent-kernel/PersonaInvocation";
+export const PERSONA_RESULT_SCHEMA = "agent-kernel/PersonaResult";
+
+export type PersonaName =
+  | "orchestrator"
+  | "director"
+  | "configurator"
+  | "actor"
+  | "allocator"
+  | "annotator"
+  | "moderator";
+
+export interface PersonaInvocationV1 {
+  schema: typeof PERSONA_INVOCATION_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  persona: PersonaName;
+
+  /**
+   * REQUIRED — there is no default anywhere in this envelope.
+   * A defaulted clock is how determinism degrades silently (PX.3): 28 persona
+   * factories default to a real wall clock, so any caller that forgets to inject
+   * one still "works". Making it mandatory here is a deliberate forcing function.
+   */
+  clock: IsoUtcTimestamp;
+
+  /**
+   * Serialized persona state to resume from, or null to construct fresh at the
+   * persona's initial state.
+   *
+   * **`null` is the only supported value today.** No persona can be rebuilt from
+   * its own `view()` — every factory takes a state LABEL, not a context (finding
+   * PX.4) — so restoring is not yet possible. `restore(view)` lands in HANDOFF-4;
+   * until then a non-null value is rejected rather than silently ignored.
+   */
+  state: Record<string, unknown> | null;
+
+  /** Actor only: the seed its randomness derives from. Null for other personas. */
+  seed: number | null;
+
+  /**
+   * Allocator only: the price list it prices against, and that list's meta.
+   *
+   * NOT IN D-j AS ORIGINALLY DECIDED — added when the envelope met the code.
+   * `createAllocatorPersona` takes `{priceList, priceListMeta}` at construction,
+   * and the Allocator is built to fail loudly rather than default a price
+   * (P1.4/CR.1), so without these it can be invoked but cannot price anything.
+   * D-j accounted for the Actor's `seed` and missed this.
+   */
+  priceList?: Record<string, unknown> | null;
+  priceListMeta?: Record<string, unknown> | null;
+
+  invocation: {
+    phase: "init" | "observe" | "decide" | "apply" | "emit" | "summarize";
+    event: string;
+    payload: Record<string, unknown>;
+    tick: number;
+  };
+}
+
+export interface PersonaResultV1 {
+  schema: typeof PERSONA_RESULT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  persona: PersonaName;
+
+  /** The persona's `view()` after the round: `{state, context}`. */
+  state: Record<string, unknown>;
+
+  /**
+   * Whether the persona subscribes to the invoked phase and therefore actually
+   * ran a round.
+   *
+   * NOT IN D-j — added because without it the envelope is misleading. Each persona
+   * subscribes to only some phases (the Director to `decide` alone), and an
+   * unsubscribed phase returns the current snapshot with empty outputs. That is
+   * indistinguishable from "ran and changed nothing", which is exactly the
+   * distinction a G1 differential test needs to make.
+   */
+  subscribed: boolean;
+
+  actions: unknown[];
+  effects: unknown[];
+
+  /**
+   * Director-produced artifacts. Always present, empty for the other six.
+   *
+   * NOT IN D-j — the Director's `advance` returns an extra `artifacts` array that
+   * the other six do not. Emitting the field uniformly keeps the output shape
+   * identical across personas, which matters more for differential comparison than
+   * matching each persona's native return exactly.
+   */
+  artifacts: unknown[];
+
+  telemetry: unknown | null;
+}
+
 export type AdaptiveWorkflowPhase =
   | "intake"
   | "plan"

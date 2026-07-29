@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "bin": {
-    "ak-mcp": "src/mcp/server.mjs"
+    "ak-mcp": "src/mcp/server.mjs",
+    "ak-persona": "src/cli/ak-persona.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

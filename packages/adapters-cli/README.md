@@ -49,6 +49,67 @@ They do **not**:
 
 ---
 
+## `ak-persona` — run one persona standalone
+
+A second entry point alongside `ak`. Artifact in, artifact out, one process:
+
+```bash
+ak-persona <persona> --in <spec.json> --out <result.json>
+ak-persona <persona> < spec.json > result.json      # stdin/stdout when --in/--out are absent
+```
+
+`<persona>` is one of `orchestrator`, `director`, `configurator`, `actor`,
+`allocator`, `annotator`, `moderator`.
+
+| Flag | Meaning |
+|---|---|
+| `--in <path>` | `agent-kernel/PersonaInvocation` artifact (default: stdin) |
+| `--out <path>` | `agent-kernel/PersonaResult` artifact (default: stdout) |
+| `--help` | Usage; exits 0 without reading input |
+
+**It is a first-class entry point, not a test harness** — it happens to be used
+heavily by the G1 CLI-differential tests, whose mechanism is to capture the inputs
+the production path handed a persona, run the persona standalone on those same
+inputs, and compare the artifacts. A mismatch means glue computed a different
+answer than the owning persona would have. Independently of that it buys
+per-persona golden fixtures, single-persona replay, and the ability to bisect a bad
+build by running one persona in isolation.
+
+The envelope pair is defined in `packages/runtime/src/contracts/artifacts.ts`
+(`PERSONA_INVOCATION_SCHEMA` / `PERSONA_RESULT_SCHEMA`) and maps 1:1 onto the
+persona `advance({phase, event, payload, tick})` signature, so no persona code
+changed to add this.
+
+```jsonc
+{ "schema": "agent-kernel/PersonaInvocation", "schemaVersion": 1,
+  "meta": { "id": "…", "runId": "…", "createdAt": "…", "producedBy": "…" },
+  "persona": "allocator",
+  "clock": "2026-07-29T00:00:00.000Z",   // REQUIRED — never defaulted
+  "state": null,                          // null is the only supported value today
+  "seed": null,                           // actor only
+  "priceList": null,                      // allocator only
+  "invocation": { "phase": "observe", "event": "budget", "payload": {}, "tick": 0 } }
+```
+
+Two rules the CLI enforces, both to stop silent degradation:
+
+- **`clock` is required and never defaulted.** 28 persona factories default to a real
+  wall clock, so a caller that forgets to inject one still "works" while determinism
+  quietly degrades (finding PX.3). Here it is mandatory.
+- **A non-null `state` is refused, not ignored.** No persona can yet be rebuilt from
+  its own `view()` — every factory takes a state *label*, not a context (finding
+  PX.4) — so resuming is impossible and pretending otherwise would be worse than
+  failing. `restore(view)` is planned; until then the CLI rejects the input.
+
+Invalid input exits non-zero with a structured JSON error on stderr listing **every**
+problem, not just the first. The result carries `subscribed`, which distinguishes
+"this persona does not subscribe to that phase, so no round ran" from "a round ran
+and changed nothing" — each persona subscribes to only some tick phases (the
+Director to `decide` alone). Working fixtures for all seven live in
+`tests/fixtures/persona-cli/`.
+
+---
+
 ## CLI Commands
 
 Default output layout: `artifacts/runs/<runId>/<command>`. Older layouts

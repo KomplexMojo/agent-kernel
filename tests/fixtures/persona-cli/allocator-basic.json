@@ -1,0 +1,26 @@
+{
+  "schema": "agent-kernel/PersonaInvocation",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "persona_cli_allocator",
+    "runId": "run_persona_cli",
+    "createdAt": "2026-07-29T00:00:00.000Z",
+    "producedBy": "persona-cli-fixture"
+  },
+  "persona": "allocator",
+  "clock": "2026-07-29T00:00:00.000Z",
+  "state": null,
+  "seed": null,
+  "invocation": {
+    "phase": "observe",
+    "event": "budget",
+    "payload": {
+      "budget": {
+        "budget": {
+          "tokens": 5000
+        }
+      }
+    },
+    "tick": 0
+  }
+}
