@@ -46,5 +46,11 @@ test("runtime drives all personas via the FSM schedule", async () => {
   assert.equal(views.director.state, "ready");
   assert.ok(["idle", "monitoring", "rebalancing"].includes(views.allocator.state));
   assert.equal(views.moderator.state, "ticking");
-  assert.equal(views.configurator.state, "configured");
+  // PX.5 / Option A: the tick plane no longer drives the Configurator's build round.
+  // It used to walk uninitialized -> pending_config -> configured -> locked on every
+  // run without calling provideConfig/validate/lock, so `configured` here asserted a
+  // state the persona had not earned — nothing read it except the code choosing the
+  // next event. Configuration is a build-plane concern (charter rule 3), so on the
+  // tick plane the Configurator now correctly stays put.
+  assert.equal(views.configurator.state, "uninitialized");
 });

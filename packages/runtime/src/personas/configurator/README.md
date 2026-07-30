@@ -92,7 +92,15 @@ Instead, it supplies:
 
 ## State machine & phases
 - States: uninitialized → pending_config → configured → locked.
-- Subscribed tick phases: init, observe.
+- Subscribed tick phases: init, observe — **but the tick plane does not drive the build round.**
+  The runner used to inject `provide_config` → `validate` → `lock` on every run, walking the FSM
+  without calling any service method: a run reached `locked` with `hasConfig: false` and no published
+  snapshot, and nothing read the resulting state except the code choosing the next event (PX.5).
+  Configuration assembly, validation and locking are **build-plane** concerns (charter rule 3), and
+  the two planes did not even pass the same type — the build plane's `config` is
+  `spec.configurator.inputs`, the tick plane's was the `SimConfigArtifact`. During a run the
+  Configurator now correctly stays `uninitialized`. The subscriptions remain so a caller that
+  genuinely wants a tick-plane round can still drive one via `personaEvents`.
 - Outputs: configuration artifacts/refs (data-only); no IO or runtime mutation.
 
 ### CONFIG-plane service surface

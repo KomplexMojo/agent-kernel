@@ -11,11 +11,16 @@
  *   director      bootstrap · ingest_intent · draft_complete · refinement_complete (847-855)
  *   allocator     budget (820) · allocate (862)
  *
- * These tests PIN THE CURRENT DEFECTIVE BEHAVIOR. They are not aspirational: each
- * asserts what happens today, so the diff that fixes PX.5 must update them and
- * cannot land silently. The Configurator's own pair lives beside its service tests
- * in configurator/configurator-validate-lock.test.js; this file covers the systemic
- * shape and the trap below.
+ * STATUS 2026-07-30 — PARTIALLY RESOLVED (Option A).
+ *   ✅ Configurator — the tick plane no longer injects provide_config/validate/lock.
+ *      Configuration is a build-plane concern (charter rule 3), the walk gated
+ *      nothing, and the two planes did not even pass the same TYPE. Last two tests.
+ *   ⛔ Director and Allocator — STILL SHADOWED. Their tick `advance()` is NOT pure
+ *      ceremony, which is why the same removal does not apply: the Director emits
+ *      hazard-proposal effects on `ingest_intent` and surfaces the plan artifact,
+ *      and the Allocator computes budgetRemaining and can push solver actions.
+ *      Removing their events would delete live behavior, not ritual. Their tests
+ *      below still PIN THE DEFECT, so the diff that resolves them must update these.
  *
  * ⚠️ THE TRAP — READ BEFORE "FIXING" PX.5.
  * The obvious fix is to have `advance()` route its FSM events through the service
@@ -123,16 +128,36 @@ test("PX.5 TRAP: the two planes pass different TYPES, so routing advance() throu
   assert.throws(() => onInputs.validate(), (error) => error.code === "configurator_invalid");
 });
 
-test("PX.5 the tick-plane state walk gates nothing outside the runner's own next-event choice", () => {
-  // The only consumers of the tick-plane Configurator state are the two lines that
-  // decide which event to send NEXT. Nothing else in the codebase reads it, so the
-  // walk uninitialized -> pending_config -> configured -> locked is ceremony. Pinned
-  // as source assertions because the point is the ABSENCE of consumers.
+test("PX.5 RESOLVED for the configurator: the tick plane no longer drives its build round", () => {
+  // The walk uninitialized -> pending_config -> configured -> locked was ceremony —
+  // its only reader was the code choosing the next event, and none of it performed
+  // the work the states claim. Option A removed the automatic injection; these
+  // assertions are what stops it creeping back.
   const runner = readFileSync(resolve(ROOT, "packages/runtime/src/runner/runtime-fsm.mjs"), "utf8");
-  const reads = runner.match(/personaStates\?\.configurator\?\.state/g) || [];
-  assert.equal(reads.length, 2, "if this changed, re-check whether the tick-plane state now gates something");
-  assert.match(runner, /if \(cfgState === "pending_config"\) events\.configurator = "validate"/);
-  assert.match(runner, /if \(cfgState === "configured"\) events\.configurator = "lock"/);
+  assert.equal(
+    (runner.match(/personaStates\?\.configurator\?\.state/g) || []).length,
+    0,
+    "the runner must not read the Configurator's tick state to choose its next event",
+  );
+  for (const event of ["provide_config", "validate", "lock"]) {
+    assert.ok(
+      !new RegExp(`events\\.configurator = "${event}"`).test(runner),
+      `the tick plane must not inject "${event}" — configuration is a build-plane concern (charter rule 3)`,
+    );
+  }
+  // The capability is retained, not deleted: `events` is seeded from caller
+  // overrides, so an explicit personaEvents entry still drives the persona.
+  assert.match(runner, /const overrides = normalizePersonaEventsMap\(phaseInputs\.personaEvents\)/);
+});
+
+test("PX.5 a run leaves the Configurator untouched, because it authored nothing", async () => {
+  const { createConfiguratorPersona } = await import(`${P}/configurator/persona.js`);
+  // The state a run should now report: the tick plane consumes an already-built
+  // SimConfig; it does not assemble, validate or lock one.
+  const fresh = createConfiguratorPersona({ clock: CLOCK });
+  assert.equal(fresh.view().state, "uninitialized");
+  assert.equal(fresh.view().context.hasConfig, false);
+  assert.equal(fresh.lockedConfig(), null);
 });
 
 // ## TODO: Test Permutations

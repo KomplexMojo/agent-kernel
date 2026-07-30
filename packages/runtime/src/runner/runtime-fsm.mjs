@@ -792,8 +792,29 @@ export function createFsmRuntime({
     const hasSignals = Array.isArray(allocatorSignals) && allocatorSignals.length > 0;
     const controlEvent = phaseInputs.controlEvent || phaseInputs.control || phaseInputs.moderatorEvent;
 
+    // PX.5 / Option A — the tick plane does NOT drive the Configurator's build round.
+    //
+    // It used to inject `provide_config` here, then `validate` in OBSERVE and `lock`
+    // in SUMMARIZE, walking the FSM uninitialized -> pending_config -> configured ->
+    // locked on every run. That walk was ceremony: the only reader of the resulting
+    // state was the code choosing the next event to send, and none of it performed
+    // the work the states claim — the service surface (provideConfig/validate/lock)
+    // was never called, so a run reached `locked` with hasConfig false and no
+    // published snapshot.
+    //
+    // Configuration assembly, validation and locking are BUILD-plane concerns
+    // (charter rule 3, "build plane ≠ tick plane"): the tick plane consumes an
+    // already-built SimConfig, it does not author one. The clinching detail is that
+    // the two planes do not even pass the same TYPE — the build plane's `config` is
+    // `spec.configurator.inputs`, the tick plane's was the SimConfigArtifact — so
+    // routing these events through the service methods would have validated nothing
+    // while appearing to (see tests/personas/dual-surface-shadowing.test.js).
+    //
+    // The CAPABILITY is retained, only the automatic ceremony is gone: `events` is
+    // seeded from `phaseInputs.personaEvents`, so a caller that genuinely wants to
+    // drive the Configurator on the tick plane still can, and subscribePhases is
+    // deliberately left intact so that path keeps working.
     if (phase === TickPhases.INIT) {
-      if (!events.configurator && simConfig) events.configurator = "provide_config";
       if (!events.moderator) {
         const moderatorState = personaStates?.moderator?.state;
         if (moderatorState === "initializing") events.moderator = "start";
@@ -802,10 +823,6 @@ export function createFsmRuntime({
 
     if (phase === TickPhases.OBSERVE) {
       if (!events.actor) events.actor = "observe";
-      if (!events.configurator) {
-        const cfgState = orchestrator?.view?.().personaStates?.configurator?.state;
-        if (cfgState === "pending_config") events.configurator = "validate";
-      }
       if (!events.moderator) {
         const moderatorState = personaStates?.moderator?.state;
         if (moderatorState === "initializing") events.moderator = "start";
@@ -886,10 +903,6 @@ export function createFsmRuntime({
 
     if (phase === TickPhases.SUMMARIZE) {
       if (!events.annotator) events.annotator = "summarize";
-      if (!events.configurator) {
-        const cfgState = orchestrator?.view?.().personaStates?.configurator?.state;
-        if (cfgState === "configured") events.configurator = "lock";
-      }
     }
 
     return events;
