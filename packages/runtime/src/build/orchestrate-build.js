@@ -1339,12 +1339,23 @@ function normalizeActorPositions(actors, layout, { delverCount = 1 } = {}) {
   return { actors: normalized, changed };
 }
 
-export async function orchestrateBuild({ spec, producedBy = "runtime-build", solver, capturedInputs } = {}) {
+export async function orchestrateBuild({
+  spec,
+  producedBy = "runtime-build",
+  solver,
+  capturedInputs,
+  // CR.3: `{intent, plan}` from the Director round that produced this spec, when
+  // the caller ran one. Without it map-build-spec reconstructs a plan from the
+  // finished spec, which is a lineage derived from the product rather than the
+  // cause. Callers that never ran a Director (sandbox bridge, fixture-driven
+  // tests) legitimately omit it.
+  directorRound,
+} = {}) {
   if (!spec) {
     throw new Error("orchestrateBuild requires spec");
   }
 
-  const mapped = mapBuildSpecToArtifacts(spec, { producedBy });
+  const mapped = mapBuildSpecToArtifacts(spec, { producedBy, directorRound });
 
   let solverRequest = null;
   let solverResult = null;

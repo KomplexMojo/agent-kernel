@@ -31,8 +31,10 @@ const ROOT = resolve(__dirname, "../..");
 // Findings still open in local-codex/Plan.md. Kept here so the registry cannot
 // silently stop tracking one: if a finding is open but no entry names it, the
 // coverage test below fails.
+// CR.3 closed 2026-07-30 — director/plan-artifact flipped to owned, with a live
+// differential below. CR.2 is absent because its residue is tracked as PX.5.
 const OPEN_FINDINGS = Object.freeze([
-  "CR.1", "CR.3", "CR.4", "CR.5", "CR.6", "CR.7", "CR.8", "CR.9",
+  "CR.1", "CR.4", "CR.5", "CR.6", "CR.7", "CR.8", "CR.9",
   "PX.1", "PX.3", "PX.4", "PX.5",
 ]);
 
@@ -190,6 +192,62 @@ test("G1 configurator/validate-lock@build: production and the standalone persona
       );
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// Live differential: director/plan-artifact (owned since CR.3)
+// ---------------------------------------------------------------------------
+
+test("G1 director/plan-artifact: the persisted plan is the one the Director drafted", async () => {
+  const { runAuthoringBuild } = await import("../../packages/runtime/src/build/authoring-build.js");
+  const { createDirectorPersona } = await import(
+    "../../packages/runtime/src/personas/director/persona.js"
+  );
+
+  const runId = "run_g1_director";
+  const createdAt = "2026-07-30T00:00:00.000Z";
+  const summary = { commandName: "create", goal: "G1 director differential" };
+
+  // Production's persisted lineage.
+  const { buildResult } = await runAuthoringBuild({
+    summary, commandName: "create", runId, createdAt,
+  });
+
+  // The same round, standalone. If production's plan is a post-hoc reconstruction
+  // rather than this round's output, the two disagree.
+  const director = createDirectorPersona({ clock: () => createdAt });
+  const intentEnvelope = {
+    schema: "agent-kernel/IntentEnvelope",
+    schemaVersion: 1,
+    meta: { id: `intent_${runId}`, runId, createdAt, producedBy: "cli" },
+    source: "cli-create",
+    intent: { goal: summary.goal },
+  };
+  const { planArtifact } = director.beginBuild(intentEnvelope, { runId });
+
+  assert.equal(
+    buildResult.plan.intentRef.id,
+    planArtifact.intentRef.id,
+    "the persisted plan must reference the intent that OPENED the round, not one rebuilt from the "
+      + "finished spec — a mismatch means the lineage is reconstructed, i.e. provenance theater",
+  );
+  assert.equal(buildResult.plan.meta.correlationId, planArtifact.meta.correlationId);
+  assert.equal(buildResult.plan.meta.producedBy, "director");
+  assert.equal(
+    buildResult.intent.meta.id,
+    intentEnvelope.meta.id,
+    "the persisted intent must be the real envelope, not a reconstruction from the spec",
+  );
+  assert.equal(
+    buildResult.plan.intentRef.id,
+    buildResult.intent.meta.id,
+    "plan.intentRef and the persisted intent must agree",
+  );
+
+  // The id stays on the glue scheme so sim-config.json's planRef is byte-identical
+  // (P2.1c, maintainer decision) — the ONE thing about the plan that reaches goldens.
+  assert.equal(buildResult.plan.meta.id, `${runId}_plan`);
+  assert.equal(buildResult.simConfig.planRef.id, `${runId}_plan`);
 });
 
 test("G1 configurator/validate-lock@build: neutering the persona's verdict breaks production (ablation)", async () => {

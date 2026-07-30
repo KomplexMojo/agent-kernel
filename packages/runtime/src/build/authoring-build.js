@@ -118,9 +118,17 @@ export function applyMotivationToInitialStateActors(initialState, { parsedDelver
  * Assemble a BuildSpec through the Director controller — the spine shared by the
  * authoring build (create/configure) and the plain *-plan builds. Synthesize the
  * IntentEnvelope at this boundary, open the build round with beginBuild, then
- * assembleBuildSpec (which fronts buildspec-assembler; the spec is identical to a
- * direct call — the FSM advance and a discarded draft plan are the only added
- * effects). Mirrors the kernel's llm-plan path (P2.1b). Throws on failure.
+ * assembleBuildSpec (which fronts buildspec-assembler). Mirrors the kernel's
+ * llm-plan path (P2.1b). Throws on failure.
+ *
+ * Returns the WHOLE round — `{intent, plan, spec}` — not just the spec (CR.3).
+ * It previously returned `built.spec` and threw the plan away, and its own doc
+ * comment called that "a discarded draft plan". Downstream, map-build-spec.js then
+ * constructed a SECOND Director from the finished spec to generate the plan that
+ * actually persists, so the artifact stamped as the causal
+ * `IntentEnvelope → PlanArtifact → BuildSpec` chain had never driven anything: it
+ * was reconstructed afterwards from the finished product. Returning the round makes
+ * the persisted lineage the real one.
  */
 function assembleSpecThroughDirector({ summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact }) {
   const source = `cli-${commandName}`;
@@ -132,7 +140,7 @@ function assembleSpecThroughDirector({ summary, commandName, runId, createdAt, b
     source,
     intent: { goal: isNonEmptyString(summary?.goal) ? summary.goal : `author ${runId}` },
   };
-  director.beginBuild(intentEnvelope, { runId });
+  const { planArtifact } = director.beginBuild(intentEnvelope, { runId });
   const built = director.assembleBuildSpec({
     summary,
     runId,
@@ -144,7 +152,7 @@ function assembleSpecThroughDirector({ summary, commandName, runId, createdAt, b
   if (!built.ok || !built.spec) {
     throw new Error(`${commandName} build spec failed: ${built.errors.join("; ")}`);
   }
-  return built.spec;
+  return { spec: built.spec, plan: planArtifact, intent: intentEnvelope };
 }
 
 /**
@@ -168,12 +176,17 @@ export async function runPlanBuild(input = {}) {
     priceListArtifact = null,
   } = input;
 
-  const spec = assembleSpecThroughDirector({ summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact });
+  const { spec, plan, intent } = assembleSpecThroughDirector({
+    summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact,
+  });
   applyAuthoringSection(spec, authoring, commandName);
 
   const buildResult = await orchestrateBuild({
     spec,
     producedBy: `cli-${commandName}`,
+    // CR.3: the plan this build persists is the one the Director drafted above,
+    // not a second Director's reconstruction from the finished spec.
+    directorRound: { intent, plan },
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
 
@@ -209,7 +222,9 @@ export async function runAuthoringBuild(input = {}) {
     parsedWardens = [],
   } = input;
 
-  const spec = assembleSpecThroughDirector({ summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact });
+  const { spec, plan, intent } = assembleSpecThroughDirector({
+    summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact,
+  });
 
   // Configurator owns input preparation (P2.2/P2.3.1): grid sizing, hazard
   // placement, and resource mapping run behind the persona's CONFIG-plane surface.
@@ -250,6 +265,8 @@ export async function runAuthoringBuild(input = {}) {
   const buildResult = await orchestrateBuild({
     spec,
     producedBy: `cli-${commandName}`,
+    // CR.3 — see runPlanBuild.
+    directorRound: { intent, plan },
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
   applyMotivationToInitialStateActors(buildResult.initialState, { parsedDelvers, parsedWardens });

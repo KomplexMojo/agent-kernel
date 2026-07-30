@@ -78,12 +78,7 @@ const REGISTRY = Object.freeze([
     criteria: ["A2", "A5"],
     productionEntryPoint: "packages/runtime/src/build/authoring-build.js",
     invocation: "service",
-    status: {
-      blockedBy: "CR.3",
-      why:
-        "Two Director instances run per build: assembleSpecThroughDirector discards its plan, "
-        + "and map-build-spec.js builds a second Director to reconstruct the plan that persists.",
-    },
+    status: { owned: true, since: "CR.3" },
   },
 
   // ── Configurator ───────────────────────────────────────────────────────────
