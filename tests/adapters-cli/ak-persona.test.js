@@ -102,6 +102,27 @@ for (const persona of PERSONAS) {
   });
 }
 
+test("the result's state is the persona's view(), not the thinner advance() return", async () => {
+  // Three of seven merge a service-side context into view() that advance() does not
+  // return, and they are the three carrying build-plane authority. Reading the advance
+  // return silently dropped those fields; this pins the fix.
+  const { runPersonaInvocation } = await import(MODULE);
+  const expected = {
+    configurator: ["hasConfig", "levelGenPrepared", "resourcesMapped", "validated", "locked", "configVersion"],
+    director: ["planId", "buildSpecCount"],
+    allocator: ["budgetTokens", "receiptCount", "lastReceiptStatus"],
+  };
+  for (const [persona, keys] of Object.entries(expected)) {
+    const result = await runPersonaInvocation(readFixture(persona));
+    for (const key of keys) {
+      assert.ok(
+        key in result.state.context,
+        `${persona}: view() field "${key}" must reach PersonaResult.state.context`,
+      );
+    }
+  }
+});
+
 test("the result's clock comes from the envelope, never from the wall clock", () => {
   const out = tmpOut("clock");
   const run = runCli(["configurator", "--in", join(FIXTURES, "configurator-basic.json"), "--out", out]);

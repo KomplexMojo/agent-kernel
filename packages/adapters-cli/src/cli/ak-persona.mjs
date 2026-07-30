@@ -203,6 +203,19 @@ export async function runPersonaInvocation(invocationArtifact) {
     tick: invocation.tick,
   });
 
+  // The persona's state comes from view(), NOT from the advance() return.
+  //
+  // They are not the same thing for three of the seven: the Director, Configurator
+  // and Allocator merge a service-side context into view() that advance() does not
+  // return — `hasConfig`/`validated`/`locked`/`configVersion`, `planId`/
+  // `buildSpecCount`, `budgetTokens`/`receiptCount`/`lastReceiptStatus`. Reading the
+  // advance return dropped exactly those fields, which are the ones carrying
+  // build-plane authority, and it was also inconsistent: the unsubscribed path in
+  // every controller already returns view(). view() is the persona's declared
+  // serialized surface, so it is what a differential compares and what restore()
+  // will eventually round-trip.
+  const view = instance.view();
+
   return {
     schema: RESULT_SCHEMA,
     schemaVersion: 1,
@@ -213,7 +226,7 @@ export async function runPersonaInvocation(invocationArtifact) {
       producedBy: persona,
     },
     persona,
-    state: { state: round.state, context: round.context },
+    state: { state: view.state, context: view.context },
     subscribed,
     actions: round.actions ?? [],
     effects: round.effects ?? [],
