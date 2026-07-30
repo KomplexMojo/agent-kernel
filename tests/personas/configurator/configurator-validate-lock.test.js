@@ -224,6 +224,63 @@ test("view() stays JSON-serializable and reports validation/lock state", async (
 });
 
 // ---------------------------------------------------------------------------
+// PX.5 — the tick plane reaches this FSM without the service surface
+// ---------------------------------------------------------------------------
+// Found 2026-07-29 while building the G1 registry. runtime-fsm.mjs walks the
+// Configurator through provide_config -> validate -> lock as RAW FSM EVENTS via
+// advance(), never calling provideConfig/validate/lock. So CR.2's guarantee holds
+// on the BUILD plane (runAuthoringBuild calls the service) and NOT on the tick
+// plane. These tests pin the current, defective behavior so the gap is measured
+// rather than latent, and so the diff that fixes PX.5 has to update them.
+
+test("PX.5 — tick-plane events move the FSM WITHOUT the service surface", async () => {
+  const c = await makeConfigurator();
+  const malformed = {
+    levelGen: { width: "not-a-number", height: -3, shape: "wrong-type" },
+    resources: "not-an-array",
+  };
+
+  c.advance({ phase: "init", event: "provide_config", payload: { config: malformed }, tick: 0 });
+  // The state label says a config was provided; the service never saw one.
+  assert.equal(c.view().state, "pending_config");
+  assert.equal(c.view().context.hasConfig, false, "the FSM advanced without the service storing a config");
+
+  c.advance({ phase: "observe", event: "validate", payload: { config: malformed }, tick: 1 });
+  assert.equal(c.view().state, "configured", "⚠️ PX.5: a malformed config reaches `configured` on the tick plane");
+
+  c.advance({ phase: "observe", event: "lock", payload: {}, tick: 2 });
+  assert.equal(c.view().state, "locked", "⚠️ PX.5: and reaches `locked`");
+  assert.equal(c.lockedConfig(), null, "no snapshot was published — the lock is a label here");
+  assert.equal(c.view().context.configVersion, 0);
+
+  // The same config through the service surface is refused outright.
+  const s = await makeConfigurator();
+  s.provideConfig(malformed);
+  assert.throws(() => s.validate(), (e) => e.code === "configurator_invalid" && e.errors.length === 4);
+});
+
+test("PX.5 — validated/locked report the SERVICE's work, never just the FSM label", async () => {
+  // Deriving these from FSM state alone made them lie: the tick-plane walk above
+  // reported validated:true / locked:true with nothing validated or frozen.
+  const tick = await makeConfigurator();
+  tick.advance({ phase: "init", event: "provide_config", payload: { config: validConfig() }, tick: 0 });
+  tick.advance({ phase: "observe", event: "validate", payload: { config: validConfig() }, tick: 1 });
+  tick.advance({ phase: "observe", event: "lock", payload: {}, tick: 2 });
+  assert.equal(tick.view().state, "locked");
+  assert.equal(tick.view().context.validated, false, "the service did not validate, so validated is false");
+  assert.equal(tick.view().context.locked, false, "the service did not lock, so locked is false");
+
+  // Through the service surface both are true, and the FSM agrees.
+  const svc = await makeConfigurator();
+  svc.provideConfig(validConfig());
+  svc.validate();
+  assert.equal(svc.view().context.validated, true);
+  svc.lock();
+  assert.equal(svc.view().context.locked, true);
+  assert.equal(svc.view().state, "locked");
+});
+
+// ---------------------------------------------------------------------------
 // A2 — the necessary path: production cannot build without the Configurator
 // ---------------------------------------------------------------------------
 

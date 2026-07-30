@@ -95,6 +95,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
   let config = null;
   let levelGenPrepared = 0;
   let resourcesMapped = 0;
+  let serviceValidated = false;
   let lockedSnapshot = null;
   let configVersion = 0;
 
@@ -158,6 +159,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
       throw new ConfiguratorValidationError(result.errors);
     }
     fsm.advance("validate", { config });
+    serviceValidated = true;
     return { state: currentState() };
   }
 
@@ -183,20 +185,29 @@ export function attachConfiguratorServices({ fsm } = {}) {
   /**
    * Serializable service-side context merged into the persona view.
    *
-   * `validated` and `locked` are DERIVED from the FSM state rather than tracked
-   * as flags. The FSM offers `update_config` (configured → pending_config),
-   * which the tick plane can reach via advance() without going through this
-   * surface — a tracked flag would silently stay true after a reopen. Nothing
-   * sends that event today, so deriving costs nothing and removes the drift.
+   * `validated` and `locked` are the CONJUNCTION of "this surface did the work" and
+   * "the FSM is in the matching state". Neither half alone is honest:
+   *
+   *   - Deriving from FSM state alone LIES. There are two independent paths into
+   *     this FSM — `advance({event: "validate"})` reaches it directly, and the tick
+   *     plane uses exactly that (runtime-fsm.mjs walks provide_config → validate →
+   *     lock as raw FSM events). So a malformed config can reach `locked` with no
+   *     check performed, and a state-derived flag reports `validated: true` for it.
+   *     An earlier version of this function did precisely that; see finding PX.5.
+   *   - A tracked flag alone goes STALE. `update_config` (configured →
+   *     pending_config) would leave `validated` true after the round reopened.
+   *
+   * The conjunction is correct in both directions and needs no event hook.
    */
   function serviceContext() {
     const state = currentState();
+    const configured = state === ConfiguratorStates.CONFIGURED || state === ConfiguratorStates.LOCKED;
     return {
       hasConfig: config != null,
       levelGenPrepared,
       resourcesMapped,
-      validated: state === ConfiguratorStates.CONFIGURED || state === ConfiguratorStates.LOCKED,
-      locked: state === ConfiguratorStates.LOCKED,
+      validated: serviceValidated && configured,
+      locked: lockedSnapshot != null && state === ConfiguratorStates.LOCKED,
       configVersion,
     };
   }
