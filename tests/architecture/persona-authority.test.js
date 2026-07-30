@@ -31,11 +31,12 @@ const ROOT = resolve(__dirname, "../..");
 // Findings still open in local-codex/Plan.md. Kept here so the registry cannot
 // silently stop tracking one: if a finding is open but no entry names it, the
 // coverage test below fails.
-// CR.3 closed 2026-07-30 — director/plan-artifact flipped to owned, with a live
-// differential below. CR.2 is absent because its residue is tracked as PX.5.
+// Closed 2026-07-30: CR.3 (director/plan-artifact) and PX.5 (the tick plane no
+// longer sends build-plane service events for any persona). CR.2 is absent because
+// its tick-plane residue was PX.5, now closed; its build-plane half is owned.
 const OPEN_FINDINGS = Object.freeze([
   "CR.1", "CR.4", "CR.5", "CR.6", "CR.7", "CR.8", "CR.9",
-  "PX.1", "PX.3", "PX.4", "PX.5",
+  "PX.1", "PX.3", "PX.4", "PX.6",
 ]);
 
 // ---------------------------------------------------------------------------

@@ -79,6 +79,14 @@ Feasibility, cost, and validation are delegated to other personas.
 ## State machine & phases
 - States: uninitialized → intake → draft_plan → refine → ready → stale.
 - Subscribed tick phases: decide (ignores other phases).
+- **Tick-plane events are `observe` only, unless the run has no plan to consume** (PX.5).
+  `bootstrap`/`ingest_intent`/`draft_complete`/`refinement_complete` are the BUILD-plane vocabulary that
+  `director-services.js` drives (`beginBuild`, `assembleBuildSpec`), so reaching `ready` asserts a completed
+  build round. The runner used to send them on every tick, reporting `ready` with `buildSpecCount: 0` and
+  `planId: null` while minting a PlanArtifact mid-run — build-plane work inside a loop whose plan already
+  exists and is named by `simConfig.planRef`. A run that already has a plan now gets the state-preserving
+  `observe`. **The exception is real and preserved:** a runtime started from a bare `IntentEnvelope` with no
+  SimConfig has nothing to consume, and there the Director drafting a plan in-loop is the feature.
 - Outputs: data-only planning artifacts; no IO and no direct state mutation.
 
 ---

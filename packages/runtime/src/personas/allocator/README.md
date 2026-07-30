@@ -221,6 +221,15 @@ This allows budget enforcement to be compared across runs and environments.
 ## State machine & phases
 - States: idle → budgeting → allocating → monitoring → rebalancing.
 - Subscribed tick phases: observe, decide.
+- **Two vocabularies, one FSM** (PX.5). `budget` → `allocate` is BUILD-plane: `allocator-services.js`
+  drives it (`registerBudget`, `validateSpend`), so `budgeting`/`allocating` assert a registered budget and
+  a validated spend. `observe` · `monitor` → `rebalance` is the TICK-plane loop — no service method sends
+  those, so they claim nothing about build-plane work. The runner used to send `budget`/`allocate` directly,
+  reporting `allocating` with `budgetTokens: null` and `receiptCount: 0`; it now sends only the tick
+  vocabulary, and `monitor` may be entered from `idle` so the loop no longer starts with a false claim.
+  `observe` is a state-preserving self-loop: the Allocator's tick work (turning payload effects into
+  budget-limited request actions, emitting solver/external-fact requests) is payload-driven, so it needs a
+  round but not a state change.
 - Outputs: budget policies/receipts as data; no IO or direct state mutation.
 
 ## Relationship to core-ts

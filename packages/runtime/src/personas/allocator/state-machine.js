@@ -9,7 +9,36 @@ export const AllocatorStates = Object.freeze({
   REBALANCING: "rebalancing",
 });
 
+// PX.5 — TWO VOCABULARIES, ONE FSM, kept distinct.
+//
+// BUILD plane: budget → allocate. allocator-services.js drives these —
+// registerBudget sends `budget`, validateSpend sends `allocate` — and reaching
+// `budgeting`/`allocating` is a claim that a budget was registered and a spend
+// validated. The tick plane used to send them directly, so a run reported
+// `allocating` with budgetTokens null and receiptCount 0: a state asserting work
+// that never happened.
+//
+// TICK plane: observe · monitor → rebalance. These have NO service-method
+// counterpart, so they claim nothing about build-plane work — they are the
+// Allocator's own runtime loop, driven by runtime signals. `monitor` may now also be
+// entered from IDLE, so the tick plane can reach its loop without first pretending
+// to run a budget round.
+//
+// `observe` is a state-preserving self-loop, because the tick plane must be able to
+// give the Allocator a round on every phase: its advance() turns payload effects into
+// budget-limited request actions and emits solver/external-fact requests, which the
+// runner consumes (runtime-fsm.mjs handles request_solver and request_external_fact).
+// That work is entirely payload-driven — the event is a ticket to run — so a
+// self-loop serves it without moving the state.
+export const ALLOCATOR_TICK_EVENT = "observe";
+
 const transitions = [
+  ...Object.values(AllocatorStates).map((state) => ({
+    from: state,
+    event: ALLOCATOR_TICK_EVENT,
+    to: state,
+  })),
+  { from: AllocatorStates.IDLE, event: "monitor", to: AllocatorStates.MONITORING },
   { from: AllocatorStates.IDLE, event: "budget", to: AllocatorStates.BUDGETING },
   {
     from: AllocatorStates.BUDGETING,

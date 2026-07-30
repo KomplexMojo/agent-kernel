@@ -11,16 +11,23 @@
  *   director      bootstrap · ingest_intent · draft_complete · refinement_complete (847-855)
  *   allocator     budget (820) · allocate (862)
  *
- * STATUS 2026-07-30 — PARTIALLY RESOLVED (Option A).
- *   ✅ Configurator — the tick plane no longer injects provide_config/validate/lock.
- *      Configuration is a build-plane concern (charter rule 3), the walk gated
- *      nothing, and the two planes did not even pass the same TYPE. Last two tests.
- *   ⛔ Director and Allocator — STILL SHADOWED. Their tick `advance()` is NOT pure
- *      ceremony, which is why the same removal does not apply: the Director emits
- *      hazard-proposal effects on `ingest_intent` and surfaces the plan artifact,
- *      and the Allocator computes budgetRemaining and can push solver actions.
- *      Removing their events would delete live behavior, not ritual. Their tests
- *      below still PIN THE DEFECT, so the diff that resolves them must update these.
+ * STATUS 2026-07-30 — RESOLVED for all three (Option A), by three different means,
+ * because the three were not the same problem underneath:
+ *   Configurator  the walk was pure ceremony — nothing read the states except the
+ *                 code choosing the next event. The injections are simply gone.
+ *   Allocator     `budget`/`allocate` shadow registerBudget/validateSpend and are
+ *                 gone, but `monitor`/`rebalance` shadow nothing — they are the
+ *                 Allocator's own signal-driven loop, and are KEPT. `monitor` may now
+ *                 be entered from idle so that loop no longer has to pass through a
+ *                 false budget claim to start.
+ *   Director      the build-round walk is kept ONLY when there is no plan to consume.
+ *                 A runtime started from a bare IntentEnvelope legitimately has the
+ *                 Director draft one in-loop; a run whose SimConfig already names its
+ *                 plan does not, and now gets a state-preserving `observe`.
+ *
+ * The first four tests still characterize what `advance()` PERMITS at the persona
+ * level — that has not changed, and is the reason the runner must not use those
+ * events. The last three assert the resolution.
  *
  * ⚠️ THE TRAP — READ BEFORE "FIXING" PX.5.
  * The obvious fix is to have `advance()` route its FSM events through the service
@@ -128,36 +135,100 @@ test("PX.5 TRAP: the two planes pass different TYPES, so routing advance() throu
   assert.throws(() => onInputs.validate(), (error) => error.code === "configurator_invalid");
 });
 
-test("PX.5 RESOLVED for the configurator: the tick plane no longer drives its build round", () => {
-  // The walk uninitialized -> pending_config -> configured -> locked was ceremony —
-  // its only reader was the code choosing the next event, and none of it performed
-  // the work the states claim. Option A removed the automatic injection; these
-  // assertions are what stops it creeping back.
+test("PX.5 RESOLVED: the tick plane no longer sends any build-plane service event", () => {
+  // These are the events a service method sends, so sending them from the runner
+  // asserts work the runner did not do. Pinned as source assertions because the
+  // point is their ABSENCE.
   const runner = readFileSync(resolve(ROOT, "packages/runtime/src/runner/runtime-fsm.mjs"), "utf8");
+  const forbidden = {
+    configurator: ["provide_config", "validate", "lock"],   // provideConfig/validate/lock
+    allocator: ["budget", "allocate"],                       // registerBudget/validateSpend
+  };
+  for (const [persona, events] of Object.entries(forbidden)) {
+    for (const event of events) {
+      assert.ok(
+        !new RegExp(`events\\.${persona} = "${event}"`).test(runner),
+        `the tick plane must not inject ${persona} "${event}" — it is a service method's event`,
+      );
+    }
+  }
   assert.equal(
     (runner.match(/personaStates\?\.configurator\?\.state/g) || []).length,
     0,
     "the runner must not read the Configurator's tick state to choose its next event",
   );
-  for (const event of ["provide_config", "validate", "lock"]) {
-    assert.ok(
-      !new RegExp(`events\\.configurator = "${event}"`).test(runner),
-      `the tick plane must not inject "${event}" — configuration is a build-plane concern (charter rule 3)`,
-    );
-  }
   // The capability is retained, not deleted: `events` is seeded from caller
-  // overrides, so an explicit personaEvents entry still drives the persona.
+  // overrides, so an explicit personaEvents entry still drives any persona.
   assert.match(runner, /const overrides = normalizePersonaEventsMap\(phaseInputs\.personaEvents\)/);
 });
 
-test("PX.5 a run leaves the Configurator untouched, because it authored nothing", async () => {
-  const { createConfiguratorPersona } = await import(`${P}/configurator/persona.js`);
-  // The state a run should now report: the tick plane consumes an already-built
-  // SimConfig; it does not assemble, validate or lock one.
-  const fresh = createConfiguratorPersona({ clock: CLOCK });
-  assert.equal(fresh.view().state, "uninitialized");
-  assert.equal(fresh.view().context.hasConfig, false);
-  assert.equal(fresh.lockedConfig(), null);
+test("PX.5 RESOLVED: a run claims no build-plane work it did not do", async () => {
+  const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
+  const { createCore } = await import("../../packages/core-ts/src/index.ts");
+  const load = (p) => JSON.parse(readFileSync(resolve(ROOT, p), "utf8"));
+
+  const runtime = createRuntime({ core: createCore(), adapters: {} });
+  await runtime.init({
+    seed: 0,
+    // A SimConfig that already names its plan — the normal run. The plan was built
+    // on the build plane; the tick plane consumes it.
+    simConfig: load("tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"),
+    initialState: load("tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json"),
+    runId: "run_px5_resolved",
+    intentEnvelope: {
+      schema: "agent-kernel/IntentEnvelope",
+      schemaVersion: 1,
+      meta: { id: "intent_px5", runId: "run_px5_resolved", createdAt: "2025-01-01T00:00:00.000Z", producedBy: "test" },
+      source: "test",
+      intent: { goal: "px5" },
+    },
+  });
+  for (let i = 0; i < 4; i += 1) await runtime.step();
+
+  const last = runtime.getTickFrames().filter((f) => f.phaseDetail === "summarize").pop();
+  const views = last.personaViews;
+
+  assert.equal(views.configurator.state, "uninitialized", "no config was assembled during the run");
+  assert.equal(views.configurator.context.hasConfig, false);
+  assert.equal(views.director.state, "uninitialized", "no build round ran during the run");
+  assert.equal(views.director.context.buildSpecCount, 0);
+  assert.ok(
+    !["budgeting", "allocating"].includes(views.allocator.state),
+    `the Allocator must not claim a budget round on the tick plane (got ${views.allocator.state})`,
+  );
+  // …while its OWN tick loop still runs, and the Orchestrator still progresses.
+  assert.ok(["idle", "monitoring", "rebalancing"].includes(views.allocator.state));
+  assert.equal(views.orchestrator.state, "running");
+});
+
+test("PX.5 the bare-intent capability survives: a run with NO SimConfig still plans in-loop", async () => {
+  // Not everything the tick plane did was ceremony. A runtime started from an
+  // IntentEnvelope alone has no plan to consume, and the Director drafting one
+  // in-loop is the feature. The build-round walk is preserved for exactly that case,
+  // which is why the fix is conditional rather than a removal.
+  const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
+  const core = {
+    init() {}, applyAction() {}, getCounter() { return 0; },
+    getEffectCount() { return 0; }, getEffectKind() { return 0; },
+    getEffectValue() { return 0; }, clearEffects() {},
+  };
+  const runtime = createRuntime({ core, adapters: {} });
+  await runtime.init({
+    seed: 0,
+    runId: "run_px5_bare",
+    intentEnvelope: {
+      schema: "agent-kernel/IntentEnvelope",
+      schemaVersion: 1,
+      meta: { id: "intent_bare", runId: "run_px5_bare", createdAt: "2025-01-01T00:00:00.000Z", producedBy: "test" },
+      source: "test",
+      intent: { goal: "plan from intent alone" },
+    },
+  });
+  for (let i = 0; i < 3; i += 1) await runtime.step();
+
+  const planFrames = runtime.getTickFrames().filter((frame) => Array.isArray(frame.personaArtifacts)
+    && frame.personaArtifacts.some((artifact) => artifact?.schema === "agent-kernel/PlanArtifact"));
+  assert.ok(planFrames.length > 0, "with no plan to consume, the Director still drafts one");
 });
 
 // ## TODO: Test Permutations

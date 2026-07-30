@@ -100,12 +100,26 @@ const REGISTRY = Object.freeze([
     criteria: ["A3"],
     productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
     invocation: "cli",
+    // Owned in the sense A3 asks for: the tick plane can no longer reach a state
+    // claiming validation/locking, because it no longer sends those events at all.
+    // Configuration is build-plane work; the tick plane consumes an already-built
+    // SimConfig. Asserted in tests/personas/dual-surface-shadowing.test.js.
+    status: { owned: true, since: "PX.5 (Option A)" },
+  },
+
+  {
+    id: "configurator/locked-config-is-the-input",
+    persona: "configurator",
+    behavior: "The config a build consumes is the one the Configurator locked, unedited afterwards",
+    criteria: ["A5"],
+    productionEntryPoint: "packages/runtime/src/build/orchestrate-build.js",
+    invocation: "service",
     status: {
-      blockedBy: "PX.5",
+      blockedBy: "PX.6",
       why:
-        "runtime-fsm.mjs walks provide_config -> validate -> lock as raw FSM events via "
-        + "advance(), bypassing the service surface, so a malformed config reaches `locked` "
-        + "with nothing validated and no snapshot published.",
+        "orchestrateBuild writes affinityRules, motivationRules and actors back into "
+        + "spec.configurator.inputs after the Configurator's round closes, so the artifact "
+        + "recorded as the causal input is partly a product of the build.",
     },
   },
 

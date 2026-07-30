@@ -778,7 +778,12 @@ export function createFsmRuntime({
     const events = { ...overrides };
     const personaStates = orchestrator?.view?.().personaStates || {};
     const hasIntent = Boolean(intentEnvelope);
-    const hasPlanArtifact = Boolean(planArtifact);
+    // PX.5 — "a plan exists" now also counts the SimConfig's planRef, which is the
+    // CORRECT source during a run: the plan was produced on the build plane and the
+    // SimConfig names it. Previously this was true only once the Director had minted
+    // a plan mid-tick, so the Orchestrator's progression depended on build-plane work
+    // happening inside the run loop.
+    const hasPlanArtifact = Boolean(planArtifact || simConfig?.planRef);
     const planRef = planArtifact
       ? { id: planArtifact.meta?.id, schema: planArtifact.schema, schemaVersion: planArtifact.schemaVersion }
       : simConfig?.planRef ?? null;
@@ -831,13 +836,18 @@ export function createFsmRuntime({
         const orchState = personaStates?.orchestrator?.state;
         if (orchState === "idle" && hasPlanArtifact) events.orchestrator = "plan";
       }
+      // PX.5 — the tick plane drives the Allocator's OWN loop (monitor/rebalance),
+      // never the build-plane budget vocabulary. `budget`/`allocate` are sent by
+      // allocator-services.js (registerBudget/validateSpend); sending them from here
+      // made a run report `allocating` with budgetTokens null and receiptCount 0 —
+      // a state claiming a budget round that never happened. `monitor` can now be
+      // entered from idle, so the runtime loop no longer has to pass through that
+      // claim to get going. `observe` is a state-preserving round for the phases
+      // where nothing should move: the Allocator's tick work is payload-driven, so
+      // it still emits its request actions.
       if (!events.allocator) {
         const allocState = personaStates?.allocator?.state;
-        if (allocState === "idle" && hasBudgets) {
-          events.allocator = "budget";
-        } else if (allocState === "allocating" || allocState === "rebalancing") {
-          events.allocator = "monitor";
-        }
+        events.allocator = allocState === "idle" || allocState === "rebalancing" ? "monitor" : "observe";
       }
       if (controlEvent) {
         if (!events.moderator) {
@@ -857,29 +867,47 @@ export function createFsmRuntime({
         const orchState = personaStates?.orchestrator?.state;
         if (orchState === "planning" && hasPlanArtifact) events.orchestrator = "start_run";
       }
+      // PX.5 — the tick plane walks the Director's build round ONLY when there is no
+      // plan to consume.
+      //
+      // bootstrap/ingest_intent/draft_complete/refinement_complete are
+      // director-services.js's events (beginBuild, assembleBuildSpec), so sending
+      // them asserts a build round. In the normal run — a SimConfig that already
+      // names its plan via planRef — that assertion was false: the Director reported
+      // `ready` with buildSpecCount 0 and planId null while minting a PlanArtifact
+      // mid-run, which is build-plane work inside a loop whose plan already exists.
+      //
+      // But a runtime CAN legitimately be started from a bare IntentEnvelope with no
+      // SimConfig (runtime-plan-artifact.test.js does exactly that), and then the
+      // Director drafting a plan in-loop is the feature, not the defect. So the walk
+      // is preserved for that case only, and every run that has a plan gets the
+      // state-preserving `observe`.
       if (!events.director) {
         const directorState = personaStates?.director?.state;
-        if (hasIntent || hasPlanArtifact) {
+        const hasPlanToConsume = Boolean(planArtifact || simConfig?.planRef);
+        if (!hasPlanToConsume && hasIntent) {
           if (directorState === "uninitialized") {
             events.director = "bootstrap";
           } else if (directorState === "intake") {
-            events.director = hasPlanArtifact ? "ingest_plan" : "ingest_intent";
+            events.director = "ingest_intent";
           } else if (directorState === "draft_plan" && planRef) {
             events.director = "draft_complete";
           } else if (directorState === "refine" && planRef) {
             events.director = "refinement_complete";
           } else if (directorState === "stale") {
             events.director = "refresh";
+          } else {
+            events.director = "observe";
           }
+        } else {
+          events.director = "observe";
         }
       }
+      // PX.5 — rebalance is signal-driven and tick-native; `allocate` is not sent
+      // here any more (it is validateSpend's event, a claim this plane cannot make).
       if (!events.allocator) {
         const allocState = personaStates?.allocator?.state;
-        if (allocState === "budgeting" && hasBudgets) {
-          events.allocator = "allocate";
-        } else if (allocState === "monitoring" && hasSignals) {
-          events.allocator = "rebalance";
-        }
+        events.allocator = allocState === "monitoring" && hasSignals ? "rebalance" : "observe";
       }
     }
 
