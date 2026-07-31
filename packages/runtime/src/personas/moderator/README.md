@@ -148,6 +148,23 @@ inputs/outputs belong in `packages/runtime/src/personas/moderator/contracts.ts`.
 
 The runtime runner module is owned by the Moderator and exists to execute Moderator-controlled ticks.
 
+**Where the tick policies live (CR.5).** Until CR.5 the two policies below were declared inside
+`runner/runtime-fsm.mjs`, so the runner decided them without ever consulting this persona. They now
+have exactly one origin each, and `runtime-fsm.mjs` asks for a plan and executes it:
+
+| Policy | Module | Planning event |
+|---|---|---|
+| Persona execution order | `tick-ordering.js` | `plan_persona_order` (INIT phase) |
+| Effect fulfilment + emission order | `effect-fulfillment.js` | `plan_effect_fulfillment` (EMIT phase) |
+| Affinity target resolution | `affinity-target-effects.js` | `resolve_affinity` (APPLY phase) |
+
+These are **planning** events: they answer a question as data and deliberately do not transition the
+FSM, because deciding an order or a disposition is not a lifecycle change. The persona decides; the
+runner does the IO, with dispatch staying behind `ports/effects.js`. The runner keeps no fallback copy
+of either policy — a Moderator that will not answer is a hard error, not a silent reversion to glue.
+Because ordering is Moderator policy, a runtime that runs ticks always has a Moderator: one is
+supplied even if a caller-provided persona registry omits it.
+
 This separation ensures that:
 - Execution mechanics are isolated from planning and policy.
 - The simulation loop remains inspectable and testable.

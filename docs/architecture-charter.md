@@ -154,10 +154,12 @@ several phases achieved **structural** routing without **semantic** authority:
   perform no schema check and no freeze, and the production authoring path never calls them
   (**A2 + A3**). The Director's persisted PlanArtifact is reconstructed *after* the spec is built by a
   second Director instance; the plan that actually ran is discarded (**A2 + A5**).
-- **Phase 3 — real, with two gaps.** The Moderator's pause gate genuinely gates, but tick *ordering*
-  and *effect fulfilment* — also chartered to it — remain in the runner (**A1 + A2**). The RunSummary's
-  derived `outcome` is real, but it is stamped by a freshly created Annotator that never observed the
-  run (**A5**).
+- **Phase 3 — one gap left.** The Moderator's pause gate genuinely gates, and as of CR.5 tick
+  *ordering* and *effect fulfilment* are its decisions too: the canonical persona order and the
+  per-effect disposition are declared only inside the persona, and the runner executes the returned
+  plan without keeping a fallback of its own (dispatch itself stays behind `ports/effects.js`).
+  Still open: the RunSummary's derived `outcome` is real, but it is stamped by a freshly created
+  Annotator that never observed the run (**A5**).
 - **Also open:** the Actor holds decision-relevant state in a closure absent from `view()` (**A4**) and
   applies budget admissibility that is Allocator policy (**A1**); the Allocator authors and grows card
   configurations, which is Configurator work (**A1**, see the Economy section).

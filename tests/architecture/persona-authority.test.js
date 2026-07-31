@@ -34,8 +34,10 @@ const ROOT = resolve(__dirname, "../..");
 // Closed 2026-07-30: CR.3 (director/plan-artifact) and PX.5 (the tick plane no
 // longer sends build-plane service events for any persona). CR.2 is absent because
 // its tick-plane residue was PX.5, now closed; its build-plane half is owned.
+// Closed 2026-07-31: CR.5 — tick ordering and effect fulfilment are Moderator
+// policy now, with the live differential below replacing the backlog skip.
 const OPEN_FINDINGS = Object.freeze([
-  "CR.1", "CR.4", "CR.5", "CR.6", "CR.7", "CR.8", "CR.9",
+  "CR.1", "CR.4", "CR.6", "CR.7", "CR.8", "CR.9",
   "PX.1", "PX.3", "PX.4", "PX.6",
 ]);
 
@@ -276,6 +278,122 @@ test("G1 configurator/validate-lock@build: neutering the persona's verdict break
       resources: [{ tier: "common", stat: "health", delta: 1, dropRate: 1 }],
     }),
     (error) => error.code === "configurator_invalid",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Live differential: moderator/tick-ordering (owned since CR.5)
+// ---------------------------------------------------------------------------
+
+test("G1 moderator/tick-ordering: production executes the order the Moderator planned", async () => {
+  const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
+  const { createModeratorPersona } = await import(
+    "../../packages/runtime/src/personas/moderator/persona.js"
+  );
+
+  const core = {
+    init() {}, step() {}, applyAction() {},
+    getCounter: () => 0,
+    getEffectCount: () => 0,
+    getEffectKind: () => 0,
+    getEffectValue: () => 0,
+    clearEffects() {},
+  };
+  const stub = (label) => ({
+    subscribePhases: [],
+    advance: () => ({ state: label, context: {} }),
+    view: () => ({ state: label, context: {} }),
+  });
+
+  // Registries deliberately supplied in NON-canonical order, so agreement cannot
+  // be an accident of insertion order.
+  const cases = [
+    { name: "full roster", names: ["annotator", "actor", "orchestrator", "allocator", "director", "configurator"] },
+    { name: "sparse subset", names: ["annotator", "director"] },
+    { name: "with unknowns", names: ["zeta", "actor", "alpha"] },
+  ];
+
+  for (const testCase of cases) {
+    const personas = Object.fromEntries(testCase.names.map((n) => [n, stub(n)]));
+    personas.moderator = createModeratorPersona({ clock: () => "2026-07-31T00:00:00.000Z" });
+
+    // The persona's own verdict, reached standalone through its advance() surface.
+    const standalone = createModeratorPersona({ clock: () => "2026-07-31T00:00:00.000Z" });
+    const personaOrder = standalone.advance({
+      phase: "init",
+      event: "plan_persona_order",
+      payload: { personaNames: Object.keys(personas) },
+      tick: 0,
+    }).personaOrder;
+
+    // Production's order on the same registry.
+    const runtime = createRuntime({ core, adapters: {}, personas });
+    await runtime.init({ seed: 0 });
+    await runtime.step({});
+    const productionOrder = Object.keys(runtime.getTickFrames().at(-1).personaViews);
+
+    assert.deepEqual(
+      productionOrder,
+      personaOrder,
+      `${testCase.name}: production advanced personas in an order the Moderator did not plan — `
+        + "that is a second implementation of a chartered decision",
+    );
+  }
+});
+
+test("G1 moderator/tick-ordering: production applies the fulfilment the Moderator decided", async () => {
+  const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
+  const { createModeratorPersona } = await import(
+    "../../packages/runtime/src/personas/moderator/persona.js"
+  );
+
+  const effectList = [
+    { id: "eff-z", kind: "log", severity: "info", data: { message: "z" } },
+    { id: "eff-a", kind: "need_external_fact", requestId: "r", targetAdapter: "fx", sourceRef: { id: "s" }, data: {} },
+    { id: "eff-m", kind: "need_external_fact", requestId: "r2", targetAdapter: "fx", data: {} },
+    { id: "eff-b", kind: "telemetry", fulfillment: "deferred", data: {} },
+  ];
+
+  // The persona's own plan, reached standalone.
+  const standalone = createModeratorPersona({ clock: () => "2026-07-31T00:00:00.000Z" });
+  const plan = standalone.advance({
+    phase: "emit",
+    event: "plan_effect_fulfillment",
+    payload: { effects: effectList },
+    tick: 0,
+  }).fulfillmentPlan;
+
+  // Production's dispositions on the same effects.
+  let count = effectList.length;
+  const runtime = createRuntime({
+    core: {
+      init() {}, step() {}, applyAction() {},
+      getCounter: () => 0,
+      getEffectCount: () => count,
+      getEffectKind: (i) => i,
+      getEffectValue: (i) => i,
+      clearEffects() { count = 0; },
+    },
+    adapters: { logger: { log: () => "ok", warn: () => "ok", error: () => "ok" } },
+    effectFactory: ({ index }) => effectList[index],
+  });
+  await runtime.init({ seed: 0 });
+  const fulfilled = runtime.getTickFrames()[0].fulfilledEffects;
+
+  assert.deepEqual(
+    fulfilled.map((entry) => entry.effect.id),
+    plan.map((decision) => effectList[decision.index].id),
+    "production emitted effects in an order the Moderator did not plan",
+  );
+  assert.deepEqual(
+    fulfilled.map((entry) => entry.status),
+    plan.map((decision) => decision.status ?? "fulfilled"),
+    "production reached a disposition the Moderator did not decide",
+  );
+  assert.deepEqual(
+    fulfilled.map((entry) => entry.reason ?? null),
+    plan.map((decision) => decision.reason ?? null),
+    "production recorded a deferral reason the Moderator did not give",
   );
 });
 

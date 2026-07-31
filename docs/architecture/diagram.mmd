@@ -25,7 +25,7 @@ flowchart LR
     DirectorPersona["director persona\nintent -> PlanArtifact -> BuildSpec"]
     ConfiguratorPersona["configurator persona\nassemble + validate + lock config"]
     AllocatorPersona["allocator persona\nTHE economy: price list, spend\nvalidation, maximization, receipts"]
-    ModeratorPersona["moderator persona\ntick control + affinity resolution"]
+    ModeratorPersona["moderator persona\ntick control: persona order, effect\nfulfilment, affinity resolution, pause gate"]
     AnnotatorPersona["annotator persona\ntelemetry + run summaries"]
     ActorPersona["actor persona\nbuildMotivatedProposals"]
     RuntimeFSM["runtime-fsm\nadaptActionToCore"]
@@ -97,7 +97,7 @@ flowchart LR
   ConfiguratorPersona -- "spend proposal" --> AllocatorPersona
   AllocatorPersona -- "BudgetReceiptArtifact" --> AnnotatorPersona
   CardAuthoring -- "price/receipt requests" --> AllocatorPersona
-  ModeratorPersona -- "affinity actions +\ntick control" --> RuntimeFSM
+  ModeratorPersona -- "affinity actions + persona order +\nfulfilment plan (CR.5): the runner\nexecutes, it does not decide" --> RuntimeFSM
   ActorPersona -- "attack action" --> RuntimeFSM
   RuntimeFSM -- "apply_attack directive" --> CombatCore
   ActorPersona -- "solver_request effect" --> RuntimeFSM

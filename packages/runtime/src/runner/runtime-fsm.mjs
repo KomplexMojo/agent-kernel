@@ -9,7 +9,7 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createAnnotatorPersona } from "../personas/annotator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
-import { createModeratorPersona } from "../personas/moderator/persona.js";
+import { createModeratorPersona, FulfillmentDispositions } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona } from "../personas/orchestrator/persona.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
 import { applyMoveAction, packMoveAction, readObservation, renderBaseTiles } from "../../../core-ts/src/index.ts";
@@ -44,15 +44,10 @@ const AFFINITY_EXPRESSION_CODES = Object.freeze(
   }, {}),
 );
 
-const DEFAULT_PERSONA_ORDER = Object.freeze([
-  "orchestrator",
-  "director",
-  "configurator",
-  "allocator",
-  "actor",
-  "moderator",
-  "annotator",
-]);
+// CR.5 — the persona execution order used to be declared here, as a private
+// DEFAULT_PERSONA_ORDER constant. It is now Moderator policy
+// (personas/moderator/tick-ordering.js) and the runner asks for it; see
+// ensureOrchestrator().
 
 const DEFAULT_LOG_LEVELS = Object.freeze({
   debug: 0,
@@ -296,53 +291,62 @@ function normalizeEffectKind(effect) {
   effect.kind = String(effect.kind);
 }
 
-function flushEffects({ core, adapters, effectFactory, tick, effectLog }) {
+// CR.5 — the runner reads core, then EXECUTES the Moderator's fulfilment plan. It
+// no longer decides dispositions: which effects are satisfied deterministically,
+// which defer and which are dispatched is Moderator policy
+// (personas/moderator/effect-fulfillment.js), as is the emission order. Actual
+// dispatch stays here, behind ports/effects.js — the persona decides, glue does IO.
+function flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator }) {
   const count = core.getEffectCount();
   const buildEffectRecord = buildEffectRecordFactory({ core, effectFactory, tick });
-  const records = [];
+  const built = [];
   for (let i = 0; i < count; i += 1) {
     const kind = core.getEffectKind(i);
     const value = core.getEffectValue(i);
     const effect = buildEffectRecord({ kind, value, index: i });
     normalizeEffectKind(effect);
+    built.push({ effect, coreKind: kind, coreValue: value });
+  }
+
+  const plan = moderator.advance({
+    phase: TickPhases.EMIT,
+    event: "plan_effect_fulfillment",
+    payload: { effects: built.map((entry) => entry.effect) },
+    tick,
+  })?.fulfillmentPlan;
+  if (!Array.isArray(plan)) {
+    throw new Error(
+      "Moderator did not return a fulfilment plan: effect fulfilment is Moderator policy (CR.5), "
+      + "so the runner has no disposition of its own to fall back on.",
+    );
+  }
+
+  const records = [];
+  for (const decision of plan) {
+    const { effect, coreKind, coreValue } = built[decision.index];
+    if (decision.fulfillment) {
+      effect.fulfillment = decision.fulfillment;
+    }
     let outcome;
-    if (effect?.kind === "need_external_fact") {
-      if (effect.sourceRef) {
-        effect.fulfillment = "deterministic";
-        outcome = {
-          status: "fulfilled",
-          result: { sourceRef: effect.sourceRef, requestId: effect.requestId, targetAdapter: effect.targetAdapter },
-        };
-      } else {
-        effect.fulfillment = "deferred";
-        outcome = { status: "deferred", reason: "missing_source_ref" };
-      }
-    } else if (effect?.fulfillment === "deferred") {
-      outcome = { status: "deferred", reason: "deferred_effect" };
-    } else {
+    if (decision.disposition === FulfillmentDispositions.DISPATCH) {
       const dispatch = typeof effects.dispatchEffect === "function"
         ? effects.dispatchEffect
         : () => ({ status: "deferred", reason: "missing_dispatchEffect" });
       outcome = dispatch(adapters, effect);
+    } else {
+      outcome = { status: decision.status, result: decision.result, reason: decision.reason };
     }
     records.push({
       effect,
       outcome,
-      index: i,
-      coreKind: kind,
-      coreValue: value,
+      index: decision.index,
+      coreKind,
+      coreValue,
     });
   }
+  // Kept AFTER dispatch, exactly where it sat pre-CR.5: clearing earlier would
+  // change which effects survive should a dispatch ever write back to core.
   core.clearEffects();
-
-  records.sort((a, b) => {
-    const left = a.effect?.id || "";
-    const right = b.effect?.id || "";
-    if (left === right) {
-      return a.index - b.index;
-    }
-    return left < right ? -1 : 1;
-  });
 
   const emittedEffects = records.map((record) => record.effect);
   const fulfilledEffects = records.map((record) => ({
@@ -379,23 +383,6 @@ function buildDefaultPersonas({ clock }) {
     moderator: createModeratorPersona({ clock }),
     annotator: createAnnotatorPersona({ clock }),
   };
-}
-
-function orderPersonas(personas) {
-  const ordered = [];
-  const seen = new Set();
-  for (const name of DEFAULT_PERSONA_ORDER) {
-    if (personas[name]) {
-      ordered.push([name, personas[name]]);
-      seen.add(name);
-    }
-  }
-  for (const [name, persona] of Object.entries(personas)) {
-    if (!seen.has(name)) {
-      ordered.push([name, persona]);
-    }
-  }
-  return ordered;
 }
 
 function resolveActionParams(action) {
@@ -597,6 +584,7 @@ export function createFsmRuntime({
   }
 
   let tick = 0;
+  let moderator = null;
   const effectLog = [];
   const tickFrames = [];
   let activeRunId = typeof runId === "string" && runId.length > 0 ? runId : `run_${Date.now().toString(36)}`;
@@ -674,10 +662,32 @@ export function createFsmRuntime({
       llmAdapter: adapters?.llm || adapters?.ollama || null,
     });
 
-    const registry = personas && typeof personas === "object" ? personas : buildDefaultPersonas({ clock: activeClock });
-    const ordered = orderPersonas(registry);
-    for (const [name, persona] of ordered) {
-      orchestrator.registerPersona(name, persona);
+    const registry = personas && typeof personas === "object"
+      ? { ...personas }
+      : buildDefaultPersonas({ clock: activeClock });
+    // CR.5 — the Moderator controls the tick, so a runtime that runs ticks has one.
+    // buildDefaultPersonas always provides it; a caller-supplied registry that omits
+    // it still gets one, which is what keeps ordering and fulfilment policy to a
+    // single origin instead of needing a runner-side fallback copy.
+    if (!registry.moderator) {
+      registry.moderator = createModeratorPersona({ clock: activeClock });
+    }
+    moderator = registry.moderator;
+
+    const order = moderator.advance({
+      phase: TickPhases.INIT,
+      event: "plan_persona_order",
+      payload: { personaNames: Object.keys(registry) },
+      tick,
+    })?.personaOrder;
+    if (!Array.isArray(order)) {
+      throw new Error(
+        "Moderator did not return a persona order: tick ordering is Moderator policy (CR.5), "
+        + "so a registry whose `moderator` cannot answer plan_persona_order cannot run a tick.",
+      );
+    }
+    for (const name of order) {
+      orchestrator.registerPersona(name, registry[name]);
     }
   }
 
@@ -1100,7 +1110,7 @@ export function createFsmRuntime({
 
       ensureOrchestrator();
 
-      const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog });
+      const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator });
       lastEffects = frameEffects.emittedEffects;
       lastFulfilled = frameEffects.fulfilledEffects;
 
@@ -1329,7 +1339,7 @@ export function createFsmRuntime({
         solverFulfilled: applyRecord.solverFulfilled,
       });
 
-      const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog });
+      const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator });
       lastEffects = frameEffects.emittedEffects;
       lastFulfilled = frameEffects.fulfilledEffects;
       observationLog.push({ tick, effects: lastEffects, fulfilledEffects: lastFulfilled, persona: "core" });

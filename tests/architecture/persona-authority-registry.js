@@ -190,12 +190,12 @@ const REGISTRY = Object.freeze([
     criteria: ["A1", "A2"],
     productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
     invocation: "cli",
-    status: {
-      blockedBy: "CR.5",
-      why:
-        "flushEffects decides fulfilment and dispatches directly; orderPersonas picks order from "
-        + "DEFAULT_PERSONA_ORDER. Neither routes through the Moderator controller.",
-    },
+    // Both halves moved: the canonical order lives only in moderator/tick-ordering.js
+    // and dispositions only in moderator/effect-fulfillment.js. The runner asks and
+    // executes; it kept no fallback copy of either, so a Moderator that will not
+    // answer is a hard error rather than a silent reversion to glue policy.
+    // Dispatch itself stays behind ports/effects.js — the persona decides, glue does IO.
+    status: { owned: true, since: "CR.5" },
   },
 
   // ── Annotator ──────────────────────────────────────────────────────────────
