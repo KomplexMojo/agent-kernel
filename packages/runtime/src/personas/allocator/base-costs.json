@@ -1,5 +1,5 @@
 {
-  "_comment": "Base costs ONLY — tunable data. The formulas that consume these (linear vs quadratic, and the resource free-floating premium) live in code in default-price-list.js. Edit the numbers here; do not add logic.",
+  "_comment": "Base costs ONLY \u2014 tunable data. The formulas that consume these (linear vs quadratic, and the resource free-floating premium) live in code in default-price-list.js. Edit the numbers here; do not add logic.",
   "_baseUnit": "1 point of max health = 1 token",
   "vitals": {
     "vital_health_point": 1,
@@ -51,7 +51,7 @@
     "resource_level": 5,
     "resource_permanent": 10
   },
-  "_actorModelNote": "actorModel = the legacy actor-attached cost model (design §6–§8), consumed by configurator/cost-model.js. It deliberately DIVERGES from the price-list groups above until P1.4 unifies pricing — values must stay identical to their pre-migration literals. Formulas (quadratic regen, Σ(base + coeff·(n-1)²) stacks) stay in code.",
+  "_actorModelNote": "actorModel = the legacy actor-attached cost model (design \u00a76\u2013\u00a78), consumed by configurator/cost-model.js. It deliberately DIVERGES from the price-list groups above until P1.4 unifies pricing \u2014 values must stay identical to their pre-migration literals. Formulas (quadratic regen, \u03a3(base + coeff\u00b7(n-1)\u00b2) stacks) stay in code.",
   "actorModel": {
     "vital_max_health": 2,
     "vital_max_mana": 2,
@@ -74,11 +74,26 @@
     "action_default": 1,
     "action_request_solver": 2
   },
-  "_motivationFallbackNote": "motivationFallback = DEFAULT_MOTIVATION_COSTS tier prices (design §6.6) used when a price map lacks motivation entries. These are the numbers behind the pinned silent-overcharge bug; P1.4 eliminates the fallback entirely.",
+  "_motivationFallbackNote": "motivationFallback = DEFAULT_MOTIVATION_COSTS tier prices (design \u00a76.6) used when a price map lacks motivation entries. These are the numbers behind the pinned silent-overcharge bug; P1.4 eliminates the fallback entirely.",
   "motivationFallback": {
     "fallback_simple": 25,
     "fallback_advanced": 50,
     "fallback_user_controlled": 10
   },
-  "freeFloatingPremium": 1.5
+  "freeFloatingPremium": 1.5,
+  "_levelAuthoringNote": "Level-authoring economy knobs, moved out of commands/card-authoring.js by CR.1 \u2014 they were pricing policy sitting in glue, feeding calculateCardValue, card receipts, UI guidance and auto-generation. budget_split_percent must sum to 100. The reference budget is NOT here: it is REFERENCE_BUDGET_TOKENS in budget-allocation.js, which card-authoring duplicated as DEFAULT_LEVEL_BUDGET_TOKENS (both 2500) until CR.1 collapsed them.",
+  "levelAuthoring": {
+    "resource_vital_cost_per_delta": 1,
+    "resource_vital_cost_per_regen": 2,
+    "resource_permanent_multiplier": 10,
+    "room_affinity_stack_cost_factor": 0.1
+  },
+  "_levelBudgetSplitNote": "Per-card-type share of a level budget, as percentages summing to 100. Its own group because the base-cost standard requires every item to be a NUMBER \u2014 a nested object here would be formula selection in JSON, which the standard puts in code.",
+  "levelBudgetSplitPercent": {
+    "room": 44,
+    "delver": 20,
+    "warden": 16,
+    "hazard": 12,
+    "resource": 8
+  }
 }

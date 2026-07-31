@@ -7,6 +7,7 @@ import { buildManualMoveAction } from "./manual-movement.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
 import { createAnnotatorPersona } from "../personas/annotator/persona.js";
+import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { createCore } from "../../../core-ts/src/index.ts";
@@ -78,13 +79,17 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-const SUMMARY_POOL_WEIGHT_DEFAULTS = Object.freeze({
-  rooms: 0.44,
-  hazards: 0.12,
-  wardens: 0.16,
-  resources: 0.08,
-  delver: 0.20,
-});
+// CR.1 — pool weights are the Allocator's. This was a hand-maintained copy of its
+// DEFAULT_BUDGET_POOLS, byte-identical but free to diverge: a real duplicate, not an
+// alias, and one CR.1's own inventory missed (found by running the G2 guard as a
+// census). Read from the Allocator's public surface instead.
+const SUMMARY_POOL_WEIGHT_DEFAULTS = Object.freeze(
+  Object.fromEntries(
+    createAllocatorPersona({ clock: UNUSED_CLOCK })
+      .pricing.defaultPoolWeights()
+      .map((pool) => [pool.id, pool.weight]),
+  ),
+);
 
 function buildSummaryPoolWeights(summary = {}) {
   const cards = Array.isArray(summary.cardSet)

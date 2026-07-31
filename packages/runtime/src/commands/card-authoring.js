@@ -36,12 +36,17 @@ import {
   deriveLevelGenFromRoomCards,
 } from "../personas/configurator/card-model.js";
 
-// Removed from domain-constants in cost refactor (046f786); kept local to preserve display scale.
-const ROOM_AFFINITY_STACK_COST_FACTOR = 0.1;
-
-const DEFAULT_LEVEL_BUDGET_TOKENS = 2500;
-
 const allocatorFor = (priceList) => createAllocatorPersona({ priceList, clock: UNUSED_CLOCK });
+
+// CR.1 — the level-authoring economy is the ALLOCATOR's, not glue's. These were
+// numeric literals declared here, feeding calculateCardValue, card receipts, UI
+// guidance and auto-generation: pricing policy with a second origin. They are now
+// read from the Allocator's public surface. DEFAULT_LEVEL_BUDGET_TOKENS is gone as a
+// separate name — it was 2500 alongside the Allocator's REFERENCE_BUDGET_TOKENS =
+// 2500, the same reference budget declared twice.
+const LEVEL_ECONOMY = allocatorFor(null).pricing.levelAuthoring();
+const ROOM_AFFINITY_STACK_COST_FACTOR = LEVEL_ECONOMY.roomAffinityStackCostFactor;
+const DEFAULT_LEVEL_BUDGET_TOKENS = LEVEL_ECONOMY.referenceBudgetTokens;
 
 const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
 
@@ -61,19 +66,13 @@ const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden", "hazard",
 
 const RESOURCE_VITAL_KEYS = Object.freeze(["health", "mana", "stamina"]);
 
-const RESOURCE_VITAL_COST_PER_DELTA = 1;
+const RESOURCE_VITAL_COST_PER_DELTA = LEVEL_ECONOMY.resourceVitalCostPerDelta;
 
-const RESOURCE_VITAL_COST_PER_REGEN = 2;
+const RESOURCE_VITAL_COST_PER_REGEN = LEVEL_ECONOMY.resourceVitalCostPerRegen;
 
-const RESOURCE_PERMANENT_MULTIPLIER = 10;
+const RESOURCE_PERMANENT_MULTIPLIER = LEVEL_ECONOMY.resourcePermanentMultiplier;
 
-const DEFAULT_BUDGET_SPLIT = Object.freeze({
-  room: 44,
-  delver: 20,
-  warden: 16,
-  hazard: 12,
-  resource: 8,
-});
+const DEFAULT_BUDGET_SPLIT = Object.freeze({ ...LEVEL_ECONOMY.budgetSplitPercent });
 
 function formatDisplayLabel(value, fallback = "") {
   if (typeof value !== "string" || !value.trim()) return fallback;

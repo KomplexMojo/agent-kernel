@@ -24,7 +24,7 @@ import { normalizePriceItems, buildPriceMap, validateSpendProposal } from "./val
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { calculateMotivationStackCost } from "./motivation-price-policy.js";
 import { buildScenarioSpendReport } from "./incentive-model.js";
-import { computeBudgetPools } from "./budget-allocation.js";
+import { computeBudgetPools, DEFAULT_BUDGET_POOLS, REFERENCE_BUDGET_TOKENS } from "./budget-allocation.js";
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 
 export class AllocatorStateError extends Error {
@@ -99,6 +99,40 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
      * Director's folder, which is how the economy came to have three origins.
      */
     budgetPools: (args = {}) => computeBudgetPools(args),
+
+    /**
+     * The default flat pool weights (rooms .44 · hazards .12 · wardens .16 ·
+     * resources .08 · delver .20), derived from the two-tier dungeon/delver split.
+     *
+     * Exposed because `commands/kernel.js` hand-maintained a byte-identical copy as
+     * SUMMARY_POOL_WEIGHT_DEFAULTS (CR.1) — a real duplicate that could diverge,
+     * not an alias.
+     */
+    defaultPoolWeights: () => DEFAULT_BUDGET_POOLS.map((pool) => ({ ...pool })),
+
+    /**
+     * Level-authoring economy knobs (CR.1).
+     *
+     * These were `const`s in `commands/card-authoring.js` — pricing policy declared
+     * in glue, feeding calculateCardValue, card receipts, UI guidance and
+     * auto-generation, with the UI importing them straight out of the command
+     * module. They are the Allocator's to state; callers ask for them.
+     *
+     * `referenceBudgetTokens` deliberately reads from budget-allocation.js rather
+     * than base-costs.json: card-authoring declared its own DEFAULT_LEVEL_BUDGET_TOKENS
+     * = 2500 alongside REFERENCE_BUDGET_TOKENS = 2500 — the same reference budget
+     * twice. Publishing one value from one place is the point of the finding.
+     */
+    levelAuthoring: () => ({
+      referenceBudgetTokens: REFERENCE_BUDGET_TOKENS,
+      resourceVitalCostPerDelta: BASE_COSTS.levelAuthoring.resource_vital_cost_per_delta,
+      resourceVitalCostPerRegen: BASE_COSTS.levelAuthoring.resource_vital_cost_per_regen,
+      resourcePermanentMultiplier: BASE_COSTS.levelAuthoring.resource_permanent_multiplier,
+      roomAffinityStackCostFactor: BASE_COSTS.levelAuthoring.room_affinity_stack_cost_factor,
+      // Its own JSON group: the base-cost standard requires every item to be a
+      // NUMBER, so a nested split object would be formula selection in JSON.
+      budgetSplitPercent: { ...BASE_COSTS.levelBudgetSplitPercent },
+    }),
   };
 
   function registerBudget(budget) {
