@@ -143,6 +143,22 @@ Downstream personas must operate within the bounds of the receipt.
 Budget receipts are emitted as `agent-kernel/BudgetReceiptArtifact` and reference
 the originating `BudgetArtifact` and `PriceList` for auditability.
 
+#### Proposal admissibility (CR.6)
+
+Judging a receipt against proposed actions is this persona's call, and lives in
+`proposal-admissibility.js` — published on the controller as `admitProposals(proposals, { budgetReceipt,
+budgetAllocation })`. It is pure and stateless: proposals and budget in, the admitted subset out.
+
+It used to live in `actor/controller.js` and run inline inside the Actor's `advance()`. The give-away was
+the vocabulary — the ids it resolves (`motivation_reflexive`, `affinity_expression_*`, `affinity_stack`)
+are priced in this persona's own `base-costs.json`, so the Actor was reading the Allocator's price-list
+keys to judge its own proposals.
+
+The runner wires this persona's `admitProposals` into the Actor at construction (`buildDefaultPersonas`),
+so the Actor applies the Allocator's judgement without defining it and cannot reach a different verdict.
+An Actor handed a budget with no judge attached **throws** (`actor_admissibility_required`) rather than
+silently admitting everything.
+
 ---
 
 ## ALLOCATOR scenarios

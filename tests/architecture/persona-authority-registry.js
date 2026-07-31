@@ -162,12 +162,12 @@ const REGISTRY = Object.freeze([
     criteria: ["A4"],
     productionEntryPoint: "packages/runtime/src/personas/actor/controller.js",
     invocation: "cli",
-    status: {
-      blockedBy: "CR.6",
-      why:
-        "createActorPersona closes over five values view() does not expose, so two Actors with "
-        + "identical serialized state can produce different next actions.",
-    },
+    // The five closure values are gone: the Actor holds no state outside its FSM,
+    // so the decision is a function of (view(), event, payload). Note this is A4 as
+    // CR.6 states it — "identical view() ⇒ identical decision". The *restore* half
+    // of A4 (feeding a serialized view back in) is PX.4/HANDOFF-4 and still open,
+    // which is why all/restorable-from-view below stays blocked.
+    status: { owned: true, since: "CR.6" },
   },
   {
     id: "actor/no-budget-policy",
@@ -176,10 +176,11 @@ const REGISTRY = Object.freeze([
     criteria: ["A1"],
     productionEntryPoint: "packages/runtime/src/personas/actor/controller.js",
     invocation: "cli",
-    status: {
-      blockedBy: "CR.6",
-      why: "filterBudgetedProposals runs inline in the Actor — Allocator policy executing inside the Actor.",
-    },
+    // The policy moved to personas/allocator/proposal-admissibility.js and reaches
+    // the Actor only as the Allocator's own injected judge (wired in
+    // buildDefaultPersonas). The Actor cannot reach a verdict the Allocator would
+    // not, and refuses to guess if a budget arrives with no judge attached.
+    status: { owned: true, since: "CR.6" },
   },
 
   // ── Moderator ──────────────────────────────────────────────────────────────

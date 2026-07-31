@@ -160,9 +160,13 @@ several phases achieved **structural** routing without **semantic** authority:
   plan without keeping a fallback of its own (dispatch itself stays behind `ports/effects.js`).
   Still open: the RunSummary's derived `outcome` is real, but it is stamped by a freshly created
   Annotator that never observed the run (**A5**).
-- **Also open:** the Actor holds decision-relevant state in a closure absent from `view()` (**A4**) and
-  applies budget admissibility that is Allocator policy (**A1**); the Allocator authors and grows card
-  configurations, which is Configurator work (**A1**, see the Economy section).
+- **Closed by CR.6:** the Actor no longer holds decision-relevant state in a closure — it keeps nothing
+  outside its FSM, so its decision is a function of (`view()`, event, payload) (**A4**) — and it no longer
+  defines budget admissibility, which now lives in the Allocator and reaches the Actor only as that
+  persona's injected judge (**A1**). *A4's other half is still open:* a serialized `view()` cannot yet be
+  fed back in, because no persona has `restore(view)` (PX.4).
+- **Also open:** the Allocator authors and grows card configurations, which is Configurator work
+  (**A1**, see the Economy section).
 
 Still open by design: the Orchestrator inversion (Phase 4) and the enforcement flip that empties the
 boundary allowlist to zero (Phase 5). **Consult the Plan for current state; do not treat any claim in

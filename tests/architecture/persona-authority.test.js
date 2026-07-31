@@ -35,9 +35,12 @@ const ROOT = resolve(__dirname, "../..");
 // longer sends build-plane service events for any persona). CR.2 is absent because
 // its tick-plane residue was PX.5, now closed; its build-plane half is owned.
 // Closed 2026-07-31: CR.5 — tick ordering and effect fulfilment are Moderator
-// policy now, with the live differential below replacing the backlog skip.
+// policy now; CR.6 — the Actor holds no state outside its FSM and no longer owns
+// budget admissibility. Both have live differentials below in place of their skips.
+// PX.4 stays open and still blocks all/restorable-from-view: CR.6 gives "identical
+// view() ⇒ identical decision", but feeding a serialized view back in needs restore().
 const OPEN_FINDINGS = Object.freeze([
-  "CR.1", "CR.4", "CR.6", "CR.7", "CR.8", "CR.9",
+  "CR.1", "CR.4", "CR.7", "CR.8", "CR.9",
   "PX.1", "PX.3", "PX.4", "PX.6",
 ]);
 
@@ -395,6 +398,119 @@ test("G1 moderator/tick-ordering: production applies the fulfilment the Moderato
     plan.map((decision) => decision.reason ?? null),
     "production recorded a deferral reason the Moderator did not give",
   );
+});
+
+// ---------------------------------------------------------------------------
+// Live differentials: actor/no-budget-policy + actor/serializable-decision (CR.6)
+// ---------------------------------------------------------------------------
+
+test("G1 actor/no-budget-policy: production admits exactly what the Allocator admits", async () => {
+  const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
+  const { createCore } = await import("../../packages/core-ts/src/index.ts");
+  const { createAllocatorPersona } = await import(
+    "../../packages/runtime/src/personas/allocator/persona.js"
+  );
+  const { readFileSync } = require("node:fs");
+
+  const simConfig = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"), "utf8"));
+  const initialState = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json"), "utf8"));
+
+  // A receipt that denies movement outright. Without it the tick plane carries no
+  // budget at all, so admission would be vacuous — this is what makes production
+  // actually exercise the Allocator's judgement.
+  const denyingReceipt = {
+    schema: "agent-kernel/BudgetReceipt",
+    schemaVersion: 1,
+    lineItems: [{ kind: "motivation", id: "motivation_reflexive", status: "denied", quantity: 0 }],
+  };
+  const proposals = [
+    { actorId: "actor_mvp", kind: "motivation", tier: "reflexive", params: { label: "reflexive" } },
+    { actorId: "actor_mvp", kind: "custom_action", params: { label: "free" } },
+  ];
+
+  // The persona's own verdict, standalone.
+  const standalone = createAllocatorPersona({ clock: () => "2026-07-31T00:00:00.000Z" });
+  const admitted = standalone.admitProposals(proposals, { budgetReceipt: denyingReceipt });
+
+  // Production's verdict on the same proposals + receipt, through the real runtime.
+  const runtime = createRuntime({ core: createCore(), adapters: {} });
+  await runtime.init({ seed: 0, simConfig, initialState, runId: "run_g1_cr6" });
+  await runtime.step({
+    personaPayloads: { actor: { proposals, budgetReceipt: denyingReceipt } },
+  });
+
+  const decideFrame = runtime.getTickFrames().filter((f) => f.phaseDetail === "decide").at(-1);
+  const producedKinds = (decideFrame.personaActions || [])
+    .filter((a) => proposals.some((p) => p.kind === a.kind))
+    .map((a) => a.kind);
+
+  assert.deepEqual(
+    producedKinds,
+    admitted.map((p) => p.kind),
+    "production emitted a proposal set the Allocator did not admit — budget admissibility "
+      + "has a second implementation",
+  );
+  assert.ok(
+    !producedKinds.includes("motivation"),
+    "precondition: the denying receipt must actually deny something, or this is vacuous",
+  );
+});
+
+test("G1 actor/no-budget-policy: an Actor with no Allocator judge refuses a budget", async () => {
+  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
+  const persona = createActorPersona({ clock: () => "fixed" });
+  const observation = { tick: 0, actorId: "a", actors: [{ kind: 2, id: "a", position: { x: 1, y: 1 } }] };
+  const payload = { actorId: "a", observation, baseTiles: ["#####", "#...E", "#####"] };
+  persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: 0 });
+  persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
+
+  assert.throws(
+    () => persona.advance({
+      phase: TickPhases.DECIDE,
+      event: "propose",
+      payload: { ...payload, budgetReceipt: { lineItems: [] } },
+      tick: 0,
+    }),
+    (error) => error.code === "actor_admissibility_required",
+    "an Actor handed a budget with no judge must refuse, not silently admit everything",
+  );
+});
+
+// TEETH: confirmed to FAIL when the pre-CR.6 fallbacks are restored inside
+// resolveObservation/resolveBaseTiles. Note the guarantee is stronger than the
+// closure removal alone — the proposal builders take only `payload` and
+// `simConfig`, so patching a cached value into advance()'s locals does not reach
+// derivation at all; a regression has to put the cache back in the resolvers.
+test("G1 actor/serializable-decision: the Actor carries nothing outside view()", async () => {
+  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
+  const observation = { tick: 0, actorId: "a", actors: [{ kind: 2, id: "a", position: { x: 1, y: 1 } }] };
+  const payload = { actorId: "a", observation, baseTiles: ["#####", "#...E", "#####"] };
+
+  // Withholding the decision inputs must now yield nothing rather than a decision
+  // taken from remembered state. This is the A4 property CR.6 names: no channel
+  // outside view() can influence the next action.
+  const primed = createActorPersona({ clock: () => "fixed", seed: 3 });
+  primed.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: 0 });
+  primed.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
+  const starved = primed.advance({
+    phase: TickPhases.DECIDE,
+    event: "propose",
+    payload: { actorId: "a" },
+    tick: 0,
+  });
+  assert.deepEqual(starved.actions, [], "a starved propose must not decide from remembered inputs");
+
+  // And with the inputs supplied, it does decide — so the check above is not
+  // passing merely because this fixture never proposes anything.
+  const fed = createActorPersona({ clock: () => "fixed", seed: 3 });
+  fed.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: 0 });
+  fed.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
+  const decided = fed.advance({ phase: TickPhases.DECIDE, event: "propose", payload, tick: 0 });
+  assert.ok(decided.actions.length > 0, "precondition: the same fixture must propose when fed");
 });
 
 // ## TODO: Test Permutations

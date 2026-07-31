@@ -28,17 +28,17 @@ async function proposeOnce({
     tick,
     actors: [{ kind: 2, ...actor }, ...actors],
   };
-  persona.advance({
-    phase: TickPhases.OBSERVE,
-    event: "observe",
-    payload: { actorId, observation, baseTiles, ...payload },
-    tick,
-  });
-  persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: { actorId }, tick });
+  // CR.6 — the Actor no longer caches the observation/baseTiles from an earlier
+  // advance, so every call carries them. This mirrors the runner, which has always
+  // supplied both on every DECIDE payload; only direct callers like this one were
+  // relying on the closure to remember them.
+  const fullPayload = { actorId, observation, baseTiles, ...payload };
+  persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: fullPayload, tick });
+  persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: fullPayload, tick });
   return persona.advance({
     phase: TickPhases.DECIDE,
     event: "propose",
-    payload: { actorId, ...payload },
+    payload: fullPayload,
     tick,
   });
 }
@@ -70,22 +70,15 @@ fixture.cases.forEach((entry) => {
       actors: [{ id: entry.actorId, kind: 2, position: { ...position } }],
       tiles: { kinds: entry.kinds },
     };
-    persona.advance({
-      phase: TickPhases.OBSERVE,
-      event: "observe",
-      payload: { actorId: entry.actorId, observation, baseTiles: entry.baseTiles },
-      tick: index,
-    });
-    persona.advance({
-      phase: TickPhases.DECIDE,
-      event: "decide",
-      payload: { actorId: entry.actorId },
-      tick: index,
-    });
+    // CR.6 — every advance carries the observation and tiles; the Actor no longer
+    // remembers them from the OBSERVE call.
+    const payload = { actorId: entry.actorId, observation, baseTiles: entry.baseTiles };
+    persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: index });
+    persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: index });
     const result = persona.advance({
       phase: TickPhases.DECIDE,
       event: "propose",
-      payload: { actorId: entry.actorId },
+      payload,
       tick: index,
     });
     assert.equal(result.actions.length, 1);
@@ -117,26 +110,24 @@ const actorId = "actor_delver";
 
 const persona = createActorPersona({ clock: () => "fixed" });
 
-persona.advance({
-  phase: TickPhases.OBSERVE,
-  event: "observe",
-  payload: {
-    actorId,
-    observation: {
-      tick: 0,
-      actors: [{ id: actorId, kind: 2, position: { x: 1, y: 1 }, motivation: { mobility: "exploring" } }],
-    },
-    baseTiles,
+// CR.6 — the observation travels with every advance; the Actor no longer
+// remembers it from the OBSERVE call.
+const payload = {
+  actorId,
+  observation: {
+    tick: 0,
+    actors: [{ id: actorId, kind: 2, position: { x: 1, y: 1 }, motivation: { mobility: "exploring" } }],
   },
-  tick: 0,
-});
+  baseTiles,
+};
 
-persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: { actorId }, tick: 0 });
+persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: 0 });
+persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
 
 const result = persona.advance({
   phase: TickPhases.DECIDE,
   event: "propose",
-  payload: { actorId },
+  payload,
   tick: 0,
 });
 
@@ -158,26 +149,24 @@ const actorId = "actor_warden";
 
 const persona = createActorPersona({ clock: () => "fixed" });
 
-persona.advance({
-  phase: TickPhases.OBSERVE,
-  event: "observe",
-  payload: {
-    actorId,
-    observation: {
-      tick: 0,
-      actors: [{ id: actorId, kind: 2, position: { x: 1, y: 1 }, motivation: { mobility: "stationary" } }],
-    },
-    baseTiles,
+// CR.6 — the observation travels with every advance; the Actor no longer
+// remembers it from the OBSERVE call.
+const payload = {
+  actorId,
+  observation: {
+    tick: 0,
+    actors: [{ id: actorId, kind: 2, position: { x: 1, y: 1 }, motivation: { mobility: "stationary" } }],
   },
-  tick: 0,
-});
+  baseTiles,
+};
 
-persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: { actorId }, tick: 0 });
+persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: 0 });
+persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
 
 const result = persona.advance({
   phase: TickPhases.DECIDE,
   event: "propose",
-  payload: { actorId },
+  payload,
   tick: 0,
 });
 

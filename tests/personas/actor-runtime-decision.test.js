@@ -47,36 +47,28 @@ test("actor persona emits runtime-decision solver requests from live observation
     },
   };
 
-  persona.advance({
-    phase: TickPhases.OBSERVE,
-    event: "observe",
-    payload: {
-      actorId,
-      initialState,
-      observation,
-      baseTiles: [
-        "...",
-        "...",
-        "..E",
-      ],
-      affinityEffects: {
-        hazards: [{ id: "hazard_1", kind: "hazard", position: { x: 0, y: 1 }, affinity: "fire", expression: "emit", stacks: 1 }],
-      },
+  // CR.6 — observation, tiles and affinityEffects travel with every advance; the
+  // Actor no longer carries them over from the OBSERVE call.
+  const observeContext = {
+    actorId,
+    initialState,
+    observation,
+    baseTiles: [
+      "...",
+      "...",
+      "..E",
+    ],
+    affinityEffects: {
+      hazards: [{ id: "hazard_1", kind: "hazard", position: { x: 0, y: 1 }, affinity: "fire", expression: "emit", stacks: 1 }],
     },
-    tick: 2,
-  });
-  persona.advance({
-    phase: TickPhases.DECIDE,
-    event: "decide",
-    payload: { actorId, initialState },
-    tick: 2,
-  });
+  };
+  persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: observeContext, tick: 2 });
+  persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: observeContext, tick: 2 });
   const result = persona.advance({
     phase: TickPhases.DECIDE,
     event: "propose",
     payload: {
-      actorId,
-      initialState,
+      ...observeContext,
       runId: "run_actor_runtime_decision",
       hazards: [
         {
@@ -164,34 +156,23 @@ test("actor persona keeps manual live LLM runtime requests on the same solver_re
     },
   };
 
-  persona.advance({
-    phase: TickPhases.OBSERVE,
-    event: "observe",
-    payload: {
-      actorId,
-      initialState,
-      observation,
-      baseTiles: [
-        "...",
-        "...",
-        "..E",
-      ],
-    },
-    tick: 0,
-  });
-  persona.advance({
-    phase: TickPhases.DECIDE,
-    event: "decide",
-    payload: { actorId, initialState },
-    tick: 0,
-  });
+  // CR.6 — observation and tiles travel with every advance.
+  const observeContext = {
+    actorId,
+    initialState,
+    observation,
+    baseTiles: [
+      "...",
+      "...",
+      "..E",
+    ],
+  };
+  persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: observeContext, tick: 0 });
+  persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: observeContext, tick: 0 });
   const result = persona.advance({
     phase: TickPhases.DECIDE,
     event: "propose",
-    payload: {
-      actorId,
-      initialState,
-    },
+    payload: observeContext,
     tick: 1,
   });
 

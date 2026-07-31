@@ -98,6 +98,20 @@ To support deterministic replay and analysis:
 
 This allows actors driven by humans, scripts, heuristics, or AI models to be replayed and compared on equal footing.
 
+**Every decision input arrives in the payload (CR.6).** This persona holds **no state outside its FSM**.
+It used to cache the last observation, base tiles, simConfig, affinity effects and hazards in its
+controller closure, and none of them appeared in `view()` — so two Actors with identical serialized state
+could propose different actions, which is an A4 violation and defeats the replay guarantee above.
+
+Practical consequence for **direct callers**: `observation` and `baseTiles` must be supplied on *every*
+`advance()` that needs them, not just on the `observe` call. The runner has always done this; only
+in-process callers were relying on the carry-over. A `propose` with no observation in its payload now
+proposes nothing rather than deciding from a remembered one.
+
+*Not yet true:* a serialized `view()` cannot be fed back in to rebuild an Actor — no persona has
+`restore(view)` (PX.4). Identical `view()` implies an identical decision; it does not yet imply
+restorability.
+
 ---
 
 ## Architectural Intent

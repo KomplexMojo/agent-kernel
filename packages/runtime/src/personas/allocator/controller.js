@@ -2,6 +2,7 @@ import { createAllocatorStateMachine, AllocatorStates } from "./state-machine.js
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { attachAllocatorServices } from "./allocator-services.js";
+import { admitProposals } from "./proposal-admissibility.js";
 
 export const allocatorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
@@ -103,5 +104,10 @@ export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, cl
     scenarioSpendReport: services.scenarioSpendReport,
     assessFeasibility: services.assessFeasibility,
     maximizeFulfillment: services.maximizeFulfillment,
+    // CR.6 — budget admissibility of Actor proposals. Stateless, like the pricing
+    // surface: it judges the proposals it is handed against the budget it is
+    // handed. Published here so the runner can apply it without importing
+    // persona internals.
+    admitProposals,
   };
 }

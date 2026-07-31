@@ -14,22 +14,15 @@ test("actor persona filters proposals to motivated actors", async () => {
 
   fixture.cases.forEach((entry) => {
     const persona = createActorPersona({ clock: () => "fixed" });
-    persona.advance({
-      phase: TickPhases.OBSERVE,
-      event: "observe",
-      payload: { actorId: entry.actorId, observation: entry.observation },
-      tick: 0,
-    });
-    persona.advance({
-      phase: TickPhases.DECIDE,
-      event: "decide",
-      payload: { actorId: entry.actorId },
-      tick: 0,
-    });
+    // CR.6 — the observation travels with every advance; deciding which actors are
+    // motivated needs it on the propose call, not just the observe call.
+    const base = { actorId: entry.actorId, observation: entry.observation };
+    persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: base, tick: 0 });
+    persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: base, tick: 0 });
     const result = persona.advance({
       phase: TickPhases.DECIDE,
       event: "propose",
-      payload: { actorId: entry.actorId, proposals: entry.proposals },
+      payload: { ...base, proposals: entry.proposals },
       tick: 1,
     });
     assert.deepEqual(result.actions.map((action) => action.kind), entry.expectedKinds);

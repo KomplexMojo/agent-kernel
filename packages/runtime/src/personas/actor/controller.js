@@ -18,18 +18,13 @@ const DEFAULT_DELTAS = EIGHT_WAY_DELTAS;
 
 const MOTIVATED_KIND = 2;
 
-const AFFINITY_EXPRESSION_IDS = Object.freeze({
-  push: "affinity_expression_externalize",
-  pull: "affinity_expression_internalize",
-  emit: "affinity_expression_localized",
-  draw: "affinity_expression_sustain",
-});
-
-const MOTIVATION_IDS = Object.freeze({
-  reflexive: "motivation_reflexive",
-  goal_oriented: "motivation_goal_oriented",
-  strategy_focused: "motivation_strategy_focused",
-});
+// CR.6 — AFFINITY_EXPRESSION_IDS, MOTIVATION_IDS, normalizeMotivationTier,
+// resolveMotivationId, resolveAffinityExpressionId, hasBudgetAllowance and
+// filterBudgetedProposals all moved to
+// personas/allocator/proposal-admissibility.js. They existed only to serve the
+// budget filter, and they resolved ids priced in the Allocator's base-costs.json —
+// the Actor was reading the Allocator's price-list vocabulary to judge its own
+// proposals. The Actor now emits candidates and the runner asks the Allocator.
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -66,95 +61,6 @@ function resolveActorKind(view, actorId, observation) {
   return null;
 }
 
-function normalizeMotivationTier(value) {
-  if (!value) return null;
-  const normalized = String(value).trim().toLowerCase().replace(/[\s-]/g, "_");
-  if (normalized === "random") return "reflexive";
-  if (normalized === "logical") return "goal_oriented";
-  if (normalized === "strategic") return "strategy_focused";
-  if (normalized === "goal_oriented") return "goal_oriented";
-  if (normalized === "strategy_focused") return "strategy_focused";
-  if (normalized === "reflexive") return "reflexive";
-  return null;
-}
-
-function resolveMotivationId(proposal) {
-  if (!proposal || typeof proposal !== "object") return null;
-  if (proposal.costKind === "motivation" && typeof proposal.costId === "string") {
-    return proposal.costId;
-  }
-  if (proposal.budget?.kind === "motivation" && typeof proposal.budget?.id === "string") {
-    return proposal.budget.id;
-  }
-  if (typeof proposal.kind === "string" && proposal.kind.startsWith("motivation_")) {
-    return proposal.kind;
-  }
-  if (proposal.kind !== "motivation") {
-    return null;
-  }
-  const tier = normalizeMotivationTier(proposal.tier || proposal.motivation || proposal.level || proposal.kind);
-  return tier ? MOTIVATION_IDS[tier] : null;
-}
-
-function resolveAffinityExpressionId(proposal) {
-  if (!proposal || typeof proposal !== "object") return null;
-  if (proposal.costKind === "affinity" && typeof proposal.costId === "string") {
-    return proposal.costId;
-  }
-  if (proposal.budget?.kind === "affinity" && typeof proposal.budget?.id === "string") {
-    return proposal.budget.id;
-  }
-  if (typeof proposal.kind === "string" && proposal.kind.startsWith("affinity_expression_")) {
-    return proposal.kind;
-  }
-  if (proposal.kind !== "affinity") {
-    return null;
-  }
-  const expression = proposal.expression || proposal.affinityExpression || proposal.affinity?.expression;
-  if (!expression) return null;
-  return AFFINITY_EXPRESSION_IDS[String(expression).trim().toLowerCase()] || null;
-}
-
-function hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind, id }) {
-  if (!budgetAllocation && !budgetReceipt) return true;
-  if (budgetAllocation) {
-    const pools = Array.isArray(budgetAllocation.pools) ? budgetAllocation.pools : [];
-    const pool = pools.find((entry) => entry?.id === "affinity_motivation");
-    if (pool && Number.isInteger(pool.tokens) && pool.tokens <= 0) {
-      return false;
-    }
-  }
-  if (!budgetReceipt) return true;
-  const lineItems = Array.isArray(budgetReceipt.lineItems) ? budgetReceipt.lineItems : [];
-  const matches = lineItems.filter((item) => item?.kind === kind && item?.id === id);
-  if (matches.length === 0) {
-    return false;
-  }
-  return matches.some((item) => item.status !== "denied" && Number.isInteger(item.quantity) && item.quantity > 0);
-}
-
-function filterBudgetedProposals(proposals, { budgetReceipt, budgetAllocation } = {}) {
-  if (!budgetReceipt && !budgetAllocation) return proposals;
-  return proposals.filter((proposal) => {
-    const motivationId = resolveMotivationId(proposal);
-    if (motivationId) {
-      return hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind: "motivation", id: motivationId });
-    }
-    const affinityExpressionId = resolveAffinityExpressionId(proposal);
-    if (affinityExpressionId) {
-      const expressionAllowed = hasBudgetAllowance({
-        budgetAllocation,
-        budgetReceipt,
-        kind: "affinity",
-        id: affinityExpressionId,
-      });
-      if (!expressionAllowed) return false;
-      return hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind: "affinity", id: "affinity_stack" });
-    }
-    return true;
-  });
-}
-
 function isMotivatedActor(actorId, view, observation) {
   if (!actorId) return false;
   const kind = resolveActorKind(view, actorId, observation);
@@ -175,13 +81,16 @@ function findExitFromTiles(baseTiles) {
   return null;
 }
 
-function resolveObservation(payload, lastObservation) {
+// CR.6 — resolves from the payload ONLY. This used to fall back to a
+// `lastObservation` cached in the persona closure, which meant a propose could be
+// decided from an observation the caller had not supplied on that call.
+function resolveObservation(payload) {
   if (payload?.observation) return payload.observation;
   if (Array.isArray(payload?.observations) && payload.observations.length > 0) {
     return payload.observations[0];
   }
   if (payload?.view) return payload.view;
-  return lastObservation || null;
+  return null;
 }
 
 function resolveObservationView(observation) {
@@ -194,22 +103,23 @@ function resolveObservationView(observation) {
   return observation;
 }
 
-function resolveBaseTiles(payload, view, lastBaseTiles, lastSimConfig) {
+// CR.6 — the `if (lastBaseTiles) return lastBaseTiles` rung is gone; tiles come
+// from this call's payload, this call's observation view, or this call's simConfig.
+function resolveBaseTiles(payload, view, simConfig) {
   const fromPayload = payload?.baseTiles || payload?.tiles?.baseTiles;
   if (fromPayload) return fromPayload;
   if (view?.baseTiles) return view.baseTiles;
   if (view?.tiles?.baseTiles) return view.tiles.baseTiles;
   if (view?.tiles?.tiles) return view.tiles.tiles;
-  if (lastBaseTiles) return lastBaseTiles;
-  const simConfig = payload?.simConfig || lastSimConfig;
-  if (simConfig?.layout?.data?.tiles) return simConfig.layout.data.tiles;
+  const config = payload?.simConfig || simConfig;
+  if (config?.layout?.data?.tiles) return config.layout.data.tiles;
   return null;
 }
 
-function resolveExit(payload, view, baseTiles, lastSimConfig) {
+function resolveExit(payload, view, baseTiles, simConfigInput) {
   if (payload?.exit) return payload.exit;
   if (view?.exit) return view.exit;
-  const simConfig = payload?.simConfig || lastSimConfig;
+  const simConfig = payload?.simConfig || simConfigInput;
   if (simConfig?.layout?.data?.exit) return simConfig.layout.data.exit;
   if (baseTiles) return findExitFromTiles(baseTiles);
   return null;
@@ -753,11 +663,11 @@ function findPath(start, goal, tileKinds, baseTiles) {
   return null;
 }
 
-function buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig }) {
+function buildMoveProposal({ observation, payload, simConfig }) {
   const view = resolveObservationView(observation);
   if (!view) return [];
-  const baseTiles = resolveBaseTiles(payload, view, lastBaseTiles, lastSimConfig);
-  const exit = resolveExit(payload, view, baseTiles, lastSimConfig);
+  const baseTiles = resolveBaseTiles(payload, view, simConfig);
+  const exit = resolveExit(payload, view, baseTiles, simConfig);
   const tileKinds = resolveTileKinds(view, payload);
   const actor = resolveActor(view, payload?.actorId, observation);
   if (!actor || !actor.position || !exit) return [];
@@ -922,13 +832,13 @@ function isReserved(position, reservedTargets) {
  * actors evaluated in the same tick could both choose an identical
  * currently-unoccupied tile before core state is updated at APPLY time.
  */
-function buildRandomMoveProposals({ observation, payload, lastBaseTiles, lastSimConfig, personaSeed }) {
+function buildRandomMoveProposals({ observation, payload, simConfig, personaSeed }) {
   const view = resolveObservationView(observation);
   const actorId = payload?.actorId;
   const actor = resolveActor(view, actorId, observation);
   if (!actor?.position) return [{ kind: "wait", params: { reason: "random" } }];
 
-  const baseTiles = resolveBaseTiles(payload, view, lastBaseTiles, lastSimConfig);
+  const baseTiles = resolveBaseTiles(payload, view, simConfig);
   const tileKinds = resolveTileKinds(view, payload);
   const reservedTargets = payload?.reservedTargets;
   const candidates = buildAdjacentMoveProposals({ actor, tileKinds, baseTiles })
@@ -957,13 +867,13 @@ function buildRandomMoveProposals({ observation, payload, lastBaseTiles, lastSim
   ];
 }
 
-function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimConfig, personaSeed }) {
+function buildMotivatedProposals({ observation, payload, simConfig, personaSeed }) {
   const view = resolveObservationView(observation);
-  if (!view) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+  if (!view) return buildMoveProposal({ observation, payload, simConfig });
 
   const actorId = payload?.actorId;
   const actor = resolveActor(view, actorId, observation);
-  if (!actor?.position) return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+  if (!actor?.position) return buildMoveProposal({ observation, payload, simConfig });
 
   const motivationKind = resolveActorMotivationKind(view, actorId, payload);
 
@@ -974,7 +884,7 @@ function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimC
 
   // Random: seed-derived deterministic movement to a legal adjacent tile
   if (motivationKind === "random") {
-    return buildRandomMoveProposals({ observation, payload, lastBaseTiles, lastSimConfig, personaSeed });
+    return buildRandomMoveProposals({ observation, payload, simConfig, personaSeed });
   }
 
   const hostile = resolveNearestHostile(view, actorId);
@@ -999,7 +909,7 @@ function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimC
 
     // Non-adjacent + attacking → move toward hostile
     if (!adjacent && motivationKind === "attacking") {
-      const baseTiles = resolveBaseTiles(payload, view, lastBaseTiles, lastSimConfig);
+      const baseTiles = resolveBaseTiles(payload, view, simConfig);
       const tileKinds = resolveTileKinds(view, payload);
       const path = findPath(actor.position, hostile.actor.position, tileKinds, baseTiles);
       if (path && path.length >= 2) {
@@ -1022,16 +932,31 @@ function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimC
   }
 
   // Fallback: existing exit pathfinding
-  return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
+  return buildMoveProposal({ observation, payload, simConfig });
 }
 
-export function createActorPersona({ initialState = ActorStates.IDLE, clock, seed: personaSeed } = {}) {
+/**
+ * @param {object} options
+ * @param {(proposals: Array, budget: object) => Array} [options.admitProposals]
+ *   The Allocator's budget-admissibility judge, wired in by the runner. CR.6: the
+ *   Actor no longer OWNS this policy — it does not define it, cannot reach a
+ *   different verdict than the Allocator, and refuses to guess if a budget shows up
+ *   with no judge attached (see below).
+ */
+export function createActorPersona({ initialState = ActorStates.IDLE, clock, seed: personaSeed, admitProposals } = {}) {
   const fsm = createActorStateMachine({ initialState, clock });
-  let lastObservation = null;
-  let lastBaseTiles = null;
-  let lastSimConfig = null;
-  let lastAffinityEffects = null;
-  let lastHazards = null;
+  // CR.6 — this persona holds NO state outside `fsm`. It used to cache
+  // lastObservation / lastBaseTiles / lastSimConfig / lastAffinityEffects /
+  // lastHazards here; none appeared in view(), so two Actors with identical
+  // serialized views could decide differently, which is an A4 violation and
+  // breaks deterministic replay. The decision is now a pure function of
+  // (fsm state, event, payload) — everything decision-relevant arrives in the
+  // payload, and everything carried is in view().
+  //
+  // Measured before removing: across the whole suite the caches were read 430
+  // times and EVERY read came from a direct persona-test caller — none through
+  // the runner, which supplies observation/baseTiles/simConfig/affinityEffects on
+  // every DECIDE payload and never supplies `hazards` at all.
 
   function view() {
     return fsm.view();
@@ -1042,55 +967,61 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       const snapshot = view();
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }
-    const observation = resolveObservation(payload, lastObservation);
-    if (observation) {
-      lastObservation = observation;
-    }
+    const observation = resolveObservation(payload);
     const observationView = resolveObservationView(observation);
-    const baseTiles = resolveBaseTiles(payload, observationView, lastBaseTiles, lastSimConfig);
-    if (baseTiles) {
-      lastBaseTiles = baseTiles;
-    }
-    if (payload.simConfig) {
-      lastSimConfig = payload.simConfig;
-    }
-    if (payload.affinityEffects) {
-      lastAffinityEffects = payload.affinityEffects;
-    }
-    if (Array.isArray(payload.hazards)) {
-      lastHazards = payload.hazards;
-    }
+    const simConfig = payload.simConfig || null;
+    const baseTiles = resolveBaseTiles(payload, observationView, simConfig);
 
     const shouldEmitActions = event === "propose";
-    const derivedProposals = shouldEmitActions ? buildMotivatedProposals({ observation, payload: { ...payload, tick }, lastBaseTiles, lastSimConfig, personaSeed }) : [];
-    const proposals = Array.isArray(payload.proposals) && payload.proposals.length > 0 ? payload.proposals : derivedProposals;
+    const derivedProposals = shouldEmitActions ? buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed }) : [];
+    // CR.6 — the Actor derives CANDIDATE proposals. Budget admissibility used to
+    // be decided here by a local filterBudgetedProposals; the policy now lives in
+    // personas/allocator/proposal-admissibility.js and reaches the Actor only as
+    // the Allocator's own injected judge, wired by the runner.
+    const candidates = shouldEmitActions
+      ? (Array.isArray(payload.proposals) && payload.proposals.length > 0 ? payload.proposals : derivedProposals)
+      : [];
     const budgetReceipt = payload.budgetReceipt || payload.budget?.receipt || payload.budget?.receiptArtifact || null;
     const budgetAllocation = payload.budgetAllocation || payload.budget?.allocation || null;
-    const gatedProposals = shouldEmitActions ? filterBudgetedProposals(proposals, { budgetReceipt, budgetAllocation }) : [];
-    const exit = resolveExit(payload, observationView, lastBaseTiles, lastSimConfig);
+    const hasBudget = Boolean(budgetReceipt || budgetAllocation);
+    if (hasBudget && typeof admitProposals !== "function") {
+      // A budget arrived with nothing authorised to judge it. Silently admitting
+      // everything is exactly the quiet degradation this program keeps removing
+      // (PX.3's D-o: required and throwing, never a permissive default).
+      const error = new Error(
+        "Actor received a budget but no Allocator admissibility judge: budget admissibility is "
+        + "Allocator policy (CR.6). Construct the Actor with `admitProposals` from the Allocator.",
+      );
+      error.code = "actor_admissibility_required";
+      throw error;
+    }
+    const candidateProposals = hasBudget
+      ? admitProposals(candidates, { budgetReceipt, budgetAllocation })
+      : candidates;
+    const exit = resolveExit(payload, observationView, baseTiles, simConfig);
     const runtimeDecisionEffect = shouldEmitActions
       ? buildRuntimeDecisionEffect({
           payload: {
             ...payload,
-            proposals: gatedProposals,
-            affinityEffects: payload.affinityEffects || lastAffinityEffects,
-            hazards: payload.hazards || lastHazards,
+            proposals: candidateProposals,
+            affinityEffects: payload.affinityEffects,
+            hazards: payload.hazards,
             clock,
           },
           observation,
           view: observationView,
           actorId: payload.actorId || observation?.actorId || "actor",
           tick,
-          baseTiles: lastBaseTiles,
+          baseTiles,
           exit,
         })
       : null;
-    if (shouldEmitActions && (!Array.isArray(gatedProposals) || gatedProposals.length === 0) && !runtimeDecisionEffect) {
+    if (shouldEmitActions && (!Array.isArray(candidateProposals) || candidateProposals.length === 0) && !runtimeDecisionEffect) {
       const snapshot = view();
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }
 
-    const fsmPayload = shouldEmitActions && Array.isArray(gatedProposals) ? { ...payload, proposals: gatedProposals } : payload;
+    const fsmPayload = shouldEmitActions && Array.isArray(candidateProposals) ? { ...payload, proposals: candidateProposals } : payload;
     const result = fsm.advance(event, fsmPayload);
     if (!shouldEmitActions) {
       return { ...result, tick, actions: [], effects: [], telemetry: null };
@@ -1100,7 +1031,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const baseIsMotivated = isMotivatedActor(baseActorId, observationView, observation);
     const actions = [];
     const effects = [];
-    const proposalList = Array.isArray(gatedProposals) ? gatedProposals : [];
+    const proposalList = Array.isArray(candidateProposals) ? candidateProposals : [];
     if (!runtimeDecisionEffect) {
       for (let i = 0; i < proposalList.length; i += 1) {
         const proposal = proposalList[i];

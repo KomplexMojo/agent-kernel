@@ -374,12 +374,17 @@ function flushEffects({ core, adapters, effectFactory, tick, effectLog, moderato
 }
 
 function buildDefaultPersonas({ clock }) {
+  // CR.6 — the Actor is handed the Allocator's own admissibility judge rather than
+  // carrying a copy of the policy. Built first so the wiring is explicit: budget
+  // admissibility has one definition, in the persona that owns the economy, and
+  // the Actor cannot reach a verdict the Allocator would not.
+  const allocator = createAllocatorPersona({ clock });
   return {
     orchestrator: createOrchestratorPersona({ clock }),
     director: createDirectorPersona({ clock }),
     configurator: createConfiguratorPersona({ clock }),
-    allocator: createAllocatorPersona({ clock }),
-    actor: createActorPersona({ clock }),
+    allocator,
+    actor: createActorPersona({ clock, admitProposals: allocator.admitProposals }),
     moderator: createModeratorPersona({ clock }),
     annotator: createAnnotatorPersona({ clock }),
   };

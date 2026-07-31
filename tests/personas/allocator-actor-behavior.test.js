@@ -34,10 +34,12 @@ const observation = {
   actors: [{ id: "actor", kind: 2, position: { x: 0, y: 0 } }],
   tiles: { kinds: [[0]] },
 };
-actor.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: { actorId: "actor", observation }, tick: 0 });
-actor.advance({ phase: TickPhases.DECIDE, event: "decide", payload: { actorId: "actor" }, tick: 0 });
+// CR.6 — the observation travels with every advance.
+const actorBase = { actorId: "actor", observation };
+actor.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: actorBase, tick: 0 });
+actor.advance({ phase: TickPhases.DECIDE, event: "decide", payload: actorBase, tick: 0 });
 const actorPayload = {
-  actorId: "actor",
+  ...actorBase,
   proposals: fixture.actor.proposals,
   effects: fixture.actor.effects,
   trace: fixture.actor.trace,

@@ -31,22 +31,14 @@ test("runtime maps actor proposals to core actions and replays deterministically
   for (let i = 0; i < actionFixture.actions.length; i += 1) {
     const obs = readObservation(core, { actorIdLabel });
     const tick = obs.tick + 1;
-    persona.advance({
-      phase: TickPhases.OBSERVE,
-      event: "observe",
-      payload: { actorId: actorIdLabel, observation: obs, baseTiles },
-      tick,
-    });
-    persona.advance({
-      phase: TickPhases.DECIDE,
-      event: "decide",
-      payload: { actorId: actorIdLabel },
-      tick,
-    });
+    // CR.6 — the freshly read observation travels with every advance in the tick.
+    const payload = { actorId: actorIdLabel, observation: obs, baseTiles };
+    persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick });
+    persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick });
     const result = persona.advance({
       phase: TickPhases.DECIDE,
       event: "propose",
-      payload: { actorId: actorIdLabel },
+      payload,
       tick,
     });
     assert.equal(result.actions.length, 1);
@@ -62,12 +54,7 @@ test("runtime maps actor proposals to core actions and replays deterministically
     applyMoveAction(core, packed);
     core.clearEffects?.();
     frames.push(renderFrameBuffer(core, { actorIdLabel }));
-    persona.advance({
-      phase: TickPhases.DECIDE,
-      event: "cooldown",
-      payload: { actorId: actorIdLabel },
-      tick,
-    });
+    persona.advance({ phase: TickPhases.DECIDE, event: "cooldown", payload, tick });
   }
 
   const normalized = actions.map(({ personaRef, ...rest }) => rest);
@@ -106,23 +93,15 @@ test("runtime filters non-motivated proposals before packing actions", async () 
 
   const persona = createActorPersona({ clock: () => "fixed" });
   const tick = obs.tick + 1;
-  persona.advance({
-    phase: TickPhases.OBSERVE,
-    event: "observe",
-    payload: { actorId: actorIdLabel, observation, baseTiles },
-    tick,
-  });
-  persona.advance({
-    phase: TickPhases.DECIDE,
-    event: "decide",
-    payload: { actorId: actorIdLabel },
-    tick,
-  });
+  // CR.6 — observation + tiles travel with every advance.
+  const base = { actorId: actorIdLabel, observation, baseTiles };
+  persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload: base, tick });
+  persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload: base, tick });
   const result = persona.advance({
     phase: TickPhases.DECIDE,
     event: "propose",
     payload: {
-      actorId: actorIdLabel,
+      ...base,
       proposals: [
         { actorId: "tile_wall", kind: "custom_action", params: { label: "wall" } },
         { actorId: actorIdLabel, kind: "move", params: { direction: "east", from: { x: 1, y: 1 }, to: { x: 2, y: 1 } } },
