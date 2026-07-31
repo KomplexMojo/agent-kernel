@@ -1,6 +1,8 @@
 // Deterministic state machine for the Annotator persona.
 // Captures observations and summarizes telemetry without IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+
 export const AnnotatorStates = Object.freeze({
   IDLE: "idle",
   RECORDING: "recording",
@@ -31,7 +33,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createAnnotatorStateMachine({ initialState = AnnotatorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createAnnotatorStateMachine({ initialState = AnnotatorStates.IDLE, clock } = {}) {
+  requireClock(clock, "annotator");
   let state = initialState;
   let context = {
     lastEvent: null,

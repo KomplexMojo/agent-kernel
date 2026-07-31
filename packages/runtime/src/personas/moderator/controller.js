@@ -12,7 +12,7 @@ export const moderatorSubscribePhases = Object.freeze([
 ]);
 const CONTROL_EVENTS = new Set(["start", "pause", "resume", "stop"]);
 
-export function createModeratorPersona({ initialState = ModeratorStates.INITIALIZING, clock = () => new Date().toISOString() } = {}) {
+export function createModeratorPersona({ initialState = ModeratorStates.INITIALIZING, clock } = {}) {
   const fsm = createModeratorStateMachine({ initialState, clock });
 
   function view() {

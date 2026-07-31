@@ -1,3 +1,4 @@
+import { UNUSED_CLOCK } from "../../../runtime/src/personas/_shared/require-clock.js";
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, dirname, isAbsolute, join, sep } from "node:path";
@@ -1477,11 +1478,11 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
 // persona surface; the maximizer/assessor domain logic itself lives in
 // personas/allocator/budget-fulfillment.js (moved there in P2.3.4).
 function ensureBudgetedFulfillmentFeasible(args) {
-  return createAllocatorPersona().assessFeasibility(args);
+  return createAllocatorPersona({ clock: UNUSED_CLOCK }).assessFeasibility(args);
 }
 
 function applyBudgetCappedFulfillment(args) {
-  return createAllocatorPersona().maximizeFulfillment(args);
+  return createAllocatorPersona({ clock: UNUSED_CLOCK }).maximizeFulfillment(args);
 }
 
 function resolvePath(input, cwd = process.cwd()) {

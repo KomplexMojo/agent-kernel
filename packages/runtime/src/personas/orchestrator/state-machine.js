@@ -1,6 +1,8 @@
 // Deterministic state machine for the Orchestrator persona.
 // Coordinates workflow phases without IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+
 export const OrchestratorStates = Object.freeze({
   IDLE: "idle",
   PLANNING: "planning",
@@ -37,7 +39,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createOrchestratorStateMachine({ initialState = OrchestratorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createOrchestratorStateMachine({ initialState = OrchestratorStates.IDLE, clock } = {}) {
+  requireClock(clock, "orchestrator");
   let state = initialState;
   let context = {
     lastEvent: null,

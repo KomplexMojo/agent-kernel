@@ -1,3 +1,4 @@
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import {
   AFFINITY_EXPRESSION_SET,
   AFFINITY_KIND_SET,
@@ -40,7 +41,7 @@ const ROOM_AFFINITY_STACK_COST_FACTOR = 0.1;
 
 const DEFAULT_LEVEL_BUDGET_TOKENS = 2500;
 
-const allocatorFor = (priceList) => createAllocatorPersona({ priceList });
+const allocatorFor = (priceList) => createAllocatorPersona({ priceList, clock: UNUSED_CLOCK });
 
 const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
 

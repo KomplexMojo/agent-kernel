@@ -32,7 +32,37 @@ const SHARED_VOCABULARY_DECLARATION = new RegExp(
   "gim",
 );
 
+// PX.3 — no persona FACTORY may default its clock.
+// `clock = () => new Date().toISOString()` in a persona constructor means a caller
+// that forgets to inject one silently gets wall-clock time, degrading determinism
+// and replay with nothing failing. The rule is enforced at construction by
+// _shared/require-clock.js; this stops the default being reintroduced.
+//
+// Scope is the 14 factory files (7 controllers + 7 state machines), which is
+// exactly PX.3's stated target: "make clock required at PERSONA CONSTRUCTION".
+// TEN NON-FACTORY MODULES STILL DEFAULT A CLOCK and are PX.3's recorded residue —
+// they are plain functions, not constructors, so requiring injection there is a
+// separate (and larger) call about every helper's signature:
+//   personas/annotator/llm-trace.js · personas/orchestrator/budget-inputs.js ·
+//   personas/orchestrator/llm-capture.js · personas/_shared/{persona-helpers,
+//   tick-orchestrator,tick-state-machine}.mts · ports/solver.js ·
+//   contracts/schema-catalog.js · adaptive-workflow/{metrics,state-machine}.js
+const PERSONA_CLOCK_DEFAULT = /clock\s*=\s*\(\)\s*=>\s*new Date\(\)/g;
+
+const PERSONA_FACTORY_FILES = [
+  "orchestrator", "director", "configurator", "actor", "allocator", "annotator", "moderator",
+].flatMap((persona) => [
+  `packages/runtime/src/personas/${persona}/controller.js`,
+  `packages/runtime/src/personas/${persona}/state-machine.js`,
+]);
+
 const SINGLE_ORIGIN_GUARDS = [
+  {
+    concept: "persona clock defaults",
+    canonicalHome: [],
+    forbiddenPattern: PERSONA_CLOCK_DEFAULT,
+    scope: PERSONA_FACTORY_FILES,
+  },
   {
     concept: "shared game vocabulary (motivation + card type/size)",
     canonicalHome: ["packages/runtime/src/contracts"],
@@ -166,7 +196,15 @@ function lineNumberAt(source, index) {
 function scanGuard({ canonicalHome, forbiddenPattern, scope }) {
   const files = new Set();
   for (const scopedPath of asList(scope)) {
-    collectSourceFiles(resolve(ROOT, scopedPath), files);
+    const resolved = resolve(ROOT, scopedPath);
+    // A scope may name a directory to walk or a single file — the persona-clock
+    // guard targets 14 specific factory files rather than whole directories,
+    // because their non-factory neighbours are deliberately out of scope.
+    if (statSync(resolved).isDirectory()) {
+      collectSourceFiles(resolved, files);
+    } else {
+      files.add(resolved);
+    }
   }
 
   const violations = [];

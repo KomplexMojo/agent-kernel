@@ -1,3 +1,4 @@
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { mapBuildSpecToArtifacts } from "./map-build-spec.js";
 import { solveWithAdapter } from "../ports/solver.js";
 import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
@@ -57,7 +58,7 @@ function toRef(artifact) {
 }
 
 function mergePriceListWithDefaults(priceList, { meta } = {}) {
-  const defaults = createAllocatorPersona({ priceListMeta: meta }).pricing.priceList();
+  const defaults = createAllocatorPersona({ priceListMeta: meta, clock: UNUSED_CLOCK }).pricing.priceList();
   if (!priceList) return defaults;
   const itemsByKey = new Map();
   defaults.items.forEach((item) => {
@@ -1549,7 +1550,7 @@ export async function orchestrateBuild({
       });
       spendProposal = spendResult.proposal;
       budgetReceipt = spendResult.receipt;
-      budgetReceipt.scenarioSpendReport = createAllocatorPersona().scenarioSpendReport({
+      budgetReceipt.scenarioSpendReport = createAllocatorPersona({ clock: UNUSED_CLOCK }).scenarioSpendReport({
         lineItems: budgetReceipt.lineItems,
         allocation: budgetAllocation,
         budgetTokens: mapped.budget.budget?.budget?.tokens,

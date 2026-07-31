@@ -1,6 +1,8 @@
 // Deterministic state machine for the Director persona.
 // Handles plan/intent intake and refinement without performing IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+
 export const DirectorStates = Object.freeze({
   UNINITIALIZED: "uninitialized",
   INTAKE: "intake",
@@ -91,7 +93,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createDirectorStateMachine({ initialState = DirectorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
+export function createDirectorStateMachine({ initialState = DirectorStates.UNINITIALIZED, clock } = {}) {
+  requireClock(clock, "director");
   let state = initialState;
   let context = {
     intentRef: null,

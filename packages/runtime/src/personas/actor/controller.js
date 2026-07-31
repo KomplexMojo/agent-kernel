@@ -1025,7 +1025,7 @@ function buildMotivatedProposals({ observation, payload, lastBaseTiles, lastSimC
   return buildMoveProposal({ observation, payload, lastBaseTiles, lastSimConfig });
 }
 
-export function createActorPersona({ initialState = ActorStates.IDLE, clock = () => new Date().toISOString(), seed: personaSeed } = {}) {
+export function createActorPersona({ initialState = ActorStates.IDLE, clock, seed: personaSeed } = {}) {
   const fsm = createActorStateMachine({ initialState, clock });
   let lastObservation = null;
   let lastBaseTiles = null;

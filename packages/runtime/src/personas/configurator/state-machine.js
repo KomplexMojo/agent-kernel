@@ -1,6 +1,8 @@
 // Deterministic state machine for the Configurator persona.
 // Manages configuration lifecycle without IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+
 export const ConfiguratorStates = Object.freeze({
   UNINITIALIZED: "uninitialized",
   PENDING_CONFIG: "pending_config",
@@ -43,7 +45,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createConfiguratorStateMachine({ initialState = ConfiguratorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
+export function createConfiguratorStateMachine({ initialState = ConfiguratorStates.UNINITIALIZED, clock } = {}) {
+  requireClock(clock, "configurator");
   let state = initialState;
   let context = {
     lastEvent: null,

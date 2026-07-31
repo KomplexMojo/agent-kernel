@@ -30,8 +30,9 @@ async function freshCore() {
 
 test("the Allocator owns the numbers; base-costs.json is their only home", async () => {
   const { createAllocatorPersona } = await import(ALLOCATOR);
+  const { UNUSED_CLOCK } = await import("../../../packages/runtime/src/personas/_shared/require-clock.js");
   const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
-  const costs = createAllocatorPersona().pricing.actionBudgetCosts();
+  const costs = createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.actionBudgetCosts();
   assert.equal(costs.default, base.actionBudget.action_default);
   assert.equal(costs.requestSolver, base.actionBudget.action_request_solver);
 
@@ -62,9 +63,10 @@ test("injecting Allocator costs makes a solver request cost 2", async () => {
   const { BudgetCategory } = await import(CORE);
   const { applyActionBudgetCosts } = await import(PORT);
   const { createAllocatorPersona } = await import(ALLOCATOR);
+  const { UNUSED_CLOCK } = await import("../../../packages/runtime/src/personas/_shared/require-clock.js");
   const core = await freshCore();
 
-  const applied = applyActionBudgetCosts(core, createAllocatorPersona().pricing.actionBudgetCosts());
+  const applied = applyActionBudgetCosts(core, createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.actionBudgetCosts());
   assert.equal(applied.length, 1);
   assert.equal(applied[0].kind, REQUEST_SOLVER);
 

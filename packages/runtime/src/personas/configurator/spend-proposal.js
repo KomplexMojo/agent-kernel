@@ -1,3 +1,4 @@
+import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "../allocator/validate-spend.js";
 import { createAllocatorPersona } from "../allocator/persona.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
@@ -741,7 +742,7 @@ export function buildDesignSpendLedger({
   // normalized to items; entries without a formula price linearly.
   const priceMap = priceList
     ? normalizePriceItems(priceList)
-    : createAllocatorPersona().pricing.priceMap();
+    : createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.priceMap();
   const lineItems = [];
 
   let levelConfigSpent = normalizePositiveInt(layoutResult?.spentTokens, 0);

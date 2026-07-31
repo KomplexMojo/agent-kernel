@@ -228,7 +228,9 @@ export async function runAuthoringBuild(input = {}) {
 
   // Configurator owns input preparation (P2.2/P2.3.1): grid sizing, hazard
   // placement, and resource mapping run behind the persona's CONFIG-plane surface.
-  const configurator = createConfiguratorPersona();
+  // A real assembly round, so the clock is the build's own timestamp — not a
+  // marker (PX.3). createdAt is already threaded through this function.
+  const configurator = createConfiguratorPersona({ clock: () => createdAt });
   configurator.provideConfig(spec.configurator?.inputs || {});
   spec.configurator.inputs.levelGen = configurator.prepareLevelGen({
     existingLevelGen: spec.configurator?.inputs?.levelGen || {},

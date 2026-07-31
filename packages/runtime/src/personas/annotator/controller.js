@@ -5,7 +5,7 @@ import { attachAnnotatorServices } from "./annotator-services.js";
 
 export const annotatorSubscribePhases = Object.freeze([TickPhases.EMIT, TickPhases.SUMMARIZE]);
 
-export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, clock } = {}) {
   const fsm = createAnnotatorStateMachine({ initialState, clock });
   const services = attachAnnotatorServices();
 

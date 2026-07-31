@@ -1,6 +1,8 @@
 // Deterministic state machine for the Moderator persona.
 // Owns tick execution lifecycle bookkeeping without IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+
 export const ModeratorStates = Object.freeze({
   INITIALIZING: "initializing",
   TICKING: "ticking",
@@ -24,7 +26,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createModeratorStateMachine({ initialState = ModeratorStates.INITIALIZING, clock = () => new Date().toISOString() } = {}) {
+export function createModeratorStateMachine({ initialState = ModeratorStates.INITIALIZING, clock } = {}) {
+  requireClock(clock, "moderator");
   let state = initialState;
   let context = {
     lastEvent: null,

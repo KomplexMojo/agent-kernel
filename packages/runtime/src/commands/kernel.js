@@ -1,3 +1,4 @@
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { orchestrateBuild } from "../build/orchestrate-build.js";
 import { runAuthoringBuild, runPlanBuild } from "../build/authoring-build.js";
 import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../build/mixed-room-summary.js";
@@ -1083,7 +1084,7 @@ export function createCommandKernel(host = {}) {
     // P3.2: the Annotator owns the run summary (artifacts.ts: "Run-level summary
     // emitted by Annotator at end of run"). It derives a REAL outcome from the
     // collected frames/effects — this was hardcoded "unknown" on every run before.
-    const runSummary = createAnnotatorPersona().summarizeRun({
+    const runSummary = createAnnotatorPersona({ clock: UNUSED_CLOCK }).summarizeRun({
       tickFrames,
       effectLog,
       ticksRequested: ticks,

@@ -1,6 +1,8 @@
 // Deterministic state machine for the Allocator persona.
 // Manages budgeting loop without performing IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+
 export const AllocatorStates = Object.freeze({
   IDLE: "idle",
   BUDGETING: "budgeting",
@@ -74,7 +76,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createAllocatorStateMachine({ initialState = AllocatorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createAllocatorStateMachine({ initialState = AllocatorStates.IDLE, clock } = {}) {
+  requireClock(clock, "allocator");
   let state = initialState;
   let context = {
     lastEvent: null,

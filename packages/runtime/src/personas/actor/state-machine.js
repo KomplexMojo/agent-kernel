@@ -1,6 +1,8 @@
 // Deterministic state machine for the Actor persona.
 // Handles observation -> decision -> proposing loop without IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+
 export const ActorStates = Object.freeze({
   IDLE: "idle",
   OBSERVING: "observing",
@@ -32,7 +34,8 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createActorStateMachine({ initialState = ActorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
+export function createActorStateMachine({ initialState = ActorStates.IDLE, clock } = {}) {
+  requireClock(clock, "actor");
   let state = initialState;
   let context = {
     lastEvent: null,
