@@ -11,7 +11,7 @@ import {
   REFERENCE_BUDGET_TOKENS,
   REFERENCE_TARGETS,
   TARGET_DELVER_WARDEN_RATIO,
-} from "../director/budget-allocation.js";
+} from "./budget-allocation.js";
 
 const REPORT_CATEGORIES = Object.freeze([
   "rooms",

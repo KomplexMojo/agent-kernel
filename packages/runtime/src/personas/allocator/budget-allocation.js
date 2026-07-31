@@ -1,3 +1,16 @@
+/**
+ * Budget pool allocation — how a total token budget is split into pools.
+ *
+ * CR.1: this module lived in `personas/director/` and was the largest of the
+ * economy's leaked origins — seven pool/split constants plus `computeBudgetPools`
+ * and `buildBudgetAllocation`, i.e. budget allocation POLICY inside the Director's
+ * folder, which the Allocator then had to import back out (`incentive-model.js`).
+ * The charter gives the Allocator sole ownership of the economy, so the policy lives
+ * here and the Director asks for a split instead of defining one.
+ *
+ * The numbers are unchanged by the move — this is a relocation, not a retune, and
+ * the goldens are the proof.
+ */
 const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
 const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";

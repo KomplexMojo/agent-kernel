@@ -6,7 +6,7 @@ const priceListFixture = readFixture("price-list-artifact-v1-basic.json");
 
 
 test("director budget allocation splits pools deterministically", async () => {
-const { buildBudgetAllocation, REFERENCE_BUDGET_TOKENS, DEFAULT_DUNGEON_PCT, DEFAULT_DELVER_PCT, DEFAULT_DUNGEON_SUB_POOLS } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+const { buildBudgetAllocation, REFERENCE_BUDGET_TOKENS, DEFAULT_DUNGEON_PCT, DEFAULT_DELVER_PCT, DEFAULT_DUNGEON_SUB_POOLS } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
 // Verify exported constants
 assert.equal(REFERENCE_BUDGET_TOKENS, 2500);

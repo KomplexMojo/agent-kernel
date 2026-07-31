@@ -1,7 +1,8 @@
 import { createDirectorStateMachine, DirectorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
-import { computeBudgetPools } from "./budget-allocation.js";
+import { createAllocatorPersona } from "../allocator/persona.js";
+import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { attachDirectorServices } from "./director-services.js";
 
 const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
@@ -128,8 +129,13 @@ function buildHazardProposalEffects({ intentEnvelope, planRef, personaRef = "dir
   const budgetTokens = Number.isInteger(hints.budgetTokens) && hints.budgetTokens > 0
     ? hints.budgetTokens
     : 0;
+  // CR.1 — the Director ASKS the Allocator for a split; it does not define one.
+  // This used to call computeBudgetPools out of a module that lived in the Director's
+  // own folder, which is how budget-allocation policy came to have a second origin.
+  // The call goes through the Allocator's PUBLIC controller (persona.js), so it is a
+  // controller-to-controller call, not a persona-internal import.
   const pools = budgetTokens > 0
-    ? computeBudgetPools({ budgetTokens }).pools
+    ? createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.budgetPools({ budgetTokens }).pools
     : [];
   const layoutPool = pools.find((p) => p.id === LAYOUT_POOL_ID);
   const budgetCeiling = layoutPool ? layoutPool.tokens : 0;

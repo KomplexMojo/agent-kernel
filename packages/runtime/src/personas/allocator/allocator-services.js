@@ -24,6 +24,7 @@ import { normalizePriceItems, buildPriceMap, validateSpendProposal } from "./val
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { calculateMotivationStackCost } from "./motivation-price-policy.js";
 import { buildScenarioSpendReport } from "./incentive-model.js";
+import { computeBudgetPools } from "./budget-allocation.js";
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 
 export class AllocatorStateError extends Error {
@@ -87,6 +88,17 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
       default: BASE_COSTS.actionBudget.action_default,
       requestSolver: BASE_COSTS.actionBudget.action_request_solver,
     }),
+
+    /**
+     * Split a total token budget into pools (CR.1).
+     *
+     * The Allocator owns the split; other personas ASK for one rather than
+     * computing it. This exists so the Director can bound a hazard proposal
+     * against the layout pool without importing the policy — its own controller
+     * used to call `computeBudgetPools` directly out of a module that lived in the
+     * Director's folder, which is how the economy came to have three origins.
+     */
+    budgetPools: (args = {}) => computeBudgetPools(args),
   };
 
   function registerBudget(budget) {

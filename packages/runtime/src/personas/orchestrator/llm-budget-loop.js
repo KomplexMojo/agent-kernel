@@ -9,7 +9,7 @@ import { runLlmSession } from "./llm-session.js";
 import { mapSummaryToPool } from "../director/pool-mapper.js";
 import { deriveLevelGen } from "../director/buildspec-assembler.js";
 import { buildCardSetFromSummary } from "../director/summary-selections.js";
-import { buildBudgetAllocation } from "../director/budget-allocation.js";
+import { buildBudgetAllocation } from "../allocator/budget-allocation.js";
 import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
 import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
 import {

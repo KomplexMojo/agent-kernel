@@ -9,7 +9,7 @@ import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/c
 import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
 import { maximizeActorBudget } from "../personas/configurator/budget-maximizer.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
-import { buildBudgetAllocation } from "../personas/director/budget-allocation.js";
+import { buildBudgetAllocation } from "../personas/allocator/budget-allocation.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
 import { computeInternalManaUpkeep } from "../personas/configurator/cost-model.js";

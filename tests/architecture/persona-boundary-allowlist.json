@@ -41,6 +41,10 @@
   },
   {
     "from": "packages/runtime/src/build/orchestrate-build.js",
+    "to": "packages/runtime/src/personas/allocator/budget-allocation.js"
+  },
+  {
+    "from": "packages/runtime/src/build/orchestrate-build.js",
     "to": "packages/runtime/src/personas/configurator/affinity-effects.js"
   },
   {
@@ -74,10 +78,6 @@
   {
     "from": "packages/runtime/src/build/orchestrate-build.js",
     "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/director/budget-allocation.js"
   },
   {
     "from": "packages/runtime/src/commands/card-authoring.js",
@@ -148,10 +148,6 @@
     "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
   },
   {
-    "from": "packages/runtime/src/personas/allocator/incentive-model.js",
-    "to": "packages/runtime/src/personas/director/budget-allocation.js"
-  },
-  {
     "from": "packages/runtime/src/personas/allocator/layout-spend.js",
     "to": "packages/runtime/src/personas/configurator/card-model.js"
   },
@@ -205,6 +201,10 @@
   },
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    "to": "packages/runtime/src/personas/allocator/budget-allocation.js"
+  },
+  {
+    "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
     "to": "packages/runtime/src/personas/allocator/layout-spend.js"
   },
   {
@@ -218,10 +218,6 @@
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
     "to": "packages/runtime/src/personas/configurator/pool-catalog.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
-    "to": "packages/runtime/src/personas/director/budget-allocation.js"
   },
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",

@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 test("UI budgetSplitPercent handoff: poolWeights pass through summary → BuildSpec → allocation", async () => {
   const { buildBuildSpecFromSummary } = await import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
-const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+const { computeBudgetPools } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
 // Simulate UI passing custom budget and split percentages
 const summary = {
@@ -54,7 +54,7 @@ assert.equal(poolMap.get("resources"), 0, "not specified → 0");
 
 test("default allocation when poolWeights not provided", async () => {
   const { buildBuildSpecFromSummary } = await import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
-const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+const { computeBudgetPools } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
 const summary = {
   dungeonAffinity: "fire",
