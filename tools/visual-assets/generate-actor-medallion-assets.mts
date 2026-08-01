@@ -65,6 +65,12 @@ Options:
   --expression-style triangles   Expression indicator style. Defaults to triangles.
   --output-dir <path>            Output directory for components and review sheets.
   --review-only                  Emit review sheets without component asset PNGs.
+
+Note: everything written under <output-dir>/review/ is a QA aid, not a runtime
+asset — the runtime reads components/ and the generated-assets manifest, never
+review/. That directory is gitignored for the default output path, so a
+regeneration will not reintroduce tracked binaries. Component PNGs and the
+manifest ARE tracked and are expected to show up in a diff.
 `);
 }
 

@@ -22,6 +22,13 @@ coverage/
 *.map
 /artifacts/
 
+# Regeneratable QA review sheets from tools/visual-assets/generate-actor-medallion-assets.mts.
+# They are review aids, not runtime assets — the runtime reads `components/` and the
+# generated-assets manifest, never `review/`. Fully qualified ON PURPOSE: a bare `review/`
+# would match any directory of that name at any depth, which is exactly the mistake that
+# hid real source five times in this repo (see the `build/` note above).
+/packages/runtime/src/render/visual-assets/actor-medallions/review/
+
 # CLI-generated artifacts
 packages/adapters-cli/artifacts/solve_cli_test/*.json
 

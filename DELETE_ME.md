@@ -40,8 +40,22 @@
 > `.gitignore`'s `/playwright/` and `.playwright-cli/` entries are retained, as this manifest permits,
 > to keep suppressing stale local artifacts.
 >
-> **⏸️ GROUP C visual sheets / `build-spec/map.js` not executed** — both need the migration or generator
-> change described below first.
+> **✅ GROUP C (non-`.mts` items) EXECUTED 2026-08-01 — suite unchanged at 345 / 2667 / 251, exit 0.**
+> - **`build-spec/map.js`** was a one-line re-export whose only caller was its own test.
+>   `tests/adapters-cli/build-spec-map.test.js` now imports the canonical
+>   `packages/runtime/src/build/map-build-spec.js` directly (verified green before the delete), and the
+>   emptied `build-spec/` directory went with it.
+> - **The 5 review sheets** are untracked and deleted. The generator still produces them — they are QA
+>   aids and losing the ability to regenerate would be the wrong fix — so the requirement that
+>   "regeneration does not reintroduce tracked review outputs" is met by gitignoring the output path.
+>   ⚠️ **The ignore rule is FULLY QUALIFIED on purpose**
+>   (`/packages/runtime/src/render/visual-assets/actor-medallions/review/`). A bare `review/` would match
+>   any directory of that name at any depth — precisely the mistake that hid real source five times in
+>   this repo. Verified: `docs/review/`, `packages/ui-web/review/` and both `build/` directories are
+>   unaffected.
+>   The manifest's `reviewSheets` array is deliberately **left in place**: the generator writes that
+>   array itself, so stripping it from the tracked copy would simply return as diff noise on the next
+>   regeneration. Nothing consumes it — it is a record of what a run produces.
 
 This manifest records deletion candidates identified during the repository-wide
 file-purpose review. Deletions are intentionally deferred so they can be
@@ -179,11 +193,11 @@ Do not delete these files as a blind batch.
 
 ### Generated visual review sheets
 
-- [ ] `packages/runtime/src/render/visual-assets/actor-medallions/review/expression-triangles-sheet.png`
-- [ ] `packages/runtime/src/render/visual-assets/actor-medallions/review/limited-permutation-contact-sheet-16.png`
-- [ ] `packages/runtime/src/render/visual-assets/actor-medallions/review/limited-permutation-contact-sheet-32.png`
-- [ ] `packages/runtime/src/render/visual-assets/actor-medallions/review/limited-permutation-contact-sheet.png`
-- [ ] `packages/runtime/src/render/visual-assets/actor-medallions/review/representative-actor-affinity-sheet.png`
+- [x] `packages/runtime/src/render/visual-assets/actor-medallions/review/expression-triangles-sheet.png`
+- [x] `packages/runtime/src/render/visual-assets/actor-medallions/review/limited-permutation-contact-sheet-16.png`
+- [x] `packages/runtime/src/render/visual-assets/actor-medallions/review/limited-permutation-contact-sheet-32.png`
+- [x] `packages/runtime/src/render/visual-assets/actor-medallions/review/limited-permutation-contact-sheet.png`
+- [x] `packages/runtime/src/render/visual-assets/actor-medallions/review/representative-actor-affinity-sheet.png`
 
 These are regeneratable QA sheets rather than runtime assets. Update the visual
 asset generator/manifest so a regeneration does not reintroduce tracked review
@@ -214,7 +228,7 @@ Update affected tests and persona documentation in the same change.
 
 ### Redundant adapter re-export
 
-- [ ] `packages/adapters-cli/src/build-spec/map.js`
+- [x] `packages/adapters-cli/src/build-spec/map.js`
 
 First move `tests/adapters-cli/build-spec-map.test.js` to import the canonical
 mapper from `packages/runtime/src/build/map-build-spec.js`.

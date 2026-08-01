@@ -1,8 +1,11 @@
 const assert = require("node:assert/strict");
 const { readFixture } = require("../helpers/fixtures");
 
+// Imports the canonical mapper directly. This used to go through
+// packages/adapters-cli/src/build-spec/map.js, a one-line re-export whose only
+// caller was this test; the indirection is gone with it.
 async function loadMapper() {
-  return import("../../packages/adapters-cli/src/build-spec/map.js");
+  return import("../../packages/runtime/src/build/map-build-spec.js");
 }
 
 test("map build spec to intent + plan artifacts", async () => {
