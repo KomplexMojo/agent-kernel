@@ -24,7 +24,7 @@ Dependency Inversion · Effect Routing · Persona FSM Violation · Schema Mismat
 
 - Layers: `core-ts` ← `runtime` ← `adapters-cli`/`adapters-web`/`adapters-test`/`ui-web` (see CLAUDE.md → Architecture).
 - Personas (7): Orchestrator, Director, Configurator, Actor, Allocator, Annotator, Moderator.
-- Runner: Vitest only (`scripts/testing/run-vitest.mjs`); Playwright suites are out of scope for this skill.
+- Runner: Vitest only (`scripts/testing/run-vitest.mjs`) — and now the repo's only runner at all.
 - Narrow re-run: `pnpm run test:vitest -- tests/<path>/<name>.test.js`.
 
 ## Escalation triggers (maintainer confirmation required)

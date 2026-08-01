@@ -100,7 +100,6 @@ pnpm install                                          # Install dependencies
 pnpm run test                                         # Vitest suite
 pnpm run test -- --reporter=json --outputFile=<f>     # Structured results (what fast-pass uses)
 pnpm run test:vitest -- tests/<path>/<name>.test.js   # Single Vitest file
-pnpm run test:playwright -- tests/playwright/<name>.spec.mjs
 pnpm run serve:ui                                     # UI dev server :8001
 pnpm run demo:cli                                     # CLI demo
 ```

@@ -75,7 +75,7 @@ than cosmetic debt — 7 persona READMEs named `.mts` as the canonical source lo
 so anyone following them would have edited a re-export shim and their change would silently never run.
 
 **Tests vs. benchmarks:**
-- **Tests** (`pnpm run test`) — deterministic correctness: does the code behave as specified? Vitest + Playwright, fixture-backed, no external services.
+- **Tests** (`pnpm run test`) — deterministic correctness: does the code behave as specified? Vitest, fixture-backed, no external services.
 - **Benchmarks** (`run-content-gen`) — LLM tool-call surface under load: does the model produce valid tool calls for all 50 scenario permutations across tiers? Runs on the remote GPU node; measures exec success rate and scenario score. Not a substitute for tests and not run on every commit — only when the `ak_create` schema, CLI arg mapping, or entity normalization changes.
 
 ## Serena — shared structural code understanding
@@ -218,7 +218,6 @@ code that changes them, not as a trailing pass after merge.
 ## Test strategy
 
 - Default runner: `pnpm run test` → Vitest for Node-side suites.
-- Browser-native runner: `pnpm run test:playwright`.
 - Use fixture-based tests for deterministic behavior.
 - Add negative fixtures under `tests/fixtures/artifacts/invalid` when adding validation.
 - Base tests are Claude Sonnet/medium's output. Permutations are Ollama's output.

@@ -34,8 +34,6 @@ export default defineConfig({
       "tests/**/*.test.mts",
     ],
     exclude: [
-      "tests/playwright/**",
-      "tests/scripts/serve-ui.test.js",
       ...duplicateJsWrappers,
     ],
     environment: "node",

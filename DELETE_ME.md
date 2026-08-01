@@ -22,13 +22,23 @@
 > work"). Independently, **144 live importers** still reference `controller.mts` / `state-machine.mts`.
 > Reopening this needs an explicit maintainer reversal of that decision, not a checklist tick.
 >
-> **⏸️ GROUP A NOT EXECUTED — it is a subsystem removal, not a deletion sweep.** Beyond deleting 23
-> files it requires: removing a dependency and refreshing `pnpm-lock.yaml`; rewriting Playwright modes
-> out of five test-harness modules (`test-matrix.mjs`, `shared.mjs`, `classify-tests.mjs`,
-> `recipe-catalog.mjs`, `mcp/tools/testing.mjs`); re-enabling `tests/scripts/serve-ui.test.js` under
-> Vitest; and updating five docs. Those are the modules the tiered-test-optimizer and the MCP testing
-> tools depend on, so it deserves its own reviewable change. Confirmed harmless: the three `ui-web`
-> Playwright mentions are comments only, with no functional dependency.
+> **✅ GROUP A EXECUTED 2026-08-01 — suite 345 files / 2667 passed | 251 skipped, exit 0.**
+> 22 files deleted; `@playwright/test` and three scripts removed from `package.json` with the lockfile
+> refreshed (0 playwright refs left); Playwright modes rewritten out of all five harness modules;
+> `tests/scripts/serve-ui.test.js` **re-enabled under Vitest and passing**, so server-health coverage
+> survived the removal (+1 file / +1 test, which is the entire suite delta).
+>
+> **Two judgement calls worth review:**
+> 1. `browser_bundle_load_flow` is now `scaffoldable: false`. Its generator emitted Playwright source,
+>    and the recipe needs a real browser (navigation, file input, rendered state), so there is nothing
+>    headless to generate. `serve_ui_redirect_health` **was** rewritten to emit Vitest — modelled on the
+>    now-live `tests/scripts/serve-ui.test.js` — and its output is syntax-checked.
+> 2. **A coverage layer was genuinely lost, and is recorded rather than quietly dropped:**
+>    `tests/COVERAGE_MATRIX.md` L2 (UI element render) has no replacement. L1 and L3 still assert the
+>    data round-trip, but nothing asserts the rendered frame.
+>
+> `.gitignore`'s `/playwright/` and `.playwright-cli/` entries are retained, as this manifest permits,
+> to keep suppressing stale local artifacts.
 >
 > **⏸️ GROUP C visual sheets / `build-spec/map.js` not executed** — both need the migration or generator
 > change described below first.
@@ -41,7 +51,7 @@ Do not delete files solely because they appear here without observing the group
 status and prerequisites. Preserve unrelated working-tree changes. After each
 approved group, update references and run `pnpm run test`.
 
-## A. Approved: remove the Playwright subsystem
+## A. ✅ DONE 2026-08-01 — Playwright subsystem removed
 
 The maintainer has approved removal of the tracked Playwright content and tests.
 Phaser remains the sole UI implementation. Retain the fixture-backed Vitest tests
@@ -49,31 +59,31 @@ under `tests/ui-web/`.
 
 ### Configuration and test tooling
 
-- [ ] `playwright.config.mjs`
-- [ ] `scripts/testing/run-playwright.mjs`
-- [ ] `scripts/testing/codemod-playwright-cli-to-playwright-test.mjs`
-- [ ] `scripts/testing/find-browser-dependent-tests.mjs`
+- [x] `playwright.config.mjs`
+- [x] `scripts/testing/run-playwright.mjs`
+- [x] `scripts/testing/codemod-playwright-cli-to-playwright-test.mjs`
+- [x] `scripts/testing/find-browser-dependent-tests.mjs`
 
 ### Browser specifications and helper
 
-- [ ] `tests/playwright/card-builder-first-push-itemization.spec.mjs`
-- [ ] `tests/playwright/element-matrix-ui.spec.mjs`
-- [ ] `tests/playwright/gameplay-character-overlay.spec.mjs`
-- [ ] `tests/playwright/gameplay-flow.spec.mjs`
-- [ ] `tests/playwright/gameplay-fullscreen-controls.spec.mjs`
-- [ ] `tests/playwright/gameplay-selection-playback-state.spec.mjs`
-- [ ] `tests/playwright/gameplay-tick-navigation.spec.mjs`
-- [ ] `tests/playwright/helpers/serve-ui.mjs`
-- [ ] `tests/playwright/mcp-random-simulation-playback.spec.mjs`
-- [ ] `tests/playwright/phaser-boot-churn.spec.mjs`
-- [ ] `tests/playwright/phaser-card-builder-ui.spec.mjs`
-- [ ] `tests/playwright/phaser-frame-rendering.spec.mjs`
-- [ ] `tests/playwright/phaser-frame.spec.mjs`
-- [ ] `tests/playwright/runtime-actions-served.spec.mjs`
-- [ ] `tests/playwright/sandbox-scenario.spec.mjs`
-- [ ] `tests/playwright/screen-navigation-keys.spec.mjs`
-- [ ] `tests/playwright/serve-ui-redirect-health.spec.mjs`
-- [ ] `tests/playwright/serve-ui-script.spec.mjs`
+- [x] `tests/playwright/card-builder-first-push-itemization.spec.mjs`
+- [x] `tests/playwright/element-matrix-ui.spec.mjs`
+- [x] `tests/playwright/gameplay-character-overlay.spec.mjs`
+- [x] `tests/playwright/gameplay-flow.spec.mjs`
+- [x] `tests/playwright/gameplay-fullscreen-controls.spec.mjs`
+- [x] `tests/playwright/gameplay-selection-playback-state.spec.mjs`
+- [x] `tests/playwright/gameplay-tick-navigation.spec.mjs`
+- [x] `tests/playwright/helpers/serve-ui.mjs`
+- [x] `tests/playwright/mcp-random-simulation-playback.spec.mjs`
+- [x] `tests/playwright/phaser-boot-churn.spec.mjs`
+- [x] `tests/playwright/phaser-card-builder-ui.spec.mjs`
+- [x] `tests/playwright/phaser-frame-rendering.spec.mjs`
+- [x] `tests/playwright/phaser-frame.spec.mjs`
+- [x] `tests/playwright/runtime-actions-served.spec.mjs`
+- [x] `tests/playwright/sandbox-scenario.spec.mjs`
+- [x] `tests/playwright/screen-navigation-keys.spec.mjs`
+- [x] `tests/playwright/serve-ui-redirect-health.spec.mjs`
+- [x] `tests/playwright/serve-ui-script.spec.mjs`
 
 ### Stale Playwright-related report
 

@@ -198,7 +198,7 @@ tabs = wireTabs({
 globalThis.__ak_setActiveTab = (id) => tabs?.setActive(id);
 
 // M7: scenario loader — compile a scenario JSON into a gameplay bundle and load it.
-// Used by the UI sandbox controls and by Playwright tests that inject scenarios.
+// Used by the UI sandbox controls and by tests that inject scenarios.
 globalThis.__ak_loadScenario = async (scenario, options = {}) => {
   const { compileScenarioToBundle } = await import("./scenario-loader.js");
   const bundle = await compileScenarioToBundle(scenario);

@@ -1,6 +1,6 @@
 # Tests README
 
-> **Scope:** this file covers the unit and integration test suite only (`pnpm run test`, Vitest + Playwright). Tests verify code correctness against deterministic fixtures. For LLM tool-call permutation and stress testing, see the benchmark harness at `tools/remote-ollama-control/` and the `run-content-gen` command documented in `CLAUDE.md → Benchmark commands`.
+> **Scope:** this file covers the unit and integration test suite only (`pnpm run test`, Vitest). Tests verify code correctness against deterministic fixtures. For LLM tool-call permutation and stress testing, see the benchmark harness at `tools/remote-ollama-control/` and the `run-content-gen` command documented in `CLAUDE.md → Benchmark commands`.
 
 This file is the entry point for **low-complexity test work** delegated to a local model, typically Ollama launched through the Claude Code harness.
 
@@ -30,7 +30,7 @@ The goal is not to invent tests from raw prose. The goal is to:
 - `tests/runtime/` and `tests/personas/`: runtime contracts, command kernel behavior, persona transitions.
 - `tests/adapters-cli/`, `tests/adapters-web/`, `tests/adapters-test/`: adapter-level behavior.
 - `tests/integration/`: cross-package and MCP/CLI/UI flows.
-- `tests/ui-web/` and `tests/playwright/`: browser/UI behavior.
+- `tests/ui-web/`: browser/UI behavior, fixture-backed and headless.
 - `tests/fixtures/`: shared deterministic input and expected-output artifacts.
 
 ## Default Rule
@@ -87,9 +87,7 @@ Do not use the local model for:
 ## Runner Rules
 
 - Use `Vitest` for Node-side tests.
-- Use `Playwright` for browser-native tests.
 - Use `pnpm run test` for the default Node-side suite.
-- Use `pnpm run test:playwright -- <spec>` for browser-native specs.
 
 ## Recipe-First Mapping
 
@@ -102,10 +100,10 @@ Prefer these recipe families before free-form authoring:
 - `budget_policy_invariant`
 - `runtime_module_contract`
 - `runtime_persona_transition`
-- `browser_bundle_load_flow`
 - `serve_ui_redirect_health`
 
-All current cataloged recipe families now have scaffold support.
+Every cataloged recipe family has scaffold support except `browser_bundle_load_flow`,
+which needs a real browser and lost its generator with the Playwright subsystem.
 
 For the rarest family, keep the scaffold narrow and pattern-matched:
 
@@ -204,7 +202,7 @@ When the local model finishes, it should report:
 
 - Never modify production code during low-complexity test delegation.
 - Never reclassify runner ownership on your own.
-- Never migrate a test between Vitest and Playwright unless explicitly asked.
+- Vitest is the only runner; there is no second runner to migrate a test to.
 - Never replace a broad suite run for a narrow delegated task.
 - Never silently delete an existing assertion.
 
@@ -226,6 +224,6 @@ When the local model finishes, it should report:
 
 ### Example: browser-native case
 
-- prefer an existing Playwright spec under `tests/playwright/`
+- prefer an existing fixture-backed suite under `tests/ui-web/`
 - use the serve-ui helper flow when the page must be live
 - assert visible behavior, not internal implementation details
