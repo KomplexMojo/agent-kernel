@@ -8,7 +8,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 
 test("moderator state machine follows happy path transitions", async () => {
-const { createModeratorStateMachine, ModeratorStates } = await import("../../packages/runtime/src/personas/moderator/state-machine.mts");
+const { createModeratorStateMachine, ModeratorStates } = await import("../../packages/runtime/src/personas/moderator/state-machine.js");
 
 const fixture = happyFixture;
 const machine = createModeratorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
@@ -22,7 +22,7 @@ fixture.cases.forEach((entry) => {
 });
 
 test("moderator state machine enforces guard and invalid transitions", async () => {
-const { createModeratorStateMachine } = await import("../../packages/runtime/src/personas/moderator/state-machine.mts");
+const { createModeratorStateMachine } = await import("../../packages/runtime/src/personas/moderator/state-machine.js");
 
 const fixture = guardFixture;
 const machine = createModeratorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });

@@ -5,7 +5,7 @@ const { resolve } = require("node:path");
 test("runtime maps actor proposals to core actions and replays deterministically", async () => {
   const [bindings, actorMod, tickMod] = await Promise.all([
     import("../../packages/core-ts/src/index.ts"),
-    import("../../packages/runtime/src/personas/actor/controller.mts"),
+    import("../../packages/runtime/src/personas/actor/persona.js"),
     import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
   ]);
 
@@ -65,7 +65,7 @@ test("runtime maps actor proposals to core actions and replays deterministically
 test("runtime filters non-motivated proposals before packing actions", async () => {
   const [bindings, actorMod, tickMod] = await Promise.all([
     import("../../packages/core-ts/src/index.ts"),
-    import("../../packages/runtime/src/personas/actor/controller.mts"),
+    import("../../packages/runtime/src/personas/actor/persona.js"),
     import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
   ]);
 

@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 
 
 test("allocator persona emits solver_request when provided", async () => {
-const { createAllocatorPersona } = await import("../../packages/runtime/src/personas/allocator/controller.mts");
+const { createAllocatorPersona } = await import("../../packages/runtime/src/personas/allocator/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const persona = createAllocatorPersona({ clock: () => "fixed" });
@@ -17,7 +17,7 @@ assert.equal(result.context.lastSolverRequest.id, "alloc_req");
 });
 
 test("allocator persona has no solver_request when missing payload", async () => {
-const { createAllocatorPersona } = await import("../../packages/runtime/src/personas/allocator/controller.mts");
+const { createAllocatorPersona } = await import("../../packages/runtime/src/personas/allocator/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const persona = createAllocatorPersona({ clock: () => "fixed" });

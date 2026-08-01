@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 
 test("configurator persona emits solver_request when provided", async () => {
   const { createConfiguratorPersona } = await import(
-    "../../packages/runtime/src/personas/configurator/controller.mts"
+    "../../packages/runtime/src/personas/configurator/persona.js"
   );
   const { TickPhases } = await import(
     "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"
@@ -19,7 +19,7 @@ test("configurator persona emits solver_request when provided", async () => {
 
 test("configurator persona has no solver_request when missing payload", async () => {
   const { createConfiguratorPersona } = await import(
-    "../../packages/runtime/src/personas/configurator/controller.mts"
+    "../../packages/runtime/src/personas/configurator/persona.js"
   );
   const { TickPhases } = await import(
     "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"

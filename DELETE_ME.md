@@ -16,11 +16,24 @@
 > only to document `budget-input-validation.js`, so leaving it would have stranded a doc pointing at a
 > deleted module.
 >
-> **⛔ GROUP C `.mts` SHIMS ARE NOT ELIGIBLE — this manifest contradicts a recorded decision.**
-> `Plan.md:3434` "**RECORDED DECISION — `.mts` files are KEPT as shims (2026-07-27, do not re-litigate)**",
-> restated in `CLAUDE.md` ("The shims are KEPT by maintainer decision; deleting them is not planned
-> work"). Independently, **144 live importers** still reference `controller.mts` / `state-machine.mts`.
-> Reopening this needs an explicit maintainer reversal of that decision, not a checklist tick.
+> **✅ GROUP C `.mts` SHIMS DONE 2026-08-01 — decision formally reversed on maintainer request.**
+> The 2026-07-27 "KEEP as shims" decision required an explicit maintainer request to reopen; that was
+> given. All 16 shims deleted, suite unchanged at **345 / 2667 / 251**, exit 0.
+>
+> **The earlier "144 live importers" figure in this file was WRONG** — it conflated the 16 one-line shims
+> with the five **real** `_shared/*.mts` modules, which contain actual code (`tick-orchestrator.mts` 450
+> lines, `runtime-decision.mts` 419, `persona-helpers.mts` 131, `tick-state-machine.mts` 99,
+> `tick-inspect.mts` 44). `tick-state-machine.mts` alone was 34 of that count. True shim usage was
+> **31 files / 72 sites, exactly ONE of them production**; one shim already had zero importers.
+> **The five `_shared` modules are untouched.**
+>
+> Importers were repointed to **`persona.js`** — the charter's controller barrel — rather than
+> `controller.js`, so the cleanup also serves the rule 1 boundary instead of just moving a string.
+> `controller.mts` dropped from the boundary guard's `PUBLIC_BASENAMES`.
+>
+> ⚠️ **This was import hygiene, NOT a TypeScript migration.** `f528b6df` records that no `.mts` ever
+> contained TypeScript-only syntax, so the shims carried zero type information. The repo remains ~199 JS
+> files to ~33 real TS modules with **no `tsc`/typecheck script at all**.
 >
 > **✅ GROUP A EXECUTED 2026-08-01 — suite 345 files / 2667 passed | 251 skipped, exit 0.**
 > 22 files deleted; `@playwright/test` and three scripts removed from `package.json` with the lockfile
@@ -207,22 +220,22 @@ outputs.
 
 First migrate every remaining importer to the canonical `.js` implementation.
 
-- [ ] `packages/runtime/src/adaptive-workflow/state-machine.mts`
-- [ ] `packages/runtime/src/personas/actor/controller.mts`
-- [ ] `packages/runtime/src/personas/actor/state-machine.mts`
-- [ ] `packages/runtime/src/personas/allocator/controller.mts`
-- [ ] `packages/runtime/src/personas/allocator/state-machine.mts`
-- [ ] `packages/runtime/src/personas/annotator/controller.mts`
-- [ ] `packages/runtime/src/personas/annotator/state-machine.mts`
-- [ ] `packages/runtime/src/personas/configurator/controller.mts`
-- [ ] `packages/runtime/src/personas/configurator/state-machine.mts`
-- [ ] `packages/runtime/src/personas/director/controller.mts`
-- [ ] `packages/runtime/src/personas/director/state-machine.mts`
-- [ ] `packages/runtime/src/personas/moderator/controller.mts`
-- [ ] `packages/runtime/src/personas/moderator/state-machine.mts`
-- [ ] `packages/runtime/src/personas/moderator/affinity-target-effects.mts`
-- [ ] `packages/runtime/src/personas/orchestrator/controller.mts`
-- [ ] `packages/runtime/src/personas/orchestrator/state-machine.mts`
+- [x] `packages/runtime/src/adaptive-workflow/state-machine.mts`
+- [x] `packages/runtime/src/personas/actor/controller.mts`
+- [x] `packages/runtime/src/personas/actor/state-machine.mts`
+- [x] `packages/runtime/src/personas/allocator/controller.mts`
+- [x] `packages/runtime/src/personas/allocator/state-machine.mts`
+- [x] `packages/runtime/src/personas/annotator/controller.mts`
+- [x] `packages/runtime/src/personas/annotator/state-machine.mts`
+- [x] `packages/runtime/src/personas/configurator/controller.mts`
+- [x] `packages/runtime/src/personas/configurator/state-machine.mts`
+- [x] `packages/runtime/src/personas/director/controller.mts`
+- [x] `packages/runtime/src/personas/director/state-machine.mts`
+- [x] `packages/runtime/src/personas/moderator/controller.mts`
+- [x] `packages/runtime/src/personas/moderator/state-machine.mts`
+- [x] `packages/runtime/src/personas/moderator/affinity-target-effects.mts`
+- [x] `packages/runtime/src/personas/orchestrator/controller.mts`
+- [x] `packages/runtime/src/personas/orchestrator/state-machine.mts`
 
 Update affected tests and persona documentation in the same change.
 

@@ -6,8 +6,8 @@ const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas
 
 
 test("allocator and actor personas emit budget-aware actions and close request loops", async () => {
-const { createAllocatorPersona } = await import("../../packages/runtime/src/personas/allocator/controller.mts");
-const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { createAllocatorPersona } = await import("../../packages/runtime/src/personas/allocator/persona.js");
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 

@@ -7,7 +7,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 test("actor state machine follows happy path transitions", async () => {
   const { createActorStateMachine, ActorStates } = await import(
-    "../../packages/runtime/src/personas/actor/state-machine.mts"
+    "../../packages/runtime/src/personas/actor/state-machine.js"
   );
 
   const machine = createActorStateMachine({ initialState: happyFixture.initialState, clock: () => "fixed" });
@@ -29,7 +29,7 @@ test("actor state machine follows happy path transitions", async () => {
 
 test("actor state machine enforces guard and invalid transitions", async () => {
   const { createActorStateMachine } = await import(
-    "../../packages/runtime/src/personas/actor/state-machine.mts"
+    "../../packages/runtime/src/personas/actor/state-machine.js"
   );
 
   const machine = createActorStateMachine({ initialState: guardFixture.initialState, clock: () => "fixed" });

@@ -62,8 +62,7 @@ not owned**, and a milestone closes when its G1 test flips red→green — not w
 **Enforcement rules (blocking on every diff):**
 
 1. **Controller-only boundary.** Code outside a persona's directory may import only that persona's
-   `controller.js`, `persona.js`, or `contracts.ts` (`controller.mts` resolves to the same module —
-   see rule 7). Importing a persona's internal modules (`validate-spend.js`, `cost-model.js`,
+   `controller.js`, `persona.js`, or `contracts.ts`. Importing a persona's internal modules (`validate-spend.js`, `cost-model.js`,
    `llm-session.js`, …) from outside its directory is a violation. Adapters never import persona
    internals. Enforced by `tests/architecture/persona-boundary.test.js`, which fails on any NEW
    violation; `persona-boundary-allowlist.json` records today's known debt and must only shrink.
@@ -132,9 +131,8 @@ not owned**, and a milestone closes when its G1 test flips red→green — not w
    behavior needs a gate from the A1–A5 families above; **G1 (does production break without this
    persona?) is the acceptance criterion**, and byte-identical goldens are not evidence of ownership.
 7. **One implementation per module — `.js` is canonical.** Persona controllers and state machines
-   are plain `.js`. The matching `.mts` files are 1-line re-export shims retained only for existing
-   importers. **Never put code in a `.mts`**: it is a re-export, so anything added there silently
-   never runs. Two full copies of a module must never exist — that arrangement previously drifted
+   are plain `.js`, with no `.mts` twin: the 1-line re-export shims were deleted 2026-08-01 and every
+   importer now uses `persona.js` or `controller.js`. Two full copies of a module must never exist — that arrangement previously drifted
    undetected (director/controller by ~100 lines, allocator/controller by 2), which is why the old
    "apply every edit to both files" rule was retired rather than restated.
 
@@ -254,7 +252,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 ## Motivation And Action Flow
 
-- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.js` (`controller.mts` is a thin re-export of it).
+- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.js`.
 - `buildMotivatedProposals()` reads `motivation.kind` from the observation actor record or `payload.initialState.actors`. It uses `resolveNearestHostile()` to choose the closest other actor by Chebyshev distance.
 - Current simple motivation kinds are `attacking`, `defending`, `stationary`, and `random`: attacking actors attack adjacent hostiles or pursue distant hostiles, defending actors attack adjacent hostiles or hold position when distant, stationary actors emit no movement proposal, and random actors move to a seed-derived legal adjacent tile.
 - `random` movement is deterministic pseudo-random: the choice derives from `seed:actorId:tick` (FNV/mulberry), never `Math.random()`, and synthesizes a `wait` when no legal adjacent tile exists. Replays of the same seed produce identical movement.

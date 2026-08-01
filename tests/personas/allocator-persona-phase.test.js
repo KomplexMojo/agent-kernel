@@ -7,7 +7,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 test("allocator persona handles phase-driven cases", async () => {
   const { createAllocatorPersona, allocatorSubscribePhases } = await import(
-    "../../packages/runtime/src/personas/allocator/controller.mts"
+    "../../packages/runtime/src/personas/allocator/persona.js"
   );
   const { TickPhases } = await import(
     "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"
@@ -29,7 +29,7 @@ test("allocator persona handles phase-driven cases", async () => {
 
 test("allocator persona enforces guard/invalid events", async () => {
   const { createAllocatorPersona } = await import(
-    "../../packages/runtime/src/personas/allocator/controller.mts"
+    "../../packages/runtime/src/personas/allocator/persona.js"
   );
 
   const persona = createAllocatorPersona({ initialState: guardFixture.initialState, clock: () => "fixed" });

@@ -7,7 +7,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 test("orchestrator state machine follows happy path transitions", async () => {
   const { createOrchestratorStateMachine, OrchestratorStates } = await import(
-    "../../packages/runtime/src/personas/orchestrator/state-machine.mts"
+    "../../packages/runtime/src/personas/orchestrator/state-machine.js"
   );
 
   const machine = createOrchestratorStateMachine({ initialState: happyFixture.initialState, clock: () => "fixed" });
@@ -28,7 +28,7 @@ test("orchestrator state machine follows happy path transitions", async () => {
 
 test("orchestrator state machine enforces guard and invalid transitions", async () => {
   const { createOrchestratorStateMachine } = await import(
-    "../../packages/runtime/src/personas/orchestrator/state-machine.mts"
+    "../../packages/runtime/src/personas/orchestrator/state-machine.js"
   );
 
   const machine = createOrchestratorStateMachine({ initialState: guardFixture.initialState, clock: () => "fixed" });

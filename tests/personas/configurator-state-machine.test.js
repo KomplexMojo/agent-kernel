@@ -7,7 +7,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 test("configurator state machine follows happy path transitions", async () => {
   const { createConfiguratorStateMachine, ConfiguratorStates } = await import(
-    "../../packages/runtime/src/personas/configurator/state-machine.mts"
+    "../../packages/runtime/src/personas/configurator/state-machine.js"
   );
 
   const machine = createConfiguratorStateMachine({ initialState: happyFixture.initialState, clock: () => "fixed" });
@@ -28,7 +28,7 @@ test("configurator state machine follows happy path transitions", async () => {
 
 test("configurator state machine enforces guard and invalid transitions", async () => {
   const { createConfiguratorStateMachine } = await import(
-    "../../packages/runtime/src/personas/configurator/state-machine.mts"
+    "../../packages/runtime/src/personas/configurator/state-machine.js"
   );
 
   const machine = createConfiguratorStateMachine({ initialState: guardFixture.initialState, clock: () => "fixed" });

@@ -8,7 +8,7 @@
  * This exercises the same actor-controller gap covered at the persona level
  * in tests/runtime/random-movement-ticks.test.js, but end-to-end: today
  * "random" motivation is not special-cased in
- * packages/runtime/src/personas/actor/controller.mts buildMotivatedProposals()
+ * packages/runtime/src/personas/actor/persona.js buildMotivatedProposals()
  * (~line 787), so every "random" actor falls back to buildMoveProposal(),
  * which pathfinds toward the shared level exit. That collapses what should be
  * independent random trajectories into a single deterministic beeline, which

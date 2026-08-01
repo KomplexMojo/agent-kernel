@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 
 test("actor persona emits runtime-decision solver requests from live observation context", async () => {
   const { createActorPersona } = await import(
-    "../../packages/runtime/src/personas/actor/controller.mts"
+    "../../packages/runtime/src/personas/actor/persona.js"
   );
   const { TickPhases } = await import(
     "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"
@@ -111,7 +111,7 @@ test("actor persona emits runtime-decision solver requests from live observation
 
 test("actor persona keeps manual live LLM runtime requests on the same solver_request rail", async () => {
   const { createActorPersona } = await import(
-    "../../packages/runtime/src/personas/actor/controller.mts"
+    "../../packages/runtime/src/personas/actor/persona.js"
   );
   const { TickPhases } = await import(
     "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"

@@ -7,7 +7,7 @@ const guardCases = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/perso
 
 test("director state machine advances through table-driven happy path", async () => {
   const { createDirectorStateMachine, DirectorStates } = await import(
-    "../../packages/runtime/src/personas/director/state-machine.mts"
+    "../../packages/runtime/src/personas/director/state-machine.js"
   );
 
   const machine = createDirectorStateMachine({ initialState: happyCases.initialState, clock: () => "fixed-time" });
@@ -28,7 +28,7 @@ test("director state machine advances through table-driven happy path", async ()
 
 test("director state machine enforces table-driven guard and missing transition errors", async () => {
   const { createDirectorStateMachine } = await import(
-    "../../packages/runtime/src/personas/director/state-machine.mts"
+    "../../packages/runtime/src/personas/director/state-machine.js"
   );
 
   const machine = createDirectorStateMachine({ initialState: guardCases.initialState, clock: () => "fixed" });

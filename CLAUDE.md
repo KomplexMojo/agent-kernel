@@ -149,10 +149,10 @@ tests/
 **Runtime personas** — each is a deterministic state machine. Clock injected (never read directly). Context serializable (no class instances, no functions). Effects returned as data and routed via `ports/effects.js`, never executed inline.
 
 ```typescript
-// controller.mts
+// controller.js
 constructor(adapters, config)
 advance(event, payload): { nextState, effects }
-// state-machine.mts
+// state-machine.js
 view(): PersonaState
 advance(event, payload): { state, context, effects }
 ```
@@ -167,7 +167,7 @@ advance(event, payload): { state, context, effects }
 | Annotator | emit, summarize | Telemetry capture and normalization |
 | Moderator | all | Tick control, ordering strategy, effect fulfillment |
 
-New personas require `controller.mts`, `state-machine.mts`, `contracts.ts`, and at least one state handler.
+New personas require `controller.js`, `state-machine.js`, `contracts.ts`, and at least one state handler.
 
 **Adapters** — all external IO (LLM, IPFS, blockchain, solver, logging) lives only in `adapters-web/-cli/-test`. Adapters receive effects from `runtime/src/ports/effects.js`; they do not pull state. Test adapters are fixture-based and fully deterministic.
 
@@ -181,7 +181,7 @@ Run on every diff. **Fix failures — don't just flag them.**
 
 **Architecture** — dependency flows only adapters/ui → runtime → core-ts · `core-ts` has no IO and no outside imports · all external IO behind an adapter · no adapter code in `runtime`/`core-ts`.
 
-**Personas** — pure FSM (`view()` + `advance`) · clock injected · context serializable · effects returned as data · new persona folders include `controller.mts`, `state-machine.mts`, `contracts.ts` · no imports of persona internals from outside the persona directory (controllers only) · no domain logic in glue (kernel, card-authoring, orchestrate-build, adapters) · persona states must gate real behavior — label-only states are defects · all pricing goes through the Allocator (base costs in `base-costs.json`, formulas in Allocator code, no silent fallbacks).
+**Personas** — pure FSM (`view()` + `advance`) · clock injected · context serializable · effects returned as data · new persona folders include `controller.js`, `state-machine.js`, `persona.js`, `contracts.ts` · no imports of persona internals from outside the persona directory (controllers only) · no domain logic in glue (kernel, card-authoring, orchestrate-build, adapters) · persona states must gate real behavior — label-only states are defects · all pricing goes through the Allocator (base costs in `base-costs.json`, formulas in Allocator code, no silent fallbacks).
 
 **Artifacts** — boundary data uses an `artifacts.ts` schema · `schema`/`schemaVersion`/`meta` present · no field-name conflicts with existing contracts.
 

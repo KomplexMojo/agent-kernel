@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 
 test("director persona emits solver_request effect when provided", async () => {
-const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.mts");
+const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const persona = createDirectorPersona({ clock: () => "fixed" });

@@ -2,4 +2,4 @@
 export const runtimeVersion = 1;
 
 export * from "./adaptive-workflow/contracts.ts";
-export * from "./adaptive-workflow/state-machine.mts";
+export * from "./adaptive-workflow/state-machine.js";

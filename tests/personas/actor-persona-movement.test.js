@@ -8,7 +8,7 @@ let actorModulePromise;
 
 function loadActorModules() {
   actorModulePromise ??= Promise.all([
-    import("../../packages/runtime/src/personas/actor/controller.mts"),
+    import("../../packages/runtime/src/personas/actor/persona.js"),
     import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
   ]);
   return actorModulePromise;
@@ -45,7 +45,7 @@ async function proposeOnce({
 
 
 test("actor persona proposes deterministic movement toward exit", async () => {
-const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 
@@ -101,7 +101,7 @@ fixture.cases.forEach((entry) => {
 
 
 test("actor persona with exploring motivation proposes move toward exit", async () => {
-const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 // 5×3 board: actor at (1,1), exit "E" at (4,1), floor in between.
@@ -141,7 +141,7 @@ assert.equal(result.actions[0].actorId, actorId);
 // M4 will check actor.motivation.mobility and return [] for stationary actors.
 
 test("actor persona with stationary motivation proposes wait not move", async () => {
-const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const baseTiles = ["#####", "#...E", "#####"];

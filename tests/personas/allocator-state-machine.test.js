@@ -8,7 +8,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 
 test("allocator state machine follows happy path transitions", async () => {
-const { createAllocatorStateMachine, AllocatorStates } = await import("../../packages/runtime/src/personas/allocator/state-machine.mts");
+const { createAllocatorStateMachine, AllocatorStates } = await import("../../packages/runtime/src/personas/allocator/state-machine.js");
 
 const fixture = happyFixture;
 const machine = createAllocatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
@@ -33,7 +33,7 @@ fixture.cases.forEach((entry) => {
 });
 
 test("allocator state machine enforces guard and invalid transitions", async () => {
-const { createAllocatorStateMachine } = await import("../../packages/runtime/src/personas/allocator/state-machine.mts");
+const { createAllocatorStateMachine } = await import("../../packages/runtime/src/personas/allocator/state-machine.js");
 
 const fixture = guardFixture;
 const machine = createAllocatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });

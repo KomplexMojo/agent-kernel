@@ -8,7 +8,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 
 test("director persona handles subscribed phases via table", async () => {
-const { createDirectorPersona, directorSubscribePhases } = await import("../../packages/runtime/src/personas/director/controller.mts");
+const { createDirectorPersona, directorSubscribePhases } = await import("../../packages/runtime/src/personas/director/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const fixture = happyFixture;
@@ -30,7 +30,7 @@ fixture.cases.forEach((entry) => {
 });
 
 test("director persona ignores non-subscribed phases and surfaces guard errors", async () => {
-const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.mts");
+const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/persona.js");
 
 const fixture = guardFixture;
 const persona = createDirectorPersona({ initialState: fixture.initialState, clock: () => fixture.clock });

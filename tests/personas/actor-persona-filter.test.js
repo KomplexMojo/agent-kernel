@@ -6,7 +6,7 @@ const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas
 
 test("actor persona filters proposals to motivated actors", async () => {
   const { createActorPersona } = await import(
-    "../../packages/runtime/src/personas/actor/controller.mts"
+    "../../packages/runtime/src/personas/actor/persona.js"
   );
   const { TickPhases } = await import(
     "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"

@@ -8,7 +8,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 
 test("annotator state machine follows happy path transitions", async () => {
-const { createAnnotatorStateMachine, AnnotatorStates } = await import("../../packages/runtime/src/personas/annotator/state-machine.mts");
+const { createAnnotatorStateMachine, AnnotatorStates } = await import("../../packages/runtime/src/personas/annotator/state-machine.js");
 
 const fixture = happyFixture;
 const machine = createAnnotatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
@@ -29,7 +29,7 @@ fixture.cases.forEach((entry) => {
 });
 
 test("annotator state machine enforces guard and invalid transitions", async () => {
-const { createAnnotatorStateMachine } = await import("../../packages/runtime/src/personas/annotator/state-machine.mts");
+const { createAnnotatorStateMachine } = await import("../../packages/runtime/src/personas/annotator/state-machine.js");
 
 const fixture = guardFixture;
 const machine = createAnnotatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });

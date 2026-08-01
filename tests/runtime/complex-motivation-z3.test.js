@@ -32,7 +32,7 @@ function makeBaseTiles() {
  */
 async function runOneProposeCycle({ observation, payload, extraPayload = {} }) {
   const { createActorPersona } = await import(
-    "../../packages/runtime/src/personas/actor/controller.mts"
+    "../../packages/runtime/src/personas/actor/persona.js"
   );
   const { TickPhases } = await import(
     "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"

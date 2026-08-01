@@ -6,7 +6,7 @@ const fixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas
 
 test("annotator persona emits telemetry records and summaries from observations", async () => {
   const { createAnnotatorPersona } = await import(
-    "../../packages/runtime/src/personas/annotator/controller.mts"
+    "../../packages/runtime/src/personas/annotator/persona.js"
   );
   const { TickPhases } = await import(
     "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"

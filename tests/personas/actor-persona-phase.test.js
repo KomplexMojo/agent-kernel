@@ -8,7 +8,7 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/per
 
 
 test("actor persona handles phase-driven cases", async () => {
-const { createActorPersona, actorSubscribePhases } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { createActorPersona, actorSubscribePhases } = await import("../../packages/runtime/src/personas/actor/persona.js");
 const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
 const fixture = happyFixture;
@@ -30,7 +30,7 @@ fixture.cases.forEach((entry) => {
 });
 
 test("actor persona enforces guard/invalid events", async () => {
-const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
 
 const fixture = guardFixture;
 const persona = createActorPersona({ initialState: fixture.initialState, clock: () => "fixed" });

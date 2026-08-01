@@ -152,7 +152,7 @@ This separation ensures that:
 The Configurator is therefore a **bridge between planning and execution**, responsible for preparing the simulation so that deterministic rules can operate without ambiguity.
 
 ## Drift guardrails
-- Canonical source: `controller.js` + `state-machine.js` + `contracts.ts` — the code lives ONLY in `.js`. The matching `.mts` files are 1-line re-export shims kept for existing importers: never put code in one, it would silently never run. Import controllers (not state machines) from consumers.
+- Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
 - Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
-- Entry points are `.js`; `.mts` sources remain for TS-aware tooling (no `ts-node/esm` required).
+- Entry points are `.js`. There is no `.mts` twin (no `ts-node/esm` required).
