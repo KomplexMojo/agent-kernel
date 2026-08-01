@@ -244,14 +244,6 @@
     "to": "packages/runtime/src/personas/orchestrator/llm-session.js"
   },
   {
-    "from": "packages/ui-web/src/llm-trace-panel.js",
-    "to": "packages/runtime/src/personas/annotator/llm-trace.js"
-  },
-  {
-    "from": "packages/ui-web/src/pool-flow.js",
-    "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
-  },
-  {
     "from": "packages/ui-web/src/views/diagnostics-view.js",
     "to": "packages/runtime/src/personas/annotator/llm-trace.js"
   }

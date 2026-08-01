@@ -5,7 +5,6 @@ const { resolve } = require("node:path");
 const ROOT = resolve(__dirname, "../..");
 
 const FILES = [
-  "packages/adapters-cli/src/adapters/solver-wasm.js",
   "packages/adapters-cli/src/adapters/ipfs/index.js",
   "packages/adapters-cli/src/adapters/blockchain/index.js",
   "packages/adapters-cli/src/adapters/llm/index.js",
