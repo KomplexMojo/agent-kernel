@@ -109,6 +109,23 @@ For the rarest family, keep the scaffold narrow and pattern-matched:
 
 - `ui_cli_equivalence`
 
+## Why Tests Are Skipped (three unrelated reasons)
+
+`pnpm run test` reports a few hundred skips. They are **not one backlog**, and the
+distinction matters before you "fix" any of them. Audited 2026-08-01.
+
+| Kind | Looks like | What to do |
+|---|---|---|
+| **Unwritten permutation stubs** (the large majority) | `test.skip("name", () => {});` — **empty body** | Nothing manual. These are named permutations awaiting `/local-test-gen`; the file also carries a `## TODO: Test Permutations` marker. Un-skipping one creates a **vacuously passing empty test**. |
+| **Aspirational tests** | `test.skip(...)` with a **real body**, tagged `// STAYS SKIPPED — …` | Leave until the behavior exists. These describe features the code does not implement (patrolling routes, `user_controlled` motivation, `resource_captured`/`hazard_triggered` frame events, a defeated-actor gate). They were added **already skipped** in `d1a2b6e2`, so none of them is a disabled regression. |
+| **G1 authority backlog** | generated `test.skip` in `tests/architecture/persona-authority.test.js` | Leave. One skip per *unowned* persona behavior, each naming the finding that blocks it (DECISION D-k). The count IS the backlog metric — it drops when a finding closes, not when someone enables a test. |
+
+**If you skip a test, say why on the line above it.** Every skip added from 2026-08-01
+carries a `// STAYS SKIPPED — <reason> (checked <date>)` comment. Before that they were
+bare, and reconstructing the reasons required running all 54 body-carrying skips to see
+which failed — 40 did, 14 were passing coverage that had simply been switched off and
+were enabled. An unexplained skip costs someone that whole exercise.
+
 ## Permutation Expansion Rules
 
 When generating permutations, stay **bounded and explainable**.

@@ -144,7 +144,7 @@ describe("Existing tick playback controls (baseline)", () => {
 // ---------------------------------------------------------------------------
 
 describe("Jump-to-start playback control (M5 gap)", () => {
-  it.skip("wireGameplayView exposes a jump-to-start function", async () => {
+  it("wireGameplayView exposes a jump-to-start function", async () => {
     const root = createFakeRoot();
     const renderer = createFakeRenderer();
     const view = wireGameplayView({ root, createRenderer: () => renderer });
@@ -155,7 +155,7 @@ describe("Jump-to-start playback control (M5 gap)", () => {
       "wireGameplayView must expose a runToStart (jump-to-first-tick) method, mirroring runToEnd");
   });
 
-  it.skip("runToStart resets the cursor to tick 0 from a mid-run position", async () => {
+  it("runToStart resets the cursor to tick 0 from a mid-run position", async () => {
     const root = createFakeRoot();
     const renderer = createFakeRenderer();
     const view = wireGameplayView({ root, createRenderer: () => renderer });
@@ -184,7 +184,7 @@ describe("Jump-to-start playback control (M5 gap)", () => {
 // ---------------------------------------------------------------------------
 
 describe("Keyboard routing to playback navigation (M5 gap)", () => {
-  it.skip("setPlaybackControls payload includes a jump-to-start closure for the renderer to invoke on Cmd+ArrowUp", async () => {
+  it("setPlaybackControls payload includes a jump-to-start closure for the renderer to invoke on Cmd+ArrowUp", async () => {
     const root = createFakeRoot();
     const renderer = createFakeRenderer();
     const view = wireGameplayView({ root, createRenderer: () => renderer });
@@ -269,6 +269,7 @@ describe("Cursor bounds at first/last frame", () => {
     assert.equal(afterCount, beforeCount, "stepForward at the last frame must not render a new frame");
   });
 
+  // STAYS SKIPPED — fails today: runToStart at frame 0 still emits a cursor update (checked 2026-08-01).
   it.skip("runToStart at frame 0 is a no-op", async () => {
     const root = createFakeRoot();
     const renderer = createFakeRenderer();
