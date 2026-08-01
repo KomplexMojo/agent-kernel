@@ -9,16 +9,24 @@ Every agent that writes code must complete this checklist at the start of each s
 
 | Step | Command / Action | Confirms |
 |------|-----------------|---------|
-| 1. Latest source | `git pull --ff-only` | Working from HEAD, no stale files |
-| 2. Dependencies | `pnpm install --frozen-lockfile` | All packages match lockfile |
-| 3. Tests baseline | `pnpm run test` | No pre-existing failures before changes begin |
-| 4. Agent context refresh | `bash scripts/setup/agent-context.sh` | Branch-local Graphify + CodeContext snapshot refreshed and mirrored |
-| 5. Serena reachable | Any `mcp__serena__*` tool responds | Structural queries available (live LSP — nothing to index, watch, or canary-check) |
-| 6. Orient from graphify | Read `local-codex/CodeContext.md`, then the mirrored Graphify report it names | High-level semantic map loaded before structural queries |
+| 1. Prior context | Read `~/vault/hot.md`; read `~/vault/index.md` only if `hot.md` is sparse | Last-session context loaded |
+| 2. Latest source | `git pull --ff-only` | Working from HEAD, no stale files |
+| 3. Dependencies | `pnpm install --frozen-lockfile` | All packages match lockfile |
+| 4. Tests baseline | `pnpm run test` | No pre-existing failures before changes begin |
+| 5. Agent context refresh | `bash scripts/setup/agent-context.sh` | Branch-local Graphify + CodeContext snapshot refreshed and mirrored |
+| 6. Serena scope check | `python3 scripts/setup/patch-serena-ignored-dirs.py --check` | Serena's hardcoded `build`/`dist` blind spot remains patched |
+| 7. Serena reachable | Any `mcp__serena__*` tool responds | Structural queries available (live LSP — nothing to index, watch, or canary-check) |
+| 8. Orient from graphify | Read `local-codex/CodeContext.md`, then the mirrored Graphify report it names | High-level semantic map loaded before structural queries |
 
-Steps 4–6 are cheap (seconds). Never skip them to save time.
+Steps 5–8 are cheap (seconds). Never skip them to save time. Re-run
+`python3 scripts/setup/patch-serena-ignored-dirs.py` after every `uv tool upgrade serena-agent`; an upgrade
+silently restores the blind spot.
 
-> Historical note: steps 5–6 used to be "start the CodeContextGraph watch" and "run graph-sanity-check.sh". CodeGraphContext was retired 2026-07-28 after its persistent index went stale-but-confident twice (PT.1's `IGNORE_DIRS` build-plane blindness, then a skipped re-index that dropped all of `tests/`). Serena's language-server answers are computed live from the working tree, so that failure class — and the canary apparatus that guarded it — is gone.
+> Historical note: the corresponding structural-tool steps used to be "start the CodeContextGraph watch"
+> and "run graph-sanity-check.sh". CodeGraphContext was retired 2026-07-28 after its persistent index went
+> stale-but-confident twice (PT.1's `IGNORE_DIRS` build-plane blindness, then a skipped re-index that dropped
+> all of `tests/`). Serena's language-server answers are computed live from the working tree, so that failure
+> class — and the canary apparatus that guarded it — is gone.
 
 ---
 
@@ -82,7 +90,18 @@ so anyone following them would have edited a re-export shim and their change wou
 
 Serena (MCP, language-server-backed) answers structural questions — definitions, callers, references, file symbol maps — **live from the working tree**. There is no persistent index, so there is no rebuild to schedule and no watch to keep alive.
 
-**There is still a scope to audit — it is `.gitignore`.** Serena runs with `ignore_all_files_in_gitignore: true`, and it does not honor re-inclusion negations the way git does, so an ignore rule written for build output can hide real source. That is exactly what happened on 2026-07-28: the bare `build/` rule hid `packages/runtime/src/build/` and `tests/runtime/build/`, and `find_symbol` answered with test-local import consts instead of the definition. **An empty or thin result is still not proof of absence** — confirm the defining file is visible (`get_symbols_overview` on it) before concluding "no callers" or "dead code". The ignore scope is read at activation, so `.gitignore` edits need an MCP restart.
+**Serena has a patched third-party scope defect.** Its TypeScript adapter hardcodes `node_modules`, `dist`,
+and `build` as ignored directory names before project configuration or `.gitignore` is consulted. The repo's
+`scripts/setup/patch-serena-ignored-dirs.py` removes `dist` and `build` from that list while keeping
+`node_modules`; Serena then applies the project's own `.gitignore`. A restart does **not** fix the hardcoded
+list — run the patch after every Serena upgrade and verify it with `--check` at session start. `.gitignore`
+still affects Serena after that layer, so audit it when a tracked defining file is unexpectedly invisible.
+
+**An empty or thin result is not proof of absence.** Pass `relative_path` to `find_symbol` when the defining
+file is known, and confirm that file is visible with `get_symbols_overview` before concluding "no callers"
+or "dead code". Definitions are syntactic while references are language-server semantic results; if a
+definition resolves but references do not, verify the file is included in the TypeScript program before
+trusting the result.
 
 **Scope:** Serena is for relational/structural queries (`find_symbol`, `find_referencing_symbols`, `find_declaration`, `find_implementations`, `get_symbols_overview`). `grep`/`rg` are legitimate for literal text — prose, fixture strings, exact error messages — and for pattern search, which Serena does not offer; no prior-query justification is required.
 
@@ -92,7 +111,7 @@ Serena (MCP, language-server-backed) answers structural questions — definition
 
 ### Snapshot generation (before each Codex handoff)
 
-Run `bash scripts/setup/agent-context.sh` before every Codex task. This writes a fresh `local-codex/CodeContext.md` and mirrors branch-local Graphify output under `~/vault/codex-context/agent-kernel/worktrees/<id>/`. Codex reads the snapshot first, then verifies detail against the live tree. Do not reuse a snapshot from a prior milestone.
+Run `bash scripts/setup/agent-context.sh` before every Codex task. This writes a fresh `local-codex/CodeContext.md` and mirrors branch-local Graphify output under `~/vault/codex-context/agent-kernel/worktrees/<id>/`. Codex reads the snapshot first, then verifies structural detail with Serena against the live tree. Do not reuse a snapshot from a prior milestone.
 
 ## Subagent roster (`.claude/agents/`)
 
@@ -110,6 +129,9 @@ Orchestration recipe: `.claude/skills/tiered-test-optimizer/SKILL.md`. Escalatio
 
 - Produces `local-codex/Plan.md` from a prompt or spec.
 - Runs adversarial review on completed diffs to stress-test design decisions.
+- Uses Serena for structural code navigation: definitions, callers, references, implementations, and symbol
+  maps. Uses `rg` only for literal text and pattern searches. If Serena is unavailable, says so explicitly
+  and reads the relevant files directly rather than guessing structure from filenames.
 - **Implements well-specified mechanical milestones** (decided 2026-07-18 for the Persona
   Enforcement Program): call-site threading behind an already-designed controller API, lint/guard
   sweeps, bulk test migration to the persona naming scheme, and characterization tests written to
