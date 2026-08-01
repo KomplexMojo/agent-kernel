@@ -207,12 +207,11 @@ const REGISTRY = Object.freeze([
     criteria: ["A2", "A5"],
     productionEntryPoint: "packages/runtime/src/commands/kernel.js",
     invocation: "none",
-    status: {
-      blockedBy: "CR.8",
-      why:
-        "kernel.run() creates a fresh idle Annotator purely to call summarizeRun and stamp "
-        + "producedBy:\"annotator\". The instance that recorded the frames is discarded.",
-    },
+    // The runtime delegates to the Annotator it actually ran (`runtime.summarizeRun`),
+    // and that method REFUSES to summarize a run that ticked if the instance is still
+    // `idle` — which is exactly what a freshly constructed stand-in looks like. The
+    // persona registry stays private; glue gained one narrow method, not persona access.
+    status: { owned: true, since: "CR.8" },
   },
 
   // ── Cross-persona infrastructure ───────────────────────────────────────────

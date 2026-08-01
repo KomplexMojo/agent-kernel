@@ -24,7 +24,7 @@ moves artifacts between them, and it must not contain domain decisions of its ow
 | **Allocator** | The economy. Owns price lists, base costs, all pricing formulas, spend validation, budget maximization, receipts, and reconciliation. | So every token cost in the system has one author and receipts are auditable. |
 | **Actor** | Proposes actions for simulated agents from observations, motivations, and solver/LLM decisions. | So agent behavior is deterministic, replayable, and separately testable. |
 | **Moderator** | Controls the tick: ordering, affinity resolution, effect fulfillment, and pausing — `pausing` is a real gate that refuses to advance `step()`, not a label. | So tick semantics are policy, not accidents of the runner loop. |
-| **Annotator** | Captures and normalizes run observability: per-tick TelemetryRecords and the end-of-run RunSummary (including its derived `outcome`). Build-scope `telemetry.json` is **not** its own and never will be — see rule 3 (plane boundary). Spend auditing is likewise **not** Annotator work: it is settled Allocator territory via `scenarioSpendReport` (Plan P3.3, which deleted the never-wired budget ledger rather than routing it here). ⚠️ The RunSummary is currently stamped by an Annotator instance that never observed the run — an **A5** violation, Plan CR.8. | So observability is a contract, not scattered console writes. |
+| **Annotator** | Captures and normalizes run observability: per-tick TelemetryRecords and the end-of-run RunSummary (including its derived `outcome`). Build-scope `telemetry.json` is **not** its own and never will be — see rule 3 (plane boundary). Spend auditing is likewise **not** Annotator work: it is settled Allocator territory via `scenarioSpendReport` (Plan P3.3, which deleted the never-wired budget ledger rather than routing it here). | So observability is a contract, not scattered console writes. |
 
 ### Ownership — what "belongs to a persona" means (A1–A5)
 
@@ -152,12 +152,13 @@ several phases achieved **structural** routing without **semantic** authority:
   perform no schema check and no freeze, and the production authoring path never calls them
   (**A2 + A3**). The Director's persisted PlanArtifact is reconstructed *after* the spec is built by a
   second Director instance; the plan that actually ran is discarded (**A2 + A5**).
-- **Phase 3 — one gap left.** The Moderator's pause gate genuinely gates, and as of CR.5 tick
+- **Phase 3 — closed.** The Moderator's pause gate genuinely gates, and as of CR.5 tick
   *ordering* and *effect fulfilment* are its decisions too: the canonical persona order and the
   per-effect disposition are declared only inside the persona, and the runner executes the returned
   plan without keeping a fallback of its own (dispatch itself stays behind `ports/effects.js`).
-  Still open: the RunSummary's derived `outcome` is real, but it is stamped by a freshly created
-  Annotator that never observed the run (**A5**).
+  As of CR.8 the RunSummary is produced by the Annotator that actually observed the run: the kernel
+  goes through `runtime.summarizeRun()`, which refuses to summarize a ticked run from an instance
+  still `idle` (**A5**). Phase 3 has no open gaps.
 - **Closed by CR.6:** the Actor no longer holds decision-relevant state in a closure — it keeps nothing
   outside its FSM, so its decision is a function of (`view()`, event, payload) (**A4**) — and it no longer
   defines budget admissibility, which now lives in the Allocator and reaches the Actor only as that

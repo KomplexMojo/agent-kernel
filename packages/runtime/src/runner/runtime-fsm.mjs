@@ -590,6 +590,7 @@ export function createFsmRuntime({
 
   let tick = 0;
   let moderator = null;
+  let annotator = null;
   const effectLog = [];
   const tickFrames = [];
   let activeRunId = typeof runId === "string" && runId.length > 0 ? runId : `run_${Date.now().toString(36)}`;
@@ -678,6 +679,7 @@ export function createFsmRuntime({
       registry.moderator = createModeratorPersona({ clock: activeClock });
     }
     moderator = registry.moderator;
+    annotator = registry.annotator ?? null;
 
     const order = moderator.advance({
       phase: TickPhases.INIT,
@@ -1422,6 +1424,43 @@ export function createFsmRuntime({
 
     getTickFrames() {
       return tickFrames.slice();
+    },
+    // CR.8 — the RunSummary is produced by the Annotator that actually observed the
+    // run. kernel.js used to mint a fresh `createAnnotatorPersona({ clock: UNUSED_CLOCK })`
+    // purely to call summarizeRun and stamp producedBy:"annotator": the instance that
+    // recorded every tick frame was discarded, and one that had recorded nothing signed
+    // the artifact (A5, honest provenance).
+    //
+    // Deliberately narrow: the persona registry stays private, so glue still cannot
+    // reach persona internals. The derivation itself is unchanged — P3.2's
+    // deriveRunOutcome is correct and this only fixes WHO runs it.
+    summarizeRun(args = {}) {
+      if (!annotator || typeof annotator.summarizeRun !== "function") {
+        const error = new Error(
+          "Runtime has no Annotator to summarize the run: the RunSummary is Annotator work (CR.8), "
+          + "so glue must not synthesize one to sign the artifact.",
+        );
+        error.code = "annotator_required";
+        throw error;
+      }
+      // The A5 gate. A run that actually TICKED drove this instance through
+      // recording -> summarizing; an instance still `idle` cannot have observed it,
+      // which is exactly what a freshly constructed stand-in looks like.
+      //
+      // Keyed on ticked frames, not on frame count: init() alone records one "init"
+      // frame, so a zero-tick run legitimately ends with an unobserved Annotator and
+      // an empty summary. That is honest, and gating on `length > 0` wrongly failed it.
+      const ticked = tickFrames.some((frame) => frame?.phaseDetail && frame.phaseDetail !== "init");
+      const state = annotator.view?.().state;
+      if (ticked && state === "idle") {
+        const error = new Error(
+          `Annotator never observed this run (state=${state}) but was asked to summarize a run that `
+          + "ticked: the summary would carry a provenance stamp it did not earn.",
+        );
+        error.code = "annotator_did_not_observe";
+        throw error;
+      }
+      return annotator.summarizeRun(args);
     },
   };
 }

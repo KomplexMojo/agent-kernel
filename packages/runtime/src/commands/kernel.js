@@ -6,7 +6,6 @@ import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { buildManualMoveAction } from "./manual-movement.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
-import { createAnnotatorPersona } from "../personas/annotator/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
@@ -1089,7 +1088,11 @@ export function createCommandKernel(host = {}) {
     // P3.2: the Annotator owns the run summary (artifacts.ts: "Run-level summary
     // emitted by Annotator at end of run"). It derives a REAL outcome from the
     // collected frames/effects — this was hardcoded "unknown" on every run before.
-    const runSummary = createAnnotatorPersona({ clock: UNUSED_CLOCK }).summarizeRun({
+    // CR.8: this used to be `createAnnotatorPersona({ clock: UNUSED_CLOCK }).summarizeRun(...)`
+    // — a fresh, idle instance minted purely to sign the artifact, while the Annotator that
+    // recorded every tick frame was discarded. The runtime now delegates to that real
+    // instance, which refuses to summarize a run it did not observe.
+    const runSummary = runtime.summarizeRun({
       tickFrames,
       effectLog,
       ticksRequested: ticks,

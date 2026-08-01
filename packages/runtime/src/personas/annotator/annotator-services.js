@@ -6,14 +6,18 @@
  * nothing outside personas/annotator/ imports them directly — callers go
  * through the controller.
  *
- * State gating: summarizeRun is a PURE DERIVATION over frames the caller has
- * already collected — it issues no effects and mutates no persona state, so
- * like the Allocator's read-only pricing.* surface it is available in any FSM
- * state. Gating it behind the per-tick idle→recording→summarizing round would
- * be empty ceremony: the run loop's Annotator instance is not the instance the
- * kernel holds when the run ends, so that state could never be meaningful here.
+ * State gating (CORRECTED by CR.8, 2026-08-01): summarizeRun is still a pure
+ * derivation and still callable in any FSM state — but the reasoning that used to
+ * sit here, "the run loop's Annotator instance is not the instance the kernel holds
+ * when the run ends, so that state could never be meaningful", described a defect
+ * rather than a design. kernel.js was minting a fresh idle persona purely to stamp
+ * producedBy:"annotator" while the instance that recorded every tick frame was
+ * discarded (A5, honest provenance).
  *
- * Shared by controller.js and controller.mts so the two entry points cannot drift.
+ * The kernel now goes through `runtime.summarizeRun()`, which delegates to the
+ * Annotator the runtime actually ran and REFUSES to summarize a run that ticked if
+ * that instance is still `idle`. The provenance gate lives there, at the seam that
+ * knows whether a run happened; this surface stays a pure derivation on purpose.
  */
 import { buildRunSummary, deriveRunOutcome } from "./run-summary.js";
 

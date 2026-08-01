@@ -40,7 +40,7 @@ const ROOT = resolve(__dirname, "../..");
 // PX.4 stays open and still blocks all/restorable-from-view: CR.6 gives "identical
 // view() ⇒ identical decision", but feeding a serialized view back in needs restore().
 const OPEN_FINDINGS = Object.freeze([
-  "CR.1", "CR.4", "CR.7", "CR.8", "CR.9",
+  "CR.1", "CR.4", "CR.7", "CR.9",
   "PX.1", "PX.3", "PX.4", "PX.6",
 ]);
 
@@ -511,6 +511,89 @@ test("G1 actor/serializable-decision: the Actor carries nothing outside view()",
   fed.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
   const decided = fed.advance({ phase: TickPhases.DECIDE, event: "propose", payload, tick: 0 });
   assert.ok(decided.actions.length > 0, "precondition: the same fixture must propose when fed");
+});
+
+// ---------------------------------------------------------------------------
+// Live differential: annotator/run-summary-provenance (owned since CR.8)
+//
+// A5 is a PROVENANCE criterion, so an output differential cannot settle it:
+// summarizeRun is a pure derivation, and a throwaway Annotator produces a
+// byte-identical summary. That is precisely how this violation survived a green
+// suite. The gate therefore asserts WHICH INSTANCE produced it.
+// ---------------------------------------------------------------------------
+
+// TEETH NOTE (verified by perturbation, 2026-08-01): this first test does NOT detect
+// the façade — restoring `createAnnotatorPersona({ clock: UNUSED_CLOCK })` inside
+// summarizeRun leaves it green, because the derivation is pure and the output is
+// byte-identical. It is a property + precondition assertion. **The refusal test below
+// is the detector**, and it was confirmed to fail against that exact façade.
+test("G1 annotator/run-summary-provenance: the summary comes from the instance that observed the run", async () => {
+  const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
+  const { createCore } = await import("../../packages/core-ts/src/index.ts");
+  const { readFileSync } = require("node:fs");
+
+  const simConfig = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"), "utf8"));
+  const initialState = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json"), "utf8"));
+
+  const runtime = createRuntime({ core: createCore(), adapters: {} });
+  await runtime.init({ seed: 0, simConfig, initialState, runId: "run_g1_cr8" });
+  for (let i = 0; i < 3; i += 1) await runtime.step();
+
+  const frames = runtime.getTickFrames();
+  const annotatorStates = frames
+    .map((frame) => frame.personaViews?.annotator?.state)
+    .filter(Boolean);
+
+  // Precondition: the run must actually have driven the Annotator, or the assertion
+  // below proves nothing.
+  assert.ok(
+    annotatorStates.some((state) => state !== "idle"),
+    "precondition: the run must move the Annotator out of idle",
+  );
+
+  const summary = runtime.summarizeRun({
+    tickFrames: frames,
+    effectLog: runtime.getEffectLog(),
+    ticksRequested: 3,
+    meta: { id: "run_summary_g1", runId: "run_g1_cr8", createdAt: "2026-08-01T00:00:00.000Z", producedBy: "annotator" },
+  });
+
+  assert.equal(summary.schema, "agent-kernel/RunSummary");
+  assert.equal(summary.meta.producedBy, "annotator");
+  // P3.2's derivation must survive CR.8 untouched — the defect was provenance, not
+  // the outcome logic.
+  assert.ok(typeof summary.outcome === "string" && summary.outcome.length > 0);
+  assert.notEqual(summary.outcome, "unknown");
+});
+
+test("G1 annotator/run-summary-provenance: an Annotator that never observed is refused", async () => {
+  const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
+  const { createCore } = await import("../../packages/core-ts/src/index.ts");
+
+  // The façade this finding is about: an Annotator that recorded nothing but is
+  // asked to sign the artifact. Before CR.8 kernel.js constructed exactly this —
+  // `createAnnotatorPersona({ clock: UNUSED_CLOCK })` — and it produced a
+  // byte-identical summary, which is why no output test ever caught it.
+  const stubAnnotator = {
+    subscribePhases: [],
+    advance: () => ({ state: "idle", context: {} }),
+    view: () => ({ state: "idle", context: {} }),
+    summarizeRun: () => ({ schema: "agent-kernel/RunSummary", schemaVersion: 1, outcome: "fabricated" }),
+  };
+
+  const runtime = createRuntime({
+    core: createCore(),
+    adapters: {},
+    personas: { annotator: stubAnnotator },
+  });
+  await runtime.init({ seed: 0 });
+  await runtime.step();
+
+  assert.throws(
+    () => runtime.summarizeRun({ tickFrames: runtime.getTickFrames(), effectLog: [], ticksRequested: 1 }),
+    (error) => error.code === "annotator_did_not_observe",
+    "a run that ticked must not be summarized by an Annotator still in idle",
+  );
 });
 
 // ## TODO: Test Permutations
