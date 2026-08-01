@@ -59,7 +59,22 @@ Structural code questions go through the **Serena MCP** (live language-server an
 
 Serena replaced CodeGraphContext on 2026-07-28. It wraps the live language server — answers are computed on demand from current file state, so the *index* staleness class (dead watches, a rebuild that silently drops a directory, sanity canaries) no longer exists.
 
-⚠️ **Scope blindness does still exist, and it bit on day one.** Serena runs with `ignore_all_files_in_gitignore: true` (`.serena/project.yml`), so anything `.gitignore` excludes is invisible to it — and it does not honor re-inclusion negations the way git does. `.gitignore`'s bare `build/` rule (retired WASM output) therefore hid all of `packages/runtime/src/build/` and `tests/runtime/build/`, so `find_symbol("orchestrateBuild")` returned 18 test-local import consts and **never the definition**. Same blind spot PT.1 found in CodeGraphContext's `IGNORE_DIRS`, different tool. Fixed by deleting the rule. Two things to carry forward: `find_referencing_symbols` errors loudly on an ignored path but **`find_symbol` does not** — it just returns the wrong rows; and Serena reads the ignore scope **at project activation**, so a `.gitignore` change needs an MCP server restart before it takes effect.
+🛑 **SERENA CANNOT SEE `packages/runtime/src/build/` OR `tests/runtime/build/`, AND NO CONFIG OR RESTART CHANGES THAT** (root-caused 2026-07-31, supersedes the earlier `.gitignore` explanation).
+
+`build` is **hardcoded** in Serena's TypeScript adapter — `solidlsp/language_servers/typescript_language_server.py:199-204` blocks `["node_modules", "dist", "build"]`, and `solidlsp/ls.py:1197-1204` tests **every directory component** of a requested path against that list, returning "ignored" **before** `.gitignore`, `ignored_paths`, or any config is read. There is no config key that reaches it (`ignored_paths` is a different layer; `ls_specific_settings` goes to the language server).
+
+- **Do not "owe a restart" for this** — a 26-second-old process fails identically. Do not go looking for a config fix; there isn't one.
+- **8 files / 2,694 lines are invisible**, including `orchestrate-build.js` (1,664 lines). Any build-plane question (WP-2, PX.6) must be answered with grep/read — **say so when you do**.
+- The earlier `.gitignore` `build/` rule was a *real, separate* bug and was correctly fixed by deleting it; it simply was not the whole story.
+- Carry forward: **`find_symbol` errors loudly only when you pass `relative_path`** — otherwise it degrades silently and returns wrong rows (18 test-local consts and never the definition). `find_referencing_symbols` errors loudly.
+
+This is the **fifth** occurrence of the repo's `build`-directory trap (CGC `IGNORE_DIRS` · `.gitignore` hiding tests from CI · dead `.cgcignore` · Serena-via-`.gitignore` · Serena-hardcoded) and the first not fixable by configuration. When adopting any new tool, check not just *what* its ignore list contains but *whether that list is reachable from config at all*.
+
+✅ **THE BIGGER PROBLEM WAS `tsconfig.json`, AND IT IS FIXED (2026-07-31).** Separately from the `build` blind spot, `find_referencing_symbols` used to return `{}` for **every `.js`/`.mjs` symbol in the repo** — 211 of 268 production files, i.e. essentially all canonical source. Cause: `tsconfig.json` had **no `allowJs`** (defaults `false`), so `.js` files were never in the TypeScript program, and `include` covered only `personas/`, `core-ts/`, `contracts/`, `tests/`, `docs/` — leaving `runner/`, `build/`, `commands/`, `ports/`, `adaptive-workflow/`, `render/` and every adapter package outside it. Definitions still resolved (document symbols are syntactic, per-file); **references did not** (semantic, program-wide). That asymmetry is the whole tell.
+
+Fixed by adding `"allowJs": true`, `"checkJs": false` and broadening `include` to `packages/*/src/**/*`. Suite unchanged (348 files / 2691 passed). There is no `tsc`/typecheck script, so `tsconfig.json` is consumed only by editors and language servers — this is a tooling-only change.
+
+⚠️ **THE "`export *` BARRELS ARE NOT TRACED" NOTE IS RETRACTED.** That was a *symptom* of the same `allowJs` gap, not a separate limitation. With `allowJs` on, `find_referencing_symbols("createModeratorPersona", ".../moderator/controller.js")` correctly returns the callers that import through `personas/moderator/persona.js`. Do **not** work around a barrel; the tool handles it.
 
 | Question | Use |
 |---|---|
