@@ -6,8 +6,8 @@ import { admitProposals } from "./proposal-admissibility.js";
 
 export const allocatorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
-export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock, priceList, priceListMeta } = {}) {
-  const fsm = createAllocatorStateMachine({ initialState, clock });
+export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock, priceList, priceListMeta, from } = {}) {
+  const fsm = createAllocatorStateMachine({ initialState, clock, from });
   const services = attachAllocatorServices({ fsm, priceList, priceListMeta, clock });
 
   function view() {

@@ -23,6 +23,7 @@
   },
   "include": [
     "packages/core-ts/src/**/*",
+    "packages/runtime/src/personas/_shared/**/*",
     "tests/core-ts/**/*"
   ]
 }

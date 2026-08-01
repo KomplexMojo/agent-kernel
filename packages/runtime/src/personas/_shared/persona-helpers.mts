@@ -2,11 +2,53 @@ const ACTION_SCHEMA = "agent-kernel/Action";
 const TELEMETRY_SCHEMA = "agent-kernel/TelemetryRecord";
 const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
 
-function stableId(parts) {
+type JsonRecord = Record<string, unknown>;
+
+type ArtifactRef = JsonRecord & { id?: string };
+
+type SolverRequest = JsonRecord & {
+  id?: string;
+  requestId?: string;
+  targetAdapter?: string;
+  intentRef?: ArtifactRef;
+  planRef?: ArtifactRef;
+  problem?: unknown;
+};
+
+type PersonaEffect = JsonRecord & {
+  kind?: string;
+  id?: string;
+  requestId?: string;
+  tick?: number;
+  sourceRef?: ArtifactRef;
+  targetAdapter?: string;
+};
+
+type PersonaObservation = JsonRecord & {
+  tick?: number;
+  persona?: string;
+  effects?: PersonaEffect[];
+  fulfilledEffects?: PersonaEffect[];
+  notes?: unknown;
+};
+
+function stableId(parts: Array<string | number | null | undefined | false>) {
   return parts.filter(Boolean).join("_");
 }
 
-export function buildAction({ tick = 0, kind, actorId = "persona", params = {}, personaRef }) {
+export function buildAction({
+  tick = 0,
+  kind,
+  actorId = "persona",
+  params = {},
+  personaRef
+}: {
+  tick?: number;
+  kind: string;
+  actorId?: string;
+  params?: JsonRecord;
+  personaRef?: string;
+}) {
   return {
     schema: ACTION_SCHEMA,
     schemaVersion: 1,
@@ -18,7 +60,19 @@ export function buildAction({ tick = 0, kind, actorId = "persona", params = {}, 
   };
 }
 
-export function buildSolverRequestEffect({ solverRequest = null, intentRef, planRef, personaRef, targetAdapter = "fixtures" }) {
+export function buildSolverRequestEffect({
+  solverRequest = null,
+  intentRef,
+  planRef,
+  personaRef,
+  targetAdapter = "fixtures"
+}: {
+  solverRequest?: SolverRequest | null;
+  intentRef?: ArtifactRef;
+  planRef?: ArtifactRef;
+  personaRef?: string;
+  targetAdapter?: string;
+}) {
   const hasRequest = solverRequest && Object.keys(solverRequest).length > 0;
   if (!hasRequest && !planRef && !intentRef) {
     return null;
@@ -43,7 +97,20 @@ export function buildSolverRequestEffect({ solverRequest = null, intentRef, plan
   };
 }
 
-export function buildRequestActionsFromEffects(effects = [], { tick = 0, personaRef = "persona", actorId = "persona", budgetRemaining = Infinity } = {}) {
+export function buildRequestActionsFromEffects(
+  effects: PersonaEffect[] = [],
+  {
+    tick = 0,
+    personaRef = "persona",
+    actorId = "persona",
+    budgetRemaining = Infinity
+  }: {
+    tick?: number;
+    personaRef?: string;
+    actorId?: string;
+    budgetRemaining?: number;
+  } = {},
+) {
   const actions = [];
   let remaining = budgetRemaining;
   for (const effect of effects) {
@@ -80,7 +147,17 @@ export function buildRequestActionsFromEffects(effects = [], { tick = 0, persona
   return { actions, remaining };
 }
 
-export function buildTelemetry({ observations = [], runId = "run", clock = () => new Date().toISOString(), personaRef = "annotator" }) {
+export function buildTelemetry({
+  observations = [],
+  runId = "run",
+  clock = () => new Date().toISOString(),
+  personaRef = "annotator"
+}: {
+  observations?: PersonaObservation[];
+  runId?: string;
+  clock?: () => string;
+  personaRef?: string;
+}) {
   const records = [];
   let effectsTotal = 0;
   for (const obs of observations) {

@@ -200,8 +200,8 @@ function buildArtifactProposalEffects({ intentEnvelope, planRef, personaRef = "d
 export const directorSubscribePhases = Object.freeze([TickPhases.DECIDE]);
 
 // Phase-aware Director persona wrapper. Pure/deterministic; no IO.
-export function createDirectorPersona({ initialState = DirectorStates.UNINITIALIZED, clock } = {}) {
-  const fsm = createDirectorStateMachine({ initialState, clock });
+export function createDirectorPersona({ initialState = DirectorStates.UNINITIALIZED, clock, from } = {}) {
+  const fsm = createDirectorStateMachine({ initialState, clock, from });
 
   // Shared by both planes: resolve the plan for this event, then move the FSM.
   function advanceWithPlan(event, payload = {}, tick) {

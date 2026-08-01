@@ -943,8 +943,8 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
  *   different verdict than the Allocator, and refuses to guess if a budget shows up
  *   with no judge attached (see below).
  */
-export function createActorPersona({ initialState = ActorStates.IDLE, clock, seed: personaSeed, admitProposals } = {}) {
-  const fsm = createActorStateMachine({ initialState, clock });
+export function createActorPersona({ initialState = ActorStates.IDLE, clock, seed: personaSeed, admitProposals, from } = {}) {
+  const fsm = createActorStateMachine({ initialState, clock, from });
   // CR.6 — this persona holds NO state outside `fsm`. It used to cache
   // lastObservation / lastBaseTiles / lastSimConfig / lastAffinityEffects /
   // lastHazards here; none appeared in view(), so two Actors with identical

@@ -87,8 +87,6 @@ const SINGLE_ORIGIN_GUARDS = [
 ];
 
 const SKIPPED_CONCEPTS = new Set([
-  // PX.1: Keep skipped until the diff that removes the duplicate EffectKind declaration un-skips it.
-  "EffectKind",
   // CR.1: Keep skipped until the diff that moves price/budget splits into Allocator un-skips it.
   "price/budget-split numeric constants",
 ]);

@@ -2,6 +2,7 @@
 // Handles plan/intent intake and refinement without performing IO.
 
 import { requireClock } from "../_shared/require-clock.js";
+import { restorePersonaView } from "../_shared/restore-view.js";
 
 export const DirectorStates = Object.freeze({
   UNINITIALIZED: "uninitialized",
@@ -93,10 +94,14 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createDirectorStateMachine({ initialState = DirectorStates.UNINITIALIZED, clock } = {}) {
+export function createDirectorStateMachine({ initialState = DirectorStates.UNINITIALIZED, clock, from } = {}) {
   requireClock(clock, "director");
-  let state = initialState;
-  let context = {
+  const restored = restorePersonaView(from, {
+    persona: "director",
+    states: Object.values(DirectorStates),
+  });
+  let state = restored?.state ?? initialState;
+  let context = restored?.context ?? {
     intentRef: null,
     planRef: null,
     updatedAt: clock(),

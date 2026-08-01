@@ -108,9 +108,10 @@ Practical consequence for **direct callers**: `observation` and `baseTiles` must
 in-process callers were relying on the carry-over. A `propose` with no observation in its payload now
 proposes nothing rather than deciding from a remembered one.
 
-*Not yet true:* a serialized `view()` cannot be fed back in to rebuild an Actor — no persona has
-`restore(view)` (PX.4). Identical `view()` implies an identical decision; it does not yet imply
-restorability.
+**Restoration is supported (PX.4 / HANDOFF-4).** Pass a JSON-round-tripped `view()` as `{ from }` when
+creating an Actor persona. The shared restore boundary validates the Actor state and object context;
+the G4 gate then advances the original and restored instances with the same next event and requires
+identical state, actions, effects, and telemetry.
 
 ---
 

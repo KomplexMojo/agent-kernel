@@ -2,6 +2,7 @@
 // Manages budgeting loop without performing IO.
 
 import { requireClock } from "../_shared/require-clock.js";
+import { restorePersonaView } from "../_shared/restore-view.js";
 
 export const AllocatorStates = Object.freeze({
   IDLE: "idle",
@@ -76,10 +77,14 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createAllocatorStateMachine({ initialState = AllocatorStates.IDLE, clock } = {}) {
+export function createAllocatorStateMachine({ initialState = AllocatorStates.IDLE, clock, from } = {}) {
   requireClock(clock, "allocator");
-  let state = initialState;
-  let context = {
+  const restored = restorePersonaView(from, {
+    persona: "allocator",
+    states: Object.values(AllocatorStates),
+  });
+  let state = restored?.state ?? initialState;
+  let context = restored?.context ?? {
     lastEvent: null,
     updatedAt: clock(),
     lastBudgetCount: 0,

@@ -5,8 +5,8 @@ import { attachConfiguratorServices } from "./configurator-services.js";
 
 export const configuratorSubscribePhases = Object.freeze([TickPhases.INIT, TickPhases.OBSERVE]);
 
-export function createConfiguratorPersona({ initialState = ConfiguratorStates.UNINITIALIZED, clock } = {}) {
-  const fsm = createConfiguratorStateMachine({ initialState, clock });
+export function createConfiguratorPersona({ initialState = ConfiguratorStates.UNINITIALIZED, clock, from } = {}) {
+  const fsm = createConfiguratorStateMachine({ initialState, clock, from });
   const services = attachConfiguratorServices({ fsm });
 
   function view() {

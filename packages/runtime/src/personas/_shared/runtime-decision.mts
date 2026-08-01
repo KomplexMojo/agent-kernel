@@ -6,42 +6,86 @@ import {
 
 const ACTION_SCHEMA = "agent-kernel/Action";
 
+type JsonRecord = Record<string, unknown>;
+type ProviderMode = "solver" | "llm" | "auto";
+type LiveLlmMode = "deferred_only" | "manual_nondeterministic";
+
+type ActionRecord = JsonRecord & {
+  id?: string; schema?: string; schemaVersion?: number; actorId?: string;
+  tick?: number; kind?: string; params?: JsonRecord;
+};
+
+type CandidateAction = JsonRecord & { id: string; action: ActionRecord };
+
+type RuntimeDecisionProviderPolicy = {
+  mode: ProviderMode; preferred: ProviderMode; liveLlmMode: LiveLlmMode;
+  allowLlmFallback: boolean; requireDeterministicFulfillment: boolean;
+  model?: string; baseUrl?: string; format?: string; options?: JsonRecord;
+};
+
+type RuntimeDecisionEnvelope = JsonRecord & {
+  contract: string; decisionKind: string; phase: string; tick: number;
+  actor: JsonRecord; candidateActions: CandidateAction[];
+  providerPolicy: RuntimeDecisionProviderPolicy;
+  visibleActors?: JsonRecord[]; hazards?: JsonRecord[];
+  objectives?: JsonRecord; constraints?: JsonRecord;
+};
+
+type RuntimeDecisionValue = JsonRecord & {
+  contract: string; decisionKind: string; selectedActionId: string;
+  selectedTargetId?: string; confidence?: number; rationaleTags?: string[];
+  rankedCandidates?: JsonRecord[]; rejectedCandidates?: JsonRecord[];
+};
+
+type DecisionFailure = { ok: false; errors: string[]; status?: string };
+type DecisionPayloadSuccess = { ok: true; value: RuntimeDecisionValue };
+
+type ResolvedRuntimeDecision = {
+  ok: true; decision: RuntimeDecisionValue; candidate: CandidateAction; action: ActionRecord;
+};
+
+type RuntimeDecisionResult = DecisionFailure | ResolvedRuntimeDecision;
+
 export const RUNTIME_DECISION_CONTRACT = "runtime-decision-v1";
 export const RUNTIME_DECISION_LLM_LIVE_MODE = Object.freeze({
   deferredOnly: "deferred_only",
   manualNondeterministic: "manual_nondeterministic",
 });
 
-function isObject(value) {
+function isObject(value: unknown): value is JsonRecord;
+function isObject(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value);
 }
 
-function asNonEmptyString(value) {
+function asNonEmptyString(value: unknown) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function asDecisionKind(value, fallback = "next_move") {
+function asDecisionKind(value: unknown, fallback = "next_move") {
   return asNonEmptyString(value) || fallback;
 }
 
-function asTick(value, fallback = 0) {
-  if (Number.isInteger(value)) return value;
+function asTick(value: unknown, fallback = 0) {
+  if (Number.isInteger(value)) return value as number;
   const parsed = Number(value);
   return Number.isInteger(parsed) ? parsed : fallback;
 }
 
-function asBoolean(value, fallback = false) {
+function asBoolean(value: unknown, fallback = false) {
   if (typeof value === "boolean") return value;
   return fallback;
 }
 
-function cloneJson(value) {
-  return JSON.parse(JSON.stringify(value));
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function cloneAction(action, { actorId, tick } = {}) {
+function cloneAction(
+  action: unknown,
+  { actorId, tick }: { actorId?: string | null; tick?: number } = {},
+): ActionRecord | null {
   if (!isObject(action)) return null;
   const cloned = { ...action };
   if (!cloned.schema) cloned.schema = ACTION_SCHEMA;
@@ -55,7 +99,11 @@ function cloneAction(action, { actorId, tick } = {}) {
   return cloned;
 }
 
-function normalizeCandidateAction(candidate, index, { actorId, tick } = {}) {
+function normalizeCandidateAction(
+  candidate: unknown,
+  index: number,
+  { actorId, tick }: { actorId?: string | null; tick?: number } = {},
+): CandidateAction | null {
   if (isObject(candidate) && isObject(candidate.action)) {
     const id = asNonEmptyString(candidate.id) || asNonEmptyString(candidate.action.id) || `candidate_${index + 1}`;
     const action = cloneAction(candidate.action, { actorId, tick });
@@ -70,14 +118,17 @@ function normalizeCandidateAction(candidate, index, { actorId, tick } = {}) {
   return null;
 }
 
-function normalizeCandidateActions(candidateActions, { actorId, tick } = {}) {
+function normalizeCandidateActions(
+  candidateActions: unknown,
+  { actorId, tick }: { actorId?: string | null; tick?: number } = {},
+): CandidateAction[] {
   const list = Array.isArray(candidateActions) ? candidateActions : [];
   return list
     .map((candidate, index) => normalizeCandidateAction(candidate, index, { actorId, tick }))
-    .filter(Boolean);
+    .filter(Boolean) as CandidateAction[];
 }
 
-function normalizeProviderMode(value) {
+function normalizeProviderMode(value: unknown): ProviderMode | null {
   const normalized = asNonEmptyString(value);
   if (!normalized) return null;
   const lowered = normalized.toLowerCase();
@@ -87,7 +138,7 @@ function normalizeProviderMode(value) {
   return null;
 }
 
-function normalizeLiveLlmMode(value) {
+function normalizeLiveLlmMode(value: unknown): LiveLlmMode | null {
   const normalized = asNonEmptyString(value);
   if (!normalized) return null;
   const lowered = normalized.toLowerCase();
@@ -100,19 +151,22 @@ function normalizeLiveLlmMode(value) {
   return null;
 }
 
-function normalizeDecisionDiagnostics(entries, key) {
+function normalizeDecisionDiagnostics(entries: unknown, key: string): JsonRecord[] {
   const list = Array.isArray(entries) ? entries : [];
   return list
     .filter((entry) => isObject(entry) && asNonEmptyString(entry[key]))
-    .map((entry) => ({ ...entry, [key]: entry[key].trim() }));
+    .map((entry) => ({ ...(entry as JsonRecord), [key]: ((entry as JsonRecord)[key] as string).trim() }));
 }
 
-function normalizeJsonPromptOptions(value) {
+function normalizeJsonPromptOptions(value: unknown) {
   if (!isObject(value)) return undefined;
   return cloneJson(value);
 }
 
-function extractDecisionPayload(raw, { defaultDecisionKind = "next_move" } = {}) {
+function extractDecisionPayload(
+  raw: unknown,
+  { defaultDecisionKind = "next_move" }: { defaultDecisionKind?: string } = {},
+): JsonRecord | null {
   if (!isObject(raw)) return null;
   if (isObject(raw.decision)) {
     return {
@@ -142,13 +196,24 @@ export function buildRuntimeDecisionEnvelope({
   objectives = undefined,
   constraints = undefined,
   providerPolicy = undefined,
-} = {}) {
+}: {
+  decisionKind?: string;
+  phase?: string;
+  tick?: unknown;
+  actor?: unknown;
+  visibleActors?: unknown[];
+  hazards?: unknown[];
+  candidateActions?: unknown[];
+  objectives?: unknown;
+  constraints?: unknown;
+  providerPolicy?: unknown;
+} = {}): RuntimeDecisionEnvelope {
   const actorRecord = isObject(actor) ? { ...actor } : {};
   const actorId = asNonEmptyString(actorRecord.id) || null;
   const resolvedTick = asTick(tick, 0);
   const normalizedCandidates = normalizeCandidateActions(candidateActions, { actorId, tick: resolvedTick });
   const normalizedPolicy = resolveRuntimeDecisionProviderPolicy(providerPolicy);
-  const envelope = {
+  const envelope: RuntimeDecisionEnvelope = {
     contract: RUNTIME_DECISION_CONTRACT,
     decisionKind: asDecisionKind(decisionKind),
     phase: asNonEmptyString(phase) || "execute",
@@ -172,25 +237,27 @@ export function buildRuntimeDecisionEnvelope({
   return envelope;
 }
 
-export function resolveRuntimeDecisionProviderPolicy(providerPolicy = undefined) {
+export function resolveRuntimeDecisionProviderPolicy(
+  providerPolicy: unknown = undefined,
+): RuntimeDecisionProviderPolicy {
   const policy = isObject(providerPolicy) ? providerPolicy : {};
   const mode = normalizeProviderMode(policy.mode) || "auto";
   const preferred = normalizeProviderMode(policy.preferred) || (mode === "llm" ? "llm" : "solver");
   const liveLlmMode = normalizeLiveLlmMode(policy.liveLlmMode)
     || RUNTIME_DECISION_LLM_LIVE_MODE.deferredOnly;
-  const normalized = {
+  const normalized: RuntimeDecisionProviderPolicy = {
     mode,
     preferred,
     allowLlmFallback: asBoolean(policy.allowLlmFallback, false),
     requireDeterministicFulfillment: asBoolean(policy.requireDeterministicFulfillment, true),
     liveLlmMode,
   };
-  const llmDefaults = DOMAIN_CONSTRAINTS?.llm && typeof DOMAIN_CONSTRAINTS.llm === "object"
-    ? DOMAIN_CONSTRAINTS.llm
+  const llmDefaults: JsonRecord = DOMAIN_CONSTRAINTS?.llm && typeof DOMAIN_CONSTRAINTS.llm === "object"
+    ? DOMAIN_CONSTRAINTS.llm as JsonRecord
     : {};
   const model = asNonEmptyString(policy.model) || DEFAULT_LLM_MODEL;
   const baseUrl = asNonEmptyString(policy.baseUrl) || DEFAULT_LLM_BASE_URL;
-  const format = asNonEmptyString(policy.format) || llmDefaults.outputFormat || "json";
+  const format = asNonEmptyString(policy.format) || llmDefaults.outputFormat as string || "json";
   const options = normalizeJsonPromptOptions(policy.options) || normalizeJsonPromptOptions(llmDefaults.options);
   if (preferred === "llm" || mode === "llm") {
     normalized.model = model;
@@ -204,7 +271,7 @@ export function resolveRuntimeDecisionProviderPolicy(providerPolicy = undefined)
   return normalized;
 }
 
-export function allowsLiveLlmRuntime(providerPolicy = undefined) {
+export function allowsLiveLlmRuntime(providerPolicy: unknown = undefined) {
   const normalized = resolveRuntimeDecisionProviderPolicy(providerPolicy);
   return normalized.preferred === "llm"
     && normalized.mode === "llm"
@@ -212,14 +279,16 @@ export function allowsLiveLlmRuntime(providerPolicy = undefined) {
     && normalized.requireDeterministicFulfillment === false;
 }
 
-export function buildRuntimeDecisionLlmPrompt({ requestEnvelope } = {}) {
+export function buildRuntimeDecisionLlmPrompt(
+  { requestEnvelope }: { requestEnvelope?: unknown } = {},
+) {
   if (!isObject(requestEnvelope)) {
     throw new Error("runtime decision prompt requires requestEnvelope");
   }
   const actor = isObject(requestEnvelope.actor) ? requestEnvelope.actor : {};
   const visibleActors = Array.isArray(requestEnvelope.visibleActors) ? requestEnvelope.visibleActors : [];
   const hazards = Array.isArray(requestEnvelope.hazards) ? requestEnvelope.hazards : [];
-  const candidateActions = Array.isArray(requestEnvelope.candidateActions) ? requestEnvelope.candidateActions : [];
+  const candidateActions = (Array.isArray(requestEnvelope.candidateActions) ? requestEnvelope.candidateActions : []) as CandidateAction[];
   const promptPayload = {
     contract: RUNTIME_DECISION_CONTRACT,
     decisionKind: requestEnvelope.decisionKind || "next_move",
@@ -247,13 +316,13 @@ export function buildRuntimeDecisionLlmPrompt({ requestEnvelope } = {}) {
   ].join("\n");
 }
 
-function unwrapCodeFence(text) {
+function unwrapCodeFence(text: string) {
   if (!text) return text;
   const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   return match ? match[1].trim() : text;
 }
 
-function extractJsonObject(text) {
+function extractJsonObject(text: string) {
   if (!text) return null;
   const cleaned = unwrapCodeFence(text).trim();
   if (cleaned.startsWith("{") && cleaned.endsWith("}")) {
@@ -295,17 +364,20 @@ function extractJsonObject(text) {
   return null;
 }
 
-export function extractLlmResponseText(payload) {
+export function extractLlmResponseText(payload: unknown) {
   if (!isObject(payload)) return null;
   if (asNonEmptyString(payload.response)) return payload.response;
-  if (asNonEmptyString(payload.message?.content)) return payload.message.content;
-  const choice = payload.choices?.[0];
-  if (asNonEmptyString(choice?.message?.content)) return choice.message.content;
-  if (asNonEmptyString(choice?.text)) return choice.text;
+  if (asNonEmptyString((payload.message as JsonRecord | undefined)?.content)) return (payload.message as JsonRecord).content as string;
+  const choice = (payload.choices as JsonRecord[] | undefined)?.[0];
+  if (asNonEmptyString((choice?.message as JsonRecord | undefined)?.content)) return (choice?.message as JsonRecord).content as string;
+  if (asNonEmptyString(choice?.text)) return (choice as JsonRecord).text as string;
   return null;
 }
 
-export function parseRuntimeDecisionResponseText(responseText, { defaultDecisionKind = "next_move" } = {}) {
+export function parseRuntimeDecisionResponseText(
+  responseText: unknown,
+  { defaultDecisionKind = "next_move" }: { defaultDecisionKind?: string } = {},
+) {
   const text = asNonEmptyString(responseText);
   if (!text) {
     return { responseParsed: null, errors: ["missing_llm_response_text"] };
@@ -319,11 +391,14 @@ export function parseRuntimeDecisionResponseText(responseText, { defaultDecision
     }
     return { responseParsed, errors: [] };
   } catch (error) {
-    return { responseParsed: null, errors: [error?.message || "invalid_json"] };
+    return { responseParsed: null, errors: [(error as { message?: string })?.message || "invalid_json"] };
   }
 }
 
-export function normalizeRuntimeDecisionPayload(payload, { defaultDecisionKind = "next_move" } = {}) {
+export function normalizeRuntimeDecisionPayload(
+  payload: unknown,
+  { defaultDecisionKind = "next_move" }: { defaultDecisionKind?: string } = {},
+): DecisionFailure | DecisionPayloadSuccess {
   const decision = extractDecisionPayload(payload, { defaultDecisionKind });
   if (!decision) {
     return { ok: false, errors: ["missing_runtime_decision_payload"] };
@@ -332,8 +407,8 @@ export function normalizeRuntimeDecisionPayload(payload, { defaultDecisionKind =
   if (!selectedActionId) {
     return { ok: false, errors: ["missing_selected_action_id"] };
   }
-  const value = {
-    contract: decision.contract || RUNTIME_DECISION_CONTRACT,
+  const value: RuntimeDecisionValue = {
+    contract: decision.contract as string || RUNTIME_DECISION_CONTRACT,
     decisionKind: asDecisionKind(decision.decisionKind, defaultDecisionKind),
     selectedActionId,
   };
@@ -350,7 +425,19 @@ export function normalizeRuntimeDecisionPayload(payload, { defaultDecisionKind =
   return { ok: true, value };
 }
 
-function resolveRuntimeDecisionAction({ decisionPayload, candidateActions, actorId, tick, defaultDecisionKind } = {}) {
+function resolveRuntimeDecisionAction({
+  decisionPayload,
+  candidateActions,
+  actorId,
+  tick,
+  defaultDecisionKind
+}: {
+  decisionPayload?: unknown;
+  candidateActions?: unknown;
+  actorId?: string | null;
+  tick?: number;
+  defaultDecisionKind?: string;
+} = {}): RuntimeDecisionResult {
   const normalizedDecision = normalizeRuntimeDecisionPayload(decisionPayload, { defaultDecisionKind });
   if (!normalizedDecision.ok) {
     return normalizedDecision;
@@ -372,32 +459,37 @@ function resolveRuntimeDecisionAction({ decisionPayload, candidateActions, actor
   };
 }
 
-export function resolveActionFromSolverResult({ solverRequest, solverResult } = {}) {
+export function resolveActionFromSolverResult({
+  solverRequest,
+  solverResult
+}: {
+  solverRequest?: unknown;
+  solverResult?: unknown;
+} = {}): RuntimeDecisionResult {
   if (!isObject(solverRequest)) {
     return { ok: false, errors: ["missing_solver_request"] };
   }
-  const status = asNonEmptyString(solverResult?.status);
+  const status = asNonEmptyString((solverResult as JsonRecord | null)?.status);
   if (status && ["deferred", "error", "unsat", "unknown"].includes(status)) {
     return { ok: false, status, errors: [`solver_status_${status}`] };
   }
-  const envelope = isObject(solverRequest.problem?.data) ? solverRequest.problem.data : null;
+  const envelope = isObject((solverRequest.problem as JsonRecord | undefined)?.data) ? (solverRequest.problem as JsonRecord).data as JsonRecord : null;
   if (!envelope || envelope.contract !== RUNTIME_DECISION_CONTRACT) {
     return { ok: false, errors: ["missing_runtime_decision_envelope"] };
   }
-  const decisionPayload = extractDecisionPayload(
-    isObject(solverResult?.model) ? solverResult.model : solverResult,
-    { defaultDecisionKind: envelope.decisionKind }
-  );
+  const decisionPayload = extractDecisionPayload(isObject((solverResult as JsonRecord | null)?.model) ? (solverResult as JsonRecord).model : solverResult, { defaultDecisionKind: envelope.decisionKind as string | undefined });
   return resolveRuntimeDecisionAction({
     decisionPayload,
     candidateActions: envelope.candidateActions,
-    actorId: envelope.actor?.id,
-    tick: envelope.tick,
-    defaultDecisionKind: envelope.decisionKind,
+    actorId: (envelope.actor as JsonRecord | undefined)?.id as string | undefined,
+    tick: envelope.tick as number | undefined,
+    defaultDecisionKind: envelope.decisionKind as string | undefined,
   });
 }
 
-export function resolveActionFromLlmCapture({ captureArtifact } = {}) {
+export function resolveActionFromLlmCapture(
+  { captureArtifact }: { captureArtifact?: unknown } = {},
+): RuntimeDecisionResult {
   if (!isObject(captureArtifact)) {
     return { ok: false, errors: ["missing_capture_artifact"] };
   }
@@ -412,8 +504,8 @@ export function resolveActionFromLlmCapture({ captureArtifact } = {}) {
   return resolveRuntimeDecisionAction({
     decisionPayload: payload.responseParsed,
     candidateActions: envelope.candidateActions,
-    actorId: envelope.actor?.id,
-    tick: envelope.tick,
-    defaultDecisionKind: envelope.decisionKind,
+    actorId: (envelope.actor as JsonRecord | undefined)?.id as string | undefined,
+    tick: envelope.tick as number | undefined,
+    defaultDecisionKind: envelope.decisionKind as string | undefined,
   });
 }

@@ -2,6 +2,7 @@
 // Handles observation -> decision -> proposing loop without IO.
 
 import { requireClock } from "../_shared/require-clock.js";
+import { restorePersonaView } from "../_shared/restore-view.js";
 
 export const ActorStates = Object.freeze({
   IDLE: "idle",
@@ -34,10 +35,14 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createActorStateMachine({ initialState = ActorStates.IDLE, clock } = {}) {
+export function createActorStateMachine({ initialState = ActorStates.IDLE, clock, from } = {}) {
   requireClock(clock, "actor");
-  let state = initialState;
-  let context = {
+  const restored = restorePersonaView(from, {
+    persona: "actor",
+    states: Object.values(ActorStates),
+  });
+  let state = restored?.state ?? initialState;
+  let context = restored?.context ?? {
     lastEvent: null,
     updatedAt: clock(),
     lastProposalCount: 0,

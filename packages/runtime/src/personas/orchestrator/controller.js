@@ -3,8 +3,8 @@ import { TickPhases } from "../_shared/tick-state-machine.mts";
 
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 
-export function createOrchestratorPersona({ initialState = OrchestratorStates.IDLE, clock } = {}) {
-  const fsm = createOrchestratorStateMachine({ initialState, clock });
+export function createOrchestratorPersona({ initialState = OrchestratorStates.IDLE, clock, from } = {}) {
+  const fsm = createOrchestratorStateMachine({ initialState, clock, from });
 
   function view() {
     return fsm.view();

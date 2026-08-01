@@ -2,6 +2,7 @@
 // Coordinates workflow phases without IO.
 
 import { requireClock } from "../_shared/require-clock.js";
+import { restorePersonaView } from "../_shared/restore-view.js";
 
 export const OrchestratorStates = Object.freeze({
   IDLE: "idle",
@@ -39,10 +40,14 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createOrchestratorStateMachine({ initialState = OrchestratorStates.IDLE, clock } = {}) {
+export function createOrchestratorStateMachine({ initialState = OrchestratorStates.IDLE, clock, from } = {}) {
   requireClock(clock, "orchestrator");
-  let state = initialState;
-  let context = {
+  const restored = restorePersonaView(from, {
+    persona: "orchestrator",
+    states: Object.values(OrchestratorStates),
+  });
+  let state = restored?.state ?? initialState;
+  let context = restored?.context ?? {
     lastEvent: null,
     updatedAt: clock(),
     planRef: null,

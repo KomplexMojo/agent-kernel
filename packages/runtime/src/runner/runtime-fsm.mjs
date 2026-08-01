@@ -254,25 +254,42 @@ function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layo
 function buildEffectRecordFactory({ core, effectFactory, tick }) {
   const buildEffectFromCore = typeof effects.buildEffectFromCore === "function"
     ? effects.buildEffectFromCore
-    : ({ tick: t, index: i, kind: k, value: v }) => ({
-        schema: "agent-kernel/Effect",
-        schemaVersion: 1,
-        id: `eff_${t}_${i}_${k}_${v}`,
-        tick: t,
-        fulfillment: "deterministic",
-        kind: "custom",
-        data: { kind: k, value: v },
-      });
+    : () => {
+        throw new Error("Missing core effect mapper");
+      };
 
   return ({ kind, value, index }) => {
-    const fallback = buildEffectFromCore({ tick, index, kind, value });
+    const coreEffect = {
+      tick,
+      index,
+      kind,
+      value,
+      actorId: typeof core?.getEffectActorId === "function" ? core.getEffectActorId(index) : undefined,
+      x: typeof core?.getEffectX === "function" ? core.getEffectX(index) : undefined,
+      y: typeof core?.getEffectY === "function" ? core.getEffectY(index) : undefined,
+      reason: typeof core?.getEffectReason === "function" ? core.getEffectReason(index) : undefined,
+      delta: typeof core?.getEffectDelta === "function" ? core.getEffectDelta(index) : undefined,
+    };
+
+    // effectFactory is the explicit extension seam for caller-defined custom
+    // kinds. It is resolved before the closed core codebook so injected kinds
+    // remain supported while unknown core kinds fail loud.
     if (typeof effectFactory === "function") {
-      const customEffect = effectFactory({ tick, kind, value, index });
+      const customEffect = effectFactory(coreEffect);
       if (customEffect) {
-        return { ...fallback, ...customEffect, id: customEffect.id || fallback.id };
+        const base = {
+          schema: "agent-kernel/Effect",
+          schemaVersion: 1,
+          id: `eff_${tick}_${index}_${kind}_${value}`,
+          tick,
+          fulfillment: "deterministic",
+          personaRef: "core",
+          tags: ["core"],
+        };
+        return { ...base, ...customEffect, id: customEffect.id || base.id };
       }
     }
-    return fallback;
+    return buildEffectFromCore(coreEffect);
   };
 }
 

@@ -19,8 +19,8 @@ export const moderatorSubscribePhases = Object.freeze([
 ]);
 const CONTROL_EVENTS = new Set(["start", "pause", "resume", "stop"]);
 
-export function createModeratorPersona({ initialState = ModeratorStates.INITIALIZING, clock } = {}) {
-  const fsm = createModeratorStateMachine({ initialState, clock });
+export function createModeratorPersona({ initialState = ModeratorStates.INITIALIZING, clock, from } = {}) {
+  const fsm = createModeratorStateMachine({ initialState, clock, from });
 
   function view() {
     return fsm.view();

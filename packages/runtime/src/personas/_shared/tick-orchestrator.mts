@@ -1,4 +1,5 @@
 import { createTickStateMachine, TickPhases } from "./tick-state-machine.mts";
+import type { TickEvent, TickPhase } from "./tick-state-machine.mts";
 import { buildLlmCaptureArtifact } from "../orchestrator/llm-capture.js";
 import {
   allowsLiveLlmRuntime,
@@ -10,6 +11,50 @@ import {
   resolveRuntimeDecisionProviderPolicy,
 } from "./runtime-decision.mts";
 
+type JsonRecord = Record<string, unknown>;
+
+type PersonaResult = JsonRecord & {
+  state: unknown; context: unknown;
+  actions?: unknown[]; effects?: unknown[]; telemetry?: unknown; artifacts?: unknown[];
+};
+
+type PersonaSnapshot = Pick<PersonaResult, "state" | "context">;
+
+type Persona = { subscribePhases: string[]; advance: (input: JsonRecord) => PersonaResult; view: () => PersonaResult };
+
+type SolverRequest = JsonRecord & {
+  id?: string; requestId?: string; meta?: JsonRecord;
+  problem?: JsonRecord & { data?: JsonRecord };
+};
+
+type SolverEffect = JsonRecord & { kind?: string; request?: SolverRequest };
+type SolverPort = { solve: (adapter: unknown, request: SolverRequest) => Promise<JsonRecord> | JsonRecord };
+
+type LlmAdapter = {
+  generate: (input: {
+    model?: string; prompt: string; options: JsonRecord; stream: boolean; format?: string;
+  }) => Promise<unknown> | unknown;
+};
+
+type PhasePayload = JsonRecord & {
+  notes?: unknown; personaEvents?: Record<string, unknown>; events?: Record<string, unknown>;
+  personaPayloads?: Record<string, unknown>; payloads?: Record<string, unknown>;
+  payload?: unknown; inputs?: unknown; personaTick?: number; tick?: number;
+};
+
+type TickRecord = {
+  tick: number; phase: TickPhase;
+  personaViews: Record<string, PersonaSnapshot>;
+  actions: unknown[]; effects: unknown[]; telemetry: unknown[]; artifacts: unknown[];
+  solverResults: JsonRecord[]; solverFulfilled: JsonRecord[];
+};
+
+type OrchestratorLog = JsonRecord & { kind: string };
+
+type LlmCaptureResult = { capture?: JsonRecord | null; errors?: string[] };
+
+type LlmCaptureBuilder = (input: JsonRecord & { clock?: () => string }) => LlmCaptureResult;
+
 // Pure tick orchestrator that advances the tick FSM and dispatches phase events to personas.
 // Personas must declare subscribePhases and expose advance/view methods.
 export function createTickOrchestrator({
@@ -20,13 +65,21 @@ export function createTickOrchestrator({
   solverPort = null,
   solverAdapter = null,
   llmAdapter = null,
+}: {
+  clock?: () => string;
+  onActions?: (actions: unknown[]) => void;
+  debug?: boolean;
+  logger?: ((entry: OrchestratorLog) => void) | null;
+  solverPort?: SolverPort | null;
+  solverAdapter?: unknown;
+  llmAdapter?: LlmAdapter | null;
 } = {}) {
   const fsm = createTickStateMachine({ clock, debug, logger });
-  const personas = new Map();
-  const personaStates = new Map();
-  const history = [];
+  const personas = new Map<string, Persona>();
+  const personaStates = new Map<string, PersonaResult | PersonaSnapshot>();
+  const history: TickRecord[] = [];
 
-  function registerPersona(name, persona) {
+  function registerPersona(name: string, persona: Persona) {
     if (!name || typeof name !== "string") {
       throw new Error("Persona name is required.");
     }
@@ -42,7 +95,7 @@ export function createTickOrchestrator({
 
   function view() {
     const tickView = fsm.view();
-    const snapshot = {};
+    const snapshot: Record<string, PersonaResult | PersonaSnapshot> = {};
     for (const [name, state] of personaStates.entries()) {
       snapshot[name] = state;
     }
@@ -53,7 +106,7 @@ export function createTickOrchestrator({
     };
   }
 
-  async function fulfillLlmRuntimeRequest(entry, tickValue) {
+  async function fulfillLlmRuntimeRequest(entry: SolverEffect, tickValue: number) {
     const envelope = entry?.request?.problem?.data;
     const providerPolicy = resolveRuntimeDecisionProviderPolicy(envelope?.providerPolicy);
     if (!allowsLiveLlmRuntime(providerPolicy)) {
@@ -108,9 +161,9 @@ export function createTickOrchestrator({
       });
       const responseText = extractLlmResponseText(response);
       const parsed = parseRuntimeDecisionResponseText(responseText, {
-        defaultDecisionKind: envelope?.decisionKind,
+        defaultDecisionKind: envelope?.decisionKind as string | undefined,
       });
-      const captureResult = buildLlmCaptureArtifact({
+      const captureResult = (buildLlmCaptureArtifact as LlmCaptureBuilder)({
         prompt,
         responseText,
         responseParsed: parsed.responseParsed || undefined,
@@ -163,7 +216,7 @@ export function createTickOrchestrator({
               deterministic: false,
             },
             captureRef: {
-              id: capture.meta?.id,
+              id: (capture.meta as JsonRecord | undefined)?.id,
               schema: capture.schema,
               schemaVersion: capture.schemaVersion,
             },
@@ -179,7 +232,7 @@ export function createTickOrchestrator({
               deterministic: false,
             },
             captureRef: {
-              id: capture.meta?.id,
+              id: (capture.meta as JsonRecord | undefined)?.id,
               schema: capture.schema,
               schemaVersion: capture.schemaVersion,
             },
@@ -196,7 +249,7 @@ export function createTickOrchestrator({
         artifact: capture,
       };
     } catch (error) {
-      const reason = error?.message || "llm_runtime_error";
+      const reason = (error as { message?: string })?.message || "llm_runtime_error";
       return {
         result: {
           status: "error",
@@ -218,18 +271,20 @@ export function createTickOrchestrator({
     }
   }
 
-  async function handleSolverRequests(effects, tickValue) {
+  async function handleSolverRequests(effects: unknown[], tickValue: number) {
     if (!Array.isArray(effects) || effects.length === 0) {
       return { results: [], fulfilled: [], actions: [], artifacts: [] };
     }
-    const requests = effects.filter((effect) => effect?.kind === "solver_request" && effect.request);
+    const requests = (effects as SolverEffect[]).filter(
+      (effect) => effect?.kind === "solver_request" && effect.request,
+    ) as Array<SolverEffect & { request: SolverRequest }>;
     if (requests.length === 0) {
       return { results: [], fulfilled: [], actions: [], artifacts: [] };
     }
-    const results = [];
-    const fulfilled = [];
-    const actions = [];
-    const artifacts = [];
+    const results: JsonRecord[] = [];
+    const fulfilled: JsonRecord[] = [];
+    const actions: unknown[] = [];
+    const artifacts: unknown[] = [];
     for (const entry of requests) {
       const envelope = entry?.request?.problem?.data;
       const providerPolicy = resolveRuntimeDecisionProviderPolicy(envelope?.providerPolicy);
@@ -307,13 +362,23 @@ export function createTickOrchestrator({
     return { results, fulfilled, actions, artifacts };
   }
 
-  async function collectPhaseRecord({ phase, event, payload = {}, tickValue }) {
+  async function collectPhaseRecord({
+    phase,
+    event,
+    payload = {},
+    tickValue
+  }: {
+    phase: TickPhase;
+    event: unknown;
+    payload?: PhasePayload;
+    tickValue?: number;
+  }) {
     const currentTick = tickValue ?? fsm.view().tick;
-    const personaViews = {};
-    const actions = [];
-    const effects = [];
-    const telemetry = [];
-    const artifacts = [];
+    const personaViews: Record<string, PersonaSnapshot> = {};
+    const actions: unknown[] = [];
+    const effects: unknown[] = [];
+    const telemetry: unknown[] = [];
+    const artifacts: unknown[] = [];
     const personaEvents = payload?.personaEvents || payload?.events || null;
     const hasPersonaEvents = personaEvents !== null && personaEvents !== undefined;
     const personaPayloads = payload?.personaPayloads || payload?.payloads || null;
@@ -321,7 +386,7 @@ export function createTickOrchestrator({
     const personaTick = payload?.personaTick ?? payload?.tick;
 
     for (const [name, persona] of personas.entries()) {
-      let result = null;
+      let result: PersonaResult | null = null;
       if (persona.subscribePhases.includes(phase)) {
         const personaPayload = personaPayloads && Object.prototype.hasOwnProperty.call(personaPayloads, name)
           ? personaPayloads[name]
@@ -362,8 +427,8 @@ export function createTickOrchestrator({
       } else {
         result = persona.view();
       }
-      personaStates.set(name, { state: result.state, context: result.context });
-      personaViews[name] = { state: result.state, context: result.context };
+      personaStates.set(name, { state: (result as PersonaResult).state, context: (result as PersonaResult).context });
+      personaViews[name] = { state: (result as PersonaResult).state, context: (result as PersonaResult).context };
     }
 
     // Handle solver requests emitted by personas
@@ -379,7 +444,7 @@ export function createTickOrchestrator({
       onActions(actions);
     }
 
-    const record = {
+    const record: TickRecord = {
       tick: currentTick,
       phase,
       personaViews,
@@ -405,7 +470,7 @@ export function createTickOrchestrator({
     return record;
   }
 
-  async function stepPhase(event, payload = {}) {
+  async function stepPhase(event: TickEvent, payload: PhasePayload = {}) {
     const tickResult = fsm.advance(event, payload);
     return collectPhaseRecord({
       phase: tickResult.phase,
@@ -415,7 +480,15 @@ export function createTickOrchestrator({
     });
   }
 
-  async function dispatchPhase({ phase = null, event = null, payload = {} } = {}) {
+  async function dispatchPhase({
+    phase = null,
+    event = null,
+    payload = {}
+  }: {
+    phase?: TickPhase | null;
+    event?: unknown;
+    payload?: PhasePayload;
+  } = {}) {
     const view = fsm.view();
     const activePhase = phase || view.phase;
     const activeTick = view.tick;

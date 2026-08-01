@@ -7,6 +7,9 @@
 - **`core-ts`**: simulation state, transition rules, validation, render buffers, affinity field computation, motivation evaluation, and data-only effects.
 - **Runtime personas**: long-lived controllers that coordinate planning, tick phases, action ordering, telemetry, and adapter interaction.
 - **Adapters/UI**: host-specific IO and presentation. They call runtime or consume artifacts; they do not own simulation rules.
+- **Effect contract:** `core-ts/src/ports/effects.ts` is the sole origin of `EffectKind`. Runtime may
+  compatibility-re-export it and map core effects to runtime records, but must not redeclare the codebook
+  or silently degrade an unknown core kind; extensions enter only through an explicit injected seam.
 
 ## Persona Model — ENFORCED
 
@@ -114,12 +117,12 @@ not owned**, and a milestone closes when its G1 test flips red→green — not w
    held in a factory closure and omitted from `view()` breaks replay — two instances with identical
    serialized state can then produce different outcomes — and is a violation even though nothing
    mutates a class instance.
-   ⚠️ **A4 is currently UNVERIFIABLE, and that is itself an open defect (Plan PX.4).** Serializable is
-   not the same as restorable: every persona factory accepts `{ initialState, clock }` — a state *label* —
-   while `view()` returns `{ state, context }`, and no factory accepts a context. **A persona's serialized
-   output cannot be fed back in**, so "the decision is a pure function of serialized state" cannot be
-   tested today. A `restore(view)` capability is owed on the persona contract; until it exists, treat A4
-   as an obligation on new code that cannot yet be mechanically enforced.
+   **A4 is mechanically verifiable as of 2026-08-01 (PX.4 / HANDOFF-4).** Every persona factory accepts
+   `{ from: view }`; the shared restore boundary validates a state from that persona's state codebook and
+   an object context before copying the serialized context into a fresh FSM. G4 drives each of the seven
+   personas, JSON-round-trips `view()`, restores a fresh instance, advances both with the same next event,
+   and requires identical `{state, actions, effects, telemetry}`. Restorability is a verification and
+   snapshot-resume seam; it does not replace deterministic replay from tick zero.
 5. **Cross-persona interaction** happens through versioned artifacts (`contracts/artifacts.ts`),
    persona events, or effects — never lateral imports of another persona's internals.
 6. **Tests align to personas, and must test authority — not routing.** Persona behavior tests live in
@@ -159,11 +162,11 @@ several phases achieved **structural** routing without **semantic** authority:
   As of CR.8 the RunSummary is produced by the Annotator that actually observed the run: the kernel
   goes through `runtime.summarizeRun()`, which refuses to summarize a ticked run from an instance
   still `idle` (**A5**). Phase 3 has no open gaps.
-- **Closed by CR.6:** the Actor no longer holds decision-relevant state in a closure — it keeps nothing
+- **Closed by CR.6 and PX.4:** the Actor no longer holds decision-relevant state in a closure — it keeps nothing
   outside its FSM, so its decision is a function of (`view()`, event, payload) (**A4**) — and it no longer
   defines budget admissibility, which now lives in the Allocator and reaches the Actor only as that
-  persona's injected judge (**A1**). *A4's other half is still open:* a serialized `view()` cannot yet be
-  fed back in, because no persona has `restore(view)` (PX.4).
+  persona's injected judge (**A1**). All seven personas can now be rebuilt from a serialized `view()` via
+  `{ from }`, and the G4 serialization-equivalence gate passes across the full persona set.
 - **Also open:** the Allocator authors and grows card configurations, which is Configurator work
   (**A1**, see the Economy section).
 

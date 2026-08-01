@@ -1,15 +1,26 @@
 // Pure helpers to summarize tick/persona history for inspect/replay.
 
-function countPhases(history) {
+type PersonaView = { state?: unknown };
+
+type TickHistoryEntry = {
+  tick: number;
+  phase: string;
+  personaViews?: Record<string, PersonaView>;
+  actions?: unknown[];
+  effects?: unknown[];
+  telemetry?: unknown[] | unknown;
+};
+
+function countPhases(history: TickHistoryEntry[]) {
   return history.reduce((acc, entry) => {
     acc[entry.phase] = (acc[entry.phase] || 0) + 1;
     return acc;
-  }, {});
+  }, {} as Record<string, number>);
 }
 
-function summarizePersonaStates(history) {
-  const lastState = {};
-  const changes = {};
+function summarizePersonaStates(history: TickHistoryEntry[]) {
+  const lastState: Record<string, string> = {};
+  const changes: Record<string, number> = {};
   for (const entry of history) {
     if (!entry.personaViews) continue;
     for (const [name, view] of Object.entries(entry.personaViews)) {
@@ -25,7 +36,7 @@ function summarizePersonaStates(history) {
   return { lastState, changes };
 }
 
-export function summarizeTickHistory(history = []) {
+export function summarizeTickHistory(history: TickHistoryEntry[] = []) {
   const totalTicks = new Set(history.map((h) => h.tick)).size;
   const phases = countPhases(history);
   const personaSummary = summarizePersonaStates(history);

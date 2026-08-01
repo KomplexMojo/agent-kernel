@@ -54,6 +54,32 @@ const repeatB = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, v
 assert.equal(repeatA.id, repeatB.id);
 });
 
+test("buildEffectFromCore maps every structured core effect without custom degradation", async () => {
+const { EffectKind, buildEffectFromCore } = await import("../../packages/runtime/src/ports/effects.js");
+
+const moved = buildEffectFromCore({ tick: 1, index: 0, kind: EffectKind.ActorMoved, value: 0, actorId: 7, x: 4, y: 5 });
+assert.equal(moved.kind, "telemetry");
+assert.deepEqual(moved.data, { event: "actor_moved", actorId: 7, x: 4, y: 5 });
+
+const invalid = buildEffectFromCore({ tick: 1, index: 1, kind: EffectKind.ConfigInvalid, value: 23 });
+assert.equal(invalid.kind, "log");
+assert.equal(invalid.severity, "error");
+assert.deepEqual(invalid.data, { reason: "config_invalid", code: 23 });
+
+const durability = buildEffectFromCore({ tick: 1, index: 2, kind: EffectKind.DurabilityChanged, value: 0, actorId: 8, delta: -2 });
+assert.equal(durability.kind, "telemetry");
+assert.deepEqual(durability.data, { event: "durability_changed", actorId: 8, delta: -2 });
+
+const blocked = buildEffectFromCore({ tick: 1, index: 3, kind: EffectKind.ActorBlocked, value: 0, actorId: 9, x: 6, y: 7, reason: 16 });
+assert.equal(blocked.kind, "telemetry");
+assert.deepEqual(blocked.data, { event: "actor_blocked", actorId: 9, x: 6, y: 7, reason: 16 });
+
+assert.throws(
+  () => buildEffectFromCore({ tick: 1, index: 4, kind: 999, value: 0 }),
+  /Unknown core effect kind: 999/,
+);
+});
+
 test("solver port populates meta", async () => {
 const { createSolverPort } = await import("../../packages/runtime/src/ports/solver.js");
 
@@ -73,3 +99,7 @@ assert.equal(result.meta.correlationId, "corr");
 assert.equal(result.meta.id, "solver_req");
 assert.equal(result.meta.createdAt, "fixed-time");
 });
+
+// ## TODO: Test Permutations
+// - structured effect payloads at signed 32-bit numeric boundaries
+// - unknown non-integer core effect kinds fail with the same diagnostic

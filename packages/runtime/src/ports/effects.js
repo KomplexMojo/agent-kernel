@@ -1,19 +1,12 @@
+import { EffectKind } from "../../../core-ts/src/ports/effects.ts";
+
 const EFFECT_SCHEMA = "agent-kernel/Effect";
 const TARGET_ADAPTER_HINTS = ["fixtures", "ipfs", "ollama"];
 const REQUEST_DETAIL_MASK = 0xff;
 
-export const EffectKind = Object.freeze({
-  Log: 1,
-  InitInvalid: 2,
-  ActionRejected: 3,
-  LimitReached: 4,
-  LimitViolated: 5,
-  NeedExternalFact: 6,
-  Telemetry: 7,
-  SolverRequest: 8,
-  EffectFulfilled: 9,
-  EffectDeferred: 10,
-});
+// PX.1: the numeric core effect codebook is domain-owned. Runtime re-exports the
+// canonical value for compatibility, but never declares a second copy.
+export { EffectKind };
 
 function buildEffectId(tick, index, kind, value) {
   return `eff_${tick}_${index}_${kind}_${value}`;
@@ -30,7 +23,7 @@ function buildRequestId(prefix, seq) {
   return `${prefix}-${seq}`;
 }
 
-export function buildEffectFromCore({ tick, index, kind, value }) {
+export function buildEffectFromCore({ tick, index, kind, value, actorId, x, y, reason, delta }) {
   const base = {
     schema: EFFECT_SCHEMA,
     schemaVersion: 1,
@@ -129,12 +122,37 @@ export function buildEffectFromCore({ tick, index, kind, value }) {
         data: { status: "deferred" },
         fulfillment: "deferred",
       };
-    default:
+    // The core models movement/blockage/durability as structured simulation
+    // facts. EffectV1 has no actor_* kinds, so runtime exposes them through the
+    // existing telemetry route without changing the artifact schema. Config
+    // invalidity follows InitInvalid's error-log route.
+    case EffectKind.ActorMoved:
       return {
         ...base,
-        kind: "custom",
-        data: { kind, value },
+        kind: "telemetry",
+        data: { event: "actor_moved", actorId, x, y },
       };
+    case EffectKind.ConfigInvalid:
+      return {
+        ...base,
+        kind: "log",
+        severity: "error",
+        data: { reason: "config_invalid", code: value },
+      };
+    case EffectKind.DurabilityChanged:
+      return {
+        ...base,
+        kind: "telemetry",
+        data: { event: "durability_changed", actorId, delta },
+      };
+    case EffectKind.ActorBlocked:
+      return {
+        ...base,
+        kind: "telemetry",
+        data: { event: "actor_blocked", actorId, x, y, reason },
+      };
+    default:
+      throw new RangeError(`Unknown core effect kind: ${kind}`);
   }
 }
 

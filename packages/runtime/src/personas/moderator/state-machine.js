@@ -2,6 +2,7 @@
 // Owns tick execution lifecycle bookkeeping without IO.
 
 import { requireClock } from "../_shared/require-clock.js";
+import { restorePersonaView } from "../_shared/restore-view.js";
 
 export const ModeratorStates = Object.freeze({
   INITIALIZING: "initializing",
@@ -26,10 +27,14 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createModeratorStateMachine({ initialState = ModeratorStates.INITIALIZING, clock } = {}) {
+export function createModeratorStateMachine({ initialState = ModeratorStates.INITIALIZING, clock, from } = {}) {
   requireClock(clock, "moderator");
-  let state = initialState;
-  let context = {
+  const restored = restorePersonaView(from, {
+    persona: "moderator",
+    states: Object.values(ModeratorStates),
+  });
+  let state = restored?.state ?? initialState;
+  let context = restored?.context ?? {
     lastEvent: null,
     updatedAt: clock(),
   };
