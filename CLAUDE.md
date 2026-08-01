@@ -17,8 +17,9 @@ Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form �
 3. `pnpm install --frozen-lockfile` — confirm lockfile match
 4. `pnpm run test` — confirm no pre-existing failures
 5. `bash scripts/setup/agent-context.sh` — refresh branch-local Graphify + `local-codex/CodeContext.md`
-6. Confirm the Serena MCP is connected (any `mcp__serena__*` tool responds). Serena answers structural queries live from the language server — there is no index to build, watch, or sanity-check
-7. Read `local-codex/CodeContext.md`, then the Graphify report it names
+6. `python3 scripts/setup/patch-serena-ignored-dirs.py --check` — Serena's `build/` blind spot; re-apply after any `uv tool upgrade serena-agent`
+7. Confirm the Serena MCP is connected (any `mcp__serena__*` tool responds). Serena answers structural queries live from the language server — there is no index to build, watch, or sanity-check
+8. Read `local-codex/CodeContext.md`, then the Graphify report it names
 
 ---
 
@@ -59,12 +60,14 @@ Structural code questions go through the **Serena MCP** (live language-server an
 
 Serena replaced CodeGraphContext on 2026-07-28. It wraps the live language server — answers are computed on demand from current file state, so the *index* staleness class (dead watches, a rebuild that silently drops a directory, sanity canaries) no longer exists.
 
-🛑 **SERENA CANNOT SEE `packages/runtime/src/build/` OR `tests/runtime/build/`, AND NO CONFIG OR RESTART CHANGES THAT** (root-caused 2026-07-31, supersedes the earlier `.gitignore` explanation).
+✅ **SERENA'S `build/` BLIND SPOT IS FIXED (2026-08-01) — but the fix lives outside the repo and an upgrade silently undoes it.**
 
 `build` is **hardcoded** in Serena's TypeScript adapter — `solidlsp/language_servers/typescript_language_server.py:199-204` blocks `["node_modules", "dist", "build"]`, and `solidlsp/ls.py:1197-1204` tests **every directory component** of a requested path against that list, returning "ignored" **before** `.gitignore`, `ignored_paths`, or any config is read. There is no config key that reaches it (`ignored_paths` is a different layer; `ls_specific_settings` goes to the language server).
 
-- **Do not "owe a restart" for this** — a 26-second-old process fails identically. Do not go looking for a config fix; there isn't one.
-- **8 files / 2,694 lines are invisible**, including `orchestrate-build.js` (1,664 lines). Any build-plane question (WP-2, PX.6) must be answered with grep/read — **say so when you do**.
+**The fix:** `scripts/setup/patch-serena-ignored-dirs.py` removes `dist` and `build` from that hardcoded list (keeping `node_modules`, whose cost is real). Safe because the list is redundant with `.gitignore` for genuine build output and Serena still applies `.gitignore` afterwards — so the decision defers to the project's own declaration.
+
+- ⚠️ **RE-RUN IT AFTER EVERY `uv tool upgrade serena-agent`** — an upgrade replaces the file and restores the blind spot with no error. `--check` exits 1 when the patch is missing and is step 6 of the session-start checklist.
+- **Never "owe a restart" for this class of problem** — a 26-second-old process failed identically. The verdict came from code, not config.
 - The earlier `.gitignore` `build/` rule was a *real, separate* bug and was correctly fixed by deleting it; it simply was not the whole story.
 - Carry forward: **`find_symbol` errors loudly only when you pass `relative_path`** — otherwise it degrades silently and returns wrong rows (18 test-local consts and never the definition). `find_referencing_symbols` errors loudly.
 
@@ -100,6 +103,9 @@ pnpm install                                          # Install dependencies
 pnpm run test                                         # Vitest suite
 pnpm run test -- --reporter=json --outputFile=<f>     # Structured results (what fast-pass uses)
 pnpm run test:vitest -- tests/<path>/<name>.test.js   # Single Vitest file
+pnpm run typecheck                                    # Typecheck gate (core-ts + its tests, strict)
+pnpm run typecheck:report                             # Cost of widening the gate, per package
+pnpm run typecheck:report -- --check-js               # ...including .js: the all-TypeScript size
 pnpm run serve:ui                                     # UI dev server :8001
 pnpm run demo:cli                                     # CLI demo
 ```
@@ -184,6 +190,8 @@ Run on every diff. **Fix failures — don't just flag them.**
 **Personas** — pure FSM (`view()` + `advance`) · clock injected · context serializable · effects returned as data · new persona folders include `controller.js`, `state-machine.js`, `persona.js`, `contracts.ts` · no imports of persona internals from outside the persona directory (controllers only) · no domain logic in glue (kernel, card-authoring, orchestrate-build, adapters) · persona states must gate real behavior — label-only states are defects · all pricing goes through the Allocator (base costs in `base-costs.json`, formulas in Allocator code, no silent fallbacks).
 
 **Artifacts** — boundary data uses an `artifacts.ts` schema · `schema`/`schemaVersion`/`meta` present · no field-name conflicts with existing contracts.
+
+**Types** — `pnpm run typecheck` stays at zero (gate: `tsconfig.typecheck.json`, enforced by `tests/architecture/typecheck-gate.test.js`). The gate covers **core-ts and its tests only** — the code genuinely clean under `strict`. Do not widen it casually: the five real `_shared/*.mts` modules carry **180 errors** and leak into every scope importing them, so widening is a fix-first project, not a config change. `pnpm run typecheck:report` prices each scope. ⚠️ Note `checkJs` is **off**: a package that is all `.js` reports 0 because there is nothing to check, which is not the same as clean — read the file count the report prints alongside.
 
 **Tests** — failing tests written *before* production code · new behavior covered under `tests/` · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff · persona behavior tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · label-only persona tests are legacy: replace with behavior tests, then remove (never remove first).
 

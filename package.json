@@ -21,6 +21,8 @@
     "test:vitest": "node scripts/testing/run-vitest.mjs",
     "test:matrix": "node scripts/testing/test-matrix.mjs",
     "test:coverage:core-ts": "node scripts/testing/run-core-ts-coverage.mjs",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "typecheck:report": "node scripts/testing/typecheck-report.mjs",
     "benchmark:core-ts-affinity": "node scripts/testing/benchmark-compute-affinity-field.mjs",
     "serve:ui": "node scripts/serve-ui.mjs",
     "serve:c": "node scripts/serve-ui.mjs --entry index_c.html",
