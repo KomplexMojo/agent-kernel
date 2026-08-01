@@ -544,17 +544,27 @@ test("same seed reproduces identical random trajectory across a 24 tick run", as
   assert.deepEqual(runA, runB);
 });
 
-// STAYS SKIPPED — the assertion, not the code, looks wrong (checked 2026-08-01).
-// It requires two DIFFERENT actors sharing a seed to produce IDENTICAL trajectories,
-// which would make every random actor move in lockstep. The implementation scopes the
-// stream by actor id precisely so they diverge, and the sibling test "two adjacent
-// random actors never both propose moving into the same tile" depends on that
-// divergence. Re-enable only alongside a decision about what the "actor-id scoping
-// contract" should actually say; the two tests currently contradict each other.
-test.skip("same seed across different actor ids follows the documented actor-id scoping contract", async () => {
+// REPLACED 2026-08-01. The previous test here asserted the OPPOSITE — that two
+// different actors sharing a seed produce IDENTICAL trajectories — which would put
+// every random actor in lockstep. It had never run (added already-skipped in
+// d1a2b6e2), nothing documented the contract it claimed, and it contradicted the
+// sibling test that two adjacent random actors never claim the same tile.
+//
+// The real contract is stated in the implementation (actor/controller.js): "The RNG
+// is a pure function of (seed, actorId, tick)" — actorId is hashed in deliberately,
+// so identical seeds MUST diverge per actor. That is what the siblings leave
+// uncovered: they pin same-seed/same-actor as identical and different-seeds as
+// divergent, but not this.
+test("the same seed on different actor ids produces different trajectories (actor-id scoping)", async () => {
   const runA = await runRandomTrajectory({ seed: 2468, actorId: "delver_a", ticks: 8 });
   const runB = await runRandomTrajectory({ seed: 2468, actorId: "delver_b", ticks: 8 });
-  assert.deepEqual(runA, runB);
+
+  assert.equal(runA.length, 8, "precondition: the trajectory must actually be generated");
+  assert.ok(
+    runA.some((step, i) => JSON.stringify(step) !== JSON.stringify(runB[i])),
+    "two actors sharing a seed must diverge — otherwise every random actor moves in lockstep, "
+      + "and the no-shared-tile guarantee below has nothing to rely on",
+  );
 });
 
 test("numeric and string seed representations normalize to the same random trajectory", async () => {
