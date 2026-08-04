@@ -29,6 +29,7 @@ import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/directo
 import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/contracts/domain-constants.js";
 import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
+import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
 import {
   ALLOWED_AFFINITIES,
   ALLOWED_AFFINITY_EXPRESSIONS,
@@ -1477,12 +1478,24 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
 // maximization is Allocator policy"). The CLI reaches them only through the
 // persona surface; the maximizer/assessor domain logic itself lives in
 // personas/allocator/budget-fulfillment.js (moved there in P2.3.4).
+// CR.9 M2: both price ROOM cards, and room tile counts are Configurator geometry.
+// The Allocator is handed the Configurator's own derivation instead of computing a
+// second answer — the wiring mirrors CR.6's
+// `createActorPersona({ admitProposals: allocator.admitProposals })`, one persona's
+// capability injected into another at the composition root, through public surfaces
+// on both sides.
+const configuratorGeometry = createConfiguratorPersona({ clock: UNUSED_CLOCK }).deriveRoomLayout;
+
+function allocatorWithGeometry() {
+  return createAllocatorPersona({ clock: UNUSED_CLOCK, deriveRoomLayout: configuratorGeometry });
+}
+
 function ensureBudgetedFulfillmentFeasible(args) {
-  return createAllocatorPersona({ clock: UNUSED_CLOCK }).assessFeasibility(args);
+  return allocatorWithGeometry().assessFeasibility(args);
 }
 
 function applyBudgetCappedFulfillment(args) {
-  return createAllocatorPersona({ clock: UNUSED_CLOCK }).maximizeFulfillment(args);
+  return allocatorWithGeometry().maximizeFulfillment(args);
 }
 
 function resolvePath(input, cwd = process.cwd()) {

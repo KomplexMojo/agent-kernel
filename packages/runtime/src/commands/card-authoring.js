@@ -11,6 +11,7 @@ import {
   normalizeVitals as normalizeDomainVitals,
 } from "../contracts/domain-constants.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
@@ -36,7 +37,18 @@ import {
   deriveLevelGenFromRoomCards,
 } from "../personas/configurator/card-model.js";
 
-const allocatorFor = (priceList) => createAllocatorPersona({ priceList, clock: UNUSED_CLOCK });
+// CR.9 M2: room tile counts are Configurator geometry, so the Allocator is handed
+// the Configurator's own derivation rather than importing card-model.js to compute a
+// second answer. Same wiring shape as CR.6's
+// `createActorPersona({ admitProposals: allocator.admitProposals })`, and it goes
+// through the persona's PUBLIC surface — the D6 internal import above is a separate
+// disposition that this does not touch.
+const configuratorGeometry = createConfiguratorPersona({ clock: UNUSED_CLOCK }).deriveRoomLayout;
+const allocatorFor = (priceList) => createAllocatorPersona({
+  priceList,
+  clock: UNUSED_CLOCK,
+  deriveRoomLayout: configuratorGeometry,
+});
 
 // CR.1 — the level-authoring economy is the ALLOCATOR's, not glue's. These were
 // numeric literals declared here, feeding calculateCardValue, card receipts, UI
@@ -1394,6 +1406,7 @@ function buildSummaryFromCardSet({
     },
     priceList,
     tileCosts,
+    deriveRoomLayout: configuratorGeometry,
   });
   return {
     summary: finalSummary,

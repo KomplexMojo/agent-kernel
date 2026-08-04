@@ -183,6 +183,12 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
   const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  // CR.9 M2: the Allocator prices room geometry, it does not derive it — the
+  // Configurator's derivation is injected, as production wires it.
+  const { createConfiguratorPersona } = await import(
+    "../../packages/runtime/src/personas/configurator/persona.js"
+  );
+  const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
 
   const low = buildDesignSpendLedger({
     summary: {
@@ -192,6 +198,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
         { id: "room_small", type: "room", affinity: "fire", roomSize: "small", count: 1 },
       ],
     },
+    deriveRoomLayout,
   });
 
   const high = buildDesignSpendLedger({
@@ -202,6 +209,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
         { id: "room_small", type: "room", affinity: "fire", roomSize: "small", count: 3 },
       ],
     },
+    deriveRoomLayout,
   });
 
   assert.ok(high.categories.levelConfig.spentTokens > low.categories.levelConfig.spentTokens);
@@ -213,6 +221,12 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
   const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  // CR.9 M2: the Allocator prices room geometry, it does not derive it — the
+  // Configurator's derivation is injected, as production wires it.
+  const { createConfiguratorPersona } = await import(
+    "../../packages/runtime/src/personas/configurator/persona.js"
+  );
+  const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
 
   const ledger = buildDesignSpendLedger({
     summary: {
@@ -238,6 +252,7 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
         { id: "affinity_expression_externalize", kind: "affinity", costTokens: 10 },
       ],
     },
+    deriveRoomLayout,
   });
 
   const affinityLines = ledger.lineItems.filter(

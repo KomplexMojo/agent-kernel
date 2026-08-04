@@ -35,7 +35,7 @@ export class AllocatorStateError extends Error {
   }
 }
 
-export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock } = {}) {
+export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock, deriveRoomLayout } = {}) {
   let resolvedPriceList = null;
   let registeredBudget = null;
   let receiptCount = 0;
@@ -167,7 +167,9 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
   }
 
   function boundEvaluateRoomCardLayoutSpend(args = {}) {
-    return evaluateRoomCardLayoutSpend({ priceList: getPriceList(), ...args });
+    // CR.9 M2: the injected Configurator geometry is the default, but an explicit
+    // per-call `deriveRoomLayout` still wins — same precedence as priceList.
+    return evaluateRoomCardLayoutSpend({ priceList: getPriceList(), deriveRoomLayout, ...args });
   }
 
   function scenarioSpendReport(args = {}) {
@@ -180,12 +182,15 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock }
   // the budget is a per-call argument (split-budget authoring assesses/maximizes
   // twice with two different budgets in one command), not persona state, and
   // neither issues receipts nor mutates the ledger.
+  // CR.9 M2: both price ROOM cards, so both need the Configurator's geometry
+  // threaded down to calculateRoomCardUnitCost. Injected at construction; an
+  // explicit per-call value still wins.
   function assessFeasibility(args = {}) {
-    return ensureBudgetedFulfillmentFeasible(args);
+    return ensureBudgetedFulfillmentFeasible({ deriveRoomLayout, ...args });
   }
 
   function maximizeFulfillment(args = {}) {
-    return applyBudgetCappedFulfillment(args);
+    return applyBudgetCappedFulfillment({ deriveRoomLayout, ...args });
   }
 
   /** Serializable service-side context merged into the persona view. */

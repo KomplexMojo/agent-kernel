@@ -14,7 +14,7 @@ This document defines the Allocator as a **policy and coordination role**. Detai
 | --- | --- |
 | Owns | Budgets, price lists, spend proposals, allocation decisions, receipts |
 | Does not own | Simulation state mutation, action legality, or direct resource deduction |
-| Primary inputs | Budget artifacts, price lists, proposed actor/layout/action costs |
+| Primary inputs | Budget artifacts, price lists, proposed actor/layout/action costs, the Configurator's `deriveRoomLayout` |
 | Primary outputs | Budget receipts, approval/rejection decisions, reconciliation signals |
 | Boundary | `core-ts` enforces provided caps; Allocator defines policy |
 
@@ -33,6 +33,21 @@ The simulation core (`core-ts`) remains responsible for applying costs to state 
 ---
 
 ## Responsibilities
+
+### It prices room geometry; it does not derive it (CR.9 M2)
+
+`createAllocatorPersona({ deriveRoomLayout })` takes the Configurator's room-geometry derivation as an
+**injected capability** — the mirror of CR.6's `createActorPersona({ admitProposals })`, where this persona
+is the one injecting. Room tile counts (small 24 / medium 48 / large 96) are Configurator geometry and live
+in `configurator/card-model.js`; the Allocator used to import that module and compute the tile count itself,
+which is a persona authoring structure it does not own purely to have something to charge for.
+
+Surfaces that price a room card — `evaluateRoomCardLayoutSpend`, `calculateRoomCardUnitCost`,
+`buildDesignSpendLedger`, `assessFeasibility`, `maximizeFulfillment` — **refuse** with
+`allocator_room_geometry_required` when the capability is absent. Deliberately no default: a second,
+silently-diverging answer to "how big is this card set" is the CR.1 defect class, and it would be invisible
+because the output stays well-formed. Most Allocator surfaces never price a room card, so the parameter is
+optional at construction and enforced at the point of use.
 
 ### The base-cost standard: numbers in JSON, formulas in code
 

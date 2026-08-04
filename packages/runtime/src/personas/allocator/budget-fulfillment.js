@@ -236,7 +236,7 @@ function collectBudgetedDelverConflictIssues(entry, delverIndex) {
   return issues;
 }
 
-function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact) {
+function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact, deriveRoomLayout) {
   const candidateSizes = entry?.sizeFlexible === true
     ? ROOM_CARD_SIZE_IDS
     : [String(entry?.value?.roomSize || entry?.value?.size || "medium").trim().toLowerCase()];
@@ -255,6 +255,7 @@ function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact) {
     const totalCost = calculateRoomCardUnitCost({
       card: candidateCard,
       priceList: priceListArtifact,
+      deriveRoomLayout,
     }).cost * count;
     const requirementSummary = entry?.sizeFlexible === true
       ? `requested affinities ${formatAffinityList(candidateCard.affinities)} at the smallest supported room size`
@@ -332,6 +333,7 @@ export function ensureBudgetedFulfillmentFeasible({
   delvers = [],
   wardens = [],
   priceListArtifact,
+  deriveRoomLayout,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return;
@@ -349,7 +351,7 @@ export function ensureBudgetedFulfillmentFeasible({
     throw error;
   }
 
-  const roomRequirements = rooms.map((entry, index) => assessBudgetedRoomRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
+  const roomRequirements = rooms.map((entry, index) => assessBudgetedRoomRequirement(entry, index + 1, priceListArtifact, deriveRoomLayout)).filter(Boolean);
   const delverRequirements = delvers.map((entry, index) => assessBudgetedDelverRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
   const wardenRequirements = wardens.map((entry, index) => assessBudgetedWardenRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
   const requirements = [...roomRequirements, ...delverRequirements, ...wardenRequirements];
@@ -527,6 +529,7 @@ function maximizeBudgetCappedRoomCard(card, {
   availableTokens,
   priceListArtifact,
   allowSizeTuning = false,
+  deriveRoomLayout,
 } = {}) {
   if (!allowSizeTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
     return card;
@@ -543,6 +546,7 @@ function maximizeBudgetCappedRoomCard(card, {
     const unitCost = calculateRoomCardUnitCost({
       card: candidateCard,
       priceList: priceListArtifact,
+      deriveRoomLayout,
     }).cost;
     const totalCost = unitCost * count;
     if (!Number.isInteger(totalCost) || totalCost <= 0 || totalCost > availableTokens) {
@@ -568,6 +572,7 @@ export function applyBudgetCappedFulfillment({
   delvers = [],
   priceListArtifact,
   budgetTokens,
+  deriveRoomLayout,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return {
@@ -591,6 +596,7 @@ export function applyBudgetCappedFulfillment({
     const roomTotal = nextRooms.reduce((sum, entry) => sum + calculateRoomCardUnitCost({
       card: entry.value,
       priceList: priceListArtifact,
+      deriveRoomLayout,
     }).cost * (entry?.value?.count || 1), 0);
     const delverTotal = nextDelvers.reduce((sum, entry) => sum + calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1), 0);
     return roomTotal + delverTotal;
@@ -600,6 +606,7 @@ export function applyBudgetCappedFulfillment({
     const currentCardCost = calculateRoomCardUnitCost({
       card: entry.value,
       priceList: priceListArtifact,
+      deriveRoomLayout,
     }).cost * (entry?.value?.count || 1);
     const otherCost = calculateCurrentTotal() - currentCardCost;
     const availableTokens = Math.max(0, budgetTokens - otherCost);
@@ -607,6 +614,7 @@ export function applyBudgetCappedFulfillment({
       availableTokens,
       priceListArtifact,
       allowSizeTuning: entry?.sizeFlexible === true,
+      deriveRoomLayout,
     });
   });
 

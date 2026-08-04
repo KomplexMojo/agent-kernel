@@ -632,6 +632,7 @@ export function calculateRoomCardUnitCost({
   card,
   priceList,
   tileCosts,
+  deriveRoomLayout,
 } = {}) {
   const roomCard = card && typeof card === "object"
     ? { ...card, type: "room", source: "room", count: 1 }
@@ -641,6 +642,7 @@ export function calculateRoomCardUnitCost({
     budgetTokens: undefined,
     priceList,
     tileCosts,
+    deriveRoomLayout,
   });
   return {
     cost: normalizePositiveInt(layoutSpend?.spentTokens, 0),
@@ -737,6 +739,7 @@ export function buildDesignSpendLedger({
   tileCosts,
   priceList,
   pricing = {},
+  deriveRoomLayout,
 } = {}) {
   const resolvedSummary = extractSummaryFromCardSet(summary || {});
   const warnings = [];
@@ -752,6 +755,7 @@ export function buildDesignSpendLedger({
       budgetTokens: Number.isInteger(budgetTokens) ? budgetTokens : undefined,
       priceList,
       tileCosts,
+      deriveRoomLayout,
     })
     : evaluateLayoutSpend({
       layout: resolvedSummary?.layout,

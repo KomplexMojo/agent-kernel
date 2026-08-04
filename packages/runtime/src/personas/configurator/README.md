@@ -34,6 +34,13 @@ At a high level, the Configurator:
 > `personas/allocator/spend-proposal.js`. Charter law is "the Allocator alone owns pricing" — this persona
 > assembles and validates structure, and the Allocator prices what it publishes.
 
+> **It DOES publish room geometry for the Allocator to price** (CR.9 M2). `deriveRoomLayout(cardSet)` on
+> the persona surface returns `{ floorTiles, connectorFloorTiles, billableFloorTiles }`. The SIZE → LAYOUT
+> table (small 24 / medium 48 / large 96, `card-model.js`) is Configurator geometry and stays here; the
+> Allocator receives this capability **injected at the composition root** and refuses to price a room card
+> without it (`allocator_room_geometry_required`) rather than deriving a second answer. Same wiring shape as
+> CR.6's `createActorPersona({ admitProposals: allocator.admitProposals })`, in the opposite direction.
+
 The simulation core (`core-ts`) remains the sole authority on rule enforcement and state mutation.
 
 ---

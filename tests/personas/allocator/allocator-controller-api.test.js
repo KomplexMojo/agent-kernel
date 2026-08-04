@@ -34,7 +34,13 @@ const PROPOSAL = Object.freeze({
 
 async function makeAllocator(options = {}) {
   const { createAllocatorPersona } = await import(`${P}persona.js`);
-  return createAllocatorPersona({ clock: () => "2026-07-18T00:00:00.000Z", ...options });
+  // CR.9 M2: room tile counts are Configurator geometry, injected into the Allocator
+  // at construction (mirroring CR.6's admitProposals). Production wires the real
+  // Configurator; so does this, rather than a stub, so the test exercises the
+  // capability the persona actually receives.
+  const { createConfiguratorPersona } = await import(`${P}../configurator/persona.js`);
+  const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-07-18T00:00:00.000Z" }).deriveRoomLayout;
+  return createAllocatorPersona({ clock: () => "2026-07-18T00:00:00.000Z", deriveRoomLayout, ...options });
 }
 
 // ── Tick interface unchanged ──

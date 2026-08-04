@@ -33,6 +33,7 @@
 import { ConfiguratorStates } from "./state-machine.js";
 import { prepareLevelGen as prepareLevelGenInput, mapResources as mapResourcesInput } from "./input-preparation.js";
 import { validateConfiguratorConfig } from "./config-validation.js";
+import { deriveLayoutFromRoomCards } from "./card-model.js";
 
 export class ConfiguratorStateError extends Error {
   constructor(message) {
@@ -212,6 +213,28 @@ export function attachConfiguratorServices({ fsm } = {}) {
     };
   }
 
+  /**
+   * Derive room geometry from a card set: `{ floorTiles, connectorFloorTiles,
+   * billableFloorTiles }`, or null when the set holds no room cards.
+   *
+   * CR.9 M2. The Allocator has to price room layouts, and it used to reach into
+   * `configurator/card-model.js` to work out how many tiles a card set is — reading
+   * the SIZE -> LAYOUT table (small 24, medium 48, large 96) that `card-model.js`
+   * explicitly records as Configurator geometry, not shared vocabulary. That is a
+   * persona computing structure it does not own, purely to have something to charge
+   * for.
+   *
+   * Publishing it here makes the Allocator a CONSUMER of the geometry instead of a
+   * second author of it, and the capability is INJECTED into the Allocator at the
+   * composition root — the same shape as CR.6's `admitProposals` going the other way
+   * (`createActorPersona({ admitProposals: allocator.admitProposals })`). Stateless
+   * and ungated on purpose: it reads a card set the caller already holds and touches
+   * no FSM state, so gating it behind provideConfig would be a label, not a rule.
+   */
+  function deriveRoomLayout(cardSet) {
+    return deriveLayoutFromRoomCards(cardSet);
+  }
+
   return {
     provideConfig,
     prepareLevelGen,
@@ -219,6 +242,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
     validate,
     lock,
     lockedConfig,
+    deriveRoomLayout,
     serviceContext,
   };
 }

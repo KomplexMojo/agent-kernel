@@ -51,5 +51,6 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     validate: services.validate,
     lock: services.lock,
     lockedConfig: services.lockedConfig,
+    deriveRoomLayout: services.deriveRoomLayout,
   };
 }

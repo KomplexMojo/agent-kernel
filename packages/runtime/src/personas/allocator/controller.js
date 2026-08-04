@@ -6,9 +6,16 @@ import { admitProposals } from "./proposal-admissibility.js";
 
 export const allocatorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
-export function createAllocatorPersona({ initialState = AllocatorStates.IDLE, clock, priceList, priceListMeta, from } = {}) {
+// CR.9 M2: `deriveRoomLayout` is the Configurator's room geometry, injected the way
+// CR.6 injects this persona's `admitProposals` into the Actor. Optional at
+// construction because most Allocator surfaces never price a room card; the ones
+// that do refuse loudly when it is absent (AllocatorRoomGeometryError) rather than
+// deriving a second answer of their own.
+export function createAllocatorPersona({
+  initialState = AllocatorStates.IDLE, clock, priceList, priceListMeta, from, deriveRoomLayout,
+} = {}) {
   const fsm = createAllocatorStateMachine({ initialState, clock, from });
-  const services = attachAllocatorServices({ fsm, priceList, priceListMeta, clock });
+  const services = attachAllocatorServices({ fsm, priceList, priceListMeta, clock, deriveRoomLayout });
 
   function view() {
     const snapshot = fsm.view();

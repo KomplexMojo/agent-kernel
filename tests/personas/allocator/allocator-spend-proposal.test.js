@@ -90,6 +90,10 @@ test("configurator prices room cards by layout only — affinities on room card 
   const { calculateRoomCardUnitCost } = await import(
     "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  // CR.9 M2: the Allocator no longer derives room geometry, it is handed the
+  // Configurator's.
+  const { createConfiguratorPersona } = await import("../../../packages/runtime/src/personas/configurator/persona.js");
+  const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
 
   const medium = calculateRoomCardUnitCost({
     card: {
@@ -105,6 +109,7 @@ test("configurator prices room cards by layout only — affinities on room card 
       ],
     },
     priceList: { items: [] },
+    deriveRoomLayout,
   });
 
   const large = calculateRoomCardUnitCost({
@@ -121,6 +126,7 @@ test("configurator prices room cards by layout only — affinities on room card 
       ],
     },
     priceList: { items: [] },
+    deriveRoomLayout,
   });
 
   assert.ok(medium.cost >= 0);

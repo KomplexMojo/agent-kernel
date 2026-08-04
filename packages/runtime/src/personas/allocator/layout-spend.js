@@ -3,8 +3,38 @@ import {
   LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
   LAYOUT_TILE_PRICE_IDS as SHARED_LAYOUT_TILE_PRICE_IDS,
 } from "../../contracts/domain-constants.js";
-import { deriveLayoutFromRoomCards } from "../configurator/card-model.js";
 import { buildPriceMap } from "./validate-spend.js";
+
+/**
+ * Raised when room-card spend is requested without the Configurator's geometry.
+ *
+ * CR.9 M2, decision D-o shape: REQUIRED AND THROWING, never a quiet fallback. The
+ * Allocator used to import `configurator/card-model.js#deriveLayoutFromRoomCards`
+ * and work out the tile count itself — pricing structure it does not own. Now the
+ * derivation is injected from the Configurator at the composition root, exactly as
+ * CR.6 injects `admitProposals` from the Allocator into the Actor.
+ *
+ * A default would defeat the point: a second, silently-diverging answer to "how big
+ * is this card set" is the CR.1 defect class, and it would be invisible because the
+ * output stays well-formed. So a missing capability is a construction error, loud.
+ */
+export class AllocatorRoomGeometryError extends Error {
+  constructor() {
+    super(
+      "Allocator cannot price a room card without the Configurator's geometry: pass "
+      + "{ deriveRoomLayout } from createConfiguratorPersona(). Room tile counts are "
+      + "Configurator geometry (card-model.js); the Allocator prices them, it does not "
+      + "derive them (finding CR.9).",
+    );
+    this.name = "AllocatorRoomGeometryError";
+    this.code = "allocator_room_geometry_required";
+  }
+}
+
+function requireRoomGeometry(deriveRoomLayout) {
+  if (typeof deriveRoomLayout !== "function") throw new AllocatorRoomGeometryError();
+  return deriveRoomLayout;
+}
 
 const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS;
 const DEFAULT_TILE_COSTS = SHARED_DEFAULT_LAYOUT_TILE_COSTS;
@@ -157,8 +187,9 @@ export function evaluateRoomCardLayoutSpend({
   budgetTokens,
   priceList,
   tileCosts,
+  deriveRoomLayout,
 } = {}) {
-  const layout = deriveLayoutFromRoomCards(cardSet);
+  const layout = requireRoomGeometry(deriveRoomLayout)(cardSet);
   if (!layout) {
     return {
       spentTokens: 0,
