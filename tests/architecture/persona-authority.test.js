@@ -47,8 +47,13 @@ const ROOT = resolve(__dirname, "../..");
 //     is G4 (persona-serialization-equivalence.test.js), 7/7.
 // PX.3 stays open: requireClock covers the 14 persona FACTORIES, but 18 non-factory
 // sites still default a clock (full census in single-origin.test.js).
+// CR.9 closed 2026-08-04 at M3: allocator/judges-not-authors is `owned`, proven by the
+// ablation gate in tests/personas/allocator/allocator-judges-not-authors.test.js, and
+// both Allocator->Configurator crossings are out of the allowlist. M4 (publishing the
+// reject reason codes) and M5 (the package close + benchmark) are follow-on work on a
+// finding that is no longer open, not residue of it.
 const OPEN_FINDINGS = Object.freeze([
-  "CR.1", "CR.4", "CR.7", "CR.9",
+  "CR.1", "CR.4", "CR.7",
   "PX.3", "PX.6",
 ]);
 

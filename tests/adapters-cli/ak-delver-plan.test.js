@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+// CR.9 M3: the Allocator refuses to price raw motivations without the Configurator's
+// vocabulary. Injected here exactly as the CLI composition root injects it.
+const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
 const { spawnSync } = require("node:child_process");
 const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
 const { resolve, join } = require("node:path");
@@ -266,6 +269,7 @@ const unitCost = calculateActorConfigurationUnitCost({
     vitals: card.vitals,
   },
   priceMap: normalizePriceItems(buildDefaultPriceList({ createdAt: "2026-04-09T00:00:00.000Z" })),
+  normalizeMotivations: await configuratorNormalizeMotivations(),
 }).cost;
 
 assert.equal(unitCost, 200);

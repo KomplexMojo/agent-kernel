@@ -6,16 +6,40 @@ import { admitProposals } from "./proposal-admissibility.js";
 
 export const allocatorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
-// CR.9 M2: `deriveRoomLayout` is the Configurator's room geometry, injected the way
-// CR.6 injects this persona's `admitProposals` into the Actor. Optional at
-// construction because most Allocator surfaces never price a room card; the ones
-// that do refuse loudly when it is absent (AllocatorRoomGeometryError) rather than
-// deriving a second answer of their own.
+// Three Configurator capabilities are injected here, the way CR.6 injects this
+// persona's `admitProposals` into the Actor. All three are optional at CONSTRUCTION
+// because most Allocator surfaces need none of them; the surfaces that do refuse
+// loudly when one is absent, rather than answering a Configurator question themselves:
+//
+//   deriveRoomLayout      CR.9 M2  room geometry        AllocatorRoomGeometryError
+//   authorCandidates      CR.9 M3  card assembly + validity
+//                                                       AllocatorCandidateAuthoringError
+//   normalizeMotivations  CR.9 M3  motivation vocabulary
+//                                                       AllocatorMotivationVocabularyError
+//
+// A default in any of them would be a second, silently-diverging author of a
+// chartered Configurator decision — the CR.1 defect class, and invisible because the
+// resulting price stays a well-formed number.
 export function createAllocatorPersona({
-  initialState = AllocatorStates.IDLE, clock, priceList, priceListMeta, from, deriveRoomLayout,
+  initialState = AllocatorStates.IDLE,
+  clock,
+  priceList,
+  priceListMeta,
+  from,
+  deriveRoomLayout,
+  authorCandidates,
+  normalizeMotivations,
 } = {}) {
   const fsm = createAllocatorStateMachine({ initialState, clock, from });
-  const services = attachAllocatorServices({ fsm, priceList, priceListMeta, clock, deriveRoomLayout });
+  const services = attachAllocatorServices({
+    fsm,
+    priceList,
+    priceListMeta,
+    clock,
+    deriveRoomLayout,
+    authorCandidates,
+    normalizeMotivations,
+  });
 
   function view() {
     const snapshot = fsm.view();

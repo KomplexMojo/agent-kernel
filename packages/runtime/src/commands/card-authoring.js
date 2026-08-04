@@ -43,11 +43,20 @@ import {
 // `createActorPersona({ admitProposals: allocator.admitProposals })`, and it goes
 // through the persona's PUBLIC surface — the D6 internal import above is a separate
 // disposition that this does not touch.
-const configuratorGeometry = createConfiguratorPersona({ clock: UNUSED_CLOCK }).deriveRoomLayout;
+// CR.9 M3 adds the other two capabilities from the same persona: candidate authoring
+// (card assembly, structural validity, enumeration) and the motivation vocabulary.
+// All three go through the Configurator's PUBLIC surface — the D6 internal import
+// above is a separate disposition that this does not touch.
+const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+const configuratorGeometry = configurator.deriveRoomLayout;
+const configuratorAuthoring = configurator.authorCandidates;
+const configuratorMotivations = configurator.normalizeMotivations;
 const allocatorFor = (priceList) => createAllocatorPersona({
   priceList,
   clock: UNUSED_CLOCK,
   deriveRoomLayout: configuratorGeometry,
+  authorCandidates: configuratorAuthoring,
+  normalizeMotivations: configuratorMotivations,
 });
 
 // CR.1 — the level-authoring economy is the ALLOCATOR's, not glue's. These were
@@ -1207,6 +1216,7 @@ function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
     pricing: {
       affinityCostScale: ROOM_AFFINITY_STACK_COST_FACTOR,
     },
+    normalizeMotivations: configuratorMotivations,
   });
   const affinityLineItems = Array.isArray(affinityCost?.detail?.lineItems)
     ? affinityCost.detail.lineItems.map((item, index) => ({
@@ -1238,6 +1248,7 @@ function calculateActorCardUnitValue(card, { priceList } = {}) {
       vitals: card?.vitals,
     },
     priceMap,
+    normalizeMotivations: configuratorMotivations,
   });
   const lineItems = Array.isArray(cost?.detail?.lineItems)
     ? cost.detail.lineItems.map((item, index) => ({
@@ -1407,6 +1418,7 @@ function buildSummaryFromCardSet({
     priceList,
     tileCosts,
     deriveRoomLayout: configuratorGeometry,
+    normalizeMotivations: configuratorMotivations,
   });
   return {
     summary: finalSummary,

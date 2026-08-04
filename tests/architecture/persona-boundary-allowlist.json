@@ -140,10 +140,6 @@
     "to": "packages/runtime/src/personas/orchestrator/llm-capture.js"
   },
   {
-    "from": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
-    "to": "packages/runtime/src/personas/configurator/cost-model.js"
-  },
-  {
     "from": "packages/runtime/src/personas/configurator/affinity-effects.js",
     "to": "packages/runtime/src/personas/moderator/affinity-target-effects.js"
   },
@@ -222,9 +218,5 @@
   {
     "from": "packages/ui-web/src/views/diagnostics-view.js",
     "to": "packages/runtime/src/personas/annotator/llm-trace.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/allocator/spend-proposal.js",
-    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
   }
 ]

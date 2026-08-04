@@ -48,7 +48,7 @@ function resolveActorCostEntry(selection) {
   return { vitals, affinities, motivations };
 }
 
-function deriveSelectionCost(selection, priceMap) {
+function deriveSelectionCost(selection, priceMap, normalizeMotivations) {
   const kind = selection?.kind;
   const appliedId = selection?.applied?.id || selection?.requested?.id;
   let baseCost = 0;
@@ -73,6 +73,7 @@ function deriveSelectionCost(selection, priceMap) {
       const computed = calculateActorConfigurationUnitCost({
         entry,
         priceMap,
+        normalizeMotivations,
       });
       configCost = isInteger(computed?.cost) && computed.cost > 0 ? computed.cost : 0;
       configDetail = computed?.detail;
@@ -101,7 +102,7 @@ function cloneSelectionWithCount(selection, count) {
   return next;
 }
 
-export function evaluateSelectionSpend({ selections = [], budgetTokens, priceList } = {}) {
+export function evaluateSelectionSpend({ selections = [], budgetTokens, priceList, normalizeMotivations } = {}) {
   const warnings = [];
   const decisions = [];
   const approvedSelections = [];
@@ -116,7 +117,7 @@ export function evaluateSelectionSpend({ selections = [], budgetTokens, priceLis
   let cheapestRequestedUnitCost = null;
   selections.forEach((selection, index) => {
     const requestedCount = deriveSelectionCount(selection);
-    const costInfo = deriveSelectionCost(selection, priceMap);
+    const costInfo = deriveSelectionCost(selection, priceMap, normalizeMotivations);
     const unitCost = costInfo.unitCost;
     const base = {
       index,

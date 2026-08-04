@@ -52,5 +52,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     lock: services.lock,
     lockedConfig: services.lockedConfig,
     deriveRoomLayout: services.deriveRoomLayout,
+    authorCandidates: services.authorCandidates,
+    normalizeMotivations: services.normalizeMotivations,
   };
 }

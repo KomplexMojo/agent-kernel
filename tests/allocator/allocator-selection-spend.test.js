@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+// CR.9 M3: selection spend prices raw actor motivations, and the Allocator refuses
+// without the Configurator's vocabulary — injected here exactly as production does.
+const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
@@ -10,6 +13,7 @@ const catalogFixture = JSON.parse(readFileSync(catalogPath, "utf8"));
 
 test("allocator selection spend trims over-budget selections deterministically", async () => {
 const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const normalizeMotivations = await configuratorNormalizeMotivations();
 const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
 
 const summary = {
@@ -19,7 +23,7 @@ const summary = {
 };
 
 const mapped = mapSummaryToPool({ summary, catalog: catalogFixture });
-const result = evaluateSelectionSpend({ selections: mapped.selections, budgetTokens: 250 });
+const result = evaluateSelectionSpend({ selections: mapped.selections, budgetTokens: 250, normalizeMotivations });
 
 assert.equal(result.spentTokens, 200);
 assert.equal(result.remainingBudgetTokens, 50);
@@ -30,6 +34,7 @@ assert.ok(result.warnings?.some((entry) => entry.code === "trimmed"));
 
 test("allocator selection spend approves selections when budget allows", async () => {
 const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const normalizeMotivations = await configuratorNormalizeMotivations();
 const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
 
 const summary = {
@@ -39,7 +44,7 @@ const summary = {
 };
 
 const mapped = mapSummaryToPool({ summary, catalog: catalogFixture });
-const result = evaluateSelectionSpend({ selections: mapped.selections, budgetTokens: 400 });
+const result = evaluateSelectionSpend({ selections: mapped.selections, budgetTokens: 400, normalizeMotivations });
 
 assert.equal(result.spentTokens, 280);
 assert.equal(result.remainingBudgetTokens, 120);
@@ -50,6 +55,7 @@ assert.equal(result.rejectedSelections.length, 0);
 
 test("allocator selection spend includes actor configuration costs", async () => {
 const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const normalizeMotivations = await configuratorNormalizeMotivations();
 const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
 const { buildDefaultPriceList } = await import("../../packages/runtime/src/personas/allocator/default-price-list.js");
 
@@ -73,6 +79,7 @@ const result = evaluateSelectionSpend({
   selections: mapped.selections,
   budgetTokens: 103,
   priceList: buildDefaultPriceList({ createdAt: "2026-07-20T00:00:00.000Z" }),
+  normalizeMotivations,
 });
 
 assert.equal(result.approvedSelections.length, 1);

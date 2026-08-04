@@ -146,11 +146,20 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "packages/runtime/src/personas/allocator/budget-fulfillment.js",
     invocation: "service",
     status: {
-      blockedBy: "CR.9",
+      owned: true,
       why:
-        "budget-fulfillment.js builds cards, fills vitals and encodes configuration validity "
-        + "rules — the Configurator's chartered role — so it imports Configurator internals to "
-        + "do it.",
+        "CR.9 M3 split the fused propose/judge loop across the persona line. Card assembly, "
+        + "structural validity and candidate enumeration moved to "
+        + "configurator/candidate-authoring.js; the Allocator receives them injected "
+        + "(authorCandidates, normalizeMotivations) and refuses without them — "
+        + "allocator_candidate_authoring_required / allocator_motivation_vocabulary_required. "
+        + "Both Allocator->Configurator import crossings are gone (allowlist 57 -> 55).",
+      provenBy: "tests/personas/allocator/allocator-judges-not-authors.test.js",
+      // The proof is the ABLATION, not the differential: feed the Allocator a stream
+      // whose only candidate is unaffordable and assert it hands the card back rather
+      // than composing one. Perturbation-verified against five restored defects; the
+      // results table lives in the test file's header and includes one perturbation
+      // (P1b) that is deliberately NOT detected because it is not the defect.
     },
   },
 

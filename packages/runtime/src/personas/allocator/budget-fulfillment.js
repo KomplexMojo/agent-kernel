@@ -6,27 +6,55 @@
  * is feasible under the budget (assessFeasibility → throws structured errors)
  * and (b) how large to grow each card to spend the budget (maximizeFulfillment).
  *
- * OWNERSHIP SPLIT (P2.3.4, maintainer decision D1): the *policy* — the search,
- * the fill, the feasibility verdict — lives HERE, in the Allocator. The *card
- * costing* it consults (calculateActorConfigurationUnitCost / calculateRoomCardUnitCost
- * / validateAffinityPrereqs / ROOM_CARD_SIZE_IDS) stays Configurator-owned; this
- * module imports it exactly as allocator/selection-spend.js already does. The
- * Allocator never authors a card's price — it asks the Configurator, then decides.
+ * ═══ CR.9 M3 — THE PROPOSE/JUDGE PROTOCOL ═══════════════════════════════════
  *
- * Relocated verbatim from adapters-cli/ak-impl.mjs (behavior-preserving; goldens
- * are the parity gate). Exposed to the CLI only through allocator-services.js →
- * the persona controller; nothing outside personas/allocator/ imports this file.
+ * The finding CR.9 named: "the Allocator prices a config it did not author" was
+ * FALSE here. This module built its own candidate cards, filled their vitals, and
+ * encoded configuration-validity rules — all chartered Configurator work — and then
+ * priced its own output. It imported `configurator/cost-model.js` and (through
+ * spend-proposal) `configurator/motivation-loadouts.js` precisely because it was
+ * doing the Configurator's job and needed the Configurator's rules to do it.
+ *
+ * The loop CR.9 asked for was not missing. It was FUSED, inside one function:
+ * propose `(manaRegen, manaMax)` → price → reject if over → revise → re-price →
+ * re-check. M3 is therefore an EXTRACTION, not an invention — the halves are now on
+ * opposite sides of the persona line:
+ *
+ *   Allocator    → Configurator   BudgetEnvelope         "spend up to this"
+ *   Configurator → Allocator      ConfigurationCandidate "here is a valid card"
+ *   Allocator    → Configurator   SpendVerdict           "approved at N / rejected"
+ *
+ * WHAT THIS MODULE STILL OWNS, and should: the cap (how many tokens this card gets),
+ * the verdict (what a candidate costs and whether that fits), the incumbent (which
+ * approved candidate is winning), and the infeasibility verdict. What it no longer
+ * owns: what a card IS, whether a card is valid, and which candidates exist.
+ *
+ * TIE-BREAKING WITHOUT LEARNING INTENT. Candidates carry an opaque `preference`
+ * tuple. This module compares it lexicographically as plain numbers and never learns
+ * that index 0 means "mana regen" — which is what keeps `optimizationGoals`
+ * (Director/Configurator intent) out of Allocator policy while reproducing today's
+ * exact ordering.
+ *
+ * TERMINATION is structural, not a timeout: the outer walk is a fixed single pass
+ * over a known card list, and the candidate list is finite because its bounds are
+ * pure functions of the cap. `assertJudgementBudget` is a backstop that must never
+ * fire; if it does, enumeration has stopped being cap-derived, which is a real defect.
+ *
+ * Behavior-preserving: enumeration order, bounds, fill rule and tie-break are
+ * reproduced exactly. Goldens are the parity gate.
  */
-import {
-  DEFAULT_ROOM_AFFINITY_EXPRESSION,
-  DEFAULT_VITALS,
-  ROOM_CARD_SIZE_IDS,
-  VITAL_KEYS,
-} from "../../contracts/domain-constants.js";
+// ROOM_CARD_SIZE_IDS is deliberately NOT imported any more: enumerating cards from
+// the size vocabulary was this module authoring configurations, and that enumeration
+// now belongs to configurator/candidate-authoring.js.
+import { DEFAULT_ROOM_AFFINITY_EXPRESSION } from "../../contracts/domain-constants.js";
 import { calculateActorConfigurationUnitCost, calculateRoomCardUnitCost } from "./spend-proposal.js";
-import { validateAffinityPrereqs } from "../configurator/cost-model.js";
 import { normalizePriceItems } from "./validate-spend.js";
 import { buildDefaultPriceList } from "./default-price-list.js";
+
+// Declared locally, mirroring SPEND_PROPOSAL_SCHEMA above it in this persona: no
+// runtime `.js` module imports `contracts/artifacts.ts`. The definition of record is
+// SPEND_VERDICT_SCHEMA in artifacts.ts; this must match it.
+const SPEND_VERDICT_SCHEMA = "agent-kernel/SpendVerdict";
 
 const AUTHORING_VALIDATION_OUTCOMES = Object.freeze({
   valid: "valid",
@@ -34,6 +62,50 @@ const AUTHORING_VALIDATION_OUTCOMES = Object.freeze({
   conflictingRequirements: "conflicting_requirements",
   insufficientBudget: "insufficient_budget",
 });
+
+/**
+ * Raised when budget work is requested without the Configurator's authoring surface.
+ *
+ * CR.9 M3, decision D-o shape: REQUIRED AND THROWING, never a quiet fallback — the
+ * same rule `AllocatorRoomGeometryError` enforces for room geometry, and for the same
+ * reason. A fallback that assembled cards here would restore the exact defect CR.9
+ * names, and it would be invisible: the maximizer would still return a well-formed
+ * card at a plausible price. So absence is a loud construction error.
+ *
+ * This refusal is the milestone's real detector. A differential ("does the Allocator
+ * agree with the Configurator?") is satisfiable by a façade that computes the right
+ * answer for the wrong reason — proven by M2's own perturbation test. A façade that
+ * authors its own fallback cannot refuse.
+ */
+export class AllocatorCandidateAuthoringError extends Error {
+  constructor() {
+    super(
+      "Allocator cannot maximize a budget without the Configurator's candidate "
+      + "authoring: pass { authorCandidates } from createConfiguratorPersona(). "
+      + "Assembling cards, filling vitals and deciding configuration validity are "
+      + "Configurator work (candidate-authoring.js); the Allocator prices what it is "
+      + "given and never authors what it prices (finding CR.9).",
+    );
+    this.name = "AllocatorCandidateAuthoringError";
+    this.code = "allocator_candidate_authoring_required";
+  }
+}
+
+function requireAuthoring(authorCandidates) {
+  if (
+    !authorCandidates
+    || typeof authorCandidates.proposeDelverCandidates !== "function"
+    || typeof authorCandidates.reviseDelverCandidate !== "function"
+    || typeof authorCandidates.proposeRoomCandidates !== "function"
+    || typeof authorCandidates.assessDelverStructure !== "function"
+    || typeof authorCandidates.buildMinimumDelverCard !== "function"
+    || typeof authorCandidates.buildBudgetEnvelope !== "function"
+    || typeof authorCandidates.readCardVitals !== "function"
+  ) {
+    throw new AllocatorCandidateAuthoringError();
+  }
+  return authorCandidates;
+}
 
 // Generic pure helpers, reproduced locally (the CLI keeps its own copies for its
 // many other call sites; these are trivial coercions, not domain constants).
@@ -55,40 +127,26 @@ function isNonEmptyString(value) {
 const allocatorPriceItems = (priceListArtifact) =>
   normalizePriceItems(priceListArtifact || buildDefaultPriceList({}));
 
-function hasNonStationaryMobilityMotivation(motivations = []) {
-  return motivations.some((motivation) => motivation === "random" || motivation === "exploring" || motivation === "patrolling");
+function cardCount(card) {
+  return Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
 }
 
-function requiresMovementStamina(card = null) {
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  return card?.type === "delver" || hasNonStationaryMobilityMotivation(motivations);
-}
-
-function cloneVitals(vitals = DEFAULT_VITALS) {
-  return VITAL_KEYS.reduce((acc, key) => {
-    const source = vitals?.[key] && typeof vitals[key] === "object"
-      ? vitals[key]
-      : DEFAULT_VITALS[key];
-    const max = Number.isInteger(source?.max) ? source.max : DEFAULT_VITALS[key].max;
-    const current = Number.isInteger(source?.current) ? source.current : max;
-    const regen = Number.isInteger(source?.regen) ? source.regen : DEFAULT_VITALS[key].regen;
-    acc[key] = {
-      current: Math.max(0, current),
-      max: Math.max(0, max),
-      regen: Math.max(0, regen),
-    };
-    return acc;
-  }, {});
-}
-
-function calculateDelverCardUnitCost(card, priceMap) {
+/**
+ * Price one delver-shaped card.
+ *
+ * The vitals are read through the Configurator's canonical reading rather than
+ * normalized here: "what are this card's vitals, with defaults applied" is a question
+ * about card shape, and card shape is not the Allocator's to answer.
+ */
+function calculateDelverCardUnitCost(card, priceMap, { authoring, normalizeMotivations }) {
   return calculateActorConfigurationUnitCost({
     entry: {
       motivations: Array.isArray(card?.motivations) ? card.motivations : [],
       affinities: Array.isArray(card?.affinities) ? card.affinities : [],
-      vitals: cloneVitals(card?.vitals),
+      vitals: authoring.readCardVitals(card?.vitals),
     },
     priceMap,
+    normalizeMotivations,
   }).cost;
 }
 
@@ -152,119 +210,50 @@ function formatAuthoringValidationMessage(commandName, validation) {
   return `${commandName} infeasible (${validation.outcome}): ${validation.summary}${details ? ` Blocking constraints: ${details}` : ""}`;
 }
 
-function toRequirementVitals(vitals = DEFAULT_VITALS) {
-  return VITAL_KEYS.reduce((acc, key) => {
-    const source = vitals?.[key] && typeof vitals[key] === "object"
-      ? vitals[key]
-      : DEFAULT_VITALS[key];
-    acc[key] = Number.isInteger(source?.max) ? source.max : 0;
-    return acc;
-  }, {});
-}
-
-function toRequirementRegen(vitals = DEFAULT_VITALS) {
-  return VITAL_KEYS.reduce((acc, key) => {
-    const source = vitals?.[key] && typeof vitals[key] === "object"
-      ? vitals[key]
-      : DEFAULT_VITALS[key];
-    acc[key] = Number.isInteger(source?.regen) ? source.regen : 0;
-    return acc;
-  }, {});
-}
-
-function buildMinimumRequiredDelverCard(card) {
-  const next = {
-    ...card,
-    vitals: cloneVitals(card?.vitals),
-  };
-  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
-
-  if (affinities.length > 0) {
-    next.vitals.mana.max = Math.max(next.vitals.mana.max, 1);
-    next.vitals.mana.current = next.vitals.mana.max;
-    next.vitals.mana.regen = Math.max(next.vitals.mana.regen, 1);
-  }
-  if (requiresMovementStamina(card)) {
-    next.vitals.stamina.regen = Math.max(next.vitals.stamina.regen, 1);
-  }
-
-  return next;
-}
-
-function collectBudgetedDelverConflictIssues(entry, delverIndex) {
-  const issues = [];
+/**
+ * Does this card's own configuration contradict itself?
+ *
+ * The QUESTION is the Configurator's and is asked through its authoring surface; what
+ * a contradiction MEANS for a budget stays here. Before M3 this function imported
+ * `configurator/cost-model.js#validateAffinityPrereqs` and encoded the movement-stamina
+ * rule inline — the Allocator deciding what a valid configuration is.
+ */
+function collectBudgetedDelverConflictIssues(entry, delverIndex, authoring) {
   if (entry?.vitalsFlexible === true) {
-    return issues;
+    return [];
   }
-
-  const card = entry?.value;
-  const path = `delver[${delverIndex}]`;
-  const vitals = cloneVitals(card?.vitals);
-  const prereqResult = validateAffinityPrereqs({
-    vitals: toRequirementVitals(vitals),
-    regen: toRequirementRegen(vitals),
-    affinities: Array.isArray(card?.affinities) ? card.affinities : [],
-    fieldBase: `${path}.affinities`,
+  return authoring.assessDelverStructure({
+    card: entry?.value,
+    path: `delver[${delverIndex}]`,
   });
-
-  prereqResult.errors.forEach((error) => {
-    if (error.code === "affinity_requires_mana") {
-      issues.push(createAuthoringValidationIssue({
-        code: error.code,
-        path: `${path}.vitals.mana.max`,
-        message: `${path} affinities require mana.max >= 1.`,
-      }));
-      return;
-    }
-    if (error.code === "affinity_requires_mana_regen") {
-      issues.push(createAuthoringValidationIssue({
-        code: error.code,
-        path: `${path}.vitals.mana.regen`,
-        message: `${path} affinities require mana.regen >= 1.`,
-      }));
-    }
-  });
-
-  if (requiresMovementStamina(card) && vitals?.stamina?.regen <= 0) {
-    issues.push(createAuthoringValidationIssue({
-      code: "movement_requires_stamina_regen",
-      path: `${path}.vitals.stamina.regen`,
-      message: `${path} movement requires stamina.regen >= 1.`,
-    }));
-  }
-
-  return issues;
 }
 
-function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact, deriveRoomLayout) {
-  const candidateSizes = entry?.sizeFlexible === true
-    ? ROOM_CARD_SIZE_IDS
-    : [String(entry?.value?.roomSize || entry?.value?.size || "medium").trim().toLowerCase()];
+function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact, deriveRoomLayout, authoring) {
+  const sizeFlexible = entry?.sizeFlexible === true;
+  const candidates = authoring.proposeRoomCandidates({
+    card: entry?.value,
+    sizeFlexible,
+    path: `room[${roomIndex}]`,
+  });
   let minimum = null;
 
-  candidateSizes.forEach((roomSize, sizeIndex) => {
-    if (!ROOM_CARD_SIZE_IDS.includes(roomSize)) {
-      return;
-    }
-    const candidateCard = {
-      ...entry.value,
-      size: roomSize,
-      roomSize,
-    };
-    const count = Number.isInteger(candidateCard?.count) && candidateCard.count > 0 ? candidateCard.count : 1;
+  candidates.forEach((candidate) => {
+    const candidateCard = candidate.card;
     const totalCost = calculateRoomCardUnitCost({
       card: candidateCard,
       priceList: priceListArtifact,
       deriveRoomLayout,
-    }).cost * count;
-    const requirementSummary = entry?.sizeFlexible === true
+    }).cost * cardCount(candidateCard);
+    const requirementSummary = sizeFlexible
       ? `requested affinities ${formatAffinityList(candidateCard.affinities)} at the smallest supported room size`
-      : `requested room size ${roomSize} with affinities ${formatAffinityList(candidateCard.affinities)}`;
+      : `requested room size ${candidateCard.roomSize} with affinities ${formatAffinityList(candidateCard.affinities)}`;
     const assessment = {
       path: `room[${roomIndex}]`,
       totalCost,
       requirementSummary,
-      sizeIndex,
+      // The Configurator's opaque ordering signal. Read as a number for the
+      // smallest-size tie-break; its MEANING is never interpreted here.
+      sizeIndex: candidate.preference[0],
     };
     if (!minimum || assessment.totalCost < minimum.totalCost || (
       assessment.totalCost === minimum.totalCost && assessment.sizeIndex < minimum.sizeIndex
@@ -276,11 +265,11 @@ function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact, deri
   return minimum;
 }
 
-function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) {
-  const candidateCard = buildMinimumRequiredDelverCard(entry.value);
-  const count = Number.isInteger(candidateCard?.count) && candidateCard.count > 0 ? candidateCard.count : 1;
+function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact, authoring, normalizeMotivations) {
+  const candidateCard = authoring.buildMinimumDelverCard(entry.value);
   const priceMap = allocatorPriceItems(priceListArtifact);
-  const totalCost = calculateDelverCardUnitCost(candidateCard, priceMap) * count;
+  const totalCost = calculateDelverCardUnitCost(candidateCard, priceMap, { authoring, normalizeMotivations })
+    * cardCount(candidateCard);
   const requirementParts = [];
   if (Array.isArray(candidateCard?.affinities) && candidateCard.affinities.length > 0) {
     requirementParts.push(`affinities ${formatAffinityList(candidateCard.affinities)}`);
@@ -299,11 +288,11 @@ function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) 
   };
 }
 
-function assessBudgetedWardenRequirement(entry, wardenIndex, priceListArtifact) {
+function assessBudgetedWardenRequirement(entry, wardenIndex, priceListArtifact, authoring, normalizeMotivations) {
   const card = entry?.value && typeof entry.value === "object" ? entry.value : {};
-  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
   const priceMap = allocatorPriceItems(priceListArtifact);
-  const totalCost = calculateDelverCardUnitCost(card, priceMap) * count;
+  const totalCost = calculateDelverCardUnitCost(card, priceMap, { authoring, normalizeMotivations })
+    * cardCount(card);
   const requirementParts = [];
   if (Array.isArray(card?.affinities) && card.affinities.length > 0) {
     requirementParts.push(`affinities ${formatAffinityList(card.affinities)}`);
@@ -334,12 +323,15 @@ export function ensureBudgetedFulfillmentFeasible({
   wardens = [],
   priceListArtifact,
   deriveRoomLayout,
+  authorCandidates,
+  normalizeMotivations,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return;
   }
+  const authoring = requireAuthoring(authorCandidates);
 
-  const conflictIssues = delvers.flatMap((entry, index) => collectBudgetedDelverConflictIssues(entry, index + 1));
+  const conflictIssues = delvers.flatMap((entry, index) => collectBudgetedDelverConflictIssues(entry, index + 1, authoring));
   if (conflictIssues.length > 0) {
     const validation = createAuthoringValidation({
       outcome: AUTHORING_VALIDATION_OUTCOMES.conflictingRequirements,
@@ -351,9 +343,9 @@ export function ensureBudgetedFulfillmentFeasible({
     throw error;
   }
 
-  const roomRequirements = rooms.map((entry, index) => assessBudgetedRoomRequirement(entry, index + 1, priceListArtifact, deriveRoomLayout)).filter(Boolean);
-  const delverRequirements = delvers.map((entry, index) => assessBudgetedDelverRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
-  const wardenRequirements = wardens.map((entry, index) => assessBudgetedWardenRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
+  const roomRequirements = rooms.map((entry, index) => assessBudgetedRoomRequirement(entry, index + 1, priceListArtifact, deriveRoomLayout, authoring)).filter(Boolean);
+  const delverRequirements = delvers.map((entry, index) => assessBudgetedDelverRequirement(entry, index + 1, priceListArtifact, authoring, normalizeMotivations)).filter(Boolean);
+  const wardenRequirements = wardens.map((entry, index) => assessBudgetedWardenRequirement(entry, index + 1, priceListArtifact, authoring, normalizeMotivations)).filter(Boolean);
   const requirements = [...roomRequirements, ...delverRequirements, ...wardenRequirements];
   const minimumRequiredTokens = requirements.reduce((sum, entry) => sum + entry.totalCost, 0);
 
@@ -373,6 +365,7 @@ export function ensureBudgetedFulfillmentFeasible({
   }
 }
 
+/** Lexicographic comparison of two opaque preference tuples. */
 function compareNumericTuple(left = [], right = []) {
   const length = Math.max(left.length, right.length);
   for (let index = 0; index < length; index += 1) {
@@ -385,41 +378,76 @@ function compareNumericTuple(left = [], right = []) {
   return 0;
 }
 
-function resolveDelverGoalOrder(goals = []) {
-  const ordered = [];
-  normalizeList(goals).forEach((goal) => {
-    if (goal?.kind === "maximize_vital_max" && goal?.vital === "mana") {
-      ordered.push("mana_max");
-      return;
-    }
-    if (goal?.kind === "maximize_vital_regen" && goal?.vital === "mana") {
-      ordered.push("mana_regen");
-    }
-  });
-  if (ordered.length > 0) return ordered;
-  return ["mana_max", "mana_regen"];
+function rejectVerdict(candidateId, reason) {
+  return {
+    schema: SPEND_VERDICT_SCHEMA,
+    schemaVersion: 1,
+    candidateId,
+    approved: false,
+    reason,
+  };
 }
 
-function fillFlexibleDelverVitals(vitals, remainingTokens) {
-  const next = cloneVitals(vitals);
-  let remaining = Number.isInteger(remainingTokens) ? remainingTokens : 0;
-  if (remaining <= 0) {
-    return next;
+/**
+ * Price exactly one candidate and return a verdict.
+ *
+ * This is the whole of the Allocator's half of the protocol. Note what it reads:
+ * `candidate.priceable` and nothing else. It never touches `candidate.card` — the
+ * assembled card is the Configurator's product, and the Allocator's only interest in
+ * it is handing it back if it wins.
+ *
+ * A rejection is a RESULT, not a `continue`. In the fused loop both over-cap outcomes
+ * were bare `continue` statements, so "why did this budget go unspent?" had no answer
+ * anywhere in the system. M4 promotes these reasons into published reject codes.
+ */
+function judgeCandidate(candidate, { priceMap, envelope }) {
+  const unitCost = calculateActorConfigurationUnitCost({
+    entry: {
+      normalizedMotivations: candidate.priceable.normalizedMotivations,
+      affinities: candidate.priceable.affinities,
+      vitals: candidate.priceable.vitals,
+    },
+    priceMap,
+  }).cost;
+
+  if (!Number.isInteger(unitCost) || unitCost <= 0) {
+    return rejectVerdict(candidate.candidateId, "not_priceable");
   }
-  if (remaining % 2 === 1) {
-    next.stamina.max += 1;
-    next.stamina.current = next.stamina.max;
-    remaining -= 1;
+  if (unitCost > envelope.perUnitCapTokens) {
+    return rejectVerdict(candidate.candidateId, "over_cap");
   }
-  if (remaining <= 0) {
-    return next;
+  return {
+    schema: SPEND_VERDICT_SCHEMA,
+    schemaVersion: 1,
+    candidateId: candidate.candidateId,
+    approved: true,
+    unitCostTokens: unitCost,
+    costTokens: unitCost * envelope.count,
+    remainingTokens: envelope.perUnitCapTokens - unitCost,
+  };
+}
+
+/**
+ * Backstop that must never fire.
+ *
+ * Deliberately NOT a copy of the Configurator's bound formula: replicating that here
+ * would rebuild the very coupling M3 removes, and it would go stale the moment the
+ * author's bounds change legitimately. It only has to be an upper bound a genuinely
+ * cap-derived enumeration cannot reach — today's is about
+ * `(sqrt(cap/5)+2)·(cap/2+1)`, comfortably under `cap²`.
+ *
+ * If this ever throws, enumeration has stopped being cap-derived and termination is
+ * no longer structural. That is a real defect and should be loud rather than slow.
+ */
+function assertJudgementBudget(judged, envelope) {
+  const ceiling = Math.max(4096, envelope.perUnitCapTokens * envelope.perUnitCapTokens);
+  if (judged > ceiling) {
+    throw new Error(
+      `Allocator judged ${judged} candidates for a per-unit cap of ${envelope.perUnitCapTokens}, `
+      + `exceeding the ${ceiling} backstop. Candidate enumeration is no longer bounded by the `
+      + "budget envelope, so the maximizer's termination is no longer structural (CR.9 M3).",
+    );
   }
-  const manaIncrease = Math.floor(remaining / 2);
-  if (manaIncrease > 0) {
-    next.mana.max += manaIncrease;
-    next.mana.current = next.mana.max;
-  }
-  return next;
 }
 
 function maximizeBudgetCappedDelverCard(card, {
@@ -427,98 +455,64 @@ function maximizeBudgetCappedDelverCard(card, {
   priceListArtifact,
   optimizationGoals = [],
   allowVitalTuning = false,
+  authoring,
+  path = "delver",
 } = {}) {
   if (!allowVitalTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
     return card;
   }
 
-  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
-  const perUnitBudget = Math.floor(availableTokens / count);
-  if (perUnitBudget <= 0) {
+  const envelope = authoring.buildBudgetEnvelope({ capTokens: availableTokens, count: cardCount(card) });
+  if (envelope.perUnitCapTokens <= 0) {
     return card;
   }
 
   const priceMap = allocatorPriceItems(priceListArtifact);
-  const goals = resolveDelverGoalOrder(optimizationGoals);
-  const baseVitals = cloneVitals(card?.vitals);
-  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-
-  if (affinities.length > 0) {
-    baseVitals.mana.max = Math.max(baseVitals.mana.max, 1);
-    baseVitals.mana.current = baseVitals.mana.max;
-    baseVitals.mana.regen = Math.max(baseVitals.mana.regen, 1);
-  }
-  if (requiresMovementStamina(card)) {
-    baseVitals.stamina.regen = Math.max(baseVitals.stamina.regen, 1);
-  }
-
-  const maximumManaRegen = Math.max(
-    baseVitals.mana.regen,
-    Math.floor(Math.sqrt(Math.max(0, perUnitBudget) / 5)) + 2,
-  );
-  const maximumMana = Math.max(
-    baseVitals.mana.max,
-    Math.floor(Math.max(0, perUnitBudget) / 2) + baseVitals.mana.max,
-  );
+  const candidates = authoring.proposeDelverCandidates({ card, envelope, optimizationGoals, path });
 
   let best = null;
-  for (let manaRegen = baseVitals.mana.regen; manaRegen <= maximumManaRegen; manaRegen += 1) {
-    for (let manaMax = baseVitals.mana.max; manaMax <= maximumMana; manaMax += 1) {
-      const candidateVitals = cloneVitals(baseVitals);
-      candidateVitals.mana.max = manaMax;
-      candidateVitals.mana.current = manaMax;
-      candidateVitals.mana.regen = manaRegen;
+  let judged = 0;
 
-      const candidateCost = calculateActorConfigurationUnitCost({
-        entry: {
-          motivations,
-          affinities,
-          vitals: candidateVitals,
-        },
-        priceMap,
-      }).cost;
-      if (!Number.isInteger(candidateCost) || candidateCost <= 0 || candidateCost > perUnitBudget) {
-        continue;
-      }
+  for (const candidate of candidates) {
+    judged += 1;
+    assertJudgementBudget(judged, envelope);
 
-      const filledVitals = fillFlexibleDelverVitals(candidateVitals, perUnitBudget - candidateCost);
-      const filledCost = calculateActorConfigurationUnitCost({
-        entry: {
-          motivations,
-          affinities,
-          vitals: filledVitals,
-        },
-        priceMap,
-      }).cost;
-      if (!Number.isInteger(filledCost) || filledCost <= 0 || filledCost > perUnitBudget) {
-        continue;
-      }
+    const verdict = judgeCandidate(candidate, { priceMap, envelope });
+    if (!verdict.approved) continue;
 
-      const goalTuple = goals.map((goal) => (
-        goal === "mana_regen"
-          ? filledVitals.mana.regen
-          : filledVitals.mana.max
-      ));
-      const candidate = {
-        card: {
-          ...card,
-          vitals: filledVitals,
-        },
-        totalCost: filledCost * count,
-        goalTuple,
-      };
-      if (!best) {
-        best = candidate;
-        continue;
-      }
-      if (candidate.totalCost !== best.totalCost) {
-        if (candidate.totalCost > best.totalCost) best = candidate;
-        continue;
-      }
-      if (compareNumericTuple(candidate.goalTuple, best.goalTuple) > 0) {
-        best = candidate;
-      }
+    // The revision round trip: the Allocator publishes the room still unspent and the
+    // Configurator decides what to do with it. The fill is price-dependent, so it
+    // cannot be offered up front without the author pricing — the one thing it must
+    // not do.
+    const revised = authoring.reviseDelverCandidate({
+      candidate,
+      remainingTokens: verdict.remainingTokens,
+      optimizationGoals,
+      path,
+    });
+    if (!revised) continue;
+
+    judged += 1;
+    assertJudgementBudget(judged, envelope);
+
+    const revisedVerdict = judgeCandidate(revised, { priceMap, envelope });
+    if (!revisedVerdict.approved) continue;
+
+    const contender = {
+      card: revised.card,
+      totalCost: revisedVerdict.costTokens,
+      preference: revised.preference,
+    };
+    if (!best) {
+      best = contender;
+      continue;
+    }
+    if (contender.totalCost !== best.totalCost) {
+      if (contender.totalCost > best.totalCost) best = contender;
+      continue;
+    }
+    if (compareNumericTuple(contender.preference, best.preference) > 0) {
+      best = contender;
     }
   }
 
@@ -530,21 +524,18 @@ function maximizeBudgetCappedRoomCard(card, {
   priceListArtifact,
   allowSizeTuning = false,
   deriveRoomLayout,
+  authoring,
+  path = "room",
 } = {}) {
   if (!allowSizeTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
     return card;
   }
-  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
+  const count = cardCount(card);
   let best = null;
 
-  ROOM_CARD_SIZE_IDS.forEach((roomSize, sizeIndex) => {
-    const candidateCard = {
-      ...card,
-      size: roomSize,
-      roomSize,
-    };
+  authoring.proposeRoomCandidates({ card, sizeFlexible: true, path }).forEach((candidate) => {
     const unitCost = calculateRoomCardUnitCost({
-      card: candidateCard,
+      card: candidate.card,
       priceList: priceListArtifact,
       deriveRoomLayout,
     }).cost;
@@ -552,15 +543,16 @@ function maximizeBudgetCappedRoomCard(card, {
     if (!Number.isInteger(totalCost) || totalCost <= 0 || totalCost > availableTokens) {
       return;
     }
-    const candidate = {
-      card: candidateCard,
+    const contender = {
+      card: candidate.card,
       totalCost,
-      sizeIndex,
+      preference: candidate.preference,
     };
-    if (!best || candidate.totalCost > best.totalCost || (
-      candidate.totalCost === best.totalCost && candidate.sizeIndex > best.sizeIndex
+    if (!best || contender.totalCost > best.totalCost || (
+      contender.totalCost === best.totalCost
+      && compareNumericTuple(contender.preference, best.preference) > 0
     )) {
-      best = candidate;
+      best = contender;
     }
   });
 
@@ -573,6 +565,8 @@ export function applyBudgetCappedFulfillment({
   priceListArtifact,
   budgetTokens,
   deriveRoomLayout,
+  authorCandidates,
+  normalizeMotivations,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return {
@@ -580,6 +574,7 @@ export function applyBudgetCappedFulfillment({
       delvers: delvers.map((entry) => ({ ...entry })),
     };
   }
+  const authoring = requireAuthoring(authorCandidates);
 
   const nextRooms = rooms.map((entry) => ({
     ...entry,
@@ -598,7 +593,9 @@ export function applyBudgetCappedFulfillment({
       priceList: priceListArtifact,
       deriveRoomLayout,
     }).cost * (entry?.value?.count || 1), 0);
-    const delverTotal = nextDelvers.reduce((sum, entry) => sum + calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1), 0);
+    const delverTotal = nextDelvers.reduce((sum, entry) => sum
+      + calculateDelverCardUnitCost(entry.value, priceMap, { authoring, normalizeMotivations })
+      * (entry?.value?.count || 1), 0);
     return roomTotal + delverTotal;
   };
 
@@ -615,11 +612,14 @@ export function applyBudgetCappedFulfillment({
       priceListArtifact,
       allowSizeTuning: entry?.sizeFlexible === true,
       deriveRoomLayout,
+      authoring,
+      path: `room[${roomIndex + 1}]`,
     });
   });
 
   nextDelvers.forEach((entry, delverIndex) => {
-    const currentCardCost = calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1);
+    const currentCardCost = calculateDelverCardUnitCost(entry.value, priceMap, { authoring, normalizeMotivations })
+      * (entry?.value?.count || 1);
     const otherCost = calculateCurrentTotal() - currentCardCost;
     const availableTokens = Math.max(0, budgetTokens - otherCost);
     nextDelvers[delverIndex].value = maximizeBudgetCappedDelverCard(entry.value, {
@@ -627,6 +627,8 @@ export function applyBudgetCappedFulfillment({
       priceListArtifact,
       optimizationGoals: entry.optimizationGoals,
       allowVitalTuning: entry?.vitalsFlexible === true,
+      authoring,
+      path: `delver[${delverIndex + 1}]`,
     });
   });
 

@@ -1,4 +1,8 @@
 const assert = require("node:assert/strict");
+// CR.9 M3: the budget loop's selection spend prices raw actor motivations, and the
+// Allocator refuses without the Configurator's vocabulary. Threaded in from here the
+// same way the CLI composition root threads it.
+const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
@@ -61,6 +65,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
   catalog: catalogFixture,
@@ -137,6 +142,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
   catalog: catalogFixture,
@@ -201,6 +207,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "phi4",
   catalog: catalogFixture,
@@ -266,6 +273,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "phi4",
   catalog: catalogFixture,
@@ -331,6 +339,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
   catalog: catalogFixture,
@@ -383,6 +392,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
   catalog: catalogFixture,

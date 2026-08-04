@@ -7,6 +7,7 @@ import { buildManualMoveAction } from "./manual-movement.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { createCore } from "../../../core-ts/src/index.ts";
@@ -1348,6 +1349,9 @@ export function createCommandKernel(host = {}) {
         actors: actorsInput.actors,
         proposalMeta: createMeta({ producedBy: "cli-configurator", runId }),
         receiptMeta: createMeta({ producedBy: "cli-configurator", runId }),
+        // CR.9 M3: motivation vocabulary is the Configurator's, injected here rather
+        // than owned a second time inside the Allocator's pricing.
+        normalizeMotivations: createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations,
       });
       budgetReceipt = spendResult.receipt;
     }
@@ -1953,6 +1957,7 @@ export function createCommandKernel(host = {}) {
           runId,
           clock: () => createdAt,
           producedBy: "orchestrator",
+          normalizeMotivations: createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations,
         });
         captures = loopResult.captures || [];
         loopTrace = loopResult.trace || null;

@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+// CR.9 M3: spend proposals price raw actor motivations, and the Allocator refuses
+// without the Configurator's vocabulary. Injected here exactly as production does.
+const { configuratorNormalizeMotivations } = require("../../helpers/configurator-capabilities.js");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { readFixture } = require("../../helpers/fixtures");
@@ -21,11 +24,13 @@ test("configurator builds spend proposals and validates receipts", async () => {
   const { buildSpendProposal, evaluateConfiguratorSpend } = await import(
     "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
 
   const basicLayout = { width: 9, height: 9, hazards: [{ x: 2, y: 2 }] };
   const basicActors = [{ id: "actor_one" }, { id: "actor_two" }];
 
   const builtProposal = buildSpendProposal({
+    normalizeMotivations,
     meta: proposalBasic.meta,
     layout: basicLayout,
     actors: basicActors,
@@ -34,6 +39,7 @@ test("configurator builds spend proposals and validates receipts", async () => {
   assert.deepEqual(builtProposal, proposalBasic);
 
   const evaluatedBasic = evaluateConfiguratorSpend({
+    normalizeMotivations,
     budget,
     priceList,
     layout: basicLayout,
@@ -53,6 +59,7 @@ test("configurator builds spend proposals and validates receipts", async () => {
   const overBudgetActors = Array.from({ length: 50 }, (_, idx) => ({ id: `actor_${idx}` }));
 
   const evaluatedOverBudget = evaluateConfiguratorSpend({
+    normalizeMotivations,
     budget,
     priceList,
     layout: overBudgetLayout,
@@ -79,6 +86,7 @@ test("configurator builds spend proposals and validates receipts", async () => {
   ];
 
   const builtVam = buildSpendProposal({
+    normalizeMotivations,
     meta: proposalVam.meta,
     actors: vamActors,
   });
@@ -138,8 +146,10 @@ test("configurator emits per-subject delver and warden attribution", async () =>
   const { buildSpendProposal } = await import(
     "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
 
   const proposal = buildSpendProposal({
+    normalizeMotivations,
     meta: {
       id: "proposal_actor_attribution",
       runId: "run_fixture",
@@ -161,8 +171,10 @@ test("configurator accounts for hazards and UI-authored resources", async () => 
   const { buildSpendProposal } = await import(
     "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
 
   const proposal = buildSpendProposal({
+    normalizeMotivations,
     meta: {
       id: "proposal_hazard_resource",
       runId: "run_fixture",

@@ -1132,6 +1132,11 @@ export async function runLlmBudgetLoop({
   optionsByPhase,
   wardenAffinities,
   layoutPhaseContext = "",
+  // CR.9 M3: selection spend prices raw actor motivations, and motivation vocabulary
+  // is Configurator law. It is threaded in from the composition root rather than
+  // imported here — the Orchestrator has no business importing the Configurator, and
+  // the Allocator no longer owns a second copy of the rules.
+  normalizeMotivations,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
@@ -1349,6 +1354,7 @@ export async function runLlmBudgetLoop({
       selections: actorSelections,
       budgetTokens: remainingBudgetTokens,
       priceList,
+      normalizeMotivations,
     });
 
     remainingBudgetTokens = actorSpend.remainingBudgetTokens;

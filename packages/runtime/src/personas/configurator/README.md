@@ -15,7 +15,7 @@ This document defines the Configurator as a **runtime composition and validation
 | Owns | Building coherent executable configuration artifacts |
 | Does not own | Runtime conflict resolution, tick execution, or simulation rule outcomes |
 | Primary inputs | Director plans, level-gen inputs, actor payloads, budget receipts |
-| Primary outputs | `SimConfigArtifact`, `InitialStateArtifact`, resource bundles |
+| Primary outputs | `SimConfigArtifact`, `InitialStateArtifact`, resource bundles, `ConfigurationCandidate`s for the Allocator to price |
 | Boundary | Prepares startup state; `core-ts` enforces rules after execution begins |
 
 ## Persona Scope
@@ -40,6 +40,25 @@ At a high level, the Configurator:
 > Allocator receives this capability **injected at the composition root** and refuses to price a room card
 > without it (`allocator_room_geometry_required`) rather than deriving a second answer. Same wiring shape as
 > CR.6's `createActorPersona({ admitProposals: allocator.admitProposals })`, in the opposite direction.
+
+> **It AUTHORS the candidates the Allocator prices** (CR.9 M3). `candidate-authoring.js`, published as
+> `authorCandidates` on the persona surface, owns card assembly (`readCardVitals`,
+> `fillFlexibleDelverVitals`, `buildMinimumDelverCard`), structural validity (`assessDelverStructure`) and
+> candidate enumeration (`proposeDelverCandidates` / `proposeRoomCandidates` / `reviseDelverCandidate`).
+> All of it previously lived in `allocator/budget-fulfillment.js`, where the budget maximizer built its own
+> cards and then priced them.
+>
+> The Configurator sees the **cap** (`BudgetEnvelope`) because its enumeration bounds are cap-derived and
+> termination depends on that; it never sees **prices**, or it would be pricing again. Each candidate
+> publishes a `priceable` projection — the only part the Allocator reads — plus an opaque `preference`
+> tuple that carries this persona's ordering intent without exposing what the positions mean.
+>
+> **Decision (c), settled 2026-08-04:** a card whose motivations contradict each other (same exclusive
+> group) is **never proposed**, so it is never priced and the maximizer will not grow it. Previously the
+> pricing path called `normalizeMotivations`, discarded its `ok`/`errors`, and silently costed the coerced
+> survivor. `normalizeMotivations` is also published on the persona surface for the legacy raw-data pricing
+> paths, which **still coerce** — that residue is recorded in `allocator/spend-proposal.js` and is not
+> closed by M3.
 
 The simulation core (`core-ts`) remains the sole authority on rule enforcement and state mutation.
 

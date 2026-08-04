@@ -7,6 +7,7 @@ import { buildAmbientAffinityPressure } from "../personas/configurator/affinity-
 import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../personas/configurator/affinity-rules.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { maximizeActorBudget } from "../personas/configurator/budget-maximizer.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { buildBudgetAllocation } from "../personas/allocator/budget-allocation.js";
@@ -17,6 +18,12 @@ import {
   DEFAULT_ROOM_CARD_AFFINITY,
   ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
 } from "../contracts/domain-constants.js";
+
+// CR.9 M3: spend proposals price raw actor motivations, and motivation vocabulary is
+// Configurator law. The Allocator no longer owns a copy of it, so this composition
+// root hands over the Configurator's own function — through the persona's PUBLIC
+// surface, unlike the internal build-geometry imports above.
+const configuratorMotivations = createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations;
 
 const SCHEMAS = Object.freeze({
   solverRequest: "agent-kernel/SolverRequest",
@@ -1517,6 +1524,7 @@ export async function orchestrateBuild({
         resources: configuratorResources,
         proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal_probe"),
         receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt_probe"),
+        normalizeMotivations: configuratorMotivations,
       });
       const probeRemaining = probeResult.receipt?.remaining ?? 0;
       const actorPoolRemaining = resolveActorPoolRemaining(probeResult.receipt);
@@ -1547,6 +1555,7 @@ export async function orchestrateBuild({
         affinityRules,
         proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal"),
         receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt"),
+        normalizeMotivations: configuratorMotivations,
       });
       spendProposal = spendResult.proposal;
       budgetReceipt = spendResult.receipt;

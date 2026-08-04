@@ -15,19 +15,29 @@
  * propose/judge protocol lands, so the protocol is not built across a cycle.
  * Behavior-preserving — goldens are the parity gate.
  *
- * ⚠️ ONE CROSSING REMAINS, DELIBERATELY: `normalizeMotivations` below still comes
- * from the Configurator. Callers pass RAW motivations (bare strings or `{kind}`
- * objects), so the normalization is load-bearing and cannot be dropped without
- * changing prices. **CR.9 M3 removes it** by having candidates arrive already
- * normalized — at which point the Allocator prices only published fields, which is
- * the whole point of the finding. `MOTIVATION_KIND_IDS` needed no crossing: it is a
- * re-export of the contracts vocabulary, so it is read from contracts directly.
+ * ✅ THE LAST CROSSING IS GONE (CR.9 M3). This module no longer imports
+ * `configurator/motivation-loadouts.js`. Two things replaced it:
+ *   1. Candidates from the Configurator's authoring surface arrive with
+ *      `normalizedMotivations` already published, so the maximizer path prices only
+ *      published fields — the property the finding is actually about.
+ *   2. The paths that still receive RAW actor data from glue (spend ledgers,
+ *      selection spend, `commands/card-authoring.js`) take the Configurator's
+ *      `normalizeMotivations` INJECTED, and refuse without it.
+ * `MOTIVATION_KIND_IDS` needed no crossing: it is a re-export of the contracts
+ * vocabulary, so it is read from contracts directly.
+ *
+ * ⚠️ RESIDUE, recorded rather than closed. Decision (c) was settled as "the author
+ * refuses; the pricer does not coerce": a card with contradictory motivations never
+ * becomes a ConfigurationCandidate, so the maximizer will not grow it. But on these
+ * raw-data paths `normalizeMotivations`'s `ok`/`errors` are still discarded and the
+ * coerced `value` is still priced. Conflicting motivations therefore remain silently
+ * costed outside the candidate path. That is a deliberate scope line for M3 — closing
+ * it changes prices and is benchmark-relevant — not an oversight.
  */
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "./validate-spend.js";
 import { createAllocatorPersona } from "./persona.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
-import { normalizeMotivations } from "../configurator/motivation-loadouts.js";
 import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
 import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
 import { extractSummaryFromCardSet } from "../director/summary-selections.js";
@@ -172,8 +182,46 @@ function extractAffinities(actor) {
   return entries;
 }
 
-function extractMotivations(actor) {
+/**
+ * Raised when the Allocator is asked to price raw motivations with no normalizer.
+ *
+ * CR.9 M3, decision D-o shape: REQUIRED AND THROWING, never a quiet fallback — the
+ * same rule `AllocatorRoomGeometryError` enforces for room geometry. Motivation
+ * vocabulary (which kinds exist, which are mutually exclusive, how intensity clamps)
+ * is Configurator law. An Allocator-side default would be a second, silently-diverging
+ * author of it, and the divergence would be invisible because the price stays a
+ * well-formed number. That is the CR.1 defect class exactly.
+ */
+export class AllocatorMotivationVocabularyError extends Error {
+  constructor() {
+    super(
+      "Allocator cannot price raw motivations without the Configurator's vocabulary: "
+      + "pass { normalizeMotivations } from createConfiguratorPersona(), or supply a "
+      + "candidate carrying `normalizedMotivations`. Motivation kinds and their "
+      + "exclusive groups are Configurator rules (motivation-loadouts.js); the "
+      + "Allocator prices them, it does not define them (finding CR.9).",
+    );
+    this.name = "AllocatorMotivationVocabularyError";
+    this.code = "allocator_motivation_vocabulary_required";
+  }
+}
+
+/**
+ * The motivations to charge for.
+ *
+ * A candidate authored by the Configurator publishes `normalizedMotivations`, and
+ * that field is taken as-is: it is the whole point of the propose/judge protocol that
+ * the Allocator reads published fields rather than re-deriving them. Everything else
+ * is raw glue data and needs the injected normalizer.
+ */
+function extractMotivations(actor, normalizeMotivations) {
+  if (Array.isArray(actor?.normalizedMotivations)) {
+    return actor.normalizedMotivations;
+  }
   const rawList = actor?.motivations || actor?.traits?.motivations;
+  if (typeof normalizeMotivations !== "function") {
+    throw new AllocatorMotivationVocabularyError();
+  }
   const { value } = normalizeMotivations(rawList);
   return value || [];
 }
@@ -257,7 +305,7 @@ function extractResourcePriceEntries(resource) {
   return [];
 }
 
-function buildSpendItems({ layoutData, actors, hazards, resources }) {
+function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMotivations }) {
   const counts = new Map();
   const hazardArray = Array.isArray(hazards) && hazards.length > 0
     ? hazards
@@ -375,7 +423,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources }) {
         });
       }
 
-      const motivations = extractMotivations(actor);
+      const motivations = extractMotivations(actor, normalizeMotivations);
       motivations.forEach((entry) => {
         const motivationId = MOTIVATION_KIND_IDS[entry.kind];
         if (!motivationId) return;
@@ -396,7 +444,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources }) {
   });
 }
 
-export function buildSpendProposal({ meta, layout, actors, hazards, resources } = {}) {
+export function buildSpendProposal({ meta, layout, actors, hazards, resources, normalizeMotivations } = {}) {
   const layoutData = readLayoutData(layout);
   const hazardArray = Array.isArray(hazards) ? hazards
     : Array.isArray(layoutData?.hazards) ? layoutData.hazards
@@ -404,7 +452,13 @@ export function buildSpendProposal({ meta, layout, actors, hazards, resources } 
   const resourceArray = Array.isArray(resources) && resources.length > 0
     ? resources
     : Array.isArray(layoutData?.resources) ? layoutData.resources : [];
-  const items = buildSpendItems({ layoutData, actors, hazards: hazardArray, resources: resourceArray });
+  const items = buildSpendItems({
+    layoutData,
+    actors,
+    hazards: hazardArray,
+    resources: resourceArray,
+    normalizeMotivations,
+  });
 
   return {
     schema: SPEND_PROPOSAL_SCHEMA,
@@ -424,8 +478,16 @@ export function evaluateConfiguratorSpend({
   allocation,
   proposalMeta,
   receiptMeta,
+  normalizeMotivations,
 } = {}) {
-  const proposal = buildSpendProposal({ meta: proposalMeta, layout, actors, hazards, resources });
+  const proposal = buildSpendProposal({
+    meta: proposalMeta,
+    layout,
+    actors,
+    hazards,
+    resources,
+    normalizeMotivations,
+  });
   const proposalRef = proposal?.meta?.id
     ? { id: proposal.meta.id, schema: proposal.schema, schemaVersion: proposal.schemaVersion }
     : undefined;
@@ -518,6 +580,7 @@ export function calculateActorConfigurationUnitCost({
   entry,
   priceMap,
   pricing = {},
+  normalizeMotivations,
 } = {}) {
   const { vitals, regen } = normalizeActorVitalsForCost(entry);
   const affinities = normalizeAffinityEntriesForCost(entry);
@@ -606,7 +669,7 @@ export function calculateActorConfigurationUnitCost({
     });
   });
 
-  const motivations = extractMotivations(entry);
+  const motivations = extractMotivations(entry, normalizeMotivations);
   const motivationResult = calculateMotivationStackCost(motivations, priceMap);
   const motivationCost = motivationResult.cost;
   lineItems.push(...motivationResult.lineItems);
@@ -740,6 +803,7 @@ export function buildDesignSpendLedger({
   priceList,
   pricing = {},
   deriveRoomLayout,
+  normalizeMotivations,
 } = {}) {
   const resolvedSummary = extractSummaryFromCardSet(summary || {});
   const warnings = [];
@@ -789,6 +853,7 @@ export function buildDesignSpendLedger({
         entry,
         priceMap,
         pricing: roomPricing,
+        normalizeMotivations,
       });
       const baseSpend = tokenHint * count;
       if (baseSpend > 0) {
@@ -825,6 +890,7 @@ export function buildDesignSpendLedger({
       entry,
       priceMap,
       pricing,
+      normalizeMotivations,
     });
     if (tokenHint > 0) {
       const actorBaseSpend = tokenHint * count;

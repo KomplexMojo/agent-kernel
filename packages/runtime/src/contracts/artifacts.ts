@@ -1114,6 +1114,149 @@ export interface SpendProposalV1 {
 
 export type SpendProposal = SpendProposalV1;
 
+// -------------------------------------------------------------------------
+// Propose / judge protocol (Allocator <-> Configurator) — CR.9 M3
+// -------------------------------------------------------------------------
+//
+// The finding: budget maximization was building its own cards. The Allocator
+// enumerated (manaRegen, manaMax) pairs, assembled candidate cards, filled their
+// vitals and encoded configuration-validity rules — the Configurator's chartered
+// role — and then priced the result. "The Allocator prices a config it did not
+// author" was false; it authored and then priced its own work.
+//
+// These three types are the exchange that makes it true. The negotiation loop was
+// already present, FUSED inside `maximizeBudgetCappedDelverCard`: propose -> price
+// -> reject -> revise -> re-price. M3 splits the halves across the persona line.
+//
+//   Allocator    -> Configurator   BudgetEnvelope         "spend up to this"
+//   Configurator -> Allocator      ConfigurationCandidate "here is a valid card"
+//   Allocator    -> Configurator   SpendVerdict           "approved at N / rejected because"
+//
+// THE CAP IS VISIBLE, THE PRICES ARE NOT. The Configurator must see the cap or its
+// enumeration is unbounded — today's bounds are budget-derived
+// (`floor(sqrt(perUnitBudget/5)) + 2`), and termination depends on that. It must NOT
+// see prices, or it is pricing again and nothing has changed. Cap-visible /
+// price-opaque is the only line that satisfies both, and it is what "prices what it
+// did not author" means operationally.
+//
+// WHY NO `meta`. ArtifactMeta is documented above as the metadata of *top-level*
+// artifacts, and these are neither top-level nor persisted: a single delver round
+// exchanges hundreds of candidates inside one pure, deterministic search. Stamping
+// each with an id and a `createdAt` would require a clock inside the maximizer —
+// which the charter forbids reading and which would make the search non-reproducible
+// — to produce identifiers nothing ever reads. They carry `schema`/`schemaVersion`
+// so the exchange is still versioned and discriminable.
+
+export const BUDGET_ENVELOPE_SCHEMA = "agent-kernel/BudgetEnvelope";
+
+/**
+ * Allocator -> Configurator. The spending room available for one card, and nothing
+ * else. Deliberately carries no prices, no price list and no line items.
+ */
+export interface BudgetEnvelopeV1 {
+  schema: typeof BUDGET_ENVELOPE_SCHEMA;
+  schemaVersion: 1;
+  /** Total tokens available for this card across all of its copies. */
+  capTokens: number;
+  /** Tokens available for a single copy (`floor(capTokens / count)`). */
+  perUnitCapTokens: number;
+  /** Copies of this card the cap has to cover. */
+  count: number;
+}
+
+export type BudgetEnvelope = BudgetEnvelopeV1;
+
+export const CONFIGURATION_CANDIDATE_SCHEMA = "agent-kernel/ConfigurationCandidate";
+
+/**
+ * Configurator -> Allocator. One structurally valid, fully assembled card the
+ * Allocator may price. The Configurator guarantees validity; the Allocator
+ * guarantees nothing about it except a verdict.
+ *
+ * `preference` is the Configurator's own ordering signal, and it is OPAQUE by
+ * design: the Allocator compares tuples lexicographically as plain numbers and
+ * never learns that index 0 means "mana regen". That is what keeps
+ * `optimizationGoals` — Director/Configurator intent — out of Allocator policy while
+ * still reproducing today's exact tie-breaking.
+ *
+ * `motivations` arrive NORMALIZED. Before M3 the Allocator imported the
+ * Configurator's `normalizeMotivations` to clean raw input mid-price; now the author
+ * publishes the normalized form and the Allocator prices only published fields.
+ */
+export interface ConfigurationCandidateV1 {
+  schema: typeof CONFIGURATION_CANDIDATE_SCHEMA;
+  schemaVersion: 1;
+  /** Stable identity of the candidate within its round (`delver[1]#12`). */
+  candidateId: string;
+  /**
+   * The assembled card, exactly as it should be handed back downstream if this
+   * candidate wins. Its `motivations` stay in the AUTHORED form the caller supplied.
+   */
+  card: Record<string, unknown>;
+  /**
+   * The published projection the Allocator is allowed to price, and the only part of
+   * the candidate it reads. `motivations` here are normalized by the Configurator, so
+   * the Allocator never runs the vocabulary rules itself.
+   */
+  priceable: {
+    normalizedMotivations: unknown[];
+    affinities: unknown[];
+    vitals: Record<string, unknown>;
+  };
+  /** Opaque ordering signal, compared lexicographically by the Allocator. */
+  preference: number[];
+}
+
+export type ConfigurationCandidate = ConfigurationCandidateV1;
+
+export const SPEND_VERDICT_SCHEMA = "agent-kernel/SpendVerdict";
+
+/**
+ * Reject reasons. Kept as a closed union so a verdict cannot carry an
+ * unclassifiable refusal; M4 promotes `AUTHORING_VALIDATION_OUTCOMES` into this set.
+ */
+export type SpendVerdictRejectReason =
+  | "over_cap"
+  | "not_priceable"
+  | "invalid_requirements"
+  | "conflicting_requirements";
+
+/**
+ * Allocator -> Configurator. The judgement on exactly one candidate.
+ *
+ * A rejection is a first-class result, not a `continue`. In the fused loop both
+ * over-cap outcomes were bare `continue` statements, so "why did the budget not get
+ * spent" had no answer anywhere in the system.
+ */
+export interface SpendVerdictV1 {
+  schema: typeof SPEND_VERDICT_SCHEMA;
+  schemaVersion: 1;
+  candidateId: string;
+  approved: boolean;
+  /** Cost of one copy. Present only when approved. */
+  unitCostTokens?: number;
+  /** Total token cost across all copies (`unitCostTokens × count`). Approved only. */
+  costTokens?: number;
+  /**
+   * Tokens still unspent under the per-unit cap (`perUnitCapTokens - unitCostTokens`).
+   *
+   * This is what makes revision a ROUND TRIP rather than a field. Today's fill step
+   * spends `perUnitBudget - candidateCost` on stamina/mana, so the revised card is a
+   * function of the PRICE — the Configurator cannot supply it up front without
+   * pricing. So the Allocator judges, publishes the remaining room, and asks the
+   * Configurator to revise; the Allocator still never assembles a card.
+   *
+   * Publishing a remainder does not breach the price-opaque rule in any way that
+   * matters: remaining budget is a spend fact, which is the Allocator's to state, and
+   * it is the same class of disclosure as the cap itself.
+   */
+  remainingTokens?: number;
+  /** Why the candidate was refused. Present only when rejected. */
+  reason?: SpendVerdictRejectReason;
+}
+
+export type SpendVerdict = SpendVerdictV1;
+
 // -------------------------
 // Price list (Orchestrator → Allocator)
 // -------------------------

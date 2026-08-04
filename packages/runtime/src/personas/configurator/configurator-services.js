@@ -34,6 +34,16 @@ import { ConfiguratorStates } from "./state-machine.js";
 import { prepareLevelGen as prepareLevelGenInput, mapResources as mapResourcesInput } from "./input-preparation.js";
 import { validateConfiguratorConfig } from "./config-validation.js";
 import { deriveLayoutFromRoomCards } from "./card-model.js";
+import { normalizeMotivations } from "./motivation-loadouts.js";
+import {
+  assessDelverStructure,
+  buildBudgetEnvelope,
+  buildMinimumDelverCard,
+  cloneVitals,
+  proposeDelverCandidates,
+  proposeRoomCandidates,
+  reviseDelverCandidate,
+} from "./candidate-authoring.js";
 
 export class ConfiguratorStateError extends Error {
   constructor(message) {
@@ -235,6 +245,31 @@ export function attachConfiguratorServices({ fsm } = {}) {
     return deriveLayoutFromRoomCards(cardSet);
   }
 
+  /**
+   * The candidate-authoring surface the Allocator's budget maximizer consumes (CR.9
+   * M3). Assembly, structural validity and enumeration order all live behind here;
+   * the Allocator receives it injected and prices what it is given.
+   *
+   * Stateless and ungated for the same reason `deriveRoomLayout` is: these are pure
+   * functions of a card the caller already holds, touching no FSM state, so gating
+   * them behind provideConfig would be a label rather than a rule — and the charter
+   * calls label-only states a defect.
+   */
+  const authorCandidates = Object.freeze({
+    buildBudgetEnvelope,
+    proposeDelverCandidates,
+    reviseDelverCandidate,
+    proposeRoomCandidates,
+    assessDelverStructure,
+    buildMinimumDelverCard,
+    /**
+     * "What are this card's vitals, with defaults applied?" — a question about card
+     * shape, which is why the Allocator asks it rather than answering it. It priced
+     * cards through its own copy of this before M3.
+     */
+    readCardVitals: cloneVitals,
+  });
+
   return {
     provideConfig,
     prepareLevelGen,
@@ -243,6 +278,18 @@ export function attachConfiguratorServices({ fsm } = {}) {
     lock,
     lockedConfig,
     deriveRoomLayout,
+    authorCandidates,
+    /**
+     * Motivation vocabulary, published so the Allocator stops importing it (CR.9 M3).
+     *
+     * The candidate path above hands over motivations already normalized, which is the
+     * real fix. This exists for the pricing paths that still receive RAW actor data
+     * straight from glue — spend ledgers, selection spend, `commands/card-authoring.js`
+     * — where the normalization is load-bearing and dropping it would change prices.
+     * Those callers now get the Configurator's own function rather than the Allocator
+     * owning a second copy of the exclusive-group rules.
+     */
+    normalizeMotivations,
     serviceContext,
   };
 }

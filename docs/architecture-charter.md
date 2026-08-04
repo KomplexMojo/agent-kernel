@@ -185,19 +185,31 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
   forbidden: an incomplete price list is a structured error, never a quiet default.
 - Receipts (`BudgetReceiptArtifact`) are issued only by the Allocator and are the audit trail for
   every spend. Budget maximization ("spend the rest") is Allocator policy, not adapter code.
-- **The Allocator JUDGES; it does not AUTHOR (decided 2026-07-29, not yet implemented — Plan CR.9).**
-  Pricing authority does not extend to building the thing being priced. Today
-  `personas/allocator/budget-fulfillment.js` constructs and grows cards (`buildMinimumRequiredDelverCard`,
-  `fillFlexibleDelverVitals`, `maximize*Card`) and encodes configuration *validity* rules such as "a
-  mobility motivation requires stamina" — all of which is Configurator work, and is the reason the
-  Allocator imports Configurator internals at all. The import is the symptom; the mis-assignment is the
-  cause. **Target protocol:** the Configurator assembles a candidate configuration; the Allocator prices
-  it against the price list and returns *approve* or *reject with a structured reason*; the Configurator
-  revises. Maximization becomes a bounded, deterministic negotiation rather than a monolith inside the
-  Allocator. The exchange is by versioned artifact (rule 5), so the Allocator reads published artifact
-  fields and never Configurator functions — which is what allows the boundary allowlist to reach zero
-  without a carve-out. This **supersedes** the P2.3.4 D1 decision ("Configurator keeps costing, Allocator
-  consults"): D1 asked who owns *costing* when the real seam is who *authors* versus who *judges*.
+- **The Allocator JUDGES; it does not AUTHOR (decided 2026-07-29; ENFORCED 2026-08-04, Plan CR.9 M3).**
+  Pricing authority does not extend to building the thing being priced. `budget-fulfillment.js` used to
+  construct and grow cards (`buildMinimumRequiredDelverCard`, `fillFlexibleDelverVitals`, `maximize*Card`)
+  and encode configuration *validity* rules such as "a mobility motivation requires stamina" — all
+  Configurator work, and the reason the Allocator imported Configurator internals at all. The import was
+  the symptom; the mis-assignment was the cause.
+  **The protocol, now in force:** the Configurator assembles a candidate configuration
+  (`configurator/candidate-authoring.js`); the Allocator prices it and returns *approve with a cost* or
+  *reject with a structured reason*; the Configurator revises. The exchange uses versioned contracts
+  (rule 5) — `BudgetEnvelope`, `ConfigurationCandidate`, `SpendVerdict` in `contracts/artifacts.ts` — and
+  the Allocator reads only a candidate's published `priceable` projection, never a Configurator function.
+  Maximization is a bounded deterministic negotiation, not a monolith inside the Allocator.
+  Three rules make this checkable rather than aspirational:
+  1. **The cap is visible; prices are not.** The Configurator must see the budget or its enumeration is
+     unbounded and termination stops being structural. It must never see prices, or it is pricing again.
+  2. **Capabilities are injected and their absence is a loud error, never a default.**
+     `authorCandidates` and `normalizeMotivations` are passed from the Configurator's public surface at
+     the composition root; missing ones raise `allocator_candidate_authoring_required` /
+     `allocator_motivation_vocabulary_required`. A default would be a second, silently-diverging author of
+     a chartered decision — invisible, because the resulting price stays well-formed.
+  3. **Ordering intent stays opaque.** Candidates carry a numeric `preference` tuple that the Allocator
+     compares lexicographically without learning what any index means, which keeps `optimizationGoals`
+     out of Allocator policy.
+  This **supersedes** the P2.3.4 D1 decision ("Configurator keeps costing, Allocator consults"): D1 asked
+  who owns *costing* when the real seam is who *authors* versus who *judges*.
 - `core-ts` may hold invariant enforcement only (caps, spend accounting) fed by Allocator-provided
   data — never prices, tiers, or policy.
 

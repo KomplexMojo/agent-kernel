@@ -35,7 +35,15 @@ export class AllocatorStateError extends Error {
   }
 }
 
-export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock, deriveRoomLayout } = {}) {
+export function attachAllocatorServices({
+  fsm,
+  priceList,
+  priceListMeta,
+  clock,
+  deriveRoomLayout,
+  authorCandidates,
+  normalizeMotivations,
+} = {}) {
   let resolvedPriceList = null;
   let registeredBudget = null;
   let receiptCount = 0;
@@ -185,12 +193,25 @@ export function attachAllocatorServices({ fsm, priceList, priceListMeta, clock, 
   // CR.9 M2: both price ROOM cards, so both need the Configurator's geometry
   // threaded down to calculateRoomCardUnitCost. Injected at construction; an
   // explicit per-call value still wins.
+  // CR.9 M3: both also ASSEMBLE cards — candidate enumeration for the maximizer,
+  // minimum-viable cards and structural validity for the assessor — so both take the
+  // Configurator's authoring surface the same way, and refuse without it.
   function assessFeasibility(args = {}) {
-    return ensureBudgetedFulfillmentFeasible({ deriveRoomLayout, ...args });
+    return ensureBudgetedFulfillmentFeasible({
+      deriveRoomLayout,
+      authorCandidates,
+      normalizeMotivations,
+      ...args,
+    });
   }
 
   function maximizeFulfillment(args = {}) {
-    return applyBudgetCappedFulfillment({ deriveRoomLayout, ...args });
+    return applyBudgetCappedFulfillment({
+      deriveRoomLayout,
+      authorCandidates,
+      normalizeMotivations,
+      ...args,
+    });
   }
 
   /** Serializable service-side context merged into the persona view. */

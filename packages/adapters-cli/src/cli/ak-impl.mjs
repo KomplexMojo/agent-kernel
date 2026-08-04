@@ -1484,10 +1484,20 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
 // `createActorPersona({ admitProposals: allocator.admitProposals })`, one persona's
 // capability injected into another at the composition root, through public surfaces
 // on both sides.
-const configuratorGeometry = createConfiguratorPersona({ clock: UNUSED_CLOCK }).deriveRoomLayout;
+// CR.9 M3: the maximizer also ASSEMBLES cards and the assessor decides configuration
+// validity, so the Configurator's candidate-authoring surface and motivation
+// vocabulary are injected alongside the geometry. The Allocator refuses all three
+// jobs without them rather than answering a Configurator question itself.
+const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+const configuratorGeometry = configurator.deriveRoomLayout;
 
 function allocatorWithGeometry() {
-  return createAllocatorPersona({ clock: UNUSED_CLOCK, deriveRoomLayout: configuratorGeometry });
+  return createAllocatorPersona({
+    clock: UNUSED_CLOCK,
+    deriveRoomLayout: configuratorGeometry,
+    authorCandidates: configurator.authorCandidates,
+    normalizeMotivations: configurator.normalizeMotivations,
+  });
 }
 
 function ensureBudgetedFulfillmentFeasible(args) {

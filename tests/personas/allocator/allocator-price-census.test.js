@@ -14,6 +14,9 @@
  * than the same payload bolted to an actor.
  */
 const assert = require("node:assert/strict");
+// CR.9 M3: the Allocator refuses to price raw motivations without the Configurator's
+// vocabulary. Injected here exactly as production injects it.
+const { configuratorNormalizeMotivations } = require("../../helpers/configurator-capabilities.js");
 
 const P = "../../../packages/runtime/src/personas/";
 
@@ -33,6 +36,7 @@ async function load() {
   const { normalizePriceItems } = await import(`${P}allocator/validate-spend.js`);
   const { calculateMotivationStackCost } = await import(`${P}allocator/motivation-price-policy.js`);
   const { calculateActorConfigurationUnitCost } = await import(`${P}allocator/spend-proposal.js`);
+  const normalizeMotivations = await configuratorNormalizeMotivations();
   const { maximizeActorBudget } = await import(`${P}configurator/budget-maximizer.js`);
   const priceList = buildDefaultPriceList();
   return {
@@ -42,6 +46,7 @@ async function load() {
     applyFormula,
     calculateMotivationStackCost,
     calculateActorConfigurationUnitCost,
+    normalizeMotivations,
     maximizeActorBudget,
   };
 }
@@ -75,8 +80,8 @@ test("site 1: price-list unit costs and formulas for the census card's component
 // ── Site 2 CONVERGED: actor costing == the list, line for line ──
 
 test("site 2 == site 1: the census card costs 77, every line at list price", async () => {
-  const { calculateActorConfigurationUnitCost, priceMap, item, applyFormula } = await load();
-  const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap });
+  const { calculateActorConfigurationUnitCost, priceMap, item, applyFormula, normalizeMotivations } = await load();
+  const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap, normalizeMotivations });
   assert.equal(r.errors, undefined);
   assert.equal(r.cost, 77, "28 vitals + 5 regen + 39 affinity + 5 motivations");
   const by = (id) => r.detail.lineItems.find((l) => l.id === id);
@@ -98,8 +103,8 @@ test("site 2 == site 1: the census card costs 77, every line at list price", asy
 });
 
 test("fail-loud: an empty price map yields structured errors, not the old 236-token fallback", async () => {
-  const { calculateActorConfigurationUnitCost } = await load();
-  const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap: new Map() });
+  const { calculateActorConfigurationUnitCost, normalizeMotivations } = await load();
+  const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap: new Map(), normalizeMotivations });
   assert.ok(Array.isArray(r.errors) && r.errors.length > 0, "errors reported");
   assert.notEqual(r.cost, 236, "fallback economy must not resurface");
 });

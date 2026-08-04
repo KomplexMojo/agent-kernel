@@ -1,9 +1,13 @@
 const assert = require("node:assert/strict");
+// CR.9 M3: ledgers price raw actor motivations, and the Allocator refuses without the
+// Configurator's vocabulary. Injected here exactly as production injects it.
+const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
 
 test("buildDesignSpendLedger computes level, actor base, and actor config categories", async () => {
   const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
 
   const summary = {
     budgetTokens: 1000,
@@ -29,6 +33,7 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
   ];
 
   const ledger = buildDesignSpendLedger({
+    normalizeMotivations,
     summary,
     actorSet,
     budgeting: {
@@ -53,8 +58,10 @@ test("buildDesignSpendLedger flags over-budget totals", async () => {
   const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
 
   const ledger = buildDesignSpendLedger({
+    normalizeMotivations,
     summary: {
       budgetTokens: 100,
       layout: { floorTiles: 120, hallwayTiles: 60 },
@@ -70,8 +77,10 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
   const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
 
   const ledger = buildDesignSpendLedger({
+    normalizeMotivations,
     summary: {
       budgetTokens: 1000,
       layout: { floorTiles: 10, hallwayTiles: 10 },
@@ -123,8 +132,10 @@ test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by coun
   const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
 
   const ledger = buildDesignSpendLedger({
+    normalizeMotivations,
     summary: {
       budgetTokens: 77000,
       layout: {},
@@ -183,6 +194,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
   const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
   // CR.9 M2: the Allocator prices room geometry, it does not derive it — the
   // Configurator's derivation is injected, as production wires it.
   const { createConfiguratorPersona } = await import(
@@ -191,6 +203,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
   const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
 
   const low = buildDesignSpendLedger({
+    normalizeMotivations,
     summary: {
       dungeonAffinity: "fire",
       budgetTokens: 500,
@@ -202,6 +215,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
   });
 
   const high = buildDesignSpendLedger({
+    normalizeMotivations,
     summary: {
       dungeonAffinity: "fire",
       budgetTokens: 500,
@@ -221,6 +235,7 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
   const { buildDesignSpendLedger } = await import(
     "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
   // CR.9 M2: the Allocator prices room geometry, it does not derive it — the
   // Configurator's derivation is injected, as production wires it.
   const { createConfiguratorPersona } = await import(
@@ -229,6 +244,7 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
   const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
 
   const ledger = buildDesignSpendLedger({
+    normalizeMotivations,
     summary: {
       budgetTokens: 1000,
       cardSet: [

@@ -17,6 +17,11 @@
  * the g1/g3 maximize goldens; this file pins the persona surface itself.
  */
 const assert = require("node:assert/strict");
+// CR.9 M3: the maximizer and the feasibility assessor both consume the Configurator's
+// candidate authoring, and refuse without it. This wires the real capabilities, the
+// same ones production wires — a stub here would be the second implementation the
+// refusal exists to prevent.
+const { configuratorCapabilities } = require("../../helpers/configurator-capabilities.js");
 
 const P = "../../../packages/runtime/src/personas/";
 
@@ -28,6 +33,7 @@ test("maximizeFulfillment grows a vitals-flexible delver toward the budget (stat
   const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
   const { buildDefaultPriceList } = await import(`${P}allocator/default-price-list.js`);
   const { UNUSED_CLOCK } = await import(`${P}_shared/require-clock.js`);
+  const capabilities = await configuratorCapabilities();
   const priceListArtifact = buildDefaultPriceList();
 
   const base = {
@@ -43,7 +49,7 @@ test("maximizeFulfillment grows a vitals-flexible delver toward the budget (stat
   };
 
   // Fresh persona in IDLE — no registerBudget: the surface is state-free policy.
-  const result = createAllocatorPersona({ clock: UNUSED_CLOCK }).maximizeFulfillment({
+  const result = createAllocatorPersona({ clock: UNUSED_CLOCK, ...capabilities }).maximizeFulfillment({
     rooms: [],
     delvers: [delverEntry(base, { vitalsFlexible: true })],
     priceListArtifact,
@@ -57,7 +63,7 @@ test("maximizeFulfillment grows a vitals-flexible delver toward the budget (stat
   assert.equal(base.vitals.mana.max, 0, "input card must not be mutated in place");
 
   // Deterministic: identical inputs → identical grown card.
-  const again = createAllocatorPersona({ clock: UNUSED_CLOCK }).maximizeFulfillment({
+  const again = createAllocatorPersona({ clock: UNUSED_CLOCK, ...capabilities }).maximizeFulfillment({
     rooms: [],
     delvers: [delverEntry(base, { vitalsFlexible: true })],
     priceListArtifact,
@@ -70,6 +76,7 @@ test("maximizeFulfillment leaves a non-flexible delver untouched", async () => {
   const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
   const { buildDefaultPriceList } = await import(`${P}allocator/default-price-list.js`);
   const { UNUSED_CLOCK } = await import(`${P}_shared/require-clock.js`);
+  const capabilities = await configuratorCapabilities();
   const priceListArtifact = buildDefaultPriceList();
 
   const fixed = {
@@ -84,7 +91,7 @@ test("maximizeFulfillment leaves a non-flexible delver untouched", async () => {
     affinities: [],
   };
 
-  const result = createAllocatorPersona({ clock: UNUSED_CLOCK }).maximizeFulfillment({
+  const result = createAllocatorPersona({ clock: UNUSED_CLOCK, ...capabilities }).maximizeFulfillment({
     rooms: [],
     delvers: [delverEntry(fixed)], // vitalsFlexible omitted → fixed
     priceListArtifact,
@@ -98,6 +105,7 @@ test("assessFeasibility throws a structured insufficient_budget error when the m
   const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
   const { buildDefaultPriceList } = await import(`${P}allocator/default-price-list.js`);
   const { UNUSED_CLOCK } = await import(`${P}_shared/require-clock.js`);
+  const capabilities = await configuratorCapabilities();
   const priceListArtifact = buildDefaultPriceList();
 
   const expensive = {
@@ -113,7 +121,7 @@ test("assessFeasibility throws a structured insufficient_budget error when the m
   };
 
   assert.throws(
-    () => createAllocatorPersona({ clock: UNUSED_CLOCK }).assessFeasibility({
+    () => createAllocatorPersona({ clock: UNUSED_CLOCK, ...capabilities }).assessFeasibility({
       commandName: "create",
       budgetTokens: 5,
       delvers: [delverEntry(expensive)],
@@ -135,6 +143,7 @@ test("assessFeasibility throws conflicting_requirements when affinities are requ
   const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
   const { buildDefaultPriceList } = await import(`${P}allocator/default-price-list.js`);
   const { UNUSED_CLOCK } = await import(`${P}_shared/require-clock.js`);
+  const capabilities = await configuratorCapabilities();
   const priceListArtifact = buildDefaultPriceList();
 
   const conflicted = {
@@ -150,7 +159,7 @@ test("assessFeasibility throws conflicting_requirements when affinities are requ
   };
 
   assert.throws(
-    () => createAllocatorPersona({ clock: UNUSED_CLOCK }).assessFeasibility({
+    () => createAllocatorPersona({ clock: UNUSED_CLOCK, ...capabilities }).assessFeasibility({
       commandName: "delver-plan",
       budgetTokens: 500,
       delvers: [delverEntry(conflicted)], // vitalsFlexible omitted → hard requirement conflict
@@ -169,6 +178,7 @@ test("assessFeasibility returns without throwing when the request fits the budge
   const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
   const { buildDefaultPriceList } = await import(`${P}allocator/default-price-list.js`);
   const { UNUSED_CLOCK } = await import(`${P}_shared/require-clock.js`);
+  const capabilities = await configuratorCapabilities();
   const priceListArtifact = buildDefaultPriceList();
 
   const modest = {
@@ -183,7 +193,7 @@ test("assessFeasibility returns without throwing when the request fits the budge
     affinities: [],
   };
 
-  assert.doesNotThrow(() => createAllocatorPersona({ clock: UNUSED_CLOCK }).assessFeasibility({
+  assert.doesNotThrow(() => createAllocatorPersona({ clock: UNUSED_CLOCK, ...capabilities }).assessFeasibility({
     commandName: "create",
     budgetTokens: 500,
     delvers: [delverEntry(modest)],

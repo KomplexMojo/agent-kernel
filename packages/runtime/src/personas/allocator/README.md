@@ -14,7 +14,7 @@ This document defines the Allocator as a **policy and coordination role**. Detai
 | --- | --- |
 | Owns | Budgets, price lists, spend proposals, allocation decisions, receipts |
 | Does not own | Simulation state mutation, action legality, or direct resource deduction |
-| Primary inputs | Budget artifacts, price lists, proposed actor/layout/action costs, the Configurator's `deriveRoomLayout` |
+| Primary inputs | Budget artifacts, price lists, proposed actor/layout/action costs, and three injected Configurator capabilities: `deriveRoomLayout`, `authorCandidates`, `normalizeMotivations` |
 | Primary outputs | Budget receipts, approval/rejection decisions, reconciliation signals |
 | Boundary | `core-ts` enforces provided caps; Allocator defines policy |
 
@@ -48,6 +48,39 @@ Surfaces that price a room card — `evaluateRoomCardLayoutSpend`, `calculateRoo
 silently-diverging answer to "how big is this card set" is the CR.1 defect class, and it would be invisible
 because the output stays well-formed. Most Allocator surfaces never price a room card, so the parameter is
 optional at construction and enforced at the point of use.
+
+### It judges configurations; it does not author them (CR.9 M3)
+
+Budget maximization is Allocator policy, but *building the thing being priced* is not. The maximizer used
+to enumerate `(manaRegen, manaMax)` pairs, assemble candidate cards, fill their vitals and encode validity
+rules such as "a mobility motivation requires stamina" — then price its own output. That is why it imported
+Configurator internals at all: the import was the symptom, the mis-assignment was the cause.
+
+The loop CR.9 asked for was not missing, it was **fused**. M3 split it across the persona line:
+
+| Direction | Contract | Contents |
+|---|---|---|
+| Allocator → Configurator | `BudgetEnvelope` | `capTokens`, `perUnitCapTokens`, `count`. **No prices.** |
+| Configurator → Allocator | `ConfigurationCandidate` | the assembled card, a `priceable` projection (normalized motivations, affinities, vitals), and an opaque `preference` tuple |
+| Allocator → Configurator | `SpendVerdict` | `approved` + cost + `remainingTokens`, or a structured `reason` |
+
+Revision is a **round trip**, not a field: the fill step spends `perUnitCap − cost`, so the revised card is
+a function of the price and the author cannot supply it up front without pricing. The Allocator judges,
+publishes the remaining room, and asks the Configurator to revise.
+
+`createAllocatorPersona({ authorCandidates, normalizeMotivations })` takes both capabilities from the
+Configurator's public surface. `assessFeasibility` and `maximizeFulfillment` **refuse** with
+`allocator_candidate_authoring_required`; the pricing surface refuses raw motivations with
+`allocator_motivation_vocabulary_required`. No defaults, for the same reason as room geometry above.
+
+Three properties keep this real rather than cosmetic, and the gate
+(`tests/personas/allocator/allocator-judges-not-authors.test.js`) asserts each:
+- The Allocator reads only `candidate.priceable` — never `candidate.card`, which is the Configurator's
+  product and is simply handed back if it wins.
+- The `preference` tuple is compared lexicographically as plain numbers; the Allocator never learns that
+  index 0 means "mana regen", which is what keeps `optimizationGoals` out of its policy.
+- Termination is structural: the outer walk is one fixed pass, and candidate bounds are pure functions of
+  the cap. `assertJudgementBudget` is a backstop that must never fire.
 
 ### The base-cost standard: numbers in JSON, formulas in code
 
