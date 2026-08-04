@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 
 test("motivation costs flow through calculateActorConfigurationUnitCost", async () => {
-const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/configurator/spend-proposal.js");
+const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/allocator/spend-proposal.js");
 const { buildDefaultPriceList } = await import("../../packages/runtime/src/personas/allocator/default-price-list.js");
 const { normalizePriceItems } = await import("../../packages/runtime/src/personas/allocator/validate-spend.js");
 const defaultPriceMap = normalizePriceItems(

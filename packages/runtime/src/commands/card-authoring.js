@@ -14,7 +14,7 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
-} from "../personas/configurator/spend-proposal.js";
+} from "../personas/allocator/spend-proposal.js";
 import {
   buildCardSetFromSummary,
   extractSummaryFromCardSet,

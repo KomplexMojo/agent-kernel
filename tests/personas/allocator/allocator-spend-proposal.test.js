@@ -1,9 +1,9 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { readFixture } = require("../helpers/fixtures");
+const { readFixture } = require("../../helpers/fixtures");
 
-const allocatorFixtures = resolve(__dirname, "../fixtures/allocator");
+const allocatorFixtures = resolve(__dirname, "../../fixtures/allocator");
 
 function readAllocatorFixture(name) {
   return JSON.parse(readFileSync(resolve(allocatorFixtures, name), "utf8"));
@@ -19,7 +19,7 @@ const proposalVam = readAllocatorFixture("spend-proposal-v1-vam.json");
 
 test("configurator builds spend proposals and validates receipts", async () => {
   const { buildSpendProposal, evaluateConfiguratorSpend } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const basicLayout = { width: 9, height: 9, hazards: [{ x: 2, y: 2 }] };
@@ -88,7 +88,7 @@ test("configurator builds spend proposals and validates receipts", async () => {
 
 test("configurator prices room cards by layout only — affinities on room card have no cost", async () => {
   const { calculateRoomCardUnitCost } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const medium = calculateRoomCardUnitCost({
@@ -130,7 +130,7 @@ test("configurator prices room cards by layout only — affinities on room card 
 
 test("configurator emits per-subject delver and warden attribution", async () => {
   const { buildSpendProposal } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const proposal = buildSpendProposal({
@@ -153,7 +153,7 @@ test("configurator emits per-subject delver and warden attribution", async () =>
 
 test("configurator accounts for hazards and UI-authored resources", async () => {
   const { buildSpendProposal } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const proposal = buildSpendProposal({

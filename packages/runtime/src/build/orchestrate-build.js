@@ -6,7 +6,7 @@ import { resolveAffinityEffects } from "../personas/configurator/affinity-effect
 import { buildAmbientAffinityPressure } from "../personas/configurator/affinity-pressure.js";
 import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../personas/configurator/affinity-rules.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
-import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
+import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
 import { maximizeActorBudget } from "../personas/configurator/budget-maximizer.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { buildBudgetAllocation } from "../personas/allocator/budget-allocation.js";

@@ -77,7 +77,7 @@
   },
   {
     "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
+    "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
   },
   {
     "from": "packages/runtime/src/commands/card-authoring.js",
@@ -85,7 +85,7 @@
   },
   {
     "from": "packages/runtime/src/commands/card-authoring.js",
-    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
+    "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
   },
   {
     "from": "packages/runtime/src/commands/card-authoring.js",
@@ -105,7 +105,7 @@
   },
   {
     "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
+    "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
   },
   {
     "from": "packages/runtime/src/commands/kernel.js",
@@ -144,16 +144,8 @@
     "to": "packages/runtime/src/personas/configurator/cost-model.js"
   },
   {
-    "from": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
-    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
-  },
-  {
     "from": "packages/runtime/src/personas/allocator/layout-spend.js",
     "to": "packages/runtime/src/personas/configurator/card-model.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/allocator/selection-spend.js",
-    "to": "packages/runtime/src/personas/configurator/spend-proposal.js"
   },
   {
     "from": "packages/runtime/src/personas/configurator/affinity-effects.js",
@@ -172,19 +164,7 @@
     "to": "packages/runtime/src/personas/director/buildspec-assembler.js"
   },
   {
-    "from": "packages/runtime/src/personas/configurator/spend-proposal.js",
-    "to": "packages/runtime/src/personas/allocator/layout-spend.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/configurator/spend-proposal.js",
-    "to": "packages/runtime/src/personas/allocator/motivation-price-policy.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/configurator/spend-proposal.js",
-    "to": "packages/runtime/src/personas/allocator/validate-spend.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/configurator/spend-proposal.js",
+    "from": "packages/runtime/src/personas/allocator/spend-proposal.js",
     "to": "packages/runtime/src/personas/director/summary-selections.js"
   },
   {
@@ -246,5 +226,9 @@
   {
     "from": "packages/ui-web/src/views/diagnostics-view.js",
     "to": "packages/runtime/src/personas/annotator/llm-trace.js"
+  },
+  {
+    "from": "packages/runtime/src/personas/allocator/spend-proposal.js",
+    "to": "packages/runtime/src/personas/configurator/motivation-loadouts.js"
   }
 ]

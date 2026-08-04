@@ -15,7 +15,7 @@ This document defines the Configurator as a **runtime composition and validation
 | Owns | Building coherent executable configuration artifacts |
 | Does not own | Runtime conflict resolution, tick execution, or simulation rule outcomes |
 | Primary inputs | Director plans, level-gen inputs, actor payloads, budget receipts |
-| Primary outputs | `SimConfigArtifact`, `InitialStateArtifact`, spend proposals, resource bundles |
+| Primary outputs | `SimConfigArtifact`, `InitialStateArtifact`, resource bundles |
 | Boundary | Prepares startup state; `core-ts` enforces rules after execution begins |
 
 ## Persona Scope
@@ -27,7 +27,12 @@ At a high level, the Configurator:
 - Produces a fully specified simulation configuration.
 - Ensures configurations are internally consistent before execution.
 - Hands validated configuration artifacts to the runtime runner.
-- Emits a spend proposal for the Allocator when budgets/price lists are provided.
+
+> **The Configurator does NOT author spend proposals** (corrected 2026-08-04, CR.9 M1). `spend-proposal.js`
+> lived in this directory but was Allocator work throughout: every export prices or itemizes spend, it
+> imported four Allocator modules, and **no Configurator file imported it**. It now lives at
+> `personas/allocator/spend-proposal.js`. Charter law is "the Allocator alone owns pricing" — this persona
+> assembles and validates structure, and the Allocator prices what it publishes.
 
 The simulation core (`core-ts`) remains the sole authority on rule enforcement and state mutation.
 

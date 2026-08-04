@@ -1,11 +1,37 @@
+/**
+ * Spend proposal + card pricing — the Allocator's costing surface.
+ *
+ * ⚠️ RELOCATED 2026-08-04 from `personas/configurator/spend-proposal.js` (CR.9 M1).
+ * It was never Configurator work: every export here prices or itemizes spend
+ * (`buildSpendItems`, `buildSpendProposal`, `buildDesignSpendLedger`,
+ * `evaluateConfiguratorSpend`, `calculateActorConfigurationUnitCost`,
+ * `calculateRoomCardUnitCost`), it already imported FOUR Allocator modules, and
+ * `calculateRoomCardUnitCost` is a 22-line wrapper over `allocator/layout-spend.js`.
+ * Decisively: **no Configurator file imported it** — its consumers were this persona
+ * and glue. Charter law is "the Allocator alone owns pricing"; the file's address was
+ * the only thing that disagreed.
+ *
+ * This is the M1 half of CR.9's inversion: pricing comes home BEFORE the
+ * propose/judge protocol lands, so the protocol is not built across a cycle.
+ * Behavior-preserving — goldens are the parity gate.
+ *
+ * ⚠️ ONE CROSSING REMAINS, DELIBERATELY: `normalizeMotivations` below still comes
+ * from the Configurator. Callers pass RAW motivations (bare strings or `{kind}`
+ * objects), so the normalization is load-bearing and cannot be dropped without
+ * changing prices. **CR.9 M3 removes it** by having candidates arrive already
+ * normalized — at which point the Allocator prices only published fields, which is
+ * the whole point of the finding. `MOTIVATION_KIND_IDS` needed no crossing: it is a
+ * re-export of the contracts vocabulary, so it is read from contracts directly.
+ */
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
-import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "../allocator/validate-spend.js";
-import { createAllocatorPersona } from "../allocator/persona.js";
-import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "../allocator/layout-spend.js";
-import { normalizeMotivations, MOTIVATION_KIND_IDS } from "./motivation-loadouts.js";
+import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "./validate-spend.js";
+import { createAllocatorPersona } from "./persona.js";
+import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
+import { normalizeMotivations } from "../configurator/motivation-loadouts.js";
+import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
 import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
 import { extractSummaryFromCardSet } from "../director/summary-selections.js";
-import { calculateMotivationStackCost } from "../allocator/motivation-price-policy.js";
+import { calculateMotivationStackCost } from "./motivation-price-policy.js";
 
 const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 

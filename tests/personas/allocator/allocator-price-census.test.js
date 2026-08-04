@@ -32,7 +32,7 @@ async function load() {
   const { buildDefaultPriceList, applyFormula } = await import(`${P}allocator/default-price-list.js`);
   const { normalizePriceItems } = await import(`${P}allocator/validate-spend.js`);
   const { calculateMotivationStackCost } = await import(`${P}allocator/motivation-price-policy.js`);
-  const { calculateActorConfigurationUnitCost } = await import(`${P}configurator/spend-proposal.js`);
+  const { calculateActorConfigurationUnitCost } = await import(`${P}allocator/spend-proposal.js`);
   const { maximizeActorBudget } = await import(`${P}configurator/budget-maximizer.js`);
   const priceList = buildDefaultPriceList();
   return {

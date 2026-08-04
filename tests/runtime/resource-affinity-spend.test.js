@@ -25,7 +25,7 @@
  */
 const assert = require("node:assert/strict");
 
-const SPEND = "../../packages/runtime/src/personas/configurator/spend-proposal.js";
+const SPEND = "../../packages/runtime/src/personas/allocator/spend-proposal.js";
 const PRICES = "../../packages/runtime/src/personas/allocator/default-price-list.js";
 
 function lineFor(proposal, id) {

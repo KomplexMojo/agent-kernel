@@ -292,7 +292,7 @@ test("cli room-plan maximizes a flexible room within a 400-token budget", async 
   assert.equal(room.roomSize, "large");
   assert.deepEqual(listAffinityTuples(room), [], "rooms carry no affinities");
 
-  const { calculateRoomCardUnitCost } = await import("../../packages/runtime/src/personas/configurator/spend-proposal.js");
+  const { calculateRoomCardUnitCost } = await import("../../packages/runtime/src/personas/allocator/spend-proposal.js");
 
 const mediumCost = calculateRoomCardUnitCost({
   card: { ...room, roomSize: "medium" },

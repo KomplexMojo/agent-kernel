@@ -254,7 +254,7 @@ test("cli delver-plan maximizes mana-focused spend within a 200-token budget", a
   assert.ok(delver.vitals.mana.regen > 0);
   assert.ok(delver.vitals.stamina.regen > 0);
 
-  const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/configurator/spend-proposal.js");
+  const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/allocator/spend-proposal.js");
   const { buildDefaultPriceList } = await import("../../packages/runtime/src/personas/allocator/default-price-list.js");
   const { normalizePriceItems } = await import("../../packages/runtime/src/personas/allocator/validate-spend.js");
 

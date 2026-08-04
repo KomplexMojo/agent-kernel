@@ -95,7 +95,9 @@ premium changes price, never scaling. Hazards pay no premium: a hazard threatens
 > embedded in the behavior-rules document — P1.4 must reconcile all three.
 
 > **Known divergence — `configurator/cost-model.js` DOES charge live paths.** (An earlier revision
-> of this note claimed it charges nobody; that was wrong.) It holds a second set of cost constants
+> of this note claimed it charges nobody; that was wrong.) *(`spend-proposal.js` named below is an
+> **Allocator** file as of 2026-08-04 — CR.9 M1 moved it here from `configurator/`; this note predates
+> the move and described it by its old address.)* It holds a second set of cost constants
 > that disagree with this price list on nearly every value (vital points `2·H` vs `1`, regen
 > `12·R²` vs `n²`, affinity base `30` vs `10`, stacks `Σ(10+8(n-1)²)` vs `n²`), and those constants
 > reach real receipts through `spend-proposal.js#calculateActorConfigurationUnitCost` — used by

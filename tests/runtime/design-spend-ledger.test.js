@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 
 test("buildDesignSpendLedger computes level, actor base, and actor config categories", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const summary = {
@@ -51,7 +51,7 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
 
 test("buildDesignSpendLedger flags over-budget totals", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const ledger = buildDesignSpendLedger({
@@ -68,7 +68,7 @@ test("buildDesignSpendLedger flags over-budget totals", async () => {
 
 test("buildDesignSpendLedger prices actor configuration from price list items", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const ledger = buildDesignSpendLedger({
@@ -121,7 +121,7 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
 
 test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by count", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const ledger = buildDesignSpendLedger({
@@ -181,7 +181,7 @@ test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by coun
 
 test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is provided", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const low = buildDesignSpendLedger({
@@ -211,7 +211,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
 
 test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/configurator/spend-proposal.js"
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
 
   const ledger = buildDesignSpendLedger({

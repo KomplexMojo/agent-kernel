@@ -10,7 +10,7 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { createCore } from "../../../core-ts/src/index.ts";
-import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
+import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
 import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
 import { runLlmSession } from "../personas/orchestrator/llm-session.js";
 import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";

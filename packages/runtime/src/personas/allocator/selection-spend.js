@@ -1,4 +1,4 @@
-import { calculateActorConfigurationUnitCost } from "../configurator/spend-proposal.js";
+import { calculateActorConfigurationUnitCost } from "./spend-proposal.js";
 import { buildPriceMap } from "./validate-spend.js";
 
 function isInteger(value) {

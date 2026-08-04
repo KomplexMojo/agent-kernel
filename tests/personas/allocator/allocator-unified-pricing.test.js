@@ -37,7 +37,7 @@ async function fullPriceMap() {
 // ── Actor costing prices from the list ──
 
 test("unified: the census card costs 77, every line from the price list", async () => {
-  const { calculateActorConfigurationUnitCost } = await import(`${P}configurator/spend-proposal.js`);
+  const { calculateActorConfigurationUnitCost } = await import(`${P}allocator/spend-proposal.js`);
   const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap: await fullPriceMap() });
   assert.equal(r.errors, undefined);
   assert.equal(r.cost, 77);
@@ -54,7 +54,7 @@ test("unified: the census card costs 77, every line from the price list", async 
 });
 
 test("unified: an INCOMPLETE price map is a structured error, not a fallback", async () => {
-  const { calculateActorConfigurationUnitCost } = await import(`${P}configurator/spend-proposal.js`);
+  const { calculateActorConfigurationUnitCost } = await import(`${P}allocator/spend-proposal.js`);
   const map = await fullPriceMap();
   map.delete("vital:vital_health_regen_tick");
   map.delete("motivation:motivation_exploring");
@@ -65,7 +65,7 @@ test("unified: an INCOMPLETE price map is a structured error, not a fallback", a
 });
 
 test("unified: an EMPTY price map errors on every priced component (the old 236-token fallback is dead)", async () => {
-  const { calculateActorConfigurationUnitCost } = await import(`${P}configurator/spend-proposal.js`);
+  const { calculateActorConfigurationUnitCost } = await import(`${P}allocator/spend-proposal.js`);
   const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap: new Map() });
   assert.ok(Array.isArray(r.errors) && r.errors.length > 0);
   assert.notEqual(r.cost, 236, "the fallback economy must not resurface");

@@ -23,7 +23,7 @@ import {
   ROOM_CARD_SIZE_IDS,
   VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
-import { calculateActorConfigurationUnitCost, calculateRoomCardUnitCost } from "../configurator/spend-proposal.js";
+import { calculateActorConfigurationUnitCost, calculateRoomCardUnitCost } from "./spend-proposal.js";
 import { validateAffinityPrereqs } from "../configurator/cost-model.js";
 import { normalizePriceItems } from "./validate-spend.js";
 import { buildDefaultPriceList } from "./default-price-list.js";
