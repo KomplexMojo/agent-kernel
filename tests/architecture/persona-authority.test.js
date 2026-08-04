@@ -37,11 +37,19 @@ const ROOT = resolve(__dirname, "../..");
 // Closed 2026-07-31: CR.5 — tick ordering and effect fulfilment are Moderator
 // policy now; CR.6 — the Actor holds no state outside its FSM and no longer owns
 // budget admissibility. Both have live differentials below in place of their skips.
-// PX.4 stays open and still blocks all/restorable-from-view: CR.6 gives "identical
-// view() ⇒ identical decision", but feeding a serialized view back in needs restore().
+// Closed 2026-08-04, both landed at cf4dcdbd but never reflected here — the registry
+// was reporting two proven behaviors as backlog, which is the same "reads like
+// coverage" rot this file exists to prevent, pointed at itself:
+//   PX.1 all/port-contract-single-origin — runtime imports core's EffectKind instead
+//     of redeclaring a subset. Its G1 test is the LIVE EffectKind guard in
+//     single-origin.test.js.
+//   PX.4 all/restorable-from-view — every factory takes `{ from: view }`. Its G1 test
+//     is G4 (persona-serialization-equivalence.test.js), 7/7.
+// PX.3 stays open: requireClock covers the 14 persona FACTORIES, but 18 non-factory
+// sites still default a clock (full census in single-origin.test.js).
 const OPEN_FINDINGS = Object.freeze([
   "CR.1", "CR.4", "CR.7", "CR.9",
-  "PX.1", "PX.3", "PX.4", "PX.6",
+  "PX.3", "PX.6",
 ]);
 
 // ---------------------------------------------------------------------------

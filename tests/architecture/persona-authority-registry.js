@@ -222,12 +222,12 @@ const REGISTRY = Object.freeze([
     criteria: ["A1"],
     productionEntryPoint: "packages/core-ts/src/ports/effects.ts",
     invocation: "none",
-    status: {
-      blockedBy: "PX.1",
-      why:
-        "runtime/src/ports/effects.js redeclares EffectKind with 10 of core's 14 kinds, so "
-        + "ActorMoved/ActorBlocked cross the port as anonymous \"custom\" blobs.",
-    },
+    // runtime/src/ports/effects.js now IMPORTS and re-exports core's EffectKind
+    // rather than redeclaring a 10-kind subset, so ActorMoved/ActorBlocked cross the
+    // port as themselves. Proven by the LIVE `EffectKind` guard in
+    // single-origin.test.js, scoped to all of `packages/`: a second declaration
+    // anywhere fails it. That guard is the G1 test for this entry.
+    status: { owned: true, since: "PX.1 / HANDOFF-8 (cf4dcdbd)" },
   },
   {
     id: "all/injected-clock",
@@ -250,12 +250,12 @@ const REGISTRY = Object.freeze([
     criteria: ["A4"],
     productionEntryPoint: "packages/runtime/src/personas/configurator/state-machine.js",
     invocation: "none",
-    status: {
-      blockedBy: "PX.4",
-      why:
-        "Every factory takes a state LABEL, not a context, so serialized output cannot be fed "
-        + "back in. A4 is unverifiable until restore(view) exists.",
-    },
+    // Every factory now accepts `{ from: view }` alongside the state label, so
+    // serialized output CAN be fed back in. Proven by G4
+    // (persona-serialization-equivalence.test.js), 7/7: for each persona, a JSON
+    // round-trip of view() rebuilds a persona whose view() matches AND whose next
+    // advance() is result-identical to the original's. That is the A4 property.
+    status: { owned: true, since: "PX.4 / HANDOFF-4 (cf4dcdbd)" },
   },
   {
     id: "all/controller-only-boundary",
@@ -267,8 +267,8 @@ const REGISTRY = Object.freeze([
     status: {
       blockedBy: "CR.7",
       why:
-        "The allowlist records the crossings that bypass controllers. Shrinking (74 -> 65); the "
-        + "guard becomes a hard error at zero.",
+        "The allowlist records the crossings that bypass controllers. Shrinking (74 -> 62, "
+        + "counted from persona-boundary-allowlist.json); the guard becomes a hard error at zero.",
     },
   },
 ]);

@@ -2,7 +2,7 @@ import { createDirectorStateMachine, DirectorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { createAllocatorPersona } from "../allocator/persona.js";
-import { UNUSED_CLOCK } from "../_shared/require-clock.js";
+import { requireClock, UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { attachDirectorServices } from "./director-services.js";
 
 const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
@@ -49,7 +49,11 @@ function buildPlanArtifactFromIntent({ intentEnvelope, intentRef, runId, clock, 
     ? { ...intentEnvelope.intent.hints }
     : null;
   const resolvedRunId = runId || intentEnvelope?.meta?.runId || "run_director";
-  const createdAt = typeof clock === "function" ? clock() : new Date().toISOString();
+  // PX.3: no wall-clock fallback. createDirectorStateMachine already ran
+  // requireClock, so a constructed Director always has one — the old ternary could
+  // only ever fire on a path that construction rejects, while quietly licensing a
+  // defaulted clock into the PERSISTED PlanArtifact's createdAt if one ever opened.
+  const createdAt = requireClock(clock, "director")();
   return {
     schema: PLAN_ARTIFACT_SCHEMA,
     schemaVersion: 1,

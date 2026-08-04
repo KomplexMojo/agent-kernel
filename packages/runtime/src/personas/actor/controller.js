@@ -2,6 +2,7 @@ import { createActorStateMachine, ActorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { EIGHT_WAY_DELTAS } from "../_shared/movement-directions.js";
+import { requireClock } from "../_shared/require-clock.js";
 import {
   RUNTIME_DECISION_CONTRACT,
   allowsLiveLlmRuntime,
@@ -576,7 +577,11 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
       payload,
       actorId,
       tick,
-      clock: payload?.clock || (() => new Date().toISOString()),
+      // PX.3: no wall-clock fallback. advance() spreads the persona's own
+      // requireClock-validated clock into this payload, so the old `||` default was
+      // unreachable — and it stamped the solver request's createdAt, which crosses
+      // the adapter boundary.
+      clock: requireClock(payload?.clock, "actor"),
     }),
     intentRef: payload?.intentRef,
     planRef: payload?.planRef,

@@ -32,22 +32,42 @@ const SHARED_VOCABULARY_DECLARATION = new RegExp(
   "gim",
 );
 
-// PX.3 — no persona FACTORY may default its clock.
-// `clock = () => new Date().toISOString()` in a persona constructor means a caller
-// that forgets to inject one silently gets wall-clock time, degrading determinism
-// and replay with nothing failing. The rule is enforced at construction by
-// _shared/require-clock.js; this stops the default being reintroduced.
+// PX.3 — no persona FACTORY may read the wall clock, in ANY form.
+// A defaulted clock means a caller that forgets to inject one silently gets
+// wall-clock time, degrading determinism and replay with nothing failing. The rule
+// is enforced at construction by _shared/require-clock.js; this stops it being
+// reintroduced.
 //
-// Scope is the 14 factory files (7 controllers + 7 state machines), which is
-// exactly PX.3's stated target: "make clock required at PERSONA CONSTRUCTION".
-// TEN NON-FACTORY MODULES STILL DEFAULT A CLOCK and are PX.3's recorded residue —
-// they are plain functions, not constructors, so requiring injection there is a
-// separate (and larger) call about every helper's signature:
-//   personas/annotator/llm-trace.js · personas/orchestrator/budget-inputs.js ·
-//   personas/orchestrator/llm-capture.js · personas/_shared/{persona-helpers,
-//   tick-orchestrator,tick-state-machine}.mts · ports/solver.js ·
-//   contracts/schema-catalog.js · adaptive-workflow/{metrics,state-machine}.js
-const PERSONA_CLOCK_DEFAULT = /clock\s*=\s*\(\)\s*=>\s*new Date\(\)/g;
+// ⚠️ WIDENED 2026-08-04. The previous pattern was `clock = () => new Date()` — the
+// DEFAULT-PARAMETER form alone — and it therefore missed two live violations inside
+// its own scope, both writing a wall-clock timestamp into a persisted artifact:
+//   director/controller.js   `typeof clock === "function" ? clock() : new Date()...`
+//                            → PlanArtifact.meta.createdAt
+//   actor/controller.js      `payload?.clock || (() => new Date()...)`
+//                            → the SolverRequest's createdAt, across the adapter boundary
+// Both were unreachable in practice (construction had already run requireClock), but
+// a guard that only recognises one spelling of a defect is not a guard — the defect
+// class is "a persona factory reaches for the wall clock", not "one syntax does".
+// Forbidding `new Date(` outright is the honest expression of that and is checkable:
+// none of the 14 files parses a date either, so there is no legitimate use to carve out.
+//
+// Scope is the 14 factory files (7 controllers + 7 state machines), which is exactly
+// PX.3's stated target: "make clock required at PERSONA CONSTRUCTION".
+//
+// PX.3'S RECORDED RESIDUE — 18 non-factory sites, still open. They are plain
+// functions rather than constructors, so requiring injection there is a separate and
+// larger call about every helper's signature. The earlier note here listed TEN and
+// counted only the default-parameter form; this is the full census:
+//   default parameter (13): personas/annotator/llm-trace.js ·
+//     personas/orchestrator/{budget-inputs ×2,llm-capture ×2}.js ·
+//     personas/_shared/{persona-helpers,tick-orchestrator,tick-state-machine}.mts ·
+//     ports/solver.js · contracts/schema-catalog.js ·
+//     adaptive-workflow/{metrics,state-machine ×3}.js
+//   `||` fallback (2): personas/allocator/default-price-list.js ·
+//     personas/director/buildspec-assembler.js
+//   ternary fallback (2): personas/orchestrator/llm-budget-loop.js · runner/runtime-fsm.mjs
+//   direct read (1): render/visualization-snapshot.js
+const PERSONA_CLOCK_DEFAULT = /new Date\(/g;
 
 const PERSONA_FACTORY_FILES = [
   "orchestrator", "director", "configurator", "actor", "allocator", "annotator", "moderator",
@@ -58,7 +78,7 @@ const PERSONA_FACTORY_FILES = [
 
 const SINGLE_ORIGIN_GUARDS = [
   {
-    concept: "persona clock defaults",
+    concept: "persona factory wall-clock reads",
     canonicalHome: [],
     forbiddenPattern: PERSONA_CLOCK_DEFAULT,
     scope: PERSONA_FACTORY_FILES,
