@@ -149,14 +149,24 @@ Without the systemd unit, `remote-ollama-profile` uses managed pid files under `
 
 ## Network Modes
 
-Two routes, both resolved from your untracked `config/llm-host.env`. Prefer the internal route whenever you are on the same local network as the host: it is faster and does not depend on the external link.
+Two routes, both resolved from your untracked `config/llm-host.env`.
 
 | Route | Env var | Use when |
 |---|---|---|
 | `--route internal` | `LLM_INTERNAL_HOST` | Client and host are on the same local network |
 | `--route external` | `LLM_EXTERNAL_HOST` | Reaching the host from outside that network |
 
-Neither has a default. If the variable is unset, the tooling errors and points back at the env file rather than guessing an address.
+Neither has a default address. If the variable is unset, the tooling errors and points back at the env file rather than guessing.
+
+### Route auto-detection (the default)
+
+**You do not need to pick a route.** `--route auto` is the default (`LLM_DEFAULT_ROUTE=auto`): it opens a TCP probe to each host in turn and takes the first that answers, preferring internal because it is the faster path. Move between the local network and remote and the same command keeps working. The chosen route is announced on stderr as `[route] auto-detected: <route>`, and the result is cached for the invocation so repeated calls probe once.
+
+An explicit `--route internal` or `--route external` is always honoured and skips probing — use it to pin a path or to see the underlying error when auto-detection reports that neither answered.
+
+**The probe tests reachability; it does not infer anything from VPN state.** That distinction matters: whether a VPN leaves the local network reachable depends on its tunneling mode, and that is not stable. Both behaviours were observed on this setup within minutes — split tunneling kept the LAN reachable with the VPN up, then full tunneling did not. So "is the VPN on?" cannot decide the route; only "does this host answer?" can. With a VPN up but the LAN still reachable, auto correctly stays on the fast internal path.
+
+Deadlines are asymmetric on purpose. `LLM_ROUTE_PROBE_INTERNAL_MS` (default 600) is short because a host on the same network answers in well under 100 ms — a longer wait cannot turn a "no" into a "yes", it only taxes every off-network run, which pays that timeout in full before falling through to the route it was always going to use. `LLM_ROUTE_PROBE_MS` (default 1500) keeps a generous budget because it crosses the internet. Measured on this setup: off-network detection costs ~700 ms, down from ~1600 ms with a symmetric timeout.
 
 When `LLM_SSH_HOST_ALIAS` is set, the alias handles route selection and the tooling uses it directly regardless of `--route`. This is the recommended setup.
 
@@ -402,7 +412,7 @@ Each run records endpoint, profile, model, context, `num_predict`, wall time, Ol
 
 ## Content-Gen Benchmark
 
-Compare how well each Ubuntu GPU node (primary, secondary, dual) handles the 50 agent-kernel MCP scenarios. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference vault artifacts.
+Compare how well each Ubuntu GPU node (primary, secondary, dual) handles the current 64 agent-kernel MCP scenarios. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference vault artifacts.
 
 Scenarios are loaded from the vault at `LLM_AK_VAULT_DIR` (default: `~/Documents/Obsidian/agent-kernel-vault`). Set this in `config/llm-host.env` if the vault is in a non-default location.
 
@@ -410,7 +420,7 @@ Scenarios are loaded from the vault at `LLM_AK_VAULT_DIR` (default: `~/Documents
 # Dry-run: show what would run without opening tunnels
 ./bin/remote-ollama-mac dry-run run-content-gen
 
-# Run all 50 scenarios × 3 profiles (primary, secondary, dual)
+# Run all 64 scenarios × 3 profiles (primary, secondary, dual)
 ./bin/remote-ollama-mac run-content-gen --route internal
 
 # Run a subset of scenarios (e.g., simple tier only, IDs 1–9)

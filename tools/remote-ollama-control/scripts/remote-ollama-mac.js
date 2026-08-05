@@ -19,32 +19,35 @@ const config = loadConfig();
 
 function usage() {
   process.stdout.write(`Usage:
-  remote-ollama-mac status [--route internal|external] [--profile NAME]
-  remote-ollama-mac start --profile NAME [--model MODEL] [--route internal|external]
+  remote-ollama-mac status [--route auto|internal|external] [--profile NAME]
+  remote-ollama-mac start --profile NAME [--model MODEL] [--route auto|internal|external]
   remote-ollama-mac stop --profile NAME
   remote-ollama-mac restart --profile NAME [--model MODEL]
   remote-ollama-mac ps [--profile NAME]
   remote-ollama-mac logs --profile NAME [--tail N]
   remote-ollama-mac telemetry [--profile NAME]
-  remote-ollama-mac doctor --profile NAME [--model MODEL] [--route internal|external] [--direct] [--json]
+  remote-ollama-mac doctor --profile NAME [--model MODEL] [--route auto|internal|external] [--direct] [--json]
   remote-ollama-mac claude --profile NAME [--model MODEL] [--direct] [-- CLAUDE_ARGS...]
   remote-ollama-mac claude --local [--model MODEL] [-- CLAUDE_ARGS...]
   remote-ollama-mac run-local --profile NAME [--model MODEL] [--direct] -- COMMAND [ARGS...]
   remote-ollama-mac run-local --local [--model MODEL] -- COMMAND [ARGS...]
   remote-ollama-mac print-env --local [--model MODEL]
-  remote-ollama-mac exec [--route internal|external] -- COMMAND [ARGS...]
+  remote-ollama-mac exec [--route auto|internal|external] -- COMMAND [ARGS...]
   remote-ollama-mac smoke-test --profile NAME --model MODEL [--prompt TEXT] [--require-gpu]
   remote-ollama-mac benchmark --profile NAME --model MODEL --context N --num-predict N --scenario NAME
   remote-ollama-mac benchmark-matrix --profiles a,b --models x,y --contexts 4096,8192 --scenario NAME
-  remote-ollama-mac benchmark-hardware [--route internal|external] [--models x,y] [--contexts 4096,8192] [--efforts standard,high,max,overnight] [--scenarios a,b] [--no-start] [--no-reset] [--no-isolate]
+  remote-ollama-mac benchmark-hardware [--route auto|internal|external] [--models x,y] [--contexts 4096,8192] [--efforts standard,high,max,overnight] [--scenarios a,b] [--no-start] [--no-reset] [--no-isolate]
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
   remote-ollama-mac project-sync [--branch main]
   remote-ollama-mac project-push-main [--branch main]
-  remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route internal|external] [--no-start] [--no-reset] [--dry-run]
+  remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route auto|internal|external] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac run-content-gen --local --model MODEL [--runs N] [--scenario-ids 1,3,5] [--dry-run]
   remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
 
 Common options:
+  --route auto           Probe and pick a path (default). Prefers internal when
+                         it answers, else external. An explicit --route is
+                         always honoured and skips probing entirely.
   --external-host HOST   Override LLM_EXTERNAL_HOST for this invocation.
   --local                Drive this Mac's own Ollama (valid only for claude, run-local, print-env).
 
