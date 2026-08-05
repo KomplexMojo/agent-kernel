@@ -74,3 +74,6 @@ test-results.txt
 /telemetry.json
 /initial-state.json
 ollama-test-generation.log
+
+# Serena's local memories — machine-local agent scratch, not project state.
+.serena/memories/

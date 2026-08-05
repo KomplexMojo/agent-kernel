@@ -21,10 +21,12 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 fi
 
-UFW_SSH_PORT="${UFW_SSH_PORT:-2222}"
-UFW_SSH_SOURCES="${UFW_SSH_SOURCES:-192.168.1.0/24}"
-UFW_OLLAMA_PORTS="${UFW_OLLAMA_PORTS:-11434,11435,11436}"
-UFW_OLLAMA_SOURCES="${UFW_OLLAMA_SOURCES:-192.168.1.0/24}"
+# Ports and source allowlists are site policy: no defaults are baked in, so a
+# missing config/ufw.env fails loudly instead of applying someone else's rules.
+UFW_SSH_PORT="${UFW_SSH_PORT:-}"
+UFW_SSH_SOURCES="${UFW_SSH_SOURCES:-}"
+UFW_OLLAMA_PORTS="${UFW_OLLAMA_PORTS:-}"
+UFW_OLLAMA_SOURCES="${UFW_OLLAMA_SOURCES:-}"
 UFW_EXTRA_TCP_RULES="${UFW_EXTRA_TCP_RULES:-}"
 UFW_ALLOW_OUTGOING="${UFW_ALLOW_OUTGOING:-1}"
 
@@ -52,8 +54,29 @@ allow_tcp_from_sources() {
 
 require_cmd ufw
 
+if [ ! -f "$ENV_FILE" ]; then
+  printf 'ERROR: no env file at %s\n' "$ENV_FILE" >&2
+  printf '       Copy config/ufw.env.example to config/ufw.env and fill it in.\n' >&2
+  printf '       That file is untracked on purpose — firewall policy is never committed.\n' >&2
+  exit 1
+fi
+
+if [ -z "$UFW_SSH_PORT" ]; then
+  printf 'ERROR: UFW_SSH_PORT is empty. Set it in %s.\n' "$ENV_FILE" >&2
+  exit 1
+fi
+
 if [ -z "$UFW_SSH_SOURCES" ]; then
   printf 'ERROR: UFW_SSH_SOURCES is empty. Refusing to risk locking out SSH.\n' >&2
+  printf '       It must list EVERY source you need, including any off-LAN one:\n' >&2
+  printf '       this script starts with `ufw --force reset`, so an omitted source\n' >&2
+  printf '       is revoked immediately. Losing an off-LAN source still leaves the\n' >&2
+  printf '       LAN working, so the breakage stays invisible until you are remote.\n' >&2
+  exit 1
+fi
+
+if [ -z "$UFW_OLLAMA_PORTS" ]; then
+  printf 'ERROR: UFW_OLLAMA_PORTS is empty. Set it in %s.\n' "$ENV_FILE" >&2
   exit 1
 fi
 

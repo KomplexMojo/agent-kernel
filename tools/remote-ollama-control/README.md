@@ -54,21 +54,23 @@ Edit `config/llm-host.env` for the Mac-side SSH settings. Keep `LLM_OLLAMA_BIND_
 
 The preferred connection method uses SSH host aliases defined in `~/.ssh/config`:
 
+This is the recommended setup precisely because it keeps addresses, ports, and key paths in your own `~/.ssh/config` — outside the repository — leaving only an opaque alias name in any file the project tracks.
+
 ```
 Host llm-lan
-  HostName 192.168.1.143
-  User darren
-  Port 2222
-  IdentityFile ~/.ssh/ubuntu_llm_ed25519
+  HostName <lan-host-or-ip>
+  User <remote-user>
+  Port <ssh-port>
+  IdentityFile ~/.ssh/<key-name>
   IdentitiesOnly yes
   AddKeysToAgent yes
   UseKeychain yes
 
 Host llm-vpn
-  HostName 207.6.34.73
-  User darren
-  Port 2222
-  IdentityFile ~/.ssh/ubuntu_llm_ed25519
+  HostName <wan-hostname-or-ip>
+  User <remote-user>
+  Port <ssh-port>
+  IdentityFile ~/.ssh/<key-name>
   IdentitiesOnly yes
   AddKeysToAgent yes
   UseKeychain yes
@@ -93,10 +95,12 @@ ssh llm-vpn 'echo ok'
 If not using host aliases, load the key into the Mac SSH agent:
 
 ```bash
-ssh-add --apple-use-keychain ~/.ssh/ubuntu_llm_ed25519
+ssh-add --apple-use-keychain ~/.ssh/<key-name>
 ssh-add -l
-ssh -p 2222 -i ~/.ssh/ubuntu_llm_ed25519 darren@207.6.34.73 'echo ok'
+ssh -p <ssh-port> -i ~/.ssh/<key-name> <remote-user>@<wan-hostname-or-ip> 'echo ok'
 ```
+
+If the agent is empty, key auth fails as `Permission denied (publickey,password)` — which reads exactly like a dead host. Load the key before diagnosing anything else.
 
 Install the package onto Ubuntu from the Mac:
 
@@ -145,11 +149,39 @@ Without the systemd unit, `remote-ollama-profile` uses managed pid files under `
 
 ## Network Modes
 
-`--route internal` uses `192.168.1.143` (LAN). `--route external` uses the configured `LLM_EXTERNAL_HOST` (default: `207.6.34.73`, the VPN/WAN address).
+Two routes, both resolved from your untracked `config/llm-host.env`. Prefer the internal route whenever you are on the same local network as the host: it is faster and does not depend on the external link.
 
-When `LLM_SSH_HOST_ALIAS` is set (e.g. `llm-vpn`), the route selection is handled by the SSH alias — the tooling uses the alias directly regardless of `--route`. This is the recommended setup.
+| Route | Env var | Use when |
+|---|---|---|
+| `--route internal` | `LLM_INTERNAL_HOST` | Client and host are on the same local network |
+| `--route external` | `LLM_EXTERNAL_HOST` | Reaching the host from outside that network |
 
-When the WAN IP changes, either update `~/.ssh/config` (preferred) or override per command:
+Neither has a default. If the variable is unset, the tooling errors and points back at the env file rather than guessing an address.
+
+When `LLM_SSH_HOST_ALIAS` is set, the alias handles route selection and the tooling uses it directly regardless of `--route`. This is the recommended setup.
+
+### Setting up external access
+
+External reachability depends on your own network, so the specifics belong in your env file and `~/.ssh/config`, not here. In general it requires each layer in the path to permit the connection — typically a router port-forward for the SSH port, and a host firewall that accepts your source address. Keep the exposed surface to SSH alone and tunnel everything else; see [Security](#security).
+
+**Where only the SSH port is exposed, an external route must tunnel.** `--direct` targets a service port directly, so it cannot work from outside when that port is not reachable. Use the SSH tunnel (the default) for external runs and treat `--direct` as a local-network shortcut.
+
+**Prefer a hostname over a literal IP for the external address** when that address is dynamic. A residential WAN address changes on router reboot or power loss, so a literal IP is correct only until the next outage; a dynamic-DNS name tracks it. Set it once in `config/llm-host.env`, or per command:
+
+```bash
+./bin/remote-ollama-mac status --route external --external-host <wan-hostname-or-ip> --profile dual
+```
+
+### Diagnosing a failed external route
+
+Work down this list before concluding the host is down — in practice it usually is not.
+
+1. **Is the SSH agent loaded?** An empty agent fails as `Permission denied (publickey,password)`, which reads exactly like a dead host. `ssh-add -l` to check.
+2. **Are you inside the host's own network?** Many routers do not hairpin NAT, so the external address is unreachable from the local network *by design*. Use `--route internal` there. The tell: the hostname and its resolved IP fail **identically** — that pattern means a routing path problem, never a stale address.
+3. **Does the name still resolve correctly?** `host <wan-hostname>`. A dynamic-DNS record can go stale and point somewhere unrelated. Only after the name is *proven* wrong, override with `--external-host <current-ip>` until it propagates.
+4. **Is your source address the one the host's firewall accepts?** If access is restricted to specific sources, confirm your egress matches: `curl -s https://api.ipify.org`. A restricted source that has changed produces a timeout indistinguishable from a dead host.
+
+⚠️ When access is gated on a VPN or jump host, remember that **its address is your own egress, not the host's.** Pinging it always succeeds and proves nothing about whether the host is reachable.
 
 ```bash
 ./bin/remote-ollama-mac status --route external --external-host <wan-host-or-ip> --profile dual
@@ -244,9 +276,11 @@ Use `run-local` when Claude Code, Codex, or a repo skill should run on the Mac b
   --profile dual \
   --model qwen3-coder:30b \
   --route external \
-  --external-host <wan-host-or-ip> \
+  --external-host <wan-hostname-or-ip> \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model qwen3-coder:30b --dry-run
 ```
+
+On the same local network as the host, use `--route internal` instead and drop `--external-host`; the internal route resolves from `LLM_INTERNAL_HOST`.
 
 For a persistent shell environment, source `use-remote-ollama`, then run tools that honor `OLLAMA_HOST`:
 
@@ -450,9 +484,12 @@ Keep `config/llm-host.env` uncommitted. Prefer SSH keys and normal git remotes o
 
 ## Firewall Restore
 
+**UFW runs on the LLM host itself, not on the router or the client** — it is the host's own firewall that decides which sources may reach SSH and the Ollama ports. The script enforces this: it exits unless run on Linux as root. Run it while logged into the host.
+
 If UFW rules are reset, restore a conservative firewall from the Ubuntu host:
 
 ```bash
+ssh llm-lan            # or llm-vpn from off the LAN
 cd ~/remote-ollama-control
 cp config/ufw.env.example config/ufw.env
 nano config/ufw.env
@@ -461,12 +498,16 @@ sudo ./scripts/ufw-remote-ollama.sh
 
 The script resets UFW, denies inbound by default, allows outbound, keeps SSH on `2222`, and opens Ollama ports `11434-11436` only to `UFW_OLLAMA_SOURCES`. Do not set `UFW_OLLAMA_SOURCES` to `0.0.0.0/0`.
 
+⚠️ **`UFW_SSH_SOURCES` must list every source you need to keep.** The script begins with `ufw --force reset`, so any source the env file omits is revoked the moment it runs. Dropping a remote source leaves the local network working perfectly while killing every external connection — a failure you will not notice until you are away and can no longer connect in to fix it. The script ships no defaults: if `config/ufw.env` is missing or a required value is empty, it errors instead of applying a policy you did not choose.
+
+Run it over the local network when you can. Applying it remotely means resetting the firewall through the very rule carrying your session.
+
 ## Troubleshooting
 
 - Port already in use: stop the existing profile or the default `ollama.service`; the manager refuses to kill unrelated processes.
 - `STATE=unmanaged`: something is already listening on that profile's port, usually the default `ollama.service` on `11434`. Stop or disable it before starting the managed profile, or choose a different profile port.
 - Ollama not listening: run `logs --profile NAME` and `telemetry --profile NAME`.
-- SSH key failure: verify `LLM_SSH_KEY`, port `2222`, and `BatchMode` access. If the key has a passphrase, run `ssh-add --apple-use-keychain ~/.ssh/ubuntu_llm_ed25519` on the Mac first.
+- SSH key failure: verify `LLM_SSH_KEY`, `LLM_SSH_PORT`, and `BatchMode` access. If the key has a passphrase, run `ssh-add --apple-use-keychain ~/.ssh/<key-name>` on the client first.
 - Model not installed: run `ollama pull MODEL` on Ubuntu or start with a model that exists.
 - Model does not fit in 12GB: use `dual` or a smaller quant/model.
 - Only one GPU appears active: compare `rocm-smi` before/after snapshots and confirm `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, and `HSA_OVERRIDE_GFX_VERSION`.

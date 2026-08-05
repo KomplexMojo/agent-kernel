@@ -37,15 +37,18 @@ Flags:
 - `--eval-run` / `--eval-output <path>` — write a structured JSON model-evaluation report
 - `--keep-failing-logic` — keep syntactically valid failing tests for application-bug triage; **omit for model evaluation**
 
-Remote dual-GPU run, and model-evaluation against one file:
+Remote dual-GPU run, and model-evaluation against one file. Addresses resolve
+from the untracked `tools/remote-ollama-control/config/llm-host.env` — on the
+same local network as the host, use `--route internal` and drop
+`--external-host` entirely:
 
 ```bash
 ./tools/remote-ollama-control/bin/remote-ollama-mac run-local \
-  --profile dual --model <ollama-model> --route external --external-host <wan-host-or-ip> \
+  --profile dual --model <ollama-model> --route external --external-host <wan-hostname-or-ip> \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs --model <ollama-model>
 
 ./tools/remote-ollama-control/bin/remote-ollama-mac run-local \
-  --profile dual --model <ollama-model> --route external --external-host <wan-host-or-ip> \
+  --profile dual --model <ollama-model> --route external --external-host <wan-hostname-or-ip> \
   -- node ~/.claude/skills/local-test-gen/scripts/main.mjs \
      --model <ollama-model> --file tests/ui-web/tile-affinity-visuals.test.mjs \
      --runner auto --max-iterations 5 --num-ctx 65536 --num-predict 8192 \

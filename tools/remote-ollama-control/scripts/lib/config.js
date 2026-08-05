@@ -121,10 +121,14 @@ function loadConfig(rootDir = ROOT_DIR) {
     },
     host: {
       remoteUser: env.LLM_REMOTE_USER || 'darren',
-      internalHost: env.LLM_INTERNAL_HOST || '192.168.1.143',
-      externalHost: env.LLM_EXTERNAL_HOST || '207.6.34.73',
-      sshPort: numberFrom(env.LLM_SSH_PORT, 2222),
-      sshKey: resolveMaybeRelative(rootDir, env.LLM_SSH_KEY || '~/.ssh/ubuntu_llm_ed25519'),
+      // Deliberately no defaults: site addresses are operator data and must not
+      // be committed. Both come from the untracked config/llm-host.env.
+      internalHost: env.LLM_INTERNAL_HOST || '',
+      externalHost: env.LLM_EXTERNAL_HOST || '',
+      // Standard SSH port as the fallback. A site running SSH elsewhere sets
+      // LLM_SSH_PORT in the untracked env file rather than committing it here.
+      sshPort: numberFrom(env.LLM_SSH_PORT, 22),
+      sshKey: env.LLM_SSH_KEY ? resolveMaybeRelative(rootDir, env.LLM_SSH_KEY) : '',
       sshHostAlias: env.LLM_SSH_HOST_ALIAS || '',
       defaultRoute: env.LLM_DEFAULT_ROUTE || 'external',
       remoteProjectDir: env.LLM_REMOTE_PROJECT_DIR || '/home/darren/Documents/GitHub/agent-kernel',
@@ -148,13 +152,24 @@ function getProfile(config, profileName) {
   return profile;
 }
 
+function requireHost(value, envVar, route) {
+  if (!value) {
+    throw new Error(
+      `${envVar} is not set, so route '${route}' has no address. ` +
+        `Copy config/llm-host.env.example to config/llm-host.env and fill it in. ` +
+        `That file is untracked on purpose — host addresses are never committed.`
+    );
+  }
+  return value;
+}
+
 function hostForRoute(config, routeName) {
   const route = routeName || config.host.defaultRoute || 'internal';
   if (route === 'internal' || route === 'lan') {
-    return config.host.internalHost;
+    return requireHost(config.host.internalHost, 'LLM_INTERNAL_HOST', route);
   }
   if (route === 'external' || route === 'vpn') {
-    return config.host.externalHost;
+    return requireHost(config.host.externalHost, 'LLM_EXTERNAL_HOST', route);
   }
   throw new Error(`Unknown route '${route}'. Use internal or external.`);
 }
