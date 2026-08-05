@@ -102,6 +102,70 @@ Three properties keep this real rather than cosmetic, and the gate
 - Termination is structural: the outer walk is one fixed pass, and candidate bounds are pure functions of
   the cap. `assertJudgementBudget` is a backstop that must never fire.
 
+### Every tile is charged, and tile prices have one origin (CR.1 closed, CR.9 M5)
+
+CR.1's last census entry was `DEFAULT_LAYOUT_TILE_COSTS` in `contracts/domain-constants.js`:
+a second tile-price table that had already drifted from `base-costs.json` (hallways 1 vs 3). It
+was **deleted**, not aligned — picking a winner leaves the second table free to diverge again.
+Tile prices now come from a PriceList: a caller's list overrides per id, and `base-costs.json`
+answers where it is silent. An override is not a second origin; a second table is.
+
+Two charging defects went with it, both invisible under a green suite:
+
+| Was | Now |
+|---|---|
+| `connectorFloorTiles` (8/16/24 per small/medium/large room card) were excluded from `billableFloorTiles` | charged as `tile_hallway` line items — a medium room card costs 64, not 48 |
+| `hallwayTiles` counts were zeroed before pricing (`deprecated_hallway_tiles_ignored`) while the price list still published `tile_hallway: 3` | charged; a hallway tile costs what a floor tile costs (1) |
+
+A price the system publishes and cannot charge is dead vocabulary — the same defect as M4's
+published reject reason with no producer, one layer down.
+`tests/personas/allocator/allocator-tile-charging.test.js` holds the census that fails if a
+tile price becomes unchargeable again.
+
+### EVERYTHING COSTS SOMETHING — the rule, and why it is a rule
+
+**Maintainer rule, 2026-08-05: everything in the game has a cost, even if only the 1-token
+base. An economy exists partly to prevent economic exploitation, so anything obtainable for
+zero tokens is not a pricing gap — it is an exploit.**
+
+Auditing against that rule found four free surfaces, none of which failed anything:
+
+| Free surface | Now |
+|---|---|
+| A hazard's **affinity payload** cost nothing on the real `ak create` path. The pricer tested `typeof affinity === "object"`, but the CLI writes `affinity: "fire"` beside `affinityStacks: [...]` — the branch never matched | charged: base + stacks + expression, the same as a delver's. In the g1 golden the delver's fire/emit affinity cost 46 tokens and the hazard's identical one cost **0**; a hazard is now 42 rather than 5 |
+| A hazard's **vitals** likewise: the pricer read `{ max, current, regen }`, the CLI writes `{ kind: "one-time", amount }` | charged as vital points |
+| `motivation_stationary` was priced at **0** | 1 — a level of stationary wardens is no longer free behavior |
+| `hazard_base` (10) was published and charged by nothing | deleted; `hazard_basic` (5) is the enforced base every hazard pays |
+
+⇒ **A charging path that matches one SHAPE of a payload is not a charging path for that
+payload.** This is the guard-spelling lesson arriving in the economy: both hazard defects
+were shape mismatches, invisible because a missing charge produces a smaller, well-formed
+receipt. `readHazardAffinityStacks` / `readHazardVitalCharges` read every known shape in one
+place so a third shape has one home rather than a second charging site.
+
+`tests/personas/allocator/allocator-everything-costs.test.js` is the standing gate: no
+published price may be zero, every published price id must be charged by some real payload
+(with a written exception list), and a bare entity must still pay its base.
+
+### The budget split follows the prices (CR.9 M5 retune)
+
+`levelBudgetSplitPercent` moved **room 44 → 41, hazard 12 → 15**. The old split was set when
+a hazard cost 5 tokens with its payload free; hazards now cost ~52, and three of them no
+longer fit a 12% share — the content-gen benchmark refused `hazards: 157/156`. The share
+follows the prices, not the other way around.
+
+**It is one number in one place now, and that took three deletions.** The same percentages
+were also declared as `DEFAULT_POOLS` and `REFERENCE_TARGETS` in `budget-allocation.js`
+(numbers in code, tied to the JSON only by a comment) and — the one that mattered — as
+`AUTHORING_POOL_WEIGHT_DEFAULTS` in `adapters-cli/src/cli/ak-impl.mjs`, which is the copy
+`ak create` actually used. All three now derive from `base-costs.json`.
+
+⚠️ **That fourth copy is why the single-origin guard's scope is now `packages`, not
+`packages/runtime/src`.** It sat in an adapter, outside the guard's reach, through the
+entire milestone that closed CR.1 — and the proof it was load-bearing is that retuning the
+canonical split changed nothing on the real path until it was removed. An economy that ends
+at a package boundary is not a single origin; neither is the guard that protects it.
+
 ### The base-cost standard: numbers in JSON, formulas in code
 
 **Every element with a token cost follows this split, without exception.**

@@ -244,10 +244,21 @@ export const DEFAULT_LLM_MODEL = "phi4";
 export const DEFAULT_LLM_BASE_URL = "http://localhost:11434";
 export const DEFAULT_LLM_CONTEXT_WINDOW_TOKENS = 256000;
 export const LAYOUT_TILE_FIELDS = Object.freeze(["floorTiles", "hallwayTiles"]);
-export const DEFAULT_LAYOUT_TILE_COSTS = Object.freeze({
-  floorTiles: 1,
-  hallwayTiles: 1,
-});
+/**
+ * CR.1's LAST CENSUS ENTRY, closed 2026-08-05 by DELETION rather than by retune.
+ *
+ * `DEFAULT_LAYOUT_TILE_COSTS` used to sit here — floor 1, hallway 1 — beside
+ * `base-costs.json`'s floor 1, hallway 3. Two codebooks for one price, disagreeing, with
+ * nothing able to notice: the divergence never reached the build path, so goldens held
+ * and the suite stayed green. Aligning the numbers would have left the second origin in
+ * place to diverge again on the next edit, so the constant is gone. Tile prices come from
+ * the Allocator's PriceList and their absence raises `allocator_tile_price_required`
+ * (`personas/allocator/layout-spend.js`). The charter's rule is literal here: "an
+ * incomplete price list is a structured error, never a quiet default."
+ *
+ * What stays in contracts is VOCABULARY, not economy: which tile fields exist, and which
+ * price id each maps to. That is the same line P5.1 D1 drew for card types and sizes.
+ */
 export const LAYOUT_TILE_PRICE_IDS = Object.freeze({
   floorTiles: { id: "tile_floor", kind: "tile" },
   hallwayTiles: { id: "tile_hallway", kind: "tile" },
@@ -415,11 +426,27 @@ function buildStructuredPrompt({
   return lines.join("\n");
 }
 
-export function normalizeLayoutTileCosts(tileCosts = {}) {
+/**
+ * Tile prices for prompt text, or `null` when the caller has none to state.
+ *
+ * CR.9 M5: this used to complete a partial `tileCosts` from `DEFAULT_LAYOUT_TILE_COSTS`,
+ * so a caller that passed nothing still got a prompt asserting "floor tiles cost 1 tokens
+ * each" on no authority at all. In prompt text a wrong price does not fail — it becomes
+ * wrong content, and the model spends against a number the Allocator never set.
+ *
+ * Returning `null` rather than throwing is deliberate. A missing price here is not a
+ * caller bug (several prompt paths legitimately have no PriceList in hand); it is simply
+ * nothing to say, and the template omits the line. Production threads the real prices from
+ * `resolveLayoutTileCosts(priceList)`, so the omission is a fallback, not the norm.
+ */
+export function normalizeLayoutTileCosts(tileCosts) {
+  if (!tileCosts || typeof tileCosts !== "object") return null;
   const normalized = {};
-  LAYOUT_TILE_FIELDS.forEach((field) => {
-    normalized[field] = asPositiveInt(tileCosts[field], DEFAULT_LAYOUT_TILE_COSTS[field]);
-  });
+  for (const field of LAYOUT_TILE_FIELDS) {
+    const value = asPositiveInt(tileCosts[field], 0);
+    if (value <= 0) return null;
+    normalized[field] = value;
+  }
   return normalized;
 }
 
@@ -509,7 +536,12 @@ export function buildLlmLevelPromptTemplate({
     role: "You are a dungeon level planner.",
     goal: "Plan the dungeon layout using rooms only.",
     context: contextLines,
-    assumption: [`floor tiles cost ${normalizedCosts.floorTiles} tokens each.`],
+    // Stated only when the caller supplied real prices. The wording is unchanged from
+    // before CR.9 M5 on purpose: prompt text is the benchmark surface, and this milestone
+    // is about where the number COMES FROM, not about telling the model something new.
+    assumption: normalizedCosts
+      ? [`floor tiles cost ${normalizedCosts.floorTiles} tokens each.`]
+      : [],
     constraints,
     instructions,
     responseFormat,

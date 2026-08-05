@@ -64,9 +64,13 @@ const DESCRIPTIONS = {
   "motivation_strategy_focused": "Strategy-focused cognition",
   "actor_spawn": "Spawn one actor (delver or warden)",
   "tile_floor": "One floor tile",
-  "tile_hallway": "One hallway tile (more complex pathing)",
-  "hazard_basic": "Basic hazard placement",
-  "hazard_base": "Base hazard instantiation cost",
+  "tile_hallway": "One hallway/connector tile — walkable area, priced as a floor tile",
+  // CR.9 M5: `hazard_base` (10) was deleted. `hazard_basic` (5) is the enforced base every
+  // hazard pays; `hazard_base` was a second id for the same idea, published for the life of
+  // the branch and charged by nothing. Two names for one charge is the CR.1 shape, and a
+  // price nothing spends is dead vocabulary — the census in
+  // tests/personas/allocator/allocator-everything-costs.test.js now fails on both.
+  "hazard_basic": "Basic hazard placement — the base every hazard pays",
   "resource_base": "Consumable resource — costs same as its vital grant value",
   "resource_level": "Level-scoped resource — 5× vital grant value",
   "resource_permanent": "Permanent resource — 10× vital grant value",

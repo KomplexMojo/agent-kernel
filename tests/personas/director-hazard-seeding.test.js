@@ -57,8 +57,10 @@ assert.equal(proposal.affinity, "fire", "proposal affinity should be fire");
 assert.equal(proposal.roomIndex, 0, "proposal roomIndex should be 0");
 assert.equal(proposal.personaRef, "director", "proposal personaRef should be director");
 
-// budgetCeiling = 44% of 1000 = 440 (rooms pool, no reserve)
-assert.equal(proposal.budgetCeiling, 440, "budgetCeiling should be 440 (44% of 1000)");
+// budgetCeiling = 41% of 1000 = 410 (rooms pool, no reserve).
+// CR.9 M5 split retune: room 44 -> 41, hazard 12 -> 15 — hazards now pay for their
+// affinity payload and vitals, so the share follows the prices.
+assert.equal(proposal.budgetCeiling, 410, "budgetCeiling should be 410 (41% of 1000)");
 
 // planRef should be present since a plan was built from intent
 assert.ok(proposal.planRef, "proposal should carry a planRef");

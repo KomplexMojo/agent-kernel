@@ -109,7 +109,7 @@
     {
       "id": "motivation_stationary",
       "kind": "motivation",
-      "unitCost": 0,
+      "unitCost": 1,
       "formula": "linear",
       "description": "Stationary — no movement cost"
     },
@@ -206,23 +206,16 @@
     {
       "id": "tile_hallway",
       "kind": "tile",
-      "unitCost": 3,
+      "unitCost": 1,
       "formula": "linear",
-      "description": "One hallway tile (more complex pathing)"
+      "description": "One hallway/connector tile — walkable area, priced as a floor tile"
     },
     {
       "id": "hazard_basic",
       "kind": "hazard",
       "unitCost": 5,
       "formula": "linear",
-      "description": "Basic hazard placement"
-    },
-    {
-      "id": "hazard_base",
-      "kind": "hazard",
-      "unitCost": 10,
-      "formula": "linear",
-      "description": "Base hazard instantiation cost"
+      "description": "Basic hazard placement — the base every hazard pays"
     },
     {
       "id": "resource_base",

@@ -97,8 +97,52 @@
       }
     },
     {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_localized",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "hazard_basic",
       "kind": "hazard",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
       "quantity": 1,
       "category": "hazards",
       "subjectRef": {

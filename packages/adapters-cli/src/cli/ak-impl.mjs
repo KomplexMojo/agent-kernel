@@ -3804,13 +3804,25 @@ async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId,
   }
 }
 
-const AUTHORING_POOL_WEIGHT_DEFAULTS = Object.freeze({
-  rooms: 0.44,
-  hazards: 0.12,
-  wardens: 0.16,
-  resources: 0.08,
-  delver: 0.20,
-});
+/**
+ * The per-kind budget split, READ FROM THE ALLOCATOR — never declared here.
+ *
+ * ⚠️ CR.1, found again at CR.9 M5 and this time in glue. This was a hardcoded object
+ * (`rooms: 0.44, hazards: 0.12, wardens: 0.16, resources: 0.08, delver: 0.20`) — a FOURTH
+ * copy of the split, in an adapter, and the one that actually drives `ak create`. It hid
+ * through the whole milestone that closed CR.1 because the single-origin guard was scoped
+ * to `packages/runtime/src` and stopped at the runtime package boundary. The proof it was
+ * load-bearing: retuning the canonical split in `base-costs.json` (hazard 12 -> 15) changed
+ * nothing on the real path, because this copy answered instead.
+ *
+ * The charter's rule is that the Director — and glue even more so — may CALL the Allocator
+ * for a split, never define one. So this asks. The guard now scopes to all of `packages`.
+ */
+const AUTHORING_POOL_WEIGHT_DEFAULTS = Object.freeze(Object.fromEntries(
+  createAllocatorPersona({ clock: UNUSED_CLOCK })
+    .pricing.defaultPoolWeights()
+    .map((pool) => [pool.id, pool.weight]),
+));
 
 function buildPoolWeightsForAuthoredKinds({
   rooms = [],

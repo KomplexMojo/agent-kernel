@@ -170,14 +170,36 @@ export function attachAllocatorServices({
     return result;
   }
 
+  /**
+   * Spread `args` first, then fill only what it did not actually supply.
+   *
+   * CR.9 M5 fixed a real defect here. These were `{ priceList: getPriceList(), ...args }`,
+   * and callers routinely pass the KEY with an undefined VALUE (`{ priceList, ... }` where
+   * the local is undefined) — which the spread happily uses to overwrite the persona's
+   * resolved list with nothing. The persona then priced with no price list. That was
+   * invisible while `layout-spend.js` completed missing prices from the contracts default;
+   * deleting the default (CR.1) turned it into 128 loud failures across the suite.
+   * A `key: undefined` present in an object is not the same as the key being absent, and
+   * object spread does not know the difference — so precedence has to be explicit.
+   */
+  function withPersonaDefaults(args, defaults) {
+    const merged = { ...args };
+    for (const [key, value] of Object.entries(defaults)) {
+      if (merged[key] === undefined) merged[key] = value;
+    }
+    return merged;
+  }
+
   function boundEvaluateLayoutSpend(args = {}) {
-    return evaluateLayoutSpend({ priceList: getPriceList(), ...args });
+    return evaluateLayoutSpend(withPersonaDefaults(args, { priceList: getPriceList() }));
   }
 
   function boundEvaluateRoomCardLayoutSpend(args = {}) {
     // CR.9 M2: the injected Configurator geometry is the default, but an explicit
     // per-call `deriveRoomLayout` still wins — same precedence as priceList.
-    return evaluateRoomCardLayoutSpend({ priceList: getPriceList(), deriveRoomLayout, ...args });
+    return evaluateRoomCardLayoutSpend(
+      withPersonaDefaults(args, { priceList: getPriceList(), deriveRoomLayout }),
+    );
   }
 
   function scenarioSpendReport(args = {}) {
@@ -196,22 +218,23 @@ export function attachAllocatorServices({
   // CR.9 M3: both also ASSEMBLE cards — candidate enumeration for the maximizer,
   // minimum-viable cards and structural validity for the assessor — so both take the
   // Configurator's authoring surface the same way, and refuse without it.
+  // These two carried the SAME `{ defaults, ...args }` clobbering bug the layout services
+  // above were fixed for — a caller passing `authorCandidates: undefined` would overwrite
+  // the injected capability with nothing, and the persona would then refuse (or worse,
+  // proceed) for a reason that has nothing to do with what the caller meant. Dormant, in
+  // that no current caller does it; migrated anyway, because the fix was for the defect
+  // CLASS and leaving two instances of it in the same file is how a class reopens.
+  // (Found by the Codex adversarial review of this milestone.)
   function assessFeasibility(args = {}) {
-    return ensureBudgetedFulfillmentFeasible({
-      deriveRoomLayout,
-      authorCandidates,
-      normalizeMotivations,
-      ...args,
-    });
+    return ensureBudgetedFulfillmentFeasible(
+      withPersonaDefaults(args, { deriveRoomLayout, authorCandidates, normalizeMotivations }),
+    );
   }
 
   function maximizeFulfillment(args = {}) {
-    return applyBudgetCappedFulfillment({
-      deriveRoomLayout,
-      authorCandidates,
-      normalizeMotivations,
-      ...args,
-    });
+    return applyBudgetCappedFulfillment(
+      withPersonaDefaults(args, { deriveRoomLayout, authorCandidates, normalizeMotivations }),
+    );
   }
 
   /** Serializable service-side context merged into the persona view. */

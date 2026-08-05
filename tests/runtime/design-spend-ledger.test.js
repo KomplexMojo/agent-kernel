@@ -43,10 +43,13 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
   });
 
   // P1.4 unified list: vitals 4+2+1+1=8, regen 1²+1²=2, affinity 10+2²+35=49 → 59/unit × 2 = 118
-  assert.equal(ledger.totalSpentTokens, 388);
-  assert.equal(ledger.remainingTokens, 612);
+  // CR.9 M5: levelConfig 110 → 120 and the total 388 → 398. The layout is 10 floor + 10
+  // HALLWAY tiles; hallway tiles used to be zeroed before pricing, so half this layout was
+  // free. They now cost what floor tiles cost.
+  assert.equal(ledger.totalSpentTokens, 398);
+  assert.equal(ledger.remainingTokens, 602);
   assert.equal(ledger.overBudget, false);
-  assert.equal(ledger.categories.levelConfig.spentTokens, 110);
+  assert.equal(ledger.categories.levelConfig.spentTokens, 120);
   assert.equal(ledger.categories.actorBase.spentTokens, 160);
   assert.equal(ledger.categories.actorConfiguration.spentTokens, 118);
   assert.ok(ledger.lineItems.some((entry) => entry.category === "levelConfig"));
@@ -106,6 +109,10 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
       schema: "agent-kernel/PriceList",
       schemaVersion: 1,
       items: [
+        // CR.9 M5: a list that prices no tiles is INCOMPLETE and the Allocator now refuses
+        // it rather than completing it from a contracts default (CR.1's last entry).
+        { id: "tile_floor", kind: "tile", costTokens: 1 },
+        { id: "tile_hallway", kind: "tile", costTokens: 1 },
         { id: "vital_health_point", kind: "vital", costTokens: 1 },
         { id: "vital_health_regen_tick", kind: "vital", costTokens: 4 },
         { id: "affinity_base", kind: "affinity", costTokens: 8 },
@@ -264,6 +271,8 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
       schemaVersion: 1,
       items: [
         { id: "tile_floor", kind: "tile", costTokens: 1 },
+        // CR.9 M5: every tile field needs a price — an incomplete list is a refusal.
+        { id: "tile_hallway", kind: "tile", costTokens: 1 },
         { id: "affinity_stack", kind: "affinity", costTokens: 10 },
         { id: "affinity_expression_externalize", kind: "affinity", costTokens: 10 },
       ],

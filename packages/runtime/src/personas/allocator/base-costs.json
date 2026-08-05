@@ -22,7 +22,7 @@
     "affinity_expression_sustain": 25
   },
   "motivation": {
-    "motivation_stationary": 0,
+    "motivation_stationary": 1,
     "motivation_random": 1,
     "motivation_exploring": 2,
     "motivation_patrolling": 3,
@@ -40,11 +40,10 @@
   },
   "tile": {
     "tile_floor": 1,
-    "tile_hallway": 3
+    "tile_hallway": 1
   },
   "hazard": {
-    "hazard_basic": 5,
-    "hazard_base": 10
+    "hazard_basic": 5
   },
   "resource": {
     "resource_base": 1,
@@ -88,12 +87,12 @@
     "resource_permanent_multiplier": 10,
     "room_affinity_stack_cost_factor": 0.1
   },
-  "_levelBudgetSplitNote": "Per-card-type share of a level budget, as percentages summing to 100. Its own group because the base-cost standard requires every item to be a NUMBER \u2014 a nested object here would be formula selection in JSON, which the standard puts in code.",
+  "_levelBudgetSplitNote": "Per-card-type share of a level budget, as percentages summing to 100. Its own group because the base-cost standard requires every item to be a NUMBER \u2014 a nested object here would be formula selection in JSON, which the standard puts in code. RETUNED at CR.9 M5 (room 44->41, hazard 12->15): the old split was calibrated when a hazard cost 5 tokens with its affinity payload and vitals charged NOTHING. Those are charged now, so a hazard costs ~52 and three of them no longer fit a 12% share \u2014 content-gen scenario 51 failed on hazards 157/156. The share follows the prices, not the other way around.",
   "levelBudgetSplitPercent": {
-    "room": 44,
+    "room": 41,
     "delver": 20,
     "warden": 16,
-    "hazard": 12,
+    "hazard": 15,
     "resource": 8
   }
 }

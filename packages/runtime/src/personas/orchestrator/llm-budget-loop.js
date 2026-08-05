@@ -205,8 +205,14 @@ function buildPhaseRepairPrompt({
     allowedPairsText: isLayoutPhase ? "" : allowedPairsText,
     phaseRequirement,
     extraLines: [
+      // CR.9 M5: was `layoutCosts?.floorTiles ?? 1`. The caller resolves these from the
+      // Allocator's PriceList before the loop starts, so the fallback could only ever fire
+      // by quoting the model a price nobody set — a second origin, in prompt text, where a
+      // wrong number becomes wrong content rather than a loud failure. The WORDING is
+      // unchanged (floor only): the response contract has no hallway field, so quoting its
+      // price would add noise to a benchmark-gated prompt for no decision the model makes.
       phase === "layout_only"
-        ? `Tile costs: floor ${layoutCosts?.floorTiles ?? 1} tokens each.`
+        ? `Tile costs: floor ${layoutCosts.floorTiles} tokens each.`
         : null,
       missingSelections ? `Unmatched picks: ${missingSelections}` : null,
       phase === "layout_only"
@@ -1266,10 +1272,10 @@ export async function runLlmBudgetLoop({
   });
   const wardenBudgetWithRollover = wardensBudgetTokens + layoutSpendResult.remainingBudgetTokens;
   remainingBudgetTokens = wardenBudgetWithRollover;
-  const layoutWarnings = [
-    ...(layoutCostResult.warnings || []),
-    ...(layoutSpendResult.warnings || []),
-  ].filter(Boolean);
+  // `resolveLayoutTileCosts` no longer returns warnings: a missing tile price used to be a
+  // `missing_tile_cost` warning nothing read, on a spend that still looked well-formed.
+  // It now throws `allocator_tile_price_required` (CR.9 M5).
+  const layoutWarnings = [...(layoutSpendResult.warnings || [])].filter(Boolean);
   trace.push({
     phase: "layout_only",
     spentTokens: layoutSpendResult.spentTokens,

@@ -107,10 +107,11 @@ function createDomGuidance() {
   // so both paths evaluate the same allocation caps. Empty input values would otherwise
   // collapse the DOM builder's splits to 0% and reject every setCards call.
   elements.levelBudgetInput.value = "2500";
-  elements.budgetSplitRoomInput.value = "44";
+  // CR.9 M5 split retune: room 44 -> 41, hazard 12 -> 15.
+  elements.budgetSplitRoomInput.value = "41";
   elements.budgetSplitAttackerInput.value = "20";
   elements.budgetSplitDefenderInput.value = "16";
-  elements.budgetSplitHazardInput.value = "12";
+  elements.budgetSplitHazardInput.value = "15";
   elements.budgetSplitResourceInput.value = "8";
   return { guidance: wireDesignGuidance({ elements }), statusEl: elements.statusEl };
 }

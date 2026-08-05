@@ -90,14 +90,21 @@ assert.equal(result.summary.roomDesign.rooms.length, 2);
 assert.equal(result.summary.roomDesign.connections.length, 1);
 assert.equal(result.summary.roomDesign.hallways, "Single spine hallway.");
 assert.equal(result.summary.actors.length, 1);
-// Layout 100 + actor base 80 + vitals/regen/motivation (18 + 2 + 3) = 203.
-assert.equal(result.remainingBudgetTokens, 117);
-// P1.4: under unified list prices, 117 remaining still affords catalog
-// entries, so resolveStopReason correctly IGNORES the LLM's premature "done"
-// (ignoreDoneIfBudgetRemains) and the single allowed actor round exhausts —
-// stopReason stays null by design. Pre-P1.4 prices made 117 unaffordable,
-// which is why "done" used to be accepted.
-assert.equal(result.stopReason, null);
+// Layout 100 floor + 50 HALLWAY + actor base 80 + vitals/regen/motivation (18 + 2 + 3) = 253.
+// CR.9 M5: remaining was 117 while hallway tiles were zeroed before pricing — this level
+// has 50 of them, so a third of its walkable area was free. They now cost what floor
+// tiles cost, and the same layout leaves 67.
+assert.equal(result.remainingBudgetTokens, 67);
+// This assertion has now flipped TWICE, and the arc is the point:
+//   pre-P1.4  "done"  — prices were high, 117 bought nothing, so "done" was honoured.
+//   P1.4      null    — unified prices made 117 affordable, so the premature "done" was
+//                       correctly ignored (ignoreDoneIfBudgetRemains) and the round ran on.
+//   CR.9 M5   "done"  — charging the 50 hallway tiles leaves 67, which affords no catalog
+//                       entry, so "done" is honoured again.
+// The rule never changed; what changed is that a third of this level stopped being free.
+// It is also the clearest evidence for why the maintainer pre-authorised raising the level
+// budget: identical content, identical prompt, less room left over.
+assert.equal(result.stopReason, "done");
 assert.ok(result.trace[0].startedAt);
 assert.ok(result.trace[0].endedAt);
 assert.equal(typeof result.trace[0].durationMs, "number");
@@ -161,9 +168,12 @@ const result = await runLlmBudgetLoop({
 });
 
 assert.equal(result.ok, true);
-assert.equal(result.trace[0].spentTokens, 3);
-assert.equal(result.trace[0].remainingBudgetTokens, 97);
-assert.equal(result.remainingBudgetTokens, 97);
+// CR.9 M5: 3 floor + 1 hallway at the canonical list's 1 token each = 4. It was 3 while
+// the hallway tile was zeroed before pricing, which is the defect this milestone closed:
+// the price list published a hallway cost that no code path could ever charge.
+assert.equal(result.trace[0].spentTokens, 4);
+assert.equal(result.trace[0].remainingBudgetTokens, 96);
+assert.equal(result.remainingBudgetTokens, 96);
 });
 
 

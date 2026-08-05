@@ -179,10 +179,25 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
 - There is **one price model**, owned by the Allocator. Base cost numbers live in
   `personas/allocator/base-costs.json` (data, tunable); formulas — linear/quadratic shaping and
   the free-floating resource premium — live in Allocator code. A base cost literal in any other
-  file is a violation.
+  file is a violation, **in any package**. The budget split is a base cost in this sense: the
+  per-card-type percentages live in the JSON, and the pool ids, reference targets and authoring
+  weights are all derived from them. CR.9 M5 found a fourth copy of that split hardcoded in
+  `adapters-cli` — outside the single-origin guard's then-scope of `packages/runtime/src`, and
+  the copy the CLI actually used, so retuning the canonical split changed nothing on the real
+  path. The guard now scopes to all of `packages`: an economy that stops at a package boundary
+  is not a single origin.
 - Every priced element (vitals, regen, affinity, motivations, tiles, hazards, resources, actors)
   is charged through the Allocator's price list. Silent fallbacks to alternate cost tables are
   forbidden: an incomplete price list is a structured error, never a quiet default.
+- **Everything has a cost, even if only the 1-token base (maintainer rule 2026-08-05).** The
+  budget is the only limit on how much content an author can conjure, so a free element is an
+  exploit rather than a discount. Two things make an element free and both are defects: a
+  published price of **zero**, and a published price with **no charging path**. The second is
+  the dangerous one — the price list reads complete, so nobody looks — and it is how hazard
+  affinities, hazard vitals, connector tiles and `tile_hallway` were all free under a green
+  suite. A charging path that matches one *shape* of a payload is not a charging path for that
+  payload. Enforced by `tests/personas/allocator/allocator-everything-costs.test.js`, which
+  drives real payloads and compares what was charged against what is published.
 - Receipts (`BudgetReceiptArtifact`) are issued only by the Allocator and are the audit trail for
   every spend. Budget maximization ("spend the rest") is Allocator policy, not adapter code.
 - **The Allocator JUDGES; it does not AUTHOR (decided 2026-07-29; ENFORCED 2026-08-04, Plan CR.9 M3).**

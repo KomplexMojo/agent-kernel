@@ -112,10 +112,14 @@ test("cli llm-plan budget loop writes intermediates only when explicitly request
   const trace = telemetry?.data?.llm?.trace || [];
   assert.ok(Array.isArray(trace));
   assert.equal(trace[0].phase, "layout_only");
-  assert.equal(trace[0].spentTokens, 100);
-  assert.equal(trace[0].remainingBudgetTokens, 380);
+  // CR.9 M5: the fixture layout is 100 floor + 50 hallway tiles. Hallways used to be
+  // zeroed before pricing (the `deprecated_hallway_tiles_ignored` warning this used to
+  // assert), so a third of the level was free. They are charged now, and the warning is
+  // gone because the behavior it announced is gone.
+  assert.equal(trace[0].spentTokens, 150);
+  assert.equal(trace[0].remainingBudgetTokens, 306);
   assert.ok(
-    trace[0].warnings?.some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
+    !(trace[0].warnings || []).some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
   );
   assert.ok(trace[0].startedAt);
   assert.ok(trace[0].endedAt);
@@ -123,7 +127,7 @@ test("cli llm-plan budget loop writes intermediates only when explicitly request
   const allocation = telemetry?.data?.llm?.budgetAllocation;
   assert.ok(allocation);
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
-  assert.equal(poolsById.rooms, 352);
+  assert.equal(poolsById.rooms, 328);  // CR.9 M5: rooms 44% -> 41%
   assert.equal(poolsById.wardens, 128);
   assert.equal(poolsById.delver, 160);
 });
@@ -217,9 +221,10 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
   assert.equal(poolsById.delver, 0);
 
   const trace = telemetry?.data?.llm?.trace || [];
-  assert.equal(trace[0].remainingBudgetTokens, 700);
+  // CR.9 M5: 50 hallway tiles now cost 50 tokens (see above), so 700 -> 650.
+  assert.equal(trace[0].remainingBudgetTokens, 650);
   assert.ok(
-    trace[0].warnings?.some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
+    !(trace[0].warnings || []).some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
   );
 });
 

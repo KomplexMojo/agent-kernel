@@ -226,8 +226,10 @@ test("MB4 — getAllocationSplitSum returns the sum of all five split percentage
   guidance.setBudgetSplit("warden", 50);
 
   if (typeof guidance.getSplitSum === "function") {
-    // room=50 + delver=50 + warden=50 + hazard=12(default) + resource=8(default) = 170
-    assert.equal(guidance.getSplitSum(), 170);
+    // room=50 + delver=50 + warden=50 + hazard=15(default) + resource=8(default) = 173.
+    // CR.9 M5 retuned the hazard default 12 -> 15 (and room 44 -> 41): hazards now pay for
+    // their affinity payload and vitals, so the old share no longer buys a hazard room.
+    assert.equal(guidance.getSplitSum(), 173);
     assert.ok(guidance.isSplitOverAllocated?.(), "isSplitOverAllocated should return true when sum > 100");
   } else {
     // Not yet implemented — will verify via state

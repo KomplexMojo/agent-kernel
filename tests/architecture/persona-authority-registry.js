@@ -104,7 +104,11 @@ const REGISTRY = Object.freeze([
     // claiming validation/locking, because it no longer sends those events at all.
     // Configuration is build-plane work; the tick plane consumes an already-built
     // SimConfig. Asserted in tests/personas/dual-surface-shadowing.test.js.
-    status: { owned: true, since: "PX.5 (Option A)" },
+    status: {
+      owned: true,
+      since: "PX.5 (Option A)",
+      provenBy: "tests/personas/dual-surface-shadowing.test.js",
+    },
   },
 
   {
@@ -132,10 +136,20 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "packages/runtime/src/personas/allocator/base-costs.json",
     invocation: "cli",
     status: {
-      blockedBy: "CR.1",
+      owned: true,
       why:
-        "Three independent origins of economic values: director/budget-allocation.js, "
-        + "commands/card-authoring.js, and core-ts/state/budget.ts's silent DEFAULT_ACTION_COST.",
+        "CR.1 closed at CR.9 M5. The finding named three origins; the guard-as-census found "
+        + "FIVE files and 15 constants, two files the hand inventory had missed. Fourteen "
+        + "relocated into the Allocator (89e213e, fb46132); the last, contracts' "
+        + "DEFAULT_LAYOUT_TILE_COSTS, was deleted rather than moved — its hallway price had "
+        + "already diverged from base-costs.json, so aligning the numbers would have left the "
+        + "second table standing. The third named origin, core-ts's DEFAULT_ACTION_COST, was "
+        + "investigated and is NOT a defect: it is a unit count that the Allocator's injected "
+        + "action costs overwrite before core reads it.",
+      provenBy: "tests/architecture/single-origin.test.js",
+      // The proof is the price/budget-split guard running UN-SKIPPED — it was written as a
+      // census and skipped from birth, which reads identically to passing in the runner.
+      // Perturbation-verified: restoring the tile-cost table in contracts fails it.
     },
   },
   {
@@ -236,7 +250,11 @@ const REGISTRY = Object.freeze([
     // port as themselves. Proven by the LIVE `EffectKind` guard in
     // single-origin.test.js, scoped to all of `packages/`: a second declaration
     // anywhere fails it. That guard is the G1 test for this entry.
-    status: { owned: true, since: "PX.1 / HANDOFF-8 (cf4dcdbd)" },
+    status: {
+      owned: true,
+      since: "PX.1 / HANDOFF-8 (cf4dcdbd)",
+      provenBy: "tests/architecture/single-origin.test.js",
+    },
   },
   {
     id: "all/injected-clock",
@@ -264,7 +282,11 @@ const REGISTRY = Object.freeze([
     // (persona-serialization-equivalence.test.js), 7/7: for each persona, a JSON
     // round-trip of view() rebuilds a persona whose view() matches AND whose next
     // advance() is result-identical to the original's. That is the A4 property.
-    status: { owned: true, since: "PX.4 / HANDOFF-4 (cf4dcdbd)" },
+    status: {
+      owned: true,
+      since: "PX.4 / HANDOFF-4 (cf4dcdbd)",
+      provenBy: "tests/architecture/persona-serialization-equivalence.test.js",
+    },
   },
   {
     id: "all/controller-only-boundary",

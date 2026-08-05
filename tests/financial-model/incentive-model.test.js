@@ -33,10 +33,10 @@ assert.equal(REFERENCE_BUDGET_TOKENS, 2500);
 
 test("reference targets include five budget pools for the 2500-token budget (design §2.2)", async () => {
   const { REFERENCE_TARGETS } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
-assert.equal(REFERENCE_TARGETS.rooms, 1100);
+assert.equal(REFERENCE_TARGETS.rooms, 1025);
 assert.equal(REFERENCE_TARGETS.delvers, 500);
 assert.equal(REFERENCE_TARGETS.wardens, 400);
-assert.equal(REFERENCE_TARGETS.hazards, 300);
+assert.equal(REFERENCE_TARGETS.hazards, 375);
 assert.equal(REFERENCE_TARGETS.resources, 200);
 });
 
@@ -57,7 +57,7 @@ assert.equal(report.overBudget, false);
 
 // Categories
 assert.equal(report.categories.rooms.actual, 500);
-assert.equal(report.categories.rooms.target, 1100);
+assert.equal(report.categories.rooms.target, 1025);
 assert.equal(report.categories.delvers.actual, 180);
 assert.equal(report.categories.delvers.target, 500);
 assert.equal(report.categories.wardens.actual, 230);
@@ -76,10 +76,10 @@ test("scenario spend report scales default allocation targets for a 10000-token 
 
 const report = buildScenarioSpendReport({ budgetTokens: 10000 });
 
-assert.equal(report.categories.rooms.target, 4400);
-assert.equal(report.categories.floor_tiles.target, 4400);
+assert.equal(report.categories.rooms.target, 4100);
+assert.equal(report.categories.floor_tiles.target, 4100);
 assert.equal(report.categories.delvers.target, 2000);
 assert.equal(report.categories.wardens.target, 1600);
-assert.equal(report.categories.hazards.target, 1200);
+assert.equal(report.categories.hazards.target, 1500);
 assert.equal(report.categories.resources.target, 800);
 });

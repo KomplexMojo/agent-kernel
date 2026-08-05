@@ -105,11 +105,15 @@ test("with the geometry injected, the Allocator prices what the Configurator der
 
 test("room size drives the price, so the injected geometry is genuinely load-bearing", async () => {
   const { calculateRoomCardUnitCost } = await import(`${P}allocator/spend-proposal.js`);
+  const { buildDefaultPriceList } = await import(`${P}allocator/default-price-list.js`);
   const deriveRoomLayout = await configuratorGeometry();
 
+  // CR.9 M5: this passed `{ items: [] }`. An empty list prices no tiles, and the Allocator
+  // now refuses one rather than completing it from the deleted contracts default — so the
+  // test has to supply the list production would (the persona's own default).
   const priceOf = (roomSize) => calculateRoomCardUnitCost({
     card: { ...ROOM_CARD, roomSize },
-    priceList: { items: [] },
+    priceList: buildDefaultPriceList(),
     deriveRoomLayout,
   }).cost;
 

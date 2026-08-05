@@ -429,8 +429,11 @@ test("cli room-plan rejects insufficient hard budgets instead of silently degrad
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /insufficient_budget/);
-  assert.match(result.stderr, /hard budget is 40 tokens but minimum required spend is 48 tokens/i);
-  assert.match(result.stderr, /room\[1\] requires at least 48 tokens/i);
+  // CR.9 M5: a medium room's minimum spend is 48 room floor tiles + 16 CONNECTOR tiles.
+  // The connectors were excluded from billing, so the minimum read 48 and a level could be
+  // "affordable" while a quarter of its walkable area was unpriced.
+  assert.match(result.stderr, /hard budget is 40 tokens but minimum required spend is 64 tokens/i);
+  assert.match(result.stderr, /room\[1\] requires at least 64 tokens/i);
   assert.equal(existsSync(join(outDir, "bundle.json")), false);
 });
 

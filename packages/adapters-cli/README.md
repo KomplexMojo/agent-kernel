@@ -199,9 +199,13 @@ layout-only → actors-only loop with remaining budget hints and stop reasons
 (`done`, `missing`, `no_viable_spend`). Each phase is captured as a distinct
 `CapturedInputArtifact` with `payload.phase` and deterministic phase-indexed ids.
 llm-plan requires a total budget (`--budget-tokens` or scenario `budgetTokens`) to be set.
-Layout tile costs default to 1 token each (llm-plan does not yet ingest price lists);
-when a price list is supplied to the budget loop, `tile_wall`, `tile_floor`, and
-`tile_hallway` items (kind `tile`) override the defaults.
+Layout tile costs come from the Allocator's price list — `base-costs.json` prices both
+`tile_floor` and `tile_hallway` at 1 token, and `tile` items in a supplied price list
+override those. There is no separate default table: the one that used to live in
+`contracts/domain-constants.js` disagreed with `base-costs.json` about hallways (1 vs 3)
+and was deleted in CR.9 M5. **Hallway tiles are charged.** They were counted and then
+zeroed before pricing, so a level's connectors were free; a medium room card's minimum
+spend is now 64 tokens (48 room floor + 16 connector) rather than 48.
 Budget pools can be customized with `--budget-pool id=weight` (repeatable) and
 `--budget-reserve N` to reserve tokens before pooling. Defaults are
 player=0.2, layout=0.4, wardens=0.4, resource=0.0.

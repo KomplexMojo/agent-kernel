@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 86,
-  "remaining": 4914,
+  "totalCost": 123,
+  "remaining": 4877,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -144,6 +144,48 @@
       }
     },
     {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 10,
+      "totalCost": 10,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_localized",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 25,
+      "totalCost": 25,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "hazard_basic",
       "kind": "hazard",
       "quantity": 1,
@@ -156,21 +198,35 @@
         "schema": "agent-kernel/HazardArtifact",
         "schemaVersion": 1
       }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
     }
   ],
   "poolStatuses": [
     {
       "id": "rooms",
-      "capTokens": 2895,
+      "capTokens": 2697,
       "spentTokens": 25,
-      "remainingTokens": 2870,
+      "remainingTokens": 2672,
       "status": "approved"
     },
     {
       "id": "hazards",
-      "capTokens": 789,
-      "spentTokens": 5,
-      "remainingTokens": 784,
+      "capTokens": 987,
+      "spentTokens": 42,
+      "remainingTokens": 945,
       "status": "approved"
     },
     {
@@ -197,24 +253,24 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 86,
-    "remainingBudget": 4914,
+    "totalSpend": 123,
+    "remainingBudget": 4877,
     "overBudget": false,
     "categories": {
       "rooms": {
-        "actual": 30,
-        "target": 2895,
-        "usagePercent": 1
+        "actual": 67,
+        "target": 2697,
+        "usagePercent": 2
       },
       "floor_tiles": {
         "actual": 25,
-        "target": 2895,
+        "target": 2697,
         "usagePercent": 1
       },
       "hazards": {
-        "actual": 5,
-        "target": 789,
-        "usagePercent": 1
+        "actual": 42,
+        "target": 987,
+        "usagePercent": 4
       },
       "resources": {
         "actual": 0,
@@ -233,7 +289,7 @@
       },
       "shared_system": {
         "actual": 0,
-        "target": 2895,
+        "target": 2697,
         "usagePercent": 0
       }
     },

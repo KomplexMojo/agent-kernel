@@ -15,7 +15,7 @@
  * construction, but it cannot agree with a persona it is not consulting.
  */
 const assert = require("node:assert/strict");
-const { existsSync } = require("node:fs");
+const { existsSync, readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
 const {
@@ -53,7 +53,10 @@ const ROOT = resolve(__dirname, "../..");
 // reject reason codes) and M5 (the package close + benchmark) are follow-on work on a
 // finding that is no longer open, not residue of it.
 const OPEN_FINDINGS = Object.freeze([
-  "CR.1", "CR.4", "CR.7",
+  // CR.1 closed at CR.9 M5, in the same diff as the un-skipped price/budget-split guard
+  // that proves it (single-origin.test.js). Flipping an entry without a live test is the
+  // exact rot e7501e9a had to correct.
+  "CR.4", "CR.7",
   "PX.3", "PX.6",
 ]);
 
@@ -105,6 +108,42 @@ test("registry entries are well-formed and cite paths that exist", () => {
     assert.ok(owned !== blocked, `${entry.id}: status must be either owned:true or blockedBy:<finding>`);
     if (blocked) {
       assert.ok(entry.status.why?.length > 0, `${entry.id}: a blocked entry must say why`);
+    }
+  }
+});
+
+/**
+ * An OWNED entry must point at something that runs.
+ *
+ * Added CR.9 M5, and it is a gap this file had from the start: `registry entries are
+ * well-formed` checked that a BLOCKED entry says why, and checked nothing at all about an
+ * owned one. So "owned: true" was an assertion in prose — which is exactly the state
+ * `e7501e9a` had to correct, where two entries sat flipped while their tests were skipping.
+ * Prose cannot be run; a citation can be checked.
+ *
+ * Two acceptable proofs, because the registry legitimately has both shapes:
+ *   - `status.provenBy`, a path that must exist (guards and G1 files outside this file), or
+ *   - a `G1 <id>:` test declared in THIS file.
+ * Nothing here can tell whether the cited test is meaningful — that is what the
+ * perturbation discipline is for — but it can tell whether it exists, and that alone would
+ * have caught the rot this project has already hit twice.
+ */
+test("every owned entry cites a proof that exists", () => {
+  const selfSource = readFileSync(resolve(ROOT, "tests/architecture/persona-authority.test.js"), "utf8");
+
+  for (const entry of REGISTRY.filter((candidate) => isOwned(candidate))) {
+    const cited = entry.status.provenBy;
+    const citedExists = Boolean(cited) && existsSync(resolve(ROOT, cited));
+    const provenHere = selfSource.includes(`test("G1 ${entry.id}`);
+
+    assert.ok(
+      citedExists || provenHere,
+      `${entry.id}: claims ownership with no runnable proof — add status.provenBy pointing `
+        + `at the test that fails when the behavior regresses, or a "G1 ${entry.id}: ..." `
+        + "test in this file. An owned entry with no test reads like coverage and is not.",
+    );
+    if (cited && !citedExists) {
+      assert.fail(`${entry.id}: status.provenBy cites a file that does not exist: ${cited}`);
     }
   }
 });

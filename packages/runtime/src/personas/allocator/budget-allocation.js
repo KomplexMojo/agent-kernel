@@ -11,6 +11,8 @@
  * The numbers are unchanged by the move — this is a relocation, not a retune, and
  * the goldens are the proof.
  */
+import BASE_COSTS from "./base-costs.json" with { type: "json" };
+
 const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
 const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
@@ -36,15 +38,19 @@ export const DEFAULT_DUNGEON_SUB_POOLS = Object.freeze([
 ]);
 
 /**
- * Target spend values for the reference 2500-token budget (design §2.2).
- * rooms: 2500*0.44=1100, delvers: 2500*0.20=500, wardens: 2500*0.16=400
+ * Target spend values for the reference budget (design §2.2), DERIVED from the split.
+ *
+ * These were hardcoded (rooms 1100, hazards 300, …) as "2500 × the split" with the
+ * arithmetic written in a comment — a third place the same percentages lived, and one that
+ * silently stopped matching the moment CR.9 M5 retuned them. The comment was the only
+ * thing tying them together, and a comment cannot fail. Now the arithmetic is the code.
  */
 export const REFERENCE_TARGETS = Object.freeze({
-  rooms: 1100,
-  delvers: 500,
-  wardens: 400,
-  hazards: 300,
-  resources: 200,
+  rooms: Math.round(REFERENCE_BUDGET_TOKENS * (BASE_COSTS.levelBudgetSplitPercent.room / 100)),
+  delvers: Math.round(REFERENCE_BUDGET_TOKENS * (BASE_COSTS.levelBudgetSplitPercent.delver / 100)),
+  wardens: Math.round(REFERENCE_BUDGET_TOKENS * (BASE_COSTS.levelBudgetSplitPercent.warden / 100)),
+  hazards: Math.round(REFERENCE_BUDGET_TOKENS * (BASE_COSTS.levelBudgetSplitPercent.hazard / 100)),
+  resources: Math.round(REFERENCE_BUDGET_TOKENS * (BASE_COSTS.levelBudgetSplitPercent.resource / 100)),
 });
 
 /** Target delver/warden spend ratio (design §3.2): 200/250 = 0.8. */
@@ -55,13 +61,32 @@ export const TARGET_DELVER_WARDEN_RATIO = 0.8;
  * rooms: 0.55*0.80=0.44, hazards: 0.15*0.80=0.12, wardens: 0.20*0.80=0.16,
  * resources: 0.10*0.80=0.08, delver: 0.20
  */
-const DEFAULT_POOLS = Object.freeze([
-  { id: "rooms", weight: 0.44, notes: "Rooms / layout / hazards" },
-  { id: "hazards", weight: 0.12, notes: "Hazard elements" },
-  { id: "wardens", weight: 0.16, notes: "Warden actors" },
-  { id: "resources", weight: 0.08, notes: "Resource drops" },
-  { id: "delver", weight: 0.20, notes: "Delver actors" },
-]);
+/**
+ * DERIVED from `base-costs.json`, not restated here.
+ *
+ * The base-cost standard is "numbers in JSON, formulas in code", and this was numbers in
+ * code: a second Allocator-side split beside `levelBudgetSplitPercent`, byte-identical to
+ * it until CR.9 M5 retuned the JSON and only the JSON moved. Two numbers for one policy is
+ * the CR.1 defect however few files it spans, and the pool ids are the only genuine
+ * difference — the JSON speaks the card-type vocabulary (`room`, `warden`, …) and the
+ * pools speak the pool vocabulary (`rooms`, `wardens`, …), so the mapping is the formula
+ * and lives here while the numbers live there.
+ */
+const POOL_ID_BY_CARD_TYPE = Object.freeze({
+  room: { id: "rooms", notes: "Rooms / layout / hazards" },
+  hazard: { id: "hazards", notes: "Hazard elements" },
+  warden: { id: "wardens", notes: "Warden actors" },
+  resource: { id: "resources", notes: "Resource drops" },
+  delver: { id: "delver", notes: "Delver actors" },
+});
+
+const DEFAULT_POOLS = Object.freeze(
+  Object.entries(POOL_ID_BY_CARD_TYPE).map(([cardType, { id, notes }]) => ({
+    id,
+    weight: (BASE_COSTS.levelBudgetSplitPercent[cardType] ?? 0) / 100,
+    notes,
+  })),
+);
 
 /** Backward-compatible alias. */
 export const DEFAULT_BUDGET_POOLS = DEFAULT_POOLS;

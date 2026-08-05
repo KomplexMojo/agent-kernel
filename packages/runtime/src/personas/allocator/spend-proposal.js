@@ -319,6 +319,85 @@ function extractResourcePriceEntries(resource) {
   return [];
 }
 
+/**
+ * A hazard's affinity payload, in whichever shape it arrives.
+ *
+ * ⚠️ CR.9 M5 — THIS IS WHY HAZARD AFFINITIES WERE FREE ON THE REAL BUILD PATH. The pricer
+ * tested `typeof hazard.affinity === "object"`, but `ak create --hazard
+ * "affinity=fire;expression=emit"` records `{ affinity: "fire", expression: "emit",
+ * affinityStacks: [{ kind, expression, stacks, targetType }] }` — the kind as a STRING
+ * beside a stacks array. The object branch never matched, so the whole payload cost
+ * nothing: the g1 golden charged a delver 46 tokens for a fire/emit affinity and the
+ * hazard beside it 0 for the same one.
+ *
+ * A charging path that matches one SHAPE of a payload is not a charging path for the
+ * payload — the guard-spelling lesson, arriving in the economy. Both shapes are read here,
+ * in one place, so a third shape has one obvious home rather than a second charging site.
+ */
+function readHazardAffinityStacks(hazard) {
+  const stackList = Array.isArray(hazard?.affinityStacks) ? hazard.affinityStacks : [];
+  if (stackList.length > 0) {
+    return stackList
+      .map((entry) => ({
+        expression: entry?.expression || hazard?.expression,
+        stacks: Number.isInteger(entry?.stacks) && entry.stacks > 0 ? entry.stacks : 1,
+      }))
+      .filter((entry) => entry.expression || entry.stacks > 0);
+  }
+  const affinity = hazard?.affinity;
+  if (affinity && typeof affinity === "object") {
+    return [{
+      expression: affinity.expression,
+      stacks: Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1,
+    }];
+  }
+  if (typeof affinity === "string" && affinity.length > 0) {
+    return [{
+      expression: hazard?.expression,
+      stacks: Number.isInteger(hazard?.stacks) && hazard.stacks > 0 ? hazard.stacks : 1,
+    }];
+  }
+  return [];
+}
+
+/**
+ * A hazard's vitals, in whichever shape they arrive.
+ *
+ * Same mismatch as the affinity above: the pricer read `{ max, current, regen }` while the
+ * CLI writes `{ kind: "one-time", amount: N }`, so a hazard's durability and mana grants
+ * were free on the build path.
+ */
+function readHazardVitalCharges(hazard) {
+  const vitals = hazard?.vitals;
+  // V1/V2 HazardArtifact put the grants at the TOP LEVEL (`mana`, plus `durability` in
+  // V1); only V3 nests them under `vitals`. `validateHazardArtifact` still accepts all
+  // three, so a schema-valid V1/V2 hazard from any producer other than the CLI would get
+  // its vitals free — the same shape mismatch this function exists to end, one version
+  // back. The CLI itself always stamps `_schemaVersion: 3`, so this is unreachable through
+  // `ak create`; it is fixed anyway because "unreachable today" is how the V3 gap survived.
+  if (!vitals || typeof vitals !== "object") {
+    return ["mana", "durability"]
+      .map((key) => ({ key, points: Number.isInteger(hazard?.[key]) ? hazard[key] : 0, regen: 0 }))
+      .filter((entry) => entry.points > 0);
+  }
+  return Object.keys(vitals)
+    .map((key) => {
+      const vital = vitals[key];
+      if (!vital || typeof vital !== "object") return null;
+      const points = Number.isInteger(vital.max)
+        ? vital.max
+        : Number.isInteger(vital.current)
+          ? vital.current
+          : Number.isInteger(vital.amount)
+            ? vital.amount
+            : 0;
+      const regen = Number.isInteger(vital.regen) ? vital.regen : 0;
+      if (points <= 0 && regen <= 0) return null;
+      return { key, points, regen };
+    })
+    .filter(Boolean);
+}
+
 function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMotivations }) {
   const counts = new Map();
   const hazardArray = Array.isArray(hazards) && hazards.length > 0
@@ -329,9 +408,32 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
     ...(Array.isArray(layoutData?.resources) ? layoutData.resources : []),
   ];
 
-  const floorTiles = layoutData?.budgetScaffold === true ? 0 : countFloorTiles(layoutData);
+  const isScaffold = layoutData?.budgetScaffold === true;
+  const floorTiles = isScaffold ? 0 : countFloorTiles(layoutData);
   if (floorTiles > 0) {
     accumulateItem(counts, "tile_floor", "tile", floorTiles, {
+      category: "floor_tiles",
+      subjectRef: buildSubjectRef("layout", "agent-kernel/LayoutArtifact"),
+    });
+  }
+  // CR.9 M5: the RECEIPT path charged floor tiles only, so an explicit
+  // `{ floorTiles, hallwayTiles }` layout was billed for half of itself. This is the
+  // second charging site for tiles — `layout-spend.js` is the other — and fixing one
+  // without the other is how a payload comes to have two prices (CR.1's defect class).
+  //
+  // ⚠️ ONLY when the floor count is NOT derived. `countFloorTiles` has three modes: an
+  // explicit `floorTiles` field, a `tiles` grid, or `width × height`. The last two count
+  // every walkable cell — hallways INCLUDED — so adding an explicit `hallwayTiles` on top
+  // of them bills the same tiles twice. The guard cannot simply be "floorTiles must be
+  // explicit" either: a hallway-ONLY layout has no floor count at all and must still be
+  // charged, which is exactly what this milestone stopped being free.
+  const hasExplicitFloorCount = Number.isInteger(layoutData?.floorTiles) && layoutData.floorTiles > 0;
+  const floorCountIncludesHallways = !hasExplicitFloorCount && floorTiles > 0;
+  const hallwayTiles = isScaffold || floorCountIncludesHallways || !Number.isInteger(layoutData?.hallwayTiles)
+    ? 0
+    : Math.max(0, layoutData.hallwayTiles);
+  if (hallwayTiles > 0) {
+    accumulateItem(counts, "tile_hallway", "tile", hallwayTiles, {
       category: "floor_tiles",
       subjectRef: buildSubjectRef("layout", "agent-kernel/LayoutArtifact"),
     });
@@ -358,29 +460,40 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
 
   hazardArray.forEach((hazard, index) => {
     const subjectRef = buildSubjectRef(hazard?.id || `hazard_${index + 1}`, "agent-kernel/HazardArtifact");
-    const vitals = hazard?.vitals;
-    if (vitals && typeof vitals === "object") {
-      Object.keys(vitals).forEach((key) => {
-        const vital = vitals[key];
-        if (!vital || typeof vital !== "object") return;
-        const max = Number.isInteger(vital.max)
-          ? vital.max
-          : Number.isInteger(vital.current)
-            ? vital.current
-            : 0;
-        const regen = Number.isInteger(vital.regen) ? vital.regen : 0;
-        accumulateItem(counts, `vital_${key}_point`, "vital", max, { category: "hazards", subjectRef });
-        accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category: "hazards", subjectRef });
+    readHazardVitalCharges(hazard).forEach(({ key, points, regen }) => {
+      accumulateItem(counts, `vital_${key}_point`, "vital", points, { category: "hazards", subjectRef });
+      accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category: "hazards", subjectRef });
+    });
+
+    const affinityEntries = readHazardAffinityStacks(hazard);
+    if (affinityEntries.length > 0) {
+      // CR.9 M5: the base was MISSING here while the identical payload on an actor pays it
+      // (see the actor branch below, and `calculateActorConfigurationUnitCost`). Every
+      // hazard in every level carried its affinity base for free. Nothing failed, because a
+      // missing charge produces a smaller well-formed receipt.
+      affinityEntries.forEach(({ expression, stacks }) => {
+        // Base is PER AFFINITY ENTRY, matching the actor branch below. Charging it once
+        // per hazard was a second, subtler divergence in the same payload: a hazard with
+        // two affinities paid one base where an actor pays two. Found by the Codex
+        // adversarial review, which also noted the census test could not see it —
+        // comparing ID *sets* between the two sites hides every quantity difference.
+        accumulateItem(counts, "affinity_base", "affinity", 1, { category: "hazards", subjectRef });
+        const expressionId = AFFINITY_EXPRESSION_IDS[expression];
+        if (expressionId) {
+          // ⚠️ QUANTITY 1, NOT `stacks` — CR.9 M5, and the benchmark is what found it.
+          // An expression is a property of the affinity, not of each stack, and both other
+          // charging sites already price it once: the actor branch below (`quantity: 1`) and
+          // the canonical `calculateActorConfigurationUnitCost`
+          // (`calculatePriceTotal(exprItem, 1)`). This site alone multiplied by stacks, so a
+          // 3-stack push cost a hazard 105 tokens of expression where an actor pays 35 — one
+          // payload with two prices, which is the P0.1/CR.1 divergent-charging-sites defect
+          // this milestone exists to close. It surfaced only when M5 added the missing base
+          // on top: content-gen scenario 51 then failed all three runs on
+          // `deniedPools=hazards:262/156`.
+          accumulateItem(counts, expressionId, "affinity", 1, { category: "hazards", subjectRef });
+        }
+        accumulateItem(counts, "affinity_stack", "affinity", stacks, { category: "hazards", subjectRef });
       });
-    }
-    const affinity = hazard?.affinity;
-    if (affinity && typeof affinity === "object") {
-      const stacks = Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
-      const expressionId = AFFINITY_EXPRESSION_IDS[affinity.expression];
-      if (expressionId) {
-        accumulateItem(counts, expressionId, "affinity", stacks, { category: "hazards", subjectRef });
-      }
-      accumulateItem(counts, "affinity_stack", "affinity", stacks, { category: "hazards", subjectRef });
     }
   });
 
@@ -821,6 +934,10 @@ export function buildDesignSpendLedger({
 } = {}) {
   const resolvedSummary = extractSummaryFromCardSet(summary || {});
   const warnings = [];
+  // CR.1/M5: tile prices have exactly one origin — a PriceList. An absent caller list
+  // means the Allocator's OWN default list (P1.4's rule, already applied to `priceMap`
+  // below), never the contracts table that used to complete missing prices silently.
+  const resolvedPriceList = priceList || buildDefaultPriceList({ createdAt: UNUSED_CLOCK() });
   const budgetTokens = normalizeBudget(resolvedSummary?.budgetTokens);
   const cardSet = Array.isArray(resolvedSummary?.cardSet)
     ? resolvedSummary.cardSet
@@ -831,13 +948,14 @@ export function buildDesignSpendLedger({
     ? evaluateRoomCardLayoutSpend({
       cardSet,
       budgetTokens: Number.isInteger(budgetTokens) ? budgetTokens : undefined,
-      priceList,
+      priceList: resolvedPriceList,
       tileCosts,
       deriveRoomLayout,
     })
     : evaluateLayoutSpend({
       layout: resolvedSummary?.layout,
       budgetTokens: Number.isInteger(budgetTokens) ? budgetTokens : undefined,
+      priceList: resolvedPriceList,
       tileCosts,
     });
   if (Array.isArray(layoutResult?.warnings)) {
@@ -848,9 +966,7 @@ export function buildDesignSpendLedger({
   // list's quadratic formulas apply) — an empty map would zero every config
   // charge under the fail-loud contract. Caller-provided lists are
   // normalized to items; entries without a formula price linearly.
-  const priceMap = priceList
-    ? normalizePriceItems(priceList)
-    : normalizePriceItems(buildDefaultPriceList({ createdAt: UNUSED_CLOCK() }));
+  const priceMap = normalizePriceItems(resolvedPriceList);
   const lineItems = [];
 
   let levelConfigSpent = normalizePositiveInt(layoutResult?.spentTokens, 0);

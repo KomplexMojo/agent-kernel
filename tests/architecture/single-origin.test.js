@@ -151,14 +151,27 @@ const SINGLE_ORIGIN_GUARDS = [
       "packages/runtime/src/personas/allocator",
     ],
     forbiddenPattern: PRICE_OR_BUDGET_CONSTANT,
-    scope: "packages/runtime/src",
+    // ⚠️ SCOPE IS `packages`, NOT `packages/runtime/src` — widened at CR.9 M5 after the
+    // narrow scope hid a live violation through the entire milestone that closed CR.1.
+    // `adapters-cli/src/cli/ak-impl.mjs` held AUTHORING_POOL_WEIGHT_DEFAULTS, a fourth
+    // copy of the budget split, and it is the one that actually drives `ak create` — so a
+    // retune of the canonical split in base-costs.json changed nothing on the real path
+    // and the guard reported clean. The economy does not stop at the runtime package, and
+    // neither may the guard that protects it.
+    scope: "packages",
   },
 ];
 
-const SKIPPED_CONCEPTS = new Set([
-  // CR.1: Keep skipped until the diff that moves price/budget splits into Allocator un-skips it.
-  "price/budget-split numeric constants",
-]);
+// CR.9 M5 emptied this. The price/budget guard was skipped from the day it was written,
+// as a census rather than a gate: 15 constants across 4 files, two of which CR.1's
+// hand-written inventory never listed. `89e213e` and `fb46132` relocated 14; the last —
+// `DEFAULT_LAYOUT_TILE_COSTS` in contracts — was DELETED here rather than moved, because
+// its numbers had already diverged from `base-costs.json` and picking a winner would have
+// left the second table standing. The guard is now live, and CR.1 closes on it.
+//
+// Keep this set empty. A skipped guard reads exactly like a passing one in the runner's
+// output, which is how 15 constants stayed outside the Allocator under a green suite.
+const SKIPPED_CONCEPTS = new Set([]);
 
 function toRepoPath(path) {
   return relative(ROOT, path).split(sep).join("/");

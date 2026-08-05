@@ -8,10 +8,10 @@ test("default pool weights: 44% rooms, async 20% delver, 16% wardens, 12% hazard
   assert.ok(result.ok);
 
   const poolMap = new Map(result.pools.map(p => [p.id, p.tokens]));
-  assert.equal(poolMap.get("rooms"), 1100);
+  assert.equal(poolMap.get("rooms"), 1025);
   assert.equal(poolMap.get("delver"), 500);
   assert.equal(poolMap.get("wardens"), 400);
-  assert.equal(poolMap.get("hazards"), 300);
+  assert.equal(poolMap.get("hazards"), 375);
   assert.equal(poolMap.get("resources"), 200);
 });
 
