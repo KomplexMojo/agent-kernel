@@ -76,6 +76,48 @@ const PERSONA_FACTORY_FILES = [
   `packages/runtime/src/personas/${persona}/state-machine.js`,
 ]);
 
+// CR.9 M4 — the propose/judge protocol's VALUES have one origin: contracts/spend-protocol.js.
+//
+// M3 minted BudgetEnvelope / ConfigurationCandidate / SpendVerdict and left their
+// vocabulary homeless. The schema strings were restated at each point of use, and the
+// four authoring-validation outcomes were declared THREE times: build-spec.js (the
+// enforcing copy), artifacts.ts (the type mirror), and a private copy inside
+// allocator/budget-fulfillment.js — a persona restating a vocabulary it does not own,
+// with nothing checking the three agreed. That is the CR.1 defect class (a second
+// silently-diverging answer to one question) sitting inside the milestone meant to end it.
+//
+// ⚠️ THIS GUARD MATCHES STRING LITERAL VALUES, NOT CONSTANT NAMES, and that is the whole
+// design. `const REASONS = ["over_cap"]` and `if (verdict.reason === "over_cap")` are both
+// the defect; neither carries a recognisable NAME to match on. Carrying forward the
+// 2026-08-04 guard-spelling lesson one layer up: forbid the capability, not one syntax.
+//
+// It therefore needs the string literals INTACT, which is why `keepStringLiterals` exists —
+// the default masking blanks them and this guard would silently match nothing. A guard that
+// scans a blanked corpus reports zero violations and reads exactly like coverage.
+// Comments stay masked, so prose naming an outcome (READMEs, this file, the plan) is fine:
+// the defect is re-declaring the value in code, not mentioning it.
+//
+// PERTURBATION-VERIFIED 2026-08-05, four restorations plus one control:
+//   re-declared outcome vocabulary in the Allocator      → DETECTED
+//   `verdict.reason === "over_cap"` in the Allocator     → DETECTED (no constant name exists)
+//   restated protocol schema string in the Configurator  → DETECTED
+//   the same value named in a code COMMENT               → correctly NOT detected
+//   the first defect, with `keepStringLiterals` removed  → NOT DETECTED — the guard passes
+//     clean with the violation in the tree. That control is why the option is spelled out
+//     above rather than left as a quiet parameter.
+//
+// CANONICAL HOME is the contracts DIRECTORY, not the single file: artifacts.ts is the type
+// mirror and must restate the values as a TypeScript union, since no runtime `.js` module
+// can import a `.ts` one. Nothing here checks the two agree — that is
+// `tests/personas/allocator/allocator-spend-verdict-reasons.test.js`, which compares the
+// union's members to the runtime constant. The two guards are complementary: this one stops
+// a FOURTH declaration appearing, that one stops the two sanctioned ones drifting.
+const SPEND_PROTOCOL_VOCABULARY = new RegExp(
+  String.raw`["'](?:over_cap|not_priceable|invalid_requirements|conflicting_requirements`
+  + String.raw`|insufficient_budget|agent-kernel/(?:BudgetEnvelope|ConfigurationCandidate|SpendVerdict))["']`,
+  "g",
+);
+
 const SINGLE_ORIGIN_GUARDS = [
   {
     concept: "persona factory wall-clock reads",
@@ -94,6 +136,13 @@ const SINGLE_ORIGIN_GUARDS = [
     canonicalHome: "packages/core-ts/src/ports/effects.ts",
     forbiddenPattern: /\b(?:enum|const)\s+EffectKind\b/g,
     scope: "packages",
+  },
+  {
+    concept: "spend-protocol vocabulary (verdict reasons, authoring outcomes, protocol schemas)",
+    canonicalHome: ["packages/runtime/src/contracts"],
+    forbiddenPattern: SPEND_PROTOCOL_VOCABULARY,
+    scope: "packages",
+    keepStringLiterals: true,
   },
   {
     concept: "price/budget-split numeric constants",
@@ -132,7 +181,15 @@ function collectSourceFiles(directory, files = new Set()) {
   return files;
 }
 
-function maskCommentsAndStrings(source) {
+/**
+ * Blank out comments, and — unless a guard asks otherwise — string literals too.
+ *
+ * `keepStringLiterals` exists for value-matching guards (CR.9 M4's protocol vocabulary):
+ * their defect IS a string literal, so blanking strings would make the scan match nothing
+ * and report a clean sweep. Comments stay masked in both modes, because prose naming a
+ * value is documentation, not a second declaration of it.
+ */
+function maskCommentsAndStrings(source, { keepStringLiterals = false } = {}) {
   let masked = "";
   let state = "code";
   let quote = "";
@@ -164,10 +221,10 @@ function maskCommentsAndStrings(source) {
 
     if (state === "string") {
       if (character === "\\" && next !== undefined) {
-        masked += "  ";
+        masked += keepStringLiterals ? character + next : "  ";
         index += 1;
       } else {
-        masked += character === "\n" ? "\n" : " ";
+        masked += keepStringLiterals || character === "\n" ? character : " ";
         if (character === quote) state = "code";
       }
       continue;
@@ -184,7 +241,7 @@ function maskCommentsAndStrings(source) {
     } else if (character === "'" || character === '"' || character === "`") {
       quote = character;
       state = "string";
-      masked += " ";
+      masked += keepStringLiterals ? character : " ";
     } else {
       masked += character;
     }
@@ -211,7 +268,7 @@ function lineNumberAt(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
 }
 
-function scanGuard({ canonicalHome, forbiddenPattern, scope }) {
+function scanGuard({ canonicalHome, forbiddenPattern, scope, keepStringLiterals = false }) {
   const files = new Set();
   for (const scopedPath of asList(scope)) {
     const resolved = resolve(ROOT, scopedPath);
@@ -229,7 +286,7 @@ function scanGuard({ canonicalHome, forbiddenPattern, scope }) {
   for (const file of [...files].sort()) {
     if (isCanonicalFile(file, canonicalHome)) continue;
 
-    const source = maskCommentsAndStrings(readFileSync(file, "utf8"));
+    const source = maskCommentsAndStrings(readFileSync(file, "utf8"), { keepStringLiterals });
     const flags = forbiddenPattern.flags.includes("g")
       ? forbiddenPattern.flags
       : `${forbiddenPattern.flags}g`;

@@ -194,10 +194,11 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
   **The protocol, now in force:** the Configurator assembles a candidate configuration
   (`configurator/candidate-authoring.js`); the Allocator prices it and returns *approve with a cost* or
   *reject with a structured reason*; the Configurator revises. The exchange uses versioned contracts
-  (rule 5) — `BudgetEnvelope`, `ConfigurationCandidate`, `SpendVerdict` in `contracts/artifacts.ts` — and
+  (rule 5) — `BudgetEnvelope`, `ConfigurationCandidate`, `SpendVerdict`, whose **shapes** are declared in
+  `contracts/artifacts.ts` and whose **values and builders** live in `contracts/spend-protocol.js` — and
   the Allocator reads only a candidate's published `priceable` projection, never a Configurator function.
   Maximization is a bounded deterministic negotiation, not a monolith inside the Allocator.
-  Three rules make this checkable rather than aspirational:
+  Four rules make this checkable rather than aspirational:
   1. **The cap is visible; prices are not.** The Configurator must see the budget or its enumeration is
      unbounded and termination stops being structural. It must never see prices, or it is pricing again.
   2. **Capabilities are injected and their absence is a loud error, never a default.**
@@ -208,6 +209,14 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
   3. **Ordering intent stays opaque.** Candidates carry a numeric `preference` tuple that the Allocator
      compares lexicographically without learning what any index means, which keeps `optimizationGoals`
      out of Allocator policy.
+  4. **A refusal names a reason from a closed, published set, and every member of that set has a
+     producer (CR.9 M4).** The protocol's two vocabularies are declared once, in
+     `contracts/spend-protocol.js`: `SPEND_VERDICT_REJECT_REASONS` (what judging one *candidate* can
+     conclude — `over_cap`, `not_priceable`) and `AUTHORING_VALIDATION_OUTCOMES` (what assessing a whole
+     *request* can conclude). They are **not** one vocabulary and must not be merged: a candidate is never
+     short of budget, because the budget is what it is being judged against. The builders refuse an
+     unpublished reason, and a published reason nothing emits is dead vocabulary — the defect M4 found,
+     one level down from the one CR.9 fixed.
   This **supersedes** the P2.3.4 D1 decision ("Configurator keeps costing, Allocator consults"): D1 asked
   who owns *costing* when the real seam is who *authors* versus who *judges*.
 - `core-ts` may hold invariant enforcement only (caps, spend accounting) fed by Allocator-provided

@@ -68,6 +68,26 @@ Revision is a **round trip**, not a field: the fill step spends `perUnitCap − 
 a function of the price and the author cannot supply it up front without pricing. The Allocator judges,
 publishes the remaining room, and asks the Configurator to revise.
 
+### The refusal vocabulary is published, and every member has a producer (CR.9 M4)
+
+The protocol's **values** live in `contracts/spend-protocol.js`, which both personas import;
+`contracts/artifacts.ts` remains the definition of record for the **shapes**. M3 left the values homeless,
+so the schema strings were restated at each point of use and the authoring-validation outcomes were
+declared three times — once, wrongly, inside this persona. Two vocabularies, deliberately not merged:
+
+| Vocabulary | Answers | Members |
+|---|---|---|
+| `SPEND_VERDICT_REJECT_REASONS` | why ONE candidate was refused (`judgeCandidate`) | `over_cap`, `not_priceable` |
+| `AUTHORING_VALIDATION_OUTCOMES` | why a WHOLE request cannot be fulfilled (`assessFeasibility`) | `valid`, `conflicting_requirements`, `insufficient_budget`, `invalid_requirements` |
+
+A candidate is never `insufficient_budget` — the budget is the thing it is being judged against — and a
+request is never `over_cap`. `rejectSpend` throws on a reason outside its set, so a free-form refusal
+cannot be written; `invalid_requirements` has no producer here and says so in place, because it is an
+accepted *input* value on `AgentCommandRequest` rather than dead code.
+`tests/personas/allocator/allocator-spend-verdict-reasons.test.js` asserts every published reason is
+reachable and that the `artifacts.ts` mirrors agree member-for-member; `tests/architecture/single-origin.test.js`
+fails if either vocabulary is declared anywhere else under `packages/`.
+
 `createAllocatorPersona({ authorCandidates, normalizeMotivations })` takes both capabilities from the
 Configurator's public surface. `assessFeasibility` and `maximizeFulfillment` **refuse** with
 `allocator_candidate_authoring_required`; the pricing surface refuses raw motivations with

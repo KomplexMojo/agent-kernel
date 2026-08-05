@@ -51,7 +51,9 @@ At a high level, the Configurator:
 > The Configurator sees the **cap** (`BudgetEnvelope`) because its enumeration bounds are cap-derived and
 > termination depends on that; it never sees **prices**, or it would be pricing again. Each candidate
 > publishes a `priceable` projection — the only part the Allocator reads — plus an opaque `preference`
-> tuple that carries this persona's ordering intent without exposing what the positions mean.
+> tuple that carries this persona's ordering intent without exposing what the positions mean. Both personas
+> read the protocol's schema strings and refusal vocabularies from `contracts/spend-protocol.js` (CR.9 M4);
+> neither restates them locally, and `single-origin.test.js` fails if either does.
 >
 > **Decision (c), settled 2026-08-04:** a card whose motivations contradict each other (same exclusive
 > group) is **never proposed**, so it is never priced and the maximizer will not grow it. Previously the

@@ -38,16 +38,17 @@ import {
   ROOM_CARD_SIZE_IDS,
   VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
+// CR.9 M4. These three were restated as local consts here and in the Allocator, on the
+// reasoning that `contracts/artifacts.ts` cannot be imported by a runtime `.js` module.
+// True, and beside the point: a runtime `.js` CONTRACTS module can be, so the protocol
+// vocabulary now has one home and both halves of the exchange read the same values.
+import {
+  BUDGET_ENVELOPE_SCHEMA,
+  CONFIGURATION_CANDIDATE_SCHEMA,
+  SPEND_PROTOCOL_SCHEMA_VERSION,
+} from "../../contracts/spend-protocol.js";
 import { validateAffinityPrereqs } from "./cost-model.js";
 import { normalizeMotivations } from "./motivation-loadouts.js";
-
-// Declared locally, mirroring `SPEND_PROPOSAL_SCHEMA` in allocator/spend-proposal.js:
-// `contracts/artifacts.ts` is types-plus-consts and no runtime `.js` module imports it
-// (there is no TS loader on the Node path), so schema strings are restated at the
-// point of use. The definitions of record are BUDGET_ENVELOPE_SCHEMA /
-// CONFIGURATION_CANDIDATE_SCHEMA in artifacts.ts; these must match them.
-const BUDGET_ENVELOPE_SCHEMA = "agent-kernel/BudgetEnvelope";
-const CONFIGURATION_CANDIDATE_SCHEMA = "agent-kernel/ConfigurationCandidate";
 
 /**
  * Build the envelope the Configurator enumerates against.
@@ -61,7 +62,7 @@ export function buildBudgetEnvelope({ capTokens, count = 1 } = {}) {
   const safeCount = Number.isInteger(count) && count > 0 ? count : 1;
   return {
     schema: BUDGET_ENVELOPE_SCHEMA,
-    schemaVersion: 1,
+    schemaVersion: SPEND_PROTOCOL_SCHEMA_VERSION,
     capTokens: safeCap,
     perUnitCapTokens: Math.floor(safeCap / safeCount),
     count: safeCount,
@@ -241,7 +242,7 @@ function preferenceTuple(goals, vitals) {
 function buildCandidate({ candidateId, card, vitals, affinities, normalizedMotivations, preference }) {
   return {
     schema: CONFIGURATION_CANDIDATE_SCHEMA,
-    schemaVersion: 1,
+    schemaVersion: SPEND_PROTOCOL_SCHEMA_VERSION,
     candidateId,
     // The card keeps the AUTHORED motivations, because this object is what flows
     // downstream if the candidate wins. Only `priceable` carries the normalized form.
@@ -375,7 +376,7 @@ export function proposeRoomCandidates({ card, sizeFlexible = false, path = "room
     if (!ROOM_CARD_SIZE_IDS.includes(roomSize)) return;
     candidates.push({
       schema: CONFIGURATION_CANDIDATE_SCHEMA,
-      schemaVersion: 1,
+      schemaVersion: SPEND_PROTOCOL_SCHEMA_VERSION,
       candidateId: `${path}#${roomSize}`,
       card: { ...card, size: roomSize, roomSize },
       priceable: {

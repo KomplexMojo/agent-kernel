@@ -36,7 +36,21 @@
  */
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "./validate-spend.js";
-import { createAllocatorPersona } from "./persona.js";
+// CR.9 M4: this module used to `import { createAllocatorPersona } from "./persona.js"`
+// and construct a whole Allocator just to reach the default price map. That closed a
+// real import CYCLE — persona → controller → allocator-services → budget-fulfillment →
+// spend-proposal → persona — in which a leaf pricing module depended on its own
+// persona's composition root. Node tolerates it (function bindings hoist), so nothing
+// failed; under Vitest's module runner, two concurrent dynamic imports entering the
+// cycle at different nodes DEADLOCK, which is how it was finally found: M4's gate imports
+// `budget-fulfillment.js` and `persona.js` in one `Promise.all` and every test in the
+// file timed out at 60s. Same shape as the recurring instrument problem on this branch —
+// the defect was live for three milestones and no gate could see it.
+//
+// `buildDefaultPriceList` is what `pricing.priceMap()` resolves to when no list is
+// injected, and `normalizePriceItems` reads only `items`, so the map is byte-identical.
+// UNUSED_CLOCK is kept for the `rg UNUSED_CLOCK` census: still no wall-clock read here.
+import { buildDefaultPriceList } from "./default-price-list.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
 import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
@@ -836,7 +850,7 @@ export function buildDesignSpendLedger({
   // normalized to items; entries without a formula price linearly.
   const priceMap = priceList
     ? normalizePriceItems(priceList)
-    : createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.priceMap();
+    : normalizePriceItems(buildDefaultPriceList({ createdAt: UNUSED_CLOCK() }));
   const lineItems = [];
 
   let levelConfigSpent = normalizePositiveInt(layoutResult?.spentTokens, 0);

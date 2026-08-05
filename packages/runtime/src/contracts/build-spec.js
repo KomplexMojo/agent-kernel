@@ -1,3 +1,8 @@
+import {
+  AUTHORING_VALIDATION_OUTCOMES,
+  AUTHORING_VALIDATION_OUTCOME_IDS,
+} from "./spend-protocol.js";
+
 export const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
 export const BUILD_SPEC_SCHEMA_VERSION = 1;
 export const AGENT_COMMAND_REQUEST_SCHEMA = "agent-kernel/AgentCommandRequestArtifact";
@@ -41,12 +46,12 @@ const AGENT_COMMAND_OPTIMIZATION_GOAL_KINDS = new Set([
   "maximize_vital_max",
   "maximize_vital_regen",
 ]);
-const AGENT_COMMAND_VALIDATION_OUTCOMES = new Set([
-  "valid",
-  "invalid_requirements",
-  "conflicting_requirements",
-  "insufficient_budget",
-]);
+// CR.9 M4: derived, not restated. This Set was one of three identical copies of the
+// same four values — the others in `artifacts.ts` (the type mirror) and, wrongly,
+// inside `personas/allocator/budget-fulfillment.js`. The builder for the shape this
+// validates now sits beside the vocabulary in spend-protocol.js, so a change to what
+// the Allocator emits and a change to what this accepts are made in one place.
+const AGENT_COMMAND_VALIDATION_OUTCOMES = new Set(AUTHORING_VALIDATION_OUTCOME_IDS);
 const VITAL_KEYS = new Set(["health", "mana", "stamina", "durability"]);
 
 function isObject(value) {
@@ -438,7 +443,7 @@ function validateAuthoringValidation(value, path, errors) {
   value.issues.forEach((entry, index) => {
     validateAuthoringValidationIssue(entry, `${path}.issues[${index}]`, errors);
   });
-  if (value.outcome !== "valid" && value.issues.length === 0) {
+  if (value.outcome !== AUTHORING_VALIDATION_OUTCOMES.valid && value.issues.length === 0) {
     addError(errors, `${path}.issues`, "expected blocking issues for non-valid outcome");
   }
 }

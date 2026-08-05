@@ -574,6 +574,12 @@ export type AgentCommandOptimizationGoalKind =
   | "maximize_budget_spend"
   | "maximize_vital_max"
   | "maximize_vital_regen";
+/**
+ * Type mirror of `AUTHORING_VALIDATION_OUTCOMES` in `contracts/spend-protocol.js`,
+ * which is the runtime origin these values are read from (CR.9 M4). `build-spec.js`
+ * validates against it and `allocator/budget-fulfillment.js` produces two of the four;
+ * `invalid_requirements` is an accepted input value with no producer here.
+ */
 export type AgentCommandValidationOutcome =
   | "valid"
   | "invalid_requirements"
@@ -1212,14 +1218,26 @@ export type ConfigurationCandidate = ConfigurationCandidateV1;
 export const SPEND_VERDICT_SCHEMA = "agent-kernel/SpendVerdict";
 
 /**
- * Reject reasons. Kept as a closed union so a verdict cannot carry an
- * unclassifiable refusal; M4 promotes `AUTHORING_VALIDATION_OUTCOMES` into this set.
+ * Reject reasons. Closed union, so a verdict cannot carry an unclassifiable refusal.
+ *
+ * ⚠️ CR.9 M4 NARROWED THIS, and the correction is the milestone's finding. The union
+ * used to also list `invalid_requirements` and `conflicting_requirements`, which
+ * NOTHING has ever produced on a verdict: they are `AgentCommandValidationOutcome`
+ * values (above), misfiled here. The M4 plan row read "promote
+ * AUTHORING_VALIDATION_OUTCOMES into the SpendVerdict reason codes", which assumed the
+ * two sets merge; reading the code says they answer different questions and merging
+ * them would make both vaguer. A CANDIDATE is judged `over_cap` or `not_priceable`; a
+ * REQUEST is judged `insufficient_budget` or `conflicting_requirements`. A candidate is
+ * never short of budget — the budget is what it is being judged against.
+ *
+ * The runtime origin for both vocabularies is `contracts/spend-protocol.js`, which
+ * runtime `.js` modules can import (this file they cannot). This union is its type
+ * mirror; `single-origin.test.js` fails if either is declared anywhere else, and
+ * `allocator-spend-verdict-reasons.test.js` asserts the two agree member-for-member.
  */
 export type SpendVerdictRejectReason =
   | "over_cap"
-  | "not_priceable"
-  | "invalid_requirements"
-  | "conflicting_requirements";
+  | "not_priceable";
 
 /**
  * Allocator -> Configurator. The judgement on exactly one candidate.

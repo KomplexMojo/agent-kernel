@@ -47,21 +47,23 @@
 // the size vocabulary was this module authoring configurations, and that enumeration
 // now belongs to configurator/candidate-authoring.js.
 import { DEFAULT_ROOM_AFFINITY_EXPRESSION } from "../../contracts/domain-constants.js";
+// CR.9 M4. This module used to declare its own `SPEND_VERDICT_SCHEMA`, its own copy of
+// the authoring-validation vocabulary, and its own validation builders — a private
+// third copy of a vocabulary the Allocator does not own, plus two bare string literals
+// for the reject reasons. The protocol's values now have one published home, and this
+// persona reads them like every other consumer. What stays here is the only part that
+// was ever the Allocator's: deciding WHICH refusal applies.
+import {
+  AUTHORING_VALIDATION_OUTCOMES,
+  SPEND_VERDICT_REJECT_REASONS,
+  approveSpend,
+  createAuthoringValidation,
+  createAuthoringValidationIssue,
+  rejectSpend,
+} from "../../contracts/spend-protocol.js";
 import { calculateActorConfigurationUnitCost, calculateRoomCardUnitCost } from "./spend-proposal.js";
 import { normalizePriceItems } from "./validate-spend.js";
 import { buildDefaultPriceList } from "./default-price-list.js";
-
-// Declared locally, mirroring SPEND_PROPOSAL_SCHEMA above it in this persona: no
-// runtime `.js` module imports `contracts/artifacts.ts`. The definition of record is
-// SPEND_VERDICT_SCHEMA in artifacts.ts; this must match it.
-const SPEND_VERDICT_SCHEMA = "agent-kernel/SpendVerdict";
-
-const AUTHORING_VALIDATION_OUTCOMES = Object.freeze({
-  valid: "valid",
-  invalidRequirements: "invalid_requirements",
-  conflictingRequirements: "conflicting_requirements",
-  insufficientBudget: "insufficient_budget",
-});
 
 /**
  * Raised when budget work is requested without the Configurator's authoring surface.
@@ -148,35 +150,6 @@ function calculateDelverCardUnitCost(card, priceMap, { authoring, normalizeMotiv
     priceMap,
     normalizeMotivations,
   }).cost;
-}
-
-function createAuthoringValidationIssue({ code, message, path } = {}) {
-  const issue = {
-    code,
-    message,
-  };
-  if (path) {
-    issue.path = path;
-  }
-  return issue;
-}
-
-function createAuthoringValidation({ outcome, summary, issues = [] } = {}) {
-  return {
-    outcome,
-    summary,
-    issues: issues
-      .filter((issue) => issue && typeof issue === "object")
-      .map((issue) => createAuthoringValidationIssue(issue))
-      .sort((left, right) => {
-        const leftPath = left.path || "";
-        const rightPath = right.path || "";
-        if (leftPath !== rightPath) {
-          return leftPath.localeCompare(rightPath);
-        }
-        return left.code.localeCompare(right.code);
-      }),
-  };
 }
 
 function formatAffinityList(affinities = []) {
@@ -378,16 +351,6 @@ function compareNumericTuple(left = [], right = []) {
   return 0;
 }
 
-function rejectVerdict(candidateId, reason) {
-  return {
-    schema: SPEND_VERDICT_SCHEMA,
-    schemaVersion: 1,
-    candidateId,
-    approved: false,
-    reason,
-  };
-}
-
 /**
  * Price exactly one candidate and return a verdict.
  *
@@ -398,9 +361,16 @@ function rejectVerdict(candidateId, reason) {
  *
  * A rejection is a RESULT, not a `continue`. In the fused loop both over-cap outcomes
  * were bare `continue` statements, so "why did this budget go unspent?" had no answer
- * anywhere in the system. M4 promotes these reasons into published reject codes.
+ * anywhere in the system.
+ *
+ * CR.9 M4 gave the two refusals a published vocabulary
+ * (`contracts/spend-protocol.js#SPEND_VERDICT_REJECT_REASONS`) instead of two inline
+ * string literals, and EXPORTED this function. The export is the milestone's gate: a
+ * reject reason that can only be produced inside a loop that discards it cannot be
+ * asserted per kind, and a vocabulary no test can reach is how the previous copy of
+ * it stayed dead and unnoticed through three milestones.
  */
-function judgeCandidate(candidate, { priceMap, envelope }) {
+export function judgeCandidate(candidate, { priceMap, envelope }) {
   const unitCost = calculateActorConfigurationUnitCost({
     entry: {
       normalizedMotivations: candidate.priceable.normalizedMotivations,
@@ -411,20 +381,23 @@ function judgeCandidate(candidate, { priceMap, envelope }) {
   }).cost;
 
   if (!Number.isInteger(unitCost) || unitCost <= 0) {
-    return rejectVerdict(candidate.candidateId, "not_priceable");
+    return rejectSpend({
+      candidateId: candidate.candidateId,
+      reason: SPEND_VERDICT_REJECT_REASONS.notPriceable,
+    });
   }
   if (unitCost > envelope.perUnitCapTokens) {
-    return rejectVerdict(candidate.candidateId, "over_cap");
+    return rejectSpend({
+      candidateId: candidate.candidateId,
+      reason: SPEND_VERDICT_REJECT_REASONS.overCap,
+    });
   }
-  return {
-    schema: SPEND_VERDICT_SCHEMA,
-    schemaVersion: 1,
+  return approveSpend({
     candidateId: candidate.candidateId,
-    approved: true,
     unitCostTokens: unitCost,
     costTokens: unitCost * envelope.count,
     remainingTokens: envelope.perUnitCapTokens - unitCost,
-  };
+  });
 }
 
 /**
