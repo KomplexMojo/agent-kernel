@@ -84,7 +84,9 @@
           },
           "permanent": false
         }
-      ],
+      ]
+    },
+    "resolved": {
       "affinityRules": {
         "schema": "agent-kernel/AffinityRulesArtifact",
         "schemaVersion": 1,
@@ -2019,7 +2021,8 @@
             "defaultDesignCostTokens": 0
           }
         ]
-      }
+      },
+      "actors": []
     }
   },
   "budget": {

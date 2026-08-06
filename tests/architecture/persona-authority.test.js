@@ -62,8 +62,10 @@ const OPEN_FINDINGS = Object.freeze([
   // PX.3 closed at M6 (2026-08-06), in the same diff as the guard that proves it: the
   // persona wall-clock scan now covers every persona file, not the 14 factories it was
   // first written for. Perturbation-verified against both spellings it used to miss.
+  // PX.6 closed 2026-08-06: orchestrateBuild no longer mutates the artifact it records as
+  // its causal input. Proven by a freeze differential plus a by-value comparison, both
+  // perturbation-verified against the restored write-backs.
   "CR.4", "CR.7",
-  "PX.6",
 ]);
 
 // ---------------------------------------------------------------------------

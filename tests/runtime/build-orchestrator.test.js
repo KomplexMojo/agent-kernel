@@ -157,7 +157,9 @@ test("orchestrateBuild places delvers at entry and wardens inside rooms", async 
 
   const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-test" });
   const actors = buildResult.initialState.actors;
-  const actorConfig = buildResult.spec.configurator.inputs.actors;
+  // PX.6: what the build RESOLVED is published as output; `inputs` is the causal record
+  // the Configurator locked and is no longer mutated by the build.
+  const actorConfig = buildResult.spec.configurator.resolved.actors;
   assert.equal(actors.length, 8);
 
   const data = buildResult.simConfig.layout.data;

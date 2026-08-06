@@ -113,8 +113,8 @@
             "attacking"
           ],
           "position": {
-            "x": 4,
-            "y": 3
+            "x": 0,
+            "y": 0
           },
           "tokenCost": 1,
           "vitals": {
@@ -207,7 +207,9 @@
           },
           "flipped": false
         }
-      ],
+      ]
+    },
+    "resolved": {
       "affinityRules": {
         "schema": "agent-kernel/AffinityRulesArtifact",
         "schemaVersion": 1,
@@ -2142,7 +2144,58 @@
             "defaultDesignCostTokens": 0
           }
         ]
-      }
+      },
+      "actors": [
+        {
+          "id": "card_delver_1-1",
+          "kind": "ambulatory",
+          "affinity": "water",
+          "motivations": [
+            "attacking"
+          ],
+          "position": {
+            "x": 4,
+            "y": 3
+          },
+          "tokenCost": 1,
+          "vitals": {
+            "health": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
+            },
+            "mana": {
+              "current": 0,
+              "max": 0,
+              "regen": 0
+            },
+            "stamina": {
+              "current": 0,
+              "max": 0,
+              "regen": 0
+            },
+            "durability": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
+            }
+          },
+          "archetype": "delver",
+          "setupMode": "auto",
+          "affinities": [
+            {
+              "kind": "water",
+              "expression": "push",
+              "stacks": 1
+            }
+          ],
+          "traits": {
+            "affinities": {
+              "water": 1
+            }
+          }
+        }
+      ]
     }
   },
   "budget": {

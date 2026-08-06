@@ -119,11 +119,17 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "packages/runtime/src/build/orchestrate-build.js",
     invocation: "service",
     status: {
-      blockedBy: "PX.6",
+      owned: true,
+      since: "PX.6 (2026-08-06)",
+      provenBy: "tests/runtime/build-locked-input-immutability.test.js",
       why:
-        "orchestrateBuild writes affinityRules, motivationRules and actors back into "
-        + "spec.configurator.inputs after the Configurator's round closes, so the artifact "
-        + "recorded as the causal input is partly a product of the build.",
+        "The four write-backs into spec.configurator.inputs are gone. What the build resolves "
+        + "— expanded affinity/motivation rules, and the actor list after budget maximization "
+        + "and position normalization — is published as OUTPUT under configurator.resolved, so "
+        + "`inputs` stays the record of what the Configurator locked. The golden diff is the "
+        + "finding made visible: inputs.actors[].x/y revert to 0,0, the coordinates the "
+        + "Configurator actually supplied, where the recorded input used to carry positions "
+        + "the build had computed.",
     },
   },
 

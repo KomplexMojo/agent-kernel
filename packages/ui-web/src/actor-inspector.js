@@ -372,7 +372,15 @@ function deriveFallbackCardFromActor(actor, specActor) {
 
 function buildInspectorModel({ simConfig, initialState, spec } = {}) {
   const templateCards = collectTemplateCards(spec);
-  const specActors = sortById(Array.isArray(spec?.configurator?.inputs?.actors) ? spec.configurator.inputs.actors : []);
+  // PX.6: prefer what the build RESOLVED; fall back to the Configurator's inputs for a
+  // spec that has not been built yet. The fallback is not ambiguity — an absent
+  // `resolved` is exactly the statement "no build has happened to this spec".
+  const specActorSource = Array.isArray(spec?.configurator?.resolved?.actors)
+    ? spec.configurator.resolved.actors
+    : Array.isArray(spec?.configurator?.inputs?.actors)
+      ? spec.configurator.inputs.actors
+      : [];
+  const specActors = sortById(specActorSource);
   const specActorsById = new Map(specActors.map((entry) => [normalizeName(entry?.id), entry]));
   const runtimeActors = sortById(Array.isArray(initialState?.actors) ? initialState.actors : []);
   const hasRuntimeActors = runtimeActors.length > 0;

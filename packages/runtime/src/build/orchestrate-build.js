@@ -1401,6 +1401,11 @@ export async function orchestrateBuild({
   let affinitySummary = null;
   let affinityRules = null;
   let motivationRules = null;
+  // PX.6: the actors the build actually resolved (budget-maximized, then position-
+  // normalized). Function-scoped because `actorsInput` is block-scoped inside the layout
+  // branch, and this is published as build OUTPUT at the end rather than written back over
+  // the Configurator's locked inputs.
+  let resolvedActors = null;
   let resourceBundle = null;
   let resolvedPriceList = null;
   let budgetAllocation = null;
@@ -1456,10 +1461,10 @@ export async function orchestrateBuild({
     if (affinityLoadouts) {
       assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
     }
-    if (spec?.configurator?.inputs) {
-      spec.configurator.inputs.affinityRules = affinityRules;
-      spec.configurator.inputs.motivationRules = motivationRules;
-    }
+    // PX.6: these used to be written INTO spec.configurator.inputs — the artifact recorded
+    // as the build's causal input — after the Configurator's round had closed. Both are
+    // already returned as top-level build results, and both are now republished on the spec
+    // under `configurator.resolved` instead. See the publish site near the return.
 
     const layout = layoutResult.value;
     if (levelGenInput?.budgetScaffold === true) {
@@ -1537,9 +1542,7 @@ export async function orchestrateBuild({
           remaining: maximizeRemaining,
           priceList: resolvedPriceList,
         });
-        if (spec?.configurator?.inputs) {
-          spec.configurator.inputs.actors = actorsInput.actors;
-        }
+        resolvedActors = actorsInput.actors;
       }
     }
 
@@ -1572,14 +1575,13 @@ export async function orchestrateBuild({
       throw new Error(formatBudgetReceiptDenial(budgetReceipt));
     }
 
+    resolvedActors = resolvedActors || actorsInput.actors;
     const normalizedActors = normalizeActorPositions(actorsInput.actors, layout, {
       delverCount: configuratorInputs?.delverCount,
     });
     if (normalizedActors.changed) {
       actorsInput.actors = normalizedActors.actors;
-      if (spec?.configurator?.inputs?.actors) {
-        spec.configurator.inputs.actors = normalizedActors.actors;
-      }
+      resolvedActors = normalizedActors.actors;
     }
 
     simConfig = buildSimConfigArtifact({
@@ -1651,6 +1653,27 @@ export async function orchestrateBuild({
         artifact.meta.cost = runCostContext;
       }
     }
+  }
+
+  // ── PX.6: what the build RESOLVED, published as output ──────────────────────────
+  //
+  // The Configurator's `inputs` are the causal record: what it was asked to build from,
+  // locked when its round closed. The build then resolves them further — affinity and
+  // motivation rules get expanded, actors get budget-maximized and normalized — and those
+  // results USED to be written back on top of `inputs`, which made the artifact recorded as
+  // the cause partly a product of the effect. Nothing failed, because the mutated shape is
+  // still well-formed; you simply could not tell afterwards what the Configurator had
+  // actually approved.
+  //
+  // Same data, honest location. `inputs` is now immutable after the round, and a consumer
+  // that wants "what the build used" reads `resolved`. A spec with no `resolved` has not
+  // been built yet, which is a fact worth being able to observe.
+  if (spec?.configurator && typeof spec.configurator === "object") {
+    spec.configurator.resolved = {
+      affinityRules,
+      motivationRules,
+      ...(Array.isArray(resolvedActors) ? { actors: resolvedActors } : {}),
+    };
   }
 
   return {
