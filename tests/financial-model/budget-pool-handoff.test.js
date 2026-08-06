@@ -28,7 +28,7 @@ const summary = {
 };
 
 // Step 1: Build BuildSpec from summary
-const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_handoff" });
+const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_handoff", clock: () => "2026-08-06T00:00:00.000Z" });
 assert.ok(buildResult.ok, "BuildSpec assembly should succeed");
 assert.ok(buildResult.spec, "BuildSpec should be created");
 
@@ -64,7 +64,7 @@ const summary = {
   missing: []
 };
 
-const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_default" });
+const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_default", clock: () => "2026-08-06T00:00:00.000Z" });
 assert.ok(buildResult.ok);
 
 // When poolWeights not provided, should use defaults (44/20/16/12/8)

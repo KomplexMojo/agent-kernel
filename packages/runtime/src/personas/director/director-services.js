@@ -86,7 +86,13 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock } = {}) {
 
   function assembleBuildSpec(args = {}) {
     requireState(PLANNED_STATES, "assemble a build spec");
-    const spec = buildBuildSpecFromSummary(args);
+    // PX.3 (M6): the assembler stamps BuildSpec.meta.createdAt and now requires a clock.
+    // The persona already has one injected at construction, so it supplies it — and only
+    // where the caller did not, since `key: undefined` must not clobber it (the CR.9 M5
+    // `withPersonaDefaults` lesson, same defect, different file).
+    const spec = buildBuildSpecFromSummary(
+      args.clock === undefined ? { ...args, clock } : args,
+    );
     buildSpecCount += 1;
     // Completing the translation closes the round: draft → refine → ready.
     if (currentState() === DirectorStates.DRAFT_PLAN) {

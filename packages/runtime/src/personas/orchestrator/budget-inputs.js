@@ -1,12 +1,15 @@
+import { requireClock } from "../_shared/require-clock.js";
+
 const BUDGET_SCHEMA = "agent-kernel/BudgetArtifact";
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 import { buildDefaultPriceList } from "../allocator/default-price-list.js";
 
-function buildMeta(meta = {}, { producedBy = "orchestrator", runId = "run_orchestrator", clock = () => new Date().toISOString(), idPrefix = "artifact" } = {}) {
+function buildMeta(meta = {}, { producedBy = "orchestrator", runId = "run_orchestrator", clock, idPrefix = "artifact" } = {}) {
   if (meta.id && meta.runId && meta.createdAt && meta.producedBy) {
     return meta;
   }
-  const createdAt = meta.createdAt || clock();
+  // PX.3: required only when minting (see llm-capture.js for the same shape).
+  const createdAt = meta.createdAt || requireClock(clock, "orchestrator")();
   const resolvedRunId = meta.runId || runId;
   const id = meta.id || `${idPrefix}_${resolvedRunId}`;
   return {
@@ -102,7 +105,7 @@ export function ingestBudgetInputs({
   ownerRef,
   budgetMeta,
   priceListMeta,
-  clock = () => new Date().toISOString(),
+  clock,
   runId = "run_orchestrator",
   producedBy = "orchestrator",
 } = {}) {

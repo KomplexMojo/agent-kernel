@@ -109,6 +109,7 @@ export function buildSpecFromSummaryFlow({
   runId,
   source = "ui",
   createdAt,
+  clock,
 } = {}) {
   if (!summary || typeof summary !== "object") {
     return { ok: false, reason: "missing_summary", errors: ["Summary is required."] };
@@ -121,6 +122,7 @@ export function buildSpecFromSummaryFlow({
     runId,
     source,
     createdAt,
+    clock,
   });
 
   if (!built.ok || !built.spec) {

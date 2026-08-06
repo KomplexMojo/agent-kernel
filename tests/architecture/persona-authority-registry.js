@@ -264,10 +264,19 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "packages/runtime/src/personas/_shared/tick-state-machine.mts",
     invocation: "cli",
     status: {
-      blockedBy: "PX.3",
+      owned: true,
+      since: "PX.3 M6 (2026-08-06)",
+      provenBy: "tests/architecture/single-origin.test.js",
       why:
-        "28 sites default to `() => new Date().toISOString()`, including all seven controllers, "
-        + "so a caller that forgets to inject silently gets wall-clock time.",
+        "Closed in three passes. `5dbb4964` made the clock required at the 14 persona "
+        + "FACTORIES; 2026-08-04 widened the guard's PATTERN from one spelling to forbidding "
+        + "`new Date(` outright, which immediately caught two live violations inside its own "
+        + "scope; M6 widened its SCOPE from those 14 files to every persona file, closing the "
+        + "11 non-factory modules that were actually minting artifact timestamps. Requiring "
+        + "the clock surfaced four production callers that had never passed one. The residue "
+        + "is 7 NON-persona sites (ports, contracts, runner, adaptive-workflow, render), "
+        + "deliberately out of scope: an adapter reading the wall clock is correct — the rule "
+        + "is that a persona does not.",
     },
   },
   {

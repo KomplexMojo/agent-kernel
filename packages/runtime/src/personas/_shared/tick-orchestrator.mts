@@ -1,3 +1,4 @@
+import { requireClock } from "./require-clock.js";
 import { createTickStateMachine, TickPhases } from "./tick-state-machine.mts";
 import type { TickEvent, TickPhase } from "./tick-state-machine.mts";
 import { buildLlmCaptureArtifact } from "../orchestrator/llm-capture.js";
@@ -58,7 +59,7 @@ type LlmCaptureBuilder = (input: JsonRecord & { clock?: () => string }) => LlmCa
 // Pure tick orchestrator that advances the tick FSM and dispatches phase events to personas.
 // Personas must declare subscribePhases and expose advance/view methods.
 export function createTickOrchestrator({
-  clock = () => new Date().toISOString(),
+  clock,
   onActions = () => {},
   debug = false,
   logger = null,
@@ -74,6 +75,8 @@ export function createTickOrchestrator({
   solverAdapter?: unknown;
   llmAdapter?: LlmAdapter | null;
 } = {}) {
+  // PX.3 (M6): enforced at construction; see tick-state-machine.mts.
+  requireClock(clock, "tick-orchestrator");
   const fsm = createTickStateMachine({ clock, debug, logger });
   const personas = new Map<string, Persona>();
   const personaStates = new Map<string, PersonaResult | PersonaSnapshot>();

@@ -1,3 +1,4 @@
+import { requireClock } from "./require-clock.js";
 // Deterministic super FSM for tick phases.
 // Phases describe the runtime loop; personas subscribe to phases.
 
@@ -58,7 +59,7 @@ function allowedEventsFor(state: TickPhase) {
 
 export function createTickStateMachine({
   initialState = TickPhases.INIT,
-  clock = () => new Date().toISOString(),
+  clock,
   debug = false,
   logger = null,
 }: {
@@ -67,13 +68,17 @@ export function createTickStateMachine({
   debug?: boolean;
   logger?: ((entry: TickTransitionLog) => void) | null;
 } = {}) {
+  // PX.3 (M6): enforced at CONSTRUCTION, exactly as the 14 persona factories are — this
+  // is the tick FSM every persona round runs through, so a defaulted clock here degrades
+  // determinism for all of them at once.
+  const clockFn = requireClock(clock, "tick-state-machine");
   let state = initialState;
   let tick = 0;
   let context: TickContext = {
     tick,
     phase: state,
     lastEvent: null,
-    updatedAt: clock(),
+    updatedAt: clockFn(),
     notes: null,
   };
 
@@ -100,7 +105,7 @@ export function createTickStateMachine({
       tick: nextTick,
       phase: nextState,
       lastEvent: event,
-      updatedAt: clock(),
+      updatedAt: clockFn(),
       notes: payload.notes ?? context.notes ?? null,
     };
 

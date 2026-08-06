@@ -1,3 +1,4 @@
+import { requireClock } from "./require-clock.js";
 const ACTION_SCHEMA = "agent-kernel/Action";
 const TELEMETRY_SCHEMA = "agent-kernel/TelemetryRecord";
 const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
@@ -150,7 +151,7 @@ export function buildRequestActionsFromEffects(
 export function buildTelemetry({
   observations = [],
   runId = "run",
-  clock = () => new Date().toISOString(),
+  clock,
   personaRef = "annotator"
 }: {
   observations?: PersonaObservation[];
@@ -171,7 +172,7 @@ export function buildTelemetry({
       meta: {
         id: metaId,
         runId,
-        createdAt: clock(),
+        createdAt: requireClock(clock, personaRef)(),
         producedBy: personaRef,
       },
       scope: "tick",
@@ -193,7 +194,7 @@ export function buildTelemetry({
     meta: {
       id: stableId(["run_summary", personaRef, runId]),
       runId,
-      createdAt: clock(),
+      createdAt: requireClock(clock, personaRef)(),
       producedBy: personaRef,
     },
     outcome: "unknown",

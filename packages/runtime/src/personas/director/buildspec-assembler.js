@@ -1,3 +1,5 @@
+import { requireClock } from "../_shared/require-clock.js";
+
 import { mapSummaryToPool } from "./pool-mapper.js";
 import {
   buildCardSetFromSummary,
@@ -10,13 +12,15 @@ import {
   normalizeVitals as normalizeDomainVitals,
 } from "../../contracts/domain-constants.js";
 
-function defaultMeta({ runId, source, createdAt, summary }) {
+function defaultMeta({ runId, source, createdAt, summary, clock }) {
   const dungeonAffinity = summary?.dungeonAffinity || "unknown";
   const id = runId || `pool_${dungeonAffinity}`;
   return {
     id,
     runId: runId || id,
-    createdAt: createdAt || new Date().toISOString(),
+    // PX.3: the Director stamps this onto a persisted BuildSpec, so an absent
+    // createdAt must come from an injected clock, never from the wall clock.
+    createdAt: createdAt || requireClock(clock, "director")(),
     source: source || "director-pool",
   };
 }
@@ -271,6 +275,7 @@ export function buildBuildSpecFromSummary({
   budgetArtifact,
   priceListArtifact,
   receiptArtifact,
+  clock,
 } = {}) {
   const resolvedSummary = extractSummaryFromCardSet(summary || {});
   const cardSet = buildCardSetFromSummary(resolvedSummary);
@@ -369,7 +374,7 @@ export function buildBuildSpecFromSummary({
   const spec = {
     schema: "agent-kernel/BuildSpec",
     schemaVersion: 1,
-    meta: defaultMeta({ runId, source, createdAt, summary: resolvedSummary }),
+    meta: defaultMeta({ runId, source, createdAt, summary: resolvedSummary, clock }),
     intent: {
       goal: resolvedSummary?.goal || `Dungeon plan for ${resolvedSummary?.dungeonAffinity || "unknown"}`,
       tags: resolvedSummary?.tags || (resolvedSummary?.dungeonAffinity ? [resolvedSummary.dungeonAffinity] : []),

@@ -1,3 +1,5 @@
+import { requireClock } from "../_shared/require-clock.js";
+
 const CAPTURED_INPUT_SCHEMA = "agent-kernel/CapturedInputArtifact";
 
 function isNonEmptyString(value) {
@@ -6,12 +8,15 @@ function isNonEmptyString(value) {
 
 function buildMeta(
   meta = {},
-  { producedBy = "orchestrator", runId = "run_orchestrator", clock = () => new Date().toISOString(), idPrefix = "capture_llm" } = {},
+  { producedBy = "orchestrator", runId = "run_orchestrator", clock, idPrefix = "capture_llm" } = {},
 ) {
   if (meta.id && meta.runId && meta.createdAt && meta.producedBy) {
     return meta;
   }
-  const createdAt = meta.createdAt || clock();
+  // PX.3: a clock is required only when a timestamp must actually be MINTED. A
+  // caller supplying meta.createdAt needs none; one that is not gets a loud error
+  // instead of wall-clock time silently reaching a persisted artifact.
+  const createdAt = meta.createdAt || requireClock(clock, "orchestrator")();
   const resolvedRunId = meta.runId || runId;
   const id = meta.id || `${idPrefix}_${resolvedRunId}`;
   return {
@@ -43,7 +48,7 @@ export function buildLlmCaptureArtifact({
   phaseContext,
   phaseTiming,
   remainingBudgetTokens,
-  clock = () => new Date().toISOString(),
+  clock,
 } = {}) {
   const errors = [];
   if (!isNonEmptyString(prompt)) errors.push("LLM capture requires prompt.");

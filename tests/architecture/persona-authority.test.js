@@ -45,8 +45,11 @@ const ROOT = resolve(__dirname, "../..");
 //     single-origin.test.js.
 //   PX.4 all/restorable-from-view — every factory takes `{ from: view }`. Its G1 test
 //     is G4 (persona-serialization-equivalence.test.js), 7/7.
-// PX.3 stays open: requireClock covers the 14 persona FACTORIES, but 18 non-factory
-// sites still default a clock (full census in single-origin.test.js).
+// PX.3 CLOSED 2026-08-06 at M6. The note here used to read "requireClock covers the 14
+// persona FACTORIES, but 18 non-factory sites still default a clock" — 11 of those 18 were
+// persona files and are now injected; the remaining 7 are adapters/glue, where reading the
+// wall clock is correct. The guard's scope moved from the 14 factories to the whole
+// personas directory, which is what makes the claim checkable.
 // CR.9 closed 2026-08-04 at M3: allocator/judges-not-authors is `owned`, proven by the
 // ablation gate in tests/personas/allocator/allocator-judges-not-authors.test.js, and
 // both Allocator->Configurator crossings are out of the allowlist. M4 (publishing the
@@ -56,8 +59,11 @@ const OPEN_FINDINGS = Object.freeze([
   // CR.1 closed at CR.9 M5, in the same diff as the un-skipped price/budget-split guard
   // that proves it (single-origin.test.js). Flipping an entry without a live test is the
   // exact rot e7501e9a had to correct.
+  // PX.3 closed at M6 (2026-08-06), in the same diff as the guard that proves it: the
+  // persona wall-clock scan now covers every persona file, not the 14 factories it was
+  // first written for. Perturbation-verified against both spellings it used to miss.
   "CR.4", "CR.7",
-  "PX.3", "PX.6",
+  "PX.6",
 ]);
 
 // ---------------------------------------------------------------------------

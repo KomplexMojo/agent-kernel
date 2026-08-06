@@ -6,6 +6,7 @@ import {
   deriveAllowedOptionsFromCatalog,
 } from "./prompt-contract.js";
 import { runLlmSession } from "./llm-session.js";
+import { requireClock } from "../_shared/require-clock.js";
 import { mapSummaryToPool } from "../director/pool-mapper.js";
 import { deriveLevelGen } from "../director/buildspec-assembler.js";
 import { buildCardSetFromSummary } from "../director/summary-selections.js";
@@ -1147,7 +1148,10 @@ export async function runLlmBudgetLoop({
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
   }
-  const clockFn = typeof clock === "function" ? clock : () => new Date().toISOString();
+  // PX.3 (M6): the ternary here was a wall-clock fallback in the persona that stamps
+  // every LLM capture and the budget allocation — the timestamps most likely to reach
+  // a persisted artifact and a replay. Required now, loud when absent.
+  const clockFn = requireClock(clock, "orchestrator");
   const resolvedRunId = isNonEmptyString(runId) ? runId : "run_budget_loop";
   let captureIndex = 0;
   const nextCaptureMeta = (phase) => {

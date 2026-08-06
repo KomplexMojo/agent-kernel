@@ -1,3 +1,4 @@
+import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { buildBuildSpecFromSummary } from "../director/buildspec-assembler.js";
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import { deriveLevelGenFromRoomCards } from "./card-model.js";
@@ -417,6 +418,11 @@ export function deriveLevelGenFromGuidanceSummary(summary) {
     summary,
     source: "guidance-level-builder",
     runId: "guidance_level_builder",
+    // PX.3 (M6): the Director now requires a clock because it stamps
+    // BuildSpec.meta.createdAt. This BuildSpec is a THROWAWAY — only
+    // `configurator.inputs.levelGen` is read below and the meta is discarded — so it is
+    // the sanctioned marker case, not a real round. `rg UNUSED_CLOCK` is the census.
+    clock: UNUSED_CLOCK,
   });
   if (built?.ok) {
     const levelGen = built.spec?.configurator?.inputs?.levelGen;

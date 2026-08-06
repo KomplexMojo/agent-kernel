@@ -156,6 +156,10 @@ async function runSingleBenchmark({ catalog, totalBudgetTokens, layoutPercent, r
     poolWeights: DEFAULT_POOL_WEIGHTS,
     runId: `benchmark_walkability_${totalBudgetTokens}_${runIndex}`,
     maxActorRounds: 0,
+    // PX.3 (M6): the Orchestrator requires an injected clock instead of defaulting one.
+    // A benchmark measures elapsed time with performance.now(); the artifact timestamps it
+    // stamps are irrelevant and must not vary run to run, so it pins one.
+    clock: () => "2026-08-06T00:00:00.000Z",
   });
   const elapsedMs = performance.now() - started;
   const walkableTiles = (result.summary?.layout?.floorTiles || 0) + (result.summary?.layout?.hallwayTiles || 0);

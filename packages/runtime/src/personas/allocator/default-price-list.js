@@ -1,3 +1,5 @@
+import { UNUSED_CLOCK } from "../_shared/require-clock.js";
+
 import BASE_COSTS from "./base-costs.json" with { type: "json" };
 
 const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
@@ -162,9 +164,13 @@ export function buildDefaultPriceList({ meta, createdAt } = {}) {
     meta: meta || {
       id: "default-price-list-v1",
       runId: "system",
-      // Callers with an injected clock (the Allocator persona) pass createdAt;
-      // the wall-clock default remains only for legacy direct callers.
-      createdAt: createdAt || new Date().toISOString(),
+      // PX.3 (M6): was `new Date().toISOString()`. Bare `buildDefaultPriceList()` is a
+      // legitimate, common call — the item list is read without any interest in the meta —
+      // so requiring a clock here would be noise. What is NOT acceptable is wall-clock time
+      // silently entering a PriceList artifact, so the fallback is the sanctioned
+      // deterministic marker instead: greppable via `rg UNUSED_CLOCK`, and it can never
+      // make two runs of the same build differ.
+      createdAt: createdAt || UNUSED_CLOCK(),
       producedBy: "allocator",
       note: "Canonical default price list. Base unit: 1 health point = 1 token.",
     },

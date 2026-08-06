@@ -32,49 +32,62 @@ const SHARED_VOCABULARY_DECLARATION = new RegExp(
   "gim",
 );
 
-// PX.3 — no persona FACTORY may read the wall clock, in ANY form.
-// A defaulted clock means a caller that forgets to inject one silently gets
-// wall-clock time, degrading determinism and replay with nothing failing. The rule
-// is enforced at construction by _shared/require-clock.js; this stops it being
-// reintroduced.
+// PX.3 — NO PERSONA MAY READ THE WALL CLOCK, in any form, anywhere in its directory.
 //
-// ⚠️ WIDENED 2026-08-04. The previous pattern was `clock = () => new Date()` — the
-// DEFAULT-PARAMETER form alone — and it therefore missed two live violations inside
-// its own scope, both writing a wall-clock timestamp into a persisted artifact:
-//   director/controller.js   `typeof clock === "function" ? clock() : new Date()...`
-//                            → PlanArtifact.meta.createdAt
-//   actor/controller.js      `payload?.clock || (() => new Date()...)`
-//                            → the SolverRequest's createdAt, across the adapter boundary
-// Both were unreachable in practice (construction had already run requireClock), but
-// a guard that only recognises one spelling of a defect is not a guard — the defect
-// class is "a persona factory reaches for the wall clock", not "one syntax does".
-// Forbidding `new Date(` outright is the honest expression of that and is checkable:
-// none of the 14 files parses a date either, so there is no legitimate use to carve out.
+// A defaulted clock means a caller that forgets to inject one silently gets wall-clock
+// time, degrading determinism and replay with nothing failing. Enforced by
+// _shared/require-clock.js; this stops it being reintroduced.
 //
-// Scope is the 14 factory files (7 controllers + 7 state machines), which is exactly
-// PX.3's stated target: "make clock required at PERSONA CONSTRUCTION".
+// ⚠️ WIDENED TWICE, and both widenings are the same lesson at different scales.
 //
-// PX.3'S RECORDED RESIDUE — 18 non-factory sites, still open. They are plain
-// functions rather than constructors, so requiring injection there is a separate and
-// larger call about every helper's signature. The earlier note here listed TEN and
-// counted only the default-parameter form; this is the full census:
-//   default parameter (13): personas/annotator/llm-trace.js ·
-//     personas/orchestrator/{budget-inputs ×2,llm-capture ×2}.js ·
-//     personas/_shared/{persona-helpers,tick-orchestrator,tick-state-machine}.mts ·
-//     ports/solver.js · contracts/schema-catalog.js ·
-//     adaptive-workflow/{metrics,state-machine ×3}.js
-//   `||` fallback (2): personas/allocator/default-price-list.js ·
-//     personas/director/buildspec-assembler.js
-//   ternary fallback (2): personas/orchestrator/llm-budget-loop.js · runner/runtime-fsm.mjs
-//   direct read (1): render/visualization-snapshot.js
+// 2026-08-04 — THE PATTERN was too narrow. It matched only the default-parameter spelling
+// `clock = () => new Date()`, so it missed two live violations inside its own scope, both
+// writing wall-clock time into a persisted artifact: director/controller.js used a ternary
+// for PlanArtifact.meta.createdAt, actor/controller.js used `||` for the SolverRequest's
+// createdAt. Forbidding `new Date(` outright is the honest expression of the rule and is
+// checkable: no persona file parses a date either, so there is nothing legitimate to carve out.
+//
+// 2026-08-06 (M6) — THE SCOPE was too narrow. It covered 14 factory files because PX.3's
+// stated target was "required at persona CONSTRUCTION". Eleven non-factory persona modules
+// still defaulted a clock, and they were the ones actually minting timestamps: the
+// Director's BuildSpec.meta.createdAt, the Orchestrator's LLM captures and budget loop, the
+// Annotator's telemetry, the shared tick FSM every persona round runs through. All eleven
+// now take an injected clock; the scope is the whole personas directory.
+//
+// Requiring a clock exposed FOUR production callers that had never passed one — the
+// Director's own persona surface, ui-flow, the ui-web composition root, and the level
+// generation benchmark script. That is the finding, not collateral: each was a real path
+// on which a persona minted a timestamp from the wall clock.
+//
+// TWO SANCTIONED SHAPES, both greppable:
+//   requireClock(clock, persona)  a round is being run and the timestamp is real.
+//   UNUSED_CLOCK                  the persona is a namespace for a pure function and its
+//                                 meta is discarded (guidance-level-builder, price lists).
+//
+// RESIDUE, deliberately out of scope: 7 non-persona sites (ports/solver.js,
+// contracts/schema-catalog.js, runner/runtime-fsm.mjs, adaptive-workflow/{metrics,
+// state-machine ×3}.js, render/visualization-snapshot.js). PX.3 is a PERSONA rule; an
+// ADAPTER reading the wall clock is correct behaviour, not a defect — someone has to know
+// what "now" means, and the charter's answer is "not a persona". Widening this guard to all
+// of `packages` would fire on exactly the code that is supposed to do it.
 const PERSONA_CLOCK_DEFAULT = /new Date\(/g;
 
-const PERSONA_FACTORY_FILES = [
-  "orchestrator", "director", "configurator", "actor", "allocator", "annotator", "moderator",
-].flatMap((persona) => [
-  `packages/runtime/src/personas/${persona}/controller.js`,
-  `packages/runtime/src/personas/${persona}/state-machine.js`,
-]);
+// ⚠️ WIDENED AGAIN at PX.3 M6 — scope is now EVERY persona file, not 14 factories.
+//
+// The guard was scoped to `<persona>/{controller,state-machine}.js` because PX.3's stated
+// target was "make the clock required at persona CONSTRUCTION". That closed the doorway and
+// left the windows: 11 non-factory persona modules still defaulted a clock, and they were
+// the ones actually stamping timestamps into persisted artifacts — the Director's
+// BuildSpec.meta.createdAt, the Orchestrator's LLM captures, the Annotator's telemetry.
+// A guard scoped to where the rule was FIRST applied, rather than to where the rule APPLIES,
+// reports clean while the defect lives next door. Same shape as the price guard stopping at
+// the runtime package boundary one milestone earlier.
+//
+// The residue is now non-persona code (ports, contracts, runner, adaptive-workflow, render),
+// which is deliberately out of scope: PX.3 is a PERSONA rule — "a persona never reads the
+// wall clock" — and an adapter reading it is correct, not a defect. That is why the scope is
+// the personas directory rather than all of `packages`.
+const PERSONA_SOURCE_DIR = "packages/runtime/src/personas";
 
 // CR.9 M4 — the propose/judge protocol's VALUES have one origin: contracts/spend-protocol.js.
 //
@@ -120,10 +133,10 @@ const SPEND_PROTOCOL_VOCABULARY = new RegExp(
 
 const SINGLE_ORIGIN_GUARDS = [
   {
-    concept: "persona factory wall-clock reads",
+    concept: "persona wall-clock reads",
     canonicalHome: [],
     forbiddenPattern: PERSONA_CLOCK_DEFAULT,
-    scope: PERSONA_FACTORY_FILES,
+    scope: PERSONA_SOURCE_DIR,
   },
   {
     concept: "shared game vocabulary (motivation + card type/size)",
