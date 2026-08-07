@@ -1680,6 +1680,80 @@ export type SolverRequest = SolverRequestV1;
 export type SolverResult = SolverResultV1;
 
 // -------------------------
+// LLM artifacts (runtime adapters) — CR.4 M2
+// -------------------------
+
+/**
+ * The request/response pair the Orchestrator exchanges with an LLM adapter.
+ *
+ * WHY THIS IS NOT A CORE `EffectKind`. core-ts's `EffectKind` is backed by `Int32Array`s
+ * and carries only integers (actor ids, coordinates, deltas). A prompt string, a model
+ * name and an options bag cannot be represented on that bus at all, so the LLM effect
+ * rides the runtime's STRUCTURED effect layer under the string kind `"llm_request"` —
+ * the same place `solver_request` lives. PX.1 is unaffected: core-ts is still the sole
+ * origin of the numeric `EffectKind`, and this adds no fifteenth member to it.
+ *
+ * WHY IT EXISTS (CR.4). `runLlmSession` currently `await`s `adapter.generate(...)` at
+ * three sites inside the Orchestrator, so external IO happens inline, is not returned as
+ * data, and never passes through `ports/effects.js` — inside the persona whose chartered
+ * role is external interaction. These artifacts are what the persona returns INSTEAD of
+ * performing the call.
+ */
+export const LLM_REQUEST_SCHEMA = "agent-kernel/LlmRequest";
+export const LLM_RESPONSE_SCHEMA = "agent-kernel/LlmResponse";
+
+export interface LlmRequestV1 {
+  schema: typeof LLM_REQUEST_SCHEMA;
+  schemaVersion: 1;
+
+  /** Correlates the response back to this request. Derived, never generated — replay depends on it. */
+  requestId: string;
+
+  /** Model identifier the adapter should call. */
+  model: string;
+
+  /** The fully-resolved prompt. Captured here so a replay needs nothing else. */
+  prompt: string;
+
+  /** Which stage of the build conversation this request belongs to. */
+  phase?: string;
+
+  /** Adapter call configuration, captured for replay (`num_predict`, `format`, …). */
+  options?: Record<string, unknown>;
+
+  /** Response format hint passed through to the adapter. */
+  format?: string;
+
+  /** Whether the adapter should stream. Captured because it changes the response shape. */
+  stream?: boolean;
+
+  /** Optional endpoint, recorded for provenance rather than routing. */
+  baseUrl?: string;
+}
+
+export interface LlmResponseV1 {
+  schema: typeof LLM_RESPONSE_SCHEMA;
+  schemaVersion: 1;
+
+  /** Reference back to the request that produced it. */
+  requestId: string;
+
+  /**
+   * The adapter's raw payload, unnormalized. `runLlmSession`'s `extractResponseText`
+   * accepts four different shapes (`response`, `message.content`, `choices[0].message
+   * .content`, `choices[0].text`), so normalization stays a reader concern and the
+   * artifact records exactly what came back.
+   */
+  payload: Record<string, unknown>;
+
+  /** Set when the adapter itself failed, as distinct from returning an unusable response. */
+  error?: { code: string; message: string };
+}
+
+export type LlmRequest = LlmRequestV1;
+export type LlmResponse = LlmResponseV1;
+
+// -------------------------
 // Runtime ↔ core-ts execution contracts
 // -------------------------
 

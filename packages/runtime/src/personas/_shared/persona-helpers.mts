@@ -1,4 +1,5 @@
 import { requireClock } from "./require-clock.js";
+import { LLM_REQUEST_SCHEMA, LLM_REQUEST_EFFECT_KIND } from "../../contracts/llm-protocol.js";
 const ACTION_SCHEMA = "agent-kernel/Action";
 const TELEMETRY_SCHEMA = "agent-kernel/TelemetryRecord";
 const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
@@ -94,6 +95,78 @@ export function buildSolverRequestEffect({
     request,
     requestId,
     targetAdapter: request.targetAdapter,
+    personaRef,
+  };
+}
+
+/**
+ * FNV-1a over the prompt, so a request id is DERIVED rather than generated.
+ *
+ * A counter or a random id would make two identical rounds produce different artifacts,
+ * and replay compares artifacts. The prompt is the only input that distinguishes one
+ * request from the next within a phase, and it is far too long to put in an id.
+ */
+function promptFingerprint(prompt: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < prompt.length; index += 1) {
+    hash ^= prompt.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+/**
+ * Build the LLM request the Orchestrator RETURNS instead of performing (CR.4).
+ *
+ * Mirrors `buildSolverRequestEffect`: the persona emits an effect as data, the host
+ * dispatches it through `ports/effects.js`, and the ADAPTER does the IO. Returns `null`
+ * when the request could not be made well-formed — a caller with no model or no prompt
+ * has nothing to ask, and emitting a half-formed request would push the failure into the
+ * adapter where it reads as an IO error rather than a programming one.
+ */
+export function buildLlmRequestEffect({
+  model,
+  prompt,
+  phase,
+  options,
+  format,
+  stream,
+  baseUrl,
+  personaRef = "orchestrator"
+}: {
+  model?: string;
+  prompt?: string;
+  phase?: string;
+  options?: JsonRecord;
+  format?: string;
+  stream?: boolean;
+  baseUrl?: string;
+  personaRef?: string;
+}) {
+  const hasModel = typeof model === "string" && model.trim().length > 0;
+  const hasPrompt = typeof prompt === "string" && prompt.trim().length > 0;
+  if (!hasModel || !hasPrompt) {
+    return null;
+  }
+
+  const requestId = stableId(["llm", phase, model, promptFingerprint(prompt as string)]);
+  const request = {
+    schema: LLM_REQUEST_SCHEMA,
+    schemaVersion: 1,
+    requestId,
+    model,
+    prompt,
+    ...(phase ? { phase } : {}),
+    ...(options && typeof options === "object" ? { options } : {}),
+    ...(typeof format === "string" && format ? { format } : {}),
+    ...(stream === undefined ? {} : { stream: Boolean(stream) }),
+    ...(baseUrl ? { baseUrl } : {}),
+  };
+
+  return {
+    kind: LLM_REQUEST_EFFECT_KIND,
+    request,
+    requestId,
     personaRef,
   };
 }

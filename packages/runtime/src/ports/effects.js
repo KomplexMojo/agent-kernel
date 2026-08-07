@@ -1,4 +1,5 @@
 import { EffectKind } from "../../../core-ts/src/ports/effects.ts";
+import { LLM_REQUEST_EFFECT_KIND, LLM_MISSING_ADAPTER_REASON } from "../contracts/llm-protocol.js";
 
 const EFFECT_SCHEMA = "agent-kernel/Effect";
 const TARGET_ADAPTER_HINTS = ["fixtures", "ipfs", "ollama"];
@@ -211,6 +212,18 @@ export function dispatchEffect(adapters, effect) {
         return { status: "deferred", reason: "missing_solver" };
       }
       return { status: "fulfilled", result: adapters.solver.solve(effect) };
+    // CR.4 M2. This case MUST exist explicitly. The `default:` branch below reports
+    // `status: "fulfilled"` for any unrecognised kind after merely logging a warning —
+    // for an LLM request that would mean the model was never called and the caller was
+    // told it was, a silent no-op wearing a success status. Deferring is the only honest
+    // answer when no adapter is wired. Guarded by tests/runtime/llm-request-effect.test.js.
+    case LLM_REQUEST_EFFECT_KIND:
+      if (!adapters?.llm?.generate) {
+        return { status: "deferred", reason: LLM_MISSING_ADAPTER_REASON };
+      }
+      // The adapter is the only thing that performs IO; the result may be a promise and
+      // the host awaits it, exactly as `solver_request` already works.
+      return { status: "fulfilled", result: adapters.llm.generate(effect.request) };
     case "limit_violation":
       if (!adapters?.logger?.warn) {
         return { status: "deferred", reason: "missing_logger" };
