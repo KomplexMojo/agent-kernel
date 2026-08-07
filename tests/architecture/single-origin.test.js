@@ -9,8 +9,29 @@ const SKIPPED_DIRECTORIES = new Set(["dist", "node_modules"]);
 // Match top-level numeric constant declarations whose names identify economy
 // prices or budget splits. The semantic name filter avoids sweeping in
 // unrelated gameplay values such as mana costs or walkable-density targets.
+//
+// ⚠️ DO NOT "SIMPLIFY" THIS TO `[\w$]*cost`. That was tried on 2026-08-07 and is
+// WRONG: "cost" names two different currencies in this codebase, and only one of
+// them is the Allocator's. Token PRICES (authoring economy — the Allocator's law)
+// versus IN-WORLD RESOURCE costs (mana/stamina/movement spent during a tick —
+// core's simulation mechanics). The broad form flags six legitimate sites:
+// `core-ts/state/budget.ts` DEFAULT_ACTION_COST (a unit count, injected via
+// setActionCost — the plan explicitly records this is NOT the price defect class),
+// `core-ts/state/world.ts` DEFAULT_MOVEMENT_COST / DEFAULT_ACTION_COST_{MANA,STAMINA},
+// and `contracts/affinity-spatial-rules.js` MANA_COST_WEIGHTS. The enumeration is a
+// deliberate boundary between the two currencies, not laziness.
+//
+// The prefix list must cover EVERY PRICED KIND in `base-costs.json`. It did not:
+// `tile`, `hazard`, `motivation` and `affinity` were absent, so `TILE_COSTS`,
+// `HAZARD_COSTS`, `MOTIVATION_COSTS` and `AFFINITY_COSTS` could all declare a second
+// price table anywhere in `packages/` and the guard would report clean — 4 of the 8
+// priced kinds unprotected. Added 2026-08-07 and perturbation-verified against a probe
+// file for all four. This was the SIXTH instance of this repo's recurring defect: the
+// guard was scoped to the spelling that existed when it was written
+// (`DEFAULT_LAYOUT_TILE_COSTS`, which it did catch) rather than to the concept.
+// **When a kind gains a price in `base-costs.json`, add its name here.**
 const PRICE_OR_BUDGET_CONSTANT = new RegExp(
-  String.raw`^(?:export\s+)?const\s+(?=[\w$]*(?:price|(?:room|resource|layout|design|actor|vital|regen|stack)[\w$]*cost|budget[\w$]*(?:token|split|pool|pct|ratio)|(?:dungeon|delver)[\w$]*pct|(?:delver|warden)[\w$]*ratio|pool[\w$]*weight|sub[\w$]*pool|reference[\w$]*target|default_?pools?|resource[\w$]*permanent[\w$]*multiplier))[\w$]+\s*=\s*(?:-?(?:\d[\d_]*(?:\.[\d_]*)?|\.\d+)(?:e[+-]?\d+)?\b|(?:Object\.freeze\s*\(\s*)?[\[{][^;]*?\b-?(?:\d[\d_]*(?:\.[\d_]*)?|\.\d+)(?:e[+-]?\d+)?\b)`,
+  String.raw`^(?:export\s+)?const\s+(?=[\w$]*(?:price|(?:room|resource|layout|design|actor|vital|regen|stack|tile|hazard|motivation|affinity)[\w$]*cost|budget[\w$]*(?:token|split|pool|pct|ratio)|(?:dungeon|delver)[\w$]*pct|(?:delver|warden)[\w$]*ratio|pool[\w$]*weight|sub[\w$]*pool|reference[\w$]*target|default_?pools?|resource[\w$]*permanent[\w$]*multiplier))[\w$]+\s*=\s*(?:-?(?:\d[\d_]*(?:\.[\d_]*)?|\.\d+)(?:e[+-]?\d+)?\b|(?:Object\.freeze\s*\(\s*)?[\[{][^;]*?\b-?(?:\d[\d_]*(?:\.[\d_]*)?|\.\d+)(?:e[+-]?\d+)?\b)`,
   "gim",
 );
 
