@@ -1,5 +1,8 @@
 import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
-import { runLlmSession } from "../personas/orchestrator/llm-session.js";
+// CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
+// `llm_request` effects through ports/effects.js so the IO happens in the adapter.
+// Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
+import { runLlmSessionHosted } from "../commands/llm-host.js";
 
 export async function runFlagshipLlmSeam({
   adapter,
@@ -12,7 +15,7 @@ export async function runFlagshipLlmSeam({
   format,
   stream,
 } = {}) {
-  const result = await runLlmSession({
+  const result = await runLlmSessionHosted({
     adapter,
     model,
     prompt,

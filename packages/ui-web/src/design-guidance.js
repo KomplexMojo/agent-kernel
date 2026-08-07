@@ -1,6 +1,9 @@
 import { createLlmAdapter } from "../../adapters-web/src/adapters/llm/index.js";
 import { runLlmBudgetLoop } from "../../runtime/src/personas/orchestrator/llm-budget-loop.js";
-import { runLlmSession } from "../../runtime/src/personas/orchestrator/llm-session.js";
+// CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
+// `llm_request` effects through ports/effects.js so the IO happens in the adapter.
+// Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
+import { runLlmSessionHosted } from "../../runtime/src/commands/llm-host.js";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -2490,7 +2493,7 @@ export function wireDesignGuidance({
         fetchFn: llmConfig.fetchFn || fetch,
       }));
 
-    const session = await runLlmSession({
+    const session = await runLlmSessionHosted({
       adapter,
       model: llmConfig.model || DEFAULT_LLM_MODEL,
       prompt,

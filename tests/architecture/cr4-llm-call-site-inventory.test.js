@@ -38,9 +38,11 @@ const EXPECTED = Object.freeze({
   // the Orchestrator round and dispatches its effects. The runLlmBudgetLoop site remains:
   // it cannot move until the loop itself is inverted, because the loop WRAPS the session.
   "packages/runtime/src/commands/kernel.js": { runLlmSession: 0, runLlmBudgetLoop: 1 },
-  "packages/adapters-cli/src/cli/ak-impl.mjs": { runLlmSession: 2, runLlmBudgetLoop: 1 },
-  "packages/ui-web/src/design-guidance.js": { runLlmSession: 1, runLlmBudgetLoop: 1 },
-  "packages/runtime/src/adaptive-workflow/llm-seams.js": { runLlmSession: 1, runLlmBudgetLoop: 1 },
+  // M5a migrated every DIRECT runLlmSession site to commands/llm-host.js. What is left
+  // in these three is the budget loop, which cannot move until the loop is inverted.
+  "packages/adapters-cli/src/cli/ak-impl.mjs": { runLlmSession: 0, runLlmBudgetLoop: 1 },
+  "packages/ui-web/src/design-guidance.js": { runLlmSession: 0, runLlmBudgetLoop: 1 },
+  "packages/runtime/src/adaptive-workflow/llm-seams.js": { runLlmSession: 0, runLlmBudgetLoop: 1 },
   // The one no revision of CR.4 recorded: the persona's own loop drives its own session.
   "packages/runtime/src/personas/orchestrator/llm-budget-loop.js": { runLlmSession: 2, runLlmBudgetLoop: 0 },
 });
@@ -84,13 +86,13 @@ test("CR.4's LLM call-site inventory matches the tree", () => {
   );
 });
 
-test("the totals CR.4 is scoped against: 10 call sites left across 5 files", () => {
+test("the totals CR.4 is scoped against: 6 call sites left across 5 files", () => {
   const inventory = actualInventory();
   const total = Object.values(inventory)
     .reduce((sum, f) => sum + f.runLlmSession + f.runLlmBudgetLoop, 0);
 
   assert.equal(Object.keys(inventory).length, 5, "five files, not the recorded four");
-  assert.equal(total, 10, "12 at M1, minus the 2 kernel sites migrated at M4b");
+  assert.equal(total, 6, "12 at M1, minus 2 (M4b kernel) and 4 (M5a direct sites)");
 });
 
 test("the loop wraps the session — this layering is why the inversion is two-layer", () => {
