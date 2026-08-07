@@ -8,7 +8,6 @@ import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../persona
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
 import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
-import { maximizeActorBudget } from "../personas/configurator/budget-maximizer.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { buildBudgetAllocation } from "../personas/allocator/budget-allocation.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
@@ -24,6 +23,13 @@ import {
 // root hands over the Configurator's own function — through the persona's PUBLIC
 // surface, unlike the internal build-geometry imports above.
 const configuratorMotivations = createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations;
+
+// WP-5/D10: same pattern for budget maximization. Scaling authored actors to fill an
+// unspent budget is Configurator work, so it comes off the Configurator's public
+// surface rather than out of `configurator/budget-maximizer.js` directly — the prices
+// it scales against are supplied separately, by the Allocator.
+const configuratorMaximizeActorBudget = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.maximizeActorBudget;
 
 const SCHEMAS = Object.freeze({
   solverRequest: "agent-kernel/SolverRequest",
@@ -1537,10 +1543,18 @@ export async function orchestrateBuild({
         ? probeRemaining
         : Math.min(probeRemaining, actorPoolRemaining);
       if (maximizeRemaining > 0) {
-        actorsInput.actors = maximizeActorBudget({
+        // The prices are the Allocator's, read off its published surface against
+        // the very price list this build resolved — not derived here, and not
+        // derived inside the Configurator from the Allocator's own tools.
+        const { pricing } = createAllocatorPersona({
+          priceList: resolvedPriceList,
+          clock: UNUSED_CLOCK,
+        });
+        actorsInput.actors = configuratorMaximizeActorBudget({
           actors: actorsInput.actors,
           remaining: maximizeRemaining,
-          priceList: resolvedPriceList,
+          unitCosts: pricing.unitCosts(),
+          priceItems: pricing.priceMap(),
         });
         resolvedActors = actorsInput.actors;
       }

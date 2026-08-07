@@ -1,5 +1,4 @@
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
-import { buildPriceMap, normalizePriceItems } from "../allocator/validate-spend.js";
 
 const VITAL_POINT_IDS = Object.freeze({
   health: "vital_health_point",
@@ -18,9 +17,30 @@ const VITAL_REGEN_IDS = Object.freeze({
 // Distribute evenly across all four vitals; health and durability lead the order
 const VITAL_DISTRIBUTION_ORDER = ["health", "durability", "mana", "stamina"];
 
-function getUnitCost(priceMap, kind, id, fallback) {
-  const val = priceMap.get(`${kind}:${id}`);
-  return Number.isFinite(val) && val >= 0 ? val : fallback;
+/**
+ * Read a price the Allocator published, or refuse.
+ *
+ * WP-5/D10: this used to take a `fallback` and return it whenever the price was
+ * absent — and every caller passed `1`, which is exactly what the Allocator's
+ * default list charges for a vital point. The fallback and the real price agreed
+ * numerically, so the Configurator pricing on its own was **indistinguishable in
+ * output** from the Configurator asking the Allocator. That is a price constant
+ * living in the wrong persona, hidden by a coincidence.
+ *
+ * The charter rule is "all pricing goes through the Allocator, no silent
+ * fallbacks", so a missing price is a defect in the price list — the Allocator
+ * owns its completeness — and the only honest response is to name it and stop.
+ */
+function requireUnitCost(unitCosts, kind, id) {
+  const key = `${kind}:${id}`;
+  const val = unitCosts.get(key);
+  if (!Number.isFinite(val) || val < 0) {
+    throw new Error(
+      `budget-maximizer: the Allocator published no unit cost for "${key}"; `
+      + "pricing is the Allocator's to state and the Configurator will not assume one.",
+    );
+  }
+  return val;
 }
 
 function cloneActor(actor) {
@@ -70,14 +90,37 @@ function distributeVitalPoints(cloned, scalableIndices, vitalEntries, budget) {
  * price list's own formula (P1.4: quadratic at the list unit — the maximizer
  * budgets exactly what the receipt will charge).
  * Regen budget leftover from rounding is recycled into a final vitals pass.
+ *
+ * WP-5/D10: takes the Allocator's PUBLISHED pricing rather than a raw PriceList.
+ * This module used to import `buildPriceMap`/`normalizePriceItems` out of
+ * `allocator/validate-spend.js` and derive the maps itself — the Configurator
+ * reaching into the Allocator for pricing tools, which is the crossing this
+ * change removes. Callers now pass what `createAllocatorPersona().pricing`
+ * publishes:
+ *
+ *   unitCosts  <- pricing.unitCosts()   Map "kind:id" -> unit cost number
+ *   priceItems <- pricing.priceMap()    Map "kind:id" -> { unitCost, formula }
+ *
+ * Assembly stays here (CR.9: the Configurator authors); only the prices are the
+ * Allocator's, and they are required rather than defaulted.
  */
-export function maximizeActorBudget({ actors, remaining, priceList }) {
+export function maximizeActorBudget({ actors, remaining, unitCosts, priceItems }) {
   if (!Array.isArray(actors) || actors.length === 0) return actors;
   const budget = typeof remaining === "number" ? Math.floor(remaining) : 0;
   if (budget <= 0) return actors;
 
-  const priceMap = buildPriceMap(priceList);
-  const priceItems = normalizePriceItems(priceList);
+  if (!(unitCosts instanceof Map)) {
+    throw new Error(
+      "budget-maximizer: unitCosts must be the Allocator's published price map "
+      + "(createAllocatorPersona().pricing.unitCosts()).",
+    );
+  }
+  if (!(priceItems instanceof Map)) {
+    throw new Error(
+      "budget-maximizer: priceItems must be the Allocator's published price items "
+      + "(createAllocatorPersona().pricing.priceMap()).",
+    );
+  }
 
   const scalableIndices = actors
     .map((a, i) => (a?.vitals && typeof a.vitals === "object" ? i : -1))
@@ -89,7 +132,7 @@ export function maximizeActorBudget({ actors, remaining, priceList }) {
   const vitalEntries = VITAL_DISTRIBUTION_ORDER
     .map((key) => ({
       key,
-      unitCost: getUnitCost(priceMap, "vital", VITAL_POINT_IDS[key], 1),
+      unitCost: requireUnitCost(unitCosts, "vital", VITAL_POINT_IDS[key]),
     }))
     .filter(({ unitCost }) => unitCost > 0);
 
@@ -109,8 +152,20 @@ export function maximizeActorBudget({ actors, remaining, priceList }) {
   let regenVitalRemainder = regenBudget - perRegenVital * VITAL_DISTRIBUTION_ORDER.length;
 
   for (const key of VITAL_DISTRIBUTION_ORDER) {
-    const item = priceItems.get(`vital:${VITAL_REGEN_IDS[key]}`);
-    const unit = item && Number.isFinite(item.unitCost) && item.unitCost > 0 ? item.unitCost : null;
+    const regenKey = `vital:${VITAL_REGEN_IDS[key]}`;
+    const item = priceItems.get(regenKey);
+    // An ABSENT price is a refusal (see requireUnitCost): the old code skipped
+    // the vital silently, so an incomplete price list quietly bought no regen at
+    // all instead of reporting that it could not be priced. A price that exists
+    // and is zero or negative is a different thing — the Allocator saying this is
+    // not purchasable — and that is still a legitimate skip.
+    if (!item || !Number.isFinite(item.unitCost)) {
+      throw new Error(
+        `budget-maximizer: the Allocator published no price for "${regenKey}"; `
+        + "pricing is the Allocator's to state and the Configurator will not assume one.",
+      );
+    }
+    const unit = item.unitCost > 0 ? item.unitCost : null;
     const allotment = perRegenVital + (regenVitalRemainder-- > 0 ? 1 : 0);
     if (allotment <= 0 || unit === null) continue;
     const quadratic = item.formula === "quadratic";

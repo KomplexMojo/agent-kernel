@@ -100,12 +100,18 @@ test("unified: the fallback exports are gone", async () => {
 
 test("unified: maximizeActorBudget buys regen at list prices (quadratic unit 1), not 12/5/4/10", async () => {
   const { maximizeActorBudget } = await import(`${P}configurator/budget-maximizer.js`);
-  const { buildDefaultPriceList } = await import(`${P}allocator/default-price-list.js`);
+  const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
+  const { UNUSED_CLOCK } = await import(`${P}_shared/require-clock.js`);
+  // WP-5/D10: prices arrive from the Allocator's published surface. The point of
+  // this test is unchanged — the maximizer must charge the LIST price, not its own
+  // 12/5/4/10 — but it can no longer reach the Allocator's price-map builders.
+  const { pricing } = createAllocatorPersona({ clock: UNUSED_CLOCK });
   const blank = () => ({ current: 0, max: 0, regen: 0 });
   const [a] = maximizeActorBudget({
     actors: [{ id: "a1", vitals: { health: blank(), mana: blank(), stamina: blank(), durability: blank() } }],
     remaining: 100,
-    priceList: buildDefaultPriceList(),
+    unitCosts: pricing.unitCosts(),
+    priceItems: pricing.priceMap(),
   });
   // 25-token regen budget split 4 ways ≈ 6 each; at unit 1 quadratic,
   // floor(√6) = 2 regen per vital — the maximizer finally affords what the

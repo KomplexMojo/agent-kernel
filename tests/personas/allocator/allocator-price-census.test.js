@@ -124,11 +124,18 @@ test("site 3: motivations cost 5 from the list; a missing entry is an error, nev
 
 test("site 4 == site 1: maximizer buys regen at list prices (quadratic, unit 1)", async () => {
   const { maximizeActorBudget, priceList } = await load();
+  // WP-5/D10: the maximizer takes the Allocator's PUBLISHED pricing rather than a
+  // raw PriceList — it no longer imports the Allocator's price-map builders to
+  // derive them itself. Same prices, same expectations; different route.
+  const { createAllocatorPersona } = await import(`${P}allocator/persona.js`);
+  const { UNUSED_CLOCK } = await import(`${P}_shared/require-clock.js`);
+  const { pricing } = createAllocatorPersona({ priceList, clock: UNUSED_CLOCK });
   const blank = () => ({ current: 0, max: 0, regen: 0 });
   const [a] = maximizeActorBudget({
     actors: [{ id: "a1", vitals: { health: blank(), mana: blank(), stamina: blank(), durability: blank() } }],
     remaining: 100,
-    priceList,
+    unitCosts: pricing.unitCosts(),
+    priceItems: pricing.priceMap(),
   });
   // 25-token regen budget split 4 ways ≈ 6 each → floor(√6) = 2 per vital.
   for (const key of ["health", "mana", "stamina", "durability"]) {

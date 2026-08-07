@@ -44,6 +44,7 @@ import {
   proposeRoomCandidates,
   reviseDelverCandidate,
 } from "./candidate-authoring.js";
+import { maximizeActorBudget } from "./budget-maximizer.js";
 
 export class ConfiguratorStateError extends Error {
   constructor(message) {
@@ -268,6 +269,17 @@ export function attachConfiguratorServices({ fsm } = {}) {
      * cards through its own copy of this before M3.
      */
     readCardVitals: cloneVitals,
+    /**
+     * Scale authored actors to exhaust an unspent budget (WP-5/D10).
+     *
+     * Published so `build/orchestrate-build.js` stops importing
+     * `configurator/budget-maximizer.js` directly. Scaling a card's vitals is
+     * authoring, which is why it is the Configurator's to do — but the PRICES it
+     * scales against are the Allocator's, so the caller passes
+     * `createAllocatorPersona().pricing` output in. The maximizer refuses to run
+     * on an unpriced vital rather than assuming a number.
+     */
+    maximizeActorBudget,
   });
 
   return {

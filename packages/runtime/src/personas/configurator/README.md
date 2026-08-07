@@ -48,8 +48,24 @@ At a high level, the Configurator:
 > All of it previously lived in `allocator/budget-fulfillment.js`, where the budget maximizer built its own
 > cards and then priced them.
 >
+> **`maximizeActorBudget` joined `authorCandidates` in WP-5/D10, and it is the one member that DOES take
+> prices — read the next paragraph's rule with this exception in mind.** Scaling authored actors to spend a
+> leftover budget is assembly, so it is this persona's work, but it cannot be done without knowing what a
+> vital point costs. The prices are **passed in** from `createAllocatorPersona().pricing` (`unitCosts()` and
+> `priceMap()`); the Configurator neither derives nor stores them. Before this change the module imported
+> `buildPriceMap`/`normalizePriceItems` straight out of `allocator/validate-spend.js` and built the maps
+> itself — the Configurator holding the Allocator's pricing tools.
+>
+> It also carried its own fallback price of `1` for any vital the list did not price. **Every vital in the
+> Allocator's default list costs exactly 1**, so that fallback and the real price agreed numerically and no
+> test on output could ever tell them apart. It now **refuses** an unpriced vital by name instead. The
+> distinction the charter draws is not "may a persona see a number" but "may a persona *decide* one" —
+> taking a published price is consuming the Allocator's decision; defaulting when it is missing is making
+> your own.
+>
 > The Configurator sees the **cap** (`BudgetEnvelope`) because its enumeration bounds are cap-derived and
-> termination depends on that; it never sees **prices**, or it would be pricing again. Each candidate
+> termination depends on that; during candidate enumeration it never sees **prices**, or it would be pricing
+> again. Each candidate
 > publishes a `priceable` projection — the only part the Allocator reads — plus an opaque `preference`
 > tuple that carries this persona's ordering intent without exposing what the positions mean. Both personas
 > read the protocol's schema strings and refusal vocabularies from `contracts/spend-protocol.js` (CR.9 M4);
