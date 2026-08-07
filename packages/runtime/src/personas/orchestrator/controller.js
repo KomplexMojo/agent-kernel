@@ -1,4 +1,5 @@
 import { createOrchestratorStateMachine, OrchestratorStates } from "./state-machine.js";
+import { createLlmRound } from "./llm-round.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
@@ -30,9 +31,26 @@ export function createOrchestratorPersona({ initialState = OrchestratorStates.ID
     };
   }
 
+  /**
+   * The LLM conversation, published on the persona surface (CR.4 M3).
+   *
+   * This is the entry point that replaces `import { runLlmSession }`. Callers get a
+   * round that RETURNS `llm_request` effects and never performs IO; the host dispatches
+   * them through `ports/effects.js` and feeds responses back with `fulfill()`.
+   *
+   * Published here on purpose: `llm-round.js` is persona-internal, and a caller
+   * importing it directly would be exactly the boundary crossing CR.4 is closing — it
+   * would simply replace 12 allowlisted imports of `llm-session.js` with 12 of
+   * `llm-round.js`. Reaching the round through the controller is the point.
+   */
+  const llm = Object.freeze({
+    beginRound: (args = {}) => createLlmRound({ ...args, personaRef: "orchestrator" }),
+  });
+
   return {
     subscribePhases: orchestratorSubscribePhases,
     advance,
     view,
+    llm,
   };
 }

@@ -11,6 +11,14 @@ import {
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
 import { buildCardSetFromSummary } from "../director/summary-selections.js";
 
+// ── CR.4 M3: the pure decision layer, shared rather than duplicated ────────────
+// `llm-round.js` runs the SAME escalation ladder without performing IO. Two
+// independent copies of "should this retry?" would be the CR.1 defect class — a
+// second silently-diverging answer to one question — so the round imports these
+// rather than reimplementing them. They are pure: no adapter, no clock, no IO.
+// M5 NOTE: when `runLlmSession`'s inline IO is deleted, what remains of this file
+// IS this decision layer; split it out then rather than now.
+
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -141,7 +149,7 @@ function extractJsonObject(text) {
   return null;
 }
 
-function extractResponseText(payload) {
+export function extractResponseText(payload) {
   if (!payload || typeof payload !== "object") return null;
   if (typeof payload.response === "string") return payload.response;
   if (typeof payload.message?.content === "string") return payload.message.content;
@@ -151,7 +159,7 @@ function extractResponseText(payload) {
   return null;
 }
 
-function captureWithFallback({ prompt, responseText, phase }) {
+export function captureWithFallback({ prompt, responseText, phase }) {
   const primary = capturePromptResponse({ prompt, responseText, phase });
   if (primary.errors.length === 0) {
     return primary;
@@ -410,7 +418,7 @@ function validateSummaryContent(summary, { minRooms, minActors } = {}) {
   return errors;
 }
 
-function applySummaryContentErrors(capture, requireSummary) {
+export function applySummaryContentErrors(capture, requireSummary) {
   if (!requireSummary) {
     return capture;
   }
@@ -429,7 +437,7 @@ function hasErrorCode(errors, code) {
   return errors.some((entry) => entry && typeof entry === "object" && entry.code === code);
 }
 
-function buildRepairRequestOptions(options, { errors, phase } = {}) {
+export function buildRepairRequestOptions(options, { errors, phase } = {}) {
   const codeTriggered = hasErrorCode(errors, "invalid_json")
     || hasErrorCode(errors, "missing_response_text")
     || (phase === "actors_only" && hasErrorCode(errors, "missing_actors"));
@@ -444,7 +452,7 @@ function buildRepairRequestOptions(options, { errors, phase } = {}) {
   return next;
 }
 
-function getNumPredict(options) {
+export function getNumPredict(options) {
   if (!options || typeof options !== "object") return 0;
   return Number.isInteger(options.num_predict) && options.num_predict > 0 ? options.num_predict : 0;
 }
