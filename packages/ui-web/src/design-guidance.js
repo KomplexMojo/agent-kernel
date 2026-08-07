@@ -4,6 +4,7 @@ import { runLlmBudgetLoop } from "../../runtime/src/personas/orchestrator/llm-bu
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../runtime/src/commands/llm-host.js";
+import { beginDirectorRound } from "../../runtime/src/commands/director-round.js";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -2467,9 +2468,14 @@ export function wireDesignGuidance({
           baseUrl: llmConfig.baseUrl || DEFAULT_LLM_BASE_URL,
           fetchFn: llmConfig.fetchFn || fetch,
         }));
+      // M5b.2a′: hoisted so the Director round and the loop share ONE identity — two
+      // Date.now() reads would give the round and the artifacts different run ids.
+      const uiRunId = `ui_card_ai_${Date.now()}`;
+      const uiCreatedAt = new Date().toISOString();
       const result = await runLlmBudgetLoop({
         // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
         runSession: runLlmSessionHosted,
+        mapPool: beginDirectorRound({ runId: uiRunId, createdAt: uiCreatedAt, goal: prompt, producedBy: "ui" }).mapPool,
         adapter,
         model: llmConfig.model || DEFAULT_LLM_MODEL,
         catalog: llmConfig.catalog || { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] },
@@ -2478,8 +2484,8 @@ export function wireDesignGuidance({
         budgetTokens: state.budgetTokens,
         priceList: llmConfig.priceList,
         maxActorRounds: 1,
-        runId: `ui_card_ai_${Date.now()}`,
-        clock: () => new Date().toISOString(),
+        runId: uiRunId,
+        clock: () => uiCreatedAt,
       });
       if (!result.ok) {
         throw new Error(result.errors?.[0]?.code || "ai_loop_failed");

@@ -6,7 +6,6 @@ import {
   deriveAllowedOptionsFromCatalog,
 } from "./prompt-contract.js";
 import { requireClock } from "../_shared/require-clock.js";
-import { mapSummaryToPool } from "../director/pool-mapper.js";
 import { deriveLevelGen } from "../director/buildspec-assembler.js";
 import { buildCardSetFromSummary } from "../director/summary-selections.js";
 import { buildBudgetAllocation } from "../allocator/budget-allocation.js";
@@ -635,6 +634,9 @@ async function runPhase({
   // CR.4 M5b: threaded from runLlmBudgetLoop. runPhase drives both sessions (primary and
   // its own repair), so it is where the IO used to happen inside the persona.
   runSession,
+  // CR.4 M5b.2a′: mapping an LLM summary onto catalog pools is the DIRECTOR's decision.
+  // runPhase serves both phases, so all four mapping sites migrate together.
+  mapPool,
 } = {}) {
   const startedAt = typeof clock === "function" ? clock() : undefined;
   const startMs = startedAt ? Date.parse(startedAt) : NaN;
@@ -735,7 +737,7 @@ async function runPhase({
       }
     }
   } else {
-    const mapped = mapSummaryToPool({ summary: phaseSummary, catalog });
+    const mapped = mapPool({ summary: phaseSummary, catalog });
     selections = mapped.selections;
     validation = validatePhaseSelections(mapped.selections, phase);
     if (!strict && phase === "actors_only" && hasValidationCode(validation.errors, "missing_catalog_match")) {
@@ -748,7 +750,7 @@ async function runPhase({
           allowedOptions,
         });
         if (snapped.changed) {
-          const remapped = mapSummaryToPool({ summary: snapped.summary, catalog });
+          const remapped = mapPool({ summary: snapped.summary, catalog });
           const revalidated = validatePhaseSelections(remapped.selections, phase);
           if (countInstances(remapped.selections, "actor") > 0) {
             validationErrors = [...validationErrors, ...(validation.errors || [])];
@@ -952,7 +954,7 @@ async function runPhase({
       }
     }
   } else {
-    const repairMapped = mapSummaryToPool({ summary: repairSummary, catalog });
+    const repairMapped = mapPool({ summary: repairSummary, catalog });
     repairSelections = repairMapped.selections;
     repairValidation = validatePhaseSelections(repairMapped.selections, phase);
     if (!strict && phase === "actors_only" && hasValidationCode(repairValidation.errors, "missing_catalog_match")) {
@@ -965,7 +967,7 @@ async function runPhase({
           allowedOptions,
         });
         if (snapped.changed) {
-          const remapped = mapSummaryToPool({ summary: snapped.summary, catalog });
+          const remapped = mapPool({ summary: snapped.summary, catalog });
           const revalidated = validatePhaseSelections(remapped.selections, phase);
           if (countInstances(remapped.selections, "actor") > 0) {
             validationErrors = [...validationErrors, ...(repairValidation.errors || [])];
@@ -1158,9 +1160,25 @@ export async function runLlmBudgetLoop({
   // and a caller that forgot to thread it would silently keep the old path. PX.3 made the
   // same call for the clock, and requiring it exposed four callers that never passed one.
   runSession,
+  // CR.4 M5b.2a′: mapping an LLM summary onto catalog pools is a DIRECTOR decision, and
+  // `director.mapPool` is FSM-gated behind an open build round. Until now the loop mapped
+  // summaries with no Director round existing at all — an artifact produced with no round,
+  // the same defect as CR.4's `producedBy` stamp and CR.3's discarded plan.
+  //
+  // REQUIRED, no default, for the same reason as `runSession`: falling back to the
+  // Director's internals would leave TWO live mappers and a caller that silently kept the
+  // ungated one.
+  mapPool,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
+  }
+  if (typeof mapPool !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "mapPool", code: "missing_pool_mapper" }],
+      captures: [],
+    };
   }
   if (typeof runSession !== "function") {
     // Required, not defaulted: see the `runSession` note in the signature. Reported
@@ -1252,6 +1270,7 @@ export async function runLlmBudgetLoop({
 
   const layoutPhase = await runPhase({
     runSession,
+    mapPool,
     adapter,
     model,
     baseUrl,
@@ -1343,6 +1362,7 @@ export async function runLlmBudgetLoop({
 
     const actorsPhase = await runPhase({
     runSession,
+    mapPool,
       adapter,
       model,
       baseUrl,

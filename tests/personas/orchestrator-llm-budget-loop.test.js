@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 // Allocator refuses without the Configurator's vocabulary. Threaded in from here the
 // same way the CLI composition root threads it.
 const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
-const { hostedSessionRunner } = require("../helpers/orchestrator-capabilities.js");
+const { hostedSessionRunner, directorPoolMapper } = require("../helpers/orchestrator-capabilities.js");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
@@ -67,6 +67,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
+  mapPool: await directorPoolMapper(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -152,6 +153,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
+  mapPool: await directorPoolMapper(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -221,6 +223,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
+  mapPool: await directorPoolMapper(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "phi4",
@@ -288,6 +291,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
+  mapPool: await directorPoolMapper(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "phi4",
@@ -355,6 +359,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
+  mapPool: await directorPoolMapper(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -409,6 +414,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
+  mapPool: await directorPoolMapper(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -432,4 +438,42 @@ assert.equal(result.summary.layout.floorTiles, 9000);
 assert.equal(result.summary.layout.hallwayTiles, 0);
 assert.ok(result.summary.layout.floorTiles + result.summary.layout.hallwayTiles > 0);
 assert.ok(!Array.isArray(result.trace[0].validationWarnings) || result.trace[0].validationWarnings.length === 0);
+});
+
+// ---------------------------------------------------------------------------
+// CR.4 M5b — the injected capabilities are REQUIRED, and the refusals are tested
+// ---------------------------------------------------------------------------
+//
+// Added after a perturbation showed the refusals had no teeth: deleting the mapPool
+// guard changed nothing, because every caller now passes one. A refusal nothing
+// exercises is the sanitize rung again — documented, believed, and absent.
+
+test("the loop REFUSES to run without a Director pool mapper", async () => {
+  const { runLlmBudgetLoop } = await import(
+    "../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
+  );
+  const result = await runLlmBudgetLoop({
+    budgetTokens: 5000,
+    runSession: await hostedSessionRunner(),
+    // mapPool deliberately absent
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors[0].code, "missing_pool_mapper");
+  assert.deepEqual(result.captures, [], "it must refuse before any LLM request is made");
+});
+
+test("the loop REFUSES to run without a session runner", async () => {
+  const { runLlmBudgetLoop } = await import(
+    "../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
+  );
+  const result = await runLlmBudgetLoop({
+    budgetTokens: 5000,
+    mapPool: await directorPoolMapper(),
+    // runSession deliberately absent
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors[0].code, "missing_session_runner");
+  assert.deepEqual(result.captures, [], "no runner means no LLM IO can have happened");
 });

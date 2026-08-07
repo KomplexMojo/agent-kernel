@@ -31,4 +31,20 @@ async function hostedSessionRunner() {
   return cached;
 }
 
-module.exports = { hostedSessionRunner };
+const DIRECTOR_ROUND = pathToFileURL(
+  resolve(__dirname, "../../packages/runtime/src/commands/director-round.js"),
+).href;
+
+/**
+ * A Director with an OPEN build round, as `mapPool` requires (CR.4 M5b.2a').
+ *
+ * `director.mapPool` is FSM-gated behind `beginBuild`. Tests open a real round through the
+ * same glue helper production uses rather than stubbing the mapper — a stub would be the
+ * second mapper the required capability exists to prevent.
+ */
+async function directorPoolMapper({ runId = "run_test", createdAt = "2026-08-07T00:00:00.000Z", goal } = {}) {
+  const { beginDirectorRound } = await import(DIRECTOR_ROUND);
+  return beginDirectorRound({ runId, createdAt, goal }).mapPool;
+}
+
+module.exports = { hostedSessionRunner, directorPoolMapper };

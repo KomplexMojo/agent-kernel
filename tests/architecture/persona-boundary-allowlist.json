@@ -177,10 +177,6 @@
   },
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
-    "to": "packages/runtime/src/personas/director/pool-mapper.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
     "to": "packages/runtime/src/personas/director/summary-selections.js"
   },
   {

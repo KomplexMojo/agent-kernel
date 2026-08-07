@@ -1950,6 +1950,9 @@ export function createCommandKernel(host = {}) {
         const loopResult = await runLlmBudgetLoop({
         // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
         runSession: runLlmSessionHosted,
+        // M5b.2a′: pool mapping is the Director's decision. This round is already open
+        // above (beginBuild), which is what the FSM gate on mapPool requires.
+        mapPool: director.mapPool,
           adapter,
           model,
           baseUrl,
