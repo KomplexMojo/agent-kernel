@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 // Allocator refuses without the Configurator's vocabulary. Threaded in from here the
 // same way the CLI composition root threads it.
 const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
+const { hostedSessionRunner } = require("../helpers/orchestrator-capabilities.js");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
@@ -65,6 +66,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  runSession: await hostedSessionRunner(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -149,6 +151,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  runSession: await hostedSessionRunner(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -217,6 +220,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  runSession: await hostedSessionRunner(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "phi4",
@@ -283,6 +287,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  runSession: await hostedSessionRunner(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "phi4",
@@ -349,6 +354,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  runSession: await hostedSessionRunner(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -402,6 +408,7 @@ const adapter = {
 };
 
 const result = await runLlmBudgetLoop({
+  runSession: await hostedSessionRunner(),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",

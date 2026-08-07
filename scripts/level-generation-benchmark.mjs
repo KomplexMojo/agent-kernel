@@ -4,6 +4,8 @@ import { performance } from "node:perf_hooks";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runLlmBudgetLoop } from "../packages/runtime/src/personas/orchestrator/llm-budget-loop.js";
+// CR.4 M5b: the loop no longer performs LLM IO; the composition root supplies the runner.
+import { runLlmSessionHosted } from "../packages/runtime/src/commands/llm-host.js";
 
 const DEFAULT_SWEEP = Object.freeze([
   { totalBudgetTokens: 1_000_000, runs: 3 },
@@ -148,6 +150,7 @@ async function runSingleBenchmark({ catalog, totalBudgetTokens, layoutPercent, r
 
   const started = performance.now();
   const result = await runLlmBudgetLoop({
+    runSession: runLlmSessionHosted,
     adapter,
     model: "fixture",
     catalog,

@@ -2468,6 +2468,8 @@ export function wireDesignGuidance({
           fetchFn: llmConfig.fetchFn || fetch,
         }));
       const result = await runLlmBudgetLoop({
+        // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
+        runSession: runLlmSessionHosted,
         adapter,
         model: llmConfig.model || DEFAULT_LLM_MODEL,
         catalog: llmConfig.catalog || { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] },

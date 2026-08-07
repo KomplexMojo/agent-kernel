@@ -46,6 +46,8 @@ export async function runSectionalBudgetLlmSeam({
   optionsByPhase,
 } = {}) {
   const result = await runLlmBudgetLoop({
+        // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
+        runSession: runLlmSessionHosted,
     adapter,
     model,
     goal,

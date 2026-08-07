@@ -4167,6 +4167,8 @@ async function validateScenarioDryRun(args) {
     if (budgetLoopEnabled) {
       const poolPolicy = Number.isFinite(budgetReserveTokens) ? { reserveTokens: budgetReserveTokens } : undefined;
       const loopResult = await runLlmBudgetLoop({
+        // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
+        runSession: runLlmSessionHosted,
         adapter,
         model,
         baseUrl,

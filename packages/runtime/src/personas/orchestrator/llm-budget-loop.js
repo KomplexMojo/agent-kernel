@@ -5,7 +5,6 @@ import {
   LLM_STOP_REASONS,
   deriveAllowedOptionsFromCatalog,
 } from "./prompt-contract.js";
-import { runLlmSession } from "./llm-session.js";
 import { requireClock } from "../_shared/require-clock.js";
 import { mapSummaryToPool } from "../director/pool-mapper.js";
 import { deriveLevelGen } from "../director/buildspec-assembler.js";
@@ -633,6 +632,9 @@ async function runPhase({
   nextCaptureMeta,
   extraValidator,
   options,
+  // CR.4 M5b: threaded from runLlmBudgetLoop. runPhase drives both sessions (primary and
+  // its own repair), so it is where the IO used to happen inside the persona.
+  runSession,
 } = {}) {
   const startedAt = typeof clock === "function" ? clock() : undefined;
   const startMs = startedAt ? Date.parse(startedAt) : NaN;
@@ -656,7 +658,7 @@ async function runPhase({
     motivations: promptMotivations,
   });
 
-  const session = await runLlmSession({
+  const session = await runSession({
     adapter,
     model,
     baseUrl,
@@ -873,7 +875,7 @@ async function runPhase({
     layoutCosts,
   });
 
-  const repairSession = await runLlmSession({
+  const repairSession = await runSession({
     adapter,
     model,
     baseUrl,
@@ -1144,9 +1146,31 @@ export async function runLlmBudgetLoop({
   // imported here — the Orchestrator has no business importing the Configurator, and
   // the Allocator no longer owns a second copy of the rules.
   normalizeMotivations,
+  // CR.4 M5b stage 1: the loop no longer performs LLM IO itself. It drives TWO sessions —
+  // a primary and its own repair session — and each used to await the session helper
+  // directly, which awaits `adapter.generate` inline inside the persona. The runner is
+  // threaded in from the composition root instead, exactly as `normalizeMotivations` is
+  // above: glue supplies `commands/llm-host.js`, which drives an Orchestrator round and
+  // dispatches its requests through ports/effects.js.
+  //
+  // REQUIRED, with no default. Defaulting to the old helper would leave the inline IO in
+  // place as a silent fallback — the defect class this branch has now found six times —
+  // and a caller that forgot to thread it would silently keep the old path. PX.3 made the
+  // same call for the clock, and requiring it exposed four callers that never passed one.
+  runSession,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
+  }
+  if (typeof runSession !== "function") {
+    // Required, not defaulted: see the `runSession` note in the signature. Reported
+    // rather than thrown, because every caller reads `{ ok, errors }` and a throw would
+    // change how failures surface rather than where IO happens.
+    return {
+      ok: false,
+      errors: [{ field: "runSession", code: "missing_session_runner" }],
+      captures: [],
+    };
   }
   // PX.3 (M6): the ternary here was a wall-clock fallback in the persona that stamps
   // every LLM capture and the budget allocation — the timestamps most likely to reach
@@ -1227,6 +1251,7 @@ export async function runLlmBudgetLoop({
   let remainingBudgetTokens = layoutBudgetTokens;
 
   const layoutPhase = await runPhase({
+    runSession,
     adapter,
     model,
     baseUrl,
@@ -1317,6 +1342,7 @@ export async function runLlmBudgetLoop({
     const approvedActors = approvedSelections.filter((sel) => sel.kind === "actor");
 
     const actorsPhase = await runPhase({
+    runSession,
       adapter,
       model,
       baseUrl,

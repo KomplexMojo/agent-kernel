@@ -21,11 +21,11 @@
  * in the same diff** — that is the point, not an inconvenience.
  */
 const assert = require("node:assert/strict");
-const { readFileSync, readdirSync, statSync } = require("node:fs");
+const { existsSync, readFileSync, readdirSync, statSync } = require("node:fs");
 const { join, relative, sep } = require("node:path");
 
 const ROOT = join(__dirname, "..", "..");
-const PACKAGES = join(ROOT, "packages");
+const SCANNED_ROOTS = ["packages", "scripts", "tools"].map((dir) => join(ROOT, dir));
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".mts", ".ts", ".cjs"]);
 const SKIPPED = new Set(["node_modules", "dist", "build"]);
 
@@ -43,8 +43,16 @@ const EXPECTED = Object.freeze({
   "packages/adapters-cli/src/cli/ak-impl.mjs": { runLlmSession: 0, runLlmBudgetLoop: 1 },
   "packages/ui-web/src/design-guidance.js": { runLlmSession: 0, runLlmBudgetLoop: 1 },
   "packages/runtime/src/adaptive-workflow/llm-seams.js": { runLlmSession: 0, runLlmBudgetLoop: 1 },
-  // The one no revision of CR.4 recorded: the persona's own loop drives its own session.
-  "packages/runtime/src/personas/orchestrator/llm-budget-loop.js": { runLlmSession: 2, runLlmBudgetLoop: 0 },
+  // NOTE: `personas/orchestrator/llm-budget-loop.js` is deliberately ABSENT. Until M5b it
+  // held 2 internal runLlmSession calls — the caller no revision of CR.4 recorded before
+  // 2026-08-07, and the reason the inversion is two-layer. Stage 1 replaced them with an
+  // injected runner, so it performs no LLM IO and drops out of the inventory entirely.
+  // Its absence IS the assertion; see the stage-1 test below.
+  // 🔴 FOUND BY M5b, NOT BY THIS GUARD: a caller outside `packages/`. The scan was scoped
+  // to packages/ and could not see it — the same blind spot that made CR.4's caller list
+  // wrong three times, reproduced in the instrument built to prevent it. Now scans
+  // packages/, scripts/ and tools/.
+  "scripts/level-generation-benchmark.mjs": { runLlmSession: 0, runLlmBudgetLoop: 1 },
 });
 
 function sourceFiles(directory, found = []) {
@@ -66,7 +74,8 @@ function countCalls(source, name) {
 
 function actualInventory() {
   const inventory = {};
-  for (const file of sourceFiles(PACKAGES)) {
+  const files = SCANNED_ROOTS.filter((dir) => existsSync(dir)).flatMap((dir) => sourceFiles(dir));
+  for (const file of files) {
     const source = readFileSync(file, "utf8");
     const runLlmSession = countCalls(source, "runLlmSession");
     const runLlmBudgetLoop = countCalls(source, "runLlmBudgetLoop");
@@ -86,25 +95,32 @@ test("CR.4's LLM call-site inventory matches the tree", () => {
   );
 });
 
-test("the totals CR.4 is scoped against: 6 call sites left across 5 files", () => {
+test("the totals CR.4 is scoped against: 5 loop call sites, and no session sites at all", () => {
   const inventory = actualInventory();
   const total = Object.values(inventory)
     .reduce((sum, f) => sum + f.runLlmSession + f.runLlmBudgetLoop, 0);
 
-  assert.equal(Object.keys(inventory).length, 5, "five files, not the recorded four");
-  assert.equal(total, 6, "12 at M1, minus 2 (M4b kernel) and 4 (M5a direct sites)");
+  assert.equal(Object.keys(inventory).length, 5, "four packages + the benchmark script");
+  assert.equal(total, 5, "only runLlmBudgetLoop sites remain");
+  assert.equal(
+    Object.values(inventory).reduce((sum, f) => sum + f.runLlmSession, 0),
+    0,
+    "every direct runLlmSession call site in the repo is migrated",
+  );
 });
 
-test("the loop wraps the session — this layering is why the inversion is two-layer", () => {
+test("M5b stage 1: the loop performs no LLM IO of its own any more", () => {
+  // This test used to assert the OPPOSITE — that the loop held 2 internal runLlmSession
+  // calls — because that layering was the finding no revision of CR.4 had recorded. Stage 1
+  // removed it: both sessions now go through a runner injected from the composition root,
+  // so the persona declares the need and glue supplies the IO.
   const inventory = actualInventory();
-  const loop = inventory["packages/runtime/src/personas/orchestrator/llm-budget-loop.js"];
 
-  assert.ok(loop, "llm-budget-loop.js must be in the inventory; it is a caller, not just a peer");
   assert.equal(
-    loop.runLlmSession,
-    2,
-    "runLlmBudgetLoop drives runLlmSession itself (primary + its own repair session), so it "
-    + "cannot simply become a caller of the new entry point — it is IO-triggering in its own right",
+    inventory["packages/runtime/src/personas/orchestrator/llm-budget-loop.js"],
+    undefined,
+    "the loop must not await the session helper directly — it takes an injected runner, so "
+    + "it holds no LLM call sites and drops out of the inventory",
   );
 });
 
