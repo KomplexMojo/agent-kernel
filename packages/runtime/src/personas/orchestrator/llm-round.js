@@ -46,9 +46,15 @@ import {
   extractResponseText,
   getNumPredict,
   normalizeSessionPrompt,
+  sanitizeSummaryResponse,
+  sanitizeSummaryValue,
 } from "./llm-session.js";
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
-import { capturePromptResponse } from "./prompt-contract.js";
+import {
+  ALLOWED_AFFINITIES,
+  ALLOWED_AFFINITY_EXPRESSIONS,
+  capturePromptResponse,
+} from "./prompt-contract.js";
 
 export const LlmRoundStates = Object.freeze({
   IDLE: "idle",
@@ -283,7 +289,53 @@ export function createLlmRound({
       }
     }
 
+    // Rung 4 — sanitize. Consumes NO request: a last salvage of the response already in
+    // hand, by coercing affinities/expressions back into the allowed vocabulary.
+    //
+    // ⚠️ THIS RUNG WAS DOCUMENTED IN M3 AND NOT IMPLEMENTED. The 8-case differential did
+    // not catch it, because none of its scripts produced a response that sanitizing could
+    // rescue — every case either parsed cleanly or was unsalvageable. `ak-llm-plan.test.js`
+    // ("resilient mode sanitizes invalid affinities") caught it the moment kernel's call
+    // sites were migrated. A differential only covers the cases someone thought to script;
+    // that is the same lesson as the caller list being undercounted three times.
+    if (trySanitize()) {
+      return settle(LlmRoundStates.COMPLETED);
+    }
     return settle(LlmRoundStates.FAILED);
+  }
+
+  /**
+   * Coerce the response already received into the allowed vocabulary, matching
+   * `runLlmSession`'s final block. Only accepted when it clears EVERY error — a partial
+   * salvage is still a failure, and pretending otherwise would let a summary through that
+   * no rung actually fixed.
+   */
+  function trySanitize() {
+    if (strict || sanitized) return false;
+    let value = sanitizeSummaryResponse(responseText, {
+      allowedAffinities: ALLOWED_AFFINITIES,
+      allowedExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+      phase,
+    });
+    if (!value && capture?.responseParsed) {
+      value = sanitizeSummaryValue(capture.responseParsed, {
+        allowedAffinities: ALLOWED_AFFINITIES,
+        allowedExpressions: ALLOWED_AFFINITY_EXPRESSIONS,
+        phase,
+      });
+    }
+    if (!value) return false;
+
+    const sanitizedCapture = applySummaryContentErrors(
+      capturePromptResponse({ prompt: currentPrompt, responseText: JSON.stringify(value), phase }),
+      requireSummary,
+    );
+    if (sanitizedCapture.errors.length > 0) return false;
+
+    capture = sanitizedCapture;
+    errors = sanitizedCapture.errors;
+    sanitized = true;
+    return true;
   }
 
   function fulfill(payload) {

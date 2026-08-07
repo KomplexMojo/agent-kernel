@@ -109,10 +109,6 @@
   },
   {
     "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/orchestrator/llm-session.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
     "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
   },
   {

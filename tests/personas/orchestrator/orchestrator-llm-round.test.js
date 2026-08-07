@@ -246,6 +246,10 @@ const DIFFERENTIAL_CASES = [
   ["empty response text", {}, [{ response: "" }]],
   ["at the 2048 cap the retry rung is gone", { options: { num_predict: 2048 } },
     [{ response: "not json" }, { response: GOOD }]],
+  ["sanitize rescues an invalid affinity", {},
+    [{ response: JSON.stringify({ dungeonAffinity: "fire", rooms: [{ motivation: "stationary", affinity: "plasma", count: 1, affinities: [{ kind: "push", expression: "plasma", stacks: 1 }] }], actors: [] }) }]],
+  ["sanitize cannot rescue an invalid dungeonAffinity", {},
+    [{ response: JSON.stringify({ dungeonAffinity: "plasma", rooms: [], actors: [] }) }]],
 ];
 
 for (const [label, config, script] of DIFFERENTIAL_CASES) {

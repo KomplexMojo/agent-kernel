@@ -179,7 +179,7 @@ export function captureWithFallback({ prompt, responseText, phase }) {
   return capturePromptResponse({ prompt, responseText: extracted, phase });
 }
 
-function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, phase }) {
+export function sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, phase }) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -457,7 +457,7 @@ export function getNumPredict(options) {
   return Number.isInteger(options.num_predict) && options.num_predict > 0 ? options.num_predict : 0;
 }
 
-function sanitizeSummaryResponse(responseText, { allowedAffinities, allowedExpressions, phase }) {
+export function sanitizeSummaryResponse(responseText, { allowedAffinities, allowedExpressions, phase }) {
   const value = parseJsonLenient(responseText);
   if (!value) return null;
   return sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, phase });

@@ -34,7 +34,10 @@ const SKIPPED = new Set(["node_modules", "dist", "build"]);
  * numbers churn on every edit and would make this a maintenance tax rather than a gate.
  */
 const EXPECTED = Object.freeze({
-  "packages/runtime/src/commands/kernel.js": { runLlmSession: 2, runLlmBudgetLoop: 1 },
+  // M4b MIGRATED kernel's 2 runLlmSession sites to `commands/llm-host.js`, which drives
+  // the Orchestrator round and dispatches its effects. The runLlmBudgetLoop site remains:
+  // it cannot move until the loop itself is inverted, because the loop WRAPS the session.
+  "packages/runtime/src/commands/kernel.js": { runLlmSession: 0, runLlmBudgetLoop: 1 },
   "packages/adapters-cli/src/cli/ak-impl.mjs": { runLlmSession: 2, runLlmBudgetLoop: 1 },
   "packages/ui-web/src/design-guidance.js": { runLlmSession: 1, runLlmBudgetLoop: 1 },
   "packages/runtime/src/adaptive-workflow/llm-seams.js": { runLlmSession: 1, runLlmBudgetLoop: 1 },
@@ -81,13 +84,13 @@ test("CR.4's LLM call-site inventory matches the tree", () => {
   );
 });
 
-test("the totals CR.4 is scoped against: 12 call sites across 5 files", () => {
+test("the totals CR.4 is scoped against: 10 call sites left across 5 files", () => {
   const inventory = actualInventory();
   const total = Object.values(inventory)
     .reduce((sum, f) => sum + f.runLlmSession + f.runLlmBudgetLoop, 0);
 
   assert.equal(Object.keys(inventory).length, 5, "five files, not the recorded four");
-  assert.equal(total, 12, "twelve call sites, not the recorded eight");
+  assert.equal(total, 10, "12 at M1, minus the 2 kernel sites migrated at M4b");
 });
 
 test("the loop wraps the session — this layering is why the inversion is two-layer", () => {

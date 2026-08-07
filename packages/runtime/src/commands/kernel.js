@@ -13,7 +13,12 @@ import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/c
 import { createCore } from "../../../core-ts/src/index.ts";
 import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
 import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
-import { runLlmSession } from "../personas/orchestrator/llm-session.js";
+// CR.4 M4b: the LLM session now runs as an Orchestrator ROUND — the persona returns
+// `llm_request` effects and this host dispatches them through ports/effects.js, so the
+// IO happens in the adapter instead of inline inside the persona. Drop-in replacement:
+// same arguments, same result shape (proven by the differential in
+// tests/runtime/llm-host-loop.test.js).
+import { runLlmSessionHosted } from "./llm-host.js";
 import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
 import { createRuntime } from "../runner/runtime.js";
 import {
@@ -1978,7 +1983,7 @@ export function createCommandKernel(host = {}) {
         summary = loopResult.summary;
         mappedSelections = loopResult.selections;
       } else {
-        let session = await runLlmSession({
+        let session = await runLlmSessionHosted({
           adapter,
           model,
           baseUrl,
@@ -2013,7 +2018,7 @@ export function createCommandKernel(host = {}) {
             missingSelections,
           });
 
-          session = await runLlmSession({
+          session = await runLlmSessionHosted({
             adapter,
             model,
             baseUrl,
