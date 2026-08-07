@@ -44,7 +44,17 @@ export function createOrchestratorPersona({ initialState = OrchestratorStates.ID
    * `llm-round.js`. Reaching the round through the controller is the point.
    */
   const llm = Object.freeze({
-    beginRound: (args = {}) => createLlmRound({ ...args, personaRef: "orchestrator" }),
+    /**
+     * PX.3: the round stamps `phaseTiming` into a persisted capture artifact, so it needs
+     * a clock — and the persona already has one injected. It supplies its own rather than
+     * making every caller re-pass it, and `clock: undefined` from a caller must not
+     * clobber it (the CR.9 M5 `withPersonaDefaults` lesson, same defect, different file).
+     */
+    beginRound: (args = {}) => createLlmRound({
+      clock,
+      ...(args.clock === undefined ? { ...args, clock } : args),
+      personaRef: "orchestrator",
+    }),
   });
 
   return {

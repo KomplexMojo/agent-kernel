@@ -467,7 +467,7 @@ export function buildCardModelFromLlmSummary(summary) {
   return buildCardSetFromSummary(summary || {});
 }
 
-function normalizeSessionPrompt({
+export function normalizeSessionPrompt({
   prompt,
   goal,
   notes,

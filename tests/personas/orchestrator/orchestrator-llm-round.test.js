@@ -32,6 +32,12 @@ async function newRound(overrides = {}) {
     model: "fixture",
     prompt: "Return JSON only.",
     phase: "layout_only",
+    // M4: the round now stamps its own capture artifact, so it needs the same
+    // provenance inputs `runLlmSession` demands as preconditions. Without them the
+    // artifact cannot be built and `ok` is false — which is exactly how
+    // `runLlmSession` computes it (`captureResult.errors === undefined`).
+    runId: "run_round_test",
+    clock: () => "2025-01-01T00:00:00Z",
     ...overrides,
   });
 }
@@ -267,7 +273,7 @@ for (const [label, config, script] of DIFFERENTIAL_CASES) {
     });
 
     // The new path: no IO at all; the script is handed back through fulfill().
-    const round = await newRound(config);
+    const round = await newRound({ runId: "run_differential", clock: () => "2025-01-01T00:00:00Z", ...config });
     let outcome = round.begin();
     let index = 0;
     while (outcome.effect) {
@@ -283,8 +289,43 @@ for (const [label, config, script] of DIFFERENTIAL_CASES) {
       + `runLlmSession made ${calls.length} adapter call(s)`,
     );
     assert.equal(outcome.result.ok, session.ok, `${label}: the two paths disagree on success`);
+
+    // M4: the round now assembles the capture artifact itself, so the differential can
+    // compare the thing callers actually consume. `session.capture` is written to disk
+    // by kernel.js and keyed by `capture.meta.id`, so a divergence here would surface as
+    // a changed artifact on the real path — exactly what the goldens would catch late.
+    assert.equal(
+      outcome.result.capture === null,
+      session.capture === null,
+      `${label}: one path produced a capture artifact and the other did not`,
+    );
+    if (session.capture) {
+      assert.deepEqual(
+        outcome.result.capture.payload,
+        session.capture.payload,
+        `${label}: the capture payloads diverge`,
+      );
+      assert.equal(
+        outcome.result.capture.meta.producedBy,
+        session.capture.meta.producedBy,
+        `${label}: provenance diverges`,
+      );
+    }
   });
 }
+
+test("CR.4: the round's capture is stamped by a round that actually reached a terminal state", async () => {
+  // The provenance half of CR.4. `runLlmSession` stamps `producedBy: "orchestrator"` from
+  // a free function with no FSM round running (pinned in M1's characterization). Here the
+  // artifact cannot exist until the round has settled.
+  const round = await newRound({ runId: "run_round", clock: () => "2025-01-01T00:00:00Z" });
+  round.begin();
+  const { state, result } = round.fulfill({ response: GOOD });
+
+  assert.equal(state, "completed", "the artifact exists only after a terminal state");
+  assert.equal(result.capture.meta.producedBy, "orchestrator");
+  assert.equal(result.capture.meta.runId, "run_round");
+});
 
 // ## TODO: Test Permutations
 // - phase "actors_only": the 480 num_predict floor and missing_actors as a retry trigger

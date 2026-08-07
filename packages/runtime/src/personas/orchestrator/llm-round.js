@@ -40,11 +40,14 @@
 import { buildLlmRequestEffect } from "../_shared/persona-helpers.mts";
 import {
   applySummaryContentErrors,
+  buildCardModelFromLlmSummary,
   buildRepairRequestOptions,
   captureWithFallback,
   extractResponseText,
   getNumPredict,
+  normalizeSessionPrompt,
 } from "./llm-session.js";
+import { buildLlmCaptureArtifact } from "./llm-capture.js";
 import { capturePromptResponse } from "./prompt-contract.js";
 
 export const LlmRoundStates = Object.freeze({
@@ -91,9 +94,38 @@ export function createLlmRound({
   requireSummary,
   repairPromptBuilder,
   personaRef = "orchestrator",
+  // ── Prompt composition, shared with runLlmSession ──────────────────────────
+  goal,
+  notes,
+  budgetTokens,
+  remainingBudgetTokens,
+  allowedPairsText,
+  phaseContext,
+  layoutCosts,
+  // ── Capture-artifact provenance (CR.4 M4) ─────────────────────────────────
+  // The round STAMPS the artifact, which is the whole of CR.4's charge: today
+  // `producedBy: "orchestrator"` defaults in a free function with no FSM round ever
+  // running. Here it can only be produced by a round that actually reached a terminal
+  // state, so the stamp finally means what it says.
+  runId,
+  clock,
+  meta,
+  producedBy = "orchestrator",
+  requestId,
 } = {}) {
   let state = LlmRoundStates.IDLE;
-  let currentPrompt = prompt;
+  let currentPrompt = normalizeSessionPrompt({
+    prompt,
+    goal,
+    notes,
+    budgetTokens,
+    phase,
+    remainingBudgetTokens,
+    allowedPairsText,
+    phaseContext,
+    layoutCosts,
+  });
+  let startedAt;
   let currentOptions = options;
   let requestCount = 0;
   let capture = null;
@@ -142,21 +174,74 @@ export function createLlmRound({
       requestCount -= 1;
       throw new Error("llm-round: a request needs both a model and a prompt.");
     }
+    startedAt = typeof clock === "function" ? clock() : undefined;
     state = LlmRoundStates.AWAITING_INITIAL;
     return { state, effect, view: view() };
   }
 
+  /**
+   * Assemble the terminal result, capture artifact included.
+   *
+   * The artifact is built HERE, not by the host, for two reasons. Provenance is the
+   * first: CR.4's charge is that `producedBy: "orchestrator"` is stamped by a free
+   * function with no round running, and a stamp applied inside a round that reached a
+   * terminal state is the fix. The second is structural — `buildLlmCaptureArtifact` is
+   * persona-internal, so a host assembling the artifact would have to import it and
+   * would simply open a new boundary crossing to close an old one.
+   */
   function settle(nextState) {
     state = nextState;
+    const endedAt = typeof clock === "function" ? clock() : undefined;
+    const startMs = startedAt ? Date.parse(startedAt) : NaN;
+    const endMs = endedAt ? Date.parse(endedAt) : NaN;
+    const durationMs = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs
+      ? endMs - startMs
+      : undefined;
+
+    const cardSet = buildCardModelFromLlmSummary(capture?.summary || {});
+    const summaryWithCards = capture?.summary && typeof capture.summary === "object"
+      ? { ...capture.summary, cardSet }
+      : capture?.summary ?? null;
+
+    // A response that never arrived has nothing to capture — matching runLlmSession,
+    // which returns `capture: null` on a missing-text failure rather than an artifact
+    // describing an exchange that did not happen.
+    const captureResult = isNonEmptyString(responseText)
+      ? buildLlmCaptureArtifact({
+        prompt: currentPrompt,
+        responseText,
+        responseParsed: capture?.responseParsed,
+        summary: summaryWithCards,
+        parseErrors: errors,
+        model,
+        baseUrl,
+        options: currentOptions,
+        stream,
+        requestId,
+        meta,
+        runId,
+        producedBy,
+        phase,
+        phaseContext,
+        remainingBudgetTokens,
+        phaseTiming: { startedAt, endedAt, durationMs },
+        clock,
+      })
+      : { capture: null, errors: ["LLM response missing text."] };
+
     return {
       state,
       effect: null,
       result: {
-        ok: nextState === LlmRoundStates.COMPLETED,
+        ok: nextState === LlmRoundStates.COMPLETED && captureResult.errors === undefined,
         prompt: currentPrompt,
         responseText,
-        summary: capture?.summary ?? null,
+        responseParsed: capture?.responseParsed ?? null,
+        summary: summaryWithCards,
+        cardSet,
         errors,
+        capture: captureResult.capture,
+        captureErrors: captureResult.errors,
         requestCount,
         retried,
         repaired,
