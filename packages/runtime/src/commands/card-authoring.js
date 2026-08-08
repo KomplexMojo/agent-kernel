@@ -1419,6 +1419,11 @@ function buildSummaryFromCardSet({
     tileCosts,
     deriveRoomLayout: configuratorGeometry,
     normalizeMotivations: configuratorMotivations,
+    // D8 follow-up — the Allocator no longer imports the Director to read a card set.
+    // This glue already holds the Director's translation (it calls it above on the
+    // unenriched cards); the ledger re-reads the BUDGET-ENRICHED set, so the second
+    // call is load-bearing, not a duplicate of the first.
+    resolveSummary: extractSummaryFromCardSet,
   });
   return {
     summary: finalSummary,

@@ -33,6 +33,15 @@
  * coerced `value` is still priced. Conflicting motivations therefore remain silently
  * costed outside the candidate path. That is a deliberate scope line for M3 — closing
  * it changes prices and is benchmark-relevant — not an oversight.
+ *
+ * ✅ THE DIRECTOR CROSSING IS GONE TOO (D8 follow-up, 2026-08-08). CR.9 M3's headline
+ * ("the last crossing") was true of the Configurator and blind to the Director: this
+ * module still imported `director/summary-selections.js` for `extractSummaryFromCardSet`,
+ * pointing backwards along the order D8 settled (orchestrator → director → configurator
+ * → allocator). It is now the injected `resolveSummary`, required-and-throwing on the
+ * paths that actually carry cards — the same treatment `normalizeMotivations` got, for
+ * the same reason. ⇒ *"The last crossing" is a claim about the crossings someone
+ * enumerated, not about the file.*
  */
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "./validate-spend.js";
@@ -54,7 +63,6 @@ import { buildDefaultPriceList } from "./default-price-list.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
 import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
-import { extractSummaryFromCardSet } from "../director/summary-selections.js";
 import { calculateMotivationStackCost } from "./motivation-price-policy.js";
 
 const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
@@ -218,6 +226,63 @@ export class AllocatorMotivationVocabularyError extends Error {
     this.name = "AllocatorMotivationVocabularyError";
     this.code = "allocator_motivation_vocabulary_required";
   }
+}
+
+/**
+ * Raised when the Allocator is handed a card set and no way to read it as a summary.
+ *
+ * D8 follow-up (2026-08-08). This module used to `import { extractSummaryFromCardSet }
+ * from "../director/summary-selections.js"` — a persona importing another persona's
+ * internals, and pointing the WRONG WAY along the order D8 settled
+ * (orchestrator → director → configurator → allocator). Reading a card set as rooms,
+ * hazards, resources and actors is intent translation: Director work. The Allocator
+ * prices the result.
+ *
+ * Same shape as `AllocatorMotivationVocabularyError` and `AllocatorRoomGeometryError`:
+ * REQUIRED AND THROWING, never a quiet fallback. An Allocator-side reimplementation
+ * would be a second, silently-diverging author of the card vocabulary, and the
+ * divergence would be invisible because the ledger stays a well-formed number.
+ */
+export class AllocatorSummaryResolutionError extends Error {
+  constructor() {
+    super(
+      "Allocator cannot price a card set without the Director's translation: pass "
+      + "{ resolveSummary } — `extractSummaryFromCardSet` from the Director — or supply "
+      + "a summary that already carries resolved rooms/actors instead of cards. Reading "
+      + "cards as picks is intent translation (summary-selections.js); the Allocator "
+      + "prices them, it does not derive them (finding D8).",
+    );
+    this.name = "AllocatorSummaryResolutionError";
+    this.code = "allocator_summary_resolution_required";
+  }
+}
+
+/**
+ * The summary to price.
+ *
+ * A summary that carries no card set needs no translation — the ledger reads its
+ * `layout`/`rooms`/`actors` directly, which is the shape the Director already hands
+ * back. A summary that DOES carry cards is unresolved, and resolving it is the
+ * Director's job, injected by the composition root exactly as `normalizeMotivations`
+ * is (CR.9 M3).
+ */
+function resolveLedgerSummary(summary, resolveSummary) {
+  if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
+    return summary;
+  }
+  // Mirrors the Director's own `readCardSet`: `cardSet` wins when it is an array (even
+  // an empty one), `cards` is the fallback spelling, and an empty set is nothing to
+  // translate. An approximation here would refuse on inputs the Director accepts.
+  const cards = Array.isArray(summary.cardSet)
+    ? summary.cardSet
+    : Array.isArray(summary.cards) ? summary.cards : null;
+  if (!cards || cards.length === 0) {
+    return { ...summary };
+  }
+  if (typeof resolveSummary !== "function") {
+    throw new AllocatorSummaryResolutionError();
+  }
+  return resolveSummary(summary);
 }
 
 /**
@@ -931,8 +996,9 @@ export function buildDesignSpendLedger({
   pricing = {},
   deriveRoomLayout,
   normalizeMotivations,
+  resolveSummary,
 } = {}) {
-  const resolvedSummary = extractSummaryFromCardSet(summary || {});
+  const resolvedSummary = resolveLedgerSummary(summary || {}, resolveSummary);
   const warnings = [];
   // CR.1/M5: tile prices have exactly one origin — a PriceList. An absent caller list
   // means the Allocator's OWN default list (P1.4's rule, already applied to `priceMap`

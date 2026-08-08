@@ -14,7 +14,7 @@ This document defines the Allocator as a **policy and coordination role**. Detai
 | --- | --- |
 | Owns | Budgets, price lists, spend proposals, allocation decisions, receipts |
 | Does not own | Simulation state mutation, action legality, or direct resource deduction |
-| Primary inputs | Budget artifacts, price lists, proposed actor/layout/action costs, and three injected Configurator capabilities: `deriveRoomLayout`, `authorCandidates`, `normalizeMotivations` |
+| Primary inputs | Budget artifacts, price lists, proposed actor/layout/action costs, three injected Configurator capabilities (`deriveRoomLayout`, `authorCandidates`, `normalizeMotivations`) and one injected Director capability (`resolveSummary`) |
 | Primary outputs | Budget receipts, approval/rejection decisions, reconciliation signals |
 | Boundary | `core-ts` enforces provided caps; Allocator defines policy |
 
@@ -101,6 +101,22 @@ Three properties keep this real rather than cosmetic, and the gate
   index 0 means "mana regen", which is what keeps `optimizationGoals` out of its policy.
 - Termination is structural: the outer walk is one fixed pass, and candidate bounds are pure functions of
   the cap. `assertJudgementBudget` is a backstop that must never fire.
+
+### It prices a summary; it does not read a card set (D8, 2026-08-08)
+
+The same rule pointed at the Director. `buildDesignSpendLedger` used to call the Director's
+`extractSummaryFromCardSet` to turn a card set into rooms, hazards, resources and actors before pricing
+them — reading another persona's input vocabulary and importing its tools to do so. Under the order D8
+settled (`orchestrator → director → configurator → allocator`) that import also pointed **backwards**.
+
+The translation is now the injected `resolveSummary`, and the ledger **refuses** with
+`allocator_summary_resolution_required` when it is handed a card set without one. Both spellings the
+Director accepts — `summary.cardSet` and `summary.cards` — trigger the refusal; a guard that knew only
+the first would quietly price an untranslated summary.
+
+A summary that carries **no** card set needs no capability at all and prices as before. That is not a
+loophole: it is the shape the Director already hands back, and a refusal that fires on every input
+would be an outage rather than a boundary.
 
 ### Every tile is charged, and tile prices have one origin (CR.1 closed, CR.9 M5)
 

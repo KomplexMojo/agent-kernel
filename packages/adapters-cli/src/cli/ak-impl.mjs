@@ -26,7 +26,6 @@ import { formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mi
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
 import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
-import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/contracts/domain-constants.js";
 import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
@@ -42,7 +41,7 @@ import {
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../../runtime/src/commands/llm-host.js";
-import { beginDirectorBuildCapabilities } from "../../../runtime/src/commands/director-round.js";
+import { beginDirectorBuildCapabilities, beginDirectorRound } from "../../../runtime/src/commands/director-round.js";
 import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/llm-budget-loop.js";
 import {
   applyActorOverrides,
@@ -4198,6 +4197,12 @@ async function validateScenarioDryRun(args) {
       mappedSelections = loopResult.selections;
       budgetPoolWeights = loopResult.poolWeights || null;
     } else {
+      // D8 follow-up 2026-08-08 — the non-loop branch mapped summaries onto the catalog by
+      // importing `director/pool-mapper.js`, so this file kept an allowlist row that the
+      // budget-loop branch three lines above had already retired. Same defect as M5b.2a′:
+      // an artifact produced with no round. `mapPool` is FSM-gated, so the round is the
+      // substance, not the import.
+      const director = beginDirectorRound({ runId, createdAt, goal, producedBy: "cli" });
       let session = await runLlmSessionHosted({
         adapter,
         model,
@@ -4219,7 +4224,7 @@ async function validateScenarioDryRun(args) {
       summary = session.summary;
       capture = session.capture;
 
-      let mapped = mapSummaryToPool({ summary, catalog });
+      let mapped = director.mapPool({ summary, catalog });
       let actorInstances = countInstances(mapped.selections, "actor");
       if (actorInstances === 0) {
         const missingSelections = summarizeMissingSelections(mapped.selections);
@@ -4248,7 +4253,7 @@ async function validateScenarioDryRun(args) {
         }
         summary = session.summary;
         capture = session.capture;
-        mapped = mapSummaryToPool({ summary, catalog });
+        mapped = director.mapPool({ summary, catalog });
         actorInstances = countInstances(mapped.selections, "actor");
         if (actorInstances === 0) {
           const finalMissing = summarizeMissingSelections(mapped.selections);

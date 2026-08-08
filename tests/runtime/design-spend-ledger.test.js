@@ -2,6 +2,9 @@ const assert = require("node:assert/strict");
 // CR.9 M3: ledgers price raw actor motivations, and the Allocator refuses without the
 // Configurator's vocabulary. Injected here exactly as production injects it.
 const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
+// D8 follow-up: a ledger built from CARDS needs the Director's translation, and the
+// Allocator refuses without it. Injected here exactly as production injects it.
+const { directorResolveSummary } = require("../helpers/director-capabilities.js");
 
 test("buildDesignSpendLedger computes level, actor base, and actor config categories", async () => {
   const { buildDesignSpendLedger } = await import(
@@ -208,6 +211,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
     "../../packages/runtime/src/personas/configurator/persona.js"
   );
   const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
+  const resolveSummary = await directorResolveSummary();
 
   const low = buildDesignSpendLedger({
     normalizeMotivations,
@@ -219,6 +223,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
       ],
     },
     deriveRoomLayout,
+    resolveSummary,
   });
 
   const high = buildDesignSpendLedger({
@@ -231,6 +236,7 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
       ],
     },
     deriveRoomLayout,
+    resolveSummary,
   });
 
   assert.ok(high.categories.levelConfig.spentTokens > low.categories.levelConfig.spentTokens);
@@ -278,10 +284,94 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
       ],
     },
     deriveRoomLayout,
+    resolveSummary: await directorResolveSummary(),
   });
 
   const affinityLines = ledger.lineItems.filter(
     (entry) => entry.category === "levelConfig" && String(entry.id).includes("room_fire") && entry.detail?.affinityCostScale !== undefined,
   );
   assert.equal(affinityLines.length, 0, "rooms must not generate affinity cost line items");
+});
+
+// ---------------------------------------------------------------------------
+// D8 follow-up — the Allocator does not translate card sets.
+//
+// These three tests are the teeth on `AllocatorSummaryResolutionError`. Without them the
+// refusal is untestable-by-success: every production caller now injects `resolveSummary`,
+// so deleting the guard would change nothing observable — the M5b.2a′ lesson ("making all
+// callers correct is what leaves a refusal untested") applied at the moment of writing.
+//
+// The third test is the one that matters most: a summary with no cards must still price,
+// with no capability at all. A refusal that fires on every input is not a boundary, it is
+// an outage, and this branch has shipped guards whose scope was wider than their rule.
+// ---------------------------------------------------------------------------
+
+test("buildDesignSpendLedger REFUSES to price a card set without the Director's translation", async () => {
+  const { buildDesignSpendLedger, AllocatorSummaryResolutionError } = await import(
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+  );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
+  const { createConfiguratorPersona } = await import(
+    "../../packages/runtime/src/personas/configurator/persona.js"
+  );
+  const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
+
+  assert.throws(
+    () => buildDesignSpendLedger({
+      normalizeMotivations,
+      deriveRoomLayout,
+      summary: {
+        dungeonAffinity: "fire",
+        budgetTokens: 500,
+        cardSet: [
+          { id: "room_small", type: "room", affinity: "fire", roomSize: "small", count: 1 },
+        ],
+      },
+    }),
+    (error) => error instanceof AllocatorSummaryResolutionError
+      && error.code === "allocator_summary_resolution_required",
+  );
+});
+
+test("buildDesignSpendLedger refuses the `cards` spelling of a card set too", async () => {
+  const { buildDesignSpendLedger, AllocatorSummaryResolutionError } = await import(
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+  );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
+
+  // The Director's `readCardSet` accepts `cardSet` OR `cards`. A guard that knew only the
+  // first spelling would let the second past and quietly price an untranslated summary —
+  // the recurring "guard matches one syntax of the defect" trap on this branch.
+  assert.throws(
+    () => buildDesignSpendLedger({
+      normalizeMotivations,
+      summary: {
+        budgetTokens: 500,
+        cards: [
+          { id: "room_small", type: "room", affinity: "fire", roomSize: "small", count: 1 },
+        ],
+      },
+    }),
+    (error) => error instanceof AllocatorSummaryResolutionError,
+  );
+});
+
+test("buildDesignSpendLedger prices a card-free summary with NO resolveSummary", async () => {
+  const { buildDesignSpendLedger } = await import(
+    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+  );
+  const normalizeMotivations = await configuratorNormalizeMotivations();
+
+  // Nothing to translate ⇒ nothing to ask the Director for. An empty card set is the
+  // same case: the Director itself returns the summary untouched rather than resolving.
+  const ledger = buildDesignSpendLedger({
+    normalizeMotivations,
+    summary: { budgetTokens: 1000, cardSet: [], layout: { floorTiles: 10, hallwayTiles: 10 } },
+    actorSet: [
+      { source: "room", id: "room_1", role: "stationary", affinity: "fire", count: 2, tokenHint: 50 },
+    ],
+  });
+
+  assert.equal(ledger.budgetTokens, 1000);
+  assert.ok(ledger.categories.levelConfig.spentTokens > 0);
 });

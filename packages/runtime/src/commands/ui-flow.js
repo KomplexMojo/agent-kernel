@@ -1,7 +1,7 @@
 import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
 import { enforceBudget } from "../personas/director/budget-enforcer.js";
-import { mapSummaryToPool } from "../personas/director/pool-mapper.js";
 import { deriveAllowedOptionsFromCatalog } from "../personas/orchestrator/prompt-contract.js";
+import { beginDirectorRound } from "./director-round.js";
 
 function cloneJson(value) {
   if (value === undefined) return undefined;
@@ -154,8 +154,24 @@ export function runPoolFlow({
   if (!catalog || typeof catalog !== "object") {
     return { ok: false, reason: "missing_catalog", errors: ["No catalog loaded or provided."] };
   }
+  // D8 follow-up 2026-08-08 — `createdAt` was optional while this flow mapped the pool by
+  // importing `director/pool-mapper.js` directly. `director.mapPool` needs a build round,
+  // and a round stamps a real timestamp into the plan it drafts, so a persona would have
+  // to read the wall clock to make one up (PX.3). Reported rather than thrown because
+  // every other refusal in this flow is `{ ok, reason, errors }` and its callers read that.
+  if (typeof createdAt !== "string" || !createdAt.trim()) {
+    return {
+      ok: false,
+      reason: "missing_created_at",
+      errors: ["createdAt (ISO-8601) is required: the Director stamps it into the build round."],
+    };
+  }
 
-  const mapped = mapSummaryToPool({ summary, catalog });
+  // The pool mapping is the Director's decision, and `mapPool` is FSM-gated behind an open
+  // round. Until now this glue mapped summaries with no Director existing at all — the
+  // "artifact produced with no round" defect, same as M5b.2a′ found in the budget loop.
+  const director = beginDirectorRound({ runId, createdAt, producedBy: source });
+  const mapped = director.mapPool({ summary, catalog });
   if (!mapped.ok) {
     return {
       ok: false,
