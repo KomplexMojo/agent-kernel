@@ -8,17 +8,19 @@ import {
 import { requireClock } from "../_shared/require-clock.js";
 import { deriveLevelGen } from "../director/buildspec-assembler.js";
 import { buildCardSetFromSummary } from "../director/summary-selections.js";
-import { buildBudgetAllocation } from "../allocator/budget-allocation.js";
 import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
 import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
+// CR.4 M5b.2b: `resolveLayoutTileCosts`, `buildBudgetAllocation` and `evaluateSelectionSpend`
+// are GONE from this file — they are Allocator decisions, now asked of the Director.
+// What remains is the auto-fit search (6 `evaluateLayoutSpend` calls in a revision loop),
+// which is deliberately its own milestone: rewriting a revision loop blind, in the same
+// diff as straightforward threading, is how a search silently changes what it converges on.
 import {
   evaluateLayoutSpend,
   LAYOUT_TILE_FIELDS,
   normalizeLayoutCounts,
-  resolveLayoutTileCosts,
   sumLayoutTiles,
 } from "../allocator/layout-spend.js";
-import { evaluateSelectionSpend } from "../allocator/selection-spend.js";
 import {
   DOMAIN_CONSTRAINTS,
   LLM_REPAIR_TEXT,
@@ -1169,6 +1171,19 @@ export async function runLlmBudgetLoop({
   // Director's internals would leave TWO live mappers and a caller that silently kept the
   // ungated one.
   mapPool,
+  // CR.4 M5b.2b: pricing is the ALLOCATOR's, and this loop was doing three pieces of it
+  // inline — resolving layout tile costs, splitting the budget, and judging selection
+  // spend — by importing that persona's internals. Under Option 1 (maintainer decision,
+  // 2026-08-07) the loop's sole counterpart is the DIRECTOR, which asks the Allocator
+  // through its public barrel and hands the answer back.
+  //
+  // REQUIRED, no defaults, for the reason `runSession` and `mapPool` are: a default would
+  // keep the inline pricing live as a silent fallback. This class of defect is especially
+  // invisible here — a wrongly-priced build still returns a well-formed number, so no
+  // schema, no guard and no golden would notice. Only the absence of a fallback does.
+  resolveTileCosts,
+  allocateBudget,
+  evaluateSelectionSpend,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
@@ -1187,6 +1202,29 @@ export async function runLlmBudgetLoop({
     return {
       ok: false,
       errors: [{ field: "runSession", code: "missing_session_runner" }],
+      captures: [],
+    };
+  }
+  // CR.4 M5b.2b — the three Allocator answers. Refused before any LLM request is made, so
+  // a misconfigured caller cannot spend tokens on a build it could never price.
+  if (typeof resolveTileCosts !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "resolveTileCosts", code: "missing_tile_cost_resolver" }],
+      captures: [],
+    };
+  }
+  if (typeof allocateBudget !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "allocateBudget", code: "missing_budget_allocator" }],
+      captures: [],
+    };
+  }
+  if (typeof evaluateSelectionSpend !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "evaluateSelectionSpend", code: "missing_selection_spend_evaluator" }],
       captures: [],
     };
   }
@@ -1227,7 +1265,7 @@ export async function runLlmBudgetLoop({
   const allowedPairs = deriveAllowedPairs(catalog);
   const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
   const cheapestCost = computeCheapestCost(entries);
-  const layoutCostResult = resolveLayoutTileCosts(priceList);
+  const layoutCostResult = resolveTileCosts({ priceList });
   const layoutCosts = layoutCostResult.costs;
 
   const allocationMeta = {
@@ -1242,7 +1280,7 @@ export async function runLlmBudgetLoop({
   const priceListRef = priceList
     ? undefined
     : { id: `price_list_${resolvedRunId}`, schema: "agent-kernel/PriceList", schemaVersion: 1 };
-  const allocationResult = buildBudgetAllocation({
+  const allocationResult = allocateBudget({
     budgetTokens,
     priceList,
     meta: allocationMeta,

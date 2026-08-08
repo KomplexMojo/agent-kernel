@@ -3,7 +3,7 @@ import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../commands/llm-host.js";
-import { beginDirectorRound } from "../commands/director-round.js";
+import { beginDirectorBuildCapabilities } from "../commands/director-round.js";
 
 export async function runFlagshipLlmSeam({
   adapter,
@@ -51,7 +51,9 @@ export async function runSectionalBudgetLlmSeam({
         runSession: runLlmSessionHosted,
         // M5b.2a′: pool mapping is the Director's decision, and mapPool is FSM-gated
         // behind an open build round. This root had no Director at all until now.
-        mapPool: beginDirectorRound({ runId, createdAt: clock(), goal }).mapPool,
+        // M5b.2b: the same round also answers the three Allocator pricing questions the
+        // loop used to compute inline.
+        ...beginDirectorBuildCapabilities({ runId, createdAt: clock(), goal }),
     adapter,
     model,
     goal,

@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { runLlmBudgetLoop } from "../packages/runtime/src/personas/orchestrator/llm-budget-loop.js";
 // CR.4 M5b: the loop no longer performs LLM IO; the composition root supplies the runner.
 import { runLlmSessionHosted } from "../packages/runtime/src/commands/llm-host.js";
-import { beginDirectorRound } from "../packages/runtime/src/commands/director-round.js";
+import { beginDirectorBuildCapabilities } from "../packages/runtime/src/commands/director-round.js";
 
 const DEFAULT_SWEEP = Object.freeze([
   { totalBudgetTokens: 1_000_000, runs: 3 },
@@ -153,11 +153,12 @@ async function runSingleBenchmark({ catalog, totalBudgetTokens, layoutPercent, r
   const result = await runLlmBudgetLoop({
     runSession: runLlmSessionHosted,
     // M5b.2a′: pool mapping is the Director's decision, FSM-gated behind an open round.
-    mapPool: beginDirectorRound({
+    // M5b.2b: the same round answers the three Allocator pricing questions too.
+    ...beginDirectorBuildCapabilities({
       runId: `benchmark_walkability_${totalBudgetTokens}_${runIndex}`,
       createdAt: "2026-08-06T00:00:00.000Z",
       goal: "Level generation walkability benchmark",
-    }).mapPool,
+    }),
     adapter,
     model: "fixture",
     catalog,

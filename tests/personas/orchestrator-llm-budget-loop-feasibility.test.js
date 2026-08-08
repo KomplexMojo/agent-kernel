@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { hostedSessionRunner, directorPoolMapper } = require("../helpers/orchestrator-capabilities.js");
+const { hostedSessionRunner, directorBuildCapabilities } = require("../helpers/orchestrator-capabilities.js");
 // CR.9 M3: the budget loop's selection spend prices raw actor motivations, and the
 // Allocator refuses without the Configurator's vocabulary. Threaded in from here the
 // same way the CLI composition root threads it.
@@ -92,7 +92,7 @@ test("budget loop repairs feasibility failures via repair prompt", async () => {
 
   const result = await runLlmBudgetLoop({
     runSession: await hostedSessionRunner(),
-    mapPool: await directorPoolMapper(),
+    ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
     adapter,
     model: "fixture",
@@ -148,7 +148,7 @@ test("budget loop benchmarks walkability budget scaling up to 550000 at 1M total
 
     const result = await runLlmBudgetLoop({
     runSession: await hostedSessionRunner(),
-    mapPool: await directorPoolMapper(),
+    ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
       adapter,
       model: "fixture",
@@ -210,7 +210,7 @@ test("budget loop supports one billion token budgets without imposed ceiling", a
 
   const result = await runLlmBudgetLoop({
     runSession: await hostedSessionRunner(),
-    mapPool: await directorPoolMapper(),
+    ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
     adapter,
     model: "fixture",
@@ -268,7 +268,7 @@ test("budget loop avoids full-grid feasibility slowdown for very large walkabili
   const started = performance.now();
   const result = await runLlmBudgetLoop({
     runSession: await hostedSessionRunner(),
-    mapPool: await directorPoolMapper(),
+    ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
     adapter,
     model: "fixture",

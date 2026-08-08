@@ -42,7 +42,7 @@ import {
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../../runtime/src/commands/llm-host.js";
-import { beginDirectorRound } from "../../../runtime/src/commands/director-round.js";
+import { beginDirectorBuildCapabilities } from "../../../runtime/src/commands/director-round.js";
 import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/llm-budget-loop.js";
 import {
   applyActorOverrides,
@@ -4172,7 +4172,9 @@ async function validateScenarioDryRun(args) {
         runSession: runLlmSessionHosted,
         // M5b.2a′: pool mapping is the Director's decision, and mapPool is FSM-gated
         // behind an open build round. This root had no Director at all until now.
-        mapPool: beginDirectorRound({ runId, createdAt, goal }).mapPool,
+        // M5b.2b: the same round also answers the three Allocator pricing questions the
+        // loop used to compute inline.
+        ...beginDirectorBuildCapabilities({ runId, createdAt, goal }),
         adapter,
         model,
         baseUrl,

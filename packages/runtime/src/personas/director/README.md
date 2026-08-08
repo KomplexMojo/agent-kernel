@@ -111,6 +111,36 @@ The Director:
 - **Does not** assemble configurations (Configurator).
 - **Does not** influence execution or observe outcomes (Annotator).
 
+### It relays the Allocator's pricing answers; it does not compute them (CR.4 M5b.2b)
+
+The Orchestrator's `runLlmBudgetLoop` used to price a build by importing three Allocator internals
+(`budget-allocation.js`, `layout-spend.js`, `selection-spend.js`) — pricing policy executing inside the
+Orchestrator, which is what *"Economy — Allocator Authority"* forbids. The maintainer's Option 1
+(2026-08-07) makes the **Director the loop's sole counterpart**, so the loop asks the Director and the
+Director asks the Allocator:
+
+| Director method | Asks the Allocator for |
+|---|---|
+| `resolveTileCosts({ priceList })` | per-tile layout costs |
+| `allocateBudget({ budgetTokens, priceList, poolWeights, … })` | the budget split into pools |
+| `evaluateSelectionSpend({ selections, budgetTokens, priceList, normalizeMotivations })` | which selections the remaining budget admits |
+
+Three properties are load-bearing, not incidental:
+
+1. **The call goes through `allocator/persona.js`, the public barrel** — the same seam the CR.1 hazard
+   pool split already uses. Because that edge is *not* an allowlist row, the loop's crossings **die
+   rather than move**. (Routing *Configurator* answers through here would launder instead of fix: the
+   Director reaches the Configurator through internals — the open D8 cycle.)
+2. **All three are gated on `PLANNED_STATES`, like `mapPool`.** Pricing a build no round has begun is
+   the same "artifact produced with no round" defect as CR.4's `producedBy` stamp. The gate is the
+   substance; re-pointing the import alone would satisfy the boundary rule and leave the authority
+   defect untouched.
+3. **The caller's price list is forwarded, never defaulted away.** The Allocator is constructed per
+   call with the caller's `priceList`. A persona built once without one would answer against the
+   *default* list, and a silently defaulted price is still a well-formed number — nothing would report it.
+
+The Director **does not** decide any of these; it holds the build round they are asked within.
+
 ---
 
 ## Relationship to core-ts

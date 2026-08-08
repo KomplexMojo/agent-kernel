@@ -36,15 +36,21 @@ const DIRECTOR_ROUND = pathToFileURL(
 ).href;
 
 /**
- * A Director with an OPEN build round, as `mapPool` requires (CR.4 M5b.2a').
+ * Every build-domain capability the loop needs, from ONE Director round (CR.4 M5b.2b).
  *
- * `director.mapPool` is FSM-gated behind `beginBuild`. Tests open a real round through the
- * same glue helper production uses rather than stubbing the mapper — a stub would be the
- * second mapper the required capability exists to prevent.
+ * Option 1 (maintainer decision, 2026-08-07) makes the Director the loop's sole
+ * counterpart: it answers for the pool mapping itself and consults the Allocator — through
+ * `allocator/persona.js`, the public barrel — for the three pricing decisions the loop used
+ * to make inline. Handing tests a single round mirrors production, where one Director
+ * answers all four; four independent rounds would be four build rounds for one build.
  */
-async function directorPoolMapper({ runId = "run_test", createdAt = "2026-08-07T00:00:00.000Z", goal } = {}) {
-  const { beginDirectorRound } = await import(DIRECTOR_ROUND);
-  return beginDirectorRound({ runId, createdAt, goal }).mapPool;
+async function directorBuildCapabilities({
+  runId = "run_test",
+  createdAt = "2026-08-07T00:00:00.000Z",
+  goal,
+} = {}) {
+  const { beginDirectorBuildCapabilities } = await import(DIRECTOR_ROUND);
+  return beginDirectorBuildCapabilities({ runId, createdAt, goal });
 }
 
-module.exports = { hostedSessionRunner, directorPoolMapper };
+module.exports = { hostedSessionRunner, directorBuildCapabilities };

@@ -3,7 +3,10 @@ const assert = require("node:assert/strict");
 // Allocator refuses without the Configurator's vocabulary. Threaded in from here the
 // same way the CLI composition root threads it.
 const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
-const { hostedSessionRunner, directorPoolMapper } = require("../helpers/orchestrator-capabilities.js");
+const {
+  hostedSessionRunner,
+  directorBuildCapabilities,
+} = require("../helpers/orchestrator-capabilities.js");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
@@ -67,7 +70,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
-  mapPool: await directorPoolMapper(),
+  ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -153,7 +156,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
-  mapPool: await directorPoolMapper(),
+  ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -223,7 +226,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
-  mapPool: await directorPoolMapper(),
+  ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "phi4",
@@ -291,7 +294,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
-  mapPool: await directorPoolMapper(),
+  ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "phi4",
@@ -359,7 +362,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
-  mapPool: await directorPoolMapper(),
+  ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -414,7 +417,7 @@ const adapter = {
 
 const result = await runLlmBudgetLoop({
   runSession: await hostedSessionRunner(),
-  mapPool: await directorPoolMapper(),
+  ...(await directorBuildCapabilities()),
   normalizeMotivations: await configuratorNormalizeMotivations(),
   adapter,
   model: "fixture",
@@ -469,11 +472,78 @@ test("the loop REFUSES to run without a session runner", async () => {
   );
   const result = await runLlmBudgetLoop({
     budgetTokens: 5000,
-    mapPool: await directorPoolMapper(),
+    ...(await directorBuildCapabilities()),
     // runSession deliberately absent
   });
 
   assert.equal(result.ok, false);
   assert.equal(result.errors[0].code, "missing_session_runner");
   assert.deepEqual(result.captures, [], "no runner means no LLM IO can have happened");
+});
+
+// ---------------------------------------------------------------------------
+// CR.4 M5b.2b — the three ALLOCATOR answers are the Director's to give, not the
+// loop's to compute, and their refusals are perturbed the moment they are added
+// ---------------------------------------------------------------------------
+//
+// The loop used to call `resolveLayoutTileCosts`, `buildBudgetAllocation` and
+// `evaluateSelectionSpend` out of the Allocator's internals — pricing decisions made
+// inside the Orchestrator, which is what "Economy — Allocator Authority" forbids. They are
+// now REQUIRED capabilities with no default, for the same reason as `runSession` and
+// `mapPool`: a default would leave the inline pricing live as a silent fallback, and the
+// resulting number would still be well-formed, so nothing would report it.
+//
+// Each refusal below was perturbed (guard deleted, test observed to fail) at the moment it
+// was written. M5b.2a′ learned this the hard way: once every caller passes a capability,
+// deleting its guard changes nothing, and the refusal is documented rather than enforced.
+
+test("the loop REFUSES to run without an Allocator tile-cost resolver", async () => {
+  const { runLlmBudgetLoop } = await import(
+    "../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
+  );
+  const capabilities = await directorBuildCapabilities();
+  const result = await runLlmBudgetLoop({
+    budgetTokens: 5000,
+    runSession: await hostedSessionRunner(),
+    ...capabilities,
+    resolveTileCosts: undefined, // deliberately absent
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors[0].code, "missing_tile_cost_resolver");
+  assert.deepEqual(result.captures, [], "it must refuse before any LLM request is made");
+});
+
+test("the loop REFUSES to run without an Allocator budget allocator", async () => {
+  const { runLlmBudgetLoop } = await import(
+    "../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
+  );
+  const capabilities = await directorBuildCapabilities();
+  const result = await runLlmBudgetLoop({
+    budgetTokens: 5000,
+    runSession: await hostedSessionRunner(),
+    ...capabilities,
+    allocateBudget: undefined, // deliberately absent
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors[0].code, "missing_budget_allocator");
+  assert.deepEqual(result.captures, [], "it must refuse before any LLM request is made");
+});
+
+test("the loop REFUSES to run without an Allocator selection-spend evaluator", async () => {
+  const { runLlmBudgetLoop } = await import(
+    "../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
+  );
+  const capabilities = await directorBuildCapabilities();
+  const result = await runLlmBudgetLoop({
+    budgetTokens: 5000,
+    runSession: await hostedSessionRunner(),
+    ...capabilities,
+    evaluateSelectionSpend: undefined, // deliberately absent
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors[0].code, "missing_selection_spend_evaluator");
+  assert.deepEqual(result.captures, [], "it must refuse before any LLM request is made");
 });

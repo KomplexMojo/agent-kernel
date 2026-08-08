@@ -1952,7 +1952,14 @@ export function createCommandKernel(host = {}) {
         runSession: runLlmSessionHosted,
         // M5b.2a′: pool mapping is the Director's decision. This round is already open
         // above (beginBuild), which is what the FSM gate on mapPool requires.
+        // M5b.2b: the same already-open round answers the three Allocator pricing
+        // questions too. Deliberately NOT beginDirectorBuildCapabilities() — that opens a
+        // round, and this root already has one. A second round for the same build is the
+        // defect the gate exists to catch, not a convenience.
         mapPool: director.mapPool,
+        resolveTileCosts: director.resolveTileCosts,
+        allocateBudget: director.allocateBudget,
+        evaluateSelectionSpend: director.evaluateSelectionSpend,
           adapter,
           model,
           baseUrl,

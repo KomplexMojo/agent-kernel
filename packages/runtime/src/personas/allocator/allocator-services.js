@@ -21,10 +21,16 @@
 import BASE_COSTS from "./base-costs.json" with { type: "json" };
 import { buildDefaultPriceList } from "./default-price-list.js";
 import { normalizePriceItems, buildPriceMap, validateSpendProposal } from "./validate-spend.js";
-import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
+import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend, resolveLayoutTileCosts } from "./layout-spend.js";
 import { calculateMotivationStackCost } from "./motivation-price-policy.js";
 import { buildScenarioSpendReport } from "./incentive-model.js";
-import { computeBudgetPools, DEFAULT_BUDGET_POOLS, REFERENCE_BUDGET_TOKENS } from "./budget-allocation.js";
+import {
+  buildBudgetAllocation,
+  computeBudgetPools,
+  DEFAULT_BUDGET_POOLS,
+  REFERENCE_BUDGET_TOKENS,
+} from "./budget-allocation.js";
+import { evaluateSelectionSpend } from "./selection-spend.js";
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 
 export class AllocatorStateError extends Error {
@@ -206,6 +212,38 @@ export function attachAllocatorServices({
     return buildScenarioSpendReport(args);
   }
 
+  // CR.4 M5b.2b — the three decisions `llm-budget-loop.js` used to make by importing this
+  // persona's internals. All three are pricing (charter: "Economy — Allocator Authority"),
+  // and all three were executing inside the Orchestrator.
+  //
+  // Read-only policy over caller-supplied args, so — like pricing.* and the two layout
+  // evaluators above — they are available in any FSM state and are NOT gated behind
+  // registerBudget: they issue no receipt and do not touch the ledger.
+  //
+  // Each takes the persona's price list as a DEFAULT via withPersonaDefaults, so an
+  // explicit per-call priceList still wins and a caller passing `priceList: undefined`
+  // cannot clobber the persona's own. That precedence is the CR.9 M5 lesson; getting it
+  // backwards here would silently reprice a build against the default list, and the
+  // resulting number would still look perfectly well-formed.
+
+  function resolveTileCosts(args = {}) {
+    // Positional, unlike its siblings — the merge still runs so precedence is identical.
+    return resolveLayoutTileCosts(withPersonaDefaults(args, { priceList: getPriceList() }).priceList);
+  }
+
+  function allocateBudget(args = {}) {
+    return buildBudgetAllocation(withPersonaDefaults(args, { priceList: getPriceList() }));
+  }
+
+  // Also defaults the injected Configurator motivation vocabulary (CR.9 M3): selection
+  // spend prices raw actor motivations, and the vocabulary is Configurator law that this
+  // persona must not restate.
+  function boundEvaluateSelectionSpend(args = {}) {
+    return evaluateSelectionSpend(
+      withPersonaDefaults(args, { priceList: getPriceList(), normalizeMotivations }),
+    );
+  }
+
   // Budget maximization + feasibility (charter: "budget maximization is Allocator
   // policy"). Read-only policy over the caller-supplied budget/price args — like
   // pricing.*, available in any FSM state and NOT gated behind registerBudget:
@@ -255,6 +293,11 @@ export function attachAllocatorServices({
     scenarioSpendReport,
     assessFeasibility,
     maximizeFulfillment,
+    // CR.4 M5b.2b — published so the Orchestrator's budget loop can ASK for these
+    // rather than importing budget-allocation.js / selection-spend.js / layout-spend.js.
+    resolveTileCosts,
+    allocateBudget,
+    evaluateSelectionSpend: boundEvaluateSelectionSpend,
     serviceContext,
   };
 }

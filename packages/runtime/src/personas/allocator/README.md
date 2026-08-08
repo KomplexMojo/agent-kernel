@@ -264,6 +264,32 @@ Upstream personas (e.g. Director, Configurator, Actor policies) may submit reque
 
 The Allocator evaluates these requests against available budgets and produces a decision.
 
+#### The budget loop asks; it no longer computes (CR.4 M5b.2b)
+
+`personas/orchestrator/llm-budget-loop.js` used to import `budget-allocation.js`, `layout-spend.js`
+and `selection-spend.js` directly and price the build itself. Three controller methods replace that:
+
+| Controller method | Fronts | Replaced the loop's call to |
+|---|---|---|
+| `resolveTileCosts(args)` | `layout-spend.js` | `resolveLayoutTileCosts(priceList)` |
+| `allocateBudget(args)` | `budget-allocation.js` | `buildBudgetAllocation({ … })` |
+| `evaluateSelectionSpend(args)` | `selection-spend.js` | `evaluateSelectionSpend({ … })` |
+
+The loop reaches them **through the Director**, which is its sole counterpart (Option 1, maintainer
+decision 2026-08-07) — see the Director README. Two rows left the persona-boundary allowlist as a
+result (**48 → 46**); one of them had been sitting as `UNDECIDED` since CR.1 relocated
+`budget-allocation.js` into this persona, and threading it *is* the ownership answer it was waiting for.
+
+Like `pricing.*` and the two layout evaluators, all three are **read-only policy over caller-supplied
+args**: available in any FSM state, not gated behind `registerBudget`, issuing no receipt and never
+touching the ledger. Each defaults `priceList` from the persona via `withPersonaDefaults`, so an
+explicit per-call price list wins and `priceList: undefined` cannot clobber the persona's own — the
+CR.9 M5 precedence lesson, and the reason a mispriced build would otherwise be invisible.
+
+⚠️ **Still inline in the loop, deliberately:** the auto-fit search (6 `evaluateLayoutSpend` calls in a
+revision loop). It is its own milestone — rewriting a revision loop in the same diff as straightforward
+threading is how a search quietly changes what it converges on.
+
 ---
 
 ### Budget Receipts

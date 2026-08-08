@@ -4,7 +4,7 @@ import { runLlmBudgetLoop } from "../../runtime/src/personas/orchestrator/llm-bu
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../runtime/src/commands/llm-host.js";
-import { beginDirectorRound } from "../../runtime/src/commands/director-round.js";
+import { beginDirectorBuildCapabilities } from "../../runtime/src/commands/director-round.js";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -2475,7 +2475,14 @@ export function wireDesignGuidance({
       const result = await runLlmBudgetLoop({
         // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
         runSession: runLlmSessionHosted,
-        mapPool: beginDirectorRound({ runId: uiRunId, createdAt: uiCreatedAt, goal: prompt, producedBy: "ui" }).mapPool,
+        // M5b.2b: one round answers the pool mapping AND the three Allocator pricing
+        // questions the loop used to compute inline.
+        ...beginDirectorBuildCapabilities({
+          runId: uiRunId,
+          createdAt: uiCreatedAt,
+          goal: prompt,
+          producedBy: "ui",
+        }),
         adapter,
         model: llmConfig.model || DEFAULT_LLM_MODEL,
         catalog: llmConfig.catalog || { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] },

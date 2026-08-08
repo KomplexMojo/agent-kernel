@@ -221,6 +221,15 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     fsm,
     advanceWithPlan: (event, payload) => advanceWithPlan(event, payload),
     clock,
+    // CR.4 M5b.2b — the Director answers the Orchestrator's pricing questions by asking
+    // the Allocator, never by computing them. Injected as a factory rather than imported
+    // inside director-services.js so this file stays the persona's only Allocator seam:
+    // the call already above (hazard pool split, CR.1) goes through the same public barrel.
+    //
+    // Per-call construction, with the CALLER's price list, is deliberate. A persona built
+    // once without one would answer every question against the DEFAULT price list, and a
+    // silently defaulted price is still a well-formed number — nothing would report it.
+    createAllocator: (options = {}) => createAllocatorPersona({ clock: UNUSED_CLOCK, ...options }),
   });
 
   function view() {
@@ -287,5 +296,10 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     currentPlan: services.currentPlan,
     mapPool: services.mapPool,
     assembleBuildSpec: services.assembleBuildSpec,
+    // CR.4 M5b.2b — the Orchestrator's budget loop asks the Director for these; the
+    // Director asks the Allocator. One counterpart for the loop, one owner for pricing.
+    resolveTileCosts: services.resolveTileCosts,
+    allocateBudget: services.allocateBudget,
+    evaluateSelectionSpend: services.evaluateSelectionSpend,
   };
 }

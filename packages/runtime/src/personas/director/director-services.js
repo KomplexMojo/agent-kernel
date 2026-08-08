@@ -40,7 +40,7 @@ const PLANNED_STATES = Object.freeze([
   DirectorStates.READY,
 ]);
 
-export function attachDirectorServices({ fsm, advanceWithPlan, clock } = {}) {
+export function attachDirectorServices({ fsm, advanceWithPlan, clock, createAllocator } = {}) {
   let planArtifact = null;
   let buildSpecCount = 0;
 
@@ -84,6 +84,56 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock } = {}) {
     return mapSummaryToPool(args);
   }
 
+  /**
+   * CR.4 M5b.2b — the build plane's pricing questions, asked on the caller's behalf.
+   *
+   * `llm-budget-loop.js` used to answer these itself by importing three Allocator
+   * internals (budget-allocation, layout-spend, selection-spend), which put pricing policy
+   * inside the Orchestrator — what "Economy — Allocator Authority" exists to forbid. Under
+   * Option 1 (maintainer, 2026-08-07) the loop's sole counterpart is the Director, so the
+   * Director asks the Allocator through its PUBLIC barrel and hands the answer back.
+   *
+   * These are NOT laundering the crossing the way routing Configurator answers through
+   * here would: the Director→Allocator edge already goes through `allocator/persona.js`
+   * and is not an allowlist row, so the loop's three rows die rather than move.
+   *
+   * Gated on PLANNED_STATES for the same reason `mapPool` is, and it is the same defect:
+   * pricing a build that no round has begun is an artifact produced with no round. The
+   * gate is the substance here, not paperwork — re-pointing the import alone would satisfy
+   * the boundary rule and leave the authority defect exactly where it was.
+   */
+  function requireAllocator(operation) {
+    if (typeof createAllocator !== "function") {
+      throw new DirectorStateError(
+        `Director cannot ${operation}: no Allocator was injected. Pricing is the `
+        + "Allocator's to answer; the Director must not compute it.",
+      );
+    }
+  }
+
+  function resolveTileCosts(args = {}) {
+    requireState(PLANNED_STATES, "resolve layout tile costs");
+    requireAllocator("resolve layout tile costs");
+    return createAllocator({ priceList: args.priceList }).resolveTileCosts(args);
+  }
+
+  function allocateBudget(args = {}) {
+    requireState(PLANNED_STATES, "allocate a budget");
+    requireAllocator("allocate a budget");
+    return createAllocator({ priceList: args.priceList }).allocateBudget(args);
+  }
+
+  // `normalizeMotivations` is Configurator law, threaded from the composition root through
+  // the loop (CR.9 M3). It is forwarded to the Allocator rather than restated here.
+  function evaluateSelectionSpend(args = {}) {
+    requireState(PLANNED_STATES, "evaluate selection spend");
+    requireAllocator("evaluate selection spend");
+    return createAllocator({
+      priceList: args.priceList,
+      normalizeMotivations: args.normalizeMotivations,
+    }).evaluateSelectionSpend(args);
+  }
+
   function assembleBuildSpec(args = {}) {
     requireState(PLANNED_STATES, "assemble a build spec");
     // PX.3 (M6): the assembler stamps BuildSpec.meta.createdAt and now requires a clock.
@@ -115,6 +165,10 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock } = {}) {
     currentPlan,
     mapPool,
     assembleBuildSpec,
+    // CR.4 M5b.2b — Allocator answers, given on the budget loop's behalf.
+    resolveTileCosts,
+    allocateBudget,
+    evaluateSelectionSpend,
     serviceContext,
   };
 }

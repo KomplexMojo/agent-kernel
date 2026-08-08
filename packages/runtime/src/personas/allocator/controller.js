@@ -135,6 +135,12 @@ export function createAllocatorPersona({
     scenarioSpendReport: services.scenarioSpendReport,
     assessFeasibility: services.assessFeasibility,
     maximizeFulfillment: services.maximizeFulfillment,
+    // CR.4 M5b.2b — the three pricing decisions the Orchestrator's budget loop used to
+    // make by importing this persona's internals. Published here so the Director can ask
+    // on the loop's behalf (Option 1: the Director is the loop's sole counterpart).
+    resolveTileCosts: services.resolveTileCosts,
+    allocateBudget: services.allocateBudget,
+    evaluateSelectionSpend: services.evaluateSelectionSpend,
     // CR.6 — budget admissibility of Actor proposals. Stateless, like the pricing
     // surface: it judges the proposals it is handed against the budget it is
     // handed. Published here so the runner can apply it without importing
