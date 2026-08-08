@@ -295,6 +295,8 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     beginBuild: services.beginBuild,
     currentPlan: services.currentPlan,
     mapPool: services.mapPool,
+    // D8.1 — level geometry for callers that want no BuildSpec (the preview path).
+    deriveLevelGen: services.deriveLevelGen,
     assembleBuildSpec: services.assembleBuildSpec,
     // CR.4 M5b.2b — the Orchestrator's budget loop asks the Director for these; the
     // Director asks the Allocator. One counterpart for the loop, one owner for pricing.

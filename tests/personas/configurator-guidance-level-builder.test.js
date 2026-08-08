@@ -8,6 +8,16 @@ test("guidance level builder derives deterministic level previews from guidance 
   buildLevelRenderArtifactsFromTiles,
 } = await import("../../packages/runtime/src/personas/configurator/guidance-level-builder.js");
 
+// D8.1: the Configurator no longer derives level geometry — that is Director translation.
+// Tests wire what production wires (the Director's PUBLIC surface) rather than stubbing a
+// deriver, which would be the second sizing formula the required capability exists to prevent.
+const { createDirectorPersona } = await import(
+  "../../packages/runtime/src/personas/director/persona.js"
+);
+const deriveLevelGen = createDirectorPersona({
+  clock: () => "1970-01-01T00:00:00.000Z",
+}).deriveLevelGen;
+
   const summary = {
   dungeonAffinity: "fire",
   budgetTokens: 1200,
@@ -22,11 +32,11 @@ test("guidance level builder derives deterministic level previews from guidance 
   rooms: [],
 };
 
-const levelGen = deriveLevelGenFromGuidanceSummary(summary);
+const levelGen = deriveLevelGenFromGuidanceSummary(summary, deriveLevelGen);
 assert.ok(levelGen && typeof levelGen === "object");
 assert.equal(levelGen.walkableTilesTarget, 120);
 
-const preview = buildLevelPreviewFromGuidanceSummary(summary);
+const preview = buildLevelPreviewFromGuidanceSummary(summary, { deriveLevelGen });
 assert.equal(preview.ok, true);
 assert.equal(preview.walkableTiles, 120);
 assert.ok(Array.isArray(preview.tiles));
@@ -90,6 +100,7 @@ highBudgetShapes.forEach((shape, index) => {
   }, {
     includeAscii: false,
     includeImage: false,
+    deriveLevelGen,
   });
   assert.equal(highBudgetPreview.ok, true, "shape index " + index);
   assert.equal(highBudgetPreview.walkableTiles, 5500, "shape index " + index);
@@ -194,6 +205,13 @@ test("guidance level builder maps room cards into level generation inputs", asyn
   deriveLevelGenFromGuidanceSummary,
   buildLevelPreviewFromGuidanceSummary,
 } = await import("../../packages/runtime/src/personas/configurator/guidance-level-builder.js");
+const { createDirectorPersona } = await import(
+  "../../packages/runtime/src/personas/director/persona.js"
+);
+// D8.1: level geometry is the Director's; wire its public surface, never a stub.
+const deriveLevelGen = createDirectorPersona({
+  clock: () => "1970-01-01T00:00:00.000Z",
+}).deriveLevelGen;
 
 const cardSet = [
   { id: "room_small", type: "room", affinity: "fire", roomSize: "small", count: 2 },
@@ -210,11 +228,11 @@ const summary = {
   budgetTokens: 1800,
   cardSet,
 };
-const summaryLevelGen = deriveLevelGenFromGuidanceSummary(summary);
+const summaryLevelGen = deriveLevelGenFromGuidanceSummary(summary, deriveLevelGen);
 assert.ok(summaryLevelGen);
 assert.equal(summaryLevelGen.shape.roomCount, 3);
 
-const preview = buildLevelPreviewFromGuidanceSummary(summary, { includeAscii: false, includeImage: false });
+const preview = buildLevelPreviewFromGuidanceSummary(summary, { includeAscii: false, includeImage: false, deriveLevelGen });
 assert.equal(preview.ok, true);
 assert.ok(preview.walkableTiles > 0);
 });

@@ -21,7 +21,7 @@
  * Shared by controller.js and controller.mts so the two entry points cannot
  * drift.
  */
-import { buildBuildSpecFromSummary } from "./buildspec-assembler.js";
+import { buildBuildSpecFromSummary, deriveLevelGenFromSummary } from "./buildspec-assembler.js";
 import { mapSummaryToPool } from "./pool-mapper.js";
 import { DirectorStates } from "./state-machine.js";
 
@@ -82,6 +82,23 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock, createAllo
   function mapPool(args = {}) {
     requireState(PLANNED_STATES, "map a catalog pool");
     return mapSummaryToPool(args);
+  }
+
+  /**
+   * D8.1 — the level geometry a summary implies, WITHOUT assembling a BuildSpec.
+   *
+   * The Configurator used to obtain this by importing `buildspec-assembler.js` and building
+   * a throwaway spec just to read `configurator.inputs.levelGen` back out — the one leg of
+   * the Director↔Configurator cycle pointing this way. Deriving level geometry from a design
+   * summary is intent translation, so it is published here and the Configurator asks.
+   *
+   * Deliberately NOT state-gated, unlike `mapPool` and the pricing relays. Those produce or
+   * price build artifacts; this reads a summary the caller already holds, stamps nothing and
+   * issues no artifact. It is used to draw a PREVIEW, where no build round exists or should
+   * — the same reasoning that leaves `configurator.deriveRoomLayout` ungated.
+   */
+  function deriveLevelGen(summary) {
+    return deriveLevelGenFromSummary(summary);
   }
 
   /**
@@ -174,6 +191,7 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock, createAllo
     beginBuild,
     currentPlan,
     mapPool,
+    deriveLevelGen,
     assembleBuildSpec,
     // CR.4 M5b.2b — Allocator answers, given on the budget loop's behalf.
     resolveTileCosts,

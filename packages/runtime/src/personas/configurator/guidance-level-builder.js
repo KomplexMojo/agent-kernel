@@ -1,10 +1,16 @@
-import { UNUSED_CLOCK } from "../_shared/require-clock.js";
-import { buildBuildSpecFromSummary } from "../director/buildspec-assembler.js";
+// D8.1: this file used to `import { buildBuildSpecFromSummary } from "../director/…"` — the
+// ONE leg of the Director↔Configurator cycle pointing this way, and the reason no ordering of
+// the two personas was coherent. It built a whole throwaway BuildSpec purely to read
+// `spec.configurator.inputs.levelGen` back out: this persona's OWN input, recovered by
+// round-tripping through another persona's artifact.
+//
+// Deriving level geometry from a design summary is intent translation, so it is the
+// Director's. The Configurator now RECEIVES a `levelGen` and never computes one — which also
+// retires the near-duplicate sizing formula that used to live below as the fallback.
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import { deriveLevelGenFromRoomCards } from "./card-model.js";
 import { AFFINITY_COLOR_HEX, resolveStackIntensity } from "../../render/affinity-palette.js";
 
-const WALKABLE_DENSITY_TARGET = 0.5;
 export const DEFAULT_LEVEL_RENDER_PALETTE = Object.freeze({
   "#": "#0a0f0d",
   ".": "#d8f6c4",
@@ -387,50 +393,34 @@ export function buildLevelRenderArtifactsFromTiles(
   return result;
 }
 
-function deriveFallbackLevelGenFromSummary(summary) {
-  const floorTiles = isPositiveInt(summary?.layout?.floorTiles) ? summary.layout.floorTiles : 0;
-  const walkableTilesTarget = floorTiles;
-  if (!isPositiveInt(walkableTilesTarget)) return null;
-  const interiorArea = Math.ceil(walkableTilesTarget / WALKABLE_DENSITY_TARGET);
-  const interiorSide = Math.max(3, Math.ceil(Math.sqrt(interiorArea)));
-  const size = Math.max(5, interiorSide + 2);
-  const shape = {};
-  return {
-    width: size,
-    height: size,
-    shape,
-    walkableTilesTarget,
-  };
-}
-
 export function deriveLevelGenFromCardSet(cardSet) {
   if (!Array.isArray(cardSet) || cardSet.length === 0) return null;
   return deriveLevelGenFromRoomCards(cardSet);
 }
 
-export function deriveLevelGenFromGuidanceSummary(summary) {
+/**
+ * D8.1 — cards are this persona's own vocabulary; everything else is the Director's.
+ *
+ * A room card set yields geometry through `deriveLevelGenFromRoomCards`, which is
+ * Configurator law and stays here. For any other summary shape the level geometry is
+ * INTENT TRANSLATION, so `deriveLevelGen` is threaded in from the composition root and this
+ * persona asks rather than computes — the same shape as `normalizeMotivations` going the
+ * other way (CR.9 M3).
+ *
+ * REQUIRED, no default. A fallback would resurrect exactly what was just deleted: a second,
+ * silently-diverging copy of the sizing rule. The old one differed from the Director's by a
+ * `max(3, …)` guard and an empty `shape`, and nothing reported it because both answers are
+ * well-formed geometry.
+ */
+export function deriveLevelGenFromGuidanceSummary(summary, deriveLevelGen) {
   if (!summary || typeof summary !== "object") return null;
   const fromCards = deriveLevelGenFromCardSet(summary.cardSet || summary.cards);
   if (fromCards) {
     return fromCards;
   }
-  const built = buildBuildSpecFromSummary({
-    summary,
-    source: "guidance-level-builder",
-    runId: "guidance_level_builder",
-    // PX.3 (M6): the Director now requires a clock because it stamps
-    // BuildSpec.meta.createdAt. This BuildSpec is a THROWAWAY — only
-    // `configurator.inputs.levelGen` is read below and the meta is discarded — so it is
-    // the sanctioned marker case, not a real round. `rg UNUSED_CLOCK` is the census.
-    clock: UNUSED_CLOCK,
-  });
-  if (built?.ok) {
-    const levelGen = built.spec?.configurator?.inputs?.levelGen;
-    if (levelGen && typeof levelGen === "object") {
-      return levelGen;
-    }
-  }
-  return deriveFallbackLevelGenFromSummary(summary);
+  if (typeof deriveLevelGen !== "function") return null;
+  const levelGen = deriveLevelGen(summary);
+  return levelGen && typeof levelGen === "object" ? levelGen : null;
 }
 
 export function buildLevelPreviewFromLevelGen(
@@ -492,12 +482,16 @@ export function buildLevelPreviewFromGuidanceSummary(
     palette = null,
     floorAffinityCells = null,
     floorAffinityHazards = null,
+    // D8.1 — the Director's `deriveLevelGen`, threaded from the composition root. Needed for
+    // every summary that is not already a room card set; without it, only the card path can
+    // produce a preview and the rest refuse rather than guessing at geometry.
+    deriveLevelGen = null,
   } = {},
 ) {
   if (!summary || typeof summary !== "object") {
     return { ok: false, reason: "missing_summary" };
   }
-  const levelGen = deriveLevelGenFromGuidanceSummary(summary);
+  const levelGen = deriveLevelGenFromGuidanceSummary(summary, deriveLevelGen);
   if (!levelGen) {
     return { ok: false, reason: "missing_level_gen" };
   }

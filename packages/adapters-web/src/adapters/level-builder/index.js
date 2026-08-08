@@ -3,6 +3,18 @@ import {
   buildLevelPreviewFromLevelGen,
   buildLevelRenderArtifactsFromTiles,
 } from "../../../../runtime/src/personas/configurator/guidance-level-builder.js";
+import { createDirectorPersona } from "../../../../runtime/src/personas/director/persona.js";
+
+// D8.1 — the Director derives level geometry; the Configurator consumes it.
+//
+// Glue may hold a persona's PUBLIC barrel, so the adapter constructs a Director and passes
+// its `deriveLevelGen` down. `guidance-level-builder.js` used to reach into
+// `director/buildspec-assembler.js` itself, which was the one leg of the Director<->
+// Configurator cycle pointing that way.
+//
+// Ungated and stateless on purpose: a preview is not a build round, so no `beginBuild` is
+// opened here. UNUSED_CLOCK is safe because nothing on this path stamps an artifact.
+const DIRECTOR_LEVEL_GEN = createDirectorPersona({ clock: () => "1970-01-01T00:00:00.000Z" }).deriveLevelGen;
 
 function resolvePositiveInt(value) {
   const parsed = Number(value);
@@ -14,7 +26,12 @@ function resolvePositiveInt(value) {
 function createInProcessLevelBuilderAdapter() {
   return {
     async buildFromGuidance({ summary, renderOptions } = {}) {
-      return buildLevelPreviewFromGuidanceSummary(summary, renderOptions);
+      return buildLevelPreviewFromGuidanceSummary(summary, {
+        ...renderOptions,
+        // D8.1: level geometry is the Director's to derive; glue asks it on the
+        // Configurator's behalf rather than the Configurator importing it.
+        deriveLevelGen: DIRECTOR_LEVEL_GEN,
+      });
     },
     async buildFromLevelGen({ levelGen, renderOptions } = {}) {
       return buildLevelPreviewFromLevelGen(levelGen, renderOptions);
@@ -29,7 +46,12 @@ function createInProcessLevelBuilderAdapter() {
       if (levelGen && typeof levelGen === "object") {
         return buildLevelPreviewFromLevelGen(levelGen, renderOptions);
       }
-      return buildLevelPreviewFromGuidanceSummary(summary, renderOptions);
+      return buildLevelPreviewFromGuidanceSummary(summary, {
+        ...renderOptions,
+        // D8.1: level geometry is the Director's to derive; glue asks it on the
+        // Configurator's behalf rather than the Configurator importing it.
+        deriveLevelGen: DIRECTOR_LEVEL_GEN,
+      });
     },
     dispose() {},
   };
