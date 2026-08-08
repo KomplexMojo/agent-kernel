@@ -323,10 +323,17 @@ schema, guard or golden would report it. The test replays **660 cases** captured
 implementation, and both of those perturbations were confirmed to fail it. **If a case fails, do not
 re-record the fixture** — that deletes the only evidence the search still converges where it did.
 
-⚠️ **The `llm-budget-loop.js → layout-spend.js` allowlist row SURVIVES this milestone.** The loop still
-imports `normalizeLayoutCounts` / `sumLayoutTiles` (layout *vocabulary*, arguably not this persona's at
-all) and makes two remaining `evaluateLayoutSpend` calls that validate an LLM-proposed layout. Those
-are separate, unclaimed work — recorded here rather than left to be rediscovered.
+⚠️ **The `llm-budget-loop.js → layout-spend.js` allowlist row SURVIVES, but it is now HALF the row it
+was.** It used to carry two different jobs. The layout *vocabulary* half is gone: **D8-V (2026-08-08)
+moved `normalizeLayoutCounts` and `sumLayoutTiles` out of this persona** into
+`contracts/domain-constants.js`, by maintainer decision — they normalize and count, they price nothing,
+and routing a data reader through an FSM-gated controller would be ceremony. What keeps the row alive
+is the other half: two remaining `evaluateLayoutSpend` calls validating an LLM-proposed layout against
+a budget. Those are plain threading and still unclaimed.
+
+⇒ *One allowlist row is not one fix.* This row has now absorbed four separate pieces of work
+(M5b.2b's `resolveLayoutTileCosts`, M5b.2c's whole auto-fit search, D8-V's vocabulary move) without
+moving, because a row records who imports the module today, not what is left to do about it.
 
 ---
 

@@ -1,6 +1,11 @@
+// D8-V 2026-08-08: `normalizeLayoutCounts` and `sumLayoutTiles` were declared here and are
+// now imported. Counting tiles is vocabulary — it prices nothing — and the maintainer's call
+// was to move it out of the persona layer rather than publish it on a controller. This file
+// keeps what actually is the Allocator's: what a tile COSTS, and whether a layout fits.
 import {
   LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
   LAYOUT_TILE_PRICE_IDS as SHARED_LAYOUT_TILE_PRICE_IDS,
+  normalizeLayoutCounts,
 } from "../../contracts/domain-constants.js";
 import { buildPriceMap } from "./validate-spend.js";
 import { buildDefaultPriceList } from "./default-price-list.js";
@@ -68,34 +73,6 @@ const TILE_PRICE_IDS = SHARED_LAYOUT_TILE_PRICE_IDS;
 
 function isInteger(value) {
   return Number.isInteger(value);
-}
-
-function normalizeTileCount(value, field, warnings) {
-  if (value === undefined) return 0;
-  let parsed = value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const numeric = Number(value);
-    if (Number.isFinite(numeric)) {
-      parsed = numeric;
-    }
-  }
-  if (!isInteger(parsed) || parsed < 0) {
-    if (warnings) warnings.push({ code: "invalid_tile_count", field, value });
-    return 0;
-  }
-  return parsed;
-}
-
-export function normalizeLayoutCounts(layout, warnings) {
-  if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
-    if (warnings) warnings.push({ code: "invalid_layout" });
-    return null;
-  }
-  const counts = {};
-  LAYOUT_TILE_FIELDS.forEach((field) => {
-    counts[field] = normalizeTileCount(layout[field], field, warnings);
-  });
-  return counts;
 }
 
 /**
@@ -195,11 +172,6 @@ export function resolveLayoutTileCosts(priceList) {
     costs[field] = Math.floor(resolved);
   });
   return { costs, warnings: undefined };
-}
-
-export function sumLayoutTiles(layout) {
-  if (!layout) return 0;
-  return layout.floorTiles || 0;
 }
 
 export function evaluateLayoutSpend({ layout, budgetTokens, priceList, tileCosts } = {}) {
@@ -304,5 +276,7 @@ export function evaluateRoomCardLayoutSpend({
   };
 }
 
-export const LAYOUT_TILE_PRICE_IDS = TILE_PRICE_IDS;
-export { LAYOUT_TILE_FIELDS };
+// D8-V: `export const LAYOUT_TILE_PRICE_IDS = TILE_PRICE_IDS` and `export { LAYOUT_TILE_FIELDS }`
+// stood here as re-exports of contracts vocabulary. Their last consumer (`layout-fit.js`) now
+// reads contracts directly, so they are deleted rather than kept "for compatibility" — a
+// persona re-exporting contracts is the laundering hop P5.1 catalogued five times.

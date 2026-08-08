@@ -263,6 +263,76 @@ export const LAYOUT_TILE_PRICE_IDS = Object.freeze({
   floorTiles: { id: "tile_floor", kind: "tile" },
   hallwayTiles: { id: "tile_hallway", kind: "tile" },
 });
+
+/**
+ * Layout tile COUNTS — the lenient reader, relocated 2026-08-08 (D8-V).
+ *
+ * ⚠️ MOVED from `personas/allocator/layout-spend.js` by maintainer decision: counting
+ * tiles is shared vocabulary, not the Allocator's. It normalizes and counts; it **prices
+ * nothing**. `normalizeLayoutTileCosts` (prices, below) is its sibling and always lived
+ * here — the counts sitting one directory deeper inside a persona was the anomaly.
+ *
+ * 🔴 THIS IS NOT THE ONLY `normalizeLayoutCounts` IN THE TREE, AND THE OTHERS ARE NOT
+ * EQUIVALENT. Two personas carry private copies under the same name, and they behave
+ * differently on every interesting input:
+ *
+ * | | this (was allocator) | `prompt-contract.js#normalizeLayoutCountsStrict` | `feasibility.js#normalizeLayoutCountsOrZero` |
+ * |---|---|---|---|
+ * | missing field | `0` | **omitted from the result** | `0` |
+ * | numeric string `"5"` | **coerced to 5** | rejected | rejected |
+ * | bad value | warn, then `0` | error, field **omitted** | error, then `0` |
+ * | bad layout | warn, `null` | `invalid_layout`, `undefined` | `missing_layout`, `null` |
+ * | diagnostics | `warnings` | `errors` | `errors` |
+ *
+ * They were **deliberately not merged** in D8-V: collapsing them changes prompt text and
+ * feasibility verdicts, which is benchmark-relevant, and a relocation that also changes
+ * behavior is the one shape this branch has repeatedly failed to unpick afterwards. The
+ * other two were RENAMED instead, so nothing can mistake them for this, and
+ * `single-origin.test.js` now fails if the bare name reappears under `personas/`.
+ * ⇒ *Three functions with one name is a single-origin violation that no vocabulary guard
+ * could see, because none of them declared a vocabulary.*
+ */
+function normalizeTileCount(value, field, warnings) {
+  if (value === undefined) return 0;
+  let parsed = value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      parsed = numeric;
+    }
+  }
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    if (warnings) warnings.push({ code: "invalid_tile_count", field, value });
+    return 0;
+  }
+  return parsed;
+}
+
+export function normalizeLayoutCounts(layout, warnings) {
+  if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
+    if (warnings) warnings.push({ code: "invalid_layout" });
+    return null;
+  }
+  const counts = {};
+  LAYOUT_TILE_FIELDS.forEach((field) => {
+    counts[field] = normalizeTileCount(layout[field], field, warnings);
+  });
+  return counts;
+}
+
+/**
+ * Walkable tiles, which today means floor tiles only.
+ *
+ * ⚠️ The name over-promises and the body is the contract: hallway tiles are walkable and
+ * are CHARGED (CR.9 M5 deleted the filter that made them free), but they are deliberately
+ * not counted here — the auto-fit search and the budget loop both use this as "how much
+ * room area is there", and connectors are not room area. Left exactly as it behaved inside
+ * the Allocator; D8-V was a relocation, not a redefinition.
+ */
+export function sumLayoutTiles(layout) {
+  if (!layout) return 0;
+  return layout.floorTiles || 0;
+}
 export const PHI4_MODEL_CONTEXT_WINDOW_TOKENS = 16384;
 export const PHI4_LAYOUT_MAX_LATENCY_MS = 10000;
 export const PHI4_RESPONSE_TOKEN_BUDGET = Object.freeze({

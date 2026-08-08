@@ -152,7 +152,41 @@ const SPEND_PROTOCOL_VOCABULARY = new RegExp(
   "g",
 );
 
+// D8-V 2026-08-08 — layout tile COUNTING is vocabulary, and its name may not be reused.
+//
+// THE DEFECT THIS EXISTS FOR: `normalizeLayoutCounts` was declared THREE times — exported
+// from `allocator/layout-spend.js`, and privately in `orchestrator/prompt-contract.js` and
+// `configurator/feasibility.js`. No two agreed. Missing field: 0 / omitted / 0. Numeric
+// string "5": coerced / rejected / rejected. Diagnostics: warnings / errors / errors. Three
+// personas each answering "how many tiles is this layout" differently, under one name.
+//
+// ⚠️ WHY THIS GUARD MATCHES A NAME when the two guards above deliberately match VALUES.
+// Those protect vocabularies whose defect has no name to match on (`"over_cap"` inline is
+// the violation). Here the *name itself* is the hazard: three divergent readers were
+// tolerable only because each was private, and a reader who found one assumed it was the
+// one. The shared reader now lives in `contracts/domain-constants.js`; the other two were
+// RENAMED, not merged, because collapsing them changes prompt text and feasibility codes.
+// So the rule is narrow and literal: the bare name is the shared one's, and a persona may
+// import it but not declare it.
+//
+// ⚠️ IT MATCHES DECLARATIONS ONLY (`function`/`const`/`let`), never call sites or imports —
+// `normalizeLayoutCounts(layout)` inside a persona is the CORRECT outcome of this milestone
+// and must stay green. A guard that forbade the name outright would fire on its own success.
+//
+// PERTURBATION-VERIFIED 2026-08-08:
+//   restore `function normalizeLayoutCounts` in feasibility.js      → DETECTED
+//   restore it as `const normalizeLayoutCounts = (l, e) => …`       → DETECTED
+//   the tree as shipped (4 persona files IMPORT and CALL the name)  → clean
+const LAYOUT_COUNT_READER_DECLARATION =
+  /\b(?:function|const|let)\s+normalizeLayoutCounts\b/g;
+
 const SINGLE_ORIGIN_GUARDS = [
+  {
+    concept: "layout tile-count reader",
+    canonicalHome: ["packages/runtime/src/contracts"],
+    forbiddenPattern: LAYOUT_COUNT_READER_DECLARATION,
+    scope: "packages",
+  },
   {
     concept: "persona wall-clock reads",
     canonicalHome: [],

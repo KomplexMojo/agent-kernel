@@ -9,7 +9,7 @@ import { requireClock } from "../_shared/require-clock.js";
 import { deriveLevelGen } from "../director/buildspec-assembler.js";
 import { buildCardSetFromSummary } from "../director/summary-selections.js";
 import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
-import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
+import { normalizePoolCatalog } from "../../contracts/pool-catalog.js";
 // CR.4 M5b.2b/M5b.2c: `resolveLayoutTileCosts`, `buildBudgetAllocation`,
 // `evaluateSelectionSpend` and the whole auto-fit search are GONE from this file — they are
 // Allocator decisions, now asked of the Director.
@@ -20,16 +20,15 @@ import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
 // two are simple threading and could go the same way; the vocabulary is a separate question
 // — it may belong in a shared layout module rather than inside the Allocator at all.
 // Deliberately NOT folded into this milestone: "the auto-fit search" was the scope.
-import {
-  evaluateLayoutSpend,
-  normalizeLayoutCounts,
-  sumLayoutTiles,
-} from "../allocator/layout-spend.js";
+import { evaluateLayoutSpend } from "../allocator/layout-spend.js";
 import {
   DOMAIN_CONSTRAINTS,
   LLM_REPAIR_TEXT,
   buildLlmPhasePromptTemplate,
   buildLlmRepairPromptTemplate,
+  // D8-V: layout counting is vocabulary and now lives here, not in the Allocator.
+  normalizeLayoutCounts,
+  sumLayoutTiles,
 } from "../../contracts/domain-constants.js";
 
 const DEFAULT_MAX_ACTOR_ROUNDS = 2;

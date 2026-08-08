@@ -66,7 +66,19 @@ function normalizeLayoutCount(value, field, errors) {
   return value;
 }
 
-function normalizeLayoutCounts(layout, errors) {
+/**
+ * The FEASIBILITY reader: every field gets a number so the walkable-area arithmetic below
+ * always has one, and anything wrong is an ERROR rather than a warning — an infeasible
+ * layout must fail loudly here, not be quietly costed.
+ *
+ * ⚠️ RENAMED 2026-08-08 (D8-V), for the same reason as
+ * `prompt-contract.js#normalizeLayoutCountsStrict`. It shares neither its diagnostics
+ * channel (errors, not warnings), its missing-layout code (`missing_layout`, not
+ * `invalid_layout`) nor its string handling with the shared reader in
+ * `contracts/domain-constants.js`. Deliberately not merged: these codes are asserted by
+ * feasibility tests and read by callers.
+ */
+function normalizeLayoutCountsOrZero(layout, errors) {
   if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
     pushError(errors, "layout", "missing_layout");
     return null;
@@ -197,7 +209,7 @@ export function validateLayoutAndActors({ levelGen, actorCount = 0 } = {}) {
 
 export function validateLayoutCountsAndActors({ layout, actorCount = 0, minSide = 5 } = {}) {
   const errors = [];
-  const counts = normalizeLayoutCounts(layout, errors);
+  const counts = normalizeLayoutCountsOrZero(layout, errors);
   if (!counts) {
     return { ok: false, errors, layout: null, levelGen: null };
   }

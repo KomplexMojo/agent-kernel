@@ -4,7 +4,7 @@ import {
   DELVER_SETUP_MODES,
   DELVER_SETUP_MODE_SET,
   DEFAULT_DELVER_SETUP_MODE,
-  LAYOUT_TILE_FIELDS as SHARED_LAYOUT_TILE_FIELDS,
+  LAYOUT_TILE_FIELDS,
   DEFAULT_VITALS,
   MOTIVATION_KINDS,
   VITAL_KEYS,
@@ -17,7 +17,10 @@ export const ALLOWED_MOTIVATIONS = MOTIVATION_KINDS;
 export const ALLOWED_DELVER_SETUP_MODES = DELVER_SETUP_MODES;
 export const LLM_PHASES = Object.freeze(["layout_only", "actors_only"]);
 export const LLM_STOP_REASONS = Object.freeze(["done", "missing", "no_viable_spend"]);
-export const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS;
+// D8-V: `export const LAYOUT_TILE_FIELDS = SHARED_LAYOUT_TILE_FIELDS` stood here — a bare
+// pass-through of contracts vocabulary under its own name, with ZERO consumers. It is not the
+// sanctioned `ALLOWED_*` shape, which deliberately RENAMES a vocabulary to say what the prompt
+// permits; this just made a persona look like an origin. Deleted; the file imports it directly.
 export function deriveAllowedOptionsFromCatalog(catalog = {}) {
   const entries = Array.isArray(catalog.entries) ? catalog.entries : Array.isArray(catalog) ? catalog : [];
   const affinities = new Set(ALLOWED_AFFINITIES);
@@ -230,7 +233,22 @@ function isAmbulatoryMotivation(motivation) {
   return isNonEmptyString(motivation) && motivation !== "stationary";
 }
 
-function normalizeLayoutCounts(layout, errors) {
+/**
+ * The STRICT reader: a stated tile count must be an integer, and an unstated one stays
+ * unstated so the prompt says nothing about it.
+ *
+ * ⚠️ RENAMED 2026-08-08 (D8-V). It was called `normalizeLayoutCounts`, which is also the
+ * name of the shared vocabulary reader in `contracts/domain-constants.js` AND of a third,
+ * differently-behaving copy in `configurator/feasibility.js`. Three functions, one name,
+ * no two agreeing: this one OMITS a missing or invalid field and rejects numeric strings;
+ * the shared one zero-fills and coerces `"5"` to 5.
+ *
+ * That difference is load-bearing here — an omitted field produces a prompt that makes no
+ * claim, whereas a zero-filled one would assert "0 hallway tiles" to the model on no
+ * authority. So it was NOT merged into the shared reader; it was renamed so nothing can
+ * mistake the two. `single-origin.test.js` fails if the bare name returns under personas/.
+ */
+function normalizeLayoutCountsStrict(layout, errors) {
   if (layout === undefined) return undefined;
   if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
     addError(errors, "layout", "invalid_layout");
@@ -611,7 +629,7 @@ export function normalizeSummaryWithOptions(summary, { phase } = {}) {
       value.dungeonAffinity = summary.dungeonAffinity;
     }
   }
-  const layout = normalizeLayoutCounts(summary.layout, errors);
+  const layout = normalizeLayoutCountsStrict(summary.layout, errors);
   if (layout && Object.keys(layout).length > 0) {
     value.layout = layout;
   }

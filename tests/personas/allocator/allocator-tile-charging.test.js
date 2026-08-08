@@ -51,9 +51,16 @@ async function load() {
   const layoutSpend = await import(`${P}personas/allocator/layout-spend.js`);
   const priceListModule = await import(`${P}personas/allocator/default-price-list.js`);
   const cardModel = await import(`${P}personas/configurator/card-model.js`);
+  // D8-V 2026-08-08: `LAYOUT_TILE_PRICE_IDS` used to reach this test as a RE-EXPORT from
+  // `layout-spend.js`. The re-export is deleted and the vocabulary is read from its one
+  // origin — which is the whole point of a test named "every tile price the Allocator
+  // publishes can be charged": it must enumerate the canonical field list, not a persona's
+  // copy of it, or it would agree with a drift instead of catching one.
+  const domainConstants = await import(`${P}contracts/domain-constants.js`);
   const priceList = priceListModule.buildDefaultPriceList();
   return {
     ...layoutSpend,
+    LAYOUT_TILE_PRICE_IDS: domainConstants.LAYOUT_TILE_PRICE_IDS,
     priceList,
     deriveRoomLayout: cardModel.deriveLayoutFromRoomCards,
     priceOf: (id) => priceList.items.find((item) => item.id === id)?.unitCost,

@@ -19,12 +19,15 @@
  * persona's usual `budgetTokens`. The rename is exactly the kind of silent mismatch the
  * characterization exists to prevent, and it buys nothing.
  */
+import { evaluateLayoutSpend } from "./layout-spend.js";
+// D8-V: layout vocabulary comes from contracts, not from a persona. `LAYOUT_TILE_FIELDS`
+// was reaching this file via a re-export in `layout-spend.js` — a laundering hop within
+// the persona, harmless to the allowlist and misleading to a reader.
 import {
-  evaluateLayoutSpend,
   LAYOUT_TILE_FIELDS,
   normalizeLayoutCounts,
   sumLayoutTiles,
-} from "./layout-spend.js";
+} from "../../contracts/domain-constants.js";
 
 function isWalkableField(field) {
   return field === "floorTiles" || field === "hallwayTiles";

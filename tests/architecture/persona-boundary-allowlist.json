@@ -124,10 +124,6 @@
     "to": "packages/runtime/src/personas/allocator/base-costs.json"
   },
   {
-    "from": "packages/runtime/src/personas/director/pool-mapper.js",
-    "to": "packages/runtime/src/personas/configurator/pool-catalog.js"
-  },
-  {
     "from": "packages/runtime/src/personas/director/summary-selections.js",
     "to": "packages/runtime/src/personas/configurator/card-model.js"
   },
@@ -142,10 +138,6 @@
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
     "to": "packages/runtime/src/personas/configurator/feasibility.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
-    "to": "packages/runtime/src/personas/configurator/pool-catalog.js"
   },
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",

@@ -1,5 +1,26 @@
-import { AFFINITY_KINDS } from "./affinity-loadouts.js";
-import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
+/**
+ * Pool-catalog vocabulary — what a catalog entry IS, and whether one is well-formed.
+ *
+ * ⚠️ RELOCATED 2026-08-08 (D8-V) from `personas/configurator/pool-catalog.js`, by
+ * maintainer decision: **this is shared vocabulary, not persona-owned.** Everything here
+ * validates, normalizes and sorts. It **prices nothing and decides nothing** — `cost` is
+ * checked for being a positive integer and is otherwise never read. Routing a pure data
+ * validator through an FSM-gated controller would have been ceremony, and it would have
+ * needed a controller method on a persona that never called it.
+ *
+ * Its two importers — `director/pool-mapper.js` and `orchestrator/llm-budget-loop.js` —
+ * were BOTH persona-boundary allowlist rows, and `pool-mapper`'s was the whole of D8.2.
+ * Both die by relocation rather than by threading. This is the line
+ * `domain-constants.js` already draws for tile fields: *what stays in contracts is
+ * VOCABULARY, not economy.*
+ *
+ * Address is not authority: the Configurator never imported this file either. It sat in
+ * that directory because the first caller of it was Configurator-adjacent.
+ */
+// AFFINITY_KINDS used to be read from `configurator/affinity-loadouts.js`, which merely
+// re-exports it from here — a laundering hop of the class P5.1 catalogued. Both vocabularies
+// now come from the one origin, as MOTIVATION_KINDS already did.
+import { AFFINITY_KINDS, MOTIVATION_KINDS } from "./domain-constants.js";
 
 const TYPE = "actor";
 const SUB_TYPES = Object.freeze(["static", "dynamic", "hazard"]);
