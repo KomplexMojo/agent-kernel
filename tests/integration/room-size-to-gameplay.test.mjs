@@ -6,6 +6,19 @@ import {
 } from "../../packages/ui-web/src/design-guidance.js";
 import { buildBuildSpecFromSummary } from "../../packages/runtime/src/personas/director/buildspec-assembler.js";
 import { orchestrateBuild } from "../../packages/runtime/src/build/orchestrate-build.js";
+import { createConfiguratorPersona } from "../../packages/runtime/src/personas/configurator/persona.js";
+
+// D8.3 — a summary carrying ROOM cards needs the Configurator's geometry, because the
+// Director refuses to derive it. Taken from the public persona barrel, exactly as
+// `ui-flow.js`, `card-authoring.js` and `ak-impl.mjs` take it in production.
+const roomGeometryConfigurator = createConfiguratorPersona({
+  clock: () => "2026-08-08T00:00:00.000Z",
+});
+const roomGeometry = Object.freeze({
+  deriveRoomLayout: roomGeometryConfigurator.deriveRoomLayout,
+  buildRoomDesign: roomGeometryConfigurator.buildRoomDesign,
+});
+
 
 // These tests lock the room-size → gameplay-layout contract end to end. They
 // exercise the exact functions the Phaser design surface uses (buildSummaryFromCardSet
@@ -27,6 +40,7 @@ async function layoutForRoom(size) {
   const summary = summaryForRoom(size);
   const built = buildBuildSpecFromSummary({
     summary,
+    roomGeometry,
     runId: `run_room_${size}`,
     createdAt: "2025-01-01T00:00:00Z",
     source: "room-size-test",

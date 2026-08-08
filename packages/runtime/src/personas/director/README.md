@@ -130,8 +130,38 @@ Three properties are load-bearing, not incidental:
 
 1. **The call goes through `allocator/persona.js`, the public barrel** — the same seam the CR.1 hazard
    pool split already uses. Because that edge is *not* an allowlist row, the loop's crossings **die
-   rather than move**. (Routing *Configurator* answers through here would launder instead of fix: the
-   Director reaches the Configurator through internals — the open D8 cycle.)
+   rather than move**. (That parenthetical used to warn that routing *Configurator* answers through
+   here would launder instead of fix, because the Director reached the Configurator through internals.
+   ✅ **No longer true, and the warning is retired: D8 closed 2026-08-08.** `controller.js` now imports
+   `configurator/persona.js`, the public barrel, exactly as it imports `allocator/persona.js`, and the
+   two internal imports it used to hold — `pool-mapper.js → configurator/pool-catalog.js` and
+   `summary-selections.js → configurator/card-model.js` — are gone. See below.)
+
+### The Configurator seam (D8.3, 2026-08-08) — and why the cycle is really gone
+
+The Director once reached the Configurator through **internals**, in both directions, which is what
+made D8 a cycle rather than an ordering question. All of it is closed, by two different mechanisms:
+
+| Was | Now |
+|---|---|
+| `configurator/guidance-level-builder.js` → `director/buildspec-assembler.js` | ✅ D8.1 — the Director publishes `deriveLevelGen`; the Configurator asks |
+| `director/pool-mapper.js` → `configurator/pool-catalog.js` | ✅ D8-V — `normalizePoolCatalog` was **shared vocabulary** and moved to `contracts/`; nobody asks anybody |
+| `director/summary-selections.js` → `configurator/card-model.js` | ✅ D8.3 — room geometry is a **decision with an owner**; the Director asks `configurator.deriveRoomLayout` / `.buildRoomDesign` |
+
+⚠️ **The middle two rows are the lesson.** They looked identical — a Director internal importing a
+Configurator internal — and they needed opposite fixes. `normalizePoolCatalog` validates and sorts and
+**decides nothing**, so threading it through an FSM-gated controller would have been ceremony;
+`deriveLayoutFromRoomCards` reads the SIZE → LAYOUT table that `card-model.js` records as Configurator
+geometry, so relocating it would have moved a decision away from its owner. *Ask whether the symbol
+decides anything before choosing between relocation and threading — the crossing looks the same either
+way, and only one of the two fixes is right.*
+
+`extractSummaryFromCardSet` refuses with **`DirectorRoomGeometryError`** when a card set holds room
+cards and no `{ deriveRoomLayout, buildRoomDesign }` was supplied — the mirror of
+`AllocatorRoomGeometryError`, raised for the *same two functions* one persona over at CR.9 M2. The
+persona supplies the capability to itself, so callers of `director.deriveLevelGen` and
+`director.assembleBuildSpec` need to know nothing about it; only code calling the assembler modules
+directly (glue, tests) passes `roomGeometry`.
 2. **All three are gated on `PLANNED_STATES`, like `mapPool`.** Pricing a build no round has begun is
    the same "artifact produced with no round" defect as CR.4's `producedBy` stamp. The gate is the
    substance; re-pointing the import alone would satisfy the boundary rule and leave the authority

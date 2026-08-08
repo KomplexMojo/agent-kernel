@@ -41,6 +41,18 @@ At a high level, the Configurator:
 > without it (`allocator_room_geometry_required`) rather than deriving a second answer. Same wiring shape as
 > CR.6's `createActorPersona({ admitProposals: allocator.admitProposals })`, in the opposite direction.
 
+> **And it publishes room SHAPE, for the DIRECTOR** (D8.3, 2026-08-08). `buildRoomDesign(cardSet)`
+> returns `{ roomCount, roomMinSize, roomMaxSize, corridorWidth, rooms }` — the sibling of
+> `deriveRoomLayout`, published one milestone later for the same reason and gated the same way (not at
+> all: both are stateless reads of a card set the caller already holds). `director/summary-selections.js`
+> used to import `card-model.js` for **both** and stamp the results into the summary it was resolving,
+> which made the Director a second author of the same table. It now asks, and refuses without the
+> capability (`director_room_geometry_required`). That import was the **last leg of the
+> Director↔Configurator cycle**; with it gone, the persona graph is a DAG in fact as well as by decision.
+>
+> The two are published separately rather than bundled because they answer different questions for
+> different consumers: the Allocator needs "how many tiles" to price, and never asks for shape.
+
 > **It AUTHORS the candidates the Allocator prices** (CR.9 M3). `candidate-authoring.js`, published as
 > `authorCandidates` on the persona surface, owns card assembly (`readCardVitals`,
 > `fillFlexibleDelverVitals`, `buildMinimumDelverCard`), structural validity (`assessDelverStructure`) and

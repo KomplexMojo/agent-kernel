@@ -264,15 +264,15 @@ function resolveLevelGen({ resolvedSummary, layout, roomDesign, roomCount, hazar
  * a summary the caller already holds, touches no FSM state, and issues no artifact. Gating a
  * preview behind an open build round would be a label, not a rule.
  */
-export function deriveLevelGenFromSummary(summary) {
-  const resolvedSummary = extractSummaryFromCardSet(summary || {});
+export function deriveLevelGenFromSummary(summary, roomGeometry) {
+  const resolvedSummary = extractSummaryFromCardSet(summary || {}, roomGeometry);
   const layout = resolvedSummary?.layout && typeof resolvedSummary.layout === "object"
     ? resolvedSummary.layout
     : null;
   const roomDesign = resolvedSummary?.roomDesign && typeof resolvedSummary.roomDesign === "object"
     ? resolvedSummary.roomDesign
     : null;
-  const rooms = buildSelectionsFromSummary(resolvedSummary).filter((sel) => sel.kind === "room");
+  const rooms = buildSelectionsFromSummary(resolvedSummary, roomGeometry).filter((sel) => sel.kind === "room");
   const roomCount = rooms.reduce((sum, sel) => sum + (sel.instances?.length || 0), 0);
   return resolveLevelGen({
     resolvedSummary,
@@ -363,6 +363,9 @@ function buildActorsAndGroups(selections) {
 export function buildBuildSpecFromSummary({
   summary,
   catalog,
+  // D8.3 — `{ deriveRoomLayout, buildRoomDesign }` from a Configurator. Required when the
+  // summary carries ROOM cards; the Director asks for level geometry, it does not derive it.
+  roomGeometry,
   runId,
   source,
   createdAt,
@@ -374,13 +377,13 @@ export function buildBuildSpecFromSummary({
   receiptArtifact,
   clock,
 } = {}) {
-  const resolvedSummary = extractSummaryFromCardSet(summary || {});
+  const resolvedSummary = extractSummaryFromCardSet(summary || {}, roomGeometry);
   const cardSet = buildCardSetFromSummary(resolvedSummary);
   const mapped = selections
     ? { ok: true, selections }
     : catalog
       ? mapSummaryToPool({ summary: resolvedSummary, catalog })
-      : { ok: true, selections: buildSelectionsFromSummary(resolvedSummary) };
+      : { ok: true, selections: buildSelectionsFromSummary(resolvedSummary, roomGeometry) };
   if (!mapped.ok) {
     return { ok: false, errors: mapped.errors, spec: null, selections: mapped.selections || [] };
   }

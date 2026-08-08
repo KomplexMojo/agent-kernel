@@ -25,13 +25,26 @@ const DIRECTOR_SUMMARY_SELECTIONS = pathToFileURL(
   resolve(__dirname, "../../packages/runtime/src/personas/director/summary-selections.js"),
 ).href;
 
+const CONFIGURATOR_PERSONA = pathToFileURL(
+  resolve(__dirname, "../../packages/runtime/src/personas/configurator/persona.js"),
+).href;
+
 let cached = null;
 
 /** The Director's card-set → summary translation, as the ledger's `resolveSummary`. */
 async function directorResolveSummary() {
   if (!cached) {
     const { extractSummaryFromCardSet } = await import(DIRECTOR_SUMMARY_SELECTIONS);
-    cached = extractSummaryFromCardSet;
+    // D8.3: the Director refuses to resolve ROOM cards without the Configurator's
+    // geometry, so the capability is bound here exactly as `commands/card-authoring.js`
+    // binds it in production. A ledger built from room cards is the common case.
+    const { createConfiguratorPersona } = await import(CONFIGURATOR_PERSONA);
+    const configurator = createConfiguratorPersona({ clock: () => "2026-08-08T00:00:00.000Z" });
+    const roomGeometry = Object.freeze({
+      deriveRoomLayout: configurator.deriveRoomLayout,
+      buildRoomDesign: configurator.buildRoomDesign,
+    });
+    cached = (summary) => extractSummaryFromCardSet(summary, roomGeometry);
   }
   return cached;
 }

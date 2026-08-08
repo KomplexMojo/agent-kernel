@@ -52,6 +52,8 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     lock: services.lock,
     lockedConfig: services.lockedConfig,
     deriveRoomLayout: services.deriveRoomLayout,
+    // D8.3 — the Director asks for room SHAPE instead of deriving it from card sizes itself.
+    buildRoomDesign: services.buildRoomDesign,
     authorCandidates: services.authorCandidates,
     normalizeMotivations: services.normalizeMotivations,
   };

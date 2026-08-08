@@ -40,7 +40,13 @@ const PLANNED_STATES = Object.freeze([
   DirectorStates.READY,
 ]);
 
-export function attachDirectorServices({ fsm, advanceWithPlan, clock, createAllocator } = {}) {
+export function attachDirectorServices({
+  fsm,
+  advanceWithPlan,
+  clock,
+  createAllocator,
+  createConfigurator,
+} = {}) {
   let planArtifact = null;
   let buildSpecCount = 0;
 
@@ -98,7 +104,25 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock, createAllo
    * — the same reasoning that leaves `configurator.deriveRoomLayout` ungated.
    */
   function deriveLevelGen(summary) {
-    return deriveLevelGenFromSummary(summary);
+    return deriveLevelGenFromSummary(summary, roomGeometry());
+  }
+
+  /**
+   * D8.3 — the Configurator's room geometry, fetched on the Director's behalf.
+   *
+   * `extractSummaryFromCardSet` refuses without it whenever the summary carries room
+   * cards, so this is the seam that keeps the Director able to answer at all. Returns
+   * `undefined` rather than throwing when no Configurator was injected: the refusal
+   * belongs to the function that actually needs the geometry, which can tell whether the
+   * card set has room cards. Refusing here would refuse for actor-only summaries too.
+   */
+  function roomGeometry() {
+    if (typeof createConfigurator !== "function") return undefined;
+    const configurator = createConfigurator();
+    return {
+      deriveRoomLayout: configurator.deriveRoomLayout,
+      buildRoomDesign: configurator.buildRoomDesign,
+    };
   }
 
   /**
@@ -167,8 +191,11 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock, createAllo
     // The persona already has one injected at construction, so it supplies it — and only
     // where the caller did not, since `key: undefined` must not clobber it (the CR.9 M5
     // `withPersonaDefaults` lesson, same defect, different file).
+    const withClock = args.clock === undefined ? { ...args, clock } : args;
     const spec = buildBuildSpecFromSummary(
-      args.clock === undefined ? { ...args, clock } : args,
+      withClock.roomGeometry === undefined
+        ? { ...withClock, roomGeometry: roomGeometry() }
+        : withClock,
     );
     buildSpecCount += 1;
     // Completing the translation closes the round: draft → refine → ready.

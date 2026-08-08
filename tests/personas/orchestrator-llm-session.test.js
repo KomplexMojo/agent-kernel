@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { configuratorRoomGeometry } = require("../helpers/configurator-capabilities.js");
 
 test("orchestrator llm session captures prompt/response", async () => {
   const { runLlmSession } = await import(
@@ -366,13 +367,16 @@ test("orchestrator llm session supports AI summary to card model to build spec r
     };
   });
 
+  // D8.3 — room cards mean Configurator geometry, injected as production injects it.
   const summaryFromCards = extractSummaryFromCardSet({
     dungeonAffinity: "water",
     budgetTokens: 1200,
     cardSet: editedCardSet,
-  });
+  }, await configuratorRoomGeometry());
   const built = buildBuildSpecFromSummary({
     summary: summaryFromCards,
+    // The resolved summary still carries its cardSet, so the assembler resolves it again.
+    roomGeometry: await configuratorRoomGeometry(),
     runId: "run_llm_card_roundtrip",
     source: "test",
     createdAt: "2025-01-01T00:00:00Z",

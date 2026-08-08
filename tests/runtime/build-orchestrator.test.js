@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
+const { configuratorRoomGeometry } = require("../helpers/configurator-capabilities.js");
 
 const ROOT = resolve(__dirname, "../..");
 const specBasicPath = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-basic.json");
@@ -274,6 +275,7 @@ test("orchestrateBuild translates cardSet delvers/wardens and applies strategic 
 
   const buildSpecResult = buildBuildSpecFromSummary({
     summary,
+    roomGeometry: await configuratorRoomGeometry(),
     runId: "run_cardset_translation_placement",
     createdAt: "2025-01-01T00:00:00Z",
     source: "runtime-test",

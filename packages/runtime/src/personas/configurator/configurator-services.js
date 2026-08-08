@@ -33,7 +33,7 @@
 import { ConfiguratorStates } from "./state-machine.js";
 import { prepareLevelGen as prepareLevelGenInput, mapResources as mapResourcesInput } from "./input-preparation.js";
 import { validateConfiguratorConfig } from "./config-validation.js";
-import { deriveLayoutFromRoomCards } from "./card-model.js";
+import { buildRoomDesignFromRoomCards, deriveLayoutFromRoomCards } from "./card-model.js";
 import { normalizeMotivations } from "./motivation-loadouts.js";
 import {
   assessDelverStructure,
@@ -247,6 +247,30 @@ export function attachConfiguratorServices({ fsm } = {}) {
   }
 
   /**
+   * Room SHAPE from a card set: `{ roomCount, roomMinSize, roomMaxSize, corridorWidth,
+   * rooms }`, or null when the set holds no room cards.
+   *
+   * D8.3, 2026-08-08 — the sibling of `deriveRoomLayout`, published for the same reason
+   * one milestone later. `director/summary-selections.js` imported
+   * `card-model.js#buildRoomDesignFromRoomCards` and stamped the result into the summary
+   * it was resolving, which made the Director a second author of the SIZE → LAYOUT table
+   * (small 3–5, medium 5–8, large 8–12) that `card-model.js` records as Configurator
+   * geometry. Identical defect to CR.9 M2's, in the last remaining leg of the
+   * Director↔Configurator cycle.
+   *
+   * `deriveRoomLayout` answers "how many tiles"; this answers "what shape". They are
+   * separate questions with separate callers — the Allocator prices tiles and never asks
+   * for shape — so they are published separately rather than bundled.
+   *
+   * Stateless and ungated, exactly like `deriveRoomLayout` and `authorCandidates`: it
+   * reads a card set the caller already holds, touches no FSM state and issues no
+   * artifact. Gating it behind `provideConfig` would be a label, not a rule.
+   */
+  function buildRoomDesign(cardSet, options) {
+    return buildRoomDesignFromRoomCards(cardSet, options);
+  }
+
+  /**
    * The candidate-authoring surface the Allocator's budget maximizer consumes (CR.9
    * M3). Assembly, structural validity and enumeration order all live behind here;
    * the Allocator receives it injected and prices what it is given.
@@ -290,6 +314,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
     lock,
     lockedConfig,
     deriveRoomLayout,
+    buildRoomDesign,
     authorCandidates,
     /**
      * Motivation vocabulary, published so the Allocator stops importing it (CR.9 M3).

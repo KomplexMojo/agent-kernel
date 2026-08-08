@@ -2,6 +2,7 @@ import { createDirectorStateMachine, DirectorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { createAllocatorPersona } from "../allocator/persona.js";
+import { createConfiguratorPersona } from "../configurator/persona.js";
 import { requireClock, UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { attachDirectorServices } from "./director-services.js";
 
@@ -230,6 +231,13 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     // once without one would answer every question against the DEFAULT price list, and a
     // silently defaulted price is still a well-formed number — nothing would report it.
     createAllocator: (options = {}) => createAllocatorPersona({ clock: UNUSED_CLOCK, ...options }),
+    // D8.3 — the same seam for room geometry. `configurator/persona.js` is the PUBLIC
+    // barrel, already not an allowlist row, so asking here does not launder the crossing
+    // the way reaching into `configurator/card-model.js` did: that import is deleted, and
+    // no new one replaces it. Constructed once rather than per call, unlike the Allocator:
+    // `deriveRoomLayout` and `buildRoomDesign` are stateless, ungated and take no policy
+    // input, so there is no caller-supplied value a shared instance could silently default.
+    createConfigurator: () => createConfiguratorPersona({ clock: UNUSED_CLOCK }),
   });
 
   function view() {

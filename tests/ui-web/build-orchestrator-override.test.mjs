@@ -7,6 +7,19 @@ import {
   createDesignCard,
 } from "../../packages/ui-web/src/design-guidance.js";
 import { buildBuildSpecFromSummary } from "../../packages/runtime/src/personas/director/buildspec-assembler.js";
+import { createConfiguratorPersona } from "../../packages/runtime/src/personas/configurator/persona.js";
+
+// D8.3 — a summary carrying ROOM cards needs the Configurator's geometry, because the
+// Director refuses to derive it. Taken from the public persona barrel, exactly as
+// `ui-flow.js`, `card-authoring.js` and `ak-impl.mjs` take it in production.
+const roomGeometryConfigurator = createConfiguratorPersona({
+  clock: () => "2026-08-08T00:00:00.000Z",
+});
+const roomGeometry = Object.freeze({
+  deriveRoomLayout: roomGeometryConfigurator.deriveRoomLayout,
+  buildRoomDesign: roomGeometryConfigurator.buildRoomDesign,
+});
+
 
 // Regression for: "Setting the room size in the design tab has no effect on the
 // room size in the gameplay tab." The Phaser design surface (index_c.html) feeds
@@ -50,6 +63,7 @@ function specTextForRoom(size, runId) {
   });
   const built = buildBuildSpecFromSummary({
     summary,
+    roomGeometry,
     runId,
     createdAt: "2025-01-01T00:00:00Z",
     source: "override-test",

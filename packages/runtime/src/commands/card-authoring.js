@@ -49,6 +49,12 @@ import {
 // above is a separate disposition that this does not touch.
 const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 const configuratorGeometry = configurator.deriveRoomLayout;
+// D8.3 — the Director refuses to derive level geometry from room cards; it asks the
+// Configurator. Taken from the PUBLIC persona barrel, so no boundary is crossed.
+const configuratorRoomGeometry = Object.freeze({
+  deriveRoomLayout: configurator.deriveRoomLayout,
+  buildRoomDesign: configurator.buildRoomDesign,
+});
 const configuratorAuthoring = configurator.authorCandidates;
 const configuratorMotivations = configurator.normalizeMotivations;
 const allocatorFor = (priceList) => createAllocatorPersona({
@@ -1390,7 +1396,7 @@ function buildSummaryFromCardSet({
       { id: "resources", weight: readBoundedPercent(budgetSplitPercent.resource, DEFAULT_BUDGET_SPLIT.resource) / 100 },
     ];
   }
-  const summary = extractSummaryFromCardSet(summaryInput);
+  const summary = extractSummaryFromCardSet(summaryInput, configuratorRoomGeometry);
   const cardsWithBudget = enrichCardsWithBudget(normalizedCards, {
     budgetTokens: summaryInput.budgetTokens,
     tileCosts,
@@ -1423,7 +1429,7 @@ function buildSummaryFromCardSet({
     // This glue already holds the Director's translation (it calls it above on the
     // unenriched cards); the ledger re-reads the BUDGET-ENRICHED set, so the second
     // call is load-bearing, not a duplicate of the first.
-    resolveSummary: extractSummaryFromCardSet,
+    resolveSummary: (input) => extractSummaryFromCardSet(input, configuratorRoomGeometry),
   });
   return {
     summary: finalSummary,

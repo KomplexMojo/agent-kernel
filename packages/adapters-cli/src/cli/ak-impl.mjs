@@ -1492,6 +1492,12 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
 // vocabulary are injected alongside the geometry. The Allocator refuses all three
 // jobs without them rather than answering a Configurator question itself.
 const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+// D8.3 — the Director refuses to derive level geometry from room cards; it asks the
+// Configurator. Taken from the PUBLIC persona barrel, so no boundary is crossed.
+const configuratorRoomGeometry = Object.freeze({
+  deriveRoomLayout: configurator.deriveRoomLayout,
+  buildRoomDesign: configurator.buildRoomDesign,
+});
 const configuratorGeometry = configurator.deriveRoomLayout;
 
 function allocatorWithGeometry() {
@@ -4306,6 +4312,7 @@ async function validateScenarioDryRun(args) {
   const buildSpecResult = buildBuildSpecFromSummary({
     summary: summaryForSpec,
     catalog,
+    roomGeometry: configuratorRoomGeometry,
     selections: mappedSelections || undefined,
     runId,
     createdAt,
@@ -6304,7 +6311,7 @@ function workflowValidator(requiredKeys = []) {
 function workflowExecution({ operationId, counter, pushUi = false, store, requireClient = false } = {}) {
   if (pushUi) {
     const gameplay = createGameplayBridgeOperation({
-      assembleSpec: buildBuildSpecFromSummary,
+      assembleSpec: (args) => buildBuildSpecFromSummary({ roomGeometry: configuratorRoomGeometry, ...args }),
       compile: compileBuildSpecToGameplayBundle,
       requireClient,
       onBundle: store ? async (bundle) => { await store.writeArtifact("bundle.json", bundle); } : undefined,

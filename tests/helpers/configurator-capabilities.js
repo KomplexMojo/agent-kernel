@@ -22,6 +22,7 @@ const CONFIGURATOR_PERSONA = pathToFileURL(
 const CAPABILITY_CLOCK = () => "2026-08-04T00:00:00.000Z";
 
 let cached = null;
+let roomGeometry = null;
 
 /** `{ deriveRoomLayout, authorCandidates, normalizeMotivations }` from a real Configurator. */
 async function configuratorCapabilities() {
@@ -42,7 +43,29 @@ async function configuratorNormalizeMotivations() {
   return (await configuratorCapabilities()).normalizeMotivations;
 }
 
+/**
+ * `{ deriveRoomLayout, buildRoomDesign }` — what the DIRECTOR needs to resolve a card set
+ * containing room cards (D8.3).
+ *
+ * Same rule as everything else here: tests wire what production wires. `ui-flow.js`,
+ * `card-authoring.js`, `ak-impl.mjs` and the Director persona itself all build this exact
+ * pair off `createConfiguratorPersona`, so a test that hand-rolled a stub would be the
+ * second author of room geometry that `DirectorRoomGeometryError` exists to prevent.
+ */
+async function configuratorRoomGeometry() {
+  if (!roomGeometry) {
+    const { createConfiguratorPersona } = await import(CONFIGURATOR_PERSONA);
+    const configurator = createConfiguratorPersona({ clock: CAPABILITY_CLOCK });
+    roomGeometry = Object.freeze({
+      deriveRoomLayout: configurator.deriveRoomLayout,
+      buildRoomDesign: configurator.buildRoomDesign,
+    });
+  }
+  return roomGeometry;
+}
+
 module.exports = {
   configuratorCapabilities,
   configuratorNormalizeMotivations,
+  configuratorRoomGeometry,
 };

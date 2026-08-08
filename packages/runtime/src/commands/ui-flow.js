@@ -2,6 +2,17 @@ import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assemb
 import { enforceBudget } from "../personas/director/budget-enforcer.js";
 import { deriveAllowedOptionsFromCatalog } from "../personas/orchestrator/prompt-contract.js";
 import { beginDirectorRound } from "./director-round.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
+
+// D8.3 — the Director refuses to derive level geometry from room cards; it asks the
+// Configurator. The PUBLIC persona barrel, so this glue crosses no boundary. UNUSED_CLOCK
+// because neither method stamps a timestamp: they read a card set and return geometry.
+const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+const configuratorRoomGeometry = Object.freeze({
+  deriveRoomLayout: configurator.deriveRoomLayout,
+  buildRoomDesign: configurator.buildRoomDesign,
+});
 
 function cloneJson(value) {
   if (value === undefined) return undefined;
@@ -118,6 +129,7 @@ export function buildSpecFromSummaryFlow({
   const built = buildBuildSpecFromSummary({
     summary,
     catalog,
+    roomGeometry: configuratorRoomGeometry,
     selections,
     runId,
     source,
