@@ -301,5 +301,6 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     resolveTileCosts: services.resolveTileCosts,
     allocateBudget: services.allocateBudget,
     evaluateSelectionSpend: services.evaluateSelectionSpend,
+    fitLayoutToBudget: services.fitLayoutToBudget,
   };
 }

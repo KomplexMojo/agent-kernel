@@ -124,6 +124,7 @@ Director asks the Allocator:
 | `resolveTileCosts({ priceList })` | per-tile layout costs |
 | `allocateBudget({ budgetTokens, priceList, poolWeights, … })` | the budget split into pools |
 | `evaluateSelectionSpend({ selections, budgetTokens, priceList, normalizeMotivations })` | which selections the remaining budget admits |
+| `fitLayoutToBudget({ layout, remainingBudgetTokens, priceList, layoutCosts })` | a revised layout that fits the budget (CR.4 M5b.2c) |
 
 Three properties are load-bearing, not incidental:
 

@@ -286,9 +286,31 @@ touching the ledger. Each defaults `priceList` from the persona via `withPersona
 explicit per-call price list wins and `priceList: undefined` cannot clobber the persona's own — the
 CR.9 M5 precedence lesson, and the reason a mispriced build would otherwise be invisible.
 
-⚠️ **Still inline in the loop, deliberately:** the auto-fit search (6 `evaluateLayoutSpend` calls in a
-revision loop). It is its own milestone — rewriting a revision loop in the same diff as straightforward
-threading is how a search quietly changes what it converges on.
+#### The auto-fit search: revising a layout to fit a budget (CR.4 M5b.2c)
+
+`layout-fit.js` — `fitLayoutToBudget({ layout, remainingBudgetTokens, priceList, layoutCosts })`,
+published as `allocator.fitLayoutToBudget` and reached through `director.fitLayoutToBudget`.
+
+It lived in `llm-budget-loop.js` until 2026-08-08. **Threading its six `evaluateLayoutSpend` calls
+would have missed the point:** its helpers `pickCheapestField` and `selectReductionField` chose which
+tile to drop *by that tile's price*. Calling pricing is one thing; **deciding what a token is best
+spent on is this persona's job**, and that decision was executing inside the Orchestrator.
+
+The search: price the layout → if it fits, accept unchanged → otherwise scale all tile counts
+proportionally, then reduce the most expensive field one tile at a time until it fits (guarded), then
+guarantee at least one walkable tile, buying it back by reducing elsewhere if needed.
+
+⚠️ **It moved verbatim, and `tests/personas/allocator/allocator-layout-fit.test.js` is why that is
+checkable.** A revision loop is the easiest thing here to break silently: a flipped tie-break or a
+changed rounding still returns a well-formed layout, still under budget, just a *different* one — no
+schema, guard or golden would report it. The test replays **660 cases** captured from the pre-move
+implementation, and both of those perturbations were confirmed to fail it. **If a case fails, do not
+re-record the fixture** — that deletes the only evidence the search still converges where it did.
+
+⚠️ **The `llm-budget-loop.js → layout-spend.js` allowlist row SURVIVES this milestone.** The loop still
+imports `normalizeLayoutCounts` / `sumLayoutTiles` (layout *vocabulary*, arguably not this persona's at
+all) and makes two remaining `evaluateLayoutSpend` calls that validate an LLM-proposed layout. Those
+are separate, unclaimed work — recorded here rather than left to be rediscovered.
 
 ---
 

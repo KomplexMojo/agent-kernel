@@ -10,14 +10,18 @@ import { deriveLevelGen } from "../director/buildspec-assembler.js";
 import { buildCardSetFromSummary } from "../director/summary-selections.js";
 import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
 import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
-// CR.4 M5b.2b: `resolveLayoutTileCosts`, `buildBudgetAllocation` and `evaluateSelectionSpend`
-// are GONE from this file — they are Allocator decisions, now asked of the Director.
-// What remains is the auto-fit search (6 `evaluateLayoutSpend` calls in a revision loop),
-// which is deliberately its own milestone: rewriting a revision loop blind, in the same
-// diff as straightforward threading, is how a search silently changes what it converges on.
+// CR.4 M5b.2b/M5b.2c: `resolveLayoutTileCosts`, `buildBudgetAllocation`,
+// `evaluateSelectionSpend` and the whole auto-fit search are GONE from this file — they are
+// Allocator decisions, now asked of the Director.
+//
+// ⚠️ THIS IMPORT SURVIVES, AND THE ALLOWLIST ROW WITH IT. What is left is not pricing policy
+// but layout VOCABULARY (`normalizeLayoutCounts`, `sumLayoutTiles`) plus two remaining
+// `evaluateLayoutSpend` calls that validate an LLM-proposed layout against the budget. Those
+// two are simple threading and could go the same way; the vocabulary is a separate question
+// — it may belong in a shared layout module rather than inside the Allocator at all.
+// Deliberately NOT folded into this milestone: "the auto-fit search" was the scope.
 import {
   evaluateLayoutSpend,
-  LAYOUT_TILE_FIELDS,
   normalizeLayoutCounts,
   sumLayoutTiles,
 } from "../allocator/layout-spend.js";
@@ -439,172 +443,6 @@ function validateLayoutSummary({ summary, remainingBudgetTokens, priceList, layo
   return { ok: errors.length === 0, errors, layout, spend };
 }
 
-function isWalkableField(field) {
-  return field === "floorTiles" || field === "hallwayTiles";
-}
-
-function resolveTileCost(costs, field) {
-  const value = costs && Number.isInteger(costs[field]) && costs[field] > 0 ? costs[field] : 1;
-  return value;
-}
-
-function pickCheapestField({ costs, fields, budgetTokens }) {
-  if (!Array.isArray(fields) || fields.length === 0) return null;
-  const affordable = Number.isInteger(budgetTokens)
-    ? fields.filter((field) => resolveTileCost(costs, field) <= budgetTokens)
-    : fields.slice();
-  const pool = affordable.length > 0 ? affordable : fields;
-  return pool.reduce((best, field) => {
-    if (!best) return field;
-    const currentCost = resolveTileCost(costs, field);
-    const bestCost = resolveTileCost(costs, best);
-    if (currentCost < bestCost) return field;
-    return best;
-  }, null);
-}
-
-function selectReductionField(layout, costs) {
-  const fieldsWithTiles = LAYOUT_TILE_FIELDS.filter((field) => Number.isInteger(layout?.[field]) && layout[field] > 0);
-  if (fieldsWithTiles.length === 0) return null;
-  const walkableTiles = (layout.floorTiles || 0) + (layout.hallwayTiles || 0);
-  const safeCandidates = fieldsWithTiles.filter((field) => {
-    if (!isWalkableField(field)) return true;
-    return walkableTiles > 1;
-  });
-  const pool = safeCandidates.length > 0 ? safeCandidates : fieldsWithTiles;
-  return pool.reduce((best, field) => {
-    if (!best) return field;
-    const currentCost = resolveTileCost(costs, field);
-    const bestCost = resolveTileCost(costs, best);
-    if (currentCost > bestCost) return field;
-    if (currentCost < bestCost) return best;
-    return layout[field] > layout[best] ? field : best;
-  }, null);
-}
-
-function fitLayoutToBudget({
-  layout,
-  remainingBudgetTokens,
-  priceList,
-  layoutCosts,
-} = {}) {
-  if (!Number.isInteger(remainingBudgetTokens) || remainingBudgetTokens < 0) {
-    return { ok: false };
-  }
-  const normalized = normalizeLayoutCounts(layout);
-  if (!normalized) {
-    return { ok: false };
-  }
-
-  let working = { ...normalized };
-  let spend = evaluateLayoutSpend({
-    layout: working,
-    budgetTokens: remainingBudgetTokens,
-    priceList,
-    tileCosts: layoutCosts,
-  });
-  if (!spend.overBudget && sumLayoutTiles(working) > 0) {
-    return { ok: true, layout: spend.layout || working, layoutSpend: spend, adjusted: false };
-  }
-
-  const costs = spend.tileCosts || layoutCosts || {};
-  const originalSpent = spend.spentTokens;
-  const scale = originalSpent > 0 ? remainingBudgetTokens / originalSpent : 0;
-  if (scale > 0 && scale < 1) {
-    LAYOUT_TILE_FIELDS.forEach((field) => {
-      const count = Number.isInteger(working[field]) ? working[field] : 0;
-      working[field] = Math.max(0, Math.floor(count * scale));
-    });
-  }
-
-  const cheapestWalkableField = pickCheapestField({
-    costs,
-    fields: ["floorTiles", "hallwayTiles"],
-    budgetTokens: remainingBudgetTokens,
-  });
-  const cheapestAnyField = pickCheapestField({
-    costs,
-    fields: LAYOUT_TILE_FIELDS,
-    budgetTokens: remainingBudgetTokens,
-  });
-  const ensureNonEmpty = () => {
-    if (sumLayoutTiles(working) > 0) return;
-    if (cheapestAnyField) {
-      working[cheapestAnyField] = (working[cheapestAnyField] || 0) + 1;
-    }
-  };
-
-  ensureNonEmpty();
-  spend = evaluateLayoutSpend({
-    layout: working,
-    budgetTokens: remainingBudgetTokens,
-    priceList,
-    tileCosts: layoutCosts,
-  });
-
-  let guard = 0;
-  const maxGuard = Math.max(100, sumLayoutTiles(working) * 2 + 10);
-  while (spend.overBudget && guard < maxGuard) {
-    const field = selectReductionField(working, costs);
-    if (!field) break;
-    working[field] -= 1;
-    if (working[field] < 0) working[field] = 0;
-    ensureNonEmpty();
-    spend = evaluateLayoutSpend({
-      layout: working,
-      budgetTokens: remainingBudgetTokens,
-      priceList,
-      tileCosts: layoutCosts,
-    });
-    guard += 1;
-  }
-
-  const walkableTiles = (working.floorTiles || 0) + (working.hallwayTiles || 0);
-  if (walkableTiles <= 0 && cheapestWalkableField) {
-    const walkableCost = resolveTileCost(costs, cheapestWalkableField);
-    while (spend.spentTokens + walkableCost > remainingBudgetTokens) {
-      const field = selectReductionField(working, costs);
-      if (!field) break;
-      working[field] -= 1;
-      if (working[field] < 0) working[field] = 0;
-      spend = evaluateLayoutSpend({
-        layout: working,
-        budgetTokens: remainingBudgetTokens,
-        priceList,
-        tileCosts: layoutCosts,
-      });
-    }
-    if (spend.spentTokens + walkableCost <= remainingBudgetTokens) {
-      working[cheapestWalkableField] = (working[cheapestWalkableField] || 0) + 1;
-      spend = evaluateLayoutSpend({
-        layout: working,
-        budgetTokens: remainingBudgetTokens,
-        priceList,
-        tileCosts: layoutCosts,
-      });
-    }
-  }
-
-  if (spend.overBudget || sumLayoutTiles(working) <= 0) {
-    return { ok: false };
-  }
-  return { ok: true, layout: spend.layout || working, layoutSpend: spend, adjusted: true };
-}
-
-function fitLayoutToPhaseConstraints({
-  layout,
-  remainingBudgetTokens,
-  priceList,
-  layoutCosts,
-} = {}) {
-  return fitLayoutToBudget({
-    layout,
-    remainingBudgetTokens,
-    priceList,
-    layoutCosts,
-  });
-}
-
 async function runPhase({
   adapter,
   model,
@@ -639,6 +477,7 @@ async function runPhase({
   // CR.4 M5b.2a′: mapping an LLM summary onto catalog pools is the DIRECTOR's decision.
   // runPhase serves both phases, so all four mapping sites migrate together.
   mapPool,
+  fitLayout,
 } = {}) {
   const startedAt = typeof clock === "function" ? clock() : undefined;
   const startMs = startedAt ? Date.parse(startedAt) : NaN;
@@ -723,7 +562,7 @@ async function runPhase({
     layoutSpend = layoutValidation.spend;
     validation = { ok: layoutValidation.ok, errors: layoutValidation.errors || [], missingSelections: [] };
     if (!validation.ok && !strict) {
-      const fitted = fitLayoutToBudget({
+      const fitted = fitLayout({
         layout: layoutPlan,
         remainingBudgetTokens,
         priceList,
@@ -802,7 +641,7 @@ async function runPhase({
   }
 
   if (phase === "layout_only" && !strict) {
-    const recovered = fitLayoutToPhaseConstraints({
+    const recovered = fitLayout({
       layout: layoutPlan || phaseSummary?.layout,
       remainingBudgetTokens,
       priceList,
@@ -940,7 +779,7 @@ async function runPhase({
     repairLayoutSpend = layoutValidation.spend;
     repairValidation = { ok: layoutValidation.ok, errors: layoutValidation.errors || [], missingSelections: [] };
     if (!repairValidation.ok && !strict) {
-      const fitted = fitLayoutToBudget({
+      const fitted = fitLayout({
         layout: repairLayoutPlan,
         remainingBudgetTokens,
         priceList,
@@ -1184,6 +1023,18 @@ export async function runLlmBudgetLoop({
   resolveTileCosts,
   allocateBudget,
   evaluateSelectionSpend,
+  // CR.4 M5b.2c: the auto-fit search — revise an over-budget layout until it fits. It lived
+  // here as ~150 lines until 2026-08-08, and it was never merely a caller of Allocator
+  // pricing: its reduction policy chose which tile to drop BY THAT TILE'S COST. Deciding
+  // what a token is best spent on is the Allocator's, so the whole search moved there
+  // (`allocator/layout-fit.js`) and the loop asks the Director for a fitted layout.
+  //
+  // REQUIRED, no default, like its four siblings. A fallback to a local copy would be worse
+  // here than anywhere else in this file: a drifted search still returns a well-formed
+  // layout that is still under budget — just a different one — so nothing downstream could
+  // tell. `tests/personas/allocator/allocator-layout-fit.test.js` pins 660 cases for exactly
+  // that reason.
+  fitLayout,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
@@ -1225,6 +1076,13 @@ export async function runLlmBudgetLoop({
     return {
       ok: false,
       errors: [{ field: "evaluateSelectionSpend", code: "missing_selection_spend_evaluator" }],
+      captures: [],
+    };
+  }
+  if (typeof fitLayout !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "fitLayout", code: "missing_layout_fitter" }],
       captures: [],
     };
   }
@@ -1309,6 +1167,7 @@ export async function runLlmBudgetLoop({
   const layoutPhase = await runPhase({
     runSession,
     mapPool,
+    fitLayout,
     adapter,
     model,
     baseUrl,
@@ -1401,6 +1260,7 @@ export async function runLlmBudgetLoop({
     const actorsPhase = await runPhase({
     runSession,
     mapPool,
+    fitLayout,
       adapter,
       model,
       baseUrl,

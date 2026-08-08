@@ -64,5 +64,6 @@ export function beginDirectorBuildCapabilities(options = {}) {
     resolveTileCosts: director.resolveTileCosts,
     allocateBudget: director.allocateBudget,
     evaluateSelectionSpend: director.evaluateSelectionSpend,
+    fitLayout: director.fitLayoutToBudget,
   };
 }

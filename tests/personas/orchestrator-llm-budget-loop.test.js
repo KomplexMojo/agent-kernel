@@ -547,3 +547,20 @@ test("the loop REFUSES to run without an Allocator selection-spend evaluator", a
   assert.equal(result.errors[0].code, "missing_selection_spend_evaluator");
   assert.deepEqual(result.captures, [], "it must refuse before any LLM request is made");
 });
+
+test("the loop REFUSES to run without an Allocator layout fitter", async () => {
+  const { runLlmBudgetLoop } = await import(
+    "../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
+  );
+  const capabilities = await directorBuildCapabilities();
+  const result = await runLlmBudgetLoop({
+    budgetTokens: 5000,
+    runSession: await hostedSessionRunner(),
+    ...capabilities,
+    fitLayout: undefined, // deliberately absent
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors[0].code, "missing_layout_fitter");
+  assert.deepEqual(result.captures, [], "it must refuse before any LLM request is made");
+});

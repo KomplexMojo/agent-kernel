@@ -141,6 +141,9 @@ export function createAllocatorPersona({
     resolveTileCosts: services.resolveTileCosts,
     allocateBudget: services.allocateBudget,
     evaluateSelectionSpend: services.evaluateSelectionSpend,
+    // CR.4 M5b.2c — the auto-fit search. Its reduction policy spends by price, which is why
+    // it is the Allocator's and not the loop's.
+    fitLayoutToBudget: services.fitLayoutToBudget,
     // CR.6 — budget admissibility of Actor proposals. Stateless, like the pricing
     // surface: it judges the proposals it is handed against the budget it is
     // handed. Published here so the runner can apply it without importing

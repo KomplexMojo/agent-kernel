@@ -123,6 +123,16 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock, createAllo
     return createAllocator({ priceList: args.priceList }).allocateBudget(args);
   }
 
+  // CR.4 M5b.2c — the auto-fit search, relayed like the three above. This one is not a
+  // lookup but a REVISION: it hands back a different layout from the one it was given, so
+  // the Director must be in a planned state for the same reason `mapPool` must — the
+  // revised layout is a build artifact, and a build artifact needs a round.
+  function fitLayoutToBudget(args = {}) {
+    requireState(PLANNED_STATES, "fit a layout to a budget");
+    requireAllocator("fit a layout to a budget");
+    return createAllocator({ priceList: args.priceList }).fitLayoutToBudget(args);
+  }
+
   // `normalizeMotivations` is Configurator law, threaded from the composition root through
   // the loop (CR.9 M3). It is forwarded to the Allocator rather than restated here.
   function evaluateSelectionSpend(args = {}) {
@@ -169,6 +179,7 @@ export function attachDirectorServices({ fsm, advanceWithPlan, clock, createAllo
     resolveTileCosts,
     allocateBudget,
     evaluateSelectionSpend,
+    fitLayoutToBudget,
     serviceContext,
   };
 }

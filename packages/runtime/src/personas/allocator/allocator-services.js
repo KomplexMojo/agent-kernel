@@ -31,6 +31,7 @@ import {
   REFERENCE_BUDGET_TOKENS,
 } from "./budget-allocation.js";
 import { evaluateSelectionSpend } from "./selection-spend.js";
+import { fitLayoutToBudget } from "./layout-fit.js";
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 
 export class AllocatorStateError extends Error {
@@ -235,6 +236,13 @@ export function attachAllocatorServices({
     return buildBudgetAllocation(withPersonaDefaults(args, { priceList: getPriceList() }));
   }
 
+  // CR.4 M5b.2c — the auto-fit search: revise a layout until it fits the budget. It is here
+  // rather than in the Orchestrator because it does not merely CALL pricing, it applies it —
+  // its reduction policy picks which tile to drop by that tile's cost.
+  function boundFitLayoutToBudget(args = {}) {
+    return fitLayoutToBudget(withPersonaDefaults(args, { priceList: getPriceList() }));
+  }
+
   // Also defaults the injected Configurator motivation vocabulary (CR.9 M3): selection
   // spend prices raw actor motivations, and the vocabulary is Configurator law that this
   // persona must not restate.
@@ -298,6 +306,7 @@ export function attachAllocatorServices({
     resolveTileCosts,
     allocateBudget,
     evaluateSelectionSpend: boundEvaluateSelectionSpend,
+    fitLayoutToBudget: boundFitLayoutToBudget,
     serviceContext,
   };
 }
