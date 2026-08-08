@@ -133,12 +133,14 @@ pnpm run serve:ui                                     # UI dev server :8001
 pnpm run demo:cli                                     # CLI demo
 ```
 
-**Content-gen benchmark** — permutation + stress testing of the LLM tool-call surface (separate from correctness tests). Runs 50 scenarios against the remote GPU node via the dual profile.
+**Content-gen benchmark** — permutation + stress testing of the LLM tool-call surface (separate from correctness tests). Runs **64 scenarios** (simple 9 · affinity 21 · complex 21 · constrained 13) against the remote GPU node via the dual profile. The count is loaded from the VAULT (`ak-scenarios.js` → `loadScenarios`), not the repo, so it can change without a repo diff — re-count before quoting it.
 
 ```bash
-node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen --profiles dual --runs 3 --route external   # 3-run baseline (≈10 min)
-#                                                                            --runs 1 --route external   # quick smoke
+node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen --profiles dual --runs 3   # 3-run baseline: 64 × 3 = 192 runs, ≈30-40 min
+#                                                                            --runs 1   # quick smoke (64 runs)
 #                                                                            --scenario-ids 27,29,30 --runs 3   # narrow re-run
+#   Route defaults to `auto` (probes, prefers internal). Do NOT force `--route external` on the LAN:
+#   it cannot hairpin and the DDNS name goes stale. A timeout has never once meant a down box.
 #                                                                            --dry-run                   # verify loading, no GPU
 ```
 

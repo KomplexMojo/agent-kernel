@@ -84,7 +84,7 @@ so anyone following them would have edited a re-export shim and their change wou
 
 **Tests vs. benchmarks:**
 - **Tests** (`pnpm run test`) — deterministic correctness: does the code behave as specified? Vitest, fixture-backed, no external services.
-- **Benchmarks** (`run-content-gen`) — LLM tool-call surface under load: does the model produce valid tool calls for all 50 scenario permutations across tiers? Runs on the remote GPU node; measures exec success rate and scenario score. Not a substitute for tests and not run on every commit — only when the `ak_create` schema, CLI arg mapping, or entity normalization changes.
+- **Benchmarks** (`run-content-gen`) — LLM tool-call surface under load: does the model produce valid tool calls for all 64 scenario permutations across tiers? Runs on the remote GPU node; measures exec success rate and scenario score. Not a substitute for tests and not run on every commit — only when the `ak_create` schema, CLI arg mapping, or entity normalization changes.
 
 ## Serena — shared structural code understanding
 
@@ -255,7 +255,7 @@ Benchmarking is distinct from testing. Tests verify correctness; benchmarks veri
 
 - **Harness:** `tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen`
 - **Model:** qwen3-coder:30b-a3b-q4_K_M on the remote GPU node (`--route external`)
-- **Coverage:** 50 scenarios across simple / affinity / complex tiers; 1500–10000 token budgets
+- **Coverage:** 64 scenarios across simple (9) / affinity (21) / complex (21) / constrained (13) tiers; 1500–10000 token budgets. Scenarios load from the vault, not the repo — count them with `loadScenarios()` rather than quoting this line.
 - **Pass bar:** ≥ 99 % exec ok, avg score ≥ 75; flag regressions in PR description
 - **Gate:** run before merging any change to the `ak_create` tool schema, `buildArgv`, entity normalization, or CLI arg mapping. No need to run for pure runtime/persona/core changes.
 - **Results:** saved in `tools/remote-ollama-control/results/<timestamp>-content-gen/summary.md` — not committed
