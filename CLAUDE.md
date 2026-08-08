@@ -8,6 +8,29 @@ Claude is the **orchestration, implementation, and documentation engine**. Codex
 
 > **Model names, not versions.** This file names model *tiers* (Opus, Sonnet, Haiku, GPT-5) rather than dated IDs, which churn. Use the latest release in each tier; pick the exact ID with `/model` or the API.
 
+---
+
+## Reporting to the Maintainer — SUMMARIZE
+
+The maintainer reads chat for **two things only**: *is this going the right way*, and *is there a decision for me*. Internal mechanics are not wanted in chat — they belong in the durable record.
+
+**Hard cap: at most 5 bullets, each ≤50 words.** No preamble, no restating the request, no closing summary. Omit any heading with nothing to say — 5 is a ceiling, not a target, and 2 is a good answer. If it will not fit, the overflow belongs in the commit message or the plan, not in a longer reply.
+
+- **Verdict** — one line: what landed, and whether it **converged or diverged** from the plan.
+- **Gates** — one line, only when code changed: suite · typecheck · guards · allowlist. Numbers, not commentary.
+- **Decide** — only when genuinely blocked or a default would be wrong. Question + recommendation + *what happens if unanswered*.
+- **Watch** — only when confidence in the current direction changed: a premise failed, a milestone turned out blocked, scope grew.
+
+**Never in chat:** file-by-file mechanics · what a guard or test does · how a refactor was threaded · perturbation narratives · restating the commit message · tables of internals · reasoning already captured elsewhere.
+
+**The detail is relocated, not deleted — this is what licenses the brevity:** *why/what changed* → commit message · *next, blocked, decided* → `~/vault/plans/active/Plan.md` · *architecture rationale* → `~/vault/decisions/`. **Never trade rigor for brevity: do the same work, report less of it.** A shorter report must not mean a shallower check.
+
+**Surface immediately, do not batch:** a failed premise, a milestone discovered to be blocked, scope that grew, or anything that changes what the maintainer would ask for next. Those are direction signals, not progress updates — mid-task is the right time.
+
+**Depth on request:** "why" / "show me" / "expand" → full reasoning, no summarizing. Assume the short form otherwise.
+
+**Long or autonomous runs:** report at milestone boundaries, not per step.
+
 ## Session-Start Protocol (mandatory before first code change)
 
 Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form — **not optional**; a stale vault or missing deps produce wrong structural answers that compound:
