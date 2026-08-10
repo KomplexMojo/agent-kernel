@@ -1957,6 +1957,7 @@ export function createCommandKernel(host = {}) {
         // round, and this root already has one. A second round for the same build is the
         // defect the gate exists to catch, not a convenience.
         mapPool: director.mapPool,
+        buildCardSet: director.buildCardSet,
         resolveTileCosts: director.resolveTileCosts,
         allocateBudget: director.allocateBudget,
         evaluateSelectionSpend: director.evaluateSelectionSpend,

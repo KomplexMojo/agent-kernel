@@ -7,7 +7,6 @@ import {
 } from "./prompt-contract.js";
 import { requireClock } from "../_shared/require-clock.js";
 import { deriveLevelGen } from "../director/buildspec-assembler.js";
-import { buildCardSetFromSummary } from "../director/summary-selections.js";
 import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
 import { normalizePoolCatalog } from "../../contracts/pool-catalog.js";
 // CR.4 M5b.2b/M5b.2c/M5b.2d: `resolveLayoutTileCosts`, `buildBudgetAllocation`,
@@ -1055,6 +1054,14 @@ export async function runLlmBudgetLoop({
   // Allocator would have judged over budget, so the build would proceed and every artifact
   // downstream would look correct.
   evaluateLayoutSpend,
+  // CR.4 M5b.2e: `summary.cardSet` is the DIRECTOR's translation, not the loop's. The loop
+  // stamped it by importing `director/summary-selections.js` and calling
+  // `buildCardSetFromSummary` directly — a persona producing another persona's artifact.
+  //
+  // REQUIRED, no default. The failure mode of a fallback here is quieter than the pricing
+  // ones: an un-normalized cardSet is still a well-formed array, so it serializes, replays
+  // and renders — it just carries the wrong affinity defaults.
+  buildCardSet,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
@@ -1110,6 +1117,13 @@ export async function runLlmBudgetLoop({
     return {
       ok: false,
       errors: [{ field: "evaluateLayoutSpend", code: "missing_layout_spend_evaluator" }],
+      captures: [],
+    };
+  }
+  if (typeof buildCardSet !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "buildCardSet", code: "missing_card_set_builder" }],
       captures: [],
     };
   }
@@ -1391,7 +1405,7 @@ export async function runLlmBudgetLoop({
   if (stopReason) {
     summary.stop = stopReason;
   }
-  summary.cardSet = buildCardSetFromSummary(summary);
+  summary.cardSet = buildCardSet(summary);
 
   return {
     ok: true,

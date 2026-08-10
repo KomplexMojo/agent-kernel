@@ -111,6 +111,25 @@ The Director:
 - **Does not** assemble configurations (Configurator).
 - **Does not** influence execution or observe outcomes (Annotator).
 
+### `buildCardSet` — the Director's own translation, not a relay (CR.4 M5b.2e)
+
+`buildCardSet(summary)` turns an LLM summary into a normalized card set: bare `affinity: "wind"`
+becomes the structured `affinities`/`expressions` pair, actors become `warden` cards with generated
+ids, `setupMode` defaults. That is intent translation — the same law `mapPool` applies — so unlike the
+pricing methods below it asks no other persona. The Orchestrator's budget loop used to do it by
+importing `summary-selections.js` directly.
+
+**Gated on `PLANNED_STATES`,** because the card set is returned on the loop's summary and reaches a
+persisted BuildSpec: producing one with no round open is the "artifact produced with no round"
+defect. Contrast `deriveLevelGen`, which is deliberately ungated — it previews from inputs the caller
+already holds and issues nothing.
+
+⚠️ **Two things here were proven only by perturbation, and both had passed every other check.** The
+state gate was a *label* — deleting it left the whole suite green, because every caller passes an open
+round. And `summary.cardSet` had **no coverage at all**: returning a sentinel array instead of the
+real normalization passed 2845 tests. Both now have tests. *Required and used is not the same as
+verified.*
+
 ### It relays the Allocator's pricing answers; it does not compute them (CR.4 M5b.2b)
 
 The Orchestrator's `runLlmBudgetLoop` used to price a build by importing three Allocator internals

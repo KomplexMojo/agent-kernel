@@ -64,6 +64,7 @@ export function beginDirectorBuildCapabilities(options = {}) {
   const director = beginDirectorRound(options);
   return {
     mapPool: director.mapPool,
+    buildCardSet: director.buildCardSet,
     resolveTileCosts: director.resolveTileCosts,
     allocateBudget: director.allocateBudget,
     evaluateSelectionSpend: director.evaluateSelectionSpend,

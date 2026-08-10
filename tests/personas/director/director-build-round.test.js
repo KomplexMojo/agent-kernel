@@ -62,6 +62,13 @@ test("translation REFUSES before a build begins — the state gates real behavio
     () => d.evaluateLayoutSpend({ layout: { floorTiles: 1 }, budgetTokens: 100 }),
     (e) => e.code === "director_state",
   );
+  // CR.4 M5b.2e. This assertion is here because the perturbation said so: with the gate
+  // deleted the whole suite stayed green, so `buildCardSet`'s `requireState` was a label.
+  // Every caller passes an open round, which is exactly what leaves a gate unexercised.
+  assert.throws(
+    () => d.buildCardSet({ actors: [] }),
+    (e) => e.code === "director_state",
+  );
   assert.equal(d.view().state, "uninitialized", "a refusal does not move the FSM");
 });
 

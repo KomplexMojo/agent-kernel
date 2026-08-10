@@ -114,6 +114,32 @@ assert.equal(result.stopReason, "done");
 assert.ok(result.trace[0].startedAt);
 assert.ok(result.trace[0].endedAt);
 assert.equal(typeof result.trace[0].durationMs, "number");
+
+// ═══ CR.4 M5b.2e — `summary.cardSet` was WHOLLY UNCOVERED until this assertion ═══
+// The threading perturbation is what found it: with `director.buildCardSet` returning
+// `[{ id: "PERTURBED", type: "sentinel" }]` instead of the real normalization, the FULL
+// suite still passed — 2845 tests, zero failures. A cardSet is a build artifact that
+// serializes into the run and drives rendering, so a silently wrong one ships looking
+// well-formed. "Required and used" is not the same as "verified", and only a perturbation
+// tells the two apart.
+//
+// Pinned here is what the Director's normalization ADDS over the raw LLM summary: the
+// actor becomes a `warden` card with a generated id, its bare `affinity: "wind"` is
+// expanded into the structured `affinities`/`expressions` pair, and `setupMode` defaults.
+// None of that is in the response the adapter returned.
+const [wardenCard, ...extraCards] = result.summary.cardSet;
+assert.deepEqual(extraCards, [], "one actor in, one card out");
+assert.equal(wardenCard.id, "card_warden_1");
+assert.equal(wardenCard.type, "warden");
+assert.equal(wardenCard.source, "actor");
+assert.equal(wardenCard.count, 1);
+assert.equal(wardenCard.affinity, "wind");
+assert.deepEqual(wardenCard.affinities, [{ kind: "wind", expression: "push", stacks: 1 }]);
+assert.deepEqual(wardenCard.expressions, ["push"]);
+assert.deepEqual(wardenCard.motivations, ["patrolling"]);
+assert.equal(wardenCard.setupMode, "auto");
+assert.equal(wardenCard.flipped, false);
+assert.deepEqual(wardenCard.vitals, ambulatoryVitals);
 });
 
 
@@ -562,6 +588,23 @@ test("the loop REFUSES to run without an Allocator layout fitter", async () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.errors[0].code, "missing_layout_fitter");
+  assert.deepEqual(result.captures, [], "it must refuse before any LLM request is made");
+});
+
+test("the loop REFUSES to run without a Director card-set builder", async () => {
+  const { runLlmBudgetLoop } = await import(
+    "../../packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
+  );
+  const capabilities = await directorBuildCapabilities();
+  const result = await runLlmBudgetLoop({
+    budgetTokens: 5000,
+    runSession: await hostedSessionRunner(),
+    ...capabilities,
+    buildCardSet: undefined, // deliberately absent
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors[0].code, "missing_card_set_builder");
   assert.deepEqual(result.captures, [], "it must refuse before any LLM request is made");
 });
 

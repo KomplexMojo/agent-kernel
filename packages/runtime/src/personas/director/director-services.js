@@ -22,6 +22,7 @@
  * drift.
  */
 import { buildBuildSpecFromSummary, deriveLevelGenFromSummary } from "./buildspec-assembler.js";
+import { buildCardSetFromSummary } from "./summary-selections.js";
 import { mapSummaryToPool } from "./pool-mapper.js";
 import { DirectorStates } from "./state-machine.js";
 
@@ -195,6 +196,25 @@ export function attachDirectorServices({
     }).evaluateSelectionSpend(args);
   }
 
+  /**
+   * CR.4 M5b.2e — summary → cardSet, the Director's own translation.
+   *
+   * The Orchestrator's budget loop stamped `summary.cardSet` itself by importing
+   * `summary-selections.js`. Unlike the pricing relays above, nothing is being asked of
+   * another persona here: turning an LLM summary into normalized cards (affinity defaults,
+   * per-kind card shapes) is Director translation law, the same law `mapPool` applies.
+   *
+   * GATED, and for the same reason `mapPool` is rather than for symmetry: the cardSet is
+   * returned on the loop's summary and reaches a persisted BuildSpec, so producing one with
+   * no build round open is the "artifact produced with no round" defect. Contrast
+   * `deriveLevelGen` two functions up, which is ungated because it is a preview a caller
+   * already holds the inputs for and it issues nothing.
+   */
+  function buildCardSet(summary) {
+    requireState(PLANNED_STATES, "build a card set");
+    return buildCardSetFromSummary(summary);
+  }
+
   function assembleBuildSpec(args = {}) {
     requireState(PLANNED_STATES, "assemble a build spec");
     // PX.3 (M6): the assembler stamps BuildSpec.meta.createdAt and now requires a clock.
@@ -229,6 +249,7 @@ export function attachDirectorServices({
     currentPlan,
     mapPool,
     deriveLevelGen,
+    buildCardSet,
     assembleBuildSpec,
     // CR.4 M5b.2b — Allocator answers, given on the budget loop's behalf.
     resolveTileCosts,
