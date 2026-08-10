@@ -70,5 +70,6 @@ export function beginDirectorBuildCapabilities(options = {}) {
     evaluateSelectionSpend: director.evaluateSelectionSpend,
     fitLayout: director.fitLayoutToBudget,
     evaluateLayoutSpend: director.evaluateLayoutSpend,
+    assessFeasibility: director.assessFeasibility,
   };
 }

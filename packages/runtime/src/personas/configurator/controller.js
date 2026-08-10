@@ -52,6 +52,9 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     lock: services.lock,
     lockedConfig: services.lockedConfig,
     deriveRoomLayout: services.deriveRoomLayout,
+    // CR.4 M5b.2f — layout feasibility, reached through the Director on the budget loop's
+    // behalf (Option 1: the loop's sole counterpart is the Director).
+    assessFeasibility: services.assessFeasibility,
     // D8.3 — the Director asks for room SHAPE instead of deriving it from card sizes itself.
     buildRoomDesign: services.buildRoomDesign,
     authorCandidates: services.authorCandidates,

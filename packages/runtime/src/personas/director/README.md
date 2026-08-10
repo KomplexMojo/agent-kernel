@@ -111,6 +111,29 @@ The Director:
 - **Does not** assemble configurations (Configurator).
 - **Does not** influence execution or observe outcomes (Annotator).
 
+### `assessFeasibility` — the Director derives, the Configurator judges (CR.4 M5b.2f)
+
+`assessFeasibility({ layout, roomCount, actorCount })` relays the Configurator's feasibility verdict,
+and the Director's own contribution is the **levelGen**: when the caller has no layout, the geometry a
+room count implies is intent translation, so it is derived here and the result is handed over. The
+Configurator deriving it would be the reverse edge D8.1 removed.
+
+Gated on `PLANNED_STATES` like the pricing relays — judging a build's layout against its actors before
+a round exists is the same "artifact produced with no round" defect. Refuses with
+`DirectorStateError` when no Configurator was injected, unlike `roomGeometry()` above, which returns
+`undefined` on purpose: feasibility cannot be answered at all without the Configurator, whereas room
+geometry is only needed for summaries that carry room cards.
+
+⚠️ **Two functions in `personas/director/` are named `deriveLevelGen` and they are not
+interchangeable** — `({ roomCount })` in `buildspec-assembler.js`, and `(summary)` published on this
+controller. This method uses the former; the import is aliased `deriveLevelGenFromRoomCount` so the
+call site says which. Nothing guards the name.
+
+⚠️ **`roomCount` is accepted and no caller supplies one.** Both budget-loop call sites pass a layout,
+so the no-layout path always derives from `undefined` and returns a two-error refusal. That is
+pre-existing behavior, captured in the characterization fixture and preserved deliberately — a latent
+defect to fix in its own diff, against the fixture.
+
 ### `buildCardSet` — the Director's own translation, not a relay (CR.4 M5b.2e)
 
 `buildCardSet(summary)` turns an LLM summary into a normalized card set: bare `affinity: "wind"`

@@ -6,18 +6,25 @@ import {
   deriveAllowedOptionsFromCatalog,
 } from "./prompt-contract.js";
 import { requireClock } from "../_shared/require-clock.js";
-import { deriveLevelGen } from "../director/buildspec-assembler.js";
-import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
 import { normalizePoolCatalog } from "../../contracts/pool-catalog.js";
-// CR.4 M5b.2b/M5b.2c/M5b.2d: `resolveLayoutTileCosts`, `buildBudgetAllocation`,
-// `evaluateSelectionSpend`, the whole auto-fit search and now `evaluateLayoutSpend` are GONE
-// from this file — they are Allocator decisions, asked of the Director.
+// ✅ CR.4 M5b IS COMPLETE HERE: THIS FILE IMPORTS NO OTHER PERSONA'S INTERNALS.
 //
-// ✅ THE `allocator/layout-spend.js` IMPORT IS GONE, AND ITS ALLOWLIST ROW WITH IT. That one
-// row outlived THREE separate fixes (M5b.2b's `resolveLayoutTileCosts`, M5b.2c's auto-fit
-// search, D8-V's layout vocabulary) because each time it was dispositioned as "absorbed by
-// finding X" while a different importer still stood behind it. A row's disposition describes
-// its current importer, not its remaining work.
+// What left, and by which milestone:
+//   M5b.2b  `resolveLayoutTileCosts` · `buildBudgetAllocation` · `evaluateSelectionSpend`
+//   M5b.2c  the whole auto-fit search            → `allocator/layout-fit.js`
+//   M5b.2d  `evaluateLayoutSpend`                → the last of the Allocator's pricing
+//   M5b.2e  `buildCardSetFromSummary`            → `director.buildCardSet`
+//   M5b.2f  `validateFeasibility`, THRESHOLD AND ALL → `configurator/feasibility.js`
+//
+// Every one of them is now a REQUIRED capability with no default, all asked of the DIRECTOR
+// (Option 1, maintainer 2026-08-07). What remains imported here is the Orchestrator's own
+// prompt contract and SHARED VOCABULARY from `contracts/` — which is not a crossing.
+//
+// The lesson this file paid for four times over: a boundary crossing is not fixed by moving
+// the import. `evaluateLayoutSpend`'s allowlist row survived three separate fixes because
+// each was dispositioned "absorbed by finding X" while a different importer still stood
+// behind it, and M5b.2f's threshold would have stayed here had only its two call sites been
+// threaded. **Ask what DECIDES, not what imports.**
 import {
   DOMAIN_CONSTRAINTS,
   LLM_REPAIR_TEXT,
@@ -29,7 +36,6 @@ import {
 } from "../../contracts/domain-constants.js";
 
 const DEFAULT_MAX_ACTOR_ROUNDS = 2;
-const MAX_EXACT_LAYOUT_FEASIBILITY_TILES = 1_000_000;
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -346,42 +352,6 @@ function snapActorsSummaryToCatalog({ summary, catalogEntries, remainingBudgetTo
     },
     changed: true,
   };
-}
-
-function validateFeasibility({ roomCount, actorCount, layout }) {
-  if (layout) {
-    const normalizationWarnings = [];
-    const normalizedLayout = normalizeLayoutCounts(layout, normalizationWarnings);
-    const hasInvalidCounts = normalizationWarnings.some((warning) => (
-      warning?.code === "invalid_layout" || warning?.code === "invalid_tile_count"
-    ));
-    const walkableTiles = sumLayoutTiles(normalizedLayout);
-    if (normalizedLayout && !hasInvalidCounts && walkableTiles > MAX_EXACT_LAYOUT_FEASIBILITY_TILES) {
-      const errors = [];
-      if (walkableTiles <= 0) {
-        errors.push({ field: "layout", code: "empty_layout" });
-      }
-      if (Number.isInteger(actorCount) && actorCount > 0) {
-        const floorTiles = normalizedLayout.floorTiles || 0;
-        if (floorTiles < actorCount) {
-          errors.push({
-            field: "actors",
-            code: "insufficient_floor_tiles",
-            detail: {
-              actorCount,
-              floorTiles,
-            },
-          });
-        }
-      }
-      return { ok: errors.length === 0, errors };
-    }
-    const result = validateLayoutCountsAndActors({ layout, actorCount });
-    return { ok: result.ok, errors: result.errors || [] };
-  }
-  const levelGen = deriveLevelGen({ roomCount });
-  const result = validateLayoutAndActors({ levelGen, actorCount });
-  return { ok: result.ok, errors: result.errors || [] };
 }
 
 function isAmbulatoryMotivation(motivation) {
@@ -1062,6 +1032,17 @@ export async function runLlmBudgetLoop({
   // ones: an un-normalized cardSet is still a well-formed array, so it serializes, replays
   // and renders — it just carries the wrong affinity defaults.
   buildCardSet,
+  // CR.4 M5b.2f: "can this level host these actors?" is CONFIGURATOR law, and the loop
+  // answered it inline — including a 1,000,000-tile threshold above which it substituted
+  // its OWN approximation of that law. Threading the two `validateLayout*` calls while
+  // leaving the threshold behind would have cleared both allowlist rows and moved no
+  // decision. The whole function went to `configurator/feasibility.js`; the Director
+  // derives the levelGen the no-layout path needs and relays the verdict.
+  //
+  // REQUIRED, no default. A stale local copy would answer with a different threshold and
+  // still return `{ ok, errors }` in the same shape — an infeasible level accepted, or a
+  // feasible one rejected, with nothing downstream able to tell which law ran.
+  assessFeasibility,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
@@ -1124,6 +1105,13 @@ export async function runLlmBudgetLoop({
     return {
       ok: false,
       errors: [{ field: "buildCardSet", code: "missing_card_set_builder" }],
+      captures: [],
+    };
+  }
+  if (typeof assessFeasibility !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "assessFeasibility", code: "missing_feasibility_assessor" }],
       captures: [],
     };
   }
@@ -1236,7 +1224,7 @@ export async function runLlmBudgetLoop({
     options: resolvePhaseLlmOptions({ phase: "layout_only", optionsByPhase }),
     extraValidator: ({ summary, layout }) => {
       const layoutPlan = layout || normalizeLayoutCounts(summary?.layout);
-      return validateFeasibility({ layout: layoutPlan, actorCount: 1 });
+      return assessFeasibility({ layout: layoutPlan, actorCount: 1 });
     },
   });
 
@@ -1333,7 +1321,7 @@ export async function runLlmBudgetLoop({
         const mobility = validateActorMobilityVitals(selections);
         const actorCount = countRequestedSelections(approvedActors, "actor")
           + countRequestedSelections(selections, "actor");
-        const feasibility = validateFeasibility({ layout: layoutPlan, actorCount });
+        const feasibility = assessFeasibility({ layout: layoutPlan, actorCount });
         return {
           ok: mobility.ok && feasibility.ok,
           errors: [...mobility.errors, ...(feasibility.errors || [])],

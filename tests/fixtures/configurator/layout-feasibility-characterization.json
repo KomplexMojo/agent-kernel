@@ -1,0 +1,3777 @@
+{
+  "note": "Captured from llm-budget-loop.js#validateFeasibility at commit 708a22c1 — the implementation as it stood BEFORE CR.4 M5b.2f moved it to the Configurator. If a case fails, DO NOT re-record: that deletes the only evidence the verdicts did not shift.",
+  "capturedAt": "2026-08-08",
+  "source": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js#validateFeasibility @708a22c1",
+  "thresholdTiles": 1000000,
+  "costNote": "Below-threshold layouts materialize a grid, so large ones cost ~3s each. The expensive cases are deliberately limited to the branch boundary rather than the full cross-product; the omission is stated here rather than left silent.",
+  "cases": [
+    {
+      "input": {
+        "layout": null
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 0,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 0,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 0,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 1,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 1,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 1,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 2,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 2,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 2,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 5,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 5,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 5,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 26,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 26,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 26,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 1000001,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 1000001,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": null,
+        "actorCount": 1000001,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 41
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {},
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 0,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 0,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 0,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 1,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 1,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 1,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 2,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 2,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 2,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 5,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 5,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 5,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 26,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 26,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 26,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "levelGen.width",
+              "code": "invalid_positive_int"
+            },
+            {
+              "field": "levelGen.height",
+              "code": "invalid_positive_int"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 1000001,
+        "roomCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 1000001,
+        "roomCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "actorCount": 1000001,
+        "roomCount": 3
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 41
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {}
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {},
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {},
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {},
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {},
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {},
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {},
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 0,
+          "hallwayTiles": 0
+        }
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 0,
+          "hallwayTiles": 0
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 0,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 0,
+          "hallwayTiles": 0
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 0,
+          "hallwayTiles": 0
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 0,
+          "hallwayTiles": 0
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 0,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1,
+          "hallwayTiles": 0
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1,
+          "hallwayTiles": 0
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1,
+          "hallwayTiles": 0
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 1
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1,
+          "hallwayTiles": 0
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 1
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1,
+          "hallwayTiles": 0
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 1
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 1
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 5,
+          "hallwayTiles": 0
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 5,
+          "hallwayTiles": 0
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 5,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 5,
+          "hallwayTiles": 0
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 5,
+          "hallwayTiles": 0
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 5,
+          "hallwayTiles": 0
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 5
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 5,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 5
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 10,
+          "hallwayTiles": 5
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 10,
+          "hallwayTiles": 5
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 10,
+          "hallwayTiles": 5
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 10,
+          "hallwayTiles": 5
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 10,
+          "hallwayTiles": 5
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 10,
+          "hallwayTiles": 5
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 10
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 15
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 10,
+          "hallwayTiles": 5
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 10
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 15
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 100,
+          "hallwayTiles": 50
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 100,
+          "hallwayTiles": 50
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 100,
+          "hallwayTiles": 50
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 100,
+          "hallwayTiles": 50
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 100,
+          "hallwayTiles": 50
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 100,
+          "hallwayTiles": 50
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 100,
+          "hallwayTiles": 50
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 100
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 150
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 3,
+          "hallwayTiles": 1
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 3,
+          "hallwayTiles": 1
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 3,
+          "hallwayTiles": 1
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 3,
+          "hallwayTiles": 1
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 3,
+          "hallwayTiles": 1
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 3
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 4
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 3,
+          "hallwayTiles": 1
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 3
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 4
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 3,
+          "hallwayTiles": 1
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 3
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 4
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25,
+          "hallwayTiles": 0
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25,
+          "hallwayTiles": 0
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25,
+          "hallwayTiles": 0
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25,
+          "hallwayTiles": 0
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25,
+          "hallwayTiles": 0
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 25
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 25
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 25
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 25
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "10",
+          "hallwayTiles": 5
+        }
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "10",
+          "hallwayTiles": 5
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "10",
+          "hallwayTiles": 5
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": "10"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "10",
+          "hallwayTiles": 5
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": "10"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "10",
+          "hallwayTiles": 5
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": "10"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "10",
+          "hallwayTiles": 5
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": "10"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "10",
+          "hallwayTiles": 5
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": "10"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": -4,
+          "hallwayTiles": 5
+        }
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": -4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": -4,
+          "hallwayTiles": 5
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": -4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": -4,
+          "hallwayTiles": 5
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": -4
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": -4,
+          "hallwayTiles": 5
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": -4
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": -4,
+          "hallwayTiles": 5
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": -4
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": -4,
+          "hallwayTiles": 5
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": -4
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": -4,
+          "hallwayTiles": 5
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": -4
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 4.5,
+          "hallwayTiles": 5
+        }
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": 4.5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 4.5,
+          "hallwayTiles": 5
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": 4.5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 4.5,
+          "hallwayTiles": 5
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": 4.5
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 4.5,
+          "hallwayTiles": 5
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": 4.5
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 4.5,
+          "hallwayTiles": 5
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": 4.5
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 4.5,
+          "hallwayTiles": 5
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": 4.5
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 4.5,
+          "hallwayTiles": 5
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": 4.5
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 5
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": null,
+          "hallwayTiles": null
+        }
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout.hallwayTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": null,
+          "hallwayTiles": null
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout.hallwayTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": null,
+          "hallwayTiles": null
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout.hallwayTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": null,
+          "hallwayTiles": null
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout.hallwayTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": null,
+          "hallwayTiles": null
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout.hallwayTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": null,
+          "hallwayTiles": null
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout.hallwayTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": null,
+          "hallwayTiles": null
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.floorTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout.hallwayTiles",
+              "code": "invalid_tile_count",
+              "detail": null
+            },
+            {
+              "field": "layout",
+              "code": "empty_layout"
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 9
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "hallwayTiles": 7
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "hallwayTiles": 7
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "hallwayTiles": 7
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "hallwayTiles": 7
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 2,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "hallwayTiles": 7
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 5,
+                "floorTiles": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "hallwayTiles": 7
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 7
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "hallwayTiles": 7
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 0
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 7
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 7
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 7
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 7
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 7
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 7
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 7
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 7
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 26,
+                "floorTiles": 7
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 7
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 7
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 7
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000001,
+          "hallwayTiles": 0
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000001,
+          "hallwayTiles": 0
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000001,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000001,
+          "hallwayTiles": 0
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000001,
+          "hallwayTiles": 0
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000001,
+          "hallwayTiles": 0
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000001,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000500,
+          "hallwayTiles": 250
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000500,
+          "hallwayTiles": 250
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000500,
+          "hallwayTiles": 250
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000500,
+          "hallwayTiles": 250
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000500,
+          "hallwayTiles": 250
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000500,
+          "hallwayTiles": 250
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000500,
+          "hallwayTiles": 250
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 2000000,
+          "hallwayTiles": 1000000
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 2000000,
+          "hallwayTiles": 1000000
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 2000000,
+          "hallwayTiles": 1000000
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 2000000,
+          "hallwayTiles": 1000000
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 2000000,
+          "hallwayTiles": 1000000
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 2000000,
+          "hallwayTiles": 1000000
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 2000000,
+          "hallwayTiles": 1000000
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "2000000",
+          "hallwayTiles": 0
+        }
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "2000000",
+          "hallwayTiles": 0
+        },
+        "actorCount": 0
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "2000000",
+          "hallwayTiles": 0
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "2000000",
+          "hallwayTiles": 0
+        },
+        "actorCount": 2
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "2000000",
+          "hallwayTiles": 0
+        },
+        "actorCount": 5
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "2000000",
+          "hallwayTiles": 0
+        },
+        "actorCount": 26
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": "2000000",
+          "hallwayTiles": 0
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000000,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": true,
+          "errors": []
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000000,
+          "hallwayTiles": 0
+        },
+        "actorCount": 1000001
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 1000000
+              }
+            },
+            {
+              "field": "actors",
+              "code": "insufficient_floor_tiles",
+              "detail": {
+                "actorCount": 1000001,
+                "floorTiles": 1000000
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1000010,
+          "hallwayTiles": -1
+        },
+        "actorCount": 1
+      },
+      "output": {
+        "result": {
+          "ok": false,
+          "errors": [
+            {
+              "field": "layout.hallwayTiles",
+              "code": "invalid_tile_count",
+              "detail": -1
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

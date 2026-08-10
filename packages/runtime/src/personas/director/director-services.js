@@ -21,7 +21,16 @@
  * Shared by controller.js and controller.mts so the two entry points cannot
  * drift.
  */
-import { buildBuildSpecFromSummary, deriveLevelGenFromSummary } from "./buildspec-assembler.js";
+// ⚠️ TWO DIFFERENT FUNCTIONS, ONE NAME. `deriveLevelGen({ roomCount })` below is the trivial
+// room-count → square-side derivation; `deriveLevelGenFromSummary(summary, roomGeometry)` is
+// the rich one published on the controller AS `deriveLevelGen`. They are not
+// interchangeable, and nothing guards the name. Aliased on import so a reader of the call
+// sites can tell which is which (CR.4 M5b.2f).
+import {
+  buildBuildSpecFromSummary,
+  deriveLevelGenFromSummary,
+  deriveLevelGen as deriveLevelGenFromRoomCount,
+} from "./buildspec-assembler.js";
 import { buildCardSetFromSummary } from "./summary-selections.js";
 import { mapSummaryToPool } from "./pool-mapper.js";
 import { DirectorStates } from "./state-machine.js";
@@ -127,6 +136,21 @@ export function attachDirectorServices({
   }
 
   /**
+   * The Configurator counterpart of `requireAllocator`. `roomGeometry()` above returns
+   * `undefined` when none was injected, deliberately, because the refusal belongs to the
+   * function that needs the geometry. Feasibility is different: it cannot be answered at all
+   * without the Configurator, so it refuses here and says why.
+   */
+  function requireConfigurator(operation) {
+    if (typeof createConfigurator !== "function") {
+      throw new DirectorStateError(
+        `Director cannot ${operation}: no Configurator was injected. Feasibility is the `
+        + "Configurator's law; the Director must not approximate it.",
+      );
+    }
+  }
+
+  /**
    * CR.4 M5b.2b — the build plane's pricing questions, asked on the caller's behalf.
    *
    * `llm-budget-loop.js` used to answer these itself by importing three Allocator
@@ -179,6 +203,32 @@ export function attachDirectorServices({
   // Unlike `fitLayoutToBudget` this one revises nothing: it answers "what does this layout
   // cost and does it fit". The loop used to answer it by importing `allocator/layout-spend.js`
   // directly, which is the last surviving piece of pricing policy inside the Orchestrator.
+  /**
+   * CR.4 M5b.2f — layout feasibility, asked of the Configurator on the loop's behalf.
+   *
+   * The Director's own contribution is the levelGen: when the caller has no layout, the
+   * geometry a room count implies is intent translation, which is why it is derived HERE and
+   * the Configurator is handed the result. The Configurator owning that derivation would be
+   * the reverse edge D8.1 removed; the loop owning it was the allowlist row this clears.
+   *
+   * Gated on PLANNED_STATES like the pricing relays and for the same reason: this judges a
+   * build's layout against its actors, and judging a build no round has begun is the
+   * "artifact produced with no round" defect. `deriveLevelGen` above stays ungated because it
+   * previews; this decides.
+   *
+   * ⚠️ `roomCount` is accepted but no caller supplies one — both loop call sites pass a
+   * layout. The no-layout path therefore always derives from `undefined`, which yields
+   * `{ width: NaN, height: NaN }` and a two-error refusal. That is the PRE-EXISTING behavior,
+   * captured in the characterization fixture and preserved deliberately. It is a latent
+   * defect, not this milestone's to fix.
+   */
+  function assessFeasibility({ layout, roomCount, actorCount } = {}) {
+    requireState(PLANNED_STATES, "assess layout feasibility");
+    requireConfigurator("assess layout feasibility");
+    const levelGen = layout ? undefined : deriveLevelGenFromRoomCount({ roomCount });
+    return createConfigurator().assessFeasibility({ layout, levelGen, actorCount });
+  }
+
   function evaluateLayoutSpend(args = {}) {
     requireState(PLANNED_STATES, "evaluate layout spend");
     requireAllocator("evaluate layout spend");
@@ -257,6 +307,7 @@ export function attachDirectorServices({
     evaluateSelectionSpend,
     fitLayoutToBudget,
     evaluateLayoutSpend,
+    assessFeasibility,
     serviceContext,
   };
 }

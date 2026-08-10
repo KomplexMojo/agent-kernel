@@ -69,6 +69,12 @@ test("translation REFUSES before a build begins — the state gates real behavio
     () => d.buildCardSet({ actors: [] }),
     (e) => e.code === "director_state",
   );
+  // CR.4 M5b.2f. Gated like the pricing relays: judging a build's layout against its actors
+  // before any round exists is the same "artifact produced with no round" defect.
+  assert.throws(
+    () => d.assessFeasibility({ layout: { floorTiles: 10 }, actorCount: 1 }),
+    (e) => e.code === "director_state",
+  );
   assert.equal(d.view().state, "uninitialized", "a refusal does not move the FSM");
 });
 

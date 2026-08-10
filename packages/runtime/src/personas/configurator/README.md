@@ -53,6 +53,25 @@ At a high level, the Configurator:
 > The two are published separately rather than bundled because they answer different questions for
 > different consumers: the Allocator needs "how many tiles" to price, and never asks for shape.
 
+> **And it publishes the FEASIBILITY VERDICT** (CR.4 M5b.2f, 2026-08-08).
+> `assessFeasibility({ layout, levelGen, actorCount })` answers "can this level host these actors?",
+> stateless and ungated like the two above. It came out of `orchestrator/llm-budget-loop.js`.
+>
+> ⚠️ **The two `validateLayout*` calls were never the point — the DISPATCH was.** Above
+> `MAX_EXACT_LAYOUT_FEASIBILITY_TILES` (1,000,000 floor tiles) the exact check materializes a grid and
+> becomes unaffordable, so feasibility is approximated from tile counts instead. That threshold and
+> that approximation are this persona's law, and they were executing in the Orchestrator. Threading
+> only the two calls would have cleared both allowlist rows and left the decision behind — M5b.2c's
+> finding, in a new file. **Ask what a symbol DECIDES, not what it imports.**
+>
+> The caller supplies `levelGen` rather than a `roomCount`: deriving level geometry from an intent is
+> the Director's translation, and asking the Director for it from here would be the reverse edge D8.1
+> removed. The Director derives, then asks.
+>
+> `tests/personas/configurator/configurator-layout-feasibility.test.js` replays **185 cases** captured
+> before the move. **If one fails, do not re-record it** — a drifted approximation still returns a
+> well-formed `{ ok, errors }`, so nothing downstream could question it.
+
 > **It AUTHORS the candidates the Allocator prices** (CR.9 M3). `candidate-authoring.js`, published as
 > `authorCandidates` on the persona surface, owns card assembly (`readCardVitals`,
 > `fillFlexibleDelverVitals`, `buildMinimumDelverCard`), structural validity (`assessDelverStructure`) and

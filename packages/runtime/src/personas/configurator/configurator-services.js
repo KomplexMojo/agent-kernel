@@ -35,6 +35,7 @@ import { prepareLevelGen as prepareLevelGenInput, mapResources as mapResourcesIn
 import { validateConfiguratorConfig } from "./config-validation.js";
 import { buildRoomDesignFromRoomCards, deriveLayoutFromRoomCards } from "./card-model.js";
 import { normalizeMotivations } from "./motivation-loadouts.js";
+import { assessLayoutFeasibility } from "./feasibility.js";
 import {
   assessDelverStructure,
   buildBudgetEnvelope,
@@ -271,6 +272,26 @@ export function attachConfiguratorServices({ fsm } = {}) {
   }
 
   /**
+   * CR.4 M5b.2f — "can this level host these actors?"
+   *
+   * `llm-budget-loop.js` answered this itself, importing `feasibility.js` for the two
+   * `validateLayout*` entry points AND choosing between them by a 1,000,000-tile threshold
+   * it owned. The choice was the part that mattered: above it the Orchestrator decided what
+   * "feasible" means with an approximation of this persona's law.
+   *
+   * The caller passes `levelGen` rather than a `roomCount` — deriving level geometry from an
+   * intent is the Director's translation, and asking the Director for it from here would be
+   * a reverse edge, the leg D8.1 removed.
+   *
+   * Stateless and ungated, like `deriveRoomLayout` and `authorCandidates`: it judges the
+   * layout it is handed against the actor count it is handed, touching no FSM state and
+   * issuing no artifact. Gating it behind `provideConfig` would be a label.
+   */
+  function assessFeasibility(args) {
+    return assessLayoutFeasibility(args);
+  }
+
+  /**
    * The candidate-authoring surface the Allocator's budget maximizer consumes (CR.9
    * M3). Assembly, structural validity and enumeration order all live behind here;
    * the Allocator receives it injected and prices what it is given.
@@ -315,6 +336,9 @@ export function attachConfiguratorServices({ fsm } = {}) {
     lockedConfig,
     deriveRoomLayout,
     buildRoomDesign,
+    // CR.4 M5b.2f — the layout feasibility verdict the budget loop used to reach by
+    // importing `feasibility.js`, threshold and all.
+    assessFeasibility,
     authorCandidates,
     /**
      * Motivation vocabulary, published so the Allocator stops importing it (CR.9 M3).

@@ -316,5 +316,8 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     evaluateSelectionSpend: services.evaluateSelectionSpend,
     fitLayoutToBudget: services.fitLayoutToBudget,
     evaluateLayoutSpend: services.evaluateLayoutSpend,
+    // CR.4 M5b.2f — layout feasibility; the Director derives the levelGen, the Configurator
+    // returns the verdict.
+    assessFeasibility: services.assessFeasibility,
   };
 }
