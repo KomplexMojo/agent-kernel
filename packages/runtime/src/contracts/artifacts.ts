@@ -103,6 +103,36 @@ export const ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA = "agent-kernel/AdaptiveWork
 export const ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchReceipt";
 export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionEvent";
 
+// M7 (2026-08-08) — the twelve that were declared OUTSIDE this file.
+//
+// The charter requires boundary data to carry a schema from artifacts.ts. These twelve did
+// not: six were declared in `adaptive-workflow/` modules or in `adapters-cli`, and six had
+// NO CONSTANT AT ALL — the literal was retyped at each use site, twice in one file for
+// `AdaptiveWorkflowReplay` and once per package for `AdaptiveWorkflowIdempotencyRecord`.
+//
+// ⚠️ That second group is why the cluster was miscounted three times (9 → 15 → 20): a census
+// keyed on `const X = "agent-kernel/…"` cannot see a schema that never had a const. The
+// guard in `tests/architecture/schema-declaration-origin.test.js` now matches LITERALS, not
+// declarations, for exactly that reason.
+//
+// Relocation only: every string value is unchanged, so no artifact's identity moves and no
+// schemaVersion is affected. TypeScript interfaces for these twelve are deliberately NOT
+// part of M7 — the constant is what the charter rule is about, and inventing twelve
+// interfaces would be new contract surface rather than a relocation.
+export const ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionReceipt";
+export const ADAPTIVE_WORKFLOW_METRICS_SCHEMA = "agent-kernel/AdaptiveWorkflowMetrics";
+export const ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA = "agent-kernel/AdaptiveWorkflowStrategyPolicy";
+export const ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA = "agent-kernel/SelectedStrategy";
+export const ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA = "agent-kernel/BenchmarkEvidence";
+export const ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA = "agent-kernel/ContextBudget";
+// The six that had no constant anywhere before M7.
+export const ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA = "agent-kernel/AdaptiveWorkflowCliRequest";
+export const ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA = "agent-kernel/AdaptiveWorkflowCliRunInput";
+export const ADAPTIVE_WORKFLOW_CONFIGURATION_SCHEMA = "agent-kernel/AdaptiveWorkflowConfiguration";
+export const ADAPTIVE_WORKFLOW_IDEMPOTENCY_RECORD_SCHEMA = "agent-kernel/AdaptiveWorkflowIdempotencyRecord";
+export const ADAPTIVE_WORKFLOW_PLAN_SCHEMA = "agent-kernel/AdaptiveWorkflowPlan";
+export const ADAPTIVE_WORKFLOW_REPLAY_SCHEMA = "agent-kernel/AdaptiveWorkflowReplay";
+
 // -------------------------
 // Persona CLI invocation contracts (DECISION D-j)
 // -------------------------

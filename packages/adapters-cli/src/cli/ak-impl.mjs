@@ -10,6 +10,12 @@ import { createFilesystemWorkflowStore } from "../adapters/adaptive-workflow/fil
 import { createRuntimeProfileAdapter } from "../adapters/adaptive-workflow/runtime-profile.js";
 import { createControlledExecutionAdapter } from "../adapters/adaptive-workflow/controlled-execution.js";
 import { createGameplayBridgeOperation } from "../adapters/adaptive-workflow/gameplay-bridge.js";
+import {
+  ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA,
+  ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA,
+  ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
+  ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA,
+} from "../../../runtime/src/contracts/artifacts.ts";
 import { runAdaptiveWorkflow } from "../../../runtime/src/adaptive-workflow/runner.js";
 import { createReplayEnvelope, createReplayModelAdapter } from "../../../runtime/src/adaptive-workflow/replay.js";
 import { createStrategyPolicyV1 } from "../../../runtime/src/adaptive-workflow/strategy-policy.js";
@@ -6282,7 +6288,7 @@ async function workflowCommand(argv) {
 async function resolveWorkflowInput(args) {
   if (args.input && args.objective) throw new Error("workflow accepts either --objective or --input, not both");
   const input = args.input ? await readJson(resolvePath(args.input)) : {};
-  if (args.input && (input.schema !== "agent-kernel/AdaptiveWorkflowCliRunInput" || input.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowCliRunInput");
+  if (args.input && (input.schema !== ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA || input.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowCliRunInput");
   validateWorkflowInputFields(input, args);
   const objective = args.objective || input.objective;
   if (!isNonEmptyString(objective)) throw new Error("workflow requires --objective <text> or --input <path>");
@@ -6291,7 +6297,7 @@ async function resolveWorkflowInput(args) {
   const clock = () => createdAt;
   const runtimeProfile = await createRuntimeProfileAdapter({ clock }).snapshot({ path: resolvePath(args["runtime-profile"]), runId });
   const rawPolicy = args.policy ? await readJson(resolvePath(args.policy)) : undefined;
-  if (rawPolicy && (rawPolicy.schema !== "agent-kernel/AdaptiveWorkflowStrategyPolicy" || rawPolicy.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowStrategyPolicy");
+  if (rawPolicy && (rawPolicy.schema !== ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA || rawPolicy.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowStrategyPolicy");
   assertNoSensitiveFields(rawPolicy, "workflow policy");
   const policy = rawPolicy ? createStrategyPolicyV1(rawPolicy) : undefined;
   const model = args.model || input.model || DEFAULT_LLM_MODEL;
@@ -6321,7 +6327,7 @@ function workflowExecution({ operationId, counter, pushUi = false, store, requir
   if (!operationId) return undefined;
   return createControlledExecutionAdapter({ operationId, operations: { record: ({ runId, selectedStrategy }) => {
     counter.count += 1;
-    return { schema: "agent-kernel/AdaptiveWorkflowExecutionReceipt", schemaVersion: 1, runId, operation: "record", strategyId: selectedStrategy.strategyId };
+    return { schema: ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA, schemaVersion: 1, runId, operation: "record", strategyId: selectedStrategy.strategyId };
   } } });
 }
 
@@ -6333,7 +6339,7 @@ async function workflowRun({ args, outDir }) {
   const idempotencyKey = resolved.input.idempotencyKey || `${resolved.runId}:execution:${operationId || "none"}`;
   const attemptInput = args["max-model-attempts"] ?? resolved.input.maxModelAttempts;
   const maxModelAttempts = attemptInput === undefined ? 2 : parsePositiveIntStrict(String(attemptInput), "workflow --max-model-attempts");
-  const request = { schema: "agent-kernel/AdaptiveWorkflowCliRequest", schemaVersion: 1, runId: resolved.runId, createdAt: resolved.createdAt, objective: resolved.objective, model: resolved.model, declaredCapability: resolved.declaredCapability, requiredKeys: resolved.input.requiredKeys || [], idempotencyKey, ...(resolved.policy ? { policy: resolved.policy } : {}), ...(operationId ? { executionOperation: operationId } : {}) };
+  const request = { schema: ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA, schemaVersion: 1, runId: resolved.runId, createdAt: resolved.createdAt, objective: resolved.objective, model: resolved.model, declaredCapability: resolved.declaredCapability, requiredKeys: resolved.input.requiredKeys || [], idempotencyKey, ...(resolved.policy ? { policy: resolved.policy } : {}), ...(operationId ? { executionOperation: operationId } : {}) };
   await store.writeArtifact("runtime-profile.json", resolved.runtimeProfile);
   await store.writeArtifact("request.json", request);
   const result = await runAdaptiveWorkflow({

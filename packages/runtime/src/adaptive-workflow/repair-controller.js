@@ -1,3 +1,4 @@
+import { ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA } from "../contracts/artifacts.ts";
 import { classifyFailure } from "./failures.js";
 import { applyPatchRequest } from "./patch-contract.js";
 import { runValidators, selectAffectedValidators } from "./validators.js";
@@ -48,7 +49,7 @@ export function applyRepairPatch({ input, patchRequest, registry, receiptId, exp
   const validation = runValidators(validators, applied.value, { ...context, stage: "repair", changedPaths: applied.changedPaths });
   const id = receiptId || `${patchRequest.requestId}:receipt`;
   const receipt = Object.freeze({
-    schema: "agent-kernel/AdaptiveWorkflowPatchReceipt", schemaVersion: 1,
+    schema: ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA, schemaVersion: 1,
     meta: Object.freeze({ id, runId: patchRequest.runId, createdAt: clock(), producedBy: "adaptive-workflow" }),
     requestRef: Object.freeze({ id: patchRequest.requestId, schema: patchRequest.schema, schemaVersion: 1 }),
     accepted: true, appliedOperations: Object.freeze(JSON.parse(JSON.stringify(patchRequest.operations)).map(Object.freeze)),

@@ -1,6 +1,6 @@
 import { getSandboxBridgeState, pushGameplayBundle } from "../../mcp/bridge-server.mjs";
-
-const RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionReceipt";
+// M7: an ADAPTER declared this boundary schema. Now imported from the runtime contracts.
+import { ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA as RECEIPT_SCHEMA } from "../../../../runtime/src/contracts/artifacts.ts";
 
 function executionError(code, message) {
   return Object.assign(new Error(message), { code, category: "execution", safeToRetry: false });

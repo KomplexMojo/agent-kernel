@@ -1,4 +1,7 @@
-export const CONTEXT_BUDGET_SCHEMA = "agent-kernel/ContextBudget";
+// M7: declared in contracts/artifacts.ts.
+import { ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA as CONTEXT_BUDGET_SCHEMA } from "../contracts/artifacts.ts";
+
+export { CONTEXT_BUDGET_SCHEMA };
 const SCHEMA_VERSION = 1;
 
 export function calculateContextBudget({

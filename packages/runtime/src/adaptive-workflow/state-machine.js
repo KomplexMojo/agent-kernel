@@ -1,3 +1,12 @@
+import {
+  ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA as RUN_STATE_SCHEMA,
+  ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA as EXECUTION_EVENT_SCHEMA,
+  ADAPTIVE_WORKFLOW_FAILURE_SCHEMA as FAILURE_SCHEMA,
+  ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA as VALIDATION_RESULT_SCHEMA,
+  ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA as PATCH_RECEIPT_SCHEMA,
+  ADAPTIVE_WORKFLOW_POLICY_SCHEMA as POLICY_SCHEMA,
+} from "../contracts/artifacts.ts";
+
 export const AdaptiveWorkflowPhases = Object.freeze({
   INTAKE: "intake",
   PLAN: "plan",
@@ -33,11 +42,9 @@ export const AdaptiveWorkflowEvents = Object.freeze({
   RECORD_SIDE_EFFECT: "record_side_effect",
 });
 
-const RUN_STATE_SCHEMA = "agent-kernel/AdaptiveWorkflowRunState";
-const EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionEvent";
-const FAILURE_SCHEMA = "agent-kernel/AdaptiveWorkflowFailure";
-const VALIDATION_RESULT_SCHEMA = "agent-kernel/AdaptiveWorkflowValidationResult";
-const PATCH_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchReceipt";
+// M7 — these five were SECOND ORIGINS. The schemas were already declared in
+// contracts/artifacts.ts; this file retyped the same five strings under shorter names, so
+// each had two places it could drift from. Imported now, aliased to keep the local names.
 const STATE_VERSION = "adaptive-workflow-state-v1";
 const TERMINAL_PHASES = new Set([AdaptiveWorkflowPhases.COMPLETE, AdaptiveWorkflowPhases.FAILED, AdaptiveWorkflowPhases.CANCELLED]);
 const ACTIVE_PHASES = Object.values(AdaptiveWorkflowPhases).filter((phase) => !TERMINAL_PHASES.has(phase));
@@ -452,7 +459,7 @@ export function createAdaptiveWorkflowStateMachine({
   initialPhase,
   initialContext: providedContext,
   runId = "adaptive-workflow-run",
-  policyRef = defaultArtifactRef("adaptive-workflow-policy", "agent-kernel/AdaptiveWorkflowPolicy"),
+  policyRef = defaultArtifactRef("adaptive-workflow-policy", POLICY_SCHEMA),
   runtimeProfileRef,
   clock = () => new Date().toISOString(),
 } = {}) {

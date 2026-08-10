@@ -1,7 +1,15 @@
 import { createModelCapabilityProfileV1 } from "./model-adapter.js";
 
-export const BENCHMARK_EVIDENCE_SCHEMA = "agent-kernel/BenchmarkEvidence";
-export const RUNTIME_PROFILE_SNAPSHOT_SCHEMA = "agent-kernel/AdaptiveWorkflowRuntimeProfile";
+// M7: `RUNTIME_PROFILE_SNAPSHOT_SCHEMA` was a SECOND ORIGIN for
+// `agent-kernel/AdaptiveWorkflowRuntimeProfile`, under a name that reads like a different
+// schema — PA's census saw this constant and dismissed it as a substring false positive
+// without noticing it declared a duplicate. Both now come from contracts/artifacts.ts.
+import {
+  ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA as BENCHMARK_EVIDENCE_SCHEMA,
+  ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA as RUNTIME_PROFILE_SNAPSHOT_SCHEMA,
+} from "../contracts/artifacts.ts";
+
+export { BENCHMARK_EVIDENCE_SCHEMA, RUNTIME_PROFILE_SNAPSHOT_SCHEMA };
 export const MODEL_CAPABILITY_SCHEMA_VERSION = 1;
 
 export function createDeclaredModelCapabilityV1(input = {}) {

@@ -1,3 +1,4 @@
+import { ADAPTIVE_WORKFLOW_IDEMPOTENCY_RECORD_SCHEMA } from "../../../../runtime/src/contracts/artifacts.ts";
 import { createHash } from "node:crypto";
 
 function canonicalJson(value) {
@@ -45,7 +46,7 @@ export function createAdaptiveWorkflowTestStore() {
       if (typeof idempotencyKey !== "string" || !idempotencyKey.trim() || payloadRef?.algorithm !== "sha256" || !/^[a-f0-9]{64}$/.test(payloadRef.digest)) throw failure("invalid_idempotency_reservation", "Invalid idempotency reservation");
       const existing = sideEffects.get(idempotencyKey);
       if (existing) return clone(existing.payloadRef.algorithm === payloadRef.algorithm && existing.payloadRef.digest === payloadRef.digest ? { status: existing.status === "complete" ? "existing" : "pending", record: existing } : { status: "conflict", record: existing });
-      const record = { schema: "agent-kernel/AdaptiveWorkflowIdempotencyRecord", schemaVersion: 1, idempotencyKey, payloadRef, status: "pending" };
+      const record = { schema: ADAPTIVE_WORKFLOW_IDEMPOTENCY_RECORD_SCHEMA, schemaVersion: 1, idempotencyKey, payloadRef, status: "pending" };
       sideEffects.set(idempotencyKey, clone(record));
       return { status: "claimed", record: clone(record) };
     },

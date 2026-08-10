@@ -1,3 +1,7 @@
+import {
+  ADAPTIVE_WORKFLOW_PLAN_SCHEMA,
+  ADAPTIVE_WORKFLOW_CONFIGURATION_SCHEMA,
+} from "../contracts/artifacts.ts";
 import { classifyFailure } from "./failures.js";
 import { createRecordingModelAdapter, executeDurableSideEffect, saveWorkflowState } from "./durable-log.js";
 import { summarizeAdaptiveWorkflowMetrics } from "./metrics.js";
@@ -274,8 +278,8 @@ async function loadPersistedCandidate(ports, state) {
 
 async function storeCandidateRefs(ports, generated) {
   return {
-    planRef: await storeRef(ports, "plan", "agent-kernel/AdaptiveWorkflowPlan", generated),
-    configurationRef: await storeRef(ports, "configuration", "agent-kernel/AdaptiveWorkflowConfiguration", generated),
+    planRef: await storeRef(ports, "plan", ADAPTIVE_WORKFLOW_PLAN_SCHEMA, generated),
+    configurationRef: await storeRef(ports, "configuration", ADAPTIVE_WORKFLOW_CONFIGURATION_SCHEMA, generated),
   };
 }
 

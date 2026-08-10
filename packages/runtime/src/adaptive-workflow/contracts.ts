@@ -1,4 +1,8 @@
 import {
+  ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
+  ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA,
+  ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA,
+  ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA,
   ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA,
   ADAPTIVE_WORKFLOW_FAILURE_SCHEMA,
   ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA,
@@ -32,6 +36,11 @@ import type {
 } from "../contracts/artifacts.ts";
 
 export {
+  // M7 — these three were declared HERE and again in the modules that use them; both copies
+  // are gone and the single origin is contracts/artifacts.ts.
+  ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA,
+  ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA,
+  ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA,
   ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA,
   ADAPTIVE_WORKFLOW_FAILURE_SCHEMA,
   ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA,
@@ -68,9 +77,6 @@ export const ADAPTIVE_WORKFLOW_SCHEMA_VERSION = 1;
 export const ADAPTIVE_WORKFLOW_STATE_VERSION = "adaptive-workflow-state-v1";
 export const ADAPTIVE_WORKFLOW_POLICY_VERSION = "adaptive-workflow-policy-v1";
 export const ADAPTIVE_WORKFLOW_STRATEGY_POLICY_VERSION = "adaptive-workflow-strategy-policy-v1";
-export const ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA = "agent-kernel/SelectedStrategy";
-export const ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA = "agent-kernel/BenchmarkEvidence";
-export const ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA = "agent-kernel/ContextBudget";
 
 export const ADAPTIVE_WORKFLOW_PHASES: ReadonlyArray<AdaptiveWorkflowPhase> = Object.freeze([
   "intake",
@@ -117,7 +123,7 @@ export const ADAPTIVE_WORKFLOW_IMMUTABLE_PATCH_PATHS: ReadonlyArray<string> = Ob
 export type DeclaredModelCapabilityV1 = { schemaVersion: 1; providerId: string; modelId: string | null; source: "declared"; contextWindowTokens: number | null; maxOutputTokens: number | null; providerContextWindowTokens?: number; supports: { textGeneration: boolean; structuredOutput: boolean; streaming: boolean } };
 export type RuntimeProfileSnapshotV1 = AdaptiveWorkflowRuntimeProfileV1;
 export type BenchmarkEvidenceV1 = { schema: typeof ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA; schemaVersion: 1; evidenceId: string; strategyId: string; sampleSize: number; stability: number; confidence: number; capturedAt: string; source: string; averageScore?: number; metrics?: Record<string, unknown> };
-export type StrategyPolicyV1 = { schema: "agent-kernel/AdaptiveWorkflowStrategyPolicy"; schemaVersion: 1; policyVersion: string; strategies: Array<{ id: string; precedence: number; score: number; minContextTokens: number; requires: Record<string, boolean>; resourcePolicy: { maxConcurrency: number; candidateCount: number; routing: string }; benchmark?: Record<string, unknown> }>; fallbackOrder: string[]; thresholds: Record<string, number>; context: Record<string, number>; tieBreakers: string[] };
+export type StrategyPolicyV1 = { schema: typeof ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA; schemaVersion: 1; policyVersion: string; strategies: Array<{ id: string; precedence: number; score: number; minContextTokens: number; requires: Record<string, boolean>; resourcePolicy: { maxConcurrency: number; candidateCount: number; routing: string }; benchmark?: Record<string, unknown> }>; fallbackOrder: string[]; thresholds: Record<string, number>; context: Record<string, number>; tieBreakers: string[] };
 export type SelectedStrategyV1 = { schema: typeof ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA; schemaVersion: 1; strategyId: string; policyVersion: string; selectedAt: string | null; selectedStrategyRef: ArtifactRef; resourcePolicy: { maxConcurrency: number; candidateCount: number; routing: string }; candidates: unknown[]; provenance: Record<string, unknown> };
 export type ContextBudgetResultV1 = { schema: typeof ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA; schemaVersion: 1; contextWindowTokens: number; outputReserveTokens: number; toolReserveTokens: number; inputBudgetTokens: number; limitingSources: string[]; provenance: Record<string, unknown> };
 

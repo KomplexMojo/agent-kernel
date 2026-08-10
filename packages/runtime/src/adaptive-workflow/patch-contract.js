@@ -1,3 +1,4 @@
+import { ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA } from "../contracts/artifacts.ts";
 export const IMMUTABLE_PATCH_PATHS = Object.freeze([
   "/schema", "/schemaVersion", "/meta/id", "/meta/runId", "/meta/createdAt",
   "/refs/replayResponseRefs", "/idempotency/sideEffectKeys", "/events",
@@ -31,7 +32,7 @@ export function validatePatchRequest(request) {
   const issues = [];
   if (!request || typeof request !== "object" || Array.isArray(request)) issues.push(issue("invalid_request", "/", "patch request must be an object"));
   else {
-    if (request.schema !== "agent-kernel/AdaptiveWorkflowPatchRequest" || request.schemaVersion !== 1) issues.push(issue("invalid_schema", "/schema", "unsupported patch request schema"));
+    if (request.schema !== ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA || request.schemaVersion !== 1) issues.push(issue("invalid_schema", "/schema", "unsupported patch request schema"));
     if (typeof request.requestId !== "string" || !request.requestId || typeof request.runId !== "string" || !request.runId) issues.push(issue("invalid_identity", "/requestId", "requestId and runId are required"));
     if (!KINDS.has(request.kind)) issues.push(issue("invalid_kind", "/kind", "unsupported patch kind"));
     if (!object(request.meta) || request.meta.id !== request.requestId || request.meta.runId !== request.runId || typeof request.meta.createdAt !== "string") issues.push(issue("invalid_meta", "/meta", "valid matching metadata is required"));

@@ -1,4 +1,7 @@
-export const ADAPTIVE_WORKFLOW_METRICS_SCHEMA = "agent-kernel/AdaptiveWorkflowMetrics";
+// M7: declared in contracts/artifacts.ts; re-exported here so existing importers are unchanged.
+import { ADAPTIVE_WORKFLOW_METRICS_SCHEMA } from "../contracts/artifacts.ts";
+
+export { ADAPTIVE_WORKFLOW_METRICS_SCHEMA };
 
 // Whole-key match only, so observability fields like `tokenUsage`, `tokenHint`,
 // and `promptTokens` are never mistaken for credentials.
