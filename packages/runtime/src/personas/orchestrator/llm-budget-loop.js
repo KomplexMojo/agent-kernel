@@ -10,17 +10,15 @@ import { deriveLevelGen } from "../director/buildspec-assembler.js";
 import { buildCardSetFromSummary } from "../director/summary-selections.js";
 import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
 import { normalizePoolCatalog } from "../../contracts/pool-catalog.js";
-// CR.4 M5b.2b/M5b.2c: `resolveLayoutTileCosts`, `buildBudgetAllocation`,
-// `evaluateSelectionSpend` and the whole auto-fit search are GONE from this file — they are
-// Allocator decisions, now asked of the Director.
+// CR.4 M5b.2b/M5b.2c/M5b.2d: `resolveLayoutTileCosts`, `buildBudgetAllocation`,
+// `evaluateSelectionSpend`, the whole auto-fit search and now `evaluateLayoutSpend` are GONE
+// from this file — they are Allocator decisions, asked of the Director.
 //
-// ⚠️ THIS IMPORT SURVIVES, AND THE ALLOWLIST ROW WITH IT. What is left is not pricing policy
-// but layout VOCABULARY (`normalizeLayoutCounts`, `sumLayoutTiles`) plus two remaining
-// `evaluateLayoutSpend` calls that validate an LLM-proposed layout against the budget. Those
-// two are simple threading and could go the same way; the vocabulary is a separate question
-// — it may belong in a shared layout module rather than inside the Allocator at all.
-// Deliberately NOT folded into this milestone: "the auto-fit search" was the scope.
-import { evaluateLayoutSpend } from "../allocator/layout-spend.js";
+// ✅ THE `allocator/layout-spend.js` IMPORT IS GONE, AND ITS ALLOWLIST ROW WITH IT. That one
+// row outlived THREE separate fixes (M5b.2b's `resolveLayoutTileCosts`, M5b.2c's auto-fit
+// search, D8-V's layout vocabulary) because each time it was dispositioned as "absorbed by
+// finding X" while a different importer still stood behind it. A row's disposition describes
+// its current importer, not its remaining work.
 import {
   DOMAIN_CONSTRAINTS,
   LLM_REPAIR_TEXT,
@@ -415,7 +413,15 @@ function validateActorMobilityVitals(selections = []) {
   };
 }
 
-function validateLayoutSummary({ summary, remainingBudgetTokens, priceList, layoutCosts }) {
+function validateLayoutSummary({
+  summary,
+  remainingBudgetTokens,
+  priceList,
+  layoutCosts,
+  // CR.4 M5b.2d: threaded, not imported. Pricing the LLM's proposed layout is the
+  // Allocator's answer; this function only decides what to do with it.
+  evaluateLayoutSpend,
+}) {
   const errors = [];
   const layout = normalizeLayoutCounts(summary?.layout);
   if (!layout) {
@@ -477,6 +483,7 @@ async function runPhase({
   // runPhase serves both phases, so all four mapping sites migrate together.
   mapPool,
   fitLayout,
+  evaluateLayoutSpend,
 } = {}) {
   const startedAt = typeof clock === "function" ? clock() : undefined;
   const startMs = startedAt ? Date.parse(startedAt) : NaN;
@@ -556,6 +563,7 @@ async function runPhase({
       remainingBudgetTokens,
       priceList,
       layoutCosts,
+      evaluateLayoutSpend,
     });
     layoutPlan = layoutValidation.layout;
     layoutSpend = layoutValidation.spend;
@@ -656,6 +664,7 @@ async function runPhase({
         remainingBudgetTokens,
         priceList,
         layoutCosts,
+        evaluateLayoutSpend,
       });
       const recoveredValidation = {
         ok: recoveredValidationResult.ok,
@@ -773,6 +782,7 @@ async function runPhase({
       remainingBudgetTokens,
       priceList,
       layoutCosts,
+      evaluateLayoutSpend,
     });
     repairLayoutPlan = layoutValidation.layout;
     repairLayoutSpend = layoutValidation.spend;
@@ -1034,6 +1044,17 @@ export async function runLlmBudgetLoop({
   // tell. `tests/personas/allocator/allocator-layout-fit.test.js` pins 660 cases for exactly
   // that reason.
   fitLayout,
+  // CR.4 M5b.2d: the LAST piece of pricing this loop performed itself — what a proposed
+  // layout costs, and whether it fits what is left of the budget. `fitLayout` above revises
+  // a layout; this one only judges it, which is why they are separate answers rather than
+  // one. With this threaded, `allocator/layout-spend.js` is no longer imported here at all
+  // and the allowlist row dies rather than moves.
+  //
+  // REQUIRED, no default, like its five siblings — and here the silent-fallback risk is at
+  // its worst: a stale local copy would report a well-formed `spentTokens` on a layout the
+  // Allocator would have judged over budget, so the build would proceed and every artifact
+  // downstream would look correct.
+  evaluateLayoutSpend,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
@@ -1082,6 +1103,13 @@ export async function runLlmBudgetLoop({
     return {
       ok: false,
       errors: [{ field: "fitLayout", code: "missing_layout_fitter" }],
+      captures: [],
+    };
+  }
+  if (typeof evaluateLayoutSpend !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "evaluateLayoutSpend", code: "missing_layout_spend_evaluator" }],
       captures: [],
     };
   }
@@ -1167,6 +1195,7 @@ export async function runLlmBudgetLoop({
     runSession,
     mapPool,
     fitLayout,
+    evaluateLayoutSpend,
     adapter,
     model,
     baseUrl,
@@ -1260,6 +1289,7 @@ export async function runLlmBudgetLoop({
     runSession,
     mapPool,
     fitLayout,
+    evaluateLayoutSpend,
       adapter,
       model,
       baseUrl,

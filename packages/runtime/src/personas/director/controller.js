@@ -312,5 +312,6 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     allocateBudget: services.allocateBudget,
     evaluateSelectionSpend: services.evaluateSelectionSpend,
     fitLayoutToBudget: services.fitLayoutToBudget,
+    evaluateLayoutSpend: services.evaluateLayoutSpend,
   };
 }

@@ -47,15 +47,18 @@ export function beginDirectorRound({ runId, createdAt, goal, producedBy = "cli" 
 /**
  * CR.4 M5b.2b — every build-domain capability `runLlmBudgetLoop` requires, from ONE round.
  *
- * The loop now asks the Director for four things: the pool mapping it already asked for,
- * plus the three pricing answers it used to compute inline out of the Allocator's
- * internals (layout tile costs, the budget split, selection spend). Under Option 1 the
- * Director is its sole counterpart, so all four come from the same open build round —
- * four separate rounds would be four build rounds for a single build, which is the
+ * The loop asks the Director for the pool mapping it already asked for, plus every pricing
+ * answer it used to compute inline out of the Allocator's internals. Under Option 1 the
+ * Director is its sole counterpart, so they all come from the SAME open build round —
+ * separate rounds would be several build rounds for a single build, which is the
  * "artifact produced with no round" defect wearing a different hat.
  *
  * Bundled here for the same reason `beginDirectorRound` itself is: five composition roots
- * spreading the same four properties by hand is five copies free to diverge silently.
+ * spreading the same properties by hand is five copies free to diverge silently.
+ *
+ * ⚠️ The count is deliberately not written down. It has been "four" since M5b.2b while the
+ * set grew twice (M5b.2c `fitLayout`, M5b.2d `evaluateLayoutSpend`) — a number in prose is
+ * a second origin for something the object literal below already states exactly.
  */
 export function beginDirectorBuildCapabilities(options = {}) {
   const director = beginDirectorRound(options);
@@ -65,5 +68,6 @@ export function beginDirectorBuildCapabilities(options = {}) {
     allocateBudget: director.allocateBudget,
     evaluateSelectionSpend: director.evaluateSelectionSpend,
     fitLayout: director.fitLayoutToBudget,
+    evaluateLayoutSpend: director.evaluateLayoutSpend,
   };
 }

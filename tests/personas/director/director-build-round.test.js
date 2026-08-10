@@ -55,6 +55,13 @@ test("translation REFUSES before a build begins — the state gates real behavio
     () => d.assembleBuildSpec({ summary: {} }),
     (e) => e.code === "director_state",
   );
+  // CR.4 M5b.2d: the relayed Allocator answers are gated for the same reason `mapPool` is —
+  // pricing a build no round has begun is an artifact produced with no round. Without this
+  // the relay would be a pass-through with a state check nothing exercised.
+  assert.throws(
+    () => d.evaluateLayoutSpend({ layout: { floorTiles: 1 }, budgetTokens: 100 }),
+    (e) => e.code === "director_state",
+  );
   assert.equal(d.view().state, "uninitialized", "a refusal does not move the FSM");
 });
 

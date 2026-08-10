@@ -1961,6 +1961,7 @@ export function createCommandKernel(host = {}) {
         allocateBudget: director.allocateBudget,
         evaluateSelectionSpend: director.evaluateSelectionSpend,
         fitLayout: director.fitLayoutToBudget,
+        evaluateLayoutSpend: director.evaluateLayoutSpend,
           adapter,
           model,
           baseUrl,

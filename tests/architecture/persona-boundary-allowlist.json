@@ -129,10 +129,6 @@
   },
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
-    "to": "packages/runtime/src/personas/allocator/layout-spend.js"
-  },
-  {
-    "from": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
     "to": "packages/runtime/src/personas/configurator/feasibility.js"
   },
   {

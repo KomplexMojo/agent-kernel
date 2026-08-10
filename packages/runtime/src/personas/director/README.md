@@ -117,7 +117,8 @@ The Orchestrator's `runLlmBudgetLoop` used to price a build by importing three A
 (`budget-allocation.js`, `layout-spend.js`, `selection-spend.js`) — pricing policy executing inside the
 Orchestrator, which is what *"Economy — Allocator Authority"* forbids. The maintainer's Option 1
 (2026-08-07) makes the **Director the loop's sole counterpart**, so the loop asks the Director and the
-Director asks the Allocator:
+Director asks the Allocator. As of **M5b.2d (2026-08-08) the loop imports none of those three modules**
+— it performs no pricing of its own at all:
 
 | Director method | Asks the Allocator for |
 |---|---|
@@ -125,6 +126,7 @@ Director asks the Allocator:
 | `allocateBudget({ budgetTokens, priceList, poolWeights, … })` | the budget split into pools |
 | `evaluateSelectionSpend({ selections, budgetTokens, priceList, normalizeMotivations })` | which selections the remaining budget admits |
 | `fitLayoutToBudget({ layout, remainingBudgetTokens, priceList, layoutCosts })` | a revised layout that fits the budget (CR.4 M5b.2c) |
+| `evaluateLayoutSpend({ layout, budgetTokens, priceList, tileCosts })` | what a proposed layout costs and whether it fits (CR.4 M5b.2d) |
 
 Three properties are load-bearing, not incidental:
 

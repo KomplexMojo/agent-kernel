@@ -323,17 +323,23 @@ schema, guard or golden would report it. The test replays **660 cases** captured
 implementation, and both of those perturbations were confirmed to fail it. **If a case fails, do not
 re-record the fixture** — that deletes the only evidence the search still converges where it did.
 
-⚠️ **The `llm-budget-loop.js → layout-spend.js` allowlist row SURVIVES, but it is now HALF the row it
-was.** It used to carry two different jobs. The layout *vocabulary* half is gone: **D8-V (2026-08-08)
-moved `normalizeLayoutCounts` and `sumLayoutTiles` out of this persona** into
-`contracts/domain-constants.js`, by maintainer decision — they normalize and count, they price nothing,
-and routing a data reader through an FSM-gated controller would be ceremony. What keeps the row alive
-is the other half: two remaining `evaluateLayoutSpend` calls validating an LLM-proposed layout against
-a budget. Those are plain threading and still unclaimed.
+#### Judging a proposed layout: `evaluateLayoutSpend` (CR.4 M5b.2d)
 
-⇒ *One allowlist row is not one fix.* This row has now absorbed four separate pieces of work
-(M5b.2b's `resolveLayoutTileCosts`, M5b.2c's whole auto-fit search, D8-V's vocabulary move) without
-moving, because a row records who imports the module today, not what is left to do about it.
+`layout-spend.js` — `evaluateLayoutSpend({ layout, budgetTokens, priceList, tileCosts })`, published as
+`allocator.evaluateLayoutSpend` and reached through `director.evaluateLayoutSpend`.
+
+It answers what a layout costs and whether it fits; `fitLayoutToBudget` above *revises* a layout that
+does not. They stay separate answers because only one of them decides anything: judging is a lookup,
+revising is a policy.
+
+✅ **The `llm-budget-loop.js → layout-spend.js` allowlist row is GONE (2026-08-08).** With these two
+calls threaded, the loop imports nothing from this persona and the row died rather than moved.
+
+⇒ *One allowlist row is not one fix.* That row absorbed **four** separate pieces of work before it
+finally cleared — M5b.2b's `resolveLayoutTileCosts`, M5b.2c's whole auto-fit search, D8-V's move of
+`normalizeLayoutCounts`/`sumLayoutTiles` out to `contracts/domain-constants.js`, and finally these two
+calls — because a row records who imports the module *today*, not what is left to do about it. Three
+consecutive dispositions read "absorbed by finding X" while a different importer still stood behind it.
 
 ---
 

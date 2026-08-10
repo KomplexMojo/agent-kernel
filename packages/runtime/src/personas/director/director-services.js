@@ -174,6 +174,16 @@ export function attachDirectorServices({
     return createAllocator({ priceList: args.priceList }).fitLayoutToBudget(args);
   }
 
+  // CR.4 M5b.2d — pricing a layout the LLM proposed, against what is left of the budget.
+  // Unlike `fitLayoutToBudget` this one revises nothing: it answers "what does this layout
+  // cost and does it fit". The loop used to answer it by importing `allocator/layout-spend.js`
+  // directly, which is the last surviving piece of pricing policy inside the Orchestrator.
+  function evaluateLayoutSpend(args = {}) {
+    requireState(PLANNED_STATES, "evaluate layout spend");
+    requireAllocator("evaluate layout spend");
+    return createAllocator({ priceList: args.priceList }).evaluateLayoutSpend(args);
+  }
+
   // `normalizeMotivations` is Configurator law, threaded from the composition root through
   // the loop (CR.9 M3). It is forwarded to the Allocator rather than restated here.
   function evaluateSelectionSpend(args = {}) {
@@ -225,6 +235,7 @@ export function attachDirectorServices({
     allocateBudget,
     evaluateSelectionSpend,
     fitLayoutToBudget,
+    evaluateLayoutSpend,
     serviceContext,
   };
 }
