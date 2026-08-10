@@ -102,7 +102,6 @@ export const ADAPTIVE_WORKFLOW_FAILURE_SCHEMA = "agent-kernel/AdaptiveWorkflowFa
 export const ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchRequest";
 export const ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchReceipt";
 export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionEvent";
-export const ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA = "agent-kernel/AdaptiveWorkflowRunRecord";
 
 // -------------------------
 // Persona CLI invocation contracts (DECISION D-j)
@@ -437,30 +436,6 @@ export interface AdaptiveWorkflowRunStateV1 {
   };
   events: AdaptiveWorkflowExecutionEventV1[];
   updatedAt: IsoUtcTimestamp;
-}
-
-export interface AdaptiveWorkflowRunRecordV1 {
-  schema: typeof ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-  runId: string;
-  stateRef: ArtifactRef;
-  policyRef: ArtifactRef;
-  runtimeProfileRef?: ArtifactRef;
-  finalPhase: AdaptiveWorkflowPhase;
-  events: AdaptiveWorkflowExecutionEventV1[];
-  promptRefs?: Array<ArtifactRef | ContentAddressedRefV1>;
-  responseRefs?: Array<ArtifactRef | ContentAddressedRefV1>;
-  validationResultRefs: ArtifactRef[];
-  failureRefs: ArtifactRef[];
-  executionResultRefs?: ArtifactRef[];
-  tokenUsage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    toolTokens?: number;
-    totalTokens?: number;
-  };
-  latencyMs?: number;
 }
 
 // -------------------------

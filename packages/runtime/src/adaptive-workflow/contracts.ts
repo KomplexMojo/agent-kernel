@@ -4,7 +4,6 @@ import {
   ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA,
   ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA,
   ADAPTIVE_WORKFLOW_POLICY_SCHEMA,
-  ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA,
   ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA,
   ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA,
   ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA,
@@ -21,7 +20,6 @@ import type {
   AdaptiveWorkflowPatchRequestV1,
   AdaptiveWorkflowPhase,
   AdaptiveWorkflowPolicyV1,
-  AdaptiveWorkflowRunRecordV1,
   AdaptiveWorkflowRunStateV1,
   AdaptiveWorkflowRuntimeProfileV1,
   AdaptiveWorkflowValidationIssueV1,
@@ -39,7 +37,6 @@ export {
   ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA,
   ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA,
   ADAPTIVE_WORKFLOW_POLICY_SCHEMA,
-  ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA,
   ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA,
   ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA,
   ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA,
@@ -56,7 +53,6 @@ export type {
   AdaptiveWorkflowPatchRequestV1,
   AdaptiveWorkflowPhase,
   AdaptiveWorkflowPolicyV1,
-  AdaptiveWorkflowRunRecordV1,
   AdaptiveWorkflowRunStateV1,
   AdaptiveWorkflowRuntimeProfileV1,
   AdaptiveWorkflowValidationIssueV1,
@@ -763,52 +759,3 @@ export function validateAdaptiveWorkflowRunState(value: unknown): AdaptiveWorkfl
   return result;
 }
 
-export function validateAdaptiveWorkflowRunRecord(value: unknown): AdaptiveWorkflowValidationReport {
-  const result = report();
-  validateEnvelope(value, "runRecord", ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA, result);
-  if (!isObject(value)) {
-    return result;
-  }
-  if (!isNonEmptyString(value.runId)) {
-    addIssue(result, "runRecord.runId", "required_string", "expected non-empty string");
-  }
-  validateMetaRunId(value.meta, "runRecord.meta", value.runId, result);
-  validateArtifactRef(value.stateRef, "runRecord.stateRef", result);
-  validateArtifactRef(value.policyRef, "runRecord.policyRef", result);
-  if (value.runtimeProfileRef !== undefined) {
-    validateArtifactRef(value.runtimeProfileRef, "runRecord.runtimeProfileRef", result);
-  }
-  validatePhase(value.finalPhase, "runRecord.finalPhase", result);
-  validateExecutionEventArray(
-    value.events,
-    "runRecord.events",
-    result,
-    isNonEmptyString(value.runId) ? value.runId : undefined,
-  );
-  if (value.promptRefs !== undefined) {
-    validateArtifactOrContentRefArray(value.promptRefs, "runRecord.promptRefs", result);
-  }
-  if (value.responseRefs !== undefined) {
-    validateArtifactOrContentRefArray(value.responseRefs, "runRecord.responseRefs", result);
-  }
-  validateRefArray(value.validationResultRefs, "runRecord.validationResultRefs", result);
-  validateRefArray(value.failureRefs, "runRecord.failureRefs", result);
-  if (value.executionResultRefs !== undefined) {
-    validateRefArray(value.executionResultRefs, "runRecord.executionResultRefs", result);
-  }
-  if (value.tokenUsage !== undefined) {
-    if (!isObject(value.tokenUsage)) {
-      addIssue(result, "runRecord.tokenUsage", "expected_object", "expected object");
-    } else {
-      for (const key of ["inputTokens", "outputTokens", "toolTokens", "totalTokens"]) {
-        if (value.tokenUsage[key] !== undefined) {
-          validateNonNegativeIntegerField(value.tokenUsage[key], `runRecord.tokenUsage.${key}`, result);
-        }
-      }
-    }
-  }
-  if (value.latencyMs !== undefined) {
-    validateNonNegativeIntegerField(value.latencyMs, "runRecord.latencyMs", result);
-  }
-  return result;
-}

@@ -26,7 +26,6 @@ test("adaptive workflow contract constants export versioned artifact schemas", a
   assert.equal(contracts.ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA, "agent-kernel/AdaptiveWorkflowPatchRequest");
   assert.equal(contracts.ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA, "agent-kernel/AdaptiveWorkflowPatchReceipt");
   assert.equal(contracts.ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA, "agent-kernel/AdaptiveWorkflowExecutionEvent");
-  assert.equal(contracts.ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA, "agent-kernel/AdaptiveWorkflowRunRecord");
   assert.equal(contracts.ADAPTIVE_WORKFLOW_SCHEMA_VERSION, 1);
 });
 
@@ -326,12 +325,10 @@ test("adaptive workflow validators reject shallow nested policy and state mismat
   assert(stateResult.issues.some((issue) => issue.path === "runState.idempotency.sideEffectKeys"));
 });
 
-test("adaptive workflow execution event and run record enforce runId and meta consistency", async () => {
+test("adaptive workflow execution event enforces runId and meta consistency", async () => {
   const {
     ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA,
-    ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA,
     validateAdaptiveWorkflowExecutionEvent,
-    validateAdaptiveWorkflowRunRecord,
   } = await loadContracts();
   const event = {
     schema: ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA,
@@ -343,27 +340,11 @@ test("adaptive workflow execution event and run record enforce runId and meta co
     kind: "phase_transition",
     occurredAt: "2026-07-12T00:00:01.000Z",
   };
-  const record = {
-    schema: ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA,
-    schemaVersion: 1,
-    meta: META,
-    runId: "run_adaptive_workflow",
-    stateRef: ref("state", "agent-kernel/AdaptiveWorkflowRunState"),
-    policyRef: ref("policy", "agent-kernel/AdaptiveWorkflowPolicy"),
-    finalPhase: "complete",
-    events: [{ ...event, meta: { ...event.meta, id: "event_1", runId: "other_run" }, runId: "other_run" }],
-    validationResultRefs: [],
-    failureRefs: [],
-  };
 
   const eventResult = validateAdaptiveWorkflowExecutionEvent(event);
   assert.equal(eventResult.ok, false);
   assert(eventResult.issues.some((issue) => issue.code === "run_id_mismatch"));
   assert(eventResult.issues.some((issue) => issue.code === "meta_id_mismatch"));
-
-  const recordResult = validateAdaptiveWorkflowRunRecord(record);
-  assert.equal(recordResult.ok, false);
-  assert(recordResult.issues.some((issue) => issue.path.endsWith(".runId")));
 });
 
 test("adaptive workflow public contract collections are immutable and exported from runtime index", async () => {
