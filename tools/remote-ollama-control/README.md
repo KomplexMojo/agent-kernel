@@ -412,15 +412,17 @@ Each run records endpoint, profile, model, context, `num_predict`, wall time, Ol
 
 ## Content-Gen Benchmark
 
-Compare how well each Ubuntu GPU node (primary, secondary, dual) handles the current 64 agent-kernel MCP scenarios. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference vault artifacts.
+Compare how well each Ubuntu GPU node (primary, secondary, dual) handles the current 100 agent-kernel MCP scenarios. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference expectations.
 
-Scenarios are loaded from the vault at `LLM_AK_VAULT_DIR` (default: `~/Documents/Obsidian/agent-kernel-vault`). Set this in `config/llm-host.env` if the vault is in a non-default location.
+The benchmark questions are versioned under `benchmarks/content-gen/` as four reviewed tier catalogs with 25 simple, 25 affinity, 25 complex, and 25 constrained scenarios. `loadScenarioCatalog()` validates the complete 1–100 id range and returns a canonical SHA-256, so a scenario-set change is visible in Git and has a stable identity. Canonical payloads use `$RUN_OUTPUT/create` rather than a machine-specific output path.
+
+Scoring reads compact entity-count, affinity, and spend expectations from each catalog entry. `scoreRun` retains its legacy `spec.json` and `budget-receipt.json` inputs as a tested compatibility fallback, but `run-content-gen` has no runtime dependency on the vault.
 
 ```bash
-# Dry-run: show what would run without opening tunnels
+# Dry-run: plan the complete model × GPU-profile qualification matrix without network access
 ./bin/remote-ollama-mac dry-run run-content-gen
 
-# Run all 64 scenarios × 3 profiles (primary, secondary, dual)
+# Run all 100 scenarios × 3 profiles (primary, secondary, dual)
 ./bin/remote-ollama-mac run-content-gen --route internal
 
 # Run a subset of scenarios (e.g., simple tier only, IDs 1–9)
@@ -432,6 +434,15 @@ Scenarios are loaded from the vault at `LLM_AK_VAULT_DIR` (default: `~/Documents
 # Use a specific model override (otherwise uses each profile's default)
 ./bin/remote-ollama-mac run-content-gen --profiles dual --model qwen3-coder:30b-a3b-q4_K_M --runs 2
 ```
+
+The default dry-run is the M3a planning contract. It reads the five Git-owned model definitions and
+three GPU profiles, emits the eight eligible configurations (7B/14B on both single cards and both
+30B candidates on dual), and reports a stable matrix hash plus the declared resource order. One
+complete pass is 800 calls; three qualifying passes are at most 2,400 calls. `--profiles`, `--model`,
+`--context`, `--num-predict`, `--runs`, and `--scenario-ids` narrow or override the offline plan.
+
+Live `run-content-gen` execution remains on the existing single-model-per-profile loop until M3b;
+M3a does not start the eight-configuration matrix or change scoring.
 
 Results are written to `results/<timestamp>-content-gen/`:
 - `runs.jsonl` — one JSON line per run

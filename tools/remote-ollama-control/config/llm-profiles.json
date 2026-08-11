@@ -2,6 +2,9 @@
   "profiles": {
     "primary": {
       "description": "GPU 0 only, primary PCIe x16 card.",
+      "hardwareClass": "single-primary",
+      "gpuCount": 1,
+      "capacityRank": 2,
       "intendedGpu": "GPU 0 / x16 primary card",
       "gpuDevices": "0",
       "rocrVisibleDevices": "0",
@@ -17,6 +20,9 @@
     },
     "secondary": {
       "description": "GPU 1 only, secondary PCIe x4 card.",
+      "hardwareClass": "single-secondary",
+      "gpuCount": 1,
+      "capacityRank": 1,
       "intendedGpu": "GPU 1 / x4 secondary card",
       "gpuDevices": "1",
       "rocrVisibleDevices": "1",
@@ -32,6 +38,9 @@
     },
     "dual": {
       "description": "GPU 0 and GPU 1 visible for larger split/offloaded models.",
+      "hardwareClass": "dual",
+      "gpuCount": 2,
+      "capacityRank": 3,
       "intendedGpu": "GPU 0 + GPU 1 / 24GB aggregate VRAM, x4 card may bottleneck",
       "gpuDevices": "0,1",
       "rocrVisibleDevices": "0,1",

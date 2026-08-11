@@ -31,6 +31,45 @@ function affinityByType(cardSet) {
   return affinities;
 }
 
+function compactReferenceMetrics(reference) {
+  const fail = (reason) => {
+    throw new Error(`Invalid compact reference expectations: ${reason}`);
+  };
+  if (!reference || typeof reference !== 'object' || Array.isArray(reference)) {
+    fail('reference must be an object');
+  }
+  const { entityCounts, affinitiesByType, totalSpend } = reference;
+  if (!entityCounts || typeof entityCounts !== 'object' || Array.isArray(entityCounts)) {
+    fail('entityCounts must be an object');
+  }
+  if (!affinitiesByType || typeof affinitiesByType !== 'object' || Array.isArray(affinitiesByType)) {
+    fail('affinitiesByType must be an object');
+  }
+  const counts = {};
+  for (const [type, count] of Object.entries(entityCounts)) {
+    if (!type || !Number.isInteger(count) || count < 0) {
+      fail(`invalid entity count for ${type || '<empty>'}`);
+    }
+    counts[type] = count;
+  }
+  const affinities = {};
+  for (const [type, values] of Object.entries(affinitiesByType)) {
+    if (!type || !Array.isArray(values) || values.some((value) => typeof value !== 'string' || !value)) {
+      fail(`invalid affinity list for ${type || '<empty>'}`);
+    }
+    affinities[type] = new Set(values);
+  }
+  if (!Number.isFinite(totalSpend) || totalSpend < 0) {
+    fail('totalSpend must be a non-negative finite number');
+  }
+  return {
+    types: new Set(Object.keys(counts)),
+    counts,
+    affinities,
+    spend: totalSpend,
+  };
+}
+
 function setsEqual(a, b) {
   if (a.size !== b.size) return false;
   for (const item of a) {
@@ -72,14 +111,29 @@ function scoreRun(runResult, scenario, refSpecPath, refReceiptPath) {
 
   const genSpecPath = runResult.outDir ? path.join(runResult.outDir, 'spec.json') : null;
   const genSpec = genSpecPath ? readJson(genSpecPath) : null;
-  const refSpec = refSpecPath ? readJson(refSpecPath) : null;
-
   const genCardSet = genSpec?.plan?.hints?.cardSet || [];
-  const refCardSet = refSpec?.plan?.hints?.cardSet || [];
+  let refTypes;
+  let refCounts;
+  let refAffinities;
+  let refSpend;
+  if (Object.prototype.hasOwnProperty.call(scenario || {}, 'reference')) {
+    const compact = compactReferenceMetrics(scenario.reference);
+    refTypes = compact.types;
+    refCounts = compact.counts;
+    refAffinities = compact.affinities;
+    refSpend = compact.spend;
+  } else {
+    const refSpec = refSpecPath ? readJson(refSpecPath) : null;
+    const refCardSet = refSpec?.plan?.hints?.cardSet || [];
+    const refReceipt = refReceiptPath ? readJson(refReceiptPath) : null;
+    refTypes = new Set(refCardSet.map((card) => card.type));
+    refCounts = countByType(refCardSet);
+    refAffinities = affinityByType(refCardSet);
+    refSpend = refReceipt?.totalCost ?? null;
+  }
 
   // Entity types match: 20 pts
   const genTypes = new Set(genCardSet.map((c) => c.type));
-  const refTypes = new Set(refCardSet.map((c) => c.type));
   if (refTypes.size === 0) {
     // No reference to compare against — give full credit if exec succeeded
     points += 20;
@@ -92,7 +146,6 @@ function scoreRun(runResult, scenario, refSpecPath, refReceiptPath) {
 
   // Entity counts match: 20 pts
   const genCounts = countByType(genCardSet);
-  const refCounts = countByType(refCardSet);
   const allTypes = new Set([...Object.keys(genCounts), ...Object.keys(refCounts)]);
   if (allTypes.size === 0) {
     breakdown.entityCountsMatch = 0;
@@ -110,7 +163,6 @@ function scoreRun(runResult, scenario, refSpecPath, refReceiptPath) {
 
   // Affinity match: 20 pts
   const genAffinities = affinityByType(genCardSet);
-  const refAffinities = affinityByType(refCardSet);
   const affinityTypes = new Set([...Object.keys(genAffinities), ...Object.keys(refAffinities)]);
   if (affinityTypes.size === 0) {
     breakdown.affinityMatch = 0;
@@ -132,9 +184,7 @@ function scoreRun(runResult, scenario, refSpecPath, refReceiptPath) {
   // the component whenever a spend was recorded.
   const genReceiptPath = runResult.outDir ? path.join(runResult.outDir, 'budget-receipt.json') : null;
   const genReceipt = genReceiptPath ? readJson(genReceiptPath) : null;
-  const refReceipt = refReceiptPath ? readJson(refReceiptPath) : null;
   const genSpend = genReceipt?.totalCost ?? null;
-  const refSpend = refReceipt?.totalCost ?? null;
   if (scenario?.budgetMode !== 'constrained') {
     breakdown.budgetDelta = genSpend !== null && genSpend > 0 ? 10 : 0;
     points += breakdown.budgetDelta;

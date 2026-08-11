@@ -41,6 +41,7 @@
       "profiles": [
         "dual"
       ],
+      "parameterBillions": 30,
       "sizeGb": 18,
       "family": "qwen3-coder",
       "use": "30B coding model candidate across both GPUs"
@@ -49,6 +50,7 @@
       "profiles": [
         "dual"
       ],
+      "parameterBillions": 30,
       "sizeGb": 18,
       "family": "qwen3-coder",
       "use": "larger coding model across both GPUs"
@@ -58,6 +60,7 @@
         "primary",
         "secondary"
       ],
+      "parameterBillions": 14,
       "sizeGb": 9.3,
       "family": "qwen3",
       "use": "single 12GB GPU general reasoning and structured output"
@@ -67,6 +70,7 @@
         "primary",
         "secondary"
       ],
+      "parameterBillions": 14,
       "sizeGb": 9,
       "family": "qwen2.5-coder",
       "use": "single 12GB GPU coding and test generation"
@@ -76,6 +80,7 @@
         "primary",
         "secondary"
       ],
+      "parameterBillions": 7,
       "sizeGb": 4.7,
       "family": "qwen2.5-coder",
       "use": "single 12GB GPU background tool-use or smaller coding tests"

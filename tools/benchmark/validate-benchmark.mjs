@@ -1,8 +1,13 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { authoringSpec } from "../../packages/adapters-cli/src/mcp/tools/authoring.mjs";
 import { buildArgv } from "../../packages/adapters-cli/src/mcp/tools/shared.mjs";
+
+const require = createRequire(import.meta.url);
+const { loadScenarioCatalog } = require("../remote-ollama-control/scripts/lib/ak-scenarios.js");
 
 const ROOT = resolve(process.env.AGENT_KERNEL_ROOT || process.cwd());
 const CLI = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -43,13 +48,38 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-function extractPayload(notePath) {
-  const text = readFileSync(notePath, "utf8");
-  const match = text.match(/## MCP Payload\s+```json\s+([\s\S]*?)\s+```/);
-  if (!match) {
-    throw new Error(`MCP payload block not found in ${notePath}`);
-  }
-  return JSON.parse(match[1]);
+export function scenarioPayloadForOutput(scenario, outDir) {
+  return { ...scenario.payload, outDir };
+}
+
+function resultDetail(result) {
+  return [result?.error, result?.json?.error, result?.stderr, result?.stdout]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function rejectionClass(result) {
+  return /Budget (?:receipt )?(?:denied|insufficient)/i.test(resultDetail(result))
+    ? "budget_denied"
+    : null;
+}
+
+export function classifyCliOutcome(result) {
+  if (result?.exitCode === 0 && result?.json?.ok === true) return "success";
+  return rejectionClass(result) || "unexpected_failure";
+}
+
+export function classifyMcpOutcome(result) {
+  if (result?.ok === true) return "success";
+  return rejectionClass(result) || "unexpected_failure";
+}
+
+export function evaluateOutcomeParity(expectedOutcome, cliOutcome, mcpOutcome) {
+  return {
+    cliOk: cliOutcome === expectedOutcome,
+    mcpOk: mcpOutcome === expectedOutcome,
+    parityOk: cliOutcome === expectedOutcome && mcpOutcome === expectedOutcome,
+  };
 }
 
 function stableStringify(value) {
@@ -206,15 +236,8 @@ function runCli(payload, outDir) {
   };
 }
 
-function scenarioNotes() {
-  return readdirSync(OUT_ROOT)
-    .filter((entry) => /^\d{2} .+\.md$/.test(entry))
-    .sort()
-    .map((entry) => join(OUT_ROOT, entry));
-}
-
 function summarizeRows(rows) {
-  const headers = ["#", "Title", "CLI", "MCP", "Parity", "Missing", "Error"];
+  const headers = ["#", "Title", "Expected", "CLI", "MCP", "Parity", "Missing", "Error"];
   const escape = (value) => String(value ?? "").replace(/\|/g, "\\|").replace(/\n/g, "<br>");
   return [
     `| ${headers.join(" | ")} |`,
@@ -222,8 +245,9 @@ function summarizeRows(rows) {
     ...rows.map((row) => `| ${[
       row.number,
       row.title,
-      row.cliOk ? "ok" : "fail",
-      row.mcpOk ? "ok" : "fail",
+      row.expectedOutcome,
+      `${row.cliOutcome}:${row.cliOk ? "ok" : "fail"}`,
+      `${row.mcpOutcome}:${row.mcpOk ? "ok" : "fail"}`,
       row.parityOk ? "ok" : "fail",
       [...row.cliMissing, ...row.mcpMissing].join(", "),
       row.error || "",
@@ -231,24 +255,25 @@ function summarizeRows(rows) {
   ].join("\n");
 }
 
-async function main() {
+export async function validateBenchmark() {
+  rmSync(VALIDATION_ROOT, { recursive: true, force: true });
   mkdirSync(VALIDATION_ROOT, { recursive: true });
-  const notes = scenarioNotes();
+  const catalog = loadScenarioCatalog();
   const mcp = new McpServerHarness();
   const rows = [];
-  await mcp.initialize();
   try {
-    for (const notePath of notes) {
-      const file = notePath.split("/").at(-1);
-      const number = file.slice(0, 2);
-      const title = file.slice(3, -3);
-      const slug = slugify(title);
-      const payload = extractPayload(notePath);
+    await mcp.initialize();
+    for (const scenario of catalog.scenarios) {
+      const number = String(scenario.index).padStart(2, "0");
+      const slug = slugify(scenario.title);
       const cliOutDir = join(VALIDATION_ROOT, "cli", `${number}-${slug}`, "create");
       const mcpOutDir = join(VALIDATION_ROOT, "mcp", `${number}-${slug}`, "create");
       const row = {
         number,
-        title,
+        title: scenario.title,
+        expectedOutcome: scenario.expectedOutcome,
+        cliOutcome: "unexpected_failure",
+        mcpOutcome: "unexpected_failure",
         cliOk: false,
         mcpOk: false,
         parityOk: false,
@@ -260,43 +285,73 @@ async function main() {
         status: null,
         error: "",
       };
+
+      let cliResult;
       try {
-        const cli = runCli(payload, cliOutDir);
-        row.cliOk = cli.exitCode === 0 && cli.json?.ok === true;
-        row.cliMissing = missingFiles(cliOutDir);
-        row.cliOk = row.cliOk && row.cliMissing.length === 0;
-        row.spend = cli.json?.cost?.totalSpend ?? null;
-        row.remaining = cli.json?.cost?.remaining ?? null;
-        row.status = cli.json?.cost?.status ?? null;
-        if (!row.cliOk) {
-          row.error = [row.error, `CLI exit=${cli.exitCode} ${cli.stderr || cli.stdout}`].filter(Boolean).join(" | ");
-        }
+        cliResult = runCli(scenario.payload, cliOutDir);
       } catch (error) {
-        row.error = [row.error, `CLI ${error.message}`].filter(Boolean).join(" | ");
+        cliResult = { exitCode: null, json: null, stderr: error.message, stdout: "" };
       }
+
+      let mcpResult;
       try {
         mkdirSync(mcpOutDir, { recursive: true });
-        const mcpResult = await mcp.callTool("ak_create", { ...payload, outDir: mcpOutDir });
-        row.mcpOk = mcpResult?.ok === true;
-        row.mcpMissing = missingFiles(mcpOutDir);
-        row.mcpOk = row.mcpOk && row.mcpMissing.length === 0;
-        if (!row.mcpOk) {
-          row.error = [row.error, `MCP ${JSON.stringify(mcpResult)}`].filter(Boolean).join(" | ");
-        }
+        mcpResult = await mcp.callTool(
+          "ak_create",
+          scenarioPayloadForOutput(scenario, mcpOutDir),
+        );
       } catch (error) {
-        row.error = [row.error, `MCP ${error.message}`].filter(Boolean).join(" | ");
+        mcpResult = { ok: false, error: error.message };
       }
-      if (row.cliOk && row.mcpOk) {
+
+      row.cliOutcome = classifyCliOutcome(cliResult);
+      row.mcpOutcome = classifyMcpOutcome(mcpResult);
+      Object.assign(
+        row,
+        evaluateOutcomeParity(scenario.expectedOutcome, row.cliOutcome, row.mcpOutcome),
+      );
+      row.spend = cliResult.json?.cost?.totalSpend ?? null;
+      row.remaining = cliResult.json?.cost?.remaining ?? null;
+      row.status = cliResult.json?.cost?.status ?? null;
+
+      if (scenario.expectedOutcome === "success") {
+        row.cliMissing = missingFiles(cliOutDir);
+        row.mcpMissing = missingFiles(mcpOutDir);
+        row.cliOk = row.cliOk && row.cliMissing.length === 0;
+        row.mcpOk = row.mcpOk && row.mcpMissing.length === 0;
+        row.parityOk = row.cliOk && row.mcpOk;
+      }
+      if (scenario.expectedOutcome === "success" && row.parityOk) {
         row.parityMismatches = compareArtifactDirs(cliOutDir, mcpOutDir);
         row.parityOk = row.parityMismatches.length === 0;
-        if (!row.parityOk) {
-          row.error = [row.error, `Parity mismatches: ${row.parityMismatches.join(", ")}`].filter(Boolean).join(" | ");
-        }
       }
+
+      if (!row.cliOk) {
+        row.error = [
+          row.error,
+          `CLI expected=${scenario.expectedOutcome} actual=${row.cliOutcome}: ${resultDetail(cliResult)}`,
+        ].filter(Boolean).join(" | ");
+      }
+      if (!row.mcpOk) {
+        row.error = [
+          row.error,
+          `MCP expected=${scenario.expectedOutcome} actual=${row.mcpOutcome}: ${resultDetail(mcpResult)}`,
+        ].filter(Boolean).join(" | ");
+      }
+      if (!row.parityOk && row.parityMismatches.length > 0) {
+        row.error = [
+          row.error,
+          `Parity mismatches: ${row.parityMismatches.join(", ")}`,
+        ].filter(Boolean).join(" | ");
+      }
+
       rows.push(row);
       console.log(JSON.stringify({
         number,
-        title,
+        title: scenario.title,
+        expectedOutcome: scenario.expectedOutcome,
+        cliOutcome: row.cliOutcome,
+        mcpOutcome: row.mcpOutcome,
         cliOk: row.cliOk,
         mcpOk: row.mcpOk,
         parityOk: row.parityOk,
@@ -309,6 +364,14 @@ async function main() {
   const summary = {
     ok: rows.every((row) => row.cliOk && row.mcpOk && row.parityOk),
     count: rows.length,
+    scenarioSetHash: catalog.sha256,
+    tierCounts: catalog.tierCounts,
+    expectedOutcomes: Object.fromEntries(
+      ["success", "budget_denied"].map((outcome) => [
+        outcome,
+        rows.filter((row) => row.expectedOutcome === outcome).length,
+      ]),
+    ),
     cliFailures: rows.filter((row) => !row.cliOk).length,
     mcpFailures: rows.filter((row) => !row.mcpOk).length,
     parityFailures: rows.filter((row) => !row.parityOk).length,
@@ -320,14 +383,25 @@ async function main() {
     `# Benchmark Validation Summary\n\n${JSON.stringify({
       ok: summary.ok,
       count: summary.count,
+      scenarioSetHash: summary.scenarioSetHash,
+      tierCounts: summary.tierCounts,
+      expectedOutcomes: summary.expectedOutcomes,
       cliFailures: summary.cliFailures,
       mcpFailures: summary.mcpFailures,
       parityFailures: summary.parityFailures,
     }, null, 2)}\n\n${summarizeRows(rows)}\n`,
   );
-  if (!summary.ok) {
+  return summary;
+}
+
+const isMain = process.argv[1]
+  && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
+if (isMain) {
+  try {
+    const summary = await validateBenchmark();
+    if (!summary.ok) process.exitCode = 1;
+  } catch (error) {
+    console.error(error.stack || error.message);
     process.exitCode = 1;
   }
 }
-
-await main();

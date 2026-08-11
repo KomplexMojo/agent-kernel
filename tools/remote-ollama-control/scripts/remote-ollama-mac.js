@@ -11,7 +11,7 @@ const {
   loadConfig,
   shellQuote
 } = require('./lib/config');
-const { buildHardwareBenchmarkSpecs, runBenchmarkMatrix } = require('./lib/benchmark');
+const { buildContentGenMatrix, buildHardwareBenchmarkSpecs, runBenchmarkMatrix } = require('./lib/benchmark');
 const { health, requestJson } = require('./lib/ollama');
 const { displayCommand, runRemote, runRemoteScript, sshBaseArgs } = require('./lib/ssh');
 
@@ -170,15 +170,19 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--profiles') {
       options.profiles = parseList(readOptionValue(args, index, arg));
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--model') {
       options.model = readOptionValue(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--models') {
       options.models = parseList(readOptionValue(args, index, arg));
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--context') {
       options.context = readPositiveNumber(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--contexts') {
       options.contexts = parseList(readOptionValue(args, index, arg)).map(Number);
@@ -188,6 +192,7 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--num-predict') {
       options.numPredict = readPositiveNumber(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--timeout-ms') {
       options.timeoutMs = readPositiveNumber(args, index, arg);
@@ -215,6 +220,7 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--runs') {
       options.runs = readPositiveNumber(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--scenario-ids') {
       options.scenarioIds = parseList(readOptionValue(args, index, arg)).map(Number).filter((v) => Number.isFinite(v) && v > 0);
@@ -1203,12 +1209,12 @@ function runRemoteExec(options) {
 }
 
 async function runContentGen(options) {
-  const { loadScenarios, resolveVaultDir } = require('./lib/ak-scenarios');
+  const { loadScenarioCatalog } = require('./lib/ak-scenarios');
   const { runScenario } = require('./lib/ak-runner');
   const { scoreRun, writeContentSummary } = require('./lib/ak-compare');
 
-  const vaultDir = resolveVaultDir(config.env);
-  let scenarios = loadScenarios(vaultDir);
+  const catalog = loadScenarioCatalog();
+  let scenarios = catalog.scenarios;
 
   if (options.scenarioIds.length > 0) {
     const ids = new Set(options.scenarioIds);
@@ -1216,7 +1222,7 @@ async function runContentGen(options) {
   }
 
   if (scenarios.length === 0) {
-    fail('No scenarios found. Check LLM_AK_VAULT_DIR or --scenario-ids.');
+    fail('No scenarios found. Check --scenario-ids.');
   }
 
   const profileNames = options.local
@@ -1227,13 +1233,29 @@ async function runContentGen(options) {
   const resultDir = path.join(config.host.resultsDir, `${timestamp}-content-gen`);
 
   if (options.dryRun) {
+    const matrix = options.local ? null : buildContentGenMatrix(config, {
+      models: options.models.length > 0 ? options.models : (options.model ? [options.model] : []),
+      profileNames: options.profiles,
+      contextTokens: options.explicitFlags.has('--context') ? options.context : undefined,
+      outputTokens: options.explicitFlags.has('--num-predict') ? options.numPredict : undefined,
+      maximumPasses: options.explicitFlags.has('--runs') ? options.runs : 3,
+      scenarioCount: scenarios.length
+    });
     process.stdout.write(JSON.stringify({
       command: 'run-content-gen',
+      execution: 'plan-only',
       route: options.route,
-      profiles: profileNames,
+      profiles: matrix
+        ? [...new Set(matrix.configurations.map((entry) => entry.profile.id))]
+        : profileNames,
       scenarios: scenarios.map((s) => `${s.index}. ${s.title}`),
-      runsPerScenario: options.runs,
-      vaultDir,
+      scenarioSet: {
+        count: catalog.count,
+        sha256: catalog.sha256,
+        tierCounts: catalog.tierCounts
+      },
+      runsPerScenario: matrix ? matrix.repeatPolicy.maximumPasses : options.runs,
+      matrix,
       resultDir,
       startProfiles: options.startProfiles,
       resetProfiles: options.resetProfiles
@@ -1307,9 +1329,7 @@ async function runContentGen(options) {
             };
           }
 
-          const refSpecPath = path.join(scenario.artifactDir, 'spec.json');
-          const refReceiptPath = path.join(scenario.artifactDir, 'budget-receipt.json');
-          const scoreResult = scoreRun(runResult, scenario, refSpecPath, refReceiptPath);
+          const scoreResult = scoreRun(runResult, scenario);
 
           const record = {
             runId,
