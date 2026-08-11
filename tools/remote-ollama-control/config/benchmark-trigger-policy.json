@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-trigger-policy/v1",
+  "runnerContractVersion": "benchmark-agent-v1",
+  "sourceRef": "main",
+  "resultBranch": "benchmark-results",
+  "relevantPaths": [
+    "packages/adapters-cli/src/mcp/**",
+    "packages/adapters-cli/src/cli/**",
+    "tools/benchmark/**",
+    "tools/remote-ollama-control/benchmarks/content-gen/**",
+    "tools/remote-ollama-control/config/models.json",
+    "tools/remote-ollama-control/config/llm-profiles.json",
+    "tools/remote-ollama-control/scripts/lib/ak-*.js",
+    "tools/remote-ollama-control/scripts/remote-ollama-mac.js"
+  ]
+}

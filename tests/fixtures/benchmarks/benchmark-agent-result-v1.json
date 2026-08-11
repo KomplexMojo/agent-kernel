@@ -1,0 +1,23 @@
+{
+  "status": "completed",
+  "qualifies": true,
+  "scenarioSet": {
+    "catalogPath": "tools/remote-ollama-control/benchmarks/content-gen",
+    "count": 2,
+    "sha256": "scenario-a",
+    "tierCounts": { "simple": 1, "constrained": 1 }
+  },
+  "matrix": {
+    "sha256": "matrix-a",
+    "configurationIds": ["fixture-single"],
+    "repeatPolicy": { "minimumPasses": 1, "maximumPasses": 1 }
+  },
+  "thresholds": { "scenarioVerdictRate": 0.99 },
+  "configurations": [{ "configurationId": "fixture-single", "verdict": { "qualifies": true } }],
+  "execution": { "status": "not_run", "reason": "M4a fixture" },
+  "minimumSuccessfulConfiguration": { "configurationId": "fixture-single" },
+  "paretoFrontier": ["fixture-single"],
+  "comparison": { "comparable": false, "incomparabilityReasons": ["fixture"] },
+  "failures": {},
+  "artifacts": { "retentionId": "fixture-run" }
+}
