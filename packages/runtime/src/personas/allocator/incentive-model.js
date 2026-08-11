@@ -8,13 +8,14 @@
 
 import {
   computeBudgetPools,
+  POOL_ID_BY_SPEND_CATEGORY,
   REFERENCE_BUDGET_TOKENS,
   REFERENCE_TARGETS,
   TARGET_DELVER_WARDEN_RATIO,
 } from "./budget-allocation.js";
 
-// ⚠️ `hazards` was listed TWICE in each of the four vocabularies below and in
-// `validate-spend.js`'s copy of CATEGORY_POOL_IDS — five duplicates telling one story.
+// ⚠️ `hazards` was listed TWICE in each of the vocabularies below and in the category → pool
+// map, which at the time existed twice — five duplicates telling one story.
 // Hazards used to bill to the ROOMS pool; when they got their own pool (15% of the dungeon
 // split, `DEFAULT_DUNGEON_SUB_POOLS`) the new line was added BELOW the old one instead of
 // replacing it. It worked only because a JS object literal takes the LAST duplicate key,
@@ -33,15 +34,10 @@ const REPORT_CATEGORIES = Object.freeze([
   "shared_system",
 ]);
 
-const CATEGORY_POOL_IDS = Object.freeze({
-  rooms: "rooms",
-  floor_tiles: "rooms",
-  hazards: "hazards",
-  resources: "resources",
-  delvers: "delver",
-  wardens: "wardens",
-  shared_system: "rooms",
-});
+// `POOL_ID_BY_SPEND_CATEGORY` was declared here and, verbatim, in validate-spend.js — which is
+// exactly why the `hazards` duplicate-key defect above existed in both: the map was copied, so
+// the bug was copied with it. It now has one origin, in budget-allocation.js beside the pools
+// it names, and `tests/architecture/single-origin.test.js` forbids a second declaration.
 
 /**
  * Compute the incentive multiplier (design §3.3).
@@ -88,7 +84,7 @@ function buildCategoryTargets({ budgetTokens, allocation } = {}) {
     shared_system: 0,
   };
   return Object.fromEntries(REPORT_CATEGORIES.map((category) => {
-    const poolId = CATEGORY_POOL_IDS[category];
+    const poolId = POOL_ID_BY_SPEND_CATEGORY[category];
     const poolTarget = poolId ? poolTargets.get(poolId) : undefined;
     return [category, Number.isInteger(poolTarget) ? poolTarget : fallback[category] || 0];
   }));

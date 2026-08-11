@@ -182,6 +182,28 @@ entire milestone that closed CR.1 — and the proof it was load-bearing is that 
 canonical split changed nothing on the real path until it was removed. An economy that ends
 at a package boundary is not a single origin; neither is the guard that protects it.
 
+### Three vocabularies name these pools, and two of them are mapped from one file
+
+The pools have ids (`rooms`, `hazards`, `wardens`, `resources`, `delver`). Two other
+vocabularies refer to them and neither matches:
+
+| Vocabulary | Example | Mapped by |
+|---|---|---|
+| **Card types** | `room`, `hazard`, `warden` | `POOL_ID_BY_CARD_TYPE` (`budget-allocation.js`) |
+| **Spend categories** | `floor_tiles`, `delvers`, `shared_system` | `POOL_ID_BY_SPEND_CATEGORY` (`budget-allocation.js`) |
+
+Both maps live beside the pools they name, for the reason the split itself does: the pools are
+declared here, so the translation onto them is this file's formula.
+
+⚠️ **`POOL_ID_BY_SPEND_CATEGORY` was declared verbatim in two modules until 2026-08-11**
+(`incentive-model.js` and `validate-spend.js`, under the name `CATEGORY_POOL_IDS`) **and that
+copy is why one defect existed twice.** Both carried `hazards: "rooms"` shadowed by a later
+`hazards: "hazards"` — a dead mapping from before hazards had their own 15% pool, kept alive
+only by JS taking the last duplicate key. Fixing one file would have left the other.
+`tests/architecture/single-origin.test.js` now forbids a second declaration under `packages/`,
+**matching the old name as well as the new one** — a revert would reintroduce the copy under
+the spelling it originally had.
+
 ### The base-cost standard: numbers in JSON, formulas in code
 
 **Every element with a token cost follows this split, without exception.**

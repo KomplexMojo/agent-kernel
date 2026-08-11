@@ -5,19 +5,10 @@ import {
   PRICE_LIST_SCHEMA,
 } from "../../contracts/artifacts.ts";
 
-// The dead `hazards: "rooms"` twin is gone — see the note on the identical map in
-// `incentive-model.js`. ⚠️ This map is a SECOND COPY of that one, key for key; the
-// duplicate-key defect existed in both because the map itself is duplicated. That is a
-// separate single-origin question and is not settled here.
-const CATEGORY_POOL_IDS = Object.freeze({
-  rooms: "rooms",
-  floor_tiles: "rooms",
-  hazards: "hazards",
-  resources: "resources",
-  delvers: "delver",
-  wardens: "wardens",
-  shared_system: "rooms",
-});
+// The category → pool map has ONE origin, in budget-allocation.js beside the pools it names.
+// This file declared it verbatim alongside incentive-model.js — the copy is why the `hazards`
+// duplicate-key defect existed in two places at once.
+import { POOL_ID_BY_SPEND_CATEGORY } from "./budget-allocation.js";
 
 function isFiniteNumber(value) {
   return Number.isFinite(value);
@@ -84,7 +75,7 @@ function buildAllocationAudit({ allocation, lineItems, errors }) {
 
   const spendByPool = new Map(pools.map((pool) => [pool.id, 0]));
   lineItems.forEach((item) => {
-    const poolId = CATEGORY_POOL_IDS[item.category];
+    const poolId = POOL_ID_BY_SPEND_CATEGORY[item.category];
     if (!poolId) {
       item.status = "denied";
       errors.push(`Unattributed spend item: ${item.kind}:${item.id}`);
@@ -101,7 +92,7 @@ function buildAllocationAudit({ allocation, lineItems, errors }) {
     if (status === "denied") {
       errors.push(`Pool ${pool.id} exceeds allocation: spent ${spentTokens}, cap ${capTokens}.`);
       lineItems.forEach((item) => {
-        if (CATEGORY_POOL_IDS[item.category] === pool.id) item.status = "denied";
+        if (POOL_ID_BY_SPEND_CATEGORY[item.category] === pool.id) item.status = "denied";
       });
     }
     return {

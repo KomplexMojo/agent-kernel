@@ -180,11 +180,30 @@ const SPEND_PROTOCOL_VOCABULARY = new RegExp(
 const LAYOUT_COUNT_READER_DECLARATION =
   /\b(?:function|const|let)\s+normalizeLayoutCounts\b/g;
 
+// The spend-category → budget-pool map. Declared VERBATIM in `allocator/incentive-model.js`
+// and `allocator/validate-spend.js` until 2026-08-11, and that copy is why one defect existed
+// twice: both carried `hazards: "rooms"` shadowed by `hazards: "hazards"`, a dead mapping from
+// before hazards had their own pool. Fixing one would have left the other.
+//
+// ⚠️ MATCHED BY NAME, INCLUDING THE OLD ONE. The pre-collapse spelling was `CATEGORY_POOL_IDS`;
+// forbidding only the new name would let a reverting change reintroduce the copy under the name
+// it originally had. This is the `normalizeLayoutCounts` lesson — a private function is not
+// encapsulated if three modules have the same one, and the guard must know the vocabulary, not
+// just today's spelling of it.
+const CATEGORY_POOL_MAP_DECLARATION =
+  /\b(?:function|const|let)\s+(?:POOL_ID_BY_SPEND_CATEGORY|CATEGORY_POOL_IDS)\b/g;
+
 const SINGLE_ORIGIN_GUARDS = [
   {
     concept: "layout tile-count reader",
     canonicalHome: ["packages/runtime/src/contracts"],
     forbiddenPattern: LAYOUT_COUNT_READER_DECLARATION,
+    scope: "packages",
+  },
+  {
+    concept: "spend-category → budget-pool map",
+    canonicalHome: ["packages/runtime/src/personas/allocator/budget-allocation.js"],
+    forbiddenPattern: CATEGORY_POOL_MAP_DECLARATION,
     scope: "packages",
   },
   {

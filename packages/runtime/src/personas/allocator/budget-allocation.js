@@ -82,6 +82,31 @@ const POOL_ID_BY_CARD_TYPE = Object.freeze({
   delver: { id: "delver", notes: "Delver actors" },
 });
 
+/**
+ * The THIRD vocabulary that names these pools, and now the second one mapped from here.
+ *
+ * `POOL_ID_BY_CARD_TYPE` above translates the card-type vocabulary (`room`, `warden`) to
+ * pool ids; this translates the SPEND-CATEGORY vocabulary (`floor_tiles`, `delvers`,
+ * `shared_system`) to the same ids. Categories are not card types — they are plural, they
+ * include `floor_tiles` and `shared_system`, and several of them share one pool.
+ *
+ * ⚠️ IT WAS DECLARED TWICE, VERBATIM, in `incentive-model.js` and `validate-spend.js`, and
+ * that is why the `hazards` duplicate-key defect existed in two places at once: the map was
+ * copied, so the bug was copied. Collapsing it here is the same reasoning the docblock above
+ * gives for `POOL_ID_BY_CARD_TYPE` — the pools are declared in this file, so the mapping
+ * onto them is this file's formula. `tests/architecture/single-origin.test.js` now forbids a
+ * second declaration of the name anywhere under `packages/`.
+ */
+export const POOL_ID_BY_SPEND_CATEGORY = Object.freeze({
+  rooms: "rooms",
+  floor_tiles: "rooms",
+  hazards: "hazards",
+  resources: "resources",
+  delvers: "delver",
+  wardens: "wardens",
+  shared_system: "rooms",
+});
+
 const DEFAULT_POOLS = Object.freeze(
   Object.entries(POOL_ID_BY_CARD_TYPE).map(([cardType, { id, notes }]) => ({
     id,
