@@ -11,7 +11,9 @@ function createStatusSink() {
   const status = { message: "", level: "info", hidden: true };
   return {
     el: {
-      dataset: {},
+      // `dataset: {}` stood here and was shadowed by the `get dataset()` accessor below —
+      // a data property and an accessor for one key, where the later accessor wins. The
+      // getter already lazily creates the object, so the literal was never read.
       style: {},
       set textContent(value) {
         status.message = String(value ?? "");

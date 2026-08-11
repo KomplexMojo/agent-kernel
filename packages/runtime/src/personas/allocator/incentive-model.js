@@ -13,10 +13,19 @@ import {
   TARGET_DELVER_WARDEN_RATIO,
 } from "./budget-allocation.js";
 
+// ⚠️ `hazards` was listed TWICE in each of the four vocabularies below and in
+// `validate-spend.js`'s copy of CATEGORY_POOL_IDS — five duplicates telling one story.
+// Hazards used to bill to the ROOMS pool; when they got their own pool (15% of the dungeon
+// split, `DEFAULT_DUNGEON_SUB_POOLS`) the new line was added BELOW the old one instead of
+// replacing it. It worked only because a JS object literal takes the LAST duplicate key,
+// so `hazards → "hazards"` has been the live mapping all along and `hazards → "rooms"` was
+// dead code that still read like policy.
+//
+// Removing the dead entries is behavior-preserving by construction — the surviving value
+// is the one that was already winning — and the goldens are the gate.
 const REPORT_CATEGORIES = Object.freeze([
   "rooms",
   "floor_tiles",
-  "hazards",
   "hazards",
   "resources",
   "delvers",
@@ -27,7 +36,6 @@ const REPORT_CATEGORIES = Object.freeze([
 const CATEGORY_POOL_IDS = Object.freeze({
   rooms: "rooms",
   floor_tiles: "rooms",
-  hazards: "rooms",
   hazards: "hazards",
   resources: "resources",
   delvers: "delver",
@@ -70,7 +78,9 @@ function buildCategoryTargets({ budgetTokens, allocation } = {}) {
   const fallback = {
     rooms: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
     floor_tiles: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
-    hazards: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
+    // The dead `REFERENCE_TARGETS.rooms` twin is gone; `REFERENCE_TARGETS.hazards` is what
+    // this key has actually resolved to. `floor_tiles` still falls back to the rooms
+    // target on purpose — floor tiles have no pool of their own.
     hazards: Math.round((REFERENCE_TARGETS.hazards || 0) * fallbackScale),
     resources: Math.round(REFERENCE_TARGETS.resources * fallbackScale),
     delvers: Math.round(REFERENCE_TARGETS.delvers * fallbackScale),
@@ -98,7 +108,6 @@ function buildLegacyCategorySpend({ roomsSpend, delverSpend, wardenSpend, resour
   return {
     rooms: normalizeSpend(roomsSpend),
     floor_tiles: 0,
-    hazards: 0,
     hazards: 0,
     resources: normalizeSpend(resourcesSpend),
     delvers: normalizeSpend(delverSpend),

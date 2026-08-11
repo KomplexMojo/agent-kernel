@@ -5,10 +5,13 @@ import {
   PRICE_LIST_SCHEMA,
 } from "../../contracts/artifacts.ts";
 
+// The dead `hazards: "rooms"` twin is gone — see the note on the identical map in
+// `incentive-model.js`. ⚠️ This map is a SECOND COPY of that one, key for key; the
+// duplicate-key defect existed in both because the map itself is duplicated. That is a
+// separate single-origin question and is not settled here.
 const CATEGORY_POOL_IDS = Object.freeze({
   rooms: "rooms",
   floor_tiles: "rooms",
-  hazards: "rooms",
   hazards: "hazards",
   resources: "resources",
   delvers: "delver",

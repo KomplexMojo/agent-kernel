@@ -4995,7 +4995,9 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     poolWeights: buildPoolWeightsForAuthoredKinds({
       rooms: fulfilled.rooms,
       floorTiles: parsedFloorTiles,
-      hazards: parsedHazards,
+      // Was written twice, `parsedHazards` then `canonicalHazardEntries`. Inert here only
+      // by coincidence: `canonicalHazardEntries` IS `parsedHazards` (same binding, line
+      // ~4809), so the two keys held the same reference. The last one wins regardless.
       hazards: canonicalHazardEntries,
       resources: parsedResources,
       delvers: fulfilled.delvers,
