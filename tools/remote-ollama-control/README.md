@@ -441,13 +441,19 @@ three GPU profiles, emits the eight eligible configurations (7B/14B on both sing
 complete pass is 800 calls; three qualifying passes are at most 2,400 calls. `--profiles`, `--model`,
 `--context`, `--num-predict`, `--runs`, and `--scenario-ids` narrow or override the offline plan.
 
-Live `run-content-gen` execution remains on the existing single-model-per-profile loop until M3b;
-M3a does not start the eight-configuration matrix or change scoring.
+Live `run-content-gen` now executes the eligible configurations in declared resource order. It runs
+one complete pass, continues up to three while qualification remains mathematically possible, and
+keeps expected budget denial separate from raw process success.
 
 Results are written to `results/<timestamp>-content-gen/`:
 - `runs.jsonl` — one JSON line per run
+- `result.json` — schema-versioned configuration, tier, qualification, Pareto, and minimum result
 - `summary.md` — aggregate table by profile + per-run detail table
 - `raw/<runId>/create/` — generated artifacts for each run
+
+The Markdown aggregate retains the historical `Profile | Model | Scenarios | Runs | Avg score |
+Tool call ok | Exec ok` projection. `result.json` adds scenario verdicts without rewriting raw
+execution failures, so an expected budget rejection can qualify while remaining visible as exec-fail.
 
 Scoring (100 pts per run):
 | Component | Points | How |

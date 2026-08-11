@@ -1210,8 +1210,9 @@ function runRemoteExec(options) {
 
 async function runContentGen(options) {
   const { loadScenarioCatalog } = require('./lib/ak-scenarios');
-  const { runScenario } = require('./lib/ak-runner');
-  const { scoreRun, writeContentSummary } = require('./lib/ak-compare');
+  const { classifyExecutionOutcome, runScenario } = require('./lib/ak-runner');
+  const { aggregateContentGenResults, scoreRun, writeContentResult, writeContentSummary } = require('./lib/ak-compare');
+  const { executeContentGenMatrix } = require('./lib/ak-matrix');
 
   const catalog = loadScenarioCatalog();
   let scenarios = catalog.scenarios;
@@ -1231,16 +1232,16 @@ async function runContentGen(options) {
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const resultDir = path.join(config.host.resultsDir, `${timestamp}-content-gen`);
+  const matrix = options.local ? null : buildContentGenMatrix(config, {
+    models: options.models.length > 0 ? options.models : (options.model ? [options.model] : []),
+    profileNames: options.profiles,
+    contextTokens: options.explicitFlags.has('--context') ? options.context : undefined,
+    outputTokens: options.explicitFlags.has('--num-predict') ? options.numPredict : undefined,
+    maximumPasses: options.explicitFlags.has('--runs') ? options.runs : 3,
+    scenarioCount: scenarios.length
+  });
 
   if (options.dryRun) {
-    const matrix = options.local ? null : buildContentGenMatrix(config, {
-      models: options.models.length > 0 ? options.models : (options.model ? [options.model] : []),
-      profileNames: options.profiles,
-      contextTokens: options.explicitFlags.has('--context') ? options.context : undefined,
-      outputTokens: options.explicitFlags.has('--num-predict') ? options.numPredict : undefined,
-      maximumPasses: options.explicitFlags.has('--runs') ? options.runs : 3,
-      scenarioCount: scenarios.length
-    });
     process.stdout.write(JSON.stringify({
       command: 'run-content-gen',
       execution: 'plan-only',
@@ -1267,110 +1268,119 @@ async function runContentGen(options) {
   fs.mkdirSync(resultDir, { recursive: true });
   const jsonlPath = path.join(resultDir, 'runs.jsonl');
   const summaryPath = path.join(resultDir, 'summary.md');
-  const allResults = [];
+  const resultPath = path.join(resultDir, 'result.json');
   const tunnels = new Map();
   const endpoints = new Map();
+  const localModel = options.model || config.local.model;
+  if (options.local && !localModel) {
+    fail('--local requires --model (or LLM_LOCAL_OLLAMA_MODEL) since there is no default local model.');
+  }
+  const executionMatrix = matrix || {
+    sha256: 'local-unversioned',
+    repeatPolicy: { minimumCompletePasses: 1, maximumPasses: options.runs, earlyStop: 'mathematically_lossless' },
+    configurations: [{
+      configurationId: `cg-local--${localModel}`,
+      profile: { id: 'local', hardwareClass: 'local', gpuCount: 1, capacityRank: 1 },
+      model: { id: localModel, family: 'local', parameterBillions: 1 },
+      settings: { contextTokens: options.context, outputTokens: options.numPredict },
+      resourceOrder: {
+        gpuCount: 1, capacityRank: 1, modelSizeBillions: 1,
+        contextTokens: options.context, outputTokens: options.numPredict
+      }
+    }]
+  };
+  const executionProfiles = [...new Set(executionMatrix.configurations.map((entry) => entry.profile.id))];
 
   try {
-    for (const profileName of profileNames) {
-      const profile = options.local ? null : getProfile(config, profileName);
-      const model = options.model || (options.local ? config.local.model : profile.defaultModel);
-      if (options.local && !model) {
-        fail('--local requires --model (or LLM_LOCAL_OLLAMA_MODEL) since there is no default local model.');
-      }
-      const endpoint = options.local ? config.local.host : clientEndpoint(profile, options);
-      endpoints.set(profileName, endpoint);
+    const allResults = await executeContentGenMatrix({
+      matrix: executionMatrix,
+      scenarios,
+      beforeConfiguration: async (configuration) => {
+        const profileName = configuration.profile.id;
+        const model = configuration.model.id;
+        const profile = options.local ? null : getProfile(config, profileName);
+        const endpoint = options.local ? config.local.host : clientEndpoint(profile, options);
+        endpoints.set(configuration.configurationId, endpoint);
 
-      if (!options.local && !options.direct) {
-        tunnels.set(profileName, await openBenchmarkTunnel(options, profile, endpoint));
-      }
-
-      if (!options.local && options.startProfiles) {
-        const command = options.resetProfiles ? 'restart' : 'start';
-        process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profileName} with ${model}\n`);
-        runRemote(config, options.route, [command, '--profile', profileName, '--model', model], {
-          timeoutMs: options.timeoutMs
-        });
-      }
-
-      await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnels.get(profileName));
-      process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
-      await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
-
-      let runIndex = 0;
-      for (const scenario of scenarios) {
-        for (let repeat = 0; repeat < options.runs; repeat += 1) {
-          runIndex += 1;
-          const runId = [
-            'cg',
-            String(runIndex).padStart(4, '0'),
-            profileName,
-            `s${String(scenario.index).padStart(2, '0')}`,
-            `r${repeat + 1}`
-          ].join('-');
-          const runOutDir = path.join(resultDir, 'raw', runId);
-          fs.mkdirSync(runOutDir, { recursive: true });
-
-          process.stdout.write(
-            `[${runIndex}] ${profileName} | scenario ${String(scenario.index).padStart(2, '0')} ${scenario.title} | run ${repeat + 1}/${options.runs}\n`
-          );
-
-          let runResult;
-          try {
-            runResult = await runScenario(endpoint, model, scenario, runOutDir, runId, options.timeoutMs);
-          } catch (error) {
-            runResult = {
-              toolCallProduced: false,
-              toolArgs: null,
-              llmMs: 0,
-              llmError: error.message,
-              execResult: null,
-              outDir: null
-            };
-          }
-
-          const scoreResult = scoreRun(runResult, scenario);
-
-          const record = {
-            runId,
-            timestamp: new Date().toISOString(),
-            profile: profileName,
-            model,
-            scenarioIndex: scenario.index,
-            scenarioTitle: scenario.title,
-            scenarioTier: scenario.tier,
-            scenarioBudget: scenario.budget,
-            repeat: repeat + 1,
-            toolCallProduced: runResult.toolCallProduced,
-            toolArgs: runResult.toolArgs || null,
-            llmMs: runResult.llmMs,
-            llmError: runResult.llmError || null,
-            execSucceeded: runResult.execResult?.succeeded || false,
-            execExitCode: runResult.execResult?.exitCode ?? null,
-            execMs: runResult.execResult?.execMs || null,
-            execStderr: runResult.execResult?.stderr || null,
-            outDir: runResult.outDir || null,
-            score: scoreResult.points,
-            scoreMax: scoreResult.max,
-            scoreBreakdown: scoreResult.breakdown
-          };
-
-          allResults.push(record);
-          fs.appendFileSync(jsonlPath, `${JSON.stringify(record)}\n`);
-          writeContentSummary(summaryPath, allResults, {
-            profiles: profileNames,
-            scenarios: scenarios.length,
-            route: options.route,
-            resultDir
-          });
-
-          process.stdout.write(
-            `  Score: ${scoreResult.points}/100 | Tool: ${runResult.toolCallProduced ? 'yes' : 'no'} | ` +
-            `Exec: ${runResult.execResult?.succeeded ? 'ok' : 'fail'} | LLM: ${runResult.llmMs}ms\n`
-          );
+        if (!options.local && !options.direct && !tunnels.has(profileName)) {
+          tunnels.set(profileName, await openBenchmarkTunnel(options, profile, endpoint));
         }
+
+        if (!options.local && options.startProfiles) {
+          const command = options.resetProfiles ? 'restart' : 'start';
+          process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profileName} with ${model}\n`);
+          runRemote(config, options.route, [command, '--profile', profileName, '--model', model], {
+            timeoutMs: options.timeoutMs
+          });
+        }
+
+        await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnels.get(profileName));
+        process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
+        await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+      },
+      runAttempt: async ({ configuration, scenario, repeat, runId }) => {
+        const runOutDir = path.join(resultDir, 'raw', runId);
+        fs.mkdirSync(runOutDir, { recursive: true });
+        process.stdout.write(
+          `${configuration.configurationId} | scenario ${String(scenario.index).padStart(3, '0')} ${scenario.title} | run ${repeat}/${executionMatrix.repeatPolicy.maximumPasses}\n`
+        );
+        let runResult;
+        try {
+          runResult = await runScenario(
+            endpoints.get(configuration.configurationId), configuration.model.id, scenario,
+            runOutDir, runId, options.timeoutMs, configuration.settings
+          );
+        } catch (error) {
+          runResult = {
+            toolCallProduced: false,
+            toolArgs: null,
+            llmMs: 0,
+            llmError: error.message,
+            execResult: null,
+            outDir: null
+          };
+        }
+        const scoreResult = scoreRun(runResult, scenario);
+        const executionOutcome = classifyExecutionOutcome(runResult);
+        return {
+          timestamp: new Date().toISOString(),
+          scenarioBudget: scenario.budget,
+          toolCallProduced: runResult.toolCallProduced,
+          toolArgs: runResult.toolArgs || null,
+          llmMs: runResult.llmMs,
+          llmError: runResult.llmError || null,
+          execSucceeded: runResult.execResult?.succeeded || false,
+          execExitCode: runResult.execResult?.exitCode ?? null,
+          execMs: runResult.execResult?.execMs || null,
+          execStderr: runResult.execResult?.stderr || null,
+          outDir: runResult.outDir || null,
+          score: scoreResult.points,
+          scoreMax: scoreResult.max,
+          scoreBreakdown: scoreResult.breakdown,
+          executionOutcome,
+          failureClass: executionOutcome === 'infrastructure_error' ? 'infrastructure' : null
+        };
+      },
+      onRecord: async (record, records) => {
+        fs.appendFileSync(jsonlPath, `${JSON.stringify(record)}\n`);
+        writeContentSummary(summaryPath, records, {
+          profiles: executionProfiles,
+          scenarios: scenarios.length,
+          route: options.route,
+          resultDir
+        });
+        process.stdout.write(
+          `  Score: ${record.score}/100 | Tool: ${record.toolCallProduced ? 'yes' : 'no'} | ` +
+          `Verdict: ${record.scenarioVerdict.passed ? 'pass' : 'fail'} | Exec: ${record.execSucceeded ? 'ok' : 'fail'}\n`
+        );
       }
-    }
+    });
+    const selectedTierCounts = Object.fromEntries(['simple', 'affinity', 'complex', 'constrained']
+      .map((tier) => [tier, scenarios.filter((scenario) => scenario.tier === tier).length]));
+    writeContentResult(resultPath, aggregateContentGenResults(allResults, {
+      matrix: executionMatrix,
+      scenarioSet: { count: scenarios.length, catalogCount: catalog.count, sha256: catalog.sha256, tierCounts: selectedTierCounts }
+    }));
   } finally {
     for (const tunnel of tunnels.values()) {
       stopTunnel(tunnel);
@@ -1380,6 +1390,7 @@ async function runContentGen(options) {
   process.stdout.write(`Result directory: ${resultDir}\n`);
   process.stdout.write(`JSONL: ${jsonlPath}\n`);
   process.stdout.write(`Summary: ${summaryPath}\n`);
+  process.stdout.write(`Structured result: ${resultPath}\n`);
 }
 
 async function main() {

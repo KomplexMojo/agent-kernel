@@ -132,7 +132,18 @@ function normalizeToolArgs(toolArgs) {
 
 // ---------------------------------------------------------------------------
 
-async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000) {
+function classifyExecutionOutcome(runResult) {
+  if (!runResult?.toolCallProduced) return 'model_failure';
+  if (runResult.execResult?.succeeded) return 'success';
+  const message = `${runResult.execResult?.stdout || ''}\n${runResult.execResult?.stderr || ''}`;
+  if (/budget[^\n]*(denied|exceeded|insufficient)|requested[^\n]*available/i.test(message)) {
+    return 'budget_denied';
+  }
+  if (runResult.execResult?.timedOut || runResult.llmError) return 'infrastructure_error';
+  return 'execution_failed';
+}
+
+async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000, settings = {}) {
   const { buildArgv, authoringSpec } = await getMcpBuildTools();
 
   const constrained = scenario.budgetMode === 'constrained' && Number.isInteger(scenario.budget);
@@ -160,8 +171,9 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     temperature: 0.1,
     // Output-length cap for the LLM call — unrelated to the authoring budget.
     // Constrained scenarios are minimal specs; unconstrained ones can get large.
-    max_tokens: constrained ? 4096 : 8192
+    max_tokens: settings.outputTokens || (constrained ? 4096 : 8192)
   };
+  if (settings.contextTokens) chatBody.options = { num_ctx: settings.contextTokens };
 
   const llmStarted = Date.now();
   let chatResponse;
@@ -245,4 +257,4 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   };
 }
 
-module.exports = { normalizeToolArgs, runScenario, AK_CLI, REPO_ROOT };
+module.exports = { classifyExecutionOutcome, normalizeToolArgs, runScenario, AK_CLI, REPO_ROOT };
