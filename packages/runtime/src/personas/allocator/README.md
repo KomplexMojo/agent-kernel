@@ -195,6 +195,18 @@ vocabularies refer to them and neither matches:
 Both maps live beside the pools they name, for the reason the split itself does: the pools are
 declared here, so the translation onto them is this file's formula.
 
+**The `rooms` row of `scenarioSpendReport` is a POOL rollup, not the `rooms` category.** Its
+target is the rooms pool's allocation, so its actual is every category drawing on that pool —
+`rooms + floor_tiles + shared_system`, derived from the map rather than restated. Categories
+with their own pool keep their own row and are **not** folded in.
+
+⚠️ **That rollup was hand-written as `floor_tiles + hazards + shared_system` and had gone
+stale**, so hazards were reported in two rows and compared against a target that excluded
+them. Golden `create-g1` recorded it: `rooms.actual` was 67 for a build whose only rooms-pool
+spend was 25 tokens of floor tiles. Fixed 2026-08-11; that golden was regenerated in the same
+diff and **only that row moved** — `totalSpend`, `remaining` and every line item are unchanged,
+because the money was always right and only the reporting was not.
+
 ⚠️ **`POOL_ID_BY_SPEND_CATEGORY` was declared verbatim in two modules until 2026-08-11**
 (`incentive-model.js` and `validate-spend.js`, under the name `CATEGORY_POOL_IDS`) **and that
 copy is why one defect existed twice.** Both carried `hazards: "rooms"` shadowed by a later

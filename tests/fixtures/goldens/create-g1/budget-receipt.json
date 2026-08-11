@@ -258,9 +258,9 @@
     "overBudget": false,
     "categories": {
       "rooms": {
-        "actual": 67,
+        "actual": 25,
         "target": 2697,
-        "usagePercent": 2
+        "usagePercent": 1
       },
       "floor_tiles": {
         "actual": 25,
