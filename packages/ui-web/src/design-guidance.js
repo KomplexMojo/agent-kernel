@@ -5,6 +5,10 @@ import { runLlmBudgetLoop } from "../../runtime/src/personas/orchestrator/llm-bu
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../runtime/src/commands/llm-host.js";
 import { beginDirectorBuildCapabilities } from "../../runtime/src/commands/director-round.js";
+// M8: the empty-catalog fallback below was the only place in the tree that named
+// PoolCatalog, and it named it as a literal — one use site is exactly the case a
+// declaration-keyed census cannot distinguish from "this schema does not exist".
+import { POOL_CATALOG_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -2485,7 +2489,7 @@ export function wireDesignGuidance({
         }),
         adapter,
         model: llmConfig.model || DEFAULT_LLM_MODEL,
-        catalog: llmConfig.catalog || { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] },
+        catalog: llmConfig.catalog || { schema: POOL_CATALOG_SCHEMA, schemaVersion: 1, entries: [] },
         goal: prompt,
         notes: "Generate card-ready room, delver, and warden outputs.",
         budgetTokens: state.budgetTokens,

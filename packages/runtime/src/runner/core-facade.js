@@ -8,6 +8,7 @@ import {
   renderBaseTiles,
   renderFrameBuffer,
 } from "../../../core-ts/src/index.ts";
+import { GAMEPLAY_BUNDLE_SCHEMA } from "../contracts/artifacts.ts";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
 import { createRuntime } from "./runtime.js";
 
@@ -108,7 +109,7 @@ export async function compileScenarioPlaybackBundle(scenario, { now = () => new 
   }
 
   return {
-    schema: "agent-kernel/GameplayBundle",
+    schema: GAMEPLAY_BUNDLE_SCHEMA,
     schemaVersion: 1,
     meta: {
       id: scenario.id || "scenario_bundle",

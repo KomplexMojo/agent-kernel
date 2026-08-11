@@ -6,6 +6,10 @@ import {
   DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION,
   VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
+// M8: the artifact this module validates and the default it ships now name their schema
+// from one place. The validator's expected value and the default's declared value were
+// two independently retyped strings 80 lines apart, either of which could have drifted.
+import { AFFINITY_RULES_ARTIFACT_SCHEMA } from "../../contracts/artifacts.ts";
 import { BEHAVIOR_COMPLEXITY_CLASSES } from "./motivation-rules.js";
 
 const OUTCOME_TYPES = Object.freeze([
@@ -326,7 +330,7 @@ export function normalizeAffinityRulesArtifact(input = {}) {
     addError(errors, "artifact", "invalid_artifact");
     return { ok: false, errors, warnings, value: null };
   }
-  if (input.schema !== "agent-kernel/AffinityRulesArtifact") {
+  if (input.schema !== AFFINITY_RULES_ARTIFACT_SCHEMA) {
     addError(errors, "schema", "invalid_schema");
   }
   if (input.schemaVersion !== 1) {
@@ -407,7 +411,7 @@ export function normalizeAffinityRulesArtifact(input = {}) {
 }
 
 export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
-  schema: "agent-kernel/AffinityRulesArtifact",
+  schema: AFFINITY_RULES_ARTIFACT_SCHEMA,
   schemaVersion: 1,
   meta: Object.freeze({
     id: "affinity_rules_basic",

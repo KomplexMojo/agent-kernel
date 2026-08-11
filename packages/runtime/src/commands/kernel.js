@@ -53,6 +53,10 @@ import {
   buildLlmConstraintSection,
   buildLlmRepairPromptTemplate,
 } from "../contracts/domain-constants.js";
+// M8: ActionSequence is declared in contracts/artifacts.ts. It was written out twice
+// below — once on the supplied-actions path and once on the empty-log path — so the two
+// branches of one function each carried their own copy of the schema string.
+import { ACTION_SEQUENCE_SCHEMA } from "../contracts/artifacts.ts";
 
 const SCHEMAS = Object.freeze({
   intent: "agent-kernel/IntentEnvelope",
@@ -1009,14 +1013,14 @@ export function createCommandKernel(host = {}) {
       if (!Array.isArray(actionLog.actions)) {
         throw new Error("actions file must include an actions array.");
       }
-      actionLog.schema = actionLog.schema || "agent-kernel/ActionSequence";
+      actionLog.schema = actionLog.schema || ACTION_SEQUENCE_SCHEMA;
       actionLog.schemaVersion = actionLog.schemaVersion || 1;
       actionLog.meta = actionLog.meta || createMeta({ producedBy: "cli-run", runId });
       actionLog.simConfigRef = actionLog.simConfigRef || toRef(simConfig);
       actionLog.initialStateRef = actionLog.initialStateRef || toRef(initialState);
     } else {
       actionLog = {
-        schema: "agent-kernel/ActionSequence",
+        schema: ACTION_SEQUENCE_SCHEMA,
         schemaVersion: 1,
         meta: createMeta({ producedBy: "cli-run", runId }),
         simConfigRef: toRef(simConfig),

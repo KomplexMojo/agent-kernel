@@ -63,6 +63,13 @@ import { buildDefaultPriceList } from "./default-price-list.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
 import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
+// M8: the two subject types this module names four times between them. `LayoutArtifact`
+// and `ActorArtifact` are not artifacts anything writes — they are the type half of a
+// spend line's `subjectRef`, naming what a charge is about. Neither had a constant
+// anywhere in the tree, which is exactly how a schema stays invisible to a census keyed
+// on declarations. The `HazardArtifact` / `ResourceArtifact` literals alongside them are
+// the tree-wide retype backlog, deliberately untouched here.
+import { ACTOR_ARTIFACT_SCHEMA, LAYOUT_ARTIFACT_SCHEMA } from "../../contracts/artifacts.ts";
 import { calculateMotivationStackCost } from "./motivation-price-policy.js";
 
 const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
@@ -478,7 +485,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
   if (floorTiles > 0) {
     accumulateItem(counts, "tile_floor", "tile", floorTiles, {
       category: "floor_tiles",
-      subjectRef: buildSubjectRef("layout", "agent-kernel/LayoutArtifact"),
+      subjectRef: buildSubjectRef("layout", LAYOUT_ARTIFACT_SCHEMA),
     });
   }
   // CR.9 M5: the RECEIPT path charged floor tiles only, so an explicit
@@ -500,7 +507,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
   if (hallwayTiles > 0) {
     accumulateItem(counts, "tile_hallway", "tile", hallwayTiles, {
       category: "floor_tiles",
-      subjectRef: buildSubjectRef("layout", "agent-kernel/LayoutArtifact"),
+      subjectRef: buildSubjectRef("layout", LAYOUT_ARTIFACT_SCHEMA),
     });
   }
 
@@ -509,7 +516,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
       const category = inferActorCategory(actor);
       accumulateItem(counts, "actor_spawn", "actor", 1, {
         category,
-        subjectRef: buildSubjectRef(actor?.id || `actor_${index + 1}`, "agent-kernel/ActorArtifact"),
+        subjectRef: buildSubjectRef(actor?.id || `actor_${index + 1}`, ACTOR_ARTIFACT_SCHEMA),
       });
     });
   }
@@ -578,7 +585,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
   if (Array.isArray(actors)) {
     actors.forEach((actor, index) => {
       const category = inferActorCategory(actor);
-      const subjectRef = buildSubjectRef(actor?.id || `actor_${index + 1}`, "agent-kernel/ActorArtifact");
+      const subjectRef = buildSubjectRef(actor?.id || `actor_${index + 1}`, ACTOR_ARTIFACT_SCHEMA);
       const vitals = actor?.vitals;
       if (vitals && typeof vitals === "object") {
         VITAL_KEYS.forEach((key) => {

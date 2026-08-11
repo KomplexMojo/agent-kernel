@@ -19,6 +19,7 @@ import {
   validateSandboxSession,
   SANDBOX_SESSION_SCHEMA,
 } from "../../../../runtime/src/contracts/sandbox-session.mjs";
+import { ACTION_SEQUENCE_SCHEMA } from "../../../../runtime/src/contracts/artifacts.ts";
 import { createDefaultResourceBundleArtifact } from "../../../../runtime/src/render/resource-bundle.js";
 import {
   booleanSchema,
@@ -884,7 +885,7 @@ export async function executeSandboxMove({
   // Build the updated ActionSequence
   const runId = session.meta?.runId || "unknown";
   const updatedSequence = {
-    schema: "agent-kernel/ActionSequence",
+    schema: ACTION_SEQUENCE_SCHEMA,
     schemaVersion: 1,
     meta: actionSequence?.meta || {
       id: `action-sequence-${runId}`,

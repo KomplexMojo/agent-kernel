@@ -17,6 +17,13 @@ import {
   DEFAULT_ROOM_CARD_AFFINITY,
   ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
 } from "../contracts/domain-constants.js";
+// M8: the two rules schemas below are declared in contracts/artifacts.ts. The other five
+// entries in SCHEMAS are still retyped literals — they are the tree-wide retype backlog,
+// not M8's scope, which was the seven schemas with no central declaration at all.
+import {
+  AFFINITY_RULES_ARTIFACT_SCHEMA,
+  MOTIVATION_RULES_ARTIFACT_SCHEMA,
+} from "../contracts/artifacts.ts";
 
 // CR.9 M3: spend proposals price raw actor motivations, and motivation vocabulary is
 // Configurator law. The Allocator no longer owns a copy of it, so this composition
@@ -36,8 +43,8 @@ const SCHEMAS = Object.freeze({
   solverResult: "agent-kernel/SolverResult",
   affinityPreset: "agent-kernel/AffinityPresetArtifact",
   actorLoadout: "agent-kernel/ActorLoadoutArtifact",
-  affinityRules: "agent-kernel/AffinityRulesArtifact",
-  motivationRules: "agent-kernel/MotivationRulesArtifact",
+  affinityRules: AFFINITY_RULES_ARTIFACT_SCHEMA,
+  motivationRules: MOTIVATION_RULES_ARTIFACT_SCHEMA,
   affinitySummary: "agent-kernel/AffinitySummary",
 });
 

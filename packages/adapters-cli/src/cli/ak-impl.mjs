@@ -15,6 +15,7 @@ import {
   ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA,
   ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
   ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA,
+  GAMEPLAY_BUNDLE_SCHEMA,
 } from "../../../runtime/src/contracts/artifacts.ts";
 import { runAdaptiveWorkflow } from "../../../runtime/src/adaptive-workflow/runner.js";
 import { createReplayEnvelope, createReplayModelAdapter } from "../../../runtime/src/adaptive-workflow/replay.js";
@@ -2084,7 +2085,9 @@ async function summarizeBuildLikeOutput({
   });
 }
 
-const GAMEPLAY_BUNDLE_SCHEMA = "agent-kernel/GameplayBundle";
+// M8: GAMEPLAY_BUNDLE_SCHEMA now comes from contracts/artifacts.ts. It was declared
+// here AND in ui-web/src/phaser-surface-ingestion.js — the writer and the reader of the
+// same bundle, each with its own origin.
 
 // Assemble a post-run agent-kernel/GameplayBundle by merging the resolved
 // SimConfig/InitialState artifacts that `run` writes with the tick frames it

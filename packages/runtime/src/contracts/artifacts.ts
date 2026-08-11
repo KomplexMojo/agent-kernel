@@ -2564,3 +2564,34 @@ export interface SandboxSessionArtifactV1 {
 }
 
 export type SandboxSessionArtifact = SandboxSessionArtifactV1;
+
+// -------------------------
+// M8 (2026-08-11) — the seven M7 enumerated and left outside this file
+// -------------------------
+//
+// M7 relocated the AdaptiveWorkflow cluster and recorded these seven in
+// `KNOWN_OUTSTANDING` rather than silencing them: the same charter violation
+// (boundary data carrying a schema declared somewhere other than artifacts.ts),
+// elsewhere in the tree. That list is now empty.
+//
+// Two of the seven had a constant, in two places at once: `GAMEPLAY_BUNDLE_SCHEMA`
+// was declared independently in `adapters-cli/src/cli/ak-impl.mjs` AND in
+// `ui-web/src/phaser-surface-ingestion.js` — a CLI writer and a browser reader of the
+// same bundle, each free to drift from the other. The remaining five had no constant
+// anywhere; the literal was retyped at each use site, four times for `ActorArtifact`
+// and `LayoutArtifact` inside a single Allocator module.
+//
+// Relocation only: every string value is unchanged, so no artifact identity moves and
+// no schemaVersion is affected. TypeScript interfaces are deliberately NOT part of M8,
+// for the same reason M7 excluded them — the charter rule is about where the constant
+// lives, and inventing seven interfaces would be new contract surface rather than a
+// move. `ActorArtifact` and `LayoutArtifact` are not even artifacts that get written:
+// they appear only as the type half of a `subjectRef`, naming what a spend line is
+// about.
+export const ACTION_SEQUENCE_SCHEMA = "agent-kernel/ActionSequence";
+export const ACTOR_ARTIFACT_SCHEMA = "agent-kernel/ActorArtifact";
+export const AFFINITY_RULES_ARTIFACT_SCHEMA = "agent-kernel/AffinityRulesArtifact";
+export const GAMEPLAY_BUNDLE_SCHEMA = "agent-kernel/GameplayBundle";
+export const LAYOUT_ARTIFACT_SCHEMA = "agent-kernel/LayoutArtifact";
+export const MOTIVATION_RULES_ARTIFACT_SCHEMA = "agent-kernel/MotivationRulesArtifact";
+export const POOL_CATALOG_SCHEMA = "agent-kernel/PoolCatalog";
