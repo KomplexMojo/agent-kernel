@@ -22,8 +22,10 @@
  * INSTEAD of making that call.
  */
 
-export const LLM_REQUEST_SCHEMA = "agent-kernel/LlmRequest";
-export const LLM_RESPONSE_SCHEMA = "agent-kernel/LlmResponse";
+// M9: both declared in artifacts.ts, re-exported here under the names importers use.
+import { LLM_REQUEST_SCHEMA, LLM_RESPONSE_SCHEMA } from "./artifacts.ts";
+
+export { LLM_REQUEST_SCHEMA, LLM_RESPONSE_SCHEMA };
 
 /**
  * The structured-effect kind. `ports/effects.js` MUST carry an explicit case for this.

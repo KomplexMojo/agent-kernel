@@ -12,10 +12,12 @@
  * the goldens are the proof.
  */
 import BASE_COSTS from "./base-costs.json" with { type: "json" };
+import {
+  BUDGET_ALLOCATION_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
-const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
-const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
-const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 
 /** Reference balancing budget (design §2.1). */
 export const REFERENCE_BUDGET_TOKENS = 2500;

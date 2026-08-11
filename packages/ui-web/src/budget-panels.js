@@ -1,3 +1,9 @@
+import {
+  BUDGET_ARTIFACT_SCHEMA as BUDGET_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA as RECEIPT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../../runtime/src/contracts/artifacts.ts";
+
 export const DEFAULT_BUDGET_FIXTURES = Object.freeze({
   budget: "/tests/fixtures/artifacts/budget-artifact-v1-basic.json",
   priceList: "/tests/fixtures/artifacts/price-list-artifact-v1-basic.json",
@@ -5,9 +11,6 @@ export const DEFAULT_BUDGET_FIXTURES = Object.freeze({
 });
 
 const EMPTY_TEXT = "No JSON output yet.";
-const BUDGET_SCHEMA = "agent-kernel/BudgetArtifact";
-const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
-const RECEIPT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
 
 function setPanel(panel, payload) {
   if (!panel) return;

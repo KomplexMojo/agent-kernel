@@ -1,7 +1,10 @@
 import { EffectKind } from "../../../core-ts/src/ports/effects.ts";
 import { LLM_REQUEST_EFFECT_KIND, LLM_MISSING_ADAPTER_REASON } from "../contracts/llm-protocol.js";
+import {
+  EFFECT_SCHEMA,
+  INTENT_ENVELOPE_SCHEMA,
+} from "../contracts/artifacts.ts";
 
-const EFFECT_SCHEMA = "agent-kernel/Effect";
 const TARGET_ADAPTER_HINTS = ["fixtures", "ipfs", "ollama"];
 const REQUEST_DETAIL_MASK = 0xff;
 
@@ -85,7 +88,7 @@ export function buildEffectFromCore({ tick, index, kind, value, actorId, x, y, r
         targetAdapter,
         data: { query: `fact-${detail}`, detail },
         sourceRef: hasSourceRef
-          ? { id: `fact-${detail}`, schema: "agent-kernel/IntentEnvelope", schemaVersion: 1 }
+          ? { id: `fact-${detail}`, schema: INTENT_ENVELOPE_SCHEMA, schemaVersion: 1 }
           : undefined,
         fulfillment: hasSourceRef ? "deterministic" : "deferred",
       };

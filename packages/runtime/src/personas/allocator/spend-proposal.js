@@ -63,16 +63,20 @@ import { buildDefaultPriceList } from "./default-price-list.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
 import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
-// M8: the two subject types this module names four times between them. `LayoutArtifact`
-// and `ActorArtifact` are not artifacts anything writes — they are the type half of a
-// spend line's `subjectRef`, naming what a charge is about. Neither had a constant
-// anywhere in the tree, which is exactly how a schema stays invisible to a census keyed
-// on declarations. The `HazardArtifact` / `ResourceArtifact` literals alongside them are
-// the tree-wide retype backlog, deliberately untouched here.
-import { ACTOR_ARTIFACT_SCHEMA, LAYOUT_ARTIFACT_SCHEMA } from "../../contracts/artifacts.ts";
+// M8 relocated the two subject types this module names four times between them —
+// `LayoutArtifact` and `ActorArtifact`, which are not artifacts anything writes but the
+// type half of a spend line's `subjectRef`, naming what a charge is about. M9 finished the
+// file: the `HazardArtifact` / `ResourceArtifact` / `SpendProposal` literals it left as
+// tree-wide backlog now read from the same place.
+import {
+  ACTOR_ARTIFACT_SCHEMA,
+  HAZARD_ARTIFACT_SCHEMA,
+  LAYOUT_ARTIFACT_SCHEMA,
+  RESOURCE_ARTIFACT_SCHEMA,
+  SPEND_PROPOSAL_SCHEMA,
+} from "../../contracts/artifacts.ts";
 import { calculateMotivationStackCost } from "./motivation-price-policy.js";
 
-const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 
 function isInteger(value) {
   return Number.isInteger(value);
@@ -525,13 +529,13 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
     hazardArray.forEach((hazard, index) => {
       accumulateItem(counts, "hazard_basic", "hazard", 1, {
         category: "hazards",
-        subjectRef: buildSubjectRef(hazard?.id || `hazard_${index + 1}`, "agent-kernel/HazardArtifact"),
+        subjectRef: buildSubjectRef(hazard?.id || `hazard_${index + 1}`, HAZARD_ARTIFACT_SCHEMA),
       });
     });
   }
 
   hazardArray.forEach((hazard, index) => {
-    const subjectRef = buildSubjectRef(hazard?.id || `hazard_${index + 1}`, "agent-kernel/HazardArtifact");
+    const subjectRef = buildSubjectRef(hazard?.id || `hazard_${index + 1}`, HAZARD_ARTIFACT_SCHEMA);
     readHazardVitalCharges(hazard).forEach(({ key, points, regen }) => {
       accumulateItem(counts, `vital_${key}_point`, "vital", points, { category: "hazards", subjectRef });
       accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category: "hazards", subjectRef });
@@ -571,7 +575,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
 
   if (resourceArray.length > 0) {
     resourceArray.forEach((resource, index) => {
-      const subjectRef = buildSubjectRef(resource?.id || `resource_${index + 1}`, "agent-kernel/ResourceArtifact");
+      const subjectRef = buildSubjectRef(resource?.id || `resource_${index + 1}`, RESOURCE_ARTIFACT_SCHEMA);
       extractResourcePriceEntries(resource).forEach(({ priceId, quantity }) => {
         accumulateItem(counts, priceId, "resource", Math.floor(quantity), { category: "resources", subjectRef });
       });

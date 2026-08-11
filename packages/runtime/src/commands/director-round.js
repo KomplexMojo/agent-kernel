@@ -15,8 +15,8 @@
  */
 
 import { createDirectorPersona } from "../personas/director/persona.js";
+import { INTENT_ENVELOPE_SCHEMA } from "../contracts/artifacts.ts";
 
-const INTENT_ENVELOPE_SCHEMA = "agent-kernel/IntentEnvelope";
 
 /**
  * Build a Director and open its round, returning the persona ready for `mapPool`.

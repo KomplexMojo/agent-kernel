@@ -16,6 +16,11 @@ import { applyMoveAction, packMoveAction, readObservation, renderBaseTiles } fro
 import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../contracts/domain-constants.js";
 import { computeAuraMap, serializeAuraMap } from "../render/affinity-aura.js";
 import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../contracts/affinity-spatial-rules.js";
+import {
+  EFFECT_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+  TICK_FRAME_SCHEMA,
+} from "../contracts/artifacts.ts";
 
 const ACTION_KIND = Object.freeze({
   IncrementCounter: 1,
@@ -56,7 +61,6 @@ const DEFAULT_LOG_LEVELS = Object.freeze({
   error: 3,
 });
 
-const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
 
 function toInt(value) {
   const num = Number(value);
@@ -278,7 +282,7 @@ function buildEffectRecordFactory({ core, effectFactory, tick }) {
       const customEffect = effectFactory(coreEffect);
       if (customEffect) {
         const base = {
-          schema: "agent-kernel/Effect",
+          schema: EFFECT_SCHEMA,
           schemaVersion: 1,
           id: `eff_${tick}_${index}_${kind}_${value}`,
           tick,
@@ -651,7 +655,7 @@ export function createFsmRuntime({
     solverFulfilled = null,
   } = {}) {
     const frame = {
-      schema: "agent-kernel/TickFrame",
+      schema: TICK_FRAME_SCHEMA,
       schemaVersion: 1,
       meta: nextFrameMeta(),
       tick,

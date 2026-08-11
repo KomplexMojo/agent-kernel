@@ -1,4 +1,5 @@
-const TELEMETRY_SCHEMA = "agent-kernel/TelemetryRecord";
+import { TELEMETRY_RECORD_SCHEMA as TELEMETRY_SCHEMA } from "../contracts/artifacts.ts";
+
 const DEFAULT_CREATED_AT = "1970-01-01T00:00:00.000Z";
 
 export function buildBuildTelemetryRecord({

@@ -1,6 +1,6 @@
 import { renderBoardWithResourceBundle } from "../../runtime/src/render/resource-bundle.js";
+import { RESOURCE_BUNDLE_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
 
-const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 const assetPixelCache = new Map();
 
 function findArtifact(bundle, schema) {

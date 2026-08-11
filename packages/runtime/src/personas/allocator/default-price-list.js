@@ -1,8 +1,8 @@
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 
 import BASE_COSTS from "./base-costs.json" with { type: "json" };
+import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
 
-const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 
 /**
  * Canonical default price list for agent-kernel simulations.

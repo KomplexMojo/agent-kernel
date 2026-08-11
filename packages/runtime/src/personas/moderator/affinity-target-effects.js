@@ -6,6 +6,7 @@ import {
   DEFAULT_AFFINITY_TARGET_TYPE,
   DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION,
 } from "../../contracts/domain-constants.js";
+import { ACTION_SCHEMA } from "../../contracts/artifacts.ts";
 
 const DEFAULT_ENVIRONMENT_THRESHOLD = 3;
 const DEFAULT_MAX_ACTIONS = 8;
@@ -295,7 +296,7 @@ function buildActionFromEffect({ effect, actorId, position, observation, tick })
     const target = findAdjacent(position, (x, y) => isBarrierTile(observation, x, y));
     if (!target) return null;
     return {
-      schema: "agent-kernel/Action",
+      schema: ACTION_SCHEMA,
       schemaVersion: 1,
       actorId,
       tick,
@@ -307,7 +308,7 @@ function buildActionFromEffect({ effect, actorId, position, observation, tick })
     const target = findAdjacent(position, (x, y) => isFloorTile(observation, x, y));
     if (!target) return null;
     return {
-      schema: "agent-kernel/Action",
+      schema: ACTION_SCHEMA,
       schemaVersion: 1,
       actorId,
       tick,
@@ -321,7 +322,7 @@ function buildActionFromEffect({ effect, actorId, position, observation, tick })
       : findAdjacent(position, (x, y) => isFloorTile(observation, x, y));
     if (!target) return null;
     return {
-      schema: "agent-kernel/Action",
+      schema: ACTION_SCHEMA,
       schemaVersion: 1,
       actorId,
       tick,

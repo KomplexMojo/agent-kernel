@@ -32,6 +32,10 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import {
+  PERSONA_INVOCATION_SCHEMA as INVOCATION_SCHEMA,
+  PERSONA_RESULT_SCHEMA as RESULT_SCHEMA,
+} from "../../../runtime/src/contracts/artifacts.ts";
 
 const require = createRequire(import.meta.url);
 const RUNTIME = "../../../runtime/src";
@@ -59,8 +63,6 @@ const PERSONA_FACTORIES = Object.freeze({
 export const PERSONA_NAMES = Object.freeze(Object.keys(PERSONA_MODULES));
 const TICK_PHASES = Object.freeze(["init", "observe", "decide", "apply", "emit", "summarize"]);
 
-const INVOCATION_SCHEMA = "agent-kernel/PersonaInvocation";
-const RESULT_SCHEMA = "agent-kernel/PersonaResult";
 
 export class PersonaCliError extends Error {
   constructor(code, errors) {

@@ -1,4 +1,5 @@
 import { VITAL_KEYS } from "../contracts/domain-constants.js";
+import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 
 const DEFAULT_VITALS = Object.freeze({
   health: Object.freeze({ current: 10, max: 10, regen: 0 }),
@@ -278,7 +279,7 @@ function isRuntimeDecisionCaptureArtifact(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
-  if (value.schema !== "agent-kernel/CapturedInputArtifact") {
+  if (value.schema !== CAPTURED_INPUT_SCHEMA) {
     return false;
   }
   const payload = value.payload;

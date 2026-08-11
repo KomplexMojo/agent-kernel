@@ -1,7 +1,9 @@
 import { requireClock } from "../_shared/require-clock.js";
+import {
+  CAPTURED_INPUT_SCHEMA,
+  TELEMETRY_RECORD_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
-const CAPTURED_INPUT_SCHEMA = "agent-kernel/CapturedInputArtifact";
-const TELEMETRY_RECORD_SCHEMA = "agent-kernel/TelemetryRecord";
 const LLM_ADAPTERS = new Set(["llm", "ollama"]);
 
 function isObject(value) {

@@ -1,17 +1,14 @@
-// M8: this file and `adapters-cli/src/cli/ak-impl.mjs` each declared their own
-// GAMEPLAY_BUNDLE_SCHEMA — the browser reader and the CLI writer of the same bundle, two
-// origins for the string that decides whether a payload is recognized at all. It now
-// comes from contracts/artifacts.ts. `serve-ui.mjs` transpiles `.ts` on the fly and
+// M8 relocated GAMEPLAY_BUNDLE_SCHEMA, which this file and `adapters-cli/src/cli/ak-impl.mjs`
+// each declared for themselves — the browser reader and the CLI writer of the same bundle,
+// two origins for the string that decides whether a payload is recognized at all. M9
+// finished the file with the other three. `serve-ui.mjs` transpiles `.ts` on request and
 // preserves the `.ts` specifier, so the browser receives valid JavaScript.
-//
-// The three below are declared in artifacts.ts too and are retyped here. That is the
-// tree-wide retype backlog (~200 sites), not M8's scope — M8 closed the schemas that had
-// no central declaration to import.
-import { GAMEPLAY_BUNDLE_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
-
-const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
-const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
-const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
+import {
+  BUILD_SPEC_SCHEMA,
+  GAMEPLAY_BUNDLE_SCHEMA,
+  INITIAL_STATE_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+} from "../../runtime/src/contracts/artifacts.ts";
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

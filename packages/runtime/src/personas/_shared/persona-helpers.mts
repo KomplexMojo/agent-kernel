@@ -1,8 +1,10 @@
 import { requireClock } from "./require-clock.js";
 import { LLM_REQUEST_SCHEMA, LLM_REQUEST_EFFECT_KIND } from "../../contracts/llm-protocol.js";
-const ACTION_SCHEMA = "agent-kernel/Action";
-const TELEMETRY_SCHEMA = "agent-kernel/TelemetryRecord";
-const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
+import {
+  ACTION_SCHEMA,
+  RUN_SUMMARY_SCHEMA,
+  TELEMETRY_RECORD_SCHEMA as TELEMETRY_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
 type JsonRecord = Record<string, unknown>;
 

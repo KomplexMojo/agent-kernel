@@ -14,10 +14,12 @@ import {
   writePreviewRendererPreference,
 } from "./preview-renderers.js";
 import { renderBundleBoardToCanvas } from "../resource-bundle-view.js";
+import {
+  INITIAL_STATE_SCHEMA,
+  RESOURCE_BUNDLE_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+} from "../../../runtime/src/contracts/artifacts.ts";
 
-const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
-const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
-const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 const REQUIRED_PREVIEW_CARD_TYPES = Object.freeze(["room", "delver", "warden"]);
 const DEFAULT_PREVIEW_HELP_TEXT = "Inspect the current design bundle here. When ready, use Build And Load Game to open Run.";
 

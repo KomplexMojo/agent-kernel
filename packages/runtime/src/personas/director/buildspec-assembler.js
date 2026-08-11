@@ -11,6 +11,10 @@ import {
   DEFAULT_VITALS,
   normalizeVitals as normalizeDomainVitals,
 } from "../../contracts/domain-constants.js";
+import {
+  BUDGET_ARTIFACT_SCHEMA,
+  BUILD_SPEC_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
 function defaultMeta({ runId, source, createdAt, summary, clock }) {
   const dungeonAffinity = summary?.dungeonAffinity || "unknown";
@@ -434,7 +438,7 @@ export function buildBuildSpecFromSummary({
       : undefined;
 
   const spec = {
-    schema: "agent-kernel/BuildSpec",
+    schema: BUILD_SPEC_SCHEMA,
     schemaVersion: 1,
     meta: defaultMeta({ runId, source, createdAt, summary: resolvedSummary, clock }),
     intent: {
@@ -489,7 +493,7 @@ export function buildBuildSpecFromSummary({
   }
   const syntheticBudgetArtifact = !budgetArtifact && Number.isInteger(resolvedSummary?.budgetTokens) && resolvedSummary.budgetTokens > 0
     ? {
-        schema: "agent-kernel/BudgetArtifact",
+        schema: BUDGET_ARTIFACT_SCHEMA,
         schemaVersion: 1,
         meta: { id: `budget_${spec.meta.runId}`, runId: spec.meta.runId, createdAt: spec.meta.createdAt, producedBy: source || "cli" },
         budget: { tokens: resolvedSummary.budgetTokens },

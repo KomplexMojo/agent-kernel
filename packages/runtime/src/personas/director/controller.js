@@ -5,9 +5,11 @@ import { createAllocatorPersona } from "../allocator/persona.js";
 import { createConfiguratorPersona } from "../configurator/persona.js";
 import { requireClock, UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { attachDirectorServices } from "./director-services.js";
+import {
+  INTENT_ENVELOPE_SCHEMA as INTENT_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
-const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
-const INTENT_SCHEMA = "agent-kernel/IntentEnvelope";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;

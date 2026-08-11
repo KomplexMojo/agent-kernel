@@ -53,9 +53,16 @@
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
-export const BUDGET_ENVELOPE_SCHEMA = "agent-kernel/BudgetEnvelope";
-export const CONFIGURATION_CANDIDATE_SCHEMA = "agent-kernel/ConfigurationCandidate";
-export const SPEND_VERDICT_SCHEMA = "agent-kernel/SpendVerdict";
+// M9: all three are declared in artifacts.ts and re-exported here under the names this
+// module's importers already use. `import …; export { … }`, never `export { X } from "…"`
+// — the latter re-exports without binding locally and throws at the first internal use.
+import {
+  BUDGET_ENVELOPE_SCHEMA,
+  CONFIGURATION_CANDIDATE_SCHEMA,
+  SPEND_VERDICT_SCHEMA,
+} from "./artifacts.ts";
+
+export { BUDGET_ENVELOPE_SCHEMA, CONFIGURATION_CANDIDATE_SCHEMA, SPEND_VERDICT_SCHEMA };
 
 /**
  * Shared by all three, and deliberately one constant rather than three.

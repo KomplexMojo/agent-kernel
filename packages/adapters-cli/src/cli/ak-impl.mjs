@@ -10,13 +10,6 @@ import { createFilesystemWorkflowStore } from "../adapters/adaptive-workflow/fil
 import { createRuntimeProfileAdapter } from "../adapters/adaptive-workflow/runtime-profile.js";
 import { createControlledExecutionAdapter } from "../adapters/adaptive-workflow/controlled-execution.js";
 import { createGameplayBridgeOperation } from "../adapters/adaptive-workflow/gameplay-bridge.js";
-import {
-  ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA,
-  ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA,
-  ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
-  ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA,
-  GAMEPLAY_BUNDLE_SCHEMA,
-} from "../../../runtime/src/contracts/artifacts.ts";
 import { runAdaptiveWorkflow } from "../../../runtime/src/adaptive-workflow/runner.js";
 import { createReplayEnvelope, createReplayModelAdapter } from "../../../runtime/src/adaptive-workflow/replay.js";
 import { createStrategyPolicyV1 } from "../../../runtime/src/adaptive-workflow/strategy-policy.js";
@@ -86,29 +79,61 @@ import {
   buildLlmConstraintSection,
   buildLlmRepairPromptTemplate,
 } from "../../../runtime/src/contracts/domain-constants.js";
+// M9: this file's whole schema vocabulary — the SCHEMAS alias table below, the four
+// AdaptiveWorkflow constants it already imported, and the scattered literals in between —
+// now has one origin.
+import {
+  ACTOR_LOADOUT_SCHEMA,
+  ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA,
+  ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA,
+  ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA,
+  ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
+  AFFINITY_PRESET_SCHEMA,
+  AFFINITY_SUMMARY_SCHEMA,
+  AGENT_COMMAND_REQUEST_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  CAPTURED_INPUT_SCHEMA,
+  EFFECT_SCHEMA,
+  EXECUTION_POLICY_SCHEMA,
+  GAMEPLAY_BUNDLE_SCHEMA,
+  HAZARD_ARTIFACT_SCHEMA,
+  INITIAL_STATE_SCHEMA,
+  INTENT_ENVELOPE_SCHEMA,
+  NARRATIVE_ARTIFACT_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+  RESOURCE_ARTIFACT_SCHEMA,
+  RUN_SUMMARY_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+  SOLVER_REQUEST_SCHEMA,
+  SOLVER_RESULT_SCHEMA,
+  TELEMETRY_RECORD_SCHEMA,
+  TICK_FRAME_SCHEMA,
+} from "../../../runtime/src/contracts/artifacts.ts";
 
 const SCHEMAS = Object.freeze({
-  intent: "agent-kernel/IntentEnvelope",
-  plan: "agent-kernel/PlanArtifact",
-  budgetReceipt: "agent-kernel/BudgetReceiptArtifact",
-  budgetArtifact: "agent-kernel/BudgetArtifact",
-  budgetReceiptArtifact: "agent-kernel/BudgetReceiptArtifact",
-  priceList: "agent-kernel/PriceList",
-  simConfig: "agent-kernel/SimConfigArtifact",
-  initialState: "agent-kernel/InitialStateArtifact",
-  executionPolicy: "agent-kernel/ExecutionPolicy",
-  solverRequest: "agent-kernel/SolverRequest",
-  solverResult: "agent-kernel/SolverResult",
-  tickFrame: "agent-kernel/TickFrame",
-  effect: "agent-kernel/Effect",
-  telemetry: "agent-kernel/TelemetryRecord",
-  runSummary: "agent-kernel/RunSummary",
-  narrative: "agent-kernel/NarrativeArtifact",
-  agentCommandRequest: "agent-kernel/AgentCommandRequestArtifact",
-  affinityPreset: "agent-kernel/AffinityPresetArtifact",
-  actorLoadout: "agent-kernel/ActorLoadoutArtifact",
-  affinitySummary: "agent-kernel/AffinitySummary",
-  capturedInput: "agent-kernel/CapturedInputArtifact",
+  intent: INTENT_ENVELOPE_SCHEMA,
+  plan: PLAN_ARTIFACT_SCHEMA,
+  budgetReceipt: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  budgetArtifact: BUDGET_ARTIFACT_SCHEMA,
+  budgetReceiptArtifact: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  priceList: PRICE_LIST_SCHEMA,
+  simConfig: SIM_CONFIG_SCHEMA,
+  initialState: INITIAL_STATE_SCHEMA,
+  executionPolicy: EXECUTION_POLICY_SCHEMA,
+  solverRequest: SOLVER_REQUEST_SCHEMA,
+  solverResult: SOLVER_RESULT_SCHEMA,
+  tickFrame: TICK_FRAME_SCHEMA,
+  effect: EFFECT_SCHEMA,
+  telemetry: TELEMETRY_RECORD_SCHEMA,
+  runSummary: RUN_SUMMARY_SCHEMA,
+  narrative: NARRATIVE_ARTIFACT_SCHEMA,
+  agentCommandRequest: AGENT_COMMAND_REQUEST_SCHEMA,
+  affinityPreset: AFFINITY_PRESET_SCHEMA,
+  actorLoadout: ACTOR_LOADOUT_SCHEMA,
+  affinitySummary: AFFINITY_SUMMARY_SCHEMA,
+  capturedInput: CAPTURED_INPUT_SCHEMA,
 });
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
@@ -3763,7 +3788,7 @@ async function writeHazardArtifactFiles({ parsedHazards = [], outDir, runId, cre
     const h = parsedHazards[i].value;
     const hazardVersion = h._schemaVersion ?? 3;
     const hazardArtifact = {
-      schema: "agent-kernel/HazardArtifact",
+      schema: HAZARD_ARTIFACT_SCHEMA,
       schemaVersion: hazardVersion,
       meta: {
         id: h.id,
@@ -3800,7 +3825,7 @@ async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId,
     let resourceArtifact;
     if (resourceVersion === 3) {
       resourceArtifact = {
-        schema: "agent-kernel/ResourceArtifact",
+        schema: RESOURCE_ARTIFACT_SCHEMA,
         schemaVersion: 3,
         meta,
         vitals: r.vitals,
@@ -3809,7 +3834,7 @@ async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId,
       if (r.affinity) resourceArtifact.affinity = r.affinity;
     } else {
       resourceArtifact = {
-        schema: "agent-kernel/ResourceArtifact",
+        schema: RESOURCE_ARTIFACT_SCHEMA,
         schemaVersion: 1,
         meta,
         tier: r.tier,
@@ -6138,7 +6163,7 @@ async function sandboxCreateCommand(argv) {
     }
     budgetReceiptRef = {
       id: `budget_receipt_${runId}`,
-      schema: "agent-kernel/BudgetReceiptArtifact",
+      schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
       schemaVersion: 1,
     };
   }

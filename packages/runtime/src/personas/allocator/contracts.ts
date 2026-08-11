@@ -1,3 +1,5 @@
+import { BUDGET_RECEIPT_ARTIFACT_SCHEMA } from "../../contracts/artifacts.ts";
+
 // Local contracts for the Allocator persona state machine.
 // Cross-persona artifacts live in packages/runtime/src/contracts/artifacts.ts.
 
@@ -89,7 +91,7 @@ export interface AllocatorPricingSurface {
 
 export interface SpendValidationResult {
   receipt: {
-    schema: "agent-kernel/BudgetReceiptArtifact";
+    schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA;
     schemaVersion: 1;
     status: "approved" | "partial" | "denied";
     totalCost: number;

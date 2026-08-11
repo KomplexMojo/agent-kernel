@@ -4,6 +4,10 @@ import { deriveAllowedOptionsFromCatalog } from "../personas/orchestrator/prompt
 import { beginDirectorRound } from "./director-round.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
+import {
+  BUDGET_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../contracts/artifacts.ts";
 
 // D8.3 — the Director refuses to derive level geometry from room cards; it asks the
 // Configurator. The PUBLIC persona barrel, so this glue crosses no boundary. UNUSED_CLOCK
@@ -98,12 +102,12 @@ export function normalizeBuildSpecForUi(specInput) {
   }
 
   if (spec.budget && typeof spec.budget === "object" && !Array.isArray(spec.budget)) {
-    const budgetRef = normalizeArtifactRef(spec.budget.budgetRef, "agent-kernel/BudgetArtifact");
+    const budgetRef = normalizeArtifactRef(spec.budget.budgetRef, BUDGET_ARTIFACT_SCHEMA);
     if (budgetRef.changed) {
       spec.budget.budgetRef = budgetRef.value;
       changed = true;
     }
-    const priceListRef = normalizeArtifactRef(spec.budget.priceListRef, "agent-kernel/PriceList");
+    const priceListRef = normalizeArtifactRef(spec.budget.priceListRef, PRICE_LIST_SCHEMA);
     if (priceListRef.changed) {
       spec.budget.priceListRef = priceListRef.value;
       changed = true;

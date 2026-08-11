@@ -10,8 +10,8 @@
  * Pure: no IO, no clock. Callers supply the collected frames/effects and the
  * run-scoped meta, so the same inputs always yield the same summary.
  */
+import { RUN_SUMMARY_SCHEMA } from "../../contracts/artifacts.ts";
 
-const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
 
 /**
  * A budget VIOLATION (core's LimitViolated) is the run-failure signal.

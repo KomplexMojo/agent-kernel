@@ -1,8 +1,10 @@
 import { requireClock } from "../_shared/require-clock.js";
 
-const BUDGET_SCHEMA = "agent-kernel/BudgetArtifact";
-const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 import { buildDefaultPriceList } from "../allocator/default-price-list.js";
+import {
+  BUDGET_ARTIFACT_SCHEMA as BUDGET_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
 function buildMeta(meta = {}, { producedBy = "orchestrator", runId = "run_orchestrator", clock, idPrefix = "artifact" } = {}) {
   if (meta.id && meta.runId && meta.createdAt && meta.producedBy) {

@@ -28,12 +28,12 @@ import { summarizeMixedRoomAssemblies } from "./mixed-room-summary.js";
 import { orchestrateBuild } from "./orchestrate-build.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { INTENT_ENVELOPE_SCHEMA } from "../contracts/artifacts.ts";
 
 // Matches the kernel's local SCHEMAS.intent (commands/kernel.js); the Director's
 // beginBuild only needs a well-formed envelope object, and the plan it drafts is
 // discarded here (the persisted plan comes from orchestrateBuild's map-build-spec,
 // P2.1c), so the literal is sufficient and avoids a .js -> .ts import.
-const INTENT_ENVELOPE_SCHEMA = "agent-kernel/IntentEnvelope";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;

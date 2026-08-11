@@ -3,8 +3,8 @@ import {
   DEFAULT_LLM_MODEL,
   DOMAIN_CONSTRAINTS,
 } from "../../contracts/domain-constants.js";
+import { ACTION_SCHEMA } from "../../contracts/artifacts.ts";
 
-const ACTION_SCHEMA = "agent-kernel/Action";
 
 type JsonRecord = Record<string, unknown>;
 type ProviderMode = "solver" | "llm" | "auto";

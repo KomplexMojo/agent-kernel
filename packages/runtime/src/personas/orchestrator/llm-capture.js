@@ -1,6 +1,6 @@
 import { requireClock } from "../_shared/require-clock.js";
+import { CAPTURED_INPUT_SCHEMA } from "../../contracts/artifacts.ts";
 
-const CAPTURED_INPUT_SCHEMA = "agent-kernel/CapturedInputArtifact";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;

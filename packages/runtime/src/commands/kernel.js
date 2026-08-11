@@ -53,31 +53,51 @@ import {
   buildLlmConstraintSection,
   buildLlmRepairPromptTemplate,
 } from "../contracts/domain-constants.js";
-// M8: ActionSequence is declared in contracts/artifacts.ts. It was written out twice
-// below — once on the supplied-actions path and once on the empty-log path — so the two
-// branches of one function each carried their own copy of the schema string.
-import { ACTION_SEQUENCE_SCHEMA } from "../contracts/artifacts.ts";
+// M9: the SCHEMAS alias table below, and the two ActionSequence sites M8 relocated, all
+// read from contracts/artifacts.ts. The table stays — short keys are what this file's call
+// sites use — but its VALUES have one origin now instead of eighteen.
+import {
+  ACTION_SEQUENCE_SCHEMA,
+  ACTOR_LOADOUT_SCHEMA,
+  AFFINITY_PRESET_SCHEMA,
+  AFFINITY_SUMMARY_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  CAPTURED_INPUT_SCHEMA,
+  EFFECT_SCHEMA,
+  EXECUTION_POLICY_SCHEMA,
+  INITIAL_STATE_SCHEMA,
+  INTENT_ENVELOPE_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+  RUN_SUMMARY_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+  SOLVER_REQUEST_SCHEMA,
+  SOLVER_RESULT_SCHEMA,
+  TELEMETRY_RECORD_SCHEMA,
+  TICK_FRAME_SCHEMA,
+} from "../contracts/artifacts.ts";
 
 const SCHEMAS = Object.freeze({
-  intent: "agent-kernel/IntentEnvelope",
-  plan: "agent-kernel/PlanArtifact",
-  budgetReceipt: "agent-kernel/BudgetReceiptArtifact",
-  budgetArtifact: "agent-kernel/BudgetArtifact",
-  budgetReceiptArtifact: "agent-kernel/BudgetReceiptArtifact",
-  priceList: "agent-kernel/PriceList",
-  simConfig: "agent-kernel/SimConfigArtifact",
-  initialState: "agent-kernel/InitialStateArtifact",
-  executionPolicy: "agent-kernel/ExecutionPolicy",
-  solverRequest: "agent-kernel/SolverRequest",
-  solverResult: "agent-kernel/SolverResult",
-  tickFrame: "agent-kernel/TickFrame",
-  effect: "agent-kernel/Effect",
-  telemetry: "agent-kernel/TelemetryRecord",
-  runSummary: "agent-kernel/RunSummary",
-  affinityPreset: "agent-kernel/AffinityPresetArtifact",
-  actorLoadout: "agent-kernel/ActorLoadoutArtifact",
-  affinitySummary: "agent-kernel/AffinitySummary",
-  capturedInput: "agent-kernel/CapturedInputArtifact",
+  intent: INTENT_ENVELOPE_SCHEMA,
+  plan: PLAN_ARTIFACT_SCHEMA,
+  budgetReceipt: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  budgetArtifact: BUDGET_ARTIFACT_SCHEMA,
+  budgetReceiptArtifact: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  priceList: PRICE_LIST_SCHEMA,
+  simConfig: SIM_CONFIG_SCHEMA,
+  initialState: INITIAL_STATE_SCHEMA,
+  executionPolicy: EXECUTION_POLICY_SCHEMA,
+  solverRequest: SOLVER_REQUEST_SCHEMA,
+  solverResult: SOLVER_RESULT_SCHEMA,
+  tickFrame: TICK_FRAME_SCHEMA,
+  effect: EFFECT_SCHEMA,
+  telemetry: TELEMETRY_RECORD_SCHEMA,
+  runSummary: RUN_SUMMARY_SCHEMA,
+  affinityPreset: AFFINITY_PRESET_SCHEMA,
+  actorLoadout: ACTOR_LOADOUT_SCHEMA,
+  affinitySummary: AFFINITY_SUMMARY_SCHEMA,
+  capturedInput: CAPTURED_INPUT_SCHEMA,
 });
 
 function isObject(value) {
@@ -1331,11 +1351,11 @@ export function createCommandKernel(host = {}) {
     let affinityLoadouts = null;
     if (affinityPresetsPath) {
       affinityPresets = await readJson(affinityPresetsPath);
-      assertSchema(affinityPresets, "agent-kernel/AffinityPresetArtifact");
+      assertSchema(affinityPresets, AFFINITY_PRESET_SCHEMA);
     }
     if (affinityLoadoutsPath) {
       affinityLoadouts = await readJson(affinityLoadoutsPath);
-      assertSchema(affinityLoadouts, "agent-kernel/ActorLoadoutArtifact");
+      assertSchema(affinityLoadouts, ACTOR_LOADOUT_SCHEMA);
     }
 
     const layout = layoutResult.value;

@@ -1,8 +1,9 @@
 import { validateBuildSpec } from "../contracts/build-spec.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
+import { INTENT_ENVELOPE_SCHEMA } from "../contracts/artifacts.ts";
 
 const SCHEMAS = Object.freeze({
-  intent: "agent-kernel/IntentEnvelope",
+  intent: INTENT_ENVELOPE_SCHEMA,
 });
 
 function buildMeta(spec, producedBy, suffix) {

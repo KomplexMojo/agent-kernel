@@ -836,7 +836,9 @@ export interface BuildSpecV1 {
     priceListRef?: ArtifactRef;
     receiptRef?: ArtifactRef;
     budget?: BudgetArtifact;
-    priceList?: PriceList;
+    // M9: was `PriceList`, which is not a type in this file — only the SCHEMA constant
+    // has that name. Its two neighbours already used the artifact aliases.
+    priceList?: PriceListArtifact;
     receipt?: BudgetReceiptArtifact;
   };
 
@@ -1043,7 +1045,8 @@ export interface BudgetReceiptArtifactV1 {
     categories: {
       rooms: ScenarioCategorySpend;
       floor_tiles: ScenarioCategorySpend;
-      hazards: ScenarioCategorySpend;
+      // M9: `hazards` was declared twice here. The real key set is these seven, and the
+      // fixture named "full-categories" carries exactly seven.
       hazards: ScenarioCategorySpend;
       resources: ScenarioCategorySpend;
       delvers: ScenarioCategorySpend;
@@ -1086,10 +1089,13 @@ export interface BudgetAllocationArtifactV1 {
 
 export type BudgetAllocationArtifact = BudgetAllocationArtifactV1;
 
+// M9: `"hazards"` appeared twice. A duplicate union member is legal TypeScript and raises
+// nothing, which is why this copy outlived the interface's — the same duplication is in
+// `SandboxEntityCategory` below and in `allocator/incentive-model.js`'s REPORT_CATEGORIES,
+// where every use runs through Object.fromEntries and the repeat is inert.
 export type SpendProposalCategory =
   | "rooms"
   | "floor_tiles"
-  | "hazards"
   | "hazards"
   | "resources"
   | "delvers"
@@ -2522,7 +2528,8 @@ export interface SandboxArtifactIndexV1 {
  * Supported entity categories for the sandbox at launch.
  * Future entity kinds may be added as the sandbox surface evolves.
  */
-export type SandboxEntityCategory = "delver" | "warden" | "hazard" | "hazard" | "resource";
+// M9: `"hazard"` was listed twice — see the note on SpendProposalCategory above.
+export type SandboxEntityCategory = "delver" | "warden" | "hazard" | "resource";
 
 /**
  * Session envelope for a standalone Phaser sandbox.

@@ -9,10 +9,10 @@ import {
   buildRuntimeDecisionEnvelope,
   resolveRuntimeDecisionProviderPolicy,
 } from "../_shared/runtime-decision.mts";
+import { SOLVER_REQUEST_SCHEMA } from "../../contracts/artifacts.ts";
 
 export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
-const SOLVER_REQUEST_SCHEMA = "agent-kernel/SolverRequest";
 const SOLVER_ENGINE = "z3";
 
 const DEFAULT_DELTAS = EIGHT_WAY_DELTAS;

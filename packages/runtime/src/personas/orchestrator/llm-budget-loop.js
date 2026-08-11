@@ -34,6 +34,10 @@ import {
   normalizeLayoutCounts,
   sumLayoutTiles,
 } from "../../contracts/domain-constants.js";
+import {
+  BUDGET_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
 const DEFAULT_MAX_ACTOR_ROUNDS = 2;
 
@@ -1162,11 +1166,11 @@ export async function runLlmBudgetLoop({
     producedBy,
   };
   const budgetRef = Number.isInteger(budgetTokens)
-    ? { id: `budget_${resolvedRunId}`, schema: "agent-kernel/BudgetArtifact", schemaVersion: 1 }
+    ? { id: `budget_${resolvedRunId}`, schema: BUDGET_ARTIFACT_SCHEMA, schemaVersion: 1 }
     : undefined;
   const priceListRef = priceList
     ? undefined
-    : { id: `price_list_${resolvedRunId}`, schema: "agent-kernel/PriceList", schemaVersion: 1 };
+    : { id: `price_list_${resolvedRunId}`, schema: PRICE_LIST_SCHEMA, schemaVersion: 1 };
   const allocationResult = allocateBudget({
     budgetTokens,
     priceList,

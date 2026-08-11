@@ -17,12 +17,16 @@ import {
   DEFAULT_ROOM_CARD_AFFINITY,
   ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
 } from "../contracts/domain-constants.js";
-// M8: the two rules schemas below are declared in contracts/artifacts.ts. The other five
-// entries in SCHEMAS are still retyped literals — they are the tree-wide retype backlog,
-// not M8's scope, which was the seven schemas with no central declaration at all.
+// M9: every value in SCHEMAS below now comes from contracts/artifacts.ts. M8 relocated the
+// two rules schemas here; the other five were the tree-wide retype backlog it deferred.
 import {
+  ACTOR_LOADOUT_SCHEMA,
+  AFFINITY_PRESET_SCHEMA,
   AFFINITY_RULES_ARTIFACT_SCHEMA,
+  AFFINITY_SUMMARY_SCHEMA,
   MOTIVATION_RULES_ARTIFACT_SCHEMA,
+  SOLVER_REQUEST_SCHEMA,
+  SOLVER_RESULT_SCHEMA,
 } from "../contracts/artifacts.ts";
 
 // CR.9 M3: spend proposals price raw actor motivations, and motivation vocabulary is
@@ -39,13 +43,13 @@ const configuratorMaximizeActorBudget = createConfiguratorPersona({ clock: UNUSE
   .authorCandidates.maximizeActorBudget;
 
 const SCHEMAS = Object.freeze({
-  solverRequest: "agent-kernel/SolverRequest",
-  solverResult: "agent-kernel/SolverResult",
-  affinityPreset: "agent-kernel/AffinityPresetArtifact",
-  actorLoadout: "agent-kernel/ActorLoadoutArtifact",
+  solverRequest: SOLVER_REQUEST_SCHEMA,
+  solverResult: SOLVER_RESULT_SCHEMA,
+  affinityPreset: AFFINITY_PRESET_SCHEMA,
+  actorLoadout: ACTOR_LOADOUT_SCHEMA,
   affinityRules: AFFINITY_RULES_ARTIFACT_SCHEMA,
   motivationRules: MOTIVATION_RULES_ARTIFACT_SCHEMA,
-  affinitySummary: "agent-kernel/AffinitySummary",
+  affinitySummary: AFFINITY_SUMMARY_SCHEMA,
 });
 
 function createBuildMeta(spec, producedBy, suffix) {

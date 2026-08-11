@@ -40,6 +40,22 @@
  *   - re-declare a second `const … = "agent-kernel/GameplayBundle"`  → DETECTED
  *   - add a new undeclared `"agent-kernel/Nonexistent"` literal      → DETECTED
  *   - add a fixed schema back to KNOWN_OUTSTANDING                   → DETECTED
+ *
+ * ═══ M9 (2026-08-11) — THE RULE NO LONGER NEEDS A LIST ════════════════════════════════════
+ * M8 closed the seven schemas that had no central declaration; M9 closed the other half of
+ * the problem — 182 sites across 50 files that retyped a schema artifacts.ts ALREADY
+ * declared, including 68 rival `const` declarations, five of them in `contracts/` itself.
+ *
+ * So the retype check dropped its scope: no production file outside artifacts.ts may write
+ * an `agent-kernel/*` literal at all. A guard that enumerates what it protects is a guard
+ * someone has to remember to extend — M8's named set of ten would have silently failed to
+ * cover the 172 sites it did not name.
+ *
+ * ⚠️ THE THREE CHECKS ARE NOT INDEPENDENT ANYMORE, and that is fine as long as it is stated:
+ * with no literals permitted outside artifacts.ts, the declaration check can only fail when
+ * the retype check already has. It is kept because it names a different defect in its message
+ * ("this schema does not exist centrally" vs "this schema is written out twice"), and a
+ * failing suite that says both is more useful than one that says either.
  */
 const assert = require("node:assert/strict");
 const { execFileSync } = require("node:child_process");
@@ -50,16 +66,20 @@ const REPO = resolve(__dirname, "../..");
 const ARTIFACTS = "packages/runtime/src/contracts/artifacts.ts";
 
 /**
- * Production schemas that are STILL declared outside artifacts.ts. Enumerated, not silenced.
+ * The one exemption list, honoured by every check below. Enumerated, never silenced.
  *
- * ✅ EMPTIED BY M8 (2026-08-11). M7 left seven here — the same charter violation as the
- * AdaptiveWorkflow cluster, elsewhere in the tree — and recorded them rather than silencing
- * them precisely so the next census would find a list instead of a search. All seven are now
- * declared in artifacts.ts and imported at every use site.
+ * ✅ EMPTIED BY M8 (2026-08-11) and still empty after M9. M7 left seven schemas here — the
+ * same charter violation as the AdaptiveWorkflow cluster, elsewhere in the tree — and
+ * recorded them rather than silencing them, precisely so the next census would find a list
+ * instead of a search. It worked: M8 was executable from this list alone.
  *
- * An empty list is the point, not a formality: with nothing exempted, the check below is
- * "every production schema literal is declared centrally", with no escape hatch. Growing this
- * list again requires a deliberate edit to this file and a stated reason.
+ * An empty list is the point, not a formality. With nothing exempted the rule is absolute —
+ * no production file outside artifacts.ts may write an `agent-kernel/*` literal — and
+ * growing this list again takes a deliberate edit to this file and a stated reason.
+ *
+ * ⚠️ It is ONE list on purpose. M9 briefly had an exemption that silenced the declaration
+ * check but not the retype check, which is an escape hatch that does not actually let you
+ * out: an entry would have looked like a decision while still failing the suite.
  */
 const KNOWN_OUTSTANDING = Object.freeze([]);
 
@@ -70,30 +90,18 @@ const KNOWN_OUTSTANDING = Object.freeze([]);
  * distinction is the whole reason M7's first guard passed its own defect. A file that writes
  * `"agent-kernel/GameplayBundle"` inline satisfies the declaration check — the schema *is*
  * declared, it simply is not being used from the declaration — while remaining free to drift
- * from it. That is not hypothetical here: before M8, `GAMEPLAY_BUNDLE_SCHEMA` was declared
+ * from it. That was not hypothetical: before M8, `GAMEPLAY_BUNDLE_SCHEMA` was declared
  * independently in the CLI that writes bundles and in the browser module that reads them.
  *
- * SCOPE: the AdaptiveWorkflow cluster (M7) plus M8's seven. It is deliberately NOT every
- * schema — roughly 200 sites across the tree still retype a centrally declared schema, which
- * is a real backlog and a separate piece of work. What this set guarantees is that schemas
- * someone has already paid to consolidate cannot silently un-consolidate.
+ * ✅ M9 (2026-08-11) MADE THIS EVERY SCHEMA. It was a named set of ten — M7's cluster plus
+ * M8's seven — because 182 sites across 50 files still retyped a centrally declared schema.
+ * That backlog is closed, so the rule needs no list: **no production file outside
+ * artifacts.ts may write an `agent-kernel/*` literal at all.** A set that has to enumerate
+ * what it protects is a set someone has to remember to add to; this one cannot go stale
+ * because there is nothing in it to update.
  */
-const SINGLE_ORIGIN_SCHEMAS = Object.freeze([
-  "agent-kernel/ActionSequence",
-  "agent-kernel/ActorArtifact",
-  "agent-kernel/AffinityRulesArtifact",
-  "agent-kernel/GameplayBundle",
-  "agent-kernel/LayoutArtifact",
-  "agent-kernel/MotivationRulesArtifact",
-  "agent-kernel/PoolCatalog",
-  "agent-kernel/SelectedStrategy",
-  "agent-kernel/BenchmarkEvidence",
-  "agent-kernel/ContextBudget",
-]);
-
-/** True for a schema held to single origin: the M8 seven, or anything in the M7 cluster. */
 function isSingleOrigin(schema) {
-  return schema.startsWith("agent-kernel/AdaptiveWorkflow") || SINGLE_ORIGIN_SCHEMAS.includes(schema);
+  return !KNOWN_OUTSTANDING.includes(schema);
 }
 
 /** Files that are production code: shipped packages, excluding tests and fixtures. */
@@ -181,11 +189,13 @@ test("every single-origin schema is declared in exactly one place", () => {
  * came to have no constant at all, and a "declared in artifacts.ts" check cannot see it
  * because the schema *is* declared — just not used from there.
  *
- * ⇒ *A guard that forbids the wrong spelling of a defect is not a guard.* Scoped to
- * SINGLE_ORIGIN_SCHEMAS — M7's cluster, widened by M8 to include its seven; inline literals
- * elsewhere in the tree are widespread and are not either milestone's to fix.
+ * ⇒ *A guard that forbids the wrong spelling of a defect is not a guard.* M7 scoped this to
+ * its own cluster, M8 widened it to a named ten, and M9 removed the scope entirely: it is now
+ * every schema, because there is no longer a single retyped literal in the tree to grandfather.
+ * This is the strongest of the three checks and the one that actually holds the property —
+ * the declaration check below it can only ever agree.
  */
-test("no single-origin schema is retyped as an inline literal outside artifacts.ts", () => {
+test("no schema is retyped as an inline literal outside artifacts.ts", () => {
   const retyped = new Map();
   for (const file of productionFiles()) {
     if (file === ARTIFACTS) continue;
@@ -204,32 +214,35 @@ test("no single-origin schema is retyped as an inline literal outside artifacts.
   assert.deepEqual(
     Object.fromEntries(retyped),
     {},
-    "a single-origin schema string is written out here instead of imported from "
-    + "contracts/artifacts.ts — import the constant; a retyped literal is a second origin "
-    + "that no declaration-keyed census can see",
+    "a schema string is written out here instead of imported from contracts/artifacts.ts — "
+    + "import the constant; a retyped literal is a second origin that no declaration-keyed "
+    + "census can see",
   );
 });
 
-test("KNOWN_OUTSTANDING is honest: every entry is still undeclared and still used", () => {
-  const declared = schemaLiteralsIn(readFileSync(resolve(REPO, ARTIFACTS), "utf8"));
-  const usedInProduction = new Set();
+test("KNOWN_OUTSTANDING is honest: every entry is still an actual violation", () => {
+  const literalsOutsideArtifacts = new Set();
   for (const file of productionFiles()) {
     if (file === ARTIFACTS) continue;
     for (const schema of schemaLiteralsIn(readFileSync(resolve(REPO, file), "utf8"))) {
-      usedInProduction.add(schema);
+      literalsOutsideArtifacts.add(schema);
     }
   }
 
   // A stale allowlist entry is the failure mode this branch has hit repeatedly: the note
   // outlives the thing it described, and nothing reports it.
   //
-  // M8 emptied the list, so this assertion is currently vacuous — kept deliberately, because
-  // it goes live the moment anyone adds an entry, which is precisely when it is needed.
-  const stale = KNOWN_OUTSTANDING.filter((s) => declared.has(s) || !usedInProduction.has(s));
+  // The list is empty after M8/M9, so this assertion is currently vacuous — kept
+  // deliberately, because it goes live the moment anyone adds an entry, which is precisely
+  // when it is needed. M9 retargeted it: an exemption is honest while the schema is still
+  // written as a literal somewhere outside artifacts.ts. The old wording ("still undeclared")
+  // described the pre-M8 world, where a schema could be absent from artifacts.ts entirely;
+  // nothing can be in that state now, so that check would have passed forever.
+  const stale = KNOWN_OUTSTANDING.filter((s) => !literalsOutsideArtifacts.has(s));
   assert.deepEqual(
     stale,
     [],
-    "these KNOWN_OUTSTANDING entries are fixed or gone — remove them from the list",
+    "these KNOWN_OUTSTANDING entries no longer violate anything — remove them from the list",
   );
 });
 

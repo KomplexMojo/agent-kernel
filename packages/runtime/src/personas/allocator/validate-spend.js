@@ -1,7 +1,9 @@
-const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
-const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
-const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
-const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
+import {
+  BUDGET_ALLOCATION_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
 const CATEGORY_POOL_IDS = Object.freeze({
   rooms: "rooms",

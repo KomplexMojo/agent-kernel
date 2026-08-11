@@ -19,7 +19,6 @@ import {
   validateSandboxSession,
   SANDBOX_SESSION_SCHEMA,
 } from "../../../../runtime/src/contracts/sandbox-session.mjs";
-import { ACTION_SEQUENCE_SCHEMA } from "../../../../runtime/src/contracts/artifacts.ts";
 import { createDefaultResourceBundleArtifact } from "../../../../runtime/src/render/resource-bundle.js";
 import {
   booleanSchema,
@@ -31,6 +30,15 @@ import {
   withCommonOutput,
 } from "./shared.mjs";
 import { getSandboxBridgeState, pushGameplayBundle } from "../bridge-server.mjs";
+import {
+  ACTION_SCHEMA,
+  ACTION_SEQUENCE_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  INITIAL_STATE_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+} from "../../../../runtime/src/contracts/artifacts.ts";
 
 // ---------------------------------------------------------------------------
 // Local I/O helpers (self-contained — no dependency on ak-impl.mjs)
@@ -119,7 +127,7 @@ export async function executeSandboxCreate({
         error: `Cannot read budget receipt: ${err.message}`,
       };
     }
-    if (receipt.schema !== "agent-kernel/BudgetReceiptArtifact") {
+    if (receipt.schema !== BUDGET_RECEIPT_ARTIFACT_SCHEMA) {
       return {
         ok: false,
         command: "sandbox-create",
@@ -179,7 +187,7 @@ export async function executeSandboxCreate({
         error: `Cannot read budget artifact: ${err.message}`,
       };
     }
-    if (budgetArtifact.schema !== "agent-kernel/BudgetArtifact") {
+    if (budgetArtifact.schema !== BUDGET_ARTIFACT_SCHEMA) {
       return {
         ok: false,
         command: "sandbox-create",
@@ -198,7 +206,7 @@ export async function executeSandboxCreate({
     // Synthesize a placeholder budget receipt ref from the budget artifact
     budgetReceiptRef = {
       id: `budget_receipt_${runId}`,
-      schema: "agent-kernel/BudgetReceiptArtifact",
+      schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
       schemaVersion: 1,
     };
   }
@@ -293,7 +301,7 @@ function buildMinimalSimConfig({ runId, createdAt, width, height }) {
     tiles.push(row);
   }
   return {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: SIM_CONFIG_SCHEMA,
     schemaVersion: 1,
     meta: {
       id: `sim-config-${runId}`,
@@ -303,7 +311,7 @@ function buildMinimalSimConfig({ runId, createdAt, width, height }) {
     },
     planRef: {
       id: `plan-${runId}`,
-      schema: "agent-kernel/PlanArtifact",
+      schema: PLAN_ARTIFACT_SCHEMA,
       schemaVersion: 1,
     },
     seed: 1,
@@ -327,7 +335,7 @@ function buildMinimalSimConfig({ runId, createdAt, width, height }) {
  */
 function buildMinimalInitialState({ runId, createdAt, simConfigRef, actors = [] }) {
   return {
-    schema: "agent-kernel/InitialStateArtifact",
+    schema: INITIAL_STATE_SCHEMA,
     schemaVersion: 1,
     meta: {
       id: `initial-state-${runId}`,
@@ -870,7 +878,7 @@ export async function executeSandboxMove({
 
   // Build the Action
   const action = {
-    schema: "agent-kernel/Action",
+    schema: ACTION_SCHEMA,
     schemaVersion: 1,
     actorId,
     tick,
