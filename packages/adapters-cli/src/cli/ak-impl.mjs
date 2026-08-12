@@ -4248,6 +4248,9 @@ async function validateScenarioDryRun(args) {
         model,
         baseUrl,
         prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
+        // CR.7 / WP-5: a cardSet is the Director's translation, injected rather than
+        // imported. Uses the round opened just above.
+        buildCardSet: director.buildCardSet,
         goal,
         budgetTokens: resolvedBudgetTokens,
         strict: isLlmStrictEnabled(),
@@ -4278,6 +4281,9 @@ async function validateScenarioDryRun(args) {
           model,
           baseUrl,
           prompt: catalogRepairPrompt,
+          // CR.7 / WP-5: a cardSet is the Director's translation, injected rather than
+          // imported. Uses the round opened just above.
+          buildCardSet: director.buildCardSet,
           goal,
           budgetTokens: resolvedBudgetTokens,
           strict: isLlmStrictEnabled(),

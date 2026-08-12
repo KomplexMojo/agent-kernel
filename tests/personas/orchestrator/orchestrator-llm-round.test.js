@@ -21,6 +21,12 @@
  * before evaluating a response, and a completed round refuses to accept another one.
  */
 const assert = require("node:assert/strict");
+// CR.7 / WP-5: a cardSet is the Director's translation, so the round REQUIRES the builder
+// injected and no longer imports `director/summary-selections.js`. Wired from the shared
+// helper for the reason that helper exists: a hand-rolled stub here would be the second
+// silently-diverging implementation the refusal is there to prevent. A real Director performs
+// no IO, so the "no adapter in sight" invariant above is untouched.
+const { directorBuildCapabilities } = require("../../helpers/orchestrator-capabilities.js");
 
 const ROUND = "../../../packages/runtime/src/personas/orchestrator/llm-round.js";
 
@@ -38,6 +44,7 @@ async function newRound(overrides = {}) {
     // `runLlmSession` computes it (`captureResult.errors === undefined`).
     runId: "run_round_test",
     clock: () => "2025-01-01T00:00:00Z",
+    buildCardSet: (await directorBuildCapabilities({ runId: "run_round_test" })).buildCardSet,
     ...overrides,
   });
 }
@@ -209,6 +216,7 @@ test("the round is reachable through the Orchestrator's PUBLIC surface", async (
     model: "fixture",
     prompt: "Return JSON only.",
     phase: "layout_only",
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,
   });
   const { state, effect } = round.begin();
 
@@ -216,6 +224,47 @@ test("the round is reachable through the Orchestrator's PUBLIC surface", async (
   assert.equal(effect.kind, "llm_request");
   assert.equal(effect.personaRef, "orchestrator", "the round is stamped by the persona that owns it");
   assert.equal(round.fulfill({ response: GOOD }).state, "completed");
+});
+
+/**
+ * CR.7 / WP-5 — the round REFUSES without the Director's cardSet builder.
+ *
+ * This test exists because the suite passing is not evidence the requirement is real: every
+ * other test here now supplies the capability, so a future edit adding a default — or falling
+ * back to importing `director/summary-selections.js` again — would keep them all green while
+ * silently restoring the Orchestrator as the author of another persona's artifact. That is
+ * M5b.2e's lesson: **assume a new requirement is a label until something proves otherwise.**
+ *
+ * Thrown, not collected, unlike `runLlmSession`'s identical precondition — the round's other
+ * preconditions throw too, and `commands/llm-host.js` documents and preserves the difference.
+ */
+test("the round refuses to be built without the Director's cardSet builder", async () => {
+  const { createLlmRound } = await import(ROUND);
+  assert.throws(
+    () => createLlmRound({
+      model: "fixture",
+      prompt: "Return JSON only.",
+      phase: "layout_only",
+      runId: "run_refusal",
+      clock: () => "2025-01-01T00:00:00Z",
+      // buildCardSet deliberately absent
+    }),
+    /buildCardSet is required/,
+    "a cardSet is the Director's translation; the round must not default one",
+  );
+
+  // A non-function is refused too — the check is on the capability, not on presence.
+  assert.throws(
+    () => createLlmRound({
+      model: "fixture",
+      prompt: "Return JSON only.",
+      phase: "layout_only",
+      runId: "run_refusal",
+      clock: () => "2025-01-01T00:00:00Z",
+      buildCardSet: "not a function",
+    }),
+    /buildCardSet is required/,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -266,18 +315,29 @@ for (const [label, config, script] of DIFFERENTIAL_CASES) {
         return script[Math.min(calls.length - 1, script.length - 1)];
       },
     };
+    // ONE builder for both paths, deliberately: the differential asserts the round and the
+    // session agree, so handing them different cardSet builders would weaken the comparison
+    // to "two translations happened to match".
+    const { buildCardSet } = await directorBuildCapabilities({ runId: "run_differential" });
+
     const session = await runLlmSession({
       model: "fixture",
       prompt: "Return JSON only.",
       phase: "layout_only",
       runId: "run_differential",
       clock: () => "2025-01-01T00:00:00Z",
+      buildCardSet,
       ...config,
       adapter,
     });
 
     // The new path: no IO at all; the script is handed back through fulfill().
-    const round = await newRound({ runId: "run_differential", clock: () => "2025-01-01T00:00:00Z", ...config });
+    const round = await newRound({
+      runId: "run_differential",
+      clock: () => "2025-01-01T00:00:00Z",
+      buildCardSet,
+      ...config,
+    });
     let outcome = round.begin();
     let index = 0;
     while (outcome.effect) {

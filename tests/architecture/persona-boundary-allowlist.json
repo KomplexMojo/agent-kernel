@@ -108,10 +108,6 @@
     "to": "packages/runtime/src/personas/allocator/default-price-list.js"
   },
   {
-    "from": "packages/runtime/src/personas/orchestrator/llm-session.js",
-    "to": "packages/runtime/src/personas/director/summary-selections.js"
-  },
-  {
     "from": "packages/ui-web/src/views/diagnostics-view.js",
     "to": "packages/runtime/src/personas/annotator/llm-trace.js"
   }

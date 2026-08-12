@@ -2512,13 +2512,22 @@ export function wireDesignGuidance({
         fetchFn: llmConfig.fetchFn || fetch,
       }));
 
+    const sessionRunId = `ui_card_session_${Date.now()}`;
+    const sessionClock = () => new Date().toISOString();
     const session = await runLlmSessionHosted({
       adapter,
       model: llmConfig.model || DEFAULT_LLM_MODEL,
       prompt,
-      runId: `ui_card_session_${Date.now()}`,
-      clock: () => new Date().toISOString(),
+      runId: sessionRunId,
+      clock: sessionClock,
       strict: false,
+      // CR.7 / WP-5: a cardSet is the Director's translation, injected rather than imported.
+      // Bound to an open build round, as the budget-loop path above already does.
+      buildCardSet: beginDirectorBuildCapabilities({
+        runId: sessionRunId,
+        createdAt: sessionClock(),
+        goal: prompt,
+      }).buildCardSet,
     });
     if (!session.ok) {
       throw new Error(session.errors?.[0]?.code || "ai_session_failed");

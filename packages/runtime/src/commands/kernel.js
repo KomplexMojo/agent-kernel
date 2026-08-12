@@ -2028,6 +2028,10 @@ export function createCommandKernel(host = {}) {
           model,
           baseUrl,
           prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
+          // CR.7 / WP-5: the session attaches a cardSet to its summary, and that is the
+          // Director's translation. Uses THIS round's director, deliberately not
+          // beginDirectorBuildCapabilities() — see the budget-loop note above.
+          buildCardSet: director.buildCardSet,
           goal,
           budgetTokens: resolvedBudgetTokens,
           strict: isLlmStrictEnabled(),
@@ -2063,6 +2067,10 @@ export function createCommandKernel(host = {}) {
             model,
             baseUrl,
             prompt: catalogRepairPrompt,
+            // CR.7 / WP-5: the session attaches a cardSet to its summary, and that is the
+            // Director's translation. Uses THIS round's director, deliberately not
+            // beginDirectorBuildCapabilities() — see the budget-loop note above.
+            buildCardSet: director.buildCardSet,
             goal,
             budgetTokens: resolvedBudgetTokens,
             strict: isLlmStrictEnabled(),

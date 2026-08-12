@@ -40,7 +40,6 @@
 import { buildLlmRequestEffect } from "../_shared/persona-helpers.mts";
 import {
   applySummaryContentErrors,
-  buildCardModelFromLlmSummary,
   buildRepairRequestOptions,
   captureWithFallback,
   extractResponseText,
@@ -118,7 +117,24 @@ export function createLlmRound({
   meta,
   producedBy = "orchestrator",
   requestId,
+  // ── The Director's cardSet translation (CR.7 / WP-5) ──────────────────────
+  // REQUIRED, no default. A cardSet is the Director's translation (M5b.2e); this file used
+  // to obtain it by importing `director/summary-selections.js` through `llm-session.js`,
+  // which was that file's allowlist row. Callers bind it from
+  // `beginDirectorBuildCapabilities`, where it is attached to an OPEN Director round —
+  // necessary, because `director.buildCardSet` is gated on PLANNED_STATES.
+  buildCardSet,
 } = {}) {
+  // THROWN, not collected: the round rejects bad preconditions by throwing, while
+  // `runLlmSession` returns `{ ok: false, errors }` for the same fault. `commands/llm-host.js`
+  // documents and preserves that difference, so this must throw to stay consistent with
+  // `begin()` below rather than with the session.
+  if (typeof buildCardSet !== "function") {
+    throw new Error(
+      "llm-round: buildCardSet is required — a cardSet is the Director's translation, not "
+      + "the Orchestrator's. Bind it from beginDirectorBuildCapabilities().",
+    );
+  }
   let state = LlmRoundStates.IDLE;
   let currentPrompt = normalizeSessionPrompt({
     prompt,
@@ -209,7 +225,7 @@ export function createLlmRound({
       ? endMs - startMs
       : undefined;
 
-    const cardSet = buildCardModelFromLlmSummary(capture?.summary || {});
+    const cardSet = buildCardSet(capture?.summary || {});
     const summaryWithCards = capture?.summary && typeof capture.summary === "object"
       ? { ...capture.summary, cardSet }
       : capture?.summary ?? null;

@@ -9,7 +9,6 @@ import {
   buildLlmPhasePromptTemplate,
 } from "../../contracts/domain-constants.js";
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
-import { buildCardSetFromSummary } from "../director/summary-selections.js";
 
 // ── CR.4 M3: the pure decision layer, shared rather than duplicated ────────────
 // `llm-round.js` runs the SAME escalation ladder without performing IO. Two
@@ -463,9 +462,21 @@ export function sanitizeSummaryResponse(responseText, { allowedAffinities, allow
   return sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, phase });
 }
 
-export function buildCardModelFromLlmSummary(summary) {
-  return buildCardSetFromSummary(summary || {});
-}
+/**
+ * CR.7 / WP-5 (2026-08-12) — `buildCardModelFromLlmSummary` STOOD HERE AND IS GONE.
+ *
+ * It was a one-line rename of `director/summary-selections.js#buildCardSetFromSummary`,
+ * imported straight across the persona boundary, and it was this file's allowlist row. A
+ * cardSet is the DIRECTOR's translation (M5b.2e), so the builder is now an injected
+ * capability on `runLlmSession` and `createLlmRound` — REQUIRED, with no default, for the
+ * same reason the budget loop's `buildCardSet` and `runSession` are: a default would let the
+ * Orchestrator author another persona's artifact with nothing reporting it, and an
+ * un-normalized cardSet is still a well-formed array that serializes and replays.
+ *
+ * Callers get it from `beginDirectorBuildCapabilities` (`commands/director-round.js`), which
+ * binds `director.buildCardSet` to an OPEN build round — that binding matters, because the
+ * Director gates `buildCardSet` on PLANNED_STATES.
+ */
 
 export function normalizeSessionPrompt({
   prompt,
@@ -530,10 +541,25 @@ export async function runLlmSession({
   producedBy = "orchestrator",
   clock,
   requestId,
+  // CR.7 / WP-5 — the Director's cardSet translation, injected. REQUIRED, no default: see
+  // the note where `buildCardModelFromLlmSummary` used to live.
+  buildCardSet,
 } = {}) {
   const sessionErrors = [];
   if (!adapter || typeof adapter.generate !== "function") {
     addSessionError(sessionErrors, "adapter", "missing_adapter", "adapter.generate is required");
+  }
+  // Reported as a session error rather than thrown, unlike the round's precondition of the
+  // same name. That asymmetry is deliberate and documented in `commands/llm-host.js`:
+  // `runLlmSession` RETURNS `{ ok: false, errors, capture: null }` for a bad precondition
+  // where the round throws, and the host preserves each style.
+  if (typeof buildCardSet !== "function") {
+    addSessionError(
+      sessionErrors,
+      "buildCardSet",
+      "missing_card_set_builder",
+      "buildCardSet is required: a cardSet is the Director's translation, not the Orchestrator's",
+    );
   }
   if (!isNonEmptyString(model)) {
     addSessionError(sessionErrors, "model", "missing_model", "model is required");
@@ -696,7 +722,7 @@ export async function runLlmSession({
     endedAt,
     durationMs,
   };
-  const cardSet = buildCardModelFromLlmSummary(capture.summary || {});
+  const cardSet = buildCardSet(capture.summary || {});
   const summaryWithCards = capture.summary && typeof capture.summary === "object"
     ? {
       ...capture.summary,

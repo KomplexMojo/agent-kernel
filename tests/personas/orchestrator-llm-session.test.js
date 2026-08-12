@@ -1,4 +1,8 @@
 const assert = require("node:assert/strict");
+// CR.7 / WP-5: the session REQUIRES the Director's cardSet builder injected and no longer
+// imports `director/summary-selections.js`. Wired from the shared helper so tests wire what
+// production wires — a stub here would be the second implementation the refusal prevents.
+const { directorBuildCapabilities } = require("../helpers/orchestrator-capabilities.js");
 const { configuratorRoomGeometry } = require("../helpers/configurator-capabilities.js");
 
 test("orchestrator llm session captures prompt/response", async () => {
@@ -15,7 +19,7 @@ test("orchestrator llm session captures prompt/response", async () => {
   adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
 
   const result = await runLlmSession({
-    adapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter,
     model: "fixture",
     prompt,
     runId: "run_llm_session",
@@ -61,7 +65,7 @@ test("orchestrator llm session honors strict vs resilient parsing", async () => 
   const strictAdapter = createLlmTestAdapter();
   strictAdapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
   const strictResult = await runLlmSession({
-    adapter: strictAdapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter: strictAdapter,
     model: "fixture",
     prompt,
     runId: "run_llm_strict",
@@ -76,7 +80,7 @@ test("orchestrator llm session honors strict vs resilient parsing", async () => 
   const resilientAdapter = createLlmTestAdapter();
   resilientAdapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
   const resilientResult = await runLlmSession({
-    adapter: resilientAdapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter: resilientAdapter,
     model: "fixture",
     prompt,
     runId: "run_llm_resilient",
@@ -114,7 +118,7 @@ test("orchestrator llm session enforces non-empty summary when configured", asyn
   adapter.setResponse("fixture", repairPrompt, { response: fixedResponse, done: true });
 
   const result = await runLlmSession({
-    adapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter,
     model: "fixture",
     prompt,
     runId: "run_llm_require_summary",
@@ -143,7 +147,7 @@ test("orchestrator llm session captures phase metadata", async () => {
   adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
 
   const result = await runLlmSession({
-    adapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter,
     model: "fixture",
     prompt,
     runId: "run_llm_phase",
@@ -195,7 +199,7 @@ test("orchestrator llm session expands repair output budget when actor response 
   };
 
   const result = await runLlmSession({
-    adapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter,
     model: "fixture",
     prompt: "actors prompt",
     runId: "run_llm_session_repair_budget",
@@ -247,7 +251,7 @@ test("orchestrator llm session sanitizes invalid defender token hints and stamin
   adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
 
   const result = await runLlmSession({
-    adapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter,
     model: "fixture",
     prompt,
     runId: "run_llm_session_actor_sanitize",
@@ -295,7 +299,7 @@ test("orchestrator llm session recovers defender JSON with trailing commas", asy
   adapter.setResponse("fixture", prompt, { response: responseRaw, done: true });
 
   const result = await runLlmSession({
-    adapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter,
     model: "fixture",
     prompt,
     runId: "run_llm_session_lenient_defender_recovery",
@@ -347,7 +351,7 @@ test("orchestrator llm session supports AI summary to card model to build spec r
   });
 
   const result = await runLlmSession({
-    adapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter,
     model: "fixture",
     prompt,
     runId: "run_llm_card_roundtrip",
@@ -386,4 +390,48 @@ test("orchestrator llm session supports AI summary to card model to build spec r
   assert.ok(Array.isArray(built.spec.plan.hints.cardSet));
   assert.ok(built.spec.configurator.inputs.levelGen);
   assert.ok(built.spec.configurator.inputs.actors.length >= 1);
+});
+
+/**
+ * CR.7 / WP-5 — the session REFUSES without the Director's cardSet builder.
+ *
+ * The mirror of the round's refusal test, and it exists for the same reason: every other
+ * session test in this file now supplies the capability, so a default added later would keep
+ * them all green while returning the Orchestrator to authoring the Director's artifact.
+ *
+ * ⚠️ RETURNED, NOT THROWN — the asymmetry with `createLlmRound` is deliberate and is what
+ * `commands/llm-host.js` documents: the session reports a bad precondition as
+ * `{ ok: false, errors, capture: null }` where the round throws. Asserting the SHAPE here is
+ * what stops the two from being quietly unified in one direction or the other.
+ */
+test("runLlmSession refuses without the Director's cardSet builder, and never calls the adapter", async () => {
+  const { runLlmSession } = await import(
+    "../../packages/runtime/src/personas/orchestrator/llm-session.js"
+  );
+
+  const calls = [];
+  const adapter = {
+    async generate(args) {
+      calls.push(args);
+      return { response: JSON.stringify({ dungeonAffinity: "fire", rooms: [], actors: [] }) };
+    },
+  };
+
+  const result = await runLlmSession({
+    adapter,
+    model: "fixture",
+    prompt: "Return JSON only.",
+    phase: "layout_only",
+    runId: "run_session_refusal",
+    clock: () => "2025-01-01T00:00:00Z",
+    // buildCardSet deliberately absent
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.errors.some((e) => e.code === "missing_card_set_builder"),
+    `expected missing_card_set_builder, got ${JSON.stringify(result.errors)}`,
+  );
+  assert.equal(result.capture, null, "a refused precondition captures no exchange");
+  assert.equal(calls.length, 0, "the refusal short-circuits BEFORE any adapter call");
 });

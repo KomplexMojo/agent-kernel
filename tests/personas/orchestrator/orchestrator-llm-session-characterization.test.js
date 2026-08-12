@@ -33,6 +33,10 @@
  * so the inversion can demonstrate the stamp later comes from a real round.
  */
 const assert = require("node:assert/strict");
+// CR.7 / WP-5: the session REQUIRES the Director's cardSet builder injected and no longer
+// imports `director/summary-selections.js`. Wired from the shared helper so tests wire what
+// production wires — a stub here would be the second implementation the refusal prevents.
+const { directorBuildCapabilities } = require("../../helpers/orchestrator-capabilities.js");
 
 const SESSION = "../../../packages/runtime/src/personas/orchestrator/llm-session.js";
 
@@ -68,6 +72,7 @@ async function runSession(extra, responses) {
   const result = await runLlmSession({
     ...BASE,
     clock: () => "2025-01-01T00:00:00Z",
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,
     ...extra,
     adapter,
   });
