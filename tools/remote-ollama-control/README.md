@@ -147,6 +147,51 @@ systemctl --user daemon-reload
 
 Without the systemd unit, `remote-ollama-profile` uses managed pid files under `~/.local/state/remote-ollama`.
 
+## Unattended Benchmark Agent (M4b)
+
+The Ubuntu installer also deploys `agent-kernel-benchmark`, its unprivileged user service/timer, and
+an operator-owned environment template. Installation is idempotent and never overwrites an existing
+`~/.config/agent-kernel-benchmark/benchmark-agent.env`. Source fetches use a mirror under
+`~/.local/share/agent-kernel-benchmark/source.git`; local state and the isolated result checkout live
+under `~/.local/state/agent-kernel-benchmark/`. The operator's project checkout is never used.
+
+M4b ships with `AK_BENCHMARK_DRY_RUN=1`. In that mode the agent fetches the configured source ref,
+computes the immutable run key, classifies path/hash triggers, prints JSON, and exits without writing
+poll state, running a model/GPU, or publishing Git results. The internal Node lock is the only
+single-instance mechanism; the timer does not add a second lock.
+
+On Ubuntu, install and inspect without enabling scheduling:
+
+```bash
+./scripts/install-local-ubuntu.sh
+$EDITOR ~/.config/agent-kernel-benchmark/benchmark-agent.env
+agent-kernel-benchmark
+systemctl --user status agent-kernel-benchmark.timer
+```
+
+After reviewing a successful dry-run, enable scheduling explicitly:
+
+```bash
+systemctl --user enable --now agent-kernel-benchmark.timer
+systemctl --user list-timers agent-kernel-benchmark.timer
+journalctl --user -u agent-kernel-benchmark.service
+```
+
+Disable and uninstall without deleting retained state/results:
+
+```bash
+systemctl --user disable --now agent-kernel-benchmark.timer
+rm ~/.config/systemd/user/agent-kernel-benchmark.service
+rm ~/.config/systemd/user/agent-kernel-benchmark.timer
+systemctl --user daemon-reload
+rm ~/bin/agent-kernel-benchmark
+```
+
+Remove `~/remote-ollama-control`, `~/.local/share/agent-kernel-benchmark`,
+`~/.local/state/agent-kernel-benchmark`, or the operator environment only after separately deciding
+their retained data is no longer needed. M5—not this installer—authorizes live GPU execution and the
+first `benchmark-results` branch publication.
+
 ## Network Modes
 
 Two routes, both resolved from your untracked `config/llm-host.env`.

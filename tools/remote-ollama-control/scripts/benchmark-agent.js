@@ -104,13 +104,14 @@ async function runBenchmarkAgent(options) {
     matrixHash,
     runBenchmark,
     now = () => new Date(),
+    dryRun = false,
   } = options;
   const policy = options.policy || loadTriggerPolicy(path.resolve(__dirname, '..'));
   const sourceRef = options.sourceRef || policy.sourceRef;
   const resultBranch = options.resultBranch || policy.resultBranch;
   const sourceRepository = options.sourceRepository || 'agent-kernel';
-  if (!sourceRepo || !resultsRemote || !stateDir || typeof runBenchmark !== 'function') {
-    throw new Error('sourceRepo, resultsRemote, stateDir, and runBenchmark are required');
+  if (!sourceRepo || !stateDir || (!dryRun && (!resultsRemote || typeof runBenchmark !== 'function'))) {
+    throw new Error('sourceRepo and stateDir are required; live runs also require resultsRemote and runBenchmark');
   }
 
   const lock = acquireAgentLock(stateDir);
@@ -134,6 +135,10 @@ async function runBenchmarkAgent(options) {
       matrixHash,
       runnerContractVersion: policy.runnerContractVersion,
     });
+
+    if (dryRun) {
+      return { status: 'dry_run', sourceCommit, runKey: key, trigger, stateMutation: false };
+    }
 
     if (!trigger.required) {
       markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash);
@@ -202,28 +207,73 @@ async function runBenchmarkAgent(options) {
 
 function parseArgs(argv) {
   const values = {};
-  for (let index = 0; index < argv.length; index += 2) {
-    if (!argv[index].startsWith('--') || argv[index + 1] === undefined) {
-      throw new Error(`Expected --name value, received ${argv[index]}`);
+  for (let index = 0; index < argv.length; index += 1) {
+    if (!argv[index].startsWith('--')) throw new Error(`Expected option, received ${argv[index]}`);
+    const name = argv[index].slice(2);
+    if (name === 'dry-run' || name === 'service') {
+      values[name] = true;
+      continue;
     }
-    values[argv[index].slice(2)] = argv[index + 1];
+    if (argv[index + 1] === undefined) throw new Error(`Expected a value after ${argv[index]}`);
+    values[name] = argv[index + 1];
+    index += 1;
   }
   return values;
+}
+
+function envValue(args, name, envName, fallback) {
+  return args[name] ?? process.env[envName] ?? fallback;
+}
+
+function ensureSourceMirror(remote, sourceRef, mirrorDir) {
+  const fs = require('fs');
+  fs.mkdirSync(path.dirname(mirrorDir), { recursive: true });
+  if (!fs.existsSync(path.join(mirrorDir, 'HEAD'))) {
+    execFileSync('git', ['clone', '--mirror', remote, mirrorDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+  } else {
+    git(mirrorDir, ['remote', 'set-url', 'origin', remote]);
+  }
+  git(mirrorDir, ['fetch', '--prune', 'origin', `+refs/heads/${sourceRef}:refs/heads/${sourceRef}`]);
+  return mirrorDir;
 }
 
 async function main() {
   const fs = require('fs');
   const args = parseArgs(process.argv.slice(2));
-  if (!args['fixture-result']) throw new Error('M4a CLI requires --fixture-result; live execution arrives in M4b');
-  const fixture = JSON.parse(fs.readFileSync(args['fixture-result'], 'utf8'));
+  const home = process.env.HOME;
+  if (!home) throw new Error('HOME is required');
+  const sourceRemote = envValue(args, 'source-remote', 'AK_BENCHMARK_SOURCE_REMOTE');
+  const sourceRef = envValue(args, 'source-ref', 'AK_BENCHMARK_SOURCE_REF', 'main');
+  const dryRun = Boolean(args['dry-run']) || envValue(args, 'dry-run', 'AK_BENCHMARK_DRY_RUN', '0') === '1';
+  const fixturePath = envValue(args, 'fixture-result', 'AK_BENCHMARK_FIXTURE_RESULT');
+  if (!sourceRemote) throw new Error('AK_BENCHMARK_SOURCE_REMOTE or --source-remote is required');
+  if (!dryRun && !fixturePath) {
+    throw new Error('Live GPU execution is operator-gated; use AK_BENCHMARK_DRY_RUN=1 or an explicit fixture result');
+  }
+  const mirrorDir = envValue(
+    args,
+    'source-mirror',
+    'AK_BENCHMARK_SOURCE_MIRROR',
+    path.join(home, '.local/share/agent-kernel-benchmark/source.git'),
+  );
+  const stateDir = envValue(
+    args,
+    'state-dir',
+    'AK_BENCHMARK_STATE_DIR',
+    path.join(home, '.local/state/agent-kernel-benchmark'),
+  );
+  const sourceRepo = ensureSourceMirror(sourceRemote, sourceRef, mirrorDir);
+  const fixture = fixturePath ? JSON.parse(fs.readFileSync(fixturePath, 'utf8')) : null;
   const result = await runBenchmarkAgent({
-    sourceRepo: args['source-repo'],
-    sourceRef: args['source-ref'],
-    resultsRemote: args['results-remote'],
-    resultBranch: args['result-branch'],
-    stateDir: args['state-dir'],
-    scenarioSetHash: args['scenario-hash'],
-    matrixHash: args['matrix-hash'],
+    sourceRepo,
+    sourceRef,
+    sourceRepository: envValue(args, 'source-repository', 'AK_BENCHMARK_SOURCE_REPOSITORY', 'agent-kernel'),
+    resultsRemote: envValue(args, 'results-remote', 'AK_BENCHMARK_RESULTS_REMOTE'),
+    resultBranch: envValue(args, 'result-branch', 'AK_BENCHMARK_RESULT_BRANCH', 'benchmark-results'),
+    stateDir,
+    scenarioSetHash: envValue(args, 'scenario-hash', 'AK_BENCHMARK_SCENARIO_HASH'),
+    matrixHash: envValue(args, 'matrix-hash', 'AK_BENCHMARK_MATRIX_HASH'),
+    dryRun,
     runBenchmark: async () => fixture,
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);
@@ -236,4 +286,10 @@ if (require.main === module) {
   });
 }
 
-module.exports = { changedPaths, publicationRecord, resolveSourceCommit, runBenchmarkAgent };
+module.exports = {
+  changedPaths,
+  ensureSourceMirror,
+  publicationRecord,
+  resolveSourceCommit,
+  runBenchmarkAgent,
+};
