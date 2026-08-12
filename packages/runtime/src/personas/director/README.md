@@ -147,6 +147,33 @@ this persona's job — and the Configurator's `assessLayoutFeasibility` is chara
 captured cases, 56 of them on the absent-layout branch recording the old NaN verdict. A guard pushed
 down there would drift that fixture.
 
+### Card-set translation — `resolveSummary` / `normalizeCard` / `cardSetFromSummary` (CR.7 / WP-5)
+
+Published 2026-08-12, ungated. `commands/card-authoring.js` imported these three from
+`summary-selections.js` directly and was the last of the eight orphaned allowlist rows; the charter
+names `card-authoring` as glue, and glue holds no domain logic.
+
+⚠️ **`cardSetFromSummary` is an ungated sibling of the gated `buildCardSet` below, and they call the
+same function.** The distinction is the caller's situation, not the computation:
+
+| | For | Gate |
+|---|---|---|
+| `buildCardSet` | a cardSet stamped into a **persisted BuildSpec**, during a build round | `PLANNED_STATES` |
+| `cardSetFromSummary`, `resolveSummary`, `normalizeCard` | reading/normalizing a card set the caller **already holds**, on an authoring or preview surface that stamps nothing | none |
+
+Gating the translation surface would refuse the card-authoring and preview paths, where no build
+round exists or should — an outage rather than a boundary, which is the D8.3 trap. It is the same
+split `deriveLevelGen` (ungated preview) already makes against `assembleBuildSpec` (gated).
+
+**The Orchestrator must keep using `buildCardSet`**, which it receives injected from
+`beginDirectorBuildCapabilities` bound to an open round. Its gate was a *label* until M5b.2e's
+perturbation forced it to be real, so `tests/personas/director/director-card-translation.test.js`
+asserts both halves: the translation answers with no round, **and** `buildCardSet` is still gated and
+returns exactly what `cardSetFromSummary` returns — one origin, two entry points.
+
+`resolveSummary` fetches the Configurator's room geometry itself (D8.3), so callers no longer
+assemble the `deriveRoomLayout`/`buildRoomDesign` pair.
+
 ### `buildCardSet` — the Director's own translation, not a relay (CR.4 M5b.2e)
 
 `buildCardSet(summary)` turns an LLM summary into a normalized card set: bare `affinity: "wind"`

@@ -31,7 +31,11 @@ import {
   deriveLevelGenFromSummary,
   deriveLevelGen as deriveLevelGenFromRoomCount,
 } from "./buildspec-assembler.js";
-import { buildCardSetFromSummary } from "./summary-selections.js";
+import {
+  buildCardSetFromSummary,
+  extractSummaryFromCardSet,
+  normalizeCardEntry,
+} from "./summary-selections.js";
 import { mapSummaryToPool } from "./pool-mapper.js";
 import { DirectorStates } from "./state-machine.js";
 
@@ -284,6 +288,56 @@ export function attachDirectorServices({
     return buildCardSetFromSummary(summary);
   }
 
+  /**
+   * CR.7 / WP-5 (2026-08-12) — the card-set TRANSLATION surface, for authoring and preview.
+   *
+   * `commands/card-authoring.js` imported `extractSummaryFromCardSet`, `normalizeCardEntry`
+   * and `buildCardSetFromSummary` from `summary-selections.js` directly, and was the last of
+   * the eight orphaned allowlist rows. The charter names `card-authoring` as glue, and glue
+   * may hold no domain logic, so the translation is published rather than reached past.
+   *
+   * ⚠️ **D8.3 DEFERRED THIS PUBLICATION AND THEN LANDED WITHOUT IT.**
+   * `tests/helpers/director-capabilities.js` says `extractSummaryFromCardSet` is "not published
+   * on the controller yet, and deliberately so… when D8.3 publishes it, change both together."
+   * D8.3 shipped at `7bdd1c8b` and the publication never happened, leaving a helper and a
+   * production file both reaching for an internal on a promise nothing was tracking. This is
+   * that deferred change, and the helper moves to the controller in the same diff.
+   *
+   * ⚠️ **UNGATED, AND `cardSetFromSummary` IS AN UNGATED SIBLING OF THE GATED `buildCardSet`
+   * ABOVE. THAT IS THE ONE THING TO UNDERSTAND HERE.** They call the same function. The
+   * distinction is the CALLER's situation, not the computation:
+   *
+   *   - `buildCardSet` — a cardSet that will be stamped into a PERSISTED BuildSpec, produced
+   *     during a build round. Gated on PLANNED_STATES (M5b.2e), and that gate was a LABEL until
+   *     a perturbation forced it to be real. **The Orchestrator must keep using this one**; it
+   *     receives it injected from `beginDirectorBuildCapabilities`, bound to an open round.
+   *   - these three — reading, normalizing and re-rendering a card set the caller ALREADY
+   *     HOLDS, on an authoring surface that stamps nothing and issues no artifact.
+   *
+   * Gating these would refuse the card-authoring and preview paths, where no build round
+   * exists or should — an outage rather than a boundary, which is the D8.3 trap. It is the same
+   * split `deriveLevelGen` (ungated preview) already makes against `assembleBuildSpec` (gated).
+   * `director-card-translation.test.js` pins both halves: these answer with no round, and
+   * `cardSetFromSummary` returns exactly what the gated `buildCardSet` returns, so the sibling
+   * is one origin and not a second implementation.
+   *
+   * `resolveSummary` fetches the Configurator's room geometry ITSELF via `roomGeometry()`,
+   * rather than taking it as an argument. D8.3's rule is that the Director asks the Configurator
+   * for geometry; making every caller assemble that pair first is how `card-authoring.js` came
+   * to hold a copy of it.
+   */
+  function resolveSummary(summaryInput) {
+    return extractSummaryFromCardSet(summaryInput, roomGeometry());
+  }
+
+  function normalizeCard(entry, options) {
+    return normalizeCardEntry(entry, options);
+  }
+
+  function cardSetFromSummary(summary) {
+    return buildCardSetFromSummary(summary);
+  }
+
   function assembleBuildSpec(args = {}) {
     requireState(PLANNED_STATES, "assemble a build spec");
     // PX.3 (M6): the assembler stamps BuildSpec.meta.createdAt and now requires a clock.
@@ -319,6 +373,9 @@ export function attachDirectorServices({
     mapPool,
     deriveLevelGen,
     buildCardSet,
+    resolveSummary,
+    normalizeCard,
+    cardSetFromSummary,
     assembleBuildSpec,
     // CR.4 M5b.2b — Allocator answers, given on the budget loop's behalf.
     resolveTileCosts,

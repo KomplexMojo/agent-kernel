@@ -60,10 +60,6 @@
     "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
   },
   {
-    "from": "packages/runtime/src/commands/card-authoring.js",
-    "to": "packages/runtime/src/personas/director/summary-selections.js"
-  },
-  {
     "from": "packages/runtime/src/commands/kernel.js",
     "to": "packages/runtime/src/personas/configurator/affinity-effects.js"
   },

@@ -12,15 +12,11 @@ import {
 } from "../contracts/domain-constants.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { createDirectorPersona } from "../personas/director/persona.js";
 import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
 } from "../personas/allocator/spend-proposal.js";
-import {
-  buildCardSetFromSummary,
-  extractSummaryFromCardSet,
-  normalizeCardEntry,
-} from "../personas/director/summary-selections.js";
 import {
   coerceMotivationKinds,
   getConflictingMotivationKinds,
@@ -51,10 +47,18 @@ const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 const configuratorGeometry = configurator.deriveRoomLayout;
 // D8.3 — the Director refuses to derive level geometry from room cards; it asks the
 // Configurator. Taken from the PUBLIC persona barrel, so no boundary is crossed.
-const configuratorRoomGeometry = Object.freeze({
-  deriveRoomLayout: configurator.deriveRoomLayout,
-  buildRoomDesign: configurator.buildRoomDesign,
-});
+// CR.7 / WP-5 — card-set TRANSLATION is the Director's, taken from its PUBLIC barrel.
+// This file used to import `director/summary-selections.js` for three functions and was the
+// last of the eight orphaned allowlist rows. All three are ungated on the controller, because
+// they read and normalize a card set this surface already holds and stamp nothing — see the
+// note on `resolveSummary` in director-services.js for why that is not a gate bypass.
+//
+// `resolveSummary` fetches the Configurator's room geometry itself (D8.3), so the
+// `configuratorRoomGeometry` pair this file used to assemble for it is gone.
+const director = createDirectorPersona({ clock: UNUSED_CLOCK });
+const directorResolveSummary = director.resolveSummary;
+const normalizeCardEntry = director.normalizeCard;
+const buildCardSetFromSummary = director.cardSetFromSummary;
 const configuratorAuthoring = configurator.authorCandidates;
 const configuratorMotivations = configurator.normalizeMotivations;
 const allocatorFor = (priceList) => createAllocatorPersona({
@@ -1396,7 +1400,7 @@ function buildSummaryFromCardSet({
       { id: "resources", weight: readBoundedPercent(budgetSplitPercent.resource, DEFAULT_BUDGET_SPLIT.resource) / 100 },
     ];
   }
-  const summary = extractSummaryFromCardSet(summaryInput, configuratorRoomGeometry);
+  const summary = directorResolveSummary(summaryInput);
   const cardsWithBudget = enrichCardsWithBudget(normalizedCards, {
     budgetTokens: summaryInput.budgetTokens,
     tileCosts,
@@ -1429,7 +1433,7 @@ function buildSummaryFromCardSet({
     // This glue already holds the Director's translation (it calls it above on the
     // unenriched cards); the ledger re-reads the BUDGET-ENRICHED set, so the second
     // call is load-bearing, not a duplicate of the first.
-    resolveSummary: (input) => extractSummaryFromCardSet(input, configuratorRoomGeometry),
+    resolveSummary: (input) => directorResolveSummary(input),
   });
   return {
     summary: finalSummary,
