@@ -37,6 +37,7 @@ import {
   normalizeCardEntry,
 } from "./summary-selections.js";
 import { mapSummaryToPool } from "./pool-mapper.js";
+import { enforceBudget as enforceBudgetOnSelections } from "./budget-enforcer.js";
 import { DirectorStates } from "./state-machine.js";
 
 export class DirectorStateError extends Error {
@@ -338,6 +339,22 @@ export function attachDirectorServices({
     return buildCardSetFromSummary(summary);
   }
 
+  /**
+   * CR.7 / WP-5 — trimming selections to fit a budget, published for `commands/ui-flow.js`.
+   *
+   * ui-flow imported `director/budget-enforcer.js` directly and was an allowlist row. It calls
+   * this immediately after `director.mapPool` on an already-open round, so the gate below is
+   * exercised by the one production caller rather than being a label.
+   *
+   * GATED, unlike the card-set translation above, and the difference is what it does: this
+   * DECIDES which selections survive a budget, and its output flows into the BuildSpec. That is
+   * the same reasoning that gates `mapPool` and the pricing relays.
+   */
+  function enforceBudget(args = {}) {
+    requireState(PLANNED_STATES, "enforce a budget");
+    return enforceBudgetOnSelections(args);
+  }
+
   function assembleBuildSpec(args = {}) {
     requireState(PLANNED_STATES, "assemble a build spec");
     // PX.3 (M6): the assembler stamps BuildSpec.meta.createdAt and now requires a clock.
@@ -376,6 +393,7 @@ export function attachDirectorServices({
     resolveSummary,
     normalizeCard,
     cardSetFromSummary,
+    enforceBudget,
     assembleBuildSpec,
     // CR.4 M5b.2b — Allocator answers, given on the budget loop's behalf.
     resolveTileCosts,

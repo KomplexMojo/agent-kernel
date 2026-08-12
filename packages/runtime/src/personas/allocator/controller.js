@@ -1,4 +1,20 @@
 import { createAllocatorStateMachine, AllocatorStates } from "./state-machine.js";
+/**
+ * CR.7 / WP-5 — the design-spend surface, published so glue stops importing `spend-proposal.js`.
+ *
+ * `build/orchestrate-build.js`, `commands/kernel.js` and `commands/card-authoring.js` imported it
+ * directly and were three allowlist rows. Pricing is the Allocator's authority ("Economy —
+ * Allocator Authority"), so the answer is to publish the functions rather than let glue reach in.
+ *
+ * Stateless, like the pricing surface above: each prices what it is handed against the price list
+ * it is handed. Gating them behind `registerBudget` would refuse the authoring and build paths
+ * that have always called them and move no decision.
+ */
+export {
+  evaluateConfiguratorSpend,
+  calculateActorConfigurationUnitCost,
+  buildDesignSpendLedger,
+} from "./spend-proposal.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { attachAllocatorServices } from "./allocator-services.js";

@@ -18,7 +18,8 @@ const {
   resolveAffinityEffects,
 } = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 import { createCore } from "../../../core-ts/src/index.ts";
-import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
+import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 // CR.4 M4b: the LLM session now runs as an Orchestrator ROUND — the persona returns
 // `llm_request` effects and this host dispatches them through ports/effects.js, so the
 // IO happens in the adapter instead of inline inside the persona. Drop-in replacement:

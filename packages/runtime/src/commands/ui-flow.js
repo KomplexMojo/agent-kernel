@@ -1,5 +1,4 @@
 import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
-import { enforceBudget } from "../personas/director/budget-enforcer.js";
 import { deriveAllowedOptionsFromCatalog } from "../personas/orchestrator/prompt-contract.js";
 import { beginDirectorRound } from "./director-round.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
@@ -197,7 +196,10 @@ export function runPoolFlow({
     };
   }
 
-  const enforced = enforceBudget({
+  // CR.7 / WP-5 — asked of the round already open two lines above, rather than imported out
+  // of `director/budget-enforcer.js`. Trimming selections to a budget decides what reaches the
+  // BuildSpec, so the published method is gated — and this caller is what exercises the gate.
+  const enforced = director.enforceBudget({
     selections: mapped.selections,
     budgetTokens: summary.budgetTokens,
   });

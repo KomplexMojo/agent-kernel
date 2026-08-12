@@ -317,6 +317,9 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     resolveSummary: services.resolveSummary,
     normalizeCard: services.normalizeCard,
     cardSetFromSummary: services.cardSetFromSummary,
+    // CR.7 / WP-5 — budget trimming for ui-flow. GATED: it decides which selections
+    // survive, and the result reaches a BuildSpec.
+    enforceBudget: services.enforceBudget,
     assembleBuildSpec: services.assembleBuildSpec,
     // CR.4 M5b.2b — the Orchestrator's budget loop asks the Director for these; the
     // Director asks the Allocator. One counterpart for the loop, one owner for pricing.

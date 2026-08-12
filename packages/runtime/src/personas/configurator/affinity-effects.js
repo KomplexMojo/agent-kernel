@@ -2,10 +2,13 @@ import {
   DEFAULT_AFFINITY_EXPRESSION,
   VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
+// CR.7 / WP-5 — which entities an affinity targets is MODERATOR law (it plans affinity
+// actions during the tick). Build-time effect resolution needs the same vocabulary, so it
+// comes through the Moderator's public barrel rather than a second route into its internals.
 import {
   normalizeAffinityTargetType,
   resolveAffinityTargetEffectsForEntry,
-} from "../moderator/affinity-target-effects.js";
+} from "../moderator/persona.js";
 import {
   computeInternalManaUpkeep,
   computeExternalManaUse,

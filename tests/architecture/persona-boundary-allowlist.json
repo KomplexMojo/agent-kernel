@@ -8,24 +8,8 @@
     "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
   },
   {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/card-authoring.js",
-    "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
-  },
-  {
     "from": "packages/runtime/src/commands/kernel.js",
     "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/ui-flow.js",
-    "to": "packages/runtime/src/personas/director/budget-enforcer.js"
   },
   {
     "from": "packages/runtime/src/commands/ui-flow.js",
@@ -36,19 +20,11 @@
     "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
   },
   {
-    "from": "packages/runtime/src/personas/configurator/affinity-effects.js",
-    "to": "packages/runtime/src/personas/moderator/affinity-target-effects.js"
-  },
-  {
     "from": "packages/runtime/src/personas/configurator/cost-model.js",
     "to": "packages/runtime/src/personas/allocator/base-costs.json"
   },
   {
     "from": "packages/runtime/src/personas/orchestrator/budget-inputs.js",
     "to": "packages/runtime/src/personas/allocator/default-price-list.js"
-  },
-  {
-    "from": "packages/ui-web/src/views/diagnostics-view.js",
-    "to": "packages/runtime/src/personas/annotator/llm-trace.js"
   }
 ]

@@ -13,10 +13,11 @@ import {
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
 import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
-} from "../personas/allocator/spend-proposal.js";
+} from "../personas/allocator/persona.js";
 import {
   coerceMotivationKinds,
   getConflictingMotivationKinds,

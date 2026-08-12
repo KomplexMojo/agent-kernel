@@ -1,7 +1,8 @@
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { mapBuildSpecToArtifacts } from "./map-build-spec.js";
 import { solveWithAdapter } from "../ports/solver.js";
-import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
+import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
