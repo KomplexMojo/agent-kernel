@@ -1,4 +1,3 @@
-import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
 // CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
 // it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
 // boundary crossing died with the hop rather than being republished. Aliased on import so
@@ -121,6 +120,26 @@ export function normalizeBuildSpecForUi(specInput) {
   return { spec, changed };
 }
 
+/**
+ * CR.7 / WP-5 (2026-08-12) — assembly runs through the Director, not around it.
+ *
+ * This imported `buildspec-assembler.js` directly and was one of the last two allowlist
+ * rows. `assembleBuildSpec` is FSM-gated and COMPLETES the build round, so closing the row
+ * means the UI/worker path now opens a real Director round — the "artifact produced with no
+ * round" fix (CR.3/P2) reaching the last surface that lacked it.
+ *
+ * ⚠️ `director` IS THREADED IN WHEN THE CALLER ALREADY HAS ONE. `runPoolFlow` below opens a
+ * round for `mapPool`/`enforceBudget` and hands it here; opening a second round for the same
+ * build is the defect the gate exists to catch, not a convenience. Callers with no round —
+ * `ui-web/card-builder-controller.js` and the cli-worker — get one opened for them.
+ *
+ * ⚠️ `roomGeometry` STAYS EXPLICIT. `beginDirectorRound` builds a Director with no
+ * Configurator injected, so the persona's own `roomGeometry()` answers `undefined`, and a
+ * summary carrying room cards would be REFUSED where it builds today. This is a behavioural
+ * seam, not a style choice: `configuratorRoomGeometry` here is the same
+ * `{ deriveRoomLayout, buildRoomDesign }` pair the persona would supply, taken from the
+ * Configurator's public barrel.
+ */
 export function buildSpecFromSummaryFlow({
   summary,
   catalog,
@@ -129,12 +148,31 @@ export function buildSpecFromSummaryFlow({
   source = "ui",
   createdAt,
   clock,
+  director: openRound,
 } = {}) {
   if (!summary || typeof summary !== "object") {
     return { ok: false, reason: "missing_summary", errors: ["Summary is required."] };
   }
+  // Maintainer decision 1: derive the instant from the clock, refuse only when the caller
+  // has neither. Checked here rather than caught from the round because every refusal in
+  // this flow is REPORTED as `{ ok, reason, errors }` — the browser reads that shape, and a
+  // throw would surface as an unhandled rejection instead of a status message.
+  const hasInstant = (typeof createdAt === "string" && createdAt.trim())
+    || typeof clock === "function";
+  if (!openRound && !hasInstant) {
+    return {
+      ok: false,
+      reason: "missing_created_at",
+      errors: [
+        "createdAt (ISO-8601) or a clock is required: the Director stamps the round's "
+        + "instant into the BuildSpec, and a persona never reads the wall clock.",
+      ],
+    };
+  }
 
-  const built = buildBuildSpecFromSummary({
+  const director = openRound
+    ?? beginDirectorRound({ runId, createdAt, clock, goal: summary?.goal, producedBy: source });
+  const built = director.assembleBuildSpec({
     summary,
     catalog,
     roomGeometry: configuratorRoomGeometry,
@@ -215,6 +253,9 @@ export function runPoolFlow({
     runId,
     source,
     createdAt,
+    // The round opened above, not a second one: mapPool → enforceBudget → assembleBuildSpec
+    // is ONE Director round, and assembleBuildSpec is what closes it.
+    director,
   });
 
   if (!built.ok) {

@@ -25,7 +25,7 @@ import { attachMixedRoomAssembliesToBuildResult } from "../../../runtime/src/bui
 import { formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
-import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
+
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/contracts/domain-constants.js";
 import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
@@ -45,7 +45,7 @@ import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../../../runt
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../../runtime/src/commands/llm-host.js";
-import { beginDirectorBuildCapabilities, beginDirectorRound } from "../../../runtime/src/commands/director-round.js";
+import { beginDirectorRound, directorBuildCapabilities } from "../../../runtime/src/commands/director-round.js";
 import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/persona.js";
 import {
   applyActorOverrides,
@@ -4175,6 +4175,17 @@ async function validateScenarioDryRun(args) {
   let mappedSelections;
   let budgetPoolWeights = null;
 
+  // CR.7 / WP-5 (2026-08-12) — ONE Director round for the whole llm-plan build.
+  //
+  // Each branch below used to open its own (the loop branch via
+  // beginDirectorBuildCapabilities, the direct branch via beginDirectorRound), and the
+  // BuildSpec was then assembled OUTSIDE both by importing `director/buildspec-assembler.js`
+  // — this file's last allowlist row, and an artifact produced with no round. Hoisting the
+  // round is what lets the assembly be `director.assembleBuildSpec`, which is FSM-gated and
+  // CLOSES the round. The third path (a scenario or summary fixture, no LLM at all) reaches
+  // the same assembly, so it needs the round too.
+  const director = beginDirectorRound({ runId, createdAt, goal, producedBy: "cli" });
+
   if (isLlmLiveEnabled() || Boolean(fixturePath)) {
     if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
       throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
@@ -4217,7 +4228,9 @@ async function validateScenarioDryRun(args) {
         // behind an open build round. This root had no Director at all until now.
         // M5b.2b: the same round also answers the three Allocator pricing questions the
         // loop used to compute inline.
-        ...beginDirectorBuildCapabilities({ runId, createdAt, goal }),
+        // 2026-08-12: taken from the round opened above rather than opening one here —
+        // the BuildSpec assembly below runs on that same round and closes it.
+        ...directorBuildCapabilities(director),
         adapter,
         model,
         baseUrl,
@@ -4245,8 +4258,7 @@ async function validateScenarioDryRun(args) {
       // importing `director/pool-mapper.js`, so this file kept an allowlist row that the
       // budget-loop branch three lines above had already retired. Same defect as M5b.2a′:
       // an artifact produced with no round. `mapPool` is FSM-gated, so the round is the
-      // substance, not the import.
-      const director = beginDirectorRound({ runId, createdAt, goal, producedBy: "cli" });
+      // substance, not the import. The round itself is now opened once above.
       let session = await runLlmSessionHosted({
         adapter,
         model,
@@ -4353,7 +4365,11 @@ async function validateScenarioDryRun(args) {
     }
   }
 
-  const buildSpecResult = buildBuildSpecFromSummary({
+  // CR.7 / WP-5 — assembled BY the round opened at the top of this function, not by
+  // reaching past it into `buildspec-assembler.js`. `roomGeometry` stays explicit: the
+  // round's Director has no Configurator injected, so its own `roomGeometry()` is
+  // `undefined` and a summary with room cards would be refused. Same pair either way.
+  const buildSpecResult = director.assembleBuildSpec({
     summary: summaryForSpec,
     catalog,
     roomGeometry: configuratorRoomGeometry,
@@ -6357,7 +6373,16 @@ function workflowValidator(requiredKeys = []) {
 function workflowExecution({ operationId, counter, pushUi = false, store, requireClient = false } = {}) {
   if (pushUi) {
     const gameplay = createGameplayBridgeOperation({
-      assembleSpec: (args) => buildBuildSpecFromSummary({ roomGeometry: configuratorRoomGeometry, ...args }),
+      // CR.7 / WP-5 — one Director round PER BRIDGE REQUEST, opened from the args the
+      // bridge already supplies (`{ summary, runId, createdAt, source }`). A round per
+      // request rather than one hoisted here: each request assembles its own BuildSpec, and
+      // `assembleBuildSpec` closes the round it runs in.
+      assembleSpec: (args) => beginDirectorRound({
+        runId: args.runId,
+        createdAt: args.createdAt,
+        goal: args.summary?.goal,
+        producedBy: args.source || "cli-workflow",
+      }).assembleBuildSpec({ roomGeometry: configuratorRoomGeometry, ...args }),
       compile: compileBuildSpecToGameplayBundle,
       requireClient,
       onBundle: store ? async (bundle) => { await store.writeArtifact("bundle.json", bundle); } : undefined,
