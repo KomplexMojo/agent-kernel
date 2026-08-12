@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-kernel.local/schemas/execution-catalog-v1.json",
+  "title": "Agent Kernel execution benchmark family catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "family", "scenarios"],
+  "properties": {
+    "schemaVersion": { "const": "agent-kernel-execution-catalog/v1" },
+    "family": { "enum": ["traversal", "combat", "hazards", "resources", "stress"] },
+    "scenarios": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/scenario" }
+    }
+  },
+  "$defs": {
+    "evidence": { "enum": ["artifact", "observation"] },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "family", "setup", "profile", "invariants", "requiredGates", "objectives", "thresholds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EX-[A-Z]{2}-[0-9]{2}$" },
+        "title": { "type": "string", "minLength": 1 },
+        "family": { "enum": ["traversal", "combat", "hazards", "resources", "stress"] },
+        "setup": { "type": "string", "minLength": 1 },
+        "profile": { "type": "string", "minLength": 1 },
+        "invariants": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "requiredGates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "objectives": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["weight", "evidence"],
+            "properties": { "weight": { "type": "integer", "minimum": 1, "maximum": 100 }, "evidence": { "$ref": "#/$defs/evidence" } }
+          }
+        },
+        "thresholds": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["direction", "value", "unit", "evidence"],
+            "properties": {
+              "direction": { "enum": ["min", "max", "range", "exact", "relational"] },
+              "value": {},
+              "unit": { "type": "string", "minLength": 1 },
+              "evidence": { "$ref": "#/$defs/evidence" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

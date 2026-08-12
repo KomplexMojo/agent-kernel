@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "agent-kernel-execution-catalog/v1",
+  "family": "traversal",
+  "scenarios": [
+    {
+      "id": "EX-TR-01", "title": "Single explorer movement", "family": "traversal",
+      "setup": "One random/exploring delver in one open medium room.", "profile": "short_v1",
+      "invariants": ["run_completed", "tick_monotonicity", "actor_legality", "artifact_reconciliation"],
+      "requiredGates": ["actor acts by tick 10", "at least one legal move per seed", "no progress stall longer than 20 ticks"],
+      "objectives": { "unique_tile_coverage": { "weight": 45, "evidence": "artifact" }, "active_tick_ratio": { "weight": 25, "evidence": "artifact" }, "no_stall_margin": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 10, "evidence": "artifact" } },
+      "thresholds": { "active_tick_ratio": { "direction": "min", "value": 0.2, "unit": "ratio", "evidence": "artifact" }, "no_stall_margin": { "direction": "max", "value": 20, "unit": "ticks", "evidence": "artifact" } }
+    },
+    {
+      "id": "EX-TR-02", "title": "Three-room exploration", "family": "traversal",
+      "setup": "One exploring delver spawns in the first of three connected rooms.", "profile": "standard_v1",
+      "invariants": ["run_completed", "tick_monotonicity", "actor_legality", "artifact_reconciliation"],
+      "requiredGates": ["enter at least two declared room bounds in four of five seeds", "never leave walkable tiles"],
+      "objectives": { "room_coverage": { "weight": 45, "evidence": "artifact" }, "unique_tile_coverage": { "weight": 25, "evidence": "artifact" }, "checkpoint_progress": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 10, "evidence": "artifact" } },
+      "thresholds": { "room_coverage": { "direction": "min", "value": 0.67, "unit": "ratio", "evidence": "artifact" } }
+    },
+    {
+      "id": "EX-TR-03", "title": "Warden patrol recurrence", "family": "traversal",
+      "setup": "One patrolling warden in a two-room corridor loop.", "profile": "standard_v1",
+      "invariants": ["run_completed", "tick_monotonicity", "actor_legality", "participation"],
+      "requiredGates": ["warden moves", "warden revisits a prior patrol region", "no permanent stall"],
+      "objectives": { "room_coverage": { "weight": 40, "evidence": "artifact" }, "patrol_recurrence": { "weight": 30, "evidence": "artifact" }, "active_tick_ratio": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 10, "evidence": "artifact" } },
+      "thresholds": { "patrol_recurrence": { "direction": "min", "value": 1, "unit": "count", "evidence": "artifact" } }
+    },
+    {
+      "id": "EX-TR-04", "title": "Stationary negative mobility control", "family": "traversal",
+      "setup": "One stationary warden in an open room.", "profile": "short_v1",
+      "invariants": ["run_completed", "tick_monotonicity", "stationary_fidelity", "participation"],
+      "requiredGates": ["exactly zero accepted moves", "decide or wait evidence exists", "position remains unchanged"],
+      "objectives": { "stationary_fidelity": { "weight": 60, "evidence": "artifact" }, "participation": { "weight": 25, "evidence": "artifact" }, "performance": { "weight": 15, "evidence": "artifact" } },
+      "thresholds": { "stationary_fidelity": { "direction": "exact", "value": 1, "unit": "ratio", "evidence": "artifact" } }
+    },
+    {
+      "id": "EX-TR-05", "title": "Mixed motivation traversal", "family": "traversal",
+      "setup": "Exploring, patrolling, random, and stationary actors span three rooms.", "profile": "standard_v1",
+      "invariants": ["run_completed", "actor_legality", "participation", "stationary_fidelity", "unique_actor_ids"],
+      "requiredGates": ["every mobile actor acts", "stationary actor never moves", "no actor starves longer than 25 ticks"],
+      "objectives": { "roster_fairness": { "weight": 30, "evidence": "artifact" }, "spatial_progress": { "weight": 30, "evidence": "artifact" }, "motivation_fidelity": { "weight": 25, "evidence": "artifact" }, "behavioral_diversity": { "weight": 15, "evidence": "artifact" } },
+      "thresholds": { "roster_fairness": { "direction": "min", "value": 0.8, "unit": "ratio", "evidence": "artifact" } }
+    }
+  ]
+}

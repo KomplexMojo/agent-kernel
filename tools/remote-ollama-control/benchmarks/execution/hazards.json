@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "agent-kernel-execution-catalog/v1",
+  "family": "hazards",
+  "scenarios": [
+    {
+      "id": "EX-HZ-01", "title": "Emit hazard crossing", "family": "hazards", "setup": "A mobile delver crosses a fire emit-hazard field.", "profile": "short_v1",
+      "invariants": ["run_completed", "actor_legality", "finite_bounds", "effect_integrity"], "requiredGates": ["effect emits and fulfills after radius entry", "no pre-contact trigger"],
+      "objectives": { "trigger_correctness": { "weight": 40, "evidence": "artifact" }, "impact_evidence": { "weight": 25, "evidence": "artifact" }, "liveness": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 15, "evidence": "artifact" } },
+      "thresholds": { "trigger_correctness": { "direction": "exact", "value": 1, "unit": "ratio", "evidence": "artifact" } }
+    },
+    {
+      "id": "EX-HZ-02", "title": "Push displacement", "family": "hazards", "setup": "A mobile actor approaches a push hazard with legal space behind.", "profile": "short_v1",
+      "invariants": ["run_completed", "actor_legality", "finite_bounds", "effect_integrity"], "requiredGates": ["push effect fulfills", "resolved position is legal and directionally away"],
+      "objectives": { "directional_displacement": { "weight": 45, "evidence": "observation" }, "trigger_correctness": { "weight": 25, "evidence": "artifact" }, "liveness": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 10, "evidence": "artifact" } },
+      "thresholds": { "directional_displacement": { "direction": "min", "value": 1, "unit": "tiles", "evidence": "observation" } }
+    },
+    {
+      "id": "EX-HZ-03", "title": "Pull displacement", "family": "hazards", "setup": "A mobile actor approaches a pull hazard from outside its radius.", "profile": "short_v1",
+      "invariants": ["run_completed", "actor_legality", "finite_bounds", "effect_integrity"], "requiredGates": ["pull effect fulfills", "distance decreases without illegal overlap"],
+      "objectives": { "directional_displacement": { "weight": 45, "evidence": "observation" }, "trigger_correctness": { "weight": 25, "evidence": "artifact" }, "liveness": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 10, "evidence": "artifact" } },
+      "thresholds": { "directional_displacement": { "direction": "min", "value": 1, "unit": "tiles", "evidence": "observation" } }
+    },
+    {
+      "id": "EX-HZ-04", "title": "Draw target isolation", "family": "hazards", "setup": "An actor crosses a draw hazard near another interaction target.", "profile": "short_v1",
+      "invariants": ["run_completed", "finite_bounds", "effect_integrity", "unique_actor_ids"], "requiredGates": ["draw fulfills for intended subject", "unrelated target remains uncorrupted"],
+      "objectives": { "target_correctness": { "weight": 40, "evidence": "artifact" }, "impact_evidence": { "weight": 30, "evidence": "artifact" }, "liveness": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 10, "evidence": "artifact" } },
+      "thresholds": { "target_correctness": { "direction": "exact", "value": 1, "unit": "ratio", "evidence": "artifact" } }
+    },
+    {
+      "id": "EX-HZ-05", "title": "Blocking hazard reroute", "family": "hazards", "setup": "A blocking hazard controls the short route while an alternate legal route exists.", "profile": "standard_v1",
+      "invariants": ["run_completed", "actor_legality", "effect_integrity", "participation"], "requiredGates": ["no actor occupies the blocking tile", "four of five seeds progress", "no impossible-action loop"],
+      "objectives": { "stationary_fidelity": { "weight": 35, "evidence": "artifact" }, "reroute_progress": { "weight": 30, "evidence": "artifact" }, "rejection_quality": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 15, "evidence": "artifact" } },
+      "thresholds": { "reroute_progress": { "direction": "min", "value": 0.8, "unit": "ratio", "evidence": "artifact" } }
+    }
+  ]
+}
