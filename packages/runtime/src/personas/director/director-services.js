@@ -216,15 +216,34 @@ export function attachDirectorServices({
    * "artifact produced with no round" defect. `deriveLevelGen` above stays ungated because it
    * previews; this decides.
    *
-   * ⚠️ `roomCount` is accepted but no caller supplies one — both loop call sites pass a
-   * layout. The no-layout path therefore always derives from `undefined`, which yields
-   * `{ width: NaN, height: NaN }` and a two-error refusal. That is the PRE-EXISTING behavior,
-   * captured in the characterization fixture and preserved deliberately. It is a latent
-   * defect, not this milestone's to fix.
+   * ⚠️ `roomCount` is accepted and no production caller supplies one — both loop call sites
+   * pass a layout. The no-layout path is a real capability (an integer roomCount derives
+   * valid geometry), but until ITEM C it answered a MISSING roomCount by deriving from
+   * `undefined`: `deriveLevelGen` computes `Math.max(5, roomCount * 2 + 5)`, so the levelGen
+   * came out `{ width: NaN, height: NaN }` and the refusal blamed `levelGen.width` and
+   * `levelGen.height` — fields the caller never supplied, describing this function's own
+   * derivation rather than the input that was absent.
+   *
+   * ITEM C (2026-08-12) refuses that case explicitly instead. The guard is keyed on
+   * `Number.isInteger` rather than truthiness because `roomCount: 0` derives a valid
+   * minimum-side level and is not the broken input; only a non-integer produces NaN.
+   *
+   * ⚠️ The refusal lives HERE and not in `configurator/feasibility.js` on purpose. Deriving
+   * geometry from an intent is the Director's translation, so validating that the intent is
+   * derivable is the Director's job too — and the Configurator's `assessLayoutFeasibility` is
+   * under characterization by 185 captured cases, 56 of which take the absent-layout branch
+   * with `roomCount: null` and record the NaN verdict. Moving the guard down there would drift
+   * that fixture, which is the one piece of evidence the M5b.2f relocation did not shift.
    */
   function assessFeasibility({ layout, roomCount, actorCount } = {}) {
     requireState(PLANNED_STATES, "assess layout feasibility");
     requireConfigurator("assess layout feasibility");
+    if (!layout && !Number.isInteger(roomCount)) {
+      return {
+        ok: false,
+        errors: [{ field: "roomCount", code: "missing_layout_or_room_count" }],
+      };
+    }
     const levelGen = layout ? undefined : deriveLevelGenFromRoomCount({ roomCount });
     return createConfigurator().assessFeasibility({ layout, levelGen, actorCount });
   }

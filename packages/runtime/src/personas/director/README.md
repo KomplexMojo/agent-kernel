@@ -129,10 +129,23 @@ interchangeable** — `({ roomCount })` in `buildspec-assembler.js`, and `(summa
 controller. This method uses the former; the import is aliased `deriveLevelGenFromRoomCount` so the
 call site says which. Nothing guards the name.
 
-⚠️ **`roomCount` is accepted and no caller supplies one.** Both budget-loop call sites pass a layout,
-so the no-layout path always derives from `undefined` and returns a two-error refusal. That is
-pre-existing behavior, captured in the characterization fixture and preserved deliberately — a latent
-defect to fix in its own diff, against the fixture.
+⚠️ **`roomCount` is accepted and no production caller supplies one** — both budget-loop call sites
+pass a layout. The no-layout path is still a real capability: an integer `roomCount` derives valid
+geometry and answers normally.
+
+**Fixed as ITEM C (2026-08-12).** A *missing* `roomCount` with no layout used to derive from
+`undefined` — `deriveLevelGen` computes `Math.max(5, roomCount * 2 + 5)`, so the levelGen came out
+`{ width: NaN, height: NaN }` and the refusal blamed `levelGen.width`/`levelGen.height`, fields the
+caller never supplied. It now refuses with `{ field: "roomCount", code:
+"missing_layout_or_room_count" }`, naming the caller's actual omission. The guard tests
+`Number.isInteger`, not truthiness: `roomCount: 0` derives a valid minimum-side level and is not the
+broken input.
+
+The refusal lives in `director-services.js`, **not** in `configurator/feasibility.js`. Deriving
+geometry from an intent is this persona's translation, so validating that the intent is derivable is
+this persona's job — and the Configurator's `assessLayoutFeasibility` is characterized by 185
+captured cases, 56 of them on the absent-layout branch recording the old NaN verdict. A guard pushed
+down there would drift that fixture.
 
 ### `buildCardSet` — the Director's own translation, not a relay (CR.4 M5b.2e)
 
