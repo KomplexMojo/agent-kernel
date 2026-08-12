@@ -10,9 +10,5 @@
   {
     "from": "packages/runtime/src/personas/configurator/cost-model.js",
     "to": "packages/runtime/src/personas/allocator/base-costs.json"
-  },
-  {
-    "from": "packages/runtime/src/personas/orchestrator/budget-inputs.js",
-    "to": "packages/runtime/src/personas/allocator/default-price-list.js"
   }
 ]

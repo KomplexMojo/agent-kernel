@@ -1,6 +1,22 @@
-import { requireClock } from "../_shared/require-clock.js";
+import { requireClock, UNUSED_CLOCK } from "../_shared/require-clock.js";
 
-import { buildDefaultPriceList } from "../allocator/default-price-list.js";
+/**
+ * CR.7 / WP-5 — the fallback price list comes from the ALLOCATOR's public surface.
+ *
+ * This module imported `allocator/default-price-list.js` directly: the Orchestrator holding a
+ * route to pricing data, which "Economy — Allocator Authority" forbids. `pricing.priceList()`
+ * returns the injected list or the default, so it is the same answer through the owner.
+ *
+ * BEHAVIOUR-IDENTICAL, and that is not a guess: `buildDefaultPriceList({ meta, createdAt })`
+ * uses `createdAt` only in its `meta || { … }` fallback branch, and this caller always supplies
+ * `meta`. So the `UNUSED_CLOCK` the persona needs at construction cannot reach the artifact.
+ */
+import { createAllocatorPersona } from "../allocator/persona.js";
+
+const buildDefaultPriceList = ({ meta }) => createAllocatorPersona({
+  priceListMeta: meta,
+  clock: UNUSED_CLOCK,
+}).pricing.priceList();
 import {
   BUDGET_ARTIFACT_SCHEMA as BUDGET_SCHEMA,
   PRICE_LIST_SCHEMA,
