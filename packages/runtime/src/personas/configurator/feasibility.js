@@ -173,7 +173,20 @@ function collectFloorPositions(layout) {
   return floors;
 }
 
-export function validateLayoutAndActors({ levelGen, actorCount = 0 } = {}) {
+/**
+ * `assessActorFit` (ITEM C-c, 2026-08-12) exists because the actor fit must have ONE origin.
+ *
+ * This function answers it from the MATERIALIZED grid; `validateLayoutCountsAndActors` answers
+ * it from the caller's DECLARED counts and then delegates here for the geometry checks. Both
+ * ran, so both pushed `insufficient_floor_tiles` and the caller received the same cause twice.
+ * The declared count is the authoritative one — see the delegation site for why — so that
+ * caller passes `false` and this check is skipped there.
+ *
+ * It stays `true` by default because the absent-layout path calls this directly with a
+ * caller-supplied levelGen, where there are no declared counts to consult and this is the only
+ * actor-fit answer available.
+ */
+export function validateLayoutAndActors({ levelGen, actorCount = 0, assessActorFit = true } = {}) {
   const errors = [];
   if (!levelGen || typeof levelGen !== "object" || Array.isArray(levelGen)) {
     pushError(errors, "levelGen", "invalid_level_gen");
@@ -212,7 +225,7 @@ export function validateLayoutAndActors({ levelGen, actorCount = 0 } = {}) {
     }
   }
 
-  if (Number.isInteger(actorCount) && actorCount > 0) {
+  if (assessActorFit && Number.isInteger(actorCount) && actorCount > 0) {
     const floors = collectFloorPositions(layout);
     if (floors.length < actorCount) {
       pushError(errors, "actors", "insufficient_floor_tiles", {
@@ -304,7 +317,31 @@ export function validateLayoutCountsAndActors({ layout, actorCount = 0, minSide 
     }
   }
   const levelGen = deriveLevelGenFromCounts(counts, minSide);
-  const result = validateLayoutAndActors({ levelGen, actorCount });
+  /**
+   * ITEM C-c (2026-08-12) — the actor fit is decided ONCE, above, from the caller's DECLARED
+   * counts. The delegate is asked only to validate the DERIVED geometry (walkability, spawn,
+   * target match), hence `assessActorFit: false`.
+   *
+   * Until now both checks ran and both pushed `insufficient_floor_tiles`, so the exact path
+   * reported one cause twice — 31 of the 185 characterization cases, 20 of them with two
+   * DIFFERENT numbers. The duplicate was not a redundant copy but a misleading one: it reported
+   * the floor count of the level `deriveLevelGenFromCounts` invented, so a layout declaring
+   * `floorTiles: 0` produced `insufficient_floor_tiles` with `floorTiles: 9` — the 9 floors of
+   * the 5×5 minimum-side fallback, geometry the caller never asked for.
+   *
+   * ⚠️ THE DECLARED COUNT IS KEPT AND THE DERIVED ONE DROPPED, not the other way round. The
+   * grid's floor count is an artifact of a derivation this function performed, while the
+   * declared count is the caller's own input, which is what "can this layout host these actors"
+   * asks about. `configurator-feasibility.test.js` already asserted exactly that: it reads the
+   * error's `detail.floorTiles` and expects the DECLARED 5, not the grid's number.
+   *
+   * Dropping it loses no coverage, and that was measured rather than assumed: across all 185
+   * cases the grid check fires only when the counts check has already fired (0 grid-only). It
+   * cannot be otherwise — the derived level targets `floorTiles + hallwayTiles` walkable tiles,
+   * so its floor count cannot fall below `floorTiles` without `target_mismatch`, which is the
+   * error that genuinely reports an undershooting generator.
+   */
+  const result = validateLayoutAndActors({ levelGen, actorCount, assessActorFit: false });
   return {
     ok: errors.length === 0 && result.ok,
     errors: [...errors, ...(result.errors || [])],

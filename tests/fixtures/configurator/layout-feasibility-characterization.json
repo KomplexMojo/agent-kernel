@@ -1026,14 +1026,6 @@
                 "actorCount": 26,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 9
-              }
             }
           ]
         }
@@ -1058,14 +1050,6 @@
               "detail": {
                 "actorCount": 1000001,
                 "floorTiles": 0
-              }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 9
               }
             }
           ]
@@ -1218,14 +1202,6 @@
                 "actorCount": 26,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 9
-              }
             }
           ]
         }
@@ -1254,14 +1230,6 @@
                 "actorCount": 1000001,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 9
-              }
             }
           ]
         }
@@ -1330,14 +1298,6 @@
                 "actorCount": 2,
                 "floorTiles": 1
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 2,
-                "floorTiles": 1
-              }
             }
           ]
         }
@@ -1355,14 +1315,6 @@
         "result": {
           "ok": false,
           "errors": [
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 5,
-                "floorTiles": 1
-              }
-            },
             {
               "field": "actors",
               "code": "insufficient_floor_tiles",
@@ -1394,14 +1346,6 @@
                 "actorCount": 26,
                 "floorTiles": 1
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 1
-              }
             }
           ]
         }
@@ -1419,14 +1363,6 @@
         "result": {
           "ok": false,
           "errors": [
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 1
-              }
-            },
             {
               "field": "actors",
               "code": "insufficient_floor_tiles",
@@ -1532,14 +1468,6 @@
                 "actorCount": 26,
                 "floorTiles": 5
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 5
-              }
             }
           ]
         }
@@ -1557,14 +1485,6 @@
         "result": {
           "ok": false,
           "errors": [
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 5
-              }
-            },
             {
               "field": "actors",
               "code": "insufficient_floor_tiles",
@@ -1670,14 +1590,6 @@
                 "actorCount": 26,
                 "floorTiles": 10
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 15
-              }
             }
           ]
         }
@@ -1701,14 +1613,6 @@
               "detail": {
                 "actorCount": 1000001,
                 "floorTiles": 10
-              }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 15
               }
             }
           ]
@@ -1823,14 +1727,6 @@
                 "actorCount": 1000001,
                 "floorTiles": 100
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 150
-              }
             }
           ]
         }
@@ -1914,14 +1810,6 @@
                 "actorCount": 5,
                 "floorTiles": 3
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 5,
-                "floorTiles": 4
-              }
             }
           ]
         }
@@ -1945,14 +1833,6 @@
               "detail": {
                 "actorCount": 26,
                 "floorTiles": 3
-              }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 4
               }
             }
           ]
@@ -1978,14 +1858,6 @@
                 "actorCount": 1000001,
                 "floorTiles": 3
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 4
-              }
             }
           ]
         }
@@ -2084,14 +1956,6 @@
                 "actorCount": 26,
                 "floorTiles": 25
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 25
-              }
             }
           ]
         }
@@ -2109,14 +1973,6 @@
         "result": {
           "ok": false,
           "errors": [
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 25
-              }
-            },
             {
               "field": "actors",
               "code": "insufficient_floor_tiles",
@@ -2281,14 +2137,6 @@
                 "actorCount": 26,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 5
-              }
             }
           ]
         }
@@ -2318,14 +2166,6 @@
                 "actorCount": 1000001,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 5
-              }
             }
           ]
         }
@@ -2483,14 +2323,6 @@
                 "actorCount": 26,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 5
-              }
             }
           ]
         }
@@ -2519,14 +2351,6 @@
               "detail": {
                 "actorCount": 1000001,
                 "floorTiles": 0
-              }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 5
               }
             }
           ]
@@ -2685,14 +2509,6 @@
                 "actorCount": 26,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 5
-              }
             }
           ]
         }
@@ -2721,14 +2537,6 @@
               "detail": {
                 "actorCount": 1000001,
                 "floorTiles": 0
-              }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 5
               }
             }
           ]
@@ -2941,14 +2749,6 @@
                 "actorCount": 26,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 9
-              }
             }
           ]
         }
@@ -2986,14 +2786,6 @@
               "detail": {
                 "actorCount": 1000001,
                 "floorTiles": 0
-              }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 9
               }
             }
           ]
@@ -3114,14 +2906,6 @@
                 "actorCount": 26,
                 "floorTiles": 0
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 7
-              }
             }
           ]
         }
@@ -3144,14 +2928,6 @@
               "detail": {
                 "actorCount": 1000001,
                 "floorTiles": 0
-              }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 7
               }
             }
           ]
@@ -3245,14 +3021,6 @@
                 "actorCount": 26,
                 "floorTiles": 7
               }
-            },
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 26,
-                "floorTiles": 7
-              }
             }
           ]
         }
@@ -3269,14 +3037,6 @@
         "result": {
           "ok": false,
           "errors": [
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 7
-              }
-            },
             {
               "field": "actors",
               "code": "insufficient_floor_tiles",
@@ -3732,14 +3492,6 @@
         "result": {
           "ok": false,
           "errors": [
-            {
-              "field": "actors",
-              "code": "insufficient_floor_tiles",
-              "detail": {
-                "actorCount": 1000001,
-                "floorTiles": 1000000
-              }
-            },
             {
               "field": "actors",
               "code": "insufficient_floor_tiles",

@@ -44,6 +44,14 @@ async function loadFeasibility() {
   return import("../../../packages/runtime/src/personas/configurator/feasibility.js");
 }
 
+/** `sumLayoutTiles` is what the threshold actually reads — see the hallway-tile test below. */
+async function loadSumLayoutTiles() {
+  const { sumLayoutTiles } = await import(
+    "../../../packages/runtime/src/contracts/domain-constants.js"
+  );
+  return sumLayoutTiles;
+}
+
 test("the fixture is not vacuous: it has cases on both sides of the threshold", async () => {
   assert.ok(fixture.cases.length >= 185, `expected 180+ cases, got ${fixture.cases.length}`);
   assert.equal(fixture.thresholdTiles, 1_000_000);
@@ -142,6 +150,7 @@ test("the threshold selects the approximation, and the approximation is coarser"
  */
 test("the threshold counts floor tiles only — hallway tiles never push a layout over it", async () => {
   const { assessLayoutFeasibility, MAX_EXACT_LAYOUT_FEASIBILITY_TILES } = await loadFeasibility();
+  const sumLayoutTiles = await loadSumLayoutTiles();
 
   // A layout whose hallway count is well past the threshold but whose floor count is not:
   // `sumLayoutTiles` returns floor tiles only, so this takes the EXACT path. Kept small
@@ -153,17 +162,26 @@ test("the threshold counts floor tiles only — hallway tiles never push a layou
     { ok: true, errors: [] },
   );
 
-  // WHICH path ran is observable without materializing a huge grid: the exact path emits
-  // `insufficient_floor_tiles` TWICE — `validateLayoutCountsAndActors` pushes it, then
-  // delegates to `validateLayoutAndActors`, which pushes it again — while the approximation
-  // emits it once. That duplication is pre-existing behavior carried across the move, not
-  // something this milestone introduced.
+  // The asymmetry is pinned at the function that CAUSES it, which is where it is actually
+  // observable: `sumLayoutTiles` is what the threshold reads, and it returns floor tiles alone.
+  // A hallway count far past the threshold therefore contributes nothing to the branch choice.
+  assert.equal(sumLayoutTiles(hallwayHeavy), 4);
+  assert.equal(
+    sumLayoutTiles({ floorTiles: 0, hallwayTiles: MAX_EXACT_LAYOUT_FEASIBILITY_TILES * 2 }),
+    0,
+    "hallway tiles cannot push a layout over a threshold that never counts them",
+  );
+
+  // Both paths refuse an unaffordable actor count, and each reports the cause ONCE. Before
+  // ITEM C-c the exact path reported it twice and that duplication was what this test used to
+  // tell the branches apart — see the note below.
   const exactErrors = assessLayoutFeasibility({
     layout: { floorTiles: 4, hallwayTiles: 0 },
     actorCount: 9,
   }).errors;
-  assert.equal(exactErrors.length, 2, "the exact path double-reports; pinned as-is");
-  assert.ok(exactErrors.every((e) => e.code === "insufficient_floor_tiles"));
+  assert.deepEqual(exactErrors, [
+    { field: "actors", code: "insufficient_floor_tiles", detail: { actorCount: 9, floorTiles: 4 } },
+  ]);
 
   const approximateErrors = assessLayoutFeasibility({
     layout: { floorTiles: MAX_EXACT_LAYOUT_FEASIBILITY_TILES + 1, hallwayTiles: 0 },
@@ -172,6 +190,29 @@ test("the threshold counts floor tiles only — hallway tiles never push a layou
   assert.equal(approximateErrors.length, 1, "the approximation reports once");
   assert.equal(approximateErrors[0].code, "insufficient_floor_tiles");
 });
+
+/**
+ * 🔴 ITEM C-c (2026-08-12) — THIS TEST'S OLD BRANCH DISCRIMINATOR WAS THE DEFECT ITSELF.
+ *
+ * The test above used to prove which path ran by counting errors: the exact path emitted
+ * `insufficient_floor_tiles` twice (once from the declared counts, once from the materialized
+ * grid) while the approximation emitted it once. C-c removed the duplicate, so that observable
+ * is gone — and it is worth being clear that it was never a legitimate discriminator. It worked
+ * only because one cause was being reported twice.
+ *
+ * ⚠️ **FOR THE HALLWAY-HEAVY LAYOUT, WHICH BRANCH RAN IS NOW GENUINELY NOT OBSERVABLE** through
+ * `assessLayoutFeasibility`, which returns `{ ok, errors }` and nothing else. Both paths accept
+ * it and both refuse the same actor counts with the same error. Rather than manufacture a
+ * discriminator, the asymmetry is now pinned where it is real — on `sumLayoutTiles`, the
+ * function the threshold reads — and this note records that the branch choice for a
+ * *below-threshold* layout has no black-box signature. Making one observable cheaply is not
+ * possible: every layout that selects the approximation has over a million floor tiles, and
+ * materializing the exact path's grid at that size is what the threshold exists to avoid.
+ *
+ * The two branches remain distinguishable for layouts the exact path REJECTS on geometry:
+ * `empty_layout`, `target_mismatch`, `spawn_not_walkable` and `no_walkable_tiles` are reachable
+ * only there, and `empty_layout` is pinned as exact-path-only in the test below.
+ */
 
 /**
  * ITEM C (2026-08-12) — the dead `walkableTiles <= 0` branch inside the approximation is GONE,
