@@ -4,7 +4,7 @@ The Director is the **planning and intent-translation persona**.
 
 It is responsible for turning high-level strategy into **structured, actionable plans** that can be executed by downstream personas. The Director bridges the gap between external intent and internal execution by shaping goals, constraints, and tactics into a form the system can reason about.
 
-When LLMs are used, the Director authors the prompt plan and response contract. The Orchestrator performs the IO, captures the exchange, and hands the resulting guidance back as explicit artifacts.
+When LLMs are used, the Director authors the prompt plan and response contract. The Orchestrator runs the exchange as a persona round that *asks* for the call; glue dispatches it and the adapter performs the IO. The captured exchange comes back as explicit artifacts.
 
 This document defines the Director as a **runtime planning role**. Simulation rules, configuration assembly, budgeting policy, and execution remain the responsibility of other personas and the simulation core (`core-ts`).
 
@@ -19,6 +19,28 @@ This document defines the Director as a **runtime planning role**. Simulation ru
 | Primary inputs | Human/agent intent, scenario objectives, external guidance artifacts |
 | Primary outputs | Planning artifacts, constraints, directives, prompt plans |
 | Boundary | Defines what should be attempted; downstream personas decide feasibility and execution |
+
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:director -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `director/plan-artifact` — the persisted PlanArtifact is the plan that actually drove the spec | A2, A5 | ✅ owned (CR.3) | `tests/architecture/persona-authority.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **The other translations described below are not in the table, and that is a real gap rather than
+an oversight.** `mapPool`, `buildCardSet`, `resolveTileCosts` and `assessFeasibility` are all gated
+behind an open build round and are covered by their own behavior tests — but no G1 entry asks the
+question those tests cannot: *would production still produce this without the Director?* Until one
+does, the charter's answer for them is "not owned", however cleanly they are routed.
 
 ## Persona Scope
 
@@ -64,7 +86,7 @@ When using an LLM (e.g. Ollama), the Director owns the prompt plan:
 - Keep the contract small (design intent/constraints), leaving schema completion and defaults to the Orchestrator.
 - Provide a repair prompt strategy for invalid responses (e.g. "return JSON only; fix field X").
 
-The Director does not perform IO; the Orchestrator executes the prompt plan and captures results as artifacts.
+The Director does not perform IO. The Orchestrator's round asks for the call and captures the result as an artifact; the IO itself happens in an adapter, dispatched by `commands/llm-host.js` (CR.4).
 
 ---
 

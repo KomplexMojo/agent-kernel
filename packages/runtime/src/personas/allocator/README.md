@@ -18,6 +18,35 @@ This document defines the Allocator as a **policy and coordination role**. Detai
 | Primary outputs | Budget receipts, approval/rejection decisions, reconciliation signals |
 | Boundary | `core-ts` enforces provided caps; Allocator defines policy |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:allocator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `allocator/pricing-single-origin` — every token cost has one author, inside the Allocator | A1 | ✅ owned (CR.1, closed at CR.9 M5) | `tests/architecture/single-origin.test.js` |
+| `allocator/judges-not-authors` — it prices a config it did not author, from the artifact's published fields | A1 | ✅ owned (CR.9 M3) | `tests/personas/allocator/allocator-judges-not-authors.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **Both rows are A1 — sole implementation — and that is the criterion this persona keeps losing.**
+A second price table does not fail an output test when its numbers happen to agree: the D10 finding
+caught a private fallback price of `1` against an Allocator price of `1`, where quadrupling the real
+price changed nothing observable. Which is why the guard is a **census over the tree** rather than a
+test over a result, and why unpriced inputs are refusals that name the missing key instead of
+defaults.
+
+**One price model is still not true.** `configurator/cost-model.js` encodes a model its own header
+says diverges from this persona's price list — the open P1.4 work. It is not a row in the table
+because no G1 entry claims it; it is named here so this README does not read as though the economy
+already has one origin.
+
 ## Persona Scope
 
 The Allocator persona is responsible for **deciding whether proposed activity is affordable**, not for enforcing the effects of that activity.

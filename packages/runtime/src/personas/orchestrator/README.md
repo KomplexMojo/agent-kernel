@@ -18,6 +18,36 @@ This document defines the Orchestrator as a **runtime integration role**. Planni
 | Primary outputs | Normalized request envelopes, captured external inputs, post-run side effects |
 | Boundary | Interacts with the outside world around execution, not inside deterministic core execution |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:orchestrator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `orchestrator/llm-session` — the external interaction seam: LLM sessions run as persona rounds | A5 | ✅ owned (CR.4 M1–M7, `2be417d6`) | `tests/architecture/cr4-llm-call-site-inventory.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **This row read "blocked by CR.4" for two days after CR.4 closed** — while a guard in the same
+directory asserted the opposite. Flipped 2026-08-12 on re-derived evidence, not on the finding's
+closure note: the inventory guard scans `packages/`, `scripts/` and `tools/` and asserts **zero**
+direct `runLlmSession` call sites, and every capture stamped `producedBy: "orchestrator"` is built
+inside `llm-round.js`'s `settle()`, which cannot run before a terminal state. The `producedBy` that
+`kernel.js` and `ak-impl.mjs` pass is an *option into a round-hosted call*, not glue stamping an
+artifact of its own.
+
+**Residue worth knowing before you edit this persona:** `runLlmBudgetLoop` is still a plain function
+rather than an FSM round. It performs no IO (the runner is injected) and mints no artifact of its own,
+so it does not violate A5 — whether the loop itself becomes a round is WP-4's question.
+`runLlmSession` survives only as the differential's reference implementation; its only callers are
+tests, and a reintroduced production call fails the inventory guard.
+
 ## Persona Scope
 
 The Orchestrator persona is responsible for **managing external interaction**, not for deciding what the simulation should do internally.
@@ -46,8 +76,15 @@ All external inputs are normalized into explicit, auditable request envelopes.
 ### LLM Interaction (Director Prompt Plans)
 When LLMs are used for level design or strategy:
 - The Director authors the prompt intent and a small response contract (what to ask / what shape to return).
-- The Orchestrator executes the call (IO), captures the full prompt + raw response for replay, and surfaces parse/contract errors.
-- The Orchestrator normalizes/validates results and translates them into buildable inputs (e.g. BuildSpec/configurator inputs) without inventing strategy content.
+- The Orchestrator **decides**: `llm.beginRound()` returns an `llm_request` effect **as data** and awaits
+  nothing. Escalation (retry → repair → sanitize) is a sequence of states, not inline `await` branches.
+- **Glue dispatches and the adapter performs the IO.** `commands/llm-host.js` routes each request through
+  `ports/effects.js` and hands the response back via `fulfill()`. ⚠️ Since CR.4 this persona no longer
+  performs the call itself — the older wording here said it did, which described the pre-inversion code.
+- The round captures the full prompt + raw response for replay and surfaces parse/contract errors; the
+  capture artifact is built in `settle()`, so it cannot exist before the round reaches a terminal state.
+- Results are normalized/validated and translated into buildable inputs (e.g. BuildSpec/configurator
+  inputs) without inventing strategy content.
 
 ---
 

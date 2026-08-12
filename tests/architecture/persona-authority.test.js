@@ -65,7 +65,13 @@ const OPEN_FINDINGS = Object.freeze([
   // PX.6 closed 2026-08-06: orchestrateBuild no longer mutates the artifact it records as
   // its causal input. Proven by a freeze differential plus a by-value comparison, both
   // perturbation-verified against the restored write-backs.
-  "CR.4", "CR.7",
+  // CR.4 closed 2026-08-10 at 2be417d6 (M1-M7) and this list said otherwise until
+  // 2026-08-12 — TWO DAYS in which the backlog over-reported by one and the registry
+  // described eight production call sites that a guard in this same directory asserted
+  // did not exist. Nothing reported the contradiction, because a closure updates the
+  // finding and nothing re-reads the instruments that named it. Same shape as the
+  // orphaned allowlist dispositions: "the finding is closed" is not a query.
+  "CR.7",
 ]);
 
 // ---------------------------------------------------------------------------

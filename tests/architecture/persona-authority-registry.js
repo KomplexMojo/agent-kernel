@@ -61,12 +61,32 @@ const REGISTRY = Object.freeze([
     criteria: ["A5"],
     productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-session.js",
     invocation: "none",
+    // FLIPPED 2026-08-12, and it had been stale since CR.4 closed on 2026-08-10
+    // (2be417d6, M1-M7). The entry still read "eight production call sites bypass any
+    // controller" while a live guard asserted there were none — the registry
+    // UNDER-reporting this time, which reads as backlog rather than as coverage but is
+    // the same rot e7501e9a had to correct. Re-derived at HEAD before flipping.
     status: {
-      blockedBy: "CR.4",
+      owned: true,
+      since: "CR.4 M1-M7 (2be417d6)",
+      provenBy: "tests/architecture/cr4-llm-call-site-inventory.test.js",
       why:
-        "runLlmSession awaits adapter.generate() directly at three sites and stamps "
-        + "producedBy:\"orchestrator\" with no FSM round. Eight production call sites across "
-        + "four importers bypass any controller.",
+        "A5 is the criterion, and two things now hold at once. (1) NO production caller "
+        + "reaches runLlmSession: the inventory guard scans packages/, scripts/ and tools/ "
+        + "and asserts zero direct call sites, so a reintroduced inline await fails a gate "
+        + "rather than a review. (2) Every capture artifact stamped producedBy:\"orchestrator\" "
+        + "is built inside llm-round.js's settle(), which cannot run before a terminal state "
+        + "— pinned by \"CR.4: the round's capture is stamped by a round that actually "
+        + "reached a terminal state\" in tests/personas/orchestrator/orchestrator-llm-round.test.js. "
+        + "The producedBy that kernel.js and ak-impl.mjs pass is an OPTION into a "
+        + "round-hosted call, not glue stamping an artifact of its own; every one of the "
+        + "six sites was checked, not sampled. runLlmSession itself survives only as the "
+        + "differential's reference implementation, which is why its call sites are tests.",
+      residue:
+        "runLlmBudgetLoop is still a free function rather than an FSM round. It performs "
+        + "no IO (stage 1 injected the runner) and produces no artifact of its own — every "
+        + "capture it returns came from a settled round — so it does not violate A5. "
+        + "Whether the loop itself becomes a round is WP-4's question, not this entry's.",
     },
   },
 
@@ -313,8 +333,16 @@ const REGISTRY = Object.freeze([
     status: {
       blockedBy: "CR.7",
       why:
-        "The allowlist records the crossings that bypass controllers. Shrinking (74 -> 62, "
-        + "counted from persona-boundary-allowlist.json); the guard becomes a hard error at zero.",
+        "The allowlist records the crossings that bypass controllers; the guard becomes a "
+        + "hard error at zero and is still a soft allowlist. P5.1 took it 35 -> 3 on "
+        + "2026-08-12. Do NOT restate the count here — it moves faster than this file is "
+        + "read, and it was quoted as 62 for four days after it was not. Read "
+        + "`jq length tests/architecture/persona-boundary-allowlist.json`. What is worth "
+        + "recording is WHY the last rows are stuck, because effort is not the blocker: "
+        + "one waits on P1.4 (configurator/cost-model.js still encodes a price model its "
+        + "own header says diverges from the Allocator's, so re-pointing the import would "
+        + "hide the divergence behind a green guard), and two wait on a maintainer ruling "
+        + "about opening a Director round on the UI/worker build-spec path.",
     },
   },
 ]);

@@ -18,6 +18,34 @@ This document defines the Configurator as a **runtime composition and validation
 | Primary outputs | `SimConfigArtifact`, `InitialStateArtifact`, resource bundles, `ConfigurationCandidate`s for the Allocator to price |
 | Boundary | Prepares startup state; `core-ts` enforces rules after execution begins |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:configurator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `configurator/validate-lock@build` — assembles, validates and locks configurations, BUILD plane | A2, A3 | ✅ owned (CR.2) | `tests/architecture/persona-authority.test.js` |
+| `configurator/validate-lock@tick` — the same sentence on the TICK plane | A3 | ✅ owned (PX.5) | `tests/personas/dual-surface-shadowing.test.js` |
+| `configurator/locked-config-is-the-input` — the config a build consumes is the one that was locked, unedited afterwards | A5 | ✅ owned (PX.6) | `tests/runtime/build-locked-input-immutability.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **One charter sentence, two ownership answers — which is why the first two rows exist separately.**
+Validate/lock is genuinely owned on the build plane and was label-only on the tick plane, because
+`advance()` reached the FSM without going through the service surface. PX.5 settled it by removing
+the events rather than by implementing them twice: configuration is build-plane work, and the tick
+plane consumes an already-built `SimConfig`.
+
+`configurator/validate-lock@build` is the differential this project's G1 mechanism was proven on —
+production and the standalone persona are handed the same config and their **verdicts** must agree,
+which a façade cannot satisfy by producing identical output.
+
 ## Persona Scope
 
 The Configurator persona is responsible for **deciding how a simulation is set up**, not for enforcing what happens once it runs.

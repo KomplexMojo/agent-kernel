@@ -20,6 +20,32 @@ This document defines the Annotator as a **runtime observation and formatting ro
 | Primary outputs | Telemetry records, summaries, timeline/inspection artifacts |
 | Boundary | Observes runtime truth; never changes it |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:annotator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `annotator/run-summary-provenance` — the end-of-run RunSummary is produced by the instance that observed the run | A2, A5 | ✅ owned (CR.8) | `tests/architecture/persona-authority.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **Provenance is why this row exists, and why an output test could never have settled it.**
+`summarizeRun` is a pure derivation, so a freshly constructed Annotator that observed nothing
+produces a **byte-identical** summary — which is exactly how the violation survived a green suite.
+The gate is therefore the refusal: a run that ticked cannot be summarized by an instance still in
+`idle` (`annotator_did_not_observe`).
+
+**Build-scope `telemetry.json` is deliberately absent from this table.** It is glue-owned by charter
+rule 3 (the plane boundary): `build`/`llm-plan` run no tick, and the Annotator subscribes only to the
+EMIT/SUMMARIZE tick phases. That is a structural consequence, not a missing G1 entry.
+
 ## Persona Scope
 
 The Annotator persona is responsible for **recording and describing what happened**, not for deciding what should happen.

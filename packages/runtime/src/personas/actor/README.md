@@ -24,6 +24,27 @@ This document focuses on the **Actor persona** as a decision-making and behavior
 | Primary outputs | Proposed actions and runtime-decision request artifacts |
 | Boundary | `core-ts` remains authoritative for accepted/rejected outcomes |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:actor -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `actor/serializable-decision` — the decision is a pure function of serialized state | A4 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
+| `actor/no-budget-policy` — the Actor proposes; budget admissibility is not its call | A1 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **The table is a floor, not a summary of this document.** Everything else described below is
+behavior the Actor implements; these two rows are the ones with a gate that fails when production
+stops needing the persona to reach them. Motivation resolution in particular has no G1 entry yet.
+
 ## Persona Scope
 
 The Actor persona is responsible for **deciding what to do**, not for enforcing what happens.

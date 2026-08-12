@@ -18,6 +18,38 @@ This document defines the Moderator as a **runtime execution role**. Simulation 
 | Primary outputs | Ordered action batches, TickFrames, effects logs, run summaries |
 | Boundary | Calls `core-ts`; does not replace `core-ts` rule enforcement |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:moderator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `moderator/tick-ordering` — ordering strategy and effect fulfilment are the Moderator's decision | A1, A2 | ✅ owned (CR.5) | `tests/architecture/persona-authority.test.js` |
+| `all/port-contract-single-origin` — one effect codebook; the port contract is not redeclared | A1 | ✅ owned (PX.1) | `tests/architecture/single-origin.test.js` |
+| `all/injected-clock` — no persona reads a clock; time is injected, never defaulted | A4 | ✅ owned (PX.3 M6) | `tests/architecture/single-origin.test.js` |
+| `all/restorable-from-view` — a persona can be rebuilt from its own serialized `view()` | A4 | ✅ owned (PX.4) | `tests/architecture/persona-serialization-equivalence.test.js` |
+| `all/controller-only-boundary` — external code imports persona controllers only | A1, A2 | 🔴 blocked — CR.7 | none yet; the boundary guard is still a soft allowlist |
+
+<!-- /A1-A5-STATUS -->
+
+**Four of these five are cross-persona infrastructure, registered here rather than owned here.**
+The registry files them under the Moderator because they are tick-plane invariants that no single
+domain persona could hold — not because the Moderator implements them. `moderator/tick-ordering` is
+the one row about this persona's own decisions.
+
+🔴 **`all/controller-only-boundary` is the last open finding on the board.** The guard
+(`tests/architecture/persona-boundary.test.js`) fails on *new* violations and on *stale* allowlist
+rows, but the allowlist is not yet empty, so the rule is recorded debt rather than enforced law. It
+becomes a hard error at zero — read the live count with
+`jq length tests/architecture/persona-boundary-allowlist.json` rather than trusting a number written
+in prose.
+
 ## Persona Scope
 
 The Moderator persona is responsible for **how the simulation is executed**, not for deciding what should be attempted or how the world is configured.
