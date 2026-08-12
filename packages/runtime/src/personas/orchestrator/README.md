@@ -146,6 +146,29 @@ This separation ensures that:
 
 The Orchestrator is therefore a **boundary guardian**, responsible for safely interfacing the simulation with the outside world while keeping the inner system pure.
 
+## Public surface
+
+`persona.js` (`export * from "./controller.js"`) publishes:
+
+| Export | What |
+|---|---|
+| `createOrchestratorPersona` | the FSM controller |
+| `orchestratorSubscribePhases` | `observe`, `decide`, `emit` |
+| `runLlmBudgetLoop` | the LLM budget loop — a plain function, re-exported from `llm-budget-loop.js` |
+
+`runLlmBudgetLoop` is **published on the controller surface** (CR.7 / WP-5, 2026-08-12) for the same
+reason as `FulfillmentDispositions` on the Moderator: callers need it and must not import persona
+internals. It is safe to publish as a plain function rather than a controller method because it
+takes **no FSM state** — adapter, catalog, priceList, clock and the rest are all injected by the
+caller, so nothing about internal state escapes with it.
+
+⚠️ **`commands/llm-host.js` is NOT a substitute for it.** `runLlmSessionHosted` hosts a *session*;
+this runs the budget loop. They are different capabilities and two callers legitimately import
+both. The allowlist previously carried four rows pointing straight at `llm-budget-loop.js`
+(`ak-impl.mjs`, `adaptive-workflow/llm-seams.js`, `commands/kernel.js`, `ui-web/design-guidance.js`)
+and CR.4's D4 predicted a use case returning LLM-request effects would replace them; it did not.
+Those four now import `persona.js` and the rows are gone (allowlist 35 → 31).
+
 ## State machine & phases
 - States: idle → planning → running/replaying → completed/errored.
 - Subscribed tick phases: observe, decide, emit.

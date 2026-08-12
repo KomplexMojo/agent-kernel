@@ -5,10 +5,6 @@
   },
   {
     "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
-    "to": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
-  },
-  {
-    "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
     "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
   },
   {
@@ -18,10 +14,6 @@
   {
     "from": "packages/adapters-web/src/adapters/level-builder/worker.js",
     "to": "packages/runtime/src/personas/configurator/guidance-level-builder.js"
-  },
-  {
-    "from": "packages/runtime/src/adaptive-workflow/llm-seams.js",
-    "to": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
   },
   {
     "from": "packages/runtime/src/build/mixed-room-summary.js",
@@ -93,10 +85,6 @@
   },
   {
     "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
     "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
   },
   {
@@ -130,10 +118,6 @@
   {
     "from": "packages/runtime/src/personas/orchestrator/llm-session.js",
     "to": "packages/runtime/src/personas/director/summary-selections.js"
-  },
-  {
-    "from": "packages/ui-web/src/design-guidance.js",
-    "to": "packages/runtime/src/personas/orchestrator/llm-budget-loop.js"
   },
   {
     "from": "packages/ui-web/src/views/diagnostics-view.js",

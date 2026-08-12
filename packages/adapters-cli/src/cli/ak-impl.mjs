@@ -42,7 +42,7 @@ import {
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../../runtime/src/commands/llm-host.js";
 import { beginDirectorBuildCapabilities, beginDirectorRound } from "../../../runtime/src/commands/director-round.js";
-import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/llm-budget-loop.js";
+import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/persona.js";
 import {
   applyActorOverrides,
   applyTileOverrides,

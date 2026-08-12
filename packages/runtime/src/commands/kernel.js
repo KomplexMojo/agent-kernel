@@ -19,7 +19,7 @@ import { resolveAffinityEffects } from "../personas/configurator/affinity-effect
 // same arguments, same result shape (proven by the differential in
 // tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "./llm-host.js";
-import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
+import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 import { createRuntime } from "../runner/runtime.js";
 import {
   ALLOWED_AFFINITIES,

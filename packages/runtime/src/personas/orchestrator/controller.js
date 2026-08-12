@@ -2,6 +2,26 @@ import { createOrchestratorStateMachine, OrchestratorStates } from "./state-mach
 import { createLlmRound } from "./llm-round.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 
+/**
+ * Published on the controller surface so callers can run the budget loop without importing
+ * persona internals (charter: external code imports persona controllers only) — the same
+ * treatment, and the same reason, as `FulfillmentDispositions` on the Moderator's controller.
+ *
+ * ⚠️ CR.7 / WP-5, 2026-08-12. Four modules imported `orchestrator/llm-budget-loop.js`
+ * directly (`ak-impl.mjs`, `adaptive-workflow/llm-seams.js`, `commands/kernel.js`,
+ * `ui-web/design-guidance.js`) and were four of the allowlist's live rows. CR.4's D4 predicted
+ * one Orchestrator use case returning LLM-request effects would replace them; CR.4 delivered
+ * `commands/llm-host.js`, but that hosts a SESSION (`runLlmSessionHosted`) and is a different
+ * capability — two of the four already imported it on the line beside this one and still
+ * needed the loop. Re-pointing them at `llm-host.js` was therefore never the mechanical fix
+ * the board recorded; publishing the capability the callers actually use is.
+ *
+ * This is safe to publish as a plain function rather than a controller method because it takes
+ * no FSM state: every capability it needs (adapter, catalog, priceList, clock, …) is injected
+ * by the caller, so nothing about the persona's internal state escapes with it.
+ */
+export { runLlmBudgetLoop } from "./llm-budget-loop.js";
+
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 
 export function createOrchestratorPersona({ initialState = OrchestratorStates.IDLE, clock, from } = {}) {
