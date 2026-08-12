@@ -254,15 +254,14 @@ export function assessLayoutFeasibility({ layout, levelGen, actorCount = 0 } = {
     ));
     const walkableTiles = sumLayoutTiles(normalizedLayout);
     if (normalizedLayout && !hasInvalidCounts && walkableTiles > MAX_EXACT_LAYOUT_FEASIBILITY_TILES) {
+      // ITEM C (2026-08-12) — a `walkableTiles <= 0` check emitting `empty_layout` stood here
+      // and has been REMOVED. Reaching this branch requires
+      // `walkableTiles > MAX_EXACT_LAYOUT_FEASIBILITY_TILES`, so the test could never be true:
+      // dead by construction, not merely unexercised. A zero tile count takes the exact path
+      // instead, where `validateLayoutCountsAndActors` emits `empty_layout` for real — pinned
+      // by `configurator-layout-feasibility.test.js`, which also records that no perturbation
+      // can prove this removal, because unreachable code has no distinguishing input.
       const errors = [];
-      // ⚠️ DEAD BRANCH, PRESERVED DELIBERATELY. Reaching here requires
-      // `walkableTiles > 1_000_000`, so `walkableTiles <= 0` cannot hold. It came across in
-      // the move and is left exactly as it was: this function is under characterization, and
-      // deleting unreachable code is a behavior-preserving change only until it isn't.
-      // Remove it in its own diff, against the fixture, not folded into a relocation.
-      if (walkableTiles <= 0) {
-        errors.push({ field: "layout", code: "empty_layout" });
-      }
       if (Number.isInteger(actorCount) && actorCount > 0) {
         const floorTiles = normalizedLayout.floorTiles || 0;
         if (floorTiles < actorCount) {

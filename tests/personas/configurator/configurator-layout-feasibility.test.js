@@ -173,4 +173,42 @@ test("the threshold counts floor tiles only — hallway tiles never push a layou
   assert.equal(approximateErrors[0].code, "insufficient_floor_tiles");
 });
 
+/**
+ * ITEM C (2026-08-12) — the dead `walkableTiles <= 0` branch inside the approximation is GONE,
+ * and this pins why removing it was behavior-preserving *by construction*: entering that branch
+ * requires `walkableTiles > MAX_EXACT_LAYOUT_FEASIBILITY_TILES`, so `walkableTiles <= 0` could
+ * never hold. `empty_layout` is emitted by the EXACT path, which is where a zero tile count
+ * actually lands, and that is what this test holds in place.
+ *
+ * ⚠️ **NO PERTURBATION CAN PROVE THIS REMOVAL, and that is stated rather than papered over.**
+ * Restoring the deleted branch passes every test in the suite — unreachable code is unreachable,
+ * so there is no input that distinguishes the two versions. The evidence is the reachability
+ * argument above, not a red test. What this test *does* protect is the reachable half: if
+ * `empty_layout` ever stopped coming from the exact path, the deleted branch would retroactively
+ * have been load-bearing and this fails.
+ */
+test("empty_layout comes from the exact path; the approximation cannot emit it", async () => {
+  const { assessLayoutFeasibility, MAX_EXACT_LAYOUT_FEASIBILITY_TILES } = await loadFeasibility();
+
+  // A zero tile count takes the EXACT path — 0 is not above the threshold — and still refuses
+  // with `empty_layout`. This is the capability the deleted branch appeared to provide.
+  const empty = assessLayoutFeasibility({
+    layout: { floorTiles: 0, hallwayTiles: 0 },
+    actorCount: 0,
+  });
+  assert.equal(empty.ok, false);
+  assert.ok(
+    empty.errors.some((e) => e.code === "empty_layout"),
+    "the exact path must still refuse an empty layout",
+  );
+
+  // The converse, which is what made the branch dead: every layout that SELECTS the
+  // approximation is above the threshold, so no input is both approximate and empty.
+  const approximate = assessLayoutFeasibility({
+    layout: { floorTiles: MAX_EXACT_LAYOUT_FEASIBILITY_TILES + 1, hallwayTiles: 0 },
+    actorCount: 0,
+  });
+  assert.deepEqual(approximate, { ok: true, errors: [] });
+});
+
 // ## TODO: Test Permutations
