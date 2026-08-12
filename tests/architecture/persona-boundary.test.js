@@ -150,6 +150,33 @@ function formatViolations(violations) {
   return violations.map(({ from, to }) => `  ${from} -> ${to}`).join("\n");
 }
 
+/**
+ * 🟢 THE FLIP — P5.1's stated gate, reached 2026-08-12 when P1.4 emptied the last row.
+ *
+ * The allowlist recorded the crossings that bypassed a persona's controller: 74 when the
+ * target was set, 62, 55, 53, 35, 3, 1, 0. It only ever shrank, and the file still exists —
+ * empty — for one reason: **a guard that reads an empty list and a guard that has no list
+ * are different guards, and only the first can be re-opened by a one-line JSON edit.** The
+ * assertion below refuses a NON-EMPTY allowlist outright, so re-opening the door now takes
+ * deleting a test that says why the door is shut.
+ *
+ * An internal import bypasses the controller, so the persona's FSM never runs — an **A2**
+ * violation by definition (charter, "Controller-only boundary"). That is why this is a hard
+ * error rather than a budget.
+ */
+test("the persona boundary allowlist is empty — the guard is a hard error, not a budget", () => {
+  const allowlist = JSON.parse(readFileSync(ALLOWLIST_PATH, "utf8"));
+  assert.deepEqual(
+    allowlist,
+    [],
+    "The allowlist reached zero on 2026-08-12 and the guard was flipped to a hard error "
+      + "(Plan P5.1 / P1.4). Adding an entry here does not make a crossing legal — it makes "
+      + "the FSM stop running for that call, which is what A2 forbids. Thread the call "
+      + "through the persona's controller, or delete the dependency:\n"
+      + formatViolations(allowlist),
+  );
+});
+
 test("persona modules are imported only through their public boundary", () => {
   const allowlist = JSON.parse(readFileSync(ALLOWLIST_PATH, "utf8"));
   const violations = scanViolations();
@@ -157,11 +184,17 @@ test("persona modules are imported only through their public boundary", () => {
   const violationKeys = new Set(violations.map(violationKey));
 
   const newViolations = violations.filter((violation) => !allowlistedKeys.has(violationKey(violation)));
+  // Kept after the flip, deliberately. With an empty list it can never fire — but the
+  // allowlist file is what would come back first if someone reintroduces the budget, and a
+  // stale entry is how eight dispositions once went orphaned without a single failing test.
   const staleAllowlist = allowlist.filter((violation) => !violationKeys.has(violationKey(violation)));
   const failures = [];
 
   if (newViolations.length > 0) {
-    failures.push(`New persona boundary violation(s) detected:\n${formatViolations(newViolations)}`);
+    failures.push(
+      `Persona boundary violation(s) detected — the allowlist is CLOSED (P5.1, 2026-08-12), `
+      + `so there is no entry to add:\n${formatViolations(newViolations)}`,
+    );
   }
   if (staleAllowlist.length > 0) {
     failures.push(

@@ -34,7 +34,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | `all/port-contract-single-origin` — one effect codebook; the port contract is not redeclared | A1 | ✅ owned (PX.1) | `tests/architecture/single-origin.test.js` |
 | `all/injected-clock` — no persona reads a clock; time is injected, never defaulted | A4 | ✅ owned (PX.3 M6) | `tests/architecture/single-origin.test.js` |
 | `all/restorable-from-view` — a persona can be rebuilt from its own serialized `view()` | A4 | ✅ owned (PX.4) | `tests/architecture/persona-serialization-equivalence.test.js` |
-| `all/controller-only-boundary` — external code imports persona controllers only | A1, A2 | 🔴 blocked — CR.7 | none yet; the boundary guard is still a soft allowlist |
+| `all/controller-only-boundary` — external code imports persona controllers only | A1, A2 | ✅ owned (CR.7 / P5.1 flip) | `tests/architecture/persona-boundary.test.js` |
 
 <!-- /A1-A5-STATUS -->
 
@@ -43,12 +43,16 @@ The registry files them under the Moderator because they are tick-plane invarian
 domain persona could hold — not because the Moderator implements them. `moderator/tick-ordering` is
 the one row about this persona's own decisions.
 
-🔴 **`all/controller-only-boundary` is the last open finding on the board.** The guard
-(`tests/architecture/persona-boundary.test.js`) fails on *new* violations and on *stale* allowlist
-rows, but the allowlist is not yet empty, so the rule is recorded debt rather than enforced law. It
-becomes a hard error at zero — read the live count with
-`jq length tests/architecture/persona-boundary-allowlist.json` rather than trusting a number written
-in prose.
+🟢 **`all/controller-only-boundary` flipped on 2026-08-12 — the allowlist is EMPTY and the guard is
+a hard error.** It ran 74 → 62 → 55 → 53 → 35 → 3 → 1 → 0, and the last row died by *deleting* a
+dead price model rather than by re-pointing its import. The empty file is still there on purpose: a
+guard that reads an empty list can be re-opened with a one-line JSON edit, so a separate test now
+refuses a non-empty allowlist outright. Adding an entry does not make a crossing legal — it stops
+the persona's FSM running for that call, which is what **A2** forbids.
+
+⚠️ **This table being all-green does NOT mean every Moderator behavior is owned.** Affinity target
+resolution and the pausing gate have no G1 entry, so by the charter's own rule they are unproven —
+the registry assumes a behavior is not owned until an entry says otherwise.
 
 ## Persona Scope
 

@@ -3,8 +3,15 @@
  *
  * Every element with a token cost must follow this. The failure mode it prevents is
  * duplication: a cost hardcoded in JS alongside the JSON drifts silently, and the
- * two disagree with nobody noticing (this repo already has that problem between
- * cost-model.js and the price list — see the divergence test at the bottom).
+ * two disagree with nobody noticing.
+ *
+ * ⚠️ **THE REPO'S OWN INSTANCE OF THAT IS CLOSED (P1.4, 2026-08-12).** This header used to
+ * point at "the divergence test at the bottom", which pinned `cost-model.js`'s second price
+ * model as visible-but-tolerated. That model is deleted: the census found it charged nothing
+ * in production, its only consumer having no importers. What replaces the pin is a real
+ * prohibition — `tests/architecture/single-origin.test.js` fails if vital/regen/affinity
+ * price constants are declared outside `personas/allocator/`. A pinned divergence documents
+ * a second origin; a single-origin guard forbids one.
  *
  * These tests are guards, not behaviour: they fail when someone puts a cost back
  * into code.
@@ -104,62 +111,41 @@ test("hazards pay no free-floating premium", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// KNOWN DIVERGENCE — documented deliberately so it cannot be forgotten.
+// P1.4 (2026-08-12) — the KNOWN DIVERGENCE block that stood here is gone, along with the
+// two tests under it and the model they described.
 //
-// cost-model.js holds a SECOND set of base costs in code that disagrees with the
-// price list on nearly every value — and it DOES charge live paths: spend-proposal's
-// calculateActorConfigurationUnitCost (card authoring, selection-spend, the CLI
-// delver-card maximizer) uses its constants as silent fallbacks, and uses
-// COST_DEFAULTS.affinityBaseCost + computeCumulativeStackCost unconditionally,
-// never consulting the price list for actor affinity base/stacks. This test pins
-// the divergence so it is visible and cannot silently widen — NOT an endorsement.
-// See allocator/README.md "Known divergence" and local-codex/Plan.md M18–M21.
+// It read: "cost-model.js holds a SECOND set of base costs in code that disagrees with the
+// price list on nearly every value — and it DOES charge live paths", naming
+// spend-proposal's calculateActorConfigurationUnitCost, card authoring, selection-spend and
+// the CLI delver-card maximizer. That was true when written. It stopped being true when the
+// actor pricing was unified onto the price list (requireEntry, error on a miss), and
+// nothing re-read it — so a test comment kept asserting a live defect that no longer
+// existed, and the milestone to fix it stayed scoped as a reconciliation.
+//
+// What replaces it is in tests/architecture/single-origin.test.js: a guard that FAILS if
+// vital/regen/affinity price constants are declared outside personas/allocator/, and a
+// second one that forbids reading base-costs.json from outside it at all. The deleted tests
+// pinned the divergence's SHAPE (that cost-model's numbers came from the JSON, and that its
+// affinity base still differed from the list's); neither could have noticed the model going
+// dead, because both only compared it to itself.
+//
+// ⚠️ THREE tests came out with that block, not two — the third is restored below, trimmed.
+// It was collateral: the cut ran from the comment header to the end of the last test and
+// took a live guard with it. The count is what caught it (-10 tests, and the parts only
+// summed to -9), which is the argument for reconciling a suite delta rather than accepting
+// a green run.
 // ---------------------------------------------------------------------------
 
-test("P1.2: cost-model.js numbers are sourced from base-costs.json (actorModel group)", async () => {
-  const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
-  const cm = await import("../../packages/runtime/src/personas/configurator/cost-model.js");
-  const am = base.actorModel;
-  assert.deepEqual(cm.VITAL_MAX_COST_MULTIPLIER, {
-    health: am.vital_max_health,
-    mana: am.vital_max_mana,
-    stamina: am.vital_max_stamina,
-    durability: am.vital_max_durability,
-  });
-  assert.deepEqual(cm.REGEN_COST_COEFFICIENT, {
-    health: am.regen_coeff_health,
-    mana: am.regen_coeff_mana,
-    stamina: am.regen_coeff_stamina,
-    durability: am.regen_coeff_durability,
-  });
-  assert.equal(cm.COST_DEFAULTS.affinityBaseCost, am.affinity_base_attached);
-  assert.equal(cm.COST_DEFAULTS.externalExpressionCost, am.expression_external);
-  assert.equal(cm.COST_DEFAULTS.internalExpressionCost, am.expression_internal);
-  // Formula stays in code; its base numbers come from the JSON.
-  assert.equal(cm.computeStackCost(1), am.affinity_stack_base);
-  assert.equal(cm.computeStackCost(3), am.affinity_stack_base + am.affinity_stack_quad_coeff * 4);
-});
-
 test("P1.4: the motivation policy carries NO cost constants — fail-loud, list-only", async () => {
+  // The half of this test that referenced cost-model's COST_DEFAULTS is gone with the
+  // module's price half; what remains is the guard that matters — the fallback table that
+  // silently overcharged (list `exploring` 2 vs fallback 25) must stay deleted. Also
+  // asserted from the Allocator's side in
+  // tests/personas/allocator/allocator-unified-pricing.test.js; kept here too because this
+  // file is where someone reintroducing a "default cost" would look for permission.
   const mp = await import("../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
   assert.equal(mp.DEFAULT_MOTIVATION_COSTS, undefined, "fallback table deleted in P1.4");
   assert.equal(mp.SIMPLE_MOTIVATION_COST, undefined);
   assert.equal(mp.ADVANCED_MOTIVATION_COST, undefined);
   assert.equal(mp.buildMotivationPriceListItems, undefined, "seeded wrong numbers; deleted");
-  // cost-model's legacy fields still source from the JSON until it dissolves.
-  const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
-  const cm = await import("../../packages/runtime/src/personas/configurator/cost-model.js");
-  assert.equal(cm.COST_DEFAULTS.simpleMotivationCost, base.motivationFallback.fallback_simple);
-  assert.equal(cm.COST_DEFAULTS.advancedMotivationCost, base.motivationFallback.fallback_advanced);
-});
-
-test("cost-model.js diverges from the price list — pinned, not endorsed", async () => {
-  const { COST_DEFAULTS } = await import("../../packages/runtime/src/personas/configurator/cost-model.js");
-  const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
-  // If these ever match, the systems have been reconciled and this guard is obsolete.
-  assert.notEqual(
-    COST_DEFAULTS.affinityBaseCost,
-    base.affinity.affinity_base,
-    "cost-model.js and the price list now agree on affinity base — reconcile and delete this test",
-  );
 });

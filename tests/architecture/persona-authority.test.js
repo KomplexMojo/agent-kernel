@@ -71,7 +71,11 @@ const OPEN_FINDINGS = Object.freeze([
   // did not exist. Nothing reported the contradiction, because a closure updates the
   // finding and nothing re-reads the instruments that named it. Same shape as the
   // orphaned allowlist dispositions: "the finding is closed" is not a query.
-  "CR.7",
+  //
+  // CR.7 closed 2026-08-12 with the P5.1 flip: the persona boundary allowlist is empty and
+  // the guard is a hard error. It was the last open finding of the program, which is why
+  // this list is now EMPTY — see the note on the backlog test below before reading that as
+  // "everything is owned".
 ]);
 
 // ---------------------------------------------------------------------------
@@ -172,17 +176,34 @@ test("every cli-invocable entry has a standalone fixture", () => {
   }
 });
 
+/**
+ * The backlog, and what its emptiness does NOT mean.
+ *
+ * This used to assert `blocked.length >= 1` — "if nothing is blocked, either the program is
+ * finished or the registry stopped tracking". As of 2026-08-12 the first branch is the true
+ * one: CR.7 was the last open finding, and the P5.1 flip closed it. So the tripwire was
+ * removed rather than left to fail on success.
+ *
+ * ⚠️ **AN EMPTY BACKLOG MEANS "EVERY REGISTERED BEHAVIOR IS OWNED", NOT "EVERY CHARTERED
+ * BEHAVIOR IS OWNED".** The registry's own premise is that a behavior with no entry is
+ * assumed NOT owned, and several have no entry — the Director's `mapPool`, `buildCardSet`,
+ * `resolveTileCosts` and `assessFeasibility` are gated and tested but have no G1 asking the
+ * A2 question, and each persona README says so under its status table. The next honest move
+ * for this file is new ENTRIES, not a green count.
+ */
 test("the backlog is measured: report owned vs blocked", () => {
   const owned = REGISTRY.filter(isOwned);
   const blocked = REGISTRY.filter((entry) => blockingFinding(entry));
   assert.equal(owned.length + blocked.length, REGISTRY.length);
-  // Not an aspiration — a tripwire. When a finding closes, its entry flips to
-  // owned:true and this number moves. If it never moves, nothing is being proven.
   assert.ok(owned.length >= 1, "at least one behavior must be provably owned");
-  assert.ok(
-    blocked.length >= 1,
-    "if nothing is blocked, either the program is finished or the registry stopped tracking",
-  );
+  // Every entry must still resolve to exactly one of the two states — the shape check that
+  // survives the backlog reaching zero.
+  for (const entry of REGISTRY) {
+    assert.ok(
+      isOwned(entry) !== Boolean(blockingFinding(entry)),
+      `${entry.id}: neither owned nor blocked`,
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------

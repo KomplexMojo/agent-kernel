@@ -42,20 +42,18 @@ price changed nothing observable. Which is why the guard is a **census over the 
 test over a result, and why unpriced inputs are refusals that name the missing key instead of
 defaults.
 
-**A second price model still EXISTS, but it no longer CHARGES — and the difference matters.**
-`configurator/cost-model.js` declares a divergent set of cost constants (affinity base 30 vs 10,
-quadratic regen vs per-point, `Σ(10+8(n-1)²)` stacks vs linear). Censused at `05e27e43`, repo-wide:
-its only consumer is `configurator/actor-config-generation.js`, which has **zero production
-importers** — the live actor pricing, `spend-proposal.js#calculateActorConfigurationUnitCost`, reads
-this persona's price list through `requireEntry` and errors on a miss. So the divergence is dead
-code, not a live second author.
+🟢 **THERE IS NOW ONE PRICE MODEL. P1.4 landed 2026-08-12.** The second one —
+`configurator/cost-model.js`'s affinity base 30, `Σ(10+8(n-1)²)` stacks, `2·H` vital points and
+quadratic regen — is deleted, along with its only consumer (`actor-config-generation.js`, which had
+no production importers), the `actorModel` / `motivationFallback` groups in `base-costs.json`, and
+the eight tests that pinned the divergence as tolerated.
 
-⚠️ **This paragraph and the "Known divergence" note further down said the opposite until 2026-08-12**
-— that those constants reached real receipts. That was true when written and outlived the code by
-weeks. **P1.4 is scheduled to delete the dead half** (`~/vault/plans/active/Plan.md` → P1.4.1–P1.4.5)
-and to forbid its return with a single-origin guard; until it lands, do not add costs to
-`cost-model.js`, and do not treat its numbers as prices. Re-derive the census before acting on this
-paragraph — it is a query someone ran once.
+⚠️ **It was dead when it was deleted, and it had been dead for an unknown stretch while three
+documents said otherwise** — including an earlier version of this paragraph. Prices now have exactly
+one home, and two guards keep it that way: the older one forbids price-shaped constants in code, and
+a new one forbids reading `base-costs.json` from outside this directory. That second guard exists
+because the first was structurally blind to the model it was meant to stop — once P1.2 moved the
+numbers into JSON, the divergent declarations held no literals to match.
 
 ## Persona Scope
 
@@ -284,18 +282,15 @@ Resource items (`resource_*`) are **derived in code** from the ids they mirror a
 `round(freeFloatingPremium × base)`, inheriting the mirrored id's linear/quadratic shape — the
 premium changes price, never scaling. Hazards pay no premium: a hazard threatens, a resource grants.
 
-> **Known bug — the motivation fallback silently overcharges.** `resolveMotivationUnitCost` consults
-> the price list first and, on a miss, falls back to `DEFAULT_MOTIVATION_COSTS`. The two disagree by
-> up to 12× (list `exploring = 2`, fallback `25`). A caller holding a price map without motivation
-> entries is charged the fallback with **no error and no warning**. This fires in production today:
-> the budget maximizer charges 25 for `attacking`, which the list prices at 3 — an ~8× overcharge
-> that silently costs a delver ~18 tokens of mana.
->
-> The right contract is to reject an incomplete price list. It is not yet implemented because doing
-> so changes what the maximizer can afford (`mana.max` 29 → 47), which needs its own milestone and a
-> benchmark re-baseline. The fix order is: give the maximizer a complete price map so `attacking`
-> resolves to 3, *then* reject incomplete lists. Pinned by
-> `tests/personas/motivation-price-fallback-strict.test.js`.
+> **✅ CLOSED — the motivation fallback that silently overcharged is GONE.** It read: on a price-map
+> miss, `resolveMotivationUnitCost` fell back to `DEFAULT_MOTIVATION_COSTS`, which disagreed with
+> the list by up to 12× (list `exploring = 2`, fallback `25`) and charged it with no error and no
+> warning. Today that function returns `null` on a miss and `calculateMotivationStackCost` pushes
+> `motivation "<kind>" has no price list entry` — a refusal that names the missing key, which is the
+> contract the note said was "not yet implemented".
+> ⚠️ The note also cited `tests/personas/motivation-price-fallback-strict.test.js` as its pin. **That
+> file does not exist** — it was renamed or absorbed and the citation was never updated, so the doc
+> pointed at a guard nobody could run. Verified 2026-08-12 against the code, not the citation.
 
 > **Known bug — `ak create` does not charge affinity-only resources.** Found 2026-07-18 while
 > building P0.2 goldens: `create` charges an affinity-only resource **zero tokens** (empty receipt)
@@ -315,21 +310,31 @@ premium changes price, never scaling. Hazards pay no premium: a hazard threatens
 > `configurator/motivation-rules.js` (`profileCosts`: exploring 1, attacking 5, strategy 20…),
 > embedded in the behavior-rules document — P1.4 must reconcile all three.
 
-> **Known divergence — `configurator/cost-model.js` DOES charge live paths.** (An earlier revision
-> of this note claimed it charges nobody; that was wrong.) *(`spend-proposal.js` named below is an
-> **Allocator** file as of 2026-08-04 — CR.9 M1 moved it here from `configurator/`; this note predates
-> the move and described it by its old address.)* It holds a second set of cost constants
-> that disagree with this price list on nearly every value (vital points `2·H` vs `1`, regen
-> `12·R²` vs `n²`, affinity base `30` vs `10`, stacks `Σ(10+8(n-1)²)` vs `n²`), and those constants
-> reach real receipts through `spend-proposal.js#calculateActorConfigurationUnitCost` — used by
-> card authoring, `selection-spend.js`, and the CLI delver-card maximizer. Inside that function:
-> vital points and expression costs consult the price list first and silently fall back to
-> cost-model constants; **affinity base + stacks never consult the price list at all** (always
-> `30 + Σ(10+8(n-1)²)`); regen is linear when the list has an entry but quadratic
-> (`REGEN_COST_COEFFICIENT · R²`) on a miss. `budget-maximizer.js` prices regen exclusively from
-> `REGEN_COST_COEFFICIENT`, never from the list. So an actor's affinity and a resource's affinity
-> are charged by two different models today. Unification is planned work (see
-> `local-codex/Plan.md` M18–M21); until then do not add costs to `cost-model.js`.
+> **✅ CLOSED BY DELETION — P1.4, 2026-08-12. There is no second price model.**
+> This note used to describe `configurator/cost-model.js` as holding cost constants that disagreed
+> with this price list on nearly every value (vital points `2·H` vs `1`, regen `12·R²`, affinity base
+> `30` vs `10`, stacks `Σ(10+8(n-1)²)`) and reaching real receipts through
+> `spend-proposal.js#calculateActorConfigurationUnitCost`.
+>
+> **The first half was true and the second half stopped being true, and nothing noticed.** The census
+> at `05e27e43` found that function reading the price list through `requireEntry` and erroring on a
+> miss, and found the divergent constants reachable only from `configurator/actor-config-generation.js`
+> — a module with zero production importers. P1.4 deleted both, plus the `actorModel` and
+> `motivationFallback` groups in `base-costs.json` that fed them, and the eight tests that pinned the
+> divergence as tolerated.
+>
+> ⚠️ **The old single-origin guard could not have caught this, and that is the lesson worth keeping.**
+> `PRICE_OR_BUDGET_CONSTANT` matches a price-shaped name assigned to a numeric literal;
+> `VITAL_MAX_COST_MULTIPLIER` matched the name perfectly but held `ACTOR_MODEL.vital_max_health`,
+> because P1.2 had moved the numbers into JSON. **Complying with "numbers live in JSON" is what made
+> the second model invisible.** The new guard forbids reading `base-costs.json` from outside
+> `personas/allocator/` at all — the concept is "a price model with a second author", not "a number
+> in code".
+>
+> The third table the old note named — `configurator/motivation-rules.js#profileCosts` — is design
+> data inside the DEFAULT rules artifact; its derived `MOTIVATION_COST_DEFAULTS` has no consumers
+> anywhere in the repo, so it prices nothing. Left in place deliberately: deleting authored design
+> numbers is a content decision, not a pricing one.
 
 ### Budget Policy and Cost Modeling
 The Allocator defines and applies:

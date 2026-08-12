@@ -331,18 +331,19 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "tests/architecture/persona-boundary-allowlist.json",
     invocation: "none",
     status: {
-      blockedBy: "CR.7",
+      owned: true,
+      since: "CR.7 / P5.1 flip (2026-08-12)",
+      provenBy: "tests/architecture/persona-boundary.test.js",
       why:
-        "The allowlist records the crossings that bypass controllers; the guard becomes a "
-        + "hard error at zero and is still a soft allowlist. P5.1 took it 35 -> 3 on "
-        + "2026-08-12. Do NOT restate the count here — it moves faster than this file is "
-        + "read, and it was quoted as 62 for four days after it was not. Read "
-        + "`jq length tests/architecture/persona-boundary-allowlist.json`. What is worth "
-        + "recording is WHY the last rows are stuck, because effort is not the blocker: "
-        + "one waits on P1.4 (configurator/cost-model.js still encodes a price model its "
-        + "own header says diverges from the Allocator's, so re-pointing the import would "
-        + "hide the divergence behind a green guard), and two wait on a maintainer ruling "
-        + "about opening a Director round on the UI/worker build-spec path.",
+        "The allowlist is EMPTY and the guard is a hard error. It ran 74 -> 62 -> 55 -> 53 "
+        + "-> 35 -> 3 -> 1 -> 0; the last row was configurator/cost-model.js reading the "
+        + "Allocator's base-costs.json, and P1.4 closed it by DELETING the import with the "
+        + "dead price model behind it rather than re-pointing it — re-pointing would have "
+        + "satisfied the guard and left a second price author standing. The file remains, "
+        + "empty, and a separate test now refuses a non-empty allowlist: a guard that reads "
+        + "an empty list can be re-opened with a one-line JSON edit, and one that has no "
+        + "list cannot. Perturbation-verified both ways — a new crossing fails, and so does "
+        + "re-adding an entry for a crossing that genuinely exists.",
     },
   },
 ]);

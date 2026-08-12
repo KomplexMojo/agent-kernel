@@ -1,6 +1,1 @@
-[
-  {
-    "from": "packages/runtime/src/personas/configurator/cost-model.js",
-    "to": "packages/runtime/src/personas/allocator/base-costs.json"
-  }
-]
+[]
