@@ -161,6 +161,35 @@ test("no qualifying configuration yields null and identity mismatches suppress c
   assert.equal(current.configurations[0].historicalContentGen.avgScore, 0);
 });
 
+test("transport errors are infrastructure failures and abort without synthetic model results", async () => {
+  assert.equal(classifyExecutionOutcome({
+    toolCallProduced: false,
+    llmError: "connect ECONNREFUSED 127.0.0.1:21435",
+    execResult: null,
+  }), "infrastructure_error");
+
+  let attempts = 0;
+  const records = [];
+  await assert.rejects(() => executeContentGenMatrix({
+    matrix: { ...MATRIX, configurations: [CONFIGURATIONS[0]] },
+    scenarios: SCENARIOS,
+    runAttempt: async () => {
+      attempts += 1;
+      return {
+        toolCallProduced: false,
+        execSucceeded: false,
+        executionOutcome: "infrastructure_error",
+        failureClass: "infrastructure",
+        llmError: "socket hang up",
+        score: 0,
+      };
+    },
+    onRecord: (record) => records.push(record),
+  }), /infrastructure failure.*socket hang up/i);
+  assert.equal(attempts, 1);
+  assert.equal(records.length, 1, "the triggering infrastructure record is retained before abort");
+});
+
 // ## TODO: Test Permutations
 // - missing attempts inside a completed pass fail the completeness gate
 // - a score-only mathematical early stop preserves all completed-pass records

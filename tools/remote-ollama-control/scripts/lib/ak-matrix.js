@@ -52,6 +52,9 @@ async function executeContentGenMatrix({
         configurationRecords.push(record);
         records.push(record);
         await onRecord(record, records);
+        if (record.failureClass === 'infrastructure') {
+          throw new Error(`Content-gen infrastructure failure: ${record.llmError || record.execStderr || 'unknown infrastructure error'}`);
+        }
       }
       const remainingAttempts = (maximumPasses - repeat) * scenarios.length;
       if (remainingAttempts > 0 && !canStillQualify(configurationRecords, { remainingAttempts, thresholds })) {

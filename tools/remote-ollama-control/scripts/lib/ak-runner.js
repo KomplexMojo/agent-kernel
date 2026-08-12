@@ -133,13 +133,13 @@ function normalizeToolArgs(toolArgs) {
 // ---------------------------------------------------------------------------
 
 function classifyExecutionOutcome(runResult) {
+  if (runResult?.llmError || runResult?.execResult?.timedOut) return 'infrastructure_error';
   if (!runResult?.toolCallProduced) return 'model_failure';
   if (runResult.execResult?.succeeded) return 'success';
   const message = `${runResult.execResult?.stdout || ''}\n${runResult.execResult?.stderr || ''}`;
   if (/budget[^\n]*(denied|exceeded|insufficient)|requested[^\n]*available/i.test(message)) {
     return 'budget_denied';
   }
-  if (runResult.execResult?.timedOut || runResult.llmError) return 'infrastructure_error';
   return 'execution_failed';
 }
 
