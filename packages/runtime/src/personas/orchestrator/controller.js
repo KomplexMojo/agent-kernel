@@ -36,6 +36,26 @@ export { runLlmBudgetLoop } from "./llm-budget-loop.js";
  */
 export { buildLlmCaptureArtifact } from "./llm-capture.js";
 
+/**
+ * CR.7 / WP-5 — the PROMPT CONTRACT's two glue-facing functions.
+ *
+ * `ak-impl.mjs`, `kernel.js` and `ui-flow.js` imported `prompt-contract.js` directly and were
+ * three allowlist rows. Both of these are Orchestrator law: `normalizeSummary` validates an LLM
+ * summary against the prompt contract, and `deriveAllowedOptionsFromCatalog` merges the base
+ * vocabulary with a catalog's entries to produce the option set a prompt may offer.
+ *
+ * ⚠️ THE FOUR `ALLOWED_*` CONSTANTS ARE DELIBERATELY **NOT** PUBLISHED HERE. They are pure
+ * aliases of `contracts/domain-constants.js` values (`AFFINITY_KINDS`, `AFFINITY_EXPRESSIONS`,
+ * `MOTIVATION_KINDS`, `DELVER_SETUP_MODES`), and `domain-constants.js` records why that mattered
+ * as P5.1 D1: one value wore three names across two personas, and the boundary crossings existed
+ * "purely because of the renaming". Publishing the alias would add a fourth name for the same
+ * value. Glue imports the contracts names instead, so the hop is gone rather than relocated.
+ */
+export {
+  deriveAllowedOptionsFromCatalog,
+  normalizeSummary,
+} from "./prompt-contract.js";
+
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 
 export function createOrchestratorPersona({ initialState = OrchestratorStates.IDLE, clock, from } = {}) {

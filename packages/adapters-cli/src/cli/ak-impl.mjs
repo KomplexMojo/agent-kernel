@@ -29,14 +29,18 @@ import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/directo
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/contracts/domain-constants.js";
 import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
+// CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
+// it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
+// boundary crossing died with the hop rather than being republished. Aliased on import so
+// the call sites below are untouched.
 import {
-  ALLOWED_AFFINITIES,
-  ALLOWED_AFFINITY_EXPRESSIONS,
-  ALLOWED_DELVER_SETUP_MODES,
-  ALLOWED_MOTIVATIONS,
-  deriveAllowedOptionsFromCatalog,
-  normalizeSummary,
-} from "../../../runtime/src/personas/orchestrator/prompt-contract.js";
+  AFFINITY_KINDS as ALLOWED_AFFINITIES,
+  AFFINITY_EXPRESSIONS as ALLOWED_AFFINITY_EXPRESSIONS,
+  DELVER_SETUP_MODES as ALLOWED_DELVER_SETUP_MODES,
+  MOTIVATION_KINDS as ALLOWED_MOTIVATIONS,
+} from "../../../runtime/src/contracts/domain-constants.js";
+// Genuinely Orchestrator law — the prompt contract itself — so taken from its barrel.
+import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../../../runtime/src/personas/orchestrator/persona.js";
 // CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).

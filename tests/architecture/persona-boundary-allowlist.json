@@ -4,20 +4,8 @@
     "to": "packages/runtime/src/personas/director/buildspec-assembler.js"
   },
   {
-    "from": "packages/adapters-cli/src/cli/ak-impl.mjs",
-    "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
-  },
-  {
     "from": "packages/runtime/src/commands/ui-flow.js",
     "to": "packages/runtime/src/personas/director/buildspec-assembler.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/ui-flow.js",
-    "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
   },
   {
     "from": "packages/runtime/src/personas/configurator/cost-model.js",

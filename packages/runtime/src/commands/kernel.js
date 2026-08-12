@@ -28,13 +28,17 @@ import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 import { runLlmSessionHosted } from "./llm-host.js";
 import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 import { createRuntime } from "../runner/runtime.js";
+// CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
+// it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
+// boundary crossing died with the hop rather than being republished. Aliased on import so
+// the call sites below are untouched.
 import {
-  ALLOWED_AFFINITIES,
-  ALLOWED_AFFINITY_EXPRESSIONS,
-  ALLOWED_MOTIVATIONS,
-  deriveAllowedOptionsFromCatalog,
-  normalizeSummary,
-} from "../personas/orchestrator/prompt-contract.js";
+  AFFINITY_KINDS as ALLOWED_AFFINITIES,
+  AFFINITY_EXPRESSIONS as ALLOWED_AFFINITY_EXPRESSIONS,
+  MOTIVATION_KINDS as ALLOWED_MOTIVATIONS,
+} from "../contracts/domain-constants.js";
+// Genuinely Orchestrator law — the prompt contract itself — so taken from its barrel.
+import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../personas/orchestrator/persona.js";
 import {
   applyActorOverrides,
   applyTileOverrides,

@@ -1,5 +1,10 @@
 import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
-import { deriveAllowedOptionsFromCatalog } from "../personas/orchestrator/prompt-contract.js";
+// CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
+// it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
+// boundary crossing died with the hop rather than being republished. Aliased on import so
+// the call sites below are untouched.
+// Genuinely Orchestrator law — the prompt contract itself — so taken from its barrel.
+import { deriveAllowedOptionsFromCatalog } from "../personas/orchestrator/persona.js";
 import { beginDirectorRound } from "./director-round.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
