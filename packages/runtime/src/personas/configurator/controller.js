@@ -59,5 +59,19 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     buildRoomDesign: services.buildRoomDesign,
     authorCandidates: services.authorCandidates,
     normalizeMotivations: services.normalizeMotivations,
+    // CR.7 / WP-5 — the BUILD-PLANE helpers. `orchestrate-build.js`, `kernel.js` and
+    // `mixed-room-summary.js` imported these seven modules directly and were 11 allowlist rows.
+    // Ungated, like `deriveRoomLayout` above: pure functions of their arguments that stamp no
+    // provenance. See the import-block note in configurator-services.js.
+    generateGridLayoutFromInput: services.generateGridLayoutFromInput,
+    buildSimConfigArtifact: services.buildSimConfigArtifact,
+    buildInitialStateArtifact: services.buildInitialStateArtifact,
+    resolveAffinityEffects: services.resolveAffinityEffects,
+    normalizeAffinityRulesArtifact: services.normalizeAffinityRulesArtifact,
+    resolveAffinityRules: services.resolveAffinityRules,
+    buildAmbientAffinityPressure: services.buildAmbientAffinityPressure,
+    computeInternalManaUpkeep: services.computeInternalManaUpkeep,
+    normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,
+    resolveMotivationRules: services.resolveMotivationRules,
   };
 }

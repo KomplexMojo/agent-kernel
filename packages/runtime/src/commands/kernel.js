@@ -8,11 +8,17 @@ import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
-import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
-import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
+// CR.7 / WP-5 — level geometry, artifact assembly and affinity resolution are Configurator
+// law; this file is glue. They came off three persona internals and now come off the public
+// surface, retiring three allowlist rows. Local names unchanged, so call sites are untouched.
+const {
+  generateGridLayoutFromInput,
+  buildSimConfigArtifact,
+  buildInitialStateArtifact,
+  resolveAffinityEffects,
+} = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 import { createCore } from "../../../core-ts/src/index.ts";
 import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
-import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
 // CR.4 M4b: the LLM session now runs as an Orchestrator ROUND — the persona returns
 // `llm_request` effects and this host dispatches them through ports/effects.js, so the
 // IO happens in the adapter instead of inline inside the persona. Drop-in replacement:

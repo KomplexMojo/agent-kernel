@@ -16,38 +16,6 @@
     "to": "packages/runtime/src/personas/configurator/guidance-level-builder.js"
   },
   {
-    "from": "packages/runtime/src/build/mixed-room-summary.js",
-    "to": "packages/runtime/src/personas/configurator/affinity-rules.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/configurator/affinity-effects.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/configurator/affinity-pressure.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/configurator/affinity-rules.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/configurator/artifact-builders.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/configurator/cost-model.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/configurator/level-layout.js"
-  },
-  {
-    "from": "packages/runtime/src/build/orchestrate-build.js",
-    "to": "packages/runtime/src/personas/configurator/motivation-rules.js"
-  },
-  {
     "from": "packages/runtime/src/build/orchestrate-build.js",
     "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
   },
@@ -58,18 +26,6 @@
   {
     "from": "packages/runtime/src/commands/card-authoring.js",
     "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/configurator/affinity-effects.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/configurator/artifact-builders.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/kernel.js",
-    "to": "packages/runtime/src/personas/configurator/level-layout.js"
   },
   {
     "from": "packages/runtime/src/commands/kernel.js",

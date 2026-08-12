@@ -46,6 +46,31 @@ import {
   reviseDelverCandidate,
 } from "./candidate-authoring.js";
 import { maximizeActorBudget } from "./budget-maximizer.js";
+/**
+ * CR.7 / WP-5 — the BUILD-PLANE helpers, published so glue stops reaching past the persona.
+ *
+ * `build/orchestrate-build.js`, `commands/kernel.js` and `build/mixed-room-summary.js` imported
+ * these seven modules directly and were 11 of the allowlist's live rows. Level geometry, affinity
+ * resolution, ambient pressure, mana upkeep and motivation rules are all Configurator law; the
+ * charter names those three files glue, and glue holds no domain logic.
+ *
+ * Re-exported under their own names rather than renamed. The Director's card-set surface was
+ * renamed because `deriveLevelGen` was ambiguous between two functions; these names are already
+ * unambiguous, so a second name would be a second thing to keep in step for no gain.
+ *
+ * ⚠️ UNGATED, like `deriveRoomLayout` and `assessFeasibility`. Every one is a pure function of its
+ * arguments: they read a config the caller already holds and stamp no provenance of their own —
+ * `buildSimConfigArtifact` and `buildInitialStateArtifact` take `meta` FROM the caller, so the
+ * persona is assembling an artifact, not authoring one with no round behind it. Gating them would
+ * refuse the build path that has always called them and issue no decision in exchange.
+ */
+import { generateGridLayoutFromInput } from "./level-layout.js";
+import { buildSimConfigArtifact, buildInitialStateArtifact } from "./artifact-builders.js";
+import { resolveAffinityEffects } from "./affinity-effects.js";
+import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "./affinity-rules.js";
+import { buildAmbientAffinityPressure } from "./affinity-pressure.js";
+import { computeInternalManaUpkeep } from "./cost-model.js";
+import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
 
 export class ConfiguratorStateError extends Error {
   constructor(message) {
@@ -351,6 +376,17 @@ export function attachConfiguratorServices({ fsm } = {}) {
      * owning a second copy of the exclusive-group rules.
      */
     normalizeMotivations,
+    // CR.7 / WP-5 — the build-plane helpers; see the import block for why they are ungated.
+    generateGridLayoutFromInput,
+    buildSimConfigArtifact,
+    buildInitialStateArtifact,
+    resolveAffinityEffects,
+    normalizeAffinityRulesArtifact,
+    resolveAffinityRules,
+    buildAmbientAffinityPressure,
+    computeInternalManaUpkeep,
+    normalizeMotivationRulesArtifact,
+    resolveMotivationRules,
     serviceContext,
   };
 }

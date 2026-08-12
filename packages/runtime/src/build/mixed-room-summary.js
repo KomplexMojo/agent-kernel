@@ -1,4 +1,8 @@
-import { resolveAffinityRules } from "../personas/configurator/affinity-rules.js";
+// CR.7 / WP-5 — affinity rules are Configurator law, taken from the persona's public surface.
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
+
+const { resolveAffinityRules } = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 
 const DEFAULT_TOKEN_SPEND = Object.freeze({
   defaultTiles: 0,
