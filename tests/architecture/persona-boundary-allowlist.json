@@ -8,20 +8,8 @@
     "to": "packages/runtime/src/personas/orchestrator/prompt-contract.js"
   },
   {
-    "from": "packages/adapters-web/src/adapters/level-builder/index.js",
-    "to": "packages/runtime/src/personas/configurator/guidance-level-builder.js"
-  },
-  {
-    "from": "packages/adapters-web/src/adapters/level-builder/worker.js",
-    "to": "packages/runtime/src/personas/configurator/guidance-level-builder.js"
-  },
-  {
     "from": "packages/runtime/src/build/orchestrate-build.js",
     "to": "packages/runtime/src/personas/allocator/spend-proposal.js"
-  },
-  {
-    "from": "packages/runtime/src/commands/card-authoring.js",
-    "to": "packages/runtime/src/personas/configurator/card-model.js"
   },
   {
     "from": "packages/runtime/src/commands/card-authoring.js",

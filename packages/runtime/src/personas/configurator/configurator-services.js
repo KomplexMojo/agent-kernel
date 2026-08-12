@@ -33,7 +33,11 @@
 import { ConfiguratorStates } from "./state-machine.js";
 import { prepareLevelGen as prepareLevelGenInput, mapResources as mapResourcesInput } from "./input-preparation.js";
 import { validateConfiguratorConfig } from "./config-validation.js";
-import { buildRoomDesignFromRoomCards, deriveLayoutFromRoomCards } from "./card-model.js";
+import {
+  buildRoomDesignFromRoomCards,
+  deriveLayoutFromRoomCards,
+  deriveLevelGenFromRoomCards,
+} from "./card-model.js";
 import { normalizeMotivations } from "./motivation-loadouts.js";
 import { assessLayoutFeasibility } from "./feasibility.js";
 import {
@@ -71,6 +75,22 @@ import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "./affinity
 import { buildAmbientAffinityPressure } from "./affinity-pressure.js";
 import { computeInternalManaUpkeep } from "./cost-model.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
+/**
+ * CR.7 / WP-5 — level PREVIEW rendering, published for the web level-builder adapter.
+ *
+ * `adapters-web/adapters/level-builder/{index,worker}.js` imported
+ * `configurator/guidance-level-builder.js` directly and were two allowlist rows. Turning a
+ * guidance summary or a levelGen into a previewable level is Configurator geometry; an adapter's
+ * job is the IO around it, not the geometry itself.
+ *
+ * Ungated for the reason `deriveRoomLayout` is: a preview exists precisely where no build round
+ * does, so gating it would refuse the only path that calls it.
+ */
+import {
+  buildLevelPreviewFromGuidanceSummary,
+  buildLevelPreviewFromLevelGen,
+  buildLevelRenderArtifactsFromTiles,
+} from "./guidance-level-builder.js";
 
 export class ConfiguratorStateError extends Error {
   constructor(message) {
@@ -387,6 +407,13 @@ export function attachConfiguratorServices({ fsm } = {}) {
     computeInternalManaUpkeep,
     normalizeMotivationRulesArtifact,
     resolveMotivationRules,
+    // CR.7 / WP-5 — the third card-model derivation. Its two siblings were already published
+    // as `deriveRoomLayout` and `buildRoomDesign`; only this one had no public name.
+    deriveLevelGenFromRoomCards,
+    // CR.7 / WP-5 — level preview rendering for the web level-builder adapter.
+    buildLevelPreviewFromGuidanceSummary,
+    buildLevelPreviewFromLevelGen,
+    buildLevelRenderArtifactsFromTiles,
     serviceContext,
   };
 }

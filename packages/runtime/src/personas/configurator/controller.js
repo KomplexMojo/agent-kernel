@@ -73,5 +73,12 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     computeInternalManaUpkeep: services.computeInternalManaUpkeep,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,
     resolveMotivationRules: services.resolveMotivationRules,
+    // CR.7 / WP-5 — the third card-model derivation; its siblings are `deriveRoomLayout` and
+    // `buildRoomDesign` above, which `card-authoring.js` can now use instead of the internal.
+    deriveLevelGenFromRoomCards: services.deriveLevelGenFromRoomCards,
+    // CR.7 / WP-5 — level preview rendering, for the web level-builder adapter.
+    buildLevelPreviewFromGuidanceSummary: services.buildLevelPreviewFromGuidanceSummary,
+    buildLevelPreviewFromLevelGen: services.buildLevelPreviewFromLevelGen,
+    buildLevelRenderArtifactsFromTiles: services.buildLevelRenderArtifactsFromTiles,
   };
 }

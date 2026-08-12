@@ -24,14 +24,6 @@ import {
   normalizeCardType,
   normalizeRoomCardSize,
 } from "../contracts/domain-constants.js";
-// The derive*/build* helpers remain Configurator level-geometry logic; only the
-// card TYPE/SIZE vocabulary moved to contracts (P5.1 D1). This import is still an
-// allowlisted boundary crossing (disposition D6 — it needs a controller method).
-import {
-  buildRoomDesignFromRoomCards,
-  deriveLayoutFromRoomCards,
-  deriveLevelGenFromRoomCards,
-} from "../personas/configurator/card-model.js";
 
 // CR.9 M2: room tile counts are Configurator geometry, so the Allocator is handed
 // the Configurator's own derivation rather than importing card-model.js to compute a
@@ -56,6 +48,14 @@ const configuratorGeometry = configurator.deriveRoomLayout;
 // `resolveSummary` fetches the Configurator's room geometry itself (D8.3), so the
 // `configuratorRoomGeometry` pair this file used to assemble for it is gone.
 const director = createDirectorPersona({ clock: UNUSED_CLOCK });
+
+// CR.7 / WP-5 — disposition D6 ("it needs a controller method") is answered. Two of these
+// three were ALREADY published, as `deriveRoomLayout` and `buildRoomDesign`; only
+// `deriveLevelGenFromRoomCards` had no public name, so this row cost one publication rather
+// than three. Level geometry from room cards stays Configurator law either way.
+const deriveLayoutFromRoomCards = configurator.deriveRoomLayout;
+const buildRoomDesignFromRoomCards = configurator.buildRoomDesign;
+const deriveLevelGenFromRoomCards = configurator.deriveLevelGenFromRoomCards;
 const directorResolveSummary = director.resolveSummary;
 const normalizeCardEntry = director.normalizeCard;
 const buildCardSetFromSummary = director.cardSetFromSummary;
