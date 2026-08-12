@@ -42,10 +42,20 @@ price changed nothing observable. Which is why the guard is a **census over the 
 test over a result, and why unpriced inputs are refusals that name the missing key instead of
 defaults.
 
-**One price model is still not true.** `configurator/cost-model.js` encodes a model its own header
-says diverges from this persona's price list — the open P1.4 work. It is not a row in the table
-because no G1 entry claims it; it is named here so this README does not read as though the economy
-already has one origin.
+**A second price model still EXISTS, but it no longer CHARGES — and the difference matters.**
+`configurator/cost-model.js` declares a divergent set of cost constants (affinity base 30 vs 10,
+quadratic regen vs per-point, `Σ(10+8(n-1)²)` stacks vs linear). Censused at `05e27e43`, repo-wide:
+its only consumer is `configurator/actor-config-generation.js`, which has **zero production
+importers** — the live actor pricing, `spend-proposal.js#calculateActorConfigurationUnitCost`, reads
+this persona's price list through `requireEntry` and errors on a miss. So the divergence is dead
+code, not a live second author.
+
+⚠️ **This paragraph and the "Known divergence" note further down said the opposite until 2026-08-12**
+— that those constants reached real receipts. That was true when written and outlived the code by
+weeks. **P1.4 is scheduled to delete the dead half** (`~/vault/plans/active/Plan.md` → P1.4.1–P1.4.5)
+and to forbid its return with a single-origin guard; until it lands, do not add costs to
+`cost-model.js`, and do not treat its numbers as prices. Re-derive the census before acting on this
+paragraph — it is a query someone ran once.
 
 ## Persona Scope
 
