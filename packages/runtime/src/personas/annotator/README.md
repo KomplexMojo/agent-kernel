@@ -33,6 +33,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | Behavior | Criteria | Status | Proof |
 |---|---|---|---|
 | `annotator/run-summary-provenance` — the end-of-run RunSummary is produced by the instance that observed the run | A2, A5 | ✅ owned (CR.8) | `tests/architecture/persona-authority.test.js` |
+| `annotator/per-tick-telemetry` — per-tick TelemetryRecords are captured by the Annotator, not assembled by the runner | A2, A5 | 🔴 blocked — P5.4 | none yet; the CR.8 refusal has no per-tick twin |
 
 <!-- /A1-A5-STATUS -->
 

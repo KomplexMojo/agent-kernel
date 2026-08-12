@@ -38,12 +38,16 @@ behavior with no G1 test is not owned**. The rows below mirror
 |---|---|---|---|
 | `actor/serializable-decision` — the decision is a pure function of serialized state | A4 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
 | `actor/no-budget-policy` — the Actor proposes; budget admissibility is not its call | A1 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
+| `actor/motivation-to-proposal` — turning motivations and an observation into proposed actions | A2 | 🔴 blocked — P5.4 | none yet; the ablation has to be built |
 
 <!-- /A1-A5-STATUS -->
 
-⚠️ **The table is a floor, not a summary of this document.** Everything else described below is
-behavior the Actor implements; these two rows are the ones with a gate that fails when production
-stops needing the persona to reach them. Motivation resolution in particular has no G1 entry yet.
+⚠️ **Read the third row carefully: the thing this persona exists for is the one that is unproven.**
+The two owned rows both cover what the Actor must *not* do — hold state outside `view()`, decide
+budget admissibility. Neither asks whether production could produce an action stream without it.
+The runtime always supplies an Actor, so that ablation has to be built rather than observed: a
+registry with a stub Actor that proposes nothing, asserting production then emits no actor actions.
+Until it exists, the movement and filter tests below demonstrate routing, not authority.
 
 ## Persona Scope
 

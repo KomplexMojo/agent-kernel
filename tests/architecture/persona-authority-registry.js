@@ -101,7 +101,93 @@ const REGISTRY = Object.freeze([
     status: { owned: true, since: "CR.3" },
   },
 
+  // Registered 2026-08-12 (P5.4). The Director's other three translations had no entry, so
+  // by this registry's own premise they were unowned — while a required-capability census in
+  // `orchestrator-llm-budget-loop.test.js` had been proving the A2 half of each all along.
+  // ⇒ *The proof existed and the entry did not, which reads as backlog exactly like a real
+  // gap.* This is the reverse of the CR.4 rot fixed earlier the same day and the same root:
+  // nothing walks from a test back to the registry.
+  {
+    id: "director/pool-mapping",
+    persona: "director",
+    behavior: "Mapping an LLM summary onto catalog pools is the Director's decision, inside an open round",
+    criteria: ["A2", "A3"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.4 M5b.2a′",
+      provenBy: "tests/personas/orchestrator-llm-budget-loop.test.js",
+      why:
+        "A2 by refusal: `mapPool` is REQUIRED with no default, so the loop cannot map a "
+        + "summary at all without the Director — \"the loop REFUSES to run without a Director "
+        + "pool mapper\". A3 on top of it: the method is gated on PLANNED_STATES, and "
+        + "director-build-round.test.js pins that translation refuses before a build begins. "
+        + "Before M5b.2a′ the loop mapped summaries with no Director in existence.",
+    },
+  },
+  {
+    id: "director/card-set-translation",
+    persona: "director",
+    behavior: "Summary → cardSet is the Director's translation; the gated and ungated surfaces share one origin",
+    criteria: ["A3"],
+    productionEntryPoint: "packages/runtime/src/personas/director/director-services.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.4 M5b.2e / CR.7 (2026-08-12)",
+      provenBy: "tests/personas/director/director-card-translation.test.js",
+      why:
+        "A3 is the criterion and the pair is the point: `buildCardSet` is gated behind an open "
+        + "round because its output reaches a PERSISTED BuildSpec, while `cardSetFromSummary` "
+        + "is deliberately ungated for authoring and preview, where no round exists or should. "
+        + "The test pins both halves — gating the second would be an outage, not a boundary "
+        + "(D8.3's rule), and the gate on the first was a LABEL until a perturbation forced it "
+        + "to be real.",
+    },
+  },
+  {
+    id: "director/pricing-relay",
+    persona: "director",
+    behavior: "The Director relays the Allocator's pricing answers; neither it nor the loop computes them",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.4 M5b.2b–2d",
+      provenBy: "tests/personas/orchestrator-llm-budget-loop.test.js",
+      why:
+        "Four separate refusals, one per relayed answer: the loop will not run without an "
+        + "Allocator tile-cost resolver, budget allocator, selection-spend evaluator or layout "
+        + "fitter. A1 because the loop used to compute all four inline out of the Allocator's "
+        + "internals — the second author is gone, not merely re-routed — and A2 because a "
+        + "missing capability is a refusal rather than a fallback. A required capability is a "
+        + "census you cannot opt out of: it enumerates its callers by breaking them.",
+    },
+  },
+
   // ── Configurator ───────────────────────────────────────────────────────────
+  {
+    id: "configurator/feasibility-verdict",
+    persona: "configurator",
+    behavior: "Layout feasibility is the Configurator's verdict; the Director derives the geometry it judges",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.4 M5b.2f",
+      provenBy: "tests/personas/orchestrator-llm-budget-loop.test.js",
+      why:
+        "\"The loop REFUSES to run without a Configurator feasibility assessor\" — A2 by "
+        + "refusal. A1 because the loop carried its own approximation of the verdict before "
+        + "M5b.2f, and the threshold moved home with it. The split is deliberate and is what "
+        + "makes the pair checkable: deriving a levelGen from intent is Director translation, "
+        + "judging whether it fits is Configurator law, and `director-build-round.test.js` "
+        + "pins the derivation half refusing an input it cannot derive from.",
+    },
+  },
   {
     id: "configurator/validate-lock@build",
     persona: "configurator",
@@ -232,6 +318,26 @@ const REGISTRY = Object.freeze([
     status: { owned: true, since: "CR.6" },
   },
 
+  {
+    id: "actor/motivation-to-proposal",
+    persona: "actor",
+    behavior: "Turning motivations and an observation into proposed actions is the Actor's decision",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/actor/controller.js",
+    invocation: "cli",
+    status: {
+      blockedBy: "P5.4",
+      why:
+        "The Actor's two owned entries cover what it must NOT do (hold state outside view(), "
+        + "decide budget admissibility). Neither asks the A2 question about the thing it exists "
+        + "for: could production produce an action stream without it? The runtime always "
+        + "supplies an Actor, so the ablation has to be built rather than observed — a registry "
+        + "with a stub Actor that proposes nothing, asserting production then emits no actor "
+        + "actions. Until that exists this is routing, not proven authority, however many "
+        + "movement and filter tests pass.",
+    },
+  },
+
   // ── Moderator ──────────────────────────────────────────────────────────────
   {
     id: "moderator/tick-ordering",
@@ -248,7 +354,65 @@ const REGISTRY = Object.freeze([
     status: { owned: true, since: "CR.5" },
   },
 
+  {
+    id: "moderator/pausing-gates-advancement",
+    persona: "moderator",
+    behavior: "`pausing` is a real gate: a paused Moderator refuses to advance step()",
+    criteria: ["A3"],
+    productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "P3.1",
+      provenBy: "tests/personas/moderator/moderator-pause-gates-tick.test.js",
+      why:
+        "The charter names this one explicitly — \"pausing is a real gate that refuses to "
+        + "advance step(), not a label\" — because the test that used to cover it asserted only "
+        + "that the state label changed. A3 is exactly that distinction, and the replacement "
+        + "test asserts the tick does not advance while paused, plus that the labels still move "
+        + "correctly across pause/resume/stop so the gate is not just a permanent stop.",
+    },
+  },
+  {
+    id: "moderator/affinity-target-resolution",
+    persona: "moderator",
+    behavior: "Resolving which actors an affinity targets, and the effects that follow, is Moderator policy",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/moderator/affinity-target-effects.js",
+    invocation: "cli",
+    status: {
+      blockedBy: "P5.4",
+      why:
+        "The resolver has ONE origin and the runner asks for it through the `resolve_affinity` "
+        + "planning event, so A1 is plausible — but the only test drives "
+        + "`resolveAffinityTargetEffectsForList` DIRECTLY, which proves the function works and "
+        + "says nothing about whether production consults the persona. That is the routing/"
+        + "authority distinction this registry exists for. The G1 owed here is the differential "
+        + "the tick-ordering entry already has: same effects list to production and to a "
+        + "standalone Moderator, dispositions must agree.",
+    },
+  },
+
   // ── Annotator ──────────────────────────────────────────────────────────────
+  {
+    id: "annotator/per-tick-telemetry",
+    persona: "annotator",
+    behavior: "Per-tick TelemetryRecords are captured by the Annotator, not assembled by the runner",
+    criteria: ["A2", "A5"],
+    productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
+    invocation: "cli",
+    status: {
+      blockedBy: "P5.4",
+      why:
+        "The end-of-run RunSummary has a provenance gate (CR.8, the entry below); the per-tick "
+        + "half does not, and the charter names both. `tests/personas/annotator-telemetry.test.js` "
+        + "exists but drives the persona DIRECTLY and never constructs a runtime, so it proves "
+        + "the derivation and not the provenance — checked, not assumed. The same façade CR.8 "
+        + "caught is available here: telemetry derivation is pure, so a stand-in Annotator emits "
+        + "byte-identical records, which is exactly why an output test cannot settle it. The G1 "
+        + "owed is CR.8's shape — refuse a record from an instance that did not observe the tick.",
+    },
+  },
   {
     id: "annotator/run-summary-provenance",
     persona: "annotator",

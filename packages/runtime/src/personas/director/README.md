@@ -33,14 +33,20 @@ behavior with no G1 test is not owned**. The rows below mirror
 | Behavior | Criteria | Status | Proof |
 |---|---|---|---|
 | `director/plan-artifact` — the persisted PlanArtifact is the plan that actually drove the spec | A2, A5 | ✅ owned (CR.3) | `tests/architecture/persona-authority.test.js` |
+| `director/pool-mapping` — mapping a summary onto catalog pools, inside an open round | A2, A3 | ✅ owned (CR.4 M5b.2a′) | `tests/personas/orchestrator-llm-budget-loop.test.js` |
+| `director/card-set-translation` — summary → cardSet, with one gated and one ungated surface | A3 | ✅ owned (CR.4 M5b.2e / CR.7) | `tests/personas/director/director-card-translation.test.js` |
+| `director/pricing-relay` — it relays the Allocator's pricing answers and computes none of them | A1, A2 | ✅ owned (CR.4 M5b.2b–2d) | `tests/personas/orchestrator-llm-budget-loop.test.js` |
 
 <!-- /A1-A5-STATUS -->
 
-⚠️ **The other translations described below are not in the table, and that is a real gap rather than
-an oversight.** `mapPool`, `buildCardSet`, `resolveTileCosts` and `assessFeasibility` are all gated
-behind an open build round and are covered by their own behavior tests — but no G1 entry asks the
-question those tests cannot: *would production still produce this without the Director?* Until one
-does, the charter's answer for them is "not owned", however cleanly they are routed.
+⚠️ **The three translation rows were registered on 2026-08-12, and their proofs already existed.**
+An earlier version of this section said they had no G1 entry and were therefore unowned. That was
+true of the *registry* and false of the *tree*: `orchestrator-llm-budget-loop.test.js` had been
+asserting "the loop REFUSES to run without a Director pool mapper" — and the same for each relayed
+Allocator answer — since CR.4 M5b. **A required capability with no default is the A2 question asked
+in production**: the persona cannot be neutered, because its absence is a refusal rather than a
+fallback. Nothing walked from those tests back to the registry, which is the same gap in the
+opposite direction from the stale CR.4 entry fixed the same day.
 
 ## Persona Scope
 

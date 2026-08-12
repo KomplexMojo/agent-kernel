@@ -73,9 +73,14 @@ const OPEN_FINDINGS = Object.freeze([
   // orphaned allowlist dispositions: "the finding is closed" is not a query.
   //
   // CR.7 closed 2026-08-12 with the P5.1 flip: the persona boundary allowlist is empty and
-  // the guard is a hard error. It was the last open finding of the program, which is why
-  // this list is now EMPTY — see the note on the backlog test below before reading that as
-  // "everything is owned".
+  // the guard is a hard error. It was the last open finding of the program.
+  //
+  // P5.4 opened the same day, and it is what an empty finding list actually revealed: eight
+  // chartered behaviors had NO registry entry, so the registry's own premise ("assumed not
+  // owned until an entry says otherwise") made them invisible rather than tracked. Five went
+  // straight in as OWNED — their proofs already existed, unclaimed, in the budget loop's
+  // required-capability refusals — and three had no proof at all. Those three are P5.4.
+  "P5.4",
 ]);
 
 // ---------------------------------------------------------------------------

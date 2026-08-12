@@ -31,6 +31,8 @@ behavior with no G1 test is not owned**. The rows below mirror
 | Behavior | Criteria | Status | Proof |
 |---|---|---|---|
 | `moderator/tick-ordering` — ordering strategy and effect fulfilment are the Moderator's decision | A1, A2 | ✅ owned (CR.5) | `tests/architecture/persona-authority.test.js` |
+| `moderator/pausing-gates-advancement` — a paused Moderator refuses to advance `step()` | A3 | ✅ owned (P3.1) | `tests/personas/moderator/moderator-pause-gates-tick.test.js` |
+| `moderator/affinity-target-resolution` — who an affinity targets, and the effects that follow | A1, A2 | 🔴 blocked — P5.4 | none yet; the only test drives the resolver directly |
 | `all/port-contract-single-origin` — one effect codebook; the port contract is not redeclared | A1 | ✅ owned (PX.1) | `tests/architecture/single-origin.test.js` |
 | `all/injected-clock` — no persona reads a clock; time is injected, never defaulted | A4 | ✅ owned (PX.3 M6) | `tests/architecture/single-origin.test.js` |
 | `all/restorable-from-view` — a persona can be rebuilt from its own serialized `view()` | A4 | ✅ owned (PX.4) | `tests/architecture/persona-serialization-equivalence.test.js` |
@@ -50,9 +52,13 @@ guard that reads an empty list can be re-opened with a one-line JSON edit, so a 
 refuses a non-empty allowlist outright. Adding an entry does not make a crossing legal — it stops
 the persona's FSM running for that call, which is what **A2** forbids.
 
-⚠️ **This table being all-green does NOT mean every Moderator behavior is owned.** Affinity target
-resolution and the pausing gate have no G1 entry, so by the charter's own rule they are unproven —
-the registry assumes a behavior is not owned until an entry says otherwise.
+⚠️ **Affinity target resolution is the one row still open, and the reason is instructive.** The
+resolver has a single origin and the runner asks for it through the `resolve_affinity` planning
+event — but the only test drives `resolveAffinityTargetEffectsForList` **directly**, which proves
+the function works and says nothing about whether production consults the persona. That is exactly
+the routing-versus-authority gap this registry exists to expose. What it owes is the differential
+`moderator/tick-ordering` already has: hand the same effects to production and to a standalone
+Moderator, and require the dispositions to agree.
 
 ## Persona Scope
 
