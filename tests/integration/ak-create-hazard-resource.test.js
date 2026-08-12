@@ -1,0 +1,466 @@
+const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
+const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
+const { resolve, join } = require("node:path");
+const os = require("node:os");
+
+const ROOT = resolve(__dirname, "../..");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+
+function runCli(args) {
+  return spawnSync(process.execPath, [CLI, ...args], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+}
+
+function runCliOk(args) {
+  const result = runCli(args);
+  if (result.status !== 0) {
+    const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
+    throw new Error(`CLI failed (${result.status}): ${output}`);
+  }
+  return result;
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+test("ak create --hazard produces V3 hazard artifact and wires canonical levelGen.hazards", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-"));
+  runCliOk([
+    "create",
+    "--hazard",
+    "affinity=fire;expression=emit;stacks=2;proximityRadius=2;mana=regen:4:4:1;durability=regen:6:6:0",
+    "--run-id",
+    "run_hazard_test",
+    "--created-at",
+    "2026-04-14T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  // Verify spec has levelGen.hazards
+  const spec = readJson(join(outDir, "spec.json"));
+  const hazards = spec.configurator?.inputs?.levelGen?.hazards;
+  assert.ok(Array.isArray(hazards) && hazards.length === 1, "spec.configurator.inputs.levelGen.hazards should have one entry");
+  assert.equal(hazards[0].affinity, "fire");
+  assert.equal(hazards[0].expression, "emit");
+  assert.equal(hazards[0].proximityRadius, 2);
+  assert.deepEqual(hazards[0].affinityStacks, [{
+    kind: "fire",
+    expression: "emit",
+    stacks: 2,
+    targetType: "floor",
+  }]);
+  assert.equal(hazards[0].vitals.mana.kind, "regen");
+  assert.equal(hazards[0].vitals.mana.current, 4);
+  assert.equal(hazards[0].vitals.mana.max, 4);
+  assert.equal(hazards[0].vitals.mana.regen, 1);
+  assert.equal(hazards[0].vitals.durability.kind, "regen");
+  assert.equal(hazards[0].vitals.durability.max, 6);
+
+  // Verify request artifact has hazard object
+  const request = spec.authoring?.request;
+  assert.ok(request, "spec.authoring.request should be present");
+  const hazardReq = request.objects?.find((o) => o.kind === "hazard");
+  assert.ok(hazardReq, "request should include a hazard object");
+  assert.equal(hazardReq.attributes.affinity, "fire");
+  assert.equal(hazardReq.attributes.affinityStacks[0].stacks, 2);
+  assert.equal(hazardReq.attributes.vitals.durability.max, 6);
+
+  // Verify HazardArtifact file was written as canonical V3
+  const hazardArtifactPath = join(outDir, "hazard-1.json");
+  assert.ok(existsSync(hazardArtifactPath), "hazard-1.json should exist");
+
+  const hazardArtifact = readJson(hazardArtifactPath);
+  assert.equal(hazardArtifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(hazardArtifact.schemaVersion, 3, "should emit schemaVersion 3");
+  assert.ok(hazardArtifact.meta && typeof hazardArtifact.meta.id === "string", "meta.id should be a string");
+  assert.equal(hazardArtifact.meta.runId, "run_hazard_test");
+  assert.equal(hazardArtifact.affinity, "fire");
+  assert.equal(hazardArtifact.expression, "emit");
+  assert.equal(hazardArtifact.proximityRadius, 2);
+  assert.equal(hazardArtifact.affinityStacks[0].stacks, 2);
+  assert.equal(hazardArtifact.vitals.mana.kind, "regen");
+  assert.equal(hazardArtifact.vitals.durability.kind, "regen");
+  assert.equal(hazardArtifact.mana, undefined, "V3 artifact must use vitals.mana");
+  assert.equal(hazardArtifact.durability, undefined, "V3 artifact must use vitals.durability");
+});
+
+test("ak create --hazard one-time mana and durability produces V3 artifact", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-onetime-"));
+  runCliOk([
+    "create",
+    "--hazard",
+    "affinity=water;expression=pull;proximityRadius=1;mana=one-time:3;durability=one-time:2",
+    "--run-id",
+    "run_hazard_onetime",
+    "--created-at",
+    "2026-04-14T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const hazardArtifact = readJson(join(outDir, "hazard-1.json"));
+  assert.equal(hazardArtifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(hazardArtifact.schemaVersion, 3);
+  assert.equal(hazardArtifact.affinity, "water");
+  assert.equal(hazardArtifact.expression, "pull");
+  assert.equal(hazardArtifact.vitals.mana.kind, "one-time");
+  assert.equal(hazardArtifact.vitals.mana.amount, 3);
+  assert.equal(hazardArtifact.vitals.durability.kind, "one-time");
+  assert.equal(hazardArtifact.vitals.durability.amount, 2);
+});
+
+test("ak create --resource produces resource artifact and wires configurator.inputs.resources", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-"));
+  runCliOk([
+    "create",
+    "--resource",
+    "tier=permanent;stat=vitalMax;delta=10;dropRate=5",
+    "--run-id",
+    "run_resource_test",
+    "--created-at",
+    "2026-04-14T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  // Verify spec has configurator.inputs.resources
+  const spec = readJson(join(outDir, "spec.json"));
+  const resources = spec.configurator?.inputs?.resources;
+  assert.ok(Array.isArray(resources) && resources.length === 1, "spec.configurator.inputs.resources should have one entry");
+  assert.equal(resources[0].tier, "permanent");
+  assert.equal(resources[0].stat, "vitalMax");
+  assert.equal(resources[0].delta, 10);
+  assert.equal(resources[0].dropRate, 5);
+
+  // Verify request artifact has resource object
+  const request = spec.authoring?.request;
+  assert.ok(request, "spec.authoring.request should be present");
+  const resourceReq = request.objects?.find((o) => o.kind === "resource");
+  assert.ok(resourceReq, "request should include a resource object");
+  assert.equal(resourceReq.attributes.tier, "permanent");
+
+  // Verify ResourceArtifact file was written
+  const resourceArtifactPath = join(outDir, "resource-1.json");
+  assert.ok(existsSync(resourceArtifactPath), "resource-1.json should exist");
+
+  const resourceArtifact = readJson(resourceArtifactPath);
+  assert.equal(resourceArtifact.schema, "agent-kernel/ResourceArtifact");
+  assert.equal(resourceArtifact.schemaVersion, 1);
+  assert.ok(resourceArtifact.meta && typeof resourceArtifact.meta.id === "string", "meta.id should be a string");
+  assert.equal(resourceArtifact.meta.runId, "run_resource_test");
+  assert.equal(resourceArtifact.tier, "permanent");
+  assert.equal(resourceArtifact.stat, "vitalMax");
+  assert.equal(resourceArtifact.delta, 10);
+  assert.equal(resourceArtifact.dropRate, 5);
+});
+
+test("ak create --resource level tier with negative delta is valid", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-level-"));
+  runCliOk([
+    "create",
+    "--resource",
+    "tier=level;stat=vitalRegen;delta=-2;dropRate=20",
+    "--run-id",
+    "run_resource_level",
+    "--created-at",
+    "2026-04-14T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const resourceArtifact = readJson(join(outDir, "resource-1.json"));
+  assert.equal(resourceArtifact.schema, "agent-kernel/ResourceArtifact");
+  assert.equal(resourceArtifact.tier, "level");
+  assert.equal(resourceArtifact.stat, "vitalRegen");
+  assert.equal(resourceArtifact.delta, -2);
+  assert.equal(resourceArtifact.dropRate, 20);
+});
+
+test("ak create --hazard rejects invalid affinity", () => {
+  const result = runCli([
+    "create",
+    "--hazard",
+    "affinity=lightning;expression=emit;proximityRadius=1",
+  ]);
+  assert.notEqual(result.status, 0, "should fail with invalid affinity");
+  assert.ok(
+    result.stderr.includes("affinity") || result.stdout.includes("affinity"),
+    "error should mention affinity",
+  );
+});
+
+test("ak create --resource rejects invalid tier", () => {
+  const result = runCli([
+    "create",
+    "--resource",
+    "tier=epic;stat=vitalMax;delta=5;dropRate=10",
+  ]);
+  assert.notEqual(result.status, 0, "should fail with invalid tier");
+  assert.ok(
+    result.stderr.includes("tier") || result.stdout.includes("tier"),
+    "error should mention tier",
+  );
+});
+
+test("ak create --resource rejects missing dropRate", () => {
+  const result = runCli([
+    "create",
+    "--resource",
+    "tier=level;stat=vitalMax;delta=5",
+  ]);
+  assert.notEqual(result.status, 0, "should fail with missing dropRate");
+  assert.ok(
+    result.stderr.includes("dropRate") || result.stdout.includes("dropRate"),
+    "error should mention dropRate",
+  );
+});
+
+// --- M2: enforce per-type actor constraints at CLI authoring time ---
+
+test("ak create --hazard rejects invalid durability regen shape", () => {
+  const result = runCli([
+    "create",
+    "--hazard",
+    "affinity=fire;expression=emit;proximityRadius=1;durability=regen:5:4:0",
+  ]);
+  assert.notEqual(result.status, 0, "should fail when durability current exceeds max");
+  assert.ok(
+    result.stderr.includes("durability") || result.stdout.includes("durability"),
+    "error should mention durability",
+  );
+});
+
+test("ak create --hazard emits V3 artifact with default durability", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-v2-"));
+  runCliOk([
+    "create",
+    "--hazard",
+    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "--run-id", "run_hazard_v2",
+    "--created-at", "2026-04-18T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  const artifact = readJson(join(outDir, "hazard-1.json"));
+  assert.equal(artifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(artifact.schemaVersion, 3, "should emit schemaVersion 3");
+  assert.equal(artifact.affinity, "fire");
+  assert.equal(artifact.vitals.mana.kind, "regen");
+  assert.deepEqual(artifact.vitals.durability, { kind: "one-time", amount: 1 });
+});
+
+test("ak create --resource accepts permanenceMode=consumable and emits V3 artifact", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-v3-"));
+  runCliOk([
+    "create",
+    "--resource",
+    "permanenceMode=consumable;vital=health;delta=10",
+    "--run-id", "run_resource_v3",
+    "--created-at", "2026-04-18T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  const artifact = readJson(join(outDir, "resource-1.json"));
+  assert.equal(artifact.schema, "agent-kernel/ResourceArtifact");
+  assert.equal(artifact.schemaVersion, 3, "should emit schemaVersion 3");
+  assert.equal(artifact.permanenceMode, "consumable");
+  assert.ok(Array.isArray(artifact.vitals) && artifact.vitals.length === 1);
+  assert.equal(artifact.vitals[0].key, "health");
+  assert.equal(artifact.vitals[0].delta, 10);
+});
+
+test("ak create --resource accepts permanenceMode=level", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-v3-level-"));
+  runCliOk([
+    "create",
+    "--resource",
+    "permanenceMode=level;vital=mana;delta=5",
+    "--run-id", "run_resource_v3_level",
+    "--created-at", "2026-04-18T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  const artifact = readJson(join(outDir, "resource-1.json"));
+  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.permanenceMode, "level");
+  assert.equal(artifact.vitals[0].key, "mana");
+});
+
+test("ak create --resource accepts permanenceMode=permanent", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-v3-perm-"));
+  runCliOk([
+    "create",
+    "--resource",
+    "permanenceMode=permanent;vital=stamina;delta=3",
+    "--run-id", "run_resource_v3_perm",
+    "--created-at", "2026-04-18T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  const artifact = readJson(join(outDir, "resource-1.json"));
+  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.permanenceMode, "permanent");
+  assert.equal(artifact.vitals[0].key, "stamina");
+});
+
+test("ak create --resource rejects unknown permanenceMode", () => {
+  const result = runCli([
+    "create",
+    "--resource",
+    "permanenceMode=temporary;vital=health;delta=5",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.ok(
+    result.stderr.includes("permanenceMode") || result.stdout.includes("permanenceMode"),
+    "error should mention permanenceMode",
+  );
+});
+
+test("ak create --resource rejects invalid vital key in V3 spec", () => {
+  const result = runCli([
+    "create",
+    "--resource",
+    "permanenceMode=consumable;vital=durability;delta=5",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.ok(
+    result.stderr.includes("vital") || result.stdout.includes("vital"),
+    "error should mention vital",
+  );
+});
+
+test("ak create --hazard with no mana defaults to zero one-time mana", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-default-mana-"));
+  runCliOk([
+    "create",
+    "--hazard",
+    "affinity=fire;expression=emit;proximityRadius=1",
+    "--run-id",
+    "run_hazard_default_mana",
+    "--created-at",
+    "2026-04-18T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const artifact = readJson(join(outDir, "hazard-1.json"));
+  assert.deepEqual(artifact.vitals.mana, { kind: "one-time", amount: 0 });
+});
+
+test("ak create --hazard emits canonical hazard public objects", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-canonical-"));
+  runCliOk([
+    "create",
+    "--hazard",
+    "id=fire_hazard;x=0;y=0;affinity=fire;expression=emit;stacks=2;vitals=mana:4:1,durability:6:0",
+    "--run-id",
+    "run_hazard_canonical",
+    "--created-at",
+    "2026-07-11T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const spec = readJson(join(outDir, "spec.json"));
+  const objects = spec.authoring?.request?.objects || [];
+  assert.ok(objects.every((entry) => entry.kind !== "hazard" || entry.id === "fire_hazard"));
+  const hazardReq = objects.find((entry) => entry.kind === "hazard" && entry.id === "fire_hazard");
+  assert.ok(hazardReq, "--hazard should emit a public hazard object");
+  assert.equal(hazardReq.attributes.legacyAlias, undefined);
+  assert.equal(hazardReq.attributes.affinityStacks[0].stacks, 2);
+  assert.equal(hazardReq.attributes.vitals.mana.max, 4);
+  assert.equal(hazardReq.attributes.vitals.durability.max, 6);
+
+  const artifact = readJson(join(outDir, "hazard-1.json"));
+  assert.equal(artifact.schema, "agent-kernel/HazardArtifact");
+  assert.equal(artifact.schemaVersion, 3);
+  assert.equal(artifact.meta.id, "fire_hazard");
+  assert.equal(artifact.affinity, "fire");
+  assert.equal(artifact.vitals.mana.max, 4);
+  assert.equal(existsSync(join(outDir, "hazard-1.json")), true, "canonical hazard artifact should be emitted");
+});
+
+test.skip("ak create --hazard rejects multiple affinities on one hazard by documented exactly-one-affinity GAP", () => {});
+
+test.skip("ak create --resource aggregates repeated V3 vital entries by documented multi-vital GAP", () => {});
+
+test("ak create --resource V3 missing vital field is rejected", () => {
+  const result = runCli([
+    "create",
+    "--resource",
+    "permanenceMode=consumable;delta=5",
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.ok(
+    result.stderr.includes("vital") || result.stdout.includes("vital"),
+    "error should mention vital",
+  );
+});
+
+test("ak create --resource V3 with negative delta is accepted", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-v3-negative-"));
+  runCliOk([
+    "create",
+    "--resource",
+    "permanenceMode=level;vital=health;delta=-5",
+    "--run-id",
+    "run_resource_v3_negative",
+    "--created-at",
+    "2026-04-18T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+  ]);
+
+  const artifact = readJson(join(outDir, "resource-1.json"));
+  assert.equal(artifact.schemaVersion, 3);
+  assert.deepEqual(artifact.vitals[0], { key: "health", delta: -5 });
+});
+
+test("ak create --dry-run for V3 hazard exits 0 without writing files", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-dry-run-"));
+  const result = runCli([
+    "create",
+    "--hazard",
+    "affinity=fire;expression=emit;proximityRadius=1",
+    "--run-id",
+    "run_hazard_dry_run",
+    "--created-at",
+    "2026-04-18T00:00:00.000Z",
+    "--out-dir",
+    outDir,
+    "--dry-run",
+  ]);
+
+  assert.equal(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.dryRun, true);
+  assert.equal(existsSync(join(outDir, "hazard-1.json")), false);
+  assert.equal(existsSync(join(outDir, "spec.json")), false);
+});
+
+test.skip("ak create --dry-run for V3 resource with invalid permanenceMode exits non-zero without writing files", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-resource-dry-run-invalid-"));
+  const result = runCli([
+    "create",
+    "--resource",
+    "permanenceMode=temporary;vital=health;delta=5",
+    "--out-dir",
+    outDir,
+    "--dry-run",
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.ok(
+    result.stderr.includes("permanenceMode") || result.stdout.includes("permanenceMode"),
+    "error should mention permanenceMode",
+  );
+  assert.equal(existsSync(join(outDir, "resource-1.json")), false);
+});
+
+// ## TODO: Test Permutations
+// - `--hazard` using the minimum valid hazard spec should emit one V3 hazard artifact.
+// - duplicate `--hazard` ids should either fail deterministically or produce documented artifact ordering.
+// - hazard V3 with omitted durability should retain the default one-time durability vital.

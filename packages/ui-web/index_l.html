@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Kernel — Legacy</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main>
+      <section class="stack">
+        <div class="card shell-navigation">
+          <div class="tab-bar tab-bar-4" role="tablist" aria-label="Primary workflow tabs">
+            <button class="tab-button active" type="button" data-tab="design" role="tab" aria-selected="true">Design</button>
+            <div class="gameplay-tab-slot" role="presentation">
+              <button class="tab-button" type="button" data-tab="gameplay" role="tab" aria-selected="false">Gameplay</button>
+              <span class="tab-run-id" id="gameplay-run-id-label" aria-live="polite"></span>
+            </div>
+            <button class="tab-button" type="button" data-tab="preview" role="tab" aria-selected="false">Preview</button>
+            <button class="tab-button" type="button" data-tab="diagnostics" role="tab" aria-selected="false">Diagnostics</button>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <div class="workspace-main">
+            <div class="tab-panel" data-tab-panel="gameplay" role="tabpanel" hidden>
+              <div class="card frame-shell gameplay-shell">
+                <div class="status surface-status" id="gameplay-status" data-level="info">No run loaded. Open Gameplay from the Design screen to start.</div>
+                <div class="play-controls gameplay-camera-controls" aria-label="Gameplay camera controls">
+                  <div class="gameplay-camera-control-group">
+                    <button class="secondary" id="gameplay-zoom-out" type="button" title="Zoom out">-</button>
+                    <button class="secondary" id="gameplay-fit-level" type="button">Fit</button>
+                    <button class="secondary" id="gameplay-zoom-in" type="button" title="Zoom in">+</button>
+                  </div>
+                  <div class="gameplay-camera-control-group">
+                    <button class="secondary" id="gameplay-step-back" type="button">Step -</button>
+                    <button class="secondary" id="gameplay-step-forward" type="button">Step +</button>
+                    <button class="secondary" id="gameplay-run-to-end" type="button" title="Advance to the final tick">Run To End</button>
+                  </div>
+                </div>
+                <div id="gameplay-phaser-host"></div>
+              </div>
+            </div>
+            <div class="tab-panel" data-tab-panel="design" role="tabpanel">
+              <div class="card design-surface">
+                <div class="design-panel-header">
+                  <div class="design-panel-title">
+                    <h2>
+                      <span class="ui-icon" data-icon-category="ui" data-icon-key="card-builder" aria-hidden="true"></span>
+                      <span>Card Builder</span>
+                    </h2>
+                  </div>
+                  <div class="controls">
+                    <button class="secondary" id="design-load-minted" type="button">Load Minted</button>
+                    <button class="secondary" id="design-auto-generate" type="button">Auto-generate</button>
+                  </div>
+                </div>
+                <div class="design-card-workspace">
+                  <aside class="design-left-rail" aria-label="Card property rail">
+                    <p class="design-rail-label">Property Rail</p>
+                    <section class="design-property-group" data-property-order="1">
+                      <h3>Type</h3>
+                      <div class="design-property-chips" id="design-property-group-type"></div>
+                    </section>
+                    <section class="design-property-group" data-property-order="2">
+                      <h3>Affinities</h3>
+                      <div class="design-property-chips" id="design-property-group-affinities"></div>
+                    </section>
+                    <section class="design-property-group" data-property-order="3">
+                      <h3>Expressions</h3>
+                      <div class="design-property-chips" id="design-property-group-expressions"></div>
+                    </section>
+                    <section class="design-property-group" data-property-order="4">
+                      <h3>Motivations</h3>
+                      <div class="design-property-chips" id="design-property-group-motivations"></div>
+                    </section>
+                  </aside>
+                  <section class="design-center-workspace">
+                    <div class="design-toolbar">
+                      <label>
+                        <span class="stat-label">Level Budget</span>
+                        <input id="design-level-budget" type="number" min="1" step="1" value="2500" />
+                      </label>
+                      <div class="design-budget-split">
+                        <div class="design-budget-split-item">
+                          <label>
+                            <span class="stat-label">Room %</span>
+                            <input id="design-budget-split-room" type="number" min="0" max="100" step="1" value="44" />
+                          </label>
+                          <span class="design-budget-split-tokens" id="design-budget-split-room-tokens"></span>
+                        </div>
+                        <div class="design-budget-split-item">
+                          <label>
+                            <span class="stat-label">Delver %</span>
+                            <input id="design-budget-split-delver" type="number" min="0" max="100" step="1" value="20" />
+                          </label>
+                          <span class="design-budget-split-tokens" id="design-budget-split-delver-tokens"></span>
+                        </div>
+                        <div class="design-budget-split-item">
+                          <label>
+                            <span class="stat-label">Warden %</span>
+                            <input id="design-budget-split-warden" type="number" min="0" max="100" step="1" value="16" />
+                          </label>
+                          <span class="design-budget-split-tokens" id="design-budget-split-warden-tokens"></span>
+                        </div>
+                        <div class="design-budget-split-item">
+                          <label>
+                            <span class="stat-label">Hazard %</span>
+                            <input id="design-budget-split-hazard" type="number" min="0" max="100" step="1" value="12" />
+                          </label>
+                        </div>
+                        <div class="design-budget-split-item">
+                          <label>
+                            <span class="stat-label">Resource %</span>
+                            <input id="design-budget-split-resource" type="number" min="0" max="100" step="1" value="8" />
+                          </label>
+                        </div>
+                      </div>
+                      <div class="design-budget-overview" id="design-budget-overview"></div>
+                    </div>
+                    <div class="status surface-status design-guidance-status" id="design-guidance-status" data-level="info">Configure a card, then shelve it.</div>
+                    <div class="design-card-grid" id="design-card-grid"></div>
+                  </section>
+                  <aside class="design-card-groups-window" aria-label="Card shelf groups">
+                    <p class="design-rail-label">Shelf Groups</p>
+                    <section class="design-card-group" data-card-group="room">
+                      <div class="design-card-group-header">
+                        <h3 class="design-card-group-icon" aria-label="Room" data-icon-category="types" data-icon-key="room"></h3>
+                        <span class="design-card-group-budget" id="design-card-group-budget-room">(0) : 0/0</span>
+                      </div>
+                      <div id="design-card-group-room"></div>
+                    </section>
+                    <section class="design-card-group" data-card-group="attacker">
+                      <div class="design-card-group-header">
+                        <h3 class="design-card-group-icon" aria-label="Delver" data-icon-category="types" data-icon-key="delver"></h3>
+                        <span class="design-card-group-budget" id="design-card-group-budget-delver">(0) : 0/0</span>
+                      </div>
+                      <div id="design-card-group-delver"></div>
+                    </section>
+                    <section class="design-card-group" data-card-group="defender">
+                      <div class="design-card-group-header">
+                        <h3 class="design-card-group-icon" aria-label="Warden" data-icon-category="types" data-icon-key="warden"></h3>
+                        <span class="design-card-group-budget" id="design-card-group-budget-warden">(0) : 0/0</span>
+                      </div>
+                      <div id="design-card-group-warden"></div>
+                    </section>
+                    <section class="design-card-group" data-card-group="hazard">
+                      <div class="design-card-group-header">
+                        <h3 class="design-card-group-icon" aria-label="Hazard" data-icon-category="types" data-icon-key="hazard"></h3>
+                      </div>
+                      <div id="design-card-group-hazard"></div>
+                    </section>
+                    <section class="design-card-group" data-card-group="resource">
+                      <div class="design-card-group-header">
+                        <h3 class="design-card-group-icon" aria-label="Resource" data-icon-category="items" data-icon-key="resource"></h3>
+                        <span class="design-card-group-budget" id="design-card-group-budget-resource">(0) : 0/0</span>
+                      </div>
+                      <div id="design-card-group-resource"></div>
+                    </section>
+                  </aside>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-panel" data-tab-panel="preview" role="tabpanel" hidden>
+              <div class="card preview-shell preview-surface">
+                <div class="controls">
+                  <button class="primary" id="preview-build-and-load" type="button">Build And Load Game</button>
+                </div>
+                <div class="status surface-status" id="preview-status" data-level="info">Inspect the current design bundle here. When ready, use Build And Load Game to open Run.</div>
+                <section class="preview-meta-card">
+                  <span class="stat-label">Preview Summary</span>
+                  <pre class="adapter-output" id="preview-summary">No preview bundle loaded.</pre>
+                </section>
+                <section class="preview-meta-card">
+                  <span class="stat-label">Actors</span>
+                  <pre class="adapter-output" id="preview-actor-list">No actors loaded.</pre>
+                </section>
+              </div>
+            </div>
+
+            <div class="tab-panel" data-tab-panel="diagnostics" id="diagnostic-section-build" role="tabpanel" hidden>
+              <div class="card diagnostic-surface diagnostic-build-stack">
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Build Orchestration</span>
+                    <p>Run BuildSpec execution through the browser command host.</p>
+                  </div>
+                  <div class="diagnostic-input-grid">
+                    <label>
+                      <span class="stat-label">Spec Path (optional)</span>
+                      <input id="build-spec-path" type="text" placeholder="tests/fixtures/artifacts/build-spec-v1-basic.json" />
+                    </label>
+                    <label>
+                      <span class="stat-label">Out Dir (optional)</span>
+                      <input id="build-out-dir" type="text" placeholder="artifacts/runs/runId/build" />
+                    </label>
+                  </div>
+                  <label>
+                    <span class="stat-label">Spec JSON</span>
+                    <textarea id="build-spec-json" placeholder="{...}"></textarea>
+                  </label>
+                  <ul id="build-validation" hidden></ul>
+                  <div class="controls diagnostic-build-actions">
+                    <button class="primary" id="build-run">Run Build</button>
+                    <button class="secondary" id="build-load" disabled>Load last build</button>
+                    <button class="secondary" id="build-send-bundle" disabled>Load last build in Bundle Review</button>
+                    <button class="secondary" id="build-download" hidden>Download spec.json</button>
+                    <button class="secondary" id="build-clear">Clear</button>
+                  </div>
+                  <div class="status" id="build-status">Command host ready.</div>
+                  <section class="diagnostic-pane">
+                    <span class="stat-label">Build Output</span>
+                    <pre class="adapter-output" id="build-output">No build output yet.</pre>
+                  </section>
+                </section>
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Bundle Review</span>
+                    <p>Load a bundle.json/manifest.json set to inspect and edit the BuildSpec.</p>
+                  </div>
+                  <div class="diagnostic-input-grid">
+                    <label>
+                      <span class="stat-label">Bundle JSON</span>
+                      <input id="bundle-file" type="file" accept="application/json" />
+                    </label>
+                    <label>
+                      <span class="stat-label">Manifest JSON (optional)</span>
+                      <input id="bundle-manifest-file" type="file" accept="application/json" />
+                    </label>
+                  </div>
+                  <div class="controls diagnostic-build-actions">
+                    <button class="secondary" id="bundle-load-last">Load last build</button>
+                    <button class="secondary" id="bundle-clear">Clear</button>
+                  </div>
+                  <div class="status" id="bundle-status">No bundle loaded.</div>
+                  <div class="diagnostic-pane-grid">
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Schemas</span>
+                      <ul id="bundle-schemas" hidden></ul>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Manifest JSON</span>
+                      <pre class="adapter-output" id="bundle-manifest">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane diagnostic-pane-wide">
+                      <span class="stat-label">BuildSpec (editable)</span>
+                      <textarea id="bundle-spec-edit" placeholder="{...}"></textarea>
+                      <ul id="bundle-spec-errors" hidden></ul>
+                      <div class="controls diagnostic-build-actions">
+                        <button class="primary" id="bundle-apply-spec">Apply spec edits</button>
+                        <button class="secondary" id="bundle-send-spec">Send to Build</button>
+                        <button class="secondary" id="bundle-download-spec">Download spec.json</button>
+                      </div>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Intent</span>
+                      <pre class="adapter-output" id="bundle-intent">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Plan</span>
+                      <pre class="adapter-output" id="bundle-plan">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Configurator</span>
+                      <pre class="adapter-output" id="bundle-configurator">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane diagnostic-pane-wide">
+                      <span class="stat-label">Artifacts</span>
+                      <div class="artifact-list" id="bundle-artifacts">No artifacts loaded.</div>
+                    </section>
+                  </div>
+                </section>
+                <section class="diagnostic-build-card">
+                  <div class="diagnostic-panel-header">
+                    <span class="stat-label">Budget Inputs</span>
+                    <p>Configurator and allocator budget artifacts synced from build/bundle payloads.</p>
+                  </div>
+                  <div class="diagnostic-pane-grid">
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Budget</span>
+                      <pre class="adapter-output" id="config-budget-json">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Price List</span>
+                      <pre class="adapter-output" id="config-price-list-json">No JSON output yet.</pre>
+                    </section>
+                    <section class="diagnostic-pane">
+                      <span class="stat-label">Receipt</span>
+                      <pre class="adapter-output" id="config-receipt-json">No JSON output yet.</pre>
+                    </section>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+          </div>
+          <aside class="card inspector-shell inspector-surface" id="actor-inspector" hidden>
+            <div class="inspector-header">
+              <div class="inspector-title">
+                <p class="shell-kicker">Run Companion</p>
+                <div class="stat">
+                  <span class="stat-label icon-label"><span class="ui-icon" data-icon-category="ui" data-icon-key="game-inspector" aria-hidden="true"></span>Game Inspector</span>
+                </div>
+                <p class="inspector-copy">Select a room, delver, or warden to inspect the current bundle or steer runtime focus.</p>
+              </div>
+            </div>
+            <div class="inspector-section">
+              <div class="simulation-inspector-groups">
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Room" data-icon-category="types" data-icon-key="room"></h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-room-list"></div>
+                </section>
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Delver" data-icon-category="types" data-icon-key="delver"></h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-delver-list"></div>
+                </section>
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Warden" data-icon-category="types" data-icon-key="warden"></h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-warden-list"></div>
+                </section>
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Hazard" data-icon-category="types" data-icon-key="hazard"></h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-hazard-list"></div>
+                </section>
+                <section class="design-card-group">
+                  <div class="design-card-group-header">
+                    <h3 class="design-card-group-icon" aria-label="Resource" data-icon-category="items" data-icon-key="resource"></h3>
+                  </div>
+                  <div class="simulation-inspector-group-list" id="actor-inspector-resource-list"></div>
+                </section>
+              </div>
+            </div>
+            <div class="inspector-section">
+              <span class="stat-label">Selected Card</span>
+              <div class="simulation-inspector-detail" id="actor-inspector-detail"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+    <!-- Status Rail: updated by updateStatusRail() in main.js -->
+    <footer class="status-rail" aria-label="Configuration status rail">
+      <span class="status-rail-run-id" id="status-rail-run-id" title=""></span>
+      <span class="status-rail-sep" aria-hidden="true">·</span>
+      <div class="status-rail-tokens" aria-label="Token budget by type">
+        <span class="status-rail-token" id="sr-room"></span>
+        <span class="status-rail-token" id="sr-delver"></span>
+        <span class="status-rail-token" id="sr-warden"></span>
+        <span class="status-rail-token" id="sr-hazard"></span>
+        <span class="status-rail-token" id="sr-resource"></span>
+      </div>
+      <span class="status-rail-total" id="sr-total"></span>
+    </footer>
+
+    <!-- D7: serve-ui.mjs replaces this placeholder with the actual AK_SANDBOX_BRIDGE_PORT value -->
+    <script>/* __AK_INJECT_SANDBOX_BRIDGE_PORT__ */</script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

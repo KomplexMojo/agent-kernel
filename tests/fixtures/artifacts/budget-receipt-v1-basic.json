@@ -1,0 +1,24 @@
+{
+  "schema": "agent-kernel/BudgetReceipt",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "budget_receipt_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "requestRef": {
+    "id": "budget_request_basic",
+    "schema": "agent-kernel/BudgetRequest",
+    "schemaVersion": 1
+  },
+  "decision": "approved",
+  "effectiveCaps": {
+    "caps": {
+      "movement": 10
+    }
+  },
+  "limits": {
+    "maxTicks": 5
+  }
+}

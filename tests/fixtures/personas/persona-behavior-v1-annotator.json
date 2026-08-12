@@ -1,0 +1,20 @@
+{
+  "schema": "agent-kernel/PersonaBehavior",
+  "schemaVersion": 1,
+  "annotator": {
+    "runId": "run-annotate",
+    "observations": [
+      {
+        "tick": 1,
+        "persona": "actor",
+        "effects": [
+          { "kind": "log", "severity": "warn", "personaRef": "actor" },
+          { "kind": "need_external_fact", "requestId": "fact-1", "personaRef": "actor" }
+        ],
+        "fulfilledEffects": [
+          { "requestId": "fact-1", "status": "fulfilled" }
+        ]
+      }
+    ]
+  }
+}

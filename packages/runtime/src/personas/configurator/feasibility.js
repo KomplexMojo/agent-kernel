@@ -1,0 +1,225 @@
+import { generateGridLayoutFromInput } from "./level-layout.js";
+import {
+  LAYOUT_TILE_FIELDS,
+} from "../../contracts/domain-constants.js";
+
+const WALKABLE_DENSITY_TARGET = 0.5;
+
+function pushError(errors, field, code, detail) {
+  const entry = { field, code };
+  if (detail !== undefined) entry.detail = detail;
+  errors.push(entry);
+}
+
+function positionKey(pos) {
+  return `${pos.x},${pos.y}`;
+}
+
+function collectWalkablePositions(layout) {
+  const data = layout?.data || layout;
+  if (!data) return [];
+
+  const walkable = [];
+  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
+  const blockingHazards = new Set(
+    hazards
+      .filter((hazard) => hazard && hazard.blocking === true)
+      .map((hazard) => `${hazard.x},${hazard.y}`),
+  );
+
+  if (Array.isArray(data.kinds)) {
+    for (let y = 0; y < data.kinds.length; y += 1) {
+      const row = data.kinds[y] || [];
+      for (let x = 0; x < row.length; x += 1) {
+        const kind = row[x];
+        if (kind === 1) continue;
+        if (kind === 2 && blockingHazards.has(`${x},${y}`)) continue;
+        walkable.push({ x, y });
+      }
+    }
+    return walkable;
+  }
+
+  if (Array.isArray(data.tiles)) {
+    const legend = data.legend || {};
+    for (let y = 0; y < data.tiles.length; y += 1) {
+      const row = String(data.tiles[y] ?? "");
+      for (let x = 0; x < row.length; x += 1) {
+        const char = row[x];
+        const entry = legend[char];
+        const tileType = entry?.tile;
+        if (tileType === "wall" || tileType === "barrier") continue;
+        walkable.push({ x, y });
+      }
+    }
+  }
+
+  return walkable;
+}
+
+function normalizeLayoutCount(value, field, errors) {
+  if (value === undefined) return 0;
+  if (!Number.isInteger(value) || value < 0) {
+    pushError(errors, `layout.${field}`, "invalid_tile_count", value);
+    return 0;
+  }
+  return value;
+}
+
+function normalizeLayoutCounts(layout, errors) {
+  if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
+    pushError(errors, "layout", "missing_layout");
+    return null;
+  }
+  const counts = {};
+  LAYOUT_TILE_FIELDS.forEach((field) => {
+    counts[field] = normalizeLayoutCount(layout[field], field, errors);
+  });
+
+  return counts;
+}
+
+function deriveLevelSideForWalkableTiles(totalTiles, minSide = 5) {
+  const normalizedTotalTiles = Number.isInteger(totalTiles) && totalTiles > 0 ? totalTiles : 1;
+  const interiorArea = Math.ceil(normalizedTotalTiles / WALKABLE_DENSITY_TARGET);
+  const interiorSide = Math.ceil(Math.sqrt(interiorArea));
+  return Math.max(minSide, interiorSide + 2);
+}
+
+function deriveLevelGenFromCounts(counts, minSide) {
+  const totalTiles = (counts.floorTiles || 0) + (counts.hallwayTiles || 0);
+  const side = deriveLevelSideForWalkableTiles(totalTiles, minSide);
+  const levelGen = {
+    width: side,
+    height: side,
+    shape: {},
+  };
+  if (totalTiles > 0) {
+    levelGen.walkableTilesTarget = totalTiles;
+  }
+  return levelGen;
+}
+
+function collectFloorPositions(layout) {
+  const data = layout?.data || layout;
+  if (!data) return [];
+
+  const floors = [];
+  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
+  const blockingHazards = new Set(
+    hazards
+      .filter((hazard) => hazard && hazard.blocking === true)
+      .map((hazard) => `${hazard.x},${hazard.y}`),
+  );
+
+  if (Array.isArray(data.kinds)) {
+    for (let y = 0; y < data.kinds.length; y += 1) {
+      const row = data.kinds[y] || [];
+      for (let x = 0; x < row.length; x += 1) {
+        const kind = row[x];
+        if (kind !== 0) continue;
+        if (blockingHazards.has(`${x},${y}`)) continue;
+        floors.push({ x, y });
+      }
+    }
+    return floors;
+  }
+
+  if (Array.isArray(data.tiles)) {
+    const legend = data.legend || {};
+    for (let y = 0; y < data.tiles.length; y += 1) {
+      const row = String(data.tiles[y] ?? "");
+      for (let x = 0; x < row.length; x += 1) {
+        const char = row[x];
+        const entry = legend[char];
+        const tileType = entry?.tile;
+        if (tileType === "floor") {
+          floors.push({ x, y });
+        }
+      }
+    }
+  }
+
+  return floors;
+}
+
+export function validateLayoutAndActors({ levelGen, actorCount = 0 } = {}) {
+  const errors = [];
+  if (!levelGen || typeof levelGen !== "object" || Array.isArray(levelGen)) {
+    pushError(errors, "levelGen", "invalid_level_gen");
+    return { ok: false, errors, layout: null };
+  }
+
+  const layoutResult = generateGridLayoutFromInput(levelGen);
+  if (!layoutResult.ok) {
+    layoutResult.errors.forEach((err) => {
+      pushError(errors, `levelGen.${err.field || "unknown"}`, err.code || "invalid_level_gen");
+    });
+    return { ok: false, errors, layout: null };
+  }
+
+  const layout = layoutResult.value;
+  const walkable = collectWalkablePositions(layout);
+  if (walkable.length === 0) {
+    pushError(errors, "layout", "no_walkable_tiles");
+  }
+  const walkableTilesTarget = Number.isInteger(levelGen.walkableTilesTarget) && levelGen.walkableTilesTarget > 0
+    ? levelGen.walkableTilesTarget
+    : null;
+  if (walkableTilesTarget !== null && walkable.length !== walkableTilesTarget) {
+    pushError(errors, "layout.walkableTilesTarget", "target_mismatch", {
+      target: walkableTilesTarget,
+      walkableTiles: walkable.length,
+    });
+  }
+
+  const walkableSet = new Set(walkable.map(positionKey));
+  const spawn = (layout?.data || layout)?.spawn || null;
+  if (spawn) {
+    const spawnKey = positionKey(spawn);
+    if (!walkableSet.has(spawnKey)) {
+      pushError(errors, "layout.spawn", "spawn_not_walkable", spawn);
+    }
+  }
+
+  if (Number.isInteger(actorCount) && actorCount > 0) {
+    const floors = collectFloorPositions(layout);
+    if (floors.length < actorCount) {
+      pushError(errors, "actors", "insufficient_floor_tiles", {
+        actorCount,
+        floorTiles: floors.length,
+      });
+    }
+  }
+
+  return { ok: errors.length === 0, errors, layout };
+}
+
+export function validateLayoutCountsAndActors({ layout, actorCount = 0, minSide = 5 } = {}) {
+  const errors = [];
+  const counts = normalizeLayoutCounts(layout, errors);
+  if (!counts) {
+    return { ok: false, errors, layout: null, levelGen: null };
+  }
+  const totalTiles = (counts.floorTiles || 0) + (counts.hallwayTiles || 0);
+  if (totalTiles <= 0) {
+    pushError(errors, "layout", "empty_layout");
+  }
+  if (Number.isInteger(actorCount) && actorCount > 0) {
+    const floorTiles = counts.floorTiles || 0;
+    if (floorTiles < actorCount) {
+      pushError(errors, "actors", "insufficient_floor_tiles", {
+        actorCount,
+        floorTiles,
+      });
+    }
+  }
+  const levelGen = deriveLevelGenFromCounts(counts, minSide);
+  const result = validateLayoutAndActors({ levelGen, actorCount });
+  return {
+    ok: errors.length === 0 && result.ok,
+    errors: [...errors, ...(result.errors || [])],
+    layout: result.layout,
+    levelGen,
+  };
+}

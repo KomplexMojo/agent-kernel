@@ -1,0 +1,84 @@
+{
+  "notes": [
+    "Model availability is checked on the remote Ollama endpoint at runtime.",
+    "Add new installed models here with the profiles they can realistically run on.",
+    "30B-class models are restricted to the dual profile unless hardware capacity changes."
+  ],
+  "benchmark": {
+    "defaultScenarios": [
+      "vitest-generation",
+      "tool-use-structured-output",
+      "early-termination"
+    ],
+    "defaultContexts": [
+      4096,
+      8192,
+      16384,
+      32768,
+      65536
+    ],
+    "defaultEfforts": [
+      {
+        "name": "standard",
+        "numPredict": 4096
+      },
+      {
+        "name": "high",
+        "numPredict": 8192
+      },
+      {
+        "name": "max",
+        "numPredict": 16384
+      },
+      {
+        "name": "overnight",
+        "numPredict": 32768
+      }
+    ]
+  },
+  "models": {
+    "qwen3-coder:30b-a3b-q4_K_M": {
+      "profiles": [
+        "dual"
+      ],
+      "sizeGb": 18,
+      "family": "qwen3-coder",
+      "use": "30B coding model candidate across both GPUs"
+    },
+    "qwen3-coder:30b": {
+      "profiles": [
+        "dual"
+      ],
+      "sizeGb": 18,
+      "family": "qwen3-coder",
+      "use": "larger coding model across both GPUs"
+    },
+    "qwen3:14b": {
+      "profiles": [
+        "primary",
+        "secondary"
+      ],
+      "sizeGb": 9.3,
+      "family": "qwen3",
+      "use": "single 12GB GPU general reasoning and structured output"
+    },
+    "qwen2.5-coder:14b": {
+      "profiles": [
+        "primary",
+        "secondary"
+      ],
+      "sizeGb": 9,
+      "family": "qwen2.5-coder",
+      "use": "single 12GB GPU coding and test generation"
+    },
+    "qwen2.5-coder:7b": {
+      "profiles": [
+        "primary",
+        "secondary"
+      ],
+      "sizeGb": 4.7,
+      "family": "qwen2.5-coder",
+      "use": "single 12GB GPU background tool-use or smaller coding tests"
+    }
+  }
+}

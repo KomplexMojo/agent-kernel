@@ -1,0 +1,12 @@
+{
+  "schema": "agent-kernel/ResourceArtifact",
+  "schemaVersion": 2,
+  "meta": {
+    "id": "loot_rare_regen",
+    "runId": "run_loot_fixture",
+    "createdAt": "2026-04-13T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "vitals": [{ "key": "health", "delta": 5, "regen": 3 }],
+  "permanent": true
+}

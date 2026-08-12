@@ -1,0 +1,5 @@
+{
+  "name": "@agent-kernel/ui-web",
+  "private": true,
+  "type": "module"
+}

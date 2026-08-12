@@ -1,0 +1,8 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "moderator",
+  "cases": [
+    { "phase": "observe", "event": null, "payload": {}, "expectState": "initializing" }
+  ]
+}

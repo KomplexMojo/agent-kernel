@@ -1,0 +1,14 @@
+{
+  "schema": "agent-kernel/SolverRequest",
+  "schemaVersion": 2,
+  "meta": {
+    "id": "solver_request_invalid",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "problem": {
+    "language": "custom",
+    "data": ""
+  }
+}

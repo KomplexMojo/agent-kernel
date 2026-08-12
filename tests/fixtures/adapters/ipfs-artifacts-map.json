@@ -1,0 +1,96 @@
+{
+  "bundle.json": {
+    "spec": {
+      "schema": "agent-kernel/BuildSpec",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "spec_ipfs_fixture",
+        "runId": "run_ipfs_fixture",
+        "createdAt": "2025-01-01T00:00:00Z",
+        "source": "ipfs-fixture"
+      }
+    },
+    "schemas": [],
+    "artifacts": [
+      {
+        "schema": "agent-kernel/SimConfigArtifact",
+        "schemaVersion": 1,
+        "meta": {
+          "id": "sim_config_ipfs_fixture",
+          "runId": "run_ipfs_fixture",
+          "createdAt": "2025-01-01T00:00:00Z",
+          "producedBy": "ipfs-fixture"
+        },
+        "layout": {
+          "data": {
+            "width": 2,
+            "height": 1,
+            "tiles": [
+              "SE"
+            ]
+          }
+        }
+      },
+      {
+        "schema": "agent-kernel/InitialStateArtifact",
+        "schemaVersion": 1,
+        "meta": {
+          "id": "initial_state_ipfs_fixture",
+          "runId": "run_ipfs_fixture",
+          "createdAt": "2025-01-01T00:00:00Z",
+          "producedBy": "ipfs-fixture"
+        },
+        "actors": []
+      }
+    ]
+  },
+  "manifest.json": {
+    "specPath": "spec.json",
+    "correlation": {
+      "runId": "run_ipfs_fixture",
+      "source": "ipfs-fixture"
+    },
+    "schemas": [],
+    "artifacts": []
+  },
+  "spec.json": {
+    "schema": "agent-kernel/BuildSpec",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "spec_ipfs_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "source": "ipfs-fixture"
+    }
+  },
+  "sim-config.json": {
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "sim_config_ipfs_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "layout": {
+      "data": {
+        "width": 2,
+        "height": 1,
+        "tiles": [
+          "SE"
+        ]
+      }
+    }
+  },
+  "initial-state.json": {
+    "schema": "agent-kernel/InitialStateArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "initial_state_ipfs_fixture",
+      "runId": "run_ipfs_fixture",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "producedBy": "ipfs-fixture"
+    },
+    "actors": []
+  }
+}

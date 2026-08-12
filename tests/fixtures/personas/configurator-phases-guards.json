@@ -1,0 +1,9 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "configurator",
+  "cases": [
+    { "phase": "observe", "event": "provide_config", "payload": {}, "expectError": "Guard" },
+    { "phase": "decide", "event": "provide_config", "payload": {}, "expectState": "uninitialized" }
+  ]
+}

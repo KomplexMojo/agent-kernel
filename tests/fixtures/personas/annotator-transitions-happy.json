@@ -1,0 +1,11 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "annotator",
+  "initialState": "idle",
+  "cases": [
+    { "event": "observe", "payload": {}, "expectState": "recording" },
+    { "event": "summarize", "payload": { "observations": [{ "kind": "note" }] }, "expectState": "summarizing", "expectObservationCount": 1 },
+    { "event": "reset", "payload": {}, "expectState": "idle" }
+  ]
+}

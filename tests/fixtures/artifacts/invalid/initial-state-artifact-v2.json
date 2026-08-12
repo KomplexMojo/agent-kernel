@@ -1,0 +1,16 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 2,
+  "meta": {
+    "id": "initial_state_invalid",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "simConfigRef": {
+    "id": "sim_config_basic",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": []
+}

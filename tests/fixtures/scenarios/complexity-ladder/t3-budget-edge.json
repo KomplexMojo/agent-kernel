@@ -1,0 +1,13 @@
+{
+  "id": "t3-budget-edge",
+  "tier": "budget-edge",
+  "description": "Budget saturation: large rooms and a heavy actor roster squeezed into a tiny budget. Hard-budget requests with explicit affinities cannot be silently degraded, so create must fail deterministically with insufficient_budget naming the blocking constraints (no overspend, no partial build).",
+  "budgetTokens": 5,
+  "createArgs": [
+    "--room", "size=large;count=3",
+    "--delver", "count=10;affinity=fire;motivation=attacking;affinities=fire:push:3,light:emit:3",
+    "--warden", "count=10;affinity=corrode;motivation=defending;affinities=corrode:emit:3",
+    "--budget-tokens", "5"
+  ],
+  "expect": { "ok": false, "errorIncludes": "insufficient_budget" }
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "agent-kernel/ActionSequence",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "action-sequence-move-test",
+    "runId": "move_test_run",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "producedBy": "sandbox-move"
+  },
+  "simConfigRef": {
+    "id": "sim-config-move_test_run",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "initialStateRef": {
+    "id": "initial-state-move_test_run",
+    "schema": "agent-kernel/InitialStateArtifact",
+    "schemaVersion": 1
+  },
+  "actions": [
+    {
+      "schema": "agent-kernel/Action",
+      "schemaVersion": 1,
+      "actorId": "delver_1",
+      "tick": 1,
+      "kind": "move",
+      "params": {
+        "direction": 2,
+        "from": { "x": 2, "y": 2 },
+        "to": { "x": 3, "y": 2 }
+      }
+    }
+  ]
+}

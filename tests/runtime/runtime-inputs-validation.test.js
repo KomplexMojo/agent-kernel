@@ -1,0 +1,34 @@
+const assert = require("node:assert/strict");
+
+test("runtime validates personaEvents/personaPayloads shapes", async () => {
+  const { createRuntime } = await import(
+    "../../packages/runtime/src/runner/runtime.js"
+  );
+
+  function buildCore() {
+    return {
+      init() {},
+      applyAction() {},
+      getCounter() { return 0; },
+      getEffectCount() { return 0; },
+      getEffectKind() { return 0; },
+      getEffectValue() { return 0; },
+      clearEffects() {},
+    };
+  }
+
+  async function makeRuntime() {
+    const runtime = createRuntime({ core: buildCore(), adapters: {} });
+    await runtime.init({ seed: 0 });
+    return runtime;
+  }
+
+  let runtime = await makeRuntime();
+  await assert.rejects(() => runtime.step({ personaEvents: "nope" }), /personaEvents/);
+
+  runtime = await makeRuntime();
+  await assert.rejects(() => runtime.step({ personaEvents: { actor: 123 } }), /personaEvents\.actor/);
+
+  runtime = await makeRuntime();
+  await assert.rejects(() => runtime.step({ personaPayloads: "nope" }), /personaPayloads/);
+});

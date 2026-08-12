@@ -1,0 +1,15 @@
+{
+  "schema": "agent-kernel/PlanArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "plan_missing",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "intentRef": {
+    "id": "intent_basic",
+    "schema": "agent-kernel/IntentEnvelope",
+    "schemaVersion": 1
+  }
+}

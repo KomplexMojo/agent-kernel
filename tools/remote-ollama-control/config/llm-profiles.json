@@ -1,0 +1,49 @@
+{
+  "profiles": {
+    "primary": {
+      "description": "GPU 0 only, primary PCIe x16 card.",
+      "intendedGpu": "GPU 0 / x16 primary card",
+      "gpuDevices": "0",
+      "rocrVisibleDevices": "0",
+      "hipVisibleDevices": "0",
+      "hsaOverrideGfxVersion": "10.3.0",
+      "port": 11434,
+      "defaultModel": "qwen3:14b",
+      "defaultContext": 32768,
+      "defaultNumPredict": 4096,
+      "benchmarkModels": [
+        "qwen3:14b"
+      ]
+    },
+    "secondary": {
+      "description": "GPU 1 only, secondary PCIe x4 card.",
+      "intendedGpu": "GPU 1 / x4 secondary card",
+      "gpuDevices": "1",
+      "rocrVisibleDevices": "1",
+      "hipVisibleDevices": "1",
+      "hsaOverrideGfxVersion": "10.3.0",
+      "port": 11435,
+      "defaultModel": "qwen3:14b",
+      "defaultContext": 8192,
+      "defaultNumPredict": 4096,
+      "benchmarkModels": [
+        "qwen3:14b"
+      ]
+    },
+    "dual": {
+      "description": "GPU 0 and GPU 1 visible for larger split/offloaded models.",
+      "intendedGpu": "GPU 0 + GPU 1 / 24GB aggregate VRAM, x4 card may bottleneck",
+      "gpuDevices": "0,1",
+      "rocrVisibleDevices": "0,1",
+      "hipVisibleDevices": "0,1",
+      "hsaOverrideGfxVersion": "10.3.0",
+      "port": 11436,
+      "defaultModel": "qwen3-coder:30b-a3b-q4_K_M",
+      "defaultContext": 65536,
+      "defaultNumPredict": 32768,
+      "benchmarkModels": [
+        "qwen3-coder:30b-a3b-q4_K_M"
+      ]
+    }
+  }
+}

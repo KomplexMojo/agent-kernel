@@ -1,0 +1,124 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_agent_authoring_validation",
+    "runId": "run_build_agent_authoring_validation",
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Author a budget-capped fire delver.",
+    "hints": {
+      "budgetTokens": 10,
+      "levelAffinity": "fire"
+    }
+  },
+  "authoring": {
+    "objectKinds": [
+      "delver",
+      "shared_config"
+    ],
+    "constraints": {
+      "hardBudget": {
+        "totalTokens": 10,
+        "sources": [
+          "flag"
+        ]
+      }
+    },
+    "validation": {
+      "outcome": "insufficient_budget",
+      "summary": "hard budget is 10 tokens but minimum required spend is 89 tokens.",
+      "issues": [
+        {
+          "code": "delver_minimum_cost_exceeds_budget",
+          "path": "delver[1]",
+          "message": "delver[1] requires at least 89 tokens to preserve requested affinities fire:push:2, mana.max >= 1, mana.regen >= 1, and stamina.regen >= 1."
+        }
+      ]
+    },
+    "request": {
+      "schema": "agent-kernel/AgentCommandRequestArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "agent_command_request_validation",
+        "runId": "run_build_agent_authoring_validation",
+        "createdAt": "2026-04-09T00:00:00.000Z",
+        "producedBy": "test"
+      },
+      "command": {
+        "action": "author",
+        "text": "Create one fire delver with a total budget of 10 tokens.",
+        "source": "cli-agent",
+        "taxonomyVersion": 1
+      },
+      "objects": [
+        {
+          "kind": "delver",
+          "prompt": "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2",
+          "count": 1
+        },
+        {
+          "kind": "shared_config",
+          "prompt": "budget 10 tokens"
+        }
+      ],
+      "sharedConfig": {
+        "dungeonAffinity": "fire",
+        "budgetTokens": 10,
+        "constraints": {
+          "hardBudget": {
+            "totalTokens": 10,
+            "sources": [
+              "flag"
+            ]
+          }
+        }
+      },
+      "validation": {
+        "outcome": "insufficient_budget",
+        "summary": "hard budget is 10 tokens but minimum required spend is 89 tokens.",
+        "issues": [
+          {
+            "code": "delver_minimum_cost_exceeds_budget",
+            "path": "delver[1]",
+            "message": "delver[1] requires at least 89 tokens to preserve requested affinities fire:push:2, mana.max >= 1, mana.regen >= 1, and stamina.regen >= 1."
+          }
+        ]
+      },
+      "compilation": {
+        "rules": [
+          {
+            "kind": "delver",
+            "compileTo": [
+              {
+                "target": "build_spec_plan",
+                "path": "plan.hints.cardSet",
+                "legacyFlow": "delver-plan"
+              },
+              {
+                "target": "build_spec_configurator",
+                "path": "configurator.inputs.actors",
+                "legacyFlow": "delver-plan"
+              }
+            ]
+          },
+          {
+            "kind": "shared_config",
+            "compileTo": [
+              {
+                "target": "build_spec_intent",
+                "path": "intent.hints"
+              },
+              {
+                "target": "build_spec_configurator",
+                "path": "configurator.inputs"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

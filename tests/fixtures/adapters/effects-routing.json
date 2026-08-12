@@ -1,0 +1,44 @@
+{
+  "schema": "agent-kernel/AdapterEffects",
+  "schemaVersion": 1,
+  "effects": [
+    {
+      "id": "eff-fact-1",
+      "kind": "need_external_fact",
+      "requestId": "fact-1",
+      "targetAdapter": "fixtures",
+      "sourceRef": { "id": "fact-1-src", "schema": "agent-kernel/IntentEnvelope", "schemaVersion": 1 },
+      "data": { "query": "fact-1" },
+      "fulfillment": "deterministic"
+    },
+    {
+      "id": "eff-fact-2",
+      "kind": "need_external_fact",
+      "requestId": "fact-2",
+      "targetAdapter": "fixtures",
+      "data": { "query": "fact-2" },
+      "fulfillment": "deferred"
+    },
+    {
+      "id": "eff-solver-1",
+      "kind": "solver_request",
+      "requestId": "solver-1",
+      "targetAdapter": "solver",
+      "data": { "problem": { "language": "custom", "data": { "difficulty": 1 } } }
+    },
+    {
+      "id": "eff-log-1",
+      "kind": "log",
+      "severity": "info",
+      "personaRef": "core",
+      "tags": ["core", "trace"],
+      "data": { "message": "hello-log", "counter": 1 }
+    },
+    {
+      "id": "eff-tele-1",
+      "kind": "telemetry",
+      "personaRef": "core",
+      "data": { "metric": 1, "scope": "core" }
+    }
+  ]
+}

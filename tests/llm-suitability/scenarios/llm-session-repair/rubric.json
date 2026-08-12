@@ -1,0 +1,34 @@
+{
+  "id": "llm-session-repair",
+  "title": "LLM Session Repair Flow",
+  "minimumTests": 3,
+  "requiredImports": [
+    "node:assert/strict",
+    "vitest"
+  ],
+  "requiredTerms": [
+    "extractJsonObject",
+    "runRepairableJsonSession",
+    "adapter",
+    "generate",
+    "repair",
+    "validate",
+    "capture",
+    "responseText"
+  ],
+  "requiredTestNames": [
+    "issues repair prompt"
+  ],
+  "forbiddenTerms": [
+    "fetch(",
+    "AK_LLM_LIVE",
+    "localhost:11434"
+  ],
+  "oracleTerms": [
+    "missing-json",
+    "repaired",
+    "buildRepairPrompt",
+    "clock",
+    "errors"
+  ]
+}

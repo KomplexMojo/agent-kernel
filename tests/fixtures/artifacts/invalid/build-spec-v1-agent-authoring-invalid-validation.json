@@ -1,0 +1,23 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_agent_authoring_invalid_validation",
+    "runId": "run_build_agent_authoring_invalid_validation",
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Author a conflicting delver request."
+  },
+  "authoring": {
+    "objectKinds": [
+      "delver"
+    ],
+    "validation": {
+      "outcome": "not_a_real_outcome",
+      "summary": "",
+      "issues": []
+    }
+  }
+}

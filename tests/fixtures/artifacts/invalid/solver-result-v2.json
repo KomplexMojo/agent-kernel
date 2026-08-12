@@ -1,0 +1,16 @@
+{
+  "schema": "agent-kernel/SolverResult",
+  "schemaVersion": 2,
+  "meta": {
+    "id": "solver_result_invalid",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "requestRef": {
+    "id": "solver_request_basic",
+    "schema": "agent-kernel/SolverRequest",
+    "schemaVersion": 1
+  },
+  "status": "unknown"
+}

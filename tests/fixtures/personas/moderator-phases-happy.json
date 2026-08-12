@@ -1,0 +1,11 @@
+{
+  "schema": "agent-kernel/PersonaPhaseTest",
+  "schemaVersion": 1,
+  "persona": "moderator",
+  "cases": [
+    { "phase": "init", "event": "start", "payload": {}, "expectState": "ticking" },
+    { "phase": "decide", "event": "pause", "payload": {}, "expectState": "pausing" },
+    { "phase": "decide", "event": "resume", "payload": {}, "expectState": "ticking" },
+    { "phase": "apply", "event": "stop", "payload": {}, "expectState": "stopping" }
+  ]
+}

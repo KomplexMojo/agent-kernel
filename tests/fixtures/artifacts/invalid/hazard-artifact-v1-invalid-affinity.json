@@ -1,0 +1,14 @@
+{
+  "schema": "agent-kernel/HazardArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "hazard_invalid",
+    "runId": "run_hazard_test",
+    "createdAt": "2026-04-13T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "affinity": "lightning",
+  "expression": "emit",
+  "mana": { "kind": "one-time", "amount": 2 },
+  "durability": { "kind": "one-time", "amount": 1 }
+}

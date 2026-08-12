@@ -1,0 +1,1277 @@
+{
+  "schema": "agent-kernel/AffinityRulesArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "affinity_rules_basic",
+    "runId": "run_affinity_rules_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "runtime-defaults"
+  },
+  "balanceVersion": "2026.03.22",
+  "contentHash": "sha256:affinity-rules-basic",
+  "rulesetName": "Basic Affinity Rules",
+  "globals": {
+    "defaultOutcomeOnWin": "suppress",
+    "defaultOutcomeOnTie": "cancel",
+    "defaultMana": {
+      "winnerSpend": "full",
+      "loserSpend": "half",
+      "tieSpend": "full",
+      "clashCost": 1,
+      "overpowerBonusCost": 1,
+      "drainOnFail": 0
+    }
+  },
+  "affinities": [
+    {
+      "kind": "fire",
+      "opposite": "water",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "flame_surge",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 3,
+              "potency": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 6,
+              "potency": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 9,
+              "potency": 4,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 12,
+              "potency": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 15,
+              "potency": 16,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "ember_grasp",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "potency": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "potency": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "potency": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "potency": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "potency": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "pyre_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "potency": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "potency": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "potency": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "potency": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "potency": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ],
+          "manaScaling": {
+            "persistentAreaSurcharge": 2,
+            "environmentMutationSurcharge": 1
+          }
+        }
+      ]
+    },
+    {
+      "kind": "water",
+      "opposite": "fire",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "tidal_ram",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "potency": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "potency": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "potency": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "potency": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "potency": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "current_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "potency": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "potency": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "potency": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "potency": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "potency": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "tidal_veil",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "potency": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 3,
+              "potency": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 5,
+              "potency": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 7,
+              "potency": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 9,
+              "potency": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ],
+          "manaScaling": {
+            "persistentAreaSurcharge": 1
+          }
+        }
+      ]
+    },
+    {
+      "kind": "earth",
+      "opposite": "wind",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "stone_ram",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 5,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 7,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 9,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 11,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "stone_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "stone_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "wind",
+      "opposite": "earth",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "gust_lance",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "draft_pull",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "storm_ring",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "life",
+      "opposite": "decay",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "bloom_strike",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "vital_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 0,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual",
+              "potency": 1
+            },
+            {
+              "tier": 2,
+              "manaCost": 1,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical",
+              "potency": 2
+            },
+            {
+              "tier": 3,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical",
+              "potency": 3
+            },
+            {
+              "tier": 4,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic",
+              "potency": 4
+            },
+            {
+              "tier": 5,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic",
+              "potency": 5
+            }
+          ]
+        },
+        {
+          "id": "verdant_aura",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "decay",
+      "opposite": "life",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "rot_strike",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "wither_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "blight_mist",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "corrode",
+      "opposite": "fortify",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "rust_blow",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "etch_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "acid_haze",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "fortify",
+      "opposite": "corrode",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "bulwark_drive",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "anchor_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "bulwark_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "light",
+      "opposite": "dark",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "prism_burst",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "lumen_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "radiant_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "dark",
+      "opposite": "light",
+      "basePriority": 1,
+      "expressions": [
+        {
+          "id": "shade_lash",
+          "verb": "push",
+          "defaultTargetType": "enemy",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "gloom_draw",
+          "verb": "pull",
+          "defaultTargetType": "self",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 1,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 3,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 5,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        },
+        {
+          "id": "umbral_field",
+          "verb": "emit",
+          "defaultTargetType": "area",
+          "stackTiers": [
+            {
+              "tier": 1,
+              "manaCost": 2,
+              "defaultDesignCostTokens": 4,
+              "complexityClass": "instinctual"
+            },
+            {
+              "tier": 2,
+              "manaCost": 4,
+              "defaultDesignCostTokens": 16,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 3,
+              "manaCost": 6,
+              "defaultDesignCostTokens": 36,
+              "complexityClass": "tactical"
+            },
+            {
+              "tier": 4,
+              "manaCost": 8,
+              "defaultDesignCostTokens": 64,
+              "complexityClass": "strategic"
+            },
+            {
+              "tier": 5,
+              "manaCost": 10,
+              "defaultDesignCostTokens": 100,
+              "complexityClass": "strategic"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "sourceKind": "fire",
+      "targetKind": "water",
+      "outcomeOnSourceWin": "mutate_environment",
+      "outcomeOnTargetWin": "suppress",
+      "outcomeOnTie": "cancel",
+      "mana": {
+        "winnerSpend": "full",
+        "loserSpend": "half",
+        "tieSpend": "full",
+        "clashCost": 1,
+        "overpowerBonusCost": 1
+      }
+    },
+    {
+      "sourceKind": "light",
+      "targetKind": "dark",
+      "outcomeOnSourceWin": "reflect",
+      "outcomeOnTargetWin": "suppress",
+      "outcomeOnTie": "cancel",
+      "mana": {
+        "winnerSpend": "full",
+        "loserSpend": "full",
+        "tieSpend": "half"
+      }
+    }
+  ]
+}

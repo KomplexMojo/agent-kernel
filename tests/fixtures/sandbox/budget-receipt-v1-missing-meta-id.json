@@ -1,0 +1,23 @@
+{
+  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "runId": "run_sandbox_no_meta_id",
+    "createdAt": "2026-05-25T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "budgetRef": {
+    "id": "budget_sandbox_no_meta",
+    "schema": "agent-kernel/BudgetArtifact",
+    "schemaVersion": 1
+  },
+  "priceListRef": {
+    "id": "price_list_sandbox_no_meta",
+    "schema": "agent-kernel/PriceList",
+    "schemaVersion": 1
+  },
+  "status": "approved",
+  "totalCost": 0,
+  "remaining": 100,
+  "lineItems": []
+}

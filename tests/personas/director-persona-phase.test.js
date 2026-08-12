@@ -1,0 +1,54 @@
+const assert = require("node:assert/strict");
+const { readFileSync } = require("node:fs");
+const { resolve } = require("node:path");
+
+const happyFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/director-phases-happy.json"), "utf8"));
+const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../fixtures/personas/director-phases-guards.json"), "utf8"));
+
+
+
+test("director persona handles subscribed phases via table", async () => {
+const { createDirectorPersona, directorSubscribePhases } = await import("../../packages/runtime/src/personas/director/controller.mts");
+const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+
+const fixture = happyFixture;
+const persona = createDirectorPersona({ initialState: fixture.initialState, clock: () => fixture.clock });
+
+assert.deepEqual(directorSubscribePhases, [TickPhases.DECIDE]);
+
+fixture.cases.forEach((entry) => {
+  const before = persona.view();
+  const result = persona.advance({ phase: entry.phase, event: entry.event, payload: entry.payload, tick: 0 });
+  const expectedState = entry.expectState;
+  assert.equal(result.state, expectedState);
+  assert.equal(result.context.lastEvent, entry.event);
+  assert.equal(result.context.updatedAt, fixture.clock);
+  if (entry.phase !== "decide") {
+    assert.equal(result.state, before.state);
+  }
+});
+});
+
+test("director persona ignores non-subscribed phases and surfaces guard errors", async () => {
+const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.mts");
+
+const fixture = guardFixture;
+const persona = createDirectorPersona({ initialState: fixture.initialState, clock: () => fixture.clock });
+
+fixture.cases.forEach((entry) => {
+  if (entry.expectError) {
+    let threw = false;
+    try {
+      persona.advance({ phase: entry.phase, event: entry.event, payload: entry.payload, tick: 0 });
+    } catch (err) {
+      threw = true;
+      assert.match(err.message, new RegExp(entry.expectError));
+    }
+    assert.equal(threw, true);
+    return;
+  }
+  const before = persona.view();
+  const result = persona.advance({ phase: entry.phase, event: entry.event, payload: entry.payload, tick: 0 });
+  assert.equal(result.state, before.state);
+});
+});

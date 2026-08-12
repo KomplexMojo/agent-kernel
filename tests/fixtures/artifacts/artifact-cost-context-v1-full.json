@@ -1,0 +1,27 @@
+{
+  "schema": "agent-kernel/SimConfigArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "artifact-001",
+    "runId": "run-001",
+    "createdAt": "2026-04-22T00:00:00.000Z",
+    "producedBy": "allocator",
+    "cost": {
+      "selfTokens": 42,
+      "runTotalTokens": 350,
+      "budgetTokens": 500,
+      "category": "rooms",
+      "receiptRef": {
+        "id": "receipt-001",
+        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schemaVersion": 1
+      },
+      "proposalRef": {
+        "id": "proposal-001",
+        "schema": "agent-kernel/SpendProposal",
+        "schemaVersion": 1
+      },
+      "lineItemIds": ["item-room-1", "item-room-2"]
+    }
+  }
+}

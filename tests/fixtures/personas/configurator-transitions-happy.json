@@ -1,0 +1,11 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "configurator",
+  "initialState": "uninitialized",
+  "cases": [
+    { "event": "provide_config", "payload": { "config": { "seed": 1 }, "configRef": "cfg:1" }, "expectState": "pending_config", "expectConfigRef": "cfg:1" },
+    { "event": "validate", "payload": { "config": { "seed": 1 } }, "expectState": "configured", "expectConfigRef": "cfg:1" },
+    { "event": "lock", "payload": {}, "expectState": "locked" }
+  ]
+}

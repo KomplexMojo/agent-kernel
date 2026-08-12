@@ -1,0 +1,84 @@
+{
+  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "receipt_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "allocator"
+  },
+  "budgetRef": {
+    "id": "budget_basic",
+    "schema": "agent-kernel/BudgetArtifact",
+    "schemaVersion": 1
+  },
+  "priceListRef": {
+    "id": "price_list_basic",
+    "schema": "agent-kernel/PriceList",
+    "schemaVersion": 1
+  },
+  "proposalRef": {
+    "id": "proposal_basic",
+    "schema": "agent-kernel/SpendProposal",
+    "schemaVersion": 1
+  },
+  "status": "denied",
+  "totalCost": 0,
+  "remaining": 1000,
+  "lineItems": [
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "unitCost": 0,
+      "totalCost": 0,
+      "status": "denied",
+      "subjectRef": {
+        "id": "actor_one",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "unitCost": 0,
+      "totalCost": 0,
+      "status": "denied",
+      "subjectRef": {
+        "id": "actor_two",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "tile_floor",
+      "kind": "tile",
+      "quantity": 81,
+      "unitCost": 0,
+      "totalCost": 0,
+      "status": "denied",
+      "category": "floor_tiles",
+      "subjectRef": {
+        "id": "layout",
+        "schema": "agent-kernel/LayoutArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "hazard_basic",
+      "kind": "hazard",
+      "quantity": 1,
+      "unitCost": 0,
+      "totalCost": 0,
+      "status": "denied",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    }
+  ]
+}

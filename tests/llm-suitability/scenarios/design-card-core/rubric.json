@@ -1,0 +1,35 @@
+{
+  "id": "design-card-core",
+  "title": "Design Card Core Helpers",
+  "minimumTests": 3,
+  "requiredImports": [
+    "../../packages/ui-web/src/design-guidance.js",
+    "node:assert/strict",
+    "vitest"
+  ],
+  "requiredTerms": [
+    "createDesignCard",
+    "dropPropertyOnCard",
+    "buildSummaryFromCardSet",
+    "affinity",
+    "motivation",
+    "resource",
+    "vitals",
+    "spendLedger"
+  ],
+  "requiredTestNames": [
+    "room affinity fields do not affect room card cost"
+  ],
+  "forbiddenTerms": [
+    "card_generated",
+    "test_group",
+    "test_value"
+  ],
+  "oracleTerms": [
+    "motivation_conflict",
+    "budgetTokens",
+    "spentTokens",
+    "affinities",
+    "resource"
+  ]
+}

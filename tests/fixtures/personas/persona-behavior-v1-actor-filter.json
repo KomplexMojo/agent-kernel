@@ -1,0 +1,27 @@
+{
+  "schema": "agent-kernel/PersonaBehavior",
+  "schemaVersion": 1,
+  "persona": "actor",
+  "cases": [
+    {
+      "id": "filter",
+      "actorId": "actor_mvp",
+      "observation": {
+        "tick": 0,
+        "actors": [
+          { "id": "actor_mvp", "kind": 2, "position": { "x": 0, "y": 0 } },
+          { "id": "tile_wall", "kind": 0, "position": { "x": 1, "y": 0 } },
+          { "id": "tile_barrier", "kind": 1, "position": { "x": 2, "y": 0 } }
+        ],
+        "tiles": { "kinds": [[0, 0, 0]] }
+      },
+      "proposals": [
+        { "actorId": "tile_wall", "kind": "custom_action", "params": { "label": "wall" } },
+        { "actorId": "actor_mvp", "kind": "move", "params": { "direction": "east", "from": { "x": 0, "y": 0 }, "to": { "x": 1, "y": 0 } } },
+        { "actorId": "tile_barrier", "kind": "custom_action", "params": { "label": "barrier" } },
+        { "actorId": "actor_mvp", "kind": "wait", "params": {} }
+      ],
+      "expectedKinds": ["move", "wait"]
+    }
+  ]
+}

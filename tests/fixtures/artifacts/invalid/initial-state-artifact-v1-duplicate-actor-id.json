@@ -1,0 +1,122 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "initial_state_duplicate_actor_id",
+    "runId": "run_mvp_grid",
+    "createdAt": "2026-03-28T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "simConfigRef": {
+    "id": "sim_config_mvp_grid",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "actor_alpha",
+      "kind": "ambulatory",
+      "position": {
+        "x": 2,
+        "y": 1
+      },
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "movementCost": 1,
+        "actionCostMana": 0,
+        "actionCostStamina": 0
+      }
+    },
+    {
+      "id": "actor_alpha",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 1
+      },
+      "vitals": {
+        "health": {
+          "current": 20,
+          "max": 20,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "movementCost": 2,
+        "actionCostMana": 1,
+        "actionCostStamina": 0
+      }
+    },
+    {
+      "id": "actor_gamma",
+      "kind": "ambulatory",
+      "position": {
+        "x": 1,
+        "y": 2
+      },
+      "vitals": {
+        "health": {
+          "current": 30,
+          "max": 30,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "movementCost": 1,
+        "actionCostMana": 0,
+        "actionCostStamina": 2
+      }
+    }
+  ]
+}

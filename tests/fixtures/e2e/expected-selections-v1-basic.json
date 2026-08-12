@@ -1,0 +1,64 @@
+{
+  "schema": "agent-kernel/E2ESelectionsFixture",
+  "schemaVersion": 1,
+  "selections": [
+    {
+      "kind": "room",
+      "requested": {
+        "motivation": "stationary",
+        "affinity": "fire",
+        "count": 1,
+        "tokenHint": 200,
+        "affinities": [{ "kind": "fire", "expression": "push", "stacks": 1 }]
+      },
+      "applied": {
+        "id": "actor_stationary_fire_200",
+        "subType": "static",
+        "motivation": "stationary",
+        "affinity": "fire",
+        "cost": 200
+      },
+      "receipt": { "status": "approved", "count": 1 },
+      "instances": [
+        {
+          "id": "actor_stationary_fire_200_1",
+          "baseId": "actor_stationary_fire_200",
+          "subType": "static",
+          "motivation": "stationary",
+          "affinity": "fire",
+          "cost": 200,
+          "affinities": [{ "kind": "fire", "expression": "push", "stacks": 1 }]
+        }
+      ]
+    },
+    {
+      "kind": "actor",
+      "requested": {
+        "motivation": "attacking",
+        "affinity": "fire",
+        "count": 1,
+        "tokenHint": 200,
+        "affinities": [{ "kind": "fire", "expression": "push", "stacks": 2 }]
+      },
+      "applied": {
+        "id": "actor_attacking_fire_200",
+        "subType": "dynamic",
+        "motivation": "attacking",
+        "affinity": "fire",
+        "cost": 200
+      },
+      "receipt": { "status": "approved", "count": 1 },
+      "instances": [
+        {
+          "id": "actor_attacking_fire_200_1",
+          "baseId": "actor_attacking_fire_200",
+          "subType": "dynamic",
+          "motivation": "attacking",
+          "affinity": "fire",
+          "cost": 200,
+          "affinities": [{ "kind": "fire", "expression": "push", "stacks": 2 }]
+        }
+      ]
+    }
+  ]
+}

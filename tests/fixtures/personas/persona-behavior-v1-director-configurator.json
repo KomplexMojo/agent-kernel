@@ -1,0 +1,22 @@
+{
+  "schema": "agent-kernel/PersonaBehavior",
+  "schemaVersion": 1,
+  "director": {
+    "intentRef": { "id": "intent-1", "schema": "agent-kernel/IntentEnvelope", "schemaVersion": 1 },
+    "planRef": { "id": "plan-1", "schema": "agent-kernel/PlanArtifact", "schemaVersion": 1 },
+    "solver": {
+      "requestId": "solver-director",
+      "targetAdapter": "fixtures",
+      "problem": { "language": "custom", "data": { "goal": "demo-plan" } }
+    }
+  },
+  "configurator": {
+    "planRef": { "id": "plan-1", "schema": "agent-kernel/PlanArtifact", "schemaVersion": 1 },
+    "configRef": { "id": "sim-1", "schema": "agent-kernel/SimConfigArtifact", "schemaVersion": 1 },
+    "solver": {
+      "requestId": "solver-config",
+      "targetAdapter": "solver",
+      "problem": { "language": "custom", "data": { "layout": "grid" } }
+    }
+  }
+}

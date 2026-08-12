@@ -1,0 +1,146 @@
+{
+  "schema": "agent-kernel/E2EActors",
+  "schemaVersion": 1,
+  "tier": 2,
+  "level": {
+    "width": 10,
+    "height": 10
+  },
+  "actorCount": 3,
+  "actors": [
+    {
+      "id": "tier2_actor_1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 3
+      },
+      "motivations": [
+        {
+          "kind": "stationary",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "push",
+          "stacks": 1
+        },
+        {
+          "kind": "water",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier2_actor_2",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 3
+      },
+      "motivations": [
+        {
+          "kind": "exploring",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "tier2_actor_3",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 7
+      },
+      "motivations": [
+        {
+          "kind": "strategy_focused",
+          "intensity": 1
+        }
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "vitals": {
+        "health": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    }
+  ]
+}

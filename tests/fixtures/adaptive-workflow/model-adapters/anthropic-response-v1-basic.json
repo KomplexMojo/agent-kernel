@@ -1,0 +1,24 @@
+{
+  "providerId": "anthropic",
+  "raw": {
+    "id": "msg_anthropic_fixture",
+    "model": "claude-fixture",
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"ok\":true,\"provider\":\"anthropic\"}"
+      }
+    ],
+    "usage": {
+      "input_tokens": 13,
+      "output_tokens": 9
+    },
+    "stop_reason": "end_turn"
+  },
+  "expected": {
+    "modelId": "claude-fixture",
+    "text": "{\"ok\":true,\"provider\":\"anthropic\"}",
+    "usage": { "inputTokens": 13, "outputTokens": 9, "totalTokens": 22 },
+    "finishReason": "end_turn"
+  }
+}

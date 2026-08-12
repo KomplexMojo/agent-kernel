@@ -1,0 +1,102 @@
+%% Architecture overview (Ports & Adapters)
+flowchart LR
+  subgraph Interfaces["Interfaces"]
+    UIWeb["ui-web (browser)"]
+    PhaserFrame["phaser-frame-view"]
+    CardBuilderRenderer["card-builder-phaser-renderer"]
+    CardBuilderController["card-builder-controller"]
+    GameplaySurface["gameplay surface\ncreateGameplayPhaserRenderer"]
+    PhaserIngestion["phaser-surface-ingestion"]
+    ScenarioLoader["scenario-loader + preview-view"]
+    BridgeClient["sandbox-bridge-client"]
+    CLI["CLI (ak.mjs)"]
+    MCP["MCP server (ak_* tools)"]
+  end
+
+  subgraph Runtime["Runtime (TypeScript)"]
+    CommandKernel["shared command kernel"]
+    CardAuthoring["card-authoring commands\nnormalize cards + apply properties"]
+    RuntimePorts["runtime runner + ports"]
+    AdaptiveRunner["adaptive-workflow control plane\nrunAdaptiveWorkflow + injected ports"]
+    CoreFacade["core-facade + core-setup\npreview/playback helpers"]
+    TickOrch["tick orchestrator"]
+    Personas["personas"]
+    ActorPersona["actor persona\nbuildMotivatedProposals"]
+    RuntimeFSM["runtime-fsm\nadaptActionToCore"]
+    SolverPort["createSolverPort"]
+    SolverResolver["resolveActionFromSolverResult"]
+  end
+
+  subgraph Core["core-ts"]
+    CoreEngine["deterministic state + rules + effects + render buffers"]
+    CombatCore["core.applyAttack"]
+    AffinityCore["hazard affinity fields + interaction/cancellation matrix"]
+    MotivationCore["motivation costs + behavior profiles"]
+    CoreEngine --- AffinityCore
+    CoreEngine --- MotivationCore
+    CoreEngine --- CombatCore
+  end
+
+  subgraph Adapters["Adapters (IO boundary)"]
+    AWeb["adapters-web"]
+    ACli["adapters-cli"]
+    ATest["adapters-test"]
+    Z3Adapter["Z3-shaped solver adapter\n(adapters-test)"]
+    BridgeServer["sandbox bridge server (WS)\n(adapters-cli)"]
+  end
+
+  subgraph External["External Services"]
+    IPFS["IPFS gateway"]
+    Chain["Blockchain JSON-RPC"]
+    LLM["LLM API"]
+    Storage["Persistence"]
+  end
+
+  UIWeb --> RuntimePorts
+  UIWeb --> AWeb
+  UIWeb --> PhaserIngestion
+  PhaserIngestion --> PhaserFrame
+  PhaserFrame --> CardBuilderRenderer
+  CardBuilderRenderer --> CardBuilderController
+  CardBuilderController --> CardAuthoring
+  PhaserFrame --> GameplaySurface
+  GameplaySurface --> RuntimePorts
+  ScenarioLoader --> CoreFacade
+  UIWeb --> ScenarioLoader
+  CLI --> ACli
+  MCP --> ACli
+  ACli -- "ak workflow / ak_workflow_*\nmodel + store + exec ports" --> AdaptiveRunner
+  MCP -- "ak_push_to_ui\nGameplayBundle" --> BridgeServer
+  BridgeServer -- "WebSocket" --> BridgeClient
+  BridgeClient -- "__ak_loadGameplayBundle" --> GameplaySurface
+  AWeb --> CommandKernel
+  ACli --> CommandKernel
+  CommandKernel --> CardAuthoring
+  CommandKernel --> RuntimePorts
+  CoreFacade --> RuntimePorts
+  CoreFacade --> CoreEngine
+  RuntimePorts --> TickOrch
+  TickOrch --> Personas
+  RuntimePorts --> CoreEngine
+  Personas --> ActorPersona
+  ActorPersona -- "attack action" --> RuntimeFSM
+  RuntimeFSM -- "apply_attack directive" --> CombatCore
+  ActorPersona -- "solver_request effect" --> RuntimeFSM
+  RuntimeFSM --> SolverPort
+  SolverPort --> Z3Adapter
+  Z3Adapter -- "solver result" --> SolverResolver
+  SolverResolver -- "concrete action" --> RuntimeFSM
+
+  RuntimePorts <--> AWeb
+  RuntimePorts <--> ACli
+  ATest -.fixtures.-> RuntimePorts
+  ATest --> Z3Adapter
+
+  AWeb --> IPFS
+  AWeb --> Chain
+  AWeb --> LLM
+  AWeb --> Storage
+  ACli --> IPFS
+  ACli --> Chain
+  ACli --> LLM
+  ACli --> Storage

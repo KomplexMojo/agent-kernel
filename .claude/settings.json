@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -re '.tool_input.command' 2>/dev/null | grep -qE '(^| )(grep|rg|find)( |$)' && printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"CODE DISCOVERY via grep/rg/find detected. CLAUDE.md rule: Graph before grep. Use CodeContextGraph MCP tools instead: 1) ToolSearch with query=select:mcp__CodeGraphContext__find_code,mcp__CodeGraphContext__analyze_code_relationships 2) Call find_code or analyze_code_relationships. Only use grep for literal content (README prose, fixture strings), not code discovery.\"}}' || true"
+          }
+        ]
+      }
+    ]
+  }
+}

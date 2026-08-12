@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v1",
+  "run": {
+    "id": "2026-08-12T01-45-18-053Z-cc96cb9f7b83-bootstrap",
+    "key": "a0fe3ea4be2916f9ce02cfd797369ac48075b57f5acfcda7e9601dced2dd552e",
+    "status": "infrastructure_error",
+    "startedAt": "2026-08-12T01:45:18.053Z",
+    "completedAt": "2026-08-12T01:45:18.053Z",
+    "durationMs": 0,
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "codex/benchmark-catalog",
+    "commit": "cc96cb9f7b8345ba7f733554948c1dfbbeb825fd",
+    "tree": "3136575e414c146a471e2de0490b40337fc0c012"
+  },
+  "trigger": {
+    "previousEvaluatedCommit": null,
+    "reasons": [
+      "bootstrap"
+    ],
+    "relevantPaths": [],
+    "scenarioHashChanged": false,
+    "matrixHashChanged": false
+  },
+  "scenarioSet": {
+    "catalogPath": "tools/remote-ollama-control/benchmarks/content-gen",
+    "count": 100,
+    "sha256": "6e5abc67edaaea2f1d2d1e06ce0e8d074b4e46e808f3a01bbcaf0a3c7efd4960",
+    "tierCounts": {
+      "simple": 25,
+      "affinity": 25,
+      "complex": 25,
+      "constrained": 25
+    }
+  },
+  "matrix": {
+    "sha256": "6e472922739a53b033ae4a16c2317fb952a001361bdb580daeb0d849754a80d9",
+    "configurationIds": [],
+    "repeatPolicy": {
+      "minimumPasses": 1,
+      "maximumPasses": 3
+    }
+  },
+  "thresholds": {
+    "toolCallRate": 0.99,
+    "scenarioVerdictRate": 0.99,
+    "averageSemanticScore": 75
+  },
+  "configurations": [],
+  "execution": {
+    "status": "not_run",
+    "reason": "benchmark host unreachable during controlled rollout"
+  },
+  "minimumSuccessfulConfiguration": null,
+  "paretoFrontier": [],
+  "comparison": {
+    "comparable": false,
+    "incomparabilityReasons": [
+      "no prior baseline"
+    ]
+  },
+  "failures": {
+    "infrastructure": {
+      "count": 1,
+      "reasons": [
+        "benchmark host unreachable on configured internal and external SSH routes"
+      ]
+    }
+  },
+  "artifacts": {
+    "retentionId": null
+  },
+  "qualifies": false
+}

@@ -1,0 +1,42 @@
+{
+  "schema": "agent-kernel/ActorLoadoutArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "actor_loadouts_basic",
+    "runId": "run_actor_loadouts_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "loadouts": [
+    {
+      "affinities": [
+        {
+          "presetId": "affinity_fire_push",
+          "kind": "fire",
+          "expression": "push",
+          "stacks": 2,
+          "targetType": "enemy"
+        },
+        {
+          "presetId": "affinity_life_pull",
+          "kind": "life",
+          "expression": "pull",
+          "stacks": 1,
+          "targetType": "self"
+        }
+      ]
+    },
+    {
+      "actorId": "actor_rival",
+      "affinities": [
+        {
+          "presetId": "affinity_decay_emit",
+          "kind": "decay",
+          "expression": "emit",
+          "stacks": 1,
+          "targetType": "area"
+        }
+      ]
+    }
+  ]
+}

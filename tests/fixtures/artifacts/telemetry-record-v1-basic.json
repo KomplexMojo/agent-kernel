@@ -1,0 +1,15 @@
+{
+  "schema": "agent-kernel/TelemetryRecord",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "telemetry_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "scope": "run",
+  "data": {
+    "frames": 1,
+    "ticks": 1
+  }
+}

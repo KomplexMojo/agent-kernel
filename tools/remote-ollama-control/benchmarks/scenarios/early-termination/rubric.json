@@ -1,0 +1,14 @@
+{
+  "title": "Early termination behavior",
+  "expectCodeBlock": false,
+  "requiredTerms": [
+    "VRAM",
+    "PCIe",
+    "latency"
+  ],
+  "forbiddenTerms": [
+    "As an AI",
+    "In conclusion"
+  ],
+  "maxResponseChars": 300
+}

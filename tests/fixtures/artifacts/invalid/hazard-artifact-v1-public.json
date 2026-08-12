@@ -1,0 +1,12 @@
+{
+  "schema": "agent-kernel/DeprecatedHazardArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "hazard_public",
+    "runId": "run_hazard_test",
+    "createdAt": "2026-07-11T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "affinity": "fire",
+  "expression": "emit"
+}

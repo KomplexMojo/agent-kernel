@@ -1,0 +1,7 @@
+{
+  "schema": "agent-kernel/TickOrchestratorTest",
+  "schemaVersion": 1,
+  "sequence": [
+    { "event": "emit", "expectError": "No transition" }
+  ]
+}

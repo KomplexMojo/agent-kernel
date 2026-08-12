@@ -1,0 +1,73 @@
+{
+  "simConfig": {
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "aff-overlap-water-fire-sim",
+      "runId": "aff_overlap_test",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "producedBy": "fixture"
+    },
+    "layout": {
+      "kind": "grid",
+      "data": {
+        "width": 5,
+        "height": 5,
+        "tiles": [
+          ".....",
+          ".....",
+          ".....",
+          ".....",
+          "....."
+        ],
+        "hazards": [
+          {
+            "id": "hazard-water-north",
+            "entityType": "hazard",
+            "kind": "water",
+            "position": { "x": 2, "y": 0 },
+            "emitStrength": 3,
+            "affinityStacks": [
+              { "kind": "water", "stacks": 3, "expression": "emit" }
+            ]
+          },
+          {
+            "id": "hazard-fire-south",
+            "entityType": "hazard",
+            "kind": "fire",
+            "position": { "x": 2, "y": 4 },
+            "emitStrength": 3,
+            "affinityStacks": [
+              { "kind": "fire", "stacks": 3, "expression": "emit" }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "initialState": {
+    "schema": "agent-kernel/InitialStateArtifact",
+    "schemaVersion": 1,
+    "meta": {
+      "id": "aff-overlap-water-fire-is",
+      "runId": "aff_overlap_test",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "producedBy": "fixture"
+    },
+    "actors": [
+      {
+        "id": "delver_1",
+        "entityType": "actor",
+        "role": "delver",
+        "position": { "x": 0, "y": 2 },
+        "vitals": {
+          "health":    { "current": 10, "max": 10, "regen": 0 },
+          "mana":      { "current": 5,  "max": 5,  "regen": 0 },
+          "stamina":   { "current": 5,  "max": 5,  "regen": 0 },
+          "durability":{ "current": 5,  "max": 5,  "regen": 0 }
+        },
+        "capabilities": { "movementCost": 1 }
+      }
+    ]
+  }
+}

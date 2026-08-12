@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "allocator",
+  "initialState": "budgeting",
+  "cases": [
+    { "event": "allocate", "payload": {}, "expectError": "Guard" },
+    { "event": "rebalance", "payload": {}, "expectError": "No transition" }
+  ]
+}

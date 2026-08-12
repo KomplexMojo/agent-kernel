@@ -1,0 +1,10 @@
+{
+  "hazard": {
+    "id": "bad_hazard",
+    "x": 999,
+    "y": 999,
+    "affinity": "fire",
+    "expression": "emit",
+    "stacks": 1
+  }
+}

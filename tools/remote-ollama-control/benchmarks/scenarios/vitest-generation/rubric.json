@@ -1,0 +1,19 @@
+{
+  "title": "Vitest generation",
+  "expectCodeBlock": true,
+  "minimumTests": 4,
+  "requiredImports": [
+    "node:assert/strict",
+    "vitest"
+  ],
+  "requiredTerms": [
+    "normalizeProfileSelection",
+    "buildEndpoint",
+    "primary",
+    "Unknown profile"
+  ],
+  "forbiddenTerms": [
+    "snapshot",
+    "mocked implementation"
+  ]
+}

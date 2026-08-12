@@ -1,0 +1,24 @@
+{
+  "schema": "agent-kernel/Snapshot",
+  "schemaVersion": 1,
+  "tick": 1,
+  "simConfigRef": {
+    "id": "sim_config_basic",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "view": {
+    "counter": 1
+  },
+  "budgetLedger": {
+    "caps": {
+      "movement": 10
+    },
+    "spent": {
+      "movement": 1
+    },
+    "available": {
+      "movement": 9
+    }
+  }
+}

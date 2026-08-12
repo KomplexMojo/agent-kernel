@@ -1,0 +1,34 @@
+{
+  "schema": "agent-kernel/SolverRequest",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "solver_request_basic",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "intentRef": {
+    "id": "intent_basic",
+    "schema": "agent-kernel/IntentEnvelope",
+    "schemaVersion": 1
+  },
+  "planRef": {
+    "id": "plan_basic",
+    "schema": "agent-kernel/PlanArtifact",
+    "schemaVersion": 1
+  },
+  "problem": {
+    "language": "custom",
+    "data": {
+      "goal": "optimize",
+      "constraints": []
+    }
+  },
+  "options": {
+    "engine": "custom",
+    "version": "0.1",
+    "params": {
+      "maxSteps": 3
+    }
+  }
+}

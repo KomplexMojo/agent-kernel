@@ -1,0 +1,8 @@
+{
+  "schema": "agent-kernel/IntentEnvelope",
+  "schemaVersion": 1,
+  "source": "cli",
+  "intent": {
+    "goal": "missing meta"
+  }
+}

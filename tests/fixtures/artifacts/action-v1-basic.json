@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/Action",
+  "schemaVersion": 1,
+  "actorId": "actor_1",
+  "tick": 1,
+  "kind": "wait",
+  "params": {
+    "reason": "idle"
+  }
+}

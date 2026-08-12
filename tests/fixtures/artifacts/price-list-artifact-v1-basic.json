@@ -1,0 +1,24 @@
+{
+  "schema": "agent-kernel/PriceList",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "price_list_basic",
+    "runId": "run_budget_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "items": [
+    {
+      "id": "vital_health_point",
+      "kind": "vital",
+      "costTokens": 1,
+      "notes": "health point"
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "costTokens": 1,
+      "notes": "mana point"
+    }
+  ]
+}

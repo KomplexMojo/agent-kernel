@@ -1,0 +1,18 @@
+{
+  "schema": "agent-kernel/PriceList",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "price_list_fixture",
+    "runId": "run_fixture",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "sourceRef": "ipfs://fixture",
+  "items": [
+    {
+      "key": "move",
+      "unitCost": 1,
+      "unit": "action"
+    }
+  ]
+}

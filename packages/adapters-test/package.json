@@ -1,0 +1,5 @@
+{
+  "name": "@agent-kernel/adapters-test",
+  "private": true,
+  "type": "module"
+}

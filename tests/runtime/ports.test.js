@@ -1,0 +1,75 @@
+const assert = require("node:assert/strict");
+
+
+
+
+
+test("applyBudgetCaps applies known caps", async () => {
+const { applyBudgetCaps } = await import("../../packages/runtime/src/ports/budget.js");
+
+const calls = [];
+const core = { setBudget(category, cap) { calls.push({ category, cap }); } };
+const simConfig = {
+  constraints: {
+    categoryCaps: {
+      caps: {
+        movement: 5,
+        unknown: 2,
+        "2": 7
+      }
+    }
+  }
+};
+const applied = applyBudgetCaps(core, simConfig);
+assert.equal(applied.length, 2);
+assert.equal(calls.length, 2);
+const categories = calls.map((entry) => entry.category).sort();
+assert.deepEqual(categories, [0, 2]);
+const capsByCategory = Object.fromEntries(calls.map((entry) => [entry.category, entry.cap]));
+assert.equal(capsByCategory[0], 5);
+assert.equal(capsByCategory[2], 7);
+});
+
+test("dispatchEffect handles log path", async () => {
+const { dispatchEffect, EffectKind, buildEffectFromCore } = await import("../../packages/runtime/src/ports/effects.js");
+
+const effect = buildEffectFromCore({ tick: 0, index: 0, kind: EffectKind.Log, value: 1 });
+const noLogger = dispatchEffect({}, effect);
+assert.equal(noLogger.status, "deferred");
+
+const logs = [];
+const adapters = { logger: { log(message, data) { logs.push({ message, data }); } } };
+const result = dispatchEffect(adapters, effect);
+assert.equal(result.status, "fulfilled");
+assert.equal(logs.length, 1);
+assert.equal(logs[0].message, "log#1");
+
+const factEffect = buildEffectFromCore({ tick: 2, index: 1, kind: EffectKind.NeedExternalFact, value: (2 << 8) | 4 });
+assert.equal(factEffect.kind, "need_external_fact");
+assert.equal(factEffect.requestId, "fact-2");
+assert.ok(factEffect.id.includes("2"));
+
+const repeatA = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, value: 0 });
+const repeatB = buildEffectFromCore({ tick: 5, index: 1, kind: EffectKind.Log, value: 0 });
+assert.equal(repeatA.id, repeatB.id);
+});
+
+test("solver port populates meta", async () => {
+const { createSolverPort } = await import("../../packages/runtime/src/ports/solver.js");
+
+const adapter = {
+  async solve(request) {
+    return { request, status: "fulfilled" };
+  }
+};
+
+const request = { meta: { runId: "run_test", correlationId: "corr", id: "solver_req" } };
+const solver = createSolverPort({ clock: () => "fixed-time" });
+const result = await solver.solve(adapter, request);
+assert.equal(result.status, "fulfilled");
+assert.ok(result.meta);
+assert.equal(result.meta.runId, "run_test");
+assert.equal(result.meta.correlationId, "corr");
+assert.equal(result.meta.id, "solver_req");
+assert.equal(result.meta.createdAt, "fixed-time");
+});

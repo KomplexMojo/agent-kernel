@@ -1,0 +1,152 @@
+const assert = require("node:assert/strict");
+const { readFileSync } = require("node:fs");
+const { resolve } = require("node:path");
+
+test("runtime maps actor proposals to core actions and replays deterministically", async () => {
+  const [bindings, actorMod, tickMod] = await Promise.all([
+    import("../../packages/core-ts/src/index.ts"),
+    import("../../packages/runtime/src/personas/actor/controller.mts"),
+    import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
+  ]);
+
+  const { applyMoveAction, createCore, packMoveAction, renderFrameBuffer, renderBaseTiles, readObservation } = bindings;
+  const { createActorPersona } = actorMod;
+  const { TickPhases } = tickMod;
+
+  const core = createCore();
+  core.init(1337);
+  core.loadMvpScenario();
+  core.clearEffects?.();
+
+  const actionFixture = JSON.parse(readFileSync(resolve("tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json"), "utf8"));
+  const frameFixture = JSON.parse(readFileSync(resolve("tests/fixtures/artifacts/frame-buffer-log-v1-mvp.json"), "utf8"));
+
+  const actorIdLabel = "actor_mvp";
+  const actorIdValue = 1;
+  const persona = createActorPersona({ clock: () => "fixed" });
+  const actions = [];
+  const frames = [renderFrameBuffer(core, { actorIdLabel })];
+  const baseTiles = renderBaseTiles(core);
+
+  for (let i = 0; i < actionFixture.actions.length; i += 1) {
+    const obs = readObservation(core, { actorIdLabel });
+    const tick = obs.tick + 1;
+    persona.advance({
+      phase: TickPhases.OBSERVE,
+      event: "observe",
+      payload: { actorId: actorIdLabel, observation: obs, baseTiles },
+      tick,
+    });
+    persona.advance({
+      phase: TickPhases.DECIDE,
+      event: "decide",
+      payload: { actorId: actorIdLabel },
+      tick,
+    });
+    const result = persona.advance({
+      phase: TickPhases.DECIDE,
+      event: "propose",
+      payload: { actorId: actorIdLabel },
+      tick,
+    });
+    assert.equal(result.actions.length, 1);
+    const action = result.actions[0];
+    actions.push(action);
+    const packed = packMoveAction({
+      actorId: actorIdValue,
+      from: action.params.from,
+      to: action.params.to,
+      direction: action.params.direction,
+      tick: action.tick,
+    });
+    applyMoveAction(core, packed);
+    core.clearEffects?.();
+    frames.push(renderFrameBuffer(core, { actorIdLabel }));
+    persona.advance({
+      phase: TickPhases.DECIDE,
+      event: "cooldown",
+      payload: { actorId: actorIdLabel },
+      tick,
+    });
+  }
+
+  const normalized = actions.map(({ personaRef, ...rest }) => rest);
+  assert.deepEqual(normalized, actionFixture.actions);
+  assert.deepEqual(frames.map((frame) => frame.buffer), frameFixture.frames.map((frame) => frame.buffer));
+});
+
+test("runtime filters non-motivated proposals before packing actions", async () => {
+  const [bindings, actorMod, tickMod] = await Promise.all([
+    import("../../packages/core-ts/src/index.ts"),
+    import("../../packages/runtime/src/personas/actor/controller.mts"),
+    import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
+  ]);
+
+  const { applyMoveAction, createCore, packMoveAction, renderFrameBuffer, renderBaseTiles, readObservation } = bindings;
+  const { createActorPersona } = actorMod;
+  const { TickPhases } = tickMod;
+
+  const core = createCore();
+  core.init(1337);
+  core.loadMvpScenario();
+  core.clearEffects?.();
+
+  const actorIdLabel = "actor_mvp";
+  const actorIdValue = 1;
+  const baseTiles = renderBaseTiles(core);
+  const obs = readObservation(core, { actorIdLabel });
+  const observation = {
+    ...obs,
+    actors: [
+      { ...obs.actors[0], kind: 2 },
+      { id: "tile_wall", kind: 0, position: { x: 0, y: 0 } },
+      { id: "tile_barrier", kind: 1, position: { x: 2, y: 0 } },
+    ],
+  };
+
+  const persona = createActorPersona({ clock: () => "fixed" });
+  const tick = obs.tick + 1;
+  persona.advance({
+    phase: TickPhases.OBSERVE,
+    event: "observe",
+    payload: { actorId: actorIdLabel, observation, baseTiles },
+    tick,
+  });
+  persona.advance({
+    phase: TickPhases.DECIDE,
+    event: "decide",
+    payload: { actorId: actorIdLabel },
+    tick,
+  });
+  const result = persona.advance({
+    phase: TickPhases.DECIDE,
+    event: "propose",
+    payload: {
+      actorId: actorIdLabel,
+      proposals: [
+        { actorId: "tile_wall", kind: "custom_action", params: { label: "wall" } },
+        { actorId: actorIdLabel, kind: "move", params: { direction: "east", from: { x: 1, y: 1 }, to: { x: 2, y: 1 } } },
+        { actorId: "tile_barrier", kind: "custom_action", params: { label: "barrier" } },
+      ],
+    },
+    tick,
+  });
+
+  assert.deepEqual(result.actions.map((action) => action.kind), ["move"]);
+  result.actions.forEach((action) => assert.equal(action.actorId, actorIdLabel));
+
+  const action = result.actions[0];
+  const packed = packMoveAction({
+    actorId: actorIdValue,
+    from: action.params.from,
+    to: action.params.to,
+    direction: action.params.direction,
+    tick: action.tick,
+  });
+  applyMoveAction(core, packed);
+  core.clearEffects?.();
+
+  const frame = renderFrameBuffer(core, { actorIdLabel });
+  assert.equal(frame.actorPositions[actorIdLabel].x, 2);
+  assert.equal(frame.actorPositions[actorIdLabel].y, 1);
+});

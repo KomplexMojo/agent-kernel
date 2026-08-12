@@ -1,0 +1,66 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_agent_authoring_invalid_goal",
+    "runId": "run_build_agent_authoring_invalid_goal",
+    "createdAt": "2026-04-09T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Author a delver with invalid optimization metadata."
+  },
+  "authoring": {
+    "objectKinds": [
+      "delver"
+    ],
+    "optimizationGoals": [
+      {
+        "kind": "maximize_vital_regen",
+        "scope": "delver",
+        "priority": "high"
+      }
+    ],
+    "request": {
+      "schema": "agent-kernel/AgentCommandRequestArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "agent_command_request_invalid_goal",
+        "runId": "run_build_agent_authoring_invalid_goal",
+        "createdAt": "2026-04-09T00:00:00.000Z",
+        "producedBy": "test"
+      },
+      "command": {
+        "action": "author",
+        "text": "Create a delver with invalid optimization metadata.",
+        "source": "cli-agent",
+        "taxonomyVersion": 1
+      },
+      "objects": [
+        {
+          "kind": "delver",
+          "prompt": "one delver"
+        }
+      ],
+      "compilation": {
+        "rules": [
+          {
+            "kind": "delver",
+            "compileTo": [
+              {
+                "target": "build_spec_plan",
+                "path": "plan.hints.cardSet",
+                "legacyFlow": "delver-plan"
+              },
+              {
+                "target": "build_spec_configurator",
+                "path": "configurator.inputs.actors",
+                "legacyFlow": "delver-plan"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

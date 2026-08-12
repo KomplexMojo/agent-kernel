@@ -1,0 +1,13 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "allocator",
+  "initialState": "idle",
+  "cases": [
+    { "event": "budget", "payload": {}, "expectState": "budgeting" },
+    { "event": "allocate", "payload": { "budgets": [{ "category": "movement", "cap": 5 }] }, "expectState": "allocating", "expectBudgetCount": 1 },
+    { "event": "monitor", "payload": {}, "expectState": "monitoring" },
+    { "event": "rebalance", "payload": { "signals": [{ "category": "movement", "delta": -1 }] }, "expectState": "rebalancing", "expectSignalCount": 1 },
+    { "event": "monitor", "payload": {}, "expectState": "monitoring" }
+  ]
+}

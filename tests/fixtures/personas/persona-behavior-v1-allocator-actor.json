@@ -1,0 +1,39 @@
+{
+  "schema": "agent-kernel/PersonaBehavior",
+  "schemaVersion": 1,
+  "allocator": {
+    "budget": { "effects": 3 },
+    "effects": [
+      {
+        "kind": "need_external_fact",
+        "requestId": "fact-1",
+        "sourceRef": { "id": "fact-1-src", "schema": "agent-kernel/IntentEnvelope", "schemaVersion": 1 },
+        "targetAdapter": "fixtures"
+      },
+      { "kind": "need_external_fact", "requestId": "fact-2" }
+    ],
+    "solverPrompts": [
+      {
+        "requestId": "solve-1",
+        "problem": { "language": "custom", "data": { "difficulty": 2 } },
+        "targetAdapter": "solver"
+      }
+    ]
+  },
+  "actor": {
+    "proposals": [
+      { "kind": "custom_action", "params": { "label": "noop" } }
+    ],
+    "effects": [
+      {
+        "kind": "need_external_fact",
+        "requestId": "fact-3",
+        "sourceRef": { "id": "fact-3-src", "schema": "agent-kernel/IntentEnvelope", "schemaVersion": 1 },
+        "targetAdapter": "fixtures"
+      },
+      { "kind": "need_external_fact", "requestId": "fact-4" }
+    ],
+    "trace": { "severity": "info", "message": "actor-log" },
+    "telemetry": { "metric": 7 }
+  }
+}

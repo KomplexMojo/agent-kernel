@@ -1,0 +1,41 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "buildspec_budget_inline",
+    "runId": "run_budget_inline",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "source": "cli-agent"
+  },
+  "intent": {
+    "goal": "Budget inline scenario."
+  },
+  "budget": {
+    "budget": {
+      "schema": "agent-kernel/BudgetArtifact",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "budget_inline_only",
+        "runId": "run_budget_inline",
+        "createdAt": "2025-01-01T00:00:00.000Z",
+        "producedBy": "fixture"
+      },
+      "budget": {
+        "tokens": 500
+      }
+    },
+    "priceList": {
+      "schema": "agent-kernel/PriceList",
+      "schemaVersion": 1,
+      "meta": {
+        "id": "price_inline_only",
+        "runId": "run_budget_inline",
+        "createdAt": "2025-01-01T00:00:00.000Z",
+        "producedBy": "fixture"
+      },
+      "items": [
+        { "key": "move", "unitCost": 1 }
+      ]
+    }
+  }
+}

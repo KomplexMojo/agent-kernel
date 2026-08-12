@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "providerId": "fixture-provider",
+  "modelId": "fixture-flagship",
+  "contextWindowTokens": 128000,
+  "maxOutputTokens": 8192,
+  "supports": {
+    "textGeneration": true,
+    "structuredOutput": true,
+    "streaming": false
+  },
+  "source": "declared"
+}

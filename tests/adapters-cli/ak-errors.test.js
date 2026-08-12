@@ -1,0 +1,268 @@
+const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
+const { mkdtempSync, writeFileSync, existsSync } = require("node:fs");
+const { resolve, join } = require("node:path");
+const os = require("node:os");
+
+const ROOT = resolve(__dirname, "../..");
+const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const INVALID_SIM_CONFIG = resolve(
+  ROOT,
+  "tests/fixtures/artifacts/invalid/sim-config-artifact-v2.json",
+);
+const INVALID_SIM_CONFIG_MISSING_VERSION = resolve(
+  ROOT,
+  "tests/fixtures/artifacts/invalid/sim-config-artifact-v1-missing-schema-version.json",
+);
+const INVALID_INITIAL_STATE = resolve(
+  ROOT,
+  "tests/fixtures/artifacts/invalid/initial-state-artifact-v2.json",
+);
+const INVALID_INITIAL_STATE_MISMATCHED_SCHEMA = resolve(
+  ROOT,
+  "tests/fixtures/artifacts/invalid/initial-state-artifact-v1-mismatched-schema.json",
+);
+const INVALID_PLAN = resolve(
+  ROOT,
+  "tests/fixtures/artifacts/invalid/plan-artifact-v2.json",
+);
+
+function runCliExpectFailure(args, options = {}) {
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    cwd: ROOT,
+    encoding: "utf8",
+    ...options,
+  });
+  assert.notEqual(result.status, 0, "Expected CLI to fail");
+  return result;
+}
+
+function writeJson(filePath, value) {
+  writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function createTempDir(prefix) {
+  return mkdtempSync(join(os.tmpdir(), prefix));
+}
+
+function createGridArtifacts(dir) {
+  const simConfig = {
+    schema: "agent-kernel/SimConfigArtifact",
+    schemaVersion: 1,
+    meta: {
+      id: "sim_config",
+      runId: "run_error",
+      createdAt: new Date().toISOString(),
+      producedBy: "test",
+    },
+    planRef: {
+      id: "plan_test",
+      schema: "agent-kernel/PlanArtifact",
+      schemaVersion: 1,
+    },
+    seed: 0,
+    layout: {
+      kind: "grid",
+      data: {
+        width: 2,
+        height: 2,
+        tiles: ["..", ".."],
+        legend: { ".": { tile: "floor" }, "#": { tile: "wall" } },
+        render: { wall: "#", floor: "." },
+      },
+    },
+  };
+  const initialState = {
+    schema: "agent-kernel/InitialStateArtifact",
+    schemaVersion: 1,
+    meta: {
+      id: "initial_state",
+      runId: "run_error",
+      createdAt: new Date().toISOString(),
+      producedBy: "test",
+    },
+    simConfigRef: {
+      id: simConfig.meta.id,
+      schema: simConfig.schema,
+      schemaVersion: simConfig.schemaVersion,
+    },
+    actors: [{ id: "actor_1", kind: "stationary" }],
+  };
+  const simConfigPath = join(dir, "sim-config.json");
+  const initialStatePath = join(dir, "initial-state.json");
+  writeJson(simConfigPath, simConfig);
+  writeJson(initialStatePath, initialState);
+  return { simConfigPath, initialStatePath };
+}
+
+test("cli solve rejects missing scenario", () => {
+  const result = runCliExpectFailure(["solve"]);
+  assert.match(result.stderr, /solve requires/);
+});
+
+test("cli run rejects missing args", () => {
+  const result = runCliExpectFailure(["run"]);
+  assert.match(result.stderr, /run requires --sim-config and --initial-state/);
+});
+
+test("cli run rejects missing --from-run artifacts", () => {
+  const tempDir = createTempDir("agent-kernel-cli-error-from-run-");
+  const result = runCliExpectFailure(["run", "--from-run", "run_missing"], { cwd: tempDir });
+  assert.match(result.stderr, /--from-run could not find artifacts for run run_missing/);
+});
+
+test("cli replay rejects missing tick frames", () => {
+  const result = runCliExpectFailure(["replay", "--sim-config", "x", "--initial-state", "y"]);
+  assert.match(result.stderr, /replay requires --sim-config, --initial-state, and --tick-frames/);
+});
+
+test("cli narrate rejects missing args", () => {
+  const result = runCliExpectFailure(["narrate"]);
+  assert.match(result.stderr, /narrate requires --tick-frames and --initial-state/);
+});
+
+test("cli ipfs rejects missing cid", () => {
+  const result = runCliExpectFailure(["ipfs"]);
+  assert.match(result.stderr, /ipfs requires --cid/);
+});
+
+test("cli blockchain rejects missing rpc-url", () => {
+  const result = runCliExpectFailure(["blockchain"]);
+  assert.match(result.stderr, /blockchain requires --rpc-url/);
+});
+
+test("cli blockchain-mint rejects missing rpc-url", () => {
+  const result = runCliExpectFailure(["blockchain-mint", "--card", "tests/fixtures/adapters/card-config-delver.json"]);
+  assert.match(result.stderr, /blockchain-mint requires --rpc-url/);
+});
+
+test("cli blockchain-mint rejects missing card", () => {
+  const result = runCliExpectFailure(["blockchain-mint", "--rpc-url", "http://local"]);
+  assert.match(result.stderr, /blockchain-mint requires --card/);
+});
+
+test("cli blockchain-load rejects missing token-id", () => {
+  const result = runCliExpectFailure(["blockchain-load", "--rpc-url", "http://local"]);
+  assert.match(result.stderr, /blockchain-load requires --token-id/);
+});
+
+test("cli llm rejects missing args", () => {
+  const result = runCliExpectFailure(["llm"]);
+  assert.match(result.stderr, /llm requires --prompt/);
+});
+
+test("cli run rejects schema mismatch", (t) => {
+  const tempDir = createTempDir("agent-kernel-cli-error-");
+  const initialStatePath = join(tempDir, "initial-state.json");
+  writeJson(initialStatePath, {
+    schema: "agent-kernel/InitialStateArtifact",
+    schemaVersion: 1,
+    meta: {
+      id: "initial_state",
+      runId: "run_error",
+      createdAt: new Date().toISOString(),
+      producedBy: "test",
+    },
+    simConfigRef: {
+      id: "sim_config",
+      schema: "agent-kernel/SimConfigArtifact",
+      schemaVersion: 1,
+    },
+    actors: [{ id: "actor_1", kind: "stationary" }],
+  });
+
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    INVALID_SIM_CONFIG,
+    "--initial-state",
+    initialStatePath,  ]);
+  assert.match(result.stderr, /Expected schema/);
+});
+
+test("cli run rejects initial state schema mismatch", (t) => {
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    INVALID_SIM_CONFIG,
+    "--initial-state",
+    INVALID_INITIAL_STATE,  ]);
+  assert.match(result.stderr, /Expected schemaVersion 1/);
+});
+
+test("cli run rejects sim config missing schemaVersion", (t) => {
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    INVALID_SIM_CONFIG_MISSING_VERSION,
+    "--initial-state",
+    resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json"),  ]);
+  assert.match(result.stderr, /Expected schemaVersion 1/);
+});
+
+test("cli run rejects initial state schema kind mismatch", (t) => {
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-basic.json"),
+    "--initial-state",
+    INVALID_INITIAL_STATE_MISMATCHED_SCHEMA,  ]);
+  assert.match(result.stderr, /Expected schema/);
+});
+
+test("cli run rejects out-of-bounds tile overrides", (t) => {
+  const tempDir = createTempDir("agent-kernel-cli-override-");
+  const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    simConfigPath,
+    "--initial-state",
+    initialStatePath,
+    "--ticks",
+    "0",    "--tile-wall",
+    "5,5",
+  ]);
+  assert.match(result.stderr, /tile override out of bounds/);
+});
+
+test("cli run rejects malformed vital specs", (t) => {
+  const tempDir = createTempDir("agent-kernel-cli-override-");
+  const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    simConfigPath,
+    "--initial-state",
+    initialStatePath,
+    "--ticks",
+    "0",    "--vital",
+    "actor_1,health,1,2",
+  ]);
+  assert.match(result.stderr, /--vital expects actorId,vital,current,max,regen/);
+});
+
+test("cli run rejects invalid actor kind", (t) => {
+  const tempDir = createTempDir("agent-kernel-cli-override-");
+  const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
+  const result = runCliExpectFailure([
+    "run",
+    "--sim-config",
+    simConfigPath,
+    "--initial-state",
+    initialStatePath,
+    "--ticks",
+    "0",    "--actor",
+    "actor_x,0,0,unknown",
+  ]);
+  assert.match(result.stderr, /--actor kind/);
+});
+
+test("cli solve rejects plan schema mismatch", () => {
+  const result = runCliExpectFailure([
+    "solve",
+    "--plan",
+    INVALID_PLAN,
+  ]);
+  assert.match(result.stderr, /Expected schemaVersion 1/);
+});

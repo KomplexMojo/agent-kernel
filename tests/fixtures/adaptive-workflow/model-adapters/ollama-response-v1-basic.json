@@ -1,0 +1,17 @@
+{
+  "providerId": "ollama",
+  "raw": {
+    "model": "ollama-fixture",
+    "response": "{\"ok\":true,\"provider\":\"ollama\"}",
+    "done": true,
+    "prompt_eval_count": 17,
+    "eval_count": 5,
+    "total_duration": 250000000
+  },
+  "expected": {
+    "modelId": "ollama-fixture",
+    "text": "{\"ok\":true,\"provider\":\"ollama\"}",
+    "usage": { "inputTokens": 17, "outputTokens": 5, "totalTokens": 22 },
+    "finishReason": "stop"
+  }
+}

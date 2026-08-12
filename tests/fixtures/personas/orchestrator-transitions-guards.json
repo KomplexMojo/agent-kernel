@@ -1,0 +1,10 @@
+{
+  "schema": "agent-kernel/PersonaStateTest",
+  "schemaVersion": 1,
+  "persona": "orchestrator",
+  "initialState": "planning",
+  "cases": [
+    { "event": "start_run", "payload": {}, "expectError": "Guard" },
+    { "event": "complete", "payload": {}, "expectError": "No transition" }
+  ]
+}

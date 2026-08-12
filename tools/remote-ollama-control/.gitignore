@@ -1,0 +1,4 @@
+config/llm-host.env
+results/*
+!results/.gitkeep
+*.log
