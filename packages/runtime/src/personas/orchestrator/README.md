@@ -155,6 +155,7 @@ The Orchestrator is therefore a **boundary guardian**, responsible for safely in
 | `createOrchestratorPersona` | the FSM controller |
 | `orchestratorSubscribePhases` | `observe`, `decide`, `emit` |
 | `runLlmBudgetLoop` | the LLM budget loop — a plain function, re-exported from `llm-budget-loop.js` |
+| `buildLlmCaptureArtifact` | the LLM capture-artifact builder, re-exported from `llm-capture.js` |
 
 `runLlmBudgetLoop` is **published on the controller surface** (CR.7 / WP-5, 2026-08-12) for the same
 reason as `FulfillmentDispositions` on the Moderator: callers need it and must not import persona
@@ -168,6 +169,14 @@ both. The allowlist previously carried four rows pointing straight at `llm-budge
 (`ak-impl.mjs`, `adaptive-workflow/llm-seams.js`, `commands/kernel.js`, `ui-web/design-guidance.js`)
 and CR.4's D4 predicted a use case returning LLM-request effects would replace them; it did not.
 Those four now import `persona.js` and the rows are gone (allowlist 35 → 31).
+
+`buildLlmCaptureArtifact` is published for the same reason and on the same terms — a pure builder
+with the clock injected. Its consumer is `personas/_shared/tick-orchestrator.mts`, which runs the
+**tick plane's** own LLM call and stamps its own capture (`producedBy: "runtime-llm"`): a genuinely
+separate exchange from the build plane's rounds, and one that must not grow a second artifact
+builder. ⚠️ Note this retires the second reason given in `llm-round.js#settle`'s docblock — that the
+builder was persona-internal. The provenance reason stated there still stands and always was the
+stronger one: a reachable builder still cannot stamp a round that is not running.
 
 ## State machine & phases
 - States: idle → planning → running/replaying → completed/errored.

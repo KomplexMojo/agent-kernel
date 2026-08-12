@@ -9,7 +9,6 @@ import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/c
 import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
-import { buildBudgetAllocation } from "../personas/allocator/budget-allocation.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
 import { computeInternalManaUpkeep } from "../personas/configurator/cost-model.js";
@@ -1521,7 +1520,13 @@ export async function orchestrateBuild({
       })
       : null;
     if (mapped.budget?.budget && resolvedPriceList) {
-      const allocationResult = buildBudgetAllocation({
+      // CR.7 / WP-5 — asked of the Allocator's public surface rather than by importing
+      // `budget-allocation.js`. `allocateBudget` IS `buildBudgetAllocation`, wrapped only to
+      // default an absent `priceList` from the persona's own — and this call site supplies one
+      // explicitly, so the wrapper is a no-op here and the allocation is byte-identical.
+      // Constructed inline with `UNUSED_CLOCK` because that is this file's existing idiom for
+      // asking the Allocator a stateless question (see `scenarioSpendReport` below).
+      const allocationResult = createAllocatorPersona({ clock: UNUSED_CLOCK }).allocateBudget({
         budget: mapped.budget.budget,
         priceList: resolvedPriceList,
         meta: createBuildMeta(spec, producedBy, "budget_allocation"),

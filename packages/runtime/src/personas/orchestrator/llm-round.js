@@ -188,12 +188,17 @@ export function createLlmRound({
   /**
    * Assemble the terminal result, capture artifact included.
    *
-   * The artifact is built HERE, not by the host, for two reasons. Provenance is the
-   * first: CR.4's charge is that `producedBy: "orchestrator"` is stamped by a free
-   * function with no round running, and a stamp applied inside a round that reached a
-   * terminal state is the fix. The second is structural — `buildLlmCaptureArtifact` is
-   * persona-internal, so a host assembling the artifact would have to import it and
-   * would simply open a new boundary crossing to close an old one.
+   * The artifact is built HERE, not by the host, for PROVENANCE: CR.4's charge is that
+   * `producedBy: "orchestrator"` is stamped by a free function with no round running, and a
+   * stamp applied inside a round that reached a terminal state is the fix.
+   *
+   * ⚠️ This docblock used to give a second, structural reason — that `buildLlmCaptureArtifact`
+   * is persona-internal, so a host assembling the artifact would open a new boundary crossing
+   * to close an old one. **That reason is retired as of CR.7 / WP-5 (2026-08-12): the builder is
+   * now published on this persona's controller** for the tick plane, which stamps its own
+   * `runtime-llm` capture. Publishing it does not weaken the provenance argument above, which
+   * was always the stronger of the two — a reachable builder still cannot stamp a round that is
+   * not running.
    */
   function settle(nextState) {
     state = nextState;

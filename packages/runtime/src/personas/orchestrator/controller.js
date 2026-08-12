@@ -22,6 +22,20 @@ import { TickPhases } from "../_shared/tick-state-machine.mts";
  */
 export { runLlmBudgetLoop } from "./llm-budget-loop.js";
 
+/**
+ * CR.7 / WP-5, 2026-08-12 — the LLM capture artifact builder, published for the TICK plane.
+ *
+ * `personas/_shared/tick-orchestrator.mts` performs the tick plane's own LLM call and stamps
+ * its own capture (`producedBy: "runtime-llm"`), which is a legitimately separate exchange from
+ * the build plane's rounds. It reached in for `llm-capture.js` directly and was an allowlist row.
+ *
+ * Published for the same reason as `runLlmBudgetLoop` above: the artifact's shape is Orchestrator
+ * law — it stamps `CAPTURED_INPUT_SCHEMA` — so the answer is to publish the one builder, not to
+ * let a second caller grow a second one. It is a pure function with the clock injected, so no FSM
+ * state escapes with it.
+ */
+export { buildLlmCaptureArtifact } from "./llm-capture.js";
+
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 
 export function createOrchestratorPersona({ initialState = OrchestratorStates.IDLE, clock, from } = {}) {
