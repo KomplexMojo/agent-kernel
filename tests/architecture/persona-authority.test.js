@@ -86,13 +86,18 @@ const OPEN_FINDINGS = Object.freeze([
   // perturbation-verified. So this list is empty again — and, as the backlog test below says
   // at length, that means every REGISTERED behavior is owned and nothing more.
   //
-  // ⚠️ THE REGISTRY IS STILL NOT A COMPLETE MAP OF THE CHARTER. Behaviors named in the
-  // charter's persona table with no entry here, listed so the next pass starts from a list
-  // rather than a feeling: the Orchestrator's deferred side-effect coordination (post-run
-  // effects, the `need_external_fact` capture path) · the Allocator's receipts and budget
-  // maximization · the Configurator's level and actor generation. Each needs the same
-  // question asked — could production produce this without the persona? — not another test
-  // that the function works.
+  // P5.5 opened 2026-08-13, when that list was worked through. Three of the five went in as
+  // owned on proofs that already existed (spend authority through the real CLI, budget
+  // maximization's price teeth, input preparation's state gate — the last claiming A3 ONLY,
+  // because that is all its test proves). The other two are not unproven behaviors; they are
+  // UNIMPLEMENTED ones, and that is the finding:
+  //   orchestrator/deferred-side-effects — dispatchEffect defers, `ak inspect` counts, and
+  //     nothing in the Orchestrator ever picks them up. The charter and two READMEs describe
+  //     post-run coordination that does not exist.
+  //   allocator/reconciliation — chartered, has its own README section, and `rg reconcil`
+  //     over packages/runtime/src finds only the Configurator's layout tile reconciliation.
+  // A G1 test cannot come before the behavior, so P5.5 is implementation work first.
+  "P5.5",
 ]);
 
 // ---------------------------------------------------------------------------

@@ -32,15 +32,35 @@ behavior with no G1 test is not owned**. The rows below mirror
 |---|---|---|---|
 | `allocator/pricing-single-origin` — every token cost has one author, inside the Allocator | A1 | ✅ owned (CR.1, closed at CR.9 M5) | `tests/architecture/single-origin.test.js` |
 | `allocator/judges-not-authors` — it prices a config it did not author, from the artifact's published fields | A1 | ✅ owned (CR.9 M3) | `tests/personas/allocator/allocator-judges-not-authors.test.js` |
+| `allocator/spend-authority` — a build it will not fund does not happen: the receipt gates production | A2 | ✅ owned (P1 / CR.1) | `tests/adapters-cli/ak-hazard-resource-plan.test.js` |
+| `allocator/budget-maximization` — maximizing against a budget spends its prices, never an assumed one | A1 | ✅ owned (CR.7 / WP-5 D10) | `tests/personas/configurator/configurator-maximizer-prices-from-allocator.test.js` |
+| `allocator/reconciliation` — reconciling actual spend against the issued budget | A1 | 🔴 blocked — P5.5 | none; the behavior is not implemented |
 
 <!-- /A1-A5-STATUS -->
 
-⚠️ **Both rows are A1 — sole implementation — and that is the criterion this persona keeps losing.**
-A second price table does not fail an output test when its numbers happen to agree: the D10 finding
-caught a private fallback price of `1` against an Allocator price of `1`, where quadrupling the real
-price changed nothing observable. Which is why the guard is a **census over the tree** rather than a
-test over a result, and why unpriced inputs are refusals that name the missing key instead of
-defaults.
+⚠️ **Three of the five rows are A1 — sole implementation — because that is the criterion this
+persona keeps losing.** A second price table does not fail an output test when its numbers happen to
+agree: the D10 finding caught a private fallback price of `1` against an Allocator price of `1`,
+where quadrupling the real price changed nothing observable. Which is why the guards are a **census
+over the tree** rather than tests over a result, and why unpriced inputs are refusals that name the
+missing key instead of defaults.
+
+**`allocator/spend-authority` is the A2 row, and it runs through the real CLI:** when this persona
+denies the receipt, the build throws `Budget receipt denied: …` and the command exits non-zero.
+
+⚠️ **The citation on that row is itself a finding.** It first named `ak-warden-plan.test.js` — the
+obvious candidate, which mentions the denial string and asserts a non-zero exit. Perturb the refusal
+away and that test stays **green**: its regex accepts three different messages
+(`/budget|minimum_cost_exceeds_budget|Budget receipt denied/i`) and its scenario actually fails at an
+earlier gate. *A test that mentions a behavior is not a test that pins it.* The proof that does fail
+is `ak-hazard-resource-plan.test.js`, and finding it required neutralizing **both** throw sites in
+`orchestrate-build.js` — one is a superset of the other, so removing one left the entire suite green
+and briefly read as "nothing guards this at all".
+
+🔴 **`allocator/reconciliation` is chartered, described below under "Reconciliation and Adjustment",
+and NOT IMPLEMENTED.** `rg reconcil` over `packages/runtime/src` finds only the Configurator's layout
+tile reconciliation — a different word for a different thing. It is registered as blocked (P5.5) so
+the gap is counted rather than merely described; read that section as intent, not as behavior.
 
 🟢 **THERE IS NOW ONE PRICE MODEL. P1.4 landed 2026-08-12.** The second one —
 `configurator/cost-model.js`'s affinity base 30, `Σ(10+8(n-1)²)` stacks, `2·H` vital points and

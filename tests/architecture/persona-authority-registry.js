@@ -90,6 +90,26 @@ const REGISTRY = Object.freeze([
     },
   },
 
+  {
+    id: "orchestrator/deferred-side-effects",
+    persona: "orchestrator",
+    behavior: "Effects deferred during execution are coordinated by the Orchestrator after the run",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/ports/effects.js",
+    invocation: "none",
+    status: {
+      blockedBy: "P5.5",
+      why:
+        "🔴 NOT MERELY UNPROVEN — UNIMPLEMENTED, and registering it is how that becomes "
+        + "visible. The charter and the Moderator/Orchestrator READMEs both say IO-bound "
+        + "effects are recorded during execution and fulfilled post-run by the Orchestrator. "
+        + "In the tree, `dispatchEffect` marks them `deferred` and the only thing downstream "
+        + "is `ak inspect`, which COUNTS them. No Orchestrator round picks them up. A G1 test "
+        + "cannot come before the behavior, so this entry blocks on building it — and until "
+        + "then the READMEs describing post-run coordination are describing an intention.",
+    },
+  },
+
   // ── Director ───────────────────────────────────────────────────────────────
   {
     id: "director/plan-artifact",
@@ -186,6 +206,27 @@ const REGISTRY = Object.freeze([
         + "makes the pair checkable: deriving a levelGen from intent is Director translation, "
         + "judging whether it fits is Configurator law, and `director-build-round.test.js` "
         + "pins the derivation half refusing an input it cannot derive from.",
+    },
+  },
+  {
+    id: "configurator/input-preparation",
+    persona: "configurator",
+    behavior: "Grid sizing, hazard placement and resource mapping run behind the persona's CONFIG-plane surface",
+    criteria: ["A3"],
+    productionEntryPoint: "packages/runtime/src/build/authoring-build.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "P2.2 / P2.3.1",
+      provenBy: "tests/personas/configurator/configurator-input-prep.test.js",
+      why:
+        "⚠️ **A3 ONLY, deliberately.** The cited test proves the state GATES the behavior — "
+        + "`prepareLevelGen` and `mapResources` refuse before `provideConfig` opens the round, "
+        + "and `provideConfig` rejects an invalid config and stays uninitialized. That is "
+        + "exactly criterion A3 and nothing more: it does not ablate the persona out of "
+        + "`authoring-build.js` to show production cannot size a grid without it. Claiming A2 "
+        + "here would be the overclaim this registry exists to prevent — the sibling "
+        + "validate-lock@build entry carries A2 because it has a real differential.",
     },
   },
   {
@@ -286,6 +327,76 @@ const REGISTRY = Object.freeze([
       // than composing one. Perturbation-verified against five restored defects; the
       // results table lives in the test file's header and includes one perturbation
       // (P1b) that is deliberately NOT detected because it is not the defect.
+    },
+  },
+
+  {
+    id: "allocator/spend-authority",
+    persona: "allocator",
+    behavior: "A build the Allocator will not fund does not happen: the receipt gates production",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/build/orchestrate-build.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "P1 / CR.1",
+      provenBy: "tests/adapters-cli/ak-hazard-resource-plan.test.js",
+      why:
+        "A2 through the real CLI: when the Allocator denies the receipt, `orchestrateBuild` "
+        + "throws `Budget receipt denied: …` and the command exits non-zero. "
+        + "⚠️ **THE CITATION IS THE FINDING.** This entry first cited "
+        + "`ak-warden-plan.test.js`, the obvious candidate — it names the denial string and "
+        + "asserts a non-zero exit. Perturbing the refusal away leaves it GREEN, because its "
+        + "regex accepts three different messages "
+        + "(`/budget|minimum_cost_exceeds_budget|Budget receipt denied/i`) and that scenario "
+        + "actually fails at an EARLIER gate. A test that mentions a behavior is not a test "
+        + "that pins it. "
+        + "⚠️ And the first perturbation was itself wrong: `orchestrate-build.js` throws on a "
+        + "denied receipt at TWO sites, one a superset of the other, so neutralizing one left "
+        + "the whole suite green and briefly read as \"nothing guards this\". Both had to go "
+        + "before the real guard showed itself. "
+        + "⚠️ SCOPE: this proves the verdict is load-bearing, not that the persona cannot be "
+        + "bypassed by a caller that never asks for a receipt at all.",
+    },
+  },
+  {
+    id: "allocator/budget-maximization",
+    persona: "allocator",
+    behavior: "Maximizing a config against a budget spends the Allocator's prices, never an assumed one",
+    criteria: ["A1"],
+    productionEntryPoint: "packages/runtime/src/personas/configurator/budget-maximizer.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.7 / WP-5 D10",
+      provenBy: "tests/personas/configurator/configurator-maximizer-prices-from-allocator.test.js",
+      why:
+        "A1 with real teeth, and the teeth are the story: the maximizer used to carry a "
+        + "private fallback price of `1`, and every vital in the Allocator's default list "
+        + "costs exactly 1 — so the private price and the real price were numerically "
+        + "identical and NO output test could distinguish them. The TEETH case quadruples the "
+        + "Allocator's price and requires the result to move; unpriced vitals and regen ticks "
+        + "are refusals that name the missing key. ⚠️ A1 only: this is about who authors the "
+        + "prices, not about whether production could maximize without the Allocator.",
+    },
+  },
+  {
+    id: "allocator/reconciliation",
+    persona: "allocator",
+    behavior: "Reconciling actual spend against the issued budget, and adjusting",
+    criteria: ["A1"],
+    productionEntryPoint: "packages/runtime/src/personas/allocator/persona.js",
+    invocation: "none",
+    status: {
+      blockedBy: "P5.5",
+      why:
+        "🔴 UNIMPLEMENTED, like the Orchestrator's deferred-effect coordination. The charter's "
+        + "persona table names reconciliation and adjustment as Allocator work, and this "
+        + "persona's README has a 'Reconciliation and Adjustment' section — but `rg reconcil` "
+        + "over `packages/runtime/src` finds only the Configurator's LAYOUT tile reconciliation, "
+        + "which is a different word for a different thing. The entry point above is the "
+        + "surface where it would be published, not a module that implements it. Registered "
+        + "blocked so the gap is counted rather than described.",
     },
   },
 

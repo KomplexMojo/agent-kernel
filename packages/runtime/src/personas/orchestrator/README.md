@@ -31,6 +31,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | Behavior | Criteria | Status | Proof |
 |---|---|---|---|
 | `orchestrator/llm-session` — the external interaction seam: LLM sessions run as persona rounds | A5 | ✅ owned (CR.4 M1–M7, `2be417d6`) | `tests/architecture/cr4-llm-call-site-inventory.test.js` |
+| `orchestrator/deferred-side-effects` — effects deferred during execution are coordinated after the run | A2 | 🔴 blocked — P5.5 | none; the behavior is not implemented |
 
 <!-- /A1-A5-STATUS -->
 
@@ -111,6 +112,13 @@ The Orchestrator does not interpret or refine intent beyond routing and normaliz
 ---
 
 ### External Side-Effect Coordination
+
+🔴 **THIS SECTION DESCRIBES INTENT, NOT BEHAVIOR — verified 2026-08-13.** `dispatchEffect` marks
+IO-bound effects `deferred`, and the only thing downstream is `ak inspect`, which **counts** them.
+Nothing in this persona picks them up after a run. The section is kept because it is the chartered
+design, and the gap is registered as `orchestrator/deferred-side-effects` (blocked, P5.5) so it is
+counted rather than described. Read the rest of this section as the target state.
+
 Based on simulation outputs, the Orchestrator is responsible for handling **deferred side effects**
 that were explicitly not fulfilled during simulation execution.
 
