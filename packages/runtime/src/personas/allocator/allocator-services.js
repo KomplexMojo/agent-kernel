@@ -33,6 +33,7 @@ import {
 import { evaluateSelectionSpend } from "./selection-spend.js";
 import { fitLayoutToBudget } from "./layout-fit.js";
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
+import { reconcileBudget } from "./reconciliation.js";
 
 export class AllocatorStateError extends Error {
   constructor(message) {
@@ -55,6 +56,12 @@ export function attachAllocatorServices({
   let registeredBudget = null;
   let receiptCount = 0;
   let lastReceiptStatus = null;
+  // P5.5 — the last reconciliation VERDICT. It lives on the service rather than in
+  // the FSM context because `view()` is what gets serialized into personaViews and
+  // replayed, and an advance() return value is transient: a verdict that existed only
+  // on the result object would be invisible to every replay consumer, which is most
+  // of them.
+  let lastReconciliation = null;
 
   const currentState = () => fsm.view().state;
 
@@ -283,12 +290,38 @@ export function attachAllocatorServices({
     );
   }
 
+  /**
+   * Reconcile actual spend against the issued budget (P5.5, charter: the
+   * Allocator owns "reconciliation").
+   *
+   * ⚠️ **State-gated, and this is the gate that makes REBALANCING mean
+   * something.** Before P5.5 `monitoring → rebalancing` moved a label and
+   * nothing else: advance() behaved identically in every state, so the run
+   * reported `rebalancing` while doing exactly what it did in `monitoring`.
+   * Reconciliation is the only operation that requires the monitoring loop to
+   * have started, so it is the one that turns the edge into a gate — a
+   * reconciliation cannot exist before the Allocator is watching a run, the
+   * same way a receipt cannot exist without a registered budget.
+   *
+   * Unlike pricing (read-only policy, available in any state) this touches the
+   * run's own ledger, which only exists once the run does.
+   */
+  function reconcile({ ledger } = {}) {
+    requireState(["monitoring", "rebalancing"], "reconcile spend");
+    lastReconciliation = reconcileBudget({ ledger });
+    return lastReconciliation;
+  }
+
   /** Serializable service-side context merged into the persona view. */
   function serviceContext() {
     return {
       budgetTokens: registeredBudget?.budget?.tokens ?? null,
       receiptCount,
       lastReceiptStatus,
+      // Absent, not null, until one happens: `reconciliation: null` in a replayed
+      // view reads as "reconciled, found nothing", which is a claim this persona
+      // has not made.
+      ...(lastReconciliation ? { reconciliation: lastReconciliation } : {}),
     };
   }
 
@@ -307,6 +340,8 @@ export function attachAllocatorServices({
     allocateBudget,
     evaluateSelectionSpend: boundEvaluateSelectionSpend,
     fitLayoutToBudget: boundFitLayoutToBudget,
+    // P5.5 — the chartered reconciliation. State-gated, unlike the pricing surface.
+    reconcile,
     serviceContext,
   };
 }

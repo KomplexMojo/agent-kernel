@@ -119,6 +119,24 @@ export function createAllocatorPersona({
       }
     }
 
+    // P5.5 — REBALANCING now GATES the chartered reconciliation instead of naming it.
+    //
+    // The edge `monitoring → rebalance → rebalancing` has existed since PX.5 and moved
+    // nothing but a label: every other branch of this function is payload-driven and
+    // runs identically in all five states, so a run could report `rebalancing` while
+    // doing precisely what it did in `monitoring`. Charter (Enforcement → Personas):
+    // "persona states must gate real behavior — label-only states are defects."
+    //
+    // ⚠️ The ledger is REQUIRED, not defaulted. `services.reconcile` throws when it is
+    // absent, and that refusal is the point: the runner only sends `rebalance` when it
+    // has a ledger to hand over, so reaching this branch without one is a wiring defect
+    // that must be loud. Defaulting to an empty ledger would report every run as within
+    // budget — the well-formed wrong answer this persona keeps refusing to give.
+    if (event === "rebalance") {
+      const reconciliation = services.reconcile({ ledger: payload.ledger });
+      result.context = { ...result.context, reconciliation };
+    }
+
     const solverEffect = buildSolverRequestEffect({
       solverRequest: payload.solver || payload.solverRequest,
       personaRef: "allocator",

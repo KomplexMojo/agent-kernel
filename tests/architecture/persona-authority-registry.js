@@ -94,19 +94,33 @@ const REGISTRY = Object.freeze([
     id: "orchestrator/deferred-side-effects",
     persona: "orchestrator",
     behavior: "Effects deferred during execution are coordinated by the Orchestrator after the run",
-    criteria: ["A2"],
-    productionEntryPoint: "packages/runtime/src/ports/effects.js",
-    invocation: "none",
+    criteria: ["A2", "A5"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/post-run-round.js",
+    invocation: "cli",
     status: {
-      blockedBy: "P5.5",
+      owned: true,
+      since: "P5.5",
+      provenBy: "tests/personas/orchestrator/orchestrator-coordinates-deferred-effects.test.js",
       why:
-        "🔴 NOT MERELY UNPROVEN — UNIMPLEMENTED, and registering it is how that becomes "
-        + "visible. The charter and the Moderator/Orchestrator READMEs both say IO-bound "
-        + "effects are recorded during execution and fulfilled post-run by the Orchestrator. "
-        + "In the tree, `dispatchEffect` marks them `deferred` and the only thing downstream "
-        + "is `ak inspect`, which COUNTS them. No Orchestrator round picks them up. A G1 test "
-        + "cannot come before the behavior, so this entry blocks on building it — and until "
-        + "then the READMEs describing post-run coordination are describing an intention.",
+        "BUILT in P5.5 — it was registered blocked because it did not exist. The round "
+        + "returns effects and STOPS, exactly like llm-round.js: the host dispatches, the "
+        + "adapter does the IO, and results come back through fulfill(). A5 is the gate that "
+        + "matters: `coordinateDeferredEffects` refuses unless the Orchestrator in THIS run's "
+        + "registry can host the round, so glue cannot mint a fresh persona to sign the "
+        + "captures — the CR.8 façade, one artifact over. Reaches production through "
+        + "`ak run`, which writes `deferred-coordination.json`. "
+        + "⚠️ The A2 ablation is deliberately not the headline: production used to do NOTHING "
+        + "here, so 'nothing happens without the Orchestrator' was true before the feature "
+        + "and proves nothing. The load-bearing test is that deferrals are coordinated at all.",
+      residue:
+        "There is no external-fact ADAPTER in the tree yet, so a real run reports its "
+        + "deferrals as `outstanding` with reason `missing_external_fact_adapter`. That is the "
+        + "honest outcome and it is visible, which is the whole change: before this the "
+        + "records went nowhere and a run that dropped every deferral looked identical to one "
+        + "that had none. Wiring an adapter is adapter-layer work, not this entry's. "
+        + "⚠️ `dispatchEffect` gained an explicit `need_external_fact` case for the same reason "
+        + "CR.4 M2 gave the LLM one: the `default:` branch warns and then reports `fulfilled`, "
+        + "so a fact that was never fetched would have been captured as provenance.",
     },
   },
 
@@ -384,19 +398,34 @@ const REGISTRY = Object.freeze([
     id: "allocator/reconciliation",
     persona: "allocator",
     behavior: "Reconciling actual spend against the issued budget, and adjusting",
-    criteria: ["A1"],
-    productionEntryPoint: "packages/runtime/src/personas/allocator/persona.js",
-    invocation: "none",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/allocator/reconciliation.js",
+    invocation: "service",
     status: {
-      blockedBy: "P5.5",
+      owned: true,
+      since: "P5.5",
+      provenBy: "tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js",
       why:
-        "🔴 UNIMPLEMENTED, like the Orchestrator's deferred-effect coordination. The charter's "
-        + "persona table names reconciliation and adjustment as Allocator work, and this "
-        + "persona's README has a 'Reconciliation and Adjustment' section — but `rg reconcil` "
-        + "over `packages/runtime/src` finds only the Configurator's LAYOUT tile reconciliation, "
-        + "which is a different word for a different thing. The entry point above is the "
-        + "surface where it would be published, not a module that implements it. Registered "
-        + "blocked so the gap is counted rather than described.",
+        "BUILT in P5.5 — it was registered blocked because it did not exist, not because it "
+        + "was unproven. A2 by ablation: an Allocator that walks the same states and emits "
+        + "the same payload-driven actions but never reconciles leaves production with NO "
+        + "verdict anywhere, and the twin is exact (it delegates to a real persona, so the "
+        + "spend core charges is identical — a stub emitting nothing would have removed the "
+        + "signals that trigger the reconciliation and proved nothing). A1 because the "
+        + "disposition boundaries and the adjustment vocabulary are authored here: the test "
+        + "asserts the overspend arithmetic, not merely that a verdict appeared. "
+        + "⚠️ What made this possible at all was that the ACTUAL half existed and was never "
+        + "read: `core.getBudgetUsage` had no runtime consumer, so caps went in and nothing "
+        + "ever compared them against spend.",
+      residue:
+        "REBALANCING was a label-only state before this — a charter defect (Enforcement → "
+        + "Personas) that no guard reported, because a state gating nothing is indistinguishable "
+        + "from a state gating something in every output test. It gates the reconciliation now, "
+        + "and its FSM guard requires the ledger rather than the old signal COUNTS. "
+        + "⚠️ Separately: `core.applyAction` returns for ActionKind.Move BEFORE charging, so a "
+        + "`movement` cap is inert against moves and reconciles as spend 0. That is a core "
+        + "defect this entry does not cover and did not introduce; the G1 test caps `effects` "
+        + "and says so in place.",
     },
   },
 

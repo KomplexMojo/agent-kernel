@@ -97,7 +97,19 @@ const OPEN_FINDINGS = Object.freeze([
   //   allocator/reconciliation — chartered, has its own README section, and `rg reconcil`
   //     over packages/runtime/src finds only the Configurator's layout tile reconciliation.
   // A G1 test cannot come before the behavior, so P5.5 is implementation work first.
-  "P5.5",
+  //
+  // P5.5 CLOSED 2026-08-13: both behaviors were BUILT, and both are now owned with
+  // perturbation-verified proofs. What had kept each of them unbuilt is the part worth
+  // carrying, because in both cases it was a missing consumer rather than missing effort:
+  //   allocator/reconciliation — `core.getBudgetUsage`, the ACTUAL half of "actual versus
+  //     issued", had no runtime consumer anywhere. Caps went in and nothing read them back,
+  //     so there was no second number to reconcile against. No instrument could report that:
+  //     a counter nobody reads is indistinguishable from a counter that agrees.
+  //   orchestrator/deferred-side-effects — the Moderator's DEFER decisions were recorded and
+  //     then consumed by nothing but `ak inspect`'s counter. A run that dropped every
+  //     deferral looked identical, in every output test, to a run that had none.
+  // ⇒ Both are the same shape as the stale-instrument failures above, inverted: not an
+  // instrument outliving its subject, but a subject with no instrument at all.
 ]);
 
 // ---------------------------------------------------------------------------

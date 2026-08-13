@@ -1,5 +1,5 @@
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
-import { applyBudgetCaps, applyActionBudgetCosts } from "../ports/budget.js";
+import { applyBudgetCaps, applyActionBudgetCosts, readBudgetLedger } from "../ports/budget.js";
 import * as effects from "../ports/effects.js";
 import { createSolverPort } from "../ports/solver.js";
 import { createTickOrchestrator } from "../personas/_shared/tick-orchestrator.mts";
@@ -10,7 +10,7 @@ import { createAnnotatorPersona } from "../personas/annotator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
 import { createModeratorPersona, FulfillmentDispositions } from "../personas/moderator/persona.js";
-import { createOrchestratorPersona } from "../personas/orchestrator/persona.js";
+import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
 import { applyMoveAction, packMoveAction, readObservation, renderBaseTiles } from "../../../core-ts/src/index.ts";
 import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../contracts/domain-constants.js";
@@ -612,6 +612,9 @@ export function createFsmRuntime({
   let tick = 0;
   let moderator = null;
   let annotator = null;
+  // P5.5 — the Orchestrator PERSONA from the registry, not the tick orchestrator that
+  // shares its name in this file. Post-run deferred-effect coordination is its work.
+  let orchestratorPersona = null;
   const effectLog = [];
   const tickFrames = [];
   let activeRunId = typeof runId === "string" && runId.length > 0 ? runId : `run_${Date.now().toString(36)}`;
@@ -626,6 +629,9 @@ export function createFsmRuntime({
   let baseTiles = null;
   let lastEffects = [];
   let lastFulfilled = [];
+  // P5.5 — applyBudgetCaps's own return value: the categories a cap was actually
+  // issued for. The Allocator's reconciliation reads spend against exactly these.
+  let appliedBudgetCaps = [];
   let observationLog = [];
   let affinityEffects = null;
   let orchestrator = null;
@@ -701,6 +707,7 @@ export function createFsmRuntime({
     }
     moderator = registry.moderator;
     annotator = registry.annotator ?? null;
+    orchestratorPersona = registry.orchestrator ?? null;
 
     const order = moderator.advance({
       phase: TickPhases.INIT,
@@ -797,6 +804,14 @@ export function createFsmRuntime({
         signals.push({ kind: "actions", count: actions.length, tick });
       }
       allocatorPayload.signals = signals;
+    }
+    // P5.5 — the reconciliation input. `signals` are COUNTS of effects, fulfilments
+    // and actions: they say something happened, never what it cost. The ledger is
+    // the issued-versus-actual pair the charter's reconciliation is actually about,
+    // and it is read here (glue reads core) so the persona only ever decides.
+    if (allocatorPayload.ledger === undefined) {
+      const ledger = readBudgetLedger(core, appliedBudgetCaps);
+      if (ledger) allocatorPayload.ledger = ledger;
     }
 
     const personaPayloads = {
@@ -944,9 +959,18 @@ export function createFsmRuntime({
       }
       // PX.5 — rebalance is signal-driven and tick-native; `allocate` is not sent
       // here any more (it is validateSpend's event, a claim this plane cannot make).
+      //
+      // P5.5 — and it now also requires a LEDGER, because `rebalance` stopped being a
+      // label the day REBALANCING started gating reconciliation. The persona refuses to
+      // reconcile without one, so sending the event with nothing to reconcile would
+      // throw mid-tick. A run whose core exposes no usage counter therefore stays in
+      // `monitoring`: the honest state, since no reconciliation happened. That is the
+      // charter's rule applied to the trigger as well as to the state — an event that
+      // announces work must only be sent when the work can be done.
       if (!events.allocator) {
         const allocState = personaStates?.allocator?.state;
-        events.allocator = allocState === "monitoring" && hasSignals ? "rebalance" : "observe";
+        const canReconcile = hasSignals && Boolean(personaPayloads?.allocator?.ledger);
+        events.allocator = allocState === "monitoring" && canReconcile ? "rebalance" : "observe";
       }
     }
 
@@ -1132,7 +1156,11 @@ export function createFsmRuntime({
       }
 
       baseTiles = resolveBaseTiles(simConfig, core);
-      applyBudgetCaps(core, simConfig);
+      // P5.5 — the applied caps are RETAINED now, because they are the "issued"
+      // half of the Allocator's reconciliation. Previously this return value was
+      // dropped, which is a small part of why nothing could compare issued spend
+      // against actual: one half was discarded and the other was never read.
+      appliedBudgetCaps = applyBudgetCaps(core, simConfig);
       // Action costs are Allocator policy; core enforces but must not price.
       applyActionBudgetCosts(core, createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.actionBudgetCosts());
 
@@ -1482,6 +1510,67 @@ export function createFsmRuntime({
         throw error;
       }
       return annotator.summarizeRun(args);
+    },
+
+    /**
+     * P5.5 — coordinate the effects this run deferred, after the run.
+     *
+     * Chartered Orchestrator work that did not exist: `dispatchEffect` marked IO-bound
+     * effects `deferred`, the Moderator recorded the disposition, and the only thing
+     * downstream was `ak inspect`, which counted them. The records then went nowhere, and
+     * a run that dropped every deferral looked identical to one that had none.
+     *
+     * The sequencing is the charter's, not a convenience: this runs only after the ticks
+     * are done and the run's facts are final, and nothing it obtains is fed back into the
+     * simulation. The round decides and returns effects; the port dispatches them; the
+     * adapter does the IO.
+     *
+     * @returns {{runId: string|null, deferredCount: number, captures: Array<object>,
+     *   outstanding: Array<object>} | null} null when the run deferred nothing — which is
+     *   distinct from a settlement with an empty capture list, and the round refuses to
+     *   blur the two.
+     */
+    coordinateDeferredEffects({ clock: overrideClock, meta } = {}) {
+      // The A5 gate, the same shape as summarizeRun's: the persona that hosts the round
+      // must be the one in this run's registry. A stand-in minted here to sign the
+      // captures is the CR.8 façade, one artifact over.
+      if (typeof orchestratorPersona?.createPostRunCoordinationRound !== "function") {
+        const error = new Error(
+          "Runtime has no Orchestrator that can coordinate deferred effects: post-run "
+          + "side-effect coordination is Orchestrator work (charter), so glue must not "
+          + "fulfil the deferrals itself.",
+        );
+        error.code = "orchestrator_required";
+        throw error;
+      }
+
+      const deferred = collectDeferredEffects(tickFrames);
+      if (deferred.length === 0) {
+        return null;
+      }
+
+      const round = orchestratorPersona.createPostRunCoordinationRound({
+        deferred,
+        runId: activeRunId,
+        clock: overrideClock || activeClock,
+        meta,
+      });
+      const { effects: postRunEffects } = round.begin();
+
+      for (const effect of postRunEffects) {
+        const outcome = typeof effects.dispatchEffect === "function"
+          ? effects.dispatchEffect(adapters, effect)
+          : { status: "deferred", reason: "missing_dispatchEffect" };
+        round.fulfill({
+          coordinationId: effect.coordinationId,
+          status: outcome?.status,
+          payload: outcome?.result,
+          reason: outcome?.reason,
+          adapter: effect.targetAdapter,
+        });
+      }
+
+      return round.settle().result;
     },
   };
 }

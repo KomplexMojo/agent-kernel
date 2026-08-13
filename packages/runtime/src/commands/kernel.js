@@ -1141,9 +1141,24 @@ export function createCommandKernel(host = {}) {
       simConfigRef: toRef(simConfig),
     });
 
+    // P5.5 — the chartered post-run step, after the run and after the summary: effects the
+    // run could not satisfy deterministically are coordinated by the Orchestrator, and what
+    // came back is captured for future deterministic runs. Before this they were marked
+    // `deferred`, counted by `ak inspect`, and dropped.
+    //
+    // Written only when there was something to coordinate. `null` means the run deferred
+    // nothing, and a file recording an empty settlement would read as "all coordinated" —
+    // the same conflation the round itself refuses.
+    const deferredCoordination = runtime.coordinateDeferredEffects({
+      meta: createMeta({ producedBy: "orchestrator", runId }),
+    });
+
     await writeJson(join(outDir, "tick-frames.json"), tickFrames);
     await writeJson(join(outDir, "effects-log.json"), effectLog);
     await writeJson(join(outDir, "runtime-decision-captures.json"), runtimeDecisionCaptures);
+    if (deferredCoordination) {
+      await writeJson(join(outDir, "deferred-coordination.json"), deferredCoordination);
+    }
     await writeJson(join(outDir, "run-summary.json"), runSummary);
     await writeJson(join(outDir, "action-log.json"), actionLog);
     if (affinitySummary && affinitySummaryPath) {

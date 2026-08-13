@@ -1,5 +1,6 @@
 import { createOrchestratorStateMachine, OrchestratorStates } from "./state-machine.js";
 import { createLlmRound } from "./llm-round.js";
+import { createPostRunCoordinationRound } from "./post-run-round.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 
 /**
@@ -55,6 +56,21 @@ export {
   deriveAllowedOptionsFromCatalog,
   normalizeSummary,
 } from "./prompt-contract.js";
+
+/**
+ * P5.5 — post-run coordination of deferred side effects.
+ *
+ * Published rather than kept internal because the RUNNER is the only thing that holds a
+ * finished run's tick frames, so it is the only thing that can open this round — and it must
+ * do so through the persona's controller, not by importing the round module. `collectDeferredEffects`
+ * travels with it for the same reason `planEffectFulfillment` is one function: the runner and the
+ * round must share one definition of "deferred", or they would coordinate one set and report on
+ * another, both looking correct.
+ *
+ * The round performs no IO of its own — it returns effects and the host dispatches them — which is
+ * what keeps this consistent with CR.4's whole finding about the LLM session.
+ */
+export { collectDeferredEffects, PostRunRoundStates } from "./post-run-round.js";
 
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 
@@ -116,5 +132,19 @@ export function createOrchestratorPersona({ initialState = OrchestratorStates.ID
     advance,
     view,
     llm,
+    /**
+     * P5.5 — open a post-run coordination round on THIS persona instance.
+     *
+     * On the instance, not only as a module export, for the reason CR.8 established for the
+     * run summary: the runner must coordinate through the Orchestrator that was in this
+     * run's registry, and a surface reachable only as a free function invites glue to mint a
+     * fresh persona purely to sign the captures.
+     *
+     * Supplies the persona's own injected clock, and `clock: undefined` from a caller must
+     * not clobber it — the CR.9 M5 precedence lesson, same as `llm.beginRound` above.
+     */
+    createPostRunCoordinationRound: (args = {}) => createPostRunCoordinationRound(
+      args.clock === undefined ? { ...args, clock } : args,
+    ),
   };
 }

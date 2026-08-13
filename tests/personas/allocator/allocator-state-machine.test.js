@@ -61,6 +61,40 @@ fixture.cases.forEach((entry) => {
 });
 });
 
+/**
+ * P5.5 — the guard that turned REBALANCING from a label into a gate.
+ *
+ * It used to accept any non-empty `signals` array, and signals are counts of effects,
+ * fulfilments and actions: enough to say a tick was busy, never enough to compare spend
+ * against a cap. So the state was enterable with nothing to do in it — which is how it
+ * stayed a label-only state (a charter defect) for as long as it did. Now entry requires
+ * the issued-versus-actual ledger the reconciliation actually consumes.
+ */
+test("allocator refuses to enter rebalancing without a ledger to reconcile", async () => {
+  const { createAllocatorStateMachine } = await import("../../../packages/runtime/src/personas/allocator/state-machine.js");
+
+  const machine = createAllocatorStateMachine({ initialState: "monitoring", clock: () => "fixed" });
+
+  // The pre-P5.5 payload: busy tick, nothing to reconcile. This used to be accepted.
+  assert.throws(
+    () => machine.advance("rebalance", { signals: [{ kind: "actions", count: 3 }] }),
+    /Guard blocked transition/,
+    "signal counts must not admit the reconciling state — they carry no spend",
+  );
+  assert.equal(machine.view().state, "monitoring", "a blocked guard must not move the state");
+
+  // An empty ledger is not a ledger: there is nothing to be within.
+  assert.throws(
+    () => machine.advance("rebalance", { ledger: { categories: [] } }),
+    /Guard blocked transition/,
+  );
+
+  const result = machine.advance("rebalance", {
+    ledger: { categories: [{ category: "movement", categoryId: 0, issued: 5, spent: 2 }] },
+  });
+  assert.equal(result.state, "rebalancing");
+});
+
 test("allocator state machine enforces guard and invalid transitions", async () => {
 const { createAllocatorStateMachine } = await import("../../../packages/runtime/src/personas/allocator/state-machine.js");
 

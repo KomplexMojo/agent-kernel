@@ -54,7 +54,7 @@ const transitions = [
     from: AllocatorStates.MONITORING,
     event: "rebalance",
     to: AllocatorStates.REBALANCING,
-    guard: hasRebalanceSignals,
+    guard: hasReconciliationInput,
   },
   { from: AllocatorStates.REBALANCING, event: "monitor", to: AllocatorStates.MONITORING },
 ];
@@ -64,9 +64,18 @@ function hasBudgets(payload = {}) {
   return Array.isArray(budgets) && budgets.length > 0;
 }
 
-function hasRebalanceSignals(payload = {}) {
-  const signals = payload.signals;
-  return Array.isArray(signals) && signals.length > 0;
+/**
+ * P5.5 — REBALANCING means "reconciling", so entry requires something to reconcile.
+ *
+ * This guard used to accept any non-empty `signals` array, and `signals` are counts
+ * of effects, fulfilments and actions: enough to say a tick was busy, never enough
+ * to compare spend against a cap. The state was therefore enterable with nothing to
+ * do in it, which is exactly how it stayed a label for as long as it did. The ledger
+ * is the issued-versus-actual pair, so requiring it makes the edge a gate.
+ */
+function hasReconciliationInput(payload = {}) {
+  const categories = payload.ledger?.categories;
+  return Array.isArray(categories) && categories.length > 0;
 }
 
 function allowedEvents(state) {

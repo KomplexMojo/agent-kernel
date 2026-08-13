@@ -31,7 +31,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | Behavior | Criteria | Status | Proof |
 |---|---|---|---|
 | `orchestrator/llm-session` — the external interaction seam: LLM sessions run as persona rounds | A5 | ✅ owned (CR.4 M1–M7, `2be417d6`) | `tests/architecture/cr4-llm-call-site-inventory.test.js` |
-| `orchestrator/deferred-side-effects` — effects deferred during execution are coordinated after the run | A2 | 🔴 blocked — P5.5 | none; the behavior is not implemented |
+| `orchestrator/deferred-side-effects` — effects deferred during execution are coordinated after the run | A2, A5 | ✅ owned (P5.5) | `tests/personas/orchestrator/orchestrator-coordinates-deferred-effects.test.js` |
 
 <!-- /A1-A5-STATUS -->
 
@@ -113,11 +113,28 @@ The Orchestrator does not interpret or refine intent beyond routing and normaliz
 
 ### External Side-Effect Coordination
 
-🔴 **THIS SECTION DESCRIBES INTENT, NOT BEHAVIOR — verified 2026-08-13.** `dispatchEffect` marks
-IO-bound effects `deferred`, and the only thing downstream is `ak inspect`, which **counts** them.
-Nothing in this persona picks them up after a run. The section is kept because it is the chartered
-design, and the gap is registered as `orchestrator/deferred-side-effects` (blocked, P5.5) so it is
-counted rather than described. Read the rest of this section as the target state.
+🟢 **IMPLEMENTED — P5.5, 2026-08-13.** This section described intent for as long as the persona
+model has been enforced: `dispatchEffect` marked IO-bound effects `deferred`, the Moderator's
+fulfilment plan recorded the disposition, and the only thing downstream was `ak inspect`, which
+**counted** them. The records then went nowhere — and a run that dropped every deferral looked
+identical, in every output test, to a run that had none.
+
+It now runs as a round (`post-run-round.js`), opened by the runtime's `coordinateDeferredEffects()`
+after the ticks are done, and reached in production through `ak run`, which writes
+`deferred-coordination.json`.
+
+- **The round performs no IO.** `begin()` returns the deferred effects as data; the host dispatches
+  them through `ports/effects.js`; results arrive via `fulfill()`. Same shape as `llm-round.js`,
+  for the same reason CR.4 existed.
+- **What was answered becomes a `CapturedInputArtifact`** — the existing schema for adapter-captured
+  payloads, not a new one — stamped by a round that actually reached a terminal state.
+- **What was not answered is reported `outstanding`, never dropped.** Today there is no
+  external-fact adapter in the tree, so a real run reports `missing_external_fact_adapter`. That is
+  the honest outcome, and it is the whole change: the deferrals are now visible instead of silent.
+- **A run that deferred nothing returns `null`, not an empty settlement.** "Nothing was deferred"
+  and "everything was coordinated" must stay distinguishable.
+- **The runtime refuses to coordinate through any Orchestrator but the one that ran the run**
+  (`orchestrator_required`) — CR.8's façade rule applied to the captures.
 
 Based on simulation outputs, the Orchestrator is responsible for handling **deferred side effects**
 that were explicitly not fulfilled during simulation execution.

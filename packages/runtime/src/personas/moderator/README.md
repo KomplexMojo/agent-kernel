@@ -143,6 +143,13 @@ For `need_external_fact` effects:
 - Deterministic fulfillment is allowed only when `sourceRef` points to pre-captured artifacts.
 - If no deterministic source is provided, fulfillment must be deferred and handled post-run.
 
+🟢 **"Handled post-run" became true in P5.5 (2026-08-13).** This paragraph described the intended
+design for as long as the persona model has been enforced, and nothing downstream of the deferral
+existed: `ak inspect` counted the records and they went nowhere. The Orchestrator's post-run
+coordination round now picks them up — see `personas/orchestrator/README.md` → "External Side-Effect
+Coordination". What the Moderator does here is unchanged; what happens to its `DEFER` decisions is
+no longer nothing.
+
 The Moderator does not interpret events or effects beyond what is required for sequencing
 and routing.
 

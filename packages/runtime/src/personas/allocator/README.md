@@ -34,7 +34,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | `allocator/judges-not-authors` — it prices a config it did not author, from the artifact's published fields | A1 | ✅ owned (CR.9 M3) | `tests/personas/allocator/allocator-judges-not-authors.test.js` |
 | `allocator/spend-authority` — a build it will not fund does not happen: the receipt gates production | A2 | ✅ owned (P1 / CR.1) | `tests/adapters-cli/ak-hazard-resource-plan.test.js` |
 | `allocator/budget-maximization` — maximizing against a budget spends its prices, never an assumed one | A1 | ✅ owned (CR.7 / WP-5 D10) | `tests/personas/configurator/configurator-maximizer-prices-from-allocator.test.js` |
-| `allocator/reconciliation` — reconciling actual spend against the issued budget | A1 | 🔴 blocked — P5.5 | none; the behavior is not implemented |
+| `allocator/reconciliation` — reconciling actual spend against the issued budget | A1, A2 | ✅ owned (P5.5) | `tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js` |
 
 <!-- /A1-A5-STATUS -->
 
@@ -57,10 +57,17 @@ is `ak-hazard-resource-plan.test.js`, and finding it required neutralizing **bot
 `orchestrate-build.js` — one is a superset of the other, so removing one left the entire suite green
 and briefly read as "nothing guards this at all".
 
-🔴 **`allocator/reconciliation` is chartered, described below under "Reconciliation and Adjustment",
-and NOT IMPLEMENTED.** `rg reconcil` over `packages/runtime/src` finds only the Configurator's layout
-tile reconciliation — a different word for a different thing. It is registered as blocked (P5.5) so
-the gap is counted rather than merely described; read that section as intent, not as behavior.
+🟢 **`allocator/reconciliation` IS IMPLEMENTED — P5.5, 2026-08-13.** It was chartered, described
+below under "Reconciliation and Adjustment", and absent from the tree for as long as both had said
+otherwise; `rg reconcil` over `packages/runtime/src` used to find only the Configurator's layout tile
+reconciliation, a different word for a different thing. It now lives in `reconciliation.js`, the
+`monitoring → rebalancing` edge gates it, and the section below describes behavior rather than intent.
+
+⚠️ **What had made it unbuildable was that half the comparison was write-only.** Caps went into core
+through `ports/budget.js`, and `core.getBudgetUsage` — the actual-spend counter, present since core
+had a budget at all — had **no runtime consumer anywhere**. There was nothing to reconcile the issued
+half against, and no instrument could report that, because a counter nobody reads looks exactly like
+a counter that agrees.
 
 🟢 **THERE IS NOW ONE PRICE MODEL. P1.4 landed 2026-08-12.** The second one —
 `configurator/cost-model.js`'s affinity base 30, `Σ(10+8(n-1)²)` stacks, `2·H` vital points and
@@ -523,12 +530,31 @@ Note: Sensing can be modeled as an affinity kind with mana drain; externalize (p
 ---
 
 ### Reconciliation and Adjustment
-When budgets are exceeded or threatened, the Allocator may:
-- Require simplification (e.g. reduce actors, truncate motivations).
-- Reject configurations outright.
-- Propose alternative allocations that fit the purse.
 
-These decisions are expressed as data and remain auditable.
+Implemented in `reconciliation.js` (P5.5), gated by the `monitoring → rebalancing` edge.
+
+`reconcileBudget({ ledger })` takes the issued caps beside the spend core actually charged and
+returns a verdict per category — `unlimited` / `within` / `at_limit` / `exceeded` — plus the
+run-level disposition, which is the **worst** category rather than an average: a run that blew one
+cap has not "mostly" stayed in budget. Adjustments come out as data (`reduce_scope` with the
+overspend, `hold` at the limit), so the Allocator signals and the plane that owns the work acts.
+
+The ledger is **required**, not defaulted: reconciling nothing would report a run that blew its cap
+as within budget — well-formed, auditable-looking and wrong, the same defect class the injected
+Configurator capabilities refuse rather than guess at. `ports/budget.js` reads core's counters
+(glue reads; the persona decides) and the runner only sends `rebalance` when it has a ledger to hand
+over, so the state is never entered with nothing to do in it.
+
+⚠️ **REBALANCING was a label-only state until this landed** — the charter's enforcement checklist
+calls that a defect, and no guard reported it, because a state that gates nothing is
+indistinguishable from a state that gates something in every output test. Its FSM guard used to
+accept any non-empty `signals` array, and signals are counts of effects, fulfilments and actions:
+enough to say a tick was busy, never enough to compare spend against a cap.
+
+⚠️ **A `movement` cap is inert against moves, and that is a core defect this does not fix.**
+`core.applyAction` returns for `ActionKind.Move` before `chargeBudgetForAction`, so moves are never
+charged to any category and a run that moves three hundred times reconciles as spend 0. The
+reconciliation reports what core charged; it does not audit whether core charged correctly.
 
 ---
 
