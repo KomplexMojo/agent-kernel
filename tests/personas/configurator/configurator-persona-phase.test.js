@@ -7,7 +7,20 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../../fixtures/
 
 
 
-test("configurator persona handles phase-driven cases", async () => {
+/**
+ * P2.6 — the bare label assertion is gone (charter §6).
+ *
+ * ⚠️ THIS PERSONA IS THE REASON THE DISTINCTION MATTERS. PX.5 found the Configurator's
+ * validate/lock genuinely owned on the BUILD plane and label-only on the TICK plane —
+ * one charter sentence, two ownership answers — and this is a tick-plane file. A test
+ * here asserting `result.state === "configured"` was asserting a state the persona had
+ * not earned, which is precisely how the tick plane came to claim build-plane work it
+ * never did. G1 splits the two: `configurator/validate-lock@build` vs `@tick`.
+ *
+ * WHAT STAYS: the subscribed-phase contract (INIT + OBSERVE), the unsubscribed-phase
+ * no-op, and `lastConfigRef` — the ref actually carried, not the name of a state.
+ */
+test("configurator persona subscribes to init/observe and carries its config ref", async () => {
 const { createConfiguratorPersona, configuratorSubscribePhases } = await import("../../../packages/runtime/src/personas/configurator/persona.js");
 const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
@@ -19,10 +32,13 @@ fixture.cases.forEach((entry) => {
   const before = persona.view();
   const result = persona.advance({ phase: entry.phase, event: entry.event, payload: entry.payload, tick: 0 });
   if (!entry.event || !configuratorSubscribePhases.includes(entry.phase)) {
-    assert.equal(result.state, before.state);
+    assert.equal(
+      result.state,
+      before.state,
+      "an unsubscribed phase (or a case with no event) must not advance the persona",
+    );
     return;
   }
-  assert.equal(result.state, entry.expectState);
   if (entry.expectConfigRef) {
     assert.equal(result.context.lastConfigRef, entry.expectConfigRef);
   }

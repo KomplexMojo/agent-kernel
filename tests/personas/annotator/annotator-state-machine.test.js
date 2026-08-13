@@ -7,24 +7,45 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../../fixtures/
 
 
 
-test("annotator state machine follows happy path transitions", async () => {
-const { createAnnotatorStateMachine, AnnotatorStates } = await import("../../../packages/runtime/src/personas/annotator/state-machine.js");
+/**
+ * P2.6 — label assertions removed; see the header of
+ * `tests/personas/actor/actor-state-machine.test.js` for the full rationale.
+ * Short form: `result.state` and `context.lastEvent` asserted that a LABEL changed
+ * (charter §6 calls that legacy; G1 answers ownership), and `context.updatedAt`
+ * duplicated the repo-wide `new Date(` ban in `single-origin.test.js`.
+ *
+ * The observation count survives because it is what the Annotator actually took from
+ * the tick: a case carrying no observations must not silently discard it.
+ *
+ * ⚠️ TRACKED ABSOLUTELY, NOT AGAINST `before` — same reason as the Allocator's file.
+ * The relative form catches a clobber here only because `reset` sits directly after
+ * the case that sets the count; one intervening case makes it blind, as a perturbation
+ * proved in `actor-state-machine.test.js`. Order-dependent assertions fail silently.
+ */
+test("annotator state machine walks the happy path and accumulates observation counts", async () => {
+const { createAnnotatorStateMachine } = await import("../../../packages/runtime/src/personas/annotator/state-machine.js");
 
 const fixture = happyFixture;
 const machine = createAnnotatorStateMachine({ initialState: fixture.initialState, clock: () => "fixed" });
 
+// A baseline the machine cannot corrupt — see the header.
+let expectedObservationCount = 0;
+
 fixture.cases.forEach((entry) => {
-  const before = machine.view();
+  // advance() throws on an illegal transition — driving the sequence proves it walks.
   const result = machine.advance(entry.event, entry.payload);
-  assert.equal(result.state, AnnotatorStates[entry.expectState.toUpperCase()]);
-  assert.equal(result.context.lastEvent, entry.event);
-  assert.equal(result.context.updatedAt, "fixed");
+
+  if (Array.isArray(entry.payload.observations)) {
+    expectedObservationCount = entry.payload.observations.length;
+  }
   if (entry.expectObservationCount !== undefined) {
     assert.equal(result.context.lastObservationCount, entry.expectObservationCount);
   }
-  if (entry.event === "reset") {
-    assert.equal(result.context.lastObservationCount, before.context.lastObservationCount);
-  }
+  assert.equal(
+    result.context.lastObservationCount,
+    expectedObservationCount,
+    `after "${entry.event}": a case carrying no observations must leave the count intact`,
+  );
 });
 });
 

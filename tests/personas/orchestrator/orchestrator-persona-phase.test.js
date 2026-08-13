@@ -7,7 +7,15 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../../fixtures/
 
 
 
-test("orchestrator persona handles phase-driven cases", async () => {
+/**
+ * P2.6 — the bare label assertion is gone (charter §6). The Orchestrator's ownership is
+ * answered by G1 `orchestrator/llm-session` (A5: no production caller reaches
+ * `runLlmSession`, enforced by `cr4-llm-call-site-inventory.test.js`).
+ *
+ * WHAT STAYS: the subscribed-phase contract (OBSERVE + DECIDE + EMIT), the
+ * unsubscribed-phase no-op, and `planRef` — the plan actually carried into context.
+ */
+test("orchestrator persona subscribes to observe/decide/emit and carries its plan ref", async () => {
 const { createOrchestratorPersona, orchestratorSubscribePhases } = await import("../../../packages/runtime/src/personas/orchestrator/persona.js");
 const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
@@ -19,10 +27,13 @@ fixture.cases.forEach((entry) => {
   const before = persona.view();
   const result = persona.advance({ phase: entry.phase, event: entry.event, payload: entry.payload, tick: 0 });
   if (!entry.event || !orchestratorSubscribePhases.includes(entry.phase)) {
-    assert.equal(result.state, before.state);
+    assert.equal(
+      result.state,
+      before.state,
+      "an unsubscribed phase (or a case with no event) must not advance the persona",
+    );
     return;
   }
-  assert.equal(result.state, entry.expectState);
   if (entry.expectPlanRef) {
     assert.equal(result.context.planRef, entry.expectPlanRef);
   }

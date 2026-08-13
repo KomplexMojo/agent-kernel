@@ -7,7 +7,18 @@ const guardFixture = JSON.parse(readFileSync(resolve(__dirname, "../../fixtures/
 
 
 
-test("annotator persona handles phase-driven cases", async () => {
+/**
+ * P2.6 — the bare label assertion is gone (charter §6). The Annotator's ownership is
+ * answered by G1 `annotator/per-tick-telemetry` (an ablation: a silent Annotator means
+ * frames carry no records, and the runner does not assemble them itself) and
+ * `annotator/run-summary-provenance`.
+ *
+ * WHAT STAYS: the subscribed-phase contract (EMIT + SUMMARIZE) and the branch proving
+ * an unsubscribed phase leaves the persona untouched — a declared subscription that is
+ * actually honoured. `lastObservationCount` stays because it is what the Annotator took
+ * from the tick, not what it is called.
+ */
+test("annotator persona subscribes to emit/summarize and counts what it observed", async () => {
 const { createAnnotatorPersona, annotatorSubscribePhases } = await import("../../../packages/runtime/src/personas/annotator/persona.js");
 const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
@@ -19,10 +30,13 @@ fixture.cases.forEach((entry) => {
   const before = persona.view();
   const result = persona.advance({ phase: entry.phase, event: entry.event, payload: entry.payload, tick: 0 });
   if (!entry.event || !annotatorSubscribePhases.includes(entry.phase)) {
-    assert.equal(result.state, before.state);
+    assert.equal(
+      result.state,
+      before.state,
+      "an unsubscribed phase (or a case with no event) must not advance the persona",
+    );
     return;
   }
-  assert.equal(result.state, entry.expectState);
   if (entry.expectObservationCount !== undefined) {
     assert.equal(result.context.lastObservationCount, entry.expectObservationCount);
   }
