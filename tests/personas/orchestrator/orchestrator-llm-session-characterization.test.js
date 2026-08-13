@@ -11,22 +11,24 @@
  * easy to lose in a rewrite and produce no error when lost —
  *
  *   1. `strict: true` disables the ENTIRE ladder. Exactly one adapter call, ever.
- *   2. Retry is gated on `retryPredict > previousPredict`, NOT on "there were errors".
- *      `buildRepairRequestOptions` only raises `num_predict` when the errors include
- *      `invalid_json` / `missing_response_text` (or `missing_actors` in the
+ *   2. Retry is gated on the ERROR being retryable, NOT on "there were errors" — the
+ *      codes are `invalid_json` / `missing_response_text` (or `missing_actors` in the
  *      `actors_only` phase). Any other error goes straight past retry.
+ *      *(Until 2026-08-13 this read "gated on `retryPredict > previousPredict`", which
+ *      was the same thing everywhere except at the 2048 clamp — see below.)*
  *   3. Preconditions short-circuit BEFORE any IO — a failed precondition costs zero
  *      adapter calls and produces no capture artifact.
  *   4. One `runLlmSession` makes AT MOST 3 adapter calls.
  *
- * 🔴 A LATENT DEFECT IS PINNED HERE DELIBERATELY (see the `num_predict: 2048` test).
- * `buildRepairRequestOptions` caps expansion at 2048, so when a caller already asks
- * for 2048 the gate `retryPredict > previousPredict` can never be satisfied and the
- * retry ladder SILENTLY TURNS ITSELF OFF. The identical malformed response that
- * recovers at default options becomes a permanent failure at the cap — the retry
- * ladder is disabled exactly when the token budget is largest. This is characterized,
- * NOT fixed: M1 changes no production code. Fixing it would change LLM behavior and
- * belongs behind the benchmark gate.
+ * ✅ THE LATENT DEFECT THIS FILE PINNED IS NOW FIXED (Decision 2, 2026-08-13).
+ * M1 characterized it and deliberately did not fix it: `buildRepairRequestOptions` caps
+ * expansion at 2048, so a caller already asking for 2048 could never satisfy the gate
+ * `retryPredict > previousPredict` and the retry ladder SILENTLY TURNED ITSELF OFF —
+ * shortest exactly when the token budget was largest. It stayed characterized for months
+ * behind "fixing it changes LLM behavior ⇒ benchmark-gated"; that gate was retired
+ * 2026-08-13 when benchmarking became a standalone nightly tool outside development, and
+ * the fix is below. Point 2 in the list above is updated accordingly: the retry rung is
+ * gated on the ERROR being retryable, not on the options having grown.
  *
  * PROVENANCE, which is CR.4's actual charge: the capture artifact comes back stamped
  * `producedBy: "orchestrator"` with **no FSM round having run**. That is pinned below
@@ -159,7 +161,14 @@ test("an unparseable response retries once and can recover", async () => {
   assert.equal(result.ok, true, "the retry's response is what succeeds");
 });
 
-test("the retry raises num_predict — that increase IS the gate", async () => {
+/**
+ * ⚠️ RENAMED 2026-08-13 (Decision 2). This test used to be called "the retry raises
+ * num_predict — that increase IS the gate", and the name was the defect: making the
+ * increase the gate is what turned the ladder off at the 2048 clamp. The BEHAVIOUR it
+ * asserts is still right and still pinned — below the cap, a retry does ask for more
+ * tokens — it simply is not the thing that decides whether the rung runs.
+ */
+test("below the cap, the retry asks for more tokens than the attempt it is retrying", async () => {
   const { adapter } = await runSession({}, [{ response: "not json" }, { response: GOOD }]);
 
   const [first, second] = adapter.calls;
@@ -194,28 +203,109 @@ test("THE CEILING: one runLlmSession makes at most three adapter calls", async (
 });
 
 // ---------------------------------------------------------------------------
-// 🔴 The pinned latent defect
+// ✅ The pinned latent defect — FIXED 2026-08-13 (Decision 2)
 // ---------------------------------------------------------------------------
 
-test("LATENT DEFECT: at num_predict 2048 the retry silently does not fire", async () => {
-  // Identical malformed response to "an unparseable response retries once and can
-  // recover" above, which takes 2 calls and ends ok:true. Here it takes ONE call and
-  // fails permanently, because `buildRepairRequestOptions` caps expansion at 2048 —
-  // so `retryPredict > previousPredict` is false and the ladder never starts.
-  // No error, no warning, no observable difference except the call count.
+/**
+ * 🔴 WHAT THE DEFECT ACTUALLY WAS, because "the cap is too low" was the wrong reading.
+ *
+ * The retry rung was gated on `retryPredict > previousPredict` — a NUMERIC SIDE EFFECT of
+ * `buildRepairRequestOptions`. That single comparison was standing in for two different
+ * questions at once:
+ *
+ *   1. is this error the kind a retry can fix? (invalid_json / missing_response_text,
+ *      or missing_actors in the actors_only phase)
+ *   2. can we afford to ask for more tokens?
+ *
+ * They agree everywhere except at the 2048 clamp, where the answer to (2) is no and the
+ * gate therefore silently answered no to (1) as well. The ladder disabled itself exactly
+ * when the token budget was largest, with no error, no warning, and no observable
+ * difference except the call count.
+ *
+ * ⇒ The fix is NOT raising the cap — that would be guessing at a model limit. The rung now
+ * asks question (1) directly (`isRetryTriggeringError`), and still raises the options
+ * whenever they can be raised. Same defect class this branch keeps recording: a guard
+ * matching one SPELLING of a condition rather than the condition.
+ */
+test("at num_predict 2048 the retry still fires — the cap limits tokens, not the ladder", async () => {
+  // The identical malformed response as "an unparseable response retries once and can
+  // recover" above. It used to take ONE call here and fail permanently.
   const { result, adapter } = await runSession(
     { options: { num_predict: 2048 } },
     [{ response: "not json" }, { response: GOOD }],
   );
 
-  assert.equal(adapter.calls.length, 1, "the retry is skipped at the cap");
-  assert.equal(result.retried, false);
-  assert.equal(result.ok, false, "a response that recovers at default options fails at the cap");
+  assert.equal(adapter.calls.length, 2, "the retry fires at the cap, as it does below it");
+  assert.equal(result.retried, true);
+  assert.equal(result.ok, true, "a response that recovers at default options now recovers at the cap too");
 
-  // The control: the SAME response, same script, without the capped option.
+  // The retry may not ask for MORE tokens — there are none to ask for — and must not
+  // exceed the cap by way of the fix.
+  assert.equal(
+    adapter.calls[1].options.num_predict,
+    2048,
+    "the clamp still holds: retrying at the cap must not raise num_predict past it",
+  );
+
+  // The control that made the original finding legible, kept: the same response and
+  // script without the capped option. Both paths now agree, which is the point.
   const control = await runSession({}, [{ response: "not json" }, { response: GOOD }]);
   assert.equal(control.adapter.calls.length, 2);
-  assert.equal(control.result.ok, true, "control proves the difference is the cap, not the response");
+  assert.equal(control.result.ok, true);
+});
+
+/**
+ * ⚠️ THIS TEST WAS VACUOUS ON ITS FIRST WRITING, AND THE PERTURBATION IS WHAT FOUND IT.
+ *
+ * It was `requireSummary: true` over `{ rooms: [] }` — which produces ZERO errors, because
+ * `validateSummaryContent` only reports anything when `requireSummary` carries
+ * `minRooms`/`minActors` thresholds. With no errors the whole escalation block is skipped,
+ * so the retry never fires whatever the trigger says. Neutering `isRetryTriggeringError`
+ * to `return true` left all 75 orchestrator tests green, and this was why: the test could
+ * not disagree, because it never reached the gate.
+ *
+ * ⇒ *"The guard did not catch it" and "there was nothing to catch" look identical in a
+ * runner* — the same finding P5.4 recorded for the Annotator's `[]`-is-truthy fallback,
+ * and the P2.6 sweep for the Actor's relative assertion. Third instance on this branch.
+ * A real threshold is what makes the error exist.
+ */
+test("a non-retryable error still skips the retry rung — the fix must not retry everything", async () => {
+  // minRooms: 1 over a response with no rooms ⇒ a `missing_rooms` content error. It parses
+  // fine, so it is NOT invalid_json, and no larger token budget would produce rooms the
+  // model did not write. Before the fix this was filtered out as a SIDE EFFECT of the
+  // options not growing; it must still be filtered now the rung asks directly, or the fix
+  // would have traded one silent skip for a blanket extra adapter call on every content
+  // failure.
+  const { result, adapter } = await runSession(
+    { requireSummary: { minRooms: 1 } },
+    [{ response: JSON.stringify({ dungeonAffinity: "fire", rooms: [], actors: [] }) }, { response: GOOD }],
+  );
+
+  assert.equal(adapter.calls.length, 1, "a content error that a bigger budget cannot fix does not retry");
+  assert.equal(result.retried, false);
+  assert.equal(result.ok, false, "precondition: the response must actually fail, or this proves nothing");
+});
+
+test("the retry vocabulary is phase-sensitive: missing_actors retries only in actors_only", async () => {
+  const thin = JSON.stringify({ dungeonAffinity: "fire", rooms: [{ id: "r1" }], actors: [] });
+
+  // `missing_actors` is a retry trigger ONLY in the actors_only phase — the one place a
+  // bigger budget plausibly buys the actors the model truncated away.
+  const inPhase = await runSession(
+    { phase: "actors_only", requireSummary: { minActors: 1 } },
+    [{ response: thin }, { response: GOOD }],
+  );
+  assert.equal(inPhase.adapter.calls.length, 2, "actors_only retries a missing_actors response");
+  assert.equal(inPhase.result.retried, true);
+
+  // Same error, same response, different phase: no retry. This is the assertion that
+  // catches a trigger widened past its vocabulary.
+  const outOfPhase = await runSession(
+    { requireSummary: { minActors: 1 } },
+    [{ response: thin }, { response: GOOD }],
+  );
+  assert.equal(outOfPhase.adapter.calls.length, 1, "outside actors_only, missing_actors is not a retry trigger");
+  assert.equal(outOfPhase.result.retried, false);
 });
 
 // ## TODO: Test Permutations

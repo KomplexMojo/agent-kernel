@@ -293,7 +293,12 @@ const DIFFERENTIAL_CASES = [
     [{ response: "not json" }, { response: GOOD }]],
   ["no repair builder", {}, [{ response: "not json" }, { response: "still not json" }]],
   ["empty response text", {}, [{ response: "" }]],
-  ["at the 2048 cap the retry rung is gone", { options: { num_predict: 2048 } },
+  // Decision 2 (2026-08-13): this case was "at the 2048 cap the retry rung is gone" and it
+  // pinned the DEFECT — both ladders agreed on losing the rung at the clamp. The case is
+  // kept, and is now the strongest one in this list: it is where the two ladders would
+  // diverge first if either gate were changed alone, because the clamp is the only input
+  // on which "is this retryable" and "can options grow" disagree.
+  ["at the 2048 cap the retry rung still runs", { options: { num_predict: 2048 } },
     [{ response: "not json" }, { response: GOOD }]],
   ["sanitize rescues an invalid affinity", {},
     [{ response: JSON.stringify({ dungeonAffinity: "fire", rooms: [{ motivation: "stationary", affinity: "plasma", count: 1, affinities: [{ kind: "push", expression: "plasma", stacks: 1 }] }], actors: [] }) }]],

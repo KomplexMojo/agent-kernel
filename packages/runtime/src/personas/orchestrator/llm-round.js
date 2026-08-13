@@ -15,18 +15,23 @@
  *                            └──────────▶ completed / failed ◀────────┘
  *
  * THE LADDER IS NOT REIMPLEMENTED. `evaluate`, `buildRepairRequestOptions` and
- * `getNumPredict` are imported from `llm-session.js`, so both paths ask one question and
- * get one answer. A parallel implementation would be the CR.1 defect class — a second
- * copy that silently diverges — and it is precisely what "run the new path alongside the
- * old one" invites.
+ * `isRetryTriggeringError` are imported from `llm-session.js`, so both paths ask one
+ * question and get one answer. A parallel implementation would be the CR.1 defect class —
+ * a second copy that silently diverges — and it is precisely what "run the new path
+ * alongside the old one" invites.
  *
- * THE RUNGS, exactly as M1 characterized them:
+ * THE RUNGS:
  *   1. initial  — always.
- *   2. retry    — only when `buildRepairRequestOptions` actually RAISES `num_predict`.
- *                 It only does so for `invalid_json` / `missing_response_text` (and
- *                 `missing_actors` in the `actors_only` phase), so most errors skip this
- *                 rung entirely. ⚠️ It also cannot raise past 2048, so a caller already
- *                 at the cap has no retry rung at all — the latent defect M1 pinned.
+ *   2. retry    — when `isRetryTriggeringError` says the failure is one a retry can fix:
+ *                 `invalid_json` / `missing_response_text` (and `missing_actors` in the
+ *                 `actors_only` phase). Most errors skip this rung entirely.
+ *                 ✅ **Decision 2, 2026-08-13.** This gate used to be "`buildRepairRequestOptions`
+ *                 actually RAISED `num_predict`", which silently conflated "is this
+ *                 retryable" with "can we afford more tokens". At the 2048 clamp the
+ *                 second is no, so the rung vanished — the ladder was shortest exactly
+ *                 when the budget was largest. The rung now asks the first question
+ *                 directly; options are still raised wherever they can be, and the clamp
+ *                 still holds.
  *   3. repair   — only when a `repairPromptBuilder` returns a non-empty prompt.
  *   4. sanitize — consumes no request; a last salvage of an already-received response.
  * Ceiling: three requests.
@@ -43,7 +48,7 @@ import {
   buildRepairRequestOptions,
   captureWithFallback,
   extractResponseText,
-  getNumPredict,
+  isRetryTriggeringError,
   normalizeSessionPrompt,
   sanitizeSummaryResponse,
   sanitizeSummaryValue,
@@ -279,16 +284,23 @@ export function createLlmRound({
   }
 
   function escalate() {
-    // Rung 2 — retry. The gate is that options actually grow; see the 2048 note above.
-    if (!retried && requestCount < MAX_REQUESTS) {
-      const retryOptions = buildRepairRequestOptions(currentOptions, { errors, phase });
-      if (getNumPredict(retryOptions) > getNumPredict(currentOptions)) {
-        currentOptions = retryOptions;
-        retried = true;
-        const effect = requestEffect();
-        state = LlmRoundStates.AWAITING_RETRY;
-        return { state, effect, result: null, view: view() };
-      }
+    // Rung 2 — retry. Decision 2 (2026-08-13): the gate is whether the ERROR is
+    // retryable, not whether `num_predict` happened to grow. Gating on the growth meant
+    // that at the 2048 clamp — where it cannot grow — the rung silently vanished, so the
+    // ladder was shortest exactly when the token budget was largest. `retryOptions` is
+    // still adopted, so the retry gets more tokens wherever more tokens exist, and the
+    // clamp still holds.
+    //
+    // ⚠️ This gate must stay identical to `llm-session.js`'s. The session is the round's
+    // reference implementation in the M4 differential, so a divergence here would be
+    // invisible to every test that compares the two — they would simply agree on a
+    // different ladder.
+    if (!retried && requestCount < MAX_REQUESTS && isRetryTriggeringError({ errors, phase })) {
+      currentOptions = buildRepairRequestOptions(currentOptions, { errors, phase });
+      retried = true;
+      const effect = requestEffect();
+      state = LlmRoundStates.AWAITING_RETRY;
+      return { state, effect, result: null, view: view() };
     }
 
     // Rung 3 — repair. Needs a builder that produces a prompt.

@@ -436,11 +436,41 @@ function hasErrorCode(errors, code) {
   return errors.some((entry) => entry && typeof entry === "object" && entry.code === code);
 }
 
-export function buildRepairRequestOptions(options, { errors, phase } = {}) {
-  const codeTriggered = hasErrorCode(errors, "invalid_json")
+/**
+ * Is this a failure a RETRY can plausibly fix?
+ *
+ * Decision 2, 2026-08-13 — this predicate is new, and extracting it IS the fix.
+ *
+ * The retry rung used to be gated on `retryPredict > previousPredict`: a numeric side
+ * effect of `buildRepairRequestOptions`. That one comparison was standing in for two
+ * different questions —
+ *
+ *   1. is this error the kind a retry can fix?
+ *   2. can we afford to ask for more tokens?
+ *
+ * — which agree everywhere except at the 2048 clamp. There, (2) is no, so the gate
+ * silently answered no to (1) as well and **the ladder disabled itself exactly when the
+ * token budget was largest**: the identical malformed response that recovered in two
+ * calls at default options failed permanently in one at the cap, with no error and no
+ * warning. Characterized by CR.4 M1, fixed here.
+ *
+ * The fix is NOT raising the cap — 2048 is a model limit, and raising it would be a
+ * guess. The rung asks question (1) directly; options are still raised whenever they can
+ * be raised, and the clamp still holds.
+ *
+ * ⇒ Same defect class this branch keeps recording: a guard matching one SPELLING of a
+ * condition rather than the condition itself.
+ */
+export function isRetryTriggeringError({ errors, phase } = {}) {
+  return hasErrorCode(errors, "invalid_json")
     || hasErrorCode(errors, "missing_response_text")
     || (phase === "actors_only" && hasErrorCode(errors, "missing_actors"));
-  if (!codeTriggered) {
+}
+
+export function buildRepairRequestOptions(options, { errors, phase } = {}) {
+  // Single origin: the trigger vocabulary lives in isRetryTriggeringError, so the rung
+  // and the option expansion cannot drift apart on which errors count.
+  if (!isRetryTriggeringError({ errors, phase })) {
     return options && typeof options === "object" ? { ...options } : options;
   }
   const next = options && typeof options === "object" ? { ...options } : {};
@@ -637,9 +667,11 @@ export async function runLlmSession({
 
   if (!strict && capture.errors.length > 0) {
     const retryOptions = buildRepairRequestOptions(requestOptions, { errors: capture.errors, phase });
-    const previousPredict = getNumPredict(requestOptions);
-    const retryPredict = getNumPredict(retryOptions);
-    if (retryPredict > previousPredict) {
+    // Decision 2 — the rung asks whether the ERROR is retryable, not whether the options
+    // happened to grow. At the 2048 clamp they cannot grow, and gating on that silently
+    // turned the ladder off at the largest budgets. `retryOptions` is still used, so the
+    // retry gets more tokens wherever more tokens exist.
+    if (isRetryTriggeringError({ errors: capture.errors, phase })) {
       responsePayload = await adapter.generate({
         model,
         prompt: finalPrompt,
