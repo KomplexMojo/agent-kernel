@@ -61,12 +61,12 @@ Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form �
 | Adversarial-review relay (review-only, no Edit/Write) | **Claude Sonnet** (`codex-reviewer` subagent) | wraps `/codex:adversarial-review` |
 | Expand test permutations from TODO stubs | **Ollama** (local) | `/local-test-gen` |
 | Summarize / classify / extract structured data | **Ollama** (local) | `local_*` via MCP |
-| Content-gen benchmark — permutation + stress of the tool-call surface | **Remote Ollama** (dual GPU) | `run-content-gen` |
+| ~~Content-gen benchmark~~ — **not delegable work; it left the development loop 2026-08-13.** Runs nightly as a standalone offline tool. | — | — |
 | Descriptive docs — package / persona READMEs, `docs/README.md`, `docs/readme-index.md`, CLI README | **Claude Sonnet** (medium) | Direct |
 | Normative docs — `docs/architecture-charter.md`, `docs/vision-contract.md`, `docs/architecture/diagram.mmd` | **Claude Opus** (high) | Direct |
 | Commit messages, PRs | **Claude Sonnet** (medium) | Direct + `gh` CLI |
 
-Structural code questions go through the **Serena MCP** (live language-server answers). The **Ollama tier is strategic, not legacy**: local Ollama (via `local_*` MCP tools and `/local-test-gen`) is the no-cost path for decomposable subtasks; the remote dual-GPU box runs the content-gen benchmark and heavy batch work. Subagents cannot run on Ollama models, so the low-cost tier stays skill/MCP-mediated by design.
+Structural code questions go through the **Serena MCP** (live language-server answers). The **Ollama tier is strategic, not legacy**: local Ollama (via `local_*` MCP tools and `/local-test-gen`) is the no-cost path for decomposable subtasks; the remote dual-GPU box runs heavy batch work. Subagents cannot run on Ollama models, so the low-cost tier stays skill/MCP-mediated by design. **The content-gen benchmark is no longer part of this tiering** — it is a standalone nightly tool outside the development loop.
 
 - **Codex** — ideation, plan authoring (`local-codex/Plan.md` → `~/vault/plans/active/Plan.md`), adversarial review, and **mechanical implementation** (since 2026-07-18): call-site threading behind an already-designed controller API, guard/lint sweeps, bulk test migration, characterization tests to an explicit spec. Requires a complete milestone spec (target files, exact API, validation commands, stop condition); Claude verifies output against the validation commands. Codex does NOT design persona APIs, change artifact schemas, or decide pricing policy. Every adversarial review answers: (1) **Correctness** — does the diff satisfy the milestone spec? (2) **Simplicity** — is it 3× more complex than the simplest solution? If so, give a specific rewrite.
 - **Claude** — before any milestone code: state assumptions, surface ambiguity (stop and ask rather than guess), present tradeoffs if a simpler path exists. Implementation order: (1) failing tests + `## TODO: Test Permutations` stubs → (2) production code → (3) hand stubs to Ollama.
@@ -133,18 +133,13 @@ pnpm run serve:ui                                     # UI dev server :8001
 pnpm run demo:cli                                     # CLI demo
 ```
 
-**Content-gen benchmark** — permutation + stress testing of the LLM tool-call surface (separate from correctness tests). Runs **64 scenarios** (simple 9 · affinity 21 · complex 21 · constrained 13) against the remote GPU node via the dual profile. The count is loaded from the VAULT (`ak-scenarios.js` → `loadScenarios`), not the repo, so it can change without a repo diff — re-count before quoting it.
+**Content-gen benchmark — NOT part of development (maintainer, 2026-08-13).** It runs as a **standalone tool, nightly, against code changes, offline**. The benchmarks have grown complex enough that they cannot be run inside the development loop.
 
-```bash
-node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen --profiles dual --runs 3   # 3-run baseline: 64 × 3 = 192 runs, ≈30-40 min
-#                                                                            --runs 1   # quick smoke (64 runs)
-#                                                                            --scenario-ids 27,29,30 --runs 3   # narrow re-run
-#   Route defaults to `auto` (probes, prefers internal). Do NOT force `--route external` on the LAN:
-#   it cannot hairpin and the DDNS name goes stale. A timeout has never once meant a down box.
-#                                                                            --dry-run                   # verify loading, no GPU
-```
-
-Results: `tools/remote-ollama-control/results/<timestamp>-content-gen/summary.md`. Pass bar: **≥ 99 % exec ok** and **avg score ≥ 75**. Do not commit result directories.
+- **Do not run `run-content-gen` from a session**, and do not schedule work around one.
+- **Nothing is "benchmark-gated".** No milestone, decision, PR or merge waits on a benchmark result.
+- Pass bars and baselines belong to the nightly tool, not to a diff.
+- Benchmark measurements are **offline evidence** (charter: they "cannot rewrite routing policy without an explicit, versioned promotion"). A nightly regression is a signal to read, not a deliverable to produce.
+- **The one obligation:** if a change touches the `ak_create` tool schema, CLI arg mapping, or entity normalization, say so in the commit message so a nightly result can be attributed to it.
 
 ---
 
@@ -220,7 +215,7 @@ Run on every diff. **Fix failures — don't just flag them.**
 
 **Tests** — failing tests written *before* production code · new behavior covered under `tests/` · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff · persona behavior tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · label-only persona tests are legacy: replace with behavior tests, then remove (never remove first).
 
-**Benchmarks** — if `ak_create` tool schema, CLI arg mapping, or entity normalization changed, run `run-content-gen --runs 3 --route external` before merging · pass bar ≥ 99 % exec ok, avg score ≥ 75 (document any regression in the PR) · results stay out of git.
+**Benchmarks** — **not a checklist item.** Benchmarking left the development process on 2026-08-13: it is a standalone nightly tool, offline. Never run it from a session and never gate a diff on it. If a change touches the `ak_create` tool schema, CLI arg mapping, or entity normalization, note that in the commit message so the nightly result can be attributed — that is the whole obligation. Results stay out of git.
 
 **Code quality** — every changed line traces to the current milestone spec (no drive-by cleanup) · not over-engineered · assumptions stated before implementation.
 
