@@ -32,7 +32,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 |---|---|---|---|
 | `moderator/tick-ordering` — ordering strategy and effect fulfilment are the Moderator's decision | A1, A2 | ✅ owned (CR.5) | `tests/architecture/persona-authority.test.js` |
 | `moderator/pausing-gates-advancement` — a paused Moderator refuses to advance `step()` | A3 | ✅ owned (P3.1) | `tests/personas/moderator/moderator-pause-gates-tick.test.js` |
-| `moderator/affinity-target-resolution` — who an affinity targets, and the effects that follow | A1, A2 | 🔴 blocked — P5.4 | none yet; the only test drives the resolver directly |
+| `moderator/affinity-target-resolution` — who an affinity targets, and the effects that follow | A1, A2 | ✅ owned (P5.4) | `tests/personas/moderator/moderator-affinity-resolution.test.js` |
 | `all/port-contract-single-origin` — one effect codebook; the port contract is not redeclared | A1 | ✅ owned (PX.1) | `tests/architecture/single-origin.test.js` |
 | `all/injected-clock` — no persona reads a clock; time is injected, never defaulted | A4 | ✅ owned (PX.3 M6) | `tests/architecture/single-origin.test.js` |
 | `all/restorable-from-view` — a persona can be rebuilt from its own serialized `view()` | A4 | ✅ owned (PX.4) | `tests/architecture/persona-serialization-equivalence.test.js` |
@@ -52,13 +52,18 @@ guard that reads an empty list can be re-opened with a one-line JSON edit, so a 
 refuses a non-empty allowlist outright. Adding an entry does not make a crossing legal — it stops
 the persona's FSM running for that call, which is what **A2** forbids.
 
-⚠️ **Affinity target resolution is the one row still open, and the reason is instructive.** The
-resolver has a single origin and the runner asks for it through the `resolve_affinity` planning
-event — but the only test drives `resolveAffinityTargetEffectsForList` **directly**, which proves
-the function works and says nothing about whether production consults the persona. That is exactly
-the routing-versus-authority gap this registry exists to expose. What it owes is the differential
-`moderator/tick-ordering` already has: hand the same effects to production and to a standalone
-Moderator, and require the dispositions to agree.
+**Affinity target resolution closed on 2026-08-13, and how it closed is worth knowing.** Its only
+test used to drive `resolveAffinityTargetEffectsForList` **directly** — proof the function works,
+silence on whether production consults the persona. It now has both an **ablation** (a Moderator
+that plans no affinity actions leaves the core untouched, against a control that sets one tile and
+arms one hazard) and a **differential** (what production applied equals what a fresh standalone
+Moderator plans from the payload production actually sent, captured through a proxy).
+
+⚠️ **Only the ablation has teeth against the defect that matters, and this was measured.** Perturb
+the runner into calling `planModeratorAffinityActions` itself: the ablation fails, the differential
+**passes** — a runner duplicating the persona's own function agrees with it by construction. Same
+shape as CR.8's provenance pair, where the output test could not see the façade and the refusal
+could.
 
 ## Persona Scope
 

@@ -38,16 +38,21 @@ behavior with no G1 test is not owned**. The rows below mirror
 |---|---|---|---|
 | `actor/serializable-decision` — the decision is a pure function of serialized state | A4 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
 | `actor/no-budget-policy` — the Actor proposes; budget admissibility is not its call | A1 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
-| `actor/motivation-to-proposal` — turning motivations and an observation into proposed actions | A2 | 🔴 blocked — P5.4 | none yet; the ablation has to be built |
+| `actor/motivation-to-proposal` — turning motivations and an observation into proposed actions | A2 | ✅ owned (P5.4) | `tests/personas/actor/actor-proposes-or-nothing-does.test.js` |
 
 <!-- /A1-A5-STATUS -->
 
-⚠️ **Read the third row carefully: the thing this persona exists for is the one that is unproven.**
-The two owned rows both cover what the Actor must *not* do — hold state outside `view()`, decide
-budget admissibility. Neither asks whether production could produce an action stream without it.
-The runtime always supplies an Actor, so that ablation has to be built rather than observed: a
-registry with a stub Actor that proposes nothing, asserting production then emits no actor actions.
-Until it exists, the movement and filter tests below demonstrate routing, not authority.
+⚠️ **The third row is the one the persona exists for, and it was the last to get a proof.** The
+other two cover what the Actor must *not* do — hold state outside `view()`, decide budget
+admissibility. Neither asks whether production could produce an action stream without it, and the
+movement and filter tests below cannot: they drive the persona and check its output, which
+demonstrates the function works.
+
+P5.4 answered it with an **ablation**: two runs of the same fixture through the same registry,
+differing only in whether the Actor proposes anything. The control emits three `move` actions across
+three ticks; the neutered run emits **none**, so nothing else in the tick makes up the difference.
+Both runs use the same registry shape on purpose — a caller-supplied persona registry replaces the
+defaults, so building one from defaults and one by hand would have varied two things at once.
 
 ## Persona Scope
 

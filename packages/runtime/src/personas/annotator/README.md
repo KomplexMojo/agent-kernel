@@ -33,15 +33,22 @@ behavior with no G1 test is not owned**. The rows below mirror
 | Behavior | Criteria | Status | Proof |
 |---|---|---|---|
 | `annotator/run-summary-provenance` — the end-of-run RunSummary is produced by the instance that observed the run | A2, A5 | ✅ owned (CR.8) | `tests/architecture/persona-authority.test.js` |
-| `annotator/per-tick-telemetry` — per-tick TelemetryRecords are captured by the Annotator, not assembled by the runner | A2, A5 | 🔴 blocked — P5.4 | none yet; the CR.8 refusal has no per-tick twin |
+| `annotator/per-tick-telemetry` — per-tick TelemetryRecords are captured by the Annotator, not assembled by the runner | A2, A5 | ✅ owned (P5.4) | `tests/personas/annotator/annotator-per-tick-telemetry.test.js` |
 
 <!-- /A1-A5-STATUS -->
 
-⚠️ **Provenance is why this row exists, and why an output test could never have settled it.**
+⚠️ **Provenance is why the first row exists, and why an output test could never have settled it.**
 `summarizeRun` is a pure derivation, so a freshly constructed Annotator that observed nothing
 produces a **byte-identical** summary — which is exactly how the violation survived a green suite.
 The gate is therefore the refusal: a run that ticked cannot be summarized by an instance still in
 `idle` (`annotator_did_not_observe`).
+
+**The per-tick row (P5.4) is an ablation, not a refusal, and the difference is structural.** A
+silent Annotator means the tick frames carry no records — the runner keeps no fallback that
+assembles them from the observations it already holds, which it could trivially do. There is no
+refusal to add here because the tick loop drives the Annotator itself: unlike `summarizeRun`, no
+glue-side call exists to intercept. **If one is ever added** — an out-of-band emit for a run someone
+else ticked — it needs CR.8's refusal, and this ablation will not catch it.
 
 **Build-scope `telemetry.json` is deliberately absent from this table.** It is glue-owned by charter
 rule 3 (the plane boundary): `build`/`llm-plan` run no tick, and the Annotator subscribes only to the

@@ -326,15 +326,17 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "packages/runtime/src/personas/actor/controller.js",
     invocation: "cli",
     status: {
-      blockedBy: "P5.4",
+      owned: true,
+      since: "P5.4 (2026-08-12)",
+      provenBy: "tests/personas/actor/actor-proposes-or-nothing-does.test.js",
       why:
-        "The Actor's two owned entries cover what it must NOT do (hold state outside view(), "
-        + "decide budget admissibility). Neither asks the A2 question about the thing it exists "
-        + "for: could production produce an action stream without it? The runtime always "
-        + "supplies an Actor, so the ablation has to be built rather than observed — a registry "
-        + "with a stub Actor that proposes nothing, asserting production then emits no actor "
-        + "actions. Until that exists this is routing, not proven authority, however many "
-        + "movement and filter tests pass.",
+        "The ablation the entry asked for, built: two runs of the same fixture through the same "
+        + "registry, differing only in whether the Actor proposes. The control emits 3 real "
+        + "`move` actions across 3 ticks; the neutered run emits NONE, so nothing else in the "
+        + "tick makes up the difference. Both runs use the same registry SHAPE deliberately — a "
+        + "caller-supplied registry replaces the defaults, so building one from defaults and one "
+        + "by hand would vary two things. Perturbation: a stub that does propose fails the "
+        + "assertion, which proves it reads production rather than a constant.",
     },
   },
 
@@ -381,15 +383,19 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "packages/runtime/src/personas/moderator/affinity-target-effects.js",
     invocation: "cli",
     status: {
-      blockedBy: "P5.4",
+      owned: true,
+      since: "P5.4 (2026-08-12)",
+      provenBy: "tests/personas/moderator/moderator-affinity-resolution.test.js",
       why:
-        "The resolver has ONE origin and the runner asks for it through the `resolve_affinity` "
-        + "planning event, so A1 is plausible — but the only test drives "
-        + "`resolveAffinityTargetEffectsForList` DIRECTLY, which proves the function works and "
-        + "says nothing about whether production consults the persona. That is the routing/"
-        + "authority distinction this registry exists for. The G1 owed here is the differential "
-        + "the tick-ordering entry already has: same effects list to production and to a "
-        + "standalone Moderator, dispositions must agree.",
+        "Ablation plus differential. A Moderator that plans no affinity actions leaves the core "
+        + "untouched (control: the real one sets one tile and arms one hazard), and what "
+        + "production applies equals what a FRESH standalone Moderator plans from the payload "
+        + "production actually sent — captured through a proxy, because asserting against a "
+        + "hand-written payload would test the fixture and not the seam. "
+        + "⚠️ Perturbation-verified WITH A RECORDED LIMIT: making the runner call "
+        + "`planModeratorAffinityActions` itself fails the ABLATION and passes the DIFFERENTIAL, "
+        + "since a runner duplicating the persona's own function agrees with it by construction. "
+        + "Only the ablation answers A2 — the same split as CR.8's provenance pair.",
     },
   },
 
@@ -402,15 +408,18 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
     invocation: "cli",
     status: {
-      blockedBy: "P5.4",
+      owned: true,
+      since: "P5.4 (2026-08-12)",
+      provenBy: "tests/personas/annotator/annotator-per-tick-telemetry.test.js",
       why:
-        "The end-of-run RunSummary has a provenance gate (CR.8, the entry below); the per-tick "
-        + "half does not, and the charter names both. `tests/personas/annotator-telemetry.test.js` "
-        + "exists but drives the persona DIRECTLY and never constructs a runtime, so it proves "
-        + "the derivation and not the provenance — checked, not assumed. The same façade CR.8 "
-        + "caught is available here: telemetry derivation is pure, so a stand-in Annotator emits "
-        + "byte-identical records, which is exactly why an output test cannot settle it. The G1 "
-        + "owed is CR.8's shape — refuse a record from an instance that did not observe the tick.",
+        "Ablation: a silent Annotator means the tick frames carry NO records, so the runner "
+        + "keeps no fallback that assembles them from the observations it already holds — which "
+        + "it could trivially do. Plus provenance per record (`meta.producedBy`, `meta.runId`) "
+        + "from an instance the run demonstrably moved out of `idle`. "
+        + "⚠️ SCOPE, stated in the test: this does not force the record to come from THE SAME "
+        + "instance the way CR.8's refusal does for the summary, because the tick loop drives "
+        + "the Annotator itself and there is no glue-side call to intercept. An out-of-band "
+        + "emit for a run someone else ticked would need CR.8's refusal, not this test.",
     },
   },
   {

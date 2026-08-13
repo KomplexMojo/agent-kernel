@@ -79,8 +79,20 @@ const OPEN_FINDINGS = Object.freeze([
   // chartered behaviors had NO registry entry, so the registry's own premise ("assumed not
   // owned until an entry says otherwise") made them invisible rather than tracked. Five went
   // straight in as OWNED — their proofs already existed, unclaimed, in the budget loop's
-  // required-capability refusals — and three had no proof at all. Those three are P5.4.
-  "P5.4",
+  // required-capability refusals — and three had no proof at all.
+  //
+  // Those three CLOSED 2026-08-13: the Actor ablation, the Moderator affinity
+  // ablation+differential and the Annotator per-tick telemetry ablation now exist, each
+  // perturbation-verified. So this list is empty again — and, as the backlog test below says
+  // at length, that means every REGISTERED behavior is owned and nothing more.
+  //
+  // ⚠️ THE REGISTRY IS STILL NOT A COMPLETE MAP OF THE CHARTER. Behaviors named in the
+  // charter's persona table with no entry here, listed so the next pass starts from a list
+  // rather than a feeling: the Orchestrator's deferred side-effect coordination (post-run
+  // effects, the `need_external_fact` capture path) · the Allocator's receipts and budget
+  // maximization · the Configurator's level and actor generation. Each needs the same
+  // question asked — could production produce this without the persona? — not another test
+  // that the function works.
 ]);
 
 // ---------------------------------------------------------------------------
