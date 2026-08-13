@@ -137,7 +137,7 @@ const REGISTRY = Object.freeze([
     status: {
       owned: true,
       since: "CR.4 M5b.2a′",
-      provenBy: "tests/personas/orchestrator-llm-budget-loop.test.js",
+      provenBy: "tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js",
       why:
         "A2 by refusal: `mapPool` is REQUIRED with no default, so the loop cannot map a "
         + "summary at all without the Director — \"the loop REFUSES to run without a Director "
@@ -176,7 +176,7 @@ const REGISTRY = Object.freeze([
     status: {
       owned: true,
       since: "CR.4 M5b.2b–2d",
-      provenBy: "tests/personas/orchestrator-llm-budget-loop.test.js",
+      provenBy: "tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js",
       why:
         "Four separate refusals, one per relayed answer: the loop will not run without an "
         + "Allocator tile-cost resolver, budget allocator, selection-spend evaluator or layout "
@@ -198,7 +198,7 @@ const REGISTRY = Object.freeze([
     status: {
       owned: true,
       since: "CR.4 M5b.2f",
-      provenBy: "tests/personas/orchestrator-llm-budget-loop.test.js",
+      provenBy: "tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js",
       why:
         "\"The loop REFUSES to run without a Configurator feasibility assessor\" — A2 by "
         + "refusal. A1 because the loop carried its own approximation of the verdict before "

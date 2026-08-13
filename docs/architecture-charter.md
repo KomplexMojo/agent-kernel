@@ -126,7 +126,13 @@ not owned**, and a milestone closes when its G1 test flips red→green — not w
 5. **Cross-persona interaction** happens through versioned artifacts (`contracts/artifacts.ts`),
    persona events, or effects — never lateral imports of another persona's internals.
 6. **Tests align to personas, and must test authority — not routing.** Persona behavior tests live in
-   `tests/personas/<persona>/` and are named `<persona>-<behavior>.test.*`. A test that asserts only a
+   `tests/personas/<persona>/` and are named `<persona>-<behavior>.test.*`. **The layout half of this
+   rule is enforced by `tests/architecture/persona-test-layout.test.js`** — a flat file under
+   `tests/personas/`, a misnamed file inside a persona directory, or a directory named for something
+   that is not a chartered persona each fail it. Four files span the whole roster (the tick FSM, tick
+   orchestrator, tick inspection, and dual-surface shadowing) and are excused **by name** in that guard,
+   so a fifth is a deliberate edit rather than a filename that slips a pattern. The *authority* half is
+   not path-checkable and is answered by the G1 registry, not by this layout. A test that asserts only a
    state label (not behavior the state gates) is a legacy test and must be replaced, not extended.
    **This is not a stylistic preference.** The `<persona>-state-machine` / `<persona>-persona-phase`
    families assert `result.state === expected` and `context.lastEvent === event` — they verify that a

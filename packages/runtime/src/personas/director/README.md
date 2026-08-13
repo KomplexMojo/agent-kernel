@@ -33,9 +33,9 @@ behavior with no G1 test is not owned**. The rows below mirror
 | Behavior | Criteria | Status | Proof |
 |---|---|---|---|
 | `director/plan-artifact` — the persisted PlanArtifact is the plan that actually drove the spec | A2, A5 | ✅ owned (CR.3) | `tests/architecture/persona-authority.test.js` |
-| `director/pool-mapping` — mapping a summary onto catalog pools, inside an open round | A2, A3 | ✅ owned (CR.4 M5b.2a′) | `tests/personas/orchestrator-llm-budget-loop.test.js` |
+| `director/pool-mapping` — mapping a summary onto catalog pools, inside an open round | A2, A3 | ✅ owned (CR.4 M5b.2a′) | `tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js` |
 | `director/card-set-translation` — summary → cardSet, with one gated and one ungated surface | A3 | ✅ owned (CR.4 M5b.2e / CR.7) | `tests/personas/director/director-card-translation.test.js` |
-| `director/pricing-relay` — it relays the Allocator's pricing answers and computes none of them | A1, A2 | ✅ owned (CR.4 M5b.2b–2d) | `tests/personas/orchestrator-llm-budget-loop.test.js` |
+| `director/pricing-relay` — it relays the Allocator's pricing answers and computes none of them | A1, A2 | ✅ owned (CR.4 M5b.2b–2d) | `tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js` |
 
 <!-- /A1-A5-STATUS -->
 

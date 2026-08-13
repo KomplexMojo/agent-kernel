@@ -33,7 +33,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | `configurator/validate-lock@build` — assembles, validates and locks configurations, BUILD plane | A2, A3 | ✅ owned (CR.2) | `tests/architecture/persona-authority.test.js` |
 | `configurator/validate-lock@tick` — the same sentence on the TICK plane | A3 | ✅ owned (PX.5) | `tests/personas/dual-surface-shadowing.test.js` |
 | `configurator/locked-config-is-the-input` — the config a build consumes is the one that was locked, unedited afterwards | A5 | ✅ owned (PX.6) | `tests/runtime/build-locked-input-immutability.test.js` |
-| `configurator/feasibility-verdict` — layout feasibility is its verdict; the Director derives the geometry judged | A1, A2 | ✅ owned (CR.4 M5b.2f) | `tests/personas/orchestrator-llm-budget-loop.test.js` |
+| `configurator/feasibility-verdict` — layout feasibility is its verdict; the Director derives the geometry judged | A1, A2 | ✅ owned (CR.4 M5b.2f) | `tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js` |
 | `configurator/input-preparation` — grid sizing, hazard placement and resource mapping run behind the CONFIG-plane surface | A3 | ✅ owned (P2.2 / P2.3.1) | `tests/personas/configurator/configurator-input-prep.test.js` |
 
 <!-- /A1-A5-STATUS -->
