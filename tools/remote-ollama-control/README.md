@@ -33,9 +33,9 @@ Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `
 
 | Profile | GPU visibility | Intended GPU | Port | Default model | Default context | Default num_predict |
 |---|---:|---|---:|---|---:|---:|
-| `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen3:14b` | `32768` | `4096` |
-| `secondary` | `1` | GPU 1 / x4 secondary card | `11435` | `qwen3:14b` | `8192` | `4096` |
-| `dual` | `0,1` | both GPUs for split/offloaded 30B models | `11436` | `qwen3-coder:30b-a3b-q4_K_M` | `65536` | `32768` |
+| `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen3.5:9b` | `32768` | `4096` |
+| `secondary` | `1` | GPU 1 / x4 service profile; excluded from single-GPU benchmarks | `11435` | `qwen3:14b` | `8192` | `4096` |
+| `dual` | `0,1` | both GPUs for split/offloaded 27B/30B models | `11436` | `qwen3.5:27b` | `65536` | `32768` |
 
 The remote manager sets `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, `HSA_OVERRIDE_GFX_VERSION`, and `OLLAMA_HOST` per profile. The default `HSA_OVERRIDE_GFX_VERSION=10.3.0` is included because RX 6700/6750 class `gfx1031` cards commonly need that compatibility override for Ollama ROCm offload.
 
@@ -457,7 +457,7 @@ Each run records endpoint, profile, model, context, `num_predict`, wall time, Ol
 
 ## Content-Gen Benchmark
 
-Compare how well each Ubuntu GPU node (primary, secondary, dual) handles the current 100 agent-kernel MCP scenarios. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference expectations.
+Compare how well the primary single-card profile and the two-card dual profile handle the current 100 agent-kernel MCP scenarios. The secondary card is not benchmarked alone; it participates only through the dual profile. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference expectations.
 
 The benchmark questions are versioned under `benchmarks/content-gen/` as four reviewed tier catalogs with 25 simple, 25 affinity, 25 complex, and 25 constrained scenarios. `loadScenarioCatalog()` validates the complete 1–100 id range and returns a canonical SHA-256, so a scenario-set change is visible in Git and has a stable identity. Canonical payloads use `$RUN_OUTPUT/create` rather than a machine-specific output path.
 
@@ -467,7 +467,7 @@ Scoring reads compact entity-count, affinity, and spend expectations from each c
 # Dry-run: plan the complete model × GPU-profile qualification matrix without network access
 ./bin/remote-ollama-mac dry-run run-content-gen
 
-# Run all 100 scenarios × 3 profiles (primary, secondary, dual)
+# Run all 100 scenarios across eligible primary and dual configurations
 ./bin/remote-ollama-mac run-content-gen --route internal
 
 # Run a subset of scenarios (e.g., simple tier only, IDs 1–9)
@@ -480,10 +480,11 @@ Scoring reads compact entity-count, affinity, and spend expectations from each c
 ./bin/remote-ollama-mac run-content-gen --profiles dual --model qwen3-coder:30b-a3b-q4_K_M --runs 2
 ```
 
-The default dry-run is the M3a planning contract. It reads the five Git-owned model definitions and
-three GPU profiles, emits the eight eligible configurations (7B/14B on both single cards and both
-30B candidates on dual), and reports a stable matrix hash plus the declared resource order. One
-complete pass is 800 calls; three qualifying passes are at most 2,400 calls. `--profiles`, `--model`,
+The default dry-run is the M3a planning contract. It reads the seven Git-owned model definitions and
+three service profiles, emits seven eligible configurations (four single-card candidates on primary
+and three 27B/30B candidates on dual), and reports a stable matrix hash plus the declared resource
+order. The secondary card is reserved for dual and has no standalone benchmark configuration. One
+complete pass is 700 calls; three qualifying passes are at most 2,100 calls. `--profiles`, `--model`,
 `--context`, `--num-predict`, `--runs`, and `--scenario-ids` narrow or override the offline plan.
 
 Live `run-content-gen` now executes the eligible configurations in declared resource order. It runs

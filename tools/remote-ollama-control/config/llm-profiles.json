@@ -11,15 +11,15 @@
       "hipVisibleDevices": "0",
       "hsaOverrideGfxVersion": "10.3.0",
       "port": 11434,
-      "defaultModel": "qwen3:14b",
+      "defaultModel": "qwen3.5:9b",
       "defaultContext": 32768,
       "defaultNumPredict": 4096,
       "benchmarkModels": [
-        "qwen3:14b"
+        "qwen3.5:9b"
       ]
     },
     "secondary": {
-      "description": "GPU 1 only, secondary PCIe x4 card.",
+      "description": "GPU 1 / x4 service profile; reserved for dual-GPU benchmarks.",
       "hardwareClass": "single-secondary",
       "gpuCount": 1,
       "capacityRank": 1,
@@ -32,9 +32,7 @@
       "defaultModel": "qwen3:14b",
       "defaultContext": 8192,
       "defaultNumPredict": 4096,
-      "benchmarkModels": [
-        "qwen3:14b"
-      ]
+      "benchmarkModels": []
     },
     "dual": {
       "description": "GPU 0 and GPU 1 visible for larger split/offloaded models.",
@@ -47,11 +45,11 @@
       "hipVisibleDevices": "0,1",
       "hsaOverrideGfxVersion": "10.3.0",
       "port": 11436,
-      "defaultModel": "qwen3-coder:30b-a3b-q4_K_M",
+      "defaultModel": "qwen3.5:27b",
       "defaultContext": 65536,
       "defaultNumPredict": 32768,
       "benchmarkModels": [
-        "qwen3-coder:30b-a3b-q4_K_M"
+        "qwen3.5:27b"
       ]
     }
   }

@@ -2,7 +2,8 @@
   "notes": [
     "Model availability is checked on the remote Ollama endpoint at runtime.",
     "Add new installed models here with the profiles they can realistically run on.",
-    "30B-class models are restricted to the dual profile unless hardware capacity changes."
+    "27B/30B-class models are restricted to the dual profile unless hardware capacity changes.",
+    "Single-GPU benchmarks run only on the primary profile; the secondary card is reserved for dual."
   ],
   "benchmark": {
     "defaultScenarios": [
@@ -37,6 +38,24 @@
     ]
   },
   "models": {
+    "qwen3.5:27b": {
+      "profiles": [
+        "dual"
+      ],
+      "parameterBillions": 27,
+      "sizeGb": 17,
+      "family": "qwen3.5",
+      "use": "preferred dual-GPU tool-calling and structured-output model"
+    },
+    "qwen3.5:9b": {
+      "profiles": [
+        "primary"
+      ],
+      "parameterBillions": 9,
+      "sizeGb": 6.6,
+      "family": "qwen3.5",
+      "use": "preferred single-GPU tool-calling and structured-output model"
+    },
     "qwen3-coder:30b-a3b-q4_K_M": {
       "profiles": [
         "dual"
@@ -57,8 +76,7 @@
     },
     "qwen3:14b": {
       "profiles": [
-        "primary",
-        "secondary"
+        "primary"
       ],
       "parameterBillions": 14,
       "sizeGb": 9.3,
@@ -67,8 +85,7 @@
     },
     "qwen2.5-coder:14b": {
       "profiles": [
-        "primary",
-        "secondary"
+        "primary"
       ],
       "parameterBillions": 14,
       "sizeGb": 9,
@@ -77,8 +94,7 @@
     },
     "qwen2.5-coder:7b": {
       "profiles": [
-        "primary",
-        "secondary"
+        "primary"
       ],
       "parameterBillions": 7,
       "sizeGb": 4.7,

@@ -13,12 +13,14 @@ const {
 const ROOT = resolve(__dirname, "../..", "tools/remote-ollama-control");
 const MAC_SCRIPT = resolve(ROOT, "scripts/remote-ollama-mac.js");
 
-test("hardware benchmark routes 30B models only to dual and smaller models to both single-card profiles", () => {
+test("hardware benchmark reserves secondary for dual and routes single-card models only to primary", () => {
   const config = loadConfig(ROOT);
   const plan = buildHardwareBenchmarkSpecs(config, {
     models: [
       "qwen3-coder:30b-a3b-q4_K_M",
       "qwen3-coder:30b",
+      "qwen3.5:27b",
+      "qwen3.5:9b",
       "qwen3:14b",
       "qwen2.5-coder:14b",
       "qwen2.5-coder:7b",
@@ -37,31 +39,32 @@ test("hardware benchmark routes 30B models only to dual and smaller models to bo
 
   assert.deepEqual([...byModel.get("qwen3-coder:30b-a3b-q4_K_M")].sort(), ["dual"]);
   assert.deepEqual([...byModel.get("qwen3-coder:30b")].sort(), ["dual"]);
-  assert.deepEqual([...byModel.get("qwen3:14b")].sort(), ["primary", "secondary"]);
-  assert.deepEqual([...byModel.get("qwen2.5-coder:14b")].sort(), ["primary", "secondary"]);
-  assert.deepEqual([...byModel.get("qwen2.5-coder:7b")].sort(), ["primary", "secondary"]);
+  assert.deepEqual([...byModel.get("qwen3.5:27b")].sort(), ["dual"]);
+  assert.deepEqual([...byModel.get("qwen3.5:9b")].sort(), ["primary"]);
+  assert.deepEqual([...byModel.get("qwen3:14b")].sort(), ["primary"]);
+  assert.deepEqual([...byModel.get("qwen2.5-coder:14b")].sort(), ["primary"]);
+  assert.deepEqual([...byModel.get("qwen2.5-coder:7b")].sort(), ["primary"]);
 });
 
-test("content-gen matrix plans all eight eligible configurations in resource order", () => {
+test("content-gen matrix plans seven primary-or-dual configurations in resource order", () => {
   const config = loadConfig(ROOT);
   const plan = buildContentGenMatrix(config, { scenarioCount: 100 });
 
   assert.equal(plan.contractVersion, "content-gen-matrix-v1");
-  assert.equal(plan.sha256, "6e472922739a53b033ae4a16c2317fb952a001361bdb580daeb0d849754a80d9");
-  assert.equal(plan.configurationCount, 8);
+  assert.equal(plan.sha256, "d33e0025290a7357b2d11b3a579289a05ff9eb01671731caf59fed88e9a6d0e8");
+  assert.equal(plan.configurationCount, 7);
   assert.deepEqual(plan.repeatPolicy, {
     minimumCompletePasses: 1,
     maximumPasses: 3,
     earlyStop: "mathematically_lossless",
   });
-  assert.deepEqual(plan.callBounds, { minimum: 800, maximum: 2400 });
+  assert.deepEqual(plan.callBounds, { minimum: 700, maximum: 2100 });
   assert.deepEqual(plan.configurations.map((entry) => entry.configurationId), [
-    "cg-v1--qwen2.5-coder_7b--secondary--ctx8192--out4096",
-    "cg-v1--qwen2.5-coder_14b--secondary--ctx8192--out4096",
-    "cg-v1--qwen3_14b--secondary--ctx8192--out4096",
     "cg-v1--qwen2.5-coder_7b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
     "cg-v1--qwen2.5-coder_14b--primary--ctx32768--out4096",
     "cg-v1--qwen3_14b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
     "cg-v1--qwen3-coder_30b--dual--ctx65536--out32768",
     "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
   ]);
@@ -74,9 +77,11 @@ test("content-gen matrix plans all eight eligible configurations in resource ord
   }
   assert.deepEqual(profilesByModel.get("qwen3-coder:30b-a3b-q4_K_M"), ["dual"]);
   assert.deepEqual(profilesByModel.get("qwen3-coder:30b"), ["dual"]);
-  assert.deepEqual(profilesByModel.get("qwen3:14b").sort(), ["primary", "secondary"]);
-  assert.deepEqual(profilesByModel.get("qwen2.5-coder:14b").sort(), ["primary", "secondary"]);
-  assert.deepEqual(profilesByModel.get("qwen2.5-coder:7b").sort(), ["primary", "secondary"]);
+  assert.deepEqual(profilesByModel.get("qwen3.5:27b"), ["dual"]);
+  assert.deepEqual(profilesByModel.get("qwen3.5:9b"), ["primary"]);
+  assert.deepEqual(profilesByModel.get("qwen3:14b"), ["primary"]);
+  assert.deepEqual(profilesByModel.get("qwen2.5-coder:14b"), ["primary"]);
+  assert.deepEqual(profilesByModel.get("qwen2.5-coder:7b"), ["primary"]);
 
   const resourceTuples = plan.configurations.map((entry) => [
     entry.resourceOrder.gpuCount,
@@ -111,10 +116,10 @@ test("content-gen dry run exposes the complete offline matrix and exact repeat b
     complex: 25,
     constrained: 25,
   });
-  assert.equal(output.matrix.configurationCount, 8);
+  assert.equal(output.matrix.configurationCount, 7);
   assert.equal(output.runsPerScenario, 3);
-  assert.deepEqual(output.matrix.callBounds, { minimum: 800, maximum: 2400 });
-  assert.equal(output.matrix.configurations.length, 8);
+  assert.deepEqual(output.matrix.callBounds, { minimum: 700, maximum: 2100 });
+  assert.equal(output.matrix.configurations.length, 7);
 });
 
 test("hardware benchmark recommendations prefer score before speed", () => {
